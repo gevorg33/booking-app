@@ -266,6 +266,8 @@ import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from '../ai-checkout-recomme
 import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from '../ai-consumer-adoption.fixtures.js';
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from '../ai-provider-push-setup.fixtures.js';
 import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from '../ai-provider-earnings.fixtures.js';
+import { PROVIDER_EXP_2_PROMPT_SCENARIOS } from '../ai-provider-exp-2.fixtures.js';
+import { PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS } from '../ai-provider-client-context.fixtures.js';
 import { EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS } from '../ai-consumer-checkout-success.fixtures.js';
 import {
   EN_CONSUMER_CHECKOUT_SUCCESS_EVAL_SCENARIOS,
@@ -3127,6 +3129,46 @@ export const AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES: AiCommandEvalCase[] =
     },
   }));
 
+/** Map provider exp-2 prompts (prov-exp-2.4) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES: AiCommandEvalCase[] =
+  PROVIDER_EXP_2_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-exp-2-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...('paramsPartial' in entry && entry.paramsPartial
+        ? { paramsPartial: entry.paramsPartial }
+        : {}),
+    },
+  }));
+
+/** Map provider client context prompts (prov-exp-1.6) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES: AiCommandEvalCase[] =
+  PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-client-context-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...('paramsPartial' in entry && entry.paramsPartial
+        ? { paramsPartial: entry.paramsPartial }
+        : {}),
+    },
+  }));
+
 /** Map consumer app checkout success explain prompts (ai-cmd-rec-6) to eval golden cases. */
 export const AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES: AiCommandEvalCase[] =
   EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS.map((entry) => {
@@ -4013,6 +4055,8 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES,
   ...AI_CMD_DOMAIN_EVAL_CASES,
 ];
 

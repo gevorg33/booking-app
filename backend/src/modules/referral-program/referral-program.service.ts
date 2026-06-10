@@ -6,10 +6,12 @@ import { Business } from '../business/entities/business.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
+import { GiftCardsService } from '../gift-cards/gift-cards.service.js';
 import {
   buildReferralAttributionMetadata,
   buildReferralConversionMetadata,
   buildReferralShareUrl,
+  buildReferrerRewardSummary,
   canSelfRefer,
   deriveReferralCodeFromCustomerId,
   hasReferralConversion,
@@ -17,13 +19,18 @@ import {
   normalizeReferralCode,
   readReferredByCustomerId,
   type ReferralProgramSettings,
+  type ReferrerRewardType,
 } from '../../common/utils/referral-program.util.js';
+import { getBusinessDefaultCurrency } from '../../common/utils/business-currency.util.js';
 
 export interface PublicReferralProgramView {
   referralCode: string;
   shareUrl: string;
   enabled: boolean;
+  referrerRewardType: ReferrerRewardType;
   referrerBonusPoints: number;
+  referrerGiftCardAmount: number;
+  referrerRewardSummary: string;
   refereeBonusPoints: number;
   refereePromoCode: string | null;
   conversionsCount: number;
@@ -33,6 +40,7 @@ export interface ReferralClaimResult {
   attached: boolean;
   referralCode?: string;
   referrerCustomerId?: string;
+  refereePromoCode?: string | null;
   reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
 }
 
@@ -40,7 +48,9 @@ export interface ReferralConversionResult {
   converted: boolean;
   bookingId: string;
   referrerCustomerId?: string;
+  referrerRewardType?: ReferrerRewardType;
   referrerBonusPoints?: number;
+  referrerGiftCardId?: string;
   refereeBonusPoints?: number;
   reason?: string;
 }
@@ -54,6 +64,7 @@ export class ReferralProgramService {
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     private loyaltyService: LoyaltyService,
+    private giftCardsService: GiftCardsService,
     private configService: ConfigService,
   ) {}
 
@@ -75,7 +86,10 @@ export class ReferralProgramService {
       referralCode,
       shareUrl: buildReferralShareUrl(frontendUrl, business.slug, referralCode),
       enabled: settings.enabled,
+      referrerRewardType: settings.referrerRewardType,
       referrerBonusPoints: settings.referrerBonusPoints,
+      referrerGiftCardAmount: settings.referrerGiftCardAmount,
+      referrerRewardSummary: buildReferrerRewardSummary(settings, business.settings),
       refereeBonusPoints: settings.refereeBonusPoints,
       refereePromoCode: settings.refereePromoCode,
       conversionsCount,
@@ -126,7 +140,12 @@ export class ReferralProgramService {
     };
     await this.customerRepo.save(referee);
 
-    return { attached: true, referralCode, referrerCustomerId };
+    return {
+      attached: true,
+      referralCode,
+      referrerCustomerId,
+      refereePromoCode: settings.refereePromoCode,
+    };
   }
 
   async processBookingCompleted(bookingId: string): Promise<ReferralConversionResult> {
@@ -166,7 +185,13 @@ export class ReferralProgramService {
     }
 
     const refereeBonus = settings.refereeBonusPoints;
-    const referrerBonus = settings.referrerBonusPoints;
+    const referrerReward = await this.issueReferrerReward(
+      booking.businessId,
+      referrerCustomerId,
+      booking.id,
+      settings,
+      booking.business?.settings,
+    );
 
     if (refereeBonus > 0) {
       await this.loyaltyService.awardFlatBonus(
@@ -174,15 +199,6 @@ export class ReferralProgramService {
         booking.customerId,
         refereeBonus,
         `Referral welcome bonus (${booking.id})`,
-      );
-    }
-
-    if (referrerBonus > 0) {
-      await this.loyaltyService.awardFlatBonus(
-        booking.businessId,
-        referrerCustomerId,
-        referrerBonus,
-        `Referral bonus for friend ${booking.customerId} (${booking.id})`,
       );
     }
 
@@ -200,9 +216,50 @@ export class ReferralProgramService {
       converted: true,
       bookingId,
       referrerCustomerId,
-      referrerBonusPoints: referrerBonus,
+      referrerRewardType: referrerReward?.type,
+      referrerBonusPoints:
+        referrerReward?.type === 'loyalty_points' ? referrerReward.loyaltyPoints : undefined,
+      referrerGiftCardId:
+        referrerReward?.type === 'gift_card' ? referrerReward.giftCardId : undefined,
       refereeBonusPoints: refereeBonus,
     };
+  }
+
+  private async issueReferrerReward(
+    businessId: string,
+    referrerCustomerId: string,
+    bookingId: string,
+    settings: ReferralProgramSettings,
+    businessSettings?: Record<string, unknown> | null,
+  ): Promise<
+    | { type: 'loyalty_points'; loyaltyPoints: number }
+    | { type: 'gift_card'; giftCardId: string }
+    | null
+  > {
+    if (settings.referrerRewardType === 'gift_card') {
+      const amount = settings.referrerGiftCardAmount;
+      if (amount <= 0) return null;
+      const currency = getBusinessDefaultCurrency(businessSettings);
+      const card = await this.giftCardsService.create(businessId, {
+        amount,
+        currency,
+        purchaserCustomerId: referrerCustomerId,
+      });
+      this.logger.log(
+        `Referral gift card issued card=${card.id} referrer=${referrerCustomerId} booking=${bookingId}`,
+      );
+      return { type: 'gift_card', giftCardId: card.id };
+    }
+
+    const points = settings.referrerBonusPoints;
+    if (points <= 0) return null;
+    await this.loyaltyService.awardFlatBonus(
+      businessId,
+      referrerCustomerId,
+      points,
+      `Referral bonus for friend (${bookingId})`,
+    );
+    return { type: 'loyalty_points', loyaltyPoints: points };
   }
 
   private async resolveReferrerCustomerId(

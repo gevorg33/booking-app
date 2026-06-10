@@ -1,4 +1,5 @@
 import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js';
+import { CATALOG_NOTIFY_DASHBOARD_SCENARIOS } from './ai-catalog-notify.fixtures.js';
 import {
   isExplainTourDaySlotsPrompt,
   isTourDaySlotsIntent,
@@ -81,5 +82,14 @@ describe('ai-tour-day-slots.util', () => {
   it('recognizes tour day slots intent id', () => {
     expect(isTourDaySlotsIntent('explain_tour_day_slots')).toBe(true);
     expect(isTourDaySlotsIntent('explain_tour_booking')).toBe(false);
+  });
+
+  it.each(
+    CATALOG_NOTIFY_DASHBOARD_SCENARIOS.filter((s) =>
+      /[\u0530-\u058F]/.test(s.prompt),
+    ).map((s) => [s.id, s.prompt] as const),
+  )('does not steal catalog-notify mutate prompt %s', (_id, prompt) => {
+    expect(isExplainTourDaySlotsPrompt(prompt)).toBe(false);
+    expect(rescueTourDaySlotsIntent(prompt, 'unknown')).toBeNull();
   });
 });

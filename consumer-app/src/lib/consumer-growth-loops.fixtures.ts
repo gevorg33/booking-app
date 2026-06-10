@@ -25,7 +25,7 @@ export const SHARE_SALON_SCENARIOS = [
     slug: 'demo-salon',
     businessName: 'Demo Salon',
     expectUrlContains: '/book/demo-salon',
-    expectQueryContains: 'src=link',
+    expectQueryContains: 'src=share',
   },
   {
     id: 'with-service',

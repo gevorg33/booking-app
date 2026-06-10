@@ -10,18 +10,23 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay, formatTimeDisplay, getTodayDateKey } from '../lib/date-format';
-import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
+import { formatBookingBlockHeadline } from '../lib/booking-types';
 import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { ProviderCalendarMonth } from '../components/ProviderCalendarMonth';
-import { groupBookingCountsByDate, fetchProviderBookingsByDate } from '../lib/provider-profile';
+import { fetchProviderBookingsByDate } from '../lib/provider-profile';
+import {
+  fetchProviderCalendarMonth,
+  mapCalendarMonthDaysByDate,
+} from '../lib/provider-calendar-month';
 import { monthKeyFromDateKey } from '../lib/date-picker-calendar.util';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { useProviderOpenShiftsEnabled } from '../lib/use-provider-open-shifts-enabled';
+import { ProviderCalendarGapsPanel } from '../components/ProviderCalendarGapsPanel';
 
 export default function CalendarPage() {
   const { t } = useI18n();
@@ -31,10 +36,18 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateKey());
   const [monthKey, setMonthKey] = useState(monthKeyFromDateKey(getTodayDateKey()));
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const showOpenShifts = useProviderOpenShiftsEnabled();
+
+  const dispatchFillGapPrompt = useCallback((prompt: string) => {
+    window.dispatchEvent(
+      new CustomEvent('provider:ai-prompt', { detail: { prompt } }),
+    );
+  }, []);
 
   const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['provider-upcoming', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-calendar-month', business?.id] });
     void queryClient.invalidateQueries({ queryKey: ['provider-calendar-day', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-schedule-gaps', business?.id] });
     void queryClient.invalidateQueries({ queryKey: ['provider-booking'] });
   }, [business?.id, queryClient]);
 
@@ -42,23 +55,18 @@ export default function CalendarPage() {
     if (type.startsWith('booking.')) refresh();
   });
 
-  const { data: upcoming } = useQuery({
-    queryKey: ['provider-upcoming', business?.id, 'calendar'],
-    queryFn: async () => {
-      const { data: res } = await api.get(
-        `/businesses/${business!.id}/provider/bookings/upcoming?days=62`,
-      );
-      return unwrap<{ viewMode?: 'provider' | 'admin'; bookings: BookingSummary[] }>(res);
-    },
-    enabled: !!business?.id,
+  const { data: monthSummary, isLoading: isMonthLoading } = useQuery({
+    queryKey: ['provider-calendar-month', business?.id, monthKey],
+    queryFn: () => fetchProviderCalendarMonth(business!.id, monthKey),
+    enabled: !!business?.id && !!monthKey,
   });
 
-  const appointmentCountsByDate = useMemo(
-    () => groupBookingCountsByDate(upcoming?.bookings ?? []),
-    [upcoming?.bookings],
+  const daySummariesByDate = useMemo(
+    () => mapCalendarMonthDaysByDate(monthSummary?.days ?? []),
+    [monthSummary?.days],
   );
 
-  const { data: dayBookings, isLoading } = useQuery({
+  const { data: dayBookings, isLoading: isDayLoading } = useQuery({
     queryKey: ['provider-calendar-day', business?.id, selectedDate],
     queryFn: () => fetchProviderBookingsByDate(business!.id, selectedDate),
     enabled: !!business?.id && !!selectedDate,
@@ -74,13 +82,20 @@ export default function CalendarPage() {
       <IonContent className="ion-padding">
         <IonCard>
           <IonCardContent>
-            <ProviderCalendarMonth
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              monthKey={monthKey}
-              onMonthKeyChange={setMonthKey}
-              appointmentCountsByDate={appointmentCountsByDate}
-            />
+            {isMonthLoading ? (
+              <div className="empty-state">
+                <IonSpinner />
+                <p className="booking-meta">{t('provider.calendarMonthLoading')}</p>
+              </div>
+            ) : (
+              <ProviderCalendarMonth
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                monthKey={monthKey}
+                onMonthKeyChange={setMonthKey}
+                daySummariesByDate={daySummariesByDate}
+              />
+            )}
           </IonCardContent>
         </IonCard>
 
@@ -89,7 +104,15 @@ export default function CalendarPage() {
         </h2>
         <p className="booking-meta">{t('provider.calendarSelectDay')}</p>
 
-        {isLoading ? (
+        {showOpenShifts && business?.id ? (
+          <ProviderCalendarGapsPanel
+            businessId={business.id}
+            selectedDate={selectedDate}
+            onFillGap={dispatchFillGapPrompt}
+          />
+        ) : null}
+
+        {isDayLoading ? (
           <div className="empty-state">
             <IonSpinner />
           </div>

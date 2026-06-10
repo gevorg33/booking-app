@@ -37,6 +37,7 @@
     "test:sprint18": "vitest run --config vitest.sprint18.config.ts --coverage",
     "test:dashboard-surfaces": "vitest run --config vitest.dashboard-surfaces.config.ts --coverage",
     "test:date-format": "vitest run src/lib/date-format.spec.ts",
+    "test:referral-program-settings": "vitest run src/lib/referral-program-settings.util.spec.ts",
     "sync:firebase": "bash scripts/sync-firebase-from-provider.sh",
     "native:note": "echo 'Native iOS/Android: use ../provider-app (Ionic React). Capacitor in frontend/ is deprecated.'"
   },

@@ -45,6 +45,7 @@ import { formatBookingDateTimeRange } from '@/lib/date-format';
 import { shouldShowPatientResultsTab } from '@/lib/clinic-service';
 import { useI18n } from '@/i18n';
 import { confirmDialog } from '@/lib/app-dialog';
+import { PublicAccountGrowthSection } from '@/components/public-booking/public-account-growth-section';
 
 function bookingStatusLabel(status: string, t: (key: string) => string) {
   switch (status) {
@@ -429,6 +430,12 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
               </div>
               {privacyMessage && <p className="text-xs text-gray-500">{privacyMessage}</p>}
             </div>
+
+            <PublicAccountGrowthSection
+              slug={tenant.slug}
+              tenant={tenant}
+              customerId={customer.id}
+            />
 
             {loyalty && loyalty.pointsBalance > 0 && (
               <div className="mt-4 bg-white rounded-2xl border border-gray-100 px-5 py-4">

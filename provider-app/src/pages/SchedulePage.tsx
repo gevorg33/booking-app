@@ -23,7 +23,13 @@ import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
 import BookingDetailModal from '../components/BookingDetailModal';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
+import ProviderScheduleBlockForm from '../components/ProviderScheduleBlockForm';
+import ProviderScheduleTimeOffForm from '../components/ProviderScheduleTimeOffForm';
+import ProviderScheduleTimeOffList from '../components/ProviderScheduleTimeOffList';
 import { useOperationalEvents } from '../lib/use-operational-events';
+import { useProviderSelfBlockFormVisible } from '../lib/use-provider-self-block-enabled';
+import { useProviderTimeOffFormVisible } from '../lib/use-provider-time-off-enabled';
+import type { ProviderTimeOffRequestSummary } from '../lib/provider-time-off.util';
 import { useI18n } from '../i18n';
 
 export default function SchedulePage() {
@@ -62,7 +68,10 @@ export default function SchedulePage() {
     queryKey: ['provider-schedule-summary', business?.id],
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${business!.id}/provider/schedule/summary?days=14`);
-      return unwrap<{ days: Array<{ date: string; available: number; booked: number }> }>(res);
+      return unwrap<{
+        days: Array<{ date: string; available: number; booked: number }>;
+        timeOffRequests?: ProviderTimeOffRequestSummary[];
+      }>(res);
     },
     enabled: !!business?.id,
   });
@@ -79,6 +88,8 @@ export default function SchedulePage() {
   const isLoading = loadingSummary || loadingUpcoming;
 
   const isManagerView = isMobileManagerRole(business?.membershipRole);
+  const showSelfBlockForm = useProviderSelfBlockFormVisible();
+  const showTimeOffForm = useProviderTimeOffFormVisible();
 
   return (
     <IonPage>
@@ -100,6 +111,25 @@ export default function SchedulePage() {
                 );
               }}
             />
+            {showSelfBlockForm ? (
+              <ProviderScheduleBlockForm
+                businessId={business.id}
+                onBlocked={refreshBookings}
+              />
+            ) : null}
+            {showTimeOffForm ? (
+              <ProviderScheduleTimeOffForm
+                businessId={business.id}
+                onSubmitted={refreshBookings}
+              />
+            ) : null}
+            {showTimeOffForm ? (
+              <ProviderScheduleTimeOffList
+                businessId={business.id}
+                requests={summary?.timeOffRequests ?? []}
+                loading={loadingSummary}
+              />
+            ) : null}
           </>
         )}
 

@@ -34,5 +34,5 @@ trap 'kill ${BACKEND_PID:-} 2>/dev/null; exit 0' EXIT INT TERM
 run_backend "0.0.0.0" "$CORS" &
 BACKEND_PID=$!
 
-wait_for_url "http://localhost:${BACKEND_PORT}" "Backend" 60
+wait_for_port "$BACKEND_PORT" "Backend" 60
 wait

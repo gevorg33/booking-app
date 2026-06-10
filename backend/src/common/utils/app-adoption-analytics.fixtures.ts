@@ -17,6 +17,7 @@ export const APP_ADOPTION_EVENTS = [
   'referral_converted',
   'salon_shared',
   'booking_shared',
+  'share_reward_claimed',
   'review_prompt_shown',
   'tenant_review_submitted',
   'store_review_opened',
@@ -36,6 +37,7 @@ export const APP_ADOPTION_EVENTS = [
   'post_booking_sign_in_skipped',
   'activation_payment_fallback',
   'app_interactive',
+  'staff_contacted_customer',
 ] as const satisfies readonly AppAdoptionEventName[];
 
 export const APP_ADOPTION_FUNNEL_STEPS = [
@@ -96,6 +98,8 @@ export const APP_EVENT_PROP_ALLOWLIST = new Set([
   'signInPlacement',
   'slotPreselection',
   'paymentTiming',
+  'contactChannel',
+  'templateId',
 ]);
 
 export interface AppAdoptionFixtureRow {

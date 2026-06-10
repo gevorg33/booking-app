@@ -366,6 +366,38 @@ describe('ai-catalog.logic', () => {
       expect(percentDefaultType.success).toBe(true);
     });
 
+    it('passes notify payload when notifyCustomers is true', async () => {
+      const deps = buildDeps();
+      deps.businessRepo.findOne = jest.fn().mockResolvedValue({
+        id: 'biz-1',
+        settings: { enabledLocales: ['en', 'hy'], defaultLocale: 'en' },
+      });
+      const result = await handleCreatePackageLogic(
+        deps,
+        'biz-1',
+        {
+          packageName: 'Spa Day',
+          serviceNames: ['Massage'],
+          notifyCustomers: true,
+        },
+        services,
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('announcement');
+      expect(deps.packagesService.createPackage).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({
+          notifyCustomers: true,
+          notificationTemplate: expect.objectContaining({
+            en: expect.objectContaining({ subject: expect.any(String) }),
+            hy: expect.objectContaining({ subject: expect.any(String) }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('package update/deactivate', () => {
     it('update, deactivate, and duplicate packages', async () => {
       expect(
         (await handleUpdatePackageLogic(buildDeps(), 'biz-1', {})).success,

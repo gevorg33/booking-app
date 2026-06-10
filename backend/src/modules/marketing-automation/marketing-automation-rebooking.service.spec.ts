@@ -124,6 +124,54 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
     });
   });
 
+  it('uses persisted learned cadence from customer metadata without recomputing', async () => {
+    const lastEnd = new Date();
+    lastEnd.setDate(lastEnd.getDate() - 21);
+
+    bookingRepo.createQueryBuilder.mockReturnValue({
+      innerJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([
+        {
+          customerId: 'cust-1',
+          customerName: 'Jane',
+          customerEmail: 'jane@example.com',
+          customerPhone: null,
+          customerMetadata: {
+            gdpr: { marketingOptIn: true },
+            learnedRebookingCadenceByService: { 'svc-1': 21 },
+          },
+          serviceId: 'svc-1',
+          serviceName: 'Haircut',
+          serviceMetadata: { rebookingCadenceDays: 28 },
+          lastEnd,
+        },
+      ]),
+    });
+    bookingRepo.findOne.mockResolvedValue({
+      id: 'bk-last',
+      startTime: new Date('2026-05-01T14:00:00.000Z'),
+      employeeId: 'emp-1',
+    });
+
+    const candidates = await service.findRebookingNudgeCandidates('biz-1', {
+      ...DEFAULT_MARKETING_AUTOMATION_SETTINGS,
+      rebookingNudgeEnabled: true,
+      defaultRebookingCadenceDays: 28,
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.cadenceDays).toBe(21);
+    expect(
+      customerRebookingCadenceService.computeLearnedCadenceDays,
+    ).not.toHaveBeenCalled();
+  });
+
   it('uses learned customer cadence instead of service default when history exists', async () => {
     const lastEnd = new Date();
     lastEnd.setDate(lastEnd.getDate() - 21);

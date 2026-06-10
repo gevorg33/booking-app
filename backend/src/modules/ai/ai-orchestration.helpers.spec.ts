@@ -12,6 +12,7 @@ import {
   extractServiceTypeKeywordFromListPrompt,
   matchServicesByQuery,
   resolveServicesFromCatalogParams,
+  resolvePublicAssistantSessionServiceFields,
   extractRecommendServicesFromPrompt,
   stripServiceRoleNoise,
 } from './ai-orchestration.helpers.js';
@@ -224,6 +225,40 @@ describe('enrichListServicesParamsFromPrompt', () => {
         serviceCategory: 'hair',
       }),
     ).toEqual({ serviceCategory: 'hair' });
+  });
+});
+
+describe('resolvePublicAssistantSessionServiceFields', () => {
+  const catalog = [
+    { id: '6', name: 'hairstyle' },
+    { id: '5', name: 'Swedish massage' },
+  ];
+
+  it('persists canonical catalog service names', () => {
+    expect(
+      resolvePublicAssistantSessionServiceFields(
+        { serviceName: 'hairstyle' },
+        catalog,
+      ),
+    ).toEqual({ serviceName: 'hairstyle', serviceCategory: null });
+  });
+
+  it('clears unknown service names so they do not poison the next turn', () => {
+    expect(
+      resolvePublicAssistantSessionServiceFields(
+        { serviceName: 'haircut' },
+        catalog,
+      ),
+    ).toEqual({ serviceName: null, serviceCategory: null });
+  });
+
+  it('keeps valid serviceCategory filters', () => {
+    expect(
+      resolvePublicAssistantSessionServiceFields(
+        { serviceCategory: 'massage' },
+        catalog,
+      ),
+    ).toEqual({ serviceName: null, serviceCategory: 'massage' });
   });
 });
 

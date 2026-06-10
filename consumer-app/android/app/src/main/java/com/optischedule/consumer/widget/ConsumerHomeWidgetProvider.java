@@ -32,7 +32,7 @@ public class ConsumerHomeWidgetProvider extends AppWidgetProvider {
             }
 
             JSONObject snapshot = new JSONObject(rawJson);
-            String businessName = snapshot.optString("businessName", "OptiSchedule");
+            String businessName = snapshot.optString("businessName", "OptiSchedule Book");
             views.setTextViewText(R.id.widget_business_name, businessName);
 
             boolean authed = snapshot.optBoolean("authed", false);
@@ -89,9 +89,9 @@ public class ConsumerHomeWidgetProvider extends AppWidgetProvider {
     }
 
     private static void bindEmpty(RemoteViews views, Context context, String url) {
-        views.setTextViewText(R.id.widget_business_name, "OptiSchedule");
+        views.setTextViewText(R.id.widget_business_name, "OptiSchedule Book");
         views.setViewVisibility(R.id.widget_next_block, View.VISIBLE);
-        views.setTextViewText(R.id.widget_next_title, "Open OptiSchedule");
+        views.setTextViewText(R.id.widget_next_title, "Open OptiSchedule Book");
         views.setTextViewText(R.id.widget_next_service, "Sign in to see appointments");
         views.setTextViewText(R.id.widget_next_subtitle, "");
         views.setViewVisibility(R.id.widget_rebook_block, View.GONE);

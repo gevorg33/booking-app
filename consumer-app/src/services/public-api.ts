@@ -5,12 +5,17 @@ import type {
   PublicBusinessProfile,
   PublicCustomerBookingItem,
   PublicCustomerProfile,
+  PublicReferralProgram,
+  PublicShareRewardsView,
+  ReferralClaimResponse,
+  ShareRewardClaimResponse,
   PublicCustomerSubscription,
   PackageVisitRescheduleLine,
   PublicProvider,
   PublicProviderReview,
   PublicRecommendationProduct,
   PublicService,
+  PublicServiceSlotProvider,
   PublicCheckoutQuote,
   PublicServiceDaySlots,
   PublicSlot,
@@ -23,6 +28,7 @@ import type { PublicClinicLabBookingRequest } from '../lib/public-clinic-lab-boo
 import { normalizePublicClinicLabBookingRequestsPayload } from '../lib/public-clinic-lab-booking-requests.js';
 import type { PublicServicePackage } from '../lib/package-booking.js';
 import { buildCheckoutRecommendationsPath } from '../lib/checkout-recommendations.js';
+import type { MobileAppConfigView } from '../lib/app-version-gate.util.js';
 import { getPublicApiBaseUrl } from './api-base.js';
 
 const http = axios.create({
@@ -126,15 +132,108 @@ export async function fetchServiceDaySlots(
   };
 }
 
+export async function fetchServiceSlotProviders(
+  slug: string,
+  serviceId: string,
+  startTime: string,
+): Promise<PublicServiceSlotProvider[]> {
+  const { data } = await http.get(
+    `/public/${slug}/services/${serviceId}/providers?startTime=${encodeURIComponent(startTime)}`,
+  );
+  const body = unwrap<{ providers: PublicServiceSlotProvider[] }>(data);
+  return body.providers ?? [];
+}
+
 /** @deprecated Use fetchServiceDaySlots */
 export const fetchServiceSlots = fetchServiceDaySlots;
 
 export async function loginWithGoogle(
   slug: string,
   idToken: string,
+  options?: { preferredLocale?: string; analyticsAnonId?: string },
 ): Promise<{ token: string; customer: PublicCustomerProfile }> {
-  const { data } = await http.post(`/public/${slug}/auth/google`, { idToken });
+  const { data } = await http.post(`/public/${slug}/auth/google`, {
+    idToken,
+    preferredLocale: options?.preferredLocale,
+    analyticsAnonId: options?.analyticsAnonId,
+  });
   return unwrap<{ token: string; customer: PublicCustomerProfile }>(data);
+}
+
+export async function fetchMyReferralProgram(slug: string): Promise<PublicReferralProgram> {
+  const { data } = await http.get(`/public/${slug}/me/referral`, publicConfig(slug));
+  return unwrap<PublicReferralProgram>(data);
+}
+
+export async function claimReferralCode(
+  slug: string,
+  referralCode: string,
+): Promise<ReferralClaimResponse> {
+  const { data } = await http.post(
+    `/public/${slug}/me/referral/claim`,
+    { referralCode },
+    publicConfig(slug),
+  );
+  return unwrap<ReferralClaimResponse>(data);
+}
+
+export async function fetchMyShareRewards(slug: string): Promise<PublicShareRewardsView> {
+  const { data } = await http.get(`/public/${slug}/me/share-rewards`, publicConfig(slug));
+  return unwrap<PublicShareRewardsView>(data);
+}
+
+export async function claimShareReward(
+  slug: string,
+  channel: 'salon' | 'booking',
+  bookingId?: string,
+): Promise<ShareRewardClaimResponse> {
+  const { data } = await http.post(
+    `/public/${slug}/me/share-rewards/claim`,
+    { channel, bookingId },
+    publicConfig(slug),
+  );
+  return unwrap<ShareRewardClaimResponse>(data);
+}
+
+export async function fetchMyPreferredLocale(
+  slug: string,
+): Promise<{ preferredLocale: string; storedLocale: string | null }> {
+  const { data } = await http.get(`/public/${slug}/me/locale`, publicConfig(slug));
+  return unwrap(data);
+}
+
+export async function updateMyPreferredLocale(
+  slug: string,
+  preferredLocale: string,
+): Promise<{ preferredLocale: string; storedLocale: string | null }> {
+  const { data } = await http.patch(
+    `/public/${slug}/me/locale`,
+    { preferredLocale },
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function fetchMyNotificationPreferences(
+  slug: string,
+): Promise<import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferences> {
+  const { data } = await http.get(
+    `/public/${slug}/me/notification-preferences`,
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function updateMyNotificationPreferences(
+  slug: string,
+  patch: import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferencesPatch,
+): Promise<import('../lib/consumer-notification-preferences.util.js').ConsumerNotificationPreferences> {
+  const { data } = await http.patch(
+    `/public/${slug}/me/notification-preferences`,
+    patch,
+    publicConfig(slug),
+  );
+  return unwrap(data);
 }
 
 export async function fetchMyBookings(slug: string): Promise<PublicCustomerBookingItem[]> {
@@ -489,7 +588,7 @@ export async function createBooking(
   slug: string,
   body: {
     serviceId: string;
-    employeeId: string;
+    employeeId?: string;
     startTime: string;
     preVisitIntakeId?: string;
     referralNotes?: string;
@@ -583,7 +682,7 @@ export async function createPublicBookingCheckout(
   slug: string,
   body: {
     serviceId: string;
-    employeeId: string;
+    employeeId?: string;
     startTime: string;
     preVisitIntakeId?: string;
     clinicOrderToken?: string;
@@ -839,13 +938,28 @@ export async function registerConsumerNativePush(
   slug: string,
   token: string,
   platform: string,
-): Promise<{ registered: boolean; platform: 'ios' | 'android' }> {
+  analyticsAnonId?: string,
+  permissionState?: 'full' | 'provisional' | 'default_on',
+): Promise<{ registered: boolean; platform: 'ios' | 'android'; refreshed?: boolean }> {
   const { data } = await http.post(
     `/public/${slug}/me/push/register-native`,
-    { token, platform },
+    { token, platform, analyticsAnonId, permissionState },
     publicConfig(slug),
   );
-  return unwrap<{ registered: boolean; platform: 'ios' | 'android' }>(data);
+  return unwrap<{ registered: boolean; platform: 'ios' | 'android'; refreshed?: boolean }>(data);
+}
+
+export async function ackConsumerPushDelivery(
+  slug: string,
+  deliveryId: string,
+  platform: 'ios' | 'android',
+): Promise<{ acked: boolean }> {
+  const { data } = await http.post(
+    `/public/${slug}/me/push/delivery-ack`,
+    { deliveryId, platform },
+    publicConfig(slug),
+  );
+  return unwrap<{ acked: boolean }>(data);
 }
 
 export async function fetchConsumerNativePushStatus(
@@ -857,4 +971,56 @@ export async function fetchConsumerNativePushStatus(
     params: { platform },
   });
   return unwrap<{ registered: boolean; platform: 'ios' | 'android' | null }>(data);
+}
+
+export async function submitCustomerReview(
+  slug: string,
+  bookingId: string,
+  body: { rating: number; comment?: string },
+): Promise<{ id: string; rating: number }> {
+  const { data } = await http.post(
+    `/public/${slug}/me/bookings/${bookingId}/review`,
+    body,
+    publicConfig(slug),
+  );
+  return unwrap<{ id: string; rating: number }>(data);
+}
+
+export async function createPostBookingSupportTicket(
+  slug: string,
+  token: string,
+  body: { bookingId: string; message?: string },
+): Promise<{ ticketId: number; agentUrl?: string }> {
+  const { data } = await http.post(`/public/${slug}/me/support/ticket`, body, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap<{ ticketId: number; agentUrl?: string }>(data);
+}
+
+export async function fetchMobileAppConfig(input: {
+  surface: 'consumer_app' | 'provider_app';
+  platform: 'ios' | 'android' | 'web';
+  version?: string;
+}): Promise<MobileAppConfigView> {
+  const params = new URLSearchParams({
+    surface: input.surface,
+    platform: input.platform,
+  });
+  if (input.version?.trim()) params.set('version', input.version.trim());
+  const { data } = await http.get(`/mobile-app/config?${params.toString()}`);
+  return unwrap<MobileAppConfigView>(data);
+}
+
+export interface AppAnalyticsIngestBody {
+  businessId?: string;
+  tenantSlug?: string;
+  consentGranted: boolean;
+  events: Array<Record<string, unknown>>;
+}
+
+export async function recordAppAnalyticsEvents(
+  body: AppAnalyticsIngestBody,
+): Promise<{ recorded: number; skipped: number }> {
+  const { data } = await http.post('/events/app', body);
+  return unwrap<{ recorded: number; skipped: number }>(data);
 }

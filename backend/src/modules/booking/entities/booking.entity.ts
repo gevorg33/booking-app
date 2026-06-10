@@ -106,6 +106,10 @@ export class Booking {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, any>;
 
+  /** prov-exp-3.1 — provider/staff client check-in on arrival. */
+  @Column({ name: 'checked_in_at', type: 'timestamptz', nullable: true })
+  checkedInAt: Date | null;
+
   /** When true, appointment stays in DB but is omitted from schedule calendar views. */
   @Column({ name: 'hidden_from_calendar', default: false })
   hiddenFromCalendar: boolean;

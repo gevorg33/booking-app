@@ -25,6 +25,9 @@ describe('PushService', () => {
     isReady: false,
     messaging: jest.fn(),
   };
+  const pushHistory = {
+    recordDelivery: jest.fn().mockResolvedValue(undefined),
+  };
 
   function buildService(vapid?: { public: string; private: string }) {
     const config = {
@@ -40,6 +43,7 @@ describe('PushService', () => {
       nativeTokenRepo as any,
       config as unknown as ConfigService,
       firebase as any,
+      pushHistory as any,
     );
   }
 
@@ -135,6 +139,14 @@ describe('PushService', () => {
     });
     expect(sent).toBe(1);
     expect(subRepo.delete).toHaveBeenCalledWith({ id: 'sub-2' });
+    expect(pushHistory.recordDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        businessId: 'biz-1',
+        title: 'Hi',
+        body: 'Test',
+      }),
+    );
   });
 
   it('sends FCM when Firebase is ready', async () => {

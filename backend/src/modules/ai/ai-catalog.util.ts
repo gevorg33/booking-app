@@ -1,4 +1,8 @@
 import { PackageDiscountType } from '../service-packages/entities/service-package.entity.js';
+import {
+  isCatalogNotifyCustomersPrompt,
+  isCatalogNotifyExplicitSkipPrompt,
+} from './ai-catalog-notify.util.js';
 
 export const CATALOG_MUTATE_INTENTS = [
   'create_service_category',
@@ -100,14 +104,25 @@ export function isDeactivateServicePrompt(prompt: string): boolean {
 }
 
 export function isCreatePackagePrompt(prompt: string): boolean {
+  if (/\b(booking|visit|appointment)\b/i.test(prompt)) return false;
   return (
-    /\b(create|add)\s+(?:the\s+)?[\w\s]+\s+package\b/i.test(prompt) &&
-    !/\b(booking|visit|appointment)\b/i.test(prompt)
+    /\b(create|add)\s+(?:the\s+)?[\w\s«»]+\s+package\b/i.test(prompt) ||
+    (/(ստեղծ|ավելաց)/i.test(prompt) && /(փաթեթ|package)/i.test(prompt)) ||
+    (/(создай|создать|добав)/i.test(prompt) && /(пакет|package)/i.test(prompt))
   );
 }
 
 export function isUpdatePackagePrompt(prompt: string): boolean {
-  return /\b(update|change|edit)\s+(the\s+)?\w*\s*package\b/i.test(prompt);
+  if (/\b(update|change|edit)\s+(the\s+)?\w*\s*package\b/i.test(prompt)) {
+    return true;
+  }
+  if (/(թարմաց|փոխ)\w*/i.test(prompt) && /(փաթեթ|package)/i.test(prompt)) {
+    return true;
+  }
+  if (/(обнов|измен)\w*/i.test(prompt) && /(пакет|package)/i.test(prompt)) {
+    return true;
+  }
+  return false;
 }
 
 export function isDeactivatePackagePrompt(prompt: string): boolean {
@@ -136,13 +151,54 @@ export function isCreateSubscriptionPlanPrompt(prompt: string): boolean {
         /\bvisits?\b/i.test(prompt) ||
         /\b(subscription|membership)\b/i.test(prompt))) ||
     (/\b(subscription|membership)\s+plan\b/i.test(prompt) &&
-      /\b(create|add)\b/i.test(prompt))
+      /\b(create|add)\b/i.test(prompt)) ||
+    (/(ավելաց|ստեղծ)/i.test(prompt) &&
+      /\bplan\b/i.test(prompt) &&
+      (/\b\d+[\s-]?(?:month|mo)\b/i.test(prompt) ||
+        /\bvisits?\b/i.test(prompt) ||
+        /(ամիս|այց)/i.test(prompt))) ||
+    (/(добав|создай|создать)/i.test(prompt) &&
+      /\bplan\b/i.test(prompt) &&
+      (/\b\d+[\s-]?(?:month|mo|месяц)/i.test(prompt) ||
+        /\bvisits?\b/i.test(prompt) ||
+        /(визит|месяц)/i.test(prompt)))
   );
 }
 
 export function isUpdateSubscriptionPlanPrompt(prompt: string): boolean {
-  return /\b(update|change|edit)\s+(the\s+)?\w*\s*(subscription|membership)\s+plan\b/i.test(
-    prompt,
+  if (/\b(assign|give|enroll)\b/i.test(prompt)) return false;
+  if (
+    /\b(update|change|edit)\s+(the\s+)?\w*\s*(subscription|membership)\s+plan\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(update|change|edit)\s+(the\s+)?[\w\s-]*\b(subscription|membership)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    (/(թարմաց|փոխ)\w*/i.test(prompt) || /(обнов|измен)\w*/i.test(prompt)) &&
+    (/\b(membership|subscription|plan|club)\b/i.test(prompt) ||
+      /(անդամակցություն|բաժանորդ)/i.test(prompt) ||
+      /(абонемент|подписк)/i.test(prompt))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Catalog package/plan create or update — exclude from unrelated READ rescues. */
+export function isCatalogMutateCommandPrompt(prompt: string): boolean {
+  return (
+    isCreatePackagePrompt(prompt) ||
+    isUpdatePackagePrompt(prompt) ||
+    isCreateSubscriptionPlanPrompt(prompt) ||
+    isUpdateSubscriptionPlanPrompt(prompt)
   );
 }
 
@@ -531,6 +587,38 @@ export function extractMultiServiceLimits(prompt: string): {
   };
 }
 
+function catalogNotifyParamsFromPrompt(text: string): Record<string, unknown> {
+  if (isCatalogNotifyExplicitSkipPrompt(text)) {
+    return { notifyCustomers: false };
+  }
+  if (isCatalogNotifyCustomersPrompt(text)) {
+    return { notifyCustomers: true };
+  }
+  return {};
+}
+
+function extractPackageNameFromUpdatePrompt(text: string): string | undefined {
+  return (
+    text
+      .match(
+        /\b(?:update|change|edit)\s+(?:the\s+)?([A-Za-z][\w\s]+?)\s+package\b/i,
+      )?.[1]
+      ?.trim() ??
+    text.match(/(?:обнов|измен)\w*\s+(?:the\s+)?(?:пакет\s+)?([A-Za-z][\w\s]+)/i)?.[1]
+      ?.trim()
+  );
+}
+
+function extractPlanNameFromUpdatePrompt(text: string): string | undefined {
+  return (
+    text
+      .match(
+        /\b(?:update|change|edit)\s+(?:the\s+)?([A-Za-z][\w\s-]+?)\s+(?:subscription\s+)?(?:membership|plan)\b/i,
+      )?.[1]
+      ?.trim() ?? text.match(/\b([A-Za-z][\w\s-]+?)\s+membership\b/i)?.[1]?.trim()
+  );
+}
+
 function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
   const text = segment.trim();
 
@@ -569,6 +657,7 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
         serviceNames: extractPackageServiceNames(text),
         ...extractDiscountFromPrompt(text),
         expiresAt: extractExpiresAtFromPrompt(text),
+        ...catalogNotifyParamsFromPrompt(text),
       },
       segment: text,
     };
@@ -585,6 +674,29 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
         includedAppointments: visits ? parseInt(visits[1], 10) : undefined,
         serviceName: service?.[1]?.trim(),
         ...extractDiscountFromPrompt(text),
+        ...catalogNotifyParamsFromPrompt(text),
+      },
+      segment: text,
+    };
+  }
+  if (isUpdatePackagePrompt(text)) {
+    return {
+      action: 'update_package',
+      params: {
+        packageName: extractPackageNameFromUpdatePrompt(text),
+        ...extractDiscountFromPrompt(text),
+        ...catalogNotifyParamsFromPrompt(text),
+      },
+      segment: text,
+    };
+  }
+  if (isUpdateSubscriptionPlanPrompt(text)) {
+    return {
+      action: 'update_subscription_plan',
+      params: {
+        planName: extractPlanNameFromUpdatePrompt(text),
+        ...extractDiscountFromPrompt(text),
+        ...catalogNotifyParamsFromPrompt(text),
       },
       segment: text,
     };

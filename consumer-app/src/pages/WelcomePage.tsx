@@ -129,7 +129,7 @@ export default function WelcomePage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>OptiSchedule</IonTitle>
+          <IonTitle>OptiSchedule Book</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">

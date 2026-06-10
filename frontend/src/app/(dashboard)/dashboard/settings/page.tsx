@@ -15,10 +15,15 @@ import { BusinessTaxSettings } from '@/components/settings/business-tax-settings
 import { BusinessPrivacySettings } from '@/components/settings/business-privacy-settings';
 import { BusinessComplianceSettings } from '@/components/settings/business-compliance-settings';
 import { BusinessLanguageSettings } from '@/components/settings/business-language-settings';
+import { StaffMessageTemplatesSettings } from '@/components/settings/staff-message-templates-settings';
+import { ProviderSelfBlockSettings } from '@/components/settings/provider-self-block-settings';
+import { ProviderTimeOffSettings } from '@/components/settings/provider-time-off-settings';
+import { ProviderOpenShiftsSettings } from '@/components/settings/provider-open-shifts-settings';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { useTheme } from '@/components/theme-provider';
 import { useI18n } from '@/i18n';
 import api from '@/lib/api';
+import { isMobileManagerRole } from '@/lib/provider-access';
 import { useAuthStore } from '@/lib/store';
 import type { AppLocale } from '@/i18n';
 import { ToggleChoice } from '@/components/ui/radio-choice';
@@ -292,6 +297,7 @@ export default function SettingsPage() {
   const [openAi, setOpenAi] = useState<OpenAiIntegrationForm>(DEFAULT_OPENAI_FORM);
   const [openAiMeta, setOpenAiMeta] = useState<OpenAiIntegrationSettings | null>(null);
   const [openAiError, setOpenAiError] = useState<string | null>(null);
+  const canManageStaffTemplates = isMobileManagerRole(business?.membershipRole);
 
   const { data: notifData } = useQuery({
     queryKey: ['notification-settings', business?.id],
@@ -551,6 +557,18 @@ export default function SettingsPage() {
               }
             />
           )}
+          {business?.id && canManageStaffTemplates ? (
+            <StaffMessageTemplatesSettings businessId={business.id} />
+          ) : null}
+          {business?.id && canManageStaffTemplates ? (
+            <ProviderSelfBlockSettings businessId={business.id} />
+          ) : null}
+          {business?.id && canManageStaffTemplates ? (
+            <ProviderTimeOffSettings businessId={business.id} />
+          ) : null}
+          {business?.id && canManageStaffTemplates ? (
+            <ProviderOpenShiftsSettings businessId={business.id} />
+          ) : null}
           <button
             type="button"
             onClick={() => saveNotifications.mutate()}

@@ -9,6 +9,8 @@ export type NotificationKind =
   | 'review_request'
   | 'result_ready'
   | 'lab_booking_request'
+  | 'provider_running_late'
+  | 'provider_ready_now'
   | 'business_booking_cancelled'
   | 'business_booking_rescheduled'
   | `reminder_${number}h`;

@@ -612,6 +612,41 @@ export function enrichListServicesParamsFromPrompt(
   return { ...params, serviceCategory: keyword };
 }
 
+/** Only persist service filters that resolve against the live catalog (public assistant session). */
+export function resolvePublicAssistantSessionServiceFields(
+  params: {
+    serviceName?: string | null;
+    serviceCategory?: string | null;
+  },
+  catalog: Array<{ id: string; name: string }>,
+): { serviceName: string | null; serviceCategory: string | null } {
+  const serviceName = params.serviceName?.trim() || null;
+  const serviceCategory = params.serviceCategory?.trim() || null;
+
+  if (serviceName) {
+    const match = fuzzyMatchServiceByName(catalog, serviceName);
+    if (match) {
+      return { serviceName: match.name, serviceCategory: null };
+    }
+    if (
+      serviceCategory &&
+      resolveServicesFromCatalogParams(catalog, { serviceCategory }).length > 0
+    ) {
+      return { serviceName: null, serviceCategory };
+    }
+    return { serviceName: null, serviceCategory: null };
+  }
+
+  if (
+    serviceCategory &&
+    resolveServicesFromCatalogParams(catalog, { serviceCategory }).length > 0
+  ) {
+    return { serviceName: null, serviceCategory };
+  }
+
+  return { serviceName: null, serviceCategory: null };
+}
+
 export function resolveServices(
   catalog: Service[],
   params: { serviceName?: string | null; serviceNames?: string[] | null },

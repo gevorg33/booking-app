@@ -1,21 +1,20 @@
 import {
   IonButton,
-  IonContent,
-  IonFab,
-  IonFabButton,
-  IonHeader,
   IonIcon,
   IonInput,
-  IonModal,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/react';
 import { close, send, sparkles } from 'ionicons/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import { getConsumerFabDefaultBottomInset } from '../lib/consumer-tab-bar-layout.util.js';
+import {
+  useDraggableFloatingPosition,
+  useViewportSize,
+} from '../lib/use-draggable-floating-position.js';
+import { ConsumerBodyPortal } from './ConsumerBodyPortal.js';
 import {
   sendPublicAssistantMessage,
   type PublicAssistantResponse,
@@ -67,6 +66,7 @@ const EXAMPLE_KEYS = [
   'assistantExampleReferral',
   'assistantExampleNotifications',
   'assistantExampleSavedSalons',
+  'assistantExampleExportData',
 ] as const;
 
 export function ConsumerBookingAssistant({
@@ -74,11 +74,13 @@ export function ConsumerBookingAssistant({
   profile,
   copy,
   locale,
+  overlaysVisible = true,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
   copy: ConsumerCopy;
   locale: string;
+  overlaysVisible?: boolean;
 }) {
   const history = useHistory();
   const location = useLocation();
@@ -101,6 +103,41 @@ export function ConsumerBookingAssistant({
   );
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize();
+  const fabBottomInset = useMemo(() => getConsumerFabDefaultBottomInset(), []);
+  const estimatedSize = useMemo(() => {
+    const fab = { width: 56, height: 56 };
+    if (!viewport.width) return fab;
+    if (open) {
+      return {
+        width: Math.min(400, viewport.width - 32),
+        height: Math.min(560, Math.round(viewport.height * 0.8)),
+      };
+    }
+    return fab;
+  }, [open, viewport.height, viewport.width]);
+  const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
+    useDraggableFloatingPosition({
+      storageKey: `consumer-ai-position-${slug}`,
+      estimatedSize,
+      defaultBottomInset: fabBottomInset,
+    });
+
+  const closeAssistant = useCallback(() => {
+    setOpen(false);
+    setMessages([]);
+    setSessionContext({});
+    setVoiceError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAssistant();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, closeAssistant]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -221,13 +258,6 @@ export function ConsumerBookingAssistant({
     [copy.voiceDenied, copy.voiceError, copy.voiceNoSpeech, copy.voiceUnsupported],
   );
 
-  const closeAssistant = useCallback(() => {
-    setOpen(false);
-    setMessages([]);
-    setSessionContext({});
-    setVoiceError(null);
-  }, []);
-
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -235,50 +265,108 @@ export function ConsumerBookingAssistant({
     }
   };
 
-  return (
-    <>
+  return overlaysVisible ? (
+    <ConsumerBodyPortal>
       {!open ? (
-        <IonFab
-          vertical="bottom"
-          horizontal="end"
-          slot="fixed"
+        <button
+          ref={floatingRef}
+          type="button"
+          {...bindDragHandle({ onPress: () => setOpen(true) })}
           style={{
-            bottom: 'calc(56px + env(safe-area-inset-bottom, 0px) + 8px)',
+            ...floatingStyle,
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            border: 'none',
+            background: primary,
+            color: '#fff',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isDragging ? 'grabbing' : 'grab',
+          }}
+          aria-label={copy.assistantTitle}
+        >
+          <IonIcon icon={sparkles} style={{ fontSize: 26, pointerEvents: 'none' }} />
+        </button>
+      ) : (
+        <div
+          ref={floatingRef}
+          style={{
+            ...floatingStyle,
+            width: 'min(calc(100vw - 32px), 400px)',
+            maxHeight: 'min(80vh, 560px)',
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 16,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
-          <IonFabButton
-            onClick={() => setOpen(true)}
-            style={{ '--background': primary }}
-            aria-label={copy.assistantTitle}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderBottom: '1px solid #f3f4f6',
+            }}
           >
-            <IonIcon icon={sparkles} />
-          </IonFabButton>
-        </IonFab>
-      ) : null}
-
-      <IonModal
-        isOpen={open}
-        onDidDismiss={closeAssistant}
-        initialBreakpoint={0.92}
-        breakpoints={[0, 0.55, 0.92]}
-        handleBehavior="cycle"
-      >
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle style={{ fontSize: 16 }}>{copy.assistantTitle}</IonTitle>
-            <IonButton slot="end" fill="clear" onClick={closeAssistant} aria-label={copy.assistantClose}>
+            <div
+              {...bindDragHandle()}
+              style={{
+                display: 'flex',
+                flex: 1,
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 0,
+                userSelect: 'none',
+              }}
+            >
+              <IonIcon icon={sparkles} style={{ color: primary, pointerEvents: 'none' }} />
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#111827',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none',
+                }}
+              >
+                {copy.assistantTitle}
+              </span>
+            </div>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={closeAssistant}
+              style={{
+                marginLeft: 8,
+                padding: 4,
+                border: 'none',
+                background: 'transparent',
+                color: '#9ca3af',
+                cursor: 'pointer',
+              }}
+              aria-label={copy.assistantClose}
+            >
               <IonIcon icon={close} />
-            </IonButton>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent>
+            </button>
+          </div>
+
           <div
             ref={scrollRef}
             style={{
-              padding: 16,
-              minHeight: '45vh',
-              maxHeight: 'calc(92vh - 140px)',
+              flex: 1,
               overflowY: 'auto',
+              padding: 16,
+              minHeight: 180,
             }}
           >
             {messages.length === 0 ? (
@@ -445,7 +533,7 @@ export function ConsumerBookingAssistant({
 
           <div
             style={{
-              padding: '8px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
+              padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
               borderTop: '1px solid #e5e7eb',
               background: '#fff',
             }}
@@ -490,8 +578,8 @@ export function ConsumerBookingAssistant({
               </IonButton>
             </div>
           </div>
-        </IonContent>
-      </IonModal>
-    </>
-  );
+        </div>
+      )}
+    </ConsumerBodyPortal>
+  ) : null;
 }

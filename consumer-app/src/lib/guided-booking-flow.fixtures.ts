@@ -2,7 +2,7 @@ import type { GuidedBookingStep } from './guided-booking-flow.util.js';
 
 export const GUIDED_BOOKING_SCENARIOS = [
   { id: 'welcome', pathname: '/', step: 'welcome' as GuidedBookingStep, progress: 20 },
-  { id: 'salon', pathname: '/s/glow-nails', step: 'salon' as GuidedBookingStep, progress: 40 },
+  { id: 'salon', pathname: '/s/glow-nails/home', step: 'salon' as GuidedBookingStep, progress: 40 },
   {
     id: 'service',
     pathname: '/s/glow-nails/services',

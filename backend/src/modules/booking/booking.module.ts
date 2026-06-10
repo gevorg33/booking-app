@@ -36,6 +36,8 @@ import { RetailPosModule } from '../retail-pos/retail-pos.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
 import { BusinessModule } from '../business/business.module.js';
+import { ReferralProgramModule } from '../referral-program/referral-program.module.js';
+import { AppEvent } from '../analytics/entities/app-event.entity.js';
 
 @Module({
   imports: [
@@ -49,6 +51,7 @@ import { BusinessModule } from '../business/business.module.js';
       Business,
       Employee,
       MultiServiceBookingGroup,
+      AppEvent,
     ]),
     SchedulingEngineModule,
     EventStoreModule,
@@ -69,6 +72,7 @@ import { BusinessModule } from '../business/business.module.js';
     forwardRef(() => GiftCardsModule),
     ComplianceModule,
     BusinessModule,
+    forwardRef(() => ReferralProgramModule),
   ],
   controllers: [BookingController, AgentController],
   providers: [

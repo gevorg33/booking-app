@@ -766,6 +766,38 @@ export function quotePublicBooking(
   });
 }
 
+export interface PublicReferralProgram {
+  referralCode: string;
+  shareUrl: string;
+  enabled: boolean;
+  referrerRewardType?: 'loyalty_points' | 'gift_card';
+  referrerBonusPoints: number;
+  referrerGiftCardAmount?: number;
+  referrerRewardSummary?: string;
+  refereeBonusPoints: number;
+  refereePromoCode: string | null;
+  conversionsCount: number;
+}
+
+export interface PublicReferralClaimResponse {
+  attached: boolean;
+  referralCode?: string;
+  referrerCustomerId?: string;
+  refereePromoCode?: string | null;
+  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+}
+
+export function getPublicCustomerReferralProgram(slug: string) {
+  return publicFetch<PublicReferralProgram>(`/public/${slug}/me/referral`);
+}
+
+export function claimPublicReferralCode(slug: string, referralCode: string) {
+  return publicFetch<PublicReferralClaimResponse>(`/public/${slug}/me/referral/claim`, {
+    method: 'POST',
+    body: JSON.stringify({ referralCode }),
+  });
+}
+
 export function getPublicCustomerLoyalty(slug: string) {
   return publicFetch<PublicCustomerLoyalty>(`/public/${slug}/me/loyalty`);
 }
@@ -1008,11 +1040,29 @@ export function submitProviderPortalReview(
   );
 }
 
-export function loginPublicCustomer(slug: string, idToken: string) {
+export function loginPublicCustomer(
+  slug: string,
+  idToken: string,
+  options?: { preferredLocale?: string; analyticsAnonId?: string },
+) {
   return publicFetch<PublicCustomerAuthResponse>(`/public/${slug}/auth/google`, {
     method: 'POST',
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({
+      idToken,
+      preferredLocale: options?.preferredLocale,
+      analyticsAnonId: options?.analyticsAnonId,
+    }),
   });
+}
+
+export function updatePublicCustomerPreferredLocale(
+  slug: string,
+  preferredLocale: string,
+) {
+  return publicFetch<{ preferredLocale: string; storedLocale: string | null }>(
+    `/public/${slug}/me/locale`,
+    { method: 'PATCH', body: JSON.stringify({ preferredLocale }) },
+  );
 }
 
 export type PublicGiftCardType = 'monetary' | 'service' | 'bundle' | 'package' | 'subscription';

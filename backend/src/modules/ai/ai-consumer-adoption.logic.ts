@@ -114,11 +114,12 @@ export async function handleReferAFriendLogic(
 
   return success(
     'refer_a_friend',
-    `Share your code ${view.referralCode} with friends. When they book, you can earn ${view.referrerBonusPoints} loyalty points and they may receive ${view.refereeBonusPoints} bonus points.`,
+    `Share your code ${view.referralCode} with friends. When they complete their first visit, you earn ${view.referrerRewardSummary} and they may receive ${view.refereeBonusPoints} bonus points.`,
     {
       referralCode: view.referralCode,
       shareUrl: view.shareUrl,
       enabled: true,
+      referrerRewardSummary: view.referrerRewardSummary,
       navigate: { path: 'account', query: { section: 'growth' } },
     },
   );
@@ -182,6 +183,58 @@ export async function handleRebookLastAppointmentLogic(
   );
 }
 
+export async function handleShareSalonLinkLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure('share_salon_link', 'Sign in to share your salon link.', { clarify: true });
+  }
+  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  if (!slug) return failure('share_salon_link', 'Business not found.');
+
+  const view = await deps.publicBookingService.getCustomerShareRewards(slug, customerId);
+  const rewardHint = view.salonShareEnabled
+    ? ` You can earn ${view.salonRewardSummary} when you share.`
+    : '';
+  return success(
+    'share_salon_link',
+    `Open Account → Growth and tap Share link to send a deep link to this salon.${rewardHint}`,
+    {
+      navigate: { path: 'account', query: { section: 'growth' } },
+      salonShareEnabled: view.salonShareEnabled,
+    },
+  );
+}
+
+export async function handleShareMyBookingLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure('share_my_booking', 'Sign in to share a booking.', { clarify: true });
+  }
+  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  if (!slug) return failure('share_my_booking', 'Business not found.');
+
+  const view = await deps.publicBookingService.getCustomerShareRewards(slug, customerId);
+  const rewardHint = view.bookingShareEnabled
+    ? ` You can earn ${view.bookingRewardSummary} when you share a booking.`
+    : '';
+  return success(
+    'share_my_booking',
+    `Open Account → My bookings and tap Share booking on a confirmed visit.${rewardHint}`,
+    {
+      navigate: { path: 'account', query: {} },
+      bookingShareEnabled: view.bookingShareEnabled,
+    },
+  );
+}
+
 export async function handleFindMySavedSalonsLogic(
   params: Record<string, unknown>,
 ): Promise<CommandResult> {
@@ -235,6 +288,10 @@ export async function dispatchConsumerAdoptionIntent(
       );
     case 'refer_a_friend':
       return handleReferAFriendLogic(deps, businessId, params);
+    case 'share_salon_link':
+      return handleShareSalonLinkLogic(deps, businessId, params);
+    case 'share_my_booking':
+      return handleShareMyBookingLogic(deps, businessId, params);
     case 'rebook_last_appointment':
       return handleRebookLastAppointmentLogic(deps, businessId, params);
     case 'find_my_saved_salons':

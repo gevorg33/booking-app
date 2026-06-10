@@ -62,7 +62,7 @@ if (
 ) {
   const listeners = new Map<string, Set<(event: Event) => void>>();
   const windowLike = {
-    location: { href: 'http://localhost/' },
+    location: { href: 'http://localhost/', pathname: '/' },
     addEventListener(type: string, listener: (event: Event) => void) {
       if (!listeners.has(type)) listeners.set(type, new Set());
       listeners.get(type)!.add(listener);
@@ -84,13 +84,32 @@ if (
 
 if (typeof document === 'undefined') {
   const cssVars = new Map<string, string>();
+  const createClassList = () => {
+    const classes = new Set<string>();
+    return {
+      add: (name: string) => {
+        classes.add(name);
+      },
+      contains: (name: string) => classes.has(name),
+      remove: (name: string) => {
+        classes.delete(name);
+      },
+    };
+  };
+  const documentElement = {
+    lang: 'en',
+    dir: 'ltr',
+    style: {
+      setProperty: (key: string, value: string) => cssVars.set(key, value),
+      getPropertyValue: (key: string) => cssVars.get(key) ?? '',
+    },
+    classList: createClassList(),
+  };
   Object.defineProperty(globalThis, 'document', {
     value: {
-      documentElement: {
-        style: {
-          setProperty: (key: string, value: string) => cssVars.set(key, value),
-          getPropertyValue: (key: string) => cssVars.get(key) ?? '',
-        },
+      documentElement,
+      body: {
+        classList: createClassList(),
       },
     },
     writable: true,

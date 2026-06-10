@@ -1,6 +1,7 @@
 import { extractSingleProviderNameFromPrompt } from './ai-dashboard-ops.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
 
 export const TOUR_CALENDAR_WEEK_INTENTS = ['list_tour_calendar_week'] as const;
 
@@ -158,6 +159,7 @@ export function isTourCalendarWeekIntent(
 export function isListTourCalendarWeekPrompt(prompt: string): boolean {
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
+  if (isMyStatsPrompt(prompt)) return false;
   if (isUpcomingDaysCapacityPrompt(prompt)) return false;
   if (isAllAppointmentsPrompt(prompt)) return false;
   if (!hasCalendarWeekListTopic(prompt)) return false;

@@ -4,10 +4,13 @@ import { useEffect } from 'react';
 import { Route, useHistory } from 'react-router-dom';
 import { useDeepLinkRouter } from './hooks/use-deep-link-router.js';
 import { CONSUMER_PUSH_NAVIGATE_EVENT } from './lib/consumer-native-push.util.js';
+import { AccessibilityBootstrap } from './components/AccessibilityBootstrap.js';
 import WelcomePage from './pages/WelcomePage.js';
-import SalonTabShell from './components/SalonTabShell.js';
+import { SalonTabRoute } from './components/SalonTabRoute.js';
+import SalonRedirectToHome from './components/SalonRedirectToHome.js';
 import BookPage from './pages/BookPage.js';
 import MultiServicePickerPage from './pages/MultiServicePickerPage.js';
+import AnyAvailabilityPage from './pages/AnyAvailabilityPage.js';
 import MultiServiceAvailabilityPage from './pages/MultiServiceAvailabilityPage.js';
 import MultiServiceConfirmPage from './pages/MultiServiceConfirmPage.js';
 import MultiServiceCheckoutPage from './pages/MultiServiceCheckoutPage.js';
@@ -37,9 +40,10 @@ function AppRoutes() {
   }, [history]);
 
   return (
-    <IonRouterOutlet>
+    <IonRouterOutlet id="main" animated={false}>
       <Route exact path="/" component={WelcomePage} />
       <Route exact path="/s/:slug/manage" component={ManageBookingPage} />
+      <Route exact path="/s/:slug/book/any/availability" component={AnyAvailabilityPage} />
       <Route exact path="/s/:slug/book/any" component={MultiServicePickerPage} />
       <Route exact path="/s/:slug/book/packages/:packageId/checkout" component={PackageCheckoutPage} />
       <Route exact path="/s/:slug/book/packages/:packageId" component={PackageConfirmPage} />
@@ -55,7 +59,27 @@ function AppRoutes() {
       <Route exact path="/s/:slug/gift-cards" component={GiftCardCatalogPage} />
       <Route exact path="/s/:slug/login" component={LoginPage} />
       <Route exact path="/s/:slug/profile" component={SalonProfilePage} />
-      <Route path="/s/:slug" component={SalonTabShell} />
+      <Route exact path="/s/:slug/home">
+        <SalonTabRoute page="home" />
+      </Route>
+      <Route exact path="/s/:slug/services">
+        <SalonTabRoute page="services" />
+      </Route>
+      <Route exact path="/s/:slug/account">
+        <SalonTabRoute page="account" />
+      </Route>
+      <Route exact path="/s/:slug/results">
+        <SalonTabRoute page="results" />
+      </Route>
+      <Route exact path="/s/:slug/lab-to-book">
+        <SalonTabRoute page="lab-to-book" />
+      </Route>
+      <Route exact path="/s/:slug/lab-requests">
+        <SalonTabRoute page="lab-requests" />
+      </Route>
+      <Route exact path="/s/:slug">
+        <SalonRedirectToHome />
+      </Route>
     </IonRouterOutlet>
   );
 }
@@ -63,6 +87,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <IonApp>
+      <AccessibilityBootstrap />
       <IonReactRouter>
         <AppRoutes />
       </IonReactRouter>

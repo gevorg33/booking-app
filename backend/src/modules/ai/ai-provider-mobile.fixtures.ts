@@ -8,6 +8,11 @@ import { PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-p
 import { PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { PROVIDER_PUSH_SETUP_CLASSIFIER_RULES } from './ai-provider-push-setup.fixtures.js';
 import { PROVIDER_EARNINGS_CLASSIFIER_RULES } from './ai-provider-earnings.fixtures.js';
+import { PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES } from './ai-provider-client-context.fixtures.js';
+import { PROVIDER_EXP_2_CLASSIFIER_RULES } from './ai-provider-exp-2.fixtures.js';
+import { PROVIDER_TIME_OFF_CLASSIFIER_RULES } from '../provider-mobile/provider-time-off.fixtures.js';
+import { PROVIDER_OPEN_SHIFTS_CLASSIFIER_RULES } from '../provider-mobile/provider-open-shifts.fixtures.js';
+import { PROVIDER_EXP_3_CLASSIFIER_RULES } from './ai-provider-exp-3.fixtures.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
 export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: same outcome as tapping Confirm on a new-booking push — requires bookingId (from lastPush or prompt). Triggers: "confirm this booking from the push", "confirm appointment from notification". NOT update_bookings unless user names status explicitly without push context.
@@ -28,4 +33,9 @@ ${PROVIDER_CLINIC_COLLECTION_CLASSIFIER_RULES}
 ${PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
 ${PROVIDER_PUSH_SETUP_CLASSIFIER_RULES}
-${PROVIDER_EARNINGS_CLASSIFIER_RULES}`;
+${PROVIDER_EARNINGS_CLASSIFIER_RULES}
+${PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES}
+${PROVIDER_EXP_2_CLASSIFIER_RULES}
+${PROVIDER_TIME_OFF_CLASSIFIER_RULES}
+${PROVIDER_OPEN_SHIFTS_CLASSIFIER_RULES}
+${PROVIDER_EXP_3_CLASSIFIER_RULES}`;

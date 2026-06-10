@@ -16,6 +16,7 @@ import {
   redactEmbeddedPhiFromPrompt,
 } from '../../../common/utils/phi-ai-guard.util.js';
 import { rescueClinicLabBookingSurfaceForEval } from '../ai-clinic-lab-booking-multilingual.util.js';
+import { enrichCatalogNotifyRescueParams } from '../ai-catalog-notify.util.js';
 import type {
   AiCommandEvalCase,
   AiEvalCaseResult,
@@ -158,8 +159,15 @@ export function evaluateDeterministicEvalCase(
         `rescueReason: expected ${expect.rescueReason}, got ${rescued?.rescueReason ?? 'none'}`,
       );
     }
-    if (expect.paramsPartial && rescued?.params) {
-      errors.push(...paramsMatchPartial(rescued.params, expect.paramsPartial));
+    if (expect.paramsPartial) {
+      if (!rescued?.params) {
+        errors.push('paramsPartial: rescue returned no params object');
+      } else {
+        enrichCatalogNotifyRescueParams(rescued.action, rescued.params, prompt);
+        errors.push(...paramsMatchPartial(rescued.params, expect.paramsPartial));
+      }
+    } else if (rescued?.params) {
+      enrichCatalogNotifyRescueParams(rescued.action, rescued.params, prompt);
     }
   }
 

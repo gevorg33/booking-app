@@ -27,7 +27,7 @@ export function ConsumerTourServiceCard({
   if (!isPublicTourService(service)) return null;
 
   const difficulty = formatTourDifficulty(service.difficulty, (key) =>
-    (copy as Record<string, string>)[key] ?? key,
+    (copy as unknown as Record<string, string>)[key] ?? key,
   );
   const price = formatPublicMoney(service.price, service.currency, tenantCurrency);
   const priceLabel = tourPriceLabel(price, service, (key, params) => {

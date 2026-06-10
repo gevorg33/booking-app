@@ -23,6 +23,7 @@ import { buildSalonPath } from '../lib/deep-link.js';
 import { formatCopy } from '../lib/copy.js';
 import { formatPublicMoney, resolveTenantPriceCurrency } from '../lib/business-currency.js';
 import { buildPackageConfirmPath } from '../lib/package-booking.js';
+import { buildAnyAvailabilityPath } from '../lib/provider-booking.util.js';
 import {
   buildMultiServiceSchedulePath,
   getDisabledMultiServiceIds,
@@ -31,12 +32,12 @@ import {
   sumMultiServiceDuration,
   sumMultiServicePrice,
   uniqueMultiServiceIds,
+  validateLocalMultiServiceCart,
 } from '../lib/multi-service-booking.js';
 import type { PublicService } from '../lib/types.js';
 import {
   fetchPublicPackages,
   fetchPublicServices,
-  previewPublicMultiService,
 } from '../services/public-api.js';
 
 function groupServicesByCategory(services: PublicService[], uncategorizedLabel: string) {
@@ -69,7 +70,7 @@ export default function MultiServicePickerPage() {
   const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
-  const [cartErrors, setCartErrors] = useState<string[]>([]);
+  const [serviceId, setServiceId] = useState<string | null>(null);
 
   const servicesQuery = useQuery({
     queryKey: ['public-services', slug],
@@ -86,7 +87,7 @@ export default function MultiServicePickerPage() {
   const services = servicesQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
   const multiEnabled = profile?.multiService?.enabled === true;
-  const pageAvailable = multiEnabled || packages.length > 0;
+  const pageAvailable = services.length > 0 || packages.length > 0;
 
   useEffect(() => {
     if (!slug || !multiEnabled || services.length === 0) return;
@@ -132,21 +133,21 @@ export default function MultiServicePickerPage() {
         incompatiblePairMode: profile.multiService.incompatiblePairMode ?? 'service',
         incompatiblePairs: profile.multiService.incompatiblePairs ?? [],
         incompatibleCategoryPairs: profile.multiService.incompatibleCategoryPairs ?? [],
+        maxServiceCount: profile.multiService.maxServiceCount,
+        maxDurationMinutes: profile.multiService.maxDurationMinutes,
+        turnoverBufferMinutes: profile.multiService.turnoverBufferMinutes ?? 5,
       },
     });
   }, [multiEnabled, profile?.multiService, selectedServiceIds, services]);
 
-  useEffect(() => {
-    if (!slug || !multiEnabled || selectedServiceIds.length < 2) {
-      setCartErrors([]);
-      return;
-    }
-    void previewPublicMultiService(slug, selectedServiceIds)
-      .then((preview) => setCartErrors(preview.valid ? [] : preview.errors))
-      .catch((err: unknown) =>
-        setCartErrors([(err as Error)?.message || copy.validateServiceSelectionFailed]),
-      );
-  }, [copy.validateServiceSelectionFailed, multiEnabled, selectedServiceIds, slug]);
+  const cartErrors = useMemo(() => {
+    if (!multiEnabled || !profile?.multiService || selectedServiceIds.length < 2) return [];
+    return validateLocalMultiServiceCart({
+      services,
+      selectedIds: selectedServiceIds,
+      settings: profile.multiService,
+    });
+  }, [multiEnabled, profile?.multiService, selectedServiceIds, services]);
 
   const groupedServices = useMemo(
     () => groupServicesByCategory(services, copy.uncategorizedServices),
@@ -155,15 +156,23 @@ export default function MultiServicePickerPage() {
 
   const toggleService = (id: string) => {
     setSelectedPackageId(null);
-    setSelectedServiceIds((prev) =>
-      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
-    );
+    if (multiEnabled) {
+      setServiceId(null);
+      setSelectedServiceIds((prev) => {
+        if (prev.includes(id)) return prev.filter((entry) => entry !== id);
+        if (disabledServiceIds.has(id)) return prev;
+        return [...prev, id];
+      });
+      return;
+    }
+    setSelectedServiceIds([]);
+    setServiceId((prev) => (prev === id ? null : id));
   };
 
   const onSelectPackage = (packageId: string) => {
     setSelectedPackageId((prev) => (prev === packageId ? null : packageId));
     setSelectedServiceIds([]);
-    setCartErrors([]);
+    setServiceId(null);
   };
 
   const onContinue = useCallback(() => {
@@ -182,23 +191,26 @@ export default function MultiServicePickerPage() {
       );
       return;
     }
-    if (selectedServiceIds.length === 1) {
-      history.push(buildSalonPath(slug, `/book/${selectedServiceIds[0]}`));
+    const singleServiceId =
+      serviceId ?? (multiEnabled && selectedServiceIds.length === 1 ? selectedServiceIds[0] : null);
+    if (singleServiceId) {
+      history.push(buildAnyAvailabilityPath(slug, singleServiceId));
     }
-  }, [cartErrors.length, history, multiEnabled, profile, selectedPackageId, selectedServiceIds, slug]);
+  }, [cartErrors.length, history, multiEnabled, profile, selectedPackageId, selectedServiceIds, serviceId, slug]);
+
+  const hasSingleSelection =
+    Boolean(serviceId) || (multiEnabled && selectedServiceIds.length === 1);
+  const hasMultiSelection = multiEnabled && selectedServiceIds.length >= 2;
 
   const continueDisabled =
-    !selectedPackageId &&
-    (selectedServiceIds.length === 0 ||
-      (selectedServiceIds.length >= 2 && cartErrors.length > 0) ||
-      (selectedServiceIds.length === 1 && !multiEnabled && packages.length === 0));
+    !selectedPackageId && !hasSingleSelection && !hasMultiSelection;
 
   const continueLabel = selectedPackageId
     ? copy.schedulePackage
-    : selectedServiceIds.length >= 2
+    : hasMultiSelection
       ? copy.multiServiceContinue
-      : selectedServiceIds.length === 1
-        ? copy.assistantContinueBooking
+      : hasSingleSelection
+        ? copy.selectDateTime
         : copy.multiServiceContinue;
 
   if (loading || servicesQuery.isLoading || packagesQuery.isLoading) {
@@ -238,13 +250,17 @@ export default function MultiServicePickerPage() {
           <IonButtons slot="start">
             <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
           </IonButtons>
-          <IonTitle>{multiEnabled ? copy.multiServiceEntryCta : copy.packagesTitle}</IonTitle>
+          <IonTitle>
+            {multiEnabled ? copy.multiServiceEntryCta : packages.length > 0 ? copy.packagesTitle : copy.anySpecialist}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
         {multiEnabled ? (
           <p style={{ color: '#6b7280', marginBottom: 16 }}>{copy.multiServiceSelectHint}</p>
-        ) : null}
+        ) : (
+          <p style={{ color: '#6b7280', marginBottom: 16 }}>{copy.anySpecialistHint}</p>
+        )}
 
         <ConsumerPackageCards
           packages={packages}
@@ -280,12 +296,6 @@ export default function MultiServicePickerPage() {
               </div>
             ) : null}
 
-            {cartErrors.map((entry) => (
-              <p key={entry} style={{ color: '#b91c1c', fontSize: 14 }}>
-                {entry}
-              </p>
-            ))}
-
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{copy.servicesSection}</h2>
 
             {groupedServices.map((group) => (
@@ -295,16 +305,26 @@ export default function MultiServicePickerPage() {
                 </h3>
                 <IonList>
                   {group.services.map((service) => {
-                    const checked = selectedServiceIds.includes(service.id);
+                    const checked = multiEnabled
+                      ? selectedServiceIds.includes(service.id)
+                      : serviceId === service.id;
                     const disabled = disabledServiceIds.has(service.id);
                     return (
-                      <IonItem key={service.id} disabled={disabled && !checked}>
-                        <IonCheckbox
-                          slot="start"
-                          checked={checked}
-                          disabled={disabled && !checked}
-                          onIonChange={() => toggleService(service.id)}
-                        />
+                      <IonItem
+                        key={service.id}
+                        button
+                        color={!multiEnabled && checked ? 'primary' : undefined}
+                        disabled={disabled && !checked}
+                        onClick={() => toggleService(service.id)}
+                      >
+                        {multiEnabled ? (
+                          <IonCheckbox
+                            slot="start"
+                            checked={checked}
+                            disabled={disabled && !checked}
+                            onIonChange={() => toggleService(service.id)}
+                          />
+                        ) : null}
                         <IonLabel>
                           <h2>{service.name}</h2>
                           <p>

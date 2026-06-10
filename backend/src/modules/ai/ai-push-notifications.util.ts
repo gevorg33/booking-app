@@ -200,6 +200,12 @@ export function isEnableNotificationsPrompt(prompt: string): boolean {
     return false;
   if (/\border\s+status\b/i.test(prompt) || /\bgift\s+card\b/i.test(prompt))
     return false;
+  if (
+    /\b(turn|switch)\s+off\b/i.test(prompt) &&
+    /\bappointment\s+reminders?\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(enable|turn\s+on|allow|opt[\s-]?in|disable|turn\s+off)\b/i.test(
       prompt,
@@ -212,6 +218,14 @@ export function isEnableNotificationsPrompt(prompt: string): boolean {
 export function isAppointmentReminderPreferencesPrompt(
   prompt: string,
 ): boolean {
+  if (
+    /\bcurrency\b/i.test(prompt) ||
+    /\b(why|what|explain)\b[\s\S]{0,40}\b(amount|dram|euro|€|֏|\$)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(appointment\s+reminder|reminder\s+preferences?|reminder\s+timing|when\s+to\s+remind|reminder\s+options?)\b/i.test(
       prompt,

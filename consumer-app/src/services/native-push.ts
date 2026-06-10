@@ -58,6 +58,15 @@ import { PUSH_PERMISSION_STATE_KEY } from '../lib/push-reachability.fixtures.js'
 const PUSH_OPT_IN_KEY = 'consumer-push-opt-in';
 const PUSH_TOKEN_KEY = 'consumer-fcm-token';
 
+type CapacitorReceive = 'granted' | 'denied' | 'prompt';
+
+function asCapacitorReceive(receive: string): CapacitorReceive {
+  if (receive === 'granted' || receive === 'denied' || receive === 'prompt') {
+    return receive;
+  }
+  return 'prompt';
+}
+
 export function isFcmBuild(): boolean {
   return import.meta.env.VITE_FCM_CONFIGURED === 'true';
 }
@@ -122,7 +131,7 @@ function isLikelyEnabled(
     permission === 'full' ||
     permission === 'provisional' ||
     permission === 'default_on' ||
-    (permission === 'full' && hasLocalPushOptIn())
+    hasLocalPushOptIn()
   );
 }
 
@@ -139,7 +148,11 @@ async function uploadTokenToBackend(
       token,
       Capacitor.getPlatform(),
       getOrCreateAnonId(),
-      permissionState,
+      permissionState === 'full' ||
+        permissionState === 'provisional' ||
+        permissionState === 'default_on'
+        ? permissionState
+        : undefined,
     );
     cacheFcmToken(token);
     persistPermissionState(permissionState);
@@ -243,7 +256,9 @@ async function applyAndroidPushChannelSpecs(specs: AndroidPushChannelSyncSpec[])
   if (Capacitor.getPlatform() !== 'android') return;
   const { PushNotifications } = await import('@capacitor/push-notifications');
   for (const spec of specs) {
-    await PushNotifications.createChannel(spec);
+    await PushNotifications.createChannel(
+      spec as import('@capacitor/push-notifications').Channel,
+    );
   }
 }
 
@@ -270,7 +285,7 @@ async function readCapacitorPermissionState(): Promise<PushPermissionState> {
   if (stored === 'provisional' && perm.receive === 'granted') return 'provisional';
   if (isAndroidDefaultOnReachable({
     platform: Capacitor.getPlatform(),
-    permissionReceive: perm.receive,
+    permissionReceive: asCapacitorReceive(perm.receive),
   })) {
     return mapCapacitorPermission(perm.receive, { defaultOn: true });
   }
@@ -344,13 +359,13 @@ export async function ensureIosProvisionalReachabilityOnFirstOpen(): Promise<voi
       isNative: true,
       isFcmBuild: true,
       alreadyRegistered: hasRegisteredPushReachability(),
-      permissionReceive: perm.receive,
+      permissionReceive: asCapacitorReceive(perm.receive),
     })
   ) {
     return;
   }
 
-  const state = resolveIosProvisionalPermissionState(perm.receive);
+  const state = resolveIosProvisionalPermissionState(asCapacitorReceive(perm.receive));
   if (state !== 'provisional') return;
 
   persistIosProvisionalPermissionState();
@@ -372,7 +387,7 @@ export async function ensureAndroidDefaultOnReachabilityOnFirstOpen(): Promise<v
       isNative: true,
       isFcmBuild: true,
       alreadyRegistered: hasRegisteredPushReachability(),
-      permissionReceive: perm.receive,
+      permissionReceive: asCapacitorReceive(perm.receive),
     })
   ) {
     return;

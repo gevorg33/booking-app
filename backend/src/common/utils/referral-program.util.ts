@@ -6,7 +6,10 @@ import {
   REFERRAL_METADATA_CONVERTED_AT,
   REFERRAL_METADATA_CONVERTED_BOOKING_ID,
   REFERRAL_METADATA_REFERRED_BY,
+  REFERRER_REWARD_TYPES,
+  type ReferrerRewardType,
 } from './referral-program.fixtures.js';
+import { getBusinessDefaultCurrency } from './business-currency.util.js';
 
 export {
   DEFAULT_REFERRAL_PROGRAM_SETTINGS,
@@ -16,11 +19,16 @@ export {
   REFERRAL_METADATA_CONVERTED_BOOKING_ID,
   REFERRAL_METADATA_REFERRED_BY,
   REFERRAL_RESOLVE_SCENARIOS,
+  REFERRAL_SETTINGS_MERGE_SCENARIOS,
+  REFERRER_REWARD_TYPES,
+  type ReferrerRewardType,
 } from './referral-program.fixtures.js';
 
 export interface ReferralProgramSettings {
   enabled: boolean;
+  referrerRewardType: ReferrerRewardType;
   referrerBonusPoints: number;
+  referrerGiftCardAmount: number;
   refereeBonusPoints: number;
   refereePromoCode: string | null;
 }
@@ -46,7 +54,9 @@ export function mergeReferralProgramSettings(
   const input = raw as Record<string, unknown>;
   return {
     enabled: input.enabled !== false,
+    referrerRewardType: parseReferrerRewardType(input.referrerRewardType),
     referrerBonusPoints: clampBonusPoints(input.referrerBonusPoints, 25),
+    referrerGiftCardAmount: clampGiftCardAmount(input.referrerGiftCardAmount, 25),
     refereeBonusPoints: clampBonusPoints(input.refereeBonusPoints, 25),
     refereePromoCode:
       typeof input.refereePromoCode === 'string' && input.refereePromoCode.trim()
@@ -55,9 +65,35 @@ export function mergeReferralProgramSettings(
   };
 }
 
+function parseReferrerRewardType(raw: unknown): ReferrerRewardType {
+  if (typeof raw === 'string' && (REFERRER_REWARD_TYPES as readonly string[]).includes(raw)) {
+    return raw as ReferrerRewardType;
+  }
+  return DEFAULT_REFERRAL_PROGRAM_SETTINGS.referrerRewardType;
+}
+
 function clampBonusPoints(raw: unknown, fallback: number): number {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return fallback;
   return Math.max(0, Math.min(500, Math.round(raw)));
+}
+
+function clampGiftCardAmount(raw: unknown, fallback: number): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return fallback;
+  return Math.max(1, Math.min(500, Math.round(raw * 100) / 100));
+}
+
+export function buildReferrerRewardSummary(
+  settings: Pick<
+    ReferralProgramSettings,
+    'referrerRewardType' | 'referrerBonusPoints' | 'referrerGiftCardAmount'
+  >,
+  businessSettings?: Record<string, unknown> | null,
+): string {
+  if (settings.referrerRewardType === 'gift_card') {
+    const currency = getBusinessDefaultCurrency(businessSettings);
+    return `${settings.referrerGiftCardAmount} ${currency} gift card`;
+  }
+  return `${settings.referrerBonusPoints} loyalty points`;
 }
 
 export function readReferredByCustomerId(

@@ -12,6 +12,9 @@ export type ConsumerCopy = {
   pickNewTime: string;
   loadingSlots: string;
   noSlotsThisDay: string;
+  timeSlotMorning: string;
+  timeSlotAfternoon: string;
+  timeSlotEvening: string;
   confirmReschedule: string;
   submitting: string;
   rescheduleBookingFailed: string;
@@ -71,6 +74,9 @@ export type ConsumerCopy = {
   checkoutSubscriptionPlanRequired: string;
   checkoutUsingSubscriptionHint: string;
   checkoutPlanIncludesHint: string;
+  checkoutSelectedTime: string;
+  checkoutBookingService: string;
+  checkoutEdit: string;
   taxIncluded: string;
   myResultsTab: string;
   myResultsTitle: string;
@@ -251,6 +257,14 @@ export type ConsumerCopy = {
   pushPrimingBody: string;
   pushPrimingAccept: string;
   pushPrimingDecline: string;
+  pushProvisionalUpgradeTitle: string;
+  pushProvisionalUpgradeBody: string;
+  pushProvisionalUpgradeAccept: string;
+  pushProvisionalUpgradeDecline: string;
+  pushSettingsReaskTitle: string;
+  pushSettingsReaskBody: string;
+  pushSettingsReaskOpen: string;
+  pushSettingsReaskSkip: string;
   postBookingSignInTitle: string;
   postBookingSignInBody: string;
   postBookingSignInGoogle: string;
@@ -287,6 +301,7 @@ export type ConsumerCopy = {
   growthReferAction: string;
   growthShareCopied: string;
   growthShareUnavailable: string;
+  growthShareRewardEarned: string;
   postBookingTenantReviewAction: string;
   giftCardNav: string;
   giftCardTitle: string;
@@ -408,6 +423,7 @@ export type ConsumerCopy = {
   specialistAiHint: string;
   anySpecialist: string;
   anySpecialistHint: string;
+  selectDateTime: string;
   selectService: string;
   nearestSlots: string;
   todayInline: string;
@@ -480,6 +496,7 @@ export type ConsumerCopy = {
   assistantExampleReferral: string;
   assistantExampleNotifications: string;
   assistantExampleSavedSalons: string;
+  assistantExampleExportData: string;
   professionalsEntryCta: string;
   continueBooking: string;
   noServicesForSlot: string;

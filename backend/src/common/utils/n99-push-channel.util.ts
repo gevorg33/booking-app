@@ -27,7 +27,8 @@ export function resolveConsumerPushAndroidChannelId(
   if (
     pushType === 'rebooking_nudge' ||
     pushType === 'win_back' ||
-    pushType === 'activation_concierge'
+    pushType === 'activation_concierge' ||
+    pushType === 'catalog_announcement'
   ) {
     return 'marketing_offers';
   }
@@ -44,6 +45,9 @@ export function resolveConsumerPushPreferenceCategory(
     pushType === 'activation_concierge'
   ) {
     return 'offers';
+  }
+  if (pushType === 'catalog_announcement') {
+    return 'news';
   }
   return 'reminders';
 }

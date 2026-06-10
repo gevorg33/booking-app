@@ -19,6 +19,7 @@ export type AppAdoptionEventName =
   | 'referral_converted'
   | 'salon_shared'
   | 'booking_shared'
+  | 'share_reward_claimed'
   | 'review_prompt_shown'
   | 'tenant_review_submitted'
   | 'store_review_opened'
@@ -37,7 +38,8 @@ export type AppAdoptionEventName =
   | 'post_booking_sign_in_completed'
   | 'post_booking_sign_in_skipped'
   | 'activation_payment_fallback'
-  | 'app_interactive';
+  | 'app_interactive'
+  | 'staff_contacted_customer';
 
 export type AppAdoptionPlatform = 'ios' | 'android' | 'web';
 

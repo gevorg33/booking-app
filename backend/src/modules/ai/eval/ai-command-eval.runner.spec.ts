@@ -164,8 +164,39 @@ describe('ai-command-eval.runner', () => {
         paramsPartial: { bookingFirstAvailable: true },
       },
     });
-    expect(result.passed).toBe(true);
+    expect(result.passed).toBe(false);
+    expect(result.errors[0]).toMatch(/paramsPartial: rescue returned no params/);
     jest.restoreAllMocks();
+  });
+
+  it('passes catalog-notify rescue with notifyCustomers paramsPartial', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'catalog-notify-create-package',
+      prompt:
+        'Create Spa Day package with massage + facial 15% off and notify customers',
+      expect: {
+        rescuedAction: 'create_package',
+        paramsPartial: { notifyCustomers: true },
+      },
+    });
+    expect(result.passed).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('reports catalog-notify notifyCustomers paramsPartial mismatch', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'catalog-notify-mismatch',
+      prompt:
+        'Create Spa Day package with massage + facial 15% off and notify customers',
+      expect: {
+        rescuedAction: 'create_package',
+        paramsPartial: { notifyCustomers: false },
+      },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('params.notifyCustomers'))).toBe(
+      true,
+    );
   });
 
   it('passes rescue with rescueReason and no paramsPartial', () => {

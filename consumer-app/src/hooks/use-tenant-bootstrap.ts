@@ -1,17 +1,43 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { fetchPublicProfile } from '../services/public-api.js';
+import { useParams, useLocation } from 'react-router-dom';
+import { fetchPublicProfile, fetchPublicServices } from '../services/public-api.js';
 import { useTenantStore } from '../stores/tenant-store.js';
 import { isValidSlug } from '../lib/deep-link.js';
+import {
+  loadCachedTenantSnapshot,
+  saveCachedTenantSnapshot,
+} from '../lib/cached-tenant-data.util.js';
+import { tenantDateFormatPreference, setActiveBusinessDateFormats } from '../lib/business-date-format.js';
+import { captureReferralFromSearch } from '../lib/consumer-referral.util.js';
+
+function applyTenantDateFormats(profile: { dateFormat?: string; timeFormat?: string } | null): void {
+  if (!profile) return;
+  const { dateFormat, timeFormat } = tenantDateFormatPreference(profile);
+  setActiveBusinessDateFormats(dateFormat, timeFormat);
+}
+
+function hasReadyProfile(slug: string): boolean {
+  const profile = useTenantStore.getState().profile;
+  return profile?.slug === slug && profile.publicBookingEnabled === true;
+}
 
 export function useTenantBootstrap() {
   const { slug: routeSlug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const setProfile = useTenantStore((s) => s.setProfile);
   const profile = useTenantStore((s) => s.profile);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const slug = routeSlug?.toLowerCase() ?? '';
+  const [loading, setLoading] = useState(() => {
+    if (!slug || !isValidSlug(slug)) return false;
+    return !hasReadyProfile(slug);
+  });
+  const [error, setError] = useState('');
+  const [fromCache, setFromCache] = useState(false);
+
+  useEffect(() => {
+    if (!slug || !isValidSlug(slug)) return;
+    captureReferralFromSearch(location.search, slug);
+  }, [location.search, slug]);
 
   useEffect(() => {
     if (!slug || !isValidSlug(slug)) {
@@ -21,8 +47,23 @@ export function useTenantBootstrap() {
     }
 
     let cancelled = false;
-    setLoading(true);
     setError('');
+
+    const cachedSnapshot = loadCachedTenantSnapshot(slug);
+    const storeReady = hasReadyProfile(slug);
+
+    if (storeReady) {
+      applyTenantDateFormats(useTenantStore.getState().profile);
+      setLoading(false);
+      setFromCache(false);
+    } else if (cachedSnapshot?.profile.publicBookingEnabled) {
+      setProfile(cachedSnapshot.profile);
+      setFromCache(true);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setFromCache(false);
+    }
 
     void fetchPublicProfile(slug)
       .then((tenant) => {
@@ -33,9 +74,25 @@ export function useTenantBootstrap() {
           return;
         }
         setProfile(tenant);
+        setFromCache(false);
+        void fetchPublicServices(slug)
+          .then((services) => {
+            if (cancelled) return;
+            saveCachedTenantSnapshot({ slug, profile: tenant, services });
+          })
+          .catch(() => {
+            saveCachedTenantSnapshot({ slug, profile: tenant, services: [] });
+          });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        if (hasReadyProfile(slug) || cachedSnapshot?.profile.publicBookingEnabled) {
+          if (!hasReadyProfile(slug) && cachedSnapshot) {
+            setProfile(cachedSnapshot.profile);
+            setFromCache(true);
+          }
+          return;
+        }
         setError(err instanceof Error ? err.message : 'Salon not found');
         setProfile(null);
       })
@@ -48,5 +105,5 @@ export function useTenantBootstrap() {
     };
   }, [slug, setProfile]);
 
-  return { slug, profile, loading, error };
+  return { slug, profile, loading, error, fromCache };
 }

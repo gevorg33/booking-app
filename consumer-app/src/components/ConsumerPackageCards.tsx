@@ -33,7 +33,7 @@ export function ConsumerPackageCards({
   if (packages.length === 0) return null;
 
   const money = (amount: number, entityCurrency?: string | null) =>
-    formatPublicMoney(amount, entityCurrency, businessCurrency, locale);
+    formatPublicMoney(amount, entityCurrency, businessCurrency);
 
   return (
     <section style={{ marginBottom: 24 }}>

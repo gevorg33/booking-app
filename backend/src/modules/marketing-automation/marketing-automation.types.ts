@@ -2,7 +2,8 @@ export type MarketingAutomationKind =
   | 're_engagement'
   | 'post_visit_follow_up'
   | 'rebooking_nudge'
-  | 'activation_concierge';
+  | 'activation_concierge'
+  | 'catalog_announcement';
 
 export type MarketingAutomationChannel = 'email' | 'sms' | 'push';
 

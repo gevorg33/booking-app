@@ -152,6 +152,15 @@ export interface PublicProvider {
   recentReviews?: PublicProviderReview[];
 }
 
+export interface PublicServiceSlotProvider {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+  averageRating: number | null;
+  reviewCount: number;
+}
+
 export interface PublicProviderReviewsPage {
   employeeId: string;
   employeeName: string;
@@ -234,6 +243,46 @@ export interface PublicCustomerProfile {
   phone: string | null;
 }
 
+export interface PublicReferralProgram {
+  referralCode: string;
+  shareUrl: string;
+  enabled: boolean;
+  referrerRewardType?: 'loyalty_points' | 'gift_card';
+  referrerBonusPoints: number;
+  referrerGiftCardAmount?: number;
+  referrerRewardSummary?: string;
+  refereeBonusPoints: number;
+  refereePromoCode: string | null;
+  conversionsCount: number;
+}
+
+export interface ReferralClaimResponse {
+  attached: boolean;
+  referralCode?: string;
+  referrerCustomerId?: string;
+  refereePromoCode?: string | null;
+  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+}
+
+export interface PublicShareRewardsView {
+  enabled: boolean;
+  salonShareEnabled: boolean;
+  bookingShareEnabled: boolean;
+  salonRewardSummary: string;
+  bookingRewardSummary: string;
+  cooldownHours: number;
+  salonNextEligibleAt: string | null;
+  bookingNextEligibleAt: string | null;
+}
+
+export interface ShareRewardClaimResponse {
+  awarded: boolean;
+  channel: 'salon' | 'booking';
+  rewardSummary?: string;
+  reason?: 'disabled' | 'cooldown' | 'booking_not_found' | 'booking_not_shareable' | 'no_reward';
+  nextEligibleAt?: string | null;
+}
+
 export interface PublicCustomerBookingItem {
   id: string;
   startTime: string;
@@ -246,6 +295,7 @@ export interface PublicCustomerBookingItem {
   serviceId: string;
   canCancel: boolean;
   canReschedule: boolean;
+  canReview?: boolean;
   policyMessage?: string | null;
   rescheduleCount?: number;
   maxReschedules?: number;

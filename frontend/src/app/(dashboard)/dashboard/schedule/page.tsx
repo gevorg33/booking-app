@@ -36,6 +36,7 @@ import { normalizeTime24 } from '@/lib/time-format';
 import { useI18n } from '@/i18n';
 import { TimeInput } from '@/components/time-input';
 import { BlockScheduleTab } from '@/components/scheduling/block-schedule-tab';
+import { TimeOffRequestsPanel } from '@/components/scheduling/time-off-requests-panel';
 import { PageHelpHeader } from '@/components/help/contextual-help';
 import { AiPagePanel } from '@/components/ai-page-panel';
 import { AiContextualSuggestions } from '@/components/ai-proactive-suggestions';
@@ -490,7 +491,12 @@ export default function SchedulePage() {
           setApplyResult={setApplyResult}
         />
       ) : (
-        <BlockScheduleTab business={business} employees={employees} />
+        <>
+          <BlockScheduleTab business={business} employees={employees} />
+          {business?.id ? (
+            <TimeOffRequestsPanel businessId={business.id} />
+          ) : null}
+        </>
       )}
     </div>
   );

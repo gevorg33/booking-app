@@ -22,6 +22,7 @@ import TodayPage from './pages/TodayPage';
 import SchedulePage from './pages/SchedulePage';
 import CalendarPage from './pages/CalendarPage';
 import ProfilePage from './pages/ProfilePage';
+import PushNotificationsPage from './pages/PushNotificationsPage';
 import GiftCardQueuesPage from './pages/GiftCardQueuesPage';
 import LabCollectionPage from './pages/LabCollectionPage';
 import LabResultsPage from './pages/LabResultsPage';
@@ -33,6 +34,7 @@ import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderAiShell } from './components/ProviderAiShell';
 import { ProviderPushBridge } from './components/ProviderPushBridge';
 import { BusinessDateFormatBootstrap } from './components/BusinessDateFormatBootstrap';
+import { AccessibilityBootstrap } from './components/AccessibilityBootstrap';
 import './components/operation-feedback.css';
 
 function AuthedTabs() {
@@ -82,6 +84,7 @@ function AuthedTabs() {
           <Route exact path="/tabs/calendar" component={CalendarPage} />
           <Route exact path="/tabs/schedule" component={SchedulePage} />
           <Route exact path="/tabs/profile" component={ProfilePage} />
+          <Route exact path="/tabs/notifications" component={PushNotificationsPage} />
           <Route exact path="/tabs">
             <Redirect to="/tabs/today" />
           </Route>
@@ -142,6 +145,7 @@ export default function App() {
 
   return (
     <IonApp>
+      <AccessibilityBootstrap />
       <BusinessDateFormatBootstrap />
       <OperationFeedbackHost />
       <IonReactRouter>

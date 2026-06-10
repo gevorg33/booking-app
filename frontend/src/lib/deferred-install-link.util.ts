@@ -1,4 +1,4 @@
-export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'unknown';
+export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'share' | 'unknown';
 
 export type TenantAppInstallCampaign = 'venue_qr' | 'confirmation_qr' | 'receipt_qr';
 
@@ -22,6 +22,7 @@ const INSTALL_SOURCES = new Set<InstallSource>([
   'referral',
   'ad',
   'link',
+  'share',
   'unknown',
 ]);
 

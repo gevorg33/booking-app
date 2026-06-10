@@ -1,4 +1,5 @@
 import { toIsoDay } from '../../common/utils/date-format.util.js';
+import { isCatalogMutateCommandPrompt } from './ai-catalog.util.js';
 import { isDiagnoseTourCapacityPrompt } from './ai-tour-capacity.util.js';
 import { isExplainTourBookingPrompt } from './ai-tour-booking.util.js';
 
@@ -33,7 +34,7 @@ function hasReadTourDaySlotsCue(prompt: string): boolean {
       prompt,
     ) ||
     /\?\s*$/.test(prompt.trim()) ||
-    /(ինչ|որ|որքան|քանի|բացատր|ցույց|ինչու|նշանակ)/i.test(prompt) ||
+    /(ինչու|ինչու՞|ինչ\s|որքան|քանի\s|բացատր|ցույց|նշանակ)/i.test(prompt) ||
     /(какой|какая|какие|сколько|почему|объясни|осталось|недоступен)/i.test(
       prompt,
     )
@@ -60,7 +61,7 @@ function hasTourDaySlotsTopic(prompt: string): boolean {
       prompt,
     ) ||
     /\b(why|how\s+many).{0,40}\b(spots?|seats?|places?)\b/i.test(prompt) ||
-    /(մեկ\s+մեկնում|մնաց|տեղ|ամբողջությամբ\s+ամրագրված|օրական)/i.test(prompt) ||
+    /(մեկ\s+մեկնում|մնաց|քանի\s+տեղ|ամբողջությամբ\s+ամրագրված|օրական)/i.test(prompt) ||
     /(одно\s+время|осталось|мест|недоступен|полностью\s+забронирован)/i.test(
       prompt,
     )
@@ -253,6 +254,7 @@ function isSingleTourDaySlotsPrompt(prompt: string): boolean {
 }
 
 export function isExplainTourDaySlotsPrompt(prompt: string): boolean {
+  if (isCatalogMutateCommandPrompt(prompt)) return false;
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
   if (isAvailabilityListingPrompt(prompt)) return false;
 

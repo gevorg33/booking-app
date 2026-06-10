@@ -50,7 +50,7 @@ describe('consumer-native-push.util', () => {
       resolveConsumerPushRoute('optischedule://book/glow-nails/book/svc-1'),
     ).toBe('/s/glow-nails/book/svc-1');
     expect(resolveConsumerPushRoute('optischedule://book/glow-nails')).toBe(
-      '/s/glow-nails',
+      '/s/glow-nails/home',
     );
   });
 

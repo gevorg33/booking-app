@@ -2,7 +2,6 @@ import {
   consumeDeferredInstallLink,
   saveDeferredInstallLink,
 } from './deferred-install-link.util.js';
-import type { DeferredInstallLink } from './deferred-install-link.util.js';
 
 export type { DeferredInstallLink, InstallSource } from './deferred-install-link.util.js';
 export {
@@ -84,9 +83,11 @@ export function consumeDeferredSlug(): string | null {
   return consumeDeferredInstallLink()?.slug ?? null;
 }
 
+export const SALON_HOME_SUBPATH = '/home';
+
 export function buildSalonPath(slug: string, subpath = ''): string {
   const base = `/s/${slug}`;
-  if (!subpath) return base;
+  if (!subpath || subpath === '/') return `${base}${SALON_HOME_SUBPATH}`;
   return `${base}${subpath.startsWith('/') ? subpath : `/${subpath}`}`;
 }
 

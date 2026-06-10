@@ -70,6 +70,7 @@ describe('consumer-growth-loops.util', () => {
     expect(target?.booking.id).toBe('bk-rebook-1');
     expect(target?.path).toContain('svc-haircut');
     expect(target?.path).toContain('rebook=1');
+    expect(target?.path).toContain('rebookSource=account');
     expect(target?.path).toContain('slot=2026-05-01');
   });
 

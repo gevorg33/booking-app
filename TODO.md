@@ -76,6 +76,145 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **56** | AI feature parity — close coverage gaps to 100% per role | **parity-2** |
 | **57** | AI feature parity — role-scoped "do anything" agent | **parity-3** |
 | **58** | AI feature parity — coverage CI gate & maintenance | **parity-4** |
+| **59** | Provider app — customer context at chair | **prov-exp-1** |
+| **60** | Provider app — stats, check-in & team floor | **prov-exp-2**–**prov-exp-4** |
+| **61** | Provider app — retail, comms & schedule | **prov-exp-5**–**prov-exp-7** |
+| **62** | Provider app — waitlist, growth & polish | **prov-exp-8**–**prov-exp-11** |
+| **63** | Budget-aware service discovery (planned) | **budget-1**, **ai-cmd-budget** |
+| **64** | Premium / best service discovery (planned) | **rank-1**, **ai-cmd-rank** |
+| **65** | Flexible OR availability + budget compounds (planned) | **avail-1**, **ai-cmd-avail** |
+| **—** | Unified service discovery (budget + rank + OR avail) | **discover-1**, **ai-cmd-discover** |
+| **—** | Extend dashboard `AiCommandService` actions (orchestrator + registry parity) | **ai-cmd-ext** |
+
+---
+
+## ai-cmd-ext — Extend `AiCommandService` actions (plan)
+
+**Goal:** Grow dashboard AI command coverage safely — every new product action gets a registry entry, classifier rule, handler (inline or delegated), rescue path, fixtures, and eval case — without letting `ai-command.service.ts` become an unmaintainable god-object.
+
+**Baseline (today):**
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Dashboard intents in registry | **234** (138 mutating) | `DASHBOARD_INTENTS` in `ai-command-registry.build.ts` |
+| `executeSingleIntent` switch cases | **~337** (multi-surface + aliases) | `ai-command.service.ts` |
+| LEGACY_CORE intents owned by `AiCommandService` | **~51 mutate + ~19 read** | `LEGACY_CORE_BINDINGS` in registry build |
+| `INTENT_SCHEMA` action union | **~52 core verbs** (stale) | top of `INTENT_SCHEMA` in `ai-command.service.ts` |
+| Documented rules in schema appendix | **~200+ actions** | fixture constants appended to `INTENT_SCHEMA` |
+| Generic fallback on unknown handler | still active | `default` case → "don't know how to execute" |
+
+**Architecture policy (mandatory for every new action):**
+
+| Layer | Where to change | Rule |
+|-------|-----------------|------|
+| Registry | `ai-command-registry.build.ts` + domain `*.util.ts` intent list | Add `id`, `surfaces`, `handler`, `mutating`, `sprint` **before** handler code |
+| Classifier | `INTENT_SCHEMA` union + `*_CLASSIFIER_RULES` in `*.fixtures.ts` | Extend action union; never rely on appendix-only rules |
+| Dispatch | `AiCommandService.executeSingleIntent` `switch` | **One line:** `case 'x': result = await this.domain.handleX(...); break;` — no business logic inline |
+| Handler | `Ai*Service` / `*.logic.ts` next to domain | All DB/API work lives here (match `AiCatalogService`, `AiSchedulingService`, …) |
+| Validate | `command-completion.validator.ts` + `ai-command-entity-params.registry.ts` | Required params per action |
+| Rescue | `AiIntentRescueService` or domain `rescue*FromPrompt` | Deterministic-first; regression-tested |
+| Tests | `*.fixtures.ts` → `it.each` unit + `*.integration.spec.ts` + `eval/ai-command-eval.cases.ts` | EN/HY/RU; tag `surface: dashboard` |
+| Other surfaces | `ProviderAiCommandService`, `CustomerAiCommandService`, `PublicBookingAssistantService` | Duplicate verbs where UI differs — **do not** route provider/customer/public through `AiCommandService` |
+
+**Per-action definition of done** (every row in tables below):
+
+- [ ] Registry binding + access tier in `access-control.matrix.ts`
+- [ ] `INTENT_SCHEMA` union entry + classifier rules wired
+- [ ] `case` in `executeSingleIntent` **or** documented delegation to another surface service
+- [ ] Handler + validator + entity params
+- [ ] Rescue/heuristic + ≥10 NL variants in fixtures
+- [ ] Eval golden cases (`npm run test:sprint14`; `test:ai-accuracy` when applicable)
+
+---
+
+### ai-cmd-ext-0 — Orchestrator hygiene (do first)
+
+| Task ID | Work | Why |
+|---------|------|-----|
+| **ai-cmd-ext-0.1** | Regenerate `INTENT_SCHEMA` action union from `DASHBOARD_INTENTS` (+ shared dashboard/provider reads) | Classifier cannot emit actions missing from the union |
+| **ai-cmd-ext-0.2** | Handler coverage gate — test fails when any `DASHBOARD_INTENTS` id lacks a `switch` case **or** a registry `handler !== 'AiCommandService'` with working dispatch on that service | Closes registry ↔ execution drift |
+| **ai-cmd-ext-0.3** | Replace generic `default` summary with registry lookup ("action X is registered but handler Y is not wired") | Better telemetry + faster triage |
+| **ai-cmd-ext-0.4** | Extract LEGACY_CORE inline methods → `AiDashboardCoreService` (booking, cancel, show, analytics, schedule mutate) — `AiCommandService` keeps classify + compound + dispatch only | Target orchestrator **< 5k LOC** |
+| **ai-cmd-ext-0.5** | Optional: registry-driven dispatch table (`Map<intent, handlerFn>`) built at module init | Removes 300+ `case` branches over time |
+
+---
+
+### ai-cmd-ext-1 — Extend existing dashboard handlers (params, not new verbs)
+
+These ship through **`AiCommandService`** by extending existing `handleListServices`, `handleCheckAvailability`, `handleCreateBooking`, etc.
+
+| Task ID | Action(s) | Change type | Handler | Sprint | Depends on |
+|---------|-----------|-------------|---------|--------|------------|
+| **ai-cmd-ext-1.1** | `list_services` | Add param `maxPrice` | `handleListServices` | **63** / **budget-1.9** | **budget-1.1**–**1.4** |
+| **ai-cmd-ext-1.2** | `list_services` | Add param `serviceRank` (`highest_price` \| `lowest_price` \| `most_popular`) | `handleListServices` | **64** / **rank-1.4** | **rank-1.1**–**1.3** |
+| **ai-cmd-ext-1.3** | `check_availability` | Add param `availabilityWindows[]` + per-window `timeOfDay` | `handleCheckAvailability` | **65** / **avail-1.5** | **avail-1.1**–**1.4** |
+| **ai-cmd-ext-1.4** | `create_booking` | Budget/rank pre-filter + `bookingFirstAvailable` across OR windows | `handleCreateBooking` + compound utils | **65** / **avail-1.6**–**1.8** | **discover-1.1**–**1.3** |
+| **ai-cmd-ext-1.5** | `lookup_service_assignment` | Optional `maxPrice` / `serviceRank` on team-wide "who can do X" | `handleLookupServiceAssignment` | **63**–**64** | **budget-1.1**, **rank-1.1** |
+| **ai-cmd-ext-1.6** | `summarize_bookings` | Revenue KPIs with tenant currency formatting | existing analytics handler | **28** / **curr-1** | shipped util reuse |
+
+**Note:** `recommend_specialists`, `book_appointment`, `check_providers_for_service` extend on **public/customer** surfaces (`PublicBookingAssistantService`, `CustomerAiCommandService`) — track under **ai-cmd-budget** / **ai-cmd-rank** / **ai-cmd-avail**, not this file.
+
+---
+
+### ai-cmd-ext-2 — New dashboard actions (add `case` + delegate)
+
+| Task ID | Action | R/W | Delegate handler | Sprint | Surfaces | Product link |
+|---------|--------|-----|------------------|--------|----------|--------------|
+| **ai-cmd-ext-2.1** | `upload_patient_result` | M | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** (legacy upload — skip if v2-only) |
+| **ai-cmd-ext-2.2** | `explain_patient_results` | R | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** |
+| **ai-cmd-ext-2.3** | `configure_test_reference_range` | M | `AiClinicTestResultService` (new) | **54** | dashboard | **vert-clinic-2.1.6** normal ranges |
+| **ai-cmd-ext-2.4** | `list_abnormal_results` | R | `AiClinicTestResultService` (new) | **54** | dashboard | **vert-clinic-2.1.6** |
+| **ai-cmd-ext-2.5** | `create_employee` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | staff onboarding |
+| **ai-cmd-ext-2.6** | `invite_staff_member` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | team invite flow |
+| **ai-cmd-ext-2.7** | `deactivate_employee` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | staff lifecycle |
+| **ai-cmd-ext-2.8** | `configure_online_booking` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | public page settings |
+| **ai-cmd-ext-2.9** | `open_billing_settings` | R | `AiMarketingGrowthService` or new `AiBillingSettingsService` | **55** / **parity-2.1** | dashboard | deep-link + explain plan |
+| **ai-cmd-ext-2.10** | `summarize_loyalty_program` | R | `AiMarketingGrowthService` (extend) | **55** / **parity-2.1** | dashboard | loyalty module |
+| **ai-cmd-ext-2.11** | `list_waitlist_entries` | R | new `AiWaitlistService` | **62** / **prov-exp-8** | dashboard (+ provider read) | waitlist panel API |
+| **ai-cmd-ext-2.12** | `offer_waitlist_slot` | M | `AiWaitlistService` | **62** / **prov-exp-8** | dashboard | manager offers gap to waitlist |
+
+---
+
+### ai-cmd-ext-3 — Registry-only intents → wire dispatch (handlers exist or stubbed elsewhere)
+
+These are already in `ai-command-registry.build.ts` with **`handler !== 'AiCommandService'`** — work is **ProviderAiCommandService** (or sibling), not the dashboard switch. Listed here so dashboard extension plan stays aligned with full intent inventory.
+
+| Task ID | Action(s) | Target service | Sprint | Wire in |
+|---------|-----------|----------------|--------|---------|
+| **ai-cmd-ext-3.1** | `summarize_client`, `show_client_history`, `add_client_note` | `AiProviderClientContextService` | **59** / **prov-exp-1** | `ProviderAiCommandService` |
+| **ai-cmd-ext-3.2** | `my_stats`, `team_floor_status`, `check_in_client`, `mark_running_late` | `AiProviderExp2Service` | **60** / **prov-exp-2** | `ProviderAiCommandService` |
+| **ai-cmd-ext-3.3** | `summarize_my_appointments`, `summarize_my_revenue` | `AiProviderEarningsService` | **60** / **prov-exp-4** | `ProviderAiCommandService` |
+| **ai-cmd-ext-3.4** | `add_retail_to_booking`, `send_client_message`, `block_my_time`, `request_time_off` | `AiProviderExp3Service` | **61** / **prov-exp-5** | `ProviderAiCommandService` |
+| **ai-cmd-ext-3.5** | `list_time_off_requests`, `approve_time_off_request`, `deny_time_off_request` | `AiProviderTimeOffService` | **61** / **prov-exp-7** | dashboard switch **+** provider |
+| **ai-cmd-ext-3.6** | `suggest_waitlist_for_gap` | `AiProviderOpenShiftsService` | **62** / **prov-exp-8** | `ProviderAiCommandService` |
+
+---
+
+### ai-cmd-ext-4 — Multi-step dashboard compounds (orchestration in `AiCommandService`)
+
+| Task ID | Compound recipe | Step actions (ordered) | Sprint | Decompose util |
+|---------|-----------------|------------------------|--------|----------------|
+| **ai-cmd-ext-4.1** | `onboard_new_stylist` | `create_employee` → `assign_employee_services` → `onboard_provider_schedule` → `configure_online_booking` | **57** / **parity-3.2** | new `decomposeStaffOnboardingCompoundPrompt` |
+| **ai-cmd-ext-4.2** | `clinic_lab_day_close` | `list_test_orders` → `enter_test_result` → `release_test_result` → `notify_patient_result_ready` | **54** / **vert-clinic-2** | extend `decomposeClinicCompoundPrompt` |
+| **ai-cmd-ext-4.3** | `budget_discover_and_book` | filter catalog → `check_availability` → `create_booking` | **63**–**65** / **discover-1** | extend check-and-book (**ai-cmd-h1**) |
+| **ai-cmd-ext-4.4** | `rank_discover_and_book` | `list_services` (rank) → `check_availability` → `create_booking` | **64**–**65** | **ai-cmd-discover** mega-prompts |
+
+Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compoundStepParams`.
+
+---
+
+### Implementation order
+
+| Phase | Task IDs | Exit criteria |
+|-------|----------|---------------|
+| **0 — Hygiene** | **ai-cmd-ext-0.1**–**0.3** | CI gate: no registry intent without handler path; union synced |
+| **1 — Param extensions** | **ai-cmd-ext-1.1**–**1.4** | **budget-1**, **rank-1**, **avail-1**, **discover-1** gates green |
+| **2 — New dashboard verbs** | **ai-cmd-ext-2.*** per product sprint | Each row meets per-action DoD + **parity-2.4** locale eval |
+| **3 — Provider dispatch** | **ai-cmd-ext-3.*** | Provider matrix 100% wired (**parity-1** inventory) |
+| **4 — Compounds** | **ai-cmd-ext-4.*** | Labeled multi-step set ≥95% (**parity-3.2**) |
+| **5 — Refactor** | **ai-cmd-ext-0.4**–**0.5** | `AiCommandService` LOC reduced; dispatch table optional |
+
+**Related:** **ai-cmd-h1**–**h4** (NLU quality), **parity-1**–**parity-4** (role coverage matrix + CI), **acc-2** (eval expansion for every new action).
 
 ---
 
@@ -127,575 +266,610 @@ in the end when I will have many clients:
 create Full marketplace per country
 Central place where clients discover and book across tenants
 
-- [x] **ai-cmd-tour-1** — Dashboard: **`configure_tour_service`** — "Mark City Tour as a tour with max 12 people", "Set difficulty to moderate for the mountain trek"
-- [x] **ai-cmd-tour-2** — Dashboard: **`explain_tour_services`** (READ) — list tour services, group sizes, cover images, upcoming tour bookings with pax / `tourStartDate`–`tourEndDate`
-- [x] **ai-cmd-tour-3** — Dashboard: **`apply_tour_playbook`** — shortcut to apply tour vertical playbook (catalog + 08:00–18:00 schedule) for `tour_operator` tenants
-- [x] **ai-cmd-tour-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for tour configuration and explain phrasing (EN/HY/RU)
-- [x] **ai-cmd-tour-5** — Customer/public: **`explain_tour_booking`** — READ when user asks about group size, per-person pricing, or tour duration on booking page
-- [x] **ai-cmd-tour-6** — Customer/public: **`explain_tour_day_slots`** (READ) — why multi-day tours show one departure per day, `remainingSpots`, and when a date is fully booked (links **vert-tour-1.6** deferred date-only picker)
-- [x] **ai-cmd-tour-7** — Dashboard: **`explain_tour_booking_record`** (READ) — `paxCount`, `tourStartDate`, `tourEndDate`, special requirements on a booking; link provider calendar tour spans (**vert-tour-1.10** shipped)
-- [x] **ai-cmd-tour-8** — Dashboard: **`list_upcoming_tour_departures`** (READ) — summarize confirmed tour bookings by departure date, pax, and remaining capacity
-- [x] **ai-cmd-tour-9** — Customer/public: **`diagnose_tour_capacity`** (READ) — why checkout rejected pax count or date (max group, fully booked, clamped pax)
-- [x] **ai-cmd-tour-10** — Classifier rules + eval cases for day-level slots, tour booking metadata, and capacity phrasing (EN/HY/RU)
-- [x] **ai-cmd-tour-11** — Dashboard: **`explain_tour_calendar_span`** (READ) — why a tour appears across multiple days on the provider calendar, service colors, clipped weeks, stacked departures (**vert-tour-1.10**)
-- [x] **ai-cmd-tour-12** — Dashboard: **`list_tour_calendar_week`** (READ) — summarize tour departures visible in the current calendar week for a provider (dates, pax, service)
-- [x] **ai-cmd-tour-13** — Classifier rules + eval cases for tour calendar span phrasing and week-navigation intents (EN/HY/RU)
-
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
-
----
-
-## Sprint 31 — Clinic vertical v1 (shipped)
-
-Business types, service metadata, playbook, checkout symptoms/referral, Results tab gating. Deferred lab/results UI → **Sprint 54** (**vert-clinic-2**).
-
-### vert-clinic-1.3 — Lab / test results (deferred → vert-clinic-2.4)
-- [x] **vert-clinic-1.5** — ~~DB schema — `patient_test_results` table~~ **superseded by vert-clinic-2.4** — structured `clinic_test_results` + legacy booking-metadata bridge (`legacy-booking-patient-test-results-phi.util.ts`); no separate upload table
-- [x] **vert-clinic-1.6** — ~~Result upload API~~ **superseded by vert-clinic-2.4** — structured result entry/release via dashboard/LIS; legacy metadata read-only
-- [x] **vert-clinic-1.7** — Dashboard booking detail Results tab — v1: `BookingLabResultsSection` + `ResultsActionHistoryModal`, result transitions + audit history
-- [x] **vert-clinic-1.8** — Customer My results in public account — v1: `PublicMyResultsSection` on `/book/:slug/account`, `GET .../me/clinic-test-results` (released only), gated by `businessType`
-- [x] **vert-clinic-1.9** — Consumer app My results tab — v1: `MyResultsPage` + bottom tab on clinic vertical, `GET .../me/clinic-test-results`
-- [x] **vert-clinic-1.10** — Provider app results tab (assigned patients)
-- [x] **vert-clinic-1.11** — Result ready notification
-- [x] **vert-clinic-1.12** — Privacy guard for results API — v1: PHI decrypt/mask on `GET .../bookings/:id/results` + `GET .../results/:id`, write audit on transitions, measurement read audit
-
-### vert-clinic-1.4 — Clinic-only UI gating
-- [x] **vert-clinic-1.13** — Results tab gating by `businessType` — `shouldShowPatientResultsTab` / `isClinicVerticalBusinessType` in `clinic-service` utils (EN+BE); booking-detail Results tab UI ships with **vert-clinic-1.7**
-- [x] **vert-clinic-1.14** — Clinic booking form — optional `referralNotes` and `symptoms` on public checkout for clinic services; stored in booking metadata
-
-**Tests (Sprint 31):**
-```bash
-cd backend && npm run test:sprint31
-cd frontend && npm run test:sprint31
-```
-- Backend unit: `clinic-service.util.spec.ts` (100% util coverage)
-- Backend unit: `vertical-playbooks.constants.spec.ts` (polyclinic/clinic mapping, extended playbook)
-- Backend unit: `service.clinic.spec.ts` (create/update clinic metadata, tour/clinic switch)
-- Backend integration: `onboarding-vertical-playbook.spec.ts` (clinic/polyclinic preview, catalog metadata)
-- Backend integration: `public-booking-clinic.integration.spec.ts` (service mapping, referral/symptoms metadata, trim/omit, non-clinic guard, disabled booking)
-- Frontend unit: `clinic-service.spec.ts` (100% util coverage)
-- Frontend integration: `clinic-booking.integration.spec.ts` (clinic vs standard services, badges, fasting/prep, checkout payloads)
-
-### vert-clinic-1.5 — AI commands (planned — link to **ai-cmd-h** / implement later)
-
-- [x] **ai-cmd-clinic-1** — Dashboard: **`configure_clinic_service`** — "Mark CBC as a lab test requiring fasting", "Set lipid panel prep instructions"
-- [x] **ai-cmd-clinic-2** — Dashboard: **`explain_clinic_services`** (READ) — departments, consultation vs lab vs procedure counts, fasting requirements
-- [x] **ai-cmd-clinic-3** — Dashboard: **`apply_clinic_playbook`** — shortcut to apply clinic vertical playbook for `clinic` / `polyclinic` tenants
-- [x] **ai-cmd-clinic-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for clinic configuration and explain phrasing (EN/HY/RU)
-- [x] **ai-cmd-clinic-5** — Customer/public: **`explain_clinic_booking`** — READ when user asks about symptoms/referral fields or lab prep on booking page
 - [ ] **ai-cmd-clinic-6** — Dashboard: **`upload_patient_result`** / **`explain_patient_results`** — legacy file-upload path; **superseded for v2** by **`enter_test_result`** / **`release_test_result`** (**ai-cmd-clinic-v2-2**); keep open only if legacy metadata upload is still required
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
 ---
-
-## Sprint 54 — Clinic vertical v2 (generic clinic — lab, results, light EMR)
-
-**Design principle — generic clinic only, zero fertility product logic.**
-
-Booking's clinic vertical is for **any medical clinic**: GP, polyclinic, dental, beauty clinic, outpatient lab, cardiology desk — **not** IVF, cryo, stim sheets, partner cycles, or reproductive journey workflows. The local `clinic-app/` reference is **Pollin (fertility)** code we **mine and strip**, not a product spec. Every clone step must pass a de-fertility review before merge.
-
-**In scope (generic):**
-
-| Domain | Examples |
-|--------|----------|
-| **Catalog** | CBC, lipid panel, thyroid, ECG, consultation, procedure — tenant-defined test types + panels |
-| **Orders** | Lab order on booking; status: not collected → collecting → awaiting results → completed / cancelled |
-| **Results** | Structured measurements + PDF; review → release to patient; normal/abnormal flags |
-| **Specimens** | Collection, storage, transport between sites |
-| **Chart (light EMR)** | Allergies, problems, encounters, staff notes, documents — **one** patient profile (no sex-split fertility fields) |
-| **Intake** | Pre-visit questionnaire; symptoms/referral (extends vert-clinic-1 checkout fields) |
-
-**Out of scope — do not ship, do not clone, delete if found in copied files:**
-
-IVF lab · cryo inventory · treatment plans · stim sheets · FertilityIQ · genetic tests tied to embryos · sperm cryo · OB/OHSS/follicle ultrasound modules · partner invitation · patient milestones · IC fertility worksheets · `patientPlanId` on orders · `HormoneType` / `fertilityIQImageURL` on test types · order wizard tied to plan milestones · sex-specific `patient_detail_female/male` · gynaecological/fertility history APIs
-
-**Goal:** Extend **vert-clinic-1** into the generic clinic vertical above on all applicable surfaces (dashboard, provider mobile, customer mobile, public booking).
-
-**Reference app:** `clinic-app/` (gitignored Pollin monorepo). Booking already mirrors scheduling — see **Already ported**. Sprint 54 clones **de-fertility-filtered** lab + EMR slices only.
-
-### Already ported from clinic-app — do not re-copy
-
-| Pattern | Booking location | clinic-app source |
-|---------|------------------|-------------------|
-| Applied scheduling periods + 10-min micro-slots | `schedule/entities/scheduling-period.entity.ts`, `scheduling-slot.entity.ts` | `scheduling/AppliedSchedulingTemplatePeriod`, `SchedulingSlot` |
-| Slot locking on booking create | `booking/booking.service.ts` (lock all micro-slots in window) | Same counting/locking logic |
-| Slot lookup by provider + service + dates | `booking.service.ts` `findSlotsByServiceTypeProviderAndDates` comment | `findSlotsByServiceTypeProviderAndDates` |
-| Post-booking domain event alias | `events/event-types.ts` `APPOINTMENT_CREATED`, `booking-created.listener.ts` | `publishAppointmentsCreated` |
-| PHI encryption + minimum-necessary masking | `phi-encryption.util.ts`, `phi-minimum-access.util.ts`, `compliance/` | Scattered PHI handling |
-| HIPAA mode, BAA, session timeout, PHI read audit | `compliance-1` module | Compliance docs (narrower in Booking) |
-| Notifications spine (email/SMS/WhatsApp/push) | `notifications.service.ts`, template defaults | Appointment comms — **extend** for `result_ready`, don't duplicate |
-| Customer + Booking spine | `customer/`, `booking/` | `patient` + `appointment` — bridge via `customerId` + `bookingId` |
-| Employee roles | `MemberRole` on business members | `Staff` + `PermissionEnum` — map, don't import entity |
-| Workflow / AI automation | `engine/workflow/`, LangGraph agents | **Separate** from clinic `Task` entity |
-
-### Clinic-app audit — copy vs skip (Tier A–E)
-
-| Tier | Copy / adapt (general clinic) | clinic-app reference | Skip (fertility-only) |
-|------|------------------------------|----------------------|------------------------|
-| **A — Lab core** | Test type + panel catalog, normal ranges, observation types | `clinic-backend/libs/data-layer/src/apps/clinic-test/` (`test-type`, `test-panel`, enums) | Hormone types, fertility IQ result links, thyroid protocol worksheets |
-| **A — Lab core** | Test order lifecycle (`NotCollected` → `Completed`) linked to **Booking** | `apps/clinic-test-results/src/order/` | Patient-plan / cohort order triggers |
-| **A — Lab core** | Structured test results + review/release workflow | `apps/clinic-test-results/src/test-result/`, `enums/test-result.enum.ts` | OB/OHSS ultrasound measurements, egg-freezing reports |
-| **A — Lab core** | Specimen collection, storage, transport | `apps/clinic-test-results/src/specimen/`, `transport/` | — |
-| **A — Lab core** | Patient results list + profile config | `profile-test-result/`, `clinic-frontend/.../patient-emr/.../results/` | Sex-specific fertility profile slots |
-| **B — Light EMR** | Patient detail (allergies, problems, demographics) | `apps/emr/src/patient/`, `patient-detail.entity.ts` | `patient_detail_female/male`, pregnancy/GTPAL histories |
-| **B — Light EMR** | Encounters + staff notes | `apps/emr/src/encounter/`, `staff-note/` | Stim-sheet / plan encounter types |
-| **B — Light EMR** | Documents (upload, categories) | `apps/emr/src/documents/` | — |
-| **B — Light EMR** | General medical background | `medical-background/services/general-health.service.ts` | Gynaecological / fertility history endpoints |
-| **C — Rx (later)** | Medications + prescriptions | `apps/emr/src/medications/`, `prescriptions/` | — |
-| **D — Catalog** | Service category ≈ department; link test types to bookable services | `scheduling/service-category`, `test-type` ↔ `service_type` | — |
-| **E — LIS (later)** | Lab sync, machines, background workers | `lab-sync-*`, `apps/lis-background/` | — |
-| **—** | IVF lab, cryo, treatment plans | — | `clinic-ivf-lab/`, `clinic-cryo-preservation-lab/`, `emr/plans/`, `stim-sheet/`, frontend `ivf-dashboard/`, `egg-embryo/` |
-
-### Extended reuse beyond Tier A–E (high-value additions)
-
-| Tier | What to reuse | clinic-app reference | Notes |
-|------|---------------|----------------------|-------|
-| **F — Result entry depth** | **Test observation types** (string/dropdown/textarea fields per test) | `test-observation-type.entity.ts`, `enums/test-observation.enum.ts` | Enables CBC-style structured entry, not PDF-only |
-| **F** | **Normal ranges** on test types | `test-type-normal-range.entity.ts`, `test-type-range.entity.ts` | Playbook seeds CBC/lipid; ranges drive abnormal flags |
-| **F** | **Review / release action service** + patient-visible status | `test-result/services/test-result-action.service.ts` (`markAsReviewed`, `markAsReleased`) | Wire to Booking `events/` + `notify_patient_result_ready` (clinic uses PubSub + portal `New` state, not a dedicated email enum) |
-| **F** | **Result + order change history** (staff audit, not PHI read audit) | `audit-trail/.../patient-order-and-result-audit-trail.service.ts`, `result-history.service.ts`, `test-result-status-history.service.ts` | Complements existing `phi-access-audit.service.ts` |
-| **F** | **Order comments, cancel reasons, status history** | `test-order-comment.entity.ts`, `test-order-cancellation-reason.entity.ts`, `test-order-status-history.entity.ts` | Low fertility contamination |
-| **F** | **Status UI metadata** (labels, colors, non-editable guards) | `services-common/src/enums/clinic-test.enum.ts` (`NotEditableStatuses`, `CompleteStatuses`, badge colors) | Port constants, not MUI |
-| **F** | **Generic attachments + final report status** | `test-result-attachment.service.ts`, `FinalReportStatus` | Skip OB/OHSS/final-report imaging modules |
-| **G — Intake & forms** | **Questionnaire engine** (revision, questions, constraints) | `data-layer/.../questionnaires/`, `apps/emr/src/questionnaire/`, `common/helpers/questionnaire.helper.ts` | **Strip** `QuestionnaireJourneyMilestone` / plan coupling |
-| **G** | **Pre-visit intake** (structured, beyond checkout symptoms) | `apps/emr/src/intake-form/services/intake-form.service.ts`, frontend `layout/IntakeForm/` | Functional spec: `functional-tests/.../intake-form/` |
-| **G** | **Patient alerts banner** ("new results", intake incomplete) | `PatientAlertType` in `services-common/enums/patient.enum.ts`, `PatientHighlightsView/` | Add `TestResultReleased` alert type in Booking |
-| **G** | **Clinical consents** (e-sign packages) | `apps/emr/src/consents/` | **Later** — drop plan-linked packages; ≠ cookie consent |
-| **H — Staff ops** | **Task entity** (assignee, due, links to order/result/encounter) | `clinic-tasks/entities/task.entity.ts`, `apps/core/src/tasks/` | **Skip** IVF automated task types (`AutomatedTaskType` egg-thaw/plan); keep generic (`HighPriorityResultReview`, `PatientCallback`) |
-| **H** | **External / referring doctors** | `apps/emr/src/external-doctors/` | Useful for polyclinic referrals |
-| **H** | **Barcode specimen labels** | `clinic-frontend/src/components/BwipJS/` | Small UI port for lab ops |
-| **I — Frontend UX shells** (adapt to Booking stack — no Redux/MUI clone) | **Patient EMR tab shell** (permission-gated) | `pages/patient-emr/details/[id]/index.tsx`, `helpers/constants.ts` | Tabs: profile, encounters, results, orders, documents, staff-notes, intake — **skip** plans, ic-form, medications initially |
-| **I** | **Results entry form + action history modal** | `components/Results/`, `Modals/ResultsActionHistoryModal/` | Drop `TestResultDetails/FertilityIQ/` |
-| **I** | **Orders list/create** (simplified) | `components/Orders/` | Drop `MilestoneGeneration`, super-type IVF wizard |
-| **I** | **Encounters / staff notes / documents layouts** | `layout/EncountersLayout/`, `StaffNotesLayout/`, `pages/.../documents/` | Tier B backend + these UX references |
-| **I** | **API manager shapes** (not Redux) | `manager/results/resultsManager.ts`, `patientEmr/patientEmrManager.ts` | Replicate DTO/route shapes in Booking hooks |
-| **J — Billing pattern (later)** | **Diagnostic / procedure code catalog** (region-agnostic) | `mdbilling-diagnostic-code.entity.ts`, `service-type-to-service-code.entity.ts` | **Skip** OHIP/MDBilling Canada integration; abstract to tenant `clinic_diagnostic_codes` |
-| **J** | **After-visit summary** document | `scheduling/entities/after-visit-summary.entity.ts` | Post-consultation summary PDF |
-| **K — Skip entirely** | Genetic tests (cryo-linked biopsy IDs), diagnostic imaging OB/OHSS, FertilityIQ, OHIF viewer, partner invitation, patient milestones, IC fertility worksheet | `genetic-tests/`, `diagnostic-imaging/`, `fertility-iq/`, `ObservationType` enum | Pattern-only: generic imaging = PDF attachment |
-
-**Fertility contamination quick rule:** Low = copy entity/enums as-is. Medium = **strip** milestone/plan/sex-specific fields before merge. High = **skip module entirely**. If a PR adds `patientPlanId`, `HormoneType`, or plan/milestone imports → reject.
-
-### De-fertility checklist (apply to every cloned file)
-
-| Strip from cloned code | Replace with (generic) |
-|------------------------|---------------------------|
-| `patientPlanId`, `PatientPlan`, plan repositories | Order linked to **`bookingId`** + **`customerId`** only |
-| `order-view-state` super-type / milestone wizard (`getSuperTypesOrderViewState`, `LibraryContent`) | Simple order CRUD + line items from catalog (**skip `OrderViewStateService` v2**; keep `order-crud`, `order-list`, `order-actions`) |
-| `plan-test-result.service.ts`, fertility profile slots | `profile-test-result` pinned to released CBC/lipid/etc. — no plan triggers |
-| `HormoneType`, `fertilityIQImageURL`, `PatientPlanToTestTypeProcedure` on `test_type` | Drop columns; optional `metadata` JSON for tenant extensions |
-| `PatientPlanRepository` in `test-result.module.ts` | Remove provider |
-| OB/OHSS/ovary/uterus result repos + entities | PDF **`test-result-attachment`** only for imaging |
-| `GestationalAgeEnum`, reproductive observation types | Generic string/number observations (`test-observation-type`) |
-| `mostResponsiblePhysician` from fertility journey | Optional **`referringProviderId`** → external doctors registry (**2.5.8**) |
-| Pollin `Patient` + journey types | Booking **`Customer`** + **`patient_clinical_profiles`** (single profile) |
-| Frontend tabs: plans, ic-form, FertilityIQ result details | EMR tabs: profile · encounters · results · orders · documents · intake only |
-
-**Files in clone folders that need explicit surgery (grep before merge):**  
-`order/order.module.ts`, `order/services/order-view-state.service.ts`, `order/helper/order-view-state.helper.ts`, `order/services/order.service.ts`, `order/services/order-crud.service.ts`, `test-result/test-result.module.ts`, `test-result/helper/test-result.helper.ts`, `profile-test-result/services/plan-test-result.service.ts` (**delete**), `profile-test-result.module.ts`.
-
-**Integration model:** Keep Booking's `Customer` + `Booking` as the scheduling spine. Add clinic domain tables with `businessId` + `customerId` + optional `bookingId`. No plan/cohort tables. Encrypt PHI at rest; extend minimum-necessary access for new APIs. Routes: `/business/:id/clinic/...`.
-
-### vert-clinic-2.0 — Clone `clinic-test-results` (generic lab slice only)
-
-Clone **generic lab workflow** from Pollin code after de-fertility filtering — not the fertility product. The standalone app wires IVF/cryo into its module root; Booking ships a **trimmed Nest module** with no plan/milestone/imaging specialty paths.
-
-**Target layout in Booking:**
-```
-backend/src/modules/clinic-test-results/     ← clone from clinic-app/apps/clinic-test-results/src/
-backend/src/modules/clinic-test-results/entities/   ← subset of clinic-app/libs/data-layer/.../clinic-test/
-backend/src/modules/clinic-test-results/enums/      ← copy enums; omit HormoneType, fertility ProfileTestResultType
-```
-
-**Clone these folders (~118 TS files) — then run de-fertility checklist above:**
-
-| Folder | Files | Generic use |
-|--------|-------|-------------|
-| `order/` | 24 | **Keep:** `order-crud`, `order-list`, `order-actions`, `order-comment`, `order-history`. **Drop/simplify:** `order-view-state` (plan/milestone wizard) |
-| `test-result/` | 22 | Entry, review/release, downloads — remove OB/OHSS repo imports from module |
-| `shared/` | 17 | Attachments, result/status/measurement history |
-| `specimen/` | 12 | Collection workflow |
-| `profile-test-result/` | 12 | Patient results list — **delete** `plan-test-result.service.ts` |
-| `lab-sync-test-results/` | 11 | Defer **2.6** |
-| `specimen-storage-location/` | 4 | Storage locations |
-| `transport/` | 6 | Inter-site transport |
-| `labs/` + `lab-machines/` | 10 | Lab registry |
-
-**Never clone (~47 TS files + app root imports):**
-
-| Folder / import | Reason |
-|-----------------|--------|
-| `diagnostic-imaging/` | Reproductive ultrasound — use PDF attachment |
-| `fertility-iq/`, `genetic-tests/`, `sperm-cryo/` | Fertility-only |
-| `IvfPatientsModule`, `CryoInventoryModule`, `SpawnCohortModule`, … in app module | Fertility infrastructure |
-
-**Entity layer (~35 TypeORM entities — generic subset only):**
-
-Copy: `test-type` (strip `hormoneType`, `fertilityIQImageURL`, plan FKs), `test-panel`, `test-order` (strip `patientPlanId`), `test-order-item`, comments/cancel/status-history, `test-result`, measurements, observations, attachments, comments, status-history, `test-observation-type`, normal/ranges, `specimen*`, `transport-folder`, `lab-info`, `lab-machine`, `profile-test-result` (generic slots only), `super-type` / `test-group` (optional — department grouping, not IVF super-types).
-
-**Never copy entities:** `patient-fertility-iq*`, `thyroid-protocol*`, `test-result-ob-ultrasound`, `test-result-ohss-*`, ovary/uterus measurements, `semen-verification-form`, `patient-egg-freezing-report`, plan-linked junction tables.
-
-**Adaptation checklist (mandatory after clone):**
-
-- [x] **vert-clinic-2.0.1** — Copy generic folders → `backend/src/modules/clinic-test-results/`; register `ClinicTestResultsModule` (no IVF/cryo imports)
-- [x] **vert-clinic-2.0.2** — Copy trimmed entities + enums; add **`businessId`**; UUID PKs; **no `patientPlanId` column**
-- [x] **vert-clinic-2.0.3** — Replace `@libs/data-layer` repos → Booking TypeORM pattern — v1: TypeORM entities + repositories in `ClinicTestResultsModule`
-- [x] **vert-clinic-2.0.4** — **`patientId` → `customerId`**, **`appointmentId` → `bookingId`** — v1: all entities + migration use Booking FKs
-- [x] **vert-clinic-2.0.5** — **`Staff` → `Employee`** + `MemberRole`; wire `ComplianceModule` PHI encryption — v1: `clinic-lab-phi.util.ts`, `ClinicLabPhiService`, history-note encryption on status transitions
-- [x] **vert-clinic-2.0.6** — Firestore history → Postgres (`clinic_test_result_history` or audit service) — v1: `clinic_test_order_status_history` + `clinic_test_result_status_history` tables
-- [x] **vert-clinic-2.0.7** — PubSub → Booking `events/` (`test_result.released`) → notifications — v1: `EventType.TEST_RESULT_RELEASED` on release + `ClinicTestResultReleasedListener` → `NotificationsService.sendClinicResultReady`
-- [x] **vert-clinic-2.0.8** — Replace `@libs/*` imports with Booking modules — v1: no `@libs` under `clinic-test-results/`
-- [x] **vert-clinic-2.0.9** — Port tests: `order-actions`, `test-result-actions` — **skip** priming/sperm-cryo/ultrasound tests
-- [x] **vert-clinic-2.0.10** — Gate module: `isClinicVerticalBusinessType(businessType)` — v1: `clinic-test-results-gate.util.ts` + `assertEnabled` on API
-- [x] **vert-clinic-2.0.11** — **De-fertility gate:** CI grep fails on `patientPlan`, `FertilityIQ`, `HormoneType`, `PatientPlan`, `cohort`, `stim`, `OHSS`, `ObUltrasound`, `egg-freez`, `sperm-cryo` under `clinic-test-results/`
-
-**Why clone:** Generic order/result/specimen status machines are already implemented — faster to strip fertility branches than rewrite. **Product behavior** comes from Booking playbook (CBC, lipid, GP consult) and vert-clinic-1 metadata, not Pollin journeys.
-
-### Lab state machines (generic subset — port with clone)
-
-Source enums: `clinic-app/.../clinic-test/enums/{test-order,test-result,specimen}.enum.ts` + guards in `services-common/.../clinic-test.enum.ts`. Implement as **`clinic-lab-state.util.ts`** (+ spec) in Booking; clone services call these guards instead of Pollin `@libs` maps.
-
-**Omit from Booking (fertility / deprecated):** `HormoneType` · `ProfileTestResultType` plan/FertilityIQ/Priming values · `TestOrderTypeCodeEnum.CycleMonitoring` · `OrderGroupItemEnum.LibraryContent` · `OrderGroupItemEnum.TaskTemplate` · plan-driven auto-transitions · `Verbal` result status (optional v2 — phone-only verbal; defer unless needed)
-
-#### 1 — Test order (`TestOrderStatusEnum` — generic)
-
-| Status | Meaning |
-|--------|---------|
-| `NotCollected` | Order created (from booking or manual); no specimen yet |
-| `Collecting` | Collection in progress at visit |
-| `AwaitingResults` | Specimen collected; lab processing |
-| `Completed` | All line-item results received |
-| `Cancelled` | Order cancelled (reason + history row) |
-
-**Defer or drop for v1:** `PartiallyBooked`, `Booked` (Pollin multi-visit cycle booking), `Abandoned` (plan abandonment).
-
-```mermaid
-stateDiagram-v2
-  [*] --> NotCollected: create_order / booking_confirmed
-  NotCollected --> Collecting: start_collection
-  Collecting --> AwaitingResults: specimen_collected
-  AwaitingResults --> Completed: all_results_received
-  NotCollected --> Cancelled: cancel
-  Collecting --> Cancelled: cancel
-  AwaitingResults --> Cancelled: cancel
-  Completed --> [*]
-  Cancelled --> [*]
-```
-
-**Side effects:** append `test_order_status_history` · optional `clinic_tasks` (SpecimenCollection) · link `bookingId` on create (**2.2.2**)
-
-#### 2 — Test result (`TestResultStatus` — generic)
-
-| Status | Staff | Patient sees |
-|--------|-------|--------------|
-| `NotReceived` | Awaiting lab | — |
-| `Pending` / `WaitingCompletion` | Partial data | — |
-| `Completed` | Entry done; needs review | — |
-| `Reviewed` / `AutomaticallyReviewed` | Clinically signed off | — |
-| `Released` | Sent to patient | `ResultStatusForPatient.New` → read |
-| `Rejected` | Invalid / QC fail | — |
-
-**Guards (port `NotEditableStatuses`, `CompleteStatuses`):** no edit after `Reviewed` / `Released`; release only from `Completed` or `Reviewed`.
-
-```mermaid
-stateDiagram-v2
-  [*] --> NotReceived: order_line_created
-  NotReceived --> Pending: lis_or_manual_partial
-  Pending --> Completed: entry_complete
-  Completed --> Reviewed: mark_reviewed
-  Completed --> AutomaticallyReviewed: auto_qc_pass
-  Reviewed --> Released: mark_released
-  AutomaticallyReviewed --> Released: mark_released
-  Completed --> Rejected: reject
-  Released --> [*]: patient_notified
-```
-
-**Side effects on `Released`:** `test_result.released` event → email/WhatsApp/push (**2.4.7**) · PHI audit · clear `ResultStatusForPatient.New` when patient opens
-
-#### 3 — Specimen (`SpecimenStatus` — generic)
-
-| Status | Meaning |
-|--------|---------|
-| `NotCollected` | Expected for order line |
-| `Collected` | Drawn at clinic |
-| `ReadyForTransport` / `InTransit` | Between sites |
-| `ReceivedInLab` | Lab acknowledged |
-| `Completed` | Processing done |
-| `RecollectRequired` / `RetestRequired` / `Rejected` | Exception paths |
-
-```mermaid
-stateDiagram-v2
-  [*] --> NotCollected
-  NotCollected --> Collected: collect
-  Collected --> ReadyForTransport: pack
-  ReadyForTransport --> InTransit: ship
-  InTransit --> ReceivedInLab: receive
-  ReceivedInLab --> Completed: process_done
-  Collected --> RecollectRequired: qc_fail
-  RecollectRequired --> Collected: recollect
-```
-
-**v1 slice:** may ship `NotCollected` → `Collected` → `ReceivedInLab` only; full transport states in **2.3**.
-
-#### 4 — Measurement flag (`FinalResultType` / `TestResultMeasurementType` — generic)
-
-`Normal` · `Abnormal` · `Inconclusive` · `Indeterminate` · `TestNotComplete` · `NotApplicable` · `SeeDetails` — drive badge colors (port color maps from `clinic-test.enum.ts`).
-
-**State machine implementation tasks:**
-
-- [x] **vert-clinic-2.0.12** — `clinic-lab-state.util.ts` — generic enums, `canTransitionOrder`, `canTransitionResult`, `canTransitionSpecimen`, `isResultEditable`, `isOrderEditable` (no `patientPlanId` branch)
-- [x] **vert-clinic-2.0.13** — `clinic-lab-state.util.spec.ts` — `it.each` every allowed + forbidden transition; fixture IDs per state
-- [x] **vert-clinic-2.0.14** — Wire cloned `order-actions` / `test-result-action` services to util guards before persist — v1: `ClinicTestOrderStatusService`, `ClinicTestResultStatusService`, `ClinicSpecimenStatusService`
-- [x] **vert-clinic-2.0.15** — Status history rows on every transition (order, result) — v1: order + result history services; specimen history in **2.3**
-- [x] **vert-clinic-2.0.16** — Dashboard + provider UI badges from shared status metadata (labels/colors)
-
-### vert-clinic-2.1 — Test catalog & departments
-
-- [x] **vert-clinic-2.1.1** — Entities from clone (**2.0.2**): `test_type`, `test_panel`, observation types — plus `businessId`; migrations in Booking Postgres — v1: core entities + measurements (**normal ranges deferred** → **vert-clinic-2.1.6**)
 - [ ] **vert-clinic-2.1.6** — Normal ranges — reference range entities + admin CRUD on test types; abnormal flags on result measurements (public My results + consumer My results + dashboard Results tab)
-- [x] **vert-clinic-2.1.2** — Link test types to `Service` metadata (`serviceId` FK or `metadata.clinicTestTypeId`) — bookable lab services drive order line items — v1: `ClinicTestCatalogService` syncs `service.metadata.clinicTestTypeId`
-- [x] **vert-clinic-2.1.3** — Map service categories to clinical departments (reuse category names from playbook: Laboratory, Cardiology, etc.) — v1: `resolveClinicalDepartmentLabel` from linked service category
-- [x] **vert-clinic-2.1.4** — Dashboard admin — Test catalog CRUD (types, panels, fasting/prep inherited from service or overridden on type) — Services → Lab catalog tab
-- [x] **vert-clinic-2.1.5** — Seed/import from clinic playbook + optional CSV; do not hard-code fertility panels — v1: `seedFromPlaybook` + `importFromCsv` + Services → Lab catalog import panel
-
-### vert-clinic-2.2 — Test orders (booking-linked)
-
-- [x] **vert-clinic-2.2.1** — Order module from clone (**2.0.1**): `order/` services + entities; **order state machine** per **2.0.12–2.0.15** — v1: `ClinicTestOrderService` + status history on create
-- [x] **vert-clinic-2.2.2** — Auto-create order on lab_test booking confirmation; manual order from dashboard booking detail — v1: `ClinicLabBookingListener` + `POST .../bookings/:id/orders`
-- [x] **vert-clinic-2.2.3** — Dashboard — Orders tab on booking detail + lab queue list (filter by status, date, department) — v1: `BookingLabSection` tabs + `/dashboard/lab-queue` + `GET .../orders`
-- [x] **vert-clinic-2.2.4** — Provider mobile — today's collection queue for assigned provider — v1: `GET .../provider/lab-collection/today` + Lab collection tab
-- [x] **vert-clinic-2.2.5** — API privacy — role-based access (owner/manager/receptionist vs provider vs patient self) — v1: `clinic-lab-access.util` + `ClinicLabAccessService` on dashboard routes; `GET public/:slug/me/clinic-test-results` (released only)
-
-#### vert-clinic-2.2.6 — Staff push lab collection to patient (clinic-app flow)
-
-Staff creates order on visit → pushes collection booking request → patient self-books `lab_test` slot → order links via `collectionBookingId` (no Pollin milestones / `patientPlanId`).
-
-- [x] **vert-clinic-2.2.6** — v1 spine — migration `20260629120000-clinic-lab-booking-requests.sql`, `ClinicTestOrderBookingRequestService`, `GET/POST .../orders/:id/booking-actions|push-to-patient`, public `GET .../me/clinic-lab-booking-requests`, checkout `clinicOrderToken`, dashboard `BookingLabOrderPushPanel`, public account “Lab appointments to book”, email/SMS notify, listener fulfillment + skip duplicate auto-order; unit tests (`clinic-lab-booking-request.util`, `clinic-lab-booking.listener`)
-- [x] **vert-clinic-2.2.6b** — Integration test — staff catalog order → push → patient public checkout with token → `collectionBookingId` set, no duplicate order (`clinic-lab-booking-request.integration.spec.ts`)
-- [x] **vert-clinic-2.2.6c** — Patient alert — `LabBookingRequestPending` on push (extend **2.8.3** `clinic-patient-alert`)
-- [x] **vert-clinic-2.2.6d** — Auto-task — `PatientCallback` when push sent and no collection booked after N days (optional v1: 3 days; ties **2.9.2**)
-- [x] **vert-clinic-2.2.6e** — i18n UI — `clinic.labBookingRequest.*`, `public.myLabRequests.*` HY/RU (`i18n-clinic-v2-2b`)
-- [x] **vert-clinic-2.2.6f** — Notification i18n + WhatsApp — verify `clinicLabBookingRequest*` EN/HY/RU in `messages.ts`; optional WhatsApp template
-- [x] **vert-clinic-2.2.6g** — Frontend integration specs — push panel + public lab-requests section in `test:sprint54`
-
-- [x] **vert-clinic-2.2.7** — Patient chart orders tab — catalog order picker + push (not only booking detail)
-- [x] **vert-clinic-2.2.8** — Dashboard catalog order UI — `ClinicCatalogOrderPicker` on booking detail + patient chart; `POST .../bookings/:id/orders` with `items[]`; service-only quick-order button retained for booking-linked lab services
-- [x] **vert-clinic-2.2.9** — Staff books collection for patient — dashboard books `lab_test` slot and links existing order (clinic-app “Book” path; no patient self-book)
-- [x] **vert-clinic-2.2.10** — Smarter collection services — derive supported services from order line items / linked test-type `serviceId`, not all `lab_test` services
-- [x] **vert-clinic-2.2.11** — Lab queue UX — badge/filter “Awaiting patient booking”; show push date + collection appointment when linked
-- [x] **vert-clinic-2.2.12** — Consumer app — “Lab to book” section (mirror public `me/clinic-lab-booking-requests`)
-- [x] **vert-clinic-2.2.13** — Consumer push — `lab_booking_request` transactional push + deep link (extends **adopt-4.2**, `consumer-transactional-push.util.ts`)
-- [x] **vert-clinic-2.2.14** — Deep links — `optischedule://book/{slug}/lab-requests` + in-app route with `clinicOrderToken` prefill
-
-Aligns Sprint 13 **gap-2.7** / **gap-2.8** (customer self-service & staff push).
-
-### vert-clinic-2.3 — Specimens (optional v2.1 slice)
-
-- [x] **vert-clinic-2.3.1** — DB schema — `clinic_specimens` (collection time, storage location, transport folder ref) — v1: `collected_at`/`stored_at`, `clinic_specimen_storage_locations`, `clinic_transport_folders`, FK refs on specimens
-- [x] **vert-clinic-2.3.2** — Specimen state machine — transitions per **Lab state machines §3**; history rows on each step — v1: exhaustive `canTransitionClinicSpecimen` fixtures + `ClinicSpecimenStatusHistory` on every transition
-- [x] **vert-clinic-2.3.3** — Dashboard lab ops — specimen collection + tracking views — v1: `/dashboard/lab-specimens/collection|tracking`, `GET/POST .../specimens`, auto-create specimen per order
-
-### vert-clinic-2.4 — Test results (completes deferred vert-clinic-1.5–1.12)
-
-Replaces the v1 "metadata-only `patient_test_results`" plan with structured results. Keep **vert-clinic-1.5–1.12** IDs as the UI/notification slice; implement on top of **vert-clinic-2.4** schema.
-
-- [x] **vert-clinic-2.4.1** — Result module from clone (**2.0.1**): `test-result/` + `shared/`; **result state machine** per **2.0.12–2.0.15** — v1: `ClinicTestResultService` + status history on create, `GET/POST .../results`, entry/review/release queue views
-- [x] **vert-clinic-2.4.2** — Wire **`TestResultActionService.markAsReleased`** → Booking notifications (**2.0.7**) — v1: `ClinicTestResultActionService.markAsReleased`, release transition publishes `test_result.released`, email/SMS/WhatsApp via `sendClinicResultReady`
-- [x] **vert-clinic-2.4.2b** — Result/order **change history** API (staff audit trail — adapt `patient-order-and-result-audit-trail.service.ts`, `result-history.service.ts`) — v1: status history → change items, `GET .../orders|results/:id/change-history`, `GET .../bookings/:id/change-history`
-- [x] **vert-clinic-2.4.3** — **vert-clinic-1.7** — Dashboard booking detail **Results** tab (adapt `components/Results/`, `ResultsActionHistoryModal/` — Tier I) — v1: merged summaries + result records, review/release actions, booking + per-result change history modal
-- [x] **vert-clinic-2.4.4** — **vert-clinic-1.8** — Public account **My results** (released results only) — v1: account section + `businessType` on public profile + released-only patient API
-- [x] **vert-clinic-2.4.5** — **vert-clinic-1.9** — Consumer app **My results** tab — v1: Ionic tab + released-only list, gated by `businessType`
-- [x] **vert-clinic-2.4.6** — **vert-clinic-1.10** — Provider app results tab (assigned patients)
-- [x] **vert-clinic-2.4.7** — **vert-clinic-1.11** — Result-ready notification (email/WhatsApp/push — wire `notify_patient_result_ready` AI stub to real delivery; **adopt-4.2** deep-link)
-- [x] **vert-clinic-2.4.8** — **vert-clinic-1.12** — Privacy guard + PHI encryption for result notes/measurements; extend `view_phi_access_audit` coverage
-- [x] **vert-clinic-2.4.9** — Migrate `patient_test_results` PHI helpers to structured entity paths (backward-compat read for legacy booking metadata)
-
-### vert-clinic-2.5 — Patient chart (light EMR — generic profile only)
-
-- [x] **vert-clinic-2.5.1** — **`patient_clinical_profiles`** — single profile per customer: allergies, chronic problems, emergency contact, blood type (PHI); **no** sex-split fertility fields, no partner/GTPAL — v1: entity + migration, PHI encrypt/audit, role-scoped API `GET/PUT .../customers/:id/clinical-profile`
-- [x] **vert-clinic-2.5.2** — Dashboard **Patient chart** page — EMR tab shell (adapt `patient-emr/details/[id]/index.tsx` — Tier I); demographics, allergies, visit history, linked results/orders — v1: `/dashboard/patient-chart/[customerId]` with profile/visits/results/orders tabs; chart orders/results APIs; clinical profile edit on profile tab
-- [x] **vert-clinic-2.5.3** — Encounters — visit note per completed consultation booking (provider-authored, addenda) — v1: `patient_encounters` + addenda tables, PHI encrypt/audit, API + patient chart Encounters tab
-- [x] **vert-clinic-2.5.4** — Staff notes — internal chart notes (not patient-visible); minimum-necessary roles
-- [x] **vert-clinic-2.5.5** — Documents — upload lab PDFs, referral letters, imaging reports; category taxonomy
-- [x] **vert-clinic-2.5.6** — Customer/public — read-only released results + own documents; no staff notes
-- [x] **vert-clinic-2.5.7** — Provider mobile — patient lookup → chart summary + today's orders/results
-
-- [x] **vert-clinic-2.5.8** — **External / referring doctors** registry (adapt `apps/emr/src/external-doctors/` — Tier H)
-
-### vert-clinic-2.8 — Pre-visit intake & questionnaires (generic — no journey milestones)
-
-- [x] **vert-clinic-2.8.1** — Questionnaire engine (adapt Pollin engine; **remove** `QuestionnaireJourneyMilestone`, plan triggers, service-category journey hooks)
-- [x] **vert-clinic-2.8.2** — Pre-visit intake form — link to booking or patient chart (adapt `intake-form.service.ts`, frontend `IntakeForm/`)
-- [x] **vert-clinic-2.8.3** — Patient alerts — `TestResultReleased`, intake incomplete (adapt `PatientAlertType` pattern)
-- [x] **vert-clinic-2.8.4** — Public booking + consumer app — optional intake step before lab_test checkout (extends symptoms/referral)
-
-### vert-clinic-2.9 — Staff tasks & lab ops UX (generic task types only)
-
-- [x] **vert-clinic-2.9.1** — `clinic_tasks` entity + API — generic types only (`ResultReview`, `SpecimenCollection`, `PatientCallback`); **exclude** IVF `AutomatedTaskType` enum values
-- [x] **vert-clinic-2.9.2** — Auto-task on result review queue / overdue specimen collection
-- [x] **vert-clinic-2.9.3** — Barcode specimen label print (adapt `BwipJS/` component)
-- [x] **vert-clinic-2.9.4** — Provider mobile task inbox (separate from AI workflow engine)
-
-### vert-clinic-2.10 — Billing codes & after-visit docs (Tier J — later)
-
-- [x] **vert-clinic-2.10.1** — Tenant diagnostic/procedure code catalog (pattern from `mdbilling-diagnostic-code`; not Canada OHIP)
-- [x] **vert-clinic-2.10.2** — Optional code link on `Service` / test type metadata
-- [x] **vert-clinic-2.10.3** — After-visit summary PDF (adapt `after-visit-summary.entity.ts`)
-
-### vert-clinic-2.6 — LIS integration (deferred)
-
-- [x] **vert-clinic-2.6.1** — Lab registry (`lab_info`), machine assignment, `lab_sync_observation_request/result` adapters
-- [x] **vert-clinic-2.6.2** — Background worker for inbound HL7/FHIR or vendor webhook (reference `lis-background`)
-
-### vert-clinic-2.7 — AI commands (all four surfaces)
-
-Extend **ai-cmd-clinic-1–6** when handlers ship; add v2 intents:
-
-- [x] **ai-cmd-clinic-v2-1** — Dashboard: **`create_test_order`** / **`list_test_orders`** — "Order CBC and lipid panel for Maria's visit tomorrow"
-- [x] **ai-cmd-clinic-v2-2** — Dashboard: **`enter_test_result`** / **`release_test_result`** — "Enter WBC 12.5 for order #…", "Release results to patient"
-- [x] **ai-cmd-clinic-v2-3** — Dashboard: **`explain_patient_chart`** (READ) — allergies, last visits, pending results
-- [x] **ai-cmd-clinic-v2-4** — Provider mobile: **`list_my_collection_queue`**, **`mark_specimen_collected`**
-- [x] **ai-cmd-clinic-v2-5** — Customer/public: **`list_my_test_results`**, **`explain_result_status`** (READ)
-- [x] **ai-cmd-clinic-v2-6** — Classifier rules + ≥10 NL variants per surface + eval cases (`surface: dashboard | provider | customer | public`)
-- [x] **ai-cmd-clinic-v2-7** — Rescue + compound decomposition ("book lipid panel and notify me when results are ready")
-- [x] **ai-cmd-clinic-v2-8** — Staff push lab collection (**vert-clinic-2.2.6**+) — dashboard: `push_lab_booking_to_patient`, `staff_book_lab_collection`, `create_catalog_test_order` (alias); customer/public: `list_my_lab_booking_requests`, `book_lab_collection`; provider READ: `list_patient_pending_lab_requests`; `list_test_orders` + `awaitingPatientBooking`; fixtures (≥10 NL/surface), rescue, eval cases, `test:ai-clinic-lab-booking`
-
-### vert-clinic-2.i18n — Translations per feature (EN / HY / RU)
-
-**Policy:** Every shipped **vert-clinic-2.\*** product slice and **ai-cmd-clinic-v2-\*** intent needs full locale parity — UI copy (`frontend` / `consumer-app` / `provider-app` + `backend/src/common/i18n/messages.ts`) and AI (`*-multilingual.fixtures.ts` + eval cases tagged `locale: hy | ru` on each applicable surface). Mirror **ai-cmd-tour-4** / **acc-2.4** patterns.
-
-#### Product UI
-
-- [x] **i18n-clinic-v2-0** — Lab status badges & vertical gate copy — `clinic.labState.*` / gate strings in dashboard, provider mobile, consumer app (EN/HY/RU)
-- [x] **i18n-clinic-v2-1** — Test catalog admin — Services → Lab catalog tab, import/seed toasts, fasting/prep labels
-- [x] **i18n-clinic-v2-2** — Test orders & lab queue — booking detail Orders tab, `/dashboard/lab-queue`, provider collection queue
-- [x] **i18n-clinic-v2-2b** — Staff push lab collection — `clinic.labBookingRequest.*`, `public.myLabRequests.*`, lab-booking-request notification copy (**vert-clinic-2.2.6e–f**)
-- [x] **i18n-clinic-v2-3** — Specimen collection & tracking — collection/tracking views, storage location labels
-- [x] **i18n-clinic-v2-4** — Results UI — dashboard Results tab, public My results, consumer My results tab, provider results tab; change-history action labels
-- [x] **i18n-clinic-v2-4n** — Result-ready notifications — email/SMS/WhatsApp/push copy + deep-link CTA (**vert-clinic-2.4.7**; verify against `messages.ts` HY/RU)
-- [x] **i18n-clinic-v2-5** — Patient chart — demographics, clinical profile, encounters, staff notes, documents, external doctors registry
-- [x] **i18n-clinic-v2-8** — Pre-visit intake — questionnaire engine UI, public booking + consumer optional intake step
-- [x] **i18n-clinic-v2-9** — Staff tasks & specimen labels — task inbox types, barcode print sheet
-- [x] **i18n-clinic-v2-10** — Billing codes & after-visit summary — code catalog admin, PDF section headings
-- [x] **i18n-clinic-v2-6** — LIS admin — lab registry, sync status, worker error toasts (tenant-facing strings only)
-
-#### AI commands (classifier + rescue + eval)
-
-- [x] **i18n-clinic-v2-ai-1** — **`create_test_order` / `list_test_orders`** — `ai-clinic-test-order-multilingual.fixtures.ts` + eval (dashboard, EN/HY/RU)
-- [x] **i18n-clinic-v2-ai-2** — **`enter_test_result` / `release_test_result`** — multilingual fixtures + eval (dashboard, EN/HY/RU)
-- [x] **i18n-clinic-v2-ai-3** — **`explain_patient_chart`** — multilingual fixtures + eval (dashboard, EN/HY/RU)
-- [x] **i18n-clinic-v2-ai-4** — **`list_my_collection_queue` / `mark_specimen_collected`** — provider multilingual fixtures + eval (EN/HY/RU)
-- [x] **i18n-clinic-v2-ai-5** — **`list_my_test_results` / `explain_result_status`** — consumer/public multilingual fixtures + eval (EN/HY/RU)
-- [x] **i18n-clinic-v2-ai-6** — **Classifier NL parity** — HY/RU prompt variants for every **ai-cmd-clinic-v2-6** scenario (`surface: dashboard | provider | customer | public`)
-- [x] **i18n-clinic-v2-ai-7** — **Compound prompts** — HY/RU for book/order + result-notify compounds (**ai-cmd-clinic-v2-7**); eval rescue cases per locale
-- [x] **i18n-clinic-v2-ai-8** — **Staff push lab collection** — HY/RU for **ai-cmd-clinic-v2-8** (`push_lab_booking_to_patient`, `book_lab_collection`, etc.); eval per locale
-
-**Tests (add when implementing i18n slices):**
-```bash
-cd backend && npm run test:ai-clinic-v2-i18n   # umbrella: all *-multilingual.fixtures + eval locale gates (see vert-clinic-2.housekeeping-1)
-cd frontend && npm run test:i18n-clinic-v2    # en/hy/ru key parity for clinic.* namespaces
-```
-
-**Depends on:** **compliance-1** (HIPAA PHI encryption), **ai-cmd-h1**, **adopt-4.2** (result-ready push deep-link).
-
-### vert-clinic-2.gaps — Public booking web & consumer app (iOS/Android) parity
-
-**Goal:** Patient-facing clinic features on **public booking web** (`frontend/src/app/book/`) and **consumer app** (`consumer-app/` — Capacitor iOS/Android). Staff-only surfaces (dashboard lab queue, patient chart EMR, specimens, LIS admin, provider collection queue) are out of scope here.
-
-#### Shipped on public web + consumer app
-
-| Feature | Public web | Consumer iOS/Android |
-|---------|------------|----------------------|
-| Clinic vertical gate (`businessType`) | ✅ | ✅ |
-| Lab service badges (fasting/prep) | ✅ `service-list` | ✅ services flow |
-| Checkout symptoms / referral | ✅ `checkout-form` | ✅ `BookPage` |
-| Pre-visit intake step | ✅ `public-checkout-intake-step` | ✅ `ConsumerCheckoutIntakeStep` |
-| Staff-pushed lab collection (`clinicOrderToken`) | ✅ checkout prefill | ✅ `BookPage` + deep link |
-| My results (released only) | ✅ `PublicMyResultsSection` | ✅ `MyResultsPage` tab |
-| Lab to book (pending requests) | ✅ `PublicMyLabBookingRequestsSection` | ✅ dedicated **Lab to book** tab + home shortcut + `LabRequestsPage` deep link |
-| Patient documents (released) | ✅ `PublicMyDocumentsSection` | ✅ `ConsumerMyDocumentsList` |
-| Deep links | — | ✅ `optischedule://book/{slug}/lab-requests` |
-| Native push (consumer) | — | ✅ FCM/APNs token API + clinic transactional delivery (**adopt-4.1.clinic**) |
-| Patient alerts | — | ✅ public account + consumer home/account/results |
-| AI: results + lab booking | ✅ public assistant | ✅ customer mobile AI |
-| i18n EN/HY/RU | ✅ | ✅ `consumer-copy-catalog` |
-| Email/SMS/WhatsApp notify | ✅ (backend) | ✅ (backend) |
-
-#### Gaps on public web + consumer app (track here)
-
-Still missing on **public booking web** and/or **consumer iOS/Android** (shipped on dashboard only or backend-only today):
-
-- [x] **vert-clinic-2.gap-1** — **Native push (consumer)** — transactional payloads + deep links + FCM delivery when customer tokens + Firebase configured (**adopt-4.1** / **adopt-4.1.clinic**)
-- [x] **vert-clinic-2.gap-2** — **Patient alerts (public + consumer)** — `TestResultReleased`, `LabBookingRequestPending`, intake incomplete alerts on **public account** (`PublicPatientAlertsBanner`) and **consumer app** home/account/results (`ConsumerPatientAlertsBanner`); backend `GET/POST .../me/clinic-patient-alerts`; dashboard `patient-chart-alerts-banner` unchanged
-- [x] **vert-clinic-2.gap-3** — **Normal ranges / abnormal flags (public + consumer)** — customer released-results API returns per-analyte `measurements[]` with LIS `referenceRange` + `High`/`Low`/`Abnormal` flags; **public My Results** + **consumer My Results** render measurement table; catalog admin CRUD for reference ranges remains **vert-clinic-2.1.6**
-- [x] **vert-clinic-2.gap-4** — **`explain_clinic_booking` AI (public + customer)** — READ intent wired on public assistant + customer mobile: classifier rules, rescue, handler (`AiClinicBookingService`), fixtures (≥12 EN + HY/RU), eval cases, `test:ai-clinic-booking`
-- [x] **vert-clinic-2.gap-5** — **Lab-to-book discoverability (consumer)** — dedicated **Lab to book** bottom tab + home shortcut with pending badge; deep links without token land on `/lab-to-book`; lab requests moved off Results tab to dedicated page; public web unchanged (inline account section)
-
-### vert-clinic-2.remain — Sprint 54 gap closure (backend + cross-surface)
-
-- [x] **adopt-4.1.clinic** — Unlock real consumer push for lab-booking + result-ready — `ConsumerPushTokenService` + `POST/GET /public/:slug/me/push/*` token API; `ConsumerPushDispatchService` delivers FCM when tokens + Firebase configured; consumer-app `@capacitor/push-notifications` + `native-push.ts` registration on clinic sign-in
-- [x] **ai-cmd-clinic-1–5** — Catalog config + booking explain (staff onboarding) — **`configure_clinic_service`**, **`explain_clinic_services`**, **`apply_clinic_playbook`**, classifier eval (**ai-cmd-clinic-4**), public/customer **`explain_clinic_booking`** (**ai-cmd-clinic-5** / **vert-clinic-2.gap-4**); see **vert-clinic-1.5 — AI commands** above
 - [ ] **vert-clinic-2.1.6** — Normal ranges — reference ranges + abnormal flags on results (catalog admin + result display)
-- [x] **vert-clinic-2.0.9** — Port tests: `order-actions`, `test-result-actions` — skip priming/sperm-cryo/ultrasound
-- [x] **vert-clinic-2.housekeeping-1** — Add `test:ai-clinic-v2-i18n` umbrella script in `backend/package.json` (aggregate multilingual fixture + eval gates)
-- [x] **vert-clinic-2.housekeeping-2** — Relabel **vert-clinic-1.5/1.6** as superseded by **vert-clinic-2.4** (see vert-clinic-1.3 above)
-- [x] **vert-clinic-2.housekeeping-3** — Refresh **vert-clinic-2.2.8** note — catalog picker shipped on booking detail (see 2.2.8 above)
 
-**Suggested delivery order:** **2.0** (clone + **2.0.12–2.0.16** state machines) → 2.1 → 2.2 → **2.2.6b–g + ai-cmd-clinic-v2-8** (finish staff push) → 2.2.7–14 → 2.4 → 2.4 UI/notifications → 2.5 → 2.8 → 2.3 → 2.9 → 2.6 → 2.10. Ship **2.4.3–2.4.8** to close deferred **vert-clinic-1.5–1.12**.
+## Sprint 63 — Budget-aware service discovery (planned)
 
-**Tests (Sprint 54 gate — add when implementing):**
-```bash
-cd backend && npm run test:sprint54   # add script: clinic-test-order, clinic-test-result, clinic-patient-chart specs
-cd frontend && npm run test:sprint54
+**Goal:** When a visitor or logged-in customer says they have a fixed amount (e.g. *"I need a haircut, I have $50"*), the booking assistant **deterministically** lists or recommends catalog services with `price <= maxPrice` — never all matches regardless of price.
+
+**Surfaces (AI coverage):**
+
+| Surface | In scope | Primary actions |
+|---------|----------|-----------------|
+| Public booking web | Yes | `list_services`, `recommend_specialists`, compounds with `check_availability` / `book_appointment` |
+| Customer mobile (consumer app) | Yes | Same public-assistant actions via `CustomerAiCommandService` |
+| Dashboard admin | Optional v1 | `list_services` READ with `maxPrice` when owner asks "show services under $X" |
+| Provider mobile | **Out of scope** | Providers do not budget-shop the catalog |
+
+**Price semantics:** Compare against catalog **display price** (`service.price` in tenant default currency). Tax/deposit is checkout-only — assistant copy should say "from $X" when tax display is enabled (**tax-1**). Do not confuse with gift-card balance (**ai-payments**).
+
+### budget-1 — Product & handler spine (planned)
+
+- [ ] **budget-1.1** — Shared util `filterServicesByMaxPrice(services, maxPrice)` + `sortServicesByPriceAsc`; unit spec for edge cases (null price, equal prices, empty catalog)
+- [ ] **budget-1.2** — Classifier param **`maxPrice`** (number) on public + customer schemas; wire **`BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [ ] **budget-1.3** — Post-LLM rescue: `enrichBudgetFromPrompt()` reuses `extractAmountFromPrompt()` + "under/below/at most/no more than X" patterns; set `maxPrice` when classifier missed it
+- [ ] **budget-1.4** — **`handleListServices`** — after name/category filter, apply `maxPrice`; summary lists only matches sorted by price; **no-match** copy: cheapest option above budget + next-cheapest alternatives
+- [ ] **budget-1.5** — **`handleRecommendSpecialists`** — restrict `serviceIds` to budget-filtered services before `recommendProviders`; if none, same no-match copy as list
+- [ ] **budget-1.6** — Navigate hint — when exactly one match, `navigate: { path: 'services', query: { serviceId } }`; when multiple, services tab without pre-select
+- [ ] **budget-1.7** — Compound decomposition — budget + book nearest / check availability (mirror **ai-cmd-h1** check-and-book): e.g. *"book a haircut under $50 tomorrow ASAP"* → filter → `book_appointment` with `bookingFirstAvailable`
+- [ ] **budget-1.8** — Disambiguation — **`maxPrice` ≠ gift card** ("I have a $50 gift card" → promo/gift-card flow, not budget filter); **`maxPrice` ≠ package total** (route `discover_packages` only when user says package/bundle/deal)
+- [ ] **budget-1.9** — Optional dashboard READ — extend admin `list_services` handler with same filter when `maxPrice` present (lower priority than customer surfaces)
+- [ ] **budget-1.10** — Fixtures **`ai-budget-service-discovery.fixtures.ts`** — classifier rules + `SIMILAR_BUDGET_SERVICE_PROMPTS` (all scenario `id`s below); `it.each` in `*.util.spec.ts` + integration specs per surface
+- [ ] **budget-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer` (+ dashboard if shipped); gate **`npm run test:ai-budget`**
+- [ ] **budget-1.12** — Extended fixtures — sections **I–L** below (voice, session, currency, duration); ≥ **40** fixture `id`s total for budget domain
+
+**Depends on:** **ai-cmd-h1** (list/recommend handlers), **curr-1** (currency display in summaries), **extractAmountFromPrompt** in `ai-payments.util.ts`.
+
+### ai-cmd-budget — NL scenario matrix (fixtures — implement before handlers)
+
+Add each row to `SIMILAR_BUDGET_SERVICE_PROMPTS` with `id`, `prompt`, `surface`, `expectedAction`, and expected params (`maxPrice`, `serviceName` / `serviceCategory`, etc.).
+
+#### A — Happy path: service type + budget
+
+| id | Example prompt | Expected action | Expected params |
+|----|----------------|-----------------|-----------------|
+| `budget-hair-50-en` | I need a haircut, I have $50 | `list_services` | `serviceCategory`: haircut, `maxPrice`: 50 |
+| `budget-massage-under-80-en` | What massages can I get for under 80 dollars? | `list_services` | `serviceCategory`: massage, `maxPrice`: 80 |
+| `budget-facial-budget-only-en` | What can I book with $30? | `list_services` | `maxPrice`: 30 (no service filter) |
+| `budget-cheapest-hair-en` | What's the cheapest haircut you offer? | `list_services` | `serviceCategory`: haircut, sort asc (no `maxPrice` unless "cheapest under X") |
+| `budget-provider-karo-en` | Does Karo have anything under $40? | `list_services` | `employeeName`: Karo, `maxPrice`: 40 |
+| `budget-recommend-rated-en` | Best rated massage under $100 this week | `recommend_specialists` | `serviceCategory`: massage, `maxPrice`: 100, date range |
+
+#### B — Match / no-match outcomes (handler assertions)
+
+| id | Catalog setup (fixture) | Expected behavior |
+|----|-------------------------|-------------------|
+| `budget-multiple-matches` | 3 hair services @ $35, $45, $55 | List only $35 + $45; sorted ascending; show prices |
+| `budget-exact-at-ceiling` | One service @ exactly $50, budget $50 | Include service (inclusive `<=`) |
+| `budget-no-match-cheapest-hint` | All haircuts > $50 | Fail soft: "Nothing under $50"; name cheapest ($55) + duration |
+| `budget-single-match-navigate` | One massage @ $40 under $50 | Summary + navigate pre-select that `serviceId` |
+| `budget-filter-after-category` | Category "hair" matches 5, only 2 under budget | Category filter first, then price filter |
+
+#### C — Compounds (multi-step)
+
+| id | Example prompt | Steps |
+|----|----------------|-------|
+| `budget-book-nearest-en` | Book a haircut under $50 tomorrow, nearest slot | Filter by budget → `book_appointment`, `bookingFirstAvailable`: true |
+| `budget-check-then-book-en` | Who's free for a facial under $60 tomorrow evening, book the soonest | Filter → check availability → book nearest |
+| `budget-list-then-pick-en` | Show options under $40 then I'll pick (follow-up turn) | Turn 1: list; session keeps `maxPrice`; turn 2: user names service → availability |
+| `budget-or-windows-en` | (full OR + budget matrix) | See **Sprint 65** / **ai-cmd-avail** — e.g. haircut tomorrow evening or Friday afternoon, I have $50 |
+
+#### D — Amount extraction variants
+
+| id | Example prompt | `maxPrice` |
+|----|----------------|------------|
+| `budget-dollar-sign-en` | I have $50 for a haircut | 50 |
+| `budget-word-amount-en` | I have fifty dollars for massage | 50 |
+| `budget-under-phrase-en` | Haircut below 50 bucks | 50 |
+| `budget-decimal-en` | Anything under $49.99 | 49.99 |
+| `budget-no-currency-word-en` | I only have 50 for styling | 50 (assume tenant currency) |
+
+#### E — Multilingual (EN / HY / RU)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `budget-hy-dram` | Ես 5000 դրամ ունեմ մազակտման համար | `maxPrice`: 5000, AMD tenant |
+| `budget-ru-ruble` | У меня 3000 рублей на стрижку | `maxPrice`: 3000, RUB tenant |
+| `budget-euro-symbol-en` | Facials under €40 please | `maxPrice`: 40 |
+
+#### F — Negative / rescue (must NOT budget-filter)
+
+| id | Example prompt | Correct routing |
+|----|----------------|-----------------|
+| `budget-not-gift-card-en` | I have a $50 gift card for a haircut | Gift card / checkout flow — **no** `maxPrice` |
+| `budget-not-package-en` | Any spa packages under $100? | `discover_packages` (package catalog, not per-service list) |
+| `budget-not-deposit-en` | Is the $50 deposit enough for highlights? | `explain_checkout_currency` or booking help — deposit ≠ budget |
+| `budget-stale-session-en` | (prior: haircut $50) user: "actually I have $30" | Fresh `maxPrice`: 30 overrides session |
+
+#### G — Phase 2 (document now, ship later)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `budget-cart-total-en` | Two services under $100 total | Needs `maxTotalPrice` + multi-service cart validation (**gap-2.5** multi-select) |
+| `budget-with-promo-en` | Haircut under $50 with code SAVE10 | Filter list first; promo applied at checkout only |
+| `budget-subscription-en` | Can my plan cover a $80 massage? | Route subscription balance READ, not catalog `maxPrice` |
+
+#### H — Voice / mobile phrasing (shorter, ASR quirks)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `budget-voice-short-en` | Haircut fifty bucks max | `maxPrice`: 50, mobile brevity |
+| `budget-voice-no-verb-en` | Massage under 80 | Imperative omitted |
+| `budget-voice-asr-en` | I have 50 dollars for her cut | ASR homophone "her cut" → haircut |
+| `budget-voice-chip-en` | (tap suggest chip: "Services under $50") | Consumer assistant chip → `list_services`, `maxPrice`: 50 |
+| `budget-question-en` | Can I get a facial for less than 40? | Question form → same as budget list |
+
+#### I — Session / multi-turn
+
+| id | Turn flow | Expected behavior |
+|----|-----------|-------------------|
+| `budget-session-raise-en` | T1: under $40 / T2: ok what about $60? | T2 replaces `maxPrice`; fresh list |
+| `budget-session-service-switch-en` | T1: haircut $50 / T2: any massage in that budget? | Keep `maxPrice`: 50; switch category |
+| `budget-session-after-list-en` | T1: options under $50 / T2: book the cheapest tomorrow | Compound from session `maxPrice` + rank pick |
+| `budget-session-stale-service-en` | T1: haircut $50 / T2: actually nails | Override service category; keep budget |
+
+#### J — Currency & amount edge cases
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `budget-range-en` | Haircut between $40 and $60 | Phase 2: `minPrice` + `maxPrice`; v1 clarify or use `maxPrice`: 60 |
+| `budget-round-number-en` | About 50 dollars for styling | `maxPrice`: 50; "about" = ceiling |
+| `budget-tenant-amd-en` | (tenant currency AMD) under 15000 dram | Symbol-less amount + tenant default |
+| `budget-zero-en` | Free consultation options? | `maxPrice`: 0 or route free-price services only |
+| `budget-large-en` | Nothing over 500000 dram | Large integer parsing |
+
+#### K — Provider / named service + budget
+
+| id | Example prompt | Expected params |
+|----|----------------|-----------------|
+| `budget-named-service-en` | Is Swedish massage under $90? | `serviceName`: Swedish massage, `maxPrice`: 90 |
+| `budget-any-provider-en` | Any stylist for a cut under $45? | `allProviders`: true, `maxPrice`: 45 |
+| `budget-provider-no-match-en` | Karo — anything under $30? | Provider filter + budget; empty if none |
+
+#### L — Duration + budget (phase 2 hook)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `budget-short-service-en` | Quick haircut under $40 | Prefer shorter `durationMinutes` within budget |
+| `budget-long-massage-en` | 90-minute massage under $100 | May no-match if all 90m > $100 — honest copy |
+
+**Implementation order:** fixtures (**budget-1.10**, **1.12**) → util + rescue (**budget-1.1**, **1.3**) → classifier wiring (**1.2**) → list/recommend handlers (**1.4–1.6**) → compounds (**1.7**) → disambiguation (**1.8**) → eval + gate (**1.11**).
+
+---
+
+## Sprint 64 — Premium / best service discovery (planned)
+
+**Goal:** When a visitor asks *"What is the best and premium {serviceType}?"* or *"What's your top-tier / most expensive massage?"*, the assistant **deterministically** picks or ranks catalog **services** (not specialists) — e.g. highest price in category, cheapest, or (phase 2) most popular — instead of dumping an unsorted list or misrouting to `recommend_specialists`.
+
+**Today (gap):** `recommend_specialists` answers "best **rated** massage" with **providers**; `list_services` returns **all** category matches unsorted; no `premium` / `tier` field on `Service`; dashboard `analyze_services` (most booked) is admin-only.
+
+**Surfaces (AI coverage):**
+
+| Surface | In scope | Primary actions |
+|---------|----------|-----------------|
+| Public booking web | Yes | `list_services` with `serviceRank`; compounds with `book_appointment` |
+| Customer mobile (consumer app) | Yes | Same public-assistant actions via `CustomerAiCommandService` |
+| Dashboard admin | Partial (exists) | `analyze_services` (most booked / revenue) for ops; optional `list_services` + `serviceRank` parity |
+| Provider mobile | **Out of scope** | — |
+
+**Disambiguation (critical):**
+
+| User says | Route | Returns |
+|-----------|-------|---------|
+| Best **rated** / top **specialist** / who is the best for {service} | `recommend_specialists` | Providers + ratings (existing) |
+| Best / premium / top-tier / luxury / deluxe **service** | `list_services` + `serviceRank` | One or ranked **services** from catalog |
+| Most **popular** service (customer) | `list_services` + `serviceRank: most_popular` | Phase 2 — needs booking-count aggregate on public catalog API |
+| Most popular service (owner) | `analyze_services` | Existing dashboard handler |
+
+**Rank semantics:** Default tie-breakers: price desc/asc → longer duration → name A–Z. "Premium" / "luxury" / "deluxe" / "top-tier" → `serviceRank: highest_price` within `serviceCategory`. Optional phase 2: admin **`isFeatured`** / **`serviceTier`** on service entity overrides price heuristic when set.
+
+### rank-1 — Product & handler spine (planned)
+
+- [ ] **rank-1.1** — Shared util `sortServicesByPriceDesc` / `sortServicesByPriceAsc` (reuse from **budget-1.1**); `pickRankedServices(catalog, { serviceRank, serviceCategory, limit })` — returns top N; unit spec for ties and empty catalog
+- [ ] **rank-1.2** — Classifier param **`serviceRank`**: `highest_price` \| `lowest_price` \| `most_popular` \| null on public + customer schemas; wire **`SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [ ] **rank-1.3** — Post-LLM rescue: `enrichServiceRankFromPrompt()` — map premium/luxury/deluxe/top-tier/most expensive/priciest → `highest_price`; cheapest/lowest/affordable → `lowest_price`; most popular/best-selling → `most_popular` (when phase 2 ready)
+- [ ] **rank-1.4** — **`handleListServices`** — after category filter, apply `serviceRank`; when `limit: 1` (default for "the best/premium service"), summary highlights single top match + price/duration; when user asks "show all premium options", return top 3–5 ranked
+- [ ] **rank-1.5** — **`recommend_specialists` guard** — when prompt asks for best/**service** (not specialist/stylist/therapist), rescue to `list_services` + `serviceRank` before provider recommendation
+- [ ] **rank-1.6** — Navigate hint — single top match → `navigate: { path: 'services', query: { serviceId } }`
+- [ ] **rank-1.7** — Compound decomposition — e.g. *"book your most premium facial tomorrow nearest slot"* → rank pick → `book_appointment` with resolved `serviceName`
+- [ ] **rank-1.8** — Phase 2 catalog metadata — optional `service.isFeatured` or `serviceTier: standard | premium` on dashboard service editor; rank util prefers featured/tier over raw price
+- [ ] **rank-1.9** — Phase 2 **`most_popular`** — public catalog endpoint exposes rolling 90d booking count per service (or reuse dashboard aggregate read-only); rank by count desc within category
+- [ ] **rank-1.10** — Fixtures **`ai-service-rank-discovery.fixtures.ts`** — classifier rules + `SIMILAR_SERVICE_RANK_PROMPTS` (scenario `id`s below); share price-sort helpers with **budget-1** fixtures spec
+- [ ] **rank-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer`; gate **`npm run test:ai-rank`** (or merge with **`test:ai-budget`** as **`test:ai-service-discovery`**)
+- [ ] **rank-1.12** — Extended fixtures — sections **I–L** below; ≥ **35** fixture `id`s total for rank domain
+
+**Depends on:** **ai-cmd-h1** (`list_services`, `recommend_specialists`), **budget-1.1** (shared sort utils — ship together or extract to `ai-service-catalog-rank.util.ts`).
+
+### ai-cmd-rank — NL scenario matrix (fixtures — implement before handlers)
+
+Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `expectedAction`, and expected params (`serviceRank`, `serviceCategory`, `limit`, etc.).
+
+#### A — Premium / top-tier (highest price in category)
+
+| id | Example prompt | Expected action | Expected params |
+|----|----------------|-----------------|-----------------|
+| `rank-premium-hair-en` | What is the best and premium haircut service? | `list_services` | `serviceCategory`: haircut, `serviceRank`: highest_price, `limit`: 1 |
+| `rank-luxury-massage-en` | What's your luxury massage option? | `list_services` | `serviceCategory`: massage, `serviceRank`: highest_price |
+| `rank-deluxe-facial-en` | Do you have a deluxe facial? | `list_services` | `serviceCategory`: facial, `serviceRank`: highest_price |
+| `rank-most-expensive-en` | Which is your most expensive styling service? | `list_services` | `serviceCategory`: styling, `serviceRank`: highest_price |
+| `rank-top-tier-en` | Show me your top-tier hair color services | `list_services` | `serviceCategory`: hair color, `serviceRank`: highest_price, `limit`: 3 |
+
+#### B — Cheapest / value (lowest price — overlaps budget Sprint 63)
+
+| id | Example prompt | Expected action | Expected params |
+|----|----------------|-----------------|-----------------|
+| `rank-cheapest-hair-en` | What's the cheapest haircut you offer? | `list_services` | `serviceCategory`: haircut, `serviceRank`: lowest_price, `limit`: 1 |
+| `rank-most-affordable-en` | Most affordable massage option | `list_services` | `serviceCategory`: massage, `serviceRank`: lowest_price |
+
+#### C — Best service vs best specialist (disambiguation)
+
+| id | Example prompt | Expected action | Why |
+|----|----------------|-----------------|-----|
+| `rank-not-specialist-en` | What's the best premium service for lashes? | `list_services` | **Service** catalog rank — not `recommend_specialists` |
+| `rank-specialist-stays-en` | Who is the best rated lash specialist this week? | `recommend_specialists` | **Provider** rank — existing behavior |
+| `rank-best-service-explicit-en` | Best service in your spa menu for relaxation | `list_services` | "best service" keyword → catalog |
+| `rank-best-for-me-en` | What's the best option for a first-time haircut? | `list_services` or clarify | May need `booking_help` if subjective — document clarify path |
+
+#### D — Handler outcomes (fixture catalog assertions)
+
+| id | Catalog setup | Expected behavior |
+|----|---------------|-------------------|
+| `rank-single-premium-tie-price` | 2 hair services @ $80, 1 @ $50 | Return $80 pair or both with tie-break (duration then name) |
+| `rank-name-premium-fallback` | Services named "Premium Cut" ($45) and "Standard Cut" ($60) | Phase 1: rank by **price** ($60); Phase 2: `isFeatured` / name tier optional boost |
+| `rank-one-in-category` | Only one massage in catalog | Return that service with "our massage option" copy |
+| `rank-empty-category` | No facial services | Same not-found copy as today + suggest available categories |
+| `rank-navigate-single` | One clear highest-price match | Navigate pre-select `serviceId` |
+
+#### E — Compounds (multi-step)
+
+| id | Example prompt | Steps |
+|----|----------------|-------|
+| `rank-book-premium-en` | Book your most premium facial tomorrow, nearest slot | `highest_price` pick → `book_appointment`, `bookingFirstAvailable`: true |
+| `rank-list-then-book-en` | What's your best massage and book it Saturday | Turn 1: rank pick; Turn 2: availability + book (or compound auto) |
+| `rank-premium-under-budget-en` | Best premium haircut I can get under $80 | **Both** `serviceRank`: highest_price + `maxPrice`: 80 (**Sprint 63** + **64** intersection) |
+
+#### F — Multilingual (EN / HY / RU)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `rank-premium-hy` | Որն է ձեր ամենապրեմիում մազակրտումը | `serviceRank`: highest_price |
+| `rank-luxury-ru` | Какой у вас люксовый массаж? | `serviceRank`: highest_price |
+| `rank-cheapest-hy` | Ամենաէժան մազակրտումը | `serviceRank`: lowest_price |
+
+#### G — Negative / rescue (must NOT misroute)
+
+| id | Example prompt | Correct routing |
+|----|----------------|-----------------|
+| `rank-not-analyze-appt-en` | Most expensive appointment today | Dashboard `analyze_appointments` — not catalog rank |
+| `rank-not-analyze-services-admin-en` | (dashboard) most booked service this month | `analyze_services` — admin analytics |
+| `rank-not-package-en` | What's your premium spa package? | `discover_packages` when user says package/bundle |
+| `rank-rated-means-provider-en` | Best rated deep tissue massage | `recommend_specialists` — "rated" + no "service" noun |
+
+#### H — Phase 2 (document now, ship later)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `rank-most-popular-en` | What's your most popular haircut? | `serviceRank`: most_popular — needs booking-count on catalog API |
+| `rank-featured-flag-en` | (catalog: `isFeatured` on mid-price service) | Featured wins over higher price |
+| `rank-tier-metadata-en` | Premium tier services for color | `serviceTier: premium` filter on service entity |
+
+#### I — Synonyms & marketing language
+
+| id | Example prompt | Maps to |
+|----|----------------|---------|
+| `rank-vip-en` | VIP hair treatment options | `highest_price` in hair |
+| `rank-signature-en` | What's your signature massage? | `highest_price` or featured (phase 2) |
+| `rank-flagship-en` | Flagship facial service | `highest_price` |
+| `rank-entry-level-en` | Entry-level manicure | `lowest_price` |
+| `rank-budget-friendly-en` | Budget-friendly pedicure | `lowest_price` |
+| `rank-mid-range-en` | Mid-range color service | Phase 2: percentile rank — v1 list sorted by price |
+
+#### J — Voice / mobile + questions
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `rank-voice-premium-en` | Premium cut? | Short mobile; `limit`: 1 |
+| `rank-voice-cheapest-en` | Cheapest facial you got | Colloquial |
+| `rank-compare-en` | What's the difference between standard and premium haircut? | List top 2 by rank asc+desc or `booking_help` |
+| `rank-recommend-not-provider-en` | Recommend your best spa service not a person | Force `list_services` + `highest_price` |
+
+#### K — Session / multi-turn
+
+| id | Turn flow | Expected behavior |
+|----|-----------|-------------------|
+| `rank-session-upgrade-en` | T1: cheapest haircut / T2: show premium instead | Switch `serviceRank` lowest → highest |
+| `rank-session-then-budget-en` | T1: premium facial / T2: anything like that under $120? | Rank pick then filter or intersect |
+| `rank-session-pick-one-en` | T1: top 3 premium massages / T2: book the second one | Session list index → `serviceName` |
+
+#### L — Handler edge cases
+
+| id | Catalog setup | Expected behavior |
+|----|---------------|-------------------|
+| `rank-all-same-price` | 4 massages all @ $70 | Tie-break duration then name; list all if user asked plural |
+| `rank-inactive-excluded` | Highest price service inactive | Skip inactive; next highest |
+| `rank-zero-price` | Free consultation + paid consult | Free sorts `lowest_price`; premium excludes $0 unless asked |
+| `rank-missing-price` | Service with null price | Exclude from price rank or sort last with "price on request" copy |
+
+**Implementation order:** shared sort util with **budget-1.1** → fixtures (**rank-1.10**, **1.12**) → classifier + rescue (**rank-1.2**, **1.3**, **1.5**) → `handleListServices` rank (**1.4**, **1.6**) → compounds (**1.7**) → phase 2 metadata + popularity (**1.8**, **1.9**) → eval + gate (**rank-1.11**).
+
+**Ship together with Sprint 63 when possible:** extract `ai-service-catalog-rank.util.ts` + single gate `npm run test:ai-service-discovery` covering budget + rank + intersection scenarios (`rank-premium-under-budget-en`).
+
+---
+
+## Sprint 65 — Flexible OR availability + budget compounds (planned)
+
+**Goal:** Handle natural flexible scheduling prompts like *"I want a {serviceType} tomorrow evening or Friday afternoon, I have $50"* — multiple **alternative** date/time windows (OR, not AND), optional **budget** filter, and optional auto-book — instead of collapsing to a single `date` + single `timeOfDay`.
+
+**Today (gap):**
+
+| Piece | Status |
+|-------|--------|
+| Service category extraction | Works |
+| Single `date` + single `timeOfDay` | Classifier supports; public `check_availability` does **not** apply `filterSlotsByTimeOfDay` on results |
+| **OR** between windows (tomorrow evening **or** Friday afternoon) | **Not supported** — one `timeOfDay` only |
+| Budget `$50` | **Not supported** — **Sprint 63** |
+| Compound *I want …* → check + book | Partial — **ai-cmd-h1** check-and-book for single window only |
+
+**Example canonical prompt:** *"I want a haircut tomorrow evening or Friday afternoon, I have $50"*
+
+**Surfaces (AI coverage):**
+
+| Surface | In scope | Primary actions |
+|---------|----------|-----------------|
+| Public booking web | Yes | `check_availability`, `book_appointment`, compounds |
+| Customer mobile (consumer app) | Yes | Same via `CustomerAiCommandService` / public assistant |
+| Dashboard admin | **Out of scope** v1 | Staff scheduling uses different availability model |
+| Provider mobile | **Out of scope** | — |
+
+**Param model (new):**
+
+```json
+"availabilityWindows": [
+  { "date": "DD/MM/YYYY", "timeOfDay": "evening" },
+  { "weekdays": ["friday"], "timeOfDay": "afternoon" }
+]
 ```
-- Fixtures: `clinic-test-catalog.fixtures.ts`, `clinic-test-order.fixtures.ts`, `clinic-patient-chart.fixtures.ts`
-- Unit: catalog enums, order/result status machines, PHI guards, `shouldShowPatientResultsTab` + release gating
-- Integration: booking → order → result → release → customer My results; HIPAA audit log entries
-- AI: per-surface classifier + rescue + eval cases tagged `surface: dashboard | provider | customer | public`
+
+- Each window is an **OR** alternative — scan all, merge slot results grouped by window, surface earliest match across windows.
+- Legacy single `date` / `weekdays` / `timeOfDay` still works; rescue expands to one-element `availabilityWindows[]` when OR detected in prompt.
+- Combine with **`maxPrice`** from **Sprint 63** — filter services before slot scan.
+
+### avail-1 — Product & handler spine (planned)
+
+- [ ] **avail-1.1** — Shared util `parseAvailabilityWindowsFromPrompt()` + `normalizeAvailabilityWindows(params)` — detect "or", "either … or", comma-separated day+timeOfDay pairs; unit spec
+- [ ] **avail-1.2** — Classifier param **`availabilityWindows`** on public + customer schemas; wire **`FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [ ] **avail-1.3** — Post-LLM rescue: `enrichAvailabilityWindowsFromPrompt()` — split OR phrases; map tomorrow / weekday names + morning/afternoon/evening per clause
+- [ ] **avail-1.4** — **`resolvePublicAvailabilityDateKeys`** — accept per-window date keys (don't flatten OR into one `weekdays` list that loses timeOfDay pairing)
+- [ ] **avail-1.5** — **`handleCheckAvailability`** — loop windows; apply **`filterSlotsByTimeOfDay`** per window (parity with dashboard); merge day reports labeled by window (*Tomorrow evening*, *Friday afternoon*)
+- [ ] **avail-1.6** — **`findNearestBookableSlot`** / book path — try windows in order (or earliest-across-all); first bookable slot wins; handoff preserves chosen window in session
+- [ ] **avail-1.7** — **Budget intersection** — when `maxPrice` set, filter `matchedServices` before slot scan (**budget-1.4**); summary mentions price cap ("options under $50")
+- [ ] **avail-1.8** — Compound decomposition — *"I want a haircut tomorrow evening or Friday afternoon, I have $50"* → filter services → `check_availability` with windows; optional follow-up / auto `book_appointment` with `bookingFirstAvailable` on winning window
+- [ ] **avail-1.9** — Clarify path — when windows overlap (tomorrow **is** Friday) or budget excludes all services, honest clarify / merged single window
+- [ ] **avail-1.10** — Fixtures **`ai-flexible-availability.fixtures.ts`** — classifier rules + `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` (scenario `id`s below)
+- [ ] **avail-1.11** — Eval cases tagged `surface: public | customer`; extend gate **`npm run test:ai-service-discovery`** or add **`npm run test:ai-availability-flex`**
+- [ ] **avail-1.12** — Extended fixtures — sections **I–M** below; ≥ **45** fixture `id`s total for availability domain
+
+**Depends on:** **ai-cmd-h1** (check-and-book, `filterSlotsByTimeOfDay`, `resolvePublicAvailabilityDateKeys`), **budget-1** (`maxPrice` filter), **rank-1** optional (pick service when multiple under budget).
+
+### ai-cmd-avail — NL scenario matrix (fixtures — implement before handlers)
+
+Add each row to `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` with `id`, `prompt`, `surface`, `expectedAction`, and expected `availabilityWindows` + optional `maxPrice`.
+
+#### A — OR windows (core)
+
+| id | Example prompt | Expected action | Expected windows |
+|----|----------------|-----------------|------------------|
+| `avail-or-tomorrow-friday-en` | I want a haircut tomorrow evening or Friday afternoon | `check_availability` | `[{date: tomorrow, timeOfDay: evening}, {weekdays: [friday], timeOfDay: afternoon}]` |
+| `avail-either-morning-en` | Massage Monday morning or Wednesday morning | `check_availability` | Two windows, both `timeOfDay: morning` |
+| `avail-or-book-en` | Book lashes tomorrow evening or Saturday afternoon, whichever is sooner | `book_appointment` | Same windows + `bookingFirstAvailable`: true, pick earliest across windows |
+| `avail-three-way-or-en` | Facial tomorrow, Friday afternoon, or Saturday morning | `check_availability` | Three OR windows |
+
+#### B — Budget + OR (Sprint 63 ∩ 65)
+
+| id | Example prompt | Expected params |
+|----|----------------|-----------------|
+| `avail-budget-or-en` | I want a haircut tomorrow evening or Friday afternoon, I have $50 | `serviceCategory`: haircut, `maxPrice`: 50, two OR windows |
+| `avail-budget-under-or-en` | Massage under $80 tomorrow or Thursday evening | `maxPrice`: 80, two windows |
+| `avail-budget-no-match-or-en` | (all haircuts > $50) same prompt | Soft fail: nothing under $50; show cheapest + ask to raise budget or pick another service |
+| `avail-budget-pick-service-first-en` | Two services under $50 — scan both for slots across windows | List matching services or pick cheapest under budget then availability |
+
+#### C — Single window (regression — must not break)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `avail-single-tomorrow-evening-en` | Who's free tomorrow evening for massage? | One window; existing **ai-cmd-h1** behavior + **avail-1.5** timeOfDay filter on public |
+| `avail-single-friday-afternoon-en` | Any slots Friday afternoon for a facial? | `weekdays: [friday]`, `timeOfDay: afternoon` |
+| `avail-no-or-and-en` | Monday and Friday afternoon for color | **AND** two weekdays, **same** timeOfDay — not OR; expand date keys, single afternoon filter |
+
+#### D — Handler outcomes
+
+| id | Setup | Expected behavior |
+|----|-------|-------------------|
+| `avail-slots-window-a-only` | Slots only tomorrow evening | Report window A; note window B empty |
+| `avail-slots-window-b-only` | Slots only Friday afternoon | Report window B |
+| `avail-earliest-across-windows` | Both have slots | Highlight earliest slot across OR options |
+| `avail-overlap-tomorrow-is-friday` | Tomorrow is Friday | Merge/dedupe same calendar day; clarify if timeOfDay differs |
+| `avail-public-timeofday-filter` | Afternoon window | Public handler applies `filterSlotsByTimeOfDay` — no morning slots in summary |
+
+#### E — Compounds (multi-step)
+
+| id | Example prompt | Steps |
+|----|----------------|-------|
+| `avail-check-then-book-or-en` | Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest | Budget filter → check both windows → book nearest |
+| `avail-list-budget-then-or-en` | Show haircuts under $50, then check tomorrow evening or Friday | Turn 1: `list_services` + `maxPrice`; Turn 2: availability with windows |
+| `avail-rank-budget-or-en` | Best premium facial under $100 tomorrow or Saturday | **rank-1** + **budget-1** + **avail-1** intersection |
+
+#### F — Multilingual (EN / HY / RU)
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `avail-or-hy` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ կեսօրին | Two OR windows |
+| `avail-or-ru` | Хочу стрижку завтра вечером или в пятницу днём, у меня 50 долларов | Windows + `maxPrice`: 50 |
+| `avail-or-translit-en` | Haircut vaghva yereko yan kam urbat kesorin | Rescue OR from translit (optional) |
+
+#### G — Negative / rescue
+
+| id | Example prompt | Correct routing |
+|----|----------------|-----------------|
+| `avail-not-single-timeofday-en` | (classifier sets one timeOfDay for whole prompt) | Rescue must split — never drop Friday afternoon |
+| `avail-not-gift-card-en` | $50 gift card, haircut tomorrow or Friday | Gift card flow — not `maxPrice` |
+| `avail-not-recommend-en` | Best specialist tomorrow or Friday for massage | `recommend_specialists` if "best rated" + provider focus; OR windows if availability ask |
+
+#### H — Phase 2
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `avail-or-specific-times-en` | Tomorrow at 6pm or Friday at 2pm | Per-window `timeSlot` instead of `timeOfDay` |
+| `avail-or-with-provider-en` | Karo tomorrow evening or Mary Friday afternoon | Named providers per window |
+| `avail-dashboard-parity-en` | (dashboard) same OR pattern for staff | Optional staff `check_availability` multi-window |
+
+#### I — Time-of-day & relative date variants
+
+| id | Example prompt | Expected windows |
+|----|----------------|------------------|
+| `avail-tonight-or-tomorrow-en` | Haircut tonight or tomorrow morning | `[{timeOfDay: evening, date: today}, {date: tomorrow, timeOfDay: morning}]` |
+| `avail-this-weekend-or-en` | Massage Saturday afternoon or Sunday morning | Weekend OR windows |
+| `avail-next-week-or-en` | Color next Tuesday or next Thursday evening | Relative week + OR |
+| `avail-after-work-en` | Facial after 5 tomorrow or Friday | Per-window `timeFrom`: 17:00 |
+| `avail-lunch-or-en` | Manicure tomorrow lunch or Friday lunch | `timeOfDay`: afternoon + narrow `timeFrom`/`timeTo` phase 2 |
+
+#### J — Voice / mobile phrasing
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `avail-voice-short-en` | Haircut tomorrow eve or fri afternoon | Abbreviated weekday |
+| `avail-voice-asap-or-en` | Lashes ASAP or Saturday if not | `bookingFirstAvailable` + fallback window |
+| `avail-voice-chip-en` | (chip: "Evening or weekend slots") | Consumer suggest chip → OR windows |
+| `avail-imperative-en` | Need massage tomorrow PM or Sun AM | "Need" = check/book intent |
+
+#### K — Session / multi-turn
+
+| id | Turn flow | Expected behavior |
+|----|-----------|-------------------|
+| `avail-session-add-window-en` | T1: tomorrow evening / T2: or Friday afternoon works too | Append second window to session |
+| `avail-session-drop-window-en` | T1: tomorrow or Friday / T2: Friday only | Replace with single window |
+| `avail-session-after-budget-en` | T1: under $50 options / T2: tomorrow eve or Fri for those | Carry `maxPrice` + add windows |
+| `avail-session-pick-slot-en` | T1: shows both windows / T2: book Friday 2pm one | Resolve slot from prior summary |
+
+#### L — Provider preference + OR
+
+| id | Example prompt | Notes |
+|----|----------------|-------|
+| `avail-or-any-provider-en` | Any stylist tomorrow evening or Friday afternoon | `allProviders`: true across windows |
+| `avail-or-named-fallback-en` | Karo tomorrow or anyone Friday afternoon | Window A named provider; B fallback any |
+| `avail-or-same-provider-en` | Same person tomorrow or Friday afternoon | Single `employeeName`; scan both windows |
+
+#### M — No-slot / clarify outcomes
+
+| id | Setup | Expected behavior |
+|----|-------|-------------------|
+| `avail-neither-window-en` | No slots in either window | Suggest nearest alternative day/time |
+| `avail-partial-one-window-en` | Only window B has slots | Clear label which option worked |
+| `avail-budget-blocks-all-en` | Budget ok but no slots both windows | Separate budget vs availability messaging |
+| `avail-clarify-overlap-en` | Tomorrow is Friday, different timeOfDay | Merge day; show evening vs afternoon sections |
+
+**Implementation order:** fixtures (**avail-1.10**, **1.12**) → window parse + rescue (**avail-1.1**, **1.3**) → classifier (**1.2**) → date-key resolver (**1.4**) → public check + timeOfDay filter (**1.5**) → nearest/book across windows (**1.6**) → budget intersection (**1.7**) → compounds (**1.8**) → eval + gate (**1.11**).
+
+**Ship with Sprints 63–64 when possible:** shared gate **`npm run test:ai-service-discovery`** includes budget + rank + OR-window scenarios; canonical e2e case: **`avail-budget-or-en`**.
 
 ---
-- [x] **ai-cmd-rec-1** — Dashboard: **`configure_recommendation_product`** — "Add a shampoo product for post-checkout with image and link"
-- [x] **ai-cmd-rec-2** — Dashboard: **`link_recommended_products`** — "Recommend shampoo and conditioner after haircut service"
-- [x] **ai-cmd-rec-3** — Dashboard: **`explain_recommendation_setup`** (READ) — linked products per service/category, max count, active products
-- [x] **ai-cmd-rec-4** — Classifier rules + eval cases in `ai-command-eval.cases.ts` for recommendation configuration phrasing (EN/HY/RU)
-- [x] **ai-cmd-rec-5** — Customer/public: **`explain_checkout_recommendations`** — READ when user asks about "You might also like" products on success screen (web + consumer app **rec-1.6**)
-- [x] **ai-cmd-rec-6** — Consumer app: **`explain_consumer_checkout_success`** (READ) — confirmed booking summary, view appointments / book another, and when product cards appear
-- [x] **ai-cmd-rec-7** — Classifier rules + eval cases for consumer-app checkout success and recommendation dismiss phrasing (EN)
-- [x] **ai-cmd-rec-8** — Dashboard: **`explain_recommendation_analytics`** (READ) — impression vs click counts from `product_recommendation.shown` / `.clicked` events, top products, surfaces (web vs consumer app)
-- [x] **ai-cmd-rec-9** — Dashboard: **`summarize_recommendation_performance`** (READ) — CTR by product/service, bookings with recommendations shown, period filter
-- [x] **ai-cmd-rec-10** — Classifier rules + eval cases for recommendation analytics phrasing (EN/HY/RU)
 
-**Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
+## Sprints 63–65 — Unified service discovery & flexible booking (cross-sprint)
 
----
+**Program goal:** Customer can describe **what** they want (service type, budget, premium/value tier), **when** (single or OR windows), and **book** — in one message or two — on **public booking web** + **consumer app**, with deterministic handlers (not LLM prose-only).
 
-## Catalog customer announcements — packages & subscription plans
+**Coverage policy (mandatory per `feature-ai-prompt-coverage` + `feature-test-coverage`):**
 
-**Goal:** Dashboard admin can optionally **notify customers** when saving a service package or subscription plan — custom message per enabled locale; each customer receives the text in **their selected app language** (EN/HY/RU).
+| Requirement | Target |
+|-------------|--------|
+| Fixture `id`s per domain | Budget ≥40, Rank ≥35, Avail ≥45, Cross-sprint ≥25 |
+| NL variants per applicable surface | ≥10 each for **public** + **customer** per domain |
+| Locales | EN + ≥4 HY + ≥4 RU per domain (extend `ai-*-multilingual.fixtures.ts`) |
+| Eval cases | Every fixture `id` → `eval/ai-command-eval.cases.ts` with `surface` tag |
+| CI gate | **`npm run test:ai-service-discovery`** — union of budget + rank + avail unit + integration specs |
 
-**Surfaces:** Dashboard admin (Services → Packages, Monetization → Memberships). Customer locale from server `customer.metadata.preferredLocale` (not device-only).
+**Shared module (ship once):**
 
-- [ ] **catalog-notify-1** — Notify customers on package / subscription plan save
+- [ ] **discover-1.1** — Extract **`ai-service-catalog-rank.util.ts`** — `filterServicesByMaxPrice`, `sortServicesByPriceAsc/Desc`, `pickRankedServices`, `resolveServiceDiscoveryParams()` (budget + rank intersection)
+- [ ] **discover-1.2** — Extract **`ai-flexible-availability.util.ts`** — `parseAvailabilityWindowsFromPrompt`, `normalizeAvailabilityWindows`, `scanWindowsForSlots()`, `pickEarliestSlotAcrossWindows()`
+- [ ] **discover-1.3** — Unified rescue pipeline: `enrichServiceDiscoveryFromPrompt()` (budget + rank) then `enrichAvailabilityWindowsFromPrompt()` — order documented in util spec
+- [ ] **discover-1.4** — Consumer assistant example chips — "Under $50", "Premium services", "Evening or weekend slots" wired to fixture prompts
+- [ ] **discover-1.5** — **`ai-service-discovery-multilingual.fixtures.ts`** — HY/RU/translit rows referencing budget/rank/avail `id`s
+- [ ] **discover-1.6** — Integration spec **`ai-service-discovery.integration.spec.ts`** — end-to-end public assistant for cross-sprint canonical cases below
 
-### catalog-notify-1.1 — Customer locale (prerequisite)
-- [ ] **catalog-notify-1.1** — Persist `customer.metadata.preferredLocale` when customer picks language in **consumer app** (`ConsumerLanguagePicker`) and **public booking**; sync on sign-in
-- [ ] **catalog-notify-1.2** — `resolveCustomerNotificationLocale(customer, businessSettings)` — customer preference → business `defaultLocale` → `en`; clamp to `enabledLocales`
+### ai-cmd-discover — Cross-sprint mega-prompt matrix
 
-### catalog-notify-1.2 — Dashboard UI
-- [ ] **catalog-notify-1.3** — Shared `CatalogNotifyCustomersFields` — radio: *Don't notify* / *Notify customers*; when notify: subject + body per enabled locale (tab pattern like `notification-email-templates-panel.tsx`)
-- [ ] **catalog-notify-1.4** — Wire into **Services → Packages** save (`service-packages-tab.tsx`) — package name, discount, expiry variables in placeholder hints
-- [ ] **catalog-notify-1.5** — Wire into **Monetization → Memberships** plan save (`monetization/page.tsx`) — plan name, service, duration, appointments, price variables
+Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + integration test + eval case.
 
-### catalog-notify-1.3 — Backend send on save
-- [ ] **catalog-notify-1.6** — Extend package + subscription plan create/update DTOs: `notifyCustomers?: boolean`, `notificationTemplate?: Partial<Record<locale, { subject, bodyText }>>`
-- [ ] **catalog-notify-1.7** — `CatalogAnnouncementService` — after save, if `notifyCustomers`: eligible customers (active + email; respect marketing prefs `pushNews` / email offers), render per-customer locale, send **email** + **consumer push** when configured; log to `notification_log`
-- [ ] **catalog-notify-1.8** — Template render — `{{customerName}}`, `{{packageName}}`, `{{planName}}`, `{{discount}}`, `{{businessName}}`, `{{bookUrl}}`; optional reusable defaults in `business.settings.catalogAnnouncementTemplates`
+#### A — Budget + rank (what to book)
 
-### catalog-notify-1.4 — AI + tests (dashboard)
-- [ ] **catalog-notify-1.9** — Dashboard AI: create/update package or plan + notify customers (compound); classifier rules + fixtures (≥10 EN/HY/RU) + eval cases `surface: dashboard`
-- [ ] **catalog-notify-1.10** — Tests: `catalog-announcement.util.spec.ts`, package/subscription integration specs, gate `npm run test:catalog-notify`
+| id | Example prompt | Expected pipeline |
+|----|----------------|-------------------|
+| `discover-cheapest-under-en` | Cheapest haircut under $50 | `lowest_price` + `maxPrice`: 50 → list |
+| `discover-premium-under-en` | Best premium facial under $120 | `highest_price` + `maxPrice`: 120 |
+| `discover-value-or-premium-en` | Affordable or premium massage — what fits $80? | List all ≤$80 sorted; note highest in range |
+| `discover-no-premium-in-budget-en` | Premium haircut under $30 (none exist) | No premium in range; cheapest above budget hint |
 
-**Depends on:** enabled locales (**lang-1**), email templates spine (`notifications.service.ts`), consumer push (**adopt-4.2** for salon push breadth).
+#### B — Budget + availability (when, single window)
+
+| id | Example prompt | Expected pipeline |
+|----|----------------|-------------------|
+| `discover-budget-tomorrow-eve-en` | Haircut under $50 tomorrow evening | Filter services → check availability one window |
+| `discover-budget-asap-en` | Anything under $40 ASAP | `maxPrice` + `bookingFirstAvailable` |
+| `discover-budget-weekend-en` | Massage under $70 this Saturday afternoon | Budget + single weekend window |
+
+#### C — Rank + availability (premium when)
+
+| id | Example prompt | Expected pipeline |
+|----|----------------|-------------------|
+| `discover-premium-tomorrow-en` | Book your most premium facial tomorrow nearest slot | Rank pick → book single day |
+| `discover-cheapest-friday-en` | Cheapest manicure Friday afternoon if available | Rank pick → check Friday afternoon |
+
+#### D — Triple intersection (budget + rank + OR windows) — flagship cases
+
+| id | Example prompt | Expected pipeline |
+|----|----------------|-------------------|
+| `discover-flagship-en` | I want a haircut tomorrow evening or Friday afternoon, I have $50 | **Canonical** — budget filter → OR window scan → grouped results |
+| `discover-flagship-book-en` | Book cheapest massage under $80 tomorrow or Thursday evening, soonest | Budget + lowest_price + OR + book nearest |
+| `discover-flagship-premium-en` | Premium styling under $150 tomorrow or Saturday, whichever opens first | Highest in budget + OR + earliest slot |
+| `discover-flagship-question-en` | Can I afford a deluxe facial tomorrow or Sunday under $100? | Affordability list + availability both windows |
+
+#### E — Triple + provider
+
+| id | Example prompt | Expected pipeline |
+|----|----------------|-------------------|
+| `discover-provider-budget-or-en` | Karo or anyone — haircut under $50 tomorrow eve or Fri PM | Provider fallback + budget + OR |
+| `discover-best-provider-budget-en` | Best rated stylist for a cut under $60 this week | `recommend_specialists` + `maxPrice` on serviceIds |
+
+#### F — Multi-turn full journey
+
+| id | Turn flow | Expected pipeline |
+|----|-----------|-------------------|
+| `discover-journey-budget-list-book-en` | T1: what's under $50 for hair / T2: tomorrow evening or Friday / T3: book cheapest | list → avail → book |
+| `discover-journey-premium-en` | T1: premium options / T2: too much — under $90? / T3: Saturday afternoon | rank → budget pivot → avail |
+| `discover-journey-clarify-en` | T1: haircut $50 tomorrow or Friday / T2: (assistant: which service?) / T2 user: basic cut | Clarify service when multiple under budget |
+
+#### G — Consumer vs public surface parity
+
+| id | Surface | Example prompt | Same handler result |
+|----|---------|----------------|----------------------|
+| `discover-parity-budget-public` | public | Facials under €50? | Identical service list |
+| `discover-parity-budget-customer` | customer | Facials under €50? | Identical service list |
+| `discover-parity-or-public` | public | Massage tomorrow AM or Sat PM | Same window parse |
+| `discover-parity-or-customer` | customer | Massage tomorrow AM or Sat PM | Same window parse |
+| `discover-parity-voice-customer` | customer | (voice) Haircut fifty bucks tomorrow or Friday | ASR + mobile context |
+
+#### H — Negative / must-not-break existing flows
+
+| id | Example prompt | Must route to |
+|----|----------------|---------------|
+| `discover-not-gift-en` | $50 gift card, premium cut tomorrow | Gift card — not discovery pipeline |
+| `discover-not-package-en` | Premium package under $200 | `discover_packages` |
+| `discover-not-admin-en` | (dashboard) services under $50 | Admin `list_services` READ |
+| `discover-not-multi-cart-en` | Two services under $100 total tomorrow | Phase 2 multi-service cart |
+| `discover-not-currency-explain-en` | Why is premium $120 in dram? | `explain_checkout_currency` |
+
+#### I — Multilingual cross-sprint (add to `discover-1.5`)
+
+| id | Example prompt | Combines |
+|----|----------------|----------|
+| `discover-hy-budget-or-en` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ, 5000 դրամ ունեմ | budget + OR |
+| `discover-ru-premium-en` | Люксовый массаж до 8000 рублей завтра вечером | rank + budget + single window |
+| `discover-hy-cheapest-en` | Ամենաէժան մանիկյուր $30-ից ցածր | rank + budget |
+| `discover-ru-or-book-en` | Стрижка завтра вечером или в субботу — забронируй | OR + book |
+
+**Exit criteria (all three sprints):**
+
+- [ ] **discover-exit-1** — ≥120 unique fixture `id`s across budget + rank + avail + cross-sprint; zero orphan prompts (every `id` in `it.each`)
+- [ ] **discover-exit-2** — Public `handleCheckAvailability` applies `filterSlotsByTimeOfDay`; OR windows ship in **avail-1.5**
+- [ ] **discover-exit-3** — **`npm run test:ai-service-discovery`** green in CI; eval harness includes ≥30 cross-sprint cases tagged `discover-*`
+- [ ] **discover-exit-4** — Consumer assistant chips documented in `consumer-copy-catalog.ts` matching fixture prompts
 
 ---
 
@@ -802,53 +976,14 @@ cd frontend && npm run test:sprint54
 
 ---
 
-## Sprint 38 — AI accuracy: telemetry & measurement
-
-**Goal:** Capture every prompt, classification, and outcome in production so real accuracy is measurable and failures are discoverable. **Nothing else in this program works without this.**
-
-- [ ] **acc-1** — AI accuracy telemetry & measurement foundation
-
-### acc-1.1 — Prompt + outcome logging
-- [ ] **acc-1.1** — `ai_command_trace` table — per command: `businessId`, `surface`, `userId`, `role`, raw `prompt`, normalized prompt, detected `locale`, classified `action`, `confidence`, `params` (redacted), routing tier, deterministic-vs-LLM source, `outcome` (executed / clarified / approval / failed / security_blocked), latency, model used, token cost; migration + indexes
-- [ ] **acc-1.2** — Hook into `AiGatewayService` — write trace on every command across dashboard / provider / customer surfaces; PII-redact params before storage (reuse compliance redaction); respect HIPAA AI guard (**compliance-1.15**)
-- [ ] **acc-1.3** — Correlation id — thread a `traceId` through classify → resolve → validate → execute so each pipeline stage's contribution is attributable
-
-### acc-1.2 — Failure signal capture (implicit + explicit)
-- [ ] **acc-1.4** — **Retry/rephrase detection** — same user, same surface, similar prompt (embedding similarity > 0.8) within 2 min after a clarify/fail → flag prior command as `suspected_miss`
-- [ ] **acc-1.5** — **Abandon detection** — clarify shown but user never answered / closed assistant → flag as `clarify_abandoned`
-- [ ] **acc-1.6** — **Undo/rollback as failure signal** — user hit Undo (ai-d7) within 1 min of execution → flag as `wrong_execution`
-- [ ] **acc-1.7** — **Explicit thumbs up/down** — tiny 👍/👎 on each AI result (dashboard + provider + customer); 👎 opens optional "what went wrong" one-tap reasons (wrong action / wrong date / wrong person / wrong service / didn't understand)
-
-### acc-1.3 — Accuracy dashboard (owner/admin analytics)
-- [ ] **acc-1.8** — Extend **ai-e6** analytics — real metrics from `ai_command_trace`: no-clarify completion rate, clarify rate, misclassification rate (from retry/undo/👎), per-intent accuracy, per-locale accuracy, per-surface accuracy
-- [ ] **acc-1.9** — **Confusion matrix** — which intent was classified vs corrected-to (from retry/undo signals); surfaces the top intent pairs that get confused
-- [ ] **acc-1.10** — **Worst-prompts feed** — ranked list of failing/low-confidence prompts (anonymized) for triage; export to eval pipeline (**acc-2**)
-- [ ] **acc-1.11** — **Accuracy SLO widget** — current rolling 7-day accuracy vs 99% target; trend line; alert when weekly accuracy drops > 2 points
-
----
-
 ## Sprint 39 — AI accuracy: eval set expansion & CI regression gate
 
 **Goal:** Grow the golden eval set from hundreds to **thousands** of real, labeled prompts across all surfaces and locales; make accuracy a hard CI gate so no change can regress it.
-
-- [ ] **acc-2** — Eval set expansion & regression gate
-
-### acc-2.1 — Mine real prompts into eval cases
-- [ ] **acc-2.1** — **Production prompt harvester** — weekly job pulls anonymized prompts from `ai_command_trace` (esp. `suspected_miss` / low-confidence / 👎) into a labeling queue
-- [ ] **acc-2.2** — **Labeling tool** — internal admin UI: review harvested prompt → confirm/correct expected `action` + key params + expected clarify; one click adds it to the golden eval fixtures (extends `ai-command-eval.cases.ts`)
-- [ ] **acc-2.3** — **Target: 2,000+ labeled cases** — balanced across booking / catalog / schedule / payments / gift cards / CRM / integrations; tagged by surface, locale, difficulty
 
 ### acc-2.2 — Coverage parity & adversarial cases
 - [ ] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents (translate + transliterate variants, incl. Armenian/Russian mixed-script and Latin transliteration)
 - [ ] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts
 - [ ] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution
-- [ ] **acc-2.7** — **Adversarial corpus** — prompt-injection, scope-escalation, out-of-policy requests with expected `security_blocked` (extends existing preflight tests)
-
-### acc-2.3 — CI regression gate
-- [ ] **acc-2.8** — **`npm run test:ai-accuracy`** — runs full deterministic eval suite; reports accuracy %, per-intent breakdown, and diff vs last baseline
-- [ ] **acc-2.9** — **Accuracy floor gate** — CI fails if deterministic accuracy drops below committed floor (start at current %, ratchet up each sprint); blocks merge on regression
-- [ ] **acc-2.10** — **Nightly LLM eval** — cases marked `requiresLlm` run nightly against the real model (cost-bounded); track LLM-path accuracy separately from deterministic; alert on drift
-- [ ] **acc-2.11** — **Per-intent scorecards** — eval report shows each intent's precision/recall so weak intents are obvious before they ship
 
 ---
 
@@ -859,7 +994,6 @@ cd frontend && npm run test:sprint54
 - [ ] **acc-3** — Classification accuracy engine
 
 ### acc-3.1 — Retrieval-augmented classification
-- [ ] **acc-3.1** — **Few-shot retriever** — embed the incoming prompt, retrieve top-K most-similar labeled eval cases (from **acc-2**) as in-context examples for `classify_intent`; per-business + global corpus
 - [ ] **acc-3.2** — **Per-business phrasing memory** — learn each business's recurring phrasings (build on entity memory ai-i2): "the usual", staff nicknames, service shorthand → bias classification
 - [ ] **acc-3.3** — **Dynamic intent shortlist** — pre-filter the ~270-intent registry to the most plausible 10–15 for the prompt before the LLM call (cheaper + more accurate than offering all intents)
 
@@ -1058,8 +1192,6 @@ cd frontend && npm run test:sprint54
 - [ ] **adopt-4** — Retention & re-engagement
 
 ### adopt-4.1 — Consumer push (new — consumer app lacks push today)
-- [x] **adopt-4.1** — Add `@capacitor/push-notifications` to the consumer app + FCM/APNs registration; per-customer+tenant token API (`consumer_native_push_tokens`, `/public/:slug/me/push/register-native`)
-- [x] **adopt-4.1.clinic** — Clinic transactional push delivery — wire `ConsumerPushDispatchService` for `lab_booking_request` + `result_ready` once **adopt-4.1** tokens land (**vert-clinic-2.gap-1**, **vert-clinic-2.2.13**, **vert-clinic-2.4.7**; backend payload/deep links already built)
 - [ ] **adopt-4.2** — Transactional push — booking confirmed, reminder (24h / 2h), rescheduled/cancelled, result-ready (clinic), gift-card received; deep-link into the right screen (extend `deep-link.ts`)
 - [ ] **adopt-4.3** — Push deep-link + foreground handling parity with the provider app (`provider-push-deep-link.util.ts`, `provider-push-foreground.util.ts`)
 
@@ -1070,28 +1202,8 @@ cd frontend && npm run test:sprint54
 
 ### adopt-4.3 — Home-screen presence
 - [ ] **adopt-4.7** — Home-screen widgets — next appointment + quick rebook (iOS WidgetKit / Android App Widget)
-- [ ] **adopt-4.8** — Notification preference center — per-category opt-in/out (reminders / offers / news) so users keep useful push instead of disabling all
 
----
-
-## Sprint 48 — Apps adoption: performance, reliability & trust
-
-**Goal:** Make both apps fast, crash-free, and trustworthy so they are kept and used — technically-bounded rates **≥ 99%**.
-
-- [ ] **adopt-5** — Performance, reliability & trust
-
-### adopt-5.1 — Stability
-- [ ] **adopt-5.1** — Crash + error reporting (e.g. Sentry) in both apps; release-health tracking; target crash-free sessions **≥ 99.5%**
-- [ ] **adopt-5.2** — Cold-start & TTI budget — splash→interactive under target; lazy-load + route-level code-split; measure on low-end Android
-
-### adopt-5.2 — Resilience
-- [ ] **adopt-5.3** — Consumer offline resilience — cache recent salons/services, queue + retry booking mutations (mirror provider `offline-queue.ts` / `use-online-status.ts`); clear offline UX
-- [ ] **adopt-5.4** — Network-aware UX — optimistic UI, retry, friendly errors; no dead-ends on flaky networks
-
-### adopt-5.3 — Trust & freshness
-- [ ] **adopt-5.5** — Update nudges — min-supported-version gate with a friendly prompt; remote kill-switch for broken builds
 - [ ] **adopt-5.6** — Accessibility & localization QA — VoiceOver/TalkBack, dynamic type, RTL-safe, full EN/HY/RU coverage on every adoption surface
-- [ ] **adopt-5.7** — Performance/stability CI gates — bundle-size budget, crash-free SLO check, startup-time regression alarm
 
 ---
 
@@ -1102,17 +1214,7 @@ cd frontend && npm run test:sprint54
 - [ ] **adopt-6** — Growth loops, habit & exit criteria
 
 ### adopt-6.1 — Referral & sharing
-- [ ] **adopt-6.1** — Referral program — shareable invite link/code (deferred deep link from **adopt-2.4**); reward both sides (loyalty / promo); track K-factor
-- [ ] **adopt-6.2** — Share a booking / salon — native share sheet with a deep link to the salon/service
 - [ ] **adopt-6.3** — Review solicitation loop — post-visit review prompt feeding tenant reputation; route to store review at peak-happiness (ties **adopt-2.2**)
-
-### adopt-6.2 — Habit
-- [ ] **adopt-6.4** — One-tap rebook of last service/provider/time from Account + widget
-- [ ] **adopt-6.5** — Smart reminder cadence — learn each customer's rebooking interval; nudge at the right time (respect preference center **adopt-4.8**)
-
-### adopt-6.3 — AI command coverage (per `feature-ai-prompt-coverage`)
-- [x] **adopt-6.6** — Customer/consumer AI: `explain_my_notifications`, `manage_notification_preferences`, `refer_a_friend`, `rebook_last_appointment`, `find_my_saved_salons` — classifier rules + eval cases (EN/HY/RU) on `buildCustomerClassifierSchema()` / consumer surface; `AiConsumerAdoptionService` + rescue; gate `npm run test:adopt-6` (includes `ai-consumer-adoption.*`)
-- [x] **adopt-6.7** — Provider AI: `explain_push_setup`, `enable_push_notifications` on `PROVIDER_INTENT_SCHEMA`; classifier rules + rescue + eval cases (EN/HY/RU); `AiProviderPushSetupService`; gate `npm run test:adopt-6` (includes `ai-provider-push-setup.*`)
 
 ### adopt-6.4 — Program exit criteria
 - [ ] **adopt-6.8** — **Adoption gate met** — rolling 30-day: install→activation ≥ 60%, push opt-in ≥ 80%, crash-free sessions ≥ 99.5%, D30 retention and referral K-factor trending up, all three locales within 3 pts; documented on the adoption dashboard
@@ -1158,19 +1260,9 @@ cd frontend && npm run test:sprint54
 ### n99-1.1 — Make the answer un-missable (tap, don't type)
 - [ ] **n99-1.1** — Structured clarify controls — render every clarify as the right input, not free text: date picker, provider chips, service chips, time-slot list (extend clarify-as-form `ai-command-wizard.tsx`, ai-d4); a tap resolves deterministically
 - [ ] **n99-1.2** — Pre-resolved option sets — for entity ambiguity (2 Annas, 3 "massage" services) show the concrete catalog candidates, never a "type the name again" re-ask (**acc-4.3**)
-- [ ] **n99-1.3** — Single-form multi-field clarify — collect *all* missing fields in one turn (driven by field-level confidence **acc-3.6** + `command-completion.validator.ts`); never serialize into 3 separate questions
 
-### n99-1.2 — Never lose context across the turn
-- [ ] **n99-1.4** — Lossless slot merge — merge the answer into the original intent keeping every earlier param (**acc-4.5**); the merged command is complete and executes immediately
-- [ ] **n99-1.5** — Inline answer validation — reject an answer that still doesn't resolve (e.g. ambiguous date) *before* re-running, with a corrective hint, so a turn is never wasted
 - [ ] **n99-1.6** — Localized + voice/typo-tolerant answers — parse EN/HY/RU and voice-to-text answers ("tomrw", "2pm", "Աննա" all resolve); extend normalization **acc-3.7**
 
-### n99-1.3 — Close the loop on the failures
-- [ ] **n99-1.7** — Per-intent / per-locale clarify→success metric (from `ai_command_trace`, **acc-1**) with a worst-clarifies feed; any clarify that led to abandon/second-clarify is auto-queued to eval labeling (**acc-2**)
-- [ ] **n99-1.8** — "Something else" escape that still routes — an explicit none-of-these option offers the 2–3 closest valid commands as chips (**acc-6.6**) instead of dead-ending
-- [ ] **n99-1.9** — Eval gate — `clarify_followup` cases in `ai-command-eval.cases.ts` assert second-turn success; CI floor ratchets toward 99% (EN/HY/RU)
-
----
 
 ## Sprint 51 — Near-99%: no-clarify completion rate
 
@@ -1181,17 +1273,6 @@ cd frontend && npm run test:sprint54
 ### n99-2.1 — Infer instead of ask (confidence-gated)
 - [ ] **n99-2.1** — High-confidence auto-fill — when a missing param is strongly inferable (last provider, "the usual" service, business default duration, current-screen context), fill it and proceed instead of clarifying; gated by field confidence (**acc-3.6**) and risk tier
 - [ ] **n99-2.2** — Screen/context grounding — pass the current app context (the booking/customer/service on screen) into the command so "book this", "cancel it", "remind her" resolve without asking
-- [ ] **n99-2.3** — Per-business phrasing memory — aliases, nicknames, shorthand learned over time (**acc-3.2**, `ai-entity-memory.service.ts`) so recurring phrasings resolve first try
-- [ ] **n99-2.4** — Few-shot retrieval on by default — top-K similar labeled cases injected into classify (**acc-3.1**, extend `ai-rag.service.ts`) for rare phrasings
-
-### n99-2.2 — Resolve the long tail
-- [ ] **n99-2.5** — Deterministic rescue expansion — mine recurring `suspected_miss` patterns (**acc-1.4**) into no-LLM rescues (**acc-3.8**, `ai-intent-rescue.service.ts`); each one regression-tested
-- [ ] **n99-2.6** — Don't over-ask — audit `command-completion.validator.ts`: required-field lists that force needless clarifies are trimmed where a safe default exists
-
-### n99-2.3 — Keep it honest (the guardrail)
-- [ ] **n99-2.7** — Wrong-execution watchdog — auto-filled/auto-executed commands carry preview + one-tap undo (**acc-5**) and post-exec assertion (**acc-5.4**); if undo/👎 rate on auto-fill rises, the confidence gate auto-tightens
-- [ ] **n99-2.8** — Ambiguous/destructive still clarifies — pushing no-clarify up must never auto-guess a destructive or low-confidence action (those count toward **n99-1**, not as failures)
-- [ ] **n99-2.9** — Eval gate — completion-without-clarify measured on the **acc-2** set; CI floor ratchets toward 99% **while** wrong-execution stays < 1% (both gates must hold)
 
 ---
 
@@ -1213,142 +1294,18 @@ cd frontend && npm run test:sprint54
 - [ ] **n99-3.5** — Activation concierge nudges — if not activated within 24h / 72h, a single well-timed push/email with a one-tap resume link (consumer push **adopt-4.1** + marketing-automation module)
 - [ ] **n99-3.6** — Dead-end audit — instrument every step of the qualified-install funnel (**adopt-1.4**); any step with > 1% drop gets a fix ticket
 
-### n99-3.3 — Measure it right
-- [ ] **n99-3.7** — Qualified-install cohort metric — activation tracked separately for intent-qualified vs cold installs; per-locale parity (< 3 pts EN/HY/RU)
-- [ ] **n99-3.8** — A/B the activation path relentlessly — sign-in placement, slot pre-selection, payment timing; promote the variant with the highest qualified activation
-
----
-
-## Sprint 53 — Near-99%: push opt-in / reachability
-
-**Lever thesis:** "reachable by notification" can approach 99% even though *explicit full opt-in* cannot — via iOS provisional authorization and Android default channels, then upgrading to full opt-in at peak-happiness.
-
-**Reality / denominator:** track **two** numbers — **reachability** (iOS provisional + authorized + Android default-on), targeting **near 99%**; and **explicit full opt-in**, targeting ≥ 80% (**adopt-3.5**). The headline near-99% is reachability; never dark-pattern the explicit prompt.
-
-- [ ] **n99-4** — Push opt-in / reachability → near 99%
-
-### n99-4.1 — Reach without the wall
-- [ ] **n99-4.1** — iOS provisional authorization — request `provisional` so transactional notifications (confirmations, reminders) deliver quietly to Notification Center with **no upfront prompt**; near-100% reachable from first open
-- [ ] **n99-4.2** — Android 13+ POST_NOTIFICATIONS timing — request the runtime permission right after the first booking success (not on launch); pre-13 default-on; consumer push plumbing from **adopt-4.1**
-- [ ] **n99-4.3** — Channel-level notifications — separate transactional (reminders) vs marketing channels so users keep the useful ones (preference center **adopt-4.8**); reachability counts transactional
-
-### n99-4.2 — Earn the full opt-in
-- [ ] **n99-4.4** — Value-first priming at peak-happiness — soft pre-prompt only after a completed booking, framed around "we'll remind you / confirm your slot"; only users who accept see the OS dialog (**adopt-3.5**)
-- [ ] **n99-4.5** — Upgrade provisional → full — after a user engages with a provisional notification, prompt to "keep these on" to convert to full authorization
-- [ ] **n99-4.6** — Re-ask flow for the denied — at a later high-value moment, deep-link to system settings with a one-line reason; never nag (max 1 re-ask)
-
-### n99-4.3 — Measure both numbers
-- [ ] **n99-4.7** — Reachability vs explicit opt-in dashboards (**adopt-1.7**) — track delivered/reachable rate and explicit-grant rate separately, per platform/locale; alert on drops
-- [ ] **n99-4.8** — Deliverability hardening — token refresh, APNs/FCM error handling, silent-failure detection so "reachable" actually delivers (≥ 99% of sends land)
-
-### Near-99% success metrics (Sprints 50–53)
-
-| Metric | Base target | This program |
-|--------|------------:|-------------:|
-| Clarify → success on next turn | > 90% | **near 99%** |
-| No-clarify completion rate | ≥ 90% | **near 99%** |
-| Wrong-execution rate (guardrail — must hold) | < 1% | **< 1%** |
-| Install → activation, intent-qualified (≤ 7d) | ≥ 60% | **near 99%** |
-| Install → activation, cold / ad (separate bar) | — | trending ↑ |
-| Push **reachability** (provisional + authorized + default-on) | n/a | **near 99%** |
-| Push **explicit** full opt-in | ≥ 80% | ≥ 80% (no dark patterns) |
-
-**Exit criteria:** rolling 30-day — all four headline rates at/near 99% on their honest denominators, wrong-execution < 1%, per-locale spread < 3 pts; documented on the AI-ops accuracy dashboard (**acc-1**) and the adoption dashboard (**adopt-1**).
-
-# AI Feature Parity Program — "do everything in the app for your role" (Sprints 55–58)
-
-**Goal:** Every action a user role can perform anywhere in the product UI is also achievable through the AI assistant — correctly permission-scoped to that role — plus a role-aware **agent mode** that can plan and chain intents to complete any multi-step task the role is allowed to do. Target: **100% feature → intent coverage per role / surface**.
-
-**Core principle:** *AI capability = UI capability ∩ role permissions.* If a role can click it, the role can say it; if a role can't do it in the UI, the AI must refuse it too. Coverage is **measured per role/surface**, never assumed.
-
-**Roles & surfaces (existing model — do not rebuild):**
-
-| UI role (`MemberRole`) | Access tier (`access-control.matrix.ts`) | Surfaces (`ai-capability.matrix.ts`) |
-|------------------------|------------------------------------------|--------------------------------------|
-| owner, admin | **owner** | dashboard, provider |
-| manager | **manager** | dashboard, provider |
-| staff, contributor | **staff** (own/assigned scope, `STAFF_SCOPED_INTENTS`) | dashboard, provider |
-| customer (logged-in) | **client** | customer (self-service) |
-| anonymous | **client** | public (booking) |
-
-Allowed intents already resolve per surface × tier × plan via `getEffectiveAllowedIntents()` + deny-lists (`DASHBOARD_DENIED_BY_TIER`, `PROVIDER_DENIED_BY_TIER`). This program makes that mapping **complete and provably so**.
-
-**Builds on existing infra (do not rebuild):** `ai-command-registry.build.ts` (~270 intents) + `AiCommandRegistryService`; capability/access matrices; `AiGatewayService` + `classify_intent` + `AiIntentRescueService`; intent decomposition / compound recipes (`intent-decomposition.schema.ts`); `CommandOrchestrationService` + `command-complexity-router.service.ts` (orchestration tier) + operational-plan-builder workflow engine; eval harness (`eval/ai-command-eval.cases.ts`, planned `npm run test:ai-accuracy`); the `feature-ai-prompt-coverage` rule.
-
-**Relationship to other programs:** The AI Accuracy program (Sprints 38–43) makes each command *correct*; this program makes the command set *complete per role*. Run accuracy telemetry (**acc-1**) and eval gate (**acc-2**) first so parity gaps are measured against real usage.
-
-**Why a program (not one task):** "do every feature" is a *completeness* guarantee. It needs (1) a full feature inventory, (2) a feature→intent map to expose gaps, (3) gap closure, (4) a role-scoped agent that chains in-scope intents, and (5) a CI gate so parity never regresses as new features ship.
-
----
-
-## Sprint 55 — Feature inventory & per-role coverage matrix
-
-**Goal:** Know exactly what every role can do in the UI, and which of those actions already have an AI intent — the gap list drives everything after. **Nothing else in this program works without this.**
-
-- [ ] **parity-1** — Per-role feature → intent coverage matrix
-
-### parity-1.1 — Inventory every feature per surface/role
-- [ ] **parity-1.1** — **Feature catalog** — enumerate every user-visible action across dashboard, provider app, consumer/customer app, and public booking (buttons, menu items, forms, settings toggles, bulk actions); tag each with `surface`, minimum `role/tier`, `module`, and read-vs-mutate; store as `ai-feature-catalog.ts` fixture (single source of truth for the gate)
-- [ ] **parity-1.2** — **Role capability map** — for each role (owner / admin / manager / staff / contributor / client) list the catalog actions it can reach in the UI; reconcile against `access-control.matrix.ts` deny-lists + `STAFF_SCOPED_INTENTS` so UI-permission and AI-permission agree by construction
-- [ ] **parity-1.3** — **Semi-automated extraction** — derive candidate actions from route guards, nav config, and permission checks (dashboard + both apps) so no screen is missed; reviewer confirms each into the catalog
-
-### parity-1.2 — Map features to intents & find gaps
-- [ ] **parity-1.4** — **Feature → intent map** — link each catalog action to its registry intent(s) (`ai-command-registry.build.ts`); actions with no intent are **gaps**, actions with an intent the role can't trigger are **scope bugs**
-- [ ] **parity-1.5** — **Coverage report** — `npm run report:ai-parity` outputs per role/surface: covered %, uncovered actions ranked by usage (from `ai_command_trace` / app analytics when available), and the gap backlog feeding Sprint 56
-- [ ] **parity-1.6** — **Allow/deny parity check** — flag every divergence: an intent the AI exposes but the role can't do in the UI (over-grant) and a UI action the role can do but AI blocks (under-grant); both are defects, target zero
-
----
-
-## Sprint 56 — Close the coverage gaps to 100% per role
-
-**Goal:** Implement the missing intents so every role reaches 100% feature coverage on every surface, shipped in module-sized slices.
-
-- [ ] **parity-2** — Implement missing intents to 100% per-role coverage
-
 ### parity-2.1 — Gap closure by module
+
+**Inventory source:** **`ai-cmd-ext`** action tables + `ai-capability.matrix.ts` vs dashboard UI routes — close every gap in **parity-2.1**–**2.3** before **parity-4** CI gate.
 - [ ] **parity-2.1** — **Owner / manager dashboard gaps** — add intents for every uncovered owner/manager dashboard action (settings, integrations, billing, staff ops, reports, marketing, loyalty) with handlers, registry bindings, `tiers`, `surfaces`, and `mutating` / `executionMode` flags
 - [ ] **parity-2.2** — **Staff / provider gaps** — add uncovered provider-app + staff-scoped dashboard actions (own schedule, assigned bookings, check-in, notes, breaks), honoring `STAFF_SCOPED_INTENTS` so staff only act within their own scope
 - [ ] **parity-2.3** — **Customer / public gaps** — add uncovered self-service + public actions (manage/reschedule/cancel own bookings, profile, payment methods, packages/subscriptions, loyalty, notification preferences, gift cards)
 
 ### parity-2.2 — Quality bar per intent (per `feature-ai-prompt-coverage`)
 - [ ] **parity-2.4** — Each new intent ships classifier rules + **EN/HY/RU** eval cases in `eval/ai-command-eval.cases.ts`, tagged with `surface` + expected `tier`
-- [ ] **parity-2.5** — **Permission tests** — every intent asserts *allow* for in-role tiers and *refuse / `security_blocked`* for out-of-role tiers (extend capability-matrix + access-control specs); no intent may leak across surfaces or tiers
-- [ ] **parity-2.6** — **Read vs mutate correctness** — mutating intents get preview/confirm + undo (reuse ai-d7); destructive ones honor blast-radius caps (**acc-5.7**) and post-exec assertion (**acc-5.4**)
 
----
-
-## Sprint 57 — Role-scoped agent ("do anything for me")
-
-**Goal:** Beyond single commands, an agent mode that plans and chains the role's allowed intents to complete any multi-step task expressed in natural language — never stepping outside the role's permissions.
-
-- [ ] **parity-3** — Role-aware "do anything" agent
-
-### parity-3.1 — Planning & orchestration
-- [ ] **parity-3.1** — **Capability-bounded planner** — extend `CommandOrchestrationService` / intent decomposition to plan over *only* the role's allowed-intent set (`getEffectiveAllowedIntents(surface, tier, plan)`); the planner may sequence any number of in-scope intents to satisfy a goal, and may never select an out-of-scope one
 - [ ] **parity-3.2** — **Goal → multi-step execution** — e.g. "set up my new stylist end-to-end" decomposes into `create employee → assign services → set schedule → enable online booking`, each a permission-checked intent under one preview/confirm
-- [ ] **parity-3.3** — **Mid-plan clarify** — missing/ambiguous params pause for targeted clarification (reuse **acc-4**) instead of guessing; answers merge back without losing earlier steps
 
-### parity-3.2 — Guardrails
-- [ ] **parity-3.4** — **Per-step permission re-check** — every step re-validates tier + surface + plan at execute time; a plan can never escalate privilege by chaining in-scope steps
-- [ ] **parity-3.5** — **Plan preview + atomic rollback** — show the full step list before running; one-tap undo of the whole plan via the workflow execution log (reuse ai-d7 / gap-3.7)
-- [ ] **parity-3.6** — **Blast-radius & dry-run** — caps + propose-only for new or destructive multi-step plans (reuse **acc-5.7** / **acc-5.8**)
-
-### parity-3.3 — Discoverability
-- [ ] **parity-3.7** — **"What can you do?"** — role-aware capability listing: the assistant enumerates exactly the features it can perform for the current role/surface (reads the coverage matrix), so users discover the full surface instead of guessing
-
----
-
-## Sprint 58 — Parity CI gate & maintenance
-
-**Goal:** Keep coverage at 100% forever — a new feature cannot merge without its AI intent + eval, per role.
-
-- [ ] **parity-4** — Coverage parity CI gate & exit criteria
-
-- [ ] **parity-4.1** — **`npm run test:ai-parity`** — fails CI if any catalog action for a role/surface has no mapped intent, or if AI allow/deny diverges from `access-control.matrix.ts` (over- or under-grant)
-- [ ] **parity-4.2** — **Catalog freshness check** — new route / nav / permission entries without a matching `ai-feature-catalog.ts` row fail the gate, forcing the inventory to stay current
-- [ ] **parity-4.3** — **Per-role eval floor** — extend `test:ai-accuracy` to report per-role coverage %; floor ratchets toward 100% and may not regress
-- [ ] **parity-4.4** — **Parity dashboard widget** — per role/surface coverage %, open gaps, allow/deny divergences, and trend (extend the AI-ops accuracy dashboard, **acc-1**)
-- [ ] **parity-4.5** — **Exit criteria** — 100% feature→intent coverage for every role on every surface; zero allow/deny divergences; agent completes a labeled set of multi-step role tasks ≥ 95%; CI gate green and enforced
 
 ### AI feature parity success metrics (Sprints 55–58)
 
@@ -1362,6 +1319,44 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 
 ---
 
+# Provider App Expansion Program — richer data & at-chair features (Sprints 59–62)
+
+**Goal:** Extend **`provider-app/`** from schedule-centric + AI into the primary **at-chair** and **floor** tool for stylists and managers — richer customer context, operational data, and lightweight actions staff need between appointments — **without** porting the full dashboard.
+
+**Baseline (shipped today):**
+
+| Area | What exists |
+|------|-------------|
+| **Tabs** | Today, Calendar, Schedule, Profile, Gift cards (+ clinic: lab collection, results, tasks, patients when vertical enabled) |
+| **Bookings** | List + detail modal — status, payment, reschedule, cancel, payment breakdown; team vs own view for managers |
+| **Profile** | Avatar, title, reviews summary, push toggle |
+| **AI** | Floating assistant, suggestions, offline queue, voice, push deep-links + foreground actions |
+| **Backend** | `GET/PUT .../provider/bookings/*`, profile, reviews, schedule summary, push, clinic queues, AI command gateway |
+
+**Out of scope (stay on dashboard web):** full CRM admin, billing/plan settings, marketing automation config, inventory catalog editing, enterprise trust, strategy eval.
+
+**Policy:** Every user-visible slice needs unit + integration tests (`feature-test-coverage.mdc`). Staff-facing AI needs `PROVIDER_INTENT_SCHEMA` rules + eval cases tagged `surface: provider` (`feature-ai-prompt-coverage.mdc`). UI copy EN/HY/RU in `provider-app-i18n.ts` + `frontend/src/i18n/messages/*` `provider.*` keys.
+
+- [ ] **prov-exp** — Provider app expansion (Sprints 59–62)
+
+## Sprint 62 — Waitlist, growth visibility & polish
+
+### prov-exp-8 — Waitlist & recovery
+- [ ] **prov-exp-8.1** — **Waitlist panel** — staff-scoped list of waitlist entries for their services; tap offer slot when cancellation opens gap (reuse waitlist offer API from dashboard)
+- [ ] **prov-exp-8.2** — **Rebooking candidates** — after cancel/no-show, show top 3 waitlist + last-regular clients; one-tap AI draft message (manager send or copy)
+
+### Provider app expansion success metrics
+
+| Metric | Baseline | Target |
+|--------|----------|--------|
+| Booking detail → customer context shown | name + service only | loyalty, history, notes, badges |
+| Check-in usage (providers with ≥1 booking/day) | 0% | ≥ 40% |
+| Retail attach via provider app | 0% | ≥ 10% of retail lines |
+| Manager team-floor weekly active | n/a | ≥ 50% of manager seats |
+| Provider AI intents for new slices | partial | 100% with eval EN/HY/RU |
+
+---
+
 ## Reference — early MVP build order (historical)
 
 1. comms-1 — Email reminders  
@@ -1372,11 +1367,7 @@ Allowed intents already resolve per surface × tier × plan via `getEffectiveAll
 
 <!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
 
-2. Multi payment return + cash on multi checkout              ← completes multi-service
-3. Gift cards (purchase + account)                            ← whole new revenue surface
-- [x] **4. Package purchase flow** — consumer mirrors web `/any` + `packages/*` (picker → confirm → checkout); Stripe web success URL → consumer pending-payment return (`consumer-checkout-return.util` + deep links); pay-at-visit on web + consumer when tenant allows; customer AI `book_package` / `discover_packages`; gate `npm run test:consumer-packages` (27)
-5. Subscription at checkout                                   ← recurring revenue
-- [x] **6. Professionals-first + provider profiles** — consumer `/professionals` picker → `/professionals/services` → `BookPage` with slot; `/providers/:employeeId` profile + reviews; home CTA + services tab entry; assistant `professionals` navigate; gate `npm run test:consumer-professionals`
-- [x] **7. adopt-6.6 AI intents + screen context** — consumer assistant example chips (subscriptions, rebook, referral, notifications, saved salons); `recentSalons` + `screen` in context; account navigate (`?tab=subscriptions`); rich subscriptions section with usage expand + book-next; gate `npm run test:consumer-subscriptions-account` + `test:adopt-6`
-- [ ] **8. Catalog notify on package/subscription save** — dashboard "Notify customers" + per-locale template; send email/push in customer's `preferredLocale` (**catalog-notify-1**)
-- [ ] **9. GDPR, profile hub, meta booking**   
+- [ ] **10. Budget-aware service discovery** — assistant filters catalog by user budget (`maxPrice`); public + consumer AI; scenario matrix **Sprint 63** / **ai-cmd-budget**; gate `npm run test:ai-budget`
+- [ ] **11. Premium / best service discovery** — assistant ranks catalog by premium/top-tier/highest price (and cheapest); disambiguate service vs specialist; **Sprint 64** / **ai-cmd-rank**; shared util with #10; gate `npm run test:ai-service-discovery`
+- [ ] **12. Flexible OR availability + budget compounds** — multi-window scheduling (tomorrow evening or Friday afternoon) + optional `maxPrice`; public `filterSlotsByTimeOfDay` parity; **Sprint 65** / **ai-cmd-avail**; canonical prompt in scenario **`avail-budget-or-en`**
+- [ ] **13. Unified service discovery program** — cross-sprint budget + rank + OR availability; shared utils **`discover-1`**, mega-prompt matrix **`ai-cmd-discover`**, ≥120 fixture ids, gate **`npm run test:ai-service-discovery`**, consumer assistant chips (**discover-1.4**)

@@ -40,8 +40,30 @@ import {
   STATUS_COLOR,
 } from '../lib/booking-types';
 import BookingPaymentBreakdown from './BookingPaymentBreakdown';
+import BookingCustomerContextCard from './BookingCustomerContextCard';
+import BookingCustomerContactActions from './BookingCustomerContactActions';
+import CustomerVisitHistoryStrip from './CustomerVisitHistoryStrip';
+import BookingCustomerStaffNotesSection from './BookingCustomerStaffNotesSection';
+import BookingPreVisitIntakeSection from './BookingPreVisitIntakeSection';
+import BookingCheckoutContextBadges from './BookingCheckoutContextBadges';
+import BookingReassignSection from './BookingReassignSection';
+import BookingRetailPosSection from './BookingRetailPosSection';
 import { BookingLabResultsSection } from './BookingLabResultsSection';
+import type { ProviderBookingCustomerContext } from '../lib/provider-booking-customer-context.types';
 import { useI18n } from '../i18n';
+import { requestProviderBookingReview } from '../lib/provider-reviews-inbox';
+import {
+  checkInProviderBooking,
+  floorStatusColor,
+  formatFloorStatusLabel,
+  type ProviderBookingFloorStatus,
+} from '../lib/provider-booking-check-in';
+import {
+  formatVisitStatusLabel,
+  markProviderBookingReadyNow,
+  markProviderBookingRunningLate,
+  visitStatusBadgeColor,
+} from '../lib/provider-booking-visit-status';
 
 interface BookingDetailModalProps {
   businessId: string;
@@ -125,6 +147,7 @@ export default function BookingDetailModal({
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [versionConflict, setVersionConflict] = useState(false);
+  const [pastVisitBookingId, setPastVisitBookingId] = useState<string | null>(null);
 
   const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['provider-booking', businessId, bookingId],
@@ -135,6 +158,17 @@ export default function BookingDetailModal({
       return unwrap<BookingDetail>(res);
     },
     enabled: !!businessId && !!bookingId,
+  });
+
+  const { data: customerContext, isLoading: customerContextLoading } = useQuery({
+    queryKey: ['provider-booking-customer-context', businessId, bookingId],
+    queryFn: async () => {
+      const { data: res } = await api.get(
+        `/businesses/${businessId}/provider/bookings/${bookingId}/customer-context`,
+      );
+      return unwrap<ProviderBookingCustomerContext>(res);
+    },
+    enabled: !!businessId && !!bookingId && !!booking?.customerId,
   });
 
   useEffect(() => {
@@ -148,10 +182,13 @@ export default function BookingDetailModal({
     setRescheduleDate(bookingDayISO(booking.startTime));
     setRescheduleTime(formatTimeDisplay(booking.startTime));
     setVersionConflict(false);
+    setPastVisitBookingId(null);
   }, [booking]);
 
   const invalidateLists = () => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', businessId] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-team-floor', businessId] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-team-whos-next', businessId] });
     void queryClient.invalidateQueries({ queryKey: ['provider-upcoming', businessId] });
     void queryClient.invalidateQueries({ queryKey: ['provider-schedule-summary', businessId] });
     void queryClient.invalidateQueries({ queryKey: ['provider-booking', businessId, bookingId] });
@@ -243,6 +280,52 @@ export default function BookingDetailModal({
     },
     onSuccess: (result) => {
       setCancelReason(result.suggestion);
+    },
+  });
+
+  const requestReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!bookingId) throw new Error('Missing booking');
+      return requestProviderBookingReview(businessId, bookingId);
+    },
+    onSuccess: () => {
+      invalidateLists();
+      void queryClient.invalidateQueries({
+        queryKey: ['provider-reviews-inbox', businessId],
+      });
+    },
+  });
+
+  const checkInMutation = useMutation({
+    mutationFn: async () => {
+      if (!bookingId) throw new Error('Missing booking');
+      return checkInProviderBooking(businessId, bookingId);
+    },
+    onSuccess: () => {
+      invalidateLists();
+      void refetch();
+    },
+  });
+
+  const runningLateMutation = useMutation({
+    mutationFn: async () => {
+      if (!bookingId) throw new Error('Missing booking');
+      return markProviderBookingRunningLate(businessId, bookingId, 10);
+    },
+    onSuccess: () => {
+      invalidateLists();
+      void refetch();
+    },
+  });
+
+  const readyNowMutation = useMutation({
+    mutationFn: async () => {
+      if (!bookingId) throw new Error('Missing booking');
+      return markProviderBookingReadyNow(businessId, bookingId);
+    },
+    onSuccess: () => {
+      invalidateLists();
+      void refetch();
     },
   });
 
@@ -405,23 +488,76 @@ export default function BookingDetailModal({
               <IonBadge color={STATUS_COLOR[displayStatus] ?? 'medium'}>
                 {formatStatusLabel(displayStatus, t)}
               </IonBadge>
+              {booking.floorStatus ? (
+                <IonBadge
+                  color={floorStatusColor(booking.floorStatus as ProviderBookingFloorStatus)}
+                  style={{ marginLeft: 8 }}
+                >
+                  {formatFloorStatusLabel(booking.floorStatus as ProviderBookingFloorStatus, t)}
+                </IonBadge>
+              ) : null}
+              {booking.visitStatus ? (
+                <IonBadge
+                  color={visitStatusBadgeColor(booking.visitStatus.kind)}
+                  style={{ marginLeft: 8 }}
+                >
+                  {formatVisitStatusLabel(booking.visitStatus, t)}
+                </IonBadge>
+              ) : null}
             </div>
 
-            {booking.customer && (
-              <div className="ion-margin-bottom">
-                <h3>{t('common.customer')}</h3>
-                <p>{booking.customer.name}</p>
-                {booking.customer.phone && (
-                  <a className="contact-link" href={`tel:${booking.customer.phone}`}>
-                    {booking.customer.phone}
-                  </a>
-                )}
-                {booking.customer.email && (
-                  <a className="contact-link" href={`mailto:${booking.customer.email}`}>
-                    {booking.customer.email}
-                  </a>
-                )}
+            {booking.checkIn?.allowed ? (
+              <IonButton
+                expand="block"
+                className="ion-margin-bottom"
+                disabled={checkInMutation.isPending}
+                onClick={() => checkInMutation.mutate()}
+              >
+                {checkInMutation.isPending
+                  ? t('provider.checkInWorking')
+                  : t('provider.checkInClient')}
+              </IonButton>
+            ) : null}
+            {checkInMutation.isError ? (
+              <IonText color="danger">
+                <p className="booking-meta">{t('provider.checkInFailed')}</p>
+              </IonText>
+            ) : null}
+
+            {booking.visitStatusActions?.allowed ? (
+              <div
+                className="ion-margin-bottom"
+                style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr' }}
+              >
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  disabled={runningLateMutation.isPending || readyNowMutation.isPending}
+                  onClick={() => runningLateMutation.mutate()}
+                >
+                  {runningLateMutation.isPending
+                    ? t('provider.visitStatusWorking')
+                    : t('provider.markRunningLate')}
+                </IonButton>
+                <IonButton
+                  expand="block"
+                  disabled={runningLateMutation.isPending || readyNowMutation.isPending}
+                  onClick={() => readyNowMutation.mutate()}
+                >
+                  {readyNowMutation.isPending
+                    ? t('provider.visitStatusWorking')
+                    : t('provider.markReadyNow')}
+                </IonButton>
               </div>
+            ) : null}
+            {runningLateMutation.isError || readyNowMutation.isError ? (
+              <IonText color="danger">
+                <p className="booking-meta">{t('provider.visitStatusFailed')}</p>
+              </IonText>
+            ) : null}
+
+            {booking.checkoutContext && (
+              <BookingCheckoutContextBadges context={booking.checkoutContext} />
             )}
 
             {editable && onAiPrompt && (
@@ -495,12 +631,98 @@ export default function BookingDetailModal({
               </div>
             )}
 
+            {booking && (
+              <BookingReassignSection
+                businessId={businessId}
+                booking={booking}
+                onReassigned={invalidateLists}
+              />
+            )}
+
+            {customerContextLoading && booking.customerId && (
+              <div className="ion-margin-bottom empty-state">
+                <IonSpinner name="crescent" />
+              </div>
+            )}
+            {customerContext && (
+              <BookingCustomerContextCard context={customerContext} />
+            )}
+
+            {booking?.customerContact && bookingId ? (
+              <BookingCustomerContactActions
+                bookingId={bookingId}
+                phone={booking.customerContact.phone}
+                callEnabled={booking.customerContact.callEnabled}
+                smsEnabled={booking.customerContact.smsEnabled}
+                whatsappEnabled={booking.customerContact.whatsappEnabled}
+                templates={booking.staffMessageTemplates}
+              />
+            ) : null}
+
+            {customerContext && (
+              <CustomerVisitHistoryStrip
+                context={customerContext}
+                onViewBooking={setPastVisitBookingId}
+                onAiPrompt={onAiPrompt}
+              />
+            )}
+
+            {customerContext && bookingId && (
+              <BookingCustomerStaffNotesSection
+                businessId={businessId}
+                bookingId={bookingId}
+              />
+            )}
+
+            {bookingId && (
+              <BookingPreVisitIntakeSection
+                businessId={businessId}
+                bookingId={bookingId}
+              />
+            )}
+
+            {booking.reviewRequest?.allowed ? (
+              <IonButton
+                expand="block"
+                fill="outline"
+                className="ion-margin-bottom"
+                disabled={requestReviewMutation.isPending}
+                onClick={() => void requestReviewMutation.mutateAsync()}
+              >
+                {requestReviewMutation.isPending ? (
+                  <IonSpinner name="crescent" />
+                ) : (
+                  t('provider.requestReview')
+                )}
+              </IonButton>
+            ) : null}
+            {requestReviewMutation.isSuccess ? (
+              <IonText color="success">
+                <p className="booking-meta">{t('provider.requestReviewSent')}</p>
+              </IonText>
+            ) : null}
+            {requestReviewMutation.isError ? (
+              <IonText color="danger">
+                <p className="booking-meta">{t('provider.requestReviewFailed')}</p>
+              </IonText>
+            ) : null}
+
             <PickerField
               label={t('appointments.paymentStatus')}
               valueLabel={formatPaymentLabel(paymentStatus, t)}
               disabled={booking.status === 'cancelled' || updateMutation.isPending}
               onPress={openPaymentPicker}
             />
+
+            {booking.retailPosEnabled && bookingId && (
+              <BookingRetailPosSection
+                businessId={businessId}
+                bookingId={bookingId}
+                currency={booking.service?.currency}
+                disabled={booking.status === 'cancelled'}
+                onSaved={invalidateLists}
+              />
+            )}
 
             {booking.paymentSummary && (
               <BookingPaymentBreakdown summary={booking.paymentSummary} />
@@ -635,6 +857,14 @@ export default function BookingDetailModal({
           </>
         )}
       </IonContent>
+      {pastVisitBookingId && (
+        <BookingDetailModal
+          businessId={businessId}
+          bookingId={pastVisitBookingId}
+          onClose={() => setPastVisitBookingId(null)}
+          onAiPrompt={onAiPrompt}
+        />
+      )}
     </IonModal>
   );
 }

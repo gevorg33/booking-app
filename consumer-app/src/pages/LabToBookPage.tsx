@@ -2,7 +2,6 @@ import {
   IonButton,
   IonContent,
   IonHeader,
-  IonPage,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
@@ -18,15 +17,18 @@ import {
 import { fetchMyClinicLabBookingRequests } from '../services/public-api.js';
 import { ConsumerMyLabBookingRequestsList } from '../components/ConsumerMyLabBookingRequestsList.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js';
 
 export default function LabToBookPage({
   slug,
   profile,
+  embedded = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
+  embedded?: boolean;
 }) {
   const history = useHistory();
   const token = getCustomerToken(slug);
@@ -51,7 +53,7 @@ export default function LabToBookPage({
   });
 
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{copy.myLabToBookTitle}</IonTitle>
@@ -95,6 +97,6 @@ export default function LabToBookPage({
           </>
         )}
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

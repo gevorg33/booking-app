@@ -1,6 +1,7 @@
 import {
   AI_CMD_RESCUE_SCENARIOS,
   AI_COMMAND_EVAL_AI_CMD_DOMAIN_CASES,
+  CATALOG_NOTIFY_RESCUE_SCENARIOS,
   aiCmdScenarioToEvalCase,
   scenariosByDomain,
   scenariosBySurface,
@@ -41,6 +42,18 @@ describe('ai-cmd-eval.fixtures (ai-cmd-t2)', () => {
   it('covers booking and catalog domains', () => {
     expect(scenariosByDomain('booking').length).toBeGreaterThanOrEqual(4);
     expect(scenariosByDomain('catalog').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('maps every catalog-notify rescue scenario with notifyCustomers paramsPartial', () => {
+    for (const scenario of CATALOG_NOTIFY_RESCUE_SCENARIOS) {
+      const evalCase = aiCmdScenarioToEvalCase(scenario);
+      expect(evalCase.expect.paramsPartial).toEqual({
+        notifyCustomers: scenario.paramsPartial?.notifyCustomers,
+      });
+      expect(typeof evalCase.expect.paramsPartial?.notifyCustomers).toBe(
+        'boolean',
+      );
+    }
   });
 
   it('has at least 35 domain rescue scenarios', () => {

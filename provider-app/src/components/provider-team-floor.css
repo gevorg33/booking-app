@@ -1,0 +1,31 @@
+.provider-team-floor {
+  margin-bottom: 16px;
+}
+
+.provider-team-floor-header {
+  margin-bottom: 8px;
+}
+
+.provider-team-floor-title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.provider-team-floor-filter {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+}
+
+.provider-team-floor-column + .provider-team-floor-column {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+.provider-team-floor-column-header h3 {
+  margin: 0 0 4px;
+}
+
+.provider-team-floor-card {
+  margin-top: 8px;
+}

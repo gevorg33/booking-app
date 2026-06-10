@@ -8,10 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { BusinessService } from '../business/business.service.js';
-import {
-  assertClinicLabFeaturesEnabled,
-  readBusinessTypeFromSettings,
-} from '../clinic-test-results/shared/clinic-test-results-gate.util.js';
 import { PatientStaffNote } from './entities/patient-staff-note.entity.js';
 import type { CreatePatientStaffNoteDto } from './dto/create-patient-staff-note.dto.js';
 import { PatientStaffNoteAccessService } from './shared/patient-staff-note-access.service.js';
@@ -45,13 +41,11 @@ export class PatientStaffNotesService {
     private readonly phiService: PatientStaffNotePhiService,
   ) {}
 
-  private async assertEnabled(businessId: string): Promise<void> {
+  private async assertBusinessExists(businessId: string): Promise<void> {
     const business = await this.businessService.findOne(businessId);
-    assertClinicLabFeaturesEnabled(
-      readBusinessTypeFromSettings(
-        business.settings as Record<string, unknown> | undefined,
-      ),
-    );
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
   }
 
   private noteHasPhiContent(note: Pick<PatientStaffNote, 'body'>): boolean {
@@ -89,14 +83,15 @@ export class PatientStaffNotesService {
     businessId: string,
     customerId: string,
     access: PatientStaffNoteAccessContext,
+    options?: { take?: number },
   ): Promise<PatientStaffNotesListView> {
-    await this.assertEnabled(businessId);
+    await this.assertBusinessExists(businessId);
 
     const notes = await this.noteRepo.find({
       where: { businessId, customerId },
       relations: { author: true },
       order: { createdAt: 'DESC' },
-      take: 100,
+      take: options?.take ?? 100,
     });
 
     const mapped: PatientStaffNoteView[] = [];
@@ -116,7 +111,7 @@ export class PatientStaffNotesService {
     access: PatientStaffNoteAccessContext,
     dto: CreatePatientStaffNoteDto,
   ): Promise<PatientStaffNoteView> {
-    await this.assertEnabled(businessId);
+    await this.assertBusinessExists(businessId);
 
     if (!access.canWrite) {
       throw new ForbiddenException(

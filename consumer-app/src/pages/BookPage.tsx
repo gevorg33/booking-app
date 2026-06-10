@@ -1,5 +1,4 @@
 import {
-  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
@@ -8,10 +7,7 @@ import {
   IonIcon,
   IonItem,
   IonLabel,
-  IonList,
   IonPage,
-  IonSelect,
-  IonSelectOption,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -21,7 +17,8 @@ import { shareOutline } from 'ionicons/icons';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useHistory } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
@@ -56,15 +53,26 @@ import {
 } from '../lib/customer-auth.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { track, getOrCreateAnonId } from '../lib/app-analytics.js';
-import { consumeReferralConversionFlag } from '../lib/consumer-referral.util.js';
-import { shareBookingLink } from '../lib/consumer-growth-loops.util.js';
-import { readRebookLaunchContext } from '../lib/consumer-rebook.util.js';
+import { readRefereePromoCode } from '../lib/consumer-referral.util.js';
+import { shareBookingLinkWithReward, formatShareRewardToast } from '../lib/consumer-share-flow.util.js';
+import { claimShareReward } from '../services/public-api.js';
+import { readRebookLaunchContext, normalizeRebookPrefill } from '../lib/consumer-rebook.util.js';
 import { rememberBookedSalon } from '../lib/recent-salons.js';
 import {
   incrementCompletedBookingCount,
   getCompletedBookingCount,
 } from '../lib/store-review-prompt.util.js';
 import { computeBookingSuccessEndTime } from '../lib/checkout-recommendations.js';
+import { replaceConsumerRoute } from '../lib/consumer-ion-navigation.util.js';
+import {
+  resolveBookPageSpecialistEmployeeId,
+  shouldShowBookPageSpecialistPicker,
+} from '../lib/service-slot-providers.util.js';
+import {
+  buildProfessionalsFirstBookPathFromQuery,
+  readProfessionalsFirstBookQuery,
+  readProfessionalsFirstBookState,
+} from '../lib/professionals-first-book.util.js';
 import {
   resolveSlotPreselection,
 } from '../lib/guided-booking-flow.util.js';
@@ -75,11 +83,21 @@ import {
   shouldPromptPreConfirmSignIn,
 } from '../lib/activation-path-ab.util.js';
 import { loadActivationPathPromotedFromRemote } from '../lib/activation-path-ab-remote.util.js';
-import { formatBookingDateTimeRange } from '../lib/date-format.js';
+import { formatBookingDateTimeRange, formatScheduleTime } from '../lib/date-format.js';
 import { ConsumerCheckoutIntakeStep } from '../components/ConsumerCheckoutIntakeStep.js';
 import { ConsumerProductRecommendationCards } from '../components/ConsumerProductRecommendationCards.js';
 import { ConsumerCheckoutContactForm } from '../components/ConsumerCheckoutContactForm.js';
 import { BookingProgressIndicator } from '../components/BookingProgressIndicator.js';
+import { SalonTabBackButton } from '../components/SalonTabBackButton.js';
+import { ConsumerBackButton } from '../components/ConsumerBackButton.js';
+import {
+  buildProfessionalServicesPath,
+  buildProfessionalsPath,
+} from '../lib/provider-booking.util.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
+import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
+import { ConsumerProviderAvatar } from '../components/ConsumerProviderAvatar.js';
+import { ConsumerProfessionalsFirstCheckoutSummary } from '../components/ConsumerProfessionalsFirstCheckoutSummary.js';
 import { PushOptInPrimingPrompt } from '../components/PushOptInPrimingPrompt.js';
 import { PushProvisionalUpgradePrompt } from '../components/PushProvisionalUpgradePrompt.js';
 import {
@@ -172,12 +190,14 @@ import {
   readConsumerPushPermissionState,
 } from '../services/native-push.js';
 import { useCheckoutDiscounts } from '../hooks/use-checkout-discounts.js';
+import { useServiceBookableDates } from '../hooks/use-service-bookable-dates.js';
 import {
   confirmPublicBookingPayment,
   createBooking,
   createPublicBookingCheckout,
   fetchNearestBookableSlot,
   fetchPublicProviders,
+  fetchServiceSlotProviders,
   fetchServiceSlots,
   getPublicActiveSubscription,
   getPublicCustomerLoyalty,
@@ -206,7 +226,6 @@ function applyBookingSuccess(
       endTime: string;
       quote: PublicCheckoutQuote | null;
     }) => void;
-    setShowPushPriming: (value: boolean) => void;
     bookingCompletedRef: MutableRefObject<boolean>;
   },
   bookingId: string,
@@ -221,7 +240,6 @@ function applyBookingSuccess(
     queryClient,
     clinicOrderToken,
     setBookingSuccess,
-    setShowPushPriming,
     bookingCompletedRef,
   } = ctx;
 
@@ -233,9 +251,6 @@ function applyBookingSuccess(
     quote: checkoutQuote ?? null,
   });
   track('completed_booking', { bookingId, serviceId: service.id });
-  if (consumeReferralConversionFlag(slug)) {
-    track('referral_converted', { bookingId, serviceId: service.id, slug });
-  }
   bookingCompletedRef.current = true;
   clearBookingDraft();
   clearPendingCheckoutPayment();
@@ -259,25 +274,62 @@ function applyBookingSuccess(
 export default function BookPage() {
   const { serviceId } = useParams<{ slug: string; serviceId: string }>();
   const location = useLocation();
+  const history = useHistory();
+  const ionRouter = useIonRouter();
   const clinicOrderToken = useMemo(() => {
     const value = new URLSearchParams(location.search).get('clinicOrderToken');
     return value?.trim() || undefined;
   }, [location.search]);
   const { slug, profile, loading, error, fromCache } = useTenantBootstrap();
+  const professionalsFirstState = useMemo(
+    () =>
+      readProfessionalsFirstBookState(location.state, {
+        slug: slug || undefined,
+        serviceId,
+      }),
+    [location.state, serviceId, slug],
+  );
   const { copy, locale } = useConsumerCopy(slug, profile ?? { locale: 'en' });
   const queryClient = useQueryClient();
   const resumeParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const professionalsFirstQuery = useMemo(
+    () => readProfessionalsFirstBookQuery(slug || undefined, serviceId, resumeParams),
+    [resumeParams, serviceId, slug],
+  );
+  const autoAssign = resumeParams.get('autoAssign') === '1';
   const resumePrefill = useMemo(() => {
-    const resumeDate = resumeParams.get('date')?.slice(0, 10);
-    const resumeSlot = resumeParams.get('slot') ?? '';
-    const resumeEmployeeId = resumeParams.get('employeeId') ?? '';
+    const resumeDate =
+      professionalsFirstQuery.date ||
+      resumeParams.get('date')?.slice(0, 10) ||
+      professionalsFirstState.startTime?.slice(0, 10) ||
+      new Date().toISOString().slice(0, 10);
+    const resumeSlot =
+      professionalsFirstQuery.slot ||
+      resumeParams.get('slot') ||
+      professionalsFirstState.startTime ||
+      '';
+    const resumeEmployeeId =
+      professionalsFirstQuery.employeeId ||
+      resumeParams.get('employeeId') ||
+      professionalsFirstState.employeeId ||
+      '';
+    const rebook = readRebookLaunchContext(location.search);
+    const normalized = rebook.isRebook
+      ? normalizeRebookPrefill({
+          date: resumeDate ?? new Date().toISOString().slice(0, 10),
+          slot: resumeSlot,
+        })
+      : {
+          date: resumeDate ?? new Date().toISOString().slice(0, 10),
+          slot: resumeSlot,
+        };
     return {
-      date: resumeDate ?? new Date().toISOString().slice(0, 10),
-      slot: resumeSlot,
+      date: normalized.date,
+      slot: normalized.slot,
       employeeId: resumeEmployeeId,
-      rebook: readRebookLaunchContext(location.search),
+      rebook,
     };
-  }, [location.search, resumeParams]);
+  }, [location.search, professionalsFirstQuery, professionalsFirstState, resumeParams]);
   const deferredResume = useMemo(
     () => readDeferredInstallResumeContext(location.search, resumePrefill.slot),
     [location.search, resumePrefill.slot],
@@ -294,9 +346,59 @@ export default function BookPage() {
     [location.search, slug, serviceId, resumePrefill.slot],
   );
   const skipSlotDiscovery =
-    deferredResume.skipSlotDiscovery || bookingResume.skipSlotDiscovery;
+    deferredResume.skipSlotDiscovery ||
+    bookingResume.skipSlotDiscovery ||
+    professionalsFirstQuery.professionalsFirst;
+  const isProfessionalsFirstBooking = professionalsFirstQuery.professionalsFirst;
+  const professionalsFirstBackHref = useMemo(() => {
+    if (!slug || !isProfessionalsFirstBooking) return null;
+    if (!resumePrefill.employeeId || !resumePrefill.slot) return null;
+    return buildProfessionalServicesPath(
+      slug,
+      resumePrefill.employeeId,
+      resumePrefill.slot,
+      { employeeName: professionalsFirstState.employeeName },
+    );
+  }, [
+    isProfessionalsFirstBooking,
+    professionalsFirstState.employeeName,
+    resumePrefill.employeeId,
+    resumePrefill.slot,
+    slug,
+  ]);
+  const renderBookBackButton = () =>
+    professionalsFirstBackHref ? (
+      <ConsumerBackButton defaultHref={professionalsFirstBackHref} />
+    ) : slug ? (
+      <IonButtons slot="start">
+        <SalonTabBackButton slug={slug} tab="services" />
+      </IonButtons>
+    ) : null;
+
+  useEffect(() => {
+    if (!slug || !serviceId) return;
+    if (!location.pathname.includes(`/book/${serviceId}`)) return;
+    if (resumeParams.get('professionalsFirst') === '1' && resumeParams.get('slot')) return;
+    if (!professionalsFirstQuery.professionalsFirst || !professionalsFirstQuery.slot) return;
+    replaceConsumerRoute(
+      history,
+      ionRouter,
+      buildProfessionalsFirstBookPathFromQuery(slug, serviceId, professionalsFirstQuery),
+    );
+  }, [
+    history,
+    ionRouter,
+    location.pathname,
+    professionalsFirstQuery,
+    resumeParams,
+    serviceId,
+    slug,
+  ]);
+
   const collapseScheduleUi =
-    deferredResume.collapseScheduleUi || bookingResume.collapseScheduleUi;
+    deferredResume.collapseScheduleUi ||
+    bookingResume.collapseScheduleUi ||
+    (professionalsFirstQuery.professionalsFirst && Boolean(resumePrefill.slot));
   const [date, setDate] = useState(() => resumePrefill.date);
   const [employeeId, setEmployeeId] = useState(() => resumePrefill.employeeId);
   const [slot, setSlot] = useState(() => resumePrefill.slot);
@@ -345,7 +447,15 @@ export default function BookPage() {
     refetch: refetchServices,
     isFetching: servicesFetching,
   } = useCachedTenantServices(slug ?? '');
-  const service = services.find((s) => s.id === serviceId);
+  const catalogService = services.find((s) => s.id === serviceId);
+  const service =
+    catalogService ??
+    (professionalsFirstState.professionalsFirstService?.id === serviceId
+      ? professionalsFirstState.professionalsFirstService
+      : undefined);
+  const serviceDisplayName =
+    service?.name ?? professionalsFirstState.professionalsFirstService?.name ?? copy.checkoutBookingService;
+
   const isTour = service ? isPublicTourService(service) : false;
   const isDayLevelTour = service ? isDayLevelTourService(service) : false;
   const maxPax = service ? resolveTourMaxPax(service) : 99;
@@ -361,6 +471,30 @@ export default function BookPage() {
     enabled: !!slug,
   });
 
+  const showCalendarSpecialistPicker =
+    !collapseScheduleUi && !isTour && !autoAssign && Boolean(slot && serviceId);
+  const {
+    data: slotProviders = [],
+    isLoading: slotProvidersLoading,
+  } = useQuery({
+    queryKey: ['service-slot-providers', slug, serviceId, slot],
+    queryFn: () => fetchServiceSlotProviders(slug!, serviceId!, slot!),
+    enabled: Boolean(slug && serviceId && slot && showCalendarSpecialistPicker),
+  });
+
+  useEffect(() => {
+    if (!showCalendarSpecialistPicker || slotProvidersLoading) return;
+    const nextEmployeeId = resolveBookPageSpecialistEmployeeId(slotProviders, employeeId);
+    if (nextEmployeeId !== employeeId) {
+      setEmployeeId(nextEmployeeId);
+    }
+  }, [
+    employeeId,
+    showCalendarSpecialistPicker,
+    slotProviders,
+    slotProvidersLoading,
+  ]);
+
   const {
     data: daySlots = { slots: [], remainingSpots: null },
     isLoading: slotsLoading,
@@ -374,6 +508,47 @@ export default function BookPage() {
   });
   const slots = daySlots.slots;
   const remainingSpots = daySlots.remainingSpots;
+
+  const selectedProvider = useMemo(
+    () => providers.find((entry) => entry.id === resumePrefill.employeeId),
+    [providers, resumePrefill.employeeId],
+  );
+  const providerDisplayName =
+    professionalsFirstState.employeeName?.trim() ||
+    selectedProvider?.name ||
+    copy.professionalFallbackName;
+
+  const editProfessionalsFirstProvider = useCallback(() => {
+    if (!slug || !resumePrefill.employeeId || !slot) return;
+    replaceConsumerRoute(
+      history,
+      ionRouter,
+      buildProfessionalsPath(slug, {
+        employeeId: resumePrefill.employeeId,
+        startTime: slot,
+      }),
+    );
+  }, [history, ionRouter, resumePrefill.employeeId, slot, slug]);
+
+  const editProfessionalsFirstService = useCallback(() => {
+    if (!slug || !resumePrefill.employeeId || !slot) return;
+    replaceConsumerRoute(
+      history,
+      ionRouter,
+      buildProfessionalServicesPath(slug, resumePrefill.employeeId, slot, {
+        employeeName: providerDisplayName,
+      }),
+    );
+  }, [history, ionRouter, providerDisplayName, resumePrefill.employeeId, slot, slug]);
+
+  const editProfessionalsFirstTime = useCallback(() => {
+    if (!slug || !resumePrefill.employeeId) return;
+    replaceConsumerRoute(
+      history,
+      ionRouter,
+      buildProfessionalsPath(slug, { employeeId: resumePrefill.employeeId }),
+    );
+  }, [history, ionRouter, resumePrefill.employeeId, slug]);
 
   const [bookingPhase, setBookingPhase] = useState<'schedule' | 'intake'>('schedule');
   const [preVisitIntakeId, setPreVisitIntakeId] = useState<string | undefined>();
@@ -436,6 +611,7 @@ export default function BookPage() {
     loyalty: loyalty ?? null,
     fallbackSubtotal,
     quoteFailedMessage: copy.networkLoadFailed,
+    initialAppliedPromo: slug ? readRefereePromoCode(slug) : null,
     deps: [slug, serviceId, purchaseType, selectedPlanId, isTour ? paxCount : null],
   });
   const activationPathVariants = useMemo(
@@ -626,7 +802,6 @@ export default function BookPage() {
           queryClient,
           clinicOrderToken,
           setBookingSuccess,
-          setShowPushPriming,
           bookingCompletedRef,
         },
         (result.booking as { id: string }).id,
@@ -815,6 +990,37 @@ export default function BookPage() {
   const showIntakeStep = Boolean(service?.offersPreVisitIntake && authed);
 
   const minDate = useMemo(() => new Date().toISOString(), []);
+  const minDateKey = minDate.slice(0, 10);
+  const showBookingCalendar = !collapseScheduleUi && Boolean(slug && serviceId && service);
+  const {
+    bookableDates,
+    scanning: bookableDatesScanning,
+    isDateEnabled,
+    firstBookableDateKey,
+    isoToDateKey,
+  } = useServiceBookableDates({
+    slug: slug ?? undefined,
+    serviceId,
+    enabled: showBookingCalendar,
+    isDayLevelTour,
+    minDateKey,
+  });
+
+  useEffect(() => {
+    if (!showBookingCalendar || bookableDatesScanning) return;
+    const currentDateKey = date.slice(0, 10);
+    if (bookableDates.has(currentDateKey)) return;
+    if (firstBookableDateKey && firstBookableDateKey !== currentDateKey) {
+      setDate(firstBookableDateKey);
+      setSlot('');
+    }
+  }, [
+    bookableDates,
+    bookableDatesScanning,
+    date,
+    firstBookableDateKey,
+    showBookingCalendar,
+  ]);
 
   if (loading || (servicesFetching && !service && services.length === 0)) {
     return (
@@ -831,10 +1037,8 @@ export default function BookPage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref={slug ? buildSalonPath(slug, '/services') : '/'} />
-            </IonButtons>
-            <IonTitle>Book</IonTitle>
+          {renderBookBackButton()}
+          <IonTitle>Book</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
@@ -855,10 +1059,8 @@ export default function BookPage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
-            </IonButtons>
-            <IonTitle>Book</IonTitle>
+          {renderBookBackButton()}
+          <IonTitle>Book</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
@@ -988,7 +1190,7 @@ export default function BookPage() {
       guestBookingRef.current = bookingCompletedAsGuest(!!getCustomerToken(slug));
       const bookingBody = {
         serviceId: service.id,
-        employeeId: employeeId || providers[0]?.id || '',
+        ...(employeeId && !autoAssign ? { employeeId } : {}),
         startTime: slot,
         ...(linkedIntakeId ?? preVisitIntakeId
           ? { preVisitIntakeId: linkedIntakeId ?? preVisitIntakeId }
@@ -1072,7 +1274,6 @@ export default function BookPage() {
           queryClient,
           clinicOrderToken,
           setBookingSuccess,
-          setShowPushPriming,
           bookingCompletedRef,
         },
         result.booking.id,
@@ -1133,9 +1334,7 @@ export default function BookPage() {
       <IonPage>
         <IonHeader>
           <IonToolbar>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
-            </IonButtons>
+            {renderBookBackButton()}
             <IonTitle>{service.name}</IonTitle>
           </IonToolbar>
         </IonHeader>
@@ -1191,7 +1390,7 @@ export default function BookPage() {
               locale={locale}
               guestContact={successGuestContact}
               busy={postBookingOneTapSignIn.busy}
-              message={postBookingOneTapSignIn.message}
+              message={postBookingOneTapSignIn.message ?? undefined}
               onSignInWithGoogle={postBookingOneTapSignIn.signInWithGoogle}
               onSignInWithApple={postBookingOneTapSignIn.signInWithApple}
               onSkipped={() => setPostBookingSignInDismissed(true)}
@@ -1222,7 +1421,7 @@ export default function BookPage() {
                 void (async () => {
                   setSharingBooking(true);
                   try {
-                    const result = await shareBookingLink({
+                    const { status, reward } = await shareBookingLinkWithReward({
                       slug,
                       businessName: profile.name,
                       booking: {
@@ -1231,10 +1430,18 @@ export default function BookPage() {
                         serviceName: service.name,
                         employeeId: employeeId || providers[0]?.id || '',
                       },
+                      claimReward: () =>
+                        claimShareReward(slug, 'booking', bookingSuccess.bookingId),
                     });
-                    if (result === 'copied') {
+                    const rewardMessage = formatShareRewardToast(
+                      reward,
+                      copy.growthShareRewardEarned,
+                    );
+                    if (rewardMessage) {
+                      await presentToast({ message: rewardMessage, duration: 3000 });
+                    } else if (status === 'copied') {
                       await presentToast({ message: copy.growthShareCopied, duration: 2000 });
-                    } else if (result === 'unavailable') {
+                    } else if (status === 'unavailable') {
                       await presentToast({
                         message: copy.growthShareUnavailable,
                         duration: 2500,
@@ -1315,9 +1522,7 @@ export default function BookPage() {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
-          </IonButtons>
+          {renderBookBackButton()}
           <IonTitle>{service.name}</IonTitle>
         </IonToolbar>
       </IonHeader>
@@ -1343,25 +1548,22 @@ export default function BookPage() {
         ) : null}
 
         {collapseScheduleUi && slot ? (
-          <div
-            className="ion-margin-bottom"
-            style={{
-              padding: '12px 14px',
-              borderRadius: 12,
-              background: '#f3f4f6',
-              color: '#374151',
-              fontSize: '0.9375rem',
-            }}
-          >
-            <strong>Selected time</strong>
-            <div style={{ marginTop: 4 }}>
-              {formatBookingDateTimeRange(
-                slot,
-                computeBookingSuccessEndTime(slot, service.durationMinutes),
-                locale,
-              )}
-            </div>
-          </div>
+          <ConsumerProfessionalsFirstCheckoutSummary
+            providerName={providerDisplayName}
+            providerRole={selectedProvider?.role}
+            serviceName={serviceDisplayName}
+            timeLabel={formatBookingDateTimeRange(
+              slot,
+              computeBookingSuccessEndTime(slot, service?.durationMinutes ?? 60),
+              locale,
+            )}
+            primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+            copy={copy}
+            showEdits={isProfessionalsFirstBooking && Boolean(resumePrefill.employeeId)}
+            onEditProvider={editProfessionalsFirstProvider}
+            onEditService={editProfessionalsFirstService}
+            onEditTime={editProfessionalsFirstTime}
+          />
         ) : (
           <>
         {remainingSpotsLabel ? (
@@ -1372,33 +1574,26 @@ export default function BookPage() {
         <IonItem lines="none">
           <IonLabel position="stacked">Date</IonLabel>
           <IonDatetime
+            className="consumer-booking-datetime"
             presentation="date"
             min={minDate}
             value={date}
+            isDateEnabled={showBookingCalendar ? isDateEnabled : undefined}
             onIonChange={(e) => {
               const v = e.detail.value;
-              if (typeof v === 'string') setDate(v.slice(0, 10));
+              if (typeof v !== 'string') return;
+              const nextDate = v.slice(0, 10);
+              if (showBookingCalendar && !isDateEnabled(v)) return;
+              setDate(nextDate);
+              if (isoToDateKey(v) !== date.slice(0, 10)) {
+                setSlot('');
+              }
             }}
           />
+          {showBookingCalendar && bookableDatesScanning ? (
+            <IonSpinner name="crescent" slot="end" />
+          ) : null}
         </IonItem>
-
-        {providers.length > 0 && !isTour && (
-          <IonItem>
-            <IonLabel>Specialist</IonLabel>
-            <IonSelect
-              value={employeeId}
-              placeholder="Any available"
-              onIonChange={(e) => setEmployeeId(String(e.detail.value ?? ''))}
-            >
-              <IonSelectOption value="">Any available</IonSelectOption>
-              {providers.map((p) => (
-                <IonSelectOption key={p.id} value={p.id}>
-                  {p.name}
-                </IonSelectOption>
-              ))}
-            </IonSelect>
-          </IonItem>
-        )}
 
         {slotsLoading ? (
           <IonSpinner className="ion-margin-top" />
@@ -1410,32 +1605,59 @@ export default function BookPage() {
             onRetry={() => void refetchSlots()}
           />
         ) : (
-          <IonList className="ion-margin-top">
-            {isDayLevelTour ? (
-              <p style={{ padding: '0 16px', color: '#6b7280', fontSize: '0.875rem' }}>
-                {copy.tourDayDeparture}
-              </p>
-            ) : null}
-            {slots.map((s) => (
-              <IonItem
-                key={s.startTime}
-                button
-                color={slot === s.startTime ? 'primary' : undefined}
-                onClick={() => setSlot(s.startTime)}
-              >
-                <IonLabel>
-                  {service
-                    ? formatTourSlotLabel(s.startTime, service, locale)
-                    : new Date(s.startTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                </IonLabel>
-              </IonItem>
-            ))}
-            {slots.length === 0 && <p className="ion-padding">{copy.noSlotsThisDay}</p>}
-          </IonList>
+          <ConsumerGroupedTimeSlotList
+            slots={slots}
+            selectedStartTime={slot || null}
+            onSelect={setSlot}
+            copy={copy}
+            primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+            dayLevelTourHint={isDayLevelTour ? copy.tourDayDeparture : null}
+            formatSlotLabel={(startTime) =>
+              service
+                ? formatTourSlotLabel(startTime, service, locale)
+                : formatScheduleTime(startTime, locale)
+            }
+          />
         )}
+
+        {showCalendarSpecialistPicker && slotProvidersLoading ? (
+          <IonSpinner className="ion-margin-top" />
+        ) : null}
+
+        {showCalendarSpecialistPicker &&
+        !slotProvidersLoading &&
+        shouldShowBookPageSpecialistPicker(slotProviders.length) ? (
+          <ConsumerSlotSpecialistPicker
+            copy={copy}
+            primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+            providers={slotProviders}
+            value={employeeId}
+            onChange={setEmployeeId}
+          />
+        ) : null}
+
+        {showCalendarSpecialistPicker &&
+        !slotProvidersLoading &&
+        slotProviders.length === 1 ? (
+          <IonItem lines="none">
+            <div slot="start">
+              <ConsumerProviderAvatar
+                name={slotProviders[0]!.name}
+                avatarUrl={slotProviders[0]!.avatarUrl}
+                primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+                size={36}
+              />
+            </div>
+            <IonLabel>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>{copy.selectSpecialist}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{slotProviders[0]!.name}</p>
+              {slotProviders[0]!.role ? (
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{slotProviders[0]!.role}</p>
+              ) : null}
+            </IonLabel>
+          </IonItem>
+        ) : null}
+
           </>
         )}
 
@@ -1600,7 +1822,7 @@ export default function BookPage() {
             locale={locale}
             guestContact={normalizeGuestContact(guestContact)}
             busy={preConfirmOneTapSignIn.busy}
-            message={preConfirmOneTapSignIn.message}
+            message={preConfirmOneTapSignIn.message ?? undefined}
             onSignInWithGoogle={preConfirmOneTapSignIn.signInWithGoogle}
             onSignInWithApple={preConfirmOneTapSignIn.signInWithApple}
             onSkipped={() => setPreConfirmSignInDismissed(true)}

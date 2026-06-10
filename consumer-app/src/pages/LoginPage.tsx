@@ -1,5 +1,4 @@
 import {
-  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
@@ -8,12 +7,14 @@ import {
   IonItem,
   IonLabel,
   IonPage,
+  IonSpinner,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerOneTapSignIn } from '../hooks/use-consumer-one-tap-sign-in.js';
+import { SalonTabBackButton } from '../components/SalonTabBackButton.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import {
   phoneOtpAutocompleteToken,
@@ -47,14 +48,22 @@ export default function LoginPage() {
     },
   });
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding ion-text-center">
+          <IonSpinner name="crescent" style={{ marginTop: '40vh' }} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={slug ? buildSalonPath(slug, '/account') : '/'} />
+            <SalonTabBackButton slug={slug} tab="account" />
           </IonButtons>
           <IonTitle>Sign in</IonTitle>
         </IonToolbar>
@@ -127,7 +136,7 @@ export default function LoginPage() {
                   <IonLabel position="stacked">Verification code</IonLabel>
                   <IonInput
                     value={otp}
-                    autocomplete={phoneOtpAutocompleteToken()}
+                    autocomplete={phoneOtpAutocompleteToken() as 'one-time-code'}
                     inputmode="numeric"
                     onIonInput={(event) =>
                       setOtp(sanitizeSmsOtpCode(String(event.detail.value ?? '')))

@@ -1,14 +1,14 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
-import { ProviderAiCommandService } from './provider-ai-command.service.js';
+import { createProviderAiCommandHarness } from './provider-ai-command.integration.harness.js';
 
 describe('Sprint 22 provider AI intelligence integration', () => {
   const businessId = 'biz-s22';
   const userId = 'user-s22';
   const mariaId = 'emp-maria';
 
-  let service: ProviderAiCommandService;
+  let service: ReturnType<typeof createProviderAiCommandHarness>;
   let llm: { isAvailableForBusiness: jest.Mock; completeJson: jest.Mock };
   let providerMobile: {
     resolveMobileAccess: jest.Mock;
@@ -77,77 +77,17 @@ describe('Sprint 22 provider AI intelligence integration', () => {
       buildProviderSessionContext: jest.fn(() => ({})),
     };
 
-    service = new ProviderAiCommandService(
-      bookingRepo as any,
-      employeeRepo as any,
-      { find: jest.fn() } as any,
-      customerRepo as any,
-      { find: jest.fn() } as any,
-      bookingService as any,
-      {} as any,
-      llm as any,
-      providerMobile as any,
-      completionPipeline as any,
-      { emitClarify: jest.fn(), emitTaskCompleted: jest.fn() } as any,
-      { handleBlockSchedule: jest.fn() } as any,
-      orchestration as any,
-      planBuilder as any,
-      {
-        preflightBlock: jest.fn(() => null),
-        enforceAction: jest.fn(() => null),
-        stripParams: jest.fn((params) => params),
-        applyStaffScope: jest.fn((_tier, _action, params) => params),
-      } as any,
-      {
-        isPushNotificationsCompound: jest.fn(() => false),
-        handlePushNotificationsCompound: jest.fn(),
-        rescuePushNotificationsIntent: jest.fn(() => null),
-      } as any,
-      {
-        isProviderBookingCompound: jest.fn(() => false),
-        handleProviderBookingCompound: jest.fn(),
-        rescueProviderBookingIntent: jest.fn(() => null),
-      } as any,
-      {
-        handleExplainProviderPaymentCurrency: jest.fn(async () => ({
-          success: true,
-          action: 'explain_provider_payment_currency',
-          summary: 'ok',
-          details: {},
-        })),
-      } as any,
-      {
-        handleExplainProviderDateDisplay: jest.fn(async () => ({
-          success: true,
-          action: 'explain_provider_date_display',
-          summary: 'ok',
-          details: {},
-        })),
-        handleConfigureProviderPushDateFormat: jest.fn(async () => ({
-          success: true,
-          action: 'configure_provider_push_date_format',
-          summary: 'ok',
-          details: {},
-        })),
-      } as any,
-      {
-        handleExplainAppointmentTax: jest.fn(async () => ({
-          success: true,
-          action: 'explain_appointment_tax',
-          summary: 'ok',
-          details: {},
-        })),
-      } as any,
-      {
-        handleExplainProviderSessionTimeout: jest.fn(async () => ({
-          success: true,
-          action: 'explain_provider_session_timeout',
-          summary: 'ok',
-          details: {},
-        })),
-      } as any,
-      { handleAction: jest.fn() } as any,
-    );
+    service = createProviderAiCommandHarness({
+      llm,
+      providerMobile,
+      bookingRepo,
+      employeeRepo,
+      customerRepo,
+      bookingService,
+      orchestration,
+      planBuilder,
+      completionPipeline,
+    });
   });
 
   function mockIntent(action: string, params: Record<string, unknown> = {}) {

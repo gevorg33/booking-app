@@ -1,10 +1,10 @@
-import { buildSalonPath, isValidSlug, parseTenantSlugFromUrl } from './deep-link.js';
+import { isValidSlug, parseTenantSlugFromUrl } from './deep-link.js';
 import {
   normalizeDeferredBookingFields,
   resolveDeferredInstallNavigationPath,
 } from './deferred-install-resume.util.js';
 
-export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'unknown';
+export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'share' | 'unknown';
 
 export interface DeferredInstallLink {
   slug: string;
@@ -29,6 +29,7 @@ const INSTALL_SOURCES = new Set<InstallSource>([
   'referral',
   'ad',
   'link',
+  'share',
   'unknown',
 ]);
 
@@ -75,7 +76,7 @@ export function buildAttributedBookUrl(
   origin: string,
   link: Pick<
     DeferredInstallLink,
-    'slug' | 'serviceId' | 'installSource' | 'campaign' | 'date' | 'slot' | 'employeeId'
+    'slug' | 'serviceId' | 'referralCode' | 'installSource' | 'campaign' | 'date' | 'slot' | 'employeeId'
   >,
 ): string {
   const base = origin.replace(/\/$/, '');

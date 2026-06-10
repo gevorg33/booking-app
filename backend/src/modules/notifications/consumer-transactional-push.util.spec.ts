@@ -4,6 +4,7 @@ import {
   buildConsumerBookingConfirmedPushPayload,
   buildConsumerBookingReminderPushPayload,
   buildConsumerBookingRescheduledPushPayload,
+  buildConsumerProviderVisitStatusPushPayload,
   buildConsumerGiftCardReceivedPushPayload,
   buildConsumerActivationConciergePushPayload,
   buildConsumerRebookingNudgePushPayload,
@@ -397,5 +398,35 @@ describe('consumer-transactional-push.util', () => {
     expect(toConsumerPushDataFields(payload)).toMatchObject({
       giftCardId: 'gc-1',
     });
+  });
+
+  it('builds provider visit status push payloads (prov-exp-3.2)', () => {
+    const runningLate = buildConsumerProviderVisitStatusPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      providerName: 'Alex',
+      serviceName: 'Manicure',
+      kind: 'running_late',
+      minutesLate: 10,
+      locale: 'en',
+    });
+    expect(runningLate.pushType).toBe('provider_visit_status');
+    expect(runningLate.providerVisitStatusKind).toBe('running_late');
+
+    const readyNow = buildConsumerProviderVisitStatusPushPayload({
+      url: 'optischedule://book/glow-nails/manage?bookingId=b-1&token=tok',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      bookingId: 'b-1',
+      businessName: 'Glow Nails',
+      providerName: 'Alex',
+      serviceName: 'Manicure',
+      kind: 'ready_now',
+      locale: 'en',
+    });
+    expect(readyNow.providerVisitStatusKind).toBe('ready_now');
   });
 });

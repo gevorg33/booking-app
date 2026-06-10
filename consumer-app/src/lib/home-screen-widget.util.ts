@@ -146,6 +146,10 @@ function appendRebookSourceWidget(url: string): string {
   return parsed.toString();
 }
 
+export function canRebookBooking(booking: Pick<PublicCustomerBookingItem, 'status'>): boolean {
+  return booking.status.toLowerCase() === 'completed';
+}
+
 export function serializeHomeScreenWidgetSnapshot(
   snapshot: HomeScreenWidgetSnapshot,
 ): string {

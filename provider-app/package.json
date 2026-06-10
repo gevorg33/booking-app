@@ -25,7 +25,16 @@
     "test:sprint36": "vitest run --config vitest.sprint36.config.ts --coverage",
     "test:sprint44": "vitest run --config vitest.sprint44.config.ts --coverage",
     "test:sprint54": "vitest run --config vitest.sprint54.config.ts --coverage",
-    "test:sprint48": "vitest run --config vitest.sprint48.config.ts"
+    "test:sprint48": "vitest run --config vitest.sprint48.config.ts",
+    "test:provider-exp-5.2": "vitest run src/lib/provider-retail-pos-search.util.spec.ts",
+    "test:provider-exp-6.1": "vitest run src/lib/provider-customer-contact.util.spec.ts src/lib/provider-customer-contact-analytics.spec.ts",
+    "test:provider-exp-6.2": "vitest run src/lib/provider-customer-contact-prefill.util.spec.ts src/lib/provider-customer-contact-analytics.spec.ts",
+    "test:provider-exp-7.1": "vitest run src/lib/provider-self-block.util.spec.ts",
+    "test:provider-exp-7.2": "vitest run src/lib/provider-time-off.util.spec.ts",
+    "test:provider-exp-7.3": "vitest run src/lib/provider-open-shifts.util.spec.ts",
+    "test:provider-exp-10.3": "vitest run --config vitest.provider-exp-10.3.config.ts",
+    "test:provider-exp-10.4": "vitest run --config vitest.provider-i18n.config.ts",
+    "test:provider-exp": "npm run test:provider-exp-5.2 && npm run test:provider-exp-6.1 && npm run test:provider-exp-6.2 && npm run test:provider-exp-7.1 && npm run test:provider-exp-7.2 && npm run test:provider-exp-7.3 && npm run test:provider-exp-10.3 && npm run test:provider-exp-10.4"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

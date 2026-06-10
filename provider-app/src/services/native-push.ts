@@ -4,6 +4,7 @@ import {
   dispatchProviderPushEffects,
   parseProviderPushPayload,
 } from '../lib/provider-push-deep-link.util';
+import { markProviderBookingPushRead } from '../lib/provider-push-notifications';
 import {
   buildSuggestReschedulePushPayload,
   shouldExecutePushAction,
@@ -137,6 +138,14 @@ async function attachPushListeners(businessId: string): Promise<void> {
         await handlePushAction(bizId, bookingId, actionId);
       } catch (err) {
         console.error('Push action failed', err);
+      }
+    }
+
+    if (bookingId && bizId) {
+      try {
+        await markProviderBookingPushRead(bizId, bookingId);
+      } catch (err) {
+        console.error('Failed to mark push notification read', err);
       }
     }
 

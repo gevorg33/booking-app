@@ -1,7 +1,4 @@
 import {
-  IonBackButton,
-  IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonPage,
@@ -11,11 +8,16 @@ import {
 } from '@ionic/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { useQuery } from '@tanstack/react-query';
+import { ConsumerBackButton } from '../components/ConsumerBackButton.js';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { pushConsumerRoute, replaceConsumerRoute } from '../lib/consumer-ion-navigation.util.js';
+import { persistProfessionalServicesContext } from '../lib/professional-services-context.util.js';
 import { ConsumerProviderList } from '../components/ConsumerProviderList.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import {
   buildProfessionalServicesPath,
   buildProfessionalsPath,
@@ -24,6 +26,7 @@ import { fetchPublicProviders } from '../services/public-api.js';
 
 export default function ProfessionalsPage() {
   const history = useHistory();
+  const ionRouter = useIonRouter();
   const location = useLocation();
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
@@ -42,16 +45,26 @@ export default function ProfessionalsPage() {
     (empId: string, start: string) => {
       setEmployeeId(empId);
       setStartTime(start);
-      history.replace(buildProfessionalsPath(slug!, { employeeId: empId, startTime: start }));
+      const path = buildProfessionalsPath(slug!, { employeeId: empId, startTime: start });
+      persistProfessionalServicesContext(slug!, { employeeId: empId, startTime: start });
+      replaceConsumerRoute(history, ionRouter, path);
     },
-    [history, slug],
+    [history, ionRouter, slug],
   );
 
   const selectedProvider = providersQuery.data?.find((entry) => entry.id === employeeId);
 
   const onContinue = () => {
     if (!slug || !employeeId || !startTime) return;
-    history.push(
+    const context = {
+      employeeId,
+      startTime,
+      employeeName: selectedProvider?.name,
+    };
+    persistProfessionalServicesContext(slug, context);
+    pushConsumerRoute(
+      history,
+      ionRouter,
       buildProfessionalServicesPath(slug, employeeId, startTime, {
         employeeName: selectedProvider?.name,
       }),
@@ -81,12 +94,10 @@ export default function ProfessionalsPage() {
   const primary = profile.branding.primaryColor || '#7c3aed';
 
   return (
-    <IonPage>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug)} />
-          </IonButtons>
+          <ConsumerBackButton defaultHref={buildSalonPath(slug)} />
           <IonTitle>{copy.chooseSpecialist}</IonTitle>
         </IonToolbar>
       </IonHeader>
@@ -102,18 +113,18 @@ export default function ProfessionalsPage() {
           selectedEmployeeId={employeeId}
           selectedStartTime={startTime}
           onSelect={onSelect}
-          onAnySpecialist={() => history.push(buildSalonPath(slug, '/book/any'))}
+          onAnySpecialist={() =>
+            pushConsumerRoute(history, ionRouter, buildSalonPath(slug, '/book/any'))
+          }
         />
-
-        <IonButton
-          expand="block"
-          disabled={!employeeId || !startTime}
-          style={{ marginTop: 16, '--background': primary }}
-          onClick={onContinue}
-        >
-          {copy.selectService}
-        </IonButton>
       </IonContent>
+
+      <ConsumerFixedActionBar
+        label={copy.selectService}
+        disabled={!employeeId || !startTime}
+        primaryColor={primary}
+        onClick={onContinue}
+      />
     </IonPage>
   );
 }

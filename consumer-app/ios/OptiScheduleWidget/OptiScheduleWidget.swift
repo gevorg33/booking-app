@@ -98,7 +98,7 @@ struct OptiScheduleWidgetView: View {
                     }
                 }
             } else {
-                Text("Open OptiSchedule and sign in to see appointments.")
+                Text("Open OptiSchedule Book and sign in to see appointments.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -148,7 +148,7 @@ struct OptiScheduleWidget: Widget {
                     .background()
             }
         }
-        .configurationDisplayName("OptiSchedule")
+        .configurationDisplayName("OptiSchedule Book")
         .description("Next appointment and quick rebook.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

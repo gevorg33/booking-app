@@ -3,18 +3,20 @@ import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { ConsumerBookingAssistant } from './ConsumerBookingAssistant.js';
 
-/** Global AI FAB + assistant on all consumer salon tabs. */
+/** Global AI FAB + assistant on salon tab routes only. */
 export function ConsumerAiShell({
   slug,
   profile,
   copy,
   locale,
+  overlaysVisible = true,
   children,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
   copy: ConsumerCopy;
   locale: string;
+  overlaysVisible?: boolean;
   children: ReactNode;
 }) {
   if (!profile.publicBookingEnabled) {
@@ -24,7 +26,13 @@ export function ConsumerAiShell({
   return (
     <>
       {children}
-      <ConsumerBookingAssistant slug={slug} profile={profile} copy={copy} locale={locale} />
+      <ConsumerBookingAssistant
+        slug={slug}
+        profile={profile}
+        copy={copy}
+        locale={locale}
+        overlaysVisible={overlaysVisible}
+      />
     </>
   );
 }

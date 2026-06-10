@@ -4,20 +4,20 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
-  IonPage,
   IonTitle,
   IonToolbar,
   IonBadge,
 } from '@ionic/react';
 import { bookmark, bookmarkOutline } from 'ionicons/icons';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { BookingProgressIndicator } from '../components/BookingProgressIndicator.js';
 import { track } from '../lib/app-analytics.js';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { pushConsumerRoute } from '../lib/consumer-ion-navigation.util.js';
 import { formatCopy } from '../lib/copy.js';
 import { ConsumerLanguagePicker } from '../components/ConsumerLanguagePicker.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
@@ -28,6 +28,7 @@ import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 import { fetchMyClinicLabBookingRequests } from '../services/public-api.js';
 import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js';
 import { isSalonPinned, toggleSalonPin } from '../lib/recent-salons.js';
+import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
 import { ConsumerRewardsCard } from '../components/ConsumerRewardsCard.js';
 import { ConsumerGrowthLinks } from '../components/ConsumerGrowthLinks.js';
@@ -35,11 +36,14 @@ import { ConsumerGrowthLinks } from '../components/ConsumerGrowthLinks.js';
 export default function SalonHomePage({
   slug,
   profile,
+  embedded = false,
 }: {
   slug: string;
   profile: PublicBusinessProfile;
+  embedded?: boolean;
 }) {
   const history = useHistory();
+  const ionRouter = useIonRouter();
   const location = useLocation();
   const logo = profile.branding.logoUrl;
   const [pinned, setPinned] = useState(() => isSalonPinned(slug));
@@ -69,8 +73,11 @@ export default function SalonHomePage({
     }, 150);
   };
 
+  const bookProfessionalsPath = buildSalonPath(slug, '/professionals');
+  const goBook = () => pushConsumerRoute(history, ionRouter, bookProfessionalsPath);
+
   return (
-    <IonPage>
+    <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{profile.name}</IonTitle>
@@ -126,13 +133,10 @@ export default function SalonHomePage({
           profile={profile}
           copy={copy}
           authed={authed}
-          onBook={() => history.push(buildSalonPath(slug, '/professionals'))}
+          onBook={goBook}
         />
 
-        <IonButton
-          expand="block"
-          onClick={() => history.push(buildSalonPath(slug, '/professionals'))}
-        >
+        <IonButton expand="block" onClick={goBook}>
           {copy.bookAppointment}
         </IonButton>
         {profile.giftCardsPurchaseEnabled ? (
@@ -183,6 +187,6 @@ export default function SalonHomePage({
 
         <ConsumerGrowthLinks profile={profile} copy={copy} />
       </IonContent>
-    </IonPage>
+    </ConsumerTabPageShell>
   );
 }

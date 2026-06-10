@@ -120,8 +120,61 @@ describe('multi-service-booking', () => {
           incompatiblePairMode: 'service',
           incompatiblePairs: [['a', 'c']],
           incompatibleCategoryPairs: [],
+          maxServiceCount: 5,
+          maxDurationMinutes: 600,
+          turnoverBufferMinutes: 5,
         },
       }),
     ).toEqual(new Set(['c']));
+  });
+
+  it('disables extra services when max service count is reached', () => {
+    expect(
+      getDisabledMultiServiceIds({
+        services: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }, { id: 'f' }],
+        selectedIds: ['a', 'b', 'c', 'd', 'e'],
+        settings: {
+          incompatiblePairMode: 'service',
+          incompatiblePairs: [],
+          incompatibleCategoryPairs: [],
+          maxServiceCount: 5,
+          maxDurationMinutes: 600,
+          turnoverBufferMinutes: 5,
+        },
+      }),
+    ).toEqual(new Set(['f']));
+  });
+
+  it('disables services that would exceed max total duration', () => {
+    const catalog = [
+      { id: 'a', durationMinutes: 60, bufferMinutes: 0 },
+      { id: 'b', durationMinutes: 60, bufferMinutes: 0 },
+      { id: 'c', durationMinutes: 60, bufferMinutes: 0 },
+      { id: 'd', durationMinutes: 60, bufferMinutes: 0 },
+    ];
+    const settings = {
+      incompatiblePairMode: 'service' as const,
+      incompatiblePairs: [] as Array<[string, string]>,
+      incompatibleCategoryPairs: [] as Array<[string, string]>,
+      maxServiceCount: 5,
+      maxDurationMinutes: 180,
+      turnoverBufferMinutes: 5,
+    };
+
+    expect(
+      getDisabledMultiServiceIds({
+        services: catalog,
+        selectedIds: ['a', 'b', 'c'],
+        settings,
+      }),
+    ).toEqual(new Set(['d']));
+
+    expect(
+      getDisabledMultiServiceIds({
+        services: catalog,
+        selectedIds: ['a', 'b'],
+        settings: { ...settings, maxDurationMinutes: 130 },
+      }),
+    ).toEqual(new Set(['c', 'd']));
   });
 });

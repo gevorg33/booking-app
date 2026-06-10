@@ -23,6 +23,7 @@ import {
   isPublicGoogleSignInRedirecting,
   signOutPublicGoogle,
 } from '@/lib/public-google-auth';
+import { readPublicBookingPreferredLocaleForAuth } from '@/components/public-booking/public-booking-language-switcher';
 import { isPublicGoogleSignInAvailable } from '@/lib/firebase-public';
 
 const storageKey = (slug: string) => `public-customer:${slug}`;
@@ -90,7 +91,8 @@ export function PublicCustomerAuthProvider({
     try {
       const idToken = await getExistingPublicGoogleIdToken();
       if (!idToken) return null;
-      const session = await loginPublicCustomer(slug, idToken);
+      const preferredLocale = readPublicBookingPreferredLocaleForAuth() ?? undefined;
+      const session = await loginPublicCustomer(slug, idToken, { preferredLocale });
       return isValidSession(session) ? session : null;
     } catch {
       return null;
@@ -113,7 +115,10 @@ export function PublicCustomerAuthProvider({
       try {
         const redirect = await completePublicGoogleSignInRedirect(slug);
         if (redirect?.slug === slug) {
-          const session = await loginPublicCustomer(slug, redirect.idToken);
+          const preferredLocale = readPublicBookingPreferredLocaleForAuth() ?? undefined;
+          const session = await loginPublicCustomer(slug, redirect.idToken, {
+            preferredLocale,
+          });
           if (cancelled) return;
           if (isValidSession(session)) {
             persistSession(session);
@@ -169,7 +174,8 @@ export function PublicCustomerAuthProvider({
     setSignInError(null);
     try {
       const idToken = await getPublicGoogleIdToken({ slug, forcePopup: true });
-      const session = await loginPublicCustomer(slug, idToken);
+      const preferredLocale = readPublicBookingPreferredLocaleForAuth() ?? undefined;
+      const session = await loginPublicCustomer(slug, idToken, { preferredLocale });
       if (!isValidSession(session)) {
         throw new Error('Sign-in response was incomplete. Please try again.');
       }

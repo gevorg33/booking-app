@@ -40,6 +40,7 @@ describe('deep-link', () => {
 
   it('builds in-app salon routes', () => {
     expect(buildSalonPath('x', '/services')).toBe('/s/x/services');
+    expect(buildSalonPath('x')).toBe('/s/x/home');
     expect(buildResultsPath('x')).toBe('/s/x/results');
     expect(buildLabToBookPath('x')).toBe('/s/x/lab-to-book');
   });

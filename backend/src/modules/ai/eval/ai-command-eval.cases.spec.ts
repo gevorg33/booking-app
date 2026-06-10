@@ -90,6 +90,7 @@ import {
   AI_COMMAND_EVAL_DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_EXPLAIN_PROVIDER_DATE_DISPLAY_CASES,
   AI_COMMAND_EVAL_PROVIDER_PAYMENT_CURRENCY_CASES,
+  AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES,
   AI_COMMAND_EVAL_TENANT_CURRENCY_CASES,
   AI_COMMAND_EVAL_CASES,
   AI_COMMAND_EVAL_CHECK_AND_BOOK_CASES,
@@ -1047,6 +1048,17 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   it('passes every provider payment currency eval case (ai-cmd-curr-8)', () => {
     expect(AI_COMMAND_EVAL_PROVIDER_PAYMENT_CURRENCY_CASES.length).toBe(10);
     for (const evalCase of AI_COMMAND_EVAL_PROVIDER_PAYMENT_CURRENCY_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every provider client context eval case (prov-exp-1.6)', () => {
+    expect(AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES.length).toBeGreaterThanOrEqual(
+      30,
+    );
+    for (const evalCase of AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES) {
+      expect(evalCase.surface).toBe('provider');
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
     }

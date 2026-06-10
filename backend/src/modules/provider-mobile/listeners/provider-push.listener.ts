@@ -122,6 +122,7 @@ export class ProviderPushListener {
             body,
             url,
             bookingId,
+            pushType: 'payment_received',
           },
         );
         if (sent > 0) {
@@ -146,6 +147,7 @@ export class ProviderPushListener {
             body: `${providerName}: ${body}`,
             url,
             bookingId,
+            pushType: 'payment_received',
           },
         );
         if (sent > 0) notified.add(managerUserId);
@@ -227,6 +229,10 @@ export class ProviderPushListener {
                   body,
                   url,
                   bookingId: event.aggregateId,
+                  pushType:
+                    kind === 'cancelled'
+                      ? 'booking_cancelled'
+                      : 'booking_rescheduled',
                 },
               );
         if (sent > 0) {
@@ -255,6 +261,12 @@ export class ProviderPushListener {
             body: managerBody,
             url,
             bookingId: event.aggregateId,
+            pushType:
+              kind === 'created'
+                ? 'booking_created'
+                : kind === 'cancelled'
+                  ? 'booking_cancelled'
+                  : 'booking_rescheduled',
           },
         );
         if (sent > 0) notified.add(managerUserId);

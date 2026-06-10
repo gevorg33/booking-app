@@ -24,4 +24,7 @@ export const PROVIDER_ADOPTION_A11Y_SURFACES = [
   { file: 'components/AppUpdateNudgeBanner.tsx', needles: ['role="status"'] },
   { file: 'components/AppAnalyticsBootstrap.tsx', needles: ['role="dialog"', 'aria-modal="true"'] },
   { file: 'components/OperationFeedbackHost.tsx', needles: ['aria-live="polite"'] },
+  { file: 'components/ProviderCalendarMonth.tsx', needles: ['aria-label', 'aria-current', 'type="button"'] },
+  { file: 'components/AccessibilityBootstrap.tsx', needles: ['applyDocumentAccessibility'] },
+  { file: 'App.tsx', needles: ['AccessibilityBootstrap'] },
 ] as const;

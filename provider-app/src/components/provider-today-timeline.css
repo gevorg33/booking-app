@@ -1,0 +1,71 @@
+.provider-today-timeline-card {
+  margin-bottom: 12px;
+}
+
+.provider-today-timeline-next {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.provider-today-timeline-next-muted {
+  color: var(--ion-color-medium);
+  font-weight: 500;
+}
+
+.provider-today-timeline-track {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-height: 28px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ion-color-light);
+}
+
+.provider-today-timeline-segment {
+  border: 0;
+  padding: 0;
+  min-width: 4px;
+}
+
+.provider-today-timeline-booking {
+  background: var(--ion-color-primary);
+  opacity: 0.85;
+}
+
+.provider-today-timeline-booking-active {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.provider-today-timeline-gap {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(var(--ion-color-medium-rgb), 0.15),
+    rgba(var(--ion-color-medium-rgb), 0.15) 6px,
+    rgba(var(--ion-color-medium-rgb), 0.05) 6px,
+    rgba(var(--ion-color-medium-rgb), 0.05) 12px
+  );
+}
+
+.provider-today-timeline-now-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ion-color-danger);
+  pointer-events: none;
+}
+
+.provider-today-timeline-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium-shade);
+}

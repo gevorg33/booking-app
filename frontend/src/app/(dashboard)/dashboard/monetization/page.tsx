@@ -18,19 +18,32 @@ import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/li
 import { confirmDialog } from '@/lib/app-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DashboardGiftCardsTab } from '@/components/gift-cards/dashboard-gift-cards-tab';
+import { DashboardReferralProgramTab } from '@/components/monetization/dashboard-referral-program-tab';
 import { CheckboxChoice } from '@/components/ui/radio-choice';
 import { UpgradePrompt } from '@/components/billing/upgrade-prompt';
 import { usePlanEntitlements, canUseFeature } from '@/lib/use-plan-entitlements';
 import type { PlanFeatureFlag } from '@/lib/plan-entitlements';
 import { useBusinessCurrency } from '@/hooks/use-business-currency';
+import { useBusinessEnabledLocales } from '@/hooks/use-business-enabled-locales';
+import { CatalogNotifyCustomersFields } from '@/components/dashboard/catalog-notify-customers-fields';
+import {
+  buildCatalogNotifySavePayload,
+  buildCatalogNotifyBookUrl,
+  catalogNotifyTemplateIsComplete,
+  defaultCatalogNotifyFormState,
+  formatCatalogNotifyDiscountLabel,
+  type CatalogNotifyFormState,
+  type CatalogNotifyPreviewContext,
+} from '@/lib/catalog-notify-customers.util';
 
-type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes';
+type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes' | 'referrals';
 
-const TAB_FEATURE: Record<Tab, PlanFeatureFlag> = {
+const TAB_FEATURE: Record<Tab, PlanFeatureFlag | null> = {
   'gift-cards': 'giftCards',
   memberships: 'memberships',
   loyalty: 'loyalty',
   'promo-codes': 'promoCodes',
+  referrals: null,
 };
 
 function unwrap<T>(res: unknown): T {
@@ -42,13 +55,14 @@ export default function MonetizationPage() {
   const { business } = useAuthStore();
   const [tab, setTab] = useState<Tab>('promo-codes');
   const { data: entitlements } = usePlanEntitlements(business?.id);
-  const tabAllowed = canUseFeature(entitlements, TAB_FEATURE[tab]);
+  const tabAllowed = TAB_FEATURE[tab] == null || canUseFeature(entitlements, TAB_FEATURE[tab]!);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'gift-cards', label: t('monetization.giftCards') },
     { id: 'memberships', label: t('monetization.memberships') },
     { id: 'loyalty', label: t('monetization.loyalty') },
     { id: 'promo-codes', label: t('monetization.promoCodes') },
+    { id: 'referrals', label: t('monetization.referrals') },
   ];
 
   return (
@@ -93,15 +107,15 @@ export default function MonetizationPage() {
       {tabAllowed && tab === 'promo-codes' && business?.id && (
         <PromoCodesTab businessId={business.id} />
       )}
+      {tabAllowed && tab === 'referrals' && business?.id && (
+        <DashboardReferralProgramTab businessId={business.id} />
+      )}
     </div>
   );
 }
 
-function MembershipsTab({ businessId }: { businessId: string }) {
-  const { t } = useI18n();
-  const { formatMoney } = useBusinessCurrency();
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({
+function defaultMembershipFormState() {
+  return {
     name: '',
     serviceId: '',
     durationMonths: '3',
@@ -109,7 +123,20 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     includedAppointments: '6',
     discountType: 'percent' as 'percent' | 'fixed',
     discountValue: '5',
-  });
+  };
+}
+
+function MembershipsTab({ businessId }: { businessId: string }) {
+  const { t } = useI18n();
+  const { business } = useAuthStore();
+  const { formatMoney } = useBusinessCurrency();
+  const { enabledLocales } = useBusinessEnabledLocales();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState(defaultMembershipFormState);
+  const [catalogNotify, setCatalogNotify] = useState<CatalogNotifyFormState>(
+    defaultCatalogNotifyFormState(),
+  );
+  const [notifyError, setNotifyError] = useState<string | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [assignCustomerId, setAssignCustomerId] = useState('');
   const [assignServiceId, setAssignServiceId] = useState('');
@@ -158,6 +185,28 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     parseFloat(form.discountValue) || 0,
   );
 
+  const catalogNotifyPreviewContext = useMemo((): CatalogNotifyPreviewContext => {
+    const discountValue = parseFloat(form.discountValue) || 0;
+    return {
+      kind: 'subscription_plan',
+      catalogName: form.name.trim() || t('catalogNotify.previewSamplePlanName'),
+      discountLabel: formatCatalogNotifyDiscountLabel(
+        form.discountType,
+        discountValue,
+        formatMoney,
+      ),
+      businessName: business?.name?.trim() || t('catalogNotify.previewSampleBusiness'),
+      bookUrl: buildCatalogNotifyBookUrl(business?.slug ?? 'your-salon', 'subscription_plan'),
+    };
+  }, [business?.name, business?.slug, form.discountType, form.discountValue, form.name, formatMoney, t]);
+
+  const resetMembershipForm = () => {
+    setEditingPlanId(null);
+    setForm(defaultMembershipFormState());
+    setCatalogNotify(defaultCatalogNotifyFormState());
+    setNotifyError(null);
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -167,6 +216,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         includedAppointments: parseInt(form.includedAppointments, 10),
         discountType: form.discountType,
         discountValue: parseFloat(form.discountValue),
+        ...buildCatalogNotifySavePayload(catalogNotify),
       };
       if (editingPlanId) {
         const { data } = await api.put(
@@ -180,16 +230,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
-      setEditingPlanId(null);
-      setForm({
-        name: '',
-        serviceId: '',
-        durationMonths: '3',
-        customDurationMonths: '',
-        includedAppointments: '6',
-        discountType: 'percent',
-        discountValue: '5',
-      });
+      resetMembershipForm();
     },
   });
 
@@ -223,18 +264,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
     onSuccess: (_data, planId) => {
       queryClient.invalidateQueries({ queryKey: ['subscription-plans', businessId] });
-      if (editingPlanId === planId) {
-        setEditingPlanId(null);
-        setForm({
-          name: '',
-          serviceId: '',
-          durationMonths: '3',
-          customDurationMonths: '',
-          includedAppointments: '6',
-          discountType: 'percent',
-          discountValue: '5',
-        });
-      }
+      if (editingPlanId === planId) resetMembershipForm();
     },
   });
 
@@ -255,6 +285,8 @@ function MembershipsTab({ businessId }: { businessId: string }) {
 
   const startEditingPlan = (plan: (typeof plans)[number]) => {
     setEditingPlanId(plan.id);
+    setCatalogNotify(defaultCatalogNotifyFormState());
+    setNotifyError(null);
     const preset = ['3', '6', '12'].includes(String(plan.durationMonths))
       ? String(plan.durationMonths)
       : 'custom';
@@ -276,6 +308,11 @@ function MembershipsTab({ businessId }: { businessId: string }) {
         className="card grid grid-cols-1 md:grid-cols-2 gap-4"
         onSubmit={(e) => {
           e.preventDefault();
+          if (!catalogNotifyTemplateIsComplete(catalogNotify, enabledLocales)) {
+            setNotifyError(t('catalogNotify.incompleteTemplate'));
+            return;
+          }
+          setNotifyError(null);
           createMutation.mutate();
         }}
       >
@@ -384,6 +421,17 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             </p>
           </div>
         )}
+        <CatalogNotifyCustomersFields
+          value={catalogNotify}
+          onChange={setCatalogNotify}
+          enabledLocales={enabledLocales}
+          variableHints={t('catalogNotify.planVariables')}
+          previewContext={catalogNotifyPreviewContext}
+          t={t}
+        />
+        {notifyError ? (
+          <p className="md:col-span-2 text-sm text-red-400">{notifyError}</p>
+        ) : null}
         <div className="md:col-span-2">
           <button type="submit" disabled={createMutation.isPending} className="btn-primary inline-flex items-center gap-2">
             {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -393,18 +441,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
             <button
               type="button"
               className="btn-secondary text-sm ml-2"
-              onClick={() => {
-                setEditingPlanId(null);
-                setForm({
-                  name: '',
-                  serviceId: '',
-                  durationMonths: '3',
-                  customDurationMonths: '',
-                  includedAppointments: '6',
-                  discountType: 'percent',
-                  discountValue: '5',
-                });
-              }}
+              onClick={resetMembershipForm}
             >
               {t('monetization.cancelEdit')}
             </button>

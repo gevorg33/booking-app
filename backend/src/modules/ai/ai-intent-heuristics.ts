@@ -25,6 +25,7 @@ import {
   parseMultilingualTimeOfDayWindow,
 } from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import {
   BookingStatus,
   PaymentStatus,
@@ -669,6 +670,47 @@ export function extractServiceFromPrompt(
   services: Array<{ id: string; name: string }>,
 ): { id: string; name: string } | undefined {
   return matchServiceInPrompt(prompt, services);
+}
+
+const PUBLIC_ASSISTANT_SERVICE_ACTIONS = new Set([
+  'check_availability',
+  'recommend_specialists',
+  'book_appointment',
+  'list_services',
+]);
+
+/** Current prompt service overrides stale session / classifier inheritance (public assistant). */
+export function enrichPublicAssistantParamsFromPrompt(
+  prompt: string,
+  params: Record<string, unknown>,
+  services: Array<{ id: string; name: string }>,
+  action?: string,
+): Record<string, unknown> {
+  if (!action || !PUBLIC_ASSISTANT_SERVICE_ACTIONS.has(action)) {
+    return params;
+  }
+
+  const promptService = extractServiceFromPrompt(prompt, services);
+  if (promptService) {
+    return {
+      ...params,
+      serviceName: promptService.name,
+      serviceCategory: null,
+      serviceNames: null,
+    };
+  }
+
+  const rawName = extractServiceNameFromPrompt(prompt);
+  if (rawName) {
+    return {
+      ...params,
+      serviceName: rawName,
+      serviceCategory: null,
+      serviceNames: null,
+    };
+  }
+
+  return params;
 }
 
 /** Book on any provider — do not pin to a single employeeName. */

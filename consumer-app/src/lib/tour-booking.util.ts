@@ -1,3 +1,4 @@
+import { formatScheduleTime } from './date-format.js';
 import type { PublicService } from './types.js';
 import { isDayLevelTourService, isPublicTourService } from './tour-service.util.js';
 
@@ -63,10 +64,7 @@ export function formatTourSlotLabel(
   locale: string,
 ): string {
   if (!isDayLevelTourService(service)) {
-    return new Date(startTime).toLocaleTimeString(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatScheduleTime(startTime, locale);
   }
   return new Date(startTime).toLocaleDateString(locale, {
     weekday: 'short',

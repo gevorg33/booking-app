@@ -35,7 +35,10 @@ import {
   isRebookingNudgeDue,
   resolveServiceRebookingCadenceDays,
 } from '../../common/utils/service-rebooking-cadence.util.js';
-import { resolveCustomerRebookingCadenceDays } from '../../common/utils/customer-rebooking-cadence.util.js';
+import {
+  readCustomerServiceLearnedCadenceDays,
+  resolveCustomerRebookingCadenceDays,
+} from '../../common/utils/customer-rebooking-cadence.util.js';
 import { CustomerRebookingCadenceService } from '../customer/customer-rebooking-cadence.service.js';
 import { resolveLocale, t, type AppLocale } from '../../common/i18n/messages.js';
 import { MarketingAutomationLog } from './entities/marketing-automation-log.entity.js';
@@ -432,12 +435,17 @@ export class MarketingAutomationService {
     const eligible: RebookingNudgeCandidate[] = [];
 
     for (const row of rows) {
+      const persistedCadence = readCustomerServiceLearnedCadenceDays(
+        row.customerMetadata,
+        row.serviceId,
+      );
       const learnedCadence =
-        await this.customerRebookingCadenceService.computeLearnedCadenceDays(
+        persistedCadence ??
+        (await this.customerRebookingCadenceService.computeLearnedCadenceDays(
           businessId,
           row.customerId,
           row.serviceId,
-        );
+        ));
       const cadenceDays = resolveCustomerRebookingCadenceDays({
         service: { metadata: row.serviceMetadata },
         settings,

@@ -17,10 +17,13 @@ export function useCheckoutDiscounts<T extends PublicCheckoutQuote>(input: {
   loyalty: PublicLoyaltySummary | null | undefined;
   fallbackSubtotal: number;
   quoteFailedMessage: string;
+  initialAppliedPromo?: string | null;
   deps?: unknown[];
 }) {
   const [promoCode, setPromoCode] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(() =>
+    input.initialAppliedPromo?.trim().toUpperCase() ?? '',
+  );
   const [promoError, setPromoError] = useState<string | null>(null);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [quote, setQuote] = useState<T | null>(null);
@@ -29,6 +32,13 @@ export function useCheckoutDiscounts<T extends PublicCheckoutQuote>(input: {
   const quoteRequestId = useRef(0);
 
   const discountState: CheckoutDiscountState = { appliedPromo, loyaltyPoints };
+
+  useEffect(() => {
+    const initial = input.initialAppliedPromo?.trim().toUpperCase();
+    if (!initial || appliedPromo) return;
+    setPromoCode(initial);
+    setAppliedPromo(initial);
+  }, [appliedPromo, input.initialAppliedPromo]);
 
   useEffect(() => {
     if (!input.enabled) {

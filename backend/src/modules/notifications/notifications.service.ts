@@ -18,6 +18,7 @@ import {
   type NotificationKind,
 } from './notification.types.js';
 import { shouldSendConsumerPush } from './consumer-notification-preferences.util.js';
+import { buildProviderVisitStatusCustomerSms } from '../../common/utils/provider-visit-status-notification.util.js';
 import { mergeMarketingAutomationSettings } from '../marketing-automation/marketing-automation.types.js';
 import {
   resolveLocale,
@@ -72,6 +73,7 @@ import {
   buildConsumerBookingConfirmedPushPayload,
   buildConsumerBookingReminderPushPayload,
   buildConsumerBookingRescheduledPushPayload,
+  buildConsumerProviderVisitStatusPushPayload,
   buildConsumerGiftCardReceivedPushPayload,
   buildConsumerLabBookingRequestPushPayload,
   buildConsumerResultReadyPushPayload,
@@ -563,6 +565,74 @@ export class NotificationsService {
         this.buildReviewRequestSms(ctx, reviewUrl),
       );
     }
+  }
+
+  async sendProviderVisitStatusToCustomer(
+    bookingId: string,
+    input: {
+      kind: 'running_late' | 'ready_now';
+      minutesLate?: number;
+      providerName: string;
+    },
+  ): Promise<{ smsSent: boolean; pushSent: boolean }> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return { smsSent: false, pushSent: false };
+
+    const { booking, business, businessSettings } = ctx;
+    if (
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.COMPLETED ||
+      booking.status === BookingStatus.NO_SHOW
+    ) {
+      return { smsSent: false, pushSent: false };
+    }
+
+    const customer = booking.customer;
+    if (!customer) return { smsSent: false, pushSent: false };
+
+    const prefs = getCustomerNotificationPreferences(customer.metadata);
+    const notificationKind =
+      input.kind === 'ready_now' ? 'provider_ready_now' : 'provider_running_late';
+    let smsSent = false;
+    let pushSent = false;
+
+    if (businessSettings.smsEnabled && prefs.smsReminders && customer.phone) {
+      smsSent = await this.dispatch(
+        ctx,
+        notificationKind,
+        'sms',
+        customer.phone,
+        () => ({
+          text: buildProviderVisitStatusCustomerSms({
+            kind: input.kind,
+            minutesLate: input.minutesLate,
+            businessName: business.name,
+            providerName: input.providerName,
+            serviceName: booking.service?.name ?? '',
+          }),
+        }),
+      );
+    }
+
+    if (prefs.pushReminders) {
+      const locale = this.businessLocale(business.settings);
+      pushSent = await this.trySendConsumerSalonBookingPush(ctx, (url, pushLocale) =>
+        buildConsumerProviderVisitStatusPushPayload({
+          url,
+          businessId: business.id,
+          customerId: customer.id,
+          bookingId: booking.id,
+          businessName: business.name,
+          providerName: input.providerName,
+          serviceName: booking.service?.name ?? '',
+          kind: input.kind,
+          minutesLate: input.minutesLate,
+          locale: pushLocale,
+        }),
+      );
+    }
+
+    return { smsSent, pushSent };
   }
 
   /** Clinic vertical — notify patient when a lab result is released (vert-clinic-2.4.2 / 2.4.7). */

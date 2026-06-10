@@ -355,7 +355,12 @@ export default function ProviderAiAssistant({
                     key={c.id}
                     type="button"
                     className="ai-assistant-quick-chip"
-                    onClick={() => void sendPrompt(c.prompt)}
+                    onClick={() => {
+                      if (c.id === 'teamWhosNext') {
+                        window.dispatchEvent(new CustomEvent('provider:show-team-whos-next'));
+                      }
+                      void sendPrompt(c.prompt);
+                    }}
                     disabled={loading}
                   >
                     {c.label}

@@ -1,6 +1,12 @@
+import { isTeamWhosNextPrompt } from './provider-team-whos-next.util.js';
+
 /** Heuristic intent rescue for provider mobile commands (Sprint 19). */
 export function rescueProviderAiIntent(prompt: string, action: string): string {
   const lower = prompt.toLowerCase();
+
+  if (isTeamWhosNextPrompt(prompt)) {
+    return 'team_whos_next';
+  }
 
   if (
     /payment\s+sweep|mark\s+(?:all\s+)?(?:today(?:'s)?\s+)?(?:as\s+)?paid|mark\s+unpaid|collect\s+outstanding/.test(
@@ -26,9 +32,17 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
     return 'summarize_utilization';
   }
   if (
-    /block\s+(?:my\s+)?lunch|lunch\s+break|block\s+.+break|block\s+\d{1,2}:\d{2}/.test(
+    /\b(block\s+my\b|my\s+lunch\b|block\s+my\s+(?:break|lunch|time))\b/.test(
       lower,
     )
+  ) {
+    return 'block_my_time';
+  }
+  if (
+    /block\s+(?:my\s+)?lunch|lunch\s+break|block\s+.+break|block\s+\d{1,2}:\d{2}/.test(
+      lower,
+    ) &&
+    !/\bblock\s+my\b/.test(lower)
   ) {
     return 'block_schedule';
   }
@@ -38,6 +52,9 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
     )
   ) {
     return 'fill_unused_slots';
+  }
+  if (/fill\s+(?:this\s+)?gap|suggest\s+waitlist.*gap|waitlist.*fill.*gap/.test(lower)) {
+    return 'suggest_waitlist_for_gap';
   }
   if (
     /(?:check\s+)?availability|(?:am\s+i|are\s+there)\s+(?:open|free)\s+slots?|what\s+(?:slots?|times?)\s+(?:are\s+)?(?:open|free)/.test(
@@ -78,9 +95,11 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
 export const PROVIDER_MOBILE_READ_ACTIONS = new Set([
   'list_bookings',
   'show_appointments',
+  'team_whos_next',
   'summarize_day',
   'summarize_my_appointments',
   'summarize_my_revenue',
   'check_availability',
   'summarize_utilization',
+  'suggest_waitlist_for_gap',
 ]);

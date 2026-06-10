@@ -38,6 +38,7 @@ import {
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
   stripServiceRoleNoise,
+  resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
@@ -92,6 +93,7 @@ import { AiBusinessLanguagesService } from '../ai/ai-business-languages.service.
 import { AiPackageLocalizedNamesService } from '../ai/ai-package-localized-names.service.js';
 import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
 import { disambiguateMisclassifiedAvailabilityIntent } from '../ai/ai-intent-disambiguation.util.js';
+import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import {
@@ -106,7 +108,15 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export interface PublicAssistantNavigate {
-  path: 'professionals' | 'services' | 'checkout';
+  path:
+    | 'professionals'
+    | 'services'
+    | 'checkout'
+    | 'account'
+    | 'home'
+    | 'profile'
+    | 'packages'
+    | 'multi/checkout';
   query: Record<string, string>;
 }
 
@@ -447,6 +457,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       orchestratedSession,
       parsed.action,
     );
+    parsed.params = enrichPublicAssistantParamsFromPrompt(
+      prompt,
+      parsed.params ?? {},
+      services.map((s) => ({ id: s.id, name: s.name })),
+      parsed.action,
+    );
     this.normalizeDateParams(parsed.params, todayKey);
 
     this.logger.log(
@@ -621,7 +637,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         };
     }
 
-    const final = this.attachSession(result, parsed.params, employees, locale);
+    const final = this.attachSession(result, parsed.params, employees, services, locale);
     if (options?.recordMetrics !== false) {
       void this.platform.recordCommandOutcome({
         businessId: business.id,
@@ -1258,11 +1274,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       { _prompt: prompt },
       prompt,
     );
+    const aspect = result.details?.aspect;
+    const navigate =
+      aspect === 'export' || aspect === 'delete'
+        ? { path: 'account' as const, query: { section: 'privacy' } }
+        : undefined;
+
     return {
       success: result.success,
       action: result.action ?? 'explain_data_rights',
       summary: result.summary,
       details: result.details,
+      navigate,
     };
   }
 
@@ -1496,6 +1519,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       success: true,
       action: 'business_info',
       summary: parts.join('\n'),
+      navigate: { path: 'profile', query: {} },
     };
   }
 
@@ -2109,6 +2133,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     result: PublicAssistantResult,
     params: Record<string, any>,
     employees: Employee[],
+    services: Service[],
     locale: AppLocale,
   ): PublicAssistantResult {
     const employee = params.employeeName
@@ -2119,13 +2144,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       | CheckProvidersHandoff
       | undefined;
 
+    const sessionService = resolvePublicAssistantSessionServiceFields(
+      params,
+      services,
+    );
+
     return {
       ...result,
       sessionContext: {
         employeeName: employee?.name ?? params.employeeName ?? null,
         date: params.date ? formatDateDisplay(params.date, locale) : null,
-        serviceName: params.serviceName ?? null,
-        serviceCategory: params.serviceCategory ?? null,
+        serviceName: sessionService.serviceName,
+        serviceCategory: sessionService.serviceCategory,
         timeSlot: params.timeSlot ?? null,
         customerName: params.customerName ?? null,
         customerEmail: params.customerEmail ?? null,

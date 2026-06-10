@@ -68,6 +68,7 @@ export function resolveProviderPushRoute(payload: ProviderPushPayload): string {
 export const PROVIDER_PUSH_NAVIGATE_EVENT = 'provider:push-navigate';
 export const PROVIDER_OPEN_BOOKING_EVENT = 'provider:open-booking';
 export const PROVIDER_AI_PROMPT_EVENT = 'provider:ai-prompt';
+export const PROVIDER_TEAM_WHOS_NEXT_EVENT = 'provider:show-team-whos-next';
 
 export function dispatchProviderPushEffects(payload: ProviderPushPayload): void {
   const route = resolveProviderPushRoute(payload);

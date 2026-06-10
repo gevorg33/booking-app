@@ -9,10 +9,12 @@ export type ConsumerTransactionalPushType =
   | 'booking_reminder'
   | 'booking_rescheduled'
   | 'booking_cancelled'
+  | 'provider_visit_status'
   | 'gift_card_received'
   | 'rebooking_nudge'
   | 'win_back'
-  | 'activation_concierge';
+  | 'activation_concierge'
+  | 'catalog_announcement';
 
 export interface ConsumerResultReadyPushPayload {
   pushType: 'result_ready';
@@ -44,7 +46,8 @@ export interface ConsumerSalonBookingPushPayload {
     | 'booking_confirmed'
     | 'booking_reminder'
     | 'booking_rescheduled'
-    | 'booking_cancelled';
+    | 'booking_cancelled'
+    | 'provider_visit_status';
   url: string;
   businessId: string;
   customerId: string;
@@ -53,6 +56,8 @@ export interface ConsumerSalonBookingPushPayload {
   body: string;
   foregroundHint?: string;
   reminderMinutesBefore?: number;
+  providerVisitStatusKind?: 'running_late' | 'ready_now';
+  providerVisitStatusMinutesLate?: number;
 }
 
 export interface ConsumerGiftCardReceivedPushPayload {
@@ -99,6 +104,16 @@ export interface ConsumerActivationConciergePushPayload {
   foregroundHint?: string;
 }
 
+export interface ConsumerCatalogAnnouncementPushPayload {
+  pushType: 'catalog_announcement';
+  url: string;
+  businessId: string;
+  customerId: string;
+  title: string;
+  body: string;
+  foregroundHint?: string;
+}
+
 export type ConsumerTransactionalPushPayload =
   | ConsumerResultReadyPushPayload
   | ConsumerLabBookingRequestPushPayload
@@ -106,7 +121,8 @@ export type ConsumerTransactionalPushPayload =
   | ConsumerGiftCardReceivedPushPayload
   | ConsumerRebookingNudgePushPayload
   | ConsumerWinBackPushPayload
-  | ConsumerActivationConciergePushPayload;
+  | ConsumerActivationConciergePushPayload
+  | ConsumerCatalogAnnouncementPushPayload;
 
 function resolveServiceName(serviceName: string, locale: AppLocale): string {
   return serviceName.trim() || t(locale, 'email.defaultServiceName');
@@ -310,6 +326,67 @@ export function buildConsumerBookingCancelledPushPayload(input: {
   };
 }
 
+export function buildConsumerProviderVisitStatusPushPayload(input: {
+  url: string;
+  businessId: string;
+  customerId: string;
+  bookingId: string;
+  businessName: string;
+  providerName: string;
+  serviceName: string;
+  kind: 'running_late' | 'ready_now';
+  minutesLate?: number;
+  locale: AppLocale;
+}): ConsumerSalonBookingPushPayload {
+  const serviceName = resolveServiceName(input.serviceName, input.locale);
+  const providerName =
+    input.providerName.trim() || t(input.locale, 'email.defaultProviderName');
+  if (input.kind === 'ready_now') {
+    return {
+      pushType: 'provider_visit_status',
+      providerVisitStatusKind: 'ready_now',
+      url: input.url,
+      businessId: input.businessId,
+      customerId: input.customerId,
+      bookingId: input.bookingId,
+      title: t(input.locale, 'email.providerReadyNowPushTitle', {
+        businessName: input.businessName,
+      }),
+      body: t(input.locale, 'email.providerReadyNowPushBody', {
+        providerName,
+        serviceName,
+      }),
+      foregroundHint: t(input.locale, 'email.providerReadyNowPushForegroundHint', {
+        providerName,
+      }),
+    };
+  }
+
+  const minutesLate = input.minutesLate ?? 10;
+  return {
+    pushType: 'provider_visit_status',
+    providerVisitStatusKind: 'running_late',
+    providerVisitStatusMinutesLate: minutesLate,
+    url: input.url,
+    businessId: input.businessId,
+    customerId: input.customerId,
+    bookingId: input.bookingId,
+    title: t(input.locale, 'email.providerRunningLatePushTitle', {
+      businessName: input.businessName,
+    }),
+    body: t(input.locale, 'email.providerRunningLatePushBody', {
+      providerName,
+      serviceName,
+      minutesLate,
+    }),
+    foregroundHint: t(
+      input.locale,
+      'email.providerRunningLatePushForegroundHint',
+      { providerName, minutesLate },
+    ),
+  };
+}
+
 export function buildConsumerGiftCardReceivedPushPayload(input: {
   url: string;
   businessId: string;
@@ -439,6 +516,25 @@ export function buildConsumerActivationConciergePushPayload(input: {
   };
 }
 
+export function buildConsumerCatalogAnnouncementPushPayload(input: {
+  url: string;
+  businessId: string;
+  customerId: string;
+  title: string;
+  body: string;
+}): ConsumerCatalogAnnouncementPushPayload {
+  const body = input.body.trim();
+  return {
+    pushType: 'catalog_announcement',
+    url: input.url,
+    businessId: input.businessId,
+    customerId: input.customerId,
+    title: input.title.trim() || 'Update',
+    body: body.length > 180 ? `${body.slice(0, 177)}…` : body,
+    foregroundHint: body,
+  };
+}
+
 export interface ConsumerNativeFcmMessage {
   notification: { title: string; body: string };
   data: Record<string, string>;
@@ -508,9 +604,18 @@ export function toConsumerPushDataFields(
     return data;
   }
 
-  data.bookingId = payload.bookingId;
-  if (payload.reminderMinutesBefore != null) {
-    data.reminderMinutesBefore = String(payload.reminderMinutesBefore);
+  if (payload.pushType === 'catalog_announcement') {
+    return data;
+  }
+
+  if ('bookingId' in payload) {
+    data.bookingId = payload.bookingId;
+    if (
+      'reminderMinutesBefore' in payload &&
+      payload.reminderMinutesBefore != null
+    ) {
+      data.reminderMinutesBefore = String(payload.reminderMinutesBefore);
+    }
   }
   return data;
 }

@@ -13,6 +13,15 @@ describe('provider-ai-quick-chips', () => {
     expect(chips.find((c) => c.prompt.includes('next'))).toBeTruthy();
   });
 
+  it('uses team whos next chip for managers on today tab', () => {
+    const manager = getProviderQuickChips('today', t, { isManager: true });
+    const staff = getProviderQuickChips('today', t, { isManager: false });
+    expect(manager.some((c) => c.id === 'teamWhosNext')).toBe(true);
+    expect(manager.some((c) => c.id === 'whosNext')).toBe(false);
+    expect(staff.some((c) => c.id === 'whosNext')).toBe(true);
+    expect(staff.some((c) => c.id === 'teamWhosNext')).toBe(false);
+  });
+
   it('adds utilization chip for managers on schedule tab', () => {
     const staff = getProviderQuickChips('schedule', t, { isManager: false });
     const manager = getProviderQuickChips('schedule', t, { isManager: true });

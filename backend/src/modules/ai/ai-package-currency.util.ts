@@ -1,3 +1,4 @@
+import { isCatalogMutateCommandPrompt } from './ai-catalog.util.js';
 import { hasNotificationCurrencyContext } from './ai-notification-currency.util.js';
 import { isExplainCheckoutTotalPrompt } from './ai-payments.util.js';
 
@@ -58,6 +59,7 @@ function isPackageDisplayNameExplainPrompt(prompt: string): boolean {
 }
 
 export function isExplainPackageCurrencyPrompt(prompt: string): boolean {
+  if (isCatalogMutateCommandPrompt(prompt)) return false;
   if (isPackageDisplayNameExplainPrompt(prompt)) return false;
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
   if (hasNotificationCurrencyContext(prompt)) return false;
@@ -101,8 +103,8 @@ export function isExplainPackageCurrencyPrompt(prompt: string): boolean {
 
   if (containsArmenianScript(prompt)) {
     if (
-      /(ինչու|ինչ|որն|որը|որ)/i.test(prompt) &&
-      /(արժույթ|գին|գումար|փաթեթ|նվեր|քարտ|€|֏|₽|AMD|EUR|RUB|USD)/i.test(prompt)
+      /(?:^|[\s,.!?«»])(ինչու|ինչ|որն|որը|որ)(?:[\s,.!?»]|$)/i.test(prompt) &&
+      /(արժույթ|գին|գումար|€|֏|₽|AMD|EUR|RUB|USD)/i.test(prompt)
     ) {
       return true;
     }

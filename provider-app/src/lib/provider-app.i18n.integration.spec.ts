@@ -11,6 +11,14 @@ import {
 } from './provider-app-i18n';
 import { providerQuickChipI18nKeys } from './provider-ai-quick-chips';
 import { buildProviderAiExamples } from './provider-ai-examples';
+import {
+  PROV_EXP_PROVIDER_I18N_INTERPOLATION_CASES,
+  PROV_EXP_PROVIDER_I18N_PARITY_KEYS,
+} from './provider-i18n-parity.fixtures';
+import {
+  isLocalizedProviderKey,
+  listProviderKeysMissingLocaleParity,
+} from './provider-i18n-parity.util';
 
 const LOCALES: AppLocale[] = ['en', 'hy', 'ru'];
 
@@ -129,5 +137,49 @@ describe('provider app i18n integration', () => {
         expect(example.trim().length).toBeGreaterThan(10);
       }
     }
+  });
+
+  describe('prov-exp-10.4 provider i18n parity', () => {
+    it('lists every new prov-exp provider key in the parity fixture', () => {
+      expect(PROV_EXP_PROVIDER_I18N_PARITY_KEYS.length).toBeGreaterThanOrEqual(40);
+      for (const key of PROV_EXP_PROVIDER_I18N_PARITY_KEYS) {
+        expect(allProviderAppI18nKeys()).toContain(key);
+      }
+    });
+
+    it.each(['hy', 'ru'] as const)(
+      'localizes prov-exp provider keys in %s without EN fallback',
+      (locale) => {
+        const messages = getMessages(locale);
+        const missing = listProviderKeysMissingLocaleParity(messages);
+        expect(missing, `${locale} missing parity`).toEqual([]);
+      },
+    );
+
+    it.each(PROV_EXP_PROVIDER_I18N_INTERPOLATION_CASES)(
+      'interpolates $id in hy and ru',
+      ({ key, vars, needles }) => {
+        for (const locale of ['hy', 'ru'] as const) {
+          const messages = getMessages(locale);
+          const value = resolve(messages, key, vars);
+          expectNonEmpty(value, key, locale);
+          expect(isLocalizedProviderKey(messages, key), `${locale}:${key}`).toBe(true);
+          for (const needle of needles) {
+            expect(value).toContain(String(needle));
+          }
+        }
+      },
+    );
+
+    it('localizes representative prov-exp strings in hy and ru', () => {
+      const hy = getMessages('hy');
+      const ru = getMessages('ru');
+      expect(resolve(hy, 'provider.timeOffTitle')).toContain('ազատ');
+      expect(resolve(ru, 'provider.timeOffTitle')).toContain('выходной');
+      expect(resolve(hy, 'provider.pushNotificationsOpenCenter')).toContain('կենտրոն');
+      expect(resolve(ru, 'provider.pushNotificationKindBookingCreated')).toContain('запись');
+      expect(resolve(hy, 'provider.openShiftsTitle')).not.toBe('Open gaps');
+      expect(resolve(hy, 'provider.quickChipsTitle')).toContain('Արագ');
+    });
   });
 });

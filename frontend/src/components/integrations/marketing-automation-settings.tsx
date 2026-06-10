@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Mail, Users } from 'lucide-react';
+import { Loader2, Mail, RefreshCw, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -22,12 +22,21 @@ interface MarketingAutomationSettings {
   minDaysBetweenReEngagement: number;
   reEngagementPromoCode?: string | null;
   reEngagementLoyaltyBonusPoints?: number | null;
+  rebookingNudgeEnabled: boolean;
+  defaultRebookingCadenceDays: number;
+  rebookingNudgeEmailEnabled: boolean;
+  rebookingNudgeSmsEnabled: boolean;
+  rebookingNudgePushEnabled: boolean;
+  minDaysBetweenRebookingNudges: number;
+  rebookingNudgePromoCode?: string | null;
 }
 
 interface MarketingSummary {
   settings: MarketingAutomationSettings;
   eligibleInactiveCustomers: number;
   reEngagementSentLast30Days: number;
+  eligibleRebookingNudges: number;
+  rebookingNudgeSentLast30Days: number;
 }
 
 export function MarketingAutomationSettingsPanel() {
@@ -78,7 +87,7 @@ export function MarketingAutomationSettingsPanel() {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="card flex items-start gap-3">
             <Users className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
             <div>
@@ -91,6 +100,20 @@ export function MarketingAutomationSettingsPanel() {
             <div>
               <p className="text-2xl font-bold text-gray-100">{summary.reEngagementSentLast30Days}</p>
               <p className="text-sm text-gray-400">{t('marketingAutomation.sentLast30Days')}</p>
+            </div>
+          </div>
+          <div className="card flex items-start gap-3">
+            <RefreshCw className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-2xl font-bold text-gray-100">{summary.eligibleRebookingNudges}</p>
+              <p className="text-sm text-gray-400">{t('marketingAutomation.eligibleRebooking')}</p>
+            </div>
+          </div>
+          <div className="card flex items-start gap-3">
+            <Mail className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-2xl font-bold text-gray-100">{summary.rebookingNudgeSentLast30Days}</p>
+              <p className="text-sm text-gray-400">{t('marketingAutomation.rebookingSentLast30Days')}</p>
             </div>
           </div>
         </div>
@@ -204,6 +227,93 @@ export function MarketingAutomationSettingsPanel() {
               }}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="card space-y-4">
+        <h3 className="font-semibold text-gray-100">{t('marketingAutomation.rebookingTitle')}</h3>
+        <p className="text-sm text-gray-400">{t('marketingAutomation.rebookingHint')}</p>
+        <ToggleChoice variant="dashboard"
+          checked={form.rebookingNudgeEnabled}
+          onChange={(rebookingNudgeEnabled) => setForm({ ...form, rebookingNudgeEnabled })}
+          label={t('marketingAutomation.rebookingEnabled')}
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">{t('marketingAutomation.defaultCadenceDays')}</label>
+            <input
+              type="number"
+              min={7}
+              max={365}
+              className="input"
+              value={form.defaultRebookingCadenceDays}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  defaultRebookingCadenceDays: parseInt(e.target.value, 10) || 42,
+                })
+              }
+            />
+          </div>
+          <div>
+            <label className="label">{t('marketingAutomation.minDaysBetweenRebooking')}</label>
+            <input
+              type="number"
+              min={7}
+              max={180}
+              className="input"
+              value={form.minDaysBetweenRebookingNudges}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  minDaysBetweenRebookingNudges: parseInt(e.target.value, 10) || 14,
+                })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-6">
+          <StylishChoice
+            type="checkbox"
+            checked={form.rebookingNudgeEmailEnabled}
+            onChange={(rebookingNudgeEmailEnabled) =>
+              setForm({ ...form, rebookingNudgeEmailEnabled })
+            }
+            label={t('marketingAutomation.channelEmail')}
+            labelClassName="text-sm text-gray-300"
+          />
+          <StylishChoice
+            type="checkbox"
+            checked={form.rebookingNudgeSmsEnabled}
+            onChange={(rebookingNudgeSmsEnabled) =>
+              setForm({ ...form, rebookingNudgeSmsEnabled })
+            }
+            label={t('marketingAutomation.channelSms')}
+            labelClassName="text-sm text-gray-300"
+          />
+          <StylishChoice
+            type="checkbox"
+            checked={form.rebookingNudgePushEnabled}
+            onChange={(rebookingNudgePushEnabled) =>
+              setForm({ ...form, rebookingNudgePushEnabled })
+            }
+            label={t('marketingAutomation.channelPush')}
+            labelClassName="text-sm text-gray-300"
+          />
+        </div>
+
+        <div>
+          <label className="label">{t('marketingAutomation.promoCodeOptional')}</label>
+          <input
+            className="input uppercase"
+            placeholder="REBOOK10"
+            value={form.rebookingNudgePromoCode ?? ''}
+            onChange={(e) =>
+              setForm({ ...form, rebookingNudgePromoCode: e.target.value.toUpperCase() || null })
+            }
+          />
         </div>
       </section>
 

@@ -67,6 +67,9 @@ import {
   shouldUseAfternoonAvailability,
 } from './provider-ai-sprint19.util.js';
 import {
+  buildTeamWhosNextSummary,
+} from './provider-team-whos-next.util.js';
+import {
   applyProviderEntityMemory,
   buildCoordinateWaitlistConfirmation,
   buildProviderClassifierAppendix,
@@ -116,6 +119,20 @@ import { ProviderPushActionService } from './provider-push-action.service.js';
 import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
 import { rescueProviderEarningsIntent } from '../ai/ai-provider-earnings.util.js';
+import { AiProviderClientContextService } from '../ai/ai-provider-client-context.service.js';
+import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
+import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
+import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
+import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
+import { extractRetailProductName } from '../ai/ai-provider-exp-3.util.js';
+import {
+  extractBookingActionCustomerName,
+  extractRunningLateMinutesFromPrompt,
+} from '../ai/ai-provider-exp-2.util.js';
+import {
+  extractClientNoteBodyFromPrompt,
+  extractCustomerNameFromClientPrompt,
+} from '../ai/ai-provider-client-context.util.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -138,7 +155,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "reschedule_booking" | "fill_unused_slots" | "check_availability" | "block_schedule" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -155,6 +172,10 @@ Classify the user's command and extract parameters. Return JSON:
     "statusFilter": "upcoming | completed | cancelled | no_show | null — for show_appointments",
     "paymentStatus": "paid | pending | refunded | not_applicable | null",
     "reason": "string or null — cancellation reason or note",
+    "clientNote": "string or null — internal staff note body for add_client_note",
+    "period": "week | month | null — for my_stats",
+    "scope": "mine | team | null — for my_stats (team requires manager)",
+    "minutesLate": "number or null — minutes late for mark_running_late (default 10)",
     "allAppointments": true or false — true when user says all/every appointment for the day
   },
   "reasoning": "one sentence"
@@ -171,13 +192,23 @@ Rules:
 - mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
 - payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
 - list_bookings / show_appointments / summarize_day: view-only; no mutations. show_appointments supports serviceName and status/statusFilter.
+- team_whos_next: READ — manager/owner team view only: ordered queue per provider for the next 2 hours. Triggers: who's next across the team, all providers next 2 hours. NOT show_appointments (own or single-day list).
 - summarize_my_appointments: READ — count own appointments for today/tomorrow/a day/date range. Triggers: how many appointments do I have. NOT show_appointments (full list).
 - summarize_my_revenue: READ — net provider earnings after tax and salon commission for a period. Triggers: how much did I make, my revenue last week. NOT explain_appointment_tax.
+- summarize_client: READ — client snapshot for open booking: loyalty balance with last earn/redeem (read-only), visits, last visit, no-shows, referral, badges, recent highlights. Requires bookingId (session) and/or customerName. NOT show_client_history (visit list only), NOT adjust_loyalty.
+- show_client_history: READ — recent completed visits for the booking's client. Requires bookingId and/or customerName. NOT summarize_client (narrative snapshot).
+- add_client_note: MUTATE — save internal staff note on booking customer (clientNote body, max 500 chars). Requires bookingId and/or customerName. NOT update_bookings.
 - check_availability: READ-ONLY — open slots and schedule blocks for own calendar (managers may query team when scoped).
+- add_retail_to_booking: MUTATE — add retail product line to own active booking (productName, bookingId, and/or customerName). NOT suggest_retail_upsell (read-only suggestions).
+- send_client_message: READ — open SMS/WhatsApp with canned template for booking client (templateId, channel=sms|whatsapp). NOT add_client_note (internal note).
+- block_my_time: MUTATE — instant lunch/break block on own calendar (date, timeFrom/timeTo). NOT request_time_off (needs approval).
 - block_schedule: block lunch/break on own calendar only for providers; managers may block team when allowed.
+- request_time_off: submit unavailable date range for manager approval (own calendar). NOT block_schedule (instant block).
+- list_my_time_off_requests: READ — status of own pending/approved/denied time-off requests.
 - summarize_utilization: READ-ONLY utilization % for date range — own stats for providers; team summary for managers.
 - reschedule_booking: move an appointment to a new time (own bookings only unless team view).
 - fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
+- suggest_waitlist_for_gap: READ — suggest waitlist customers for a specific open gap on own calendar (date + timeFrom/timeTo). Triggers: fill this gap, waitlist for this slot. NOT fill_unused_slots (creates blocks) and NOT coordinate_waitlist_offer (manager cancel flow).
 - coordinate_waitlist_offer: manager team view — cancel provider appointment and offer slot to waitlist customer (e.g. "If Maria cancels, offer slot to waitlist customer John").
 - list_package_appointments_today: READ-ONLY — provider-scoped package appointments on own calendar today. NOT list_package_bookings (dashboard admin).
 - list_my_package_visits: READ-ONLY — provider-scoped package visits on own calendar for a date range.
@@ -241,6 +272,16 @@ export class ProviderAiCommandService {
     private providerPushSetup: AiProviderPushSetupService,
     @Inject(forwardRef(() => AiProviderEarningsService))
     private providerEarnings: AiProviderEarningsService,
+    @Inject(forwardRef(() => AiProviderClientContextService))
+    private providerClientContext: AiProviderClientContextService,
+    @Inject(forwardRef(() => AiProviderExp2Service))
+    private providerExp2: AiProviderExp2Service,
+    @Inject(forwardRef(() => AiProviderTimeOffService))
+    private providerTimeOff: AiProviderTimeOffService,
+    @Inject(forwardRef(() => AiProviderOpenShiftsService))
+    private providerOpenShifts: AiProviderOpenShiftsService,
+    @Inject(forwardRef(() => AiProviderExp3Service))
+    private providerExp3: AiProviderExp3Service,
     private pushActions: ProviderPushActionService,
   ) {}
 
@@ -467,6 +508,81 @@ export class ProviderAiCommandService {
       rescueReason = providerEarningsRescue.rescueReason;
     }
 
+    const providerClientContextRescue =
+      this.providerClientContext.rescueProviderClientContextIntent(
+        prompt,
+        parsed.action,
+      );
+    if (providerClientContextRescue) {
+      parsed.action = providerClientContextRescue.action;
+      rescueReason = providerClientContextRescue.rescueReason;
+      if (providerClientContextRescue.action === 'add_client_note') {
+        const noteBody = extractClientNoteBodyFromPrompt(prompt);
+        if (noteBody) parsed.params.clientNote = noteBody;
+      }
+      const customerName = extractCustomerNameFromClientPrompt(prompt);
+      if (customerName && !parsed.params.customerName) {
+        parsed.params.customerName = customerName;
+      }
+    }
+
+    const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
+      prompt,
+      parsed.action,
+    );
+    if (providerExp2Rescue) {
+      parsed.action = providerExp2Rescue.action;
+      rescueReason = providerExp2Rescue.rescueReason;
+      const customerName = extractBookingActionCustomerName(
+        prompt,
+        parsed.params,
+      );
+      if (customerName && !parsed.params.customerName) {
+        parsed.params.customerName = customerName;
+      }
+      if (providerExp2Rescue.action === 'mark_running_late') {
+        const minutesLate = extractRunningLateMinutesFromPrompt(
+          prompt,
+          parsed.params,
+        );
+        if (minutesLate != null && parsed.params.minutesLate == null) {
+          parsed.params.minutesLate = minutesLate;
+        }
+      }
+    }
+
+    const providerTimeOffRescue = this.providerTimeOff.rescueProviderTimeOffIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerTimeOffRescue) {
+      parsed.action = providerTimeOffRescue.action;
+      rescueReason = providerTimeOffRescue.rescueReason;
+    }
+
+    const providerOpenShiftsRescue =
+      this.providerOpenShifts.rescueProviderOpenShiftsIntent(
+        prompt,
+        parsed.action,
+      );
+    if (providerOpenShiftsRescue) {
+      parsed.action = providerOpenShiftsRescue.action;
+      rescueReason = providerOpenShiftsRescue.rescueReason;
+    }
+
+    const providerExp3Rescue = this.providerExp3.rescueProviderExp3Intent(
+      prompt,
+      parsed.action,
+    );
+    if (providerExp3Rescue) {
+      parsed.action = providerExp3Rescue.action;
+      rescueReason = providerExp3Rescue.rescueReason;
+      const productName = extractRetailProductName(prompt, parsed.params);
+      if (productName && !parsed.params.productName) {
+        parsed.params.productName = productName;
+      }
+    }
+
     const providerBookingRescue =
       this.providerBooking.rescueProviderBookingIntent(prompt, parsed.action);
     if (providerBookingRescue) {
@@ -644,6 +760,9 @@ export class ProviderAiCommandService {
           parsed.params,
         );
         break;
+      case 'team_whos_next':
+        result = await this.handleTeamWhosNext(businessId, userId, access);
+        break;
       case 'check_availability':
         result = await this.handleCheckAvailability(
           businessId,
@@ -660,6 +779,58 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
         );
+        break;
+      case 'add_retail_to_booking':
+      case 'send_client_message':
+      case 'block_my_time':
+      case 'request_time_off':
+        result =
+          (await this.providerExp3.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            parsed.params,
+            prompt,
+            context,
+            access.employee?.id,
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: `Could not complete "${parsed.action}". Try rephrasing or use the booking detail screen.`,
+            details: { clarify: true },
+          };
+        break;
+      case 'list_my_time_off_requests':
+        result =
+          (await this.providerTimeOff.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            parsed.params,
+            'provider',
+            access.employee?.id,
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: 'Could not load your time-off requests.',
+            details: { clarify: true },
+          };
+        break;
+      case 'suggest_waitlist_for_gap':
+        result =
+          (await this.providerOpenShifts.handleIntent(
+            businessId,
+            parsed.action,
+            prompt,
+            parsed.params,
+            access.employee?.id,
+          )) ?? {
+            success: false,
+            action: 'suggest_waitlist_for_gap',
+            summary:
+              'Could not suggest waitlist customers for this gap. Open your provider calendar and tap Fill this gap.',
+            details: { clarify: true },
+          };
         break;
       case 'summarize_utilization':
         result = await this.handleSummarizeUtilization(
@@ -755,6 +926,43 @@ export class ProviderAiCommandService {
             parsed.action,
             parsed.params,
             prompt,
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+            details: { clarify: true },
+          };
+        break;
+      case 'summarize_client':
+      case 'show_client_history':
+      case 'add_client_note':
+        result =
+          (await this.providerClientContext.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            parsed.params,
+            prompt,
+            context,
+          )) ?? {
+            success: false,
+            action: parsed.action,
+            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+            details: { clarify: true },
+          };
+        break;
+      case 'my_stats':
+      case 'team_floor_status':
+      case 'check_in_client':
+      case 'mark_running_late':
+        result =
+          (await this.providerExp2.handleIntent(
+            businessId,
+            userId,
+            parsed.action,
+            parsed.params,
+            prompt,
+            context,
           )) ?? {
             success: false,
             action: parsed.action,
@@ -1742,6 +1950,45 @@ View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appo
       'show_appointments',
       this.noMatchMessage('show', params),
     );
+  }
+
+  private async handleTeamWhosNext(
+    businessId: string,
+    userId: string,
+    access: MobileAccess,
+  ): Promise<ProviderCommandResult> {
+    if (access.viewMode !== 'team') {
+      return {
+        success: false,
+        action: 'team_whos_next',
+        summary:
+          'Team queue is available to managers only. Ask about your own schedule instead.',
+        details: { viewMode: access.viewMode },
+      };
+    }
+
+    const queue = await this.providerMobile.getTeamWhosNext(businessId, userId);
+    const summary = buildTeamWhosNextSummary(queue.columns, (iso) =>
+      formatTimeDisplay(iso),
+    );
+
+    return {
+      success: true,
+      action: 'team_whos_next',
+      summary,
+      details: {
+        windowHours: queue.windowHours,
+        windowStart: queue.windowStart,
+        windowEnd: queue.windowEnd,
+        totalQueued: queue.totalQueued,
+        columns: queue.columns.map((column) => ({
+          employeeId: column.employeeId,
+          employeeName: column.employeeName,
+          nextBookingId: column.nextBookingId,
+          queueLength: column.queue.length,
+        })),
+      },
+    };
   }
 
   private async formatBookingsList(

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  IonBadge,
   IonCard,
   IonCardContent,
   IonCardHeader,
@@ -17,14 +18,29 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
+import {
+  floorStatusColor,
+  formatFloorStatusLabel,
+  type ProviderBookingFloorStatus,
+} from '../lib/provider-booking-check-in';
+import {
+  formatVisitStatusLabel,
+  visitStatusBadgeColor,
+} from '../lib/provider-booking-visit-status';
+import type { ProviderTodayTimelineView } from '../lib/provider-booking-today-timeline';
 import { useBusinessCurrency } from '../lib/use-business-currency';
-import { isTeamView } from '../lib/provider-access';
+import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
+import type { TeamFloorTodayView } from '../lib/provider-team-floor';
+import type { TeamWhosNextView } from '../lib/provider-team-whos-next';
 import BookingDetailModal from '../components/BookingDetailModal';
+import ProviderTodayTimeline from '../components/ProviderTodayTimeline';
+import ProviderTeamFloorView from '../components/ProviderTeamFloorView';
+import ProviderTeamWhosNextPanel from '../components/ProviderTeamWhosNextPanel';
 import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { ProviderOfflineBanner } from '../components/ProviderOfflineBanner';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
-import { PROVIDER_OPEN_BOOKING_EVENT } from '../lib/provider-push-deep-link.util';
+import { PROVIDER_OPEN_BOOKING_EVENT, PROVIDER_TEAM_WHOS_NEXT_EVENT } from '../lib/provider-push-deep-link.util';
 
 export default function TodayPage() {
   const { t } = useI18n();
@@ -33,6 +49,9 @@ export default function TodayPage() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [floorFilterEmployeeId, setFloorFilterEmployeeId] = useState<string | null>(null);
+  const teamWhosNextRef = useRef<HTMLElement | null>(null);
+  const isManagerView = isMobileManagerRole(business?.membershipRole);
 
   useEffect(() => {
     const bookingId = new URLSearchParams(location.search).get('bookingId');
@@ -48,8 +67,18 @@ export default function TodayPage() {
     return () => window.removeEventListener(PROVIDER_OPEN_BOOKING_EVENT, onOpenBooking);
   }, []);
 
+  useEffect(() => {
+    const scrollToTeamWhosNext = () => {
+      teamWhosNextRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    window.addEventListener(PROVIDER_TEAM_WHOS_NEXT_EVENT, scrollToTeamWhosNext);
+    return () => window.removeEventListener(PROVIDER_TEAM_WHOS_NEXT_EVENT, scrollToTeamWhosNext);
+  }, []);
+
   const refreshBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-team-floor', business?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['provider-team-whos-next', business?.id] });
     void queryClient.invalidateQueries({ queryKey: ['provider-upcoming', business?.id] });
     void queryClient.invalidateQueries({ queryKey: ['provider-schedule-summary', business?.id] });
     void queryClient.invalidateQueries({ queryKey: ['provider-booking'] });
@@ -83,6 +112,45 @@ export default function TodayPage() {
         bookings: BookingSummary[];
       }>(res);
     },
+    enabled: !!business?.id && !isManagerView,
+    refetchInterval: 60_000,
+  });
+
+  const { data: teamFloor, isLoading: loadingTeamFloor } = useQuery({
+    queryKey: ['provider-team-floor', business?.id, floorFilterEmployeeId],
+    queryFn: async () => {
+      const params = floorFilterEmployeeId
+        ? `?employeeId=${encodeURIComponent(floorFilterEmployeeId)}`
+        : '';
+      const { data: res } = await api.get(
+        `/businesses/${business!.id}/provider/floor/today${params}`,
+      );
+      return unwrap<TeamFloorTodayView>(res);
+    },
+    enabled: !!business?.id && isManagerView,
+    refetchInterval: 60_000,
+  });
+
+  const { data: teamWhosNext, isLoading: loadingTeamWhosNext } = useQuery({
+    queryKey: ['provider-team-whos-next', business?.id],
+    queryFn: async () => {
+      const { data: res } = await api.get(
+        `/businesses/${business!.id}/provider/floor/whos-next`,
+      );
+      return unwrap<TeamWhosNextView>(res);
+    },
+    enabled: !!business?.id && isManagerView,
+    refetchInterval: 60_000,
+  });
+
+  const { data: scheduleSummary } = useQuery({
+    queryKey: ['provider-schedule-summary', business?.id],
+    queryFn: async () => {
+      const { data: res } = await api.get(
+        `/businesses/${business!.id}/provider/schedule/summary?days=14`,
+      );
+      return unwrap<{ todayTimeline?: ProviderTodayTimelineView | null }>(res);
+    },
     enabled: !!business?.id,
     refetchInterval: 60_000,
   });
@@ -113,13 +181,37 @@ export default function TodayPage() {
           </>
         )}
 
-        {isTeamView(data?.viewMode) ? (
+        {isManagerView || isTeamView(data?.viewMode) ? (
           <p className="booking-meta">{t('provider.teamTodayLabel')}</p>
         ) : (
           data?.employee && <p className="booking-meta">{data.employee.name}</p>
         )}
 
-        {isLoading ? (
+        <ProviderTodayTimeline
+          timeline={scheduleSummary?.todayTimeline}
+          onSelectBooking={setSelectedId}
+        />
+
+        {isManagerView ? (
+          <div ref={teamWhosNextRef}>
+            <ProviderTeamWhosNextPanel
+              queue={teamWhosNext}
+              isLoading={loadingTeamWhosNext}
+              businessCurrency={businessCurrency}
+              onSelectBooking={setSelectedId}
+            />
+          </div>
+        ) : null}
+
+        {isManagerView ? (
+          <ProviderTeamFloorView
+            floor={teamFloor}
+            isLoading={loadingTeamFloor}
+            businessCurrency={businessCurrency}
+            onSelectBooking={setSelectedId}
+            onFilterChange={setFloorFilterEmployeeId}
+          />
+        ) : isLoading ? (
           <div className="empty-state"><IonSpinner /></div>
         ) : !data?.bookings?.length ? (
           <p className="empty-state">{t('provider.noAppointmentsToday')}</p>
@@ -132,12 +224,20 @@ export default function TodayPage() {
                 </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>
+                {b.floorStatus ? (
+                  <IonBadge color={floorStatusColor(b.floorStatus as ProviderBookingFloorStatus)}>
+                    {formatFloorStatusLabel(b.floorStatus as ProviderBookingFloorStatus, t)}
+                  </IonBadge>
+                ) : null}
+                {b.visitStatus ? (
+                  <IonBadge
+                    color={visitStatusBadgeColor(b.visitStatus.kind)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {formatVisitStatusLabel(b.visitStatus, t)}
+                  </IonBadge>
+                ) : null}
                 <p className="booking-meta">{formatDateDisplay(b.startTime)}</p>
-                {b.employee && isTeamView(data?.viewMode) && (
-                  <p className="booking-meta">
-                    {t('common.provider')}: {b.employee.name}
-                  </p>
-                )}
                 {b.service && <p><strong>{b.service.name}</strong></p>}
                 {b.customer && (
                   <>

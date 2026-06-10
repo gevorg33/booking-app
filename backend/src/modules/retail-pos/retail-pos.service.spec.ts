@@ -63,6 +63,16 @@ describe('RetailPosService', () => {
     productRepo.find.mockResolvedValue([product]);
   });
 
+  it('detects configured retail catalog when a product has retail price', async () => {
+    productRepo.find.mockResolvedValue([
+      { id: 'prod-1', retailPrice: 18 },
+      { id: 'prod-2', retailPrice: 0 },
+    ]);
+    await expect(service.hasConfiguredRetailProducts('biz-1')).resolves.toBe(
+      true,
+    );
+  });
+
   it('lists sellable products with retail price and stock', async () => {
     await expect(service.listSellableProducts('biz-1')).resolves.toEqual([
       expect.objectContaining({
