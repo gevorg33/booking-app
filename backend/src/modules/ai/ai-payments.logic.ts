@@ -38,11 +38,20 @@ import {
   mergeCheckProvidersHandoffIntoContext,
   pickCheckProvidersHandoff,
 } from './ai-check-book-handoff.util.js';
-import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
+import {
+  applyChosenAvailabilityWindowToParams,
+  buildNearestAvailabilityWindowQueries,
+  buildNearestBookableSlotQuery,
+} from './ai-nearest-slot-resolver.util.js';
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
+import {
+  resolveBudgetMaxPrice,
+} from './ai-budget-service-discovery.util.js';
+import { resolveBudgetConstrainedService } from './ai-budget-list-services.logic.js';
+import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -101,18 +110,48 @@ async function resolveService(
   businessId: string,
   params: Record<string, any>,
 ): Promise<Service | undefined> {
-  if (params.serviceId) {
-    const found = await deps.serviceRepo.findOne({
-      where: { id: params.serviceId as string, businessId },
-    });
-    return found || undefined;
-  }
-  const name = (params.serviceName as string | undefined)?.trim();
-  if (!name) return undefined;
   const services = await deps.serviceRepo.find({
     where: { businessId, isActive: true },
   });
-  return resolveByName(services, name);
+
+  const catalog = services.map((service) => ({
+    id: service.id,
+    name: service.name,
+    price: Number(service.price),
+    durationMinutes: service.durationMinutes,
+  }));
+
+  const hasBudgetFilter =
+    resolveBudgetMaxPrice(params.maxPrice) != null ||
+    params.serviceCategory ||
+    params.serviceId;
+
+  if (hasBudgetFilter) {
+    const { service } = resolveBudgetConstrainedService(catalog, {
+      serviceId: params.serviceId as string | undefined,
+      serviceName: params.serviceName as string | undefined,
+      serviceCategory: params.serviceCategory as string | undefined,
+      maxPrice: params.maxPrice,
+    });
+    if (service) {
+      return services.find((entry) => entry.id === service.id);
+    }
+    if (resolveBudgetMaxPrice(params.maxPrice) != null) {
+      return undefined;
+    }
+  }
+
+  if (params.serviceId) {
+    const found = services.find((entry) => entry.id === params.serviceId);
+    return found || undefined;
+  }
+  const name = (params.serviceName as string | undefined)?.trim();
+  if (name) return resolveByName(services, name);
+  if (params.serviceCategory) {
+    const matched = resolveServicesFromCatalogParams(catalog, params);
+    return matched[0];
+  }
+  return undefined;
 }
 
 function isOnlinePaymentsEnabled(
@@ -782,19 +821,29 @@ export async function handleBookNearestSlotLogic(
     });
   }
 
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  const tz = resolveTimezone(business?.timezone);
+
   const slotQuery = buildNearestBookableSlotQuery(params, prompt ?? '');
   const { employeeId, notBeforeTime, startDateKey, timeOfDay } = slotQuery;
+  const windowQueries = buildNearestAvailabilityWindowQueries(
+    params,
+    prompt ?? '',
+    tz,
+  );
 
-  const slot = await deps.publicBookingService.findNearestBookableSlot(slug, {
-    serviceId: service.id,
-    employeeId,
-    notBeforeTime,
-    startDateKey,
-  });
+  const nearestResult =
+    await deps.publicBookingService.findNearestBookableSlotAcrossWindows(slug, {
+      serviceId: service.id,
+      employeeId,
+      windows: windowQueries,
+    });
 
   const priorCheck = pickCheckProvidersHandoff(params);
 
-  if (!slot) {
+  if (!nearestResult) {
     return failure(
       'book_nearest_slot',
       buildNoNearestSlotMessage({
@@ -817,6 +866,12 @@ export async function handleBookNearestSlotLogic(
     );
   }
 
+  const enrichedParams = applyChosenAvailabilityWindowToParams(
+    params,
+    nearestResult,
+  );
+  const slot = nearestResult.slot;
+
   return success(
     'book_nearest_slot',
     `Nearest slot: ${slot.startTime} with ${slot.employeeName}.`,
@@ -827,6 +882,11 @@ export async function handleBookNearestSlotLogic(
         serviceName: service.name,
         employeeId: slot.employeeId,
         startTime: slot.startTime,
+        date: slot.dateKey,
+        timeOfDay: nearestResult.timeOfDay,
+        chosenAvailabilityWindow: enrichedParams.chosenAvailabilityWindow,
+        chosenAvailabilityWindowIndex:
+          enrichedParams.chosenAvailabilityWindowIndex,
       },
       priorCheck,
     ),
@@ -1177,6 +1237,11 @@ function mergeCompoundContext(
     next.employeeId = details.employeeId;
     next.startTime = details.startTime;
     next.serviceName = details.serviceName;
+    if (details.date) next.date = details.date;
+    if (details.timeOfDay) next.timeOfDay = details.timeOfDay;
+    if (details.chosenAvailabilityWindow) {
+      next.chosenAvailabilityWindow = details.chosenAvailabilityWindow;
+    }
   }
   if (step.action === 'check_providers_for_service') {
     next.serviceId = details.serviceId;

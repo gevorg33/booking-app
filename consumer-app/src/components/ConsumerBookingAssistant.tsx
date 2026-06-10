@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import { getConsumerDiscoveryChips } from '../lib/consumer-discovery-chips.js';
 import { getConsumerFabDefaultBottomInset } from '../lib/consumer-tab-bar-layout.util.js';
 import {
   useDraggableFloatingPosition,
@@ -105,6 +106,7 @@ export function ConsumerBookingAssistant({
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
   const fabBottomInset = useMemo(() => getConsumerFabDefaultBottomInset(), []);
+  const discoveryChips = useMemo(() => getConsumerDiscoveryChips(copy), [copy]);
   const estimatedSize = useMemo(() => {
     const fab = { width: 56, height: 56 };
     if (!viewport.width) return fab;
@@ -372,6 +374,47 @@ export function ConsumerBookingAssistant({
             {messages.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
                 <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>{copy.assistantHint}</p>
+                <div style={{ marginBottom: 16 }}>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      color: '#9ca3af',
+                      marginBottom: 8,
+                    }}
+                  >
+                    {copy.assistantDiscoverChipsTitle}
+                  </p>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {discoveryChips.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setInput(chip.prompt)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: primary,
+                          background: `${primary}14`,
+                          border: `1px solid ${primary}33`,
+                          borderRadius: 999,
+                          padding: '8px 12px',
+                        }}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {EXAMPLE_KEYS.map((key) => {
                     const example = copy[key];

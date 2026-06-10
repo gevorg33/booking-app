@@ -26,10 +26,35 @@ export interface AiCommandEvalExpectation {
   rescuedAction?: string;
   /** Input action for disambiguation rescue (defaults to unknown). */
   rescueFromAction?: string;
+  /** When true, eval uses surface-scoped self-service rescue (customer cancel/reschedule i18n). */
+  useSurfaceSelfServiceRescue?: boolean;
+  /** When true, eval uses customer-surface self-service rescue only (acc-2.4 HY/RU). */
+  useSurfaceMarketingGrowthRescue?: boolean;
+  /** When true, eval uses customer-surface checkout success rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerCheckoutSuccessRescue?: boolean;
+  /** When true, eval uses customer-surface checkout tax rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerCheckoutTaxRescue?: boolean;
+  /** When true, eval uses customer-surface clinic test results rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerClinicTestResultsRescue?: boolean;
+  /** When true, eval uses provider-surface push setup rescue only (acc-2.4 HY/RU). */
+  useSurfaceProviderPushSetupRescue?: boolean;
+  /** Validated action should fail with clarify (acc-2.6). */
+  expectValidationClarify?: boolean;
+  validationAction?: string;
+  validationParamsPartial?: Record<string, unknown>;
+  clarifyFieldsContains?: string[];
   /** Expected rescueReason when stable. */
   rescueReason?: string;
   /** Use surface-scoped clinic lab booking rescue (i18n-clinic-v2-ai-8). */
   useSurfaceLabBookingRescue?: boolean;
+  /** Use surface-scoped budget service discovery rescue (budget-1.11). */
+  useSurfaceBudgetRescue?: boolean;
+  /** Use surface-scoped service rank discovery rescue (rank-1.11). */
+  useSurfaceRankRescue?: boolean;
+  /** Use surface-scoped flexible availability enrichment (avail-1.11). */
+  useSurfaceFlexibleAvailabilityEnrichment?: boolean;
+  /** Expected action after public/customer flexible availability enrichment. */
+  enrichedAction?: string;
   /** Compound decomposition surface (ai-cmd-0.4). */
   compoundSurface?: CommandSurface;
   /** Exact ordered sub-intent actions from deterministic/golden decomposition. */

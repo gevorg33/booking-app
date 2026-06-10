@@ -3,6 +3,7 @@ import { TAX_DISPLAY_EN_CLASSIFIER_RULES } from './ai-tax-display-en.fixtures.js
 import { PROVIDER_DATE_FORMAT_CLASSIFIER_RULES } from './ai-provider-date-format.fixtures.js';
 import { PROVIDER_PAYMENT_CURRENCY_CLASSIFIER_RULES } from './ai-provider-payment-currency.fixtures.js';
 import { PROVIDER_SESSION_TIMEOUT_CLASSIFIER_RULES } from './ai-provider-session-timeout.fixtures.js';
+import { PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-session-timeout-multilingual.fixtures.js';
 import { PROVIDER_CLINIC_COLLECTION_CLASSIFIER_RULES } from './ai-provider-clinic-collection.fixtures.js';
 import { PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-clinic-collection-multilingual.fixtures.js';
 import { PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
@@ -12,6 +13,10 @@ import { PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES } from './ai-provider-client-c
 import { PROVIDER_EXP_2_CLASSIFIER_RULES } from './ai-provider-exp-2.fixtures.js';
 import { PROVIDER_TIME_OFF_CLASSIFIER_RULES } from '../provider-mobile/provider-time-off.fixtures.js';
 import { PROVIDER_OPEN_SHIFTS_CLASSIFIER_RULES } from '../provider-mobile/provider-open-shifts.fixtures.js';
+import { PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-open-shifts-multilingual.fixtures.js';
+import { PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-team-whos-next-multilingual.fixtures.js';
+import { PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-time-off-list-multilingual.fixtures.js';
+import { PROVIDER_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-date-format-multilingual.fixtures.js';
 import { PROVIDER_EXP_3_CLASSIFIER_RULES } from './ai-provider-exp-3.fixtures.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
@@ -29,6 +34,7 @@ ${TAX_DISPLAY_EN_CLASSIFIER_RULES}
 ${PROVIDER_PAYMENT_CURRENCY_CLASSIFIER_RULES}
 ${PROVIDER_DATE_FORMAT_CLASSIFIER_RULES}
 ${PROVIDER_SESSION_TIMEOUT_CLASSIFIER_RULES}
+${PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_CLINIC_COLLECTION_CLASSIFIER_RULES}
 ${PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
@@ -38,4 +44,8 @@ ${PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES}
 ${PROVIDER_EXP_2_CLASSIFIER_RULES}
 ${PROVIDER_TIME_OFF_CLASSIFIER_RULES}
 ${PROVIDER_OPEN_SHIFTS_CLASSIFIER_RULES}
+${PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CLASSIFIER_RULES}
+${PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CLASSIFIER_RULES}
+${PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CLASSIFIER_RULES}
+${PROVIDER_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_EXP_3_CLASSIFIER_RULES}`;

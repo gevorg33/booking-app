@@ -46,6 +46,11 @@ import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
+import {
+  rescueBudgetServiceDiscoveryIntent,
+} from './ai-budget-service-discovery.util.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import { rescueServiceRankFromRecommendSpecialistsIntent } from './ai-service-rank-discovery.util.js';
 import { rescueConsumerClinicLabBookingIntent } from './ai-clinic-lab-booking.util.js';
 import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
 import { rescueExplainCheckoutRecommendationsIntent } from './ai-checkout-recommendations.util.js';
@@ -122,6 +127,26 @@ export class CustomerAiCommandService {
       clinicLabBooking: this.clinicLabBooking,
       clinicBooking: this.clinicBooking,
       consumerAdoption: this.consumerAdoption,
+      runPublicAssistantStep: async (businessId, action, params, session) => {
+        void businessId;
+        if (!session.slug) {
+          return {
+            success: false,
+            action,
+            summary: 'Booking page context is missing (slug).',
+            details: {},
+          };
+        }
+        const assistantResult =
+          await this.publicAssistant.executeDeterministicIntent(session.slug, {
+            action,
+            params: params as Record<string, any>,
+            prompt: session.prompt ?? '',
+            session: session as Record<string, any>,
+            locale: session.locale,
+          });
+        return publicAssistantResultToCommandResult(assistantResult);
+      },
     };
   }
 
@@ -169,7 +194,7 @@ export class CustomerAiCommandService {
     const classifierAction = parsed.action;
     const rescued = this.rescueIntent(prompt, parsed.action);
     const action = rescued?.action ?? parsed.action;
-    const params = { ...parsed.params };
+    const params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
 
     recordMisrouteTelemetry(this.aiEvents, businessId, {
       surface: 'customer',
@@ -335,6 +360,23 @@ export class CustomerAiCommandService {
     return null;
   }
 
+  private applyBudgetAndRankServiceDiscoveryRescue(
+    prompt: string,
+    action: string,
+  ): { action: string; rescueReason: string } | null {
+    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+      prompt,
+      action,
+      'customer',
+    );
+    const resolvedAction = budgetRescue?.action ?? action;
+    const rankRescue = rescueServiceRankFromRecommendSpecialistsIntent(
+      prompt,
+      resolvedAction,
+    );
+    return rankRescue ?? budgetRescue ?? null;
+  }
+
   private rescueIntent(prompt: string, action: string) {
     const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
       'customer',
@@ -369,6 +411,7 @@ export class CustomerAiCommandService {
       rescueSelfServiceBookingIntent(prompt, action) ??
       rescueMarketingGrowthIntent(prompt, action) ??
       rescueConsumerAdoptionIntent(prompt, action) ??
+      this.applyBudgetAndRankServiceDiscoveryRescue(prompt, action) ??
       rescuePaymentsIntent(prompt, action)
     );
   }

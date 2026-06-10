@@ -39,9 +39,16 @@ export const SHARED_BOOKING_CONTEXT_KEYS = [
   'timeOfDay',
   'notBeforeTime',
   'serviceName',
+  'serviceCategory',
   'allProviders',
   'bookingFirstAvailable',
   'timeFrom',
+  'maxPrice',
+  'serviceRank',
+  'serviceId',
+  'availabilityWindows',
+  'chosenAvailabilityWindow',
+  'chosenAvailabilityWindowIndex',
 ] as const;
 
 export type SharedBookingContextKey =
@@ -112,6 +119,23 @@ export function buildSharedBookingContextFromPrompt(
   return base;
 }
 
+/** Merge array/object compound params without blanking inherited values. */
+function mergeCompoundParamValue(
+  key: string,
+  existing: unknown,
+  incoming: unknown,
+): unknown {
+  if (incoming == null) return existing;
+  if (key === 'availabilityWindows' && Array.isArray(incoming)) {
+    return incoming.length > 0 ? incoming : existing;
+  }
+  if (key === 'chosenAvailabilityWindow' && typeof incoming === 'object') {
+    return incoming;
+  }
+  if (incoming === '') return existing;
+  return incoming;
+}
+
 /** Merge segment context into shared without blanking inherited values. */
 export function mergeSharedBookingContext(
   shared: Record<string, unknown>,
@@ -129,7 +153,7 @@ export function mergeSharedBookingContext(
         continue;
       }
     }
-    merged[key] = value;
+    merged[key] = mergeCompoundParamValue(key, merged[key], value);
   }
   return merged;
 }

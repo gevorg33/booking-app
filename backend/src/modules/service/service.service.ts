@@ -46,6 +46,10 @@ import {
   extractTourMetadata,
   TOUR_SERVICE_TYPE,
 } from '../../common/utils/tour-service.util.js';
+import {
+  applyServiceRankMetadataToMetadata,
+  extractServiceRankMetadata,
+} from '../../common/utils/service-rank-metadata.util.js';
 
 @Injectable()
 export class ServiceService {
@@ -207,6 +211,19 @@ export class ServiceService {
     );
   }
 
+  private applyServiceRankMetadata(
+    metadata: Record<string, unknown>,
+    dto: CreateServiceDto | UpdateServiceDto,
+  ): Record<string, unknown> {
+    if (dto.isFeatured === undefined && dto.serviceTier === undefined) {
+      return metadata;
+    }
+    return applyServiceRankMetadataToMetadata(metadata, {
+      isFeatured: dto.isFeatured,
+      serviceTier: dto.serviceTier,
+    });
+  }
+
   private async enrichService(service: Service): Promise<
     Service & {
       localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
@@ -214,12 +231,15 @@ export class ServiceService {
       clinic?: ReturnType<typeof extractClinicMetadata>;
       taxRatePercent?: number | null;
       diagnosticCode?: ClinicDiagnosticCodeLinkView | null;
+      isFeatured?: boolean;
+      serviceTier?: ReturnType<typeof extractServiceRankMetadata>['serviceTier'];
     }
   > {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
     const tour = extractTourMetadata(service.metadata);
     const clinic = extractClinicMetadata(service.metadata);
     const taxRatePercent = readServiceTaxRatePercent(service.metadata);
+    const rankMetadata = extractServiceRankMetadata(service.metadata);
     const diagnosticCodeId = readClinicDiagnosticCodeIdFromServiceMetadata(
       service.metadata,
     );
@@ -237,6 +257,8 @@ export class ServiceService {
       diagnosticCode: diagnosticCodeSummary
         ? mapClinicDiagnosticCodeLinkView(diagnosticCodeSummary)
         : null,
+      isFeatured: rankMetadata.isFeatured ?? false,
+      serviceTier: rankMetadata.serviceTier ?? null,
     });
     if (enriched.category) {
       Object.assign(enriched.category, {
@@ -291,6 +313,8 @@ export class ServiceService {
       preparationNotes: _preparationNotes,
       taxRatePercent: _taxRatePercent,
       clinicDiagnosticCodeId: _clinicDiagnosticCodeId,
+      isFeatured: _isFeatured,
+      serviceTier: _serviceTier,
       currency: _currencyInput,
       ...serviceData
     } = dto;
@@ -298,6 +322,7 @@ export class ServiceService {
       enabledLocales,
     });
     metadata = this.applyVerticalServiceMetadata(metadata, dto);
+    metadata = this.applyServiceRankMetadata(metadata, dto);
     metadata = await this.applyDiagnosticCodeMetadataLink(
       businessId,
       metadata,
@@ -381,6 +406,8 @@ export class ServiceService {
       preparationNotes: _preparationNotes,
       taxRatePercent: _taxRatePercent,
       clinicDiagnosticCodeId: _clinicDiagnosticCodeId,
+      isFeatured: _isFeatured,
+      serviceTier: _serviceTier,
       currency: _currency,
       ...rest
     } = dto;
@@ -392,6 +419,10 @@ export class ServiceService {
       );
     }
     service.metadata = this.applyVerticalServiceMetadata(
+      (service.metadata ?? {}) as Record<string, unknown>,
+      dto,
+    );
+    service.metadata = this.applyServiceRankMetadata(
       (service.metadata ?? {}) as Record<string, unknown>,
       dto,
     );

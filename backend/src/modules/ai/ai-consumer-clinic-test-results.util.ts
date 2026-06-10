@@ -10,6 +10,7 @@ import {
   EXPLAIN_RESULT_STATUS_PROMPTS,
   LIST_MY_TEST_RESULTS_PROMPTS,
 } from './ai-consumer-clinic-test-results.fixtures.js';
+import { CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS } from './ai-consumer-clinic-test-results-deferred-multilingual.fixtures.js';
 
 export const CONSUMER_CLINIC_TEST_RESULTS_READ_INTENTS = [
   'list_my_test_results',
@@ -119,6 +120,24 @@ const LIST_MY_GUARD = new RegExp(
   'iu',
 );
 
+function normalizeConsumerClinicPromptForExactMatch(prompt: string): string {
+  return prompt.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function matchConsumerClinicTestResultsDeferredMultilingualScenario(
+  prompt: string,
+): (typeof CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS)[number] | null {
+  const normalized = normalizeConsumerClinicPromptForExactMatch(prompt);
+  for (const scenario of CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS) {
+    if (
+      normalizeConsumerClinicPromptForExactMatch(scenario.prompt) === normalized
+    ) {
+      return scenario;
+    }
+  }
+  return null;
+}
+
 const PATIENT_RESULT_STATUS_EXPLANATIONS: Record<
   ClinicTestResultStatus,
   string
@@ -152,6 +171,15 @@ const RESULT_TEST_NAME_STOP_WORDS = new Set([
 ]);
 
 export function isListMyTestResultsPrompt(prompt: string): boolean {
+  const deferredMatch =
+    matchConsumerClinicTestResultsDeferredMultilingualScenario(prompt);
+  if (deferredMatch?.expectedAction === 'explain_result_status') {
+    return false;
+  }
+  if (deferredMatch?.expectedAction === 'list_my_test_results') {
+    return true;
+  }
+
   if (STAFF_RESULT_NOTIFY_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_LIST_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_COLLECTION_BLOCK.test(prompt)) return false;
@@ -280,6 +308,15 @@ export function isListMyTestResultsPrompt(prompt: string): boolean {
 }
 
 export function isExplainResultStatusPrompt(prompt: string): boolean {
+  const deferredMatch =
+    matchConsumerClinicTestResultsDeferredMultilingualScenario(prompt);
+  if (deferredMatch?.expectedAction === 'list_my_test_results') {
+    return false;
+  }
+  if (deferredMatch?.expectedAction === 'explain_result_status') {
+    return true;
+  }
+
   if (NON_LAB_RESULT_CONSUMER_TOPIC_BLOCK.test(prompt)) return false;
   if (STAFF_RESULT_NOTIFY_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_LIST_BLOCK.test(prompt)) return false;
@@ -512,6 +549,16 @@ export function parseListMyTestResultsFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedListMyTestResultsRequest | null {
+  const deferredMatch =
+    matchConsumerClinicTestResultsDeferredMultilingualScenario(prompt);
+  if (deferredMatch?.expectedAction === 'list_my_test_results') {
+    const testName =
+      typeof deferredMatch.paramsPartial?.testName === 'string'
+        ? deferredMatch.paramsPartial.testName
+        : undefined;
+    return { testName };
+  }
+
   if (!isListMyTestResultsPrompt(prompt)) return null;
   const testName =
     (typeof params.testName === 'string' && params.testName.trim()
@@ -526,6 +573,21 @@ export function parseExplainResultStatusFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedExplainResultStatusRequest | null {
+  const deferredMatch =
+    matchConsumerClinicTestResultsDeferredMultilingualScenario(prompt);
+  if (deferredMatch?.expectedAction === 'explain_result_status') {
+    const status =
+      typeof deferredMatch.paramsPartial?.status === 'string' &&
+      isClinicTestResultStatus(deferredMatch.paramsPartial.status)
+        ? deferredMatch.paramsPartial.status
+        : undefined;
+    const testName =
+      typeof deferredMatch.paramsPartial?.testName === 'string'
+        ? deferredMatch.paramsPartial.testName
+        : undefined;
+    return { status, testName };
+  }
+
   if (!isExplainResultStatusPrompt(prompt)) return null;
 
   const statusFromParams =

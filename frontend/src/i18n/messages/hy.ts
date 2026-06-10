@@ -1889,6 +1889,14 @@ const hy: MessageTree = {
     taxRateOverride: 'Հարկի դրույքի գերակայում (%)',
     taxRateOverridePlaceholder: 'Ժառանգել բիզնեսի լռելյայնը',
     taxRateOverrideHint: 'Դատարկ թողեք բիզնեսի լռելյայն դրույքի համար։ 0 — հարկից ազատ։',
+    rankMetadataTitle: 'AI ծառայությունների դասավորություն',
+    rankMetadataHint:
+      'Ընտրովի ազդանշաններ «պրեմիում» կամ «featured» AI հրամանների համար։ Սահմանված դեպքում դասավորությունը նախընտրում է դրանք գնի փոխարեն։',
+    isFeatured: 'Featured ծառայություն',
+    serviceTier: 'Ծառայության մակարդակ',
+    serviceTierUnset: 'Չի սահմանված (միայն գին)',
+    serviceTierStandard: 'Standard',
+    serviceTierPremium: 'Premium',
     noServices: 'Դեռ ծառայություններ չկան',
     currency: 'Արժույթ',
   

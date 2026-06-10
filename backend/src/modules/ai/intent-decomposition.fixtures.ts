@@ -78,6 +78,75 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     noLlm: true,
   },
   {
+    id: 'public_budget_book_nearest',
+    surface: 'public',
+    prompt: 'Book a haircut under $50 tomorrow, nearest slot',
+    orderedActions: ['list_services', 'book_appointment'],
+    paramChecks: [
+      { stepIndex: 0, key: 'maxPrice', value: 50 },
+      { stepIndex: 1, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'public_budget_service_discovery_compound',
+  },
+  {
+    id: 'public_budget_check_then_book',
+    surface: 'public',
+    prompt:
+      "Who's free for a facial under $60 tomorrow evening, book the soonest",
+    orderedActions: ['check_availability', 'book_appointment'],
+    paramChecks: [
+      { stepIndex: 0, key: 'maxPrice', value: 60 },
+      { stepIndex: 1, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'public_budget_service_discovery_compound',
+  },
+  {
+    id: 'customer_budget_book_nearest',
+    surface: 'customer',
+    prompt: 'Book a haircut under $50 tomorrow, nearest slot',
+    orderedActions: ['list_services', 'book_nearest_slot'],
+    paramChecks: [{ stepIndex: 0, key: 'maxPrice', value: 50 }],
+    noLlm: true,
+    compoundRecipeId: 'customer_budget_service_discovery_compound',
+  },
+  {
+    id: 'customer_budget_check_then_book',
+    surface: 'customer',
+    prompt:
+      "Who's free for a facial under $60 tomorrow evening, book the soonest",
+    orderedActions: ['check_providers_for_service', 'book_nearest_slot'],
+    paramChecks: [{ stepIndex: 0, key: 'maxPrice', value: 60 }],
+    noLlm: true,
+    compoundRecipeId: 'customer_budget_service_discovery_compound',
+  },
+  {
+    id: 'public_rank_book_nearest',
+    surface: 'public',
+    prompt: 'Book your most premium facial tomorrow, nearest slot',
+    orderedActions: ['list_services', 'book_appointment'],
+    paramChecks: [
+      { stepIndex: 0, key: 'serviceRank', value: 'highest_price' },
+      { stepIndex: 0, key: 'serviceCategory', value: 'facial' },
+      { stepIndex: 1, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'public_service_rank_discovery_compound',
+  },
+  {
+    id: 'customer_rank_book_nearest',
+    surface: 'customer',
+    prompt: 'Book your most premium facial tomorrow, nearest slot',
+    orderedActions: ['list_services', 'book_nearest_slot'],
+    paramChecks: [
+      { stepIndex: 0, key: 'serviceRank', value: 'highest_price' },
+      { stepIndex: 1, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'customer_service_rank_discovery_compound',
+  },
+  {
     id: 'dashboard_golden_cancel_notify_waitlist',
     surface: 'dashboard',
     prompt:

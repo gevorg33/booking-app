@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-10T09:15:01.939Z",
-  "totalCases": 2292,
-  "passed": 2292,
+  "generatedAt": "2026-06-10T20:54:12.828Z",
+  "totalCases": 2738,
+  "passed": 2738,
   "failed": 0,
   "accuracyPct": 100,
   "llmCaseCount": 14,
@@ -14,15 +14,21 @@
       "accuracyPct": 100
     },
     "add_client_note": {
-      "passed": 11,
+      "passed": 27,
       "failed": 0,
-      "total": 11,
+      "total": 27,
+      "accuracyPct": 100
+    },
+    "add_retail_to_booking": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
       "accuracyPct": 100
     },
     "add_services_to_cart": {
-      "passed": 1,
+      "passed": 6,
       "failed": 0,
-      "total": 1,
+      "total": 6,
       "accuracyPct": 100
     },
     "admin_delete_customer_data": {
@@ -61,10 +67,22 @@
       "total": 20,
       "accuracyPct": 100
     },
+    "block_my_time": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
+      "accuracyPct": 100
+    },
     "book_lab_collection": {
       "passed": 40,
       "failed": 0,
       "total": 40,
+      "accuracyPct": 100
+    },
+    "book_multi_service": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "book_nearest_slot": {
@@ -74,15 +92,21 @@
       "accuracyPct": 100
     },
     "book_package": {
-      "passed": 2,
+      "passed": 7,
       "failed": 0,
-      "total": 2,
+      "total": 7,
       "accuracyPct": 100
     },
     "book_with_cash": {
-      "passed": 1,
+      "passed": 4,
       "failed": 0,
-      "total": 1,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "book_with_gift_card": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "bulk_create_catalog": {
@@ -103,10 +127,28 @@
       "total": 15,
       "accuracyPct": 100
     },
+    "cancel_my_booking": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
     "cancel_package_visit": {
       "passed": 1,
       "failed": 0,
       "total": 1,
+      "accuracyPct": 100
+    },
+    "cancel_package_visit_self": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "change_provider_on_reschedule": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "check_availability": {
@@ -122,9 +164,21 @@
       "accuracyPct": 100
     },
     "check_in_client": {
-      "passed": 5,
+      "passed": 9,
       "failed": 0,
-      "total": 5,
+      "total": 9,
+      "accuracyPct": 100
+    },
+    "check_multi_service_availability": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "check_package_availability": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "check_package_line_availability": {
@@ -137,6 +191,48 @@
       "passed": 7,
       "failed": 0,
       "total": 7,
+      "accuracyPct": 100
+    },
+    "clarify:bulk_smart_cancel": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "clarify:cancel_bookings": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "clarify:check_availability": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "clarify:create_booking": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "clarify:rebalance_capacity": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "clarify:reschedule_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "clarify:show_appointments": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
       "accuracyPct": 100
     },
     "clear_schedule": {
@@ -199,6 +295,12 @@
       "total": 2,
       "accuracyPct": 100
     },
+    "compound:check_availability+book_appointment": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
     "compound:check_package_line_availability+create_package_booking": {
       "passed": 1,
       "failed": 0,
@@ -206,9 +308,9 @@
       "accuracyPct": 100
     },
     "compound:check_providers_for_service+book_nearest_slot": {
-      "passed": 46,
+      "passed": 47,
       "failed": 0,
-      "total": 46,
+      "total": 47,
       "accuracyPct": 100
     },
     "compound:contains:add_services_to_cart+show_cart_total_duration": {
@@ -290,15 +392,27 @@
       "accuracyPct": 100
     },
     "compound:decomposition": {
-      "passed": 26,
+      "passed": 38,
       "failed": 0,
-      "total": 26,
+      "total": 38,
+      "accuracyPct": 100
+    },
+    "compound:list_services+book_appointment": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:list_services+book_nearest_slot": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
       "accuracyPct": 100
     },
     "compound:none": {
-      "passed": 3,
+      "passed": 7,
       "failed": 0,
-      "total": 3,
+      "total": 7,
       "accuracyPct": 100
     },
     "configure_business_currency": {
@@ -356,9 +470,9 @@
       "accuracyPct": 100
     },
     "configure_provider_push_date_format": {
-      "passed": 16,
+      "passed": 24,
       "failed": 0,
-      "total": 16,
+      "total": 24,
       "accuracyPct": 100
     },
     "configure_recommendation_product": {
@@ -464,9 +578,9 @@
       "accuracyPct": 100
     },
     "enable_push_notifications": {
-      "passed": 5,
+      "passed": 9,
       "failed": 0,
-      "total": 5,
+      "total": 9,
       "accuracyPct": 100
     },
     "enter_test_result": {
@@ -517,6 +631,12 @@
       "total": 16,
       "accuracyPct": 100
     },
+    "explain_cancel_policy": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "explain_checkout_currency": {
       "passed": 10,
       "failed": 0,
@@ -554,15 +674,15 @@
       "accuracyPct": 100
     },
     "explain_consumer_checkout_success": {
-      "passed": 30,
+      "passed": 90,
       "failed": 0,
-      "total": 30,
+      "total": 90,
       "accuracyPct": 100
     },
     "explain_consumer_checkout_tax": {
-      "passed": 10,
+      "passed": 25,
       "failed": 0,
-      "total": 10,
+      "total": 25,
       "accuracyPct": 100
     },
     "explain_data_rights": {
@@ -602,9 +722,9 @@
       "accuracyPct": 100
     },
     "explain_my_notifications": {
-      "passed": 2,
+      "passed": 3,
       "failed": 0,
-      "total": 2,
+      "total": 3,
       "accuracyPct": 100
     },
     "explain_notification_currency": {
@@ -644,9 +764,9 @@
       "accuracyPct": 100
     },
     "explain_provider_date_display": {
-      "passed": 16,
+      "passed": 24,
       "failed": 0,
-      "total": 16,
+      "total": 24,
       "accuracyPct": 100
     },
     "explain_provider_payment_currency": {
@@ -656,15 +776,15 @@
       "accuracyPct": 100
     },
     "explain_provider_session_timeout": {
-      "passed": 4,
+      "passed": 12,
       "failed": 0,
-      "total": 4,
+      "total": 12,
       "accuracyPct": 100
     },
     "explain_push_setup": {
-      "passed": 7,
+      "passed": 15,
       "failed": 0,
-      "total": 7,
+      "total": 15,
       "accuracyPct": 100
     },
     "explain_recommendation_analytics": {
@@ -686,9 +806,9 @@
       "accuracyPct": 100
     },
     "explain_result_status": {
-      "passed": 96,
+      "passed": 120,
       "failed": 0,
-      "total": 96,
+      "total": 120,
       "accuracyPct": 100
     },
     "explain_stacked_tax": {
@@ -752,15 +872,27 @@
       "accuracyPct": 100
     },
     "find_my_saved_salons": {
-      "passed": 2,
+      "passed": 3,
       "failed": 0,
-      "total": 2,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "get_manage_link": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "gift_card_creation_queue": {
       "passed": 1,
       "failed": 0,
       "total": 1,
+      "accuracyPct": 100
+    },
+    "how_to_download_app": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "link_recommended_products": {
@@ -788,9 +920,9 @@
       "accuracyPct": 100
     },
     "list_my_appointments": {
-      "passed": 1,
+      "passed": 6,
       "failed": 0,
-      "total": 1,
+      "total": 6,
       "accuracyPct": 100
     },
     "list_my_collection_queue": {
@@ -812,9 +944,15 @@
       "accuracyPct": 100
     },
     "list_my_test_results": {
-      "passed": 96,
+      "passed": 120,
       "failed": 0,
-      "total": 96,
+      "total": 120,
+      "accuracyPct": 100
+    },
+    "list_my_time_off_requests": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
       "accuracyPct": 100
     },
     "list_package_appointments_today": {
@@ -884,15 +1022,15 @@
       "accuracyPct": 100
     },
     "loyalty_points_balance": {
-      "passed": 1,
+      "passed": 4,
       "failed": 0,
-      "total": 1,
+      "total": 4,
       "accuracyPct": 100
     },
     "manage_notification_preferences": {
-      "passed": 2,
+      "passed": 3,
       "failed": 0,
-      "total": 2,
+      "total": 3,
       "accuracyPct": 100
     },
     "mark_paid": {
@@ -902,9 +1040,9 @@
       "accuracyPct": 100
     },
     "mark_running_late": {
-      "passed": 6,
+      "passed": 12,
       "failed": 0,
-      "total": 6,
+      "total": 12,
       "accuracyPct": 100
     },
     "mark_specimen_collected": {
@@ -932,9 +1070,9 @@
       "accuracyPct": 100
     },
     "my_stats": {
-      "passed": 8,
+      "passed": 18,
       "failed": 0,
-      "total": 8,
+      "total": 18,
       "accuracyPct": 100
     },
     "notify_patient_result_ready": {
@@ -979,6 +1117,12 @@
       "total": 16,
       "accuracyPct": 100
     },
+    "promo_code_help": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
     "push_lab_booking_to_patient": {
       "passed": 37,
       "failed": 0,
@@ -992,15 +1136,15 @@
       "accuracyPct": 100
     },
     "rebook_last_appointment": {
-      "passed": 2,
+      "passed": 5,
       "failed": 0,
-      "total": 2,
+      "total": 5,
       "accuracyPct": 100
     },
     "refer_a_friend": {
-      "passed": 2,
+      "passed": 3,
       "failed": 0,
-      "total": 2,
+      "total": 3,
       "accuracyPct": 100
     },
     "release_test_result": {
@@ -1009,16 +1153,40 @@
       "total": 29,
       "accuracyPct": 100
     },
+    "remove_service_from_cart": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "report_data_breach": {
       "passed": 4,
       "failed": 0,
       "total": 4,
       "accuracyPct": 100
     },
+    "request_time_off": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
     "reschedule_booking": {
       "passed": 1,
       "failed": 0,
       "total": 1,
+      "accuracyPct": 100
+    },
+    "reschedule_my_booking": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "reschedule_package_visit_self": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "reschedule_parse": {
@@ -1051,10 +1219,22 @@
       "total": 2,
       "accuracyPct": 100
     },
+    "select_subscription_plan": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "send_breach_notification": {
       "passed": 4,
       "failed": 0,
       "total": 4,
+      "accuracyPct": 100
+    },
+    "send_client_message": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12,
       "accuracyPct": 100
     },
     "set_service_tax_rate": {
@@ -1064,15 +1244,15 @@
       "accuracyPct": 100
     },
     "share_my_booking": {
-      "passed": 1,
+      "passed": 3,
       "failed": 0,
-      "total": 1,
+      "total": 3,
       "accuracyPct": 100
     },
     "share_salon_link": {
-      "passed": 1,
+      "passed": 3,
       "failed": 0,
-      "total": 1,
+      "total": 3,
       "accuracyPct": 100
     },
     "show_appointments": {
@@ -1081,10 +1261,16 @@
       "total": 8,
       "accuracyPct": 100
     },
-    "show_client_history": {
-      "passed": 11,
+    "show_cart_total_duration": {
+      "passed": 3,
       "failed": 0,
-      "total": 11,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "show_client_history": {
+      "passed": 27,
+      "failed": 0,
+      "total": 27,
       "accuracyPct": 100
     },
     "staff_book_lab_collection": {
@@ -1099,6 +1285,12 @@
       "total": 1,
       "accuracyPct": 100
     },
+    "suggest_waitlist_for_gap": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
     "summarize_bookings": {
       "passed": 3,
       "failed": 0,
@@ -1106,9 +1298,9 @@
       "accuracyPct": 100
     },
     "summarize_client": {
-      "passed": 12,
+      "passed": 30,
       "failed": 0,
-      "total": 12,
+      "total": 30,
       "accuracyPct": 100
     },
     "summarize_customer_tax_paid": {
@@ -1118,15 +1310,15 @@
       "accuracyPct": 100
     },
     "summarize_my_appointments": {
-      "passed": 10,
+      "passed": 24,
       "failed": 0,
-      "total": 10,
+      "total": 24,
       "accuracyPct": 100
     },
     "summarize_my_revenue": {
-      "passed": 10,
+      "passed": 24,
       "failed": 0,
-      "total": 10,
+      "total": 24,
       "accuracyPct": 100
     },
     "summarize_recommendation_performance": {
@@ -1153,6 +1345,12 @@
       "total": 1,
       "accuracyPct": 100
     },
+    "switch_to_consumer_app": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "tag_customer": {
       "passed": 1,
       "failed": 0,
@@ -1160,9 +1358,15 @@
       "accuracyPct": 100
     },
     "team_floor_status": {
-      "passed": 7,
+      "passed": 15,
       "failed": 0,
-      "total": 7,
+      "total": 15,
+      "accuracyPct": 100
+    },
+    "team_whos_next": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
       "accuracyPct": 100
     },
     "track_physical_gift_card_order": {
@@ -1187,6 +1391,12 @@
       "passed": 2,
       "failed": 0,
       "total": 2,
+      "accuracyPct": 100
+    },
+    "use_subscription_credit": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
       "accuracyPct": 100
     },
     "view_phi_access_audit": {

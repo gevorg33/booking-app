@@ -17,6 +17,35 @@ import {
 } from '../../../common/utils/phi-ai-guard.util.js';
 import { rescueClinicLabBookingSurfaceForEval } from '../ai-clinic-lab-booking-multilingual.util.js';
 import { enrichCatalogNotifyRescueParams } from '../ai-catalog-notify.util.js';
+import {
+  enrichBudgetFromPrompt,
+  rescueBudgetServiceDiscoveryIntent,
+  resolveBudgetMisrouteAction,
+  resolveBudgetMisrouteActionForSurface,
+} from '../ai-budget-service-discovery.util.js';
+import {
+  enrichServiceRankFromPrompt,
+  rescueServiceRankDiscoveryIntent,
+} from '../ai-service-rank-discovery.util.js';
+import { buildFlexibleAvailabilityEvalParams } from '../ai-flexible-availability-compound.util.js';
+import { rescueSelfServiceBookingIntent } from '../ai-self-service-booking.util.js';
+import { rescueMarketingGrowthIntent } from '../ai-marketing-growth.util.js';
+import {
+  parseExplainConsumerCheckoutSuccessFromPrompt,
+  rescueExplainConsumerCheckoutSuccessIntent,
+} from '../ai-consumer-checkout-success.util.js';
+import {
+  parseExplainConsumerCheckoutTaxFromPrompt,
+  rescueExplainConsumerCheckoutTaxIntent,
+} from '../ai-consumer-checkout-tax.util.js';
+import {
+  parseExplainResultStatusFromPrompt,
+  parseListMyTestResultsFromPrompt,
+  rescueConsumerClinicTestResultsIntent,
+} from '../ai-consumer-clinic-test-results.util.js';
+import { rescueProviderPushSetupIntent } from '../ai-provider-push-setup.util.js';
+import { validateCommand } from '../command-completion.validator.js';
+import type { ResolvedCommand } from '../command-completion.types.js';
 import type {
   AiCommandEvalCase,
   AiEvalCaseResult,
@@ -45,7 +74,21 @@ function valuesMatchPartial(actual: unknown, expected: unknown): boolean {
     return (
       Array.isArray(actual) &&
       expected.length === actual.length &&
-      expected.every((item, index) => item === actual[index])
+      expected.every((item, index) =>
+        valuesMatchPartial(actual[index], item),
+      )
+    );
+  }
+  if (expected !== null && typeof expected === 'object') {
+    if (actual === null || typeof actual !== 'object' || Array.isArray(actual)) {
+      return false;
+    }
+    return Object.entries(expected as Record<string, unknown>).every(
+      ([key, value]) =>
+        valuesMatchPartial(
+          (actual as Record<string, unknown>)[key],
+          value,
+        ),
     );
   }
   return actual === expected;
@@ -118,15 +161,56 @@ export function evaluateDeterministicEvalCase(
         );
       }
     }
-    if (expect.paramsPartial && !expect.rescuedAction) {
+    if (
+      expect.paramsPartial &&
+      !expect.rescuedAction &&
+      !expect.useSurfaceFlexibleAvailabilityEnrichment
+    ) {
       errors.push(...paramsMatchPartial(params, expect.paramsPartial));
+    }
+  }
+
+  if (
+    expect.useSurfaceFlexibleAvailabilityEnrichment === true &&
+    evalCase.surface &&
+    (evalCase.surface === 'public' || evalCase.surface === 'customer')
+  ) {
+    const enriched = buildFlexibleAvailabilityEvalParams(
+      prompt,
+      evalCase.surface,
+      expect.enrichedAction ?? 'check_availability',
+    );
+    if (expect.paramsPartial) {
+      errors.push(...paramsMatchPartial(enriched, expect.paramsPartial));
     }
   }
 
   if (expect.rescuedAction) {
     const misclassifiedAction = expect.rescueFromAction ?? 'unknown';
+    const useSurfaceSelfServiceRescue =
+      expect.useSurfaceSelfServiceRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceMarketingGrowthRescue =
+      expect.useSurfaceMarketingGrowthRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceConsumerCheckoutSuccessRescue =
+      expect.useSurfaceConsumerCheckoutSuccessRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceConsumerCheckoutTaxRescue =
+      expect.useSurfaceConsumerCheckoutTaxRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceConsumerClinicTestResultsRescue =
+      expect.useSurfaceConsumerClinicTestResultsRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceProviderPushSetupRescue =
+      expect.useSurfaceProviderPushSetupRescue === true &&
+      evalCase.surface === 'provider';
     const useSurfaceLabBookingRescue =
       expect.useSurfaceLabBookingRescue === true && !!evalCase.surface;
+    const useSurfaceBudgetRescue =
+      expect.useSurfaceBudgetRescue === true && !!evalCase.surface;
+    const useSurfaceRankRescue =
+      expect.useSurfaceRankRescue === true && !!evalCase.surface;
     const surfaceRescued = useSurfaceLabBookingRescue
       ? rescueClinicLabBookingSurfaceForEval(
           prompt,
@@ -134,7 +218,116 @@ export function evaluateDeterministicEvalCase(
           evalCase.surface as 'dashboard' | 'customer' | 'provider',
         )
       : null;
-    const rescued = useSurfaceLabBookingRescue
+    const budgetRescued = useSurfaceBudgetRescue
+      ? rescueBudgetServiceDiscoveryIntent(
+          prompt,
+          misclassifiedAction,
+          evalCase.surface as 'public' | 'customer' | 'dashboard',
+        )
+      : null;
+    const rankRescued = useSurfaceRankRescue
+      ? rescueServiceRankDiscoveryIntent(
+          prompt,
+          misclassifiedAction,
+          evalCase.surface as 'public' | 'customer' | 'dashboard',
+        )
+      : null;
+    const selfServiceRescued = useSurfaceSelfServiceRescue
+      ? rescueSelfServiceBookingIntent(prompt, misclassifiedAction)
+      : null;
+    const marketingGrowthRescued = useSurfaceMarketingGrowthRescue
+      ? rescueMarketingGrowthIntent(prompt, misclassifiedAction)
+      : null;
+    const consumerCheckoutSuccessRescued =
+      useSurfaceConsumerCheckoutSuccessRescue
+        ? rescueExplainConsumerCheckoutSuccessIntent(prompt, misclassifiedAction)
+        : null;
+    const consumerCheckoutSuccessParsed =
+      useSurfaceConsumerCheckoutSuccessRescue
+        ? parseExplainConsumerCheckoutSuccessFromPrompt(prompt)
+        : null;
+    const consumerCheckoutTaxRescued = useSurfaceConsumerCheckoutTaxRescue
+      ? rescueExplainConsumerCheckoutTaxIntent(prompt, misclassifiedAction)
+      : null;
+    const consumerCheckoutTaxParsed = useSurfaceConsumerCheckoutTaxRescue
+      ? parseExplainConsumerCheckoutTaxFromPrompt(prompt)
+      : null;
+    const consumerClinicTestResultsRescued =
+      useSurfaceConsumerClinicTestResultsRescue
+        ? rescueConsumerClinicTestResultsIntent(prompt, misclassifiedAction)
+        : null;
+    const consumerClinicListParsed = useSurfaceConsumerClinicTestResultsRescue
+      ? parseListMyTestResultsFromPrompt(prompt)
+      : null;
+    const consumerClinicExplainParsed = useSurfaceConsumerClinicTestResultsRescue
+      ? parseExplainResultStatusFromPrompt(prompt)
+      : null;
+    const providerPushSetupRescued = useSurfaceProviderPushSetupRescue
+      ? rescueProviderPushSetupIntent(prompt, misclassifiedAction)
+      : null;
+    const rescued = useSurfaceSelfServiceRescue
+      ? selfServiceRescued
+        ? {
+            action: selfServiceRescued.action,
+            params: {},
+            rescued: true,
+            rescueReason: selfServiceRescued.rescueReason,
+          }
+        : null
+      : useSurfaceMarketingGrowthRescue
+        ? marketingGrowthRescued
+          ? {
+              action: marketingGrowthRescued.action,
+              params: {},
+              rescued: true,
+              rescueReason: marketingGrowthRescued.rescueReason,
+            }
+          : null
+        : useSurfaceConsumerCheckoutSuccessRescue
+          ? consumerCheckoutSuccessRescued && consumerCheckoutSuccessParsed
+            ? {
+                action: consumerCheckoutSuccessRescued.action,
+                params: {
+                  aspect: consumerCheckoutSuccessParsed.aspect,
+                },
+                rescued: true,
+                rescueReason: consumerCheckoutSuccessRescued.rescueReason,
+              }
+            : null
+          : useSurfaceConsumerCheckoutTaxRescue
+            ? consumerCheckoutTaxRescued && consumerCheckoutTaxParsed
+              ? {
+                  action: consumerCheckoutTaxRescued.action,
+                  params: {
+                    aspect: consumerCheckoutTaxParsed.aspect,
+                  },
+                  rescued: true,
+                  rescueReason: consumerCheckoutTaxRescued.rescueReason,
+                }
+              : null
+            : useSurfaceConsumerClinicTestResultsRescue
+              ? consumerClinicTestResultsRescued
+                ? {
+                    action: consumerClinicTestResultsRescued.action,
+                    params:
+                      consumerClinicTestResultsRescued.action ===
+                      'list_my_test_results'
+                        ? { ...(consumerClinicListParsed ?? {}) }
+                        : { ...(consumerClinicExplainParsed ?? {}) },
+                    rescued: true,
+                    rescueReason: consumerClinicTestResultsRescued.rescueReason,
+                  }
+                : null
+              : useSurfaceProviderPushSetupRescue
+                ? providerPushSetupRescued
+                  ? {
+                      action: providerPushSetupRescued.action,
+                      params: {},
+                      rescued: true,
+                      rescueReason: providerPushSetupRescued.rescueReason,
+                    }
+                  : null
+      : useSurfaceLabBookingRescue
       ? surfaceRescued
         ? {
             action: surfaceRescued.action,
@@ -143,12 +336,31 @@ export function evaluateDeterministicEvalCase(
             rescueReason: surfaceRescued.rescueReason,
           }
         : null
-      : rescue.rescue({
-          prompt,
-          action: misclassifiedAction,
-          params: {},
-          employees: SAMPLE_EMPLOYEES,
-        });
+      : useSurfaceRankRescue
+        ? rankRescued
+          ? {
+              action: rankRescued.action,
+              params: rankRescued.params,
+              rescued: true,
+              rescueReason: rankRescued.rescueReason,
+            }
+          : null
+        : useSurfaceBudgetRescue
+          ? budgetRescued
+            ? {
+                action: budgetRescued.action,
+                params: enrichBudgetFromPrompt({}, prompt),
+                rescued: true,
+                rescueReason: budgetRescued.rescueReason,
+              }
+            : null
+          : rescue.rescue({
+            prompt,
+            action: misclassifiedAction,
+            params: {},
+            employees: SAMPLE_EMPLOYEES,
+            surface: evalCase.surface,
+          });
     if (!rescued?.rescued || rescued.action !== expect.rescuedAction) {
       errors.push(
         `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
@@ -295,6 +507,46 @@ export function evaluateDeterministicEvalCase(
         errors.push(
           `phiGuard.redactedSubstring: expected "${expect.phiGuard.redactedSubstring}" in redacted prompt`,
         );
+      }
+    }
+  }
+
+  if (expect.expectValidationClarify) {
+    const action = expect.validationAction ?? expect.rescuedAction;
+    if (!action) {
+      errors.push(
+        'expectValidationClarify: validationAction or rescuedAction required',
+      );
+    } else {
+      const cmd: ResolvedCommand = {
+        action,
+        params: { ...(expect.validationParamsPartial ?? {}) },
+        reasoning: 'eval',
+        prompt,
+        businessId: 'eval-business',
+        entities: {
+          employees: [],
+          services: [],
+          customers: [],
+          templates: [],
+        },
+        enrichedParams: {},
+      };
+      const validation = validateCommand(cmd);
+      if (validation.ok) {
+        errors.push(
+          'expectValidationClarify: validation passed but expected clarify',
+        );
+      }
+      if (expect.clarifyFieldsContains?.length) {
+        const fields = validation.issues.map((issue) => issue.field);
+        for (const field of expect.clarifyFieldsContains) {
+          if (!fields.includes(field)) {
+            errors.push(
+              `clarifyFieldsContains: missing ${field} in [${fields.join(', ')}]`,
+            );
+          }
+        }
       }
     }
   }

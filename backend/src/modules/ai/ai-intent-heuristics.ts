@@ -26,6 +26,7 @@ import {
 } from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
   BookingStatus,
   PaymentStatus,
@@ -690,27 +691,28 @@ export function enrichPublicAssistantParamsFromPrompt(
     return params;
   }
 
+  let next = params;
   const promptService = extractServiceFromPrompt(prompt, services);
   if (promptService) {
-    return {
-      ...params,
+    next = {
+      ...next,
       serviceName: promptService.name,
       serviceCategory: null,
       serviceNames: null,
     };
+  } else {
+    const rawName = extractServiceNameFromPrompt(prompt);
+    if (rawName) {
+      next = {
+        ...next,
+        serviceName: rawName,
+        serviceCategory: null,
+        serviceNames: null,
+      };
+    }
   }
 
-  const rawName = extractServiceNameFromPrompt(prompt);
-  if (rawName) {
-    return {
-      ...params,
-      serviceName: rawName,
-      serviceCategory: null,
-      serviceNames: null,
-    };
-  }
-
-  return params;
+  return enrichDiscoveryParamsFromPrompt(next, prompt);
 }
 
 /** Book on any provider — do not pin to a single employeeName. */

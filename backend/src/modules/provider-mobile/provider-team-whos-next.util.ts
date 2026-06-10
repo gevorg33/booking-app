@@ -186,11 +186,32 @@ export function buildTeamWhosNextView<T extends TeamWhosNextBookingLike>(
 export function isTeamWhosNextPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (
-    /across\s+(?:the\s+)?team|team(?:'s)?\s+(?:queue|schedule|floor)|all\s+providers|each\s+provider|every\s+provider|who'?s\s+next\s+(?:on\s+)?(?:the\s+)?team|next\s+2\s*h(?:ours?)?/.test(
+    /across\s+(?:the\s+)?team|team(?:'s)?\s+queue|who'?s\s+next\s+(?:on\s+)?(?:the\s+)?team|next\s+2\s*h(?:ours?)?/.test(
       lower,
     )
   ) {
     return true;
+  }
+  if (
+    /(?:who'?s\s+next|who\s+is\s+next|show\s+who\s+is\s+next).*(?:all\s+providers|every\s+provider|each\s+provider)|(?:all\s+providers|every\s+provider|each\s+provider).*(?:who'?s\s+next|who\s+is\s+next|next\s+in\s+(?:the\s+)?queue)/.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+  if (/[\u0530-\u058F]/.test(prompt)) {
+    return (
+      /(թիմ.*(հաջորդ|next)|next.*2.*(ժամ|hour).*թիմ|հաջորդ.*2.*ժամ.*թիմ|(բոլոր.*provider|provider.*բոլոր).*(հաջորդ|next)|(հաջորդ|next).*(բոլոր.*provider|provider.*բոլոր))/i.test(
+        prompt,
+      )
+    );
+  }
+  if (/[\u0400-\u04FF]/.test(prompt)) {
+    return (
+      /(команд.*(следующ|next)|следующ.*(команд|2.*час)|всех\s+провайдер.*(следующ|next)|следующ.*всех\s+провайдер)/i.test(
+        prompt,
+      )
+    );
   }
   return false;
 }

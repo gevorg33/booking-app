@@ -1,4 +1,5 @@
 import { isExplainCheckoutTaxPrompt } from './ai-checkout-tax.util.js';
+import { CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS } from './ai-consumer-checkout-tax-multilingual.fixtures.js';
 import { hasConsumerAppContext } from './ai-consumer-checkout-success.util.js';
 import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 
@@ -29,6 +30,18 @@ function hasConsumerCheckoutTaxCue(prompt: string): boolean {
   return false;
 }
 
+function matchConsumerCheckoutTaxMultilingualScenario(
+  prompt: string,
+): (typeof CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS)[number] | null {
+  const normalized = prompt.trim().toLowerCase();
+  for (const scenario of CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS) {
+    if (scenario.prompt.trim().toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  return null;
+}
+
 function hasConsumerCheckoutTaxTopic(prompt: string): boolean {
   return (
     /\b(?:tax\s+line|tax\s+breakdown|payment\s+summary)\b/i.test(prompt) ||
@@ -48,6 +61,7 @@ function hasConsumerCheckoutTaxTopic(prompt: string): boolean {
 }
 
 export function isExplainConsumerCheckoutTaxPrompt(prompt: string): boolean {
+  if (matchConsumerCheckoutTaxMultilingualScenario(prompt)) return true;
   if (!hasConsumerCheckoutTaxCue(prompt)) return false;
   if (!hasConsumerAppContext(prompt)) return false;
   if (isExplainCheckoutTaxPrompt(prompt) && !hasConsumerAppContext(prompt)) {
@@ -110,6 +124,10 @@ export function parseExplainConsumerCheckoutTaxAspect(
 export function parseExplainConsumerCheckoutTaxFromPrompt(
   prompt: string,
 ): ParsedExplainConsumerCheckoutTax | null {
+  const multilingualScenario = matchConsumerCheckoutTaxMultilingualScenario(prompt);
+  if (multilingualScenario) {
+    return { aspect: multilingualScenario.aspect };
+  }
   if (!isExplainConsumerCheckoutTaxPrompt(prompt)) return null;
   return { aspect: parseExplainConsumerCheckoutTaxAspect(prompt) };
 }

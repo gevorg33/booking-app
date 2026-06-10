@@ -6,6 +6,8 @@ import {
   resolveDirectSchedulePeriodServiceIds,
   matchEmployeesInPrompt,
   resolvePublicAvailabilityDateKeys,
+  resolvePublicAvailabilityWindows,
+  resolveDateKeysForAvailabilityWindow,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
   enrichListServicesParamsFromPrompt,
@@ -169,6 +171,78 @@ describe('resolvePublicAvailabilityDateKeys', () => {
       tz,
     );
     expect(dates).toEqual([]);
+  });
+
+  it('keeps OR windows separate with paired timeOfDay (avail-1.4)', () => {
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
+      'I want a haircut tomorrow evening or Friday afternoon',
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(windows).toHaveLength(2);
+    expect(windows[0]?.timeOfDay).toBe('evening');
+    expect(windows[0]?.dateKeys).toHaveLength(1);
+    expect(windows[1]?.timeOfDay).toBe('afternoon');
+    expect(windows[1]?.dateKeys.length).toBeGreaterThan(0);
+    for (const dateKey of windows[1]!.dateKeys) {
+      expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(5);
+    }
+    expect(windows[0]?.dateKeys[0]).not.toEqual(windows[1]?.dateKeys[0]);
+  });
+
+  it('does not merge OR weekdays into one window when availabilityWindows is set', () => {
+    const tomorrowKey = resolveDateKeysForAvailabilityWindow(
+      { date: 'tomorrow' },
+      tz,
+      14,
+    )[0];
+    const fridayKeys = resolveDateKeysForAvailabilityWindow(
+      { weekdays: ['friday'] },
+      tz,
+      14,
+    );
+
+    const flattened = resolvePublicAvailabilityDateKeys(
+      {
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
+      undefined,
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(flattened).toContain(tomorrowKey);
+    for (const dateKey of fridayKeys) {
+      expect(flattened).toContain(dateKey);
+    }
+  });
+
+  it('keeps AND weekdays in a single window with shared timeOfDay (avail-1.4)', () => {
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        weekdays: ['monday', 'friday'],
+        timeOfDay: 'afternoon',
+      },
+      'Monday and Friday afternoon for color',
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]?.timeOfDay).toBe('afternoon');
+    for (const dateKey of windows[0]!.dateKeys) {
+      expect([1, 5]).toContain(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay());
+    }
   });
 });
 

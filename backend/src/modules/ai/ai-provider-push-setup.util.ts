@@ -1,4 +1,5 @@
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from './ai-provider-push-setup.fixtures.js';
+import { PROVIDER_PUSH_SETUP_MULTILINGUAL_SCENARIOS } from './ai-provider-push-setup-multilingual.fixtures.js';
 import { hasProviderPushTimeContext } from './ai-provider-date-format.util.js';
 import {
   isExplainLastPushPrompt,
@@ -57,6 +58,10 @@ function hasNativePushTopic(prompt: string): boolean {
 }
 
 export function isExplainPushSetupPrompt(prompt: string): boolean {
+  if (matchProviderPushSetupScenarioPrompt(prompt) === 'explain_push_setup') {
+    return true;
+  }
+
   if (isExplainLastPushPrompt(prompt)) return false;
   if (hasProviderPushTimeContext(prompt)) return false;
   if (!hasNativePushTopic(prompt)) return false;
@@ -85,6 +90,12 @@ export function isExplainPushSetupPrompt(prompt: string): boolean {
 }
 
 export function isEnablePushNotificationsPrompt(prompt: string): boolean {
+  if (
+    matchProviderPushSetupScenarioPrompt(prompt) === 'enable_push_notifications'
+  ) {
+    return true;
+  }
+
   if (isExplainLastPushPrompt(prompt)) return false;
   if (hasProviderPushTimeContext(prompt)) return false;
   if (
@@ -113,12 +124,21 @@ export function isEnablePushNotificationsPrompt(prompt: string): boolean {
   );
 }
 
+function normalizeProviderPushSetupPrompt(prompt: string): string {
+  return prompt.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function matchProviderPushSetupScenarioPrompt(
   prompt: string,
 ): ProviderPushSetupIntent | null {
-  const normalized = prompt.trim().toLowerCase();
+  const normalized = normalizeProviderPushSetupPrompt(prompt);
   for (const scenario of PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS) {
-    if (scenario.prompt.trim().toLowerCase() === normalized) {
+    if (normalizeProviderPushSetupPrompt(scenario.prompt) === normalized) {
+      return scenario.expectedAction;
+    }
+  }
+  for (const scenario of PROVIDER_PUSH_SETUP_MULTILINGUAL_SCENARIOS) {
+    if (normalizeProviderPushSetupPrompt(scenario.prompt) === normalized) {
       return scenario.expectedAction;
     }
   }

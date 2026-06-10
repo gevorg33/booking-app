@@ -5,6 +5,7 @@ import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
+import { findNearestBookableSlotAcrossWindowsWithFinder } from './ai-nearest-slot-resolver.util.js';
 import { validateCommand } from './command-completion.validator.js';
 import type { ResolvedCommand } from './command-completion.types.js';
 import {
@@ -112,10 +113,24 @@ const ALL_CHECK_AND_BOOK_PROMPTS = [
   ...SIMILAR_CHECK_AND_BOOK_PROMPTS,
 ];
 
+function attachNearestAcrossWindowsMock(publicBookingService: {
+  findNearestBookableSlot: jest.Mock;
+  findNearestBookableSlotAcrossWindows?: jest.Mock;
+}) {
+  publicBookingService.findNearestBookableSlotAcrossWindows = jest.fn(
+    async (slug, options) =>
+      findNearestBookableSlotAcrossWindowsWithFinder(
+        slug,
+        options,
+        publicBookingService.findNearestBookableSlot,
+      ),
+  );
+}
+
 function buildLogicDeps(
   overrides: Partial<PaymentsLogicDeps> = {},
 ): PaymentsLogicDeps {
-  return {
+  const deps: PaymentsLogicDeps = {
     giftCardsService: {} as any,
     giftCardPurchaseService: {} as any,
     giftCardOrderService: {} as any,
@@ -136,6 +151,7 @@ function buildLogicDeps(
         startTime: '2026-06-06T17:00:00Z',
         employeeId: 'e1',
         employeeName: 'Karo Mazmanyan',
+        dateKey: '2026-06-06',
       })),
     } as any,
     accountingIntegrationService: {} as any,
@@ -161,6 +177,8 @@ function buildLogicDeps(
     giftCardRepo: {} as any,
     ...overrides,
   };
+  attachNearestAcrossWindowsMock(deps.publicBookingService as any);
+  return deps;
 }
 
 function resolvedCreateBooking(
@@ -208,8 +226,10 @@ describe('ai check-and-book integration', () => {
       startTime: '2026-06-06T17:00:00Z',
       employeeId: 'e1',
       employeeName: 'Karo Mazmanyan',
+      dateKey: '2026-06-06',
     })),
   };
+  attachNearestAcrossWindowsMock(publicBookingService as any);
   const businessRepo = {
     findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
   };
@@ -604,6 +624,8 @@ describe('ai check-and-book integration', () => {
         employeeId: null,
         notBeforeTime: '17:00',
         startDateKey: expect.any(String),
+        dateKeys: expect.any(Array),
+        timeOfDay: 'evening',
       });
       expect(result.details?.serviceName).toBe('Permanent lashes');
       expect(result.details?.date).toBeTruthy();

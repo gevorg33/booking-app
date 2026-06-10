@@ -4,6 +4,7 @@ import {
   CONSUMER_COPY_HY,
   CONSUMER_COPY_RU,
   CONSUMER_COPY_LOCALES,
+  CONSUMER_DISCOVERY_CHIP_COPY_CATALOG,
   getConsumerCopy,
 } from './consumer-copy-catalog.js';
 import { consumerCopyForLocale, formatCopy } from './copy.js';
@@ -45,6 +46,13 @@ describe('consumer-copy-catalog', () => {
     expect(getConsumerCopy('ru').myResultsTitle).toBe('Мои результаты');
     expect(getConsumerCopy('ru').myResultsReleasedOn).toBe('Выпущен');
     expect(getConsumerCopy('ru').myResultsUnnamed).toBe('Результат анализа');
+  });
+
+  it('documents discover assistant chip prompts in EN copy (discover-exit-4)', () => {
+    for (const row of CONSUMER_DISCOVERY_CHIP_COPY_CATALOG) {
+      expect(CONSUMER_COPY_EN[row.labelKey]).toBe(row.en.label);
+      expect(CONSUMER_COPY_EN[row.promptKey]).toBe(row.en.prompt);
+    }
   });
 
   it('resolves locale from tenant preference with EN fallback', () => {

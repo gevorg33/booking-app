@@ -1,11 +1,16 @@
 import {
   buildCapabilitiesView,
   capabilityMatrixForPrompt,
+  CUSTOMER_PUBLIC_DELEGATED_INTENTS,
+  CUSTOMER_PUBLIC_RESCUE_ROUTING,
   getAllowedIntents,
+  getCustomerNativeIntents,
   getEffectiveAllowedIntents,
+  getPublicDelegatedCustomerIntents,
   isIntentAllowed,
   isMutatingIntent,
   normalizeActorRole,
+  validateCustomerPublicDelegatedIntents,
 } from './ai-capability.matrix.js';
 import {
   CUSTOMER_INTENTS,
@@ -13,6 +18,7 @@ import {
   PROVIDER_INTENTS,
   PUBLIC_INTENTS,
 } from './ai-command-registry.build.js';
+import { PUBLIC_ONLY_ASSISTANT_ACTIONS } from './customer-ai-command.util.js';
 
 describe('ai-capability.matrix (Sprint 15)', () => {
   it('restricts staff from owner-only dashboard intents', () => {
@@ -144,9 +150,41 @@ describe('ai-capability.matrix (Sprint 15)', () => {
     const view = buildCapabilitiesView('customer', 'client', 'solo');
     expect(view.surface).toBe('customer');
     expect(view.allowedIntents).toContain('book_package');
+    expect(view.publicDelegatedIntents).toEqual([
+      ...PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    ]);
+    expect(view.customerNativeIntents).toContain('book_package');
+    expect(view.customerNativeIntents).not.toContain('list_services');
+    expect(view.rescueRoutingNotes).toBe(
+      CUSTOMER_PUBLIC_RESCUE_ROUTING.sharedDiscovery.summary,
+    );
     expect(capabilityMatrixForPrompt('customer', 'client')).toMatch(
       /Customer booking assistant/,
     );
+    expect(capabilityMatrixForPrompt('customer', 'client')).toMatch(
+      /delegated to PublicBookingAssistantService/,
+    );
+  });
+
+  it('documents public delegation vs customer-native intents (ai-cmd-customer-0.1)', () => {
+    expect(validateCustomerPublicDelegatedIntents()).toEqual([]);
+    expect(CUSTOMER_PUBLIC_DELEGATED_INTENTS).toEqual([
+      ...PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    ]);
+
+    const delegated = getPublicDelegatedCustomerIntents('client');
+    const native = getCustomerNativeIntents('client');
+    const allowed = getAllowedIntents('customer', 'client');
+
+    for (const action of PUBLIC_ONLY_ASSISTANT_ACTIONS) {
+      expect(delegated).toContain(action);
+      expect(native).not.toContain(action);
+      expect(allowed).toContain(action);
+    }
+
+    expect(native).toContain('book_package');
+    expect(native).not.toContain('list_services');
+    expect(delegated).not.toContain('book_package');
   });
 
   it('allows customer meta actions and rejects dashboard intents on customer surface', () => {

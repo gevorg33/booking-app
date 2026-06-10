@@ -1,0 +1,435 @@
+import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type { SelfServiceBookingIntent } from './ai-self-service-booking.util.js';
+
+export type SelfServiceBookingMultilingualScenario = {
+  id: string;
+  locale: AiEvalLocale;
+  prompt: string;
+  expectedAction: SelfServiceBookingIntent;
+  rescueReason: string;
+};
+
+/** Classifier guidance for hy/ru customer self-service cancel/reschedule/manage (acc-2.4). */
+export const SELF_SERVICE_BOOKING_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian customer self-service booking (logged-in consumer app):
+  - cancel_my_booking: hy «չեղարկել իմ ամրագրումը»; ru «отменить мою запись», «отмени моё бронирование». NOT cancel_bookings (staff).
+  - reschedule_my_booking: hy «վերամրագրել իմ.amрagрумը»; ru «перенести мою запись», «изменить время записи». NOT reschedule_booking (staff).
+  - cancel_package_visit_self / reschedule_package_visit_self: hy spa day / package visit phrasing; ru «отменить мой пакетный визит», «перенести spa day».
+  - get_manage_link: hy «ուղարկել.im amragrumi karavarman hghumn»; ru «ссылка для управления записью», «получить ссылку на бронирование».
+  - explain_cancel_policy: hy «բացատրել չեղարկման կանոնները»; ru «объясни политику отмены», «правила переноса записи».
+  - select_subscription_plan: hy «ընտրել ամսական պլանը»; ru «выбрать месячный план», «подписаться на план».
+  - use_subscription_credit: hy «օգտագործել.abonamenti kredit@»; ru «использовать кредит по подписке».
+  - add_services_to_cart: hy «ավելացնել massage-ը.zangvaчинում»; ru «добавить массаж в корзину».
+  - show_cart_total_duration: hy «ցույց տալ.zangvaչin@ ev.or@»; ru «показать общую длительность корзины».
+  - remove_service_from_cart: hy «հեռացնել massage-ը.zangvaчинից»; ru «удалить массаж из корзины».
+  - reschedule_package_visit_self: hy «վeramragrel spa day package visit-ը»; ru «перенести мой spa day визит».
+  - book_with_gift_card: hy «amragrel gift card-ով»; ru «забронировать с подарочной картой».
+  - book_with_cash: hy «amragrel cash-ով»; ru «забронировать за наличные».
+  - change_provider_on_reschedule: hy «reschedule-ի.zaman poxanvel specialist-ը»; ru «сменить специалиста при переносе».
+  - book_package: hy «amragrel spa day package»; ru «забронировать spa day пакет».
+  - book_multi_service: hy «amragrel massage and facial together»; ru «забронировать massage и facial вместе».
+  - check_package_availability: hy «stugel spa day package availability»; ru «есть ли места для spa day пакета».
+  - check_multi_service_availability: hy «stugel multi-service availability»; ru «проверить доступность multi-service».
+  - list_my_appointments: hy «list im amagруmner@»; ru «показать список моих записей».`;
+
+export const SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS: SelfServiceBookingMultilingualScenario[] =
+  [
+    {
+      id: 'cancel-my-booking-en',
+      locale: 'en',
+      prompt: 'Cancel my booking',
+      expectedAction: 'cancel_my_booking',
+      rescueReason: 'cancel_my',
+    },
+    {
+      id: 'cancel-my-booking-hy',
+      locale: 'hy',
+      prompt: 'Չեղարկել իմ ամրագրումը',
+      expectedAction: 'cancel_my_booking',
+      rescueReason: 'cancel_my',
+    },
+    {
+      id: 'cancel-my-booking-ru',
+      locale: 'ru',
+      prompt: 'Отменить мою запись',
+      expectedAction: 'cancel_my_booking',
+      rescueReason: 'cancel_my',
+    },
+    {
+      id: 'reschedule-my-booking-en',
+      locale: 'en',
+      prompt: 'Reschedule my appointment',
+      expectedAction: 'reschedule_my_booking',
+      rescueReason: 'reschedule_my',
+    },
+    {
+      id: 'reschedule-my-booking-hy',
+      locale: 'hy',
+      prompt: 'Վերամրագրել իմ ամրագրումը',
+      expectedAction: 'reschedule_my_booking',
+      rescueReason: 'reschedule_my',
+    },
+    {
+      id: 'reschedule-my-booking-ru',
+      locale: 'ru',
+      prompt: 'Перенести мою запись',
+      expectedAction: 'reschedule_my_booking',
+      rescueReason: 'reschedule_my',
+    },
+    {
+      id: 'get-manage-link-en',
+      locale: 'en',
+      prompt: 'Send me my booking manage link',
+      expectedAction: 'get_manage_link',
+      rescueReason: 'manage_link',
+    },
+    {
+      id: 'get-manage-link-hy',
+      locale: 'hy',
+      prompt: 'Ուղարկել իմ ամրագրության կառավարման հղումը',
+      expectedAction: 'get_manage_link',
+      rescueReason: 'manage_link',
+    },
+    {
+      id: 'get-manage-link-ru',
+      locale: 'ru',
+      prompt: 'Прислать ссылку для управления записью',
+      expectedAction: 'get_manage_link',
+      rescueReason: 'manage_link',
+    },
+    {
+      id: 'explain-cancel-policy-en',
+      locale: 'en',
+      prompt: 'Explain the cancellation policy',
+      expectedAction: 'explain_cancel_policy',
+      rescueReason: 'cancel_policy',
+    },
+    {
+      id: 'explain-cancel-policy-hy',
+      locale: 'hy',
+      prompt: 'Բացատրել չեղարկման կանոնները',
+      expectedAction: 'explain_cancel_policy',
+      rescueReason: 'cancel_policy',
+    },
+    {
+      id: 'explain-cancel-policy-ru',
+      locale: 'ru',
+      prompt: 'Объясни политику отмены',
+      expectedAction: 'explain_cancel_policy',
+      rescueReason: 'cancel_policy',
+    },
+    {
+      id: 'cancel-package-visit-en',
+      locale: 'en',
+      prompt: 'Cancel my spa day package visit',
+      expectedAction: 'cancel_package_visit_self',
+      rescueReason: 'cancel_package_self',
+    },
+    {
+      id: 'cancel-package-visit-hy',
+      locale: 'hy',
+      prompt: 'Չեղարկել իմ spa day package visit-ը',
+      expectedAction: 'cancel_package_visit_self',
+      rescueReason: 'cancel_package_self',
+    },
+    {
+      id: 'cancel-package-visit-ru',
+      locale: 'ru',
+      prompt: 'Отменить мой визит по spa day пакету',
+      expectedAction: 'cancel_package_visit_self',
+      rescueReason: 'cancel_package_self',
+    },
+    {
+      id: 'select-subscription-plan-en',
+      locale: 'en',
+      prompt: 'Select monthly plan',
+      expectedAction: 'select_subscription_plan',
+      rescueReason: 'select_plan',
+    },
+    {
+      id: 'select-subscription-plan-hy',
+      locale: 'hy',
+      prompt: 'Ընտրել ամսական պլանը',
+      expectedAction: 'select_subscription_plan',
+      rescueReason: 'select_plan',
+    },
+    {
+      id: 'select-subscription-plan-ru',
+      locale: 'ru',
+      prompt: 'Выбрать месячный план',
+      expectedAction: 'select_subscription_plan',
+      rescueReason: 'select_plan',
+    },
+    {
+      id: 'use-subscription-credit-en',
+      locale: 'en',
+      prompt: 'Use subscription credit',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'use-subscription-credit-hy',
+      locale: 'hy',
+      prompt: 'Օգտագործել subscription credit',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'use-subscription-credit-ru',
+      locale: 'ru',
+      prompt: 'Использовать кредит по подписке',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'add-services-to-cart-en',
+      locale: 'en',
+      prompt: 'Add massage to my cart',
+      expectedAction: 'add_services_to_cart',
+      rescueReason: 'add_cart',
+    },
+    {
+      id: 'add-services-to-cart-hy',
+      locale: 'hy',
+      prompt: 'Ավելացնել massage-ը զամբյուղում',
+      expectedAction: 'add_services_to_cart',
+      rescueReason: 'add_cart',
+    },
+    {
+      id: 'add-services-to-cart-ru',
+      locale: 'ru',
+      prompt: 'Добавить массаж в корзину',
+      expectedAction: 'add_services_to_cart',
+      rescueReason: 'add_cart',
+    },
+    {
+      id: 'show-cart-duration-en',
+      locale: 'en',
+      prompt: 'Show cart total duration',
+      expectedAction: 'show_cart_total_duration',
+      rescueReason: 'cart_duration',
+    },
+    {
+      id: 'show-cart-duration-hy',
+      locale: 'hy',
+      prompt: 'Ցույց տալ cart total duration',
+      expectedAction: 'show_cart_total_duration',
+      rescueReason: 'cart_duration',
+    },
+    {
+      id: 'show-cart-duration-ru',
+      locale: 'ru',
+      prompt: 'Показать общую длительность корзины',
+      expectedAction: 'show_cart_total_duration',
+      rescueReason: 'cart_duration',
+    },
+    {
+      id: 'remove-service-from-cart-en',
+      locale: 'en',
+      prompt: 'Remove facial from cart',
+      expectedAction: 'remove_service_from_cart',
+      rescueReason: 'remove_cart',
+    },
+    {
+      id: 'remove-service-from-cart-hy',
+      locale: 'hy',
+      prompt: 'Հեռացնել massage-ը զամբյուղից',
+      expectedAction: 'remove_service_from_cart',
+      rescueReason: 'remove_cart',
+    },
+    {
+      id: 'remove-service-from-cart-ru',
+      locale: 'ru',
+      prompt: 'Удалить массаж из корзины',
+      expectedAction: 'remove_service_from_cart',
+      rescueReason: 'remove_cart',
+    },
+    {
+      id: 'reschedule-package-visit-en',
+      locale: 'en',
+      prompt: 'Reschedule my spa day package visit',
+      expectedAction: 'reschedule_package_visit_self',
+      rescueReason: 'reschedule_package_self',
+    },
+    {
+      id: 'reschedule-package-visit-hy',
+      locale: 'hy',
+      prompt: 'Վերամրագրել իմ spa day package visit-ը',
+      expectedAction: 'reschedule_package_visit_self',
+      rescueReason: 'reschedule_package_self',
+    },
+    {
+      id: 'reschedule-package-visit-ru',
+      locale: 'ru',
+      prompt: 'Перенести мой spa day визит',
+      expectedAction: 'reschedule_package_visit_self',
+      rescueReason: 'reschedule_package_self',
+    },
+    {
+      id: 'book-with-gift-card-en',
+      locale: 'en',
+      prompt: 'Book with gift card',
+      expectedAction: 'book_with_gift_card',
+      rescueReason: 'book_gift_card',
+    },
+    {
+      id: 'book-with-gift-card-hy',
+      locale: 'hy',
+      prompt: 'Ամրագրել gift card-ով',
+      expectedAction: 'book_with_gift_card',
+      rescueReason: 'book_gift_card',
+    },
+    {
+      id: 'book-with-gift-card-ru',
+      locale: 'ru',
+      prompt: 'Забронировать с подарочной картой',
+      expectedAction: 'book_with_gift_card',
+      rescueReason: 'book_gift_card',
+    },
+    {
+      id: 'book-with-cash-en',
+      locale: 'en',
+      prompt: 'Book with cash',
+      expectedAction: 'book_with_cash',
+      rescueReason: 'book_cash',
+    },
+    {
+      id: 'book-with-cash-hy',
+      locale: 'hy',
+      prompt: 'Ամրագրել cash-ով',
+      expectedAction: 'book_with_cash',
+      rescueReason: 'book_cash',
+    },
+    {
+      id: 'book-with-cash-ru',
+      locale: 'ru',
+      prompt: 'Забронировать за наличные',
+      expectedAction: 'book_with_cash',
+      rescueReason: 'book_cash',
+    },
+    {
+      id: 'change-provider-on-reschedule-en',
+      locale: 'en',
+      prompt: 'Change provider on reschedule',
+      expectedAction: 'change_provider_on_reschedule',
+      rescueReason: 'change_provider',
+    },
+    {
+      id: 'change-provider-on-reschedule-hy',
+      locale: 'hy',
+      prompt: 'Reschedule-ի ժամանակ փոխել specialist-ը',
+      expectedAction: 'change_provider_on_reschedule',
+      rescueReason: 'change_provider',
+    },
+    {
+      id: 'change-provider-on-reschedule-ru',
+      locale: 'ru',
+      prompt: 'Сменить специалиста при переносе',
+      expectedAction: 'change_provider_on_reschedule',
+      rescueReason: 'change_provider',
+    },
+    {
+      id: 'book-package-en',
+      locale: 'en',
+      prompt: 'Book spa day package',
+      expectedAction: 'book_package',
+      rescueReason: 'book_package',
+    },
+    {
+      id: 'book-package-hy',
+      locale: 'hy',
+      prompt: 'Ամրագրել spa day package',
+      expectedAction: 'book_package',
+      rescueReason: 'book_package',
+    },
+    {
+      id: 'book-package-ru',
+      locale: 'ru',
+      prompt: 'Забронировать spa day пакет',
+      expectedAction: 'book_package',
+      rescueReason: 'book_package',
+    },
+    {
+      id: 'book-multi-service-en',
+      locale: 'en',
+      prompt: 'Book massage and facial together',
+      expectedAction: 'book_multi_service',
+      rescueReason: 'book_multi',
+    },
+    {
+      id: 'book-multi-service-hy',
+      locale: 'hy',
+      prompt: 'Ամրագրել massage and facial together',
+      expectedAction: 'book_multi_service',
+      rescueReason: 'book_multi',
+    },
+    {
+      id: 'book-multi-service-ru',
+      locale: 'ru',
+      prompt: 'Забронировать massage и facial вместе',
+      expectedAction: 'book_multi_service',
+      rescueReason: 'book_multi',
+    },
+    {
+      id: 'check-package-availability-en',
+      locale: 'en',
+      prompt: 'Is spa package available',
+      expectedAction: 'check_package_availability',
+      rescueReason: 'package_availability',
+    },
+    {
+      id: 'check-package-availability-hy',
+      locale: 'hy',
+      prompt: 'Ստուգել spa day package availability',
+      expectedAction: 'check_package_availability',
+      rescueReason: 'package_availability',
+    },
+    {
+      id: 'check-package-availability-ru',
+      locale: 'ru',
+      prompt: 'Есть ли места для spa day пакета',
+      expectedAction: 'check_package_availability',
+      rescueReason: 'package_availability',
+    },
+    {
+      id: 'check-multi-service-availability-en',
+      locale: 'en',
+      prompt: 'Check multi-service availability',
+      expectedAction: 'check_multi_service_availability',
+      rescueReason: 'multi_availability',
+    },
+    {
+      id: 'check-multi-service-availability-hy',
+      locale: 'hy',
+      prompt: 'Ստուգել multi-service availability',
+      expectedAction: 'check_multi_service_availability',
+      rescueReason: 'multi_availability',
+    },
+    {
+      id: 'check-multi-service-availability-ru',
+      locale: 'ru',
+      prompt: 'Проверить доступность multi-service',
+      expectedAction: 'check_multi_service_availability',
+      rescueReason: 'multi_availability',
+    },
+    {
+      id: 'list-my-appointments-en',
+      locale: 'en',
+      prompt: 'List my appointments',
+      expectedAction: 'list_my_appointments',
+      rescueReason: 'list_appointments',
+    },
+    {
+      id: 'list-my-appointments-hy',
+      locale: 'hy',
+      prompt: 'List իմ ամրագրումները',
+      expectedAction: 'list_my_appointments',
+      rescueReason: 'list_appointments',
+    },
+    {
+      id: 'list-my-appointments-ru',
+      locale: 'ru',
+      prompt: 'Показать список моих записей',
+      expectedAction: 'list_my_appointments',
+      rescueReason: 'list_appointments',
+    },
+  ];

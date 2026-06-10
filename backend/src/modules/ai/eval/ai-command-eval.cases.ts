@@ -263,10 +263,61 @@ import {
   type RecommendationProductEvalScenario,
 } from '../ai-recommendation-product-multilingual.fixtures.js';
 import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from '../ai-checkout-recommendations.fixtures.js';
+export {
+  AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES,
+  AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CUSTOMER_CASES,
+  AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_DASHBOARD_CASES,
+  AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_PUBLIC_CASES,
+  budgetServiceDiscoveryScenarioToEvalCase,
+} from '../ai-budget-service-discovery.eval.util.js';
+export {
+  AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CASES,
+  AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CUSTOMER_CASES,
+  AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_PUBLIC_CASES,
+  serviceRankDiscoveryScenarioToEvalCase,
+} from '../ai-service-rank-discovery.eval.util.js';
+export {
+  AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES,
+  AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES,
+  AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES,
+  flexibleAvailabilityScenarioToEvalCase,
+} from '../ai-flexible-availability.eval.util.js';
+export {
+  AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES,
+  AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CONSUMER_CHIP_CASES,
+  AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_PUBLIC_INTEGRATION_CASES,
+  DISCOVER_CROSS_SPRINT_MIN_EVAL_CASES,
+  DISCOVER_CROSS_SPRINT_TRANSLATED_EVAL_IDS,
+  evaluateDiscoverCrossSprintEvalCase,
+  isMultilingualDiscoverEvalEligible,
+} from '../ai-service-discovery.eval.util.js';
+export { buildFlexibleAvailabilityEvalParams } from '../ai-flexible-availability-compound.util.js';
 import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from '../ai-consumer-adoption.fixtures.js';
+import { AI_COMMAND_EVAL_SELF_SERVICE_BOOKING_MULTILINGUAL_CASES } from '../ai-self-service-booking-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES } from '../ai-marketing-growth-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CASES } from '../ai-consumer-checkout-success-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES } from '../ai-consumer-checkout-tax-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_TYPO_CORPUS_CASES } from '../ai-typo-corpus.eval.util.js';
+import { AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_CASES } from '../ai-consumer-clinic-test-results-deferred-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_MULTILINGUAL_CASES } from '../ai-provider-push-setup-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_AMBIGUITY_CORPUS_CASES } from '../ai-ambiguity-corpus.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_EARNINGS_MULTILINGUAL_CASES } from '../ai-provider-earnings-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_EXP_2_MULTILINGUAL_CASES } from '../ai-provider-exp-2-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_CASES } from '../ai-provider-client-context-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_EXP_3_MULTILINGUAL_CASES } from '../ai-provider-exp-3-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_CASES } from '../ai-provider-session-timeout-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES } from '../ai-provider-open-shifts-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES } from '../ai-provider-team-whos-next-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CASES } from '../ai-provider-time-off-list-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES } from '../ai-provider-date-format-multilingual.eval.util.js';
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from '../ai-provider-push-setup.fixtures.js';
 import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from '../ai-provider-earnings.fixtures.js';
 import { PROVIDER_EXP_2_PROMPT_SCENARIOS } from '../ai-provider-exp-2.fixtures.js';
+import { PROVIDER_EXP_3_PROMPT_SCENARIOS } from '../ai-provider-exp-3.fixtures.js';
+import { SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS } from '../../provider-mobile/provider-open-shifts.fixtures.js';
+import { SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS } from '../../provider-mobile/provider-team-whos-next.fixtures.js';
+import { SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS } from '../../provider-mobile/provider-time-off.fixtures.js';
 import { PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS } from '../ai-provider-client-context.fixtures.js';
 import { EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS } from '../ai-consumer-checkout-success.fixtures.js';
 import {
@@ -3084,6 +3135,7 @@ export const AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES: AiCommandEvalCase[] =
   CONSUMER_ADOPTION_PROMPT_SCENARIOS.map((entry) => ({
     id: `consumer-adoption-${entry.id}`,
     prompt: entry.prompt,
+    surface: 'customer' as const,
     locale: entry.id.endsWith('-hy')
       ? 'hy'
       : entry.id.endsWith('-ru')
@@ -3092,6 +3144,9 @@ export const AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
     },
   }));
 
@@ -3109,6 +3164,9 @@ export const AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
     },
   }));
 
@@ -3126,6 +3184,9 @@ export const AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
     },
   }));
 
@@ -3143,13 +3204,71 @@ export const AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
       ...('paramsPartial' in entry && entry.paramsPartial
         ? { paramsPartial: entry.paramsPartial }
         : {}),
     },
   }));
 
-/** Map provider client context prompts (prov-exp-1.6) to eval golden cases. */
+/** Map provider exp-3 prompts (prov-exp-5.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES: AiCommandEvalCase[] =
+  PROVIDER_EXP_3_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-exp-3-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason:
+        entry.expectedAction === 'add_retail_to_booking'
+          ? 'add_retail_booking'
+          : entry.expectedAction,
+    },
+  }));
+
+/** Map provider open shifts prompts (prov-exp-7.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_CASES: AiCommandEvalCase[] =
+  SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS.map((entry) => ({
+    id: `provider-open-shifts-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'fill_gap_waitlist',
+    },
+  }));
+
+/** Map provider team whos next prompts (prov-exp-4.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_CASES: AiCommandEvalCase[] =
+  SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS.map((entry) => ({
+    id: `provider-team-whos-next-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'team_whos_next',
+    },
+  }));
+
+/** Map provider time-off list prompts (prov-exp-7.2) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_CASES: AiCommandEvalCase[] =
+  SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS.map((entry) => ({
+    id: `provider-time-off-list-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'my_time_off_list',
+    },
+  }));
+
+/** Map provider exp-2 i18n prompts (acc-2.4) to eval golden cases. */
 export const AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES: AiCommandEvalCase[] =
   PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS.map((entry) => ({
     id: `provider-client-context-${entry.id}`,
@@ -3163,13 +3282,16 @@ export const AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES: AiCommandEvalCase[] 
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
       ...('paramsPartial' in entry && entry.paramsPartial
         ? { paramsPartial: entry.paramsPartial }
         : {}),
     },
   }));
 
-/** Map consumer app checkout success explain prompts (ai-cmd-rec-6) to eval golden cases. */
+/** Map provider client context i18n prompts (acc-2.4) to eval golden cases. */
 export const AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES: AiCommandEvalCase[] =
   EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
@@ -3963,6 +4085,7 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_CASES,
   ...AI_COMMAND_EVAL_CLINIC_LAB_BOOKING_MULTILINGUAL_CASES,
@@ -4053,10 +4176,30 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES,
+  ...AI_COMMAND_EVAL_SELF_SERVICE_BOOKING_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_TYPO_CORPUS_CASES,
+  ...AI_COMMAND_EVAL_AMBIGUITY_CORPUS_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EARNINGS_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EARNINGS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EXP_2_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_EXP_3_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES,
   ...AI_CMD_DOMAIN_EVAL_CASES,
 ];
 

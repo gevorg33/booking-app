@@ -109,6 +109,85 @@ describe('ai-intent-heuristics', () => {
         ),
       ).toBe(params);
     });
+
+    it('enriches maxPrice when classifier missed budget on list_services (budget-1.3)', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'I need a haircut, I have $50',
+          { serviceCategory: 'haircut' },
+          salonServices,
+          'list_services',
+        ).maxPrice,
+      ).toBe(50);
+    });
+
+    it('strips maxPrice for gift card prompts on list_services (budget-1.3)', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'I have a $50 gift card for a haircut',
+          { maxPrice: 50, serviceCategory: 'haircut' },
+          salonServices,
+          'list_services',
+        ).maxPrice,
+      ).toBeUndefined();
+    });
+
+    it('enriches serviceRank when classifier missed premium rank on list_services (rank-1.3)', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          "What's the cheapest haircut you offer?",
+          { serviceCategory: 'haircut' },
+          salonServices,
+          'list_services',
+        ).serviceRank,
+      ).toBe('lowest_price');
+    });
+
+    it('strips serviceRank for specialist rank prompts on list_services (rank-1.3)', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'Who is the best rated lash specialist this week?',
+          { serviceRank: 'highest_price', serviceCategory: 'lashes' },
+          salonServices,
+          'list_services',
+        ).serviceRank,
+      ).toBeUndefined();
+    });
+
+    it('enriches availabilityWindows when classifier kept only one OR clause (avail-1.3)', () => {
+      const enriched = enrichPublicAssistantParamsFromPrompt(
+        'I want a haircut tomorrow evening or Friday afternoon',
+        {
+          serviceCategory: 'haircut',
+          date: 'tomorrow',
+          timeOfDay: 'evening',
+        },
+        salonServices,
+        'check_availability',
+      );
+      expect(enriched.availabilityWindows).toEqual([
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ]);
+      expect(enriched.timeOfDay).toBeUndefined();
+      expect(enriched.date).toBeUndefined();
+    });
+
+    it('does not split AND weekday prompts into availabilityWindows (avail-1.3)', () => {
+      const enriched = enrichPublicAssistantParamsFromPrompt(
+        'Monday and Friday afternoon for color',
+        {
+          serviceCategory: 'color',
+          weekdays: ['monday', 'friday'],
+          timeOfDay: 'afternoon',
+        },
+        salonServices,
+        'check_availability',
+      );
+      expect(enriched.availabilityWindows).toBeUndefined();
+      expect(enriched.weekdays).toEqual(['monday', 'friday']);
+      expect(enriched.timeOfDay).toBe('afternoon');
+    });
   });
 
   describe('AM/PM reschedule parsing', () => {

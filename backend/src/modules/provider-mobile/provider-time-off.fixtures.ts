@@ -129,3 +129,25 @@ export const SIMILAR_PROVIDER_TIME_OFF_PROMPTS = [
     expectedAction: 'list_my_time_off_requests',
   },
 ] as const;
+
+/** Provider read-only time-off status prompts (acc-2.4 eval spine). */
+export const SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS = [
+  {
+    id: 'list-status',
+    prompt: 'Did my vacation request get approved?',
+    surface: 'provider' as const,
+    expectedAction: 'list_my_time_off_requests' as const,
+  },
+  {
+    id: 'pending-pto',
+    prompt: 'Show my pending PTO requests',
+    surface: 'provider' as const,
+    expectedAction: 'list_my_time_off_requests' as const,
+  },
+  {
+    id: 'time-off-status',
+    prompt: 'What is my time off request status?',
+    surface: 'provider' as const,
+    expectedAction: 'list_my_time_off_requests' as const,
+  },
+] as const;

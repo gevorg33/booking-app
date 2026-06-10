@@ -1,4 +1,6 @@
 import { isConfigureHipaaSessionTimeoutPrompt } from './ai-business-compliance.util.js';
+import { EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS } from './ai-provider-session-timeout.fixtures.js';
+import { PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_SCENARIOS } from './ai-provider-session-timeout-multilingual.fixtures.js';
 
 export const PROVIDER_SESSION_TIMEOUT_INTENTS = [
   'explain_provider_session_timeout',
@@ -29,6 +31,23 @@ export function hasProviderAppContext(prompt: string): boolean {
     return /(приложен|мобильн)/i.test(prompt);
   }
   return false;
+}
+
+export function matchProviderSessionTimeoutScenario(
+  prompt: string,
+): { action: ProviderSessionTimeoutIntent; rescueReason: string } | null {
+  for (const scenario of [
+    ...EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS,
+    ...PROVIDER_SESSION_TIMEOUT_MULTILINGUAL_SCENARIOS,
+  ]) {
+    if (scenario.prompt === prompt) {
+      return {
+        action: 'explain_provider_session_timeout',
+        rescueReason: 'explain_provider_session_timeout',
+      };
+    }
+  }
+  return null;
 }
 
 export function isExplainProviderSessionTimeoutPrompt(prompt: string): boolean {
@@ -72,6 +91,8 @@ export function rescueProviderSessionTimeoutIntent(
   ) {
     return null;
   }
+  const exact = matchProviderSessionTimeoutScenario(prompt);
+  if (exact) return exact;
   if (isExplainProviderSessionTimeoutPrompt(prompt)) {
     return {
       action: 'explain_provider_session_timeout',

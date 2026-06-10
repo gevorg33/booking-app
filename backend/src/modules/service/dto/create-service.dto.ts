@@ -98,6 +98,14 @@ export class CreateServiceDto extends LocalizedNamesDto {
   @Min(0)
   @Max(100)
   taxRatePercent?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @IsOptional()
+  @IsIn(['standard', 'premium', ''])
+  serviceTier?: 'standard' | 'premium' | '';
 }
 
 export class UpdateServiceDto extends LocalizedNamesDto {
@@ -192,4 +200,12 @@ export class UpdateServiceDto extends LocalizedNamesDto {
   @Min(0)
   @Max(100)
   taxRatePercent?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @IsOptional()
+  @IsIn(['standard', 'premium', ''])
+  serviceTier?: 'standard' | 'premium' | '';
 }

@@ -354,6 +354,32 @@ describe('ServiceService', () => {
     expect(updated.categoryId).toBeNull();
   });
 
+  it('persists rank metadata on create and update (rank-1.8)', async () => {
+    const created = await serviceService.create('biz-1', {
+      name: 'Featured cut',
+      durationMinutes: 30,
+      price: 80,
+      isFeatured: true,
+      serviceTier: 'premium',
+    });
+
+    expect(created.isFeatured).toBe(true);
+    expect(created.serviceTier).toBe('premium');
+    expect(created.metadata).toEqual(
+      expect.objectContaining({ isFeatured: true, serviceTier: 'premium' }),
+    );
+
+    const cleared = await serviceService.update(created.id, {
+      isFeatured: false,
+      serviceTier: '',
+    });
+
+    expect(cleared.isFeatured).toBe(false);
+    expect(cleared.serviceTier).toBeNull();
+    expect(cleared.metadata?.isFeatured).toBeUndefined();
+    expect(cleared.metadata?.serviceTier).toBeUndefined();
+  });
+
   it('updates category assignment and scalar fields', async () => {
     const created = await serviceService.create('biz-1', {
       name: 'Blowout',

@@ -403,6 +403,7 @@ export function aiCmdScenarioToEvalCase(
     id: `ai-cmd-${scenario.id}`,
     prompt: scenario.prompt,
     locale: 'en',
+    surface: scenario.surface,
     expect: {
       rescuedAction: scenario.expectedAction,
       ...(scenario.paramsPartial

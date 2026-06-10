@@ -154,6 +154,13 @@ export type ConsumerCopy = {
   assistantExampleServices: string;
   assistantExampleBook: string;
   assistantExampleLocation: string;
+  assistantDiscoverChipsTitle: string;
+  assistantDiscoverChipUnder50: string;
+  assistantDiscoverPromptUnder50: string;
+  assistantDiscoverChipPremium: string;
+  assistantDiscoverPromptPremium: string;
+  assistantDiscoverChipEveningWeekend: string;
+  assistantDiscoverPromptEveningWeekend: string;
   availableProvidersTitle: string;
   bookProvider: string;
   voiceStart: string;

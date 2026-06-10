@@ -63,5 +63,23 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('list_my_lab_booking_requests');
     expect(schema).toContain('book_lab_collection');
     expect(schema).toContain('booking page');
+    expect(schema).toContain('"maxPrice"');
+    expect(schema).toContain('I need a haircut, I have $50');
+    expect(schema).toContain('NOT discover_packages (bundles/deals catalog');
+    expect(schema).toContain('gift card / checkout — NO maxPrice');
+    expect(schema).toContain('"serviceRank"');
+    expect(schema).toContain('highest_price');
+    expect(schema).toContain('lowest_price');
+    expect(schema).toContain('most_popular');
+    expect(schema).toContain(
+      'What is the best and premium haircut service?',
+    );
+    expect(schema).toContain('recommend_specialists, serviceCategory=massage — NO serviceRank');
+    expect(schema).toContain('"availabilityWindows"');
+    expect(schema).toContain(
+      'I want a haircut tomorrow evening or Friday afternoon',
+    );
+    expect(schema).toContain('Monday and Friday afternoon');
+    expect(schema).toContain('AND vs OR');
   });
 });

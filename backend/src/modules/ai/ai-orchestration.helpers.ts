@@ -21,6 +21,10 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
+import {
+  normalizeAvailabilityWindows,
+  type AvailabilityWindow,
+} from './ai-flexible-availability.util.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -1533,8 +1537,64 @@ export function hasExplicitWeekdayInAvailabilityPrompt(
   );
 }
 
-/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
-export function resolvePublicAvailabilityDateKeys(
+export type ResolvedPublicAvailabilityWindow = {
+  dateKeys: string[];
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | null;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  timeSlot?: string | null;
+};
+
+function resolveRelativeAvailabilityDateKey(
+  date: string,
+  timeZone: string,
+): string | null {
+  const tz = resolveTimezone(timeZone);
+  const lower = date.trim().toLowerCase();
+  if (lower === 'tomorrow') {
+    return addDaysToDateKey(getTodayDateKey(tz), 1, tz);
+  }
+  if (lower === 'today' || lower === 'tonight') {
+    return getTodayDateKey(tz);
+  }
+  return null;
+}
+
+/** Resolve ISO day keys for one availability window without merging OR alternatives (avail-1.4). */
+export function resolveDateKeysForAvailabilityWindow(
+  window: AvailabilityWindow,
+  timeZone: string,
+  scanDays: number = PUBLIC_AVAILABILITY_SCAN_DAYS,
+): string[] {
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
+
+  if (window.weekdays?.length) {
+    const weekdays = parseWeekdaysFromParams(
+      { weekdays: window.weekdays },
+      undefined,
+    );
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      if (weekdays.includes(dayjs.tz(dateKey, tz).day())) {
+        result.push(dateKey);
+      }
+    }
+    return dropPast(result);
+  }
+
+  if (window.date) {
+    const relative = resolveRelativeAvailabilityDateKey(window.date, tz);
+    if (relative) return dropPast([relative]);
+    return dropPast([toIsoDay(window.date, tz)]);
+  }
+
+  return [];
+}
+
+function resolveLegacyPublicAvailabilityDateKeys(
   params: Record<string, any>,
   prompt: string | undefined,
   timeZone: string,
@@ -1555,7 +1615,6 @@ export function resolvePublicAvailabilityDateKeys(
 
   const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
 
-  // Weekday names in the prompt beat stale session dates (e.g. "Monday" must not reuse Friday from session).
   if (hasWeekdayFilter) {
     const result: string[] = [];
     for (let offset = 0; offset < scanDays; offset++) {
@@ -1567,7 +1626,6 @@ export function resolvePublicAvailabilityDateKeys(
     if (result.length > 0) return result;
   }
 
-  // Prefer dates parsed from the prompt itself, not inherited session params.date.
   const promptOnlyDates = resolveScheduleDates({ _timeZone: tz }, prompt);
   if (promptOnlyDates.length > 0) {
     return dropPast(promptOnlyDates).slice(0, scanDays);
@@ -1591,6 +1649,94 @@ export function resolvePublicAvailabilityDateKeys(
   }
 
   return [];
+}
+
+function toResolvedPublicAvailabilityWindow(
+  window: AvailabilityWindow,
+  dateKeys: string[],
+): ResolvedPublicAvailabilityWindow {
+  return {
+    dateKeys,
+    timeOfDay: window.timeOfDay ?? null,
+    timeFrom: window.timeFrom ?? null,
+    timeTo: window.timeTo ?? null,
+    timeSlot: window.timeSlot ?? null,
+  };
+}
+
+/** Resolve availability windows with per-window date keys + timeOfDay pairing (avail-1.4). */
+export function resolvePublicAvailabilityWindows(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): ResolvedPublicAvailabilityWindow[] {
+  const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  const hasExplicitWindows = Array.isArray(params.availabilityWindows)
+    && params.availabilityWindows.length > 0;
+  const normalizedWindows = normalizeAvailabilityWindows(params);
+
+  if (hasExplicitWindows && normalizedWindows.length > 0) {
+    return normalizedWindows
+      .map((window) =>
+        toResolvedPublicAvailabilityWindow(
+          window,
+          resolveDateKeysForAvailabilityWindow(window, timeZone, scanDays),
+        ),
+      )
+      .filter((window) => window.dateKeys.length > 0);
+  }
+
+  if (
+    normalizedWindows.length === 1 &&
+    (normalizedWindows[0]?.weekdays?.length ||
+      normalizedWindows[0]?.date ||
+      normalizedWindows[0]?.timeOfDay)
+  ) {
+    const window = normalizedWindows[0]!;
+    const dateKeys = resolveDateKeysForAvailabilityWindow(
+      window,
+      timeZone,
+      scanDays,
+    );
+    if (dateKeys.length > 0) {
+      return [toResolvedPublicAvailabilityWindow(window, dateKeys)];
+    }
+  }
+
+  const legacyDateKeys = resolveLegacyPublicAvailabilityDateKeys(
+    params,
+    prompt,
+    timeZone,
+    options,
+  );
+  if (legacyDateKeys.length === 0) return [];
+
+  return [
+    {
+      dateKeys: legacyDateKeys,
+      timeOfDay: params.timeOfDay ?? null,
+      timeFrom: params.timeFrom ?? null,
+      timeTo: params.timeTo ?? null,
+      timeSlot: params.timeSlot ?? null,
+    },
+  ];
+}
+
+/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
+export function resolvePublicAvailabilityDateKeys(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): string[] {
+  return [
+    ...new Set(
+      resolvePublicAvailabilityWindows(params, prompt, timeZone, options).flatMap(
+        (window) => window.dateKeys,
+      ),
+    ),
+  ];
 }
 
 /** Drop session date when the user names weekdays or relative days in an availability question. */

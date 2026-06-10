@@ -101,8 +101,17 @@ export function mergeCheckProvidersHandoffIntoContext(
   context: Record<string, unknown>,
   result: CommandResult,
 ): Record<string, unknown> {
-  if (result.action !== 'check_providers_for_service') return context;
-  const handoff = buildCheckProvidersHandoffFromResult(result);
+  if (
+    result.action !== 'check_providers_for_service' &&
+    result.action !== 'check_availability'
+  ) {
+    return context;
+  }
+
+  const details = (result.details ?? {}) as Record<string, unknown>;
+  const handoff =
+    (details.checkProvidersHandoff as CheckProvidersHandoff | undefined) ??
+    buildCheckProvidersHandoffFromResult(result);
   if (!handoff) return context;
 
   const next: Record<string, unknown> = {

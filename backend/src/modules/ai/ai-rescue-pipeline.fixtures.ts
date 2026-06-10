@@ -74,6 +74,22 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     'check who is free tomorrow evening for permanent lashes, book the nearest slot',
   customer_check_and_book_nearest:
     'Who is available tomorrow evening for massage and book the nearest slot',
+  public_budget_check_then_book:
+    "Who's free for a facial under $60 tomorrow evening, book the soonest",
+  public_budget_book_nearest:
+    'Book a haircut under $50 tomorrow, nearest slot',
+  customer_budget_check_then_book:
+    "Who's free for a facial under $60 tomorrow evening, book the soonest",
+  customer_budget_book_nearest:
+    'Book a haircut under $50 tomorrow, nearest slot',
+  public_rank_book_nearest:
+    'Book your most premium facial tomorrow, nearest slot',
+  customer_rank_book_nearest:
+    'Book your most premium facial tomorrow, nearest slot',
+  public_flexible_avail_budget_check_then_book:
+    "Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest",
+  customer_flexible_avail_budget_check_then_book:
+    'I want a haircut tomorrow evening or Friday afternoon, I have $50, book the soonest',
   dashboard_package_line_checkout: ALL_PACKAGE_CHECKOUT_PROMPTS[0].prompt,
   dashboard_multi_service_cart_checkout:
     ALL_MULTI_SERVICE_CHECKOUT_PROMPTS[0].prompt,

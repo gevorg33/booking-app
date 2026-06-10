@@ -35,6 +35,22 @@ import {
   decomposePublicClinicCompoundPrompt,
   isClinicCompoundPrompt,
 } from './ai-clinic-compound.util.js';
+import {
+  decomposeCustomerBudgetServiceDiscoveryCompoundPrompt,
+  decomposePublicBudgetServiceDiscoveryCompoundPrompt,
+  isBudgetServiceDiscoveryCompoundPrompt,
+} from './ai-budget-service-discovery-compound.util.js';
+import {
+  decomposeCustomerServiceRankDiscoveryCompoundPrompt,
+  decomposePublicServiceRankDiscoveryCompoundPrompt,
+  isServiceRankDiscoveryCompoundPrompt,
+} from './ai-service-rank-discovery-compound.util.js';
+import {
+  decomposeCustomerFlexibleAvailabilityBudgetCompoundPrompt,
+  decomposeFlexibleAvailabilityBudgetCompoundPrompt,
+  decomposePublicFlexibleAvailabilityBudgetCompoundPrompt,
+  isFlexibleAvailabilityBudgetBookCompoundPrompt,
+} from './ai-flexible-availability-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -73,6 +89,12 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeDashboardClinicCompoundPrompt,
   decomposeCustomerClinicCompoundPrompt,
   decomposePublicClinicCompoundPrompt,
+  decomposePublicBudgetServiceDiscoveryCompoundPrompt,
+  decomposeCustomerBudgetServiceDiscoveryCompoundPrompt,
+  decomposePublicServiceRankDiscoveryCompoundPrompt,
+  decomposeCustomerServiceRankDiscoveryCompoundPrompt,
+  decomposePublicFlexibleAvailabilityBudgetCompoundPrompt,
+  decomposeCustomerFlexibleAvailabilityBudgetCompoundPrompt,
 };
 
 function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
@@ -86,14 +108,146 @@ function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
   }));
 }
 
+function buildBudgetCompoundGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw = decomposeBudgetServiceDiscoveryCompoundPrompt(prompt, surface);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Budget service discovery compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function decomposeBudgetServiceDiscoveryCompoundPrompt(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+) {
+  return surface === 'public'
+    ? decomposePublicBudgetServiceDiscoveryCompoundPrompt(prompt)
+    : decomposeCustomerBudgetServiceDiscoveryCompoundPrompt(prompt);
+}
+
+function buildRankCompoundGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw = decomposeServiceRankDiscoveryCompoundPrompt(prompt, surface);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Service rank discovery compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function decomposeServiceRankDiscoveryCompoundPrompt(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+) {
+  return surface === 'public'
+    ? decomposePublicServiceRankDiscoveryCompoundPrompt(prompt)
+    : decomposeCustomerServiceRankDiscoveryCompoundPrompt(prompt);
+}
+
+function buildFlexibleAvailabilityBudgetCompoundGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw = decomposeFlexibleAvailabilityBudgetCompoundPrompt(prompt, surface);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Flexible availability budget compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
 export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
+  {
+    id: 'public_flexible_avail_budget_check_then_book',
+    surface: 'public',
+    recipeId: 'public_flexible_availability_budget_compound',
+    matches: (prompt) => isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildFlexibleAvailabilityBudgetCompoundGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_flexible_avail_budget_check_then_book',
+    surface: 'customer',
+    recipeId: 'customer_flexible_availability_budget_compound',
+    matches: (prompt) => isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildFlexibleAvailabilityBudgetCompoundGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_rank_book_nearest',
+    surface: 'public',
+    recipeId: 'public_service_rank_discovery_compound',
+    matches: (prompt) => isServiceRankDiscoveryCompoundPrompt(prompt),
+    buildSteps: (prompt) => buildRankCompoundGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_rank_book_nearest',
+    surface: 'customer',
+    recipeId: 'customer_service_rank_discovery_compound',
+    matches: (prompt) => isServiceRankDiscoveryCompoundPrompt(prompt),
+    buildSteps: (prompt) => buildRankCompoundGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_budget_check_then_book',
+    surface: 'public',
+    recipeId: 'public_budget_service_discovery_compound',
+    matches: (prompt) =>
+      isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      isCheckProvidersForServicePrompt(prompt) &&
+      isBookNearestSlotPrompt(prompt),
+    buildSteps: (prompt) => buildBudgetCompoundGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'public_budget_book_nearest',
+    surface: 'public',
+    recipeId: 'public_budget_service_discovery_compound',
+    matches: (prompt) =>
+      isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      !(
+        isCheckProvidersForServicePrompt(prompt) &&
+        isBookNearestSlotPrompt(prompt)
+      ),
+    buildSteps: (prompt) => buildBudgetCompoundGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_budget_check_then_book',
+    surface: 'customer',
+    recipeId: 'customer_budget_service_discovery_compound',
+    matches: (prompt) =>
+      isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      isCheckProvidersForServicePrompt(prompt) &&
+      isBookNearestSlotPrompt(prompt),
+    buildSteps: (prompt) => buildBudgetCompoundGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'customer_budget_book_nearest',
+    surface: 'customer',
+    recipeId: 'customer_budget_service_discovery_compound',
+    matches: (prompt) =>
+      isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      !(
+        isCheckProvidersForServicePrompt(prompt) &&
+        isBookNearestSlotPrompt(prompt)
+      ),
+    buildSteps: (prompt) => buildBudgetCompoundGoldenSteps(prompt, 'customer'),
+  },
   {
     id: 'dashboard_check_and_book_nearest',
     surface: 'dashboard',
     recipeId: 'dashboard_payments_compound',
     matches: (prompt) =>
       isCheckProvidersForServicePrompt(prompt) &&
-      isBookNearestSlotPrompt(prompt),
+      isBookNearestSlotPrompt(prompt) &&
+      !isBudgetServiceDiscoveryCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {
@@ -102,7 +256,8 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     recipeId: 'customer_self_service_compound',
     matches: (prompt) =>
       isCheckProvidersForServicePrompt(prompt) &&
-      isBookNearestSlotPrompt(prompt),
+      isBookNearestSlotPrompt(prompt) &&
+      !isBudgetServiceDiscoveryCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {
@@ -321,6 +476,8 @@ export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
 export function isCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 12) return false;
+  if (isBudgetServiceDiscoveryCompoundPrompt(trimmed)) return true;
+  if (isServiceRankDiscoveryCompoundPrompt(trimmed)) return true;
   return COMPOUND_PROMPT_MARKERS.test(trimmed);
 }
 

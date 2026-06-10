@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DASHBOARD_CLASSIFIER_ACTION_UNION } from './ai-command-intent-schema.build.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import OpenAI from 'openai';
@@ -170,13 +171,26 @@ import {
   matchEmployeesInPrompt,
   sanitizeProviderScopeFromPrompt,
   inferDirectSchedulePeriods,
+  resolveServicesFromCatalogParams,
+  enrichListServicesParamsFromPrompt,
 } from './ai-orchestration.helpers.js';
+import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-discovery.fixtures.js';
+import { enrichServiceDiscoveryFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import { extractServiceRankMetadata } from '../../common/utils/service-rank-metadata.util.js';
+import { loadServiceBookingCounts90d } from '../../common/utils/service-booking-popularity.util.js';
+import { composeDashboardListServicesBudgetResponse } from './ai-budget-list-services.logic.js';
+import {
+  composeDashboardListServicesRankResponse,
+  resolveListServicesRankLimitFromPrompt,
+} from './ai-rank-list-services.logic.js';
+import { resolveServiceRankParam } from './ai-service-rank-discovery.util.js';
 import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveAssignEmployeeServicesInput } from './ai-category-assignment.util.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { shouldValidateAction } from './command-completion.validator.js';
 import { CommandResult } from './command-completion.types.js';
+import { buildUnwiredDashboardIntentResult } from './ai-command-unwired-intent.util.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiEventsService } from './ai-events.service.js';
 import { recordMisrouteTelemetry } from './ai-misroute-telemetry.util.js';
@@ -289,7 +303,7 @@ Given a user's natural-language command and the available business data, classif
 and extract structured parameters. Return a JSON object with:
 
 {
-  "action": "create_booking" | "create_service" | "create_services" | "cancel_bookings" | "update_bookings" | "bulk_smart_cancel" | "hide_appointments_from_calendar" | "unhide_appointments_from_calendar" | "fill_slot_from_waitlist" | "list_bookings" | "show_appointments" | "check_availability" | "reschedule_booking" | "summarize_day" | "summarize_bookings" | "analyze_appointments" | "analyze_services" | "summarize_staff" | "lookup_customer" | "summarize_waitlist" | "lookup_service_assignment" | "list_services" | "list_employees" | "list_templates" | "create_schedule_template" | "mark_no_shows" | "no_show_recovery" | "payment_sweep" | "day_replan" | "sick_day_replan" | "import_services_from_menu" | "update_service_prices" | "staff_service_matrix" | "check_schedule_compliance" | "revenue_forecast" | "optimize_schedule" | "fill_unused_slots" | "list_schedule_gaps" | "apply_schedule" | "block_schedule" | "list_time_off_requests" | "approve_time_off_request" | "deny_time_off_request" | "create_direct_schedule" | "clear_schedule" | "assign_employee_services" | "summarize_utilization" | "summarize_customers" | "setup_week_schedule" | "swap_schedules" | "rebalance_capacity" | "holiday_mode" | "onboard_provider_schedule" | "resolve_conflicts" | "reassign_cancelled" | "unknown",
+  "action": ${DASHBOARD_CLASSIFIER_ACTION_UNION},
   "params": {
     "employeeName": "string or null — one service provider",
     "employeeNames": ["string"] or null — multiple providers,
@@ -315,6 +329,8 @@ and extract structured parameters. Return a JSON object with:
     "durationMinutes": number or null — service duration in minutes (create_service), minimum 10,
     "bufferMinutes": number or null — buffer after service in minutes (create_service), default 0,
     "price": number or null — service price (create_service), e.g. 50 or 29.99,
+    "maxPrice": number or null — inclusive catalog display-price ceiling for list_services when the user states a budget (under $X, I have $X),
+    "serviceCategory": "string or null — keyword to filter service type names for list_services (e.g. haircut, massage)",
     "currency": "string or null — ISO currency code (create_service), default USD",
     "date": "DD/MM/YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31/05/2026). For other actions: the date referenced.",
     "dateFrom": "DD/MM/YYYY or null — start of range if a range is mentioned",
@@ -490,7 +506,7 @@ Rules:
 - list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
 - summarize_utilization: team-level utilization percentages for a date range — NOT per-day gap detail. Do not use for "which days" or "show gaps" questions.
 - summarize_customers: READ-ONLY customer CRM insights — rankings and segments. Use for "which customer has the most no-shows", "at-risk customers", "top VIPs", "who books the most", "which customer pays the most" / "who paid the most", "top 10 customers who paid the most", "new customers", "most cancellations". Set customerMetric when clear (e.g. top_spenders for payment/spend questions); set limit from "top N" (default 5). NEVER use overview when the user asks for a specific ranking like who pays the most.
-- list_services: READ-ONLY service catalog — list offerings or look up price/duration. Use for "what services do we offer", "how much is facemassage", "show our service menu". NOT for adding services (use create_service).
+- list_services: READ-ONLY service catalog — list offerings or look up price/duration. Use for "what services do we offer", "how much is facemassage", "show our service menu", "options under $50", "what can we offer for $40". Set maxPrice when the user states a spending limit; optional serviceCategory/serviceName filter. NOT package catalog (list_packages), NOT gift card codes (validate_gift_card), NOT create_service.
 - analyze_services: READ-ONLY — most booked / top revenue / least popular services for a date range.
 - summarize_staff: READ-ONLY — provider/specialist rankings (busiest, most revenue, most bookings) for a date range. Use for "which specialist earned the most today", "top 3 specialists by revenue last week", "who brought in the most revenue all time". Set staffMetric="most_revenue" and limit from "top N".
 - lookup_customer: READ-ONLY — single customer profile, last visit, appointment history snippet. Requires customerName.
@@ -1343,6 +1359,10 @@ export class AiCommandService {
       parsed.params,
       session?.context?._scopedEmployeeId as string | undefined,
     ) as Record<string, any>;
+    parsed.params = enrichServiceDiscoveryFromPrompt(
+      parsed.params,
+      effectivePrompt,
+    );
 
     const securityDenied = this.promptSecurity.enforceAction(
       businessId,
@@ -4291,7 +4311,12 @@ export class AiCommandService {
         );
         break;
       case 'list_services':
-        result = this.handleListServices(services, params, effectivePrompt);
+        result = await this.handleListServices(
+          businessId,
+          services,
+          params,
+          effectivePrompt,
+        );
         break;
       case 'analyze_services':
         result = await this.handleAnalyzeServices(
@@ -4639,12 +4664,11 @@ export class AiCommandService {
         );
         break;
       default:
-        result = {
-          success: false,
-          action: 'unknown',
-          summary: `I understood: "${parsed.reasoning}" but I don't know how to execute that action yet. Supported: book, add service(s), cancel, show appointments, optimize schedule, fill slots, resolve conflicts, reassign cancelled, check availability, summarize day.`,
-          details: { parsed },
-        };
+        result = buildUnwiredDashboardIntentResult(parsed.action, {
+          reasoning: parsed.reasoning,
+          parsed: parsed as unknown as Record<string, unknown>,
+        });
+        break;
     }
 
     result.details = {
@@ -4966,7 +4990,7 @@ export class AiCommandService {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${CATALOG_NOTIFY_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
+        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${CATALOG_NOTIFY_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       {
@@ -5780,43 +5804,14 @@ export class AiCommandService {
     };
   }
 
-  private handleListServices(
+  private async handleListServices(
+    businessId: string,
     services: Service[],
     params: Record<string, any>,
-    _prompt: string,
-  ): CommandResult {
-    const target = params.serviceName
-      ? this.resolveService(services, String(params.serviceName))
-      : undefined;
-
-    if (target) {
-      const currency = target.currency || 'USD';
-      return {
-        success: true,
-        action: 'list_services',
-        summary: [
-          `${target.name}:`,
-          `• Duration: ${target.durationMinutes} min${target.bufferMinutes ? ` (+${target.bufferMinutes} min buffer)` : ''}`,
-          `• Price: ${currency} ${Number(target.price).toFixed(2)}`,
-          target.description ? `• ${target.description}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n'),
-        details: {
-          services: [
-            {
-              id: target.id,
-              name: target.name,
-              durationMinutes: target.durationMinutes,
-              bufferMinutes: target.bufferMinutes,
-              price: Number(target.price),
-              currency,
-              description: target.description,
-            },
-          ],
-        },
-      };
-    }
+    prompt: string,
+  ): Promise<CommandResult> {
+    const withBudgetAndRank = enrichServiceDiscoveryFromPrompt(params, prompt);
+    const enriched = enrichListServicesParamsFromPrompt(prompt, withBudgetAndRank);
 
     if (services.length === 0) {
       return {
@@ -5828,24 +5823,106 @@ export class AiCommandService {
       };
     }
 
-    const lines = services.map(
-      (s) =>
-        `• ${s.name} — ${s.durationMinutes} min · ${s.currency || 'USD'} ${Number(s.price).toFixed(2)}`,
+    const bookingCounts = await loadServiceBookingCounts90d(
+      this.bookingRepo,
+      businessId,
+      services.map((service) => service.id),
     );
 
+    const toCatalogRow = (service: Service) => {
+      const rank = extractServiceRankMetadata(service.metadata);
+      return {
+        id: service.id,
+        name: service.name,
+        price: Number(service.price),
+        durationMinutes: service.durationMinutes,
+        bufferMinutes: service.bufferMinutes,
+        currency: service.currency || 'USD',
+        description: service.description,
+        bookingCount: bookingCounts.get(service.id) ?? 0,
+        ...(rank.isFeatured ? { isFeatured: true } : {}),
+        ...(rank.serviceTier ? { serviceTier: rank.serviceTier } : {}),
+      };
+    };
+
+    if (enriched.serviceName) {
+      const target = this.resolveService(services, String(enriched.serviceName));
+      if (target) {
+        const composed = composeDashboardListServicesBudgetResponse({
+          matchedServices: [toCatalogRow(target)],
+          maxPrice: withBudgetAndRank.maxPrice,
+          header: `${target.name}:`,
+        });
+        if (composed.services.length === 1) {
+          const service = composed.services[0]!;
+          const currency = service.currency || 'USD';
+          return {
+            success: true,
+            action: 'list_services',
+            summary: [
+              `${service.name}:`,
+              `• Duration: ${service.durationMinutes} min${service.bufferMinutes ? ` (+${service.bufferMinutes} min buffer)` : ''}`,
+              `• Price: ${currency} ${Number(service.price).toFixed(2)}`,
+              service.description ? `• ${service.description}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            details: { services: composed.detailsServices },
+          };
+        }
+        return {
+          success: composed.success,
+          action: 'list_services',
+          summary: composed.summary,
+          details: { services: composed.detailsServices },
+        };
+      }
+    }
+
+    const hasFilter = !!(
+      enriched.serviceCategory ||
+      (Array.isArray(enriched.serviceNames) && enriched.serviceNames.length)
+    );
+    const catalog = services.map(toCatalogRow);
+    const matched = hasFilter
+      ? resolveServicesFromCatalogParams(catalog, enriched)
+      : catalog;
+
+    const serviceRank = resolveServiceRankParam(withBudgetAndRank.serviceRank);
+    if (serviceRank) {
+      const rankLimit = resolveListServicesRankLimitFromPrompt(
+        prompt,
+        withBudgetAndRank,
+      );
+      const composed = composeDashboardListServicesRankResponse({
+        matchedServices: matched,
+        serviceRank,
+        limit: rankLimit,
+        maxPrice: withBudgetAndRank.maxPrice,
+        serviceCategory: enriched.serviceCategory ?? null,
+      });
+      return {
+        success: composed.success,
+        action: 'list_services',
+        summary: composed.summary,
+        details: { services: composed.detailsServices },
+      };
+    }
+
+    const composed = composeDashboardListServicesBudgetResponse({
+      matchedServices: matched,
+      maxPrice: withBudgetAndRank.maxPrice,
+      header:
+        withBudgetAndRank.maxPrice != null
+          ? 'Services within budget:'
+          : `Service catalog (${matched.length}):`,
+    });
+
     return {
-      success: true,
+      success: composed.success,
       action: 'list_services',
-      summary: [`Service catalog (${services.length}):`, ...lines].join('\n'),
-      details: {
-        services: services.map((s) => ({
-          id: s.id,
-          name: s.name,
-          durationMinutes: s.durationMinutes,
-          price: Number(s.price),
-          currency: s.currency || 'USD',
-        })),
-      },
+      summary: composed.summary,
+      details: { services: composed.detailsServices },
     };
   }
 
@@ -7482,6 +7559,7 @@ export class AiCommandService {
         );
       case 'list_services':
         return this.handleListServices(
+          businessId,
           catalog.services,
           params,
           effectivePrompt,

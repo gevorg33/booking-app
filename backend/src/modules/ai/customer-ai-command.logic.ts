@@ -20,7 +20,7 @@ import type { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import type { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
-import { mergeCustomerCompoundContext } from './customer-ai-command.util.js';
+import { mergeCustomerCompoundContext, isPublicOnlyAssistantAction } from './customer-ai-command.util.js';
 import type { CheckProvidersHandoff } from './ai-check-book-handoff.util.js';
 import type { ProviderAvailabilityRow } from './ai-provider-availability.util.js';
 
@@ -44,6 +44,12 @@ export interface CustomerAiCommandLogicDeps {
   clinicLabBooking: AiClinicLabBookingService;
   clinicBooking: AiClinicBookingService;
   consumerAdoption: AiConsumerAdoptionService;
+  runPublicAssistantStep?: (
+    businessId: string,
+    action: string,
+    params: Record<string, unknown>,
+    session: CustomerIntentSession,
+  ) => Promise<CommandResult>;
 }
 
 export interface CustomerIntentSession {
@@ -60,12 +66,14 @@ export interface CustomerIntentSession {
   date?: string;
   timeOfDay?: string;
   notBeforeTime?: string;
+  chosenAvailabilityWindow?: { dateKeys: string[]; timeOfDay?: string | null };
   serviceName?: string;
   allProviders?: boolean;
   bookingFirstAvailable?: boolean;
   timeFrom?: string;
   serviceId?: string;
   employeeId?: string;
+  maxPrice?: number | string;
   checkProvidersHandoff?: CheckProvidersHandoff;
   availableProviders?: string[];
   availability?: ProviderAvailabilityRow[];
@@ -96,6 +104,8 @@ function withCustomerSession(
     date: session.date ?? params.date,
     timeOfDay: session.timeOfDay ?? params.timeOfDay,
     notBeforeTime: session.notBeforeTime ?? params.notBeforeTime,
+    chosenAvailabilityWindow:
+      session.chosenAvailabilityWindow ?? params.chosenAvailabilityWindow,
     serviceName: session.serviceName ?? params.serviceName,
     allProviders: session.allProviders ?? params.allProviders,
     bookingFirstAvailable:
@@ -103,6 +113,7 @@ function withCustomerSession(
     timeFrom: session.timeFrom ?? params.timeFrom,
     serviceId: session.serviceId ?? params.serviceId,
     employeeId: session.employeeId ?? params.employeeId,
+    maxPrice: session.maxPrice ?? params.maxPrice,
     lastPush: session.lastPush ?? params.lastPush,
     offlineQueueCount: session.offlineQueueCount ?? params.offlineQueueCount,
     online: session.online ?? params.online,
@@ -449,13 +460,31 @@ export async function executeCustomerCompoundFromSteps(
       ),
       _prompt: step.segment,
     };
-    const result = await dispatchCustomerIntent(
-      deps,
-      businessId,
-      step.action,
-      stepParams,
-      compoundContext,
-    );
+    let result: CommandResult;
+    if (isPublicOnlyAssistantAction(step.action)) {
+      if (!deps.runPublicAssistantStep) {
+        return {
+          success: false,
+          action: 'compound_intent',
+          summary: `Customer compound cannot run public step "${step.action}" without booking page context (slug).`,
+          details: { clarify: true, failedStep: step.action },
+        };
+      }
+      result = await deps.runPublicAssistantStep(
+        businessId,
+        step.action,
+        stepParams,
+        compoundContext,
+      );
+    } else {
+      result = await dispatchCustomerIntent(
+        deps,
+        businessId,
+        step.action,
+        stepParams,
+        compoundContext,
+      );
+    }
     results.push(result);
     if (!result.success) {
       return {
