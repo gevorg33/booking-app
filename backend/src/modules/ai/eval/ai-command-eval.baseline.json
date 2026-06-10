@@ -1,0 +1,1199 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-10T09:15:01.939Z",
+  "totalCases": 2292,
+  "passed": 2292,
+  "failed": 0,
+  "accuracyPct": 100,
+  "llmCaseCount": 14,
+  "byIntent": {
+    "accept_hipaa_baa": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "add_client_note": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
+      "accuracyPct": 100
+    },
+    "add_services_to_cart": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "admin_delete_customer_data": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "apply_clinic_playbook": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "apply_tour_playbook": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12,
+      "accuracyPct": 100
+    },
+    "appointment_reminder_preferences": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "assign_booking_resource": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "audit_dashboard_date_surfaces": {
+      "passed": 20,
+      "failed": 0,
+      "total": 20,
+      "accuracyPct": 100
+    },
+    "book_lab_collection": {
+      "passed": 40,
+      "failed": 0,
+      "total": 40,
+      "accuracyPct": 100
+    },
+    "book_nearest_slot": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "book_package": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "book_with_cash": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "bulk_create_catalog": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "bulk_strip_disabled_locale_translations": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "bulk_update_service_currency": {
+      "passed": 15,
+      "failed": 0,
+      "total": 15,
+      "accuracyPct": 100
+    },
+    "cancel_package_visit": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "check_availability": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "check_gift_card_balance": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "check_in_client": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "check_package_line_availability": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "check_providers_for_service": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "clear_schedule": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "collect_cash_confirm": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound_intent": {
+      "passed": 15,
+      "failed": 0,
+      "total": 15,
+      "accuracyPct": 100
+    },
+    "compound:book_appointment+explain_result_status": {
+      "passed": 25,
+      "failed": 0,
+      "total": 25,
+      "accuracyPct": 100
+    },
+    "compound:book_nearest_slot+apply_gift_card_code+choose_payment_method": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:book_nearest_slot+explain_result_status": {
+      "passed": 25,
+      "failed": 0,
+      "total": 25,
+      "accuracyPct": 100
+    },
+    "compound:book_package+promo_code_help": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:buy_gift_card_physical+track_physical_gift_card_order": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:cancel_package_visit+coordinate_waitlist_offer": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:cancel_package_visit+fill_slot_from_waitlist": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:check_package_line_availability+create_package_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:check_providers_for_service+book_nearest_slot": {
+      "passed": 46,
+      "failed": 0,
+      "total": 46,
+      "accuracyPct": 100
+    },
+    "compound:contains:add_services_to_cart+show_cart_total_duration": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:contains:book_package+pay_cash_at_visit": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:book_with_cash+check_package_availability": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:contains:check_multi_service_block_availability+create_multi_service_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:configure_gift_card_products+configure_multi_service_settings": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:configure_zendesk+sync_customer_to_zendesk": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:explain_last_push+open_booking_from_push": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:export_accounting+summarize_unpaid": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "compound:contains:get_manage_link+list_my_appointments": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:list_customer_subscriptions+tag_customer": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:contains:list_gift_card_orders+print_packing_slip": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "compound:contains:mark_paid": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "compound:create_test_order+notify_patient_result_ready": {
+      "passed": 25,
+      "failed": 0,
+      "total": 25,
+      "accuracyPct": 100
+    },
+    "compound:decomposition": {
+      "passed": 26,
+      "failed": 0,
+      "total": 26,
+      "accuracyPct": 100
+    },
+    "compound:none": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "configure_business_currency": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
+      "accuracyPct": 100
+    },
+    "configure_business_date_format": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "configure_business_languages": {
+      "passed": 19,
+      "failed": 0,
+      "total": 19,
+      "accuracyPct": 100
+    },
+    "configure_business_tax": {
+      "passed": 18,
+      "failed": 0,
+      "total": 18,
+      "accuracyPct": 100
+    },
+    "configure_clinic_service": {
+      "passed": 19,
+      "failed": 0,
+      "total": 19,
+      "accuracyPct": 100
+    },
+    "configure_granular_consent": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "configure_hipaa_session_timeout": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "configure_package_localized_names": {
+      "passed": 30,
+      "failed": 0,
+      "total": 30,
+      "accuracyPct": 100
+    },
+    "configure_privacy_retention": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "configure_provider_push_date_format": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "configure_recommendation_product": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "configure_stacked_tax_rules": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "configure_tour_service": {
+      "passed": 28,
+      "failed": 0,
+      "total": 28,
+      "accuracyPct": 100
+    },
+    "configure_zendesk": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "contact_support": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "create_booking": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "create_multi_service_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "create_package": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "create_package_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "create_product": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "create_resource": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "create_subscription_plan": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "create_test_order": {
+      "passed": 35,
+      "failed": 0,
+      "total": 35,
+      "accuracyPct": 100
+    },
+    "diagnose_stripe_checkout_failure": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "diagnose_tour_capacity": {
+      "passed": 21,
+      "failed": 0,
+      "total": 21,
+      "accuracyPct": 100
+    },
+    "discover_packages": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "enable_hipaa_mode": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12,
+      "accuracyPct": 100
+    },
+    "enable_push_notifications": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "enter_test_result": {
+      "passed": 29,
+      "failed": 0,
+      "total": 29,
+      "accuracyPct": 100
+    },
+    "explain_appointment_tax": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "explain_booking_date_format": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12,
+      "accuracyPct": 100
+    },
+    "explain_booking_languages": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
+      "accuracyPct": 100
+    },
+    "explain_business_currency": {
+      "passed": 17,
+      "failed": 0,
+      "total": 17,
+      "accuracyPct": 100
+    },
+    "explain_business_date_format": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "explain_business_languages": {
+      "passed": 18,
+      "failed": 0,
+      "total": 18,
+      "accuracyPct": 100
+    },
+    "explain_business_tax": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "explain_checkout_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_checkout_recommendations": {
+      "passed": 20,
+      "failed": 0,
+      "total": 20,
+      "accuracyPct": 100
+    },
+    "explain_checkout_tax": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_clinic_booking": {
+      "passed": 22,
+      "failed": 0,
+      "total": 22,
+      "accuracyPct": 100
+    },
+    "explain_clinic_services": {
+      "passed": 17,
+      "failed": 0,
+      "total": 17,
+      "accuracyPct": 100
+    },
+    "explain_compliance_status": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
+      "accuracyPct": 100
+    },
+    "explain_consumer_checkout_success": {
+      "passed": 30,
+      "failed": 0,
+      "total": 30,
+      "accuracyPct": 100
+    },
+    "explain_consumer_checkout_tax": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_data_rights": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "explain_date_input_format": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "explain_gdpr_checklist": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "explain_hipaa_session_timeout": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "explain_last_push": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "explain_minimum_necessary_phi_access": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "explain_my_notifications": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "explain_notification_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_notification_date_format": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "explain_package_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_package_display_name": {
+      "passed": 30,
+      "failed": 0,
+      "total": 30,
+      "accuracyPct": 100
+    },
+    "explain_patient_chart": {
+      "passed": 45,
+      "failed": 0,
+      "total": 45,
+      "accuracyPct": 100
+    },
+    "explain_phi_encryption_status": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "explain_provider_date_display": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "explain_provider_payment_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_provider_session_timeout": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "explain_push_setup": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "explain_recommendation_analytics": {
+      "passed": 32,
+      "failed": 0,
+      "total": 32,
+      "accuracyPct": 100
+    },
+    "explain_recommendation_setup": {
+      "passed": 18,
+      "failed": 0,
+      "total": 18,
+      "accuracyPct": 100
+    },
+    "explain_reports_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_result_status": {
+      "passed": 96,
+      "failed": 0,
+      "total": 96,
+      "accuracyPct": 100
+    },
+    "explain_stacked_tax": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14,
+      "accuracyPct": 100
+    },
+    "explain_stripe_checkout_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_stripe_currency_warning": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_stripe_tax_charge": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "explain_tenant_currency": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "explain_tour_booking": {
+      "passed": 29,
+      "failed": 0,
+      "total": 29,
+      "accuracyPct": 100
+    },
+    "explain_tour_booking_record": {
+      "passed": 21,
+      "failed": 0,
+      "total": 21,
+      "accuracyPct": 100
+    },
+    "explain_tour_calendar_span": {
+      "passed": 30,
+      "failed": 0,
+      "total": 30,
+      "accuracyPct": 100
+    },
+    "explain_tour_day_slots": {
+      "passed": 29,
+      "failed": 0,
+      "total": 29,
+      "accuracyPct": 100
+    },
+    "explain_tour_services": {
+      "passed": 19,
+      "failed": 0,
+      "total": 19,
+      "accuracyPct": 100
+    },
+    "find_my_saved_salons": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "gift_card_creation_queue": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "link_recommended_products": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "list_breach_incidents": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "list_customer_subscriptions": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_inactive_customers": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_my_appointments": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_my_collection_queue": {
+      "passed": 52,
+      "failed": 0,
+      "total": 52,
+      "accuracyPct": 100
+    },
+    "list_my_lab_booking_requests": {
+      "passed": 38,
+      "failed": 0,
+      "total": 38,
+      "accuracyPct": 100
+    },
+    "list_my_package_visits": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_my_test_results": {
+      "passed": 96,
+      "failed": 0,
+      "total": 96,
+      "accuracyPct": 100
+    },
+    "list_package_appointments_today": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_package_bookings": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_packages": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "list_patient_pending_lab_requests": {
+      "passed": 35,
+      "failed": 0,
+      "total": 35,
+      "accuracyPct": 100
+    },
+    "list_sub_processors": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "list_test_orders": {
+      "passed": 47,
+      "failed": 0,
+      "total": 47,
+      "accuracyPct": 100
+    },
+    "list_tour_calendar_week": {
+      "passed": 31,
+      "failed": 0,
+      "total": 31,
+      "accuracyPct": 100
+    },
+    "list_upcoming_tour_departures": {
+      "passed": 13,
+      "failed": 0,
+      "total": 13,
+      "accuracyPct": 100
+    },
+    "lookup_booking_tax_metadata": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "lookup_customer": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "lookup_service_assignment": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "loyalty_points_balance": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "manage_notification_preferences": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "mark_paid": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "mark_running_late": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "mark_specimen_collected": {
+      "passed": 52,
+      "failed": 0,
+      "total": 52,
+      "accuracyPct": 100
+    },
+    "migrate_dashboard_date_display": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
+    "multilingual_detection": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "my_resource_assignments": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "my_stats": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "notify_patient_result_ready": {
+      "passed": 20,
+      "failed": 0,
+      "total": 20,
+      "accuracyPct": 100
+    },
+    "open_compliance_dashboard": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "payment_sweep": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "phi_guard": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "preview_business_date_format": {
+      "passed": 20,
+      "failed": 0,
+      "total": 20,
+      "accuracyPct": 100
+    },
+    "preview_date_input_parse": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "preview_notification_datetime": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "push_lab_booking_to_patient": {
+      "passed": 37,
+      "failed": 0,
+      "total": 37,
+      "accuracyPct": 100
+    },
+    "quote_staff_booking_tax": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "rebook_last_appointment": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "refer_a_friend": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "release_test_result": {
+      "passed": 29,
+      "failed": 0,
+      "total": 29,
+      "accuracyPct": 100
+    },
+    "report_data_breach": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "reschedule_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "reschedule_parse": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "route:compound": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "route:orchestration": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "route:read_only": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "route:simple_mutate": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "send_breach_notification": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "accuracyPct": 100
+    },
+    "set_service_tax_rate": {
+      "passed": 16,
+      "failed": 0,
+      "total": 16,
+      "accuracyPct": 100
+    },
+    "share_my_booking": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "share_salon_link": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "show_appointments": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "show_client_history": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
+      "accuracyPct": 100
+    },
+    "staff_book_lab_collection": {
+      "passed": 32,
+      "failed": 0,
+      "total": 32,
+      "accuracyPct": 100
+    },
+    "suggest_retail_upsell": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "summarize_bookings": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "summarize_client": {
+      "passed": 12,
+      "failed": 0,
+      "total": 12,
+      "accuracyPct": 100
+    },
+    "summarize_customer_tax_paid": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "summarize_my_appointments": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "summarize_my_revenue": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "summarize_recommendation_performance": {
+      "passed": 32,
+      "failed": 0,
+      "total": 32,
+      "accuracyPct": 100
+    },
+    "summarize_revenue_kpis": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "summarize_staff": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
+      "accuracyPct": 100
+    },
+    "summarize_unpaid": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "tag_customer": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "team_floor_status": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "track_physical_gift_card_order": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "trigger_reengagement": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "update_package": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "update_subscription_plan": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "view_phi_access_audit": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    }
+  }
+}
