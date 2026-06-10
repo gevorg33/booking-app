@@ -1,6 +1,7 @@
 import {
   extractProviderFallbackFromPrompt,
   extractServiceFromPrompt,
+  enrichPublicAssistantParamsFromPrompt,
   resolveCustomerMetric,
   resolveBookingMetric,
   resolveStaffMetric,
@@ -56,6 +57,57 @@ describe('ai-intent-heuristics', () => {
         services,
       );
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('enrichPublicAssistantParamsFromPrompt', () => {
+    const salonServices = [
+      { id: 'h1', name: 'hairstyle' },
+      { id: 'm1', name: 'Swedish massage' },
+    ];
+
+    it('overrides stale session serviceName with prompt-mentioned catalog service', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'give me available slots tomorrow afternoon for hairstyle',
+          { serviceName: 'haircut', date: '10/06/2026', timeOfDay: 'afternoon' },
+          salonServices,
+          'check_availability',
+        ),
+      ).toEqual({
+        serviceName: 'hairstyle',
+        serviceCategory: null,
+        serviceNames: null,
+        date: '10/06/2026',
+        timeOfDay: 'afternoon',
+      });
+    });
+
+    it('extracts unknown service names from prompt when not in catalog', () => {
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'give me available slots tomorrow afternoon for haircut',
+          { serviceName: 'hairstyle' },
+          salonServices,
+          'check_availability',
+        ),
+      ).toEqual({
+        serviceName: 'haircut',
+        serviceCategory: null,
+        serviceNames: null,
+      });
+    });
+
+    it('leaves params unchanged for non-service actions', () => {
+      const params = { serviceName: 'haircut' };
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'what are your opening hours?',
+          params,
+          salonServices,
+          'business_info',
+        ),
+      ).toBe(params);
     });
   });
 

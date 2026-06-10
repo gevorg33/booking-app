@@ -12,6 +12,9 @@ export type ConsumerCopy = {
   pickNewTime: string;
   loadingSlots: string;
   noSlotsThisDay: string;
+  timeSlotMorning: string;
+  timeSlotAfternoon: string;
+  timeSlotEvening: string;
   confirmReschedule: string;
   submitting: string;
   rescheduleBookingFailed: string;

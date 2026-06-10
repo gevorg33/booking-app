@@ -122,11 +122,21 @@ function buildIncompatibilityMap(pairs: Array<[string, string]>): Map<string, Se
 }
 
 export function getDisabledMultiServiceIds(input: {
-  services: Array<{ id: string; category?: { id: string } | null }>;
+  services: Array<{
+    id: string;
+    category?: { id: string } | null;
+    durationMinutes?: number;
+    bufferMinutes?: number;
+  }>;
   selectedIds: string[];
   settings: Pick<
     MultiServiceAdminSettings,
-    'incompatiblePairMode' | 'incompatiblePairs' | 'incompatibleCategoryPairs'
+    | 'incompatiblePairMode'
+    | 'incompatiblePairs'
+    | 'incompatibleCategoryPairs'
+    | 'maxServiceCount'
+    | 'maxDurationMinutes'
+    | 'turnoverBufferMinutes'
   >;
 }): Set<string> {
   const { services, selectedIds, settings } = input;
@@ -150,18 +160,60 @@ export function getDisabledMultiServiceIds(input: {
         disabled.add(service.id);
       }
     }
-    return disabled;
-  }
-
-  const incompatMap = buildIncompatibilityMap(settings.incompatiblePairs);
-  for (const id of selectedIds) {
-    for (const incompatible of incompatMap.get(id) ?? []) {
-      if (!selectedSet.has(incompatible)) {
-        disabled.add(incompatible);
+  } else {
+    const incompatMap = buildIncompatibilityMap(settings.incompatiblePairs);
+    for (const id of selectedIds) {
+      for (const incompatible of incompatMap.get(id) ?? []) {
+        if (!selectedSet.has(incompatible)) {
+          disabled.add(incompatible);
+        }
       }
     }
   }
+
+  if (selectedIds.length >= settings.maxServiceCount) {
+    for (const service of services) {
+      if (!selectedSet.has(service.id)) disabled.add(service.id);
+    }
+  }
+
+  applyMultiServiceDurationLimits(disabled, services, selectedIds, settings);
   return disabled;
+}
+
+function applyMultiServiceDurationLimits(
+  disabled: Set<string>,
+  services: Array<{
+    id: string;
+    durationMinutes?: number;
+    bufferMinutes?: number;
+  }>,
+  selectedIds: string[],
+  settings: Pick<MultiServiceAdminSettings, 'maxDurationMinutes' | 'turnoverBufferMinutes'>,
+): void {
+  const selectedSet = new Set(selectedIds);
+  const turnover = settings.turnoverBufferMinutes ?? 5;
+  const selectedServices = selectedIds
+    .map((id) => services.find((svc) => svc.id === id))
+    .filter(
+      (svc): svc is { id: string; durationMinutes: number; bufferMinutes?: number } =>
+        svc != null && typeof svc.durationMinutes === 'number',
+    );
+
+  for (const service of services) {
+    if (selectedSet.has(service.id) || disabled.has(service.id)) continue;
+    if (typeof service.durationMinutes !== 'number') continue;
+    const blockDuration = sumMultiServiceDuration(
+      [
+        ...selectedServices,
+        { durationMinutes: service.durationMinutes, bufferMinutes: service.bufferMinutes },
+      ],
+      turnover,
+    );
+    if (blockDuration > settings.maxDurationMinutes) {
+      disabled.add(service.id);
+    }
+  }
 }
 
 export function findIncompatiblePairLabels(
@@ -177,6 +229,64 @@ export function findIncompatiblePairLabels(
     }
   }
   return warnings;
+}
+
+export function findIncompatibleCategoryPairLabels(
+  selectedIds: string[],
+  services: Array<{ id: string; category?: { id: string; name?: string } | null }>,
+  pairs: Array<[string, string]>,
+): string[] {
+  const selectedCategories = new Set(
+    selectedIds.map((id) => serviceCategoryKey(services.find((svc) => svc.id === id) ?? {})),
+  );
+  const categoryName = (key: string) => {
+    const match = services.find((svc) => serviceCategoryKey(svc) === key);
+    return match?.category?.name ?? key;
+  };
+  const warnings: string[] = [];
+  for (const [catA, catB] of pairs) {
+    if (selectedCategories.has(catA) && selectedCategories.has(catB)) {
+      warnings.push(`${categoryName(catA)} cannot be combined with ${categoryName(catB)}`);
+    }
+  }
+  return [...new Set(warnings)];
+}
+
+export function validateLocalMultiServiceCart(input: {
+  services: Array<{
+    id: string;
+    name: string;
+    durationMinutes: number;
+    bufferMinutes?: number;
+    category?: { id: string; name?: string } | null;
+  }>;
+  selectedIds: string[];
+  settings: MultiServicePublicSettings & { turnoverBufferMinutes?: number };
+}): string[] {
+  const { services, selectedIds, settings } = input;
+  if (selectedIds.length < 2) return [];
+
+  const selectedServices = selectedIds
+    .map((id) => services.find((svc) => svc.id === id))
+    .filter((svc): svc is (typeof services)[number] => svc != null);
+  const turnover = settings.turnoverBufferMinutes ?? 5;
+  const duration = sumMultiServiceDuration(selectedServices, turnover);
+  const nameById = Object.fromEntries(services.map((svc) => [svc.id, svc.name]));
+  const incompatibleWarnings =
+    (settings.incompatiblePairMode ?? 'service') === 'category'
+      ? findIncompatibleCategoryPairLabels(
+          selectedIds,
+          services,
+          settings.incompatibleCategoryPairs ?? [],
+        )
+      : findIncompatiblePairLabels(selectedIds, settings.incompatiblePairs ?? [], nameById);
+
+  return multiServiceCartErrors({
+    selectedIds,
+    settings,
+    totalDurationMinutes: duration,
+    incompatibleWarnings,
+  });
 }
 
 export function multiServiceCartErrors(input: {

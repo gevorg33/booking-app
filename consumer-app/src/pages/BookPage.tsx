@@ -7,10 +7,7 @@ import {
   IonIcon,
   IonItem,
   IonLabel,
-  IonList,
   IonPage,
-  IonSelect,
-  IonSelectOption,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -97,6 +94,9 @@ import {
   buildProfessionalServicesPath,
   buildProfessionalsPath,
 } from '../lib/provider-booking.util.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
+import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
+import { ConsumerProviderAvatar } from '../components/ConsumerProviderAvatar.js';
 import { ConsumerProfessionalsFirstCheckoutSummary } from '../components/ConsumerProfessionalsFirstCheckoutSummary.js';
 import { PushOptInPrimingPrompt } from '../components/PushOptInPrimingPrompt.js';
 import { PushProvisionalUpgradePrompt } from '../components/PushProvisionalUpgradePrompt.js';
@@ -1605,28 +1605,19 @@ export default function BookPage() {
             onRetry={() => void refetchSlots()}
           />
         ) : (
-          <IonList className="ion-margin-top">
-            {isDayLevelTour ? (
-              <p style={{ padding: '0 16px', color: '#6b7280', fontSize: '0.875rem' }}>
-                {copy.tourDayDeparture}
-              </p>
-            ) : null}
-            {slots.map((s) => (
-              <IonItem
-                key={s.startTime}
-                button
-                color={slot === s.startTime ? 'primary' : undefined}
-                onClick={() => setSlot(s.startTime)}
-              >
-                <IonLabel>
-                  {service
-                    ? formatTourSlotLabel(s.startTime, service, locale)
-                    : formatScheduleTime(s.startTime, locale)}
-                </IonLabel>
-              </IonItem>
-            ))}
-            {slots.length === 0 && <p className="ion-padding">{copy.noSlotsThisDay}</p>}
-          </IonList>
+          <ConsumerGroupedTimeSlotList
+            slots={slots}
+            selectedStartTime={slot || null}
+            onSelect={setSlot}
+            copy={copy}
+            primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+            dayLevelTourHint={isDayLevelTour ? copy.tourDayDeparture : null}
+            formatSlotLabel={(startTime) =>
+              service
+                ? formatTourSlotLabel(startTime, service, locale)
+                : formatScheduleTime(startTime, locale)
+            }
+          />
         )}
 
         {showCalendarSpecialistPicker && slotProvidersLoading ? (
@@ -1636,30 +1627,33 @@ export default function BookPage() {
         {showCalendarSpecialistPicker &&
         !slotProvidersLoading &&
         shouldShowBookPageSpecialistPicker(slotProviders.length) ? (
-          <IonItem>
-            <IonLabel>{copy.selectSpecialist}</IonLabel>
-            <IonSelect
-              value={employeeId}
-              placeholder={copy.anySpecialist}
-              onIonChange={(e) => setEmployeeId(String(e.detail.value ?? ''))}
-            >
-              <IonSelectOption value="">{copy.anySpecialist}</IonSelectOption>
-              {slotProviders.map((provider) => (
-                <IonSelectOption key={provider.id} value={provider.id}>
-                  {provider.name}
-                </IonSelectOption>
-              ))}
-            </IonSelect>
-          </IonItem>
+          <ConsumerSlotSpecialistPicker
+            copy={copy}
+            primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+            providers={slotProviders}
+            value={employeeId}
+            onChange={setEmployeeId}
+          />
         ) : null}
 
         {showCalendarSpecialistPicker &&
         !slotProvidersLoading &&
         slotProviders.length === 1 ? (
           <IonItem lines="none">
+            <div slot="start">
+              <ConsumerProviderAvatar
+                name={slotProviders[0]!.name}
+                avatarUrl={slotProviders[0]!.avatarUrl}
+                primaryColor={profile?.branding.primaryColor || '#7c3aed'}
+                size={36}
+              />
+            </div>
             <IonLabel>
               <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>{copy.selectSpecialist}</p>
               <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{slotProviders[0]!.name}</p>
+              {slotProviders[0]!.role ? (
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{slotProviders[0]!.role}</p>
+              ) : null}
             </IonLabel>
           </IonItem>
         ) : null}

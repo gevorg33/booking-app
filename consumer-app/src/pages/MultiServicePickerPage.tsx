@@ -32,12 +32,12 @@ import {
   sumMultiServiceDuration,
   sumMultiServicePrice,
   uniqueMultiServiceIds,
+  validateLocalMultiServiceCart,
 } from '../lib/multi-service-booking.js';
 import type { PublicService } from '../lib/types.js';
 import {
   fetchPublicPackages,
   fetchPublicServices,
-  previewPublicMultiService,
 } from '../services/public-api.js';
 
 function groupServicesByCategory(services: PublicService[], uncategorizedLabel: string) {
@@ -71,7 +71,6 @@ export default function MultiServicePickerPage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [serviceId, setServiceId] = useState<string | null>(null);
-  const [cartErrors, setCartErrors] = useState<string[]>([]);
 
   const servicesQuery = useQuery({
     queryKey: ['public-services', slug],
@@ -134,21 +133,21 @@ export default function MultiServicePickerPage() {
         incompatiblePairMode: profile.multiService.incompatiblePairMode ?? 'service',
         incompatiblePairs: profile.multiService.incompatiblePairs ?? [],
         incompatibleCategoryPairs: profile.multiService.incompatibleCategoryPairs ?? [],
+        maxServiceCount: profile.multiService.maxServiceCount,
+        maxDurationMinutes: profile.multiService.maxDurationMinutes,
+        turnoverBufferMinutes: profile.multiService.turnoverBufferMinutes ?? 5,
       },
     });
   }, [multiEnabled, profile?.multiService, selectedServiceIds, services]);
 
-  useEffect(() => {
-    if (!slug || !multiEnabled || selectedServiceIds.length < 2) {
-      setCartErrors([]);
-      return;
-    }
-    void previewPublicMultiService(slug, selectedServiceIds)
-      .then((preview) => setCartErrors(preview.valid ? [] : preview.errors))
-      .catch((err: unknown) =>
-        setCartErrors([(err as Error)?.message || copy.validateServiceSelectionFailed]),
-      );
-  }, [copy.validateServiceSelectionFailed, multiEnabled, selectedServiceIds, slug]);
+  const cartErrors = useMemo(() => {
+    if (!multiEnabled || !profile?.multiService || selectedServiceIds.length < 2) return [];
+    return validateLocalMultiServiceCart({
+      services,
+      selectedIds: selectedServiceIds,
+      settings: profile.multiService,
+    });
+  }, [multiEnabled, profile?.multiService, selectedServiceIds, services]);
 
   const groupedServices = useMemo(
     () => groupServicesByCategory(services, copy.uncategorizedServices),
@@ -159,9 +158,11 @@ export default function MultiServicePickerPage() {
     setSelectedPackageId(null);
     if (multiEnabled) {
       setServiceId(null);
-      setSelectedServiceIds((prev) =>
-        prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
-      );
+      setSelectedServiceIds((prev) => {
+        if (prev.includes(id)) return prev.filter((entry) => entry !== id);
+        if (disabledServiceIds.has(id)) return prev;
+        return [...prev, id];
+      });
       return;
     }
     setSelectedServiceIds([]);
@@ -172,7 +173,6 @@ export default function MultiServicePickerPage() {
     setSelectedPackageId((prev) => (prev === packageId ? null : packageId));
     setSelectedServiceIds([]);
     setServiceId(null);
-    setCartErrors([]);
   };
 
   const onContinue = useCallback(() => {
@@ -295,12 +295,6 @@ export default function MultiServicePickerPage() {
                 </p>
               </div>
             ) : null}
-
-            {cartErrors.map((entry) => (
-              <p key={entry} style={{ color: '#b91c1c', fontSize: 14 }}>
-                {entry}
-              </p>
-            ))}
 
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{copy.servicesSection}</h2>
 

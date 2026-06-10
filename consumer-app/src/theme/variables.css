@@ -137,6 +137,16 @@ body.salon-tab-active .consumer-page-with-fixed-action ion-content {
   );
 }
 
+ion-content.consumer-tab-fixed-action-content {
+  --padding-bottom: calc(var(--consumer-tab-bar-core-height) + env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+body.salon-tab-active ion-content.consumer-tab-fixed-action-content {
+  --padding-bottom: calc(
+    var(--consumer-tab-bar-total-height) + var(--consumer-tab-bar-core-height) + 8px
+  );
+}
+
 .salon-card {
   background: #fff;
   border-radius: 16px;
