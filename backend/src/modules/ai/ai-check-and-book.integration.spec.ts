@@ -55,6 +55,13 @@ const services = [
     price: 110,
     isActive: true,
   },
+  {
+    id: 's4',
+    name: 'Hairstyle',
+    businessId: 'biz-1',
+    price: 45,
+    isActive: true,
+  },
 ] as any[];
 
 const CHECK_AND_BOOK_PROMPTS = [

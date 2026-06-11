@@ -363,6 +363,26 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
       return name;
     }
   }
+  const isFlexibleSlotOnlyBookPhrase =
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:(?:first|nearest|soonest)\s+(?:available\s+)?(?:slot|appointment|opening|time)|(?:slot|appointment|opening|time))\b/i.test(
+      prompt,
+    );
+  if (!isFlexibleSlotOnlyBookPhrase) {
+    const bookService = prompt.match(
+      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\b(?:slot|appointment|opening|time)\b|$))/i,
+    );
+    if (bookService) {
+      const name = bookService[1].trim().replace(/[,.]$/, '');
+      if (
+        name &&
+        !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
+          name,
+        )
+      ) {
+        return name;
+      }
+    }
+  }
   const nearest = prompt.match(
     /\bnearest\s+(?:available\s+)?([\w\s'-]{2,40}?)(?:\s+(?:slot|appointment|opening|time)\b|\s+and\b|$)/i,
   );

@@ -167,6 +167,7 @@ import {
   hasExplicitTimeWindow,
   isProviderOwnServicesPrompt,
   parseTimeWindow,
+  filterOpenSlotsByTimeRange,
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
   matchEmployeesInPrompt,
@@ -10255,13 +10256,22 @@ export class AiCommandService {
 
     const isoDay = params.date || new Date().toISOString().split('T')[0];
     const displayDay = formatDateDisplay(isoDay);
+    const explicitTimeWindow = hasExplicitTimeWindow(params, prompt)
+      ? parseTimeWindow(params, prompt)
+      : null;
+    if (explicitTimeWindow) {
+      params.timeFrom = explicitTimeWindow.timeFrom;
+      params.timeTo = explicitTimeWindow.timeTo;
+      delete params.timeSlot;
+      delete params.timeOfDay;
+    }
     const timeOfDay = parseTimeOfDayWindow('', params);
 
     if (
       employeeId &&
       employeeName &&
       params.serviceName &&
-      (params.timeSlot || timeOfDay)
+      (params.timeSlot || timeOfDay || explicitTimeWindow)
     ) {
       const services = await this.serviceRepo.find({ where: { businessId } });
       const service = this.resolveService(services, params.serviceName);
@@ -10272,9 +10282,42 @@ export class AiCommandService {
           service.id,
           isoDay,
         );
-        const windowSlots = timeOfDay
+        let windowSlots = timeOfDay
           ? filterSlotsByTimeOfDay(row.openSlots, timeOfDay)
           : row.openSlots;
+
+        if (explicitTimeWindow) {
+          const rangeSlots = filterOpenSlotsByTimeRange(
+            windowSlots,
+            explicitTimeWindow.timeFrom,
+            explicitTimeWindow.timeTo,
+          );
+          const rangeLabel = `${explicitTimeWindow.timeFrom}–${explicitTimeWindow.timeTo}`;
+          let summary: string;
+          if (!row.hasSchedule) {
+            summary = `${employeeName} has no schedule on ${displayDay}.`;
+          } else if (rangeSlots.length === 0) {
+            summary = `No — ${employeeName} has no open ${service.name} slots on ${displayDay} between ${rangeLabel}.`;
+          } else {
+            summary = `Yes — ${employeeName} is available for ${service.name} on ${displayDay} between ${rangeLabel}: ${rangeSlots.map((s) => `${s.start}–${s.end}`).join(', ')}.`;
+          }
+
+          return {
+            success: true,
+            action: 'check_availability',
+            summary,
+            details: {
+              date: displayDay,
+              employee: employeeName,
+              serviceName: service.name,
+              timeFrom: explicitTimeWindow.timeFrom,
+              timeTo: explicitTimeWindow.timeTo,
+              available: rangeSlots.length > 0,
+              openSlots: rangeSlots,
+              hasSchedule: row.hasSchedule,
+            },
+          };
+        }
 
         if (params.timeSlot) {
           const targetTime = this.snapTo10min(params.timeSlot);

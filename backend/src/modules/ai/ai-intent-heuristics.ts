@@ -16,8 +16,10 @@ import { resolveTimezone } from '../../common/utils/timezone.util.js';
 import {
   extractSingleDateFromPrompt,
   fuzzyMatchServiceByName,
+  hasExplicitTimeWindow,
   normalizeServiceLookup,
   parseEarliestBookingTimeFromPrompt,
+  parseTimeWindow,
 } from './ai-orchestration.helpers.js';
 import {
   isMultilingualCheckProvidersPrompt,
@@ -833,7 +835,17 @@ export function enrichBookingTimeHintsFromPrompt(
   if (timeOfDay && !params.timeOfDay) params.timeOfDay = timeOfDay;
 
   const earliestTime = parseEarliestBookingTimeFromPrompt(prompt);
-  if (earliestTime) params.timeFrom = earliestTime;
+  if (earliestTime && !hasExplicitTimeWindow(params, prompt)) {
+    params.timeFrom = earliestTime;
+  }
+
+  if (hasExplicitTimeWindow(params, prompt)) {
+    const window = parseTimeWindow(params, prompt);
+    params.timeFrom = window.timeFrom;
+    params.timeTo = window.timeTo;
+    delete params.timeSlot;
+    delete params.timeOfDay;
+  }
 
   if (
     action === 'check_providers_for_service' ||

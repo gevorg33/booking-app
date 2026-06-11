@@ -17,6 +17,10 @@ import {
   resolvePublicAssistantSessionServiceFields,
   extractRecommendServicesFromPrompt,
   stripServiceRoleNoise,
+  parseTimeWindow,
+  hasExplicitTimeWindow,
+  filterOpenSlotsByTimeRange,
+  openSlotOverlapsTimeRange,
 } from './ai-orchestration.helpers.js';
 
 describe('inferDirectSchedulePeriods', () => {
@@ -577,6 +581,29 @@ describe('resolveDirectSchedulePeriodServiceIds', () => {
         assigned,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('explicit time window helpers', () => {
+  it('parses from 17:00-19:00 ranges in natural prompts', () => {
+    const prompt = 'is Jujo available for hairstyle from 17:00-19:00?';
+    expect(hasExplicitTimeWindow({}, prompt)).toBe(true);
+    expect(parseTimeWindow({}, prompt)).toEqual({
+      timeFrom: '17:00',
+      timeTo: '19:00',
+    });
+  });
+
+  it('filters open slots that overlap a daily time range', () => {
+    const slots = [
+      { start: '11:00', end: '11:30' },
+      { start: '13:00', end: '19:00' },
+    ];
+    expect(openSlotOverlapsTimeRange(slots[1], '17:00', '19:00')).toBe(true);
+    expect(openSlotOverlapsTimeRange(slots[0], '17:00', '19:00')).toBe(false);
+    expect(filterOpenSlotsByTimeRange(slots, '17:00', '19:00')).toEqual([
+      { start: '13:00', end: '19:00' },
+    ]);
   });
 });
 

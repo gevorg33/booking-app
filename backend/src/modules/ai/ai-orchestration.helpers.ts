@@ -1104,7 +1104,7 @@ export function parseTimeWindow(
   }
 
   const match = (prompt ?? '').match(
-    /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
+    /(?:between\s+|from\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
   );
   if (match) {
     const timeFrom = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
@@ -1152,6 +1152,27 @@ export function bookingOverlapsTimeWindow(
       ? booking.endTime
       : new Date(booking.endTime);
   return start < windowEnd && end > windowStart;
+}
+
+/** True when an open slot range overlaps a daily HH:MM window (e.g. 17:00–19:00). */
+export function openSlotOverlapsTimeRange(
+  slot: { start: string; end?: string },
+  timeFrom: string,
+  timeTo: string,
+): boolean {
+  const slotStart = timeToMinutes(slot.start);
+  const slotEnd = slot.end ? timeToMinutes(slot.end) : slotStart + 30;
+  const from = timeToMinutes(timeFrom);
+  const to = timeToMinutes(timeTo);
+  return slotStart < to && slotEnd > from;
+}
+
+export function filterOpenSlotsByTimeRange<
+  T extends { start: string; end?: string },
+>(slots: T[], timeFrom: string, timeTo: string): T[] {
+  return slots.filter((slot) =>
+    openSlotOverlapsTimeRange(slot, timeFrom, timeTo),
+  );
 }
 
 /** Narrow bookings to an explicit timeSlot or timeFrom–timeTo window (overlap, not start-only). */

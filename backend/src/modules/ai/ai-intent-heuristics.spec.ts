@@ -522,6 +522,24 @@ describe('ai-intent-heuristics', () => {
       expect(params.timeSlot).toBeUndefined();
       expect(params.timeOfDay).toBe('evening');
     });
+
+    it('clears stale timeSlot when prompt names an explicit time range', () => {
+      const params: Record<string, unknown> = {
+        serviceName: 'hairstyle',
+        employeeName: 'Jujo Karapetyan',
+        timeSlot: '11:00',
+        date: '2026-06-15',
+      };
+      enrichBookingTimeHintsFromPrompt(
+        'check_availability',
+        params,
+        'is Jujo available for hairstyle from 17:00-19:00?',
+      );
+      expect(params.timeFrom).toBe('17:00');
+      expect(params.timeTo).toBe('19:00');
+      expect(params.timeSlot).toBeUndefined();
+      expect(params.timeOfDay).toBeUndefined();
+    });
   });
 
   describe('isRecommendSpecialistsPrompt', () => {
