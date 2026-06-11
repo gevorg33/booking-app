@@ -27,6 +27,8 @@ import type { BookingToolRunContext } from '../tools/booking-tool.types.js';
 import type { AgentPlanStep } from '../../agent/interfaces/agent.interfaces.js';
 import type { Employee } from '../../../modules/employee/entities/employee.entity.js';
 import type { Service } from '../../../modules/service/entities/service.entity.js';
+import type { ScheduleTemplate } from '../../../modules/schedule/entities/schedule-template.entity.js';
+import { getTodayDateKey } from '../../../common/utils/date-format.util.js';
 
 export interface ReactAgentRunInput {
   businessId: string;
@@ -35,6 +37,7 @@ export interface ReactAgentRunInput {
   timeZone: string;
   employees: Employee[];
   services: Service[];
+  templates: ScheduleTemplate[];
 }
 
 export interface ReactAgentRunOutput {
@@ -102,6 +105,7 @@ export class ReactBookingAgentService {
         serviceIds: e.serviceIds ?? [],
       })),
       services: input.services.map((s) => ({ id: s.id, name: s.name })),
+      templates: input.templates.map((t) => ({ id: t.id, name: t.name })),
     };
 
     const tools = this.toolRegistry.createTools(runCtx);
@@ -256,10 +260,12 @@ You have READ tools (safe, immediate) and PROPOSE tools (build approval plans â€
 - **Compound:** propose_compound_workflow (any chained manager workflow, max 10 steps)
 
 Context:
+- Today: ${getTodayDateKey(input.timeZone)} (${input.timeZone})
 - Timezone: ${input.timeZone}
 - Employees: ${employeeList || 'none'}
 - Services: ${serviceList || 'none'}
-- Dates: YYYY-MM-DD in tool args`;
+- Schedule templates: ${input.templates.map((t) => `${t.name} (id: ${t.id})`).join(', ') || 'none'}
+- Dates: YYYY-MM-DD in tool args; for "next N days" compute from Today â€” never use training-era example dates`;
   }
 
   private async resolveApiKey(businessId: string): Promise<string | null> {

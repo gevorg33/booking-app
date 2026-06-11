@@ -43,17 +43,17 @@ export async function loadServiceBookingCounts90d(
 
   const qb = bookingRepo
     .createQueryBuilder('booking')
-    .select('booking.service_id', 'serviceId')
+    .select('booking.serviceId', 'serviceId')
     .addSelect('COUNT(*)', 'count')
-    .where('booking.business_id = :businessId', { businessId })
-    .andWhere('booking.start_time BETWEEN :start AND :end', { start, end })
+    .where('booking.businessId = :businessId', { businessId })
+    .andWhere('booking.startTime BETWEEN :start AND :end', { start, end })
     .andWhere('booking.status != :cancelled', {
       cancelled: BookingStatus.CANCELLED,
     })
-    .groupBy('booking.service_id');
+    .groupBy('booking.serviceId');
 
   if (serviceIds?.length) {
-    qb.andWhere('booking.service_id IN (:...serviceIds)', { serviceIds });
+    qb.andWhere('booking.serviceId IN (:...serviceIds)', { serviceIds });
   }
 
   const rows = await qb.getRawMany<{ serviceId: string; count: string }>();

@@ -17,6 +17,8 @@ import {
   enrichBookingTimeHintsFromPrompt,
   isBulkAllAppointmentsPrompt,
   isRecommendSpecialistsPrompt,
+  isAvailabilityTimeOfDayFollowUp,
+  applyAvailabilityFollowUpFromSession,
 } from './ai-intent-heuristics.js';
 import { SIMILAR_CHECK_AND_BOOK_PROMPTS } from './ai-check-and-book.fixtures.js';
 import {
@@ -539,6 +541,38 @@ describe('ai-intent-heuristics', () => {
       expect(params.timeTo).toBe('19:00');
       expect(params.timeSlot).toBeUndefined();
       expect(params.timeOfDay).toBeUndefined();
+    });
+  });
+
+  describe('availability follow-up context', () => {
+    it('detects short time-of-day refinements', () => {
+      expect(isAvailabilityTimeOfDayFollowUp('evening?')).toBe(true);
+      expect(isAvailabilityTimeOfDayFollowUp('what about morning')).toBe(true);
+      expect(
+        isAvailabilityTimeOfDayFollowUp(
+          'who is available tomorrow evening for massage',
+        ),
+      ).toBe(false);
+    });
+
+    it('binds evening follow-up to the provider from the last availability result', () => {
+      const params: Record<string, unknown> = {
+        employeeName: 'Gevorg Gasparyan',
+      };
+      applyAvailabilityFollowUpFromSession(
+        'evening?',
+        params,
+        {
+          lastAction: 'check_providers_for_service',
+          availableProviders: ['Jujo Karapetyan'],
+          serviceName: 'hairstyle',
+          date: '12/06/2026',
+        },
+        employees,
+      );
+      expect(params.employeeName).toBe('Jujo Karapetyan');
+      expect(params.allProviders).toBe(false);
+      expect(params.timeOfDay).toBe('evening');
     });
   });
 

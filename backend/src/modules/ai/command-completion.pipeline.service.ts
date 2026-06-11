@@ -428,6 +428,15 @@ export class CommandCompletionPipelineService {
     }
     if (Array.isArray(result.details?.availableProviders)) {
       sessionContext.availableProviders = result.details.availableProviders;
+      if (result.action === 'check_providers_for_service') {
+        if (result.details.availableProviders.length === 1) {
+          sessionContext.employeeName = result.details.availableProviders[0];
+          sessionContext.allProviders = false;
+        } else if (result.details.availableProviders.length > 1) {
+          sessionContext.employeeName = null;
+          sessionContext.allProviders = true;
+        }
+      }
     } else if (Array.isArray(result.details?.providers)) {
       sessionContext.availableProviders = (
         result.details.providers as Array<{ name?: string }>

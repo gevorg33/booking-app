@@ -224,6 +224,7 @@ import {
   extractServiceFromPrompt,
   extractCustomerFromBookingPrompt,
   isTeamWideProviderAvailabilityQuery,
+  applyAvailabilityFollowUpFromSession,
   matchEntityInPrompt,
   resolveCustomerMetric,
   resolveAppointmentMetric,
@@ -5031,6 +5032,13 @@ export class AiCommandService {
         params.customerName = promptCustomer.name;
       }
     }
+
+    applyAvailabilityFollowUpFromSession(
+      prompt,
+      params,
+      session,
+      employees.map((e) => ({ name: e.name })),
+    );
 
     if (isTeamWideProviderAvailabilityQuery(prompt)) {
       const emp = matchEntityInPrompt(prompt, employees);

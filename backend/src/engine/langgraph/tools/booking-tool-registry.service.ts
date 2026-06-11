@@ -25,6 +25,7 @@ import {
   withResolvedEmployeeParams,
   buildDirectScheduleProposalSteps,
   buildClearScheduleProposalSteps,
+  buildApplyScheduleProposalSteps,
 } from './booking-tool-context.helpers.js';
 
 @Injectable()
@@ -728,28 +729,27 @@ export class BookingToolRegistryService {
         },
       ),
       tool(
-        async (input) =>
-          propose(
-            'apply_template',
-            `Apply template ${input.templateName ?? input.templateId}`,
-            {
-              templateId: input.templateId,
-              templateName: input.templateName,
-              employeeIds: input.employeeIds,
-              startDate: input.dateFrom ?? input.date,
-              endDate: input.dateTo ?? input.date,
-              applyDays: input.applyDays,
-              repeatWeeksCount: input.repeatWeeksCount ?? 1,
-              userId: ctx.userId,
-            },
-            { chainPrevious: input.chainPrevious ?? false },
-          ),
+        async (input) => {
+          try {
+            const steps = buildApplyScheduleProposalSteps(ctx, input, {
+              chainSteps: input.chainPrevious ?? false,
+            });
+            return proposeManySteps(ctx, steps);
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose apply schedule',
+            });
+          }
+        },
         {
           name: 'propose_apply_schedule',
-          description: 'PROPOSE apply a schedule template to provider(s).',
+          description:
+            'PROPOSE apply a schedule template to provider(s). Resolves "next N days" from the user prompt — do not invent past dates.',
           schema: dateRangeSchema.merge(employeeIdsSchema).extend({
-            templateId: z.string(),
+            templateId: z.string().optional(),
             templateName: z.string().optional(),
+            employeeName: z.string().optional(),
+            employeeNames: z.array(z.string()).optional(),
             applyDays: z.array(z.number().min(0).max(6)).optional(),
             repeatWeeksCount: z.number().optional(),
             chainPrevious: z.boolean().optional(),

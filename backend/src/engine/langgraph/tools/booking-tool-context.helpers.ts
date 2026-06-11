@@ -9,6 +9,7 @@ import {
   resolveDirectScheduleDateKeys,
   resolveDirectSchedulePeriodServiceIds,
   resolveScheduleDates,
+  resolveDateRange,
 } from '../../../modules/ai/ai-orchestration.helpers.js';
 import { normalizeTime24 } from '../../../common/utils/time-format.util.js';
 import { buildDateParams } from './booking-tool-schemas.js';
@@ -368,4 +369,67 @@ export function buildClearScheduleProposalSteps(
   }
 
   return steps;
+}
+
+export function buildApplyScheduleProposalSteps(
+  ctx: BookingToolRunContext,
+  input: Record<string, unknown>,
+  options?: { chainSteps?: boolean },
+): Array<{
+  action: string;
+  description: string;
+  params: Record<string, unknown>;
+  chainPrevious?: boolean;
+}> {
+  const providers = resolveClearScheduleProviders(ctx, input);
+  if (!providers.length) {
+    throw new Error(
+      'Apply schedule requires at least one provider (employeeName or employeeIds).',
+    );
+  }
+
+  const range = resolveDateRange(
+    {
+      dateFrom:
+        typeof input.dateFrom === 'string' ? input.dateFrom : undefined,
+      dateTo: typeof input.dateTo === 'string' ? input.dateTo : undefined,
+      date: typeof input.date === 'string' ? input.date : undefined,
+      _timeZone: ctx.timeZone,
+    },
+    ctx.prompt,
+    ctx.timeZone,
+  );
+  if (!range) {
+    throw new Error(
+      'Apply schedule requires a date range (e.g. "next 5 days", "this week", dateFrom/dateTo).',
+    );
+  }
+
+  const templateHint = String(
+    input.templateName ?? input.templateId ?? '',
+  ).trim();
+  const template = templateHint
+    ? fuzzyMatchByName(ctx.templates, templateHint)
+    : ctx.templates[0];
+  if (!template) {
+    throw new Error(
+      `No schedule template found${templateHint ? ` matching "${templateHint}"` : ''}.`,
+    );
+  }
+
+  return providers.map((provider, index) => ({
+    action: 'apply_template',
+    description: `Apply "${template.name}" to ${provider.employeeName}`,
+    params: withResolvedEmployeeParams(ctx, {
+      templateId: template.id,
+      employeeId: provider.employeeId,
+      employeeName: provider.employeeName,
+      startDate: range.start,
+      endDate: range.end,
+      applyDays: input.applyDays,
+      repeatWeeksCount: input.repeatWeeksCount ?? 1,
+      userId: ctx.userId,
+    }),
+    chainPrevious: index > 0 && (options?.chainSteps ?? false),
+  }));
 }

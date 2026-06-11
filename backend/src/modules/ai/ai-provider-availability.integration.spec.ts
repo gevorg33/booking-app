@@ -353,8 +353,37 @@ describe('ai provider availability integration', () => {
         'Anna',
         'Bob',
       ]);
+      expect(attached.details?.sessionContext?.employeeName).toBeNull();
+      expect(attached.details?.sessionContext?.allProviders).toBe(true);
       expect(attached.details?.sessionContext?.serviceName).toBe('Massage');
       expect(attached.details?.sessionContext?.date).toBe('2026-06-06');
+    });
+
+    it('pins employeeName when a single provider was returned', () => {
+      const attached = pipeline.attachSessionToResult(
+        {
+          success: true,
+          action: 'check_providers_for_service',
+          summary: 'ok',
+          details: {
+            availableProviders: ['Jujo Karapetyan'],
+            serviceName: 'Hairstyle',
+            date: '12/06/2026',
+          },
+        },
+        {
+          action: 'check_providers_for_service',
+          params: {},
+          enrichedParams: {},
+          reasoning: '',
+          entities: {},
+        } as any,
+      );
+
+      expect(attached.details?.sessionContext?.employeeName).toBe(
+        'Jujo Karapetyan',
+      );
+      expect(attached.details?.sessionContext?.allProviders).toBe(false);
     });
 
     it('derives availableProviders from details.providers when names only exist there', () => {

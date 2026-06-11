@@ -61,7 +61,7 @@ describe('service-booking-popularity.util (rank-1.9)', () => {
 
     expect(bookingRepo.createQueryBuilder).toHaveBeenCalledWith('booking');
     expect(qb.andWhere).toHaveBeenCalledWith(
-      'booking.service_id IN (:...serviceIds)',
+      'booking.serviceId IN (:...serviceIds)',
       { serviceIds: ['svc-popular', 'svc-quiet'] },
     );
     expect(qb.andWhere).toHaveBeenCalledWith(

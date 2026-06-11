@@ -16,10 +16,9 @@ const MODEL_PRICING: Record<
   string,
   { inputPer1M: number; outputPer1M: number }
 > = {
-  [DEFAULT_OPENAI_MODEL]: { inputPer1M: 0.75, outputPer1M: 4.5 },
+  [DEFAULT_OPENAI_MODEL]: { inputPer1M: 0.15, outputPer1M: 0.6 },
+  'gpt-5.4-mini': { inputPer1M: 0.75, outputPer1M: 4.5 },
   'gpt-5.4-mini-2026-03-17': { inputPer1M: 0.75, outputPer1M: 4.5 },
-  // Legacy logs / overrides
-  'gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.6 },
 };
 
 @Injectable()

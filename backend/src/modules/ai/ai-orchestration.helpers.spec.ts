@@ -10,6 +10,7 @@ import {
   resolveDateKeysForAvailabilityWindow,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
+  extractNextDaysRangeFromPrompt,
   enrichListServicesParamsFromPrompt,
   extractServiceTypeKeywordFromListPrompt,
   matchServicesByQuery,
@@ -22,6 +23,8 @@ import {
   filterOpenSlotsByTimeRange,
   openSlotOverlapsTimeRange,
 } from './ai-orchestration.helpers.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 
 describe('inferDirectSchedulePeriods', () => {
   it('builds service blocks around lunch from prompt when periods are omitted', () => {
@@ -519,6 +522,29 @@ describe('matchEmployeesInPrompt', () => {
     expect(matched.map((e) => e.name).sort()).toEqual(
       ['Jujo Karapetyan', 'Mary Torgomyan'].sort(),
     );
+  });
+});
+
+describe('extractNextDaysRangeFromPrompt', () => {
+  it('resolves inclusive range from today for "next 5 days"', () => {
+    const range = extractNextDaysRangeFromPrompt(
+      "apply schedule for Gevorg's services next 5 days",
+      'UTC',
+    );
+    expect(range).not.toBeNull();
+    const today = getTodayDateKey('UTC');
+    expect(range!.start).toBe(today);
+    expect(range!.end).toBe(addDaysToDateKey(today, 4, 'UTC'));
+  });
+
+  it('overrides stale LLM dates in resolveDateRange', () => {
+    const range = resolveDateRange(
+      { dateFrom: '2023-10-30', dateTo: '2023-11-03' },
+      "apply schedule for Gevorg's services next 5 days",
+      'UTC',
+    );
+    expect(range!.start).toBe(getTodayDateKey('UTC'));
+    expect(range!.start).not.toBe('2023-10-30');
   });
 });
 

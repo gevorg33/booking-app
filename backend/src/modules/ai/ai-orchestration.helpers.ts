@@ -126,6 +126,27 @@ function parseMonthDayToken(token: string, timeZone: string): string | null {
   return null;
 }
 
+/** "next 5 days", "for the next 14 days" — inclusive range starting today. */
+export function extractNextDaysRangeFromPrompt(
+  prompt: string,
+  timeZone = 'UTC',
+): DateRange | null {
+  const match = prompt
+    .toLowerCase()
+    .match(/\b(?:for\s+)?(?:the\s+)?next\s+(\d{1,3})\s+days?\b/);
+  if (!match) return null;
+
+  const count = parseInt(match[1], 10);
+  if (!Number.isFinite(count) || count < 1 || count > 366) return null;
+
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  return {
+    start: todayKey,
+    end: addDaysToDateKey(todayKey, count - 1, tz),
+  };
+}
+
 /** Parse explicit date ranges from natural language (e.g. "June 2-June 10", "from 02/06 to 10/06"). */
 export function extractDateRangeFromPrompt(
   prompt: string,
@@ -278,6 +299,14 @@ export function applyPromptDateOverride(
 
   applyRelativeDateFromPrompt(params, prompt, timeZone);
 
+  const nextDays = extractNextDaysRangeFromPrompt(prompt, timeZone);
+  if (nextDays) {
+    params.dateFrom = formatDateDisplay(nextDays.start);
+    params.dateTo = formatDateDisplay(nextDays.end);
+    delete params.date;
+    return;
+  }
+
   const singleIso = extractSingleIsoDayFromPrompt(prompt, timeZone);
   if (singleIso) {
     const display = formatDateDisplay(singleIso);
@@ -303,6 +332,13 @@ export function enrichDateRangeFromPrompt(
   prompt: string,
   timeZone = 'UTC',
 ): void {
+  const nextDays = extractNextDaysRangeFromPrompt(prompt, timeZone);
+  if (nextDays) {
+    params.dateFrom = formatDateDisplay(nextDays.start);
+    params.dateTo = formatDateDisplay(nextDays.end);
+    return;
+  }
+
   if (params.dateFrom && params.dateTo) return;
   const range = extractDateRangeFromPrompt(prompt, timeZone);
   if (!range) return;
@@ -811,6 +847,9 @@ export function resolveDateRange(
   if (promptSingle) {
     return { start: promptSingle, end: promptSingle };
   }
+
+  const nextDaysRange = extractNextDaysRangeFromPrompt(prompt ?? '', tz);
+  if (nextDaysRange) return nextDaysRange;
 
   if (params.dateFrom && params.dateTo) {
     return {

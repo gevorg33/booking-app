@@ -927,6 +927,61 @@ export function extractCustomerFromReschedulePrompt(
   return matchEntityInPrompt(prompt, customers);
 }
 
+const AVAILABILITY_FOLLOW_UP_ACTIONS = new Set([
+  'check_providers_for_service',
+  'check_availability',
+]);
+
+/** Short time-of-day refinement after a provider availability result ("evening?", "what about morning"). */
+export function isAvailabilityTimeOfDayFollowUp(prompt: string): boolean {
+  const trimmed = prompt.trim();
+  if (!trimmed || trimmed.length > 48) return false;
+  if (!parseTimeOfDayWindow(trimmed, {})) return false;
+  return (
+    /^(?:what\s+about\s+)?(?:morning|afternoon|evening|tonight)\??$/i.test(
+      trimmed,
+    ) ||
+    /^(?:any\s+)?(?:morning|afternoon|evening|tonight)(?:\s+slots?)?\??$/i.test(
+      trimmed,
+    )
+  );
+}
+
+/**
+ * After check_providers / check_availability, bind follow-up time-of-day prompts to
+ * the provider(s) just shown — not a stale employeeName from an earlier turn.
+ */
+export function applyAvailabilityFollowUpFromSession(
+  prompt: string,
+  params: Record<string, any>,
+  session?: Record<string, any>,
+  employees?: Array<{ name: string }>,
+): void {
+  if (!session || !isAvailabilityTimeOfDayFollowUp(prompt)) return;
+
+  const lastAction = session.lastAction as string | undefined;
+  if (!lastAction || !AVAILABILITY_FOLLOW_UP_ACTIONS.has(lastAction)) return;
+
+  if (employees?.length && matchEntityInPrompt(prompt, employees)) return;
+
+  const available = session.availableProviders as string[] | undefined;
+  if (!available?.length) return;
+
+  const timeOfDay = parseTimeOfDayWindow(prompt, params);
+  if (timeOfDay) params.timeOfDay = timeOfDay;
+
+  if (available.length === 1) {
+    params.employeeName = available[0];
+    params.allProviders = false;
+    delete params.employeeNames;
+    return;
+  }
+
+  params.employeeName = null;
+  params.allProviders = true;
+  delete params.employeeNames;
+}
+
 /** Team-wide provider availability — do not inherit a single provider from session. */
 export function isTeamWideProviderAvailabilityQuery(prompt: string): boolean {
   const lower = prompt.toLowerCase();
