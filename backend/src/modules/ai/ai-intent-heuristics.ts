@@ -27,6 +27,7 @@ import {
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import { enrichRankSessionPickFromPrompt } from './ai-rank-session-pick.util.js';
 import {
   BookingStatus,
   PaymentStatus,
@@ -277,6 +278,10 @@ function resolveWeekdayIso(
   return today.add(delta, 'day').format('YYYY-MM-DD');
 }
 
+/** Month/day phrases with optional explicit year for reschedule parsing. */
+const RESCHEDULE_NAMED_DATE =
+  String.raw`(?:[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{4})?|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+(?:\s+\d{4})?)`;
+
 function parseOrdinalMonthFragment(
   fragment: string,
   timeZone: string,
@@ -379,7 +384,10 @@ export function extractRescheduleTargetDate(
   }
 
   const toOrdinal = prompt.match(
-    /\bto\s+(?:on\s+)?(\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)\b/i,
+    new RegExp(
+      String.raw`\bto\s+(?:on\s+)?(${RESCHEDULE_NAMED_DATE}|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)\b`,
+      'i',
+    ),
   );
   if (toOrdinal) {
     const iso = parseOrdinalMonthFragment(toOrdinal[1], timeZone);
@@ -501,7 +509,10 @@ export function extractRescheduleSourceDate(
   }
 
   const onAppt = prompt.match(
-    /\b(?:appointment|booking)\s+on\s+([a-z]+\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)/i,
+    new RegExp(
+      String.raw`\b(?:appointment|booking)\s+on\s+(${RESCHEDULE_NAMED_DATE}|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?)`,
+      'i',
+    ),
   );
   if (onAppt?.[1]) {
     const iso = parseOrdinalMonthFragment(onAppt[1].trim(), timeZone);
@@ -540,6 +551,11 @@ export function resolveRescheduleParams(
 
   if (targetTime && params.fromTimeSlot === targetTime && !sourceTime) {
     delete params.fromTimeSlot;
+  }
+
+  if (isFirstAvailableBookingPrompt(prompt)) {
+    params.bookingFirstAvailable = true;
+    delete params.timeSlot;
   }
 }
 
@@ -662,6 +678,31 @@ function matchServiceInPrompt(
     if (svc) return svc;
   }
 
+  // Clarify follow-up: "basic cut" → catalog "Haircut basic" (discover-journey-clarify-en).
+  const clarifyTokens = lower
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length >= 3 && !bookingNoise.has(word));
+  if (clarifyTokens.length >= 2 && clarifyTokens.length <= 4) {
+    let clarifyBest: { id: string; name: string } | undefined;
+    let clarifyBestScore = 0;
+    for (const service of services) {
+      const nameTokens = service.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+      const score = clarifyTokens.filter((token) =>
+        nameTokens.some((nt) => nt.includes(token) || token.includes(nt)),
+      ).length;
+      if (score === clarifyTokens.length && score > clarifyBestScore) {
+        clarifyBest = service;
+        clarifyBestScore = score;
+      }
+    }
+    if (clarifyBest) return clarifyBest;
+  }
+
   return undefined;
 }
 
@@ -692,6 +733,11 @@ export function enrichPublicAssistantParamsFromPrompt(
   }
 
   let next = params;
+  const rankPick = enrichRankSessionPickFromPrompt(prompt, params, services);
+  if (rankPick) {
+    return rankPick;
+  }
+
   const promptService = extractServiceFromPrompt(prompt, services);
   if (promptService) {
     next = {
@@ -712,7 +758,12 @@ export function enrichPublicAssistantParamsFromPrompt(
     }
   }
 
-  return enrichDiscoveryParamsFromPrompt(next, prompt);
+  let enriched = enrichDiscoveryParamsFromPrompt(next, prompt);
+  if (action === 'book_appointment' && isFirstAvailableBookingPrompt(prompt)) {
+    enriched = { ...enriched, bookingFirstAvailable: true };
+    delete enriched.timeSlot;
+  }
+  return enriched;
 }
 
 /** Book on any provider — do not pin to a single employeeName. */
@@ -763,6 +814,7 @@ export function enrichBookingTimeHintsFromPrompt(
     action === 'create_booking' ||
     action === 'reschedule_booking' ||
     action === 'check_providers_for_service' ||
+    action === 'check_availability' ||
     action === 'book_nearest_slot';
   if (!isBookingHintAction) return;
 
@@ -785,11 +837,13 @@ export function enrichBookingTimeHintsFromPrompt(
 
   if (
     action === 'check_providers_for_service' ||
+    action === 'check_availability' ||
     action === 'book_nearest_slot' ||
     action === 'create_booking'
   ) {
     if (
       isAnyProviderBookingPrompt(prompt) ||
+      /\bany\s+slots?\b/i.test(prompt) ||
       (/\b(who|which|anyone|anybody)\b/i.test(prompt) &&
         /\b(?:free|available|open)\b/i.test(prompt)) ||
       isMultilingualCheckProvidersPrompt(prompt)

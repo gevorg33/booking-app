@@ -13,9 +13,17 @@ export const OPERATIONS_OPS_INTENTS = [
   'revenue_forecast',
 ] as const;
 
+export const OPERATIONS_STAFF_INTENTS = [
+  'create_employee',
+  'invite_staff_member',
+  'deactivate_employee',
+  'configure_online_booking',
+] as const;
+
 export const OPERATIONS_INTENTS = [
   ...OPERATIONS_BOOKING_INTENTS,
   ...OPERATIONS_OPS_INTENTS,
+  ...OPERATIONS_STAFF_INTENTS,
 ] as const;
 
 export type OperationsIntent = (typeof OPERATIONS_INTENTS)[number];

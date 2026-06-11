@@ -13,7 +13,7 @@ export type ProviderDateFormatLocaleParityGap = {
 };
 
 export function listProviderDateFormatLocaleParityGaps(): ProviderDateFormatLocaleParityGap[] {
-  const dateInputIds = new Set(
+  const dateInputIds = new Set<string>(
     MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS.map((row) => row.id),
   );
   const byEnId = new Map<

@@ -1,5 +1,6 @@
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
+import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
 import { MARKETING_GROWTH_MULTILINGUAL_SCENARIOS } from './ai-marketing-growth-multilingual.fixtures.js';
 
 export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
@@ -14,6 +15,8 @@ export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'explain_plan_limits',
   'suggest_upgrade',
   'summarize_new_registrations',
+  'open_billing_settings',
+  'summarize_loyalty_program',
 ] as const;
 
 export const CUSTOMER_MARKETING_GROWTH_INTENTS = [
@@ -326,6 +329,9 @@ export function rescueMarketingGrowthIntent(
   prompt: string,
   action: string,
 ): { action: MarketingGrowthIntent; rescueReason: string } | null {
+  const billingLoyalty = rescueBillingLoyaltyDashboardIntent(prompt, action);
+  if (billingLoyalty) return billingLoyalty;
+
   if (isMarketingGrowthIntent(action)) return null;
   if (isMarketingGrowthCompoundPrompt(prompt)) return null;
   if (isConfigureMarketingRegistrationEmailPrompt(prompt)) return null;

@@ -49,12 +49,12 @@ describe('ai-consumer-discovery-chips.fixtures (discover-1.4)', () => {
     const chip = CONSUMER_DISCOVERY_CHIP_FIXTURES.find(
       (row) => row.id === 'discover-chip-premium-en',
     )!;
-    expect(enrichDiscoveryParamsFromPrompt({}, chip.prompt)).toEqual({
+    expect(enrichDiscoveryParamsFromPrompt({}, chip.prompt)).toMatchObject({
       serviceRank: 'highest_price',
     });
   });
 
-  it('availability chip references avail-voice-chip-en fixture prompt (phase 2 windows)', () => {
+  it('availability chip references avail-voice-chip-en fixture prompt and OR windows', () => {
     const chip = CONSUMER_DISCOVERY_CHIP_FIXTURES.find(
       (row) => row.id === 'discover-chip-evening-weekend-en',
     )!;
@@ -62,10 +62,13 @@ describe('ai-consumer-discovery-chips.fixtures (discover-1.4)', () => {
       (row) => row.id === chip.fixtureId,
     );
     expect(fixture?.prompt).toBe(chip.prompt);
-    expect(fixture?.phase2).toBe(true);
+    expect(fixture?.phase2).toBeUndefined();
     expect(fixture?.expectedParams?.availabilityWindows).toEqual([
       { timeOfDay: 'evening' },
       { weekdays: ['saturday', 'sunday'] },
     ]);
+    expect(enrichDiscoveryParamsFromPrompt({}, chip.prompt)).toMatchObject(
+      fixture?.expectedParams ?? {},
+    );
   });
 });

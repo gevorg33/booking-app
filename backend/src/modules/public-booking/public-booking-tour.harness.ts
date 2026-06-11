@@ -1,7 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
-import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import {
+  createEmptyBookingPopularityRepoMock,
+  createPublicBookingServiceHarness,
+} from './public-booking-test.harness.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 
@@ -112,6 +115,7 @@ export function createTourPublicBookingHarness(options?: {
 
 function createTourBookingRepo(storedBookings: Array<Record<string, unknown>>) {
   return {
+    ...createEmptyBookingPopularityRepoMock(),
     find: jest.fn().mockImplementation(async () => storedBookings),
     findOne: jest.fn(
       async ({ where }: { where: { id: string } }) =>

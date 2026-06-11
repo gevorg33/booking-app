@@ -13,7 +13,7 @@ export type ProviderTimeOffListLocaleParityGap = {
 };
 
 export function listProviderTimeOffListLocaleParityGaps(): ProviderTimeOffListLocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS.map((row) => row.id),
   );
   const byEnId = new Map<

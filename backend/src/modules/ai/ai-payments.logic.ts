@@ -21,7 +21,10 @@ import {
   resolvePublicPaymentSettings,
 } from '../../common/utils/customer-self-service.util.js';
 import { getBusinessStripeIntegration } from '../billing/stripe-integration.types.js';
-import { resolveDateRange } from './ai-orchestration.helpers.js';
+import {
+  resolveDateRange,
+  resolvePublicAvailabilityWindows,
+} from './ai-orchestration.helpers.js';
 import {
   decomposePaymentsCompoundPrompt,
   extractAmountFromPrompt,
@@ -43,6 +46,11 @@ import {
   buildNearestAvailabilityWindowQueries,
   buildNearestBookableSlotQuery,
 } from './ai-nearest-slot-resolver.util.js';
+import {
+  buildDashboardAvailabilityWindowLabel,
+  dashboardAvailabilityTodayKey,
+  shouldGroupDashboardAvailabilityByWindow,
+} from './ai-dashboard-availability-windows.logic.js';
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
@@ -149,7 +157,8 @@ async function resolveService(
   if (name) return resolveByName(services, name);
   if (params.serviceCategory) {
     const matched = resolveServicesFromCatalogParams(catalog, params);
-    return matched[0];
+    const first = matched[0];
+    return first ? services.find((entry) => entry.id === first.id) : undefined;
   }
   return undefined;
 }
@@ -756,11 +765,91 @@ export async function handleCheckProvidersForServiceLogic(
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
-  const dateKey = resolveAvailabilityDateKey(
+  const tz = resolveTimezone(business?.timezone);
+  const availabilityWindows = resolvePublicAvailabilityWindows(
     params,
     prompt,
-    resolveTimezone(business?.timezone),
+    tz,
   );
+
+  if (shouldGroupDashboardAvailabilityByWindow(availabilityWindows, params)) {
+    const todayKey = dashboardAvailabilityTodayKey(tz);
+    const sections: string[] = [];
+    const mergedProviders: Array<Record<string, unknown>> = [];
+    const mergedAvailability: ReturnType<
+      typeof buildCheckProvidersSummary
+    >['availability'] = [];
+    const mergedProviderNames: string[] = [];
+
+    try {
+      for (const window of availabilityWindows) {
+        if (window.dateKeys.length === 0) continue;
+
+        const windowParams: Record<string, unknown> = {
+          ...params,
+          timeOfDay: window.timeOfDay ?? params.timeOfDay,
+          date: window.dateKeys[0],
+        };
+        const notBeforeTime =
+          window.timeFrom ??
+          notBeforeTimeFromWindow('', windowParams) ??
+          notBeforeTimeFromWindow(prompt ?? '', windowParams);
+        const timeOfDay =
+          window.timeOfDay ??
+          (params.timeOfDay as string | undefined) ??
+          parseTimeOfDayWindow(prompt ?? '', windowParams) ??
+          parseMultilingualTimeOfDayWindow(prompt ?? '', windowParams);
+
+        const result = await deps.publicBookingService.recommendProviders(slug, {
+          serviceId: service.id,
+          dateKeys: window.dateKeys,
+          notBeforeTime,
+          limit: params.limit as number | undefined,
+        });
+        const formatted = buildCheckProvidersSummary({
+          serviceName: service.name,
+          dateKey: window.dateKeys[0]!,
+          providers: result.providers,
+          timeOfDay,
+          notBeforeTime,
+        });
+        const label = buildDashboardAvailabilityWindowLabel(
+          window,
+          tz,
+          todayKey,
+        );
+        sections.push(`${label}:\n${formatted.summary}`);
+        mergedProviders.push(
+          ...(result.providers as unknown as Array<Record<string, unknown>>),
+        );
+        mergedAvailability.push(...formatted.availability);
+        mergedProviderNames.push(...formatted.availableProviders);
+      }
+
+      if (sections.length > 0) {
+        return success('check_providers_for_service', sections.join('\n\n'), {
+          providers: mergedProviders,
+          availableProviders: [...new Set(mergedProviderNames)],
+          availability: mergedAvailability,
+          serviceId: service.id,
+          serviceName: service.name,
+          multiWindow: true,
+          windows: availabilityWindows.length,
+          noProviders: mergedProviderNames.length === 0,
+        });
+      }
+    } catch (err: any) {
+      return failure(
+        'check_providers_for_service',
+        err?.message ?? 'Could not check provider availability.',
+        {
+          serviceId: service.id,
+        },
+      );
+    }
+  }
+
+  const dateKey = resolveAvailabilityDateKey(params, prompt, tz);
   const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
   const timeOfDay =
     (params.timeOfDay as string | undefined) ??

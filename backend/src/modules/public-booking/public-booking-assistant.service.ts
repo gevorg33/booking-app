@@ -34,6 +34,7 @@ import {
   matchServicesByQuery,
   PUBLIC_AVAILABILITY_SCAN_DAYS,
   resolveEmployees,
+  resolvePublicAvailabilityDateKeys,
   resolvePublicAvailabilityWindows,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
@@ -106,21 +107,31 @@ import { rescueServiceRankFromRecommendSpecialistsIntent } from '../ai/ai-servic
 import {
   applyBudgetFilterForRecommendSpecialists,
   composePublicListServicesBudgetResponse,
-  resolveBudgetConstrainedService,
+  resolveDiscoverConstrainedService,
 } from '../ai/ai-budget-list-services.logic.js';
 import {
+  composePublicListServicesMidRangeResponse,
   composePublicListServicesRankResponse,
   resolveListServicesRankLimitFromPrompt,
 } from '../ai/ai-rank-list-services.logic.js';
-import { resolveServiceRankParam } from '../ai/ai-service-rank-discovery.util.js';
+import { resolveServiceTierParam } from '../../common/utils/service-rank-metadata.util.js';
+import {
+  isMidRangeServiceListPrompt,
+  isValueOrPremiumBudgetListPrompt,
+  resolveServiceRankParam,
+} from '../ai/ai-service-rank-discovery.util.js';
 import { isBudgetServiceDiscoveryCompoundPrompt } from '../ai/ai-budget-service-discovery-compound.util.js';
 import { isFlexibleAvailabilityBudgetBookCompoundPrompt } from '../ai/ai-flexible-availability-compound.util.js';
 import {
+  appendAvailabilityNearestAlternativeNote,
   composeAvailabilityNoSlotsSummary,
   composePublicAvailabilityCheckSummary,
+  composePublicAvailabilityGroupedEmptyWindowsSummary,
   filterPublicProviderSlotsByTimeOfDay,
+  formatAvailabilityNearestAlternativeNote,
   mergePublicProviderSlotTimes,
   shouldGroupPublicAvailabilityByWindow,
+  shouldUseGroupedAvailabilityNoSlotsSummary,
   applyBudgetFilterForAvailabilityCheck,
   type PublicAvailabilityDayReport,
   type PublicAvailabilityWindowReport,
@@ -190,13 +201,14 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "timeSlot": "HH:MM 24h or null — omit when bookingFirstAvailable=true",
     "timeFrom": "HH:MM or null — earliest time when user says after 16:00 or for flexible booking",
     "timeOfDay": "morning | afternoon | evening | null — tonight counts as evening",
-    "availabilityWindows": [{"date": "DD/MM/YYYY or null", "weekdays": ["monday", "friday", etc.] or null, "timeOfDay": "morning | afternoon | evening | null", "timeFrom": "HH:MM or null", "timeSlot": "HH:MM or null"}] or null — OR alternatives when user says tomorrow evening OR Friday afternoon; each window scanned independently",
+    "availabilityWindows": [{"date": "DD/MM/YYYY or null", "weekdays": ["monday", "friday", etc.] or null, "timeOfDay": "morning | afternoon | evening | null", "timeFrom": "HH:MM or null", "timeSlot": "HH:MM or null", "employeeName": "string or null — named specialist for that OR window only"}] or null — OR alternatives when user says tomorrow evening OR Friday afternoon; each window scanned independently",
     "bookingFirstAvailable": boolean or null,
     "allProviders": boolean or null — true when any specialist is acceptable",
     "providerFallbackNames": ["string"] or null,
     "fallbackAnyProvider": boolean or null,
     "maxPrice": number or null — inclusive catalog display-price ceiling when the user states a budget (under $X, I have $X, etc.),
     "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services (premium/cheapest/popular service, not specialist ratings),
+    "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color),
     "customerName": "string or null",
     "customerEmail": "string or null",
     "customerPhone": "string or null"
@@ -210,7 +222,7 @@ Action rules:
 - recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
 - check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set availabilityWindows when the user lists OR alternatives (tomorrow evening or Friday afternoon). Set weekdays for "Monday and Friday" with the SAME timeOfDay (AND — not OR). Set timeOfDay for morning/afternoon/evening/tonight on single-window prompts.
 - list_providers: who works here (not ratings/availability).
-- list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings).
+- list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings). Set serviceTier when they ask for premium tier or standard tier services (entity metadata filter — not serviceRank).
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
 - business_info / booking_help: as named.
@@ -834,16 +846,46 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }));
 
     const serviceRank = resolveServiceRankParam(params.serviceRank);
+    const serviceTier = resolveServiceTierParam(params.serviceTier);
     const serviceQuery = params.serviceCategory ?? params.serviceName;
 
-    if (serviceRank) {
+    if (isMidRangeServiceListPrompt(prompt) && !serviceRank) {
+      const midRangeLimit = resolveListServicesRankLimitFromPrompt(prompt, params);
+      const composed = composePublicListServicesMidRangeResponse({
+        matchedServices: catalogRows,
+        serviceCategory: params.serviceCategory ?? params.serviceName ?? null,
+        limit: midRangeLimit,
+        header: employee ? `Services with ${employee.name}:` : undefined,
+      });
+
+      return {
+        success: composed.success,
+        action: 'list_services',
+        summary: composed.summary,
+        navigate: composed.navigate,
+        sessionContext: {
+          serviceId:
+            composed.services.length === 1 ? composed.services[0]!.id : null,
+          serviceName:
+            composed.services.length === 1 ? composed.services[0]!.name : null,
+        },
+        details:
+          composed.services.length === 1
+            ? { serviceId: composed.services[0]!.id }
+            : undefined,
+      };
+    }
+
+    if (serviceRank || serviceTier) {
       const rankLimit = resolveListServicesRankLimitFromPrompt(prompt, params);
       const composed = composePublicListServicesRankResponse({
         matchedServices: catalogRows,
-        serviceRank,
+        serviceRank: serviceRank ?? undefined,
+        serviceTier,
         limit: rankLimit,
         maxPrice: params.maxPrice,
         serviceCategory: params.serviceCategory ?? params.serviceName ?? null,
+        allCatalogServices: catalogRows,
         header: employee ? `Services with ${employee.name}:` : undefined,
       });
 
@@ -859,6 +901,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             composed.services.length === 1 ? composed.services[0]!.name : null,
           maxPrice:
             params.maxPrice != null ? String(params.maxPrice) : null,
+          rankedServiceIds:
+            composed.services.length > 1
+              ? JSON.stringify(composed.services.map((service) => service.id))
+              : null,
         },
         details:
           composed.services.length === 1
@@ -871,14 +917,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       ? `Services with ${employee.name}:`
       : serviceQuery
         ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
-        : params.maxPrice != null
-          ? `Services within your budget:`
-          : 'Our service types:';
+        : params.maxTotalPrice != null
+          ? `Service combos within your budget:`
+          : params.maxPrice != null
+            ? `Services within your budget:`
+            : 'Our service types:';
 
     const composed = composePublicListServicesBudgetResponse({
       matchedServices: catalogRows,
       maxPrice: params.maxPrice,
+      minPrice: params.minPrice,
+      preferShortDuration: params.preferShortDuration,
+      minDurationMinutes: params.minDurationMinutes,
+      maxTotalPrice: params.maxTotalPrice,
+      serviceCount: params.serviceCount,
       header,
+      valueOrPremiumBrowse: isValueOrPremiumBudgetListPrompt(prompt),
     });
 
     return {
@@ -893,6 +947,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           composed.services.length === 1 ? composed.services[0]!.name : null,
         maxPrice:
           params.maxPrice != null ? String(params.maxPrice) : null,
+        maxTotalPrice:
+          params.maxTotalPrice != null ? String(params.maxTotalPrice) : null,
+        serviceCount:
+          params.serviceCount != null ? String(params.serviceCount) : null,
       },
       details:
         composed.services.length === 1
@@ -1111,13 +1169,43 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       matchedServices = budgetFiltered.services.map(
         (entry) => services.find((service) => service.id === entry.id)!,
       );
-      if (matchedServices.length === 1) {
-        params = {
-          ...params,
-          serviceId: matchedServices[0]!.id,
-          serviceName: matchedServices[0]!.name,
+    }
+
+    const serviceRank = resolveServiceRankParam(params.serviceRank);
+    if (serviceRank != null && matchedServices.length > 0) {
+      const rankResolved = resolveDiscoverConstrainedService(
+        matchedServices.map((service) => ({
+          id: service.id,
+          name: service.name,
+          price: Number(service.price),
+          durationMinutes: service.durationMinutes,
+        })),
+        params,
+      );
+      if (rankResolved.noMatchSummary) {
+        return {
+          success: true,
+          action: 'check_availability',
+          summary: rankResolved.noMatchSummary,
+          details: { clarify: true, reason: 'rank_no_match' },
         };
       }
+      if (rankResolved.service) {
+        matchedServices = [
+          services.find((service) => service.id === rankResolved.service!.id)!,
+        ];
+        params = {
+          ...params,
+          serviceId: rankResolved.service.id,
+          serviceName: rankResolved.service.name,
+        };
+      }
+    } else if (matchedServices.length === 1) {
+      params = {
+        ...params,
+        serviceId: matchedServices[0]!.id,
+        serviceName: matchedServices[0]!.name,
+      };
     }
 
     if (
@@ -1298,6 +1386,60 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const dayCount = allDateKeys.length;
 
     if (flatDayReports.length === 0) {
+      if (shouldUseGroupedAvailabilityNoSlotsSummary(groupByWindow, windowReports)) {
+        let summary = composePublicAvailabilityGroupedEmptyWindowsSummary({
+          serviceLabel,
+          locale,
+          timeZone: tz,
+          singleProvider: targets.length === 1,
+          windowReports,
+          maxPrice: params.maxPrice,
+          overlapClarifyNote,
+        });
+
+        if (matchedServices.length === 1) {
+          const nearest = await this.publicBookingService.findNearestBookableSlot(
+            slug,
+            {
+              serviceId: matchedServices[0].id,
+              employeeId: targets.length === 1 ? targets[0].id : null,
+              startDateKey: [...allDateKeys].sort()[0] ?? null,
+            },
+          );
+          if (nearest) {
+            summary = appendAvailabilityNearestAlternativeNote(
+              summary,
+              formatAvailabilityNearestAlternativeNote({
+                locale,
+                timeZone: tz,
+                employeeName: nearest.employeeName,
+                dateKey: nearest.dateKey,
+                startTime: nearest.startTime,
+              }),
+            );
+          }
+        }
+
+        return this.withCheckProvidersHandoff(
+          {
+            success: true,
+            action: 'check_availability',
+            summary,
+            navigate:
+              targets.length === 1
+                ? { path: 'professionals', query: { employeeId: targets[0].id } }
+                : { path: 'professionals', query: {} },
+          },
+          this.buildPublicAvailabilityHandoff(
+            summary,
+            params,
+            [],
+            true,
+            allDateKeys[0],
+          ),
+        );
+      }
+
       const providerLabel =
         targets.length === 1
           ? targets[0].name
@@ -1979,21 +2121,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             price: Number(entry.price),
             durationMinutes: entry.durationMinutes,
           }));
-    const budgetResolved = resolveBudgetConstrainedService(catalogPool, {
+    const discoverResolved = resolveDiscoverConstrainedService(catalogPool, {
       serviceId: params.serviceId,
       serviceName: params.serviceName,
       serviceCategory: params.serviceCategory,
       maxPrice: params.maxPrice,
+      serviceRank: params.serviceRank,
     });
-    if (budgetResolved.noMatchSummary) {
+    if (discoverResolved.noMatchSummary) {
       return {
         success: false,
         action: 'book_appointment',
-        summary: budgetResolved.noMatchSummary,
+        summary: discoverResolved.noMatchSummary,
       };
     }
-    const service = budgetResolved.service
-      ? services.find((entry) => entry.id === budgetResolved.service!.id)
+    const service = discoverResolved.service
+      ? services.find((entry) => entry.id === discoverResolved.service!.id)
       : undefined;
 
     if (params.employeeName && !employee) {

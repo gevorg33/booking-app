@@ -7,6 +7,7 @@ import {
   composePublicListServicesBudgetResponse,
   formatPublicListServiceLine,
 } from '../ai/ai-budget-list-services.logic.js';
+import { resolveServicesFromCatalogParams } from '../ai/ai-orchestration.helpers.js';
 import {
   assertPublicListServicesBudgetWiring,
   assertPublicRecommendSpecialistsBudgetWiring,
@@ -29,18 +30,27 @@ describe('public booking assistant budget handler pipeline (ai-cmd-customer-3.3 
     ({
       services,
       maxPrice,
+      minPrice,
+      maxTotalPrice,
+      serviceCount,
       serviceCategory,
+      serviceName,
+      preferShortDuration,
+      minDurationMinutes,
       expectedIds,
+      expectedComboIds,
       expectNoMatchHint,
       expectedNavigateServiceId,
     }) => {
-      const categoryMatched = serviceCategory
-        ? services.filter(
-            (service) =>
-              (service.serviceCategory ?? '').includes(serviceCategory) ||
-              service.name.toLowerCase().includes(serviceCategory),
-          )
-        : services;
+      const categoryMatched = serviceName
+        ? resolveServicesFromCatalogParams(services, { serviceName })
+        : serviceCategory
+          ? services.filter(
+              (service) =>
+                (service.serviceCategory ?? '').includes(serviceCategory) ||
+                service.name.toLowerCase().includes(serviceCategory),
+            )
+          : services;
 
       const result = composePublicListServicesBudgetResponse({
         matchedServices: categoryMatched.map((service) => ({
@@ -48,14 +58,34 @@ describe('public booking assistant budget handler pipeline (ai-cmd-customer-3.3 
           currency: 'USD',
         })),
         maxPrice,
+        minPrice,
+        preferShortDuration,
+        minDurationMinutes,
+        maxTotalPrice,
+        serviceCount,
         header: 'Our services:',
       });
 
       expect(result.success).toBe(true);
+
+      if (expectedComboIds) {
+        for (const comboIds of expectedComboIds) {
+          const names = comboIds
+            .map((id) => services.find((service) => service.id === id)?.name)
+            .join(' + ');
+          expect(result.summary).toContain(names);
+        }
+        expect(result.services.map((service) => service.id).sort()).toEqual(
+          [...new Set(expectedComboIds.flat())].sort(),
+        );
+        return;
+      }
+
       expect(result.services.map((service) => service.id)).toEqual(expectedIds);
 
       if (expectNoMatchHint) {
-        expect(result.summary).toContain('Nothing under $50');
+        expect(result.summary).toContain(`Nothing under $${maxPrice}`);
+        expect(result.summary).toContain('Closest options');
         expect(result.navigate).toBeUndefined();
         return;
       }

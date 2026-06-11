@@ -23,7 +23,9 @@ export interface ResolvedEntities {
   service?: Service;
   services: Service[];
   customer?: Customer;
+  customers?: Customer[];
   template?: ScheduleTemplate;
+  templates?: ScheduleTemplate[];
   dateRange?: DateRange | null;
   employeeId?: string;
 }

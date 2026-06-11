@@ -69,6 +69,7 @@ import { Business } from '../business/entities/business.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { EmployeeModule } from '../employee/employee.module.js';
+import { InvitationsModule } from '../invitations/invitations.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { WebSocketModule } from '../../websocket/websocket.module.js';
@@ -161,6 +162,7 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
+    InvitationsModule,
     forwardRef(() => AgentModule),
     SchedulingEngineModule,
     OpenAiModule,

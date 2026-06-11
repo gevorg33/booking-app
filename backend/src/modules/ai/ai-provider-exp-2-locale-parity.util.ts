@@ -13,7 +13,7 @@ export type ProviderExp2LocaleParityGap = {
 };
 
 export function listProviderExp2LocaleParityGaps(): ProviderExp2LocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     PROVIDER_EXP_2_PROMPT_SCENARIOS.map((row) => row.id),
   );
   const byEnId = new Map<

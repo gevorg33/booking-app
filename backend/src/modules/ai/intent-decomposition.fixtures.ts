@@ -185,6 +185,191 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     noLlm: true,
   },
   {
+    id: 'dashboard_onboard_stylist_anna_e2e',
+    surface: 'dashboard',
+    prompt:
+      'Onboard new stylist Anna end-to-end: create employee, assign haircut and color services, set up first week from weekday template, enable online booking',
+    orderedActions: [
+      'create_employee',
+      'assign_employee_services',
+      'onboard_provider_schedule',
+      'configure_online_booking',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'employeeName', value: 'Anna' },
+      { stepIndex: 1, key: 'serviceNames', value: ['haircut', 'color'] },
+      { stepIndex: 2, key: 'templateName', value: 'weekday' },
+      { stepIndex: 3, key: 'enabled', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'onboard_new_provider',
+  },
+  {
+    id: 'dashboard_onboard_therapist_maria',
+    surface: 'dashboard',
+    prompt:
+      'Set up new therapist Maria from scratch — add to team, assign massage services, schedule first week from weekday template, turn on public booking',
+    orderedActions: [
+      'create_employee',
+      'assign_employee_services',
+      'onboard_provider_schedule',
+      'configure_online_booking',
+    ],
+    paramChecks: [{ stepIndex: 0, key: 'employeeName', value: 'Maria' }],
+    noLlm: true,
+    compoundRecipeId: 'onboard_new_provider',
+  },
+  {
+    id: 'dashboard_onboard_barber_jake',
+    surface: 'dashboard',
+    prompt:
+      'Full provider setup for barber Jake: hire employee; assign beard trim services; onboard first week with weekday template; enable online booking page',
+    orderedActions: [
+      'create_employee',
+      'assign_employee_services',
+      'onboard_provider_schedule',
+      'configure_online_booking',
+    ],
+    noLlm: true,
+    compoundRecipeId: 'onboard_new_provider',
+  },
+  {
+    id: 'dashboard_budget_discover_book_haircut',
+    surface: 'dashboard',
+    prompt:
+      "Budget discover and book end-to-end: show haircut options under $50, check who's free tomorrow evening, book the nearest slot",
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'maxPrice', value: 50 },
+      { stepIndex: 2, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'budget_discover_and_book',
+  },
+  {
+    id: 'dashboard_budget_discover_book_facial',
+    surface: 'dashboard',
+    prompt:
+      "Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment",
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    paramChecks: [{ stepIndex: 0, key: 'maxPrice', value: 60 }],
+    noLlm: true,
+    compoundRecipeId: 'budget_discover_and_book',
+  },
+  {
+    id: 'dashboard_budget_discover_book_massage',
+    surface: 'dashboard',
+    prompt:
+      'List services under $40 for massage, check providers available Friday, book nearest slot',
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    noLlm: true,
+    compoundRecipeId: 'budget_discover_and_book',
+  },
+  {
+    id: 'dashboard_rank_discover_book_premium',
+    surface: 'dashboard',
+    prompt:
+      "Rank discover and book end-to-end: show premium facial options, check who's free tomorrow evening, book the nearest slot",
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'serviceRank', value: 'highest_price' },
+      { stepIndex: 2, key: 'bookingFirstAvailable', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'rank_discover_and_book',
+  },
+  {
+    id: 'dashboard_rank_discover_book_cheapest',
+    surface: 'dashboard',
+    prompt:
+      "Filter catalog for cheapest massage, check who is free tomorrow, and book the soonest appointment",
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    paramChecks: [{ stepIndex: 0, key: 'serviceRank', value: 'lowest_price' }],
+    noLlm: true,
+    compoundRecipeId: 'rank_discover_and_book',
+  },
+  {
+    id: 'dashboard_rank_discover_book_popular',
+    surface: 'dashboard',
+    prompt:
+      'List most popular manicure services, check providers available Friday, book nearest slot',
+    orderedActions: [
+      'list_services',
+      'check_providers_for_service',
+      'create_booking',
+    ],
+    noLlm: true,
+    compoundRecipeId: 'rank_discover_and_book',
+  },
+  {
+    id: 'dashboard_clinic_lab_day_close_maria',
+    surface: 'dashboard',
+    prompt:
+      'Lab day close end-to-end: list pending test orders for today, enter WBC 12.5 for order abc123, release results to Maria, notify her when results are ready',
+    orderedActions: [
+      'list_test_orders',
+      'enter_test_result',
+      'release_test_result',
+      'notify_patient_result_ready',
+    ],
+    paramChecks: [
+      { stepIndex: 1, key: 'orderId', value: 'abc123' },
+      { stepIndex: 1, key: 'measurementCode', value: 'WBC' },
+      { stepIndex: 2, key: 'customerName', value: 'Maria' },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'clinic_lab_day_close',
+  },
+  {
+    id: 'dashboard_clinic_lab_day_close_john',
+    surface: 'dashboard',
+    prompt:
+      'Close lab day for today — show pending lab orders, record hemoglobin 13.1 for order ord-42, publish results to John, send result-ready notification',
+    orderedActions: [
+      'list_test_orders',
+      'enter_test_result',
+      'release_test_result',
+      'notify_patient_result_ready',
+    ],
+    paramChecks: [{ stepIndex: 2, key: 'customerName', value: 'John' }],
+    noLlm: true,
+    compoundRecipeId: 'clinic_lab_day_close',
+  },
+  {
+    id: 'dashboard_clinic_lab_day_close_anna',
+    surface: 'dashboard',
+    prompt:
+      'Lab closeout for today; list pending lab orders; enter CBC 4.2 for order abc123; release results to Anna; notify her when results are ready',
+    orderedActions: [
+      'list_test_orders',
+      'enter_test_result',
+      'release_test_result',
+      'notify_patient_result_ready',
+    ],
+    noLlm: true,
+    compoundRecipeId: 'clinic_lab_day_close',
+  },
+  {
     id: 'dashboard_crm_subscriptions_tag_vip',
     surface: 'dashboard',
     prompt: 'List subscriptions for Anna and tag customer as VIP',

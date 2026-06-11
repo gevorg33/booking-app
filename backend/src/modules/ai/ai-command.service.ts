@@ -152,6 +152,7 @@ import { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
 import {
   filterSlotsByTimeOfDay,
+  type TimeOfDayWindow,
   formatTimeOfDayLabel,
   isNoShowRecoveryPrompt,
   parseTimeOfDayWindow,
@@ -175,11 +176,28 @@ import {
   enrichListServicesParamsFromPrompt,
 } from './ai-orchestration.helpers.js';
 import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-discovery.fixtures.js';
-import { enrichServiceDiscoveryFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import {
+  enrichDiscoveryParamsFromPrompt,
+  enrichServiceDiscoveryFromPrompt,
+} from './ai-service-discovery-enrichment.util.js';
+import {
+  enrichDashboardCreateBookingParams,
+  findDashboardFirstAvailableAcrossWindows,
+  findEarliestSlotOnDayForProviders,
+  resolveDashboardCreateBookingService,
+  shouldScanExplicitAvailabilityWindows,
+  buildDashboardFirstAvailableWindowQueries,
+} from './ai-dashboard-create-booking.logic.js';
+import {
+  enrichDashboardLookupAssignmentParams,
+  formatLookupAssignmentDiscoveryNote,
+  resolveLookupAssignmentService,
+} from './ai-dashboard-lookup-assignment.logic.js';
 import { extractServiceRankMetadata } from '../../common/utils/service-rank-metadata.util.js';
 import { loadServiceBookingCounts90d } from '../../common/utils/service-booking-popularity.util.js';
 import { composeDashboardListServicesBudgetResponse } from './ai-budget-list-services.logic.js';
 import {
+  buildRankEmptyCategorySummary,
   composeDashboardListServicesRankResponse,
   resolveListServicesRankLimitFromPrompt,
 } from './ai-rank-list-services.logic.js';
@@ -268,6 +286,41 @@ import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart
 import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
 import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
+import { DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from './ai-flexible-availability.fixtures.js';
+import { DASHBOARD_SUMMARIZE_BOOKINGS_CURRENCY_CLASSIFIER_RULES } from './ai-dashboard-summarize-bookings.fixtures.js';
+import {
+  composeSummarizeBookingsResult,
+} from './ai-dashboard-summarize-bookings.logic.js';
+import {
+  STAFF_OPERATIONS_CLASSIFIER_RULES,
+  STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES,
+} from './ai-staff-operations.util.js';
+import { PROVIDER_ONBOARDING_COMPOUND_CLASSIFIER_RULES } from './ai-provider-onboarding-compound.util.js';
+import { CLINIC_LAB_DAY_CLOSE_CLASSIFIER_RULES } from './ai-clinic-lab-day-close-compound.util.js';
+import { BUDGET_DISCOVER_AND_BOOK_CLASSIFIER_RULES } from './ai-budget-discover-and-book-compound.util.js';
+import { RANK_DISCOVER_AND_BOOK_CLASSIFIER_RULES } from './ai-rank-discover-and-book-compound.util.js';
+import {
+  WAITLIST_DASHBOARD_CLASSIFIER_RULES,
+  WAITLIST_DASHBOARD_MULTILINGUAL_CLASSIFIER_RULES,
+  enrichOfferWaitlistSlotParams,
+} from './ai-waitlist-dashboard.util.js';
+import { CLINIC_TEST_RESULT_EXT_CLASSIFIER_RULES } from './ai-clinic-test-result-ext.util.js';
+import {
+  BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES,
+  BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES,
+} from './ai-billing-loyalty-dashboard.util.js';
+import {
+  buildDashboardAvailabilityWindowLabel,
+  buildSingleWindowCheckParams,
+  dashboardAvailabilityTodayKey,
+  enrichDashboardCheckAvailabilityParams,
+  resolveDashboardCheckAvailabilityWindows,
+  shouldGroupDashboardAvailabilityByWindow,
+} from './ai-dashboard-availability-windows.logic.js';
+import {
+  handleListWaitlistEntriesLogic,
+  handleOfferWaitlistSlotLogic,
+} from './ai-waitlist-dashboard.logic.js';
 import { enrichCompoundSubStepBookingHints } from './ai-compound-booking-hints.util.js';
 import {
   applyBookingRescheduleActionHints,
@@ -330,6 +383,8 @@ and extract structured parameters. Return a JSON object with:
     "bufferMinutes": number or null — buffer after service in minutes (create_service), default 0,
     "price": number or null — service price (create_service), e.g. 50 or 29.99,
     "maxPrice": number or null — inclusive catalog display-price ceiling for list_services when the user states a budget (under $X, I have $X),
+    "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services or check_availability when user asks premium/cheapest/popular service (not specialist ratings),
+    "availabilityWindows": [{"date":"DD/MM/YYYY or tomorrow","weekdays":["monday"],"timeOfDay":"morning|afternoon|evening","timeFrom":"HH:MM","timeSlot":"HH:MM"}] or null — OR alternatives for check_availability / create_booking with bookingFirstAvailable,
     "serviceCategory": "string or null — keyword to filter service type names for list_services (e.g. haircut, massage)",
     "currency": "string or null — ISO currency code (create_service), default USD",
     "date": "DD/MM/YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31/05/2026). For other actions: the date referenced.",
@@ -498,9 +553,9 @@ Rules:
 - "Who has a X schedule today at 9" / "which provider is working at 09:00" are READ-ONLY show_appointments — NOT create_booking. Never interpret the noun "schedule" in a question as a booking verb.
 - Use "show_appointments" or "list_bookings" when the user wants to view/display/see existing appointments or bookings for a day — e.g. "show Gevorg's appointments on Friday", "what appointments does Maria have tomorrow".
 - Use "check_availability" when the user asks about available slots, open times, schedule blocks, what services can be booked, or availability on a day — e.g. "which slots are available for Gevorg on 30/06/2026", "what is Gevorg's schedule on Friday", "does Gevorg do face massage today at 9", "is Gevorg available to give facemassage at 09:00". Always set employeeName, serviceName, date, and timeSlot when mentioned. NEVER use create_booking for these questions.
-- lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), return only providers with an applied SERVICE_BLOCK for that service on that day AND at least one unbooked open window inside those blocks — NOT the general catalog assignment list. Use for "who is doing facemassage today", "who has a free slot for facemassage today", "who can do face massage tomorrow".
+- lookup_service_assignment: READ-ONLY — which providers can perform a service, or which services a provider can perform. Set assignmentLookup and employeeName or serviceName. When a date is mentioned (today/tomorrow/specific day), return only providers with an applied SERVICE_BLOCK for that service on that day AND at least one unbooked open window inside those blocks — NOT the general catalog assignment list. Use for "who is doing facemassage today", "who has a free slot for facemassage today", "who can do face massage tomorrow". Optional maxPrice / serviceRank when the user asks who can do the cheapest/premium service under a budget (e.g. "who can do a haircut under $50").
 - analyze_appointments: READ-ONLY — find extreme appointments for a day (most expensive, longest, shortest, earliest, latest). Use for "which appointment is the most expensive today", "longest appointment tomorrow". Set date (default today). NOT the same as listing all appointments.
-- summarize_bookings: READ-ONLY booking analytics — counts, revenue/earnings, busiest provider, cancelled/no-show/unpaid totals. Use for "how many appointments today", "total revenue this week", "calculate total earnings for today", "how much did we earn last month", "who is the busiest provider today". Set bookingMetric="revenue" for earnings/revenue questions. NOT for listing individual appointments (use show_appointments) or utilization gaps (use summarize_utilization).
+- summarize_bookings: READ-ONLY booking analytics — counts, revenue/earnings, busiest provider, cancelled/no-show/unpaid totals. Revenue/earnings totals are formatted in the salon tenant business currency (AMD/EUR/USD via business settings). Use for "how many appointments today", "total revenue this week", "calculate total earnings for today", "how much did we earn last month", "who is the busiest provider today". Set bookingMetric="revenue" for earnings/revenue questions. NOT for listing individual appointments (use show_appointments), utilization gaps (use summarize_utilization), or multi-source dashboard+reports KPI bundles (use summarize_revenue_kpis).
 - show_appointments / list_bookings: set employeeName when a specific provider is mentioned; leave null for all providers. Always set date when mentioned (required for a meaningful day view).
 - optimize_schedule / fill_unused_slots: fill_unused_slots creates schedule service periods (not bookings). Supports multiple providers, date ranges, time windows. For two or more providers use employeeNames array, e.g. ["Gevorg Gasparyan", "Mary Torgomyan"], or employeeName "Gevorg and Mary".
 - list_schedule_gaps: READ-ONLY — list open/unfilled time windows per day for specific provider(s). Use when user asks "which days have gaps", "exact days with gaps", "show gaps by day", or follow-ups after a utilization summary. Requires employeeName (or allProviders) and a date range. Inherit dateFrom/dateTo from session when omitted.
@@ -526,7 +581,7 @@ Rules:
 - staff_service_matrix: assign service category to senior providers and remove from juniors. "Assign all color services to senior stylists only".
 - check_schedule_compliance: READ-ONLY — find appointments outside business hours for a date range.
 - revenue_forecast: READ-ONLY — project revenue from scheduled bookings adjusted by historical no-show rate.
-- check_availability timeOfDay: morning (before 12:00), afternoon (12:00–17:00), evening (after 17:00). Set timeOfDay when user asks about morning/afternoon/evening availability.
+- check_availability timeOfDay: morning (before 12:00), afternoon (12:00–17:00), evening (after 17:00). Set timeOfDay when user asks about morning/afternoon/evening availability. When OR phrasing appears ("tomorrow evening or Friday afternoon"), set availabilityWindows with one object per alternative instead of a single timeOfDay. Optional maxPrice/serviceRank when combined with budget/rank discovery language.
 - show_appointments respects statusFilter for cancelled/no-show/confirmed views. Inherit todayOnly and page statusFilter from session context.
 - block_schedule: block time or full days for provider(s) or all providers. Creates block schedules. "Block lunch 12-13 for everyone, repeat 4 weeks, skip holidays" → allProviders=true, timeFrom/timeTo, weeksCount=4, skipHolidays=true.
 ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
@@ -561,7 +616,21 @@ ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 ${CHECK_AND_BOOK_CLASSIFIER_RULES}
 ${DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES}
 ${GIFT_CARD_PAYMENTS_CLASSIFIER_RULES}
-${DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES}`;
+${DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES}
+${DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES}
+
+${DASHBOARD_SUMMARIZE_BOOKINGS_CURRENCY_CLASSIFIER_RULES}
+${STAFF_OPERATIONS_CLASSIFIER_RULES}
+${STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES}
+${PROVIDER_ONBOARDING_COMPOUND_CLASSIFIER_RULES}
+${CLINIC_LAB_DAY_CLOSE_CLASSIFIER_RULES}
+${BUDGET_DISCOVER_AND_BOOK_CLASSIFIER_RULES}
+${RANK_DISCOVER_AND_BOOK_CLASSIFIER_RULES}
+${WAITLIST_DASHBOARD_CLASSIFIER_RULES}
+${WAITLIST_DASHBOARD_MULTILINGUAL_CLASSIFIER_RULES}
+${CLINIC_TEST_RESULT_EXT_CLASSIFIER_RULES}
+${BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES}
+${BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES}`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -1134,7 +1203,7 @@ export class AiCommandService {
 
     const sessionContext = { ...session?.context, timeZone };
 
-    const parsed = await resolveParsedIntent({
+    let parsed = await resolveParsedIntent({
       preclassified,
       classify: async () => {
         const norm =
@@ -1159,6 +1228,27 @@ export class AiCommandService {
         );
       },
     });
+    if (!parsed) {
+      const fallbackRescue = this.intentRescue.rescue({
+        prompt: effectivePrompt,
+        action: 'unknown',
+        params: {},
+        employees: employees.map((e) => ({ id: e.id, name: e.name })),
+        customers: customers.map((c) => ({ id: c.id, name: c.name })),
+        timeZone,
+        surface: 'dashboard',
+      });
+      if (fallbackRescue?.rescued) {
+        parsed = {
+          action: fallbackRescue.action,
+          params: { ...fallbackRescue.params },
+          reasoning:
+            fallbackRescue.reasoning ??
+            'Recovered via deterministic rescue after classifier returned no result.',
+          confidence: 0.85,
+        };
+      }
+    }
     if (!parsed) {
       return {
         success: false,
@@ -1359,7 +1449,7 @@ export class AiCommandService {
       parsed.params,
       session?.context?._scopedEmployeeId as string | undefined,
     ) as Record<string, any>;
-    parsed.params = enrichServiceDiscoveryFromPrompt(
+    parsed.params = enrichDiscoveryParamsFromPrompt(
       parsed.params,
       effectivePrompt,
     );
@@ -1697,6 +1787,7 @@ export class AiCommandService {
           services,
           customers,
           userId,
+          effectivePrompt,
         );
         break;
       case 'create_booking_subscription_credit': {
@@ -1720,6 +1811,7 @@ export class AiCommandService {
           services,
           customers,
           userId,
+          effectivePrompt,
         );
         if (result.action === 'create_booking') {
           result = { ...result, action: 'create_booking_subscription_credit' };
@@ -1746,6 +1838,7 @@ export class AiCommandService {
           services,
           customers,
           userId,
+          effectivePrompt,
         );
         if (result.action === 'create_booking') {
           result = { ...result, action: 'create_booking_cash' };
@@ -2311,6 +2404,14 @@ export class AiCommandService {
           params,
           effectivePrompt,
         );
+        break;
+      case 'open_billing_settings':
+        result =
+          await this.marketingGrowth.handleOpenBillingSettings(businessId);
+        break;
+      case 'summarize_loyalty_program':
+        result =
+          await this.marketingGrowth.handleSummarizeLoyaltyProgram(businessId);
         break;
       case 'how_to_download_app':
         result = await this.marketingGrowth.handleHowToDownloadApp(businessId);
@@ -3748,6 +3849,30 @@ export class AiCommandService {
         );
         break;
       }
+      case 'upload_patient_result':
+        result = await this.clinicTestResult.handleUploadPatientResult(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'explain_patient_results':
+        result = await this.clinicTestResult.handleExplainPatientResults(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'configure_test_reference_range':
+        result =
+          await this.clinicTestResult.handleConfigureTestReferenceRange(params);
+        break;
+      case 'list_abnormal_results':
+        result = await this.clinicTestResult.handleListAbnormalResults(
+          businessId,
+          params,
+        );
+        break;
       case 'explain_patient_chart':
         result = await this.clinicPatientChart.handleExplainPatientChart(
           businessId,
@@ -4282,6 +4407,7 @@ export class AiCommandService {
           params,
           employeeId,
           resolvedEmployee?.name,
+          effectivePrompt,
         );
         break;
       case 'summarize_day':
@@ -4351,6 +4477,7 @@ export class AiCommandService {
           employees,
           services,
           params,
+          effectivePrompt,
         );
         break;
       case 'list_employees':
@@ -4473,6 +4600,51 @@ export class AiCommandService {
           businessId,
           effectivePrompt,
           params,
+        );
+        break;
+      case 'create_employee':
+        result = await this.operations.handleCreateEmployee(
+          businessId,
+          params,
+          effectivePrompt,
+          userId,
+        );
+        break;
+      case 'invite_staff_member':
+        result = await this.operations.handleInviteStaffMember(
+          businessId,
+          params,
+          effectivePrompt,
+          userId,
+        );
+        break;
+      case 'deactivate_employee':
+        result = await this.operations.handleDeactivateEmployee(
+          businessId,
+          params,
+          effectivePrompt,
+          userId,
+        );
+        break;
+      case 'configure_online_booking':
+        result = await this.operations.handleConfigureOnlineBooking(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'list_waitlist_entries':
+        result = await handleListWaitlistEntriesLogic(
+          { customerRepo: this.customerRepo },
+          businessId,
+          params,
+        );
+        break;
+      case 'offer_waitlist_slot':
+        result = await handleOfferWaitlistSlotLogic(
+          { customerRepo: this.customerRepo },
+          businessId,
+          enrichOfferWaitlistSlotParams(effectivePrompt, params),
         );
         break;
       case 'fill_unused_slots':
@@ -5117,14 +5289,25 @@ export class AiCommandService {
     services: Service[],
     customers: Customer[],
     userId?: string,
+    prompt?: string,
   ): Promise<CommandResult> {
-    const service =
-      (params.serviceName
-        ? this.resolveService(services, params.serviceName)
-        : undefined) ??
-      (params.serviceId
-        ? services.find((s) => s.id === params.serviceId)
-        : undefined);
+    params = enrichDashboardCreateBookingParams({ ...params }, prompt);
+
+    const serviceResolved = await this.resolveCreateBookingServiceForParams(
+      businessId,
+      services,
+      params,
+    );
+    if (serviceResolved.noMatchSummary) {
+      return {
+        success: false,
+        action: 'create_booking',
+        summary: serviceResolved.noMatchSummary,
+        details: { params },
+      };
+    }
+
+    const service = serviceResolved.service;
     const customer = params.customerId
       ? customers.find((c) => c.id === params.customerId)
       : params.customerName
@@ -5148,60 +5331,30 @@ export class AiCommandService {
     let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
 
     if (params.bookingFirstAvailable) {
-      const timeZone = params._timeZone ?? 'UTC';
-      const startIsoDay = params.date
-        ? toIsoDay(params.date, timeZone)
-        : toIsoDay(todayDisplay(timeZone), timeZone);
-      const searchTargets = params.allProviders
-        ? employees.filter((e) => e.isActive)
-        : resolvedEmployee
-          ? [resolvedEmployee]
-          : [];
-
-      if (searchTargets.length === 0) {
-        return {
-          success: false,
-          action: 'create_booking',
-          summary: params.allProviders
-            ? 'No active providers found to search for availability.'
-            : 'Specify a provider or say "any provider" for first-available booking.',
-          details: { params },
-        };
-      }
-
-      const notBeforeTime = resolveFirstAvailableNotBeforeTime(params);
-      const pick = await this.findFirstAvailableBookingSlot(
+      const firstAvailable = await this.pickCreateBookingFirstAvailable(
         businessId,
         service,
-        startIsoDay,
-        searchTargets,
-        timeZone,
-        notBeforeTime,
+        params,
+        employees,
+        resolvedEmployee,
+        prompt,
       );
-
-      if (!pick) {
-        const afterLabel = notBeforeTime ? ` after ${notBeforeTime}` : '';
+      if (!firstAvailable.ok) {
         return {
           success: false,
           action: 'create_booking',
-          summary: `No upcoming open ${service.name} slots found${afterLabel}${
-            params.allProviders
-              ? ' for any provider'
-              : ` for ${resolvedEmployee?.name ?? 'that provider'}`
-          } in the next two weeks.`,
-          details: {
-            serviceName: service.name,
-            allProviders: !!params.allProviders,
-            timeFrom: params.timeFrom ?? null,
-          },
+          summary: firstAvailable.summary,
+          details: firstAvailable.details ?? { params },
         };
       }
 
-      resolvedEmployee = pick.employee;
+      const pick = firstAvailable.pick;
+      resolvedEmployee =
+        employees.find((entry) => entry.id === pick.employeeId) ?? resolvedEmployee;
       timeSlot = this.snapTo10min(pick.timeSlot);
       params.date = pick.isoDay;
-      params.employeeName = pick.employee.name;
-      params.employeeId = pick.employee.id;
+      params.employeeName = pick.employeeName;
+      params.employeeId = pick.employeeId;
     }
 
     const wantsProviderFallback =
@@ -5343,6 +5496,172 @@ export class AiCommandService {
     );
   }
 
+  private async resolveCreateBookingServiceForParams(
+    businessId: string,
+    services: Service[],
+    params: Record<string, unknown>,
+  ): Promise<{
+    service: Service | undefined;
+    noMatchSummary: string | null;
+  }> {
+    const serviceRank = resolveServiceRankParam(params.serviceRank);
+    const bookingCounts =
+      serviceRank === 'most_popular'
+        ? await loadServiceBookingCounts90d(
+            this.bookingRepo,
+            businessId,
+            services.map((entry) => entry.id),
+          )
+        : null;
+
+    const catalog = services.map((entry) => {
+      const rank = extractServiceRankMetadata(entry.metadata);
+      return {
+        id: entry.id,
+        name: entry.name,
+        price: Number(entry.price),
+        durationMinutes: entry.durationMinutes,
+        bookingCount: bookingCounts?.get(entry.id) ?? 0,
+        ...(rank.isFeatured ? { isFeatured: true } : {}),
+        ...(rank.serviceTier ? { serviceTier: rank.serviceTier } : {}),
+      };
+    });
+
+    const resolved = resolveDashboardCreateBookingService(
+      catalog,
+      params,
+      (name) => {
+        const found = this.resolveService(services, name);
+        return found ? catalog.find((entry) => entry.id === found.id) : undefined;
+      },
+    );
+    if (resolved.noMatchSummary) {
+      return { service: undefined, noMatchSummary: resolved.noMatchSummary };
+    }
+
+    const service = resolved.service
+      ? services.find((entry) => entry.id === resolved.service!.id)
+      : undefined;
+    return { service, noMatchSummary: null };
+  }
+
+  private async pickCreateBookingFirstAvailable(
+    businessId: string,
+    service: Service,
+    params: any,
+    employees: Employee[],
+    resolvedEmployee: Employee | undefined,
+    prompt?: string,
+  ): Promise<
+    | {
+        ok: true;
+        pick: {
+          employeeId: string;
+          employeeName: string;
+          timeSlot: string;
+          isoDay: string;
+        };
+      }
+    | {
+        ok: false;
+        summary: string;
+        details?: Record<string, unknown>;
+      }
+  > {
+    const timeZone = params._timeZone ?? 'UTC';
+    const searchTargets = params.allProviders
+      ? employees.filter((e) => e.isActive)
+      : resolvedEmployee
+        ? [resolvedEmployee]
+        : [];
+
+    if (searchTargets.length === 0) {
+      return {
+        ok: false,
+        summary: params.allProviders
+          ? 'No active providers found to search for availability.'
+          : 'Specify a provider or say "any provider" for first-available booking.',
+      };
+    }
+
+    const notBeforeTime = resolveFirstAvailableNotBeforeTime(params);
+    const windowQueries = buildDashboardFirstAvailableWindowQueries(
+      params,
+      prompt,
+      timeZone,
+    );
+
+    let pick: {
+      employeeId: string;
+      employeeName: string;
+      timeSlot: string;
+      isoDay: string;
+    } | null = null;
+
+    if (shouldScanExplicitAvailabilityWindows(params, windowQueries)) {
+      const orPick = await findDashboardFirstAvailableAcrossWindows(
+        windowQueries,
+        async ({ isoDay, timeOfDay, notBeforeTime: windowNotBefore }) =>
+          this.findFirstAvailableBookingSlotOnDay(
+            businessId,
+            service,
+            searchTargets,
+            isoDay,
+            timeZone,
+            timeOfDay,
+            windowNotBefore ?? notBeforeTime,
+          ),
+      );
+      if (orPick) {
+        pick = orPick;
+      }
+    } else {
+      const startIsoDay = params.date
+        ? toIsoDay(params.date, timeZone)
+        : toIsoDay(todayDisplay(timeZone), timeZone);
+      const legacyPick = await this.findFirstAvailableBookingSlot(
+        businessId,
+        service,
+        startIsoDay,
+        searchTargets,
+        timeZone,
+        notBeforeTime,
+      );
+      if (legacyPick) {
+        pick = {
+          employeeId: legacyPick.employee.id,
+          employeeName: legacyPick.employee.name,
+          timeSlot: legacyPick.timeSlot,
+          isoDay: legacyPick.isoDay,
+        };
+      }
+    }
+
+    if (!pick) {
+      const afterLabel = notBeforeTime ? ` after ${notBeforeTime}` : '';
+      return {
+        ok: false,
+        summary: `No upcoming open ${service.name} slots found${afterLabel}${
+          params.allProviders
+            ? ' for any provider'
+            : ` for ${resolvedEmployee?.name ?? 'that provider'}`
+        }${
+          shouldScanExplicitAvailabilityWindows(params, windowQueries)
+            ? ' in the requested time windows.'
+            : ' in the next two weeks.'
+        }`,
+        details: {
+          serviceName: service.name,
+          allProviders: !!params.allProviders,
+          timeFrom: params.timeFrom ?? null,
+          availabilityWindows: params.availabilityWindows ?? null,
+        },
+      };
+    }
+
+    return { ok: true, pick };
+  }
+
   private static readonly FIRST_AVAILABLE_SCAN_DAYS = 14;
 
   private async findFirstAvailableBookingSlot(
@@ -5407,6 +5726,42 @@ export class AiCommandService {
           isoDay: best.isoDay,
         }
       : null;
+  }
+
+  private async findFirstAvailableBookingSlotOnDay(
+    businessId: string,
+    service: Service,
+    providers: Employee[],
+    isoDay: string,
+    timeZone: string,
+    timeOfDay: TimeOfDayWindow | null,
+    notBeforeTime: string | null,
+  ) {
+    const rows = await Promise.all(
+      providers.map(async (provider) => {
+        const row = await this.getProviderAvailabilityForService(
+          businessId,
+          provider.id,
+          service.id,
+          isoDay,
+        );
+        return {
+          id: provider.id,
+          name: provider.name,
+          hasServiceBlock: row.hasServiceBlock,
+          openSlots: row.openSlots,
+        };
+      }),
+    );
+
+    return findEarliestSlotOnDayForProviders({
+      isoDay,
+      timeZone,
+      timeOfDay,
+      notBeforeTime,
+      providers: rows,
+      isSlotBookable: isWallClockSlotBookable,
+    });
   }
 
   private async handleAssignEmployeeServices(
@@ -5600,6 +5955,12 @@ export class AiCommandService {
     employeeId?: string,
     employeeName?: string,
   ): Promise<CommandResult> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+      select: { id: true, settings: true },
+    });
+    const businessSettings = business?.settings ?? {};
+
     const metric = resolveBookingMetric(params, prompt) ?? 'overview';
     const range =
       resolveDateRange(params, prompt) ??
@@ -5625,183 +5986,15 @@ export class AiCommandService {
       order: { startTime: 'ASC' },
     });
 
-    const statusFilter = params.statusFilter as string | undefined;
-    const filtered = statusFilter
-      ? bookings.filter((b) => b.status === statusFilter)
-      : bookings;
-
-    const now = new Date();
-    const upcoming = filtered.filter(
-      (b) =>
-        b.startTime > now &&
-        b.status !== BookingStatus.CANCELLED &&
-        b.status !== BookingStatus.COMPLETED &&
-        b.status !== BookingStatus.NO_SHOW,
-    );
-    const confirmed = filtered.filter(
-      (b) => b.status === BookingStatus.CONFIRMED,
-    );
-    const pending = filtered.filter((b) => b.status === BookingStatus.PENDING);
-    const completed = filtered.filter(
-      (b) => b.status === BookingStatus.COMPLETED,
-    );
-
-    const active = filtered.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const cancelled = filtered.filter(
-      (b) => b.status === BookingStatus.CANCELLED,
-    );
-    const noShows = filtered.filter((b) => b.status === BookingStatus.NO_SHOW);
-    const unpaid = filtered.filter(
-      (b) =>
-        b.status !== BookingStatus.CANCELLED &&
-        b.paymentStatus === PaymentStatus.PENDING,
-    );
-
-    const revenueBookings = active.filter(
-      (b) =>
-        b.status === BookingStatus.COMPLETED ||
-        b.status === BookingStatus.CONFIRMED ||
-        b.status === BookingStatus.IN_PROGRESS ||
-        b.status === BookingStatus.PENDING,
-    );
-    const totalRevenue = revenueBookings.reduce(
-      (sum, b) => sum + Number(b.service?.price ?? 0),
-      0,
-    );
-    const currency =
-      revenueBookings.find((b) => b.service?.currency)?.service?.currency ??
-      'USD';
-
-    const byProvider = new Map<string, number>();
-    for (const booking of active) {
-      const name = booking.employee?.name || 'Unknown';
-      byProvider.set(name, (byProvider.get(name) ?? 0) + 1);
-    }
-    const busiest = [...byProvider.entries()].sort((a, b) => b[1] - a[1]);
-
-    const rangeLabel =
-      range.start === range.end
-        ? formatDateDisplay(range.start)
-        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
-    const scopeLabel = employeeName || 'all providers';
-    const statusNote = statusFilter ? ` (${statusFilter} only)` : '';
-
-    const metricTitles: Record<string, string> = {
-      count: 'Appointment count',
-      revenue: 'Revenue',
-      busiest_provider: 'Busiest provider',
-      cancelled: 'Cancelled appointments',
-      no_shows: 'No-shows',
-      unpaid: 'Unpaid appointments',
-      upcoming: 'Upcoming appointments',
-      confirmed: 'Confirmed appointments',
-      pending: 'Pending appointments',
-      completed: 'Completed appointments',
-      overview: 'Booking overview',
-    };
-
-    const lines: string[] = [
-      `${metricTitles[metric]} for ${scopeLabel} on ${rangeLabel}${statusNote}:`,
-    ];
-
-    switch (metric) {
-      case 'count':
-        lines.push(`• ${active.length} active appointment(s)`);
-        if (!statusFilter) {
-          lines.push(
-            `• ${cancelled.length} cancelled · ${noShows.length} no-show(s)`,
-          );
-        }
-        break;
-      case 'revenue':
-        lines.push(
-          `• ${currency} ${totalRevenue.toFixed(2)} from ${revenueBookings.length} appointment(s)`,
-        );
-        break;
-      case 'busiest_provider':
-        if (busiest.length === 0) {
-          lines.push('• No active appointments in this period.');
-        } else {
-          const [topName, topCount] = busiest[0];
-          const tied = busiest.filter(([, c]) => c === topCount);
-          lines.push(`• ${topName}: ${topCount} appointment(s)`);
-          if (tied.length > 1) {
-            lines.push(
-              `• Tied with: ${tied
-                .slice(1)
-                .map(([n, c]) => `${n} (${c})`)
-                .join(', ')}`,
-            );
-          }
-          if (busiest.length > 1 && tied.length === 1) {
-            lines.push('', 'All providers:');
-            for (const [name, count] of busiest) {
-              lines.push(`• ${name}: ${count}`);
-            }
-          }
-        }
-        break;
-      case 'cancelled':
-        lines.push(`• ${cancelled.length} cancelled appointment(s)`);
-        break;
-      case 'no_shows':
-        lines.push(`• ${noShows.length} no-show(s)`);
-        break;
-      case 'unpaid':
-        lines.push(`• ${unpaid.length} unpaid appointment(s)`);
-        break;
-      case 'upcoming':
-        lines.push(`• ${upcoming.length} upcoming appointment(s)`);
-        break;
-      case 'confirmed':
-        lines.push(`• ${confirmed.length} confirmed appointment(s)`);
-        break;
-      case 'pending':
-        lines.push(`• ${pending.length} pending appointment(s)`);
-        break;
-      case 'completed':
-        lines.push(`• ${completed.length} completed appointment(s)`);
-        break;
-      case 'overview':
-        lines.push(
-          `• ${active.length} active · ${cancelled.length} cancelled · ${noShows.length} no-show(s)`,
-          `• Revenue: ${currency} ${totalRevenue.toFixed(2)} · ${unpaid.length} unpaid`,
-        );
-        if (busiest.length > 0) {
-          lines.push(`• Busiest: ${busiest[0][0]} (${busiest[0][1]} appt(s))`);
-        }
-        break;
-    }
-
-    return {
-      success: true,
-      action: 'summarize_bookings',
-      summary: lines.join('\n'),
-      details: {
-        bookingMetric: metric,
-        date: range.start === range.end ? formatDateDisplay(range.start) : null,
-        range,
-        scope: employeeId ? 'provider' : 'all_providers',
-        employee: employeeName ?? null,
-        counts: {
-          total: filtered.length,
-          active: active.length,
-          cancelled: cancelled.length,
-          noShows: noShows.length,
-          unpaid: unpaid.length,
-          upcoming: upcoming.length,
-          confirmed: confirmed.length,
-          pending: pending.length,
-          completed: completed.length,
-        },
-        revenue: { total: totalRevenue, currency },
-        busiestProvider:
-          busiest.length > 0
-            ? { name: busiest[0][0], count: busiest[0][1] }
-            : null,
-        byProvider: Object.fromEntries(busiest),
-      },
-    };
+    return composeSummarizeBookingsResult({
+      bookings,
+      businessSettings,
+      metric,
+      range,
+      employeeId,
+      employeeName,
+      statusFilter: params.statusFilter as string | undefined,
+    });
   }
 
   private async handleListServices(
@@ -5851,6 +6044,9 @@ export class AiCommandService {
         const composed = composeDashboardListServicesBudgetResponse({
           matchedServices: [toCatalogRow(target)],
           maxPrice: withBudgetAndRank.maxPrice,
+          minPrice: withBudgetAndRank.minPrice,
+          preferShortDuration: withBudgetAndRank.preferShortDuration,
+          minDurationMinutes: withBudgetAndRank.minDurationMinutes,
           header: `${target.name}:`,
         });
         if (composed.services.length === 1) {
@@ -5888,6 +6084,16 @@ export class AiCommandService {
       ? resolveServicesFromCatalogParams(catalog, enriched)
       : catalog;
 
+    if (hasFilter && matched.length === 0) {
+      const category = enriched.serviceCategory ?? enriched.serviceName;
+      return {
+        success: false,
+        action: 'list_services',
+        summary: buildRankEmptyCategorySummary(String(category), catalog),
+        details: { services: [] },
+      };
+    }
+
     const serviceRank = resolveServiceRankParam(withBudgetAndRank.serviceRank);
     if (serviceRank) {
       const rankLimit = resolveListServicesRankLimitFromPrompt(
@@ -5900,6 +6106,7 @@ export class AiCommandService {
         limit: rankLimit,
         maxPrice: withBudgetAndRank.maxPrice,
         serviceCategory: enriched.serviceCategory ?? null,
+        allCatalogServices: catalog,
       });
       return {
         success: composed.success,
@@ -5912,10 +6119,17 @@ export class AiCommandService {
     const composed = composeDashboardListServicesBudgetResponse({
       matchedServices: matched,
       maxPrice: withBudgetAndRank.maxPrice,
+      minPrice: withBudgetAndRank.minPrice,
+      preferShortDuration: withBudgetAndRank.preferShortDuration,
+      minDurationMinutes: withBudgetAndRank.minDurationMinutes,
+      maxTotalPrice: withBudgetAndRank.maxTotalPrice,
+      serviceCount: withBudgetAndRank.serviceCount,
       header:
-        withBudgetAndRank.maxPrice != null
-          ? 'Services within budget:'
-          : `Service catalog (${matched.length}):`,
+        withBudgetAndRank.maxTotalPrice != null
+          ? 'Service combos within budget:'
+          : withBudgetAndRank.maxPrice != null
+            ? 'Services within budget:'
+            : `Service catalog (${matched.length}):`,
     });
 
     return {
@@ -6338,7 +6552,10 @@ export class AiCommandService {
     employees: Employee[],
     services: Service[],
     params: Record<string, any>,
+    prompt?: string,
   ): Promise<CommandResult> {
+    params = enrichDashboardLookupAssignmentParams({ ...params }, prompt);
+
     const lookup = params.assignmentLookup as
       | 'providers_for_service'
       | 'services_for_provider'
@@ -6407,8 +6624,37 @@ export class AiCommandService {
       };
     }
 
-    const serviceName = params.serviceName as string | undefined;
-    if (!serviceName) {
+    const catalog = services.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      price: Number(entry.price),
+      durationMinutes: entry.durationMinutes,
+    }));
+
+    const serviceResolved = resolveLookupAssignmentService(
+      catalog,
+      params,
+      (name) => this.resolveService(services, name),
+    );
+
+    if (serviceResolved.noMatchSummary && !serviceResolved.service) {
+      const isMissingName =
+        serviceResolved.noMatchSummary === 'Which service should I look up?';
+      return {
+        success: false,
+        action: 'lookup_service_assignment',
+        summary: isMissingName
+          ? 'Which service should I look up? Mention the service name.'
+          : serviceResolved.noMatchSummary,
+        details: {},
+      };
+    }
+
+    const service = serviceResolved.service
+      ? services.find((entry) => entry.id === serviceResolved.service!.id)
+      : undefined;
+
+    if (!service) {
       return {
         success: false,
         action: 'lookup_service_assignment',
@@ -6417,16 +6663,7 @@ export class AiCommandService {
       };
     }
 
-    const service = this.resolveService(services, serviceName);
-    if (!service) {
-      return {
-        success: false,
-        action: 'lookup_service_assignment',
-        summary: `No service found matching "${serviceName}".`,
-        details: {},
-      };
-    }
-
+    const discoveryNote = formatLookupAssignmentDiscoveryNote(params, service.name);
     const active = employees.filter((e) => e.isActive);
 
     if (params.date) {
@@ -6484,7 +6721,7 @@ export class AiCommandService {
       }
 
       const lines = [
-        `Providers scheduled for ${service.name} on ${displayDay} with open time (${availableProviders.length}):`,
+        `Providers scheduled for ${service.name} on ${displayDay} with open time (${availableProviders.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
         ...availableProviders.map((r) => {
           const blocks = r.scheduledBlocks
             .map((b) => `${b.start}–${b.end}`)
@@ -6528,7 +6765,7 @@ export class AiCommandService {
     }
 
     const lines = [
-      `Providers who can perform ${service.name} (${providers.length}):`,
+      `Providers who can perform ${service.name} (${providers.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
       ...providers.map((p) => `• ${p.name}`),
     ];
     return {
@@ -6537,6 +6774,8 @@ export class AiCommandService {
       summary: lines.join('\n'),
       details: {
         serviceName: service.name,
+        maxPrice: params.maxPrice ?? null,
+        serviceRank: params.serviceRank ?? null,
         providers: providers.map((p) => ({ id: p.id, name: p.name })),
       },
     };
@@ -7184,6 +7423,7 @@ export class AiCommandService {
           catalog.services,
           catalog.customers,
           userId,
+          prompt,
         );
         return plan;
       }
@@ -7556,6 +7796,7 @@ export class AiCommandService {
           catalog.employees,
           catalog.services,
           params,
+          effectivePrompt,
         );
       case 'list_services':
         return this.handleListServices(
@@ -7600,14 +7841,16 @@ export class AiCommandService {
     services: Service[],
     customers: Customer[],
     userId?: string,
+    prompt?: string,
   ): Promise<AgentPlan | null> {
-    const service =
-      (params.serviceName
-        ? this.resolveService(services, params.serviceName)
-        : undefined) ??
-      (params.serviceId
-        ? services.find((s) => s.id === params.serviceId)
-        : undefined);
+    params = enrichDashboardCreateBookingParams({ ...params }, prompt);
+
+    const serviceResolved = await this.resolveCreateBookingServiceForParams(
+      businessId,
+      services,
+      params,
+    );
+    const service = serviceResolved.service;
     if (!service) return null;
 
     const customer = params.customerId
@@ -7624,29 +7867,23 @@ export class AiCommandService {
     let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
 
     if (params.bookingFirstAvailable) {
-      const timeZone = params._timeZone ?? 'UTC';
-      const startIsoDay = params.date
-        ? toIsoDay(params.date, timeZone)
-        : toIsoDay(todayDisplay(timeZone), timeZone);
-      const searchTargets = params.allProviders
-        ? employees.filter((e) => e.isActive)
-        : resolvedEmployee
-          ? [resolvedEmployee]
-          : [];
-      if (searchTargets.length === 0) return null;
-
-      const pick = await this.findFirstAvailableBookingSlot(
+      const firstAvailable = await this.pickCreateBookingFirstAvailable(
         businessId,
         service,
-        startIsoDay,
-        searchTargets,
-        timeZone,
-        resolveFirstAvailableNotBeforeTime(params),
+        params,
+        employees,
+        resolvedEmployee,
+        prompt,
       );
-      if (!pick) return null;
-      resolvedEmployee = pick.employee;
+      if (!firstAvailable.ok) return null;
+
+      const pick = firstAvailable.pick;
+      resolvedEmployee =
+        employees.find((entry) => entry.id === pick.employeeId) ?? resolvedEmployee;
       timeSlot = this.snapTo10min(pick.timeSlot);
       params.date = pick.isoDay;
+      params.employeeName = pick.employeeName;
+      params.employeeId = pick.employeeId;
     }
 
     const wantsProviderFallback =
@@ -9968,7 +10205,54 @@ export class AiCommandService {
     params: any,
     employeeId?: string,
     employeeName?: string,
+    prompt?: string,
+    skipMultiWindow = false,
   ): Promise<CommandResult> {
+    const timeZone = params._timeZone ?? 'UTC';
+    const enriched = enrichDashboardCheckAvailabilityParams(
+      { ...params },
+      prompt,
+    );
+
+    if (!skipMultiWindow) {
+      const windows = resolveDashboardCheckAvailabilityWindows(
+        enriched,
+        prompt,
+        timeZone,
+      );
+      if (shouldGroupDashboardAvailabilityByWindow(windows, enriched)) {
+        const todayKey = dashboardAvailabilityTodayKey(timeZone);
+        const sections: string[] = [];
+        for (const window of windows) {
+          if (window.dateKeys.length === 0) continue;
+          const singleParams = buildSingleWindowCheckParams(enriched, window);
+          const part = await this.handleCheckAvailability(
+            businessId,
+            singleParams,
+            employeeId,
+            employeeName,
+            prompt,
+            true,
+          );
+          const label = buildDashboardAvailabilityWindowLabel(
+            window,
+            timeZone,
+            todayKey,
+          );
+          sections.push(`${label}:\n${part.summary}`);
+        }
+        if (sections.length > 0) {
+          return {
+            success: true,
+            action: 'check_availability',
+            summary: sections.join('\n\n'),
+            details: { windows: windows.length, multiWindow: true },
+          };
+        }
+      }
+      params = enriched;
+    }
+
     const isoDay = params.date || new Date().toISOString().split('T')[0];
     const displayDay = formatDateDisplay(isoDay);
     const timeOfDay = parseTimeOfDayWindow('', params);

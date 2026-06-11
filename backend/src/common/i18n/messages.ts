@@ -79,6 +79,8 @@ const en: MessageTree = {
     availabilityWindowWeekday: '{weekday} {timeOfDay}',
     availabilityWindowDate: '{date} {timeOfDay}',
     availabilityWindowNoSlots: 'No open slots for {label}.',
+    availabilityNearestAlternative:
+      'Nearest opening: {weekday} {date} at {time} with {provider}.',
     availabilityOverlapTomorrowIsWeekday:
       'Tomorrow is {weekday} — these are two time windows on the same day.',
     availabilityOverlapSameDay:
@@ -347,6 +349,8 @@ const hy: MessageTree = {
     availabilityWindowWeekday: '{weekday} {timeOfDay}',
     availabilityWindowDate: '{date} {timeOfDay}',
     availabilityWindowNoSlots: '{label} ազատ slot-եր չկան։',
+    availabilityNearestAlternative:
+      'Ամենամոտ slot՝ {weekday} {date}, ժամը {time}, {provider}-ի հետ։',
     availabilityOverlapTomorrowIsWeekday:
       'Վաղը {weekday} է — երկու ժամային պատուհաններն նույն օրն են։',
     availabilityOverlapSameDay:
@@ -622,6 +626,8 @@ const ru: MessageTree = {
     availabilityWindowWeekday: '{weekday} {timeOfDay}',
     availabilityWindowDate: '{date} {timeOfDay}',
     availabilityWindowNoSlots: 'Нет свободных слотов на {label}.',
+    availabilityNearestAlternative:
+      'Ближайшее окно: {weekday} {date} в {time} у {provider}.',
     availabilityOverlapTomorrowIsWeekday:
       'Завтра — {weekday}: это два временных окна в один и тот же день.',
     availabilityOverlapSameDay:

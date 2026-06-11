@@ -5,6 +5,21 @@ import {
   handlePaymentsCompoundLogic,
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
+import { findNearestBookableSlotAcrossWindowsWithFinder } from './ai-nearest-slot-resolver.util.js';
+
+function attachNearestAcrossWindowsMock(publicBookingService: {
+  findNearestBookableSlot: jest.Mock;
+  findNearestBookableSlotAcrossWindows?: jest.Mock;
+}) {
+  publicBookingService.findNearestBookableSlotAcrossWindows = jest.fn(
+    async (slug, options) =>
+      findNearestBookableSlotAcrossWindowsWithFinder(
+        slug,
+        options,
+        publicBookingService.findNearestBookableSlot,
+      ),
+  );
+}
 
 const services = [
   { id: 's1', name: 'Massage', businessId: 'biz-1', price: 80, isActive: true },
@@ -20,12 +35,7 @@ const services = [
 function buildDeps(
   overrides: Partial<PaymentsLogicDeps> = {},
 ): PaymentsLogicDeps {
-  return {
-    giftCardsService: {} as any,
-    giftCardPurchaseService: {} as any,
-    giftCardOrderService: {} as any,
-    giftCardRefundService: {} as any,
-    publicBookingService: {
+  const publicBookingService = {
       recommendProviders: jest.fn(async () => ({
         providers: [
           {
@@ -47,7 +57,19 @@ function buildDeps(
         employeeId: 'e1',
         employeeName: 'Karo Mazmanyan',
       })),
-    } as any,
+    } as {
+      recommendProviders: jest.Mock;
+      findNearestBookableSlot: jest.Mock;
+      findNearestBookableSlotAcrossWindows?: jest.Mock;
+    };
+  attachNearestAcrossWindowsMock(publicBookingService);
+
+  return {
+    giftCardsService: {} as any,
+    giftCardPurchaseService: {} as any,
+    giftCardOrderService: {} as any,
+    giftCardRefundService: {} as any,
+    publicBookingService: publicBookingService as any,
     accountingIntegrationService: {} as any,
     commissionsService: {} as any,
     subscriptionsService: {} as any,
@@ -218,6 +240,56 @@ describe('ai provider availability integration', () => {
 
       expect(result.success).toBe(false);
       expect(result.summary).toContain('calendar down');
+    });
+
+    it('avail-dashboard-parity-en groups OR availability windows in summary', async () => {
+      const recommendProviders = jest
+        .fn()
+        .mockResolvedValueOnce({
+          providers: [
+            {
+              id: 'e1',
+              name: 'Karo Mazmanyan',
+              previewTimes: ['18:00', '18:30'],
+              matchedServiceName: 'Massage',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          providers: [
+            {
+              id: 'e2',
+              name: 'Mary Torgomyan',
+              previewTimes: ['14:00', '15:00'],
+              matchedServiceName: 'Massage',
+            },
+          ],
+        });
+      const prompt =
+        'Who is free tomorrow evening or Friday afternoon for massage?';
+      const result = await handleCheckProvidersForServiceLogic(
+        buildDeps({
+          publicBookingService: { recommendProviders } as any,
+        }),
+        'biz-1',
+        {
+          serviceCategory: 'massage',
+          allProviders: true,
+          availabilityWindows: [
+            { date: 'tomorrow', timeOfDay: 'evening' },
+            { weekdays: ['friday'], timeOfDay: 'afternoon' },
+          ],
+        },
+        prompt,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.details?.multiWindow).toBe(true);
+      expect(recommendProviders).toHaveBeenCalledTimes(2);
+      expect(result.summary).toContain('Tomorrow evening');
+      expect(result.summary).toMatch(/afternoon/i);
+      expect(result.summary).toContain('Karo Mazmanyan');
+      expect(result.summary).toContain('Mary Torgomyan');
     });
   });
 

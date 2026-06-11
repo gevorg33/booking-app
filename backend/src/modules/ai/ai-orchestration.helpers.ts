@@ -221,6 +221,48 @@ export function extractSingleIsoDayFromPrompt(
     return parseMonthDayToken(numeric[1], timeZone);
   }
 
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
+  const weekdayMap: Record<string, number> = {
+    sunday: 0,
+    sun: 0,
+    monday: 1,
+    mon: 1,
+    tuesday: 2,
+    tue: 2,
+    tues: 2,
+    wednesday: 3,
+    wed: 3,
+    thursday: 4,
+    thu: 4,
+    thurs: 4,
+    friday: 5,
+    fri: 5,
+    saturday: 6,
+    sat: 6,
+  };
+  const nextDayMatch = lower.match(
+    /\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (nextDayMatch) {
+    const target = weekdayMap[nextDayMatch[1]];
+    const cur = today.day();
+    let delta = (target - cur + 7) % 7;
+    if (delta === 0) delta = 7;
+    return today.add(delta, 'day').format('YYYY-MM-DD');
+  }
+
+  const bareDayMatch = lower.match(
+    /\b(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (bareDayMatch) {
+    const target = weekdayMap[bareDayMatch[1]];
+    const cur = today.day();
+    const delta = (target - cur + 7) % 7;
+    return today.add(delta, 'day').format('YYYY-MM-DD');
+  }
+
   return null;
 }
 
@@ -1591,6 +1633,19 @@ export function resolveDateKeysForAvailabilityWindow(
     return dropPast([toIsoDay(window.date, tz)]);
   }
 
+  if (
+    window.timeOfDay ||
+    window.timeFrom ||
+    window.timeTo ||
+    window.timeSlot
+  ) {
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      result.push(addDaysToDateKey(todayKey, offset, tz));
+    }
+    return dropPast(result);
+  }
+
   return [];
 }
 
@@ -1747,13 +1802,19 @@ export function applyAvailabilityDateFromPrompt(
 ): void {
   if (!prompt?.trim()) return;
 
-  if (hasExplicitWeekdayInAvailabilityPrompt(params, prompt)) {
+  const clearedStaleSessionDate = hasExplicitWeekdayInAvailabilityPrompt(
+    params,
+    prompt,
+  );
+  if (clearedStaleSessionDate) {
     delete params.date;
     delete params.dateFrom;
     delete params.dateTo;
   }
 
-  applyPromptDateOverride(params, prompt, timeZone);
+  if (!clearedStaleSessionDate) {
+    applyPromptDateOverride(params, prompt, timeZone);
+  }
 }
 
 export function shouldAutoExecute(

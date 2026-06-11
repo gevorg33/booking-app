@@ -3,7 +3,19 @@ import {
   type BudgetServiceDiscoveryPromptFixture,
 } from './ai-budget-service-discovery.fixtures.js';
 import {
+  buildFlexibleAvailabilityEvalParams,
+  isFlexibleAvailabilityBudgetCompoundPrompt,
+} from './ai-flexible-availability-compound.util.js';
+import { pickMatchingParamsPartial } from './ai-flexible-availability.eval.util.js';
+import {
+  enrichBudgetFromPrompt,
+  extractBudgetPromoCodeFromPrompt,
   extractMaxPriceFromBudgetPrompt,
+  extractMinPriceFromBudgetPrompt,
+  extractMaxTotalPriceFromBudgetPrompt,
+  extractBudgetCartServiceCountFromPrompt,
+  isBudgetAnyProviderListPrompt,
+  isBudgetCartTotalPrompt,
   resolveBudgetMisrouteAction,
 } from './ai-budget-service-discovery.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
@@ -61,10 +73,34 @@ function isBudgetCompoundScenario(
   return false;
 }
 
+function mapBudgetFlexibleAvailabilityActionForSurface(
+  scenario: BudgetServiceDiscoveryPromptFixture,
+  surface: 'public' | 'customer',
+): string {
+  if (surface === 'customer') {
+    return scenario.expectedAction === 'check_availability'
+      ? 'check_providers_for_service'
+      : scenario.expectedAction;
+  }
+  return scenario.expectedAction;
+}
+
+export function isBudgetFlexibleAvailabilityScenario(
+  scenario: BudgetServiceDiscoveryPromptFixture,
+): boolean {
+  return (
+    isFlexibleAvailabilityBudgetCompoundPrompt(scenario.prompt) &&
+    scenario.expectedAction === 'check_availability'
+  );
+}
+
 export function budgetScenarioEligibleForSurface(
   scenario: BudgetServiceDiscoveryPromptFixture,
   surface: CommandSurface,
 ): boolean {
+  if (isBudgetFlexibleAvailabilityScenario(scenario)) {
+    return surface === 'public' || surface === 'customer';
+  }
   if (
     surface === 'dashboard' &&
     (scenario.publicCompoundSteps?.length ||
@@ -74,7 +110,10 @@ export function budgetScenarioEligibleForSurface(
   }
   if (isBudgetCompoundScenario(scenario, surface)) return true;
   if (scenario.skipMaxPrice) return true;
+  if (scenario.expectedParams?.maxTotalPrice != null) return true;
+  if (scenario.expectedParams?.minPrice != null) return true;
   if (scenario.expectedParams?.maxPrice != null) return true;
+  if (isBudgetCartTotalPrompt(scenario.prompt)) return true;
   return extractMaxPriceFromBudgetPrompt(scenario.prompt) != null;
 }
 
@@ -97,24 +136,62 @@ function resolveBudgetRescueExpectation(
     };
   }
 
+  const maxTotalPrice =
+    scenario.expectedParams?.maxTotalPrice ??
+    extractMaxTotalPriceFromBudgetPrompt(scenario.prompt);
   const maxPrice =
     scenario.expectedParams?.maxPrice ??
     extractMaxPriceFromBudgetPrompt(scenario.prompt);
   const specialistPrompt =
     /\b(?:best|rated|top|specialist|stylist|therapist)\b/i.test(
       scenario.prompt,
-    );
+    ) && !isBudgetAnyProviderListPrompt(scenario.prompt);
   const rescuedAction = mapBudgetExpectedActionForSurface(
     specialistPrompt ? 'recommend_specialists' : scenario.expectedAction,
     surface,
   );
+
+  const paramsPartial: Record<string, unknown> = {};
+  if (maxTotalPrice != null) {
+    paramsPartial.maxTotalPrice = maxTotalPrice;
+    paramsPartial.serviceCount =
+      scenario.expectedParams?.serviceCount ??
+      extractBudgetCartServiceCountFromPrompt(scenario.prompt) ??
+      2;
+  } else if (maxPrice != null) {
+    paramsPartial.maxPrice = maxPrice;
+    const minPrice =
+      scenario.expectedParams?.minPrice ??
+      extractMinPriceFromBudgetPrompt(scenario.prompt);
+    if (minPrice != null) paramsPartial.minPrice = minPrice;
+    const promoCode =
+      scenario.expectedParams?.promoCode ??
+      extractBudgetPromoCodeFromPrompt(scenario.prompt);
+    if (promoCode) paramsPartial.promoCode = promoCode;
+    const budgetEnriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    if (budgetEnriched.serviceName) {
+      paramsPartial.serviceName = budgetEnriched.serviceName;
+    }
+    if (budgetEnriched.allProviders === true) {
+      paramsPartial.allProviders = true;
+    }
+    if (budgetEnriched.employeeName) {
+      paramsPartial.employeeName = budgetEnriched.employeeName;
+    }
+    if (budgetEnriched.preferShortDuration === true) {
+      paramsPartial.preferShortDuration = true;
+    }
+    if (budgetEnriched.minDurationMinutes != null) {
+      paramsPartial.minDurationMinutes = budgetEnriched.minDurationMinutes;
+    }
+  }
 
   return {
     rescuedAction,
     rescueReason: specialistPrompt
       ? 'budget_recommend_specialists'
       : 'budget_list_services',
-    ...(maxPrice != null ? { paramsPartial: { maxPrice } } : {}),
+    ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
   };
 }
 
@@ -124,6 +201,36 @@ export function budgetServiceDiscoveryScenarioToEvalCase(
   surface: CommandSurface,
 ): AiCommandEvalCase {
   const id = `budget-${surface}-${scenario.id}`;
+
+  if (
+    isBudgetFlexibleAvailabilityScenario(scenario) &&
+    (surface === 'public' || surface === 'customer')
+  ) {
+    const action = mapBudgetFlexibleAvailabilityActionForSurface(
+      scenario,
+      surface,
+    );
+    const enriched = buildFlexibleAvailabilityEvalParams(
+      scenario.prompt,
+      surface,
+      action,
+    );
+    const paramsPartial = pickMatchingParamsPartial(
+      scenario.expectedParams,
+      enriched,
+    );
+    return {
+      id,
+      prompt: scenario.prompt,
+      locale: 'en',
+      surface,
+      expect: {
+        useSurfaceFlexibleAvailabilityEnrichment: true,
+        enrichedAction: action,
+        paramsPartial,
+      },
+    };
+  }
 
   if (isBudgetCompoundScenario(scenario, surface)) {
     const steps =
@@ -151,6 +258,24 @@ export function budgetServiceDiscoveryScenarioToEvalCase(
 
   if (scenario.skipMaxPrice) {
     const misroute = resolveBudgetMisrouteAction(scenario.prompt);
+    if (
+      scenario.expectedAction === 'explain_checkout_currency' &&
+      misroute == null
+    ) {
+      return {
+        id,
+        prompt: scenario.prompt,
+        locale: 'en',
+        surface,
+        expect: {
+          useCheckoutCurrencyRescue: true,
+          rescuedAction: 'explain_checkout_currency',
+          rescueFromAction: 'list_services',
+          rescueReason: 'explain_checkout_currency',
+        },
+      };
+    }
+
     return {
       id,
       prompt: scenario.prompt,

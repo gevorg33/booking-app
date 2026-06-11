@@ -194,7 +194,11 @@ describe('resolvePublicAvailabilityDateKeys', () => {
     for (const dateKey of windows[1]!.dateKeys) {
       expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(5);
     }
-    expect(windows[0]?.dateKeys[0]).not.toEqual(windows[1]?.dateKeys[0]);
+    if (windows[0]?.dateKeys[0] === windows[1]?.dateKeys[0]) {
+      expect(windows[0]?.timeOfDay).not.toBe(windows[1]?.timeOfDay);
+    } else {
+      expect(windows[0]?.dateKeys[0]).not.toEqual(windows[1]?.dateKeys[0]);
+    }
   });
 
   it('does not merge OR weekdays into one window when availabilityWindows is set', () => {
@@ -225,6 +229,39 @@ describe('resolvePublicAvailabilityDateKeys', () => {
     for (const dateKey of fridayKeys) {
       expect(flattened).toContain(dateKey);
     }
+  });
+
+  it('resolves timeOfDay-only OR windows across the scan horizon (avail-voice-chip-en)', () => {
+    const eveningKeys = resolveDateKeysForAvailabilityWindow(
+      { timeOfDay: 'evening' },
+      tz,
+      7,
+    );
+    const weekendKeys = resolveDateKeysForAvailabilityWindow(
+      { weekdays: ['saturday', 'sunday'] },
+      tz,
+      7,
+    );
+
+    expect(eveningKeys.length).toBe(7);
+    expect(weekendKeys.length).toBeGreaterThan(0);
+
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        availabilityWindows: [
+          { timeOfDay: 'evening' },
+          { weekdays: ['saturday', 'sunday'] },
+        ],
+      },
+      'Evening or weekend slots for a facial',
+      tz,
+      { defaultScanDays: 7 },
+    );
+
+    expect(windows.length).toBe(2);
+    expect(windows[0]?.timeOfDay).toBe('evening');
+    expect(windows[0]?.dateKeys.length).toBe(7);
+    expect(windows[1]?.dateKeys.length).toBeGreaterThan(0);
   });
 
   it('keeps AND weekdays in a single window with shared timeOfDay (avail-1.4)', () => {

@@ -57,13 +57,13 @@ describe('ai budget service discovery eval cases (budget-1.11)', () => {
       80,
     );
     expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_PUBLIC_CASES.length).toBe(
-      29,
+      37,
     );
     expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CUSTOMER_CASES.length).toBe(
-      35,
+      44,
     );
     expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_DASHBOARD_CASES.length).toBe(
-      27,
+      34,
     );
   });
 

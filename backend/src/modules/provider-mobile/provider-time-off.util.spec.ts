@@ -82,7 +82,7 @@ describe('provider-time-off.util (prov-exp-7.2)', () => {
     expect(
       validateProviderTimeOffRange({
         startDate: 'bad',
-        endDate: '2026-06-10',
+        endDate: '2026-06-20',
         dailyStartTime: '09:00',
         dailyEndTime: '17:00',
       }),
@@ -98,7 +98,7 @@ describe('provider-time-off.util (prov-exp-7.2)', () => {
     expect(
       buildBlockScheduleDtoFromTimeOffRequest('emp-1', {
         startDate: 'bad',
-        endDate: '2026-06-10',
+        endDate: '2026-06-20',
         dailyStartTime: '09:00',
         dailyEndTime: '17:00',
       }),
@@ -111,8 +111,8 @@ describe('provider-time-off.util (prov-exp-7.2)', () => {
       businessId: 'biz-1',
       employeeId: 'emp-1',
       requestedByUserId: 'user-1',
-      startDate: '2026-06-10',
-      endDate: '2026-06-10',
+      startDate: '2026-06-20',
+      endDate: '2026-06-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
       reason: null,
@@ -126,18 +126,18 @@ describe('provider-time-off.util (prov-exp-7.2)', () => {
       employee: { name: 'Sam' } as any,
     });
     expect(view.createdAt).toBeTruthy();
-    expect(summarizeTimeOffRequests([view])).toContain('2026-06-10');
+    expect(summarizeTimeOffRequests([view])).toContain('2026-06-20');
     expect(
       summarizeTimeOffRequests([
-        { ...view, employeeName: null, startDate: '2026-06-11', endDate: '2026-06-12' },
+        { ...view, employeeName: null, startDate: '2026-06-21', endDate: '2026-06-22' },
       ]),
     ).toContain('Provider');
   });
 
   it('uses Time off placeholder when reason blank', () => {
     const dto = buildBlockScheduleDtoFromTimeOffRequest('emp-1', {
-      startDate: '2026-06-10',
-      endDate: '2026-06-10',
+      startDate: '2026-06-20',
+      endDate: '2026-06-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
       reason: '   ',

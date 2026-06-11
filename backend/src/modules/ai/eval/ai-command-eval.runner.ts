@@ -17,6 +17,7 @@ import {
 } from '../../../common/utils/phi-ai-guard.util.js';
 import { rescueClinicLabBookingSurfaceForEval } from '../ai-clinic-lab-booking-multilingual.util.js';
 import { enrichCatalogNotifyRescueParams } from '../ai-catalog-notify.util.js';
+import { rescueCheckoutCurrencyIntent } from '../ai-checkout-currency.util.js';
 import {
   enrichBudgetFromPrompt,
   rescueBudgetServiceDiscoveryIntent,
@@ -27,6 +28,7 @@ import {
   enrichServiceRankFromPrompt,
   rescueServiceRankDiscoveryIntent,
 } from '../ai-service-rank-discovery.util.js';
+import { buildDashboardFlexibleAvailabilityEvalParams } from '../ai-flexible-availability.eval.util.js';
 import { buildFlexibleAvailabilityEvalParams } from '../ai-flexible-availability-compound.util.js';
 import { rescueSelfServiceBookingIntent } from '../ai-self-service-booking.util.js';
 import { rescueMarketingGrowthIntent } from '../ai-marketing-growth.util.js';
@@ -173,13 +175,18 @@ export function evaluateDeterministicEvalCase(
   if (
     expect.useSurfaceFlexibleAvailabilityEnrichment === true &&
     evalCase.surface &&
-    (evalCase.surface === 'public' || evalCase.surface === 'customer')
+    (evalCase.surface === 'public' ||
+      evalCase.surface === 'customer' ||
+      evalCase.surface === 'dashboard')
   ) {
-    const enriched = buildFlexibleAvailabilityEvalParams(
-      prompt,
-      evalCase.surface,
-      expect.enrichedAction ?? 'check_availability',
-    );
+    const enriched =
+      evalCase.surface === 'dashboard'
+        ? buildDashboardFlexibleAvailabilityEvalParams(prompt)
+        : buildFlexibleAvailabilityEvalParams(
+            prompt,
+            evalCase.surface,
+            expect.enrichedAction ?? 'check_availability',
+          );
     if (expect.paramsPartial) {
       errors.push(...paramsMatchPartial(enriched, expect.paramsPartial));
     }
@@ -209,6 +216,8 @@ export function evaluateDeterministicEvalCase(
       expect.useSurfaceLabBookingRescue === true && !!evalCase.surface;
     const useSurfaceBudgetRescue =
       expect.useSurfaceBudgetRescue === true && !!evalCase.surface;
+    const useCheckoutCurrencyRescue =
+      expect.useCheckoutCurrencyRescue === true;
     const useSurfaceRankRescue =
       expect.useSurfaceRankRescue === true && !!evalCase.surface;
     const surfaceRescued = useSurfaceLabBookingRescue
@@ -217,6 +226,9 @@ export function evaluateDeterministicEvalCase(
           misclassifiedAction,
           evalCase.surface as 'dashboard' | 'customer' | 'provider',
         )
+      : null;
+    const checkoutCurrencyRescued = useCheckoutCurrencyRescue
+      ? rescueCheckoutCurrencyIntent(prompt, misclassifiedAction)
       : null;
     const budgetRescued = useSurfaceBudgetRescue
       ? rescueBudgetServiceDiscoveryIntent(
@@ -336,6 +348,15 @@ export function evaluateDeterministicEvalCase(
             rescueReason: surfaceRescued.rescueReason,
           }
         : null
+      : useCheckoutCurrencyRescue
+        ? checkoutCurrencyRescued
+          ? {
+              action: checkoutCurrencyRescued.action,
+              params: enrichBudgetFromPrompt({}, prompt),
+              rescued: true,
+              rescueReason: checkoutCurrencyRescued.rescueReason,
+            }
+          : null
       : useSurfaceRankRescue
         ? rankRescued
           ? {

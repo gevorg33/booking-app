@@ -2,6 +2,7 @@ import {
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS,
   type FlexibleAvailabilityPromptFixture,
 } from './ai-flexible-availability.fixtures.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
   buildFlexibleAvailabilityCompoundSharedParams,
   buildFlexibleAvailabilityEvalParams,
@@ -15,13 +16,25 @@ import type {
 const FLEXIBLE_AVAILABILITY_EVAL_PARAM_KEYS = [
   'serviceCategory',
   'maxPrice',
+  'serviceRank',
   'availabilityWindows',
   'bookingFirstAvailable',
   'allProviders',
+  'sameProviderAcrossWindows',
   'date',
   'weekdays',
   'timeOfDay',
 ] as const;
+
+function resolveFlexibleAvailabilityCompoundRecipeId(
+  surface: 'public' | 'customer',
+  steps: readonly string[],
+): string {
+  if (steps[0] === 'list_services' && steps.length === 2) {
+    return `${surface}_flexible_availability_list_budget_then_or_compound`;
+  }
+  return `${surface}_flexible_availability_budget_compound`;
+}
 
 export function mapFlexibleAvailabilityActionForSurface(
   scenario: FlexibleAvailabilityPromptFixture,
@@ -49,11 +62,17 @@ export function mapFlexibleAvailabilityActionForSurface(
 
 export function flexibleAvailabilitySurfacesForScenario(
   scenario: FlexibleAvailabilityPromptFixture,
-): Array<'public' | 'customer'> {
+): Array<'public' | 'customer' | 'dashboard'> {
   if (scenario.surface === 'public') return ['public'];
   if (scenario.surface === 'customer') return ['customer'];
-  if (scenario.surface === 'dashboard') return [];
+  if (scenario.surface === 'dashboard') return ['dashboard'];
   return ['public', 'customer'];
+}
+
+export function buildDashboardFlexibleAvailabilityEvalParams(
+  prompt: string,
+): Record<string, unknown> {
+  return enrichDiscoveryParamsFromPrompt({}, prompt);
 }
 
 function isFlexibleAvailabilityCompoundScenario(
@@ -93,7 +112,7 @@ export function valuesMatchEvalPartial(
   return actual === expected;
 }
 
-function pickMatchingParamsPartial(
+export function pickMatchingParamsPartial(
   expected: Record<string, unknown> | undefined,
   actual: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -111,15 +130,18 @@ function pickMatchingParamsPartial(
 
 export function flexibleAvailabilityScenarioEligibleForEval(
   scenario: FlexibleAvailabilityPromptFixture,
-  surface: 'public' | 'customer',
+  surface: 'public' | 'customer' | 'dashboard',
 ): boolean {
   if (scenario.phase2 || scenario.handlerOutcome) return false;
-  if (scenario.surface === 'dashboard') return false;
   if (scenario.surface === 'public' && surface !== 'public') return false;
   if (scenario.surface === 'customer' && surface !== 'customer') return false;
+  if (scenario.surface === 'dashboard' && surface !== 'dashboard') return false;
   if (scenario.skipMaxPrice) return false;
 
-  const action = mapFlexibleAvailabilityActionForSurface(scenario, surface);
+  const action =
+    surface === 'dashboard'
+      ? scenario.expectedAction
+      : mapFlexibleAvailabilityActionForSurface(scenario, surface);
   if (
     ![
       'check_availability',
@@ -139,11 +161,10 @@ export function flexibleAvailabilityScenarioEligibleForEval(
     return false;
   }
 
-  const enriched = buildFlexibleAvailabilityEvalParams(
-    scenario.prompt,
-    surface,
-    action,
-  );
+  const enriched =
+    surface === 'dashboard'
+      ? buildDashboardFlexibleAvailabilityEvalParams(scenario.prompt)
+      : buildFlexibleAvailabilityEvalParams(scenario.prompt, surface, action);
   const partial = pickMatchingParamsPartial(scenario.expectedParams, enriched);
   return (
     Object.keys(partial).length > 0 &&
@@ -169,47 +190,67 @@ function buildCompoundStepParamsPartial(
 }
 
 /** Map flexible availability fixtures (avail-1.11) to deterministic eval golden cases. */
+export function mapFlexibleAvailabilityDashboardAction(
+  scenario: FlexibleAvailabilityPromptFixture,
+): string {
+  return scenario.expectedAction;
+}
+
 export function flexibleAvailabilityScenarioToEvalCase(
   scenario: FlexibleAvailabilityPromptFixture,
-  surface: 'public' | 'customer',
+  surface: 'public' | 'customer' | 'dashboard',
 ): AiCommandEvalCase {
   const id = `avail-${surface}-${scenario.id}`;
-  const action = mapFlexibleAvailabilityActionForSurface(scenario, surface);
+  const action =
+    surface === 'dashboard'
+      ? mapFlexibleAvailabilityDashboardAction(scenario)
+      : mapFlexibleAvailabilityActionForSurface(scenario, surface);
 
   if (isFlexibleAvailabilityCompoundScenario(scenario, surface)) {
     const steps =
       surface === 'public'
         ? scenario.publicCompoundSteps!
         : scenario.customerCompoundSteps!;
-    const shared = buildFlexibleAvailabilityCompoundSharedParams(
-      scenario.prompt,
-      surface,
-    );
-    const listStepParams = buildCompoundStepParamsPartial(shared);
+    const shared =
+      surface === 'dashboard'
+        ? buildDashboardFlexibleAvailabilityEvalParams(scenario.prompt)
+        : buildFlexibleAvailabilityCompoundSharedParams(
+            scenario.prompt,
+            surface as 'public' | 'customer',
+          );
+    const sharedPartial = buildCompoundStepParamsPartial(shared);
+    const listOnlyPartial: Record<string, unknown> = {};
+    for (const key of ['serviceCategory', 'maxPrice', 'serviceRank'] as const) {
+      if (sharedPartial[key] !== undefined) {
+        listOnlyPartial[key] = sharedPartial[key];
+      }
+    }
+    const bookActions = new Set(['book_appointment', 'book_nearest_slot']);
     const expect: AiCommandEvalExpectation = {
       compoundSurface: surface,
       compoundSteps: [...steps],
       compoundSource: 'golden',
-      compoundRecipeId:
-        surface === 'public'
-          ? 'public_flexible_availability_budget_compound'
-          : 'customer_flexible_availability_budget_compound',
-      compoundStepParams: steps.map((_, stepIndex) => ({
+      compoundRecipeId: resolveFlexibleAvailabilityCompoundRecipeId(
+        surface as 'public' | 'customer',
+        steps,
+      ),
+      compoundStepParams: steps.map((action, stepIndex) => ({
         stepIndex,
         paramsPartial:
-          stepIndex === steps.length - 1
-            ? { ...listStepParams, bookingFirstAvailable: true }
-            : listStepParams,
+          action === 'list_services'
+            ? listOnlyPartial
+            : bookActions.has(action)
+              ? { ...sharedPartial, bookingFirstAvailable: true }
+              : sharedPartial,
       })),
     };
     return { id, prompt: scenario.prompt, locale: 'en', surface, expect };
   }
 
-  const enriched = buildFlexibleAvailabilityEvalParams(
-    scenario.prompt,
-    surface,
-    action,
-  );
+  const enriched =
+    surface === 'dashboard'
+      ? buildDashboardFlexibleAvailabilityEvalParams(scenario.prompt)
+      : buildFlexibleAvailabilityEvalParams(scenario.prompt, surface, action);
   const paramsPartial = pickMatchingParamsPartial(
     scenario.expectedParams,
     enriched,
@@ -233,7 +274,7 @@ export function flexibleAvailabilityScenarioToEvalCase(
 }
 
 function buildFlexibleAvailabilityEvalCasesForSurface(
-  surface: 'public' | 'customer',
+  surface: 'public' | 'customer' | 'dashboard',
   filter: (scenario: FlexibleAvailabilityPromptFixture) => boolean,
 ): AiCommandEvalCase[] {
   return SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(filter)
@@ -258,8 +299,15 @@ export const AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES: AiCommandEval
       scenario.surface === 'customer' || scenario.surface === 'both',
   );
 
+export const AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_DASHBOARD_CASES: AiCommandEvalCase[] =
+  buildFlexibleAvailabilityEvalCasesForSurface(
+    'dashboard',
+    (scenario) => scenario.surface === 'dashboard',
+  );
+
 export const AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES: AiCommandEvalCase[] =
   [
     ...AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES,
     ...AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES,
+    ...AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_DASHBOARD_CASES,
   ];

@@ -13,7 +13,7 @@ export type ProviderTeamWhosNextLocaleParityGap = {
 };
 
 export function listProviderTeamWhosNextLocaleParityGaps(): ProviderTeamWhosNextLocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS.map((row) => row.id),
   );
   const byEnId = new Map<

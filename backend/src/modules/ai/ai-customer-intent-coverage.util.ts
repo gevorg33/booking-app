@@ -147,7 +147,9 @@ function extractDiscoverEvalIntents(evalCase: AiCommandEvalCase): string[] {
   if (typeof expectRecord.rescuedAction === 'string') {
     intents.push(expectRecord.rescuedAction);
   }
-  for (const step of expectRecord.discoverCompoundSteps ?? []) {
+  for (const step of Array.isArray(expectRecord.discoverCompoundSteps)
+    ? expectRecord.discoverCompoundSteps
+    : []) {
     if (typeof step === 'string') intents.push(step);
   }
   return intents;

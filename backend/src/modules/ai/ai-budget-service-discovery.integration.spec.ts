@@ -11,6 +11,11 @@ import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js
 import { buildCustomerClassifierSchema } from './customer-ai-command.util.js';
 import { buildPublicClassifierSchema } from '../public-booking/public-booking-assistant.service.js';
 import {
+  buildFlexibleAvailabilityEvalParams,
+  isFlexibleAvailabilityBudgetCompoundPrompt,
+} from './ai-flexible-availability-compound.util.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import {
   budgetScenarioAppliesToSurface,
   enrichBudgetFromPrompt,
   extractMaxPriceFromBudgetPrompt,
@@ -197,4 +202,258 @@ describe('ai budget service discovery integration — customer surface (budget-1
       }
     },
   );
+
+  it('budget-session-stale-budget-en overrides stale maxPrice on turn 2', () => {
+    const scenario = BUDGET_SESSION_SCENARIOS.find(
+      (entry) => entry.id === 'budget-session-stale-budget-en',
+    )!;
+    const turn1 = enrichDiscoveryParamsFromPrompt(
+      {},
+      scenario.turns[0]!.prompt,
+    );
+    expect(turn1.maxPrice).toBe(50);
+
+    const turn2 = enrichBudgetFromPrompt(
+      { ...turn1, serviceCategory: 'haircut' },
+      scenario.turns[1]!.prompt,
+    );
+    expect(turn2.maxPrice).toBe(30);
+    expect(turn2.serviceCategory).toBe('haircut');
+  });
+
+  it('budget-session-list-then-pick-en keeps maxPrice and picks service on turn 2', () => {
+    const scenario = BUDGET_SESSION_SCENARIOS.find(
+      (entry) => entry.id === 'budget-session-list-then-pick-en',
+    )!;
+    const catalog = [
+      { id: 'h1', name: 'Haircut basic' },
+      { id: 'h2', name: 'Haircut deluxe' },
+    ];
+    let params: Record<string, unknown> = {};
+    scenario.turns.forEach((turn, turnIndex) => {
+      params =
+        turnIndex === 0
+          ? enrichBudgetFromPrompt(params, turn.prompt)
+          : enrichPublicAssistantParamsFromPrompt(
+              turn.prompt,
+              params,
+              catalog,
+              'check_availability',
+            );
+      if (turn.expectedParams?.maxPrice != null) {
+        expect(params.maxPrice).toBe(turn.expectedParams.maxPrice);
+      }
+      if (turn.expectedParams?.serviceName != null) {
+        expect(params.serviceName).toBe(turn.expectedParams.serviceName);
+      }
+    });
+  });
+});
+
+describe('ai budget service discovery integration — promo + subscription (budget-with-promo-en / budget-subscription-en)', () => {
+  it('budget-with-promo-en lists services with maxPrice and checkout promoCode', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-with-promo-en',
+    )!;
+    const budget = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(budget).toMatchObject({ maxPrice: 50, promoCode: 'SAVE10' });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+    const publicEnriched = enrichPublicAssistantParamsFromPrompt(
+      scenario.prompt,
+      budget,
+      [{ id: 'h1', name: 'Haircut basic' }],
+      'list_services',
+    );
+    expect(publicEnriched.maxPrice).toBe(50);
+    expect(publicEnriched.promoCode).toBe('SAVE10');
+  });
+
+  it('budget-subscription-en misroutes catalog budget to discover_subscription_plans on customer', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-subscription-en',
+    )!;
+    expect(enrichBudgetFromPrompt({ maxPrice: 80 }, scenario.prompt).maxPrice).toBeUndefined();
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'customer',
+      ),
+    ).toEqual({
+      action: 'discover_subscription_plans',
+      rescueReason: 'discover_subscription_plans',
+    });
+  });
+});
+
+describe('ai budget service discovery integration — cart total (budget-cart-total-en)', () => {
+  it('enriches maxTotalPrice and serviceCount for multi-service cart prompts', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-cart-total-en',
+    )!;
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject(scenario.expectedParams ?? {});
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+});
+
+describe('ai budget service discovery integration — provider + short duration (budget-provider-no-match-en / budget-short-service-en)', () => {
+  it('budget-provider-no-match-en enriches employeeName and maxPrice', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-provider-no-match-en',
+    )!;
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject({
+      employeeName: scenario.expectedParams?.employeeName,
+      maxPrice: scenario.expectedParams?.maxPrice,
+    });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+
+  it('budget-short-service-en enriches preferShortDuration and sorts shortest first', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-short-service-en',
+    )!;
+    expect(scenario.phase2).toBeUndefined();
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject(scenario.expectedParams ?? {});
+  });
+
+  it('budget-long-massage-en enriches minDurationMinutes and maxPrice', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-long-massage-en',
+    )!;
+    expect(scenario.phase2).toBeUndefined();
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject(scenario.expectedParams ?? {});
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+});
+
+describe('ai budget service discovery integration — named service + any provider (budget-named-service-en / budget-any-provider-en)', () => {
+  it('budget-named-service-en enriches serviceName and maxPrice', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-named-service-en',
+    )!;
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject({
+      serviceName: scenario.expectedParams?.serviceName,
+      maxPrice: scenario.expectedParams?.maxPrice,
+    });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+
+  it('budget-any-provider-en enriches allProviders and maxPrice without recommend_specialists rescue', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-any-provider-en',
+    )!;
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject({
+      allProviders: true,
+      maxPrice: scenario.expectedParams?.maxPrice,
+    });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        scenario.prompt,
+        'recommend_specialists',
+        'customer',
+      ),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+});
+
+describe('ai budget service discovery integration — voice ASR + price range (budget-voice-asr-en / budget-range-en)', () => {
+  it('budget-voice-asr-en maps her cut homophone and maxPrice on customer', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-voice-asr-en',
+    )!;
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject(scenario.expectedParams ?? {});
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        scenario.prompt,
+        'unknown',
+        'customer',
+      ),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+
+  it('budget-range-en enriches inclusive minPrice and maxPrice band', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-range-en',
+    )!;
+    expect(scenario.phase2).toBeUndefined();
+    const enriched = enrichBudgetFromPrompt({}, scenario.prompt);
+    expect(enriched).toMatchObject({
+      minPrice: scenario.expectedParams?.minPrice,
+      maxPrice: scenario.expectedParams?.maxPrice,
+    });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+    expect(
+      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'dashboard'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
+});
+
+describe('ai budget service discovery integration — flexible availability overlap (budget-or-windows-en)', () => {
+  it('budget-or-windows-en enriches OR windows with budget on public surface', () => {
+    const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
+      (entry) => entry.id === 'budget-or-windows-en',
+    )!;
+    expect(isFlexibleAvailabilityBudgetCompoundPrompt(scenario.prompt)).toBe(
+      true,
+    );
+    const enriched = buildFlexibleAvailabilityEvalParams(
+      scenario.prompt,
+      'public',
+      'check_availability',
+    );
+    expect(enriched).toMatchObject(scenario.expectedParams ?? {});
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        scenario.prompt,
+        'check_availability',
+        'public',
+      ),
+    ).toBeNull();
+  });
 });

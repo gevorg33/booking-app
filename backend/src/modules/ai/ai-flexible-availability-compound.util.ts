@@ -8,75 +8,20 @@ import {
   isFirstAvailableBookingPrompt,
 } from './ai-intent-heuristics.js';
 import {
-  enrichListServicesParamsFromPrompt,
-} from './ai-orchestration.helpers.js';
-import {
   extractMaxPriceFromBudgetPrompt,
   shouldExtractBudgetMaxPrice,
 } from './ai-budget-service-discovery.util.js';
-import { hasAvailabilityOrPattern } from './ai-flexible-availability.util.js';
+import {
+  enrichFlexibleAvailabilityServiceCategoryFromPrompt,
+  hasAvailabilityOrPattern,
+  normalizeAvailabilityServiceCategory,
+} from './ai-flexible-availability.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
-  extractServiceNameFromPrompt,
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
 } from './ai-payments.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
-
-const FLEXIBLE_AVAILABILITY_BOOK_SERVICE_PATTERN =
-  /\bbook(?:\s+(?:a|an|the|your))?\s+([a-z][\w\s-]{2,30}?)(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|whichever|,|$))/i;
-
-const FLEXIBLE_AVAILABILITY_WANT_SERVICE_PATTERN =
-  /\bI want(?:\s+(?:a|an|the))?\s+([a-z][\w\s-]{2,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|,|$))/i;
-
-const FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN =
-  /^([a-z][\w\s-]{2,30}?)\s+(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i;
-
-function normalizeAvailabilityServiceCategory(keyword: string): string {
-  const first = keyword.trim().replace(/[,.]$/, '').split(/\s+/)[0] ?? keyword;
-  const lower = first.toLowerCase();
-  if (lower === 'lashes') return 'lash';
-  return lower;
-}
-
-function extractFlexibleAvailabilityServiceCategory(
-  prompt: string,
-  params: Record<string, unknown>,
-): Record<string, unknown> {
-  if (params.serviceCategory) return params;
-
-  const fromList = enrichListServicesParamsFromPrompt(prompt, params);
-  if (fromList.serviceCategory) {
-    return { ...params, serviceCategory: fromList.serviceCategory, serviceName: null };
-  }
-
-  const rawName =
-    (typeof params.serviceName === 'string' ? params.serviceName : null) ??
-    extractServiceNameFromPrompt(prompt);
-  if (rawName) {
-    return {
-      ...params,
-      serviceCategory: normalizeAvailabilityServiceCategory(rawName),
-      serviceName: null,
-    };
-  }
-
-  const bookMatch = prompt.match(FLEXIBLE_AVAILABILITY_BOOK_SERVICE_PATTERN);
-  const wantMatch = prompt.match(FLEXIBLE_AVAILABILITY_WANT_SERVICE_PATTERN);
-  const leadingMatch = prompt.match(FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN);
-  const keyword = (bookMatch?.[1] ?? wantMatch?.[1] ?? leadingMatch?.[1])
-    ?.trim()
-    .replace(/[,.]$/, '');
-  if (keyword && keyword.length >= 3) {
-    return {
-      ...params,
-      serviceCategory: normalizeAvailabilityServiceCategory(keyword),
-      serviceName: null,
-    };
-  }
-
-  return params;
-}
 
 export type FlexibleAvailabilityCompoundStep = {
   action: string;
@@ -98,6 +43,7 @@ export function isFlexibleAvailabilityBudgetCompoundPrompt(
 export function isFlexibleAvailabilityBudgetBookCompoundPrompt(
   prompt: string,
 ): boolean {
+  if (isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt)) return false;
   if (!isFlexibleAvailabilityBudgetCompoundPrompt(prompt)) return false;
   if (isBookNearestSlotPrompt(prompt)) return true;
   if (/\b(?:whichever|which ever)\s+is\s+sooner\b/i.test(prompt)) {
@@ -109,19 +55,42 @@ export function isFlexibleAvailabilityBudgetBookCompoundPrompt(
   );
 }
 
+/** Turn 1 list_services + budget; turn 2 OR availability scan (avail-list-budget-then-or-en). */
+export function isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(
+  prompt: string,
+): boolean {
+  if (!shouldExtractBudgetMaxPrice(prompt)) return false;
+  if (extractMaxPriceFromBudgetPrompt(prompt) == null) return false;
+  if (!hasAvailabilityOrPattern(prompt)) return false;
+  if (/\bgift\s+card\b/i.test(prompt)) return false;
+  if (!/\bthen\b/i.test(prompt)) return false;
+  return (
+    /\b(?:show|list)\b/i.test(prompt) &&
+    /\b(?:check|who'?s?\s+free|availability|slots?)\b/i.test(prompt)
+  );
+}
+
 export function buildFlexibleAvailabilityCompoundSharedParams(
   prompt: string,
   surface: Extract<CommandSurface, 'public' | 'customer'>,
 ): Record<string, unknown> {
   const bookAction =
     surface === 'public' ? 'book_appointment' : 'book_nearest_slot';
-  const shared: Record<string, unknown> = extractFlexibleAvailabilityServiceCategory(
-    prompt,
-    enrichDiscoveryParamsFromPrompt(
-      buildSharedBookingContextFromPrompt(prompt),
+  let shared: Record<string, unknown> =
+    enrichFlexibleAvailabilityServiceCategoryFromPrompt(
       prompt,
-    ),
-  );
+      enrichDiscoveryParamsFromPrompt(
+        buildSharedBookingContextFromPrompt(prompt),
+        prompt,
+      ),
+    );
+  if (typeof shared.serviceName === 'string' && !shared.serviceCategory) {
+    shared = {
+      ...shared,
+      serviceCategory: normalizeAvailabilityServiceCategory(shared.serviceName),
+      serviceName: null,
+    };
+  }
   enrichBookingTimeHintsFromPrompt(bookAction, shared, prompt);
 
   if (
@@ -156,12 +125,15 @@ export function buildFlexibleAvailabilityEvalParams(
   action: string,
 ): Record<string, unknown> {
   if (surface === 'public') {
-    const params = enrichPublicAssistantParamsFromPrompt(
-      prompt,
-      {},
-      [],
-      action,
-    );
+    let params = enrichPublicAssistantParamsFromPrompt(prompt, {}, [], action);
+    if (typeof params.serviceName === 'string' && !params.serviceCategory) {
+      params = {
+        ...params,
+        serviceCategory: normalizeAvailabilityServiceCategory(params.serviceName),
+        serviceName: null,
+      };
+    }
+    params = enrichFlexibleAvailabilityServiceCategoryFromPrompt(prompt, params);
     applyFlexibleAvailabilityBookHints(action, params, prompt);
     return params;
   }
@@ -186,10 +158,49 @@ export function decomposeCustomerFlexibleAvailabilityBudgetCompoundPrompt(
   return decomposeFlexibleAvailabilityBudgetCompoundPrompt(prompt, 'customer');
 }
 
+function buildFlexibleAvailabilityListStepParams(
+  shared: Record<string, unknown>,
+): Record<string, unknown> {
+  const listParams = { ...shared };
+  delete listParams.availabilityWindows;
+  delete listParams.date;
+  delete listParams.weekdays;
+  delete listParams.timeOfDay;
+  delete listParams.bookingFirstAvailable;
+  delete listParams.allProviders;
+  return listParams;
+}
+
+export function decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): FlexibleAvailabilityCompoundStep[] {
+  if (!isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt)) return [];
+
+  const shared = buildFlexibleAvailabilityCompoundSharedParams(prompt, surface);
+  const checkAction =
+    surface === 'public' ? 'check_availability' : 'check_providers_for_service';
+
+  return propagateSharedBookingContextAcrossSteps([
+    {
+      action: 'list_services',
+      params: buildFlexibleAvailabilityListStepParams(shared),
+      segment: prompt,
+    },
+    { action: checkAction, params: shared, segment: prompt },
+  ]);
+}
+
 export function decomposeFlexibleAvailabilityBudgetCompoundPrompt(
   prompt: string,
   surface: Extract<CommandSurface, 'public' | 'customer'>,
 ): FlexibleAvailabilityCompoundStep[] {
+  const listThenOr = decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt(
+    prompt,
+    surface,
+  );
+  if (listThenOr.length > 0) return listThenOr;
+
   if (!isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt)) return [];
 
   const shared = buildFlexibleAvailabilityCompoundSharedParams(prompt, surface);

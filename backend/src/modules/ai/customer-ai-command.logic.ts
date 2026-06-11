@@ -74,6 +74,8 @@ export interface CustomerIntentSession {
   serviceId?: string;
   employeeId?: string;
   maxPrice?: number | string;
+  serviceRank?: string;
+  availabilityWindows?: unknown[];
   checkProvidersHandoff?: CheckProvidersHandoff;
   availableProviders?: string[];
   availability?: ProviderAvailabilityRow[];
@@ -114,6 +116,9 @@ function withCustomerSession(
     serviceId: session.serviceId ?? params.serviceId,
     employeeId: session.employeeId ?? params.employeeId,
     maxPrice: session.maxPrice ?? params.maxPrice,
+    serviceRank: session.serviceRank ?? params.serviceRank,
+    availabilityWindows:
+      session.availabilityWindows ?? params.availabilityWindows,
     lastPush: session.lastPush ?? params.lastPush,
     offlineQueueCount: session.offlineQueueCount ?? params.offlineQueueCount,
     online: session.online ?? params.online,

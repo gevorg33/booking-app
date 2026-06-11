@@ -1,3 +1,4 @@
+import type { ServiceTier } from '../../common/utils/service-rank-metadata.util.js';
 import type { ServiceRank } from './ai-service-catalog-rank.util.js';
 import type { BudgetCatalogService } from './ai-budget-service-discovery.util.js';
 import type { ListServicesNavigateHint } from './ai-budget-list-services.logic.js';
@@ -12,6 +13,8 @@ export type RankHandlerOutcomeScenario = {
   expectedIds: string[];
   expectedNavigateServiceId?: string;
   expectSingleMatchHeader?: boolean;
+  expectEmptyCategoryHint?: boolean;
+  expectedCategorySuggestions?: string[];
 };
 
 export const RANK_HANDLER_OUTCOME_SCENARIOS: RankHandlerOutcomeScenario[] = [
@@ -150,9 +153,55 @@ export const RANK_HANDLER_OUTCOME_SCENARIOS: RankHandlerOutcomeScenario[] = [
     expectSingleMatchHeader: true,
   },
   {
-    id: 'rank-inactive-excluded',
-    // Inactive deluxe @ $150 filtered upstream by catalog API before rank pick.
+    id: 'rank-empty-category',
     services: [
+      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'massage-60', name: 'Relax massage', price: 60, serviceCategory: 'massage' },
+    ],
+    serviceCategory: 'facial',
+    serviceRank: 'highest_price',
+    limit: 1,
+    expectedIds: [],
+    expectEmptyCategoryHint: true,
+    expectedCategorySuggestions: ['haircut', 'massage'],
+  },
+  {
+    id: 'rank-voice-premium-en',
+    services: [
+      { id: 'hair-35', name: 'Haircut basic', price: 35, durationMinutes: 30, serviceCategory: 'haircut' },
+      { id: 'hair-85', name: 'Haircut premium', price: 85, durationMinutes: 60, serviceCategory: 'haircut' },
+    ],
+    serviceCategory: 'haircut',
+    serviceRank: 'highest_price',
+    limit: 1,
+    expectedIds: ['hair-85'],
+    expectedNavigateServiceId: 'hair-85',
+    expectSingleMatchHeader: true,
+  },
+  {
+    id: 'rank-voice-cheapest-en',
+    services: [
+      { id: 'facial-90', name: 'Deluxe facial', price: 90, durationMinutes: 60, serviceCategory: 'facial' },
+      { id: 'facial-45', name: 'Express facial', price: 45, durationMinutes: 30, serviceCategory: 'facial' },
+    ],
+    serviceCategory: 'facial',
+    serviceRank: 'lowest_price',
+    limit: 1,
+    expectedIds: ['facial-45'],
+    expectedNavigateServiceId: 'facial-45',
+    expectSingleMatchHeader: true,
+  },
+  {
+    id: 'rank-inactive-excluded',
+    services: [
+      {
+        id: 'massage-150',
+        name: 'Deluxe massage',
+        price: 150,
+        durationMinutes: 90,
+        serviceCategory: 'massage',
+        isActive: false,
+      },
       { id: 'massage-90', name: 'Relax massage', price: 90, durationMinutes: 60, serviceCategory: 'massage' },
       { id: 'massage-60', name: 'Basic massage', price: 60, durationMinutes: 45, serviceCategory: 'massage' },
     ],
@@ -164,6 +213,61 @@ export const RANK_HANDLER_OUTCOME_SCENARIOS: RankHandlerOutcomeScenario[] = [
     expectSingleMatchHeader: true,
   },
 ];
+
+export type RankTierFilterHandlerScenario = {
+  id: string;
+  services: Array<
+    BudgetCatalogService & {
+      serviceCategory?: string | null;
+      serviceTier?: ServiceTier | null;
+    }
+  >;
+  serviceCategory?: string | null;
+  serviceTier: ServiceTier;
+  limit: number;
+  expectedIds: string[];
+};
+
+export const RANK_TIER_FILTER_HANDLER_SCENARIOS: RankTierFilterHandlerScenario[] =
+  [
+    {
+      id: 'rank-tier-metadata-en',
+      services: [
+        {
+          id: 'color-std',
+          name: 'Color basic',
+          price: 80,
+          serviceCategory: 'color',
+          serviceTier: 'standard',
+        },
+        {
+          id: 'color-prem-a',
+          name: 'Color premium',
+          price: 100,
+          serviceCategory: 'color',
+          serviceTier: 'premium',
+        },
+        {
+          id: 'color-prem-b',
+          name: 'Color lite',
+          price: 60,
+          serviceCategory: 'color',
+          serviceTier: 'premium',
+        },
+        {
+          id: 'hair-prem',
+          name: 'Hair premium',
+          price: 90,
+          serviceCategory: 'haircut',
+          serviceTier: 'premium',
+        },
+      ],
+      serviceCategory: 'color',
+      serviceTier: 'premium',
+      limit: 3,
+      expectedIds: ['color-prem-a', 'color-prem-b'],
+    },
+  ];
 
 export type RankNavigateScenario = {
   id: string;
@@ -220,6 +324,40 @@ export const RANK_NAVIGATE_SCENARIOS: RankNavigateScenario[] = [
   },
 ];
 
+/** Session pick catalog — top 3 premium massages for rank-session-pick-one-en. */
+export const RANK_SESSION_PICK_CATALOG: Array<
+  BudgetCatalogService & { serviceCategory?: string | null }
+> = [
+  {
+    id: 'massage-120',
+    name: 'Luxury massage',
+    price: 120,
+    durationMinutes: 90,
+    serviceCategory: 'massage',
+  },
+  {
+    id: 'massage-90',
+    name: 'Relax massage',
+    price: 90,
+    durationMinutes: 60,
+    serviceCategory: 'massage',
+  },
+  {
+    id: 'massage-60',
+    name: 'Basic massage',
+    price: 60,
+    durationMinutes: 45,
+    serviceCategory: 'massage',
+  },
+  {
+    id: 'massage-45',
+    name: 'Express massage',
+    price: 45,
+    durationMinutes: 30,
+    serviceCategory: 'massage',
+  },
+];
+
 export const RANK_LIMIT_FROM_PROMPT_SCENARIOS: Array<{
   id: string;
   prompt: string;
@@ -251,5 +389,38 @@ export const RANK_LIMIT_FROM_PROMPT_SCENARIOS: Array<{
     prompt: 'Best premium haircut',
     params: { limit: 2 },
     expectedLimit: 2,
+  },
+  {
+    id: 'rank-voice-premium-en',
+    prompt: 'Premium cut?',
+    expectedLimit: 1,
+  },
+  {
+    id: 'rank-mid-range-en',
+    prompt: 'Mid-range color service',
+    expectedLimit: 3,
+  },
+];
+
+export const RANK_MID_RANGE_HANDLER_SCENARIOS: Array<{
+  id: string;
+  services: Array<
+    BudgetCatalogService & { serviceCategory?: string | null }
+  >;
+  serviceCategory: string;
+  limit: number;
+  expectedIds: string[];
+}> = [
+  {
+    id: 'rank-mid-range-en',
+    services: [
+      { id: 'color-120', name: 'Color premium', price: 120, serviceCategory: 'color' },
+      { id: 'color-40', name: 'Color basic', price: 40, serviceCategory: 'color' },
+      { id: 'color-80', name: 'Color deluxe', price: 80, serviceCategory: 'color' },
+      { id: 'hair-55', name: 'Haircut standard', price: 55, serviceCategory: 'haircut' },
+    ],
+    serviceCategory: 'color',
+    limit: 3,
+    expectedIds: ['color-40', 'color-80', 'color-120'],
   },
 ];

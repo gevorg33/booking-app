@@ -5,12 +5,16 @@ import {
   FLEXIBLE_AVAILABILITY_WINDOW_LABEL_SCENARIOS,
 } from './ai-flexible-availability.fixtures.js';
 import {
+  appendAvailabilityNearestAlternativeNote,
   applyBudgetFilterForAvailabilityCheck,
   buildPublicAvailabilityWindowLabel,
   composeAvailabilityNoSlotsSummary,
   composePublicAvailabilityCheckSummary,
+  composePublicAvailabilityGroupedEmptyWindowsSummary,
   filterPublicProviderSlotsByTimeOfDay,
+  formatAvailabilityNearestAlternativeNote,
   shouldGroupPublicAvailabilityByWindow,
+  shouldUseGroupedAvailabilityNoSlotsSummary,
 } from './ai-flexible-availability-check.logic.js';
 
 describe('ai-flexible-availability-check.logic (avail-1.5)', () => {
@@ -156,6 +160,7 @@ describe('ai-flexible-availability-check.logic budget intersection (avail-1.7)',
       );
       if (expectNoMatch) {
         expect(result.noMatchSummary).toContain('Nothing under $50');
+        expect(result.noMatchSummary).toContain('Closest options');
         expect(result.budgetMax).toBe(50);
         return;
       }
@@ -196,6 +201,50 @@ describe('ai-flexible-availability-check.logic budget intersection (avail-1.7)',
 
     expect(summary).toContain('options under $50');
     expect(summary).toContain('Tomorrow evening:');
+  });
+
+  it('shouldUseGroupedAvailabilityNoSlotsSummary requires grouped OR windows', () => {
+    expect(
+      shouldUseGroupedAvailabilityNoSlotsSummary(true, [
+        { label: 'Tomorrow evening', dayReports: [] },
+        { label: 'Friday afternoon', dayReports: [] },
+      ]),
+    ).toBe(true);
+    expect(
+      shouldUseGroupedAvailabilityNoSlotsSummary(false, [
+        { label: 'Tomorrow evening', dayReports: [] },
+      ]),
+    ).toBe(false);
+  });
+
+  it('formatAvailabilityNearestAlternativeNote formats nearest opening line', () => {
+    const note = formatAvailabilityNearestAlternativeNote({
+      locale: 'en',
+      timeZone: 'UTC',
+      employeeName: 'Alice',
+      dateKey: '2026-06-13',
+      startTime: '2026-06-13T10:00:00.000Z',
+    });
+    expect(note).toContain('Nearest opening:');
+    expect(note).toContain('Alice');
+    expect(
+      appendAvailabilityNearestAlternativeNote('Grouped summary', note),
+    ).toContain('Grouped summary');
+  });
+
+  it('composePublicAvailabilityGroupedEmptyWindowsSummary labels each empty OR window', () => {
+    const summary = composePublicAvailabilityGroupedEmptyWindowsSummary({
+      serviceLabel: 'haircut',
+      locale: 'en',
+      timeZone: 'UTC',
+      singleProvider: true,
+      windowReports: [
+        { label: 'Tomorrow evening', dayReports: [] },
+        { label: 'Friday afternoon', dayReports: [] },
+      ],
+    });
+    expect(summary).toContain('Tomorrow evening:');
+    expect(summary).toContain('No open slots for Friday afternoon.');
   });
 
   it('composeAvailabilityNoSlotsSummary mentions budget cap when maxPrice set', () => {

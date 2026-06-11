@@ -4,6 +4,7 @@ import {
   type BudgetCatalogService,
 } from './ai-budget-service-discovery.util.js';
 import {
+  buildRankPremiumNoMatchInBudgetSummary,
   formatDashboardListServiceLine,
   formatPublicListServiceLine,
   resolveListServicesNavigateHint,
@@ -11,9 +12,12 @@ import {
   type ListServicesNavigateHint,
   type PublicListServiceCatalogRow,
 } from './ai-budget-list-services.logic.js';
+import type { ServiceTier } from '../../common/utils/service-rank-metadata.util.js';
 import {
   applyServiceDiscoveryToCatalog,
+  filterActiveCatalogServices,
   resolveServiceDiscoveryParams,
+  sortServicesByPriceAsc,
   type ServiceRank,
 } from './ai-service-catalog-rank.util.js';
 
@@ -30,6 +34,8 @@ export function resolveListServicesRankLimitFromPrompt(
   }
 
   if (!prompt?.trim()) return 1;
+
+  if (/\bmid[\s-]?range\b/i.test(prompt)) return 3;
 
   const topN = prompt.match(/\btop\s+(\d+)\b/i);
   if (topN?.[1]) {
@@ -64,6 +70,35 @@ export function resolveListServicesRankLimitFromPrompt(
   }
 
   return 1;
+}
+
+export function collectDistinctServiceCategories(
+  services: ReadonlyArray<{ serviceCategory?: string | null; name?: string }>,
+): string[] {
+  const categories = new Set<string>();
+  for (const service of services) {
+    const category = service.serviceCategory?.trim();
+    if (category) {
+      categories.add(category);
+      continue;
+    }
+    const name = service.name?.trim();
+    if (name) categories.add(name);
+  }
+  return [...categories].sort((left, right) => left.localeCompare(right));
+}
+
+/** rank-empty-category — honest not-found + available category suggestions. */
+export function buildRankEmptyCategorySummary(
+  serviceCategory: string,
+  catalog: readonly BudgetCatalogService[],
+): string {
+  const categories = collectDistinctServiceCategories(catalog);
+  const category = serviceCategory.trim();
+  if (categories.length === 0) {
+    return `No matching services found in the catalog for "${category}".`;
+  }
+  return `I couldn't find "${category}". Available categories: ${categories.join(', ')}.`;
 }
 
 export function buildRankListServicesHeader(input: {
@@ -105,6 +140,62 @@ export function buildRankListServicesHeader(input: {
     : 'Most popular options:';
 }
 
+/** Mid-range category browse — price-sorted list, no serviceRank (rank-mid-range-en). */
+export function composePublicListServicesMidRangeResponse(input: {
+  matchedServices: PublicListServiceCatalogRow[];
+  serviceCategory?: string | null;
+  limit: number;
+  header?: string;
+}): {
+  services: PublicListServiceCatalogRow[];
+  summary: string;
+  success: boolean;
+  navigate?: ListServicesNavigateHint;
+} {
+  const filtered = applyServiceDiscoveryToCatalog(input.matchedServices, {
+    serviceCategory: input.serviceCategory,
+    limit: input.limit,
+  });
+  const services = sortServicesByPriceAsc(filtered);
+
+  if (services.length === 0) {
+    const category = input.serviceCategory?.trim();
+    return {
+      services: [],
+      success: true,
+      summary:
+        category && input.matchedServices.length > 0
+          ? buildRankEmptyCategorySummary(category, input.matchedServices)
+          : 'No matching services found in the catalog.',
+    };
+  }
+
+  const category = input.serviceCategory?.trim();
+  const header =
+    input.header ??
+    (category
+      ? `Mid-range ${category} services (sorted by price):`
+      : 'Mid-range services (sorted by price):');
+  const lines = services.map(formatPublicListServiceLine);
+
+  return {
+    services,
+    success: true,
+    summary: [header, '', ...lines].join('\n'),
+    navigate: resolveRankListServicesNavigateHint(services),
+  };
+}
+
+export function buildTierFilterListServicesHeader(input: {
+  serviceTier: ServiceTier;
+  serviceCategory?: string | null;
+}): string {
+  const tierLabel =
+    input.serviceTier === 'premium' ? 'Premium tier' : 'Standard tier';
+  const category = input.serviceCategory?.trim();
+  return category ? `${tierLabel} ${category} services:` : `${tierLabel} services:`;
+}
+
 export function applyRankToMatchedServices<T extends BudgetCatalogService>(
   matchedServices: readonly T[],
   serviceRank: ServiceRank,
@@ -137,13 +228,15 @@ function mapDashboardListServiceDetails(
   }));
 }
 
-/** Public/customer list_services — rank after category (+ optional budget) filter (rank-1.4). */
+/** Public/customer list_services — rank and/or tier after category (+ optional budget) filter (rank-1.4). */
 export function composePublicListServicesRankResponse(input: {
   matchedServices: PublicListServiceCatalogRow[];
-  serviceRank: ServiceRank;
+  serviceRank?: ServiceRank;
+  serviceTier?: ServiceTier | null;
   limit: number;
   maxPrice?: unknown;
   serviceCategory?: string | null;
+  allCatalogServices?: readonly BudgetCatalogService[];
   header?: string;
 }): {
   services: PublicListServiceCatalogRow[];
@@ -154,46 +247,69 @@ export function composePublicListServicesRankResponse(input: {
   const resolved = resolveServiceDiscoveryParams({
     maxPrice: input.maxPrice,
     serviceRank: input.serviceRank,
+    serviceTier: input.serviceTier,
+    serviceCategory: input.serviceCategory,
     limit: input.limit,
   });
   const budgetMax = resolved.maxPrice;
+  const activeMatched = filterActiveCatalogServices(input.matchedServices);
   const pool =
     budgetMax != null
-      ? applyBudgetFilterToMatchedServices(input.matchedServices, budgetMax)
-      : input.matchedServices;
+      ? applyBudgetFilterToMatchedServices(activeMatched, budgetMax)
+      : activeMatched;
 
   if (budgetMax != null && pool.length === 0) {
     return {
       services: [],
       success: true,
       summary:
-        buildBudgetListServicesNoMatchSummary(
-          input.matchedServices,
-          budgetMax,
-        ) ?? `Nothing found under $${budgetMax}.`,
+        input.serviceRank === 'highest_price'
+          ? buildRankPremiumNoMatchInBudgetSummary(
+              input.matchedServices,
+              budgetMax,
+              input.serviceCategory,
+            )
+          : buildBudgetListServicesNoMatchSummary(
+              input.matchedServices,
+              budgetMax,
+            ) ?? `Nothing found under $${budgetMax}.`,
     };
   }
 
   const services = applyServiceDiscoveryToCatalog(pool, {
     serviceRank: input.serviceRank,
+    serviceTier: input.serviceTier,
+    serviceCategory: input.serviceCategory,
     limit: input.limit,
   });
 
   if (services.length === 0) {
+    const category = input.serviceCategory?.trim();
+    const catalog = input.allCatalogServices ?? input.matchedServices;
     return {
       services: [],
       success: true,
-      summary: 'No matching services found in the catalog.',
+      summary:
+        category && catalog.length > 0
+          ? buildRankEmptyCategorySummary(category, catalog)
+          : 'No matching services found in the catalog.',
     };
   }
 
   const header =
     input.header ??
-    buildRankListServicesHeader({
-      serviceRank: input.serviceRank,
-      serviceCategory: input.serviceCategory,
-      limit: input.limit,
-    });
+    (input.serviceRank
+      ? buildRankListServicesHeader({
+          serviceRank: input.serviceRank,
+          serviceCategory: input.serviceCategory,
+          limit: input.limit,
+        })
+      : input.serviceTier
+        ? buildTierFilterListServicesHeader({
+            serviceTier: input.serviceTier,
+            serviceCategory: input.serviceCategory,
+          })
+        : 'Matching services:');
   const lines = services.map(formatPublicListServiceLine);
 
   return {
@@ -211,6 +327,7 @@ export function composeDashboardListServicesRankResponse(input: {
   limit: number;
   maxPrice?: unknown;
   serviceCategory?: string | null;
+  allCatalogServices?: readonly BudgetCatalogService[];
   header?: string;
 }): {
   services: DashboardListServiceCatalogRow[];
@@ -224,10 +341,11 @@ export function composeDashboardListServicesRankResponse(input: {
     limit: input.limit,
   });
   const budgetMax = resolved.maxPrice;
+  const activeMatched = filterActiveCatalogServices(input.matchedServices);
   const pool =
     budgetMax != null
-      ? applyBudgetFilterToMatchedServices(input.matchedServices, budgetMax)
-      : input.matchedServices;
+      ? applyBudgetFilterToMatchedServices(activeMatched, budgetMax)
+      : activeMatched;
 
   if (budgetMax != null && pool.length === 0) {
     return {
@@ -248,10 +366,15 @@ export function composeDashboardListServicesRankResponse(input: {
   });
 
   if (services.length === 0) {
+    const category = input.serviceCategory?.trim();
+    const catalog = input.allCatalogServices ?? input.matchedServices;
     return {
       services: [],
       success: true,
-      summary: 'No matching services found in the catalog.',
+      summary:
+        category && catalog.length > 0
+          ? buildRankEmptyCategorySummary(category, catalog)
+          : 'No matching services found in the catalog.',
       detailsServices: [],
     };
   }

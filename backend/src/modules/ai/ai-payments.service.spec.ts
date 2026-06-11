@@ -1,3 +1,4 @@
+import { attachPublicBookingNearestAcrossWindowsMock } from './ai-nearest-slot-resolver.util.js';
 import { AiPaymentsService } from './ai-payments.service.js';
 
 describe('AiPaymentsService', () => {
@@ -33,6 +34,7 @@ describe('AiPaymentsService', () => {
       employeeName: 'Anna',
     })),
   };
+  attachPublicBookingNearestAcrossWindowsMock(publicBookingService);
   const accountingIntegrationService = {
     generateExport: jest.fn(async () => ({
       format: 'csv',

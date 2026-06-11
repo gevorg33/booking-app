@@ -5,10 +5,16 @@ import {
   type ServiceRankDiscoveryPromptFixture,
 } from './ai-service-rank-discovery.fixtures.js';
 import {
+  buildProviderRankDiscoveryRescueParams,
+  buildSubjectiveRankDiscoveryRescueParams,
   buildServiceRankDiscoveryRescueParams,
+  extractProviderRankServiceCategoryFromPrompt,
+  extractSubjectiveRankServiceCategoryFromPrompt,
   extractServiceRankFromPrompt,
+  isMidRangeServiceListPrompt,
   rescueServiceRankDiscoveryIntent,
 } from './ai-service-rank-discovery.util.js';
+import { extractMaxPriceFromBudgetPrompt } from './ai-budget-service-discovery.util.js';
 import { resolveBudgetMisrouteAction } from './ai-budget-service-discovery.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import type {
@@ -65,7 +71,15 @@ export function rankScenarioEligibleForEval(
   if (scenario.blocked && scenario.expectedAction !== 'discover_packages') {
     return false;
   }
-  if (scenario.expectedAction === 'recommend_specialists') return false;
+  if (
+    scenario.expectedAction === 'recommend_specialists' &&
+    !scenario.providerRank
+  ) {
+    return false;
+  }
+  if (scenario.expectedAction === 'booking_help' || scenario.subjectiveRank) {
+    return scenario.subjectiveRank === true;
+  }
   if (
     scenario.expectedAction === 'analyze_appointments' ||
     scenario.expectedAction === 'analyze_services'
@@ -77,6 +91,8 @@ export function rankScenarioEligibleForEval(
   if (scenario.expectedAction === 'discover_packages') return true;
   return (
     scenario.expectedParams?.serviceRank != null ||
+    scenario.expectedParams?.serviceTier != null ||
+    isMidRangeServiceListPrompt(scenario.prompt) ||
     extractServiceRankFromPrompt(scenario.prompt) != null
   );
 }
@@ -95,6 +111,15 @@ function buildRankRescueParamsPartial(
   if (maxPrice != null) {
     partial.maxPrice = maxPrice;
   }
+  if (params.serviceCategory != null) {
+    partial.serviceCategory = params.serviceCategory;
+  }
+  if (params.serviceTier != null) {
+    partial.serviceTier = params.serviceTier;
+  }
+  if (params.limit != null) {
+    partial.limit = params.limit;
+  }
   return Object.keys(partial).length > 0 ? partial : undefined;
 }
 
@@ -112,7 +137,7 @@ function resolveRankRescueExpectation(
     const rescued = rescueServiceRankDiscoveryIntent(
       scenario.prompt,
       'list_services',
-      surface,
+      surface as 'customer' | 'dashboard' | 'public',
     );
     return {
       rescuedAction:
@@ -123,21 +148,83 @@ function resolveRankRescueExpectation(
     };
   }
 
+  if (scenario.providerRank) {
+    const fromAction = 'unknown';
+    const rescued = rescueServiceRankDiscoveryIntent(
+      scenario.prompt,
+      fromAction,
+      surface as 'customer' | 'dashboard' | 'public',
+    );
+    const params = buildProviderRankDiscoveryRescueParams(scenario.prompt);
+    const paramsPartial: Record<string, unknown> = {};
+    const serviceCategory =
+      scenario.expectedParams?.serviceCategory ??
+      params.serviceCategory ??
+      extractProviderRankServiceCategoryFromPrompt(scenario.prompt);
+    if (serviceCategory) paramsPartial.serviceCategory = serviceCategory;
+    const maxPrice =
+      scenario.expectedParams?.maxPrice ??
+      params.maxPrice ??
+      extractMaxPriceFromBudgetPrompt(scenario.prompt);
+    if (maxPrice != null) paramsPartial.maxPrice = maxPrice;
+
+    return {
+      rescuedAction:
+        rescued?.action ??
+        mapRankExpectedActionForSurface(scenario.expectedAction, surface),
+      rescueReason: rescued?.rescueReason ?? 'rank_provider_specialists',
+      rescueFromAction: fromAction,
+      ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+    };
+  }
+
+  if (scenario.subjectiveRank) {
+    const fromAction = 'unknown';
+    const rescued = rescueServiceRankDiscoveryIntent(
+      scenario.prompt,
+      fromAction,
+      surface as 'customer' | 'dashboard' | 'public',
+    );
+    const params = buildSubjectiveRankDiscoveryRescueParams(scenario.prompt);
+    const paramsPartial: Record<string, unknown> = {};
+    const serviceCategory =
+      scenario.expectedParams?.serviceCategory ??
+      params.serviceCategory ??
+      extractSubjectiveRankServiceCategoryFromPrompt(scenario.prompt);
+    if (serviceCategory) paramsPartial.serviceCategory = serviceCategory;
+
+    return {
+      rescuedAction:
+        rescued?.action ??
+        mapRankExpectedActionForSurface(scenario.expectedAction, surface),
+      rescueReason: rescued?.rescueReason ?? 'rank_subjective_booking_help',
+      rescueFromAction: fromAction,
+      ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
+    };
+  }
+
   const fromAction =
-    scenario.id === 'rank-not-specialist-en'
+    scenario.id === 'rank-not-specialist-en' ||
+    scenario.id === 'rank-recommend-not-provider-en'
       ? 'recommend_specialists'
       : 'unknown';
   const rescued = rescueServiceRankDiscoveryIntent(
     scenario.prompt,
     fromAction,
-    surface,
+    surface as 'customer' | 'dashboard' | 'public',
   );
+
+  const defaultRescueReason = isMidRangeServiceListPrompt(scenario.prompt)
+    ? 'rank_mid_range_list'
+    : scenario.expectedParams?.serviceTier != null
+      ? 'rank_tier_filter'
+      : 'rank_list_services';
 
   return {
     rescuedAction:
       rescued?.action ??
       mapRankExpectedActionForSurface(scenario.expectedAction, surface),
-    rescueReason: rescued?.rescueReason ?? 'rank_list_services',
+    rescueReason: rescued?.rescueReason ?? defaultRescueReason,
     rescueFromAction: fromAction,
     paramsPartial: buildRankRescueParamsPartial(scenario),
   };

@@ -7,6 +7,7 @@ import {
   serviceDiscoveryMultilingualByDomain,
 } from './ai-service-discovery-multilingual.fixtures.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js';
 
 describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
   it('ships classifier rules for budget, rank, and OR availability', () => {
@@ -59,12 +60,60 @@ describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
     }
   });
 
+  it.each(DISCOVER_CROSS_SPRINT_MULTILINGUAL_SCENARIOS)(
+    'cross-sprint enrichment extracts discovery params for $id',
+    ({ prompt, expectedParams, expectedAction }) => {
+      const enriched = enrichPublicAssistantParamsFromPrompt(
+        prompt,
+        expectedParams?.serviceCategory
+          ? { serviceCategory: expectedParams.serviceCategory }
+          : {},
+        [],
+        expectedAction ?? 'check_availability',
+      );
+      if (expectedParams?.maxPrice != null) {
+        expect(enriched.maxPrice).toBe(expectedParams.maxPrice);
+      }
+      if (expectedParams?.serviceRank != null) {
+        expect(enriched.serviceRank).toBe(expectedParams.serviceRank);
+      }
+      if (expectedParams?.availabilityWindows) {
+        expect(enriched.availabilityWindows).toEqual(
+          expectedParams.availabilityWindows,
+        );
+      }
+      if (expectedParams?.date != null) {
+        expect(enriched.date).toBe(expectedParams.date);
+      }
+      if (expectedParams?.timeOfDay != null) {
+        expect(enriched.timeOfDay).toBe(expectedParams.timeOfDay);
+      }
+      if (expectedParams?.bookingFirstAvailable === true) {
+        expect(enriched.bookingFirstAvailable).toBe(true);
+      }
+      if (expectedParams?.availabilityWindows) {
+        expect(enriched.date).toBeUndefined();
+        expect(enriched.timeOfDay).toBeUndefined();
+      }
+      if (
+        expectedParams?.date != null &&
+        expectedParams?.timeOfDay != null &&
+        !expectedParams?.availabilityWindows
+      ) {
+        expect(enriched.availabilityWindows).toBeUndefined();
+      }
+    },
+  );
+
   it.each(
     MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS.filter((row) =>
       [
         'discover-ml-budget-translit-under-50',
         'discover-ml-rank-translit-premium',
         'discover-ml-rank-translit-cheapest',
+        'discover-ml-avail-hy-or',
+        'discover-ml-avail-ru-or',
+        'discover-ml-avail-translit-or',
       ].includes(row.id),
     ),
   )('enrichment extracts discovery params for $id', ({ prompt, expectedParams }) => {

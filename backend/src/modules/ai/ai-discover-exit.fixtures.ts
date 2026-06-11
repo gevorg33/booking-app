@@ -1,7 +1,10 @@
 import { BUDGET_DOMAIN_FIXTURE_IDS } from './ai-budget-service-discovery.fixtures.js';
 import { CONSUMER_DISCOVERY_CHIP_FIXTURE_IDS } from './ai-consumer-discovery-chips.fixtures.js';
 import { AVAIL_DOMAIN_FIXTURE_IDS } from './ai-flexible-availability.fixtures.js';
-import { SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS } from './ai-service-discovery.fixtures.js';
+import {
+  SERVICE_DISCOVERY_PARITY_IDS,
+  SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS,
+} from './ai-service-discovery.fixtures.js';
 import { SERVICE_DISCOVERY_MULTILINGUAL_FIXTURE_IDS } from './ai-service-discovery-multilingual.fixtures.js';
 import { RANK_DOMAIN_FIXTURE_IDS } from './ai-service-rank-discovery.fixtures.js';
 
@@ -9,6 +12,7 @@ import { RANK_DOMAIN_FIXTURE_IDS } from './ai-service-rank-discovery.fixtures.js
 export const DISCOVER_CROSS_SPRINT_FIXTURE_IDS: readonly string[] = [
   ...new Set([
     ...SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS,
+    ...SERVICE_DISCOVERY_PARITY_IDS,
     ...SERVICE_DISCOVERY_MULTILINGUAL_FIXTURE_IDS,
     ...CONSUMER_DISCOVERY_CHIP_FIXTURE_IDS,
   ]),

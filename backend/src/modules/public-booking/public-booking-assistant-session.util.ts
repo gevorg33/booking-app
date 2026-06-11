@@ -1,4 +1,5 @@
 import { pickSharedBookingContextSlice } from '../ai/ai-compound-booking-context.util.js';
+import { serializeRankedServiceIds } from '../ai/ai-rank-session-pick.util.js';
 
 /** Discovery + booking keys restored from public assistant session on follow-up turns. */
 export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
@@ -14,6 +15,7 @@ export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
   'maxPrice',
   'serviceId',
   'serviceRank',
+  'rankedServiceIds',
   'availabilityWindows',
   'chosenAvailabilityWindow',
   'chosenAvailabilityWindowIndex',
@@ -120,6 +122,14 @@ export function serializePublicAssistantDiscoverySessionFields(
       params.chosenAvailabilityWindowIndex != null
         ? String(params.chosenAvailabilityWindowIndex)
         : null,
+    rankedServiceIds:
+      serializeRankedServiceIds(
+        Array.isArray(params.rankedServiceIds)
+          ? params.rankedServiceIds.filter(
+              (entry): entry is string => typeof entry === 'string',
+            )
+          : [],
+      ),
   };
   return out;
 }

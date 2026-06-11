@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-10T20:54:12.828Z",
-  "totalCases": 2738,
-  "passed": 2738,
+  "generatedAt": "2026-06-11T21:59:02.856Z",
+  "totalCases": 3221,
+  "passed": 3221,
   "failed": 0,
   "accuracyPct": 100,
   "llmCaseCount": 14,
@@ -248,9 +248,9 @@
       "accuracyPct": 100
     },
     "compound_intent": {
-      "passed": 15,
+      "passed": 21,
       "failed": 0,
-      "total": 15,
+      "total": 21,
       "accuracyPct": 100
     },
     "compound:book_appointment+explain_result_status": {
@@ -385,6 +385,12 @@
       "total": 3,
       "accuracyPct": 100
     },
+    "compound:create_employee+assign_employee_services+onboard_provider_schedule+configure_online_booking": {
+      "passed": 36,
+      "failed": 0,
+      "total": 36,
+      "accuracyPct": 100
+    },
     "compound:create_test_order+notify_patient_result_ready": {
       "passed": 25,
       "failed": 0,
@@ -392,9 +398,9 @@
       "accuracyPct": 100
     },
     "compound:decomposition": {
-      "passed": 38,
+      "passed": 52,
       "failed": 0,
-      "total": 38,
+      "total": 52,
       "accuracyPct": 100
     },
     "compound:list_services+book_appointment": {
@@ -407,6 +413,18 @@
       "passed": 2,
       "failed": 0,
       "total": 2,
+      "accuracyPct": 100
+    },
+    "compound:list_services+check_providers_for_service+create_booking": {
+      "passed": 72,
+      "failed": 0,
+      "total": 72,
+      "accuracyPct": 100
+    },
+    "compound:list_test_orders+enter_test_result+release_test_result+notify_patient_result_ready": {
+      "passed": 36,
+      "failed": 0,
+      "total": 36,
       "accuracyPct": 100
     },
     "compound:none": {
@@ -457,6 +475,12 @@
       "total": 4,
       "accuracyPct": 100
     },
+    "configure_online_booking": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
+      "accuracyPct": 100
+    },
     "configure_package_localized_names": {
       "passed": 30,
       "failed": 0,
@@ -487,6 +511,12 @@
       "total": 16,
       "accuracyPct": 100
     },
+    "configure_test_reference_range": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
+      "accuracyPct": 100
+    },
     "configure_tour_service": {
       "passed": 28,
       "failed": 0,
@@ -509,6 +539,12 @@
       "passed": 7,
       "failed": 0,
       "total": 7,
+      "accuracyPct": 100
+    },
+    "create_employee": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
       "accuracyPct": 100
     },
     "create_multi_service_booking": {
@@ -551,6 +587,12 @@
       "passed": 35,
       "failed": 0,
       "total": 35,
+      "accuracyPct": 100
+    },
+    "deactivate_employee": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
       "accuracyPct": 100
     },
     "diagnose_stripe_checkout_failure": {
@@ -638,9 +680,9 @@
       "accuracyPct": 100
     },
     "explain_checkout_currency": {
-      "passed": 10,
+      "passed": 11,
       "failed": 0,
-      "total": 10,
+      "total": 11,
       "accuracyPct": 100
     },
     "explain_checkout_recommendations": {
@@ -755,6 +797,12 @@
       "passed": 45,
       "failed": 0,
       "total": 45,
+      "accuracyPct": 100
+    },
+    "explain_patient_results": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
       "accuracyPct": 100
     },
     "explain_phi_encryption_status": {
@@ -895,10 +943,22 @@
       "total": 3,
       "accuracyPct": 100
     },
+    "invite_staff_member": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
+      "accuracyPct": 100
+    },
     "link_recommended_products": {
       "passed": 16,
       "failed": 0,
       "total": 16,
+      "accuracyPct": 100
+    },
+    "list_abnormal_results": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
       "accuracyPct": 100
     },
     "list_breach_incidents": {
@@ -1003,6 +1063,12 @@
       "total": 13,
       "accuracyPct": 100
     },
+    "list_waitlist_entries": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
+      "accuracyPct": 100
+    },
     "lookup_booking_tax_metadata": {
       "passed": 6,
       "failed": 0,
@@ -1079,6 +1145,18 @@
       "passed": 20,
       "failed": 0,
       "total": 20,
+      "accuracyPct": 100
+    },
+    "offer_waitlist_slot": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
+      "accuracyPct": 100
+    },
+    "open_billing_settings": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
       "accuracyPct": 100
     },
     "open_compliance_dashboard": {
@@ -1190,9 +1268,9 @@
       "accuracyPct": 100
     },
     "reschedule_parse": {
-      "passed": 3,
+      "passed": 4,
       "failed": 0,
-      "total": 3,
+      "total": 4,
       "accuracyPct": 100
     },
     "route:compound": {
@@ -1292,9 +1370,9 @@
       "accuracyPct": 100
     },
     "summarize_bookings": {
-      "passed": 3,
+      "passed": 12,
       "failed": 0,
-      "total": 3,
+      "total": 12,
       "accuracyPct": 100
     },
     "summarize_client": {
@@ -1307,6 +1385,12 @@
       "passed": 8,
       "failed": 0,
       "total": 8,
+      "accuracyPct": 100
+    },
+    "summarize_loyalty_program": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
       "accuracyPct": 100
     },
     "summarize_my_appointments": {
@@ -1391,6 +1475,12 @@
       "passed": 2,
       "failed": 0,
       "total": 2,
+      "accuracyPct": 100
+    },
+    "upload_patient_result": {
+      "passed": 11,
+      "failed": 0,
+      "total": 11,
       "accuracyPct": 100
     },
     "use_subscription_credit": {

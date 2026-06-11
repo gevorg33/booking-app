@@ -4,7 +4,10 @@ import {
 } from './ai-compound-booking-context.util.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
-import { isBookNearestSlotPrompt } from './ai-payments.util.js';
+import {
+  isBookNearestSlotPrompt,
+  isCheckProvidersForServicePrompt,
+} from './ai-payments.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import { enrichBudgetFromPrompt } from './ai-budget-service-discovery.util.js';
 import {
@@ -22,7 +25,10 @@ const RANK_BOOK_SERVICE_CATEGORY_PATTERN =
   /\bbook(?:\s+(?:a|an|the|your))?\s+(?:(?:most|your)\s+)?(?:premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i;
 
 const RANK_CUE_SERVICE_CATEGORY_PATTERN =
-  /\b(?:best\s+)?(?:premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:I can|under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i;
+  /\b(?:best\s+)?(?:premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:I can|under|below|for|with|tomorrow|today|nearest|soonest|and|,|$))/i;
+
+const RANK_BEST_AND_BOOK_CATEGORY_PATTERN =
+  /\bbest\s+([a-z][\w-]{2,30})(?=\s+and\s+book\b)/i;
 
 function extractRankCompoundServiceCategory(
   prompt: string,
@@ -32,16 +38,41 @@ function extractRankCompoundServiceCategory(
 
   const bookMatch = prompt.match(RANK_BOOK_SERVICE_CATEGORY_PATTERN);
   const rankMatch = prompt.match(RANK_CUE_SERVICE_CATEGORY_PATTERN);
-  const keyword = (bookMatch?.[1] ?? rankMatch?.[1])?.trim().replace(/[,.]$/, '');
+  const bestAndBookMatch = prompt.match(RANK_BEST_AND_BOOK_CATEGORY_PATTERN);
+  const keyword = (bookMatch?.[1] ?? rankMatch?.[1] ?? bestAndBookMatch?.[1])
+    ?.trim()
+    .replace(/[,.]$/, '');
   if (keyword && keyword.length >= 3) {
     return { ...params, serviceCategory: keyword };
   }
   return params;
 }
 
+function hasRankCompoundBookStepCue(prompt: string): boolean {
+  if (isBookNearestSlotPrompt(prompt)) return true;
+  return (
+    /\b(?:book|schedule|reserve)\b/i.test(prompt) &&
+    (/\bbook\s+it\b/i.test(prompt) ||
+      /\band\s+book\b/i.test(prompt) ||
+      /\b(?:on|this)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b/i.test(
+        prompt,
+      ))
+  );
+}
+
+function hasRankCompoundCheckStepCue(prompt: string): boolean {
+  return (
+    isCheckProvidersForServicePrompt(prompt) ||
+    (/\bcheck\b/i.test(prompt) &&
+      /\b(?:providers?|availability|who|free|available)\b/i.test(prompt))
+  );
+}
+
 export function isServiceRankDiscoveryCompoundPrompt(prompt: string): boolean {
-  if (!isBookNearestSlotPrompt(prompt)) return false;
-  return isServiceCatalogRankPrompt(prompt);
+  if (!hasRankCompoundBookStepCue(prompt)) return false;
+  if (!isServiceCatalogRankPrompt(prompt)) return false;
+  if (hasRankCompoundCheckStepCue(prompt)) return false;
+  return true;
 }
 
 export function buildRankCompoundSharedParams(
@@ -59,7 +90,10 @@ export function buildRankCompoundSharedParams(
   enrichBookingTimeHintsFromPrompt(bookAction, shared, prompt);
   const enriched = extractRankCompoundServiceCategory(
     prompt,
-    enrichListServicesParamsFromPrompt(prompt, shared),
+    enrichListServicesParamsFromPrompt(
+      prompt,
+      shared as Parameters<typeof enrichListServicesParamsFromPrompt>[1],
+    ),
   );
   return enriched;
 }

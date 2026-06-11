@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { attachPublicBookingNearestAcrossWindowsMock } from './ai-nearest-slot-resolver.util.js';
 import { AiPaymentsService } from './ai-payments.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
@@ -84,6 +85,7 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
       employeeName: 'Anna Kim',
     })),
   };
+  attachPublicBookingNearestAcrossWindowsMock(publicBookingService);
   const checkoutBusiness = {
     id: 'biz-1',
     slug: 'salon',

@@ -825,6 +825,56 @@ const ACTION_RULES: Record<string, Rule> = {
 
   staff_service_matrix: (_cmd) => [] as ValidationIssue[],
 
+  create_employee: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Team member name',
+        !!cmd.params.employeeName,
+        'Anna',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  invite_staff_member: (cmd) =>
+    [
+      needs(
+        'email',
+        'Email or employee name',
+        !!(cmd.params.email || cmd.params.employeeName),
+        'anna@salon.com or Maria',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  deactivate_employee: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Team member name',
+        !!cmd.params.employeeName,
+        'Gevorg',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  configure_online_booking: (_cmd) => [] as ValidationIssue[],
+
+  open_billing_settings: (_cmd) => [] as ValidationIssue[],
+
+  summarize_loyalty_program: (_cmd) => [] as ValidationIssue[],
+
+  list_waitlist_entries: (_cmd) => [] as ValidationIssue[],
+
+  offer_waitlist_slot: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Provider name',
+        !!cmd.params.employeeName,
+        'Maria',
+      ),
+      needs('date', 'Date', !!cmd.params.date, 'Friday'),
+      needs('timeSlot', 'Time', !!cmd.params.timeSlot, '14:00'),
+    ].filter(Boolean) as ValidationIssue[],
+
   check_schedule_compliance: (cmd) =>
     [
       needs(

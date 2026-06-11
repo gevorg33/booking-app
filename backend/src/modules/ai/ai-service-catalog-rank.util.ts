@@ -10,6 +10,8 @@ export type ServiceCatalogPriceEntry = {
   price: number | null | undefined;
   durationMinutes?: number | null;
   serviceCategory?: string | null;
+  /** Catalog rows with isActive=false are excluded before rank pick (rank-inactive-excluded). */
+  isActive?: boolean | null;
   /** Phase 2 popularity signal for `most_popular` rank (rank-1.9). */
   bookingCount?: number | null;
   /** Phase 2 catalog rank metadata (rank-1.8). */
@@ -20,6 +22,7 @@ export type ServiceCatalogPriceEntry = {
 export type PickRankedServicesOptions = {
   serviceRank?: ServiceRank | null;
   serviceCategory?: string | null;
+  serviceTier?: ServiceTier | null;
   limit?: number | null;
 };
 
@@ -28,9 +31,11 @@ export type ServiceDiscoveryParams = {
   maxPrice: number | null;
   serviceRank: ServiceRank | null;
   serviceCategory: string | null;
+  serviceTier: ServiceTier | null;
   limit: number | null;
   hasBudget: boolean;
   hasRank: boolean;
+  hasTier: boolean;
 };
 
 export function resolveServiceCatalogPrice(
@@ -46,6 +51,13 @@ export function isValidMaxPrice(maxPrice: unknown): maxPrice is number {
 }
 
 /** Keep services with a known display price <= maxPrice (inclusive ceiling). */
+/** Exclude inactive catalog rows before budget/rank discovery (rank-inactive-excluded). */
+export function filterActiveCatalogServices<T extends ServiceCatalogPriceEntry>(
+  services: readonly T[],
+): T[] {
+  return services.filter((service) => service.isActive !== false);
+}
+
 export function filterServicesByMaxPrice<T extends ServiceCatalogPriceEntry>(
   services: readonly T[],
   maxPrice: number,
@@ -57,6 +69,37 @@ export function filterServicesByMaxPrice<T extends ServiceCatalogPriceEntry>(
   return services.filter((service) => {
     const price = resolveServiceCatalogPrice(service.price);
     return price != null && price <= maxPrice;
+  });
+}
+
+/** Keep services with known duration >= minDurationMinutes (budget-long-massage-en). */
+export function filterServicesByMinDuration<T extends ServiceCatalogPriceEntry>(
+  services: readonly T[],
+  minDurationMinutes: number,
+): T[] {
+  if (!Number.isFinite(minDurationMinutes) || minDurationMinutes <= 0) {
+    return [...services];
+  }
+
+  return services.filter(
+    (service) =>
+      typeof service.durationMinutes === 'number' &&
+      service.durationMinutes >= minDurationMinutes,
+  );
+}
+
+/** Keep services with a known display price >= minPrice (inclusive floor). */
+export function filterServicesByMinPrice<T extends ServiceCatalogPriceEntry>(
+  services: readonly T[],
+  minPrice: number,
+): T[] {
+  if (!isValidMaxPrice(minPrice)) {
+    return [...services];
+  }
+
+  return services.filter((service) => {
+    const price = resolveServiceCatalogPrice(service.price);
+    return price != null && price >= minPrice;
   });
 }
 
@@ -182,6 +225,13 @@ function compareServiceCatalogPopularity(
   return compareServiceCatalogTieBreak(left, right);
 }
 
+export function filterServicesByTier<T extends ServiceCatalogPriceEntry>(
+  services: readonly T[],
+  serviceTier: ServiceTier,
+): T[] {
+  return services.filter((service) => service.serviceTier === serviceTier);
+}
+
 function filterServicesByCategory<T extends ServiceCatalogPriceEntry>(
   services: readonly T[],
   serviceCategory: string | null | undefined,
@@ -218,14 +268,20 @@ export function resolveServiceDiscoveryParams(
     typeof rawCategory === 'string' && rawCategory.trim()
       ? rawCategory.trim()
       : null;
+  const serviceTier =
+    params.serviceTier === 'standard' || params.serviceTier === 'premium'
+      ? params.serviceTier
+      : null;
 
   return {
     maxPrice,
     serviceRank,
     serviceCategory,
+    serviceTier,
     limit: resolveServiceDiscoveryLimit(params.limit),
     hasBudget: maxPrice != null,
     hasRank: serviceRank != null,
+    hasTier: serviceTier != null,
   };
 }
 
@@ -237,25 +293,30 @@ export function applyServiceDiscoveryToCatalog<T extends ServiceCatalogPriceEntr
   const resolved = resolveServiceDiscoveryParams(params);
 
   if (resolved.hasRank) {
-    const budgetScoped =
+    let budgetScoped =
       resolved.hasBudget && resolved.maxPrice != null
         ? filterServicesByMaxPrice(catalog, resolved.maxPrice)
         : catalog;
+    if (resolved.hasTier && resolved.serviceTier) {
+      budgetScoped = filterServicesByTier(budgetScoped, resolved.serviceTier);
+    }
     return pickRankedServices(budgetScoped, {
       serviceCategory: resolved.serviceCategory,
       serviceRank: resolved.serviceRank,
+      serviceTier: resolved.serviceTier,
       limit: resolved.limit,
     });
   }
 
-  const categorized = filterServicesByCategory(
-    catalog,
-    resolved.serviceCategory,
-  );
+  let categorized = filterServicesByCategory(catalog, resolved.serviceCategory);
+  if (resolved.hasTier && resolved.serviceTier) {
+    categorized = filterServicesByTier(categorized, resolved.serviceTier);
+  }
   if (resolved.hasBudget && resolved.maxPrice != null) {
-    return sortServicesByPriceAsc(
+    const budgetMatches = sortServicesByPriceAsc(
       filterServicesByMaxPrice(categorized, resolved.maxPrice),
     );
+    return applyRankLimit(budgetMatches, resolved.limit);
   }
 
   return applyRankLimit(categorized, resolved.limit);
@@ -277,6 +338,23 @@ export function isValidServiceRank(value: unknown): value is ServiceRank {
 }
 
 /** Ascending by display price; tier/featured metadata first when set (rank-1.8). */
+function compareServiceCatalogDurationAsc(
+  left: ServiceCatalogPriceEntry,
+  right: ServiceCatalogPriceEntry,
+): number {
+  const leftDuration = left.durationMinutes ?? Number.MAX_SAFE_INTEGER;
+  const rightDuration = right.durationMinutes ?? Number.MAX_SAFE_INTEGER;
+  if (leftDuration !== rightDuration) return leftDuration - rightDuration;
+  return compareServiceCatalogPrices(left, right);
+}
+
+/** Ascending duration (shortest first); unknown duration last; price asc tie-break (budget-short-service-en). */
+export function sortServicesByDurationAsc<T extends ServiceCatalogPriceEntry>(
+  services: readonly T[],
+): T[] {
+  return [...services].sort(compareServiceCatalogDurationAsc);
+}
+
 export function sortServicesByPriceAsc<T extends ServiceCatalogPriceEntry>(
   services: readonly T[],
 ): T[] {
@@ -302,16 +380,24 @@ export function pickRankedServices<T extends ServiceCatalogPriceEntry>(
   catalog: readonly T[],
   options: PickRankedServicesOptions = {},
 ): T[] {
-  const filtered = filterServicesByCategory(catalog, options.serviceCategory);
+  let filtered = filterServicesByCategory(catalog, options.serviceCategory);
+  if (options.serviceTier) {
+    filtered = filterServicesByTier(filtered, options.serviceTier);
+  }
   if (filtered.length === 0) return [];
 
   if (!options.serviceRank || !isValidServiceRank(options.serviceRank)) {
     return applyRankLimit(filtered, options.limit);
   }
 
+  const priced = filtered.filter(
+    (service) => resolveServiceCatalogPrice(service.price) != null,
+  );
+  if (priced.length === 0) return [];
+
   const ranked =
     options.serviceRank === 'highest_price'
-      ? sortServicesByPriceDesc(filtered)
+      ? sortServicesByPriceDesc(priced)
       : options.serviceRank === 'lowest_price'
         ? sortServicesByPriceAsc(filtered)
         : sortServicesByPopularityDesc(filtered);

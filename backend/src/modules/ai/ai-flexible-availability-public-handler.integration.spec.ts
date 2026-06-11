@@ -25,6 +25,7 @@ function runPublicAvailabilityHandlerPipeline(input: {
   summary: string;
   groupByWindow: boolean;
   windowReports: PublicAvailabilityWindowReport[];
+  bestNavigate?: { employeeId: string; startTime: string };
 } {
   const windows = resolvePublicAvailabilityWindows(
     input.params,
@@ -38,6 +39,7 @@ function runPublicAvailabilityHandlerPipeline(input: {
   );
   const windowReports: PublicAvailabilityWindowReport[] = [];
   const flatDayReports: PublicAvailabilityDayReport[] = [];
+  let bestNavigate: { employeeId: string; startTime: string } | undefined;
 
   for (const window of windows) {
     const dayReports: PublicAvailabilityDayReport[] = [];
@@ -60,6 +62,13 @@ function runPublicAvailabilityHandlerPipeline(input: {
           employeeName: employee.name,
           slots,
         });
+
+        if (!bestNavigate || slots[0]!.startTime < bestNavigate.startTime) {
+          bestNavigate = {
+            employeeId: employee.id,
+            startTime: slots[0]!.startTime,
+          };
+        }
       }
 
       if (providersForDay.length > 0) {
@@ -93,7 +102,7 @@ function runPublicAvailabilityHandlerPipeline(input: {
     totalDayCount: flatDayReports.length,
   });
 
-  return { summary, groupByWindow, windowReports };
+  return { summary, groupByWindow, windowReports, bestNavigate };
 }
 
 describe('public handleCheckAvailability avail-1.5 wiring (discover-exit-2)', () => {
@@ -112,6 +121,8 @@ describe('public handleCheckAvailability pipeline (avail-1.5 / discover-exit-2)'
       slotsByKey,
       expectedSummaryContains,
       expectedSummaryNotContains = [],
+      expectedEmptyWindowLabels = [],
+      expectedBestNavigateStartTime,
     }) => {
       const serviceLabel =
         typeof params.serviceCategory === 'string'
@@ -130,6 +141,16 @@ describe('public handleCheckAvailability pipeline (avail-1.5 / discover-exit-2)'
       }
       for (const fragment of expectedSummaryNotContains) {
         expect(result.summary).not.toContain(fragment);
+      }
+
+      for (const label of expectedEmptyWindowLabels) {
+        expect(result.summary).toContain(`No open slots for ${label}.`);
+        const report = result.windowReports.find((entry) => entry.label === label);
+        expect(report?.dayReports).toEqual([]);
+      }
+
+      if (expectedBestNavigateStartTime) {
+        expect(result.bestNavigate?.startTime).toBe(expectedBestNavigateStartTime);
       }
     },
   );

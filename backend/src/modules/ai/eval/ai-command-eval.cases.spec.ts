@@ -531,7 +531,7 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every checkout currency eval case (ai-cmd-curr-5)', () => {
-    expect(AI_COMMAND_EVAL_CHECKOUT_CURRENCY_CASES.length).toBe(10);
+    expect(AI_COMMAND_EVAL_CHECKOUT_CURRENCY_CASES.length).toBe(11);
     for (const evalCase of AI_COMMAND_EVAL_CHECKOUT_CURRENCY_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);

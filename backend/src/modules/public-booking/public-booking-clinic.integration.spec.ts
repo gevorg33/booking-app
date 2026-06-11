@@ -2,7 +2,10 @@ import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
-import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import {
+  createEmptyBookingPopularityRepoMock,
+  createPublicBookingServiceHarness,
+} from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
 
 function createClinicPublicBookingHarness() {
@@ -186,6 +189,7 @@ function createClinicBookingRepo(
   storedBookings: Array<Record<string, unknown>>,
 ) {
   return {
+    ...createEmptyBookingPopularityRepoMock(),
     find: jest.fn(async () => storedBookings),
     findOne: jest.fn(
       async ({ where }: { where: { id: string } }) =>

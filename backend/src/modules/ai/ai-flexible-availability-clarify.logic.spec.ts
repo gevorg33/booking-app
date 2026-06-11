@@ -1,11 +1,18 @@
 import {
   FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS,
   FLEXIBLE_AVAILABILITY_OVERLAP_SCENARIOS,
+  PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS,
 } from './ai-flexible-availability.fixtures.js';
 import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
 import {
+  appendAvailabilityNearestAlternativeNote,
   applyBudgetFilterForAvailabilityCheck,
   composePublicAvailabilityCheckSummary,
+  composePublicAvailabilityGroupedEmptyWindowsSummary,
+  formatAvailabilityNearestAlternativeNote,
 } from './ai-flexible-availability-check.logic.js';
 import {
   buildAvailabilityBudgetClarifyDetails,
@@ -116,6 +123,127 @@ describe('ai-flexible-availability-clarify.logic (avail-1.9)', () => {
     },
   );
 
+  it.each(FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS)(
+    '$id grouped empty OR windows label each section and accept nearest note',
+    ({ windowLabels, nearestAlternative }) => {
+      const summary = composePublicAvailabilityGroupedEmptyWindowsSummary({
+        serviceLabel: 'haircut',
+        locale: 'en',
+        timeZone: 'UTC',
+        singleProvider: true,
+        windowReports: windowLabels.map((label) => ({
+          label,
+          dayReports: [],
+        })),
+      });
+
+      for (const label of windowLabels) {
+        expect(summary).toContain(`${label}:`);
+        expect(summary).toContain(`No open slots for ${label}.`);
+      }
+      expect(summary).not.toContain('Try another day or specialist');
+
+      if (nearestAlternative) {
+        const withNearest = appendAvailabilityNearestAlternativeNote(
+          summary,
+          formatAvailabilityNearestAlternativeNote({
+            locale: 'en',
+            timeZone: 'UTC',
+            employeeName: nearestAlternative.employeeName,
+            dateKey: nearestAlternative.dateKey,
+            startTime: nearestAlternative.startTime,
+          }),
+        );
+        expect(withNearest).toContain('Nearest opening:');
+        expect(withNearest).toContain(nearestAlternative.employeeName);
+      }
+    },
+  );
+
+  it.each(FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS)(
+    '$id labels filled and empty OR windows distinctly',
+    ({ filledWindowLabel, emptyWindowLabel, expectedSlotTime }) => {
+      const summary = composePublicAvailabilityCheckSummary({
+        serviceLabel: 'facial',
+        locale: 'en',
+        timeZone: 'UTC',
+        singleProvider: true,
+        groupByWindow: true,
+        windowReports: [
+          {
+            label: emptyWindowLabel,
+            dayReports: [],
+          },
+          {
+            label: filledWindowLabel,
+            dayReports: [
+              {
+                dateKey: '2026-06-13',
+                providers: [
+                  {
+                    employeeId: 'e1',
+                    employeeName: 'Alice',
+                    times: [expectedSlotTime],
+                    firstSlot: '2026-06-13T14:00:00.000Z',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        flatDayReports: [
+          {
+            dateKey: '2026-06-13',
+            providers: [
+              {
+                employeeId: 'e1',
+                employeeName: 'Alice',
+                times: [expectedSlotTime],
+                firstSlot: '2026-06-13T14:00:00.000Z',
+              },
+            ],
+          },
+        ],
+        totalDayCount: 1,
+      });
+
+      expect(summary).toContain(`${filledWindowLabel}:`);
+      expect(summary).toContain(expectedSlotTime);
+      expect(summary).toContain(`No open slots for ${emptyWindowLabel}.`);
+    },
+  );
+
+  it.each(FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS)(
+    '$id budget filter passes but empty OR windows use availability messaging',
+    ({ catalog, maxPrice, windowLabels }) => {
+      const budget = applyBudgetFilterForAvailabilityCheck(catalog, maxPrice);
+      expect(budget.noMatchSummary).toBeNull();
+      expect(budget.services.map((service) => service.id)).toEqual(['h1']);
+
+      const summary = composePublicAvailabilityCheckSummary({
+        serviceLabel: 'haircut',
+        locale: 'en',
+        timeZone: 'UTC',
+        singleProvider: true,
+        groupByWindow: true,
+        maxPrice,
+        windowReports: windowLabels.map((label) => ({
+          label,
+          dayReports: [],
+        })),
+        flatDayReports: [],
+        totalDayCount: 0,
+      });
+
+      expect(summary).toContain('options under $50');
+      for (const label of windowLabels) {
+        expect(summary).toContain(`${label}:`);
+        expect(summary).toContain(`No open slots for ${label}.`);
+      }
+      expect(summary).not.toContain('Nothing under $50');
+    },
+  );
+
   it('composePublicAvailabilityCheckSummary prefixes overlap clarify note', () => {
     const summary = composePublicAvailabilityCheckSummary({
       serviceLabel: 'Haircut',
@@ -166,5 +294,51 @@ describe('ai-flexible-availability-clarify.logic (avail-1.9)', () => {
     expect(summary).toContain('Tomorrow is Friday');
     expect(summary).toContain('Friday evening:');
     expect(summary).toContain('Friday afternoon:');
+  });
+
+  it.each(
+    PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS.filter((row) =>
+      ['avail-slots-window-a-only', 'avail-slots-window-b-only'].includes(row.id),
+    ),
+  )('$id composePublicAvailabilityCheckSummary lists empty OR window', (scenario) => {
+    const filledLabel =
+      scenario.id === 'avail-slots-window-a-only'
+        ? 'Tomorrow evening'
+        : 'Friday afternoon';
+    const emptyLabel = scenario.expectedEmptyWindowLabels?.[0] ?? '';
+    const summary = composePublicAvailabilityCheckSummary({
+      serviceLabel: 'Lash extensions',
+      locale: 'en',
+      timeZone: 'UTC',
+      singleProvider: true,
+      groupByWindow: true,
+      windowReports: [
+        {
+          label: filledLabel,
+          dayReports: [
+            {
+              dateKey: '2026-06-11',
+              providers: [
+                {
+                  employeeId: 'e1',
+                  employeeName: 'Alice',
+                  times: ['18:00'],
+                  firstSlot: '2026-06-11T18:00:00.000Z',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: emptyLabel,
+          dayReports: [],
+        },
+      ],
+      flatDayReports: [],
+      totalDayCount: 1,
+    });
+
+    expect(summary).toContain(`${filledLabel}:`);
+    expect(summary).toContain(`No open slots for ${emptyLabel}.`);
   });
 });

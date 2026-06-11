@@ -6,6 +6,17 @@ import {
 
 /** Customer/public classifier rules for budget-constrained service discovery (budget-1.10). */
 export const BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES = `- list_services: READ — browse or filter the public service catalog. When the user states a spending limit, set maxPrice (number, inclusive ceiling in tenant default currency). Triggers: under/below/at most/no more than $X, "I have $X", "what can I book with $X", "options under $X", cheapest/affordable within a budget. Optional serviceName, serviceCategory, employeeName. Sort matches by price ascending in the handler. NOT discover_packages (bundles/deals catalog), NOT apply_gift_card_code (gift card balance), NOT explain_checkout_currency (currency display), and NOT explain_checkout_total (deposit vs service price).
+- maxTotalPrice + serviceCount: when the user caps a multi-service cart combined total ("two services under $100 total"), set maxTotalPrice (combined ceiling) and serviceCount (default 2). Do NOT set maxPrice for combined-total prompts — per-service ceiling differs from cart total.
+- Session budget override: follow-up turns like "actually I have $30" replace stale session maxPrice even when the prior turn listed options under $50.
+- Budget + promo code: "haircut under $50 with code SAVE10" → list_services with maxPrice + promoCode for checkout; filter catalog first, promo applied at checkout only — NOT promo_code_help.
+- Subscription balance: "can my plan cover a $80 massage?" → discover_subscription_plans (customer) — plan credit READ, NOT list_services maxPrice.
+- Price range: "haircut between $40 and $60" → list_services with minPrice=40 and maxPrice=60 (inclusive band).
+- Voice ASR: "I have 50 dollars for her cut" → list_services with maxPrice=50; map homophone "her cut" → serviceCategory=haircut.
+- Named service + budget: "Is Swedish massage under $90?" → list_services with serviceName=Swedish massage and maxPrice=90 — filter one catalog row, not serviceCategory keyword.
+- Any provider + budget: "Any stylist for a cut under $45?" → list_services with allProviders=true and maxPrice=45 — team-wide scope for follow-up booking; NOT recommend_specialists (no best/rated cue).
+- Named provider + budget: "Karo — anything under $30?" / "Does Karo have anything under $40?" → list_services with employeeName=Karo and maxPrice; provider-scoped catalog may return empty with closest-options hint when nothing fits.
+- Short duration + budget: "Quick haircut under $40" → list_services with serviceCategory=haircut, maxPrice=40, preferShortDuration=true — sort matches by shortest durationMinutes first within the budget band.
+- Long duration + budget: "90-minute massage under $100" → list_services with serviceCategory=massage, maxPrice=100, minDurationMinutes=90 — only sessions at least 90 minutes; honest no-match when all long options exceed the ceiling.
 - recommend_specialists: READ — best/top/highest-rated specialists for a service when the user also names a budget ceiling. Set maxPrice, serviceCategory/serviceName, date/dateFrom/dateTo when mentioned. Restrict to services at or below maxPrice before ranking providers. NOT plain team-wide availability (check_availability / check_providers_for_service).
 - maxPrice: number — inclusive catalog display-price ceiling (service.price). Extract from $X, €X, X dollars/bucks/dram/rubles, "under X", "below X", "at most X", "less than X", "I have X", "I only have X". Do NOT set maxPrice when the user mentions a gift card, package/bundle/deal catalog, subscription plan balance, or booking deposit amount.
 - Budget + book compounds (one message): filter catalog by maxPrice first, then book the nearest/soonest slot. Public: book_appointment with bookingFirstAvailable=true, timeSlot=null. Customer checkout path: book_nearest_slot with bookingFirstAvailable=true. Multi-step execution is automatic.
@@ -42,15 +53,23 @@ type CatalogFixtureService = ServiceCatalogPriceEntry & {
   id: string;
   name: string;
   serviceCategory?: string;
-  durationMinutes?: number;
+  durationMinutes?: number | null;
 };
 
 export type BudgetHandlerOutcomeScenario = {
   id: string;
   services: CatalogFixtureService[];
-  maxPrice: number;
+  maxPrice?: number;
+  minPrice?: number;
+  maxTotalPrice?: number;
+  serviceCount?: number;
   serviceCategory?: string;
-  expectedIds: string[];
+  serviceName?: string;
+  employeeName?: string;
+  preferShortDuration?: boolean;
+  minDurationMinutes?: number;
+  expectedIds?: string[];
+  expectedComboIds?: string[][];
   expectedNavigateServiceId?: string | null;
   expectNoMatchHint?: boolean;
 };
@@ -60,6 +79,71 @@ export type BudgetMaxPriceExtractionScenario = {
   prompt: string;
   maxPrice: number | null;
   skipMaxPrice?: boolean;
+};
+
+export type BudgetCartTotalExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxTotalPrice: number;
+  serviceCount: number;
+};
+
+export type BudgetPromoExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  promoCode: string;
+};
+
+export type BudgetRangeExtractionScenario = {
+  id: string;
+  prompt: string;
+  minPrice: number;
+  maxPrice: number;
+};
+
+export type BudgetVoiceAsrExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  serviceCategory: string;
+};
+
+export type BudgetNamedServiceExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  serviceName: string;
+};
+
+export type BudgetAnyProviderExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  allProviders: boolean;
+};
+
+export type BudgetProviderEmployeeExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  employeeName: string;
+};
+
+export type BudgetShortDurationExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  serviceCategory: string;
+  preferShortDuration: boolean;
+};
+
+export type BudgetLongDurationExtractionScenario = {
+  id: string;
+  prompt: string;
+  maxPrice: number;
+  serviceCategory: string;
+  minDurationMinutes: number;
 };
 
 export type BudgetSessionTurn = {
@@ -163,9 +247,15 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       prompt:
         'Haircut tomorrow evening or Friday afternoon, I have $50',
       surface: 'both',
-      expectedAction: 'book_appointment',
-      expectedParams: { serviceCategory: 'haircut', maxPrice: 50 },
-      phase2: true,
+      expectedAction: 'check_availability',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
     },
     // D — Amount extraction variants
     {
@@ -241,6 +331,13 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       skipMaxPrice: true,
     },
     {
+      id: 'budget-not-gift-card-or-en',
+      prompt: '$50 gift card, haircut tomorrow or Friday',
+      surface: 'both',
+      expectedAction: 'apply_gift_card_code',
+      skipMaxPrice: true,
+    },
+    {
       id: 'budget-not-package-en',
       prompt: 'Any spa packages under $100?',
       surface: 'both',
@@ -255,27 +352,45 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       skipMaxPrice: true,
     },
     {
+      id: 'budget-not-currency-explain-en',
+      prompt: 'Why is premium $120 in dram?',
+      surface: 'both',
+      expectedAction: 'explain_checkout_currency',
+      skipMaxPrice: true,
+    },
+    {
       id: 'budget-stale-session-en',
       prompt: 'actually I have $30',
       surface: 'both',
       expectedAction: 'list_services',
       expectedParams: { maxPrice: 30 },
     },
-    // G — Phase 2 (documented)
+    // G — Multi-service cart total
     {
       id: 'budget-cart-total-en',
       prompt: 'Two services under $100 total',
       surface: 'both',
       expectedAction: 'list_services',
+      expectedParams: { maxTotalPrice: 100, serviceCount: 2 },
+    },
+    {
+      id: 'discover-not-multi-cart-en',
+      prompt: 'Two services under $100 total tomorrow',
+      surface: 'both',
       phase2: true,
+      expectedAction: 'list_services',
+      expectedParams: { maxTotalPrice: 100, serviceCount: 2 },
     },
     {
       id: 'budget-with-promo-en',
       prompt: 'Haircut under $50 with code SAVE10',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', maxPrice: 50 },
-      phase2: true,
+      expectedParams: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+        promoCode: 'SAVE10',
+      },
     },
     {
       id: 'budget-subscription-en',
@@ -283,7 +398,6 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       surface: 'customer',
       expectedAction: 'discover_subscription_plans',
       skipMaxPrice: true,
-      phase2: true,
     },
     // H — Voice / mobile phrasing
     {
@@ -327,8 +441,11 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       prompt: 'Haircut between $40 and $60',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', maxPrice: 60 },
-      phase2: true,
+      expectedParams: {
+        serviceCategory: 'haircut',
+        minPrice: 40,
+        maxPrice: 60,
+      },
     },
     {
       id: 'budget-round-number-en',
@@ -394,22 +511,28 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
       expectedAction: 'list_services',
       expectedParams: { employeeName: 'Karo', maxPrice: 30 },
     },
-    // L — Duration + budget (phase 2 hook)
+    // L — Duration + budget
     {
       id: 'budget-short-service-en',
       prompt: 'Quick haircut under $40',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', maxPrice: 40 },
-      phase2: true,
+      expectedParams: {
+        serviceCategory: 'haircut',
+        maxPrice: 40,
+        preferShortDuration: true,
+      },
     },
     {
       id: 'budget-long-massage-en',
       prompt: '90-minute massage under $100',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'massage', maxPrice: 100 },
-      phase2: true,
+      expectedParams: {
+        serviceCategory: 'massage',
+        maxPrice: 100,
+        minDurationMinutes: 90,
+      },
     },
   ];
 
@@ -453,6 +576,102 @@ export const BUDGET_HANDLER_OUTCOME_SCENARIOS: BudgetHandlerOutcomeScenario[] = 
     maxPrice: 50,
     expectedIds: [],
     expectNoMatchHint: true,
+  },
+  {
+    id: 'budget-named-service-en',
+    services: [
+      { id: 'sw85', name: 'Swedish massage', price: 85 },
+      { id: 'sw95', name: 'Swedish massage (90 min)', price: 95 },
+      { id: 'dt70', name: 'Deep tissue massage', price: 70 },
+    ],
+    maxPrice: 90,
+    serviceName: 'Swedish massage',
+    expectedIds: ['sw85'],
+    expectedNavigateServiceId: 'sw85',
+  },
+  {
+    id: 'budget-any-provider-en',
+    services: [
+      { id: 'h35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'h45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
+      { id: 'h55', name: 'Haircut premium', price: 55, serviceCategory: 'haircut' },
+      { id: 'm40', name: 'Express massage', price: 40, serviceCategory: 'massage' },
+    ],
+    maxPrice: 45,
+    expectedIds: ['h35', 'm40', 'h45'],
+  },
+  {
+    id: 'budget-provider-no-match-en',
+    services: [
+      { id: 'k35', name: 'Karo cut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'k45', name: 'Karo cut standard', price: 45, serviceCategory: 'haircut' },
+    ],
+    maxPrice: 30,
+    employeeName: 'Karo',
+    expectedIds: [],
+    expectNoMatchHint: true,
+  },
+  {
+    id: 'budget-short-service-en',
+    services: [
+      { id: 'h20', name: 'Quick cut', price: 35, durationMinutes: 20, serviceCategory: 'haircut' },
+      { id: 'h30', name: 'Haircut standard', price: 38, durationMinutes: 30, serviceCategory: 'haircut' },
+      { id: 'h45', name: 'Haircut premium', price: 40, durationMinutes: 45, serviceCategory: 'haircut' },
+      { id: 'h55', name: 'Haircut deluxe', price: 55, durationMinutes: 60, serviceCategory: 'haircut' },
+    ],
+    maxPrice: 40,
+    serviceCategory: 'haircut',
+    preferShortDuration: true,
+    expectedIds: ['h20', 'h30', 'h45'],
+  },
+  {
+    id: 'budget-long-massage-en',
+    services: [
+      { id: 'm90-95', name: 'Deep massage 90m', price: 95, durationMinutes: 90, serviceCategory: 'massage' },
+      { id: 'm60-70', name: 'Relax massage 60m', price: 70, durationMinutes: 60, serviceCategory: 'massage' },
+      { id: 'm90-110', name: 'Luxury massage 90m', price: 110, durationMinutes: 90, serviceCategory: 'massage' },
+    ],
+    maxPrice: 100,
+    minDurationMinutes: 90,
+    serviceCategory: 'massage',
+    expectedIds: ['m90-95'],
+    expectedNavigateServiceId: 'm90-95',
+  },
+  {
+    id: 'budget-long-massage-no-match-en',
+    services: [
+      { id: 'm90-105', name: 'Deep massage 90m', price: 105, durationMinutes: 90, serviceCategory: 'massage' },
+      { id: 'm90-120', name: 'Luxury massage 90m', price: 120, durationMinutes: 90, serviceCategory: 'massage' },
+    ],
+    maxPrice: 100,
+    minDurationMinutes: 90,
+    serviceCategory: 'massage',
+    expectedIds: [],
+    expectNoMatchHint: true,
+  },
+  {
+    id: 'budget-range-en',
+    services: [
+      { id: 'h35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'h45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
+      { id: 'h55', name: 'Haircut premium', price: 55, serviceCategory: 'haircut' },
+      { id: 'h65', name: 'Haircut deluxe', price: 65, serviceCategory: 'haircut' },
+    ],
+    minPrice: 40,
+    maxPrice: 60,
+    serviceCategory: 'haircut',
+    expectedIds: ['h45', 'h55'],
+  },
+  {
+    id: 'budget-cart-total-en',
+    services: [
+      { id: 'h1', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'f1', name: 'Express facial', price: 45, serviceCategory: 'facial' },
+      { id: 'm1', name: 'Deep massage', price: 70, serviceCategory: 'massage' },
+    ],
+    maxTotalPrice: 100,
+    serviceCount: 2,
+    expectedComboIds: [['h1', 'f1']],
   },
   {
     id: 'budget-single-match-navigate',
@@ -547,6 +766,144 @@ export const BUDGET_MAX_PRICE_EXTRACTION_SCENARIOS: BudgetMaxPriceExtractionScen
       maxPrice: null,
       skipMaxPrice: true,
     },
+    {
+      id: 'budget-not-currency-explain-en',
+      prompt: 'Why is premium $120 in dram?',
+      maxPrice: null,
+      skipMaxPrice: true,
+    },
+    {
+      id: 'discover-hy-budget-or-en',
+      prompt:
+        'Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ, 5000 դրամ ունեմ',
+      maxPrice: 5000,
+    },
+    {
+      id: 'discover-ru-premium-en',
+      prompt: 'Люксовый массаж до 8000 рублей завтра вечером',
+      maxPrice: 8000,
+    },
+    {
+      id: 'discover-hy-cheapest-en',
+      prompt: 'Ամենաէժան մանիկյուր $30-ից ցածր',
+      maxPrice: 30,
+    },
+    {
+      id: 'budget-cart-total-en',
+      prompt: 'Two services under $100 total',
+      maxPrice: null,
+      skipMaxPrice: true,
+    },
+    {
+      id: 'budget-subscription-en',
+      prompt: 'Can my plan cover a $80 massage?',
+      maxPrice: null,
+      skipMaxPrice: true,
+    },
+  ];
+
+export const BUDGET_CART_TOTAL_EXTRACTION_SCENARIOS: BudgetCartTotalExtractionScenario[] =
+  [
+    {
+      id: 'budget-cart-total-en',
+      prompt: 'Two services under $100 total',
+      maxTotalPrice: 100,
+      serviceCount: 2,
+    },
+    {
+      id: 'discover-not-multi-cart-en',
+      prompt: 'Two services under $100 total tomorrow',
+      maxTotalPrice: 100,
+      serviceCount: 2,
+    },
+  ];
+
+export const BUDGET_PROMO_EXTRACTION_SCENARIOS: BudgetPromoExtractionScenario[] =
+  [
+    {
+      id: 'budget-with-promo-en',
+      prompt: 'Haircut under $50 with code SAVE10',
+      maxPrice: 50,
+      promoCode: 'SAVE10',
+    },
+  ];
+
+export const BUDGET_RANGE_EXTRACTION_SCENARIOS: BudgetRangeExtractionScenario[] =
+  [
+    {
+      id: 'budget-range-en',
+      prompt: 'Haircut between $40 and $60',
+      minPrice: 40,
+      maxPrice: 60,
+    },
+  ];
+
+export const BUDGET_VOICE_ASR_EXTRACTION_SCENARIOS: BudgetVoiceAsrExtractionScenario[] =
+  [
+    {
+      id: 'budget-voice-asr-en',
+      prompt: 'I have 50 dollars for her cut',
+      maxPrice: 50,
+      serviceCategory: 'haircut',
+    },
+  ];
+
+export const BUDGET_NAMED_SERVICE_EXTRACTION_SCENARIOS: BudgetNamedServiceExtractionScenario[] =
+  [
+    {
+      id: 'budget-named-service-en',
+      prompt: 'Is Swedish massage under $90?',
+      maxPrice: 90,
+      serviceName: 'Swedish massage',
+    },
+  ];
+
+export const BUDGET_ANY_PROVIDER_EXTRACTION_SCENARIOS: BudgetAnyProviderExtractionScenario[] =
+  [
+    {
+      id: 'budget-any-provider-en',
+      prompt: 'Any stylist for a cut under $45?',
+      maxPrice: 45,
+      allProviders: true,
+    },
+  ];
+
+export const BUDGET_PROVIDER_EMPLOYEE_EXTRACTION_SCENARIOS: BudgetProviderEmployeeExtractionScenario[] =
+  [
+    {
+      id: 'budget-provider-karo-en',
+      prompt: 'Does Karo have anything under $40?',
+      maxPrice: 40,
+      employeeName: 'Karo',
+    },
+    {
+      id: 'budget-provider-no-match-en',
+      prompt: 'Karo — anything under $30?',
+      maxPrice: 30,
+      employeeName: 'Karo',
+    },
+  ];
+
+export const BUDGET_SHORT_DURATION_EXTRACTION_SCENARIOS: BudgetShortDurationExtractionScenario[] =
+  [
+    {
+      id: 'budget-short-service-en',
+      prompt: 'Quick haircut under $40',
+      maxPrice: 40,
+      serviceCategory: 'haircut',
+      preferShortDuration: true,
+    },
+  ];
+
+export const BUDGET_LONG_DURATION_EXTRACTION_SCENARIOS: BudgetLongDurationExtractionScenario[] =
+  [
+    {
+      id: 'budget-long-massage-en',
+      prompt: '90-minute massage under $100',
+      maxPrice: 100,
+      serviceCategory: 'massage',
+      minDurationMinutes: 90,
+    },
   ];
 
 /** Multi-turn session flows (section I). */
@@ -595,6 +952,37 @@ export const BUDGET_SESSION_SCENARIOS: BudgetSessionScenario[] = [
       {
         prompt: 'actually nails',
         expectedParams: { serviceCategory: 'nails', maxPrice: 50 },
+      },
+    ],
+  },
+  {
+    id: 'budget-session-stale-budget-en',
+    surface: 'both',
+    turns: [
+      {
+        prompt: 'Haircut under $50',
+        expectedParams: { serviceCategory: 'haircut', maxPrice: 50 },
+      },
+      {
+        prompt: 'actually I have $30',
+        expectedParams: { maxPrice: 30 },
+      },
+    ],
+  },
+  {
+    id: 'budget-session-list-then-pick-en',
+    surface: 'both',
+    turns: [
+      {
+        prompt: "Show options under $40 then I'll pick",
+        expectedParams: { maxPrice: 40 },
+      },
+      {
+        prompt: 'Haircut basic tomorrow — who is free?',
+        expectedParams: {
+          maxPrice: 40,
+          serviceName: 'Haircut basic',
+        },
       },
     ],
   },

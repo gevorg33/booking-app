@@ -210,6 +210,19 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
     expectedIds: ['basic'],
   },
   {
+    id: 'pick-missing-price-excluded',
+    catalog: [
+      { id: 'quote-only', name: 'Custom quote', price: null, serviceCategory: 'color' },
+      { id: 'priced-color', name: 'Color basic', price: 80, serviceCategory: 'color' },
+    ],
+    options: {
+      serviceCategory: 'color',
+      serviceRank: 'highest_price',
+      limit: 1,
+    },
+    expectedIds: ['priced-color'],
+  },
+  {
     id: 'pick-highest-top-three',
     catalog: [
       { id: 'a', name: 'Style A', price: 40, serviceCategory: 'styling' },
@@ -355,6 +368,12 @@ export const DISCOVER_INTERSECTION_CATALOG: CatalogFixtureService[] = [
   { id: 'facial-120', name: 'Facial luxury', price: 120, serviceCategory: 'facial' },
 ];
 
+export const DISCOVER_SECTION_A_MASSAGE_CATALOG: CatalogFixtureService[] = [
+  { id: 'massage-55', name: 'Massage basic', price: 55, serviceCategory: 'massage' },
+  { id: 'massage-65', name: 'Massage standard', price: 65, serviceCategory: 'massage' },
+  { id: 'massage-95', name: 'Massage premium', price: 95, serviceCategory: 'massage' },
+];
+
 export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
   id: string;
   params: Record<string, unknown>;
@@ -362,9 +381,11 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
     maxPrice: number | null;
     serviceRank: 'highest_price' | 'lowest_price' | 'most_popular' | null;
     serviceCategory: string | null;
+    serviceTier: 'standard' | 'premium' | null;
     limit: number | null;
     hasBudget: boolean;
     hasRank: boolean;
+    hasTier: boolean;
   };
 }> = [
   {
@@ -374,9 +395,11 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
       maxPrice: 50,
       serviceRank: null,
       serviceCategory: 'haircut',
+      serviceTier: null,
       limit: null,
       hasBudget: true,
       hasRank: false,
+      hasTier: false,
     },
   },
   {
@@ -386,9 +409,25 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
       maxPrice: null,
       serviceRank: 'highest_price',
       serviceCategory: 'facial',
+      serviceTier: null,
       limit: null,
       hasBudget: false,
       hasRank: true,
+      hasTier: false,
+    },
+  },
+  {
+    id: 'discover-tier-filter-only',
+    params: { serviceTier: 'premium', serviceCategory: 'color' },
+    expected: {
+      maxPrice: null,
+      serviceRank: null,
+      serviceCategory: 'color',
+      serviceTier: 'premium',
+      limit: null,
+      hasBudget: false,
+      hasRank: false,
+      hasTier: true,
     },
   },
   {
@@ -403,9 +442,11 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
       maxPrice: 50,
       serviceRank: 'lowest_price',
       serviceCategory: 'haircut',
+      serviceTier: null,
       limit: 1,
       hasBudget: true,
       hasRank: true,
+      hasTier: false,
     },
   },
   {
@@ -415,9 +456,11 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
       maxPrice: null,
       serviceRank: 'lowest_price',
       serviceCategory: null,
+      serviceTier: null,
       limit: null,
       hasBudget: false,
       hasRank: true,
+      hasTier: false,
     },
   },
   {
@@ -427,9 +470,11 @@ export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
       maxPrice: 80,
       serviceRank: null,
       serviceCategory: null,
+      serviceTier: null,
       limit: null,
       hasBudget: true,
       hasRank: false,
+      hasTier: false,
     },
   },
 ];
@@ -465,12 +510,12 @@ export const APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS: Array<{
   },
   {
     id: 'discover-value-or-premium-en',
-    catalog: DISCOVER_INTERSECTION_CATALOG,
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
     params: {
       maxPrice: 80,
-      serviceCategory: 'haircut',
+      serviceCategory: 'massage',
     },
-    expectedIds: ['hair-35', 'hair-45', 'hair-75'],
+    expectedIds: ['massage-55', 'massage-65'],
   },
   {
     id: 'discover-no-premium-in-budget-en',
@@ -492,6 +537,198 @@ export const APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS: Array<{
       limit: 1,
     },
     expectedIds: ['facial-120'],
+  },
+  {
+    id: 'discover-premium-tomorrow-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG,
+    params: {
+      serviceRank: 'highest_price',
+      serviceCategory: 'facial',
+      limit: 1,
+    },
+    expectedIds: ['facial-120'],
+  },
+  {
+    id: 'discover-budget-asap-en',
+    catalog: [
+      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
+      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
+      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
+    ],
+    params: { maxPrice: 40, limit: 1 },
+    expectedIds: ['manicure-25'],
+  },
+  {
+    id: 'discover-budget-weekend-en',
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
+    params: { maxPrice: 70, serviceCategory: 'massage' },
+    expectedIds: ['massage-55', 'massage-65'],
+  },
+  {
+    id: 'discover-flagship-book-en',
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
+    params: {
+      maxPrice: 80,
+      serviceRank: 'lowest_price',
+      serviceCategory: 'massage',
+      limit: 1,
+    },
+    expectedIds: ['massage-55'],
+  },
+  {
+    id: 'discover-flagship-premium-en',
+    catalog: [
+      {
+        id: 'style-120',
+        name: 'Styling premium',
+        price: 120,
+        serviceCategory: 'styling',
+      },
+      {
+        id: 'style-140',
+        name: 'Styling luxury',
+        price: 140,
+        serviceCategory: 'styling',
+      },
+    ],
+    params: {
+      maxPrice: 150,
+      serviceRank: 'highest_price',
+      serviceCategory: 'styling',
+      limit: 1,
+    },
+    expectedIds: ['style-140'],
+  },
+  {
+    id: 'discover-cheapest-friday-en',
+    catalog: [
+      {
+        id: 'manicure-25',
+        name: 'Manicure basic',
+        price: 25,
+        serviceCategory: 'manicure',
+      },
+      {
+        id: 'manicure-40',
+        name: 'Manicure deluxe',
+        price: 40,
+        serviceCategory: 'manicure',
+      },
+    ],
+    params: {
+      serviceRank: 'lowest_price',
+      serviceCategory: 'manicure',
+      limit: 1,
+    },
+    expectedIds: ['manicure-25'],
+  },
+  {
+    id: 'discover-flagship-question-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter(
+      (service) => service.serviceCategory === 'facial',
+    ),
+    params: { maxPrice: 100, serviceCategory: 'facial' },
+    expectedIds: ['facial-55', 'facial-95'],
+  },
+  {
+    id: 'discover-provider-budget-or-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter(
+      (service) => service.serviceCategory === 'haircut',
+    ),
+    params: { maxPrice: 50, serviceCategory: 'haircut' },
+    expectedIds: ['hair-35', 'hair-45'],
+  },
+  {
+    id: 'discover-best-provider-budget-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter(
+      (service) => service.serviceCategory === 'haircut',
+    ),
+    params: { maxPrice: 60, serviceCategory: 'haircut' },
+    expectedIds: ['hair-35', 'hair-45'],
+  },
+  {
+    id: 'discover-journey-budget-list-book-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter((service) =>
+      (service.serviceCategory ?? '').includes('hair'),
+    ),
+    params: { maxPrice: 50, serviceCategory: 'hair' },
+    expectedIds: ['hair-35', 'hair-45'],
+  },
+  {
+    id: 'discover-journey-premium-en-t1',
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
+    params: {
+      serviceRank: 'highest_price',
+      serviceCategory: 'massage',
+      limit: 3,
+    },
+    expectedIds: ['massage-95', 'massage-65', 'massage-55'],
+  },
+  {
+    id: 'discover-journey-premium-en-t2',
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
+    params: {
+      serviceRank: 'highest_price',
+      serviceCategory: 'massage',
+      maxPrice: 90,
+      limit: 1,
+    },
+    expectedIds: ['massage-65'],
+  },
+  {
+    id: 'discover-journey-clarify-en',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter(
+      (service) => service.serviceCategory === 'haircut',
+    ),
+    params: { maxPrice: 50, serviceCategory: 'haircut' },
+    expectedIds: ['hair-35', 'hair-45'],
+  },
+  {
+    id: 'discover-parity-budget-public',
+    catalog: DISCOVER_INTERSECTION_CATALOG.filter(
+      (service) => service.serviceCategory === 'facial',
+    ),
+    params: { maxPrice: 50, serviceCategory: 'facial' },
+    expectedIds: [],
+  },
+  {
+    id: 'discover-not-admin-en',
+    catalog: [
+      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
+      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
+      { id: 'hair-75', name: 'Haircut premium', price: 75, serviceCategory: 'haircut' },
+      { id: 'facial-55', name: 'Facial standard', price: 55, serviceCategory: 'facial' },
+      { id: 'massage-55', name: 'Massage basic', price: 55, serviceCategory: 'massage' },
+      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
+      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
+    ],
+    params: { maxPrice: 50 },
+    expectedIds: ['manicure-25', 'hair-35', 'manicure-40', 'hair-45'],
+  },
+  {
+    id: 'discover-ru-premium-en',
+    catalog: DISCOVER_SECTION_A_MASSAGE_CATALOG,
+    params: {
+      maxPrice: 8000,
+      serviceRank: 'highest_price',
+      serviceCategory: 'massage',
+      limit: 1,
+    },
+    expectedIds: ['massage-95'],
+  },
+  {
+    id: 'discover-hy-cheapest-en',
+    catalog: [
+      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
+      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
+    ],
+    params: {
+      maxPrice: 30,
+      serviceRank: 'lowest_price',
+      serviceCategory: 'manicure',
+    },
+    expectedIds: ['manicure-25'],
   },
 ];
 
@@ -537,10 +774,12 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       expectedAfterServiceDiscovery: {
         maxPrice: 50,
         serviceRank: 'lowest_price',
+        serviceCategory: 'haircut',
       },
       expectedAfterPipeline: {
         maxPrice: 50,
         serviceRank: 'lowest_price',
+        serviceCategory: 'haircut',
       },
     },
     {
@@ -550,28 +789,123 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       expectedAfterServiceDiscovery: {
         maxPrice: 120,
         serviceRank: 'highest_price',
+        serviceCategory: 'facial',
       },
       expectedAfterPipeline: {
         maxPrice: 120,
         serviceRank: 'highest_price',
+        serviceCategory: 'facial',
       },
     },
     {
       id: 'discover-flagship-book-en',
-      prompt: 'Cheapest massage tomorrow or Thursday evening, under $80',
-      params: { serviceCategory: 'massage' },
+      prompt:
+        'Book cheapest massage tomorrow or Thursday evening under $80, whichever is sooner',
+      params: {
+        serviceCategory: 'massage',
+        bookingFirstAvailable: true,
+      },
       expectedAfterServiceDiscovery: {
         serviceCategory: 'massage',
+        bookingFirstAvailable: true,
         maxPrice: 80,
         serviceRank: 'lowest_price',
       },
       expectedAfterPipeline: {
         serviceCategory: 'massage',
+        bookingFirstAvailable: true,
         maxPrice: 80,
         serviceRank: 'lowest_price',
         availabilityWindows: [
           { date: 'tomorrow' },
           { weekdays: ['thursday'], timeOfDay: 'evening' },
+        ],
+      },
+    },
+    {
+      id: 'discover-flagship-premium-en',
+      prompt:
+        'Best premium styling tomorrow or Saturday under $150, whichever is sooner',
+      params: {
+        serviceCategory: 'styling',
+        bookingFirstAvailable: true,
+      },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'styling',
+        bookingFirstAvailable: true,
+        maxPrice: 150,
+        serviceRank: 'highest_price',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'styling',
+        bookingFirstAvailable: true,
+        maxPrice: 150,
+        serviceRank: 'highest_price',
+        availabilityWindows: [
+          { date: 'tomorrow' },
+          { weekdays: ['saturday'] },
+        ],
+      },
+    },
+    {
+      id: 'discover-flagship-question-en',
+      prompt: 'Can I afford a deluxe facial tomorrow or Sunday under $100?',
+      params: { serviceCategory: 'facial' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'facial',
+        maxPrice: 100,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'facial',
+        maxPrice: 100,
+        availabilityWindows: [
+          { date: 'tomorrow' },
+          { weekdays: ['sunday'] },
+        ],
+      },
+    },
+    {
+      id: 'discover-best-provider-budget-en',
+      prompt: 'Best rated stylist for a cut under $60 this week',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        maxPrice: 60,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        maxPrice: 60,
+      },
+    },
+    {
+      id: 'discover-provider-budget-or-en',
+      prompt: 'Karo or anyone — haircut under $50 tomorrow eve or Fri PM',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+        availabilityWindows: [
+          { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
+    },
+    {
+      id: 'discover-parity-or-public',
+      prompt: 'Massage tomorrow AM or Sat PM',
+      params: { serviceCategory: 'massage' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'massage',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'massage',
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'morning' },
+          { weekdays: ['saturday'], timeOfDay: 'afternoon' },
         ],
       },
     },
@@ -584,6 +918,246 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       },
       expectedAfterPipeline: {
         serviceCategory: 'haircut',
+      },
+    },
+    {
+      id: 'discover-not-gift-en',
+      prompt: '$50 gift card, premium cut tomorrow',
+      params: {
+        serviceCategory: 'haircut',
+        date: 'tomorrow',
+        maxPrice: 50,
+      },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        date: 'tomorrow',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        date: 'tomorrow',
+      },
+    },
+    {
+      id: 'discover-parity-voice-customer',
+      prompt: 'Haircut fifty bucks tomorrow or Friday',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        maxPrice: 50,
+        availabilityWindows: [
+          { date: 'tomorrow' },
+          { weekdays: ['friday'] },
+        ],
+      },
+    },
+    {
+      id: 'discover-not-admin-en',
+      prompt: 'services under $50',
+      params: {},
+      expectedAfterServiceDiscovery: {
+        maxPrice: 50,
+      },
+      expectedAfterPipeline: {
+        maxPrice: 50,
+      },
+    },
+    {
+      id: 'discover-not-multi-cart-en',
+      prompt: 'Two services under $100 total tomorrow',
+      params: {},
+      expectedAfterServiceDiscovery: {
+        maxTotalPrice: 100,
+        serviceCount: 2,
+      },
+      expectedAfterPipeline: {
+        maxTotalPrice: 100,
+        serviceCount: 2,
+        date: 'tomorrow',
+      },
+    },
+    {
+      id: 'discover-not-currency-explain-en',
+      prompt: 'Why is premium $120 in dram?',
+      params: {
+        serviceCategory: 'haircut',
+        maxPrice: 120,
+        serviceRank: 'highest_price',
+      },
+      expectedAfterServiceDiscovery: {},
+      expectedAfterPipeline: {},
+    },
+    {
+      id: 'discover-hy-budget-or-en',
+      prompt:
+        'Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ, 5000 դրամ ունեմ',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        maxPrice: 5000,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        maxPrice: 5000,
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'] },
+        ],
+      },
+    },
+    {
+      id: 'discover-ru-premium-en',
+      prompt: 'Люксовый массаж до 8000 рублей завтра вечером',
+      params: { serviceCategory: 'massage' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+        maxPrice: 8000,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+        maxPrice: 8000,
+        date: 'tomorrow',
+        timeOfDay: 'evening',
+      },
+    },
+    {
+      id: 'discover-hy-cheapest-en',
+      prompt: 'Ամենաէժան մանիկյուր $30-ից ցածր',
+      params: {},
+      expectedAfterServiceDiscovery: {
+        serviceRank: 'lowest_price',
+        maxPrice: 30,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'manicure',
+        serviceName: null,
+        serviceRank: 'lowest_price',
+        maxPrice: 30,
+      },
+    },
+    {
+      id: 'discover-ru-or-book-en',
+      prompt: 'Стрижка завтра вечером или в субботу — забронируй',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['saturday'] },
+        ],
+      },
+    },
+    {
+      id: 'discover-value-or-premium-en',
+      prompt: 'Affordable or premium massage — what fits $80?',
+      params: { serviceCategory: 'massage' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'massage',
+        maxPrice: 80,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'massage',
+        maxPrice: 80,
+      },
+    },
+    {
+      id: 'discover-no-premium-in-budget-en',
+      prompt: 'Premium haircut under $30 (none exist)',
+      params: { serviceCategory: 'haircut' },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'haircut',
+        maxPrice: 30,
+        serviceRank: 'highest_price',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'haircut',
+        maxPrice: 30,
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'discover-premium-tomorrow-en',
+      prompt: 'Book your most premium facial tomorrow nearest slot',
+      params: {
+        serviceCategory: 'facial',
+        date: 'tomorrow',
+        bookingFirstAvailable: true,
+      },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'facial',
+        date: 'tomorrow',
+        bookingFirstAvailable: true,
+        serviceRank: 'highest_price',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'facial',
+        date: 'tomorrow',
+        bookingFirstAvailable: true,
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'discover-budget-asap-en',
+      prompt: 'Anything under $40 ASAP',
+      params: { bookingFirstAvailable: true },
+      expectedAfterServiceDiscovery: {
+        bookingFirstAvailable: true,
+        maxPrice: 40,
+      },
+      expectedAfterPipeline: {
+        bookingFirstAvailable: true,
+        maxPrice: 40,
+        date: 'tomorrow',
+      },
+    },
+    {
+      id: 'discover-budget-weekend-en',
+      prompt: 'Massage under $70 this Saturday afternoon',
+      params: {
+        serviceCategory: 'massage',
+        weekdays: ['saturday'],
+        timeOfDay: 'afternoon',
+      },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'massage',
+        weekdays: ['saturday'],
+        timeOfDay: 'afternoon',
+        maxPrice: 70,
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'massage',
+        maxPrice: 70,
+        timeOfDay: 'afternoon',
+        weekdays: ['saturday'],
+      },
+    },
+    {
+      id: 'discover-cheapest-friday-en',
+      prompt: 'Cheapest manicure Friday afternoon if available',
+      params: {
+        serviceCategory: 'manicure',
+        weekdays: ['friday'],
+        timeOfDay: 'afternoon',
+      },
+      expectedAfterServiceDiscovery: {
+        serviceCategory: 'manicure',
+        weekdays: ['friday'],
+        timeOfDay: 'afternoon',
+        serviceRank: 'lowest_price',
+      },
+      expectedAfterPipeline: {
+        serviceCategory: 'manicure',
+        serviceRank: 'lowest_price',
+        timeOfDay: 'afternoon',
+        weekdays: ['friday'],
       },
     },
   ];

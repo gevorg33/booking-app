@@ -283,8 +283,11 @@ describe('Sprint 24 AI booking & business ops', () => {
     const service = new AiOperationsService(
       bookingRepo as any,
       businessRepo as any,
+      { find: jest.fn() } as any,
       orchestration as any,
       planBuilder,
+      { findByBusiness: jest.fn() } as any,
+      { createInvitation: jest.fn() } as any,
     );
 
     it('prepares and executes booking ops plans', async () => {

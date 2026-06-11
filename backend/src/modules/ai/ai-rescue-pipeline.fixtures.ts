@@ -7,6 +7,11 @@ import {
   ALL_MULTI_SERVICE_CHECKOUT_PROMPTS,
   ALL_PACKAGE_CHECKOUT_PROMPTS,
 } from './ai-package-multi-service.fixtures.js';
+import { BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS } from './ai-budget-discover-and-book-compound.fixtures.js';
+import { RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS } from './ai-rank-discover-and-book-compound.fixtures.js';
+import { PROVIDER_ONBOARDING_COMPOUND_PROMPTS } from './ai-provider-onboarding-compound.fixtures.js';
+import { CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS } from './ai-clinic-lab-day-close-compound.fixtures.js';
+import { FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS } from './ai-flexible-availability.fixtures.js';
 
 /** Post-LLM rescue scenarios for compound checkout families (ai-cmd-h4.2). */
 export const COMPOUND_RESCUE_SCENARIOS = [
@@ -102,6 +107,20 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     'Book lipid panel and notify me when results are ready',
   public_clinic_book_explain_results:
     'Book lipid panel and tell me when results are ready on this page',
+  public_flexible_avail_list_budget_then_or:
+    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
+      (row) => row.id === 'avail-list-budget-then-or-en',
+    )!.prompt,
+  customer_flexible_avail_list_budget_then_or:
+    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
+      (row) => row.id === 'avail-list-budget-then-or-en',
+    )!.prompt,
+  dashboard_budget_discover_and_book:
+    BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
+  dashboard_rank_discover_and_book:
+    RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
+  dashboard_onboard_new_provider: PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
+  dashboard_clinic_lab_day_close: CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
 };
 
 /** Enrichment scenarios: compound prompts that must set bookingFirstAvailable hints. */

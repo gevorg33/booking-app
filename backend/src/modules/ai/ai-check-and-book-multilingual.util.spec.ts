@@ -52,6 +52,12 @@ describe('ai-check-and-book-multilingual.util', () => {
       expect(isBookNearestSlotPrompt(prompt)).toBe(true);
       expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
     });
+
+    it('detects ru OR + book verb as first-available (discover-ru-or-book-en)', () => {
+      const prompt = 'Стрижка завтра вечером или в субботу — забронируй';
+      expect(isMultilingualFirstAvailableBookingPrompt(prompt)).toBe(true);
+      expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
+    });
   });
 
   describe('time and date parsing', () => {

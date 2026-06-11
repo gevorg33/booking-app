@@ -195,10 +195,12 @@ export function matchProviderDateFormatScenario(
     ),
   ]) {
     if ('prompt' in scenario && scenario.prompt === prompt) {
+      const expectedAction =
+        'expectedAction' in scenario ? scenario.expectedAction : undefined;
       const action =
-        scenario.expectedAction === 'explain_provider_date_display' ||
-        scenario.expectedAction === 'configure_provider_push_date_format'
-          ? scenario.expectedAction
+        expectedAction === 'explain_provider_date_display' ||
+        expectedAction === 'configure_provider_push_date_format'
+          ? expectedAction
           : null;
       if (!action) continue;
       return {

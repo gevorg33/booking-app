@@ -55,7 +55,7 @@ function mergePublicCompoundContext(
     success: result.success,
     action: result.action,
     summary: result.summary,
-    details: result.details,
+    details: result.details ?? {},
   });
 }
 
@@ -85,7 +85,7 @@ export async function executePublicAssistantCompoundFromSteps(
     const result = await handlers.runStep(
       step.action,
       stepParams,
-      step.segment,
+      step.segment ?? prompt,
     );
     results.push(result);
     if (!result.success) {

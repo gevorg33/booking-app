@@ -13,7 +13,7 @@ export type ProviderEarningsLocaleParityGap = {
 };
 
 export function listProviderEarningsLocaleParityGaps(): ProviderEarningsLocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     PROVIDER_EARNINGS_PROMPT_SCENARIOS.map((row) => row.id),
   );
   const byEnId = new Map<

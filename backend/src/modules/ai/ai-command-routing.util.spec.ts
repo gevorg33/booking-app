@@ -246,14 +246,14 @@ describe('ai-command-routing.util', () => {
       expect(classify).not.toHaveBeenCalled();
     });
 
-    it('returns null when preclassified is null', async () => {
-      const classify = jest.fn();
+    it('retries classify when preclassified is null', async () => {
+      const classify = jest.fn(async () => classified);
       const parsed = await resolveParsedIntent({
         preclassified: null,
         classify,
       });
-      expect(parsed).toBeNull();
-      expect(classify).not.toHaveBeenCalled();
+      expect(parsed).toEqual(classified);
+      expect(classify).toHaveBeenCalledTimes(1);
     });
 
     it('calls classify when preclassified is undefined', async () => {

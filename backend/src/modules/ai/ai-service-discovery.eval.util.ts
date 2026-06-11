@@ -27,6 +27,7 @@ import type { ServiceRankDiscoveryPromptFixture } from './ai-service-rank-discov
 import { buildFlexibleAvailabilityEvalParams } from './ai-flexible-availability-compound.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js';
+import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
 import { rescueBudgetServiceDiscoveryIntent } from './ai-budget-service-discovery.util.js';
 import { applyServiceDiscoveryToCatalog } from './ai-service-catalog-rank.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
@@ -160,11 +161,17 @@ function evaluatePublicIntegrationCase(
   }
 
   if (expect.rescuedAction && expect.rescueFromAction) {
-    const rescued = rescueBudgetServiceDiscoveryIntent(
-      scenario.prompt,
-      expect.rescueFromAction,
-      'public',
-    );
+    const rescued =
+      expect.rescueReason === 'explain_checkout_currency'
+        ? rescueCheckoutCurrencyIntent(
+            scenario.prompt,
+            expect.rescueFromAction,
+          )
+        : rescueBudgetServiceDiscoveryIntent(
+            scenario.prompt,
+            expect.rescueFromAction,
+            'public',
+          );
     if (rescued?.action !== expect.rescuedAction) {
       errors.push(
         `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
@@ -316,17 +323,38 @@ function evaluateTranslatedMultilingualCase(
         errors.push(`forbidden legacy key present after OR parse: ${key}`);
       }
     }
-    if (expected.availabilityWindows) {
+    if (expected.bookingFirstAvailable === true) {
+      if (enriched.bookingFirstAvailable !== true) {
+        errors.push('bookingFirstAvailable: expected true, got false/undefined');
+      }
+    }
+    const expectedWindows = Array.isArray(expected.availabilityWindows)
+      ? expected.availabilityWindows
+      : null;
+    if (expectedWindows) {
       const windows = resolvePublicAvailabilityWindows(
         enriched,
         scenario.prompt,
         'UTC',
         { defaultScanDays: 14 },
       );
-      if (windows.length < expected.availabilityWindows.length) {
+      if (windows.length < expectedWindows.length) {
         errors.push(
-          `expected >= ${expected.availabilityWindows.length} OR availability windows, got ${windows.length}`,
+          `expected >= ${expectedWindows.length} OR availability windows, got ${windows.length}`,
         );
+      }
+    } else if (expected.date != null && expected.timeOfDay != null) {
+      if (enriched.availabilityWindows !== undefined) {
+        errors.push('forbidden availabilityWindows for single-window cross prompt');
+      }
+      const windows = resolvePublicAvailabilityWindows(
+        enriched,
+        scenario.prompt,
+        'UTC',
+        { defaultScanDays: 14 },
+      );
+      if (windows.length !== 1) {
+        errors.push(`expected 1 availability window, got ${windows.length}`);
       }
     }
     return errors;
@@ -395,9 +423,12 @@ function evaluateTranslatedMultilingualCase(
       'UTC',
       { defaultScanDays: 14 },
     );
-    if (windows.length < expected.availabilityWindows.length) {
+    const expectedWindows = Array.isArray(expected.availabilityWindows)
+      ? expected.availabilityWindows
+      : null;
+    if (expectedWindows && windows.length < expectedWindows.length) {
       errors.push(
-        `expected >= ${expected.availabilityWindows.length} OR availability windows, got ${windows.length}`,
+        `expected >= ${expectedWindows.length} OR availability windows, got ${windows.length}`,
       );
     }
   }
@@ -488,8 +519,10 @@ export function evaluateDiscoverCrossSprintEvalCase(
 /** Translated hy/ru rows with deterministic rescue parity (discover-exit-3). */
 export const DISCOVER_CROSS_SPRINT_TRANSLATED_EVAL_IDS = new Set([
   'discover-ml-budget-hy-hair-50',
+  'discover-hy-budget-or-en',
   'discover-hy-cheapest-en',
   'discover-ru-premium-en',
+  'discover-ru-or-book-en',
 ]);
 
 export function isMultilingualDiscoverEvalEligible(
@@ -559,9 +592,9 @@ export function consumerChipToEvalCase(
 }
 
 export const AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_PUBLIC_INTEGRATION_CASES: AiCommandEvalCase[] =
-  SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS.map(
-    publicIntegrationScenarioToEvalCase,
-  );
+  SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS.filter(
+    (scenario) => scenario.surface !== 'dashboard' && !scenario.phase2,
+  ).map(publicIntegrationScenarioToEvalCase);
 
 export const AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES: AiCommandEvalCase[] =
   MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS.filter(

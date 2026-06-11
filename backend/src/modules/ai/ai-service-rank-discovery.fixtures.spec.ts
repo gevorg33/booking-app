@@ -26,6 +26,9 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
     expect(SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES).toContain(
       'rolling 90-day booking count',
     );
+    expect(SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES).toContain(
+      "What's your premium spa package?",
+    );
   });
 
   it.each(SIMILAR_SERVICE_RANK_PROMPTS)(
@@ -67,6 +70,7 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
   it('ships section G disambiguation scenarios', () => {
     expect(RANK_DISAMBIGUATION_SCENARIOS.map((scenario) => scenario.id)).toEqual([
       'rank-specialist-stays-en',
+      'rank-best-for-me-en',
       'rank-not-analyze-appt-en',
       'rank-not-analyze-services-admin-en',
       'rank-not-package-en',
@@ -79,6 +83,7 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
       'rank-book-premium-en',
       'rank-premium-under-budget-en',
       'rank-cheapest-book-en',
+      'rank-list-then-book-en',
     ]);
     expect(
       RANK_HANDLER_OUTCOME_SCENARIOS.map((scenario) => scenario.id),
@@ -91,6 +96,7 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
         'rank-inactive-excluded',
         'rank-zero-price',
         'rank-missing-price',
+        'rank-empty-category',
       ]),
     );
   });
@@ -103,6 +109,12 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
       'rank-premium-hair-en',
       'rank-cheapest-hair-en',
       'rank-most-popular-en',
+      'rank-tier-metadata-en',
+      'rank-mid-range-en',
+      'rank-voice-premium-en',
+      'rank-voice-cheapest-en',
+      'rank-recommend-not-provider-en',
+      'rank-session-upgrade-t2-en',
     ]) {
       expect(extractionIds).toContain(id);
     }
@@ -150,20 +162,32 @@ describe('ai-service-rank-discovery.fixtures sections I–L (rank-1.12)', () => 
 
   it('has at least 35 unique ids across the rank domain', () => {
     expect(RANK_DOMAIN_FIXTURE_IDS.length).toBeGreaterThanOrEqual(35);
-    expect(RANK_DOMAIN_FIXTURE_IDS.length).toBe(61);
+    expect(RANK_DOMAIN_FIXTURE_IDS.length).toBe(64);
     expect(new Set(RANK_DOMAIN_FIXTURE_IDS).size).toBe(
       RANK_DOMAIN_FIXTURE_IDS.length,
     );
   });
 
-  it.each(RANK_SYNONYM_SCENARIOS.filter((scenario) => !scenario.phase2))(
-    'synonym scenario $id extracts serviceRank',
-    ({ prompt, expectedParams }) => {
-      expect(extractServiceRankFromPrompt(prompt)).toBe(
-        expectedParams!.serviceRank,
-      );
-    },
-  );
+  it.each(
+    RANK_SYNONYM_SCENARIOS.filter(
+      (scenario) => !scenario.phase2 && scenario.expectedParams?.serviceRank,
+    ),
+  )('synonym scenario $id extracts serviceRank', ({ prompt, expectedParams }) => {
+    expect(extractServiceRankFromPrompt(prompt)).toBe(
+      expectedParams!.serviceRank,
+    );
+  });
+
+  it('rank-mid-range-en synonym lists by category without serviceRank', () => {
+    const scenario = RANK_SYNONYM_SCENARIOS.find(
+      (entry) => entry.id === 'rank-mid-range-en',
+    )!;
+    expect(extractServiceRankFromPrompt(scenario.prompt)).toBeNull();
+    expect(scenario.expectedParams).toEqual({
+      serviceCategory: 'color',
+      limit: 3,
+    });
+  });
 
   it.each(
     RANK_MOBILE_SCENARIOS.filter(

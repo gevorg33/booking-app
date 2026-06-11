@@ -37,6 +37,24 @@ describe('ai-command-eval.runner', () => {
     expect(result.passed).toBe(true);
   });
 
+  it('checks explicit-year nearest-free reschedule prompt', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'from-time-2027',
+      prompt:
+        'Move Jujos appointment on June 10 2027 from 16-17 to june 11 2027 nearest free time',
+      expect: {
+        rescheduleFromTimeSlot: '16:00',
+        rescheduleTimeSlot: null,
+        paramsPartial: {
+          bookingFirstAvailable: true,
+          fromDate: '10/06/2027',
+          date: '11/06/2027',
+        },
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
   it('reports rescheduleTimeSlot mismatch when time not in prompt', () => {
     const result = evaluateDeterministicEvalCase({
       id: 'time-miss',

@@ -15,6 +15,7 @@ import { AccountingIntegrationService } from '../integrations/accounting/account
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
+import { attachPublicBookingNearestAcrossWindowsMock } from './ai-nearest-slot-resolver.util.js';
 
 describe('Sprint 30 payments AI scenarios', () => {
   const services = [
@@ -70,6 +71,7 @@ describe('Sprint 30 payments AI scenarios', () => {
       employeeName: 'Anna',
     })),
   };
+  attachPublicBookingNearestAcrossWindowsMock(publicBookingService);
   const accountingIntegrationService = {
     generateExport: jest.fn(async () => ({
       format: 'csv',

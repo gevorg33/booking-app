@@ -64,6 +64,7 @@ describe('public-booking-assistant-session.util (ai-cmd-customer-gap-4)', () => 
       }),
     ).toEqual({
       maxPrice: '50',
+      rankedServiceIds: null,
       serviceRank: 'highest_price',
       timeOfDay: 'evening',
       availabilityWindows: JSON.stringify([

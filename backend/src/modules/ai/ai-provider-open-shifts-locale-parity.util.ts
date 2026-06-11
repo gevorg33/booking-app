@@ -13,7 +13,7 @@ export type ProviderOpenShiftsLocaleParityGap = {
 };
 
 export function listProviderOpenShiftsLocaleParityGaps(): ProviderOpenShiftsLocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS.map((row) => row.id),
   );
   const byEnId = new Map<

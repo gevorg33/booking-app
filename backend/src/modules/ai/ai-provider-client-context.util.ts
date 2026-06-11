@@ -9,6 +9,8 @@ import { isCatalogMutateCommandPrompt } from './ai-catalog.util.js';
 import { isSubscriptionUsageHistoryPrompt } from './ai-customer-crm.util.js';
 import { PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS } from './ai-provider-client-context.fixtures.js';
 import { PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_SCENARIOS } from './ai-provider-client-context-multilingual.fixtures.js';
+import { isSummarizeLoyaltyProgramPrompt } from './ai-billing-loyalty-dashboard.util.js';
+import { isSummarizeAutomationPerformancePrompt } from './ai-marketing-growth.util.js';
 import { isSummarizeMyAppointmentsPrompt } from './ai-provider-earnings.util.js';
 
 export const PROVIDER_CLIENT_CONTEXT_INTENTS = [
@@ -33,8 +35,14 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
   if (isAddClientNotePrompt(prompt)) return false;
   if (isSummarizeMyAppointmentsPrompt(prompt)) return false;
   if (isCatalogMutateCommandPrompt(prompt)) return false;
+  if (isSummarizeLoyaltyProgramPrompt(prompt)) return false;
+  if (isSummarizeAutomationPerformancePrompt(prompt)) return false;
 
   const lower = prompt.toLowerCase();
+  if (/\b(bookings?|appointments?)\s+overview\b/i.test(lower)) {
+    return false;
+  }
+
   const summarizeCue =
     /\b(summarize|summary|overview|brief me|tell me about|what should i know|client snapshot|know about|brief on)\b/i.test(
       lower,

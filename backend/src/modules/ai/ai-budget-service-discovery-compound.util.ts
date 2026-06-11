@@ -49,7 +49,10 @@ export function buildBudgetCompoundSharedParams(
     bookingFirstAvailable: true,
   };
   enrichBookingTimeHintsFromPrompt(bookAction, shared, prompt);
-  const enriched = enrichListServicesParamsFromPrompt(prompt, shared);
+  const enriched = enrichListServicesParamsFromPrompt(
+    prompt,
+    shared as Parameters<typeof enrichListServicesParamsFromPrompt>[1],
+  );
   if (!enriched.serviceCategory && !enriched.serviceName) {
     const bookMatch = prompt.match(
       /\bbook(?:\s+a|\s+an|\s+the)?\s+([a-z][\w\s-]{2,30}?)(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i,

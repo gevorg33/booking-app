@@ -253,6 +253,58 @@ function availabilityHeaderKey(
     : 'assistant.availabilityHeader';
 }
 
+/** Grouped OR summary when every window is empty (avail-neither-window-en). */
+export function shouldUseGroupedAvailabilityNoSlotsSummary(
+  groupByWindow: boolean,
+  windowReports: readonly PublicAvailabilityWindowReport[],
+): boolean {
+  return groupByWindow && windowReports.length >= 2;
+}
+
+export function composePublicAvailabilityGroupedEmptyWindowsSummary(input: {
+  serviceLabel: string;
+  locale: AppLocale;
+  timeZone: string;
+  singleProvider: boolean;
+  windowReports: PublicAvailabilityWindowReport[];
+  maxPrice?: unknown;
+  overlapClarifyNote?: string | null;
+}): string {
+  return composePublicAvailabilityCheckSummary({
+    ...input,
+    groupByWindow: true,
+    flatDayReports: [],
+    totalDayCount: 0,
+  });
+}
+
+export function formatAvailabilityNearestAlternativeNote(input: {
+  locale: AppLocale;
+  timeZone: string;
+  employeeName: string;
+  dateKey: string;
+  startTime: string;
+}): string {
+  const weekday = formatWeekdayShortByDayIndex(
+    dayjs.tz(`${input.dateKey}T12:00:00`, input.timeZone).day(),
+    input.locale,
+  );
+  return t(input.locale, 'assistant.availabilityNearestAlternative', {
+    weekday,
+    date: formatDateDisplay(input.dateKey, input.locale),
+    time: formatTimeDisplay(input.startTime),
+    provider: input.employeeName,
+  });
+}
+
+export function appendAvailabilityNearestAlternativeNote(
+  summary: string,
+  note: string,
+): string {
+  if (!note.trim()) return summary;
+  return `${summary}\n\n${note.trim()}`;
+}
+
 /** No-slot copy with optional budget ceiling mention (avail-1.7). */
 export function composeAvailabilityNoSlotsSummary(input: {
   locale: AppLocale;

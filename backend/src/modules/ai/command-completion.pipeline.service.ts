@@ -70,6 +70,11 @@ const SESSION_INHERIT_KEYS = [
   'limit',
   'todayOnly',
   'segmentFilter',
+  'maxPrice',
+  'serviceRank',
+  'availabilityWindows',
+  'timeOfDay',
+  'bookingFirstAvailable',
 ] as const;
 
 const RESCHEDULE_SESSION_SKIP_KEYS = new Set([

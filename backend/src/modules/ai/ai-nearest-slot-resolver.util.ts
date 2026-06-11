@@ -174,6 +174,21 @@ type FindNearestBookableSlotFn = (
   },
 ) => Promise<ChosenNearestAvailabilityWindow['slot'] | null>;
 
+/** Wire findNearestBookableSlotAcrossWindows on a public-booking mock (integration specs). */
+export function attachPublicBookingNearestAcrossWindowsMock(publicBookingService: {
+  findNearestBookableSlot: jest.Mock;
+  findNearestBookableSlotAcrossWindows?: jest.Mock;
+}) {
+  publicBookingService.findNearestBookableSlotAcrossWindows = jest.fn(
+    async (slug, options) =>
+      findNearestBookableSlotAcrossWindowsWithFinder(
+        slug,
+        options,
+        publicBookingService.findNearestBookableSlot,
+      ),
+  );
+}
+
 /** Delegate OR-window scan to an existing single-window finder (tests + service reuse). */
 export async function findNearestBookableSlotAcrossWindowsWithFinder(
   slug: string,

@@ -49,10 +49,23 @@ export interface AiCommandEvalExpectation {
   useSurfaceLabBookingRescue?: boolean;
   /** Use surface-scoped budget service discovery rescue (budget-1.11). */
   useSurfaceBudgetRescue?: boolean;
+  /** Use checkout currency explain rescue (discover-not-currency-explain-en). */
+  useCheckoutCurrencyRescue?: boolean;
   /** Use surface-scoped service rank discovery rescue (rank-1.11). */
   useSurfaceRankRescue?: boolean;
   /** Use surface-scoped flexible availability enrichment (avail-1.11). */
   useSurfaceFlexibleAvailabilityEnrichment?: boolean;
+  /** Cross-sprint discover eval bucket tag (service-discovery eval harness). */
+  discoverCrossSprintKind?: string;
+  discoverClassifierParams?: Record<string, unknown>;
+  discoverForbiddenKeys?: readonly string[];
+  discoverChipFixtureId?: string;
+  discoverCatalogIds?: readonly string[];
+  discoverCatalogParams?: Record<string, unknown>;
+  discoverOrWindowCount?: number;
+  discoverExpectSingleWindow?: boolean;
+  discoverCompoundSteps?: readonly string[];
+  discoverChipDomain?: string;
   /** Expected action after public/customer flexible availability enrichment. */
   enrichedAction?: string;
   /** Compound decomposition surface (ai-cmd-0.4). */

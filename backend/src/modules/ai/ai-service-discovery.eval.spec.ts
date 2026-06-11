@@ -22,7 +22,7 @@ describe('ai service discovery eval cases (discover-exit-3)', () => {
 
   it('covers public integration, multilingual, and consumer chip cross-sprint rows', () => {
     expect(AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_PUBLIC_INTEGRATION_CASES.length).toBe(
-      15,
+      18,
     );
     expect(
       AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.length,

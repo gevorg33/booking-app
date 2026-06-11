@@ -17,8 +17,8 @@ export const PROVIDER_TIME_OFF_RANGE_SCENARIOS = [
   {
     id: 'single-day-valid',
     input: {
-      startDate: '2026-06-10',
-      endDate: '2026-06-10',
+      startDate: '2026-06-20',
+      endDate: '2026-06-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
     },
@@ -27,8 +27,8 @@ export const PROVIDER_TIME_OFF_RANGE_SCENARIOS = [
   {
     id: 'multi-day-valid',
     input: {
-      startDate: '2026-06-10',
-      endDate: '2026-06-12',
+      startDate: '2026-06-20',
+      endDate: '2026-06-22',
       dailyStartTime: '00:00',
       dailyEndTime: '23:59',
     },
@@ -37,8 +37,8 @@ export const PROVIDER_TIME_OFF_RANGE_SCENARIOS = [
   {
     id: 'end-before-start',
     input: {
-      startDate: '2026-06-12',
-      endDate: '2026-06-10',
+      startDate: '2026-06-22',
+      endDate: '2026-06-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
     },
@@ -47,8 +47,8 @@ export const PROVIDER_TIME_OFF_RANGE_SCENARIOS = [
   {
     id: 'daily-window-invalid',
     input: {
-      startDate: '2026-06-10',
-      endDate: '2026-06-10',
+      startDate: '2026-06-20',
+      endDate: '2026-06-20',
       dailyStartTime: '17:00',
       dailyEndTime: '09:00',
     },
@@ -61,29 +61,29 @@ export const PROVIDER_TIME_OFF_BLOCK_BUILD_SCENARIOS = [
     id: 'single-day',
     employeeId: 'emp-1',
     request: {
-      startDate: '2026-06-10',
-      endDate: '2026-06-10',
+      startDate: '2026-06-20',
+      endDate: '2026-06-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
       reason: 'Doctor',
     },
     expectedRepetitive: false,
-    expectedStart: '2026-06-10T09:00:00.000Z',
-    expectedEnd: '2026-06-10T17:00:00.000Z',
+    expectedStart: '2026-06-20T09:00:00.000Z',
+    expectedEnd: '2026-06-20T17:00:00.000Z',
   },
   {
     id: 'multi-day',
     employeeId: 'emp-1',
     request: {
-      startDate: '2026-06-10',
-      endDate: '2026-06-12',
+      startDate: '2026-06-20',
+      endDate: '2026-06-22',
       dailyStartTime: '00:00',
       dailyEndTime: '23:59',
       reason: 'Vacation',
     },
     expectedRepetitive: true,
-    expectedStartDay: '2026-06-10',
-    expectedEndDay: '2026-06-12',
+    expectedStartDay: '2026-06-20',
+    expectedEndDay: '2026-06-22',
   },
 ] as const;
 

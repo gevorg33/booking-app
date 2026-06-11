@@ -31,6 +31,15 @@ describe('ai-service-rank-discovery-compound.util (rank-1.7)', () => {
     expect(isBudgetServiceDiscoveryCompoundPrompt(prompt)).toBe(true);
   });
 
+  it('defers dashboard rank check-then-book to rank_discover_and_book recipe', () => {
+    const prompt =
+      "Show premium facial options, check who's free tomorrow, book nearest slot";
+    expect(isServiceRankDiscoveryCompoundPrompt(prompt)).toBe(false);
+    expect(decomposeDeterministicForSurface('dashboard', prompt)?.recipeId).toBe(
+      'rank_discover_and_book',
+    );
+  });
+
   it.each(SERVICE_RANK_COMPOUND_SCENARIOS)(
     'decomposes public rank compound $id',
     ({ prompt, serviceRank, serviceCategory, maxPrice, publicCompoundSteps }) => {
@@ -94,6 +103,16 @@ describe('ai-service-rank-discovery-compound.util (rank-1.7)', () => {
       expect(result?.source).toBe('golden');
     },
   );
+
+  it('rank-list-then-book-en sets Saturday date and massage category', () => {
+    const params = buildRankCompoundSharedParams(
+      "What's your best massage and book it Saturday",
+      'public',
+    );
+    expect(params.serviceRank).toBe('highest_price');
+    expect(params.serviceCategory).toBe('massage');
+    expect(params.date).toBeTruthy();
+  });
 
   it('propagates shared booking params from list_services to book step', () => {
     const steps = decomposeServiceRankDiscoveryCompoundPrompt(

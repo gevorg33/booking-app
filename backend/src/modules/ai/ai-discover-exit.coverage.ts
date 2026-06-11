@@ -1,5 +1,14 @@
 /** ids exercised by `it.each` in the discover merge gate (discover-exit-1). */
 import {
+  BUDGET_CART_TOTAL_EXTRACTION_SCENARIOS,
+  BUDGET_PROMO_EXTRACTION_SCENARIOS,
+  BUDGET_RANGE_EXTRACTION_SCENARIOS,
+  BUDGET_NAMED_SERVICE_EXTRACTION_SCENARIOS,
+  BUDGET_ANY_PROVIDER_EXTRACTION_SCENARIOS,
+  BUDGET_PROVIDER_EMPLOYEE_EXTRACTION_SCENARIOS,
+  BUDGET_SHORT_DURATION_EXTRACTION_SCENARIOS,
+  BUDGET_LONG_DURATION_EXTRACTION_SCENARIOS,
+  BUDGET_VOICE_ASR_EXTRACTION_SCENARIOS,
   BUDGET_CURRENCY_EDGE_SCENARIOS,
   BUDGET_DISAMBIGUATION_SCENARIOS,
   BUDGET_DOMAIN_FIXTURE_IDS,
@@ -18,7 +27,11 @@ import {
   AVAILABILITY_WINDOW_PARSE_SCENARIOS,
   AVAILABILITY_WINDOW_SINGLE_SCENARIOS,
   AVAIL_BUDGET_OR_SCENARIOS,
+  AVAIL_HANDLER_OUTCOME_SCENARIOS,
   FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS,
+  FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS,
   FLEXIBLE_AVAILABILITY_BUDGET_SCENARIOS,
   FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS,
   FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS,
@@ -44,6 +57,8 @@ import {
   SORT_SERVICES_BY_PRICE_DESC_SCENARIOS,
 } from './ai-service-catalog-rank.fixtures.js';
 import {
+  SERVICE_DISCOVERY_JOURNEY_SCENARIOS,
+  SERVICE_DISCOVERY_PARITY_SCENARIOS,
   SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS,
 } from './ai-service-discovery.fixtures.js';
 import {
@@ -52,6 +67,7 @@ import {
 import { AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CASES } from './ai-service-rank-discovery.eval.util.js';
 import {
   RANK_HANDLER_OUTCOME_SCENARIOS,
+  RANK_MID_RANGE_HANDLER_SCENARIOS,
   RANK_MOBILE_SCENARIOS,
   RANK_NAVIGATE_SCENARIOS,
   RANK_SESSION_SCENARIOS,
@@ -59,6 +75,10 @@ import {
   SERVICE_RANK_COMPOUND_NEGATIVE_SCENARIOS,
   SERVICE_RANK_COMPOUND_SCENARIOS,
   SERVICE_RANK_EXTRACTION_SCENARIOS,
+  SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS,
+  SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS,
+  SERVICE_RANK_PACKAGE_RESCUE_SCENARIOS,
+  SERVICE_RANK_SUBJECTIVE_RESCUE_SCENARIOS,
   SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS,
   SIMILAR_SERVICE_RANK_PROMPTS,
 } from './ai-service-rank-discovery.fixtures.js';
@@ -77,6 +97,15 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   for (const id of ids(BUDGET_HANDLER_OUTCOME_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_DISAMBIGUATION_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_MAX_PRICE_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_CART_TOTAL_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_PROMO_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_RANGE_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_NAMED_SERVICE_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_ANY_PROVIDER_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_PROVIDER_EMPLOYEE_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_SHORT_DURATION_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_LONG_DURATION_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_VOICE_ASR_EXTRACTION_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_VOICE_SCENARIOS)) covered.add(id);
   for (const id of [
     ...ids(BUDGET_CURRENCY_EDGE_SCENARIOS.filter((scenario) => !scenario.phase2)),
@@ -137,9 +166,14 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   }
   for (const id of ids(SERVICE_RANK_EXTRACTION_SCENARIOS)) covered.add(id);
   for (const id of ids(SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_SUBJECTIVE_RESCUE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_PACKAGE_RESCUE_SCENARIOS)) covered.add(id);
   for (const id of ids(SERVICE_RANK_COMPOUND_SCENARIOS)) covered.add(id);
   for (const id of ids(SERVICE_RANK_COMPOUND_NEGATIVE_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_HANDLER_OUTCOME_SCENARIOS)) covered.add(id);
+  for (const id of ids(RANK_MID_RANGE_HANDLER_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_NAVIGATE_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_SESSION_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_LIMIT_FROM_PROMPT_SCENARIOS)) covered.add(id);
@@ -156,15 +190,22 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   for (const id of ids(FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS)) covered.add(id);
   for (const id of ids(FLEXIBLE_AVAILABILITY_OVERLAP_SCENARIOS)) covered.add(id);
   for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS)) covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS)) covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS)) covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS)) covered.add(id);
   for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS)) covered.add(id);
   for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS)) covered.add(id);
   for (const id of ids(
     AVAIL_BUDGET_OR_SCENARIOS.filter(
-      (scenario) => !scenario.handlerOutcome && scenario.id === 'avail-budget-or-en',
+      (scenario) =>
+        !scenario.handlerOutcome &&
+        (scenario.id === 'avail-budget-or-en' ||
+          scenario.id === 'avail-budget-under-or-en'),
     ),
   )) {
     covered.add(id);
   }
+  for (const id of ids(AVAIL_HANDLER_OUTCOME_SCENARIOS)) covered.add(id);
   for (const id of ids(AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES)) covered.add(id);
   for (const id of ids(AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES)) covered.add(id);
 
@@ -177,6 +218,8 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   for (const id of ids(SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS)) covered.add(id);
 
   for (const id of ids(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_DISCOVERY_JOURNEY_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_DISCOVERY_PARITY_SCENARIOS)) covered.add(id);
   for (const id of ids(MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS)) covered.add(id);
   for (const id of ids(CONSUMER_DISCOVERY_CHIP_FIXTURES)) covered.add(id);
   for (const id of ids(PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS)) covered.add(id);
@@ -224,6 +267,8 @@ export const DISCOVER_EXIT_IT_EACH_SOURCE_ROW_COUNT = collectUniqueFixtureIds([
   ...SIMILAR_SERVICE_RANK_PROMPTS,
   ...SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS,
   ...SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS,
+  ...SERVICE_DISCOVERY_JOURNEY_SCENARIOS,
+  ...SERVICE_DISCOVERY_PARITY_SCENARIOS,
   ...MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS,
   ...CONSUMER_DISCOVERY_CHIP_FIXTURES,
 ]).length;

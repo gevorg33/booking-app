@@ -9,6 +9,31 @@ export function isServiceTier(value: unknown): value is ServiceTier {
   return value === 'standard' || value === 'premium';
 }
 
+export function resolveServiceTierParam(value: unknown): ServiceTier | null {
+  return isServiceTier(value) ? value : null;
+}
+
+/** Catalog tier filter — not serviceRank highest_price (rank-tier-metadata-en). */
+export function isServiceTierFilterPrompt(prompt: string): boolean {
+  return /\b(?:premium|standard)\s+tier\b/i.test(prompt);
+}
+
+export function extractServiceTierFromPrompt(prompt: string): ServiceTier | null {
+  const match = prompt.match(/\b(standard|premium)\s+tier\b/i);
+  if (!match) return null;
+  return match[1]!.toLowerCase() as ServiceTier;
+}
+
+export function enrichServiceTierFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string | undefined,
+): Record<string, unknown> {
+  if (!prompt?.trim()) return params;
+  const serviceTier = extractServiceTierFromPrompt(prompt);
+  if (!serviceTier) return params;
+  return { ...params, serviceTier };
+}
+
 export function extractServiceRankMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): ServiceRankMetadata {

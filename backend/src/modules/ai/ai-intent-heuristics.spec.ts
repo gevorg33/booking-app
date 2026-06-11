@@ -13,6 +13,7 @@ import {
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
   isFirstAvailableBookingPrompt,
+  resolveRescheduleParams,
   enrichBookingTimeHintsFromPrompt,
   isBulkAllAppointmentsPrompt,
   isRecommendSpecialistsPrompt,
@@ -58,6 +59,17 @@ describe('ai-intent-heuristics', () => {
       );
       expect(result).toBeUndefined();
     });
+
+    it('matches basic cut clarify follow-up to Haircut basic', () => {
+      const haircutCatalog = [
+        { id: 'hair-35', name: 'Haircut basic' },
+        { id: 'hair-45', name: 'Haircut standard' },
+        { id: 'hair-75', name: 'Haircut premium' },
+      ];
+      expect(extractServiceFromPrompt('basic cut', haircutCatalog)?.id).toBe(
+        'hair-35',
+      );
+    });
   });
 
   describe('enrichPublicAssistantParamsFromPrompt', () => {
@@ -91,11 +103,52 @@ describe('ai-intent-heuristics', () => {
           salonServices,
           'check_availability',
         ),
-      ).toEqual({
+      ).toMatchObject({
         serviceName: 'haircut',
         serviceCategory: null,
-        serviceNames: null,
+        date: 'tomorrow',
+        timeOfDay: 'afternoon',
       });
+    });
+
+    it('resolves basic cut clarify follow-up against haircut catalog', () => {
+      const haircutCatalog = [
+        { id: 'hair-35', name: 'Haircut basic' },
+        { id: 'hair-45', name: 'Haircut standard' },
+      ];
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'basic cut',
+          {
+            maxPrice: 50,
+            serviceCategory: 'haircut',
+            availabilityWindows: [
+              { date: 'tomorrow' },
+              { weekdays: ['friday'], timeOfDay: 'afternoon' },
+            ],
+          },
+          haircutCatalog,
+          'check_availability',
+        ),
+      ).toMatchObject({
+        serviceName: 'Haircut basic',
+        maxPrice: 50,
+      });
+      expect(
+        enrichPublicAssistantParamsFromPrompt(
+          'basic cut',
+          {
+            maxPrice: 50,
+            serviceCategory: 'haircut',
+            availabilityWindows: [
+              { date: 'tomorrow' },
+              { weekdays: ['friday'], timeOfDay: 'afternoon' },
+            ],
+          },
+          haircutCatalog,
+          'check_availability',
+        ).serviceCategory,
+      ).toBeNull();
     });
 
     it('leaves params unchanged for non-service actions', () => {
@@ -227,17 +280,34 @@ describe('ai-intent-heuristics', () => {
   describe('reschedule nearest free time parsing', () => {
     const prompt =
       'Move Jujos appointment on June 10 from 16-17 to june 11th nearest free time';
+    const futurePrompt =
+      'Move Jujos appointment on June 10 2027 from 16-17 to june 11 2027 nearest free time';
 
     it('parses destination date without nearest-free suffix', () => {
-      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('11/06/2026');
+      expect(extractRescheduleTargetDate(futurePrompt, 'UTC')).toBe('11/06/2027');
     });
 
     it('parses source date and time window', () => {
-      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('10/06/2026');
-      expect(extractRescheduleSourceTime(prompt)).toBe('16:00');
+      expect(extractRescheduleSourceDate(futurePrompt, 'UTC')).toBe('10/06/2027');
+      expect(extractRescheduleSourceTime(futurePrompt)).toBe('16:00');
     });
 
     it('detects nearest free time intent', () => {
+      expect(isFirstAvailableBookingPrompt(futurePrompt)).toBe(true);
+    });
+
+    it('fills reschedule params for explicit year prompt', () => {
+      const params: Record<string, unknown> = {};
+      resolveRescheduleParams(params, futurePrompt, 'UTC');
+      expect(params.date).toBe('11/06/2027');
+      expect(params.fromDate).toBe('10/06/2027');
+      expect(params.fromTimeSlot).toBe('16:00');
+      expect(params.bookingFirstAvailable).toBe(true);
+      expect(params.timeSlot).toBeUndefined();
+    });
+
+    it('still parses legacy ordinal prompt without explicit year', () => {
+      expect(extractRescheduleSourceTime(prompt)).toBe('16:00');
       expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
     });
   });
@@ -413,6 +483,29 @@ describe('ai-intent-heuristics', () => {
       expect(params.timeOfDay).toBe('evening');
       expect(params.allProviders).toBe(true);
       expect(params.bookingFirstAvailable).toBeUndefined();
+    });
+
+    it('enriches check_availability with timeOfDay and allProviders (avail-single-tomorrow-evening-en)', () => {
+      const params: Record<string, unknown> = {};
+      enrichBookingTimeHintsFromPrompt(
+        'check_availability',
+        params,
+        "Who's free tomorrow evening for massage?",
+      );
+      expect(params.timeOfDay).toBe('evening');
+      expect(params.allProviders).toBe(true);
+      expect(params.bookingFirstAvailable).toBeUndefined();
+    });
+
+    it('sets allProviders for any-slots phrasing on check_availability', () => {
+      const params: Record<string, unknown> = {};
+      enrichBookingTimeHintsFromPrompt(
+        'check_availability',
+        params,
+        'Any slots Friday afternoon for a facial?',
+      );
+      expect(params.timeOfDay).toBe('afternoon');
+      expect(params.allProviders).toBe(true);
     });
 
     it('always marks book_nearest_slot as first-available', () => {

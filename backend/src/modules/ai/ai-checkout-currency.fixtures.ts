@@ -48,4 +48,8 @@ export const EXPLAIN_CHECKOUT_CURRENCY_PROMPTS = [
     id: 'why-dollar-sign',
     prompt: 'Why does the salon booking page use dollar prices?',
   },
+  {
+    id: 'discover-not-currency-explain-en',
+    prompt: 'Why is premium $120 in dram?',
+  },
 ] as const;

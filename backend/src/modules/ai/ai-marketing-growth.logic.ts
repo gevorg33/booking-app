@@ -27,6 +27,7 @@ import {
   formatEntitlementsSummary,
   type MarketingGrowthCompoundStep,
 } from './ai-marketing-growth.util.js';
+import { getEarnPercentCashback } from '../loyalty/loyalty-settings.util.js';
 
 export interface MarketingGrowthLogicDeps {
   marketingAutomationService: MarketingAutomationService;
@@ -572,6 +573,55 @@ export async function handleLoyaltyPointsBalanceLogic(
     return failure(
       'loyalty_points_balance',
       err?.message ?? 'Could not load loyalty balance.',
+    );
+  }
+}
+
+export async function handleOpenBillingSettingsLogic(
+  deps: MarketingGrowthLogicDeps,
+  businessId: string,
+): Promise<CommandResult> {
+  try {
+    const entitlements =
+      await deps.planEntitlementsService.getEntitlements(businessId);
+    const portal = await deps.billingService.createPortalSession(businessId);
+    const formatted = formatEntitlementsSummary(entitlements);
+    return success(
+      'open_billing_settings',
+      `${formatted}\n\nManage billing: ${portal.url}`,
+      { entitlements, portalUrl: portal.url },
+    );
+  } catch (err: any) {
+    return failure(
+      'open_billing_settings',
+      err?.message ?? 'Could not open billing settings.',
+    );
+  }
+}
+
+export async function handleSummarizeLoyaltyProgramLogic(
+  deps: MarketingGrowthLogicDeps,
+  businessId: string,
+): Promise<CommandResult> {
+  try {
+    const business = await deps.businessRepo.findOne({
+      where: { id: businessId },
+    });
+    const earnPercent = getEarnPercentCashback(business?.settings);
+    const enabled =
+      (business?.settings?.loyalty as Record<string, unknown> | undefined)
+        ?.enabled !== false;
+    const summary = enabled
+      ? `Loyalty program is enabled — customers earn ${earnPercent}% back as points ($1 per point). Configure earn rules in Loyalty settings.`
+      : 'Loyalty program is disabled. Enable it in Loyalty settings to reward repeat customers.';
+    return success('summarize_loyalty_program', summary, {
+      enabled,
+      earnPercentCashback: earnPercent,
+    });
+  } catch (err: any) {
+    return failure(
+      'summarize_loyalty_program',
+      err?.message ?? 'Could not summarize loyalty program.',
     );
   }
 }

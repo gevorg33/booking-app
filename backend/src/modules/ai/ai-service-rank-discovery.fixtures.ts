@@ -2,7 +2,9 @@ import type { ServiceRank } from './ai-service-catalog-rank.util.js';
 import {
   RANK_HANDLER_OUTCOME_SCENARIOS,
   RANK_LIMIT_FROM_PROMPT_SCENARIOS,
+  RANK_MID_RANGE_HANDLER_SCENARIOS,
   RANK_NAVIGATE_SCENARIOS,
+  RANK_SESSION_PICK_CATALOG,
   type RankHandlerOutcomeScenario,
 } from './ai-rank-list-services.fixtures.js';
 
@@ -10,15 +12,34 @@ import {
 export const SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES = `- serviceRank: highest_price | lowest_price | most_popular | null — rank catalog services in list_services before summarizing. highest_price: premium/luxury/deluxe/top-tier/most expensive/priciest/best SERVICE (catalog item). lowest_price: cheapest/most affordable/lowest-priced service when the user does NOT state a dollar budget ceiling. most_popular: most popular/best-selling service ranked by rolling 90-day booking count within the category. Omit when the user asks for the full catalog/menu or rates a specialist/stylist/therapist.
 - list_services + serviceRank: When the user asks for the best/premium/luxury/deluxe/top-tier/most expensive SERVICE (not a stylist/therapist/specialist), set serviceRank=highest_price with serviceCategory and/or serviceName. When they ask for cheapest/most affordable/lowest-priced service without a budget amount, set serviceRank=lowest_price. When both rank and budget appear ("best premium haircut under $80"), set serviceRank AND maxPrice.
 - Disambiguation vs recommend_specialists: "best rated lash specialist" / "top stylist this week" → recommend_specialists (provider rank). "best premium lash service" / "luxury facial option" / "most expensive styling service" → list_services + serviceRank=highest_price (service catalog rank). "What's the cheapest haircut?" → list_services + serviceRank=lowest_price — NOT maxPrice unless they also state a ceiling ("cheapest under $50" → maxPrice=50).
+- Subjective best-for-me: "What's the best option for a first-time haircut?" → booking_help with serviceCategory=haircut — NO serviceRank (not premium/cheapest catalog rank).
+- Rank + book compound: "What's your best massage and book it Saturday" → list_services (serviceRank=highest_price) then book_appointment/book_nearest_slot with date hint — NOT list_services alone.
+- Dashboard admin analytics: "Most booked service this month" → analyze_services (serviceMetric=most_booked) — NOT list_services serviceRank. "Most expensive appointment today" → analyze_appointments — NOT catalog highest_price.
 - Disambiguation vs budget-only: maxPrice filters by spending limit; serviceRank sorts/ranks the catalog. Cheapest-without-dollar-amount uses serviceRank=lowest_price, not maxPrice. Premium/luxury without budget uses serviceRank=highest_price only.
-- NOT discover_packages (package/bundle/deal catalog), NOT gift card checkout, NOT explain_checkout_currency.
+- serviceTier: standard | premium | null — filter catalog rows by entity metadata tier (rank-tier-metadata-en). "Premium tier services for color" → list_services, serviceTier=premium, serviceCategory=color — NOT serviceRank=highest_price.
+- Mid-range browse: "Mid-range color service" → list_services, serviceCategory=color, limit=3, sorted by price — NO serviceRank (percentile rank is phase 2).
+- Missing price: services with null/unknown price are excluded from price-based serviceRank picks; list copy uses "price on request" when shown.
+- Voice/mobile: short prompts like "Premium cut?" → list_services, serviceCategory=haircut, serviceRank=highest_price, limit=1. Colloquial cheapest like "Cheapest facial you got" → list_services, serviceCategory=facial, serviceRank=lowest_price.
+- Recommend catalog not provider: "Recommend your best spa service not a person" → list_services, serviceCategory=spa, serviceRank=highest_price — NOT recommend_specialists (user excludes people/providers).
+- Session rank upgrade: T1 cheapest haircut → T2 "show premium instead" → list_services, serviceCategory=haircut, serviceRank=highest_price (switch rank, keep category from session).
+- Session rank + budget: T1 luxury facial → T2 "anything like that under $120?" → list_services, serviceCategory=facial, serviceRank=highest_price, maxPrice=120 (intersect prior rank with new ceiling).
+- Session list pick: T1 top 3 premium massages → T2 "book the second one tomorrow" → book_appointment with serviceName from ranked list index 2; carry serviceCategory from session.
+- NOT discover_packages (package/bundle/deal catalog), NOT gift card checkout, NOT explain_checkout_currency. "What's your premium spa package?" → discover_packages — NOT list_services serviceRank (premium + package = bundle catalog, not service rank).
 - Examples:
   - "What is the best and premium haircut service?" → list_services, serviceCategory=haircut, serviceRank=highest_price
   - "What's the cheapest haircut you offer?" → list_services, serviceCategory=haircut, serviceRank=lowest_price
   - "What's your luxury massage option?" → list_services, serviceCategory=massage, serviceRank=highest_price
   - "Which is your most expensive styling service?" → list_services, serviceCategory=styling, serviceRank=highest_price
   - "Who is the best rated massage therapist this week?" → recommend_specialists, serviceCategory=massage — NO serviceRank
-  - "What's your most popular haircut?" → list_services, serviceCategory=haircut, serviceRank=most_popular`;
+  - "What's your most popular haircut?" → list_services, serviceCategory=haircut, serviceRank=most_popular
+  - "Premium tier services for color" → list_services, serviceTier=premium, serviceCategory=color — NO serviceRank
+  - "Mid-range color service" → list_services, serviceCategory=color, limit=3 — NO serviceRank
+  - "Premium cut?" → list_services, serviceCategory=haircut, serviceRank=highest_price, limit=1
+  - "Cheapest facial you got" → list_services, serviceCategory=facial, serviceRank=lowest_price
+  - "Recommend your best spa service not a person" → list_services, serviceCategory=spa, serviceRank=highest_price
+  - Session T1: "What's the cheapest haircut you offer?" → list_services, serviceCategory=haircut, serviceRank=lowest_price; T2: "show premium instead" → serviceRank=highest_price (keep haircut)
+  - Session T1: "What's your luxury facial option?" → list_services, serviceCategory=facial, serviceRank=highest_price; T2: "anything like that under $120?" → maxPrice=120 (keep facial + highest_price)
+  - Session T1: "Top 3 premium massages" → list_services, serviceCategory=massage, serviceRank=highest_price, limit=3; T2: "book the second one tomorrow" → book_appointment, serviceName from list index 2`;
 
 export type ServiceRankExtractionScenario = {
   id: string;
@@ -76,6 +97,12 @@ export const SERVICE_RANK_EXTRACTION_SCENARIOS: ServiceRankExtractionScenario[] 
       serviceRank: 'most_popular',
     },
     {
+      id: 'rank-tier-metadata-en',
+      prompt: 'Premium tier services for color',
+      serviceRank: null,
+      blocked: true,
+    },
+    {
       id: 'rank-specialist-stays-en',
       prompt: 'Who is the best rated lash specialist this week?',
       serviceRank: null,
@@ -87,13 +114,30 @@ export const SERVICE_RANK_EXTRACTION_SCENARIOS: ServiceRankExtractionScenario[] 
       serviceRank: 'highest_price',
     },
     {
+      id: 'rank-best-for-me-en',
+      prompt: "What's the best option for a first-time haircut?",
+      serviceRank: null,
+    },
+    {
+      id: 'rank-not-analyze-appt-en',
+      prompt: 'Most expensive appointment today',
+      serviceRank: null,
+      blocked: true,
+    },
+    {
+      id: 'rank-not-analyze-services-admin-en',
+      prompt: 'Most booked service this month',
+      serviceRank: null,
+      blocked: true,
+    },
+    {
       id: 'rank-plain-catalog-en',
       prompt: 'What services do you offer?',
       serviceRank: null,
     },
     {
       id: 'rank-not-package-en',
-      prompt: 'Any spa packages under $100?',
+      prompt: "What's your premium spa package?",
       serviceRank: null,
       blocked: true,
     },
@@ -121,6 +165,32 @@ export const SERVICE_RANK_EXTRACTION_SCENARIOS: ServiceRankExtractionScenario[] 
       id: 'rank-budget-friendly-en',
       prompt: 'Budget-friendly pedicure',
       serviceRank: 'lowest_price',
+    },
+    {
+      id: 'rank-mid-range-en',
+      prompt: 'Mid-range color service',
+      serviceRank: null,
+      blocked: true,
+    },
+    {
+      id: 'rank-voice-premium-en',
+      prompt: 'Premium cut?',
+      serviceRank: 'highest_price',
+    },
+    {
+      id: 'rank-voice-cheapest-en',
+      prompt: 'Cheapest facial you got',
+      serviceRank: 'lowest_price',
+    },
+    {
+      id: 'rank-recommend-not-provider-en',
+      prompt: 'Recommend your best spa service not a person',
+      serviceRank: 'highest_price',
+    },
+    {
+      id: 'rank-session-upgrade-t2-en',
+      prompt: 'show premium instead',
+      serviceRank: 'highest_price',
     },
   ];
 
@@ -182,6 +252,163 @@ export const SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS: ServiceRankRec
       expectedAction: 'list_services',
       rescueReason: 'rank_list_services',
     },
+    {
+      id: 'rank-recommend-not-provider-en',
+      prompt: 'Recommend your best spa service not a person',
+      fromAction: 'recommend_specialists',
+      expectedAction: 'list_services',
+      rescueReason: 'rank_recommend_specialists',
+    },
+  ];
+
+export type ServiceRankProviderMisrouteRescueScenario = {
+  id: string;
+  prompt: string;
+  fromAction: string;
+  expectedAction: 'recommend_specialists';
+  rescueReason: 'rank_provider_specialists';
+  serviceCategory?: string;
+};
+
+/** list_services/unknown misroutes → recommend_specialists for provider rank (rank-specialist-stays-en). */
+export type ServiceRankSubjectiveRescueScenario = {
+  id: string;
+  prompt: string;
+  fromAction: string;
+  expectedAction: 'booking_help';
+  rescueReason: 'rank_subjective_booking_help';
+  serviceCategory?: string;
+};
+
+/** list_services/unknown misroutes → booking_help for subjective rank (rank-best-for-me-en). */
+export type ServiceRankAdminAnalyticsRescueScenario = {
+  id: string;
+  prompt: string;
+  fromAction: string;
+  expectedAction: 'analyze_services' | 'analyze_appointments';
+  rescueReason: string;
+  serviceMetric?: string;
+};
+
+/** list_services/unknown misroutes → package discovery (rank-not-package-en). */
+export type ServiceRankPackageRescueScenario = {
+  id: string;
+  prompt: string;
+  fromAction: string;
+  surface: 'public' | 'customer';
+  expectedAction: string;
+  rescueReason: string;
+};
+
+export const SERVICE_RANK_PACKAGE_RESCUE_SCENARIOS: ServiceRankPackageRescueScenario[] =
+  [
+    {
+      id: 'rank-not-package-list-public-en',
+      prompt: "What's your premium spa package?",
+      fromAction: 'list_services',
+      surface: 'public',
+      expectedAction: 'booking_help',
+      rescueReason: 'discover_packages',
+    },
+    {
+      id: 'rank-not-package-unknown-public-en',
+      prompt: "What's your premium spa package?",
+      fromAction: 'unknown',
+      surface: 'public',
+      expectedAction: 'booking_help',
+      rescueReason: 'discover_packages',
+    },
+    {
+      id: 'rank-not-package-list-customer-en',
+      prompt: "What's your premium spa package?",
+      fromAction: 'list_services',
+      surface: 'customer',
+      expectedAction: 'discover_packages',
+      rescueReason: 'discover_packages',
+    },
+    {
+      id: 'rank-not-package-unknown-customer-en',
+      prompt: "What's your premium spa package?",
+      fromAction: 'unknown',
+      surface: 'customer',
+      expectedAction: 'discover_packages',
+      rescueReason: 'discover_packages',
+    },
+  ];
+
+/** Dashboard list_services misroutes → admin analytics (rank-not-analyze-*-en). */
+export const SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS: ServiceRankAdminAnalyticsRescueScenario[] =
+  [
+    {
+      id: 'rank-not-analyze-services-list-en',
+      prompt: 'Most booked service this month',
+      fromAction: 'list_services',
+      expectedAction: 'analyze_services',
+      rescueReason: 'rank_to_analyze_services',
+      serviceMetric: 'most_booked',
+    },
+    {
+      id: 'rank-not-analyze-services-unknown-en',
+      prompt: 'Most booked service this month',
+      fromAction: 'unknown',
+      expectedAction: 'analyze_services',
+      rescueReason: 'rank_to_analyze_services',
+      serviceMetric: 'most_booked',
+    },
+    {
+      id: 'rank-not-analyze-appt-list-en',
+      prompt: 'Most expensive appointment today',
+      fromAction: 'list_services',
+      expectedAction: 'analyze_appointments',
+      rescueReason: 'rank_to_analyze_appointments',
+    },
+    {
+      id: 'rank-not-analyze-appt-unknown-en',
+      prompt: 'Most expensive appointment today',
+      fromAction: 'unknown',
+      expectedAction: 'analyze_appointments',
+      rescueReason: 'rank_to_analyze_appointments',
+    },
+  ];
+
+export const SERVICE_RANK_SUBJECTIVE_RESCUE_SCENARIOS: ServiceRankSubjectiveRescueScenario[] =
+  [
+    {
+      id: 'rank-best-for-me-list-en',
+      prompt: "What's the best option for a first-time haircut?",
+      fromAction: 'list_services',
+      expectedAction: 'booking_help',
+      rescueReason: 'rank_subjective_booking_help',
+      serviceCategory: 'haircut',
+    },
+    {
+      id: 'rank-best-for-me-unknown-en',
+      prompt: "What's the best option for a first-time haircut?",
+      fromAction: 'unknown',
+      expectedAction: 'booking_help',
+      rescueReason: 'rank_subjective_booking_help',
+      serviceCategory: 'haircut',
+    },
+  ];
+
+export const SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS: ServiceRankProviderMisrouteRescueScenario[] =
+  [
+    {
+      id: 'rank-specialist-stays-list-en',
+      prompt: 'Who is the best rated lash specialist this week?',
+      fromAction: 'list_services',
+      expectedAction: 'recommend_specialists',
+      rescueReason: 'rank_provider_specialists',
+      serviceCategory: 'lash',
+    },
+    {
+      id: 'rank-specialist-stays-unknown-en',
+      prompt: 'Who is the best rated lash specialist this week?',
+      fromAction: 'unknown',
+      expectedAction: 'recommend_specialists',
+      rescueReason: 'rank_provider_specialists',
+      serviceCategory: 'lash',
+    },
   ];
 
 export type ServiceRankCompoundScenario = {
@@ -221,6 +448,14 @@ export const SERVICE_RANK_COMPOUND_SCENARIOS: ServiceRankCompoundScenario[] = [
     publicCompoundSteps: ['list_services', 'book_appointment'],
     customerCompoundSteps: ['list_services', 'book_nearest_slot'],
   },
+  {
+    id: 'rank-list-then-book-en',
+    prompt: "What's your best massage and book it Saturday",
+    serviceRank: 'highest_price',
+    serviceCategory: 'massage',
+    publicCompoundSteps: ['list_services', 'book_appointment'],
+    customerCompoundSteps: ['list_services', 'book_nearest_slot'],
+  },
 ];
 
 export const SERVICE_RANK_COMPOUND_NEGATIVE_SCENARIOS: Array<{
@@ -250,6 +485,10 @@ export type ServiceRankDiscoveryPromptFixture = {
   expectedAction: string;
   expectedParams?: Record<string, unknown>;
   blocked?: boolean;
+  /** Provider/specialist rating — stays recommend_specialists; eligible for eval when set. */
+  providerRank?: boolean;
+  /** Subjective best-for-me — routes to booking_help without serviceRank. */
+  subjectiveRank?: boolean;
   clarify?: boolean;
   phase2?: boolean;
   publicCompoundSteps?: readonly string[];
@@ -346,7 +585,8 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
     prompt: 'Who is the best rated lash specialist this week?',
     surface: 'both',
     expectedAction: 'recommend_specialists',
-    blocked: true,
+    providerRank: true,
+    expectedParams: { serviceCategory: 'lash' },
   },
   {
     id: 'rank-best-service-explicit-en',
@@ -355,13 +595,14 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
     expectedAction: 'list_services',
     expectedParams: { serviceCategory: 'spa', serviceRank: 'highest_price' },
   },
-  {
-    id: 'rank-best-for-me-en',
-    prompt: "What's the best option for a first-time haircut?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    clarify: true,
-  },
+    {
+      id: 'rank-best-for-me-en',
+      prompt: "What's the best option for a first-time haircut?",
+      surface: 'both',
+      expectedAction: 'booking_help',
+      subjectiveRank: true,
+      expectedParams: { serviceCategory: 'haircut' },
+    },
   // E — Compounds
   {
     id: 'rank-book-premium-en',
@@ -376,14 +617,19 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
     publicCompoundSteps: ['list_services', 'book_appointment'],
     customerCompoundSteps: ['list_services', 'book_nearest_slot'],
   },
-  {
-    id: 'rank-list-then-book-en',
-    prompt: "What's your best massage and book it Saturday",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
-    phase2: true,
-  },
+    {
+      id: 'rank-list-then-book-en',
+      prompt: "What's your best massage and book it Saturday",
+      surface: 'both',
+      expectedAction: 'book_appointment',
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+        bookingFirstAvailable: true,
+      },
+      publicCompoundSteps: ['list_services', 'book_appointment'],
+      customerCompoundSteps: ['list_services', 'book_nearest_slot'],
+    },
   {
     id: 'rank-premium-under-budget-en',
     prompt: 'Best premium haircut I can get under $80',
@@ -475,6 +721,13 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
     expectedAction: 'list_services',
     expectedParams: { serviceCategory: 'facial', serviceRank: 'most_popular' },
   },
+  {
+    id: 'rank-tier-metadata-en',
+    prompt: 'Premium tier services for color',
+    surface: 'both',
+    expectedAction: 'list_services',
+    expectedParams: { serviceCategory: 'color', serviceTier: 'premium' },
+  },
   // I — Synonyms & marketing language
   {
     id: 'rank-vip-en',
@@ -516,8 +769,7 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
     prompt: 'Mid-range color service',
     surface: 'both',
     expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'color', serviceRank: 'highest_price' },
-    phase2: true,
+    expectedParams: { serviceCategory: 'color', limit: 3 },
   },
   // J — Voice / mobile
   {
@@ -605,11 +857,15 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
     turns: [
       {
         prompt: 'Top 3 premium massages',
-        expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price', limit: 3 },
+        expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
       },
       {
         prompt: 'book the second one tomorrow',
-        expectedParams: { serviceCategory: 'massage', serviceName: 'massage' },
+        expectedParams: {
+          serviceCategory: 'massage',
+          serviceName: 'Relax massage',
+          serviceId: 'massage-90',
+        },
         expectedAction: 'book_appointment',
       },
     ],
@@ -617,7 +873,7 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
 ];
 
 export const RANK_DISAMBIGUATION_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
-  (scenario) => scenario.blocked,
+  (scenario) => scenario.blocked || scenario.providerRank || scenario.subjectiveRank,
 );
 
 export const RANK_VOICE_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter((scenario) =>
@@ -663,7 +919,9 @@ export const RANK_SYNONYM_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter((scena
 export {
   RANK_HANDLER_OUTCOME_SCENARIOS,
   RANK_LIMIT_FROM_PROMPT_SCENARIOS,
+  RANK_MID_RANGE_HANDLER_SCENARIOS,
   RANK_NAVIGATE_SCENARIOS,
+  RANK_SESSION_PICK_CATALOG,
   type RankHandlerOutcomeScenario,
 };
 

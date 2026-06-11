@@ -261,6 +261,13 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           action: 'unknown',
           params: {},
         })?.action,
+      ).toBe('list_my_appointments');
+      expect(
+        rescue.rescue({
+          prompt: 'My appointments',
+          action: 'unknown',
+          params: {},
+        })?.action,
       ).toBe('my_appointments');
       expect(
         rescue.rescue({

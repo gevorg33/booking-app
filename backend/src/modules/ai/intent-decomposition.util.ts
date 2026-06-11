@@ -50,7 +50,28 @@ import {
   decomposeFlexibleAvailabilityBudgetCompoundPrompt,
   decomposePublicFlexibleAvailabilityBudgetCompoundPrompt,
   isFlexibleAvailabilityBudgetBookCompoundPrompt,
+  isFlexibleAvailabilityListBudgetThenOrCompoundPrompt,
 } from './ai-flexible-availability-compound.util.js';
+import {
+  decomposeBudgetDiscoverAndBookCompoundPrompt,
+  isBudgetDiscoverAndBookCompoundPrompt,
+  BUDGET_DISCOVER_AND_BOOK_RECIPE_ID,
+} from './ai-budget-discover-and-book-compound.util.js';
+import {
+  decomposeRankDiscoverAndBookCompoundPrompt,
+  isRankDiscoverAndBookCompoundPrompt,
+  RANK_DISCOVER_AND_BOOK_RECIPE_ID,
+} from './ai-rank-discover-and-book-compound.util.js';
+import {
+  decomposeClinicLabDayCloseCompoundPrompt,
+  isClinicLabDayCloseCompoundPrompt,
+  CLINIC_LAB_DAY_CLOSE_RECIPE_ID,
+} from './ai-clinic-lab-day-close-compound.util.js';
+import {
+  decomposeProviderOnboardingCompoundPrompt,
+  isProviderOnboardingCompoundPrompt,
+  PROVIDER_ONBOARDING_COMPOUND_RECIPE_ID,
+} from './ai-provider-onboarding-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -95,6 +116,10 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeCustomerServiceRankDiscoveryCompoundPrompt,
   decomposePublicFlexibleAvailabilityBudgetCompoundPrompt,
   decomposeCustomerFlexibleAvailabilityBudgetCompoundPrompt,
+  decomposeProviderOnboardingCompoundPrompt,
+  decomposeClinicLabDayCloseCompoundPrompt,
+  decomposeBudgetDiscoverAndBookCompoundPrompt,
+  decomposeRankDiscoverAndBookCompoundPrompt,
 };
 
 function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
@@ -166,6 +191,24 @@ function buildFlexibleAvailabilityBudgetCompoundGoldenSteps(
 }
 
 export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
+  {
+    id: 'public_flexible_avail_list_budget_then_or',
+    surface: 'public',
+    recipeId: 'public_flexible_availability_list_budget_then_or_compound',
+    matches: (prompt) =>
+      isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildFlexibleAvailabilityBudgetCompoundGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_flexible_avail_list_budget_then_or',
+    surface: 'customer',
+    recipeId: 'customer_flexible_availability_list_budget_then_or_compound',
+    matches: (prompt) =>
+      isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildFlexibleAvailabilityBudgetCompoundGoldenSteps(prompt, 'customer'),
+  },
   {
     id: 'public_flexible_avail_budget_check_then_book',
     surface: 'public',
@@ -241,13 +284,45 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     buildSteps: (prompt) => buildBudgetCompoundGoldenSteps(prompt, 'customer'),
   },
   {
+    id: 'dashboard_budget_discover_and_book',
+    surface: 'dashboard',
+    recipeId: BUDGET_DISCOVER_AND_BOOK_RECIPE_ID,
+    matches: (prompt) => isBudgetDiscoverAndBookCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeBudgetDiscoverAndBookCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Budget discover and book compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_rank_discover_and_book',
+    surface: 'dashboard',
+    recipeId: RANK_DISCOVER_AND_BOOK_RECIPE_ID,
+    matches: (prompt) => isRankDiscoverAndBookCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeRankDiscoverAndBookCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Rank discover and book compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
     id: 'dashboard_check_and_book_nearest',
     surface: 'dashboard',
     recipeId: 'dashboard_payments_compound',
     matches: (prompt) =>
       isCheckProvidersForServicePrompt(prompt) &&
       isBookNearestSlotPrompt(prompt) &&
-      !isBudgetServiceDiscoveryCompoundPrompt(prompt),
+      !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      !isBudgetDiscoverAndBookCompoundPrompt(prompt) &&
+      !isRankDiscoverAndBookCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {
@@ -423,6 +498,36 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     },
   },
   {
+    id: 'dashboard_onboard_new_provider',
+    surface: 'dashboard',
+    recipeId: PROVIDER_ONBOARDING_COMPOUND_RECIPE_ID,
+    matches: (prompt) => isProviderOnboardingCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeProviderOnboardingCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Provider onboarding compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_clinic_lab_day_close',
+    surface: 'dashboard',
+    recipeId: CLINIC_LAB_DAY_CLOSE_RECIPE_ID,
+    matches: (prompt) => isClinicLabDayCloseCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeClinicLabDayCloseCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Clinic lab day close compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
     id: 'dashboard_clinic_order_notify',
     surface: 'dashboard',
     recipeId: 'dashboard_clinic_compound',
@@ -478,6 +583,10 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (trimmed.length < 12) return false;
   if (isBudgetServiceDiscoveryCompoundPrompt(trimmed)) return true;
   if (isServiceRankDiscoveryCompoundPrompt(trimmed)) return true;
+  if (isProviderOnboardingCompoundPrompt(trimmed)) return true;
+  if (isClinicLabDayCloseCompoundPrompt(trimmed)) return true;
+  if (isBudgetDiscoverAndBookCompoundPrompt(trimmed)) return true;
+  if (isRankDiscoverAndBookCompoundPrompt(trimmed)) return true;
   return COMPOUND_PROMPT_MARKERS.test(trimmed);
 }
 

@@ -13,7 +13,7 @@ export type ProviderSessionTimeoutLocaleParityGap = {
 };
 
 export function listProviderSessionTimeoutLocaleParityGaps(): ProviderSessionTimeoutLocaleParityGap[] {
-  const scenarioIds = new Set(
+  const scenarioIds = new Set<string>(
     EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS.map((row) => row.id),
   );
   const byEnId = new Map<

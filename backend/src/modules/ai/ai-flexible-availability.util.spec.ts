@@ -8,12 +8,23 @@ import {
   FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS,
 } from './ai-flexible-availability.fixtures.js';
 import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
   clauseHasAvailabilityCue,
+  enrichAvailabilitySessionAppendFromPrompt,
+  enrichAvailabilitySessionDropFromPrompt,
   enrichAvailabilityWindowsFromPrompt,
+  enrichFlexibleAvailabilityServiceCategoryFromPrompt,
+  enrichFlexibleAvailabilitySameProviderFromPrompt,
+  enrichFlexibleAvailabilitySingleWindowFromPrompt,
   hasAvailabilityOrPattern,
+  isSameProviderAcrossWindowsPrompt,
+  isFlexibleAvailabilityAnyProviderPrompt,
   isAvailabilityAndWeekdaysPattern,
+  isAvailabilitySessionAppendPrompt,
+  isAvailabilitySessionDropPrompt,
   normalizeAvailabilityWindows,
+  parseAvailabilityEarliestTimeFromText,
   parseAvailabilityWindowClause,
   parseAvailabilityWindowsFromPrompt,
   pickEarliestSlotAcrossWindows,
@@ -30,6 +41,8 @@ describe('ai-flexible-availability.fixtures (avail-1.2)', () => {
       'check_availability',
     );
     expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain('timeOfDay');
+    expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain('timeSlot');
+    expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain('employeeName');
     expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain('AND vs OR');
   });
 });
@@ -59,6 +72,18 @@ describe('ai-flexible-availability.util OR detection (avail-1.1)', () => {
     {
       prompt: "Who's free tomorrow evening for massage?",
       expected: false,
+    },
+    {
+      prompt: 'Massage under $80 tomorrow or Thursday evening',
+      expected: true,
+    },
+    {
+      prompt: '$50 gift card, haircut tomorrow or Friday',
+      expected: false,
+    },
+    {
+      prompt: 'Who is free tomorrow or Friday for massage?',
+      expected: true,
     },
   ])('hasAvailabilityOrPattern($prompt) → $expected', ({ prompt, expected }) => {
     expect(hasAvailabilityOrPattern(prompt)).toBe(expected);
@@ -101,8 +126,62 @@ describe('parseAvailabilityWindowsFromPrompt (avail-1.1)', () => {
     'returns null for single-window prompt $id',
     ({ prompt }) => {
       expect(parseAvailabilityWindowsFromPrompt(prompt)).toBeNull();
+      expect(hasAvailabilityOrPattern(prompt)).toBe(false);
     },
   );
+
+  it('parses colloquial after-work earliest time per OR window', () => {
+    expect(parseAvailabilityEarliestTimeFromText('after 5')).toBe('17:00');
+    expect(parseAvailabilityEarliestTimeFromText('after 16:00')).toBe('16:00');
+    expect(parseAvailabilityEarliestTimeFromText('after work')).toBe('17:00');
+    expect(
+      parseAvailabilityWindowsFromPrompt('Facial after 5 tomorrow or Friday'),
+    ).toEqual([
+      { date: 'tomorrow', timeFrom: '17:00' },
+      { weekdays: ['friday'], timeFrom: '17:00' },
+    ]);
+  });
+
+  it('parses voice ASAP OR with fallback Saturday afternoon window', () => {
+    expect(
+      parseAvailabilityWindowsFromPrompt('Lashes ASAP or Saturday if not'),
+    ).toEqual([
+      { date: 'tomorrow' },
+      { weekdays: ['saturday'], timeOfDay: 'afternoon' },
+    ]);
+  });
+
+  it('parses consumer chip evening or weekend OR windows', () => {
+    expect(
+      parseAvailabilityWindowsFromPrompt(
+        'Evening or weekend slots for a facial',
+      ),
+    ).toEqual([
+      { timeOfDay: 'evening' },
+      { weekdays: ['saturday', 'sunday'] },
+    ]);
+  });
+
+  it('parses lunch OR windows with narrow afternoon bounds', () => {
+    expect(
+      parseAvailabilityWindowsFromPrompt(
+        'Manicure tomorrow lunch or Friday lunch',
+      ),
+    ).toEqual([
+      {
+        date: 'tomorrow',
+        timeOfDay: 'afternoon',
+        timeFrom: '12:00',
+        timeTo: '14:00',
+      },
+      {
+        weekdays: ['friday'],
+        timeOfDay: 'afternoon',
+        timeFrom: '12:00',
+        timeTo: '14:00',
+      },
+    ]);
+  });
 
   it('parses abbreviated mobile phrasing per clause', () => {
     expect(parseAvailabilityWindowClause('tomorrow eve')).toEqual({
@@ -112,6 +191,231 @@ describe('parseAvailabilityWindowsFromPrompt (avail-1.1)', () => {
     expect(parseAvailabilityWindowClause('fri afternoon')).toEqual({
       weekdays: ['friday'],
       timeOfDay: 'afternoon',
+    });
+  });
+
+  it('parses imperative PM/AM shorthand per OR window (avail-imperative-en)', () => {
+    expect(
+      parseAvailabilityWindowsFromPrompt('Need massage tomorrow PM or Sun AM'),
+    ).toEqual([
+      { date: 'tomorrow', timeOfDay: 'afternoon' },
+      { weekdays: ['sunday'], timeOfDay: 'morning' },
+    ]);
+  });
+});
+
+describe('availability session append (avail-session-add-window-en)', () => {
+  it('detects follow-up append prompts', () => {
+    expect(isAvailabilitySessionAppendPrompt('or Friday afternoon works too')).toBe(
+      true,
+    );
+    expect(
+      isAvailabilitySessionAppendPrompt('I want a haircut tomorrow evening'),
+    ).toBe(false);
+  });
+
+  it('appends a second window onto session availabilityWindows', () => {
+    const turn1 = enrichDiscoveryParamsFromPrompt(
+      {},
+      'I want a haircut tomorrow evening',
+    );
+    expect(turn1).toMatchObject({
+      serviceCategory: 'haircut',
+      date: 'tomorrow',
+      timeOfDay: 'evening',
+    });
+
+    const merged = enrichAvailabilitySessionAppendFromPrompt(
+      turn1,
+      'or Friday afternoon works too',
+    );
+    expect(merged.availabilityWindows).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    expect(merged.date).toBeUndefined();
+    expect(merged.timeOfDay).toBeUndefined();
+  });
+});
+
+describe('availability session drop (avail-session-drop-window-en)', () => {
+  it('detects follow-up drop prompts', () => {
+    expect(isAvailabilitySessionDropPrompt('Friday only')).toBe(true);
+    expect(
+      isAvailabilitySessionDropPrompt('Haircut tomorrow or Friday afternoon'),
+    ).toBe(false);
+  });
+
+  it('replaces session OR windows with a single narrowed window', () => {
+    const turn1 = enrichDiscoveryParamsFromPrompt(
+      {},
+      'Haircut tomorrow or Friday afternoon',
+    );
+    expect(turn1.availabilityWindows).toEqual([
+      { date: 'tomorrow' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+
+    const merged = enrichAvailabilitySessionDropFromPrompt(turn1, 'Friday only');
+    expect(merged.availabilityWindows).toMatchObject([
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+  });
+});
+
+describe('provider preference OR windows (section L)', () => {
+  it('avail-or-any-provider-en parses OR windows and sets allProviders', () => {
+    const prompt =
+      'Any stylist tomorrow evening or Friday afternoon for a haircut';
+    expect(isFlexibleAvailabilityAnyProviderPrompt(prompt)).toBe(true);
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    expect(enrichDiscoveryParamsFromPrompt({}, prompt)).toMatchObject({
+      serviceCategory: 'haircut',
+      allProviders: true,
+      availabilityWindows: [
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+  });
+
+  it('discover-provider-budget-or-en parses provider lead with budget and OR windows', () => {
+    const prompt = 'Karo or anyone — haircut under $50 tomorrow eve or Fri PM';
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    const enriched = enrichDiscoveryParamsFromPrompt(
+      { serviceCategory: 'haircut' },
+      prompt,
+    );
+    expect(enriched).toMatchObject({
+      serviceCategory: 'haircut',
+      maxPrice: 50,
+      availabilityWindows: [
+        { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+    expect(enriched.employeeName).toBeUndefined();
+  });
+
+  it('avail-or-named-fallback-en parses named window A and anyone fallback B', () => {
+    const prompt = 'Karo tomorrow evening or anyone Friday afternoon for massage';
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    const enriched = enrichDiscoveryParamsFromPrompt({}, prompt);
+    expect(enriched).toMatchObject({
+      serviceCategory: 'massage',
+      availabilityWindows: [
+        { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+    expect(enriched.allProviders).toBeUndefined();
+  });
+
+  it('avail-or-same-provider-en parses OR windows and sets sameProviderAcrossWindows', () => {
+    const prompt = 'Same person tomorrow or Friday afternoon for color';
+    expect(isSameProviderAcrossWindowsPrompt(prompt)).toBe(true);
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { date: 'tomorrow' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    const enriched = enrichDiscoveryParamsFromPrompt({}, prompt);
+    expect(enriched).toMatchObject({
+      serviceCategory: 'color',
+      sameProviderAcrossWindows: true,
+      availabilityWindows: [
+        { date: 'tomorrow' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+    expect(enriched.allProviders).toBeUndefined();
+    expect(
+      enrichFlexibleAvailabilitySameProviderFromPrompt(prompt, {
+        serviceCategory: 'color',
+        employeeName: 'Alice',
+      }),
+    ).toMatchObject({
+      serviceCategory: 'color',
+      employeeName: 'Alice',
+      sameProviderAcrossWindows: true,
+    });
+  });
+
+  it('avail-neither-window-en parses OR windows for all-empty handler outcome', () => {
+    const prompt = 'I want a haircut tomorrow evening or Friday afternoon';
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    expect(enrichDiscoveryParamsFromPrompt({}, prompt)).toMatchObject({
+      serviceCategory: 'haircut',
+      availabilityWindows: [
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+  });
+
+  it('avail-partial-one-window-en parses tomorrow evening + Saturday afternoon', () => {
+    const prompt = 'Facial tomorrow evening or Saturday afternoon';
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['saturday'], timeOfDay: 'afternoon' },
+    ]);
+    expect(enrichDiscoveryParamsFromPrompt({}, prompt)).toMatchObject({
+      serviceCategory: 'facial',
+      availabilityWindows: [
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['saturday'], timeOfDay: 'afternoon' },
+      ],
+    });
+  });
+
+  it('avail-budget-blocks-all-en parses OR windows after stripping outcome suffix', () => {
+    const prompt =
+      'Haircut tomorrow evening or Friday afternoon under $50 — nothing open in either window';
+    expect(parseAvailabilityWindowsFromPrompt(prompt)).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+      { weekdays: ['friday'], timeOfDay: 'afternoon' },
+    ]);
+    expect(enrichDiscoveryParamsFromPrompt({}, prompt)).toMatchObject({
+      serviceCategory: 'haircut',
+      maxPrice: 50,
+      availabilityWindows: [
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
+    });
+  });
+});
+
+describe('availability session after-budget (avail-session-after-budget-en)', () => {
+  it('carries maxPrice and parses OR windows from budget follow-up', () => {
+    const turn1 = enrichDiscoveryParamsFromPrompt({}, 'Show haircuts under $50');
+    expect(turn1).toMatchObject({
+      serviceCategory: 'haircut',
+      maxPrice: 50,
+    });
+
+    const merged = enrichDiscoveryParamsFromPrompt(
+      turn1,
+      'Check tomorrow evening or Friday afternoon for those',
+    );
+    expect(merged).toMatchObject({
+      serviceCategory: 'haircut',
+      maxPrice: 50,
+      availabilityWindows: [
+        { date: 'tomorrow', timeOfDay: 'evening' },
+        { weekdays: ['friday'], timeOfDay: 'afternoon' },
+      ],
     });
   });
 });
@@ -153,6 +457,54 @@ describe('normalizeAvailabilityWindows (avail-1.1)', () => {
       },
     ]);
   });
+});
+
+describe('enrichFlexibleAvailabilityServiceCategoryFromPrompt', () => {
+  it('extracts leading service before inline budget + OR windows', () => {
+    expect(
+      enrichFlexibleAvailabilityServiceCategoryFromPrompt(
+        'Massage under $80 tomorrow or Thursday evening',
+        {},
+      ),
+    ).toEqual({ serviceCategory: 'massage', serviceName: null });
+  });
+});
+
+describe('enrichFlexibleAvailabilitySingleWindowFromPrompt (avail-single-*-en)', () => {
+  it('avail-single-tomorrow-evening-en rescues date, timeOfDay, category, allProviders', () => {
+    expect(
+      enrichFlexibleAvailabilitySingleWindowFromPrompt(
+        "Who's free tomorrow evening for massage?",
+        {},
+      ),
+    ).toMatchObject({
+      serviceCategory: 'massage',
+      date: 'tomorrow',
+      timeOfDay: 'evening',
+      allProviders: true,
+    });
+  });
+
+  it('avail-single-friday-afternoon-en rescues weekday, timeOfDay, category, allProviders', () => {
+    expect(
+      enrichFlexibleAvailabilitySingleWindowFromPrompt(
+        'Any slots Friday afternoon for a facial?',
+        {},
+      ),
+    ).toMatchObject({
+      serviceCategory: 'facial',
+      weekdays: ['friday'],
+      timeOfDay: 'afternoon',
+      allProviders: true,
+    });
+  });
+
+  it.each(AVAILABILITY_WINDOW_SINGLE_SCENARIOS)(
+    'does not split single-window prompt $id into OR windows',
+    ({ prompt }) => {
+      expect(parseAvailabilityWindowsFromPrompt(prompt)).toBeNull();
+    },
+  );
 });
 
 describe('enrichAvailabilityWindowsFromPrompt (avail-1.3)', () => {

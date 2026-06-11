@@ -320,8 +320,11 @@ export class CompoundCommandGraphService {
           resolved,
           validation,
         );
-        clarify.details.pipelineTrace = state.pipelineTrace;
-        clarify.details.compoundStep = parsed.action;
+        clarify.details = {
+          ...(clarify.details ?? {}),
+          pipelineTrace: state.pipelineTrace,
+          compoundStep: parsed.action,
+        };
         return { error: clarify };
       }
     }

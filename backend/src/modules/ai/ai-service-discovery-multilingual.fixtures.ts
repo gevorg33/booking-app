@@ -96,7 +96,7 @@ export const DISCOVER_CROSS_SPRINT_MULTILINGUAL_SCENARIOS: ServiceDiscoveryMulti
         maxPrice: 5000,
         availabilityWindows: [
           { date: 'tomorrow', timeOfDay: 'evening' },
-          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+          { weekdays: ['friday'] },
         ],
       },
     },
