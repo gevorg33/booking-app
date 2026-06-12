@@ -81,6 +81,7 @@ import {
   toIsoDay,
 } from '../../common/utils/date-format.util.js';
 import { slotOverlapsTimeWindow } from '../ai/ai-operations.util.js';
+import { employeeRoleMatchesHint } from '../ai/ai-employee-role-rank.util.js';
 import type { NearestAvailabilityWindowQuery } from '../ai/ai-nearest-slot-resolver.util.js';
 import { findNearestBookableSlotAcrossWindowsWithFinder } from '../ai/ai-nearest-slot-resolver.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
@@ -788,6 +789,7 @@ export class PublicBookingService {
       dateKeys: string[];
       notBeforeTime?: string | null;
       limit?: number;
+      employeeRole?: string | null;
     },
   ): Promise<{ providers: RecommendedProvider[] }> {
     const business = await this.resolveBusiness(slug);
@@ -803,6 +805,18 @@ export class PublicBookingService {
     let employees = await this.employeeRepo.find({
       where: { businessId: business.id, isActive: true },
     });
+
+    if (options.employeeRole) {
+      employees = employees.filter((employee) => {
+        const metadata = employee.metadata || {};
+        return employeeRoleMatchesHint(
+          typeof metadata.role === 'string' ? metadata.role : undefined,
+          typeof metadata.title === 'string' ? metadata.title : undefined,
+          options.employeeRole!,
+        );
+      });
+      if (!employees.length) return { providers: [] };
+    }
 
     let matchedServices: Service[] = [];
     if (uniqueIds.length > 0) {

@@ -13,6 +13,7 @@ import {
   applyAvailabilityFollowUpFromSession,
 } from './ai-structural-extractors.js';
 import {
+  applyPromptMentionedServiceOverrideToParams,
   enrichPublicAssistantParamsFromPrompt,
   enrichBookingTimeHintsFromPrompt,
   isBulkAllAppointmentsPrompt,
@@ -75,6 +76,42 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       expect(extractServiceFromPrompt('basic cut', haircutCatalog)?.id).toBe(
         'hair-35',
       );
+    });
+  });
+
+  describe('applyPromptMentionedServiceOverrideToParams', () => {
+    const catalog = [
+      { id: 'deep-tissue', name: 'Deep tissue massage' },
+      { id: 'face-massage', name: 'Face massage' },
+    ];
+
+    it('replaces stale session service when prompt names a different service', () => {
+      expect(
+        applyPromptMentionedServiceOverrideToParams(
+          'please book a facemassage nearest slot',
+          {
+            serviceId: 'deep-tissue',
+            serviceName: 'Deep tissue massage',
+            serviceRank: 'highest_price',
+          },
+          catalog,
+        ),
+      ).toMatchObject({
+        serviceName: 'Face massage',
+        serviceId: 'face-massage',
+        serviceCategory: null,
+      });
+      expect(
+        applyPromptMentionedServiceOverrideToParams(
+          'please book a facemassage nearest slot',
+          {
+            serviceId: 'deep-tissue',
+            serviceName: 'Deep tissue massage',
+            serviceRank: 'highest_price',
+          },
+          catalog,
+        ).serviceRank,
+      ).toBeUndefined();
     });
   });
 

@@ -1925,13 +1925,18 @@ describe('ai-payments.logic', () => {
           )
         ).success,
       ).toBe(false);
-      expect(
-        (
-          await handleBookNearestSlotLogic(buildDeps(), 'biz-1', {
-            serviceId: 's1',
-          })
-        ).success,
-      ).toBe(true);
+      const nearestBooked = await handleBookNearestSlotLogic(buildDeps(), 'biz-1', {
+        serviceId: 's1',
+      });
+      expect(nearestBooked.success).toBe(true);
+      expect(nearestBooked.details?.navigate).toEqual({
+        path: 'checkout',
+        query: {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+        },
+      });
 
       expect(
         (

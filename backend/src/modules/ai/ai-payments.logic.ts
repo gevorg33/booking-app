@@ -35,7 +35,10 @@ import {
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
 import { resolveTimezone } from '../../common/utils/timezone.util.js';
-import { buildNoNearestSlotMessage } from './ai-booking-slot-messages.util.js';
+import {
+  buildNearestSlotBookedMessage,
+  buildNoNearestSlotMessage,
+} from './ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
   mergeCheckProvidersHandoffIntoContext,
@@ -58,8 +61,12 @@ import { pickSharedBookingContextSlice } from './ai-compound-booking-context.uti
 import {
   resolveBudgetMaxPrice,
 } from './ai-budget-service-discovery.util.js';
-import { resolveBudgetConstrainedService } from './ai-budget-list-services.logic.js';
+import {
+  resolveBudgetConstrainedService,
+  resolveDiscoverConstrainedService,
+} from './ai-budget-list-services.logic.js';
 import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
+import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-hints.util.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -902,7 +909,41 @@ export async function handleBookNearestSlotLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('book_nearest_slot', 'Business not found.');
 
-  const service = await resolveService(deps, businessId, params);
+  const catalogServices = await deps.serviceRepo.find({
+    where: { businessId, isActive: true },
+  });
+  const catalog = catalogServices.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+  }));
+  if (prompt?.trim()) {
+    Object.assign(
+      params,
+      applyPromptMentionedServiceOverrideToParams(prompt, params, catalog),
+    );
+  }
+
+  let service = await resolveService(deps, businessId, params);
+  if (!service && params.serviceRank) {
+    const pricedCatalog = catalogServices.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      price: Number(entry.price),
+      durationMinutes: entry.durationMinutes,
+    }));
+    const discoverResolved = resolveDiscoverConstrainedService(pricedCatalog, {
+      serviceId: params.serviceId,
+      serviceName: params.serviceName,
+      serviceCategory: params.serviceCategory,
+      maxPrice: params.maxPrice,
+      serviceRank: params.serviceRank,
+    });
+    if (discoverResolved.service) {
+      service = catalogServices.find(
+        (entry) => entry.id === discoverResolved.service!.id,
+      );
+    }
+  }
   if (!service) {
     return failure('book_nearest_slot', 'Specify which service to book.', {
       clarify: true,
@@ -963,7 +1004,11 @@ export async function handleBookNearestSlotLogic(
 
   return success(
     'book_nearest_slot',
-    `Nearest slot: ${slot.startTime} with ${slot.employeeName}.`,
+    buildNearestSlotBookedMessage({
+      startTime: slot.startTime,
+      employeeName: slot.employeeName,
+      locale: params.locale,
+    }),
     attachCheckProvidersHandoff(
       {
         slot,
@@ -976,6 +1021,14 @@ export async function handleBookNearestSlotLogic(
         chosenAvailabilityWindow: enrichedParams.chosenAvailabilityWindow,
         chosenAvailabilityWindowIndex:
           enrichedParams.chosenAvailabilityWindowIndex,
+        navigate: {
+          path: 'checkout',
+          query: {
+            serviceId: service.id,
+            employeeId: slot.employeeId,
+            startTime: slot.startTime,
+          },
+        },
       },
       priorCheck,
     ),

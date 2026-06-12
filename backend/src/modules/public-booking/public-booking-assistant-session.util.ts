@@ -43,6 +43,29 @@ export function parsePublicAssistantSessionValue(
   return value;
 }
 
+function shouldSkipSessionServiceIdentityMerge(
+  key: string,
+  merged: Record<string, unknown>,
+): boolean {
+  if (
+    key === 'serviceId' &&
+    merged.serviceName != null &&
+    merged.serviceName !== '' &&
+    merged.serviceId == null
+  ) {
+    return true;
+  }
+  if (
+    key === 'serviceRank' &&
+    merged.serviceName != null &&
+    merged.serviceName !== '' &&
+    merged.serviceRank == null
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function mergePublicAssistantSessionParams(
   params: Record<string, unknown>,
   session?: Record<string, unknown>,
@@ -69,6 +92,7 @@ export function mergePublicAssistantSessionParams(
       continue;
     }
     if (merged[key] != null && merged[key] !== '') continue;
+    if (shouldSkipSessionServiceIdentityMerge(key, merged)) continue;
     const parsed = parsePublicAssistantSessionValue(key, session[key]);
     if (parsed != null && parsed !== '') {
       merged[key] = parsed;
@@ -79,6 +103,7 @@ export function mergePublicAssistantSessionParams(
     pickSharedBookingContextSlice(session),
   )) {
     if (merged[key] != null && merged[key] !== '') continue;
+    if (shouldSkipSessionServiceIdentityMerge(key, merged)) continue;
     const parsed = parsePublicAssistantSessionValue(key, value);
     if (parsed != null && parsed !== '') {
       merged[key] = parsed;

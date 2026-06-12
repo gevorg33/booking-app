@@ -37,7 +37,8 @@ import {
 import { isIntentAllowed } from './ai-capability.matrix.js';
 import type { CommandResult } from './command-completion.types.js';
 import { isCompoundPrompt, decomposeDeterministicForSurface } from './intent-decomposition.util.js';
-import { rescueServiceRankFromRecommendSpecialistsIntent } from './ai-service-rank-discovery.util.js';
+import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from './ai-service-rank-discovery.util.js';
+import { rescueServiceCatalogBrowseIntent } from './ai-service-catalog-browse.util.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
@@ -47,6 +48,12 @@ import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import {
   enrichDiscoveryParamsFromPrompt,
 } from './ai-service-discovery-enrichment.util.js';
+import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
+import { mergePublicAssistantSessionParams, parsePublicAssistantSessionValue } from '../public-booking/public-booking-assistant-session.util.js';
+import {
+  applyPromptMentionedServiceOverrideToParams,
+  enrichBookingTimeHintsFromPrompt,
+} from './ai-booking-param-hints.util.js';
 import {
   isPublicOnlyAssistantAction,
   publicAssistantResultToCommandResult,
@@ -238,10 +245,22 @@ export class CustomerAiCommandService {
     if (discoveryRescue) {
       parsed.action = discoveryRescue.action;
       rescueReason = discoveryRescue.rescueReason;
+      if (discoveryRescue.params) {
+        parsed.params = { ...parsed.params, ...discoveryRescue.params };
+      }
     }
 
     const action = parsed.action;
-    const params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
+    let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
+    params = applyPromptMentionedServiceOverrideToParams(prompt, params);
+    params = mergePublicAssistantSessionParams(params, context, action);
+    if (
+      action === 'book_nearest_slot' ||
+      action === 'check_providers_for_service' ||
+      action === 'create_booking'
+    ) {
+      enrichBookingTimeHintsFromPrompt(action, params as Record<string, any>, prompt);
+    }
 
     recordMisrouteTelemetry(this.aiEvents, businessId, {
       surface: 'customer',
@@ -293,6 +312,20 @@ export class CustomerAiCommandService {
     context: Record<string, unknown> | undefined,
     prompt: string,
   ): CustomerIntentSession {
+    const shared = pickSharedBookingContextSlice(context ?? {});
+    const availabilityWindowsRaw =
+      context?.availabilityWindows ?? shared.availabilityWindows;
+    const parsedAvailabilityWindows = parsePublicAssistantSessionValue(
+      'availabilityWindows',
+      availabilityWindowsRaw,
+    );
+    const chosenAvailabilityWindowRaw =
+      context?.chosenAvailabilityWindow ?? shared.chosenAvailabilityWindow;
+    const parsedChosenAvailabilityWindow = parsePublicAssistantSessionValue(
+      'chosenAvailabilityWindow',
+      chosenAvailabilityWindowRaw,
+    );
+
     return {
       customerId: context?.customerId as string | undefined,
       slug: context?.slug as string | undefined,
@@ -309,6 +342,59 @@ export class CustomerAiCommandService {
       online: context?.online as boolean | undefined,
       userEmail: context?.userEmail as string | undefined,
       userName: context?.userName as string | undefined,
+      serviceName:
+        (context?.serviceName as string | undefined) ??
+        (shared.serviceName as string | undefined),
+      serviceId:
+        (context?.serviceId as string | undefined) ??
+        (shared.serviceId as string | undefined),
+      employeeId:
+        (context?.employeeId as string | undefined) ??
+        (shared.employeeId as string | undefined),
+      maxPrice:
+        (context?.maxPrice as number | string | undefined) ??
+        (shared.maxPrice as number | string | undefined),
+      serviceRank:
+        (context?.serviceRank as string | undefined) ??
+        (shared.serviceRank as string | undefined),
+      availabilityWindows: Array.isArray(parsedAvailabilityWindows)
+        ? parsedAvailabilityWindows
+        : undefined,
+      chosenAvailabilityWindow:
+        parsedChosenAvailabilityWindow &&
+        typeof parsedChosenAvailabilityWindow === 'object' &&
+        Array.isArray(
+          (parsedChosenAvailabilityWindow as { dateKeys?: unknown }).dateKeys,
+        )
+          ? (parsedChosenAvailabilityWindow as CustomerIntentSession['chosenAvailabilityWindow'])
+          : undefined,
+      date:
+        (context?.date as string | undefined) ??
+        (shared.date as string | undefined),
+      timeOfDay:
+        (context?.timeOfDay as string | undefined) ??
+        (shared.timeOfDay as string | undefined),
+      notBeforeTime:
+        (context?.notBeforeTime as string | undefined) ??
+        (shared.notBeforeTime as string | undefined),
+      allProviders:
+        (context?.allProviders as boolean | undefined) ??
+        (shared.allProviders as boolean | undefined),
+      bookingFirstAvailable:
+        (context?.bookingFirstAvailable as boolean | undefined) ??
+        (shared.bookingFirstAvailable as boolean | undefined),
+      timeFrom:
+        (context?.timeFrom as string | undefined) ??
+        (shared.timeFrom as string | undefined),
+      checkProvidersHandoff: context?.checkProvidersHandoff as
+        | CustomerIntentSession['checkProvidersHandoff']
+        | undefined,
+      availableProviders: context?.availableProviders as string[] | undefined,
+      availability: context?.availability as
+        | CustomerIntentSession['availability']
+        | undefined,
+      priorCheckSummary: context?.priorCheckSummary as string | undefined,
+      noProviders: context?.noProviders as boolean | undefined,
       prompt,
     };
   }
@@ -422,18 +508,31 @@ export class CustomerAiCommandService {
   private applyBudgetAndRankServiceDiscoveryRescue(
     prompt: string,
     action: string,
-  ): { action: string; rescueReason: string } | null {
-    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+  ): {
+    action: string;
+    rescueReason: string;
+    params?: Record<string, unknown>;
+  } | null {
+    const rankDiscoveryRescue = rescueServiceRankDiscoveryIntent(
       prompt,
       action,
       'customer',
     );
-    const resolvedAction = budgetRescue?.action ?? action;
+    if (rankDiscoveryRescue) return rankDiscoveryRescue;
+
+    const catalogBrowseRescue = rescueServiceCatalogBrowseIntent(prompt, action);
+    const resolvedBrowseAction = catalogBrowseRescue?.action ?? action;
+    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+      prompt,
+      resolvedBrowseAction,
+      'customer',
+    );
+    const resolvedAction = budgetRescue?.action ?? resolvedBrowseAction;
     const rankRescue = rescueServiceRankFromRecommendSpecialistsIntent(
       prompt,
       resolvedAction,
     );
-    return rankRescue ?? budgetRescue ?? null;
+    return rankRescue ?? budgetRescue ?? catalogBrowseRescue ?? null;
   }
 
   private async classifyIntent(

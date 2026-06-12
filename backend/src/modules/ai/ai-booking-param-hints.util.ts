@@ -30,6 +30,34 @@ const PUBLIC_ASSISTANT_SERVICE_ACTIONS = new Set([
 ]);
 
 /** Current prompt service overrides stale session / classifier inheritance (public assistant). */
+export function applyPromptMentionedServiceOverrideToParams(
+  prompt: string,
+  params: Record<string, unknown>,
+  services: Array<{ id: string; name: string }> = [],
+): Record<string, unknown> {
+  const catalogMatch = services.length
+    ? extractServiceFromPrompt(prompt, services)
+    : undefined;
+  const rawName = catalogMatch?.name ?? extractServiceNameFromPrompt(prompt);
+  if (!rawName) return params;
+
+  const next: Record<string, unknown> = {
+    ...params,
+    serviceName: catalogMatch?.name ?? rawName,
+    serviceCategory: null,
+    serviceNames: null,
+  };
+  if (catalogMatch) {
+    next.serviceId = catalogMatch.id;
+  } else {
+    delete next.serviceId;
+  }
+  delete next.serviceRank;
+  delete next.rankedServiceIds;
+  return next;
+}
+
+/** Current prompt service overrides stale session / classifier inheritance (public assistant). */
 export function enrichPublicAssistantParamsFromPrompt(
   prompt: string,
   params: Record<string, unknown>,
@@ -46,25 +74,7 @@ export function enrichPublicAssistantParamsFromPrompt(
     return rankPick;
   }
 
-  const promptService = extractServiceFromPrompt(prompt, services);
-  if (promptService) {
-    next = {
-      ...next,
-      serviceName: promptService.name,
-      serviceCategory: null,
-      serviceNames: null,
-    };
-  } else {
-    const rawName = extractServiceNameFromPrompt(prompt);
-    if (rawName) {
-      next = {
-        ...next,
-        serviceName: rawName,
-        serviceCategory: null,
-        serviceNames: null,
-      };
-    }
-  }
+  next = applyPromptMentionedServiceOverrideToParams(prompt, next, services);
 
   let enriched = enrichDiscoveryParamsFromPrompt(next, prompt);
   if (action === 'book_appointment' && isFirstAvailableBookingPrompt(prompt)) {

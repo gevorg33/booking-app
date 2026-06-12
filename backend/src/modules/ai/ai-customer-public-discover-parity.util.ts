@@ -1,5 +1,8 @@
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
-import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js';
+import {
+  applyPromptMentionedServiceOverrideToParams,
+  enrichPublicAssistantParamsFromPrompt,
+} from './ai-booking-param-hints.util.js';
 
 /** Surface-specific post-LLM discover enrichment (section G parity). */
 export function enrichDiscoverParityParamsForSurface(
@@ -17,5 +20,13 @@ export function enrichDiscoverParityParamsForSurface(
       action,
     );
   }
-  return enrichDiscoveryParamsFromPrompt({ ...classifierParams }, prompt);
+  const enriched = enrichDiscoveryParamsFromPrompt(
+    { ...classifierParams },
+    prompt,
+  );
+  return applyPromptMentionedServiceOverrideToParams(
+    prompt,
+    enriched,
+    catalog,
+  );
 }

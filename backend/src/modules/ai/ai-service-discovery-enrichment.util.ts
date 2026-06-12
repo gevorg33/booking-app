@@ -20,15 +20,19 @@ import {
   extractServiceRankServiceCategoryFromPrompt,
 } from './ai-service-rank-discovery.util.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
+import { enrichEmployeeRoleRankFromPrompt } from './ai-employee-role-rank.util.js';
 
 /** Post-LLM rescue step 1 — budget ceiling then catalog rank (discover-1.3). */
 export function enrichServiceDiscoveryFromPrompt(
   params: Record<string, unknown>,
   prompt: string | undefined,
 ): Record<string, unknown> {
-  const enriched = enrichServiceTierFromPrompt(
-    enrichServiceRankFromPrompt(
-      enrichBudgetFromPrompt(params, prompt),
+  const enriched = enrichEmployeeRoleRankFromPrompt(
+    enrichServiceTierFromPrompt(
+      enrichServiceRankFromPrompt(
+        enrichBudgetFromPrompt(params, prompt),
+        prompt,
+      ),
       prompt,
     ),
     prompt,

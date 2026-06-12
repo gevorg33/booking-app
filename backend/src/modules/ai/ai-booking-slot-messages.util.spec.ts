@@ -1,10 +1,20 @@
 import {
+  buildNearestSlotBookedMessage,
   buildNoNearestSlotMessage,
   buildNoProvidersAvailableMessage,
   buildNoSlotSuggestions,
 } from './ai-booking-slot-messages.util.js';
 
 describe('ai-booking-slot-messages.util (ai-cmd-h2.1)', () => {
+  it('formats nearest slot booked message with human-readable time', () => {
+    expect(
+      buildNearestSlotBookedMessage({
+        startTime: '2026-06-13T09:00:00.000Z',
+        employeeName: 'Mary Torgomyan',
+      }),
+    ).toBe('Nearest slot: June 13 at 09:00 with Mary Torgomyan.');
+  });
+
   it('suggests morning or afternoon when evening has no availability', () => {
     const message = buildNoProvidersAvailableMessage({
       serviceName: 'massage',

@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
+import { formatTimeDisplay } from '../utils/date-format.util.js';
 import { resolveTimezone } from '../utils/timezone.util.js';
 import type { AppLocale } from './messages.js';
 
@@ -90,6 +91,35 @@ export function formatDateKeyPublicLabel(
     timeZone: tz,
   }).format(instant);
   return `${monthDay}, ${weekday}`;
+}
+
+const NEAREST_SLOT_AT_CONNECTOR: Record<AppLocale, string> = {
+  en: 'at',
+  hy: 'ժամը',
+  ru: 'в',
+};
+
+/** Nearest-slot start time, e.g. "June 13 at 09:00" (wall-clock UTC components). */
+export function formatNearestSlotStartTimeLabel(
+  startTime: string,
+  locale: AppLocale = 'en',
+): string {
+  const d = new Date(startTime);
+  if (Number.isNaN(d.getTime())) return startTime;
+
+  const intl = locale === 'en' ? 'en-US' : intlLocaleTag(locale);
+  const month = new Intl.DateTimeFormat(intl, {
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(d);
+  const day = new Intl.DateTimeFormat(intl, {
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(d);
+  const datePart =
+    locale === 'ru' ? `${day} ${month}` : `${month} ${day}`;
+  const connector = NEAREST_SLOT_AT_CONNECTOR[locale] ?? 'at';
+  return `${datePart} ${connector} ${formatTimeDisplay(startTime)}`;
 }
 
 /** Nearest-slot heading date, with localized "today" prefix when applicable. */

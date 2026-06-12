@@ -108,15 +108,19 @@ function withCustomerSession(
     notBeforeTime: session.notBeforeTime ?? params.notBeforeTime,
     chosenAvailabilityWindow:
       session.chosenAvailabilityWindow ?? params.chosenAvailabilityWindow,
-    serviceName: session.serviceName ?? params.serviceName,
-    allProviders: session.allProviders ?? params.allProviders,
+    serviceName: params.serviceName ?? session.serviceName,
+    allProviders: params.allProviders ?? session.allProviders,
     bookingFirstAvailable:
-      session.bookingFirstAvailable ?? params.bookingFirstAvailable,
-    timeFrom: session.timeFrom ?? params.timeFrom,
-    serviceId: session.serviceId ?? params.serviceId,
-    employeeId: session.employeeId ?? params.employeeId,
-    maxPrice: session.maxPrice ?? params.maxPrice,
-    serviceRank: session.serviceRank ?? params.serviceRank,
+      params.bookingFirstAvailable ?? session.bookingFirstAvailable,
+    timeFrom: params.timeFrom ?? session.timeFrom,
+    serviceId:
+      params.serviceId ??
+      (params.serviceName ? undefined : session.serviceId),
+    employeeId: params.employeeId ?? session.employeeId,
+    maxPrice: params.maxPrice ?? session.maxPrice,
+    serviceRank:
+      params.serviceRank ??
+      (params.serviceName ? undefined : session.serviceRank),
     availabilityWindows:
       session.availabilityWindows ?? params.availabilityWindows,
     lastPush: session.lastPush ?? params.lastPush,

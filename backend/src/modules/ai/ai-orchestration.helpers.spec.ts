@@ -325,6 +325,9 @@ describe('extractServiceTypeKeywordFromListPrompt', () => {
     ['which kind of massage you have?', 'massage'],
     ['What types of hair services do you offer?', 'hair'],
     ['which alexandrite services do you have', 'alexandrite'],
+    ['recommend me face care services', 'face care'],
+    ['I want a pilling', 'pilling'],
+    ['I want a face pilling', 'face pilling'],
   ])('extracts %s → %s', (prompt, keyword) => {
     expect(extractServiceTypeKeywordFromListPrompt(prompt)).toBe(keyword);
   });

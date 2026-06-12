@@ -1,3 +1,5 @@
+import { formatNearestSlotStartTimeLabel } from '../../common/i18n/locale-date.util.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import type { TimeOfDayWindow } from './ai-operations.util.js';
 
@@ -88,6 +90,24 @@ export function buildNoProvidersAvailableMessage(
     return `No providers are free for ${input.serviceName} on ${day} during ${window}. ${suggestions}`;
   }
   return `No providers are free for ${input.serviceName} on ${day}. ${suggestions}`;
+}
+
+function resolveAppLocale(value: unknown): AppLocale {
+  if (value === 'hy' || value === 'ru' || value === 'en') return value;
+  return 'en';
+}
+
+/** NL summary when a nearest slot is found and ready to book. */
+export function buildNearestSlotBookedMessage(input: {
+  startTime: string;
+  employeeName: string;
+  locale?: unknown;
+}): string {
+  const label = formatNearestSlotStartTimeLabel(
+    input.startTime,
+    resolveAppLocale(input.locale),
+  );
+  return `Nearest slot: ${label} with ${input.employeeName}.`;
 }
 
 /** NL summary when nearest/first-available booking finds no open slot. */

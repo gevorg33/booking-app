@@ -372,6 +372,20 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
       return name;
     }
   }
+  const bookNamedServiceNearest = prompt.match(
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:nearest|soonest|first)\s+(?:available\s+)?(?:slot|appointment|opening|time)\b/i,
+  );
+  if (bookNamedServiceNearest) {
+    const name = bookNamedServiceNearest[1].trim().replace(/[,.]$/, '');
+    if (
+      name &&
+      !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
+        name,
+      )
+    ) {
+      return name;
+    }
+  }
   const isFlexibleSlotOnlyBookPhrase =
     /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:(?:first|nearest|soonest)\s+(?:available\s+)?(?:slot|appointment|opening|time)|(?:slot|appointment|opening|time))\b/i.test(
       prompt,

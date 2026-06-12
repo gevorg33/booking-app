@@ -79,7 +79,8 @@ import type { ClassifiedIntent } from '../ai/ai-command-routing.util.js';
 import type { PipelineUnderstandResult } from '../ai/command-understanding.types.js';
 import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
 import { rescueBudgetServiceDiscoveryIntent } from '../ai/ai-budget-service-discovery.util.js';
-import { rescueServiceRankFromRecommendSpecialistsIntent } from '../ai/ai-service-rank-discovery.util.js';
+import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from '../ai/ai-service-rank-discovery.util.js';
+import { rescueServiceCatalogBrowseIntent } from '../ai/ai-service-catalog-browse.util.js';
 import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
 export { buildPublicClassifierSchema } from './public-booking-classifier.schema.js';
 import {
@@ -316,6 +317,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (discoveryRescue) {
       parsed.action = discoveryRescue.action;
       rescueReason = discoveryRescue.rescueReason;
+      if (discoveryRescue.params) {
+        parsed.params = { ...parsed.params, ...discoveryRescue.params };
+      }
     }
 
     if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
@@ -1341,11 +1345,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale,
     tz: string,
   ): Promise<PublicAssistantResult> {
-    const matchedServices = this.resolveServicesFromParams(params, services);
+    const employeeRole =
+      typeof params.employeeRole === 'string' ? params.employeeRole : undefined;
+    let matchedServices = this.resolveServicesFromParams(params, services);
+
+    if (
+      employeeRole &&
+      params.serviceCategory === employeeRole &&
+      matchedServices.length === 0
+    ) {
+      matchedServices = [];
+    }
 
     if (
       (params.serviceName || params.serviceCategory) &&
-      matchedServices.length === 0
+      matchedServices.length === 0 &&
+      !employeeRole
     ) {
       return {
         success: false,
@@ -1357,7 +1372,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    if (matchedServices.length === 0) {
+    if (matchedServices.length === 0 && !employeeRole) {
       return {
         success: true,
         action: 'recommend_specialists',
@@ -1367,8 +1382,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
+    const servicesForRecommend =
+      matchedServices.length > 0 ? matchedServices : services;
+
     const budgetRecommend = applyBudgetFilterForRecommendSpecialists(
-      matchedServices.map((service) => ({
+      servicesForRecommend.map((service) => ({
         id: service.id,
         name: service.name,
         price: service.price,
@@ -1387,14 +1405,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const filteredServiceIds = new Set(
       budgetRecommend.services.map((service) => service.id),
     );
-    const filteredServices = matchedServices.filter((service) =>
+    const filteredServices = servicesForRecommend.filter((service) =>
       filteredServiceIds.has(service.id),
     );
 
-    const serviceLabel = inferServiceGroupLabel(
-      filteredServices,
-      params.serviceCategory ?? params.serviceName,
-    );
+    const serviceLabel = employeeRole
+      ? employeeRole.charAt(0).toUpperCase() + employeeRole.slice(1)
+      : inferServiceGroupLabel(
+          filteredServices,
+          params.serviceCategory ?? params.serviceName,
+        );
     const multiService = filteredServices.length > 1;
 
     let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
@@ -1409,10 +1429,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const { providers } = await this.publicBookingService.recommendProviders(
       slug,
       {
-        serviceIds: filteredServices.map((s) => s.id),
+        serviceIds:
+          matchedServices.length > 0
+            ? filteredServices.map((service) => service.id)
+            : undefined,
         dateKeys,
         notBeforeTime: params.timeFrom ?? null,
         limit: 5,
+        employeeRole: employeeRole ?? null,
       },
     );
 
@@ -2272,18 +2296,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   private applyBudgetAndRankServiceDiscoveryRescue(
     prompt: string,
     action: string,
-  ): { action: string; rescueReason: string } | null {
-    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+  ): {
+    action: string;
+    rescueReason: string;
+    params?: Record<string, unknown>;
+  } | null {
+    const rankDiscoveryRescue = rescueServiceRankDiscoveryIntent(
       prompt,
       action,
       'public',
     );
-    const resolvedAction = budgetRescue?.action ?? action;
+    if (rankDiscoveryRescue) return rankDiscoveryRescue;
+
+    const catalogBrowseRescue = rescueServiceCatalogBrowseIntent(prompt, action);
+    const resolvedBrowseAction = catalogBrowseRescue?.action ?? action;
+    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+      prompt,
+      resolvedBrowseAction,
+      'public',
+    );
+    const resolvedAction = budgetRescue?.action ?? resolvedBrowseAction;
     const rankRescue = rescueServiceRankFromRecommendSpecialistsIntent(
       prompt,
       resolvedAction,
     );
-    return rankRescue ?? budgetRescue ?? null;
+    return rankRescue ?? budgetRescue ?? catalogBrowseRescue ?? null;
   }
 
   private pipelineClarifyToPublicResult(

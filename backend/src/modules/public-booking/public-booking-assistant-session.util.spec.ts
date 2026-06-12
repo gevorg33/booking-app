@@ -52,6 +52,21 @@ describe('public-booking-assistant-session.util (ai-cmd-customer-gap-4)', () => 
     expect(merged.serviceRank).toBe('highest_price');
   });
 
+  it('does not pin stale serviceId when follow-up names a different service', () => {
+    const merged = mergePublicAssistantSessionParams(
+      { serviceName: 'facemassage' },
+      {
+        serviceId: 'deep-tissue-id',
+        serviceName: 'Deep tissue massage',
+        serviceRank: 'highest_price',
+      },
+      'book_nearest_slot',
+    );
+    expect(merged.serviceName).toBe('facemassage');
+    expect(merged.serviceId).toBeUndefined();
+    expect(merged.serviceRank).toBeUndefined();
+  });
+
   it('serializes discovery fields for sessionContext response', () => {
     expect(
       serializePublicAssistantDiscoverySessionFields({

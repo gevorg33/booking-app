@@ -658,6 +658,8 @@ export function extractServiceTypeKeywordFromListPrompt(
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:services?|options?)\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
+    /\b(?:recommend|suggest)\s+(?:me\s+)?(?:some\s+)?([a-z][\w\s-]{1,40}?)\s+services?\b/i,
+    /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,40}?)(?:\s+service)?\s*$/i,
   ];
 
   for (const re of patterns) {

@@ -17,6 +17,9 @@ import {
 import type { ServiceRank } from './ai-service-catalog-rank.util.js';
 import { isValidServiceRank } from './ai-service-catalog-rank.util.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
+import {
+  enrichEmployeeRoleRankFromPrompt,
+} from './ai-employee-role-rank.util.js';
 import { resolveListServicesRankLimitFromPrompt } from './ai-rank-list-services.logic.js';
 import { isRankSessionListPickPrompt } from './ai-rank-session-pick.util.js';
 import {
@@ -476,8 +479,13 @@ export function buildServiceRankDiscoveryRescueParams(
 export function buildProviderRankDiscoveryRescueParams(
   prompt: string,
 ): Record<string, unknown> {
-  const params = enrichBudgetFromPrompt({}, prompt);
+  const params = enrichEmployeeRoleRankFromPrompt(
+    enrichBudgetFromPrompt({}, prompt),
+    prompt,
+  );
   delete params.serviceRank;
+  if (params.employeeRole) return params;
+
   const serviceCategory = extractProviderRankServiceCategoryFromPrompt(prompt);
   if (serviceCategory) {
     params.serviceCategory = serviceCategory;
@@ -502,6 +510,13 @@ export function buildAdminServiceAnalyticsRescueParams(
 ): Record<string, unknown> {
   return { serviceMetric: resolveServiceMetric({}, prompt) };
 }
+
+const PROVIDER_RANK_MISROUTE_ACTIONS = new Set([
+  'unknown',
+  'list_services',
+  'check_providers_for_service',
+  'check_availability',
+]);
 
 /** Surface-scoped rank discovery rescue for public/customer eval + pipeline (rank-1.11). */
 export function rescueServiceRankDiscoveryIntent(
@@ -549,7 +564,7 @@ export function rescueServiceRankDiscoveryIntent(
   }
 
   if (
-    (action === 'unknown' || action === 'list_services') &&
+    PROVIDER_RANK_MISROUTE_ACTIONS.has(action) &&
     isProviderRankDiscoveryPrompt(prompt)
   ) {
     return {

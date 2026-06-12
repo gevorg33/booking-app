@@ -3,6 +3,7 @@ import {
   formatDateKeyPublicLabel,
   formatDateKeyStripParts,
   formatNearestSlotDateLabel,
+  formatNearestSlotStartTimeLabel,
   formatWeekdayShortByDayIndex,
   intlLocaleTag,
 } from './locale-date.util.js';
@@ -65,5 +66,17 @@ describe('locale-date.util formatters', () => {
       'en',
     );
     expect(parts.dayNum).toBeTruthy();
+  });
+
+  it('formats nearest slot start time as month day at HH:mm', () => {
+    expect(
+      formatNearestSlotStartTimeLabel('2026-06-13T09:00:00.000Z', 'en'),
+    ).toBe('June 13 at 09:00');
+    expect(
+      formatNearestSlotStartTimeLabel('2026-06-06T18:00:00Z', 'en'),
+    ).toBe('June 6 at 18:00');
+    expect(
+      formatNearestSlotStartTimeLabel('2026-06-13T09:00:00.000Z', 'ru'),
+    ).toMatch(/13 .* в 09:00/);
   });
 });

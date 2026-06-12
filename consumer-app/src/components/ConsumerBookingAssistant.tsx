@@ -25,7 +25,10 @@ import {
   normalizeAvailableProviders,
   type AiAvailableProvider,
 } from '../lib/ai-available-providers.util.js';
-import { buildPublicAssistantCheckoutNavigate } from '../lib/public-assistant-checkout.util.js';
+import {
+  buildPublicAssistantCheckoutNavigate,
+  shouldAutoNavigateAssistantCheckout,
+} from '../lib/public-assistant-checkout.util.js';
 import { buildConsumerAssistantHref } from '../lib/consumer-assistant-navigate.util.js';
 import { AiAvailableProvidersPanel } from './AiAvailableProvidersPanel.js';
 import {
@@ -193,6 +196,12 @@ export function ConsumerBookingAssistant({
         if (result.sessionContext) {
           setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
         }
+
+        if (
+          shouldAutoNavigateAssistantCheckout(prompt, result.navigate, result.success)
+        ) {
+          followNavigate(result.navigate);
+        }
       } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
@@ -207,7 +216,16 @@ export function ConsumerBookingAssistant({
         setLoading(false);
       }
     },
-    [copy.assistantErrorGeneric, input, loading, locale, messages, assistantContext, slug],
+    [
+      assistantContext,
+      copy.assistantErrorGeneric,
+      followNavigate,
+      input,
+      loading,
+      locale,
+      messages,
+      slug,
+    ],
   );
 
   const handleProviderSlotSelect = useCallback(
