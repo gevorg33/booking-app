@@ -8,7 +8,6 @@ import {
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
   enrichBookingTimeHintsFromPrompt,
-  isTeamWideProviderAvailabilityQuery,
   extractStatusFiltersFromPrompt,
   isBulkAllAppointmentsPrompt,
   extractBookingStatusFromPrompt,
@@ -34,6 +33,7 @@ import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
 } from './dashboard-revenue-analytics.util.js';
+import { rescueSummarizeBookingsIntent } from './ai-dashboard-summarize-bookings.logic.js';
 import {
   extractCustomerBookingContextFromPrompt,
   extractSingleProviderNameFromPrompt,
@@ -50,10 +50,17 @@ import {
 import { rescueOperationsIntent } from './ai-operations.util.js';
 import {
   isAssignCategoryToProviderPrompt,
+  isTransferServicesBetweenProvidersPrompt,
+  isUnassignServicesFromProviderPrompt,
   rescueAssignCategoryToProviderIntent,
+  rescueTransferServicesBetweenProvidersIntent,
+  rescueUnassignServicesFromProviderIntent,
 } from './ai-category-assignment.util.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
-import { rescueCatalogIntent } from './ai-catalog.util.js';
+import {
+  enrichServiceCategoryRescueParams,
+  rescueCatalogIntent,
+} from './ai-catalog.util.js';
 import { enrichCatalogNotifyRescueParams } from './ai-catalog-notify.util.js';
 import { rescueCustomerCrmIntent } from './ai-customer-crm.util.js';
 import { rescueScheduleResourceIntent } from './ai-schedule-resources.util.js';
@@ -69,6 +76,7 @@ import {
   isCheckProvidersForServicePrompt,
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
+import { rescueBudgetServiceDiscoveryIntent, enrichBudgetFromPrompt } from './ai-budget-service-discovery.util.js';
 import {
   disambiguateMisclassifiedAvailabilityIntent,
   resolveAvailabilityIntentFromPrompt,
@@ -199,11 +207,32 @@ import {
   rescueClinicTestOrderIntent,
 } from './ai-clinic-test-order.util.js';
 import { rescueClinicCompoundIntent } from './ai-clinic-compound.util.js';
+import { rescueClinicLabDayCloseCompoundIntent } from './ai-clinic-lab-day-close-compound.util.js';
+import { rescueBudgetDiscoverAndBookCompoundIntent } from './ai-budget-discover-and-book-compound.util.js';
+import { rescueRankDiscoverAndBookCompoundIntent } from './ai-rank-discover-and-book-compound.util.js';
+import { enrichServiceRankFromPrompt } from './ai-service-rank-discovery.util.js';
 import {
   parseEnterTestResultFromPrompt,
   parseReleaseTestResultFromPrompt,
   rescueClinicTestResultIntent,
 } from './ai-clinic-test-result.util.js';
+import {
+  parseConfigureTestReferenceRangeFromPrompt,
+  parseExplainPatientResultsFromPrompt,
+  parseUploadPatientResultFromPrompt,
+} from './ai-clinic-test-result-ext.util.js';
+import {
+  enrichStaffOperationsRescueParams,
+  rescueStaffOperationsIntent,
+} from './ai-staff-operations.util.js';
+import {
+  enrichBillingLoyaltyRescueParams,
+  rescueBillingLoyaltyDashboardIntent,
+} from './ai-billing-loyalty-dashboard.util.js';
+import {
+  enrichWaitlistDashboardRescueParams,
+  rescueWaitlistDashboardIntent,
+} from './ai-waitlist-dashboard.util.js';
 import {
   parseExplainPatientChartFromPrompt,
   rescueClinicPatientChartIntent,
@@ -251,6 +280,7 @@ import { rescueProviderPushSetupIntent } from './ai-provider-push-setup.util.js'
 import {
   extractClientNoteBodyFromPrompt,
   extractCustomerNameFromClientPrompt,
+  matchProviderClientContextScenario,
   rescueProviderClientContextIntent,
 } from './ai-provider-client-context.util.js';
 import { rescueProviderEarningsIntent } from './ai-provider-earnings.util.js';
@@ -261,6 +291,26 @@ import {
   inferMyStatsScopeFromPrompt,
   rescueProviderExp2Intent,
 } from './ai-provider-exp-2.util.js';
+import {
+  extractBlockWindowFromPrompt,
+  extractMessageTemplateHint,
+  extractRetailProductName,
+  extractSendMessageChannel,
+  matchProviderExp3Scenario,
+  rescueProviderExp3Intent,
+} from './ai-provider-exp-3.util.js';
+import {
+  matchProviderOpenShiftsScenario,
+  rescueProviderOpenShiftsIntent,
+} from './ai-provider-open-shifts.util.js';
+import {
+  matchProviderTeamWhosNextScenario,
+  rescueProviderTeamWhosNextIntent,
+} from './ai-provider-team-whos-next.util.js';
+import {
+  matchProviderTimeOffScenario,
+  rescueProviderTimeOffIntent,
+} from './ai-provider-time-off.util.js';
 import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
 import {
   parseExplainDataRightsFromPrompt,
@@ -295,6 +345,14 @@ import {
   rescueExplainRecommendationSetupIntent,
   rescueLinkRecommendedProductsIntent,
 } from './ai-recommendation-product.util.js';
+import {
+  runIntentRescuePipeline,
+  type RescuePipelineContext,
+} from './ai-intent-rescue-pipeline.util.js';
+import { RESCUE_PIPELINE_BOUNDARY_MARKER } from './ai-intent-rescue.boundary.js';
+
+/** pipe-1.5.1 — domain rescues only; semantic match is a pipeline stage. */
+const _RESCUE_PIPELINE_BOUNDARY = RESCUE_PIPELINE_BOUNDARY_MARKER;
 
 export interface IntentRescueInput {
   prompt: string;
@@ -304,6 +362,13 @@ export interface IntentRescueInput {
   employees?: Array<{ id: string; name: string }>;
   customers?: Array<{ id: string; name: string }>;
   timeZone?: string;
+  /** When set, budget discovery rescue uses surface-specific misroute mapping. */
+  surface?: 'dashboard' | 'customer' | 'public' | 'provider';
+  /**
+   * pipe-1.5.2 — param hints from semantic_match winner only.
+   * Never used to pick or override rescue action.
+   */
+  semanticParamHints?: Record<string, unknown>;
 }
 
 export interface IntentRescueResult {
@@ -414,10 +479,57 @@ const READ_ONLY_ACTIONS = new Set([
 @Injectable()
 export class AiIntentRescueService {
   rescue(input: IntentRescueInput): IntentRescueResult | null {
-    const { prompt, employees = [], customers = [], timeZone = 'UTC' } = input;
-    const { action, params, reasoning } = input;
+    return runIntentRescuePipeline(this, input);
+  }
 
-    if (action !== 'unknown') {
+  /** pipe-1.5.1 — provider surface domain rescues */
+  runRescueProviderPhase(input: IntentRescueInput): IntentRescueResult | null {
+    const { prompt, action } = input;
+    if (input.surface !== 'provider') return null;
+      const providerBookingExact = this.tryRescueProviderBooking(prompt, action);
+      if (providerBookingExact) return providerBookingExact;
+      const providerClientContextExact =
+        this.tryRescueProviderClientContextExact(prompt, action);
+      if (providerClientContextExact) return providerClientContextExact;
+      const providerExp3Exact = this.tryRescueProviderExp3Exact(prompt, action);
+      if (providerExp3Exact) return providerExp3Exact;
+      const providerOpenShiftsExact = this.tryRescueProviderOpenShiftsExact(
+        prompt,
+        action,
+      );
+      if (providerOpenShiftsExact) return providerOpenShiftsExact;
+      const providerTeamWhosNextExact = this.tryRescueProviderTeamWhosNextExact(
+        prompt,
+        action,
+      );
+      if (providerTeamWhosNextExact) return providerTeamWhosNextExact;
+      const providerTimeOffExact = this.tryRescueProviderTimeOffExact(
+        prompt,
+        action,
+      );
+      if (providerTimeOffExact) return providerTimeOffExact;
+    return null;
+  }
+
+  /** pipe-1.5.1 — classified action domain disambiguation */
+  runRescueClassifiedPhase(
+    input: IntentRescueInput,
+    ctx: RescuePipelineContext,
+  ): IntentRescueResult | null {
+    const { prompt, action, params } = input;
+    const { employees, customers, timeZone, budgetSurface } = ctx;
+      const budgetDiscoveryEarly = this.tryRescueBudgetServiceDiscovery(
+        prompt,
+        action,
+        budgetSurface,
+      );
+      if (budgetDiscoveryEarly) return budgetDiscoveryEarly;
+      const rankDiscoveryEarly = this.tryRescueRankServiceDiscovery(
+        prompt,
+        action,
+        budgetSurface,
+      );
+      if (rankDiscoveryEarly) return rankDiscoveryEarly;
       const disambiguated = this.disambiguateMisclassified(
         prompt,
         action,
@@ -492,6 +604,21 @@ export class AiIntentRescueService {
       const checkoutRecommendationsEarly =
         this.tryRescueCheckoutRecommendations(prompt, action);
       if (checkoutRecommendationsEarly) return checkoutRecommendationsEarly;
+      const billingLoyaltyEarly = this.tryRescueBillingLoyaltyDashboard(
+        prompt,
+        action,
+      );
+      if (billingLoyaltyEarly) return billingLoyaltyEarly;
+      const staffOperationsEarly = this.tryRescueStaffOperations(
+        prompt,
+        action,
+      );
+      if (staffOperationsEarly) return staffOperationsEarly;
+      const waitlistDashboardEarly = this.tryRescueWaitlistDashboard(
+        prompt,
+        action,
+      );
+      if (waitlistDashboardEarly) return waitlistDashboardEarly;
       const operations = this.tryRescueOperations(prompt, action, params);
       if (operations) return operations;
       const providerBookingEarly = this.tryRescueProviderBooking(
@@ -508,16 +635,30 @@ export class AiIntentRescueService {
       if (providerPushSetupEarly) return providerPushSetupEarly;
       const providerExp2Early = this.tryRescueProviderExp2(prompt, action);
       if (providerExp2Early) return providerExp2Early;
-      const providerEarningsEarly = this.tryRescueProviderEarnings(
+      const providerExp3Early = this.tryRescueProviderExp3(prompt, action);
+      if (providerExp3Early) return providerExp3Early;
+      const providerOpenShiftsEarly = this.tryRescueProviderOpenShifts(
         prompt,
         action,
       );
-      if (providerEarningsEarly) return providerEarningsEarly;
+      if (providerOpenShiftsEarly) return providerOpenShiftsEarly;
+      const providerTeamWhosNextEarly = this.tryRescueProviderTeamWhosNext(
+        prompt,
+        action,
+      );
+      if (providerTeamWhosNextEarly) return providerTeamWhosNextEarly;
+      const providerTimeOffEarly = this.tryRescueProviderTimeOff(prompt, action);
+      if (providerTimeOffEarly) return providerTimeOffEarly;
       const providerClientContextEarly = this.tryRescueProviderClientContext(
         prompt,
         action,
       );
       if (providerClientContextEarly) return providerClientContextEarly;
+      const providerEarningsEarly = this.tryRescueProviderEarnings(
+        prompt,
+        action,
+      );
+      if (providerEarningsEarly) return providerEarningsEarly;
       const bookingDepthEarly = this.tryRescueBookingDepth(
         prompt,
         action,
@@ -546,14 +687,36 @@ export class AiIntentRescueService {
       if (scheduleResources) return scheduleResources;
       const customerCrm = this.tryRescueCustomerCrm(prompt, action);
       if (customerCrm) return customerCrm;
-      return null;
-    }
+    return null;
+  }
+
+  /** pipe-1.5.1 — unknown intent domain rescue chain */
+  runRescueUnknownPhase(
+    input: IntentRescueInput,
+    ctx: RescuePipelineContext,
+  ): IntentRescueResult | null {
+    const { prompt, action, params, reasoning } = input;
+    const { employees, customers, timeZone, budgetSurface } = ctx;
 
     const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
       prompt,
       action,
     );
     if (reportsCurrencyUnknown) return reportsCurrencyUnknown;
+
+    const budgetDiscoveryUnknown = this.tryRescueBudgetServiceDiscovery(
+      prompt,
+      action,
+      budgetSurface,
+    );
+    if (budgetDiscoveryUnknown) return budgetDiscoveryUnknown;
+
+    const rankDiscoveryUnknown = this.tryRescueRankServiceDiscovery(
+      prompt,
+      action,
+      budgetSurface,
+    );
+    if (rankDiscoveryUnknown) return rankDiscoveryUnknown;
 
     const revenueKpisUnknown = this.tryRescueRevenueKpis(prompt, action);
     if (revenueKpisUnknown) return revenueKpisUnknown;
@@ -573,15 +736,12 @@ export class AiIntentRescueService {
       };
     }
 
-    if (isTotalEarningsPrompt(prompt)) {
-      return {
-        action: 'summarize_bookings',
-        params: { ...params, bookingMetric: 'revenue' },
-        reasoning: 'Calculate total earnings/revenue for the requested period.',
-        rescued: true,
-        rescueReason: 'total_earnings',
-      };
-    }
+    const summarizeBookingsUnknown = this.tryRescueSummarizeBookings(
+      prompt,
+      action,
+      params,
+    );
+    if (summarizeBookingsUnknown) return summarizeBookingsUnknown;
 
     const summarizeCustomerTaxPaidUnknown =
       rescueSummarizeCustomerTaxPaidIntent(prompt, action);
@@ -595,6 +755,9 @@ export class AiIntentRescueService {
       };
     }
 
+    const clinicCompoundUnknown = this.tryRescueClinicCompound(prompt, action);
+    if (clinicCompoundUnknown) return clinicCompoundUnknown;
+
     const notificationDateBeforeClinic = this.tryRescueNotificationDateFormat(
       prompt,
       action,
@@ -606,9 +769,6 @@ export class AiIntentRescueService {
       action,
     );
     if (providerPushSetupBeforeClinic) return providerPushSetupBeforeClinic;
-
-    const clinicCompoundUnknown = this.tryRescueClinicCompound(prompt, action);
-    if (clinicCompoundUnknown) return clinicCompoundUnknown;
 
     const dashboardClinicLabBookingBeforeResults =
       this.tryRescueDashboardClinicLabBooking(prompt, action);
@@ -689,6 +849,18 @@ export class AiIntentRescueService {
         rescueReason: businessComplianceEarly.rescueReason,
       };
     }
+
+    const staffOperationsBeforeCustomer = this.tryRescueStaffOperations(
+      prompt,
+      action,
+    );
+    if (staffOperationsBeforeCustomer) return staffOperationsBeforeCustomer;
+
+    const waitlistDashboardBeforeCustomer = this.tryRescueWaitlistDashboard(
+      prompt,
+      action,
+    );
+    if (waitlistDashboardBeforeCustomer) return waitlistDashboardBeforeCustomer;
 
     if (isCustomerBookingContextPrompt(prompt)) {
       const ctx = extractCustomerBookingContextFromPrompt(prompt);
@@ -785,6 +957,12 @@ export class AiIntentRescueService {
     );
     if (explainToursUnknown) return explainToursUnknown;
 
+    const providerTeamWhosNextBeforeAppointments =
+      this.tryRescueProviderTeamWhosNext(prompt, action);
+    if (providerTeamWhosNextBeforeAppointments) {
+      return providerTeamWhosNextBeforeAppointments;
+    }
+
     if (isUpcomingAppointmentsPrompt(prompt)) {
       const scope = extractUpcomingAppointmentScope(prompt);
       return {
@@ -823,6 +1001,40 @@ export class AiIntentRescueService {
       };
     }
 
+    if (isTransferServicesBetweenProvidersPrompt(prompt)) {
+      const transfer = rescueTransferServicesBetweenProvidersIntent(
+        prompt,
+        action,
+        params,
+      );
+      if (transfer) {
+        return {
+          action: transfer.action,
+          params: transfer.params,
+          reasoning: 'Move provider skills from one team member to another.',
+          rescued: true,
+          rescueReason: transfer.rescueReason,
+        };
+      }
+    }
+
+    if (isUnassignServicesFromProviderPrompt(prompt)) {
+      const unassign = rescueUnassignServicesFromProviderIntent(
+        prompt,
+        action,
+        params,
+      );
+      if (unassign) {
+        return {
+          action: unassign.action,
+          params: unassign.params,
+          reasoning: 'Remove provider skills from a named team member.',
+          rescued: true,
+          rescueReason: unassign.rescueReason,
+        };
+      }
+    }
+
     if (isAssignCategoryToProviderPrompt(prompt)) {
       const categoryAssign = rescueAssignCategoryToProviderIntent(
         prompt,
@@ -852,6 +1064,18 @@ export class AiIntentRescueService {
     if (recommendationProductUnknownEarly) {
       return recommendationProductUnknownEarly;
     }
+    const billingLoyaltyUnknown = this.tryRescueBillingLoyaltyDashboard(
+      prompt,
+      action,
+    );
+    if (billingLoyaltyUnknown) return billingLoyaltyUnknown;
+    const staffOperationsUnknown = this.tryRescueStaffOperations(prompt, action);
+    if (staffOperationsUnknown) return staffOperationsUnknown;
+    const waitlistDashboardUnknown = this.tryRescueWaitlistDashboard(
+      prompt,
+      action,
+    );
+    if (waitlistDashboardUnknown) return waitlistDashboardUnknown;
     const operationsUnknown = this.tryRescueOperations(prompt, action, params);
     if (operationsUnknown) return operationsUnknown;
     const providerBookingUnknownEarly = this.tryRescueProviderBooking(
@@ -868,14 +1092,31 @@ export class AiIntentRescueService {
     if (providerPushSetupUnknownEarly) return providerPushSetupUnknownEarly;
     const providerExp2UnknownEarly = this.tryRescueProviderExp2(prompt, action);
     if (providerExp2UnknownEarly) return providerExp2UnknownEarly;
+    const providerExp3UnknownEarly = this.tryRescueProviderExp3(prompt, action);
+    if (providerExp3UnknownEarly) return providerExp3UnknownEarly;
+    const providerOpenShiftsUnknownEarly = this.tryRescueProviderOpenShifts(
+      prompt,
+      action,
+    );
+    if (providerOpenShiftsUnknownEarly) return providerOpenShiftsUnknownEarly;
+    const providerTeamWhosNextUnknownEarly = this.tryRescueProviderTeamWhosNext(
+      prompt,
+      action,
+    );
+    if (providerTeamWhosNextUnknownEarly) return providerTeamWhosNextUnknownEarly;
+    const providerTimeOffUnknownEarly = this.tryRescueProviderTimeOff(
+      prompt,
+      action,
+    );
+    if (providerTimeOffUnknownEarly) return providerTimeOffUnknownEarly;
+    const providerClientContextUnknownEarly =
+      this.tryRescueProviderClientContext(prompt, action);
+    if (providerClientContextUnknownEarly) return providerClientContextUnknownEarly;
     const providerEarningsUnknownEarly = this.tryRescueProviderEarnings(
       prompt,
       action,
     );
     if (providerEarningsUnknownEarly) return providerEarningsUnknownEarly;
-    const providerClientContextUnknownEarly =
-      this.tryRescueProviderClientContext(prompt, action);
-    if (providerClientContextUnknownEarly) return providerClientContextUnknownEarly;
     const selfServiceBookingUnknown = this.tryRescueSelfServiceBooking(
       prompt,
       action,
@@ -1169,6 +1410,7 @@ export class AiIntentRescueService {
     return null;
   }
 
+
   private tryRescueScheduling(
     prompt: string,
     action: string,
@@ -1187,11 +1429,99 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueBillingLoyaltyDashboard(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueBillingLoyaltyDashboardIntent(prompt, action);
+    if (!rescued) return null;
+    const params = enrichBillingLoyaltyRescueParams(
+      rescued.action,
+      {},
+      prompt,
+    );
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Billing/loyalty rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueStaffOperations(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueStaffOperationsIntent(prompt, action);
+    if (!rescued) return null;
+    const params = enrichStaffOperationsRescueParams(
+      rescued.action,
+      {},
+      prompt,
+    );
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Staff operations rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueWaitlistDashboard(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueWaitlistDashboardIntent(prompt, action);
+    if (!rescued) return null;
+    const params = enrichWaitlistDashboardRescueParams(
+      rescued.action,
+      {},
+      prompt,
+    );
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Waitlist dashboard rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueOperations(
     prompt: string,
     action: string,
     params: Record<string, any>,
   ): IntentRescueResult | null {
+    const transfer = rescueTransferServicesBetweenProvidersIntent(
+      prompt,
+      action,
+      params,
+    );
+    if (transfer) {
+      return {
+        action: transfer.action,
+        params: transfer.params,
+        reasoning: 'Move provider skills from one team member to another.',
+        rescued: true,
+        rescueReason: transfer.rescueReason,
+      };
+    }
+    const unassign = rescueUnassignServicesFromProviderIntent(
+      prompt,
+      action,
+      params,
+    );
+    if (unassign) {
+      return {
+        action: unassign.action,
+        params: unassign.params,
+        reasoning: 'Remove provider skills from a named team member.',
+        rescued: true,
+        rescueReason: unassign.rescueReason,
+      };
+    }
     const categoryAssign = rescueAssignCategoryToProviderIntent(
       prompt,
       action,
@@ -1256,12 +1586,19 @@ export class AiIntentRescueService {
     };
   }
 
-  private tryRescueProviderClientContext(
+  private tryRescueProviderClientContextExact(
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
-    const rescued = rescueProviderClientContextIntent(prompt, action);
+    const rescued = matchProviderClientContextScenario(prompt);
     if (!rescued || rescued.action === action) return null;
+    return this.buildProviderClientContextRescueResult(rescued, prompt);
+  }
+
+  private buildProviderClientContextRescueResult(
+    rescued: { action: string; rescueReason: string },
+    prompt: string,
+  ): IntentRescueResult {
     const params: Record<string, unknown> = {};
     if (rescued.action === 'add_client_note') {
       const noteBody = extractClientNoteBodyFromPrompt(prompt);
@@ -1278,6 +1615,15 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueProviderClientContext(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderClientContextIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return this.buildProviderClientContextRescueResult(rescued, prompt);
+  }
+
   private tryRescueProviderEarnings(
     prompt: string,
     action: string,
@@ -1288,6 +1634,146 @@ export class AiIntentRescueService {
       action: rescued.action,
       params: {},
       reasoning: `Provider earnings rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderExp3Exact(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = matchProviderExp3Scenario(prompt);
+    if (!rescued || rescued.action === action) return null;
+    return this.buildProviderExp3RescueResult(rescued, prompt);
+  }
+
+  private buildProviderExp3RescueResult(
+    rescued: { action: string; rescueReason: string },
+    prompt: string,
+  ): IntentRescueResult {
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'add_retail_to_booking') {
+      const productName = extractRetailProductName(prompt, params);
+      if (productName) params.productName = productName;
+      const customerName = extractBookingActionCustomerName(prompt, params);
+      if (customerName) params.customerName = customerName;
+    }
+    if (rescued.action === 'send_client_message') {
+      params.channel = extractSendMessageChannel(prompt, params);
+      const templateHint = extractMessageTemplateHint(prompt, params);
+      if (templateHint) params.messageTemplate = templateHint;
+      const customerName = extractBookingActionCustomerName(prompt, params);
+      if (customerName) params.customerName = customerName;
+    }
+    if (rescued.action === 'block_my_time') {
+      const window = extractBlockWindowFromPrompt(prompt);
+      if (window.startTime) params.startTime = window.startTime;
+      if (window.endTime) params.endTime = window.endTime;
+    }
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider exp-3 rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderExp3(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderExp3Intent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return this.buildProviderExp3RescueResult(rescued, prompt);
+  }
+
+  private tryRescueProviderOpenShiftsExact(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = matchProviderOpenShiftsScenario(prompt);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider open shifts rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderOpenShifts(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderOpenShiftsIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider open shifts rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderTeamWhosNextExact(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = matchProviderTeamWhosNextScenario(prompt);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider team whos next rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderTeamWhosNext(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderTeamWhosNextIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider team whos next rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderTimeOffExact(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = matchProviderTimeOffScenario(prompt);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider time-off rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderTimeOff(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderTimeOffIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider time-off rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -1470,6 +1956,60 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueBudgetServiceDiscovery(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface === 'dashboard') {
+      const compound = rescueBudgetDiscoverAndBookCompoundIntent(prompt, action);
+      if (compound) {
+        return {
+          action: compound.action,
+          params: enrichBudgetFromPrompt({}, prompt),
+          reasoning:
+            'Budget discover and book compound — filter catalog, check providers, create booking.',
+          rescued: true,
+          rescueReason: compound.rescueReason,
+        };
+      }
+    }
+    const rescued = rescueBudgetServiceDiscoveryIntent(prompt, action, surface);
+    if (!rescued || rescued.action === action) return null;
+    const rescueReason =
+      rescued.rescueReason === 'apply_gift_card_code'
+        ? 'apply_gift_card_checkout'
+        : rescued.rescueReason;
+    return {
+      action: rescued.action,
+      params: enrichBudgetFromPrompt({}, prompt),
+      reasoning: `Budget service discovery rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason,
+    };
+  }
+
+  private tryRescueRankServiceDiscovery(
+    prompt: string,
+    action: string,
+    surface: 'dashboard' | 'customer' | 'public' = 'dashboard',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueRankDiscoverAndBookCompoundIntent(prompt, action);
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: enrichServiceRankFromPrompt(
+        enrichBudgetFromPrompt({}, prompt),
+        prompt,
+      ),
+      reasoning:
+        'Rank discover and book compound — rank catalog, check providers, create booking.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
   private tryRescueRecommendationProduct(
     prompt: string,
     action: string,
@@ -1638,6 +2178,25 @@ export class AiIntentRescueService {
       action: rescued.action,
       params: {},
       reasoning: `Reports currency rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueSummarizeBookings(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueSummarizeBookingsIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: { ...params, bookingMetric: rescued.bookingMetric },
+      reasoning:
+        rescued.bookingMetric === 'revenue'
+          ? 'Calculate total earnings/revenue for the requested period.'
+          : 'Summarize booking metrics for the requested period.',
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -2346,6 +2905,23 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const disambiguated = disambiguateGiftCardPaymentsAction(prompt, action);
+    if (disambiguated && disambiguated.action !== action) {
+      const rescuedParams: Record<string, any> = {};
+      applyGiftCardPaymentsPromptHints(
+        disambiguated.action,
+        rescuedParams,
+        prompt,
+      );
+      return {
+        action: disambiguated.action,
+        params: rescuedParams,
+        reasoning: `Payments/checkout rescue → ${disambiguated.action}`,
+        rescued: true,
+        rescueReason: disambiguated.rescueReason,
+      };
+    }
+
     const rescued = rescuePaymentsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     const rescuedParams: Record<string, any> = {};
@@ -2806,7 +3382,10 @@ export class AiIntentRescueService {
 
     const rescued = rescueCatalogIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
-    const params: Record<string, unknown> = {};
+    const params: Record<string, unknown> = {
+      ...('params' in rescued && rescued.params ? rescued.params : {}),
+    };
+    enrichServiceCategoryRescueParams(rescued.action, params, prompt);
     enrichCatalogNotifyRescueParams(rescued.action, params, prompt);
     return {
       action: rescued.action,
@@ -2827,6 +3406,10 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;
+    const staffOperations = this.tryRescueStaffOperations(prompt, action);
+    if (staffOperations) return staffOperations;
+    const waitlistDashboard = this.tryRescueWaitlistDashboard(prompt, action);
+    if (waitlistDashboard) return waitlistDashboard;
     const operations = this.tryRescueOperations(prompt, action, params);
     if (operations) return operations;
 
@@ -3083,11 +3666,25 @@ export class AiIntentRescueService {
       if (parsed?.orderId) params.orderId = parsed.orderId;
       if (parsed?.resultId) params.resultId = parsed.resultId;
       if (parsed?.customerName) params.customerName = parsed.customerName;
-    } else {
+    } else if (rescued.action === 'release_test_result') {
       const parsed = parseReleaseTestResultFromPrompt(prompt);
       if (parsed?.customerName) params.customerName = parsed.customerName;
       if (parsed?.orderId) params.orderId = parsed.orderId;
       if (parsed?.resultId) params.resultId = parsed.resultId;
+    } else if (rescued.action === 'upload_patient_result') {
+      const parsed = parseUploadPatientResultFromPrompt(prompt);
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+    } else if (rescued.action === 'explain_patient_results') {
+      const parsed = parseExplainPatientResultsFromPrompt(prompt);
+      if (parsed?.customerName) params.customerName = parsed.customerName;
+      if (parsed?.orderId) params.orderId = parsed.orderId;
+    } else if (rescued.action === 'configure_test_reference_range') {
+      const parsed = parseConfigureTestReferenceRangeFromPrompt(prompt);
+      if (parsed?.measurementCode)
+        params.measurementCode = parsed.measurementCode;
+      if (parsed?.normalLow) params.normalLow = parsed.normalLow;
+      if (parsed?.normalHigh) params.normalHigh = parsed.normalHigh;
     }
 
     return {
@@ -3180,6 +3777,17 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const labDayClose = rescueClinicLabDayCloseCompoundIntent(prompt, action);
+    if (labDayClose) {
+      return {
+        action: labDayClose.action,
+        params: {},
+        reasoning:
+          'Clinic lab day close compound — list orders, enter results, release, notify.',
+        rescued: true,
+        rescueReason: labDayClose.rescueReason,
+      };
+    }
     const rescued = rescueClinicCompoundIntent(prompt, action);
     if (!rescued) return null;
     return {

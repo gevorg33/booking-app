@@ -8,6 +8,88 @@ const DOCUMENT_CATEGORIES = {
   other: 'Other',
 } as const;
 
+/** discover-1.4 / discover-exit-4 — chip catalog synced with backend `ai-consumer-discovery-chips.fixtures.ts`. */
+export type ConsumerDiscoveryChipCopyCatalogRow = {
+  id:
+    | 'discover-chip-under-50-en'
+    | 'discover-chip-premium-en'
+    | 'discover-chip-evening-weekend-en';
+  fixtureId: string;
+  domain: 'budget' | 'rank' | 'availability';
+  labelKey:
+    | 'assistantDiscoverChipUnder50'
+    | 'assistantDiscoverChipPremium'
+    | 'assistantDiscoverChipEveningWeekend';
+  promptKey:
+    | 'assistantDiscoverPromptUnder50'
+    | 'assistantDiscoverPromptPremium'
+    | 'assistantDiscoverPromptEveningWeekend';
+  en: { label: string; prompt: string };
+  hy: { label: string };
+  ru: { label: string };
+};
+
+export const CONSUMER_DISCOVERY_CHIP_COPY_CATALOG: readonly ConsumerDiscoveryChipCopyCatalogRow[] =
+  [
+    {
+      id: 'discover-chip-under-50-en',
+      fixtureId: 'budget-voice-chip-en',
+      domain: 'budget',
+      labelKey: 'assistantDiscoverChipUnder50',
+      promptKey: 'assistantDiscoverPromptUnder50',
+      en: { label: 'Under $50', prompt: 'Services under $50' },
+      hy: { label: '$50-ից ցած' },
+      ru: { label: 'До $50' },
+    },
+    {
+      id: 'discover-chip-premium-en',
+      fixtureId: 'rank-voice-chip-en',
+      domain: 'rank',
+      labelKey: 'assistantDiscoverChipPremium',
+      promptKey: 'assistantDiscoverPromptPremium',
+      en: { label: 'Premium services', prompt: 'Premium services' },
+      hy: { label: 'Պրեմիում ծառայություններ' },
+      ru: { label: 'Премиум услуги' },
+    },
+    {
+      id: 'discover-chip-evening-weekend-en',
+      fixtureId: 'avail-voice-chip-en',
+      domain: 'availability',
+      labelKey: 'assistantDiscoverChipEveningWeekend',
+      promptKey: 'assistantDiscoverPromptEveningWeekend',
+      en: {
+        label: 'Evening or weekend slots',
+        prompt: 'Evening or weekend slots for a facial',
+      },
+      hy: { label: 'Երեկոյան կամ հանգստյան օր' },
+      ru: { label: 'Вечер или выходные' },
+    },
+  ];
+
+type DiscoverChipCopyFields = Pick<
+  ConsumerCopy,
+  ConsumerDiscoveryChipCopyCatalogRow['labelKey'] |
+    ConsumerDiscoveryChipCopyCatalogRow['promptKey']
+>;
+
+function buildDiscoverChipCopyFields(locale: ConsumerLocale): DiscoverChipCopyFields {
+  const fields = {} as DiscoverChipCopyFields;
+  for (const row of CONSUMER_DISCOVERY_CHIP_COPY_CATALOG) {
+    fields[row.labelKey] =
+      locale === 'en'
+        ? row.en.label
+        : locale === 'hy'
+          ? row.hy.label
+          : row.ru.label;
+    fields[row.promptKey] = row.en.prompt;
+  }
+  return fields;
+}
+
+export const CONSUMER_DISCOVERY_CHIP_IDS = CONSUMER_DISCOVERY_CHIP_COPY_CATALOG.map(
+  (row) => row.id,
+);
+
 export const CONSUMER_COPY_EN: ConsumerCopy = {
   cancelBooking: 'Cancel appointment',
   cancelBookingConfirm: 'Cancel this appointment?',
@@ -162,6 +244,8 @@ export const CONSUMER_COPY_EN: ConsumerCopy = {
   assistantExampleServices: 'What services do you offer?',
   assistantExampleBook: 'Book a haircut this Friday',
   assistantExampleLocation: 'Where are you located?',
+  assistantDiscoverChipsTitle: 'Service discovery',
+  ...buildDiscoverChipCopyFields('en'),
   availableProvidersTitle: 'Available providers',
   bookProvider: 'Book',
   voiceStart: 'Voice input',
@@ -698,6 +782,8 @@ export const CONSUMER_COPY_HY: ConsumerCopy = {
   assistantExampleServices: 'Ինչ ծառայություններ ունեք?',
   assistantExampleBook: 'Ամրագրել սանրվածք այս ուրբաթ',
   assistantExampleLocation: 'Որտե՞ղ եք գտնվում?',
+  assistantDiscoverChipsTitle: 'Ծառայությունների որոնում',
+  ...buildDiscoverChipCopyFields('hy'),
   availableProvidersTitle: 'Ազատ մասնագետներ',
   bookProvider: 'Ամրագրել',
   voiceStart: 'Ձայնային մուտք',
@@ -1236,6 +1322,8 @@ export const CONSUMER_COPY_RU: ConsumerCopy = {
   assistantExampleServices: 'Какие услуги вы предлагаете?',
   assistantExampleBook: 'Записаться на стрижку в эту пятницу',
   assistantExampleLocation: 'Где вы находитесь?',
+  assistantDiscoverChipsTitle: 'Подбор услуг',
+  ...buildDiscoverChipCopyFields('ru'),
   availableProvidersTitle: 'Доступные специалисты',
   bookProvider: 'Записаться',
   voiceStart: 'Голосовой ввод',

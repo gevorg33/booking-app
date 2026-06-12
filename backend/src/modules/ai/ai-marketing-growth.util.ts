@@ -1,5 +1,7 @@
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
+import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
+import { MARKETING_GROWTH_MULTILINGUAL_SCENARIOS } from './ai-marketing-growth-multilingual.fixtures.js';
 
 export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
   'configure_marketing_automation',
@@ -13,6 +15,8 @@ export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'explain_plan_limits',
   'suggest_upgrade',
   'summarize_new_registrations',
+  'open_billing_settings',
+  'summarize_loyalty_program',
 ] as const;
 
 export const CUSTOMER_MARKETING_GROWTH_INTENTS = [
@@ -141,38 +145,51 @@ export function isSummarizeNewRegistrationsPrompt(prompt: string): boolean {
 
 export function isHowToDownloadAppPrompt(prompt: string): boolean {
   return (
-    /\b(how\s+(?:do\s+i|to)|where\s+(?:can\s+i|do\s+i)|download|get)\b/i.test(
+    (/\b(how\s+(?:do\s+i|to)|where\s+(?:can\s+i|do\s+i)|download|get)\b/i.test(
       prompt,
-    ) &&
-    /\b(app|ios|android|iphone|mobile\s+app|consumer\s+app|booking\s+app)\b/i.test(
+    ) ||
+      /(ինչպես|նerbерн|download|get|скач|как)/i.test(prompt)) &&
+    (/\b(app|ios|android|iphone|mobile\s+app|consumer\s+app|booking\s+app)\b/i.test(
       prompt,
-    ) &&
+    ) ||
+      /(app|consumer app|booking app|прилож|мобильн|iphone|android)/i.test(
+        prompt,
+      )) &&
     !isSwitchToConsumerAppPrompt(prompt)
   );
 }
 
 export function isSwitchToConsumerAppPrompt(prompt: string): boolean {
   return (
-    /\b(switch|open|use|go\s+to|move\s+to)\b/i.test(prompt) &&
-    /\b(consumer\s+app|booking\s+app|customer\s+app|mobile\s+app)\b/i.test(
+    (/\b(switch|open|use|go\s+to|move\s+to)\b/i.test(prompt) ||
+      /(բաց|switch|open|перей|откр|использ)/i.test(prompt)) &&
+    (/\b(consumer\s+app|booking\s+app|customer\s+app|mobile\s+app)\b/i.test(
       prompt,
-    )
+    ) ||
+      /(consumer app|booking app|customer app|прилож|mobile app)/i.test(
+        prompt,
+      ))
   );
 }
 
 export function isPromoCodeHelpPrompt(prompt: string): boolean {
   return (
-    /\b(promo\s+codes?|discount\s+codes?|coupons?)\b/i.test(prompt) &&
-    /\b(how|work|help|explain|validate|check|apply|use)\b/i.test(prompt)
+    (/\b(promo\s+codes?|discount\s+codes?|coupons?)\b/i.test(prompt) ||
+      /(promo code|discount code|промокод|промо|скидк|купон)/i.test(prompt)) &&
+    (/\b(how|work|help|explain|validate|check|apply|use)\b/i.test(prompt) ||
+      /(ինչպես|how|work|help|как|работ|примен|использ)/i.test(prompt))
   );
 }
 
 export function isLoyaltyPointsBalancePrompt(prompt: string): boolean {
   return (
-    /\b(loyalty|bonus|reward)\b/i.test(prompt) &&
-    /\b(points?|balance|how\s+many)\b/i.test(prompt) &&
+    (/\b(loyalty|bonus|reward)\b/i.test(prompt) ||
+      /(loyalty|bonus|reward|бонус|лояльн|балл)/i.test(prompt)) &&
+    (/\b(points?|balance|how\s+many)\b/i.test(prompt) ||
+      /(points|balance|балл|очк|point)/i.test(prompt)) &&
     (/\bmy\b/i.test(prompt) ||
-      /\b(check|show|what(?:'s|\s+is))\b/i.test(prompt))
+      /\b(check|show|what(?:'s|\s+is))\b/i.test(prompt) ||
+      /(իմ|my|мои|показ|check|show|tsuyts|ցույց)/i.test(prompt))
   );
 }
 
@@ -295,15 +312,38 @@ export function buildConsumerAppSwitchGuidance(input: {
   };
 }
 
+function matchMarketingGrowthMultilingualScenario(
+  prompt: string,
+): (typeof MARKETING_GROWTH_MULTILINGUAL_SCENARIOS)[number] | null {
+  const normalized = prompt.trim().toLowerCase();
+  for (const scenario of MARKETING_GROWTH_MULTILINGUAL_SCENARIOS) {
+    if (scenario.prompt.trim().toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  return null;
+}
+
 /** NL rescue when classifier returns unknown or a nearby action. */
 export function rescueMarketingGrowthIntent(
   prompt: string,
   action: string,
 ): { action: MarketingGrowthIntent; rescueReason: string } | null {
+  const billingLoyalty = rescueBillingLoyaltyDashboardIntent(prompt, action);
+  if (billingLoyalty) return billingLoyalty;
+
   if (isMarketingGrowthIntent(action)) return null;
   if (isMarketingGrowthCompoundPrompt(prompt)) return null;
   if (isConfigureMarketingRegistrationEmailPrompt(prompt)) return null;
   if (isSingleCustomerReengagementPrompt(prompt)) return null;
+
+  const multilingualScenario = matchMarketingGrowthMultilingualScenario(prompt);
+  if (multilingualScenario) {
+    return {
+      action: multilingualScenario.expectedAction,
+      rescueReason: multilingualScenario.rescueReason,
+    };
+  }
 
   if (isLoyaltyPointsBalancePrompt(prompt)) {
     return {

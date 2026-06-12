@@ -21,7 +21,10 @@ import {
   resolvePublicPaymentSettings,
 } from '../../common/utils/customer-self-service.util.js';
 import { getBusinessStripeIntegration } from '../billing/stripe-integration.types.js';
-import { resolveDateRange } from './ai-orchestration.helpers.js';
+import {
+  resolveDateRange,
+  resolvePublicAvailabilityWindows,
+} from './ai-orchestration.helpers.js';
 import {
   decomposePaymentsCompoundPrompt,
   extractAmountFromPrompt,
@@ -32,17 +35,38 @@ import {
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
 import { resolveTimezone } from '../../common/utils/timezone.util.js';
-import { buildNoNearestSlotMessage } from './ai-booking-slot-messages.util.js';
+import {
+  buildNearestSlotBookedMessage,
+  buildNoNearestSlotMessage,
+} from './ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
   mergeCheckProvidersHandoffIntoContext,
   pickCheckProvidersHandoff,
 } from './ai-check-book-handoff.util.js';
-import { buildNearestBookableSlotQuery } from './ai-nearest-slot-resolver.util.js';
+import {
+  applyChosenAvailabilityWindowToParams,
+  buildNearestAvailabilityWindowQueries,
+  buildNearestBookableSlotQuery,
+} from './ai-nearest-slot-resolver.util.js';
+import {
+  buildDashboardAvailabilityWindowLabel,
+  dashboardAvailabilityTodayKey,
+  shouldGroupDashboardAvailabilityByWindow,
+} from './ai-dashboard-availability-windows.logic.js';
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
+import {
+  resolveBudgetMaxPrice,
+} from './ai-budget-service-discovery.util.js';
+import {
+  resolveBudgetConstrainedService,
+  resolveDiscoverConstrainedService,
+} from './ai-budget-list-services.logic.js';
+import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
+import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-hints.util.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -101,18 +125,49 @@ async function resolveService(
   businessId: string,
   params: Record<string, any>,
 ): Promise<Service | undefined> {
-  if (params.serviceId) {
-    const found = await deps.serviceRepo.findOne({
-      where: { id: params.serviceId as string, businessId },
-    });
-    return found || undefined;
-  }
-  const name = (params.serviceName as string | undefined)?.trim();
-  if (!name) return undefined;
   const services = await deps.serviceRepo.find({
     where: { businessId, isActive: true },
   });
-  return resolveByName(services, name);
+
+  const catalog = services.map((service) => ({
+    id: service.id,
+    name: service.name,
+    price: Number(service.price),
+    durationMinutes: service.durationMinutes,
+  }));
+
+  const hasBudgetFilter =
+    resolveBudgetMaxPrice(params.maxPrice) != null ||
+    params.serviceCategory ||
+    params.serviceId;
+
+  if (hasBudgetFilter) {
+    const { service } = resolveBudgetConstrainedService(catalog, {
+      serviceId: params.serviceId as string | undefined,
+      serviceName: params.serviceName as string | undefined,
+      serviceCategory: params.serviceCategory as string | undefined,
+      maxPrice: params.maxPrice,
+    });
+    if (service) {
+      return services.find((entry) => entry.id === service.id);
+    }
+    if (resolveBudgetMaxPrice(params.maxPrice) != null) {
+      return undefined;
+    }
+  }
+
+  if (params.serviceId) {
+    const found = services.find((entry) => entry.id === params.serviceId);
+    return found || undefined;
+  }
+  const name = (params.serviceName as string | undefined)?.trim();
+  if (name) return resolveByName(services, name);
+  if (params.serviceCategory) {
+    const matched = resolveServicesFromCatalogParams(catalog, params);
+    const first = matched[0];
+    return first ? services.find((entry) => entry.id === first.id) : undefined;
+  }
+  return undefined;
 }
 
 function isOnlinePaymentsEnabled(
@@ -717,11 +772,91 @@ export async function handleCheckProvidersForServiceLogic(
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
-  const dateKey = resolveAvailabilityDateKey(
+  const tz = resolveTimezone(business?.timezone);
+  const availabilityWindows = resolvePublicAvailabilityWindows(
     params,
     prompt,
-    resolveTimezone(business?.timezone),
+    tz,
   );
+
+  if (shouldGroupDashboardAvailabilityByWindow(availabilityWindows, params)) {
+    const todayKey = dashboardAvailabilityTodayKey(tz);
+    const sections: string[] = [];
+    const mergedProviders: Array<Record<string, unknown>> = [];
+    const mergedAvailability: ReturnType<
+      typeof buildCheckProvidersSummary
+    >['availability'] = [];
+    const mergedProviderNames: string[] = [];
+
+    try {
+      for (const window of availabilityWindows) {
+        if (window.dateKeys.length === 0) continue;
+
+        const windowParams: Record<string, unknown> = {
+          ...params,
+          timeOfDay: window.timeOfDay ?? params.timeOfDay,
+          date: window.dateKeys[0],
+        };
+        const notBeforeTime =
+          window.timeFrom ??
+          notBeforeTimeFromWindow('', windowParams) ??
+          notBeforeTimeFromWindow(prompt ?? '', windowParams);
+        const timeOfDay =
+          window.timeOfDay ??
+          (params.timeOfDay as string | undefined) ??
+          parseTimeOfDayWindow(prompt ?? '', windowParams) ??
+          parseMultilingualTimeOfDayWindow(prompt ?? '', windowParams);
+
+        const result = await deps.publicBookingService.recommendProviders(slug, {
+          serviceId: service.id,
+          dateKeys: window.dateKeys,
+          notBeforeTime,
+          limit: params.limit as number | undefined,
+        });
+        const formatted = buildCheckProvidersSummary({
+          serviceName: service.name,
+          dateKey: window.dateKeys[0]!,
+          providers: result.providers,
+          timeOfDay,
+          notBeforeTime,
+        });
+        const label = buildDashboardAvailabilityWindowLabel(
+          window,
+          tz,
+          todayKey,
+        );
+        sections.push(`${label}:\n${formatted.summary}`);
+        mergedProviders.push(
+          ...(result.providers as unknown as Array<Record<string, unknown>>),
+        );
+        mergedAvailability.push(...formatted.availability);
+        mergedProviderNames.push(...formatted.availableProviders);
+      }
+
+      if (sections.length > 0) {
+        return success('check_providers_for_service', sections.join('\n\n'), {
+          providers: mergedProviders,
+          availableProviders: [...new Set(mergedProviderNames)],
+          availability: mergedAvailability,
+          serviceId: service.id,
+          serviceName: service.name,
+          multiWindow: true,
+          windows: availabilityWindows.length,
+          noProviders: mergedProviderNames.length === 0,
+        });
+      }
+    } catch (err: any) {
+      return failure(
+        'check_providers_for_service',
+        err?.message ?? 'Could not check provider availability.',
+        {
+          serviceId: service.id,
+        },
+      );
+    }
+  }
+
+  const dateKey = resolveAvailabilityDateKey(params, prompt, tz);
   const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
   const timeOfDay =
     (params.timeOfDay as string | undefined) ??
@@ -774,7 +909,41 @@ export async function handleBookNearestSlotLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('book_nearest_slot', 'Business not found.');
 
-  const service = await resolveService(deps, businessId, params);
+  const catalogServices = await deps.serviceRepo.find({
+    where: { businessId, isActive: true },
+  });
+  const catalog = catalogServices.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+  }));
+  if (prompt?.trim()) {
+    Object.assign(
+      params,
+      applyPromptMentionedServiceOverrideToParams(prompt, params, catalog),
+    );
+  }
+
+  let service = await resolveService(deps, businessId, params);
+  if (!service && params.serviceRank) {
+    const pricedCatalog = catalogServices.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      price: Number(entry.price),
+      durationMinutes: entry.durationMinutes,
+    }));
+    const discoverResolved = resolveDiscoverConstrainedService(pricedCatalog, {
+      serviceId: params.serviceId,
+      serviceName: params.serviceName,
+      serviceCategory: params.serviceCategory,
+      maxPrice: params.maxPrice,
+      serviceRank: params.serviceRank,
+    });
+    if (discoverResolved.service) {
+      service = catalogServices.find(
+        (entry) => entry.id === discoverResolved.service!.id,
+      );
+    }
+  }
   if (!service) {
     return failure('book_nearest_slot', 'Specify which service to book.', {
       clarify: true,
@@ -782,19 +951,29 @@ export async function handleBookNearestSlotLogic(
     });
   }
 
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  const tz = resolveTimezone(business?.timezone);
+
   const slotQuery = buildNearestBookableSlotQuery(params, prompt ?? '');
   const { employeeId, notBeforeTime, startDateKey, timeOfDay } = slotQuery;
+  const windowQueries = buildNearestAvailabilityWindowQueries(
+    params,
+    prompt ?? '',
+    tz,
+  );
 
-  const slot = await deps.publicBookingService.findNearestBookableSlot(slug, {
-    serviceId: service.id,
-    employeeId,
-    notBeforeTime,
-    startDateKey,
-  });
+  const nearestResult =
+    await deps.publicBookingService.findNearestBookableSlotAcrossWindows(slug, {
+      serviceId: service.id,
+      employeeId,
+      windows: windowQueries,
+    });
 
   const priorCheck = pickCheckProvidersHandoff(params);
 
-  if (!slot) {
+  if (!nearestResult) {
     return failure(
       'book_nearest_slot',
       buildNoNearestSlotMessage({
@@ -817,9 +996,19 @@ export async function handleBookNearestSlotLogic(
     );
   }
 
+  const enrichedParams = applyChosenAvailabilityWindowToParams(
+    params,
+    nearestResult,
+  );
+  const slot = nearestResult.slot;
+
   return success(
     'book_nearest_slot',
-    `Nearest slot: ${slot.startTime} with ${slot.employeeName}.`,
+    buildNearestSlotBookedMessage({
+      startTime: slot.startTime,
+      employeeName: slot.employeeName,
+      locale: params.locale,
+    }),
     attachCheckProvidersHandoff(
       {
         slot,
@@ -827,6 +1016,19 @@ export async function handleBookNearestSlotLogic(
         serviceName: service.name,
         employeeId: slot.employeeId,
         startTime: slot.startTime,
+        date: slot.dateKey,
+        timeOfDay: nearestResult.timeOfDay,
+        chosenAvailabilityWindow: enrichedParams.chosenAvailabilityWindow,
+        chosenAvailabilityWindowIndex:
+          enrichedParams.chosenAvailabilityWindowIndex,
+        navigate: {
+          path: 'checkout',
+          query: {
+            serviceId: service.id,
+            employeeId: slot.employeeId,
+            startTime: slot.startTime,
+          },
+        },
       },
       priorCheck,
     ),
@@ -1177,6 +1379,11 @@ function mergeCompoundContext(
     next.employeeId = details.employeeId;
     next.startTime = details.startTime;
     next.serviceName = details.serviceName;
+    if (details.date) next.date = details.date;
+    if (details.timeOfDay) next.timeOfDay = details.timeOfDay;
+    if (details.chosenAvailabilityWindow) {
+      next.chosenAvailabilityWindow = details.chosenAvailabilityWindow;
+    }
   }
   if (step.action === 'check_providers_for_service') {
     next.serviceId = details.serviceId;

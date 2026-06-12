@@ -135,3 +135,203 @@ export const CATEGORY_ASSIGNMENT_MISCLASSIFICATION_SCENARIOS: {
 export const ALL_CATEGORY_ASSIGNMENT_SCENARIOS: CategoryAssignmentScenario[] = [
   ...CATEGORY_TO_PROVIDER_SCENARIOS,
 ];
+
+export interface CategoryUnassignScenario {
+  id: string;
+  prompt: string;
+  expectedAction: string;
+  rescueReason: string;
+  categoryName?: string;
+  employeeName: string;
+  unassignAllServices?: boolean;
+}
+
+export const CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS: CategoryUnassignScenario[] =
+  [
+    {
+      id: 'unassign-category-from-full-name',
+      prompt: 'Unassign all services from Color category from Gevorg Gasparyan',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Color',
+      employeeName: 'Gevorg Gasparyan',
+    },
+    {
+      id: 'remove-category-from-provider',
+      prompt: 'Remove all Color services from Maria Lopez',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Color',
+      employeeName: 'Maria Lopez',
+    },
+    {
+      id: 'strip-category-skills',
+      prompt: 'Strip all services in Hair category from Anna Smith',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Hair',
+      employeeName: 'Anna Smith',
+    },
+    {
+      id: 'remove-all-services-from-provider',
+      prompt: 'Remove all services from James',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      employeeName: 'James',
+      unassignAllServices: true,
+    },
+    {
+      id: 'clear-provider-skills',
+      prompt: 'Clear all services from service provider Mary Torgomyan',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      employeeName: 'Mary Torgomyan',
+      unassignAllServices: true,
+    },
+    {
+      id: 'revoke-category-from-provider',
+      prompt: 'Revoke all Massage category services from Gevorg',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Massage',
+      employeeName: 'Gevorg',
+    },
+    {
+      id: 'drop-nails-from-provider',
+      prompt: 'Drop all Nails services from Maria',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Nails',
+      employeeName: 'Maria',
+    },
+    {
+      id: 'unassign-spa-category',
+      prompt: 'Unassign all services under Spa category from James',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Spa',
+      employeeName: 'James',
+    },
+    {
+      id: 'remove-specific-service-from-provider',
+      prompt: 'Remove Spa Service A from Gevorg Gasparyan',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      employeeName: 'Gevorg Gasparyan',
+    },
+    {
+      id: 'take-away-wax-services',
+      prompt: 'Take away all Wax services from Anna Smith',
+      expectedAction: 'unassign_employee_services',
+      rescueReason: 'unassign_services_from_provider',
+      categoryName: 'Wax',
+      employeeName: 'Anna Smith',
+    },
+  ];
+
+export interface TransferServicesScenario {
+  id: string;
+  prompt: string;
+  expectedAction: string;
+  rescueReason: string;
+  categoryName?: string;
+  serviceName?: string;
+  fromEmployeeName: string;
+  toEmployeeName: string;
+  unassignAllServices?: boolean;
+}
+
+export const TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS: TransferServicesScenario[] =
+  [
+    {
+      id: 'move-category-between-providers',
+      prompt: 'Move all Color services from Maria Lopez to Gevorg Gasparyan',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Color',
+      fromEmployeeName: 'Maria Lopez',
+      toEmployeeName: 'Gevorg Gasparyan',
+    },
+    {
+      id: 'transfer-hair-category',
+      prompt: 'Transfer all Hair category services from Anna Smith to Maria',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Hair',
+      fromEmployeeName: 'Anna Smith',
+      toEmployeeName: 'Maria',
+    },
+    {
+      id: 'reassign-massage-skills',
+      prompt: 'Reassign all Massage services from Gevorg to James',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Massage',
+      fromEmployeeName: 'Gevorg',
+      toEmployeeName: 'James',
+    },
+    {
+      id: 'move-all-services-between-providers',
+      prompt: 'Move all services from Maria Lopez to Anna Smith',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      fromEmployeeName: 'Maria Lopez',
+      toEmployeeName: 'Anna Smith',
+      unassignAllServices: true,
+    },
+    {
+      id: 'transfer-specific-service',
+      prompt: 'Transfer Spa Service A from Gevorg Gasparyan to Maria Lopez',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      serviceName: 'Spa Service A',
+      fromEmployeeName: 'Gevorg Gasparyan',
+      toEmployeeName: 'Maria Lopez',
+    },
+    {
+      id: 'move-nails-between-providers',
+      prompt: 'Move all Nails services from James to Mary Torgomyan',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Nails',
+      fromEmployeeName: 'James',
+      toEmployeeName: 'Mary Torgomyan',
+    },
+    {
+      id: 'transfer-from-provider-keyword',
+      prompt:
+        'Transfer all Wax services from service provider Anna to service provider Gevorg',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Wax',
+      fromEmployeeName: 'Anna',
+      toEmployeeName: 'Gevorg',
+    },
+    {
+      id: 'move-spa-category-services',
+      prompt: 'Move all services in Spa category from Maria to James',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Spa',
+      fromEmployeeName: 'Maria',
+      toEmployeeName: 'James',
+    },
+    {
+      id: 'reassign-brow-services',
+      prompt: 'Reassign all Brow services from Gevorg Gasparyan to Anna Smith',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Brow',
+      fromEmployeeName: 'Gevorg Gasparyan',
+      toEmployeeName: 'Anna Smith',
+    },
+    {
+      id: 'move-color-to-maria',
+      prompt: 'Move all Color category services from Gevorg Gasparyan to Maria Lopez',
+      expectedAction: 'transfer_employee_services',
+      rescueReason: 'transfer_services_between_providers',
+      categoryName: 'Color',
+      fromEmployeeName: 'Gevorg Gasparyan',
+      toEmployeeName: 'Maria Lopez',
+    },
+  ];

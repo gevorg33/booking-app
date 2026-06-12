@@ -1,4 +1,5 @@
 import * as decompositionUtil from '../intent-decomposition.util.js';
+import { AI_COMMAND_EVAL_IMPLICATION_CASES } from '../ai-implication-corpus.eval.util.js';
 import {
   evaluateDeterministicEvalCase,
   runDeterministicEvalSuite,
@@ -33,6 +34,24 @@ describe('ai-command-eval.runner', () => {
       prompt:
         'Move Jujos appointment on June 10 from 16-17 to june 11th nearest free time',
       expect: { rescheduleFromTimeSlot: '16:00' },
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it('checks explicit-year nearest-free reschedule prompt', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'from-time-2027',
+      prompt:
+        'Move Jujos appointment on June 10 2027 from 16-17 to june 11 2027 nearest free time',
+      expect: {
+        rescheduleFromTimeSlot: '16:00',
+        rescheduleTimeSlot: null,
+        paramsPartial: {
+          bookingFirstAvailable: true,
+          fromDate: '10/06/2027',
+          date: '11/06/2027',
+        },
+      },
     });
     expect(result.passed).toBe(true);
   });
@@ -423,6 +442,15 @@ describe('ai-command-eval.runner', () => {
     expect(result.errors.some((e) => e.includes('compoundRecipeId'))).toBe(
       true,
     );
+  });
+
+  it('uses top-anchor fallback for implication semantic eval cases (pipe-1.11.2)', () => {
+    const sample = AI_COMMAND_EVAL_IMPLICATION_CASES.find((row) =>
+      row.id.includes('en-hair-long-implied-booking'),
+    );
+    expect(sample).toBeDefined();
+    const result = evaluateDeterministicEvalCase(sample!);
+    expect(result.passed).toBe(true);
   });
 
   it('runDeterministicEvalSuite skips requiresLlm and counts failures', () => {

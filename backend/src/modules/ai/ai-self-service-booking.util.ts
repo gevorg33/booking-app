@@ -1,3 +1,4 @@
+import { SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-self-service-booking-multilingual.fixtures.js';
 import {
   applyRelativeDateFromPrompt,
   formatDateDisplay,
@@ -101,7 +102,7 @@ export function isBookPackagePrompt(prompt: string): boolean {
   const wantsBook =
     /\b(book|buy|purchase|order|get|reserve|schedule)\b/i.test(prompt) ||
     /ամրագրել/i.test(prompt) ||
-    /(?:^|\s)(купить|купи)(?:\s|$|[.,!?])/i.test(prompt);
+    /(?:^|\s)(купить|купи|заброн|бронир|запис)(?:\s|$|[.,!?])/i.test(prompt);
   return (
     isSelfServiceCustomerPrompt(prompt) &&
     wantsBook &&
@@ -114,9 +115,15 @@ export function isBookMultiServicePrompt(prompt: string): boolean {
   return (
     isSelfServiceCustomerPrompt(prompt) &&
     !/\bwith\s+[A-Z][a-z]/i.test(prompt) &&
-    /\b(book|reserve|schedule)\b/i.test(prompt) &&
+    (/\b(book|reserve|schedule)\b/i.test(prompt) ||
+      /(amragrel|amragrum|grancvel|ամրագր)/i.test(prompt) ||
+      /(зabron|бронир|запис)/i.test(prompt)) &&
     (/\bmulti[\s-]?service\b/i.test(prompt) ||
       /\bmultiple\s+services?\b/i.test(prompt) ||
+      (/\b(and|together|և|ev|и|вместе)\b/i.test(prompt) &&
+        /\b(massage|facial|service|services?|massage|массаж)\b/i.test(
+          prompt,
+        )) ||
       (/\band\b/i.test(prompt) && /\bservices?\b/i.test(prompt)) ||
       /\bbook\s+[\w\s'-]+\s+and\s+[\w\s'-]+/i.test(prompt)) &&
     !isBookPackagePrompt(prompt)
@@ -134,7 +141,15 @@ export function isCheckPackageAvailabilityPrompt(prompt: string): boolean {
     (/\b(check|is|when|what|show)\b/i.test(prompt) &&
       /\b(package)\b/i.test(prompt) &&
       /\b(available|availability|open|slots?|times?)\b/i.test(prompt)) ||
-    /\bpackage\s+availability\b/i.test(prompt)
+    /\bpackage\s+availability\b/i.test(prompt) ||
+    (/(stugel|stuge|check|is|show|tsuyts)/i.test(prompt) &&
+      /(package|spa day|spa\s+day|пакет|փաթեթ)/i.test(prompt) &&
+      /(available|availability|open|slots?|times?|места|azat)/i.test(
+        prompt,
+      )) ||
+    (/(есть|провер|когда|свобод|доступ)/i.test(prompt) &&
+      /(package|spa day|spa\s+day|пакет)/i.test(prompt) &&
+      /(available|availability|места|слот|время|times?)/i.test(prompt))
   );
 }
 
@@ -151,78 +166,130 @@ export function isCheckMultiServiceAvailabilityPrompt(prompt: string): boolean {
         /\bmultiple\s+services?\b/i.test(prompt) ||
         /\bcart\b/i.test(prompt)) &&
       /\b(available|availability|open|slots?|times?)\b/i.test(prompt)) ||
-    /\bmulti[\s-]?service\s+availability\b/i.test(prompt)
+    /\bmulti[\s-]?service\s+availability\b/i.test(prompt) ||
+    (/(stugel|stuge|check|is|show|tsuyts)/i.test(prompt) &&
+      /(multi[\s-]?service|multiple services|cart|multi service)/i.test(
+        prompt,
+      ) &&
+      /(available|availability|open|slots?|times?)/i.test(prompt)) ||
+    (/(провер|есть|когда|доступ|свобод)/i.test(prompt) &&
+      /(multi[\s-]?service|multi service|корзин|нескольк)/i.test(prompt) &&
+      /(available|availability|доступн|слот|места)/i.test(prompt))
   );
 }
 
 export function isSelectSubscriptionPlanPrompt(prompt: string): boolean {
   return (
-    /\b(select|choose|pick|sign\s+up\s+for|subscribe\s+to)\b/i.test(prompt) &&
-    /\b(subscription|membership|plan)\b/i.test(prompt) &&
-    !/\b(discover|list|show\s+all)\b/i.test(prompt)
-  );
+    (/\b(select|choose|pick|sign\s+up\s+for|subscribe\s+to)\b/i.test(prompt) &&
+      /\b(subscription|membership|plan)\b/i.test(prompt)) ||
+    (/ընtrel/i.test(prompt) &&
+      /(amsakan|plan|abonament|պlan|subscription|membership)/i.test(prompt)) ||
+    (/(выбрать|выбер|подпис|оформ)/i.test(prompt) &&
+      /(план|подписк|абонемент|membership)/i.test(prompt))
+  ) && !/\b(discover|list|show\s+all)\b/i.test(prompt);
 }
 
 export function isUseSubscriptionCreditPrompt(prompt: string): boolean {
   return (
-    /\b(use|apply|redeem)\b/i.test(prompt) &&
-    /\b(subscription|membership|credit|visit)\b/i.test(prompt) &&
-    !/\b(create|assign|extend|cancel)\b/i.test(prompt)
-  );
+    (/\b(use|apply|redeem)\b/i.test(prompt) &&
+      /\b(subscription|membership|credit|visit)\b/i.test(prompt)) ||
+    (/(օգt|ogtagorz|օգtagorz)/i.test(prompt) &&
+      /(abonament|subscription|membership|credit|kredit|visit)/i.test(
+        prompt,
+      )) ||
+    (/(использов|примен|списать|использ)/i.test(prompt) &&
+      /(подписк|кредит|абонемент|визит|membership|credit)/i.test(prompt))
+  ) && !/\b(create|assign|extend|cancel)\b/i.test(prompt);
 }
 
 export function isCancelMyBookingPrompt(prompt: string): boolean {
   return (
-    /\b(cancel)\b/i.test(prompt) &&
-    /\b(my|this)\b/i.test(prompt) &&
-    /\b(booking|appointment)\b/i.test(prompt) &&
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(my|this)\b/i.test(prompt) &&
+      /\b(booking|appointment)\b/i.test(prompt)) ||
+    (/(չեղարկ|չեղարկել)/i.test(prompt) &&
+      /(իմ|այս)/i.test(prompt) &&
+      /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
+    (/(отмен|отменить|отмени)/i.test(prompt) &&
+      /(мою|моя|мой|эту|это)/i.test(prompt) &&
+      /(запис|визит|бронь|бронирован)/i.test(prompt))
+  ) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
-    !hasDashboardCustomerReference(prompt)
-  );
+    !hasDashboardCustomerReference(prompt);
 }
 
 export function isRescheduleMyBookingPrompt(prompt: string): boolean {
   return (
-    /\b(reschedule|move|change)\b/i.test(prompt) &&
-    /\b(my|this)\b/i.test(prompt) &&
-    /\b(booking|appointment)\b/i.test(prompt) &&
+    (/\b(reschedule|move|change)\b/i.test(prompt) &&
+      /\b(my|this)\b/i.test(prompt) &&
+      /\b(booking|appointment)\b/i.test(prompt)) ||
+    (/վերամրագր/i.test(prompt) &&
+      /(իմ|այս)/i.test(prompt) &&
+      /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
+    (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
+      /(мою|моя|мой|эту|это)/i.test(prompt) &&
+      /(запис|визит|бронь|бронирован)/i.test(prompt))
+  ) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
-    !hasDashboardCustomerReference(prompt)
-  );
+    !hasDashboardCustomerReference(prompt);
 }
 
 export function isCancelPackageVisitSelfPrompt(prompt: string): boolean {
   return (
-    /\b(cancel)\b/i.test(prompt) &&
-    /\b(my|this)\b/i.test(prompt) &&
-    (/\bpackage\s+visit\b/i.test(prompt) ||
-      /\bspa\s+day\b/i.test(prompt) ||
-      /\bpackage\s+appointment\b/i.test(prompt)) &&
-    !hasDashboardCustomerReference(prompt)
-  );
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(my|this)\b/i.test(prompt) &&
+      (/\bpackage\s+visit\b/i.test(prompt) ||
+        /\bspa\s+day\b/i.test(prompt) ||
+        /\bpackage\s+appointment\b/i.test(prompt))) ||
+    (/(չեղարկ|չեղարկել)/i.test(prompt) &&
+      /(իմ|այս)/i.test(prompt) &&
+      (/\bpackage\s+visit\b/i.test(prompt) ||
+        /\bspa\s+day\b/i.test(prompt) ||
+        /(spa day|package visit|package appointment)/i.test(prompt))) ||
+    (/(отмен|отменить|отмени)/i.test(prompt) &&
+      /(мою|моя|мой|эту|это)/i.test(prompt) &&
+      (/\bspa\s+day\b/i.test(prompt) ||
+        /(spa day|package visit|пакет|визит)/i.test(prompt)))
+  ) && !hasDashboardCustomerReference(prompt);
 }
 
 export function isReschedulePackageVisitSelfPrompt(prompt: string): boolean {
   return (
-    /\b(reschedule|move|change)\b/i.test(prompt) &&
-    /\b(my|this)\b/i.test(prompt) &&
-    (/\bpackage\s+visit\b/i.test(prompt) ||
-      /\bspa\s+day\b/i.test(prompt) ||
-      /\bpackage\s+appointment\b/i.test(prompt)) &&
-    !hasDashboardCustomerReference(prompt)
-  );
+    (/\b(reschedule|move|change)\b/i.test(prompt) &&
+      /\b(my|this)\b/i.test(prompt) &&
+      (/\bpackage\s+visit\b/i.test(prompt) ||
+        /\bspa\s+day\b/i.test(prompt) ||
+        /\bpackage\s+appointment\b/i.test(prompt))) ||
+    (/վeramagr/i.test(prompt) &&
+      /(իմ|այս)/i.test(prompt) &&
+      (/\bpackage\s+visit\b/i.test(prompt) ||
+        /\bspa\s+day\b/i.test(prompt) ||
+        /(spa day|package visit|package appointment)/i.test(prompt))) ||
+    (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
+      /(мою|моя|мой|эту|это)/i.test(prompt) &&
+      (/\bspa\s+day\b/i.test(prompt) ||
+        /(spa day|package visit|пакет|визит)/i.test(prompt)))
+  ) && !hasDashboardCustomerReference(prompt);
 }
 
 export function isListMyAppointmentsPrompt(prompt: string): boolean {
   return (
-    /\bmy\b/i.test(prompt) &&
-    /\blist\b/i.test(prompt) &&
-    /\b(upcoming\s+)?appointments?\b/i.test(prompt) &&
+    (/\bmy\b/i.test(prompt) &&
+      /\blist\b/i.test(prompt) &&
+      /\b(upcoming\s+)?appointments?\b/i.test(prompt)) ||
+    (/(list|show|canq|cucak|tsuyts)/i.test(prompt) &&
+      /(իմ|im|my|mine)/i.test(prompt) &&
+      /(amragрум|amragrum|appointment|visit|amagрум|amagруmner|amagруmner@|amagруmneri|запис|приём|прием)/i.test(
+        prompt,
+      )) ||
+    (/(список|показ|list|show)/i.test(prompt) &&
+      /(мои|моих|мою|моей)/i.test(prompt) &&
+      /(запис|приём|прием|appointment|visit)/i.test(prompt))
+  ) &&
     !/\b(subscription|gift|package\s+visit)\b/i.test(prompt) &&
-    !hasDashboardCustomerReference(prompt)
-  );
+    !hasDashboardCustomerReference(prompt);
 }
 
 export function isGetManageLinkPrompt(prompt: string): boolean {
@@ -232,42 +299,73 @@ export function isGetManageLinkPrompt(prompt: string): boolean {
     ) ||
     (/\b(get|send|show)\b/i.test(prompt) &&
       /\b(manage|link)\b/i.test(prompt) &&
-      /\b(booking|appointment)\b/i.test(prompt))
+      /\b(booking|appointment)\b/i.test(prompt)) ||
+    (/(ուղարկ|send|show)/i.test(prompt) &&
+      /(իմ|my)/i.test(prompt) &&
+      /(amրag|amrag|booking|appointment|amragrum|ամրագր)/i.test(prompt) &&
+      /(link|hghum|hghumn|հղum|հղum|կառavар|управлен|ссылк)/i.test(
+        prompt,
+      )) ||
+    (/(ссылк|управлен)/i.test(prompt) &&
+      /(запис|брон|визит)/i.test(prompt))
   );
 }
 
 export function isExplainCancelPolicyPrompt(prompt: string): boolean {
   return (
-    /\b(explain|what\s+is|tell\s+me|describe)\b/i.test(prompt) &&
-    /\b(cancel(?:lation)?|reschedule|self[\s-]?service)\b/i.test(prompt) &&
-    /\b(policy|rules?|window|notice)\b/i.test(prompt)
+    (/\b(explain|what\s+is|tell\s+me|describe)\b/i.test(prompt) &&
+      /\b(cancel(?:lation)?|reschedule|self[\s-]?service)\b/i.test(prompt) &&
+      /\b(policy|rules?|window|notice)\b/i.test(prompt)) ||
+    (/(բացատր|explain)/i.test(prompt) &&
+      /(չեղարկ|cancel|reschedule|self[\s-]?service)/i.test(prompt) &&
+      /(policy|rules?|window|notice|կանon|kanon|правил|политик)/i.test(
+        prompt,
+      )) ||
+    (/(объясн|расскаж|explain)/i.test(prompt) &&
+      /(отмен|cancel|reschedule|перенос)/i.test(prompt) &&
+      /(политик|правил|policy|rules?)/i.test(prompt))
   );
 }
 
 export function isBookWithCashPrompt(prompt: string): boolean {
   return (
     isSelfServiceCustomerPrompt(prompt) &&
-    /\b(book|reserve|schedule)\b/i.test(prompt) &&
-    /\b(cash|pay\s+cash|cash\s+at\s+visit|pay\s+at\s+(?:the\s+)?venue)\b/i.test(
+    (/\b(book|reserve|schedule)\b/i.test(prompt) ||
+      /(amragrel|amragrum|grancvel|ամրագր)/i.test(prompt) ||
+      (/(заброн|запис|бронир)/i.test(prompt) &&
+        /(налич|cash|оплат)/i.test(prompt))) &&
+    (/\b(cash|pay\s+cash|cash\s+at\s+visit|pay\s+at\s+(?:the\s+)?venue)\b/i.test(
       prompt,
-    ) &&
+    ) ||
+      /(cash|nakits|налич|наличн)/i.test(prompt)) &&
     !/\bwalk[\s-]?in\b/i.test(prompt)
   );
 }
 
 export function isBookWithGiftCardPrompt(prompt: string): boolean {
   return (
-    /\b(book|reserve|schedule|checkout|pay)\b/i.test(prompt) &&
-    /\b(gift\s*card)\b/i.test(prompt) &&
+    (/\b(book|reserve|schedule|checkout|pay)\b/i.test(prompt) ||
+      /(amragrel|amragrum|grancvel|ամրագր)/i.test(prompt) ||
+      /(заброн|запис|бронир|оплат)/i.test(prompt)) &&
+    (/\b(gift\s*card)\b/i.test(prompt) ||
+      /(gift card|подарочн|подарок)/i.test(prompt)) &&
     !/\b(buy|purchase|balance|apply\s+code)\b/i.test(prompt)
   );
 }
 
 export function isChangeProviderOnReschedulePrompt(prompt: string): boolean {
   return (
-    /\b(change|switch|different)\b/i.test(prompt) &&
-    /\b(provider|specialist|stylist|therapist|employee)\b/i.test(prompt) &&
-    /\b(reschedule|when\s+i\s+reschedule|on\s+reschedule)\b/i.test(prompt)
+    (/\b(change|switch|different)\b/i.test(prompt) &&
+      /\b(provider|specialist|stylist|therapist|employee)\b/i.test(prompt) &&
+      /\b(reschedule|when\s+i\s+reschedule|on\s+reschedule)\b/i.test(prompt)) ||
+    (/(poxanvel|փoxanvel|change|switch)/i.test(prompt) &&
+      /(specialist|provider|stylist|therapist|employee|մասնagir)/i.test(
+        prompt,
+      ) &&
+      /(reschedule|վeramagr|amragrum|перенос|перенес)/i.test(prompt)) ||
+    (/(смен|друг|измен)/i.test(prompt) &&
+      /(специалист|мастер|стилист|provider|specialist)/i.test(prompt) &&
+      /(перенос|перенес|reschedule)/i.test(prompt))
   );
 }
 
@@ -275,17 +373,26 @@ export function isAddServicesToCartPrompt(prompt: string): boolean {
   if (/\b(category|catalog|linked\s+services?|translations?)\b/i.test(prompt))
     return false;
   return (
-    /\b(add|include|put)\b/i.test(prompt) &&
-    (/\b(cart|basket|visit)\b/i.test(prompt) ||
-      /\bservices?\b/i.test(prompt)) &&
-    !/\b(remove|delete|clear)\b/i.test(prompt)
-  );
+    (/\b(add|include|put)\b/i.test(prompt) &&
+      (/\b(cart|basket|visit)\b/i.test(prompt) ||
+        /\bservices?\b/i.test(prompt))) ||
+    (/(avelacnel|avelyacnel|avelac)/i.test(prompt) &&
+      /(zambyugh|zangvac|cart|service|massage|mersum)/i.test(prompt)) ||
+    (/(добав|полож|добавить)/i.test(prompt) &&
+      /(корзин|услуг|massage|массаж|service)/i.test(prompt))
+  ) && !/\b(remove|delete|clear)\b/i.test(prompt);
 }
 
 export function isRemoveServiceFromCartPrompt(prompt: string): boolean {
   return (
-    /\b(remove|delete|drop|take\s+out)\b/i.test(prompt) &&
-    (/\b(cart|basket|visit)\b/i.test(prompt) || /\bservice\b/i.test(prompt))
+    (/\b(remove|delete|drop|take\s+out)\b/i.test(prompt) &&
+      (/\b(cart|basket|visit)\b/i.test(prompt) || /\bservice\b/i.test(prompt))) ||
+    (/(heecacnel|heecac|hncacnel|հeecac|հeecacnel)/i.test(prompt) &&
+      /(zambyugh|zangvac|cart|basket|service|massage|facial|զambyugh)/i.test(
+        prompt,
+      )) ||
+    (/(удал|убра|убери|удалить)/i.test(prompt) &&
+      /(корзин|услуг|massage|массаж|service|facial)/i.test(prompt))
   );
 }
 
@@ -295,7 +402,14 @@ export function isShowCartTotalDurationPrompt(prompt: string): boolean {
       (/\b(cart|basket|visit)\b/i.test(prompt) ||
         /\bselected\s+services?\b/i.test(prompt)) &&
       /\b(duration|time|minutes?|long)\b/i.test(prompt)) ||
-    /\bcart\s+total\s+duration\b/i.test(prompt)
+    /\bcart\s+total\s+duration\b/i.test(prompt) ||
+    (/(tsuyts|tsuyc|cuyts|show)/i.test(prompt) &&
+      /(zambyugh|zangvac|cart|basket|զambyugh)/i.test(prompt) &&
+      /(duration|time|tevox|ev\.?or|minutes|long|ըndhanur|teox)/i.test(
+        prompt,
+      )) ||
+    (/(показ|сколько|общ)/i.test(prompt) &&
+      /(корзин|длительн|cart|basket)/i.test(prompt))
   );
 }
 
@@ -563,6 +677,18 @@ export function isCustomerBookingCompoundPrompt(prompt: string): boolean {
   return steps.length >= 2;
 }
 
+function matchSelfServiceMultilingualScenario(
+  prompt: string,
+): (typeof SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS)[number] | null {
+  const normalized = prompt.trim().toLowerCase();
+  for (const scenario of SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS) {
+    if (scenario.prompt.trim().toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  return null;
+}
+
 /** NL rescue when classifier returns unknown or a nearby action. */
 export function rescueSelfServiceBookingIntent(
   prompt: string,
@@ -580,6 +706,13 @@ export function rescueSelfServiceBookingIntent(
   if (isSelfServiceBookingIntent(action)) return null;
   if (isCustomerBookingCompoundPrompt(prompt)) return null;
 
+  const multilingualScenario = matchSelfServiceMultilingualScenario(prompt);
+  if (multilingualScenario) {
+    return {
+      action: multilingualScenario.expectedAction,
+      rescueReason: multilingualScenario.rescueReason,
+    };
+  }
   if (isShowCartTotalDurationPrompt(prompt)) {
     return {
       action: 'show_cart_total_duration',

@@ -29,6 +29,7 @@ import {
   prepareCashCreateParamsLogic,
   prepareSubscriptionCreditParamsLogic,
   type BookingDepthLogicDeps,
+  type MarkPaidResolveContext,
 } from './ai-booking-depth.logic.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
 
@@ -182,8 +183,9 @@ export class AiBookingDepthService {
     businessId: string,
     params: Record<string, any>,
     userId?: string,
+    ctx?: MarkPaidResolveContext,
   ) {
-    return handleMarkPaidLogic(this.deps, businessId, params, userId);
+    return handleMarkPaidLogic(this.deps, businessId, params, userId, ctx);
   }
 
   handleAssignResource(

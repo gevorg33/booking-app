@@ -171,6 +171,50 @@ describe('customer-ai-command.util', () => {
       'Why does Mountain Trek show only one departure time per day when I book?',
     );
     expect(schema).toContain('NOT explain_tour_booking');
+    expect(schema).toContain('"maxPrice"');
+    expect(schema).toContain('"serviceCategory"');
+    expect(schema).toContain('I need a haircut, I have $50');
+    expect(schema).toContain('NOT discover_packages (bundles/deals catalog');
+    expect(schema).toContain('gift card / checkout — NO maxPrice');
+    expect(schema).toContain('"serviceRank"');
+    expect(schema).toContain('highest_price');
+    expect(schema).toContain('lowest_price');
+    expect(schema).toContain('most_popular');
+    expect(schema).toContain(
+      "What's the cheapest haircut you offer?",
+    );
+    expect(schema).toContain('recommend_specialists, serviceCategory=massage — NO serviceRank');
+    expect(schema).toContain('"availabilityWindows"');
+    expect(schema).toContain(
+      'I want a haircut tomorrow evening or Friday afternoon',
+    );
+    expect(schema).toContain('Monday and Friday afternoon');
+    expect(schema).toContain('AND vs OR');
+  });
+
+  it('merges discovery session context between compound steps (ai-cmd-customer-gap-4)', () => {
+    const merged = mergeCustomerCompoundContext(
+      { customerId: 'cust-1' },
+      {
+        success: true,
+        action: 'list_services',
+        summary: 'ok',
+        details: {
+          maxPrice: 50,
+          serviceRank: 'lowest_price',
+          availabilityWindows: [
+            { date: 'tomorrow', timeOfDay: 'evening' },
+          ],
+          sessionContext: { serviceCategory: 'haircut' },
+        },
+      },
+    );
+    expect(merged.maxPrice).toBe(50);
+    expect(merged.serviceRank).toBe('lowest_price');
+    expect(merged.availabilityWindows).toEqual([
+      { date: 'tomorrow', timeOfDay: 'evening' },
+    ]);
+    expect(merged.serviceCategory).toBe('haircut');
   });
 
   it('merges shared booking context between compound steps', () => {

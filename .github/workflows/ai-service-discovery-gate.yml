@@ -1,0 +1,45 @@
+name: AI service discovery gate
+
+on:
+  pull_request:
+    paths:
+      - 'backend/src/modules/ai/**'
+      - 'backend/src/modules/public-booking/**'
+      - 'backend/scripts/ai-service-discovery-gate.mjs'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/ai-service-discovery-gate.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'backend/src/modules/ai/**'
+      - 'backend/src/modules/public-booking/**'
+      - 'backend/scripts/ai-service-discovery-gate.mjs'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/ai-service-discovery-gate.yml'
+
+jobs:
+  ai-service-discovery:
+    name: discover-exit-3 merge gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: npm run test:ai-service-discovery
+        working-directory: backend
+        run: npm run test:ai-service-discovery

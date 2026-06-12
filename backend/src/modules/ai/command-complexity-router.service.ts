@@ -9,6 +9,8 @@ import {
   isFirstAvailableBookingPrompt,
   isTeamWideProviderAvailabilityQuery,
 } from './ai-intent-heuristics.js';
+import { isBudgetDiscoverAndBookCompoundPrompt } from './ai-budget-discover-and-book-compound.util.js';
+import { isRankDiscoverAndBookCompoundPrompt } from './ai-rank-discover-and-book-compound.util.js';
 
 export interface ComplexityRoute {
   tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
@@ -49,6 +51,22 @@ export class CommandComplexityRouterService {
         tier: 'simple_mutate',
         useDecomposition: false,
         reasoning: 'Empty prompt',
+      };
+    }
+
+    if (isBudgetDiscoverAndBookCompoundPrompt(trimmed)) {
+      return {
+        tier: 'compound',
+        useDecomposition: true,
+        reasoning: 'Budget discover and book compound',
+      };
+    }
+
+    if (isRankDiscoverAndBookCompoundPrompt(trimmed)) {
+      return {
+        tier: 'compound',
+        useDecomposition: true,
+        reasoning: 'Rank discover and book compound',
       };
     }
 

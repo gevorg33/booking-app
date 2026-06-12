@@ -51,8 +51,8 @@ describe('provider-self-block.util (prov-exp-7.1)', () => {
   );
 
   it('builds iso timestamps from date and time', () => {
-    expect(buildProviderSelfBlockIso('2026-06-09', '09:30')).toBe(
-      '2026-06-09T09:30:00.000Z',
+    expect(buildProviderSelfBlockIso('2026-06-20', '09:30')).toBe(
+      '2026-06-20T09:30:00.000Z',
     );
     expect(buildProviderSelfBlockIso('bad-date', '09:30')).toBeNull();
   });
@@ -69,7 +69,7 @@ describe('provider-self-block.util (prov-exp-7.1)', () => {
 
   it('defaults placeholder when blank', () => {
     const dto = buildCreateBlockScheduleDto('emp-1', {
-      date: '2026-06-09',
+      date: '2026-06-20',
       startTime: '12:00',
       endTime: '13:00',
       placeholder: '   ',

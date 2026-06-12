@@ -98,8 +98,8 @@ describe('ProviderMobileService self block (prov-exp-7.1)', () => {
     blockScheduleService.create.mockResolvedValue({
       id: 'block-1',
       placeholderLabel: 'Lunch',
-      singleStartTime: '2026-06-09T12:00:00.000Z',
-      singleEndTime: '2026-06-09T13:00:00.000Z',
+      singleStartTime: '2026-06-20T12:00:00.000Z',
+      singleEndTime: '2026-06-20T13:00:00.000Z',
     });
     retailPosService.hasConfiguredRetailProducts.mockResolvedValue(false);
 
@@ -154,7 +154,7 @@ describe('ProviderMobileService self block (prov-exp-7.1)', () => {
 
   it('creates a one-off lunch block on own calendar', async () => {
     const result = await service.createProviderSelfBlock('biz-1', 'user-1', {
-      date: '2026-06-09',
+      date: '2026-06-20',
       startTime: '12:00',
       endTime: '13:00',
       placeholder: 'Lunch',
@@ -167,8 +167,8 @@ describe('ProviderMobileService self block (prov-exp-7.1)', () => {
         placeholder: 'Lunch',
         isRepetitive: false,
         singleBlock: {
-          startTime: '2026-06-09T12:00:00.000Z',
-          endTime: '2026-06-09T13:00:00.000Z',
+          startTime: '2026-06-20T12:00:00.000Z',
+          endTime: '2026-06-20T13:00:00.000Z',
         },
       }),
       'user-1',
@@ -176,8 +176,8 @@ describe('ProviderMobileService self block (prov-exp-7.1)', () => {
     expect(result).toEqual({
       id: 'block-1',
       placeholder: 'Lunch',
-      startTime: '2026-06-09T12:00:00.000Z',
-      endTime: '2026-06-09T13:00:00.000Z',
+      startTime: '2026-06-20T12:00:00.000Z',
+      endTime: '2026-06-20T13:00:00.000Z',
       employeeId: 'emp-1',
     });
   });

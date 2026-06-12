@@ -50,11 +50,25 @@ describe('AiOperationsService (thin wrapper)', () => {
     { id: 's1', name: 'Massage', price: 100, category: { name: 'Wellness' } },
   ] as any[];
 
+  const serviceRepo = { find: jest.fn(async () => []) };
+  const employeeService = {
+    create: jest.fn(),
+    findAll: jest.fn(async () => []),
+    remove: jest.fn(),
+  };
+  const invitationsService = {
+    create: jest.fn(),
+    sendEmployeeAppAccess: jest.fn(),
+  };
+
   const service = new AiOperationsService(
     bookingRepo as any,
     businessRepo as any,
+    serviceRepo as any,
     orchestration as any,
     planBuilder as any,
+    employeeService as any,
+    invitationsService as any,
   );
 
   beforeEach(() => {

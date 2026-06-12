@@ -21,7 +21,10 @@ import {
   normalizeAvailableProviders,
   type AiAvailableProvider,
 } from '@/lib/ai-available-providers.util';
-import { buildPublicAssistantCheckoutNavigate } from '@/lib/public-assistant-checkout.util';
+import {
+  buildPublicAssistantCheckoutNavigate,
+  shouldAutoNavigateAssistantCheckout,
+} from '@/lib/public-assistant-checkout.util';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
@@ -156,7 +159,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         setLoading(false);
       }
     },
-    [input, loading, messages, sessionContext, slug, locale, t],
+    [followNavigate, input, loading, messages, sessionContext, slug, locale, t],
   );
 
   const handleProviderSlotSelect = useCallback(

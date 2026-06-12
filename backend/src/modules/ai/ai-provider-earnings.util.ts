@@ -12,6 +12,7 @@ import {
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import type { DateRange } from './ai-orchestration.helpers.js';
 import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from './ai-provider-earnings.fixtures.js';
+import { PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS } from './ai-provider-earnings-multilingual.fixtures.js';
 import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
 import { isExplainProviderPaymentCurrencyPrompt } from './ai-provider-payment-currency.util.js';
 import {
@@ -19,6 +20,14 @@ import {
   isCheckProvidersForServicePrompt,
 } from './ai-payments.util.js';
 import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
+import {
+  isCancelMyBookingPrompt,
+  isCancelPackageVisitSelfPrompt,
+  isExplainCancelPolicyPrompt,
+  isGetManageLinkPrompt,
+  isRescheduleMyBookingPrompt,
+  isReschedulePackageVisitSelfPrompt,
+} from './ai-self-service-booking.util.js';
 
 export const PROVIDER_EARNINGS_INTENTS = [
   'summarize_my_appointments',
@@ -145,8 +154,47 @@ export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   if (isBookNearestSlotPrompt(prompt) || isCheckProvidersForServicePrompt(prompt)) {
     return false;
   }
+  if (
+    isCancelMyBookingPrompt(prompt) ||
+    isRescheduleMyBookingPrompt(prompt) ||
+    isGetManageLinkPrompt(prompt) ||
+    isExplainCancelPolicyPrompt(prompt) ||
+    isCancelPackageVisitSelfPrompt(prompt) ||
+    isReschedulePackageVisitSelfPrompt(prompt)
+  ) {
+    return false;
+  }
   if (/\bhow many times has [A-Z][a-z]+/i.test(prompt)) return false;
   if (/\bwhen did [A-Z][a-z]+ last visit\b/i.test(prompt)) return false;
+  if (containsArmenianScript(prompt) && /քանի\s+անգամ\s+է/i.test(prompt)) {
+    return false;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /сколько\s+раз/i.test(prompt) &&
+    /\b(?:была|был|были)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    containsArmenianScript(prompt) &&
+    /(պատմ.*հաճախորդ|ամփոփ.*հաճախորդ|լոյալտ|referral|snapshot)/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(расскаж.*клиент|лояльн|referral|снимок\s+клиент)/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(tell me about|next client|loyalty or referral|client snapshot|summarize client|what should i know)\b/i.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
   if (/\b(client snapshot|summarize client|visit count)\b/i.test(lower)) {
     return false;
   }
@@ -158,9 +206,9 @@ export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
     /\b(how many|count|number of|total|do i have any|any appointments)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(քանի|կա՞|ամրագր)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) && /(քանի|կա՞)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
-      /(сколько|количество|есть ли|запис)/i.test(prompt));
+      /(сколько|количество|есть ли)/i.test(prompt));
 
   const appointmentCue =
     /\b(appointments?|bookings?|clients?|visits?|schedule)\b/i.test(lower) ||
@@ -191,14 +239,31 @@ export function isSummarizeMyRevenuePrompt(prompt: string): boolean {
     ) ||
     /\bhow much\b/i.test(lower) ||
     /\bdid i make\b/i.test(lower) ||
-    (containsArmenianScript(prompt) && /(վաստակ|եկամուտ|գումար)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) && /(վաստակ|եկամուտ|գումար|բաժին|զուտ)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
-      /(заработ|доход|выручк|сколько)/i.test(prompt));
+      /(заработ|доход|выручк|чистый|нетто|причитается)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) && /сколько\s+я/i.test(prompt));
+
+  if (
+    containsArmenianScript(prompt) &&
+    /(ամրագր|հաճախորդ)/i.test(prompt) &&
+    !/(վաստակ|եկամուտ|գումար|բաժին|զուտ)/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(запис|клиент|приём)/i.test(prompt) &&
+    !/(заработ|доход|выручк|чистый|нетто|причитается)/i.test(prompt)
+  ) {
+    return false;
+  }
 
   const selfCue =
     /\b(my|mine|i made|did i make|my cut)\b/i.test(lower) ||
     (containsArmenianScript(prompt) && /(իմ|վաստակ)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(мои|мой|я заработ|сколько я)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(мои|мой|мне|у меня|я заработ|сколько я)/i.test(prompt)) ||
     /\bhow much did i\b/i.test(lower);
 
   return revenueCue && selfCue;
@@ -209,26 +274,30 @@ export function rescueProviderEarningsIntent(
   action: string,
 ): { action: ProviderEarningsIntent; rescueReason: string } | null {
   if (isMyStatsPrompt(prompt)) return null;
-  if (isSummarizeMyRevenuePrompt(prompt)) {
-    return {
-      action: 'summarize_my_revenue',
-      rescueReason: 'summarize_my_revenue',
-    };
-  }
-  if (isSummarizeMyAppointmentsPrompt(prompt)) {
-    return {
-      action: 'summarize_my_appointments',
-      rescueReason: 'summarize_my_appointments',
-    };
-  }
 
-  for (const scenario of PROVIDER_EARNINGS_PROMPT_SCENARIOS) {
+  for (const scenario of [
+    ...PROVIDER_EARNINGS_PROMPT_SCENARIOS,
+    ...PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS,
+  ]) {
     if (scenario.prompt === prompt) {
       return {
         action: scenario.expectedAction,
         rescueReason: scenario.expectedAction,
       };
     }
+  }
+
+  if (isSummarizeMyAppointmentsPrompt(prompt)) {
+    return {
+      action: 'summarize_my_appointments',
+      rescueReason: 'summarize_my_appointments',
+    };
+  }
+  if (isSummarizeMyRevenuePrompt(prompt)) {
+    return {
+      action: 'summarize_my_revenue',
+      rescueReason: 'summarize_my_revenue',
+    };
   }
 
   if (

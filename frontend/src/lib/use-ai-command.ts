@@ -4,10 +4,11 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
+import { shouldInvalidateAfterAi } from '@/lib/ai-command-bar.util';
 import {
-  AI_MUTATION_QUERY_KEYS,
   buildAiRequestContext,
   getAiPageContext,
+  invalidateDashboardQueries,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
 import type { AiChatMessage, AiCommandResult } from '@/lib/ai-client.types';
@@ -30,39 +31,13 @@ export interface SessionContext extends Partial<AiPageContext> {
   availableProviders?: string[];
 }
 
-function shouldInvalidateAfterAi(action?: string, success?: boolean): boolean {
-  if (!success || !action) return false;
-  const schedule = new Set([
-    'fill_unused_slots',
-    'apply_schedule',
-    'block_schedule',
-    'create_direct_schedule',
-    'setup_week_schedule',
-    'assign_employee_services',
-    'optimize_schedule',
-    'resolve_conflicts',
-    'reassign_cancelled',
-    'summarize_utilization',
-  ]);
-  return (
-    action === 'cancel_bookings' ||
-    action === 'create_booking' ||
-    action === 'create_service' ||
-    action === 'create_services' ||
-    action === 'reschedule_booking' ||
-    schedule.has(action)
-  );
-}
-
 export function useAiCommand(businessId: string | undefined, sessionContext: SessionContext) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
 
   const invalidate = useCallback(() => {
-    for (const key of AI_MUTATION_QUERY_KEYS) {
-      queryClient.invalidateQueries({ queryKey: [key] });
-    }
+    invalidateDashboardQueries(queryClient);
   }, [queryClient]);
 
   const runCommand = useCallback(
@@ -82,7 +57,13 @@ export function useAiCommand(businessId: string | undefined, sessionContext: Ses
           context: buildAiRequestContext(pathname, sessionContext, pageCtx),
         });
         const result = data.data || data;
-        if (shouldInvalidateAfterAi(result.action, result.success)) {
+        if (
+          shouldInvalidateAfterAi(
+            result.action,
+            result.success,
+            result.details as { requiresExecutionConfirmation?: boolean } | undefined,
+          )
+        ) {
           invalidate();
         }
         return result;

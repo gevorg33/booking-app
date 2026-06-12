@@ -160,6 +160,19 @@ describe('ai-payments.util', () => {
         'facial',
       );
       expect(
+        extractServiceNameFromPrompt('please book a facemassage nearest slot'),
+      ).toBe('facemassage');
+      expect(
+        extractServiceNameFromPrompt(
+          'book hairstyle tomorrow who is free at nearest time',
+        ),
+      ).toBe('hairstyle');
+      expect(
+        extractServiceNameFromPrompt(
+          'check who is available tomorrow for massage and book first available slot',
+        ),
+      ).toBe('massage');
+      expect(
         extractServiceNameFromPrompt(
           'check who is free tomorrow evening for permanent lashes, book the nearest slot',
         ),

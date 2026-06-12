@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractSessionContext,
   findLastUndoableMessageId,
+  isAiDataMutatingAction,
   mergeSessionContext,
   shouldInvalidateAfterAi,
 } from './ai-command-bar.util';
@@ -13,15 +14,38 @@ describe('ai-command-bar.util', () => {
       expect(shouldInvalidateAfterAi('create_booking', false)).toBe(false);
     });
 
-    it('returns true for booking and schedule mutations', () => {
+    it('returns true for create/update/delete catalog and booking mutations', () => {
       expect(shouldInvalidateAfterAi('create_booking', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('create_service', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('update_service', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('deactivate_service', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('assign_employee_services', true)).toBe(true);
       expect(shouldInvalidateAfterAi('reschedule_booking', true)).toBe(true);
-      expect(shouldInvalidateAfterAi('fill_unused_slots', true)).toBe(true);
-      expect(shouldInvalidateAfterAi('optimize_schedule', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('book_nearest_slot', true)).toBe(true);
+      expect(shouldInvalidateAfterAi('compound_intent', true)).toBe(true);
     });
 
     it('returns false for read-only actions', () => {
       expect(shouldInvalidateAfterAi('query_bookings', true)).toBe(false);
+      expect(shouldInvalidateAfterAi('list_services', true)).toBe(false);
+      expect(shouldInvalidateAfterAi('check_providers_for_service', true)).toBe(false);
+      expect(shouldInvalidateAfterAi('summarize_utilization', true)).toBe(false);
+    });
+
+    it('skips invalidation when execution confirmation is still required', () => {
+      expect(
+        shouldInvalidateAfterAi('delete_service', true, {
+          requiresExecutionConfirmation: true,
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('isAiDataMutatingAction', () => {
+    it('classifies CUD prefixes as mutating', () => {
+      expect(isAiDataMutatingAction('create_package')).toBe(true);
+      expect(isAiDataMutatingAction('update_package')).toBe(true);
+      expect(isAiDataMutatingAction('delete_customer_data')).toBe(true);
     });
   });
 

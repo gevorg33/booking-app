@@ -336,7 +336,7 @@ describe('ai-marketing-growth.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(MARKETING_GROWTH_INTENTS.length).toBe(12);
+      expect(MARKETING_GROWTH_INTENTS.length).toBe(14);
       expect(isMarketingGrowthIntent('explain_plan_limits')).toBe(true);
       expect(isMarketingGrowthIntent('not_real')).toBe(false);
       expect(decomposeMarketingGrowthCompoundPrompt('')).toEqual([]);

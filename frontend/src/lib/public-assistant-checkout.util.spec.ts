@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPublicAssistantCheckoutNavigate,
   resolveAssistantSlotStartTime,
+  shouldAutoNavigateAssistantCheckout,
 } from './public-assistant-checkout.util';
 
 describe('resolveAssistantSlotStartTime', () => {
@@ -19,6 +20,35 @@ describe('resolveAssistantSlotStartTime', () => {
         '09:30',
       ),
     ).toBe('2026-06-09T09:30:00.000Z');
+  });
+});
+
+describe('shouldAutoNavigateAssistantCheckout', () => {
+  it('auto-navigates on please book with checkout navigate', () => {
+    expect(
+      shouldAutoNavigateAssistantCheckout(
+        'please book nearest slot',
+        {
+          path: 'checkout',
+          query: {
+            serviceId: 'svc-1',
+            employeeId: 'emp-1',
+            startTime: '2026-06-13T09:00:00.000Z',
+          },
+        },
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it('does not auto-navigate without booking phrasing', () => {
+    expect(
+      shouldAutoNavigateAssistantCheckout(
+        'what is the most premium massage?',
+        { path: 'checkout', query: { serviceId: 'svc-1' } },
+        true,
+      ),
+    ).toBe(false);
   });
 });
 

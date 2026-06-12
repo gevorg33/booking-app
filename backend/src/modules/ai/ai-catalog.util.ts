@@ -7,6 +7,7 @@ import {
 export const CATALOG_MUTATE_INTENTS = [
   'create_service_category',
   'bulk_create_catalog',
+  'update_service',
   'deactivate_service',
   'create_package',
   'update_package',
@@ -101,6 +102,87 @@ export function isDeactivateServicePrompt(prompt: string): boolean {
     /\b(from\s+public|service|offering|catalog)\b/i.test(prompt) &&
     !/\bpackage\b/i.test(prompt)
   );
+}
+
+/** "Move Neck Massage under service category: Massage". */
+export function isAssignServiceCategoryPrompt(prompt: string): boolean {
+  if (isDeactivateServicePrompt(prompt)) return false;
+  if (/\b(?:senior|junior|provider|employee|staff)\b/i.test(prompt)) {
+    return false;
+  }
+  const hasCategory =
+    /\b(?:service\s+)?category\b/i.test(prompt) ||
+    /\bunder\s+[A-Za-z][\w\s&'-]+\s+category\b/i.test(prompt);
+  const hasMove =
+    /\b(?:move|put|place|assign|reassign|relocate|add)\b/i.test(prompt) &&
+    /\b(?:under|in|into|to)\b/i.test(prompt);
+  return hasCategory && hasMove;
+}
+
+export function parseAssignServiceCategoryFromPrompt(prompt: string): {
+  serviceName?: string;
+  categoryName?: string;
+} {
+  const patterns = [
+    /\b(?:move|put|place|assign|reassign|relocate|add)\s+(.+?)\s+(?:under|in|into|to)\s+(?:the\s+)?(?:service\s+)?category\s*:?\s*(.+)$/i,
+    /\b(?:move|put|place|assign|reassign|relocate|add)\s+(.+?)\s+(?:under|in|into|to)\s+(?:the\s+)?([A-Za-z][\w\s&'-]+?)\s+(?:service\s+)?category\b/i,
+    /\b(?:move|put|place|assign|reassign|relocate)\s+(.+?)\s+to\s+category\s+([A-Za-z][\w\s&'-]+)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    if (!match) continue;
+    const serviceName = match[1]?.replace(/^["']|["']$/g, '').trim();
+    const categoryName = match[2]?.replace(/^["']|["']$/g, '').trim();
+    if (serviceName && categoryName) {
+      return { serviceName, categoryName };
+    }
+  }
+
+  return {};
+}
+
+/** Category scope when creating a catalog service (not a category entity). */
+export function extractCreateServiceCategoryFromPrompt(
+  prompt: string,
+): string | undefined {
+  const patterns = [
+    /\b(?:under|in|into|within)\s+(?:the\s+)?(?:service\s+)?category\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
+    /\b(?:under|in|into|within)\s+(?:the\s+)?([A-Za-z][\w\s&'-]+?)\s+(?:service\s+)?category\b/i,
+    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?service\b[^.]*\bcategory\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    const name = match?.[1]?.trim();
+    if (name) return name;
+  }
+
+  return undefined;
+}
+
+export function enrichServiceCategoryRescueParams(
+  action: string,
+  params: Record<string, unknown>,
+  prompt: string,
+): void {
+  if (action === 'update_service') {
+    const parsed = parseAssignServiceCategoryFromPrompt(prompt);
+    if (parsed.serviceName && !params.serviceName) {
+      params.serviceName = parsed.serviceName;
+    }
+    if (parsed.categoryName && !params.categoryName) {
+      params.categoryName = parsed.categoryName;
+    }
+    return;
+  }
+
+  if (action === 'create_service' || action === 'create_services') {
+    const categoryName = extractCreateServiceCategoryFromPrompt(prompt);
+    if (categoryName && !params.categoryName) {
+      params.categoryName = categoryName;
+    }
+  }
 }
 
 export function isCreatePackagePrompt(prompt: string): boolean {
@@ -271,7 +353,11 @@ export function isCatalogCompoundPrompt(prompt: string): boolean {
 export function rescueCatalogIntent(
   prompt: string,
   action: string,
-): { action: CatalogIntent; rescueReason: string } | null {
+): {
+  action: CatalogIntent;
+  rescueReason: string;
+  params?: Record<string, unknown>;
+} | null {
   if (isCatalogCompoundPrompt(prompt) && action !== 'compound_intent') {
     return null;
   }
@@ -374,6 +460,21 @@ export function rescueCatalogIntent(
   }
   if (isDeactivateServicePrompt(prompt) && action !== 'update_service_prices') {
     return { action: 'deactivate_service', rescueReason: 'deactivate_service' };
+  }
+  if (
+    isAssignServiceCategoryPrompt(prompt) &&
+    action !== 'update_service' &&
+    action !== 'assign_employee_services'
+  ) {
+    const parsed = parseAssignServiceCategoryFromPrompt(prompt);
+    return {
+      action: 'update_service',
+      rescueReason: 'assign_service_category',
+      params: {
+        serviceName: parsed.serviceName ?? null,
+        categoryName: parsed.categoryName ?? null,
+      },
+    };
   }
   return null;
 }

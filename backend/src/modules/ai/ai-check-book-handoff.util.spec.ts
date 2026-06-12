@@ -40,6 +40,29 @@ describe('ai-check-book-handoff.util (ai-cmd-h2.2)', () => {
     expect(merged.priorCheckSummary).toContain('2 provider(s) available');
   });
 
+  it('merges public check_availability handoff from nested details', () => {
+    const publicCheckResult = {
+      success: true,
+      action: 'check_availability',
+      summary: 'Open slots for haircut (options under $50) (2 options):',
+      details: {
+        checkProvidersHandoff: {
+          summary: 'Open slots for haircut (options under $50) (2 options):',
+          serviceName: 'Haircut basic',
+          timeOfDay: 'evening',
+          availableProviders: ['Alice'],
+          noProviders: false,
+        },
+      },
+    };
+    const merged = mergeCheckProvidersHandoffIntoContext({}, publicCheckResult);
+    expect(merged.checkProvidersHandoff).toMatchObject({
+      serviceName: 'Haircut basic',
+      availableProviders: ['Alice'],
+    });
+    expect(merged.timeOfDay).toBe('evening');
+  });
+
   it('picks handoff object from book step params', () => {
     const handoff = pickCheckProvidersHandoff({
       checkProvidersHandoff: buildCheckProvidersHandoffFromResult(checkResult),

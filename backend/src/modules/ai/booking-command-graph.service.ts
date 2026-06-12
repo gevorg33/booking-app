@@ -13,6 +13,10 @@ import type { Customer } from '../customer/entities/customer.entity.js';
 import type { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import type { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
 import type { OrchestrationResult } from './command-orchestration.service.js';
+import {
+  attachReactFallbackTelemetry,
+  shouldUseReactAgentFallback,
+} from './booking-command-react-fallback.util.js';
 
 export interface ComplexityRoute {
   tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
@@ -56,15 +60,6 @@ export interface CommandGraphRunInput {
   delegates: CommandGraphDelegates;
 }
 
-const AMBIGUOUS_PATTERNS =
-  /\b(fix|figure out|what'?s wrong|help me with|diagnose|investigate|what should i do|something wrong|sort out|deal with)\b/i;
-
-const ORCHESTRATION_INTENT_HINTS =
-  /\b(optimize|conflict|recover|reassign|rebook|waitlist|underutilized|gaps?|utilization)\b/i;
-
-const FALLBACK_BOOKING_PATTERN =
-  /\b(if .+ (not available|unavailable|busy|can'?t)|otherwise|else (book|try)|then (try|book)|who(?:ever)? is free|whoever(?:'s| is) available)\b/i;
-
 @Injectable()
 export class BookingCommandGraphService {
   private readonly logger = new Logger(BookingCommandGraphService.name);
@@ -83,11 +78,6 @@ export class BookingCommandGraphService {
   }
 
   async run(input: CommandGraphRunInput): Promise<CommandResult> {
-    if (this.shouldUseReactAgent(input)) {
-      const reactResult = await this.runReactAgent(input);
-      if (reactResult) return reactResult;
-    }
-
     const graphPath =
       this.decomposition.isCompoundPrompt(input.effectivePrompt) ||
       input.complexityRoute?.tier === 'compound'
@@ -102,25 +92,23 @@ export class BookingCommandGraphService {
       result = await input.delegates.executeSingleIntent();
     }
 
+    if (
+      shouldUseReactAgentFallback({
+        reactEnabled: this.router.useReactAgent(),
+        complexityTier: input.complexityRoute?.tier,
+        pipelineResult: result,
+      })
+    ) {
+      const reactResult = await this.runReactAgent(input);
+      if (reactResult) {
+        return attachReactFallbackTelemetry(reactResult);
+      }
+    }
+
     return this.reasoning.enrichResult(input.businessId, input.prompt, result, {
       graphPath,
       subIntents: result.details?.subIntents as string[] | undefined,
     });
-  }
-
-  private shouldUseReactAgent(input: CommandGraphRunInput): boolean {
-    if (!this.router.useReactAgent()) return false;
-
-    const tier = input.complexityRoute?.tier;
-    if (tier === 'compound') return false;
-    if (tier === 'read_only' || tier === 'simple_mutate') return false;
-
-    if (tier === 'orchestration') return true;
-    if (FALLBACK_BOOKING_PATTERN.test(input.effectivePrompt)) return true;
-    if (AMBIGUOUS_PATTERNS.test(input.effectivePrompt)) return true;
-    if (ORCHESTRATION_INTENT_HINTS.test(input.effectivePrompt)) return true;
-
-    return false;
   }
 
   private async runReactAgent(
@@ -128,7 +116,7 @@ export class BookingCommandGraphService {
   ): Promise<CommandResult | null> {
     try {
       this.logger.log(
-        `ReAct tool agent: "${input.effectivePrompt.slice(0, 80)}..."`,
+        `ReAct fallback (unknown after semantic+rescue): "${input.effectivePrompt.slice(0, 80)}..."`,
       );
 
       const output = await this.reactAgent.run({
@@ -138,6 +126,7 @@ export class BookingCommandGraphService {
         timeZone: input.timeZone,
         employees: input.catalog.employees,
         services: input.catalog.services,
+        templates: input.catalog.templates,
       });
 
       if (output.error) {
@@ -163,7 +152,7 @@ export class BookingCommandGraphService {
       );
     } catch (err: any) {
       this.logger.warn(
-        `ReAct agent failed, falling back to classify path: ${err?.message ?? err}`,
+        `ReAct fallback failed, keeping pipeline unknown result: ${err?.message ?? err}`,
       );
       return null;
     }

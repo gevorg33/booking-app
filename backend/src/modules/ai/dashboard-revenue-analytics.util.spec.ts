@@ -1,4 +1,5 @@
 import {
+  isDashboardTotalEarningsPromptHyRu,
   isTopStaffRevenuePrompt,
   isTotalEarningsPrompt,
   STAFF_ROLE_WORDS,
@@ -69,6 +70,29 @@ describe('dashboard-revenue-analytics.util', () => {
     expect(isTopStaffRevenuePrompt('Most revenue by stylist last week')).toBe(
       true,
     );
+  });
+
+  it('detects Armenian and Russian total earnings prompts', () => {
+    expect(isTotalEarningsPrompt('Օրվա ընդհանուր եկամուտը')).toBe(true);
+    expect(isTotalEarningsPrompt('Сколько мы заработали за сегодня?')).toBe(
+      true,
+    );
+    expect(isTotalEarningsPrompt('Общая выручка за месяц')).toBe(true);
+    expect(isTotalEarningsPrompt('Total booking revenue this month')).toBe(true);
+  });
+
+  it('excludes provider-personal HY/RU prompts from dashboard total earnings', () => {
+    expect(isTotalEarningsPrompt('Իմ եկամուտը անցյալ ամիս')).toBe(false);
+    expect(isTotalEarningsPrompt('Моя выручка за прошлый месяц')).toBe(false);
+    expect(
+      isDashboardTotalEarningsPromptHyRu('Top 3 specialists by revenue last week'),
+    ).toBe(false);
+    expect(
+      isDashboardTotalEarningsPromptHyRu('Իմ եկամուտը անցյալ ամիս'),
+    ).toBe(false);
+    expect(
+      isDashboardTotalEarningsPromptHyRu('Ցույց տուր իմ ցուցանիշները այս շաբաթ'),
+    ).toBe(false);
   });
 
   it('excludes customer recommend-specialists prompts from staff revenue analytics', () => {

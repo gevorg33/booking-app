@@ -16,6 +16,10 @@ export const MULTILINGUAL_PROVIDER_AVAILABILITY =
 export const MULTILINGUAL_BOOK_VERBS =
   /(?:ամրագրիր|запиши|забронируй|\bamsagrum\b|\bzabroniruy\b|\bzapis\b)/iu;
 
+/** OR split tokens shared with flexible-availability parse (discover-ru-or-book-en). */
+const MULTILINGUAL_AVAILABILITY_OR =
+  /\s*,\s*|\s+or\s+|\s+կամ\s+|\s+или\s+|\s+kam\s+/iu;
+
 /** Nearest / soonest / first-available slot phrasing. */
 export const MULTILINGUAL_FLEXIBLE_SLOT =
   /(?:մոտակա|ամենամոտ|ամենաառաջին|ближайш\w*|скорейш\w*|первый\s+свободн|blizhaysh\w*|\bskoreysh\b|perviy\s+svobodn|\basap\b)/iu;
@@ -26,13 +30,14 @@ const MULTILINGUAL_SLOT_NOUNS =
 
 /** Relative tomorrow in hy/ru/translit. */
 export const MULTILINGUAL_TOMORROW =
-  /(?:վաղը|վաղա|завтра|\bvagh@?\b|\bzavtra\b)/iu;
+  /(?:վաղը|վաղա|завтра|\bvagh(?:a|@)?\b|\bvaghva\b|\bzavtra\b)/iu;
 
 const MULTILINGUAL_MORNING =
   /(?:առավոտ|утр[оа]?м|утром|\butrom\b|\baravot\b)/iu;
-const MULTILINGUAL_AFTERNOON = /(?:ցերեկ|дн[её]м|\bdnyom\b|\btserek\b)/iu;
+const MULTILINGUAL_AFTERNOON =
+  /(?:ցերեկ|կեսօր|дн[её]м|\bdnyom\b|\btserek\b|\bkesor(?:in)?\b)/iu;
 const MULTILINGUAL_EVENING =
-  /(?:երեկոյան|երեկո|вечером|вечер|\bvecherom\b|\bvecher\b|\berek\b)/iu;
+  /(?:երեկոյան|երեկո|вечером|вечер|\bvecherom\b|\bvecher\b|\berek\b|\byereko\b)/iu;
 
 /** Provider-role words when paired with availability (hy/ru). */
 const MULTILINGUAL_PROVIDER_ROLE =
@@ -100,6 +105,12 @@ export function isMultilingualBookNearestPrompt(prompt: string): boolean {
 export function isMultilingualFirstAvailableBookingPrompt(
   prompt: string,
 ): boolean {
+  if (
+    MULTILINGUAL_BOOK_VERBS.test(prompt) &&
+    MULTILINGUAL_AVAILABILITY_OR.test(prompt)
+  ) {
+    return true;
+  }
   if (!MULTILINGUAL_FLEXIBLE_SLOT.test(prompt)) return false;
   return (
     MULTILINGUAL_BOOK_VERBS.test(prompt) ||

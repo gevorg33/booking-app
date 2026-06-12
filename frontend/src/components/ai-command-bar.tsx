@@ -10,9 +10,9 @@ import {
   useViewportSize,
 } from '@/lib/use-draggable-floating-position';
 import {
-  AI_MUTATION_QUERY_KEYS,
   buildAiRequestContext,
   getAiPageContext,
+  invalidateDashboardQueries,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
 import { resolveCommandBarExamples } from '@/lib/ai-command-bar-examples.util';
@@ -55,12 +55,6 @@ interface Message {
 }
 
 type SessionContext = AiCommandSessionContext;
-
-function invalidateAfterMutation(queryClient: ReturnType<typeof useQueryClient>) {
-  for (const key of AI_MUTATION_QUERY_KEYS) {
-    queryClient.invalidateQueries({ queryKey: [key] });
-  }
-}
 
 export type AiCommandBarProps = {
   variant?: 'dashboard' | 'onboarding';
@@ -110,9 +104,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     onClarify: () => setOpen(true),
     onTaskProgress: () => setOpen(true),
     onTaskCompleted: () => {
-      invalidateAfterMutation(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+      invalidateDashboardQueries(queryClient);
     },
   });
 
@@ -153,9 +145,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           timestamp: new Date(),
         },
       ]);
-      invalidateAfterMutation(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
-      queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending', business?.id] });
+      invalidateDashboardQueries(queryClient);
     },
     onError: (error: unknown) => {
       const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } })?.response?.data;
@@ -245,8 +235,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         ]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
         if (result.success) {
-          invalidateAfterMutation(queryClient);
-          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+          invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
         setMessages((prev) => [
@@ -313,9 +302,14 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         if (result.success) {
           followDashboardNavigate(result.details as Record<string, unknown> | undefined);
         }
-        if (shouldInvalidateAfterAi(result.action, result.success)) {
-          invalidateAfterMutation(queryClient);
-          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+        if (
+          shouldInvalidateAfterAi(
+            result.action,
+            result.success,
+            result.details as { requiresExecutionConfirmation?: boolean } | undefined,
+          )
+        ) {
+          invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
         setMessages((prev) => [
@@ -396,9 +390,14 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           followDashboardNavigate(result.details as Record<string, unknown> | undefined);
         }
 
-        if (shouldInvalidateAfterAi(result.action, result.success)) {
-          invalidateAfterMutation(queryClient);
-          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business?.id] });
+        if (
+          shouldInvalidateAfterAi(
+            result.action,
+            result.success,
+            result.details as { requiresExecutionConfirmation?: boolean } | undefined,
+          )
+        ) {
+          invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
         const limitMsg = planLimitMessage(err);
@@ -464,8 +463,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           },
         ]);
         if (result.success) {
-          invalidateAfterMutation(queryClient);
-          queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview', business.id] });
+          invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
         const text =

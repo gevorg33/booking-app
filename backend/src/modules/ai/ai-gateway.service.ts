@@ -36,6 +36,14 @@ import {
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import {
+  buildGatewayCommandTraceInput,
+  COMMAND_TRACE_ID_CONTEXT_KEY,
+  resolveCommandTraceId,
+  shouldPersistCommandTrace,
+} from './ai-command-trace-recorder.util.js';
+import type { AiCommandTraceSurface } from './entities/ai-command-trace.entity.js';
 import {
   assessPhiInAiContext,
   phiAiBlockMessage,
@@ -76,6 +84,7 @@ export class AiGatewayService {
   private readonly planEntitlements: PlanEntitlementsService;
   private readonly aiSettings: AiSettingsService;
   private readonly platform: AiPlatformService;
+  private readonly commandTrace: AiCommandTraceService;
 
   /* istanbul ignore start */
   constructor(
@@ -91,6 +100,7 @@ export class AiGatewayService {
     planEntitlements: PlanEntitlementsService,
     aiSettings: AiSettingsService,
     platform: AiPlatformService,
+    commandTrace: AiCommandTraceService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -102,6 +112,7 @@ export class AiGatewayService {
     this.planEntitlements = planEntitlements;
     this.aiSettings = aiSettings;
     this.platform = platform;
+    this.commandTrace = commandTrace;
   }
   /* istanbul ignore end */
 
@@ -134,6 +145,8 @@ export class AiGatewayService {
   async execute(
     params: AiGatewayExecuteParams,
   ): Promise<CommandResult | Record<string, unknown>> {
+    const startedAt = Date.now();
+    const traceId = resolveCommandTraceId(params.context);
     const tier = resolveAccessTier(params.membershipRole ?? params.role);
     const surface = params.surface;
 
@@ -149,7 +162,16 @@ export class AiGatewayService {
       surface,
     );
     if (blocked) {
-      return attachGatewayMeta(blocked, surface, tier);
+      const attached = attachGatewayMeta(blocked, surface, tier);
+      this.persistCommandTrace({
+        params,
+        result: blocked,
+        surface: this.toTraceSurface(surface),
+        traceId,
+        startedAt,
+        role: tier,
+      });
+      return attached;
     }
 
     const businessRecord = await this.aiSettings.getBusinessRecord(
@@ -161,20 +183,27 @@ export class AiGatewayService {
       { context: params.context, prompt: params.prompt },
     );
     if (phiGuard.blocked) {
-      return attachGatewayMeta(
-        {
-          success: false,
-          action: 'security_blocked',
-          summary: phiAiBlockMessage(phiGuard.reason),
-          details: {
-            securityBlocked: true,
-            reason: phiGuard.reason,
-            matchedFields: phiGuard.matchedFields,
-          },
+      const phiBlocked: CommandResult = {
+        success: false,
+        action: 'security_blocked',
+        summary: phiAiBlockMessage(phiGuard.reason),
+        details: {
+          securityBlocked: true,
+          reason: phiGuard.reason,
+          matchedFields: phiGuard.matchedFields,
+          traceId,
         },
-        surface,
-        tier,
-      );
+      };
+      const attached = attachGatewayMeta(phiBlocked, surface, tier);
+      this.persistCommandTrace({
+        params,
+        result: phiBlocked,
+        surface: this.toTraceSurface(surface),
+        traceId,
+        startedAt,
+        role: tier,
+      });
+      return attached;
     }
 
     if (surface === 'dashboard') {
@@ -238,6 +267,7 @@ export class AiGatewayService {
       _branchHint: classifierHint ?? undefined,
       _confidenceHigh: confidenceHigh,
       _abVariantId: abVariantId,
+      [COMMAND_TRACE_ID_CONTEXT_KEY]: traceId,
     };
 
     if (params.surface === 'customer') {
@@ -267,6 +297,14 @@ export class AiGatewayService {
         scope.locationId,
         abVariantId,
       );
+      this.persistCommandTrace({
+        params,
+        result,
+        surface: 'customer',
+        traceId,
+        startedAt,
+        role: roleProfile,
+      });
       return attached;
     }
 
@@ -305,6 +343,14 @@ export class AiGatewayService {
         scope.locationId,
         abVariantId,
       );
+      this.persistCommandTrace({
+        params,
+        result,
+        surface: 'provider',
+        traceId,
+        startedAt,
+        role: roleProfile,
+      });
       return result;
     }
 
@@ -337,7 +383,41 @@ export class AiGatewayService {
       scope.locationId,
       abVariantId,
     );
+    this.persistCommandTrace({
+      params,
+      result,
+      surface: this.toTraceSurface(surface),
+      traceId,
+      startedAt,
+      role: roleProfile,
+    });
     return attached;
+  }
+
+  private toTraceSurface(surface: AiSurface): AiCommandTraceSurface {
+    if (surface === 'customer') return 'customer';
+    if (surface === 'provider') return 'provider';
+    return 'dashboard';
+  }
+
+  private persistCommandTrace(opts: {
+    params: AiGatewayExecuteParams;
+    result: CommandResult;
+    surface: AiCommandTraceSurface;
+    traceId: string;
+    startedAt: number;
+    role?: string;
+  }): void {
+    if (!shouldPersistCommandTrace(opts.result)) return;
+    const input = buildGatewayCommandTraceInput({
+      params: opts.params,
+      result: opts.result,
+      surface: opts.surface,
+      role: opts.role,
+      traceId: opts.traceId,
+      latencyMs: Date.now() - opts.startedAt,
+    });
+    this.commandTrace.recordFireAndForget(input);
   }
 
   private recordOutcome(

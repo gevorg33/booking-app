@@ -130,6 +130,51 @@ describe('ai-command-eval.report (acc-2.8)', () => {
     expect(result.exitCode).toBe(1);
   });
 
+  it('runAiAccuracyGate exits non-zero when baseline case count is stale (acc-2.9)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-eval-baseline-'));
+    const baselinePath = path.join(dir, 'baseline.json');
+    writeAccuracyBaseline(
+      {
+        version: 1,
+        generatedAt: new Date().toISOString(),
+        totalCases: 1,
+        passed: 1,
+        failed: 0,
+        accuracyPct: 100,
+        llmCaseCount: 0,
+        byIntent: {
+          'route:read_only': {
+            passed: 1,
+            failed: 0,
+            total: 1,
+            accuracyPct: 100,
+          },
+        },
+      },
+      baselinePath,
+    );
+
+    const result = runAiAccuracyGate({
+      cases: [
+        {
+          id: 'ok-a',
+          prompt: 'Show appointments today',
+          expect: { routeTier: 'read_only' },
+        },
+        {
+          id: 'ok-b',
+          prompt: 'Show appointments today',
+          expect: { routeTier: 'read_only' },
+        },
+      ],
+      baselinePath,
+    });
+
+    expect(result.report.failed).toBe(0);
+    expect(result.exitCode).toBe(1);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it('writes baseline when updateBaseline is true', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-eval-baseline-'));
     const baselinePath = path.join(dir, 'baseline.json');

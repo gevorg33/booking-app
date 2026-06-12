@@ -8,6 +8,9 @@ import type { ProviderBookingCompletedVisitView } from '../provider-mobile/provi
 import { isCatalogMutateCommandPrompt } from './ai-catalog.util.js';
 import { isSubscriptionUsageHistoryPrompt } from './ai-customer-crm.util.js';
 import { PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS } from './ai-provider-client-context.fixtures.js';
+import { PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_SCENARIOS } from './ai-provider-client-context-multilingual.fixtures.js';
+import { isSummarizeLoyaltyProgramPrompt } from './ai-billing-loyalty-dashboard.util.js';
+import { isSummarizeAutomationPerformancePrompt } from './ai-marketing-growth.util.js';
 import { isSummarizeMyAppointmentsPrompt } from './ai-provider-earnings.util.js';
 
 export const PROVIDER_CLIENT_CONTEXT_INTENTS = [
@@ -32,21 +35,37 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
   if (isAddClientNotePrompt(prompt)) return false;
   if (isSummarizeMyAppointmentsPrompt(prompt)) return false;
   if (isCatalogMutateCommandPrompt(prompt)) return false;
+  if (isSummarizeLoyaltyProgramPrompt(prompt)) return false;
+  if (isSummarizeAutomationPerformancePrompt(prompt)) return false;
 
   const lower = prompt.toLowerCase();
+  if (/\b(bookings?|appointments?)\s+overview\b/i.test(lower)) {
+    return false;
+  }
+
   const summarizeCue =
     /\b(summarize|summary|overview|brief me|tell me about|what should i know|client snapshot|know about|brief on)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(ամփոփ|պատմ|հաճախորդ)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(ամփոփ|պատմ|հաճախորդ|\u056b\u0574\u0561\u0576|snapshot|no-show|\u0584\u0561\u0576\u056b\s+\u0561\u0576\u0563\u0561\u0574)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
-      /(кратко|расскаж|об этом клиент|клиент)/i.test(prompt));
+      /(кратко|расскаж|об этом клиент|клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
+        prompt,
+      )) ||
+    /\bhow many times has [A-Z]/i.test(prompt);
 
   const clientCue =
     /\b(client|customer|this client|my client|guest|patient)\b/i.test(lower) ||
     /\b(loyalty|referral|no[\s-]?shows?|last visit|marketing)\b/i.test(lower) ||
-    (containsArmenianScript(prompt) && /(հաճախորդ|լոյալ)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(клиент|лояльн)/i.test(prompt));
+    /(?:for|about|on|\u043e\u0431|\u043e)\s+[A-Z][\w'.-]+/i.test(prompt) ||
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b\u0576(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+)-\u043d(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+)-\u0576(?=\s)/i.test(prompt) ||
+    (containsArmenianScript(prompt) && /(հաճախորդ|լոյալ|այց|referral)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(клиент|лояльн|визит|referral|no-show)/i.test(prompt));
 
   const marketingSnapshot =
     /\b(marketing|opted in|opt in|referral|loyalty|no[\s-]?shows?)\b/i.test(
@@ -68,21 +87,37 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
 export function isShowClientHistoryPrompt(prompt: string): boolean {
   if (isAddClientNotePrompt(prompt)) return false;
   if (isSubscriptionUsageHistoryPrompt(prompt)) return false;
+  if (/\bhow many times has [A-Z]/i.test(prompt)) return false;
+  if (containsArmenianScript(prompt) && /քանի\s+անգամ/i.test(prompt)) {
+    return false;
+  }
+  if (containsCyrillicScript(prompt) && /сколько\s+раз/i.test(prompt)) {
+    return false;
+  }
 
   const lower = prompt.toLowerCase();
   const historyCue =
     /\b(visit history|past (?:appointments?|visits?|bookings?)|previous visits?|recent completed|prior bookings?|visit record|who saw|last time (?:they|she|he) came|when did .+ last visit)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(այց.*պատմ|նախորդ)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(այց.*պատմ|նախորդ|նախկին|վերջին\s+այց|service.*(?:նախկին|prior)|completed\s+visit|visit\s+record|prior\s+booking|\u057f\u0565\u057d.*\u057e\u0565\u0580\u057b\u056b\u0576)/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
-      /(истори.*визит|прошл.*визит|последн.*визит)/i.test(prompt));
+      /(истори.*визит|прошл.*(?:запис|визит)|последн.*(?:визит|раз)|completed\s+visit|visit\s+record|prior\s+booking|кто\s+видел)/i.test(
+        prompt,
+      ));
 
   const clientCue =
     /\b(client|customer|guest|patient|this customer)\b/i.test(lower) ||
     /(?:for|about)\s+[A-Z][a-z]+/.test(prompt) ||
-    (containsArmenianScript(prompt) && /(հաճախորդ)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(клиент)/i.test(prompt));
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b\u0576(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+)-\u043d(?=\s)/i.test(prompt) ||
+    /([A-Z][\w'.-]+)-\u0576(?=\s)/i.test(prompt) ||
+    (containsArmenianScript(prompt) && /(հաճախորդ|client)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) && /(клиент|customer)/i.test(prompt));
 
   return historyCue || (/\bhistory\b/i.test(lower) && clientCue);
 }
@@ -95,9 +130,16 @@ export function isAddClientNotePrompt(prompt: string): boolean {
     /\b(add (?:a )?(?:staff )?note|staff note|client note|save (?:a )?note|write a note|log staff note|note for|remember that)\b/i.test(
       lower,
     ) ||
+    /\bnote(?:\s|:| for\b| on\b)/i.test(lower) ||
     /^note:\s*/i.test(prompt) ||
-    (containsArmenianScript(prompt) && /(նշում|ավելացր)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(заметк|добавь)/i.test(prompt))
+    (containsArmenianScript(prompt) &&
+      /(\u0576\u0577\u0578\u0576|\u0561\u057e\u0565\u056c\u0561\u0581\u0580|\u056b\u0577\u056b\u0580|staff note|client note)/i.test(
+        prompt,
+      )) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u0437\u0430\u043c\u0435\u0442\u043a|\u0434\u043e\u0431\u0430\u0432\u044c|\u0437\u0430\u043f\u043e\u043c\u043d\u0438|staff note|client note|save client note|log staff note|add note)/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -150,6 +192,12 @@ export function extractCustomerNameFromClientPrompt(
     /(?:client|customer)\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/i,
     /(?:note for|history for|visits for)\s+([A-Z][\w'.-]+)/i,
     /^summarize\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/i,
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b\s+\u0574\u0561\u057d\u056b\u0576/i,
+    /\u0447\u0442\u043e\s+\u043c\u043d\u0435\s+\u043d\u0443\u0436\u043d\u043e\s+\u0437\u043d\u0430\u0442\u044c\s+\u043e\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/i,
+    /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b(?=\s)/i,
+    /([A-Z][\w'.-]+)-\u056b\u0576(?=\s)/i,
+    /([A-Z][\w'.-]+)-\u043d(?=\s)/i,
+    /(?:\u0561\u0574\u0583\u0588\u0572\u056b\u0580|\u041a\u0440\u0430\u0442\u043a\u043e)\s+([A-Z][\w'.-]+)/i,
   ];
 
   for (const pattern of patterns) {
@@ -160,10 +208,30 @@ export function extractCustomerNameFromClientPrompt(
   return null;
 }
 
+export function matchProviderClientContextScenario(
+  prompt: string,
+): { action: ProviderClientContextIntent; rescueReason: string } | null {
+  for (const scenario of [
+    ...PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS,
+    ...PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_SCENARIOS,
+  ]) {
+    if (scenario.prompt === prompt) {
+      return {
+        action: scenario.expectedAction,
+        rescueReason: scenario.expectedAction,
+      };
+    }
+  }
+  return null;
+}
+
 export function rescueProviderClientContextIntent(
   prompt: string,
   action: string,
 ): { action: ProviderClientContextIntent; rescueReason: string } | null {
+  const exact = matchProviderClientContextScenario(prompt);
+  if (exact) return exact;
+
   if (isAddClientNotePrompt(prompt)) {
     return { action: 'add_client_note', rescueReason: 'add_client_note' };
   }
@@ -172,15 +240,6 @@ export function rescueProviderClientContextIntent(
   }
   if (isSummarizeClientPrompt(prompt)) {
     return { action: 'summarize_client', rescueReason: 'summarize_client' };
-  }
-
-  for (const scenario of PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS) {
-    if (scenario.prompt === prompt) {
-      return {
-        action: scenario.expectedAction,
-        rescueReason: scenario.expectedAction,
-      };
-    }
   }
 
   if (

@@ -60,8 +60,31 @@ const en: MessageTree = {
       'I couldn\'t find "{name}". Available specialists: {available}.',
     availabilityNoSlots:
       'No open slots for {service} with {provider} on the requested day(s) ({days}). Try another day or specialist.',
+    availabilityNoSlotsBudget:
+      'No open slots for {service} with {provider} on the requested day(s) ({days}) among options under ${maxPrice}. Try another day or specialist.',
     availabilityHeader: 'Open slots for {service} ({days} day(s)):',
+    availabilityHeaderBudget:
+      'Open slots for {service} (options under ${maxPrice}) ({days} day(s)):',
+    availabilityHeaderOptions: 'Open slots for {service} ({count} options):',
+    availabilityHeaderOptionsBudget:
+      'Open slots for {service} (options under ${maxPrice}) ({count} options):',
     availabilityDaySingleProvider: '{weekday} {date}: {times}',
+    availabilityTimeOfDayMorning: 'morning',
+    availabilityTimeOfDayAfternoon: 'afternoon',
+    availabilityTimeOfDayEvening: 'evening',
+    availabilityWindowTomorrow: 'Tomorrow {timeOfDay}',
+    availabilityWindowTomorrowPlain: 'Tomorrow',
+    availabilityWindowToday: 'Today {timeOfDay}',
+    availabilityWindowTodayPlain: 'Today',
+    availabilityWindowWeekday: '{weekday} {timeOfDay}',
+    availabilityWindowDate: '{date} {timeOfDay}',
+    availabilityWindowNoSlots: 'No open slots for {label}.',
+    availabilityNearestAlternative:
+      'Nearest opening: {weekday} {date} at {time} with {provider}.',
+    availabilityOverlapTomorrowIsWeekday:
+      'Tomorrow is {weekday} — these are two time windows on the same day.',
+    availabilityOverlapSameDay:
+      'These options fall on the same day ({weekday}) — checking each time window separately.',
     anyService: 'any service',
     anySpecialist: 'any specialist',
     recommendNeedsService:
@@ -307,8 +330,31 @@ const hy: MessageTree = {
       '«{name}» մասնագետը չգտա։ Հասանելի մասնագետներ՝ {available}։',
     availabilityNoSlots:
       '{provider}-ի համար {service} ծառայության ազատ slot-եր չկան հարցված օր(եր)ին ({days})։ Փորձեք այլ օր կամ մասնագետ։',
+    availabilityNoSlotsBudget:
+      '{provider}-ի համար {service} ծառայության ազատ slot-եր չկան հարցված օր(եր)ին ({days}) ${maxPrice}-ից ցածր տարբերակներով։ Փորձեք այլ օր կամ մասնագետ։',
     availabilityHeader: '{service}-ի ազատ slot-եր ({days} օր)—',
+    availabilityHeaderBudget:
+      '{service}-ի ազատ slot-եր (${maxPrice}-ից ցածր տարբերակներ, {days} օր)—',
+    availabilityHeaderOptions: '{service}-ի ազատ slot-եր ({count} տարբերակ)—',
+    availabilityHeaderOptionsBudget:
+      '{service}-ի ազատ slot-եր (${maxPrice}-ից ցածր տարբերակներ, {count} տարբերակ)—',
     availabilityDaySingleProvider: '{weekday} {date}՝ {times}',
+    availabilityTimeOfDayMorning: 'առավոտ',
+    availabilityTimeOfDayAfternoon: 'ցերեկ',
+    availabilityTimeOfDayEvening: 'երեկո',
+    availabilityWindowTomorrow: 'Վաղը {timeOfDay}',
+    availabilityWindowTomorrowPlain: 'Վաղը',
+    availabilityWindowToday: 'Այսօր {timeOfDay}',
+    availabilityWindowTodayPlain: 'Այսօր',
+    availabilityWindowWeekday: '{weekday} {timeOfDay}',
+    availabilityWindowDate: '{date} {timeOfDay}',
+    availabilityWindowNoSlots: '{label} ազատ slot-եր չկան։',
+    availabilityNearestAlternative:
+      'Ամենամոտ slot՝ {weekday} {date}, ժամը {time}, {provider}-ի հետ։',
+    availabilityOverlapTomorrowIsWeekday:
+      'Վաղը {weekday} է — երկու ժամային պատուհաններն նույն օրն են։',
+    availabilityOverlapSameDay:
+      'Տարբերակները նույն օրն են ({weekday}) — յուրաքանչյուր ժամային պատուհանը ստուգվում է առանձին։',
     anyService: 'ցանկացած ծառայություն',
     anySpecialist: 'ցանկացած մասնագետ',
     recommendNeedsService:
@@ -561,8 +607,31 @@ const ru: MessageTree = {
       'Специалист «{name}» не найден. Доступные специалисты: {available}.',
     availabilityNoSlots:
       'Нет свободных слотов для {service} у {provider} в указанные дни ({days}). Попробуйте другой день или специалиста.',
+    availabilityNoSlotsBudget:
+      'Нет свободных слотов для {service} у {provider} в указанные дни ({days}) среди вариантов до ${maxPrice}. Попробуйте другой день или специалиста.',
     availabilityHeader: 'Свободные слоты для {service} ({days} дн.):',
+    availabilityHeaderBudget:
+      'Свободные слоты для {service} (варианты до ${maxPrice}) ({days} дн.):',
+    availabilityHeaderOptions: 'Свободные слоты для {service} ({count} вариантов):',
+    availabilityHeaderOptionsBudget:
+      'Свободные слоты для {service} (варианты до ${maxPrice}) ({count} вариантов):',
     availabilityDaySingleProvider: '{weekday} {date}: {times}',
+    availabilityTimeOfDayMorning: 'утром',
+    availabilityTimeOfDayAfternoon: 'днём',
+    availabilityTimeOfDayEvening: 'вечером',
+    availabilityWindowTomorrow: 'Завтра {timeOfDay}',
+    availabilityWindowTomorrowPlain: 'Завтра',
+    availabilityWindowToday: 'Сегодня {timeOfDay}',
+    availabilityWindowTodayPlain: 'Сегодня',
+    availabilityWindowWeekday: '{weekday} {timeOfDay}',
+    availabilityWindowDate: '{date} {timeOfDay}',
+    availabilityWindowNoSlots: 'Нет свободных слотов на {label}.',
+    availabilityNearestAlternative:
+      'Ближайшее окно: {weekday} {date} в {time} у {provider}.',
+    availabilityOverlapTomorrowIsWeekday:
+      'Завтра — {weekday}: это два временных окна в один и тот же день.',
+    availabilityOverlapSameDay:
+      'Варианты относятся к одному дню ({weekday}) — каждое окно проверяется отдельно.',
     anyService: 'любая услуга',
     anySpecialist: 'любой специалист',
     recommendNeedsService:

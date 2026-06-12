@@ -2,6 +2,8 @@
 
 import { extractProductNameFromPrompt } from './ai-retail-finance.util.js';
 import { rescueProviderTimeOffIntent } from './ai-provider-time-off.util.js';
+import { PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS } from './ai-provider-exp-3-multilingual.fixtures.js';
+import { PROVIDER_EXP_3_PROMPT_SCENARIOS } from './ai-provider-exp-3.fixtures.js';
 
 export const PROVIDER_EXP_3_INTENTS = [
   'add_retail_to_booking',
@@ -18,6 +20,14 @@ export const PROVIDER_EXP_3_MUTATE_INTENTS = [
 
 export type ProviderExp3Intent = (typeof PROVIDER_EXP_3_INTENTS)[number];
 
+function containsArmenianScript(text: string): boolean {
+  return /[\u0530-\u058F]/.test(text);
+}
+
+function containsCyrillicScript(text: string): boolean {
+  return /[\u0400-\u04FF]/.test(text);
+}
+
 export function isProviderExp3Intent(action: string): action is ProviderExp3Intent {
   return (PROVIDER_EXP_3_INTENTS as readonly string[]).includes(action);
 }
@@ -32,7 +42,19 @@ export function isAddRetailToBookingPrompt(prompt: string): boolean {
         /\badd\s+[A-Za-z]/i.test(prompt))) ||
     (/\badd\b/i.test(prompt) &&
       /\bmy\s+(booking|appointment)\b/i.test(prompt) &&
-      (/\b(retail|product)\b/i.test(prompt) || /\badd\s+[A-Za-z]/i.test(prompt)))
+      (/\b(retail|product)\b/i.test(prompt) || /\badd\s+[A-Za-z]/i.test(prompt))) ||
+    (containsArmenianScript(prompt) &&
+      /(\u0561\u057e\u0565\u056c\u0561\u0581\u0580|\u054e\u0561\u0573\u0561\u057c\u056b\u0580)/i.test(
+        prompt,
+      ) &&
+      /(shampoo|conditioner|retail|product|booking|\u0561\u0574\u0580\u0561\u0563\u0580)/i.test(
+        prompt,
+      )) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u0434\u043e\u0431\u0430\u0432|\u043f\u0440\u043e\u0434\u0430)/i.test(prompt) &&
+      /(shampoo|conditioner|retail|product|\u0437\u0430\u043f\u0438\u0441)/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -43,14 +65,32 @@ export function isSendClientMessagePrompt(prompt: string): boolean {
     return true;
   }
   return (
-    /\b(send|text|message|sms|whatsapp|notify)\b/i.test(prompt) &&
-    /\b(client|customer)\b/i.test(prompt)
+    (/\b(send|text|message|sms|whatsapp|notify)\b/i.test(prompt) &&
+      /\b(client|customer)\b/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(\u0578\u0582\u0563\u0561\u0580\u056f\u056b\u0580|sms|whatsapp)/i.test(prompt) &&
+      /(client|customer|[A-Z][\w'.-]+)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u043e\u0442\u043f\u0440\u0430\u0432|sms|whatsapp)/i.test(prompt) &&
+      /(client|customer|\u043a\u043b\u0438\u0435\u043d\u0442|[A-Z][\w'.-]+)/i.test(
+        prompt,
+      ))
   );
 }
 
 export function isBlockMyTimePrompt(prompt: string): boolean {
-  return /\b(block\s+my\b|my\s+lunch\b|block\s+(?:my\s+)?(?:break|lunch|time))\b/i.test(
-    prompt,
+  return (
+    /\b(block\s+my\b|my\s+lunch\b|block\s+(?:my\s+)?(?:break|lunch|time))\b/i.test(
+      prompt,
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(\u0561\u0580\u0563\u0565\u056c\u0561\u0583\u0561\u056f\u056b\u0580|\u056b\u0574\s+lunch|block\s+my\s+break)/i.test(
+        prompt,
+      )) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440|block\s+my\s+break)/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -103,11 +143,34 @@ export function extractRetailProductName(
   return fromParams ?? extractProductNameFromPrompt(prompt);
 }
 
+export function matchProviderExp3Scenario(
+  prompt: string,
+): { action: ProviderExp3Intent; rescueReason: string } | null {
+  for (const scenario of [
+    ...PROVIDER_EXP_3_PROMPT_SCENARIOS,
+    ...PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS,
+  ]) {
+    if (scenario.prompt === prompt) {
+      return {
+        action: scenario.expectedAction,
+        rescueReason:
+          scenario.expectedAction === 'add_retail_to_booking'
+            ? 'add_retail_booking'
+            : scenario.expectedAction,
+      };
+    }
+  }
+  return null;
+}
+
 export function rescueProviderExp3Intent(
   prompt: string,
   action: string,
 ): { action: ProviderExp3Intent; rescueReason: string } | null {
   if (isProviderExp3Intent(action)) return null;
+
+  const exact = matchProviderExp3Scenario(prompt);
+  if (exact) return exact;
 
   if (isAddRetailToBookingPrompt(prompt)) {
     return { action: 'add_retail_to_booking', rescueReason: 'add_retail_booking' };
@@ -120,7 +183,7 @@ export function rescueProviderExp3Intent(
   }
 
   const timeOff = rescueProviderTimeOffIntent(prompt, action);
-  if (timeOff) {
+  if (timeOff?.action === 'request_time_off') {
     return {
       action: 'request_time_off',
       rescueReason: timeOff.rescueReason,

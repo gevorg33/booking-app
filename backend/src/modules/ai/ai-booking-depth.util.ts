@@ -1,7 +1,18 @@
+import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import {
   BookingStatus,
   PaymentStatus,
 } from '../booking/entities/booking.entity.js';
+import {
+  extractSingleDateFromPrompt,
+  extractSingleIsoDayFromPrompt,
+  fuzzyMatchByName,
+} from './ai-orchestration.helpers.js';
+import {
+  extractTimeSlotFromPrompt,
+  matchEntityInPrompt,
+} from './ai-structural-extractors.js';
+import { extractBookingIdFromPrompt } from './ai-provider-booking.util.js';
 import {
   evaluateCustomerBookingPolicy,
   resolveCustomerSelfServiceSettings,
@@ -132,7 +143,247 @@ export function isListMultiServiceBookingsPrompt(prompt: string): boolean {
 }
 
 export function isMarkPaidPrompt(prompt: string): boolean {
-  return /\bmark\b/i.test(prompt) && /\b(paid|payment)\b/i.test(prompt);
+  if (/\bmark\b/i.test(prompt) && /\b(paid|payment)\b/i.test(prompt)) {
+    return true;
+  }
+  if (
+    /\b(make|set)\b/i.test(prompt) &&
+    /\b(done|complete|completed|finished)\b/i.test(prompt) &&
+    /\bpaid\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /\b(done|complete|completed|finished)\b/i.test(prompt) &&
+    /\bpaid\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  return (
+    /\bmark\b/i.test(prompt) &&
+    /\b(done|complete|completed|finished)\b/i.test(prompt)
+  );
+}
+
+const POSSESSIVE_APPOINTMENT_RE =
+  /(?:\b(?:mark|make|set)\s+)?(?:(provider|stylist|staff|employee|customer|client)\s+)?([A-Za-z][\p{L}'-]+(?:\s+[A-Za-z][\p{L}'-]+)*)'s\s+appointment\b/iu;
+
+/** Provider or customer possessive before "appointment" — e.g. "Karo Mazmanyan's appointment". */
+export function extractPossessiveAppointmentOwner(
+  prompt: string,
+): { name: string; role?: 'provider' | 'customer' } | null {
+  const normalized = prompt.replace(/[\u2018\u2019]/g, "'");
+  const possessiveAppt = normalized.match(POSSESSIVE_APPOINTMENT_RE);
+  if (!possessiveAppt?.[2]) return null;
+  const roleWord = possessiveAppt[1]?.toLowerCase();
+  const role =
+    roleWord === 'customer' || roleWord === 'client'
+      ? 'customer'
+      : roleWord
+        ? 'provider'
+        : undefined;
+  return { name: possessiveAppt[2].trim(), role };
+}
+
+export function extractPossessiveAppointmentOwnerName(
+  prompt: string,
+): string | null {
+  return extractPossessiveAppointmentOwner(prompt)?.name ?? null;
+}
+
+/** @deprecated use extractPossessiveAppointmentOwnerName */
+export function extractMarkPaidEmployeeNameFromPrompt(
+  prompt: string,
+): string | null {
+  return extractPossessiveAppointmentOwnerName(prompt);
+}
+
+/** Appointment start time from "on … from 9:50" or generic clock phrases. */
+export function extractMarkPaidTimeSlotFromPrompt(prompt: string): string | null {
+  const onFrom = prompt.match(
+    /\bon\s+[\s\S]+?\bfrom\s+(\d{1,2})(?::(\d{2}))?\b/i,
+  );
+  if (onFrom) {
+    return normalizeTime24(`${onFrom[1]}:${onFrom[2] ?? '00'}`);
+  }
+  return extractTimeSlotFromPrompt(prompt);
+}
+
+function applyPossessiveOwnerToMarkPaidParams(
+  enriched: Record<string, unknown>,
+  owner: { name: string; role?: 'provider' | 'customer' },
+  roster: {
+    employees: Array<{ name: string }>;
+    customers: Array<{ name: string }>;
+  },
+): void {
+  const employeeMatch = roster.employees.length
+    ? fuzzyMatchByName(roster.employees, owner.name)
+    : undefined;
+  const customerMatch = roster.customers.length
+    ? fuzzyMatchByName(roster.customers, owner.name)
+    : undefined;
+
+  if (owner.role === 'customer') {
+    if (customerMatch) {
+      enriched.customerName = customerMatch.name;
+      delete enriched.employeeName;
+    }
+    return;
+  }
+  if (owner.role === 'provider') {
+    if (employeeMatch) {
+      enriched.employeeName = employeeMatch.name;
+      delete enriched.customerName;
+    }
+    return;
+  }
+
+  if (employeeMatch && !customerMatch) {
+    enriched.employeeName = employeeMatch.name;
+    delete enriched.customerName;
+  } else if (customerMatch && !employeeMatch) {
+    enriched.customerName = customerMatch.name;
+    delete enriched.employeeName;
+  } else if (employeeMatch && customerMatch) {
+    enriched.employeeName = employeeMatch.name;
+    delete enriched.customerName;
+  }
+}
+
+function enrichMarkPaidPartyFromRoster(
+  prompt: string,
+  enriched: Record<string, unknown>,
+  roster: {
+    employees: Array<{ name: string }>;
+    customers: Array<{ name: string }>;
+  },
+): void {
+  if (enriched.employeeName && enriched.customerName) return;
+
+  const explicitCustomer = /\b(?:customer|client)\b/i.test(prompt);
+  const explicitProvider =
+    /\b(?:provider|stylist|staff|employee)\b/i.test(prompt);
+  const employeeHit = roster.employees.length
+    ? matchEntityInPrompt(prompt, roster.employees)
+    : undefined;
+  const customerHit = roster.customers.length
+    ? matchEntityInPrompt(prompt, roster.customers)
+    : undefined;
+
+  if (explicitCustomer && customerHit) {
+    enriched.customerName = customerHit.name;
+    delete enriched.employeeName;
+    return;
+  }
+  if (explicitProvider && employeeHit) {
+    enriched.employeeName = employeeHit.name;
+    delete enriched.customerName;
+    return;
+  }
+
+  if (!enriched.employeeName && !enriched.customerName) {
+    if (employeeHit && !customerHit) {
+      enriched.employeeName = employeeHit.name;
+    } else if (customerHit && !employeeHit) {
+      enriched.customerName = customerHit.name;
+    } else if (employeeHit && customerHit) {
+      enriched.employeeName = employeeHit.name;
+    }
+  } else if (!enriched.employeeName && employeeHit) {
+    enriched.employeeName = employeeHit.name;
+  } else if (!enriched.customerName && customerHit) {
+    enriched.customerName = customerHit.name;
+  }
+}
+
+/** When the bookings calendar is open, anchor mark_paid to the visible day. */
+export function applyMarkPaidCalendarDateAnchor(
+  params: Record<string, unknown>,
+  session?: { route?: string; date?: string },
+): void {
+  const sessionDate = session?.date;
+  if (
+    session?.route === '/dashboard/bookings' &&
+    typeof sessionDate === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(sessionDate)
+  ) {
+    params.date = sessionDate;
+  }
+}
+
+export function enrichMarkPaidParamsFromPrompt(
+  prompt: string,
+  params: Record<string, unknown>,
+  timeZone = 'UTC',
+  roster?: {
+    employees?: Array<{ name: string }>;
+    customers?: Array<{ name: string }>;
+    sessionDate?: string;
+    calendarRoute?: string;
+  },
+): Record<string, unknown> {
+  const enriched: Record<string, unknown> = { ...params };
+  const normalizedPrompt = prompt.replace(/[\u2018\u2019]/g, "'");
+  const employees = roster?.employees ?? [];
+  const customers = roster?.customers ?? [];
+
+  const bookingId =
+    enriched.bookingId ?? extractBookingIdFromPrompt(normalizedPrompt.trim());
+  if (bookingId) enriched.bookingId = bookingId;
+
+  const possessiveOwner = extractPossessiveAppointmentOwner(normalizedPrompt);
+  let possessiveResolved = false;
+  if (possessiveOwner) {
+    applyPossessiveOwnerToMarkPaidParams(enriched, possessiveOwner, {
+      employees,
+      customers,
+    });
+    possessiveResolved =
+      enriched.employeeName != null || enriched.customerName != null;
+  }
+
+  if (!possessiveResolved) {
+    enrichMarkPaidPartyFromRoster(normalizedPrompt, enriched, {
+      employees,
+      customers,
+    });
+  }
+
+  if (!enriched.date && !enriched.fromDate) {
+    const onDate =
+      normalizedPrompt.match(/\bon\s+(.+?)(?:\s+from\s+|\s+at\s+|$)/i) ??
+      normalizedPrompt.match(/\b(?:for|on)\s+(\d{1,2}\s+\w+(?:\s+\d{4})?)\b/i);
+    const dateText = onDate?.[1]?.trim();
+    const extracted = dateText
+      ? extractSingleDateFromPrompt(dateText, timeZone)
+      : extractSingleDateFromPrompt(normalizedPrompt, timeZone);
+    if (extracted) enriched.date = extracted;
+  }
+
+  if (!enriched.timeSlot) {
+    const slot = extractMarkPaidTimeSlotFromPrompt(normalizedPrompt);
+    if (slot) enriched.timeSlot = slot;
+  }
+
+  applyMarkPaidCalendarDateAnchor(enriched, {
+    route: roster?.calendarRoute,
+    date: roster?.sessionDate,
+  });
+
+  if (
+    typeof enriched.date === 'string' &&
+    enriched.date &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(enriched.date)
+  ) {
+    const iso =
+      extractSingleIsoDayFromPrompt(enriched.date, timeZone) ??
+      extractSingleIsoDayFromPrompt(normalizedPrompt, timeZone);
+    if (iso) enriched.date = iso;
+  }
+
+  enriched._timeZone = enriched._timeZone ?? timeZone;
+  return enriched;
 }
 
 export function isAssignBookingResourcePrompt(prompt: string): boolean {
@@ -204,7 +455,7 @@ export function rescueBookingDepthIntent(
   if (
     isMarkPaidPrompt(prompt) &&
     action !== 'payment_sweep' &&
-    action !== 'update_bookings'
+    (action !== 'update_bookings' || /\bappointment\b/i.test(prompt))
   ) {
     return { action: 'mark_paid', rescueReason: 'mark_paid' };
   }

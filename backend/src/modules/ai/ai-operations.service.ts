@@ -5,6 +5,8 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { EmployeeService } from '../employee/employee.service.js';
+import { InvitationsService } from '../invitations/invitations.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandResult } from './ai-command.service.js';
@@ -26,18 +28,35 @@ import {
   prepareUpdateServicePricesPlanLogic,
   type OperationsLogicDeps,
 } from './ai-operations.logic.js';
+import {
+  handleConfigureOnlineBookingLogic,
+  handleCreateEmployeeLogic,
+  handleDeactivateEmployeeLogic,
+  handleInviteStaffMemberLogic,
+  type StaffOperationsLogicDeps,
+} from './ai-staff-operations.logic.js';
 
 @Injectable()
 export class AiOperationsService {
   private readonly deps: OperationsLogicDeps;
+  private readonly staffDeps: StaffOperationsLogicDeps;
 
   constructor(
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
+    @InjectRepository(Service) serviceRepo: Repository<Service>,
     orchestration: CommandOrchestrationService,
     planBuilder: OperationalPlanBuilderService,
+    employeeService: EmployeeService,
+    invitationsService: InvitationsService,
   ) {
     this.deps = { bookingRepo, businessRepo, orchestration, planBuilder };
+    this.staffDeps = {
+      employeeService,
+      invitationsService,
+      businessRepo,
+      serviceRepo,
+    };
   }
 
   applyPaymentSweepFilters<
@@ -244,5 +263,63 @@ export class AiOperationsService {
     params: Record<string, any>,
   ): Promise<CommandResult> {
     return handleRevenueForecastLogic(this.deps, businessId, prompt, params);
+  }
+
+  handleCreateEmployee(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleCreateEmployeeLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      prompt,
+      userId,
+    );
+  }
+
+  handleInviteStaffMember(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleInviteStaffMemberLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      prompt,
+      userId,
+    );
+  }
+
+  handleDeactivateEmployee(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleDeactivateEmployeeLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      prompt,
+      userId,
+    );
+  }
+
+  handleConfigureOnlineBooking(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleConfigureOnlineBookingLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 }

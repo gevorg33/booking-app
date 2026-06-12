@@ -105,3 +105,18 @@ export const TEAM_WHOS_NEXT_PROMPT_SCENARIOS = [
     expected: false,
   },
 ] as const;
+
+export const SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS = [
+  {
+    id: 'across-team',
+    prompt: "Who's next across the team in the next 2 hours?",
+    surface: 'provider' as const,
+    expectedAction: 'team_whos_next' as const,
+  },
+  {
+    id: 'all-providers',
+    prompt: 'Show who is next for all providers',
+    surface: 'provider' as const,
+    expectedAction: 'team_whos_next' as const,
+  },
+] as const;

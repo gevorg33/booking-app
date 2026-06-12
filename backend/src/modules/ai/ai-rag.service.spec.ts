@@ -51,4 +51,23 @@ describe('AiRagService', () => {
       service.buildRagContextBlock('biz-1', 'waitlist'),
     ).resolves.toBe('');
   });
+
+  it('registers and searches semantic anchor index', () => {
+    const service = new AiRagService(aiSettings as any);
+    service.registerSemanticAnchors([
+      {
+        id: 'test-anchor',
+        action: 'create_booking',
+        phrase: 'book the first available slot',
+        locale: 'en',
+        surfaces: ['dashboard'],
+      },
+    ]);
+    service.setSemanticAnchorEmbedding('test-anchor', [1, 0, 0]);
+    const hits = service.searchSemanticAnchors([0.99, 0.01, 0], {
+      surface: 'dashboard',
+      minScore: 0.5,
+    });
+    expect(hits[0]?.id).toBe('test-anchor');
+  });
 });

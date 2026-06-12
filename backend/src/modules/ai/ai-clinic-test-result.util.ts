@@ -16,13 +16,28 @@ import {
   RELEASE_TEST_RESULT_PROMPTS,
 } from './ai-clinic-test-result.fixtures.js';
 
+import {
+  isExplainPatientResultsPrompt,
+  isListAbnormalResultsPrompt,
+  isUploadPatientResultPrompt,
+  rescueClinicTestResultExtIntent,
+} from './ai-clinic-test-result-ext.util.js';
+
 export const CLINIC_TEST_RESULT_MUTATE_INTENTS = [
   'enter_test_result',
   'release_test_result',
+  'upload_patient_result',
+  'configure_test_reference_range',
+] as const;
+
+export const CLINIC_TEST_RESULT_READ_INTENTS = [
+  'explain_patient_results',
+  'list_abnormal_results',
 ] as const;
 
 export const CLINIC_TEST_RESULT_INTENTS = [
   ...CLINIC_TEST_RESULT_MUTATE_INTENTS,
+  ...CLINIC_TEST_RESULT_READ_INTENTS,
 ] as const;
 
 export type ClinicTestResultIntent =
@@ -400,6 +415,15 @@ export function rescueClinicTestResultIntent(
   prompt: string,
   action: string,
 ): { action: ClinicTestResultIntent; rescueReason: string } | null {
+  const extMisclassified =
+    (action === 'enter_test_result' && isUploadPatientResultPrompt(prompt)) ||
+    (action === 'explain_patient_chart' &&
+      isExplainPatientResultsPrompt(prompt)) ||
+    (action === 'list_test_orders' && isListAbnormalResultsPrompt(prompt));
+  if (extMisclassified) {
+    return rescueClinicTestResultExtIntent(prompt, action);
+  }
+
   if ((CLINIC_TEST_RESULT_INTENTS as readonly string[]).includes(action)) {
     return null;
   }
@@ -415,7 +439,7 @@ export function rescueClinicTestResultIntent(
     };
   }
 
-  return null;
+  return rescueClinicTestResultExtIntent(prompt, action);
 }
 
 export interface ClinicTestResultResolveDeps {

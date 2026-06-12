@@ -13,10 +13,18 @@ import {
   handleReleaseTestResultLogic,
   type ClinicTestResultLogicDeps,
 } from './ai-clinic-test-result.logic.js';
+import {
+  handleConfigureTestReferenceRangeLogic,
+  handleExplainPatientResultsLogic,
+  handleListAbnormalResultsLogic,
+  handleUploadPatientResultLogic,
+  type ClinicTestResultExtLogicDeps,
+} from './ai-clinic-test-result-ext.logic.js';
 
 @Injectable()
 export class AiClinicTestResultService {
   private readonly deps: ClinicTestResultLogicDeps;
+  private readonly extDeps: ClinicTestResultExtLogicDeps;
 
   constructor(
     @InjectRepository(Business) businessRepo: Repository<Business>,
@@ -35,6 +43,7 @@ export class AiClinicTestResultService {
       clinicTestResultActionService,
       clinicLabAccessService,
     };
+    this.extDeps = { bookingRepo, resultRepo, clinicTestResultService };
   }
 
   handleEnterTestResult(
@@ -69,5 +78,44 @@ export class AiClinicTestResultService {
       prompt,
       confirmed,
     );
+  }
+
+  handleUploadPatientResult(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleUploadPatientResultLogic(
+      this.extDeps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainPatientResults(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainPatientResultsLogic(
+      this.extDeps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleConfigureTestReferenceRange(
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleConfigureTestReferenceRangeLogic(params);
+  }
+
+  handleListAbnormalResults(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleListAbnormalResultsLogic(this.extDeps, businessId, params);
   }
 }

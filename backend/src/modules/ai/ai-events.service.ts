@@ -19,6 +19,10 @@ export type MisrouteTelemetryEventPayload = {
   scenarioId?: string;
   misrouted: boolean;
   timestamp: string;
+  semanticAction?: string;
+  semanticConfidence?: number;
+  pipelineStage?: string;
+  pipeMarker?: string;
 };
 
 @Injectable()

@@ -19,6 +19,7 @@ import {
   type GiftCardBusinessSettings,
 } from '../gift-cards/gift-card.types.js';
 import {
+  parseAssignServiceCategoryFromPrompt,
   parseBulkCatalogWithCountFromPrompt,
   decomposeCatalogCompoundPrompt,
   parseBulkCatalogFromPrompt,
@@ -233,6 +234,80 @@ export async function handleBulkCreateCatalogLogic(
       created,
       skipped,
       categoryName: draft.categoryName,
+    },
+  );
+}
+
+export async function resolveCategoryByName(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  categoryName: string,
+) {
+  const categories = await deps.categoryService.findAll(businessId);
+  return resolveByName(categories, categoryName);
+}
+
+export async function handleUpdateServiceLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  services: Service[],
+  prompt?: string,
+): Promise<CommandResult> {
+  const parsed = parseAssignServiceCategoryFromPrompt(String(prompt ?? ''));
+  const serviceName = (
+    (params.serviceName as string | undefined) ?? parsed.serviceName
+  )?.trim();
+  const categoryName = (
+    (params.categoryName as string | undefined) ?? parsed.categoryName
+  )?.trim();
+
+  if (!serviceName || !categoryName) {
+    return failure(
+      'update_service',
+      'Specify the service and target category (e.g. "Move Neck Massage under service category: Massage").',
+      {
+        clarify: true,
+        missing: [
+          ...(!serviceName ? ['serviceName'] : []),
+          ...(!categoryName ? ['categoryName'] : []),
+        ],
+      },
+    );
+  }
+
+  const service = resolveByName(services, serviceName);
+  if (!service) {
+    return failure('update_service', `Service "${serviceName}" not found.`);
+  }
+
+  const category = await resolveCategoryByName(
+    deps,
+    businessId,
+    categoryName,
+  );
+  if (!category) {
+    return failure(
+      'update_service',
+      `Service category "${categoryName}" not found.`,
+      { clarify: true, missing: ['categoryName'] },
+    );
+  }
+
+  const updated = await deps.serviceService.update(
+    service.id,
+    { categoryId: category.id },
+    params.userId as string | undefined,
+  );
+
+  return success(
+    'update_service',
+    `Moved "${updated.name}" under category "${category.name}".`,
+    {
+      serviceId: updated.id,
+      serviceName: updated.name,
+      categoryId: category.id,
+      categoryName: category.name,
     },
   );
 }
@@ -987,6 +1062,15 @@ export async function handleCatalogCompoundLogic(
           businessId,
           stepParams,
           services,
+        );
+        break;
+      case 'update_service':
+        result = await handleUpdateServiceLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+          step.segment,
         );
         break;
       case 'deactivate_service':

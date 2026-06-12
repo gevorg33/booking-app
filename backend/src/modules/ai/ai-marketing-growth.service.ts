@@ -23,7 +23,9 @@ import {
   handleListInactiveCustomersLogic,
   handleLoyaltyPointsBalanceLogic,
   handleMarketingGrowthCompoundLogic,
+  handleOpenBillingSettingsLogic,
   handlePromoCodeHelpLogic,
+  handleSummarizeLoyaltyProgramLogic,
   handleSuggestUpgradeLogic,
   handleSummarizeAutomationPerformanceLogic,
   handleSummarizeNewRegistrationsLogic,
@@ -150,6 +152,14 @@ export class AiMarketingGrowthService {
 
   handleLoyaltyPointsBalance(businessId: string, params: Record<string, any>) {
     return handleLoyaltyPointsBalanceLogic(this.deps, businessId, params);
+  }
+
+  handleOpenBillingSettings(businessId: string) {
+    return handleOpenBillingSettingsLogic(this.deps, businessId);
+  }
+
+  handleSummarizeLoyaltyProgram(businessId: string) {
+    return handleSummarizeLoyaltyProgramLogic(this.deps, businessId);
   }
 
   handleMarketingGrowthCompound(

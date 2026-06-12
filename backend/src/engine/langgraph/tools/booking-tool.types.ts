@@ -15,6 +15,7 @@ export interface BookingToolRunContext {
   lastStepByAction: Record<string, string>;
   employees: Array<{ id: string; name: string; serviceIds?: string[] }>;
   services: Array<{ id: string; name: string }>;
+  templates: Array<{ id: string; name: string }>;
 }
 
 export interface DateRangeInput {

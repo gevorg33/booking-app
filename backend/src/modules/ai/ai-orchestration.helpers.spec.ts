@@ -6,8 +6,11 @@ import {
   resolveDirectSchedulePeriodServiceIds,
   matchEmployeesInPrompt,
   resolvePublicAvailabilityDateKeys,
+  resolvePublicAvailabilityWindows,
+  resolveDateKeysForAvailabilityWindow,
   applyAvailabilityDateFromPrompt,
   resolveDateRange,
+  extractNextDaysRangeFromPrompt,
   enrichListServicesParamsFromPrompt,
   extractServiceTypeKeywordFromListPrompt,
   matchServicesByQuery,
@@ -15,7 +18,13 @@ import {
   resolvePublicAssistantSessionServiceFields,
   extractRecommendServicesFromPrompt,
   stripServiceRoleNoise,
+  parseTimeWindow,
+  hasExplicitTimeWindow,
+  filterOpenSlotsByTimeRange,
+  openSlotOverlapsTimeRange,
 } from './ai-orchestration.helpers.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 
 describe('inferDirectSchedulePeriods', () => {
   it('builds service blocks around lunch from prompt when periods are omitted', () => {
@@ -170,6 +179,115 @@ describe('resolvePublicAvailabilityDateKeys', () => {
     );
     expect(dates).toEqual([]);
   });
+
+  it('keeps OR windows separate with paired timeOfDay (avail-1.4)', () => {
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
+      'I want a haircut tomorrow evening or Friday afternoon',
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(windows).toHaveLength(2);
+    expect(windows[0]?.timeOfDay).toBe('evening');
+    expect(windows[0]?.dateKeys).toHaveLength(1);
+    expect(windows[1]?.timeOfDay).toBe('afternoon');
+    expect(windows[1]?.dateKeys.length).toBeGreaterThan(0);
+    for (const dateKey of windows[1]!.dateKeys) {
+      expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(5);
+    }
+    if (windows[0]?.dateKeys[0] === windows[1]?.dateKeys[0]) {
+      expect(windows[0]?.timeOfDay).not.toBe(windows[1]?.timeOfDay);
+    } else {
+      expect(windows[0]?.dateKeys[0]).not.toEqual(windows[1]?.dateKeys[0]);
+    }
+  });
+
+  it('does not merge OR weekdays into one window when availabilityWindows is set', () => {
+    const tomorrowKey = resolveDateKeysForAvailabilityWindow(
+      { date: 'tomorrow' },
+      tz,
+      14,
+    )[0];
+    const fridayKeys = resolveDateKeysForAvailabilityWindow(
+      { weekdays: ['friday'] },
+      tz,
+      14,
+    );
+
+    const flattened = resolvePublicAvailabilityDateKeys(
+      {
+        availabilityWindows: [
+          { date: 'tomorrow', timeOfDay: 'evening' },
+          { weekdays: ['friday'], timeOfDay: 'afternoon' },
+        ],
+      },
+      undefined,
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(flattened).toContain(tomorrowKey);
+    for (const dateKey of fridayKeys) {
+      expect(flattened).toContain(dateKey);
+    }
+  });
+
+  it('resolves timeOfDay-only OR windows across the scan horizon (avail-voice-chip-en)', () => {
+    const eveningKeys = resolveDateKeysForAvailabilityWindow(
+      { timeOfDay: 'evening' },
+      tz,
+      7,
+    );
+    const weekendKeys = resolveDateKeysForAvailabilityWindow(
+      { weekdays: ['saturday', 'sunday'] },
+      tz,
+      7,
+    );
+
+    expect(eveningKeys.length).toBe(7);
+    expect(weekendKeys.length).toBeGreaterThan(0);
+
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        availabilityWindows: [
+          { timeOfDay: 'evening' },
+          { weekdays: ['saturday', 'sunday'] },
+        ],
+      },
+      'Evening or weekend slots for a facial',
+      tz,
+      { defaultScanDays: 7 },
+    );
+
+    expect(windows.length).toBe(2);
+    expect(windows[0]?.timeOfDay).toBe('evening');
+    expect(windows[0]?.dateKeys.length).toBe(7);
+    expect(windows[1]?.dateKeys.length).toBeGreaterThan(0);
+  });
+
+  it('keeps AND weekdays in a single window with shared timeOfDay (avail-1.4)', () => {
+    const windows = resolvePublicAvailabilityWindows(
+      {
+        weekdays: ['monday', 'friday'],
+        timeOfDay: 'afternoon',
+      },
+      'Monday and Friday afternoon for color',
+      tz,
+      { defaultScanDays: 14 },
+    );
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]?.timeOfDay).toBe('afternoon');
+    for (const dateKey of windows[0]!.dateKeys) {
+      expect([1, 5]).toContain(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay());
+    }
+  });
 });
 
 describe('applyAvailabilityDateFromPrompt', () => {
@@ -207,6 +325,9 @@ describe('extractServiceTypeKeywordFromListPrompt', () => {
     ['which kind of massage you have?', 'massage'],
     ['What types of hair services do you offer?', 'hair'],
     ['which alexandrite services do you have', 'alexandrite'],
+    ['recommend me face care services', 'face care'],
+    ['I want a pilling', 'pilling'],
+    ['I want a face pilling', 'face pilling'],
   ])('extracts %s → %s', (prompt, keyword) => {
     expect(extractServiceTypeKeywordFromListPrompt(prompt)).toBe(keyword);
   });
@@ -407,6 +528,29 @@ describe('matchEmployeesInPrompt', () => {
   });
 });
 
+describe('extractNextDaysRangeFromPrompt', () => {
+  it('resolves inclusive range from today for "next 5 days"', () => {
+    const range = extractNextDaysRangeFromPrompt(
+      "apply schedule for Gevorg's services next 5 days",
+      'UTC',
+    );
+    expect(range).not.toBeNull();
+    const today = getTodayDateKey('UTC');
+    expect(range!.start).toBe(today);
+    expect(range!.end).toBe(addDaysToDateKey(today, 4, 'UTC'));
+  });
+
+  it('overrides stale LLM dates in resolveDateRange', () => {
+    const range = resolveDateRange(
+      { dateFrom: '2023-10-30', dateTo: '2023-11-03' },
+      "apply schedule for Gevorg's services next 5 days",
+      'UTC',
+    );
+    expect(range!.start).toBe(getTodayDateKey('UTC'));
+    expect(range!.start).not.toBe('2023-10-30');
+  });
+});
+
 describe('resolveDateRange', () => {
   it('expands bare month names like "on july"', () => {
     const range = resolveDateRange({}, 'clear schedules on july', 'UTC');
@@ -466,6 +610,29 @@ describe('resolveDirectSchedulePeriodServiceIds', () => {
         assigned,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('explicit time window helpers', () => {
+  it('parses from 17:00-19:00 ranges in natural prompts', () => {
+    const prompt = 'is Jujo available for hairstyle from 17:00-19:00?';
+    expect(hasExplicitTimeWindow({}, prompt)).toBe(true);
+    expect(parseTimeWindow({}, prompt)).toEqual({
+      timeFrom: '17:00',
+      timeTo: '19:00',
+    });
+  });
+
+  it('filters open slots that overlap a daily time range', () => {
+    const slots = [
+      { start: '11:00', end: '11:30' },
+      { start: '13:00', end: '19:00' },
+    ];
+    expect(openSlotOverlapsTimeRange(slots[1], '17:00', '19:00')).toBe(true);
+    expect(openSlotOverlapsTimeRange(slots[0], '17:00', '19:00')).toBe(false);
+    expect(filterOpenSlotsByTimeRange(slots, '17:00', '19:00')).toEqual([
+      { start: '13:00', end: '19:00' },
+    ]);
   });
 });
 

@@ -69,6 +69,7 @@ import { Business } from '../business/entities/business.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { EmployeeModule } from '../employee/employee.module.js';
+import { InvitationsModule } from '../invitations/invitations.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { WebSocketModule } from '../../websocket/websocket.module.js';
@@ -99,6 +100,13 @@ import { AiCommandRegistryService } from './ai-command-registry.service.js';
 import { AiCommandEntityParamsService } from './ai-command-entity-params.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
+import { AiSemanticIntentService } from './ai-semantic-intent.service.js';
+import { CommandUnderstandingPipelineService } from './command-understanding-pipeline.service.js';
+import { DashboardCommandUnderstandingAdapter } from './dashboard-command-understanding.adapter.js';
+import { ProviderCommandUnderstandingAdapter } from './provider-command-understanding.adapter.js';
+import { CustomerCommandUnderstandingAdapter } from './customer-command-understanding.adapter.js';
+import { PublicCommandUnderstandingAdapter } from './public-command-understanding.adapter.js';
+import { FastIntentHeuristicsService } from './fast-intent-heuristics.service.js';
 import { ProviderMobileModule } from '../provider-mobile/provider-mobile.module.js';
 import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
 import { ServiceSubscriptionsModule } from '../service-subscriptions/service-subscriptions.module.js';
@@ -130,6 +138,8 @@ import { ClinicTestPanel } from '../clinic-test-results/entities/clinic-test-pan
 import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
 import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
+import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
 
 @Module({
   imports: [
@@ -158,9 +168,11 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
       ClinicTestResult,
       ClinicTestType,
       ClinicTestPanel,
+      AiCommandTrace,
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
+    InvitationsModule,
     forwardRef(() => AgentModule),
     SchedulingEngineModule,
     OpenAiModule,
@@ -265,6 +277,14 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
+    AiSemanticIntentService,
+    FastIntentHeuristicsService,
+    CommandUnderstandingPipelineService,
+    DashboardCommandUnderstandingAdapter,
+    ProviderCommandUnderstandingAdapter,
+    CustomerCommandUnderstandingAdapter,
+    PublicCommandUnderstandingAdapter,
+    AiCommandTraceService,
   ],
   exports: [
     AiPlatformService,
@@ -306,6 +326,14 @@ import { ComplianceModule } from '../compliance/compliance.module.js';
     AiCommandEntityParamsService,
     AiPromptSecurityService,
     AiPromptNormalizationService,
+    AiSemanticIntentService,
+    FastIntentHeuristicsService,
+    CommandUnderstandingPipelineService,
+    DashboardCommandUnderstandingAdapter,
+    ProviderCommandUnderstandingAdapter,
+    CustomerCommandUnderstandingAdapter,
+    PublicCommandUnderstandingAdapter,
+    AiCommandTraceService,
   ],
 })
 export class AiModule {}

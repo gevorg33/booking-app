@@ -144,6 +144,22 @@ const ACTION_RULES: Record<string, Rule> = {
       needs('price', 'Price', cmd.params.price != null, '50'),
     ].filter(Boolean) as ValidationIssue[],
 
+  update_service: (cmd) =>
+    [
+      needs(
+        'serviceName',
+        'Service name',
+        !!cmd.params.serviceName,
+        'Neck Massage',
+      ),
+      needs(
+        'categoryName',
+        'Service category',
+        !!cmd.params.categoryName,
+        'Massage',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
   create_services: (cmd) => {
     const list = cmd.params.services;
     if (!Array.isArray(list) || list.length === 0) {
@@ -735,6 +751,62 @@ const ACTION_RULES: Record<string, Rule> = {
           ]),
     ].filter(Boolean) as ValidationIssue[],
 
+  unassign_employee_services: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Service provider',
+        !!cmd.entities.employee,
+        'Gevorg Gasparyan',
+      ),
+      ...(cmd.entities.services.length > 0 ||
+      cmd.params.serviceName ||
+      cmd.params.categoryName ||
+      cmd.params.unassignFromCategory ||
+      cmd.params.unassignAllServices
+        ? []
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service(s), category, or all',
+              message:
+                'Specify which assigned service(s), category, or all services to remove',
+              example: 'Remove all Color services from Gevorg',
+            },
+          ]),
+    ].filter(Boolean) as ValidationIssue[],
+
+  transfer_employee_services: (cmd) =>
+    [
+      needs(
+        'fromEmployeeName',
+        'Source provider',
+        !!cmd.params.fromEmployeeName || !!cmd.entities.employee,
+        'Maria Lopez',
+      ),
+      needs(
+        'toEmployeeName',
+        'Target provider',
+        !!cmd.params.toEmployeeName,
+        'Anna Smith',
+      ),
+      ...(cmd.entities.services.length > 0 ||
+      cmd.params.serviceName ||
+      cmd.params.categoryName ||
+      cmd.params.transferFromCategory ||
+      cmd.params.unassignAllServices
+        ? []
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service(s), category, or all',
+              message:
+                'Specify which assigned service(s), category, or all services to move',
+              example: 'Move all Massage services from Maria to Anna',
+            },
+          ]),
+    ].filter(Boolean) as ValidationIssue[],
+
   create_schedule_template: (cmd) =>
     [
       needs(
@@ -824,6 +896,56 @@ const ACTION_RULES: Record<string, Rule> = {
     ].filter(Boolean) as ValidationIssue[],
 
   staff_service_matrix: (_cmd) => [] as ValidationIssue[],
+
+  create_employee: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Team member name',
+        !!cmd.params.employeeName,
+        'Anna',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  invite_staff_member: (cmd) =>
+    [
+      needs(
+        'email',
+        'Email or employee name',
+        !!(cmd.params.email || cmd.params.employeeName),
+        'anna@salon.com or Maria',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  deactivate_employee: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Team member name',
+        !!cmd.params.employeeName,
+        'Gevorg',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
+  configure_online_booking: (_cmd) => [] as ValidationIssue[],
+
+  open_billing_settings: (_cmd) => [] as ValidationIssue[],
+
+  summarize_loyalty_program: (_cmd) => [] as ValidationIssue[],
+
+  list_waitlist_entries: (_cmd) => [] as ValidationIssue[],
+
+  offer_waitlist_slot: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Provider name',
+        !!cmd.params.employeeName,
+        'Maria',
+      ),
+      needs('date', 'Date', !!cmd.params.date, 'Friday'),
+      needs('timeSlot', 'Time', !!cmd.params.timeSlot, '14:00'),
+    ].filter(Boolean) as ValidationIssue[],
 
   check_schedule_compliance: (cmd) =>
     [
@@ -1526,7 +1648,12 @@ export function validateEntityResolution(
   } else if (
     params.employeeName &&
     !params.allProviders &&
-    (entities.employees?.length ?? 0) === 0
+    (entities.employees?.length ?? 0) === 0 &&
+    !(
+      cmd.action === 'mark_paid' &&
+      params.date &&
+      params.timeSlot
+    )
   ) {
     issues.push({
       field: 'employeeName',
@@ -1611,6 +1738,8 @@ const VALIDATED_ACTIONS = new Set([
   'clear_schedule',
   'create_direct_schedule',
   'assign_employee_services',
+  'unassign_employee_services',
+  'transfer_employee_services',
   'list_schedule_gaps',
   'create_schedule_template',
   'mark_no_shows',

@@ -8,6 +8,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const jestBin = path.join(root, 'node_modules', '.bin', 'jest');
 
 const gateArgs = ['--runInBand', '--testPathPatterns=ai-command-eval.accuracy-gate'];
+const stealGuardArgs = [
+  '--runInBand',
+  '--testPathPatterns=semantic-steal-guard',
+];
 const unitArgs = ['--runInBand', '--testPathPatterns=ai-command-eval.report.spec'];
 
 const gate = spawnSync(jestBin, gateArgs, {
@@ -18,6 +22,16 @@ const gate = spawnSync(jestBin, gateArgs, {
 
 if ((gate.status ?? 1) !== 0) {
   process.exit(gate.status ?? 1);
+}
+
+const stealGuard = spawnSync(jestBin, stealGuardArgs, {
+  cwd: root,
+  stdio: 'inherit',
+  env: process.env,
+});
+
+if ((stealGuard.status ?? 1) !== 0) {
+  process.exit(stealGuard.status ?? 1);
 }
 
 const unit = spawnSync(jestBin, unitArgs, {

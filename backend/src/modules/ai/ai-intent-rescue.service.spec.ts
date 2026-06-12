@@ -7,6 +7,30 @@ describe('AiIntentRescueService', () => {
     { id: '2', name: 'Mary Torgomyan' },
   ];
 
+  it('pipe-1.5.2 merges semantic param hints into rescued booking params', () => {
+    const result = rescue.rescue({
+      prompt: 'schedule anna for a trim tomorrow',
+      action: 'unknown',
+      params: {},
+      employees,
+      semanticParamHints: { bookingFirstAvailable: true },
+    });
+    expect(result?.action).toBe('create_booking');
+    expect(result?.params.bookingFirstAvailable).toBe(true);
+    expect(result?.rescued).toBe(true);
+  });
+
+  it('pipe-1.5.2 does not let semantic hints override explicit rescue params', () => {
+    const result = rescue.rescue({
+      prompt: 'schedule anna for a trim tomorrow',
+      action: 'unknown',
+      params: { bookingFirstAvailable: false },
+      employees,
+      semanticParamHints: { bookingFirstAvailable: true },
+    });
+    expect(result?.params.bookingFirstAvailable).toBe(false);
+  });
+
   it('rescues unknown clear schedule prompts', () => {
     const result = rescue.rescue({
       prompt: 'Clear Gevorg schedule for tomorrow',

@@ -1,3 +1,5 @@
+import { CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_SCENARIOS } from './ai-consumer-checkout-success-multilingual.fixtures.js';
+
 export const CONSUMER_CHECKOUT_SUCCESS_INTENTS = [
   'explain_consumer_checkout_success',
 ] as const;
@@ -31,13 +33,20 @@ function hasReadConsumerCheckoutSuccessCue(prompt: string): boolean {
   return (
     /\b(what|which|how|why|does|do|is|are|can|tell|explain|show|describe|mean|meaning|walk)\b/i.test(
       prompt,
-    ) || /\?\s*$/.test(prompt.trim())
+    ) ||
+    /(ինչ|ինչպես|բացատր|պատմ|նկարագր|что|как|почему|можно|расскаж|объясн)/i.test(
+      prompt,
+    ) ||
+    /\?\s*$/.test(prompt.trim())
   );
 }
 
 export function hasConsumerAppContext(prompt: string): boolean {
   return (
-    /\b(consumer app|salon app|mobile app|the app|in-app|in the app|in this app|this app)\b/i.test(
+    /\b(consumer\s+app|salon\s+app|mobile\s+app|the\s+app|in-app|in\s+the\s+app|in\s+this\s+app|this\s+app)\b/i.test(
+      prompt,
+    ) ||
+    /(consumer app|salon app|mobile app|app-ում|app-ում|прилож|consumer app|salon app)/i.test(
       prompt,
     ) ||
     /\bafter (?:i |you )?(?:book|confirm|finish)(?:ed)?\b.+\b(?:in the app|in-app|the app)\b/i.test(
@@ -94,6 +103,18 @@ function hasConsumerCheckoutSuccessTopic(prompt: string): boolean {
     /\bright after confirming\b/i.test(prompt) ||
     /\bafter i book\b/i.test(prompt)
   );
+}
+
+function matchConsumerCheckoutSuccessMultilingualScenario(
+  prompt: string,
+): (typeof CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_SCENARIOS)[number] | null {
+  const normalized = prompt.trim().toLowerCase();
+  for (const scenario of CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_SCENARIOS) {
+    if (scenario.prompt.trim().toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  return null;
 }
 
 function isProductRecommendationDetailPrompt(prompt: string): boolean {
@@ -234,6 +255,7 @@ function extractAspect(prompt: string): ConsumerCheckoutSuccessAspect {
 export function isExplainConsumerCheckoutSuccessPrompt(
   prompt: string,
 ): boolean {
+  if (matchConsumerCheckoutSuccessMultilingualScenario(prompt)) return true;
   if (!hasReadConsumerCheckoutSuccessCue(prompt)) return false;
   if (!hasConsumerAppContext(prompt)) return false;
   if (
@@ -257,6 +279,14 @@ export function parseExplainConsumerCheckoutSuccessFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedExplainConsumerCheckoutSuccess | null {
+  const multilingualScenario =
+    matchConsumerCheckoutSuccessMultilingualScenario(prompt);
+  if (multilingualScenario) {
+    return {
+      aspect: multilingualScenario.aspect,
+    };
+  }
+
   if (!isExplainConsumerCheckoutSuccessPrompt(prompt)) return null;
 
   const serviceId =

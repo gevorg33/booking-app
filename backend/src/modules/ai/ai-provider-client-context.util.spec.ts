@@ -28,6 +28,13 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
     expect(isSummarizeClientPrompt("Show Jane's visit history")).toBe(false);
   });
 
+  it('does not treat dashboard booking overview as summarize_client', () => {
+    expect(isSummarizeClientPrompt('Booking overview for today')).toBe(false);
+    expect(
+      rescueProviderClientContextIntent('Booking overview for today', 'unknown'),
+    ).toBeNull();
+  });
+
   it('extracts note body and customer name from natural language', () => {
     expect(extractClientNoteBodyFromPrompt('Add staff note: allergic to latex')).toBe(
       'allergic to latex',

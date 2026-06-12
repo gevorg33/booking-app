@@ -59,6 +59,7 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
       planEntitlements as never,
       sprintMocks.aiSettings as never,
       sprintMocks.platform as never,
+      sprintMocks.commandTrace as never,
     );
 
     return { gateway, dashboardCommands };

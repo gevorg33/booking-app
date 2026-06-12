@@ -26,10 +26,75 @@ export interface AiCommandEvalExpectation {
   rescuedAction?: string;
   /** Input action for disambiguation rescue (defaults to unknown). */
   rescueFromAction?: string;
+  /** When true, eval uses surface-scoped self-service rescue (customer cancel/reschedule i18n). */
+  useSurfaceSelfServiceRescue?: boolean;
+  /** When true, eval uses customer-surface self-service rescue only (acc-2.4 HY/RU). */
+  useSurfaceMarketingGrowthRescue?: boolean;
+  /** When true, eval uses customer-surface checkout success rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerCheckoutSuccessRescue?: boolean;
+  /** When true, eval uses customer-surface checkout tax rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerCheckoutTaxRescue?: boolean;
+  /** When true, eval uses customer-surface clinic test results rescue only (acc-2.4 HY/RU). */
+  useSurfaceConsumerClinicTestResultsRescue?: boolean;
+  /** When true, eval uses provider-surface implication heuristic rescue (pipe-1.12.5). */
+  useSurfaceProviderImplicationRescue?: boolean;
+  /** When true, eval uses provider-surface push setup rescue only (acc-2.4 HY/RU). */
+  useSurfaceProviderPushSetupRescue?: boolean;
+  /** Validated action should fail with clarify (acc-2.6). */
+  expectValidationClarify?: boolean;
+  validationAction?: string;
+  validationParamsPartial?: Record<string, unknown>;
+  clarifyFieldsContains?: string[];
   /** Expected rescueReason when stable. */
   rescueReason?: string;
+  /** acc-3.11 — assert embedding semantic matcher resolves unknown/low-confidence phrasing. */
+  useSemanticIntentMatch?: boolean;
+  semanticMatchAction?: string;
+  semanticMatchParamsPartial?: Record<string, unknown>;
+  /** pipe-1.11.2 — implication corpus bucket for accuracy scorecard grouping. */
+  implicationTopIntent?: 'booking' | 'schedule' | 'availability';
+  /** When true, adopt top-ranked anchor if resolveSemanticMatch is null but score ≥ threshold. */
+  semanticMatchUseTopAnchorFallback?: boolean;
+  /** pipe-1.13.1 — assert semantic anchors detect first-available booking meaning. */
+  useBookingFirstAvailableSemanticDetect?: boolean;
+  bookingFirstAvailableSemantic?: boolean;
+  /** pipe-1.13.2 — assert semantic anchors detect team-wide availability meaning. */
+  useTeamWideAvailabilitySemanticDetect?: boolean;
+  teamWideAvailabilitySemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors detect any-provider booking scope. */
+  useAnyProviderBookingSemanticDetect?: boolean;
+  anyProviderBookingSemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors detect recommend specialists phrasing. */
+  useRecommendSpecialistsSemanticDetect?: boolean;
+  recommendSpecialistsSemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors resolve dashboard metric params. */
+  useMetricResolverSemanticDetect?: boolean;
+  metricResolverSemantic?: boolean;
+  metricResolverKind?: 'booking' | 'staff' | 'service' | 'customer' | 'appointment';
+  metricResolverExpected?: string;
   /** Use surface-scoped clinic lab booking rescue (i18n-clinic-v2-ai-8). */
   useSurfaceLabBookingRescue?: boolean;
+  /** Use surface-scoped budget service discovery rescue (budget-1.11). */
+  useSurfaceBudgetRescue?: boolean;
+  /** Use checkout currency explain rescue (discover-not-currency-explain-en). */
+  useCheckoutCurrencyRescue?: boolean;
+  /** Use surface-scoped service rank discovery rescue (rank-1.11). */
+  useSurfaceRankRescue?: boolean;
+  /** Use surface-scoped flexible availability enrichment (avail-1.11). */
+  useSurfaceFlexibleAvailabilityEnrichment?: boolean;
+  /** Cross-sprint discover eval bucket tag (service-discovery eval harness). */
+  discoverCrossSprintKind?: string;
+  discoverClassifierParams?: Record<string, unknown>;
+  discoverForbiddenKeys?: readonly string[];
+  discoverChipFixtureId?: string;
+  discoverCatalogIds?: readonly string[];
+  discoverCatalogParams?: Record<string, unknown>;
+  discoverOrWindowCount?: number;
+  discoverExpectSingleWindow?: boolean;
+  discoverCompoundSteps?: readonly string[];
+  discoverChipDomain?: string;
+  /** Expected action after public/customer flexible availability enrichment. */
+  enrichedAction?: string;
   /** Compound decomposition surface (ai-cmd-0.4). */
   compoundSurface?: CommandSurface;
   /** Exact ordered sub-intent actions from deterministic/golden decomposition. */

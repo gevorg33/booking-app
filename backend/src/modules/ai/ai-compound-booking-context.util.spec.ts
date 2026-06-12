@@ -90,6 +90,26 @@ describe('ai-compound-booking-context.util (ai-cmd-h2)', () => {
     expect(steps[2]?.params.giftCardCode).toBe('GCM-ABCD1234');
   });
 
+  it('propagates maxPrice and serviceRank across compound steps', () => {
+    const steps = propagateSharedBookingContextAcrossSteps([
+      {
+        action: 'list_services',
+        params: { maxPrice: 50, serviceRank: 'lowest_price' },
+      },
+      {
+        action: 'check_availability',
+        params: {
+          availabilityWindows: [{ date: 'tomorrow', timeOfDay: 'evening' }],
+        },
+      },
+    ]);
+    expect(steps[1]?.params).toMatchObject({
+      maxPrice: 50,
+      serviceRank: 'lowest_price',
+      availabilityWindows: [{ date: 'tomorrow', timeOfDay: 'evening' }],
+    });
+  });
+
   it('picks and merges runtime step params from compound context', () => {
     const slice = pickSharedBookingContextSlice({
       serviceName: 'Massage',

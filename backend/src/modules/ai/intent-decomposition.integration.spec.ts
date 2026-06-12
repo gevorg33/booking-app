@@ -37,7 +37,12 @@ function assertScenario(
     const step = steps[check.stepIndex];
     expect(step).toBeDefined();
     if (check.value !== undefined) {
-      expect(step.params[check.key]).toBe(check.value);
+      const actual = step.params[check.key];
+      if (Array.isArray(check.value)) {
+        expect(actual).toEqual(check.value);
+      } else {
+        expect(actual).toBe(check.value);
+      }
     } else {
       expect(step.params[check.key]).toBeDefined();
     }

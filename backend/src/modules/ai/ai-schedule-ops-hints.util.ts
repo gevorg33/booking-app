@@ -1,9 +1,4 @@
-import {
-  enrichDateRangeFromPrompt,
-  isClearSchedulePrompt,
-  matchEmployeesInPrompt,
-  sanitizeProviderScopeFromPrompt,
-} from './ai-orchestration.helpers.js';
+import { isClearSchedulePrompt } from './ai-orchestration.helpers.js';
 
 /** Schedule actions that receive NL enrichment and session follow-up (ai-cmd-h3.2). */
 export const SCHEDULE_OPS_ACTIONS = [
@@ -206,15 +201,8 @@ export function applyScheduleOpsPromptHints(
   if (!isScheduleOpsAction(action)) return;
 
   inheritScheduleFollowUpContext(params, context.session, action, prompt);
-  enrichDateRangeFromPrompt(params, prompt, context.timeZone ?? 'UTC');
-  sanitizeProviderScopeFromPrompt(prompt, params, context.employees as any);
+  // dateRange / employee matching moved to pipeline structural stage (pipe-1.7.1)
 
-  const matched = matchEmployeesInPrompt(prompt, context.employees);
-  if (matched.length > 1 && !params.allProviders) {
-    params.employeeNames = matched.map((e) => e.name);
-    params.employeeName = null;
-    delete params.employeeId;
-  }
 }
 
 export function enrichCompoundSubStepScheduleHints(

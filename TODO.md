@@ -57,7 +57,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **37** | GDPR & HIPAA compliance hardening (core v1 shipped) | **compliance-1**, **ai-cmd-compliance** |
 | **38** | AI accuracy — telemetry & measurement | **acc-1** |
 | **39** | AI accuracy — eval set expansion & CI gate | **acc-2** |
-| **40** | AI accuracy — classification engine + semantic intent matching | **acc-3** |
+| **40** | AI accuracy — classification engine + semantic intent matching + confidence pipeline | **acc-3**, **pipe-1** |
 | **41** | AI accuracy — smart clarification & disambiguation | **acc-4** |
 | **42** | AI accuracy — execution verification & rollback | **acc-5** |
 | **43** | AI accuracy — continuous learning & escalation | **acc-6** |
@@ -80,11 +80,12 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **60** | Provider app — stats, check-in & team floor | **prov-exp-2**–**prov-exp-4** |
 | **61** | Provider app — retail, comms & schedule | **prov-exp-5**–**prov-exp-7** |
 | **62** | Provider app — waitlist, growth & polish | **prov-exp-8**–**prov-exp-11** |
-| **63** | Budget-aware service discovery (planned) | **budget-1**, **ai-cmd-budget** |
-| **64** | Premium / best service discovery (planned) | **rank-1**, **ai-cmd-rank** |
-| **65** | Flexible OR availability + budget compounds (planned) | **avail-1**, **ai-cmd-avail** |
+| **63** | Budget-aware service discovery | **budget-1**, **ai-cmd-budget** |
+| **64** | Premium / best service discovery | **rank-1**, **ai-cmd-rank** |
+| **65** | Flexible OR availability + budget compounds | **avail-1**, **ai-cmd-avail** |
 | **—** | Unified service discovery (budget + rank + OR avail) | **discover-1**, **ai-cmd-discover** |
 | **—** | Extend dashboard `AiCommandService` actions (orchestrator + registry parity) | **ai-cmd-ext** |
+| **—** | Customer AI commands — public booking web + consumer mobile | **ai-cmd-customer** |
 
 ---
 
@@ -99,7 +100,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | Dashboard intents in registry | **234** (138 mutating) | `DASHBOARD_INTENTS` in `ai-command-registry.build.ts` |
 | `executeSingleIntent` switch cases | **~337** (multi-surface + aliases) | `ai-command.service.ts` |
 | LEGACY_CORE intents owned by `AiCommandService` | **~51 mutate + ~19 read** | `LEGACY_CORE_BINDINGS` in registry build |
-| `INTENT_SCHEMA` action union | **~52 core verbs** (stale) | top of `INTENT_SCHEMA` in `ai-command.service.ts` |
+| `INTENT_SCHEMA` action union | **234** (from `DASHBOARD_INTENTS`) | `ai-command-intent-schema.build.ts` → `INTENT_SCHEMA` in `ai-command.service.ts` |
 | Documented rules in schema appendix | **~200+ actions** | fixture constants appended to `INTENT_SCHEMA` |
 | Generic fallback on unknown handler | still active | `default` case → "don't know how to execute" |
 
@@ -118,6 +119,8 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Per-action definition of done** (every row in tables below):
 
+> **Audit (2026-06):** not met globally for all **234** dashboard registry intents — see **ai-cmd-ext-gap** below. Public/customer discovery (Sprints **63–65**) meets the spirit of this checklist; dashboard **`ai-cmd-ext-1`** param rows and **`ai-cmd-ext-2`** new verbs do not.
+
 - [ ] Registry binding + access tier in `access-control.matrix.ts`
 - [ ] `INTENT_SCHEMA` union entry + classifier rules wired
 - [ ] `case` in `executeSingleIntent` **or** documented delegation to another surface service
@@ -125,15 +128,30 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] Rescue/heuristic + ≥10 NL variants in fixtures
 - [ ] Eval golden cases (`npm run test:sprint14`; `test:ai-accuracy` when applicable)
 
+### ai-cmd-ext-gap — Audit gaps (dashboard per-action DoD)
+
+| Gap ID | DoD criterion | Current state | Close with |
+|--------|---------------|---------------|------------|
+| **ai-cmd-ext-gap-1** | Registry + access tier | Registry ↔ capability matrix tested; **uncovered UI actions remain** | **parity-2.1**–**2.3**, explicit tier rows per new intent in `access-control.matrix.ts` |
+| **ai-cmd-ext-gap-2** | `INTENT_SCHEMA` union + classifier rules | **Union synced** — **234** actions from `DASHBOARD_INTENTS` via **`ai-command-intent-schema.build.ts`**; appendix rules still separate per domain | Per-intent classifier rules for appendix-only gaps — **parity-2.4** |
+| **ai-cmd-ext-gap-3** | `executeSingleIntent` case or delegation | **`ai-cmd-ext-0.2` shipped**; **`ai-cmd-ext-0.3` shipped** — registry-aware default branch in `executeSingleIntent` | — |
+| **ai-cmd-ext-gap-4** | Handler + validator + entity params | **Shipped** — **`ai-cmd-ext-2.1`–`2.12`** registry + handlers + fixtures (`ai-staff-operations`, `ai-waitlist-dashboard`, `ai-clinic-test-result-ext`, billing/loyalty reads) | Extend validator/entity registry per new intent as needed |
+| **ai-cmd-ext-gap-5** | Rescue + ≥10 NL fixtures | Done for major domains (booking, clinic, payments, discover); **not every registry id** | **parity-2.4** per new intent; extend domain `*.fixtures.ts` |
+| **ai-cmd-ext-gap-6** | Eval golden cases | **`test:ai-accuracy`** — **2738/2738** deterministic cases (100%); baseline ratchet **acc-2.9** | **acc-2.4**–**2.6**, **parity-2.4** |
+
+- [ ] **ai-cmd-ext-gap-7** — Mark per-action DoD checklist `[x]` only when **ai-cmd-ext-gap-1**–**6** are green for that table row (or row is explicitly out of scope with surface tag)
+
 ---
 
 ### ai-cmd-ext-0 — Orchestrator hygiene (do first)
 
+> Blocks closing **ai-cmd-ext-gap-2**, **ai-cmd-ext-gap-3**. See audit table under **ai-cmd-ext-gap**.
+
 | Task ID | Work | Why |
 |---------|------|-----|
-| **ai-cmd-ext-0.1** | Regenerate `INTENT_SCHEMA` action union from `DASHBOARD_INTENTS` (+ shared dashboard/provider reads) | Classifier cannot emit actions missing from the union |
-| **ai-cmd-ext-0.2** | Handler coverage gate — test fails when any `DASHBOARD_INTENTS` id lacks a `switch` case **or** a registry `handler !== 'AiCommandService'` with working dispatch on that service | Closes registry ↔ execution drift |
-| **ai-cmd-ext-0.3** | Replace generic `default` summary with registry lookup ("action X is registered but handler Y is not wired") | Better telemetry + faster triage |
+| **ai-cmd-ext-0.1** | Regenerate `INTENT_SCHEMA` action union from `DASHBOARD_INTENTS` (+ shared dashboard/provider reads) | Classifier cannot emit actions missing from the union — **shipped** (`ai-command-intent-schema.build.ts` + **`ai-command-handler-coverage.spec.ts`**) |
+| **ai-cmd-ext-0.2** | Handler coverage gate — test fails when any `DASHBOARD_INTENTS` id lacks a `switch` case **or** a registry `handler !== 'AiCommandService'` with working dispatch on that service | Closes registry ↔ execution drift — **shipped** (`npm run test:ai-cmd-ext`) |
+| **ai-cmd-ext-0.3** | Replace generic `default` summary with registry lookup ("action X is registered but handler Y is not wired") | Better telemetry + faster triage — **shipped** (`ai-command-unwired-intent.util.ts`) |
 | **ai-cmd-ext-0.4** | Extract LEGACY_CORE inline methods → `AiDashboardCoreService` (booking, cancel, show, analytics, schedule mutate) — `AiCommandService` keeps classify + compound + dispatch only | Target orchestrator **< 5k LOC** |
 | **ai-cmd-ext-0.5** | Optional: registry-driven dispatch table (`Map<intent, handlerFn>`) built at module init | Removes 300+ `case` branches over time |
 
@@ -147,10 +165,10 @@ These ship through **`AiCommandService`** by extending existing `handleListServi
 |---------|-----------|-------------|---------|--------|------------|
 | **ai-cmd-ext-1.1** | `list_services` | Add param `maxPrice` | `handleListServices` | **63** / **budget-1.9** | **budget-1.1**–**1.4** |
 | **ai-cmd-ext-1.2** | `list_services` | Add param `serviceRank` (`highest_price` \| `lowest_price` \| `most_popular`) | `handleListServices` | **64** / **rank-1.4** | **rank-1.1**–**1.3** |
-| **ai-cmd-ext-1.3** | `check_availability` | Add param `availabilityWindows[]` + per-window `timeOfDay` | `handleCheckAvailability` | **65** / **avail-1.5** | **avail-1.1**–**1.4** |
-| **ai-cmd-ext-1.4** | `create_booking` | Budget/rank pre-filter + `bookingFirstAvailable` across OR windows | `handleCreateBooking` + compound utils | **65** / **avail-1.6**–**1.8** | **discover-1.1**–**1.3** |
-| **ai-cmd-ext-1.5** | `lookup_service_assignment` | Optional `maxPrice` / `serviceRank` on team-wide "who can do X" | `handleLookupServiceAssignment` | **63**–**64** | **budget-1.1**, **rank-1.1** |
-| **ai-cmd-ext-1.6** | `summarize_bookings` | Revenue KPIs with tenant currency formatting | existing analytics handler | **28** / **curr-1** | shipped util reuse |
+| **ai-cmd-ext-1.3** ✅ | `check_availability` | Add param `availabilityWindows[]` + per-window `timeOfDay` | `handleCheckAvailability` | **65** / **avail-1.5** | **avail-1.1**–**1.4** — **shipped** (`ai-dashboard-availability-windows.logic.ts`) |
+| **ai-cmd-ext-1.4** ✅ | `create_booking` | Budget/rank pre-filter + `bookingFirstAvailable` across OR windows | `handleCreateBooking` + compound utils | **65** / **avail-1.6**–**1.8** | **discover-1.1**–**1.3** — **shipped** (`ai-dashboard-create-booking.logic.ts`) |
+| **ai-cmd-ext-1.5** ✅ | `lookup_service_assignment` | Optional `maxPrice` / `serviceRank` on team-wide "who can do X" | `handleLookupServiceAssignment` | **63**–**64** | **budget-1.1**, **rank-1.1** — **shipped** (`ai-dashboard-lookup-assignment.logic.ts`) |
+| **ai-cmd-ext-1.6** ✅ | `summarize_bookings` | Revenue KPIs with tenant currency formatting | `handleSummarizeBookings` | **28** / **curr-1** | **shipped** (`ai-dashboard-summarize-bookings.logic.ts`) |
 
 **Note:** `recommend_specialists`, `book_appointment`, `check_providers_for_service` extend on **public/customer** surfaces (`PublicBookingAssistantService`, `CustomerAiCommandService`) — track under **ai-cmd-budget** / **ai-cmd-rank** / **ai-cmd-avail**, not this file.
 
@@ -160,18 +178,18 @@ These ship through **`AiCommandService`** by extending existing `handleListServi
 
 | Task ID | Action | R/W | Delegate handler | Sprint | Surfaces | Product link |
 |---------|--------|-----|------------------|--------|----------|--------------|
-| **ai-cmd-ext-2.1** | `upload_patient_result` | M | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** (legacy upload — skip if v2-only) |
-| **ai-cmd-ext-2.2** | `explain_patient_results` | R | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** |
-| **ai-cmd-ext-2.3** | `configure_test_reference_range` | M | `AiClinicTestResultService` (new) | **54** | dashboard | **vert-clinic-2.1.6** normal ranges |
-| **ai-cmd-ext-2.4** | `list_abnormal_results` | R | `AiClinicTestResultService` (new) | **54** | dashboard | **vert-clinic-2.1.6** |
-| **ai-cmd-ext-2.5** | `create_employee` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | staff onboarding |
-| **ai-cmd-ext-2.6** | `invite_staff_member` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | team invite flow |
-| **ai-cmd-ext-2.7** | `deactivate_employee` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | staff lifecycle |
-| **ai-cmd-ext-2.8** | `configure_online_booking` | M | `AiOperationsService` (new) | **55** / **parity-2.1** | dashboard | public page settings |
-| **ai-cmd-ext-2.9** | `open_billing_settings` | R | `AiMarketingGrowthService` or new `AiBillingSettingsService` | **55** / **parity-2.1** | dashboard | deep-link + explain plan |
-| **ai-cmd-ext-2.10** | `summarize_loyalty_program` | R | `AiMarketingGrowthService` (extend) | **55** / **parity-2.1** | dashboard | loyalty module |
-| **ai-cmd-ext-2.11** | `list_waitlist_entries` | R | new `AiWaitlistService` | **62** / **prov-exp-8** | dashboard (+ provider read) | waitlist panel API |
-| **ai-cmd-ext-2.12** | `offer_waitlist_slot` | M | `AiWaitlistService` | **62** / **prov-exp-8** | dashboard | manager offers gap to waitlist |
+| **ai-cmd-ext-2.1** ✅ | `upload_patient_result` | M | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** — **shipped** |
+| **ai-cmd-ext-2.2** ✅ | `explain_patient_results` | R | `AiClinicTestResultService` | **54** | dashboard | **ai-cmd-clinic-6** — **shipped** |
+| **ai-cmd-ext-2.3** ✅ | `configure_test_reference_range` | M | `AiClinicTestResultService` | **54** | dashboard | **vert-clinic-2.1.6** — **shipped** (guides to catalog UI) |
+| **ai-cmd-ext-2.4** ✅ | `list_abnormal_results` | R | `AiClinicTestResultService` | **54** | dashboard | **vert-clinic-2.1.6** — **shipped** |
+| **ai-cmd-ext-2.5** ✅ | `create_employee` | M | `AiOperationsService` | **55** / **parity-2.1** | dashboard | staff onboarding — **shipped** |
+| **ai-cmd-ext-2.6** ✅ | `invite_staff_member` | M | `AiOperationsService` | **55** / **parity-2.1** | dashboard | team invite flow — **shipped** |
+| **ai-cmd-ext-2.7** ✅ | `deactivate_employee` | M | `AiOperationsService` | **55** / **parity-2.1** | dashboard | staff lifecycle — **shipped** |
+| **ai-cmd-ext-2.8** ✅ | `configure_online_booking` | M | `AiOperationsService` | **55** / **parity-2.1** | dashboard | public page settings — **shipped** |
+| **ai-cmd-ext-2.9** ✅ | `open_billing_settings` | R | `AiMarketingGrowthService` | **55** / **parity-2.1** | dashboard | deep-link + explain plan — **shipped** |
+| **ai-cmd-ext-2.10** ✅ | `summarize_loyalty_program` | R | `AiMarketingGrowthService` | **55** / **parity-2.1** | dashboard | loyalty module — **shipped** |
+| **ai-cmd-ext-2.11** ✅ | `list_waitlist_entries` | R | `AiCommandService` | **62** / **prov-exp-8** | dashboard | waitlist panel — **shipped** (`ai-waitlist-dashboard.logic.ts`) |
+| **ai-cmd-ext-2.12** ✅ | `offer_waitlist_slot` | M | `AiCommandService` | **62** / **prov-exp-8** | dashboard | manager offers gap — **shipped** |
 
 ---
 
@@ -194,10 +212,10 @@ These are already in `ai-command-registry.build.ts` with **`handler !== 'AiComma
 
 | Task ID | Compound recipe | Step actions (ordered) | Sprint | Decompose util |
 |---------|-----------------|------------------------|--------|----------------|
-| **ai-cmd-ext-4.1** | `onboard_new_stylist` | `create_employee` → `assign_employee_services` → `onboard_provider_schedule` → `configure_online_booking` | **57** / **parity-3.2** | new `decomposeStaffOnboardingCompoundPrompt` |
-| **ai-cmd-ext-4.2** | `clinic_lab_day_close` | `list_test_orders` → `enter_test_result` → `release_test_result` → `notify_patient_result_ready` | **54** / **vert-clinic-2** | extend `decomposeClinicCompoundPrompt` |
-| **ai-cmd-ext-4.3** | `budget_discover_and_book` | filter catalog → `check_availability` → `create_booking` | **63**–**65** / **discover-1** | extend check-and-book (**ai-cmd-h1**) |
-| **ai-cmd-ext-4.4** | `rank_discover_and_book` | `list_services` (rank) → `check_availability` → `create_booking` | **64**–**65** | **ai-cmd-discover** mega-prompts |
+| **ai-cmd-ext-4.1** ✅ | `onboard_new_provider` | `create_employee` → `assign_employee_services` → `onboard_provider_schedule` → `configure_online_booking` | **57** / **parity-3.2** | `decomposeProviderOnboardingCompoundPrompt` — stylist, therapist, barber, nail tech, etc. |
+| **ai-cmd-ext-4.2** ✅ | `clinic_lab_day_close` | `list_test_orders` → `enter_test_result` → `release_test_result` → `notify_patient_result_ready` | **54** / **vert-clinic-2** | `decomposeClinicLabDayCloseCompoundPrompt` |
+| **ai-cmd-ext-4.3** ✅ | `budget_discover_and_book` | filter catalog → `check_providers_for_service` → `create_booking` | **63**–**65** / **discover-1** | `decomposeBudgetDiscoverAndBookCompoundPrompt` |
+| **ai-cmd-ext-4.4** ✅ | `rank_discover_and_book` | `list_services` (serviceRank) → `check_providers_for_service` → `create_booking` | **64**–**65** / **discover-1** | `decomposeRankDiscoverAndBookCompoundPrompt` |
 
 Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compoundStepParams`.
 
@@ -215,6 +233,157 @@ Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compo
 | **5 — Refactor** | **ai-cmd-ext-0.4**–**0.5** | `AiCommandService` LOC reduced; dispatch table optional |
 
 **Related:** **ai-cmd-h1**–**h4** (NLU quality), **parity-1**–**parity-4** (role coverage matrix + CI), **acc-2** (eval expansion for every new action).
+
+---
+
+## ai-cmd-customer — Public booking web + consumer mobile AI commands (plan)
+
+**Goal:** Every customer-visible AI feature works on **both** anonymous public booking and logged-in consumer mobile, with one backend implementation per action family — no duplicate handler logic in the apps.
+
+**Not in scope:** Dashboard admin (`AiCommandService`), provider mobile (`ProviderAiCommandService`) — tracked under **ai-cmd-ext** / **prov-exp-***.
+
+### Architecture (one change, two surfaces)
+
+| Surface | User | API entry | Classifier schema | Handler dispatch |
+|---------|------|-----------|-------------------|------------------|
+| **Public booking web** | Anonymous visitor | `POST /public/:slug/assistant` | `buildPublicClassifierSchema()` | `PublicBookingAssistantService.chat()` |
+| **Consumer mobile** | Logged-in customer | Customer AI gateway (`surface: customer`) | `buildCustomerClassifierSchema()` | `CustomerAiCommandService.executeCommand()` |
+
+**Routing rule:**
+
+| Action family | Consumer mobile path | Shared backend? |
+|-------------|---------------------|-----------------|
+| Discovery & anonymous booking (`list_services`, `check_availability`, `recommend_specialists`, `book_appointment`, `list_providers`, `business_info`, `booking_help`) | `isPublicOnlyAssistantAction` → `runPublicAssistant()` | **Yes** — wire once in `PublicBookingAssistantService` |
+| Check-and-book compounds on mobile | `decomposeDeterministicForSurface('customer')` → `check_providers_for_service` + `book_nearest_slot` via `AiPaymentsService` | **Shipped** — budget/rank/avail in shared compound context + `ai-payments.logic.ts` |
+| Account & checkout (`book_package`, `cancel_my_booking`, `my_appointments`, gift card, promo, clinic self-service, …) | `dispatchCustomerIntent()` in `customer-ai-command.logic.ts` | Customer-only — separate classifier rules + handlers |
+
+**Definition of done (every customer feature row below):**
+
+> **Audit (2026-06):** discovery (**ai-cmd-customer-1.1**–**1.8**) meets per-row DoD for spine + integration; **gap-5** acc-2.4 per deferred customer-only row remains — see **ai-cmd-customer-gap** below.
+
+- [ ] Classifier rules in `*.fixtures.ts` wired into **both** `buildPublicClassifierSchema()` and `buildCustomerClassifierSchema()` when the action is public-assistant scoped (or customer-only appendix when not)
+- [ ] Post-LLM rescue + `enrich*FromPrompt` on **both** entry paths (`PublicBookingAssistantService.chat()` rescue chain + `CustomerAiCommandService.rescueIntent()`)
+- [ ] Handler logic in the correct service (see routing table) — **never** duplicate in consumer-app or public-booking frontend
+- [ ] Session carry: `maxPrice`, `serviceRank`, `availabilityWindows`, booking context in `mergeSessionContext` (public) + `mergeCustomerCompoundContext` (customer)
+- [ ] ≥10 NL variants per surface in fixtures; eval cases tagged `surface: public` **and** `surface: customer` (EN/HY/RU)
+- [ ] Integration spec: `public-booking-assistant.*.spec.ts` + `customer-ai-command.integration.spec.ts`
+- [x] Gate script covers both surfaces (e.g. **`npm run test:ai-budget`**, **`test:ai-service-discovery`**, **`test:ai-cmd-ext`**)
+
+### ai-cmd-customer-gap — Audit gaps (customer per-row DoD)
+
+| Gap ID | DoD criterion | Current state | Close with |
+|--------|---------------|---------------|------------|
+| **ai-cmd-customer-gap-1** | Classifier rules both schemas | **`ai-customer-public-parity.spec.ts`** — gate in **`npm run test:ai-cmd-ext`** | — **shipped** |
+| **ai-cmd-customer-gap-2** | Rescue + enrich both paths | Discovery rescue/enrich on public + customer; customer-only domains rescue on customer path only — **documented in `CUSTOMER_PUBLIC_RESCUE_ROUTING`** | — **shipped** (matrix doc) |
+| **ai-cmd-customer-gap-3** | Handler in correct service | **OK** — `PublicBookingAssistantService` + `runPublicAssistant()` delegation; no frontend handler dup | Keep regression in domain integration specs |
+| **ai-cmd-customer-gap-4** | Session carry | **`serviceRank`** + OR windows in `SHARED_BOOKING_CONTEXT_KEYS`, `public-booking-assistant-session.util.ts`, compound merge | — **shipped** (2026-06) |
+| **ai-cmd-customer-gap-5** | ≥10 NL variants + eval EN/HY/RU | Discovery + deferred slices — **`ai-customer-deferred-locale-parity.spec.ts`** (210 EN/HY/RU eval rows); provider push (+12 HY/RU); provider earnings (+28 HY/RU); provider exp-2 (+28 HY/RU); provider client context (+50 HY/RU); provider exp-3 (+24 HY/RU); provider session timeout (+8 HY/RU); provider open shifts (+4 HY/RU); provider team whos next (+4 HY/RU); provider time-off list (+6 HY/RU); provider date format (+16 HY/RU for 8 remaining EN rows; 4 legacy via date-input) in **`ai-provider-*-locale-parity.spec.ts`** | **acc-2.4** remaining EN golden rows outside deferred/provider slices |
+| **ai-cmd-customer-gap-6** | Integration specs both surfaces | Public handler tests in domain specs + **`public-booking-assistant.budget.integration.spec.ts`** (**3.3**) + **`customer-ai-command.integration.spec.ts`** (**3.4**) | — **shipped** |
+| **ai-cmd-customer-gap-7** | Gate both surfaces | **`test:ai-service-discovery`** (1049 tests) + **`test:ai-cmd-ext`** | — **shipped** |
+
+**Spine task status (audit):**
+
+| Task | Status | Gap |
+|------|--------|-----|
+| **ai-cmd-customer-0.2** | Shipped | **`serviceRank`** in `SHARED_BOOKING_CONTEXT_KEYS` |
+| **ai-cmd-customer-0.3** | Shipped | `public-booking-assistant-session.util.ts` + `attachSession` discovery fields |
+| **ai-cmd-customer-0.4** | Shipped | `tryExecutePublicCompound` + `executePublicAssistantCompoundFromSteps` in `PublicBookingAssistantService.chat()` |
+| **ai-cmd-customer-0.5** | Shipped | `ai-customer-public-parity.spec.ts` — **`npm run test:ai-cmd-ext`** |
+
+**Tests task status (audit):**
+
+| Task | Status | Notes |
+|------|--------|-------|
+| **ai-cmd-customer-3.1** | Shipped | Fixture `surface` tags in budget/rank/avail/discover fixtures |
+| **ai-cmd-customer-3.5** | Shipped | `public-booking-assistant.schema.spec.ts`, `customer-ai-command.util.spec.ts` |
+| **ai-cmd-customer-3.6** | Shipped | **`npm run test:ai-service-discovery`** green + CI workflow |
+| **ai-cmd-customer-3.3** | Shipped | **`public-booking-assistant.budget.integration.spec.ts`** — wiring + handler pipeline |
+| **ai-cmd-customer-3.4** | Shipped | Discovery block in `customer-ai-command.integration.spec.ts` — **`npm run test:ai-cmd-ext`** |
+
+- [ ] **ai-cmd-customer-gap-8** — Mark customer DoD checklist `[x]` only when **ai-cmd-customer-gap-1**–**7** are green for that feature row (customer-only rows exempt from public-schema bullets)
+
+---
+
+### ai-cmd-customer-0 — Shared spine (public + mobile)
+
+| Task ID | Work | Files | Blocks |
+|---------|------|-------|--------|
+| **ai-cmd-customer-0.1** | Document public-assistant action set vs customer-only intents (`PUBLIC_ONLY_ASSISTANT_ACTIONS` vs `CUSTOMER_INTENTS`) in capability matrix | `customer-ai-command.util.ts`, `ai-capability.matrix.ts` | **parity-1** — **shipped** |
+| **ai-cmd-customer-0.2** | Add **`maxPrice`**, **`serviceRank`**, **`availabilityWindows`** to shared compound context keys | `ai-compound-booking-context.util.ts` (`SHARED_BOOKING_CONTEXT_KEYS`) | **budget-1.7**, **avail-1.8** — **shipped** |
+| **ai-cmd-customer-0.3** | Persist budget/rank/avail params in public `sessionContext` + customer compound merge | `public-booking-assistant-session.util.ts`, `mergeCustomerCompoundContext` | multi-turn prompts — **shipped** |
+| **ai-cmd-customer-0.4** | Public compound **execution** — execute decomposed steps before single-intent switch (mirror customer `tryCompound`) | `PublicBookingAssistantService.chat()` `tryExecutePublicCompound` | **budget-1.7**, **avail-1.8** — **shipped** |
+| **ai-cmd-customer-0.5** | Parity gate — test fails when a public-assistant action is wired in public schema but missing from customer schema rules (and vice versa for shared actions) | `ai-customer-public-parity.spec.ts` | **parity-4** — **shipped** (`test:ai-cmd-ext`) |
+
+---
+
+### ai-cmd-customer-1 — Public-assistant actions (wire once → both surfaces)
+
+Handler target: **`PublicBookingAssistantService`** (consumer mobile delegates via `runPublicAssistant()`).
+
+| Task ID | Action(s) | Feature sprint | Public schema | Customer schema | Handler / util | Existing task refs |
+|---------|-----------|----------------|---------------|-----------------|----------------|-------------------|
+| **ai-cmd-customer-1.1** | `list_services` + **`maxPrice`** | **63** | `buildPublicClassifierSchema()` | `buildCustomerClassifierSchema()` | `handleListServices` + `ai-service-catalog-rank.util.ts` | **budget-1.2**–**1.4**, **1.6** |
+| **ai-cmd-customer-1.2** | `recommend_specialists` + **`maxPrice`** | **63** | both schemas | both | `handleRecommendSpecialists` — budget-filter `serviceIds` before `recommendProviders` | **budget-1.5** |
+| **ai-cmd-customer-1.3** | `list_services` + **`serviceRank`** | **64** | both | both | `handleListServices` — rank sort / single pick | **rank-1.2**–**1.6** |
+| **ai-cmd-customer-1.4** | `check_availability` + **`availabilityWindows`** + optional **`maxPrice`** | **65** | both | both | `handleCheckAvailability` — per-window loop + budget intersection | **avail-1.2**–**1.7** |
+| **ai-cmd-customer-1.5** | `book_appointment` + budget/rank pre-filter + **`bookingFirstAvailable`** | **63**–**65** | both | both | `handleBookAppointment` — pick service under budget before nearest slot | **budget-1.7**, **rank-1.7** |
+| **ai-cmd-customer-1.6** | Check-then-book compounds | **63**–**65** | golden `public_*` patterns + **ai-cmd-customer-0.4** executor | golden `customer_*` + existing compound runner | public: `check_availability` → `book_appointment`; customer: `check_providers_for_service` → `book_nearest_slot` | **ai-cmd-h1**, **budget-1.7**, **avail-1.8** |
+| **ai-cmd-customer-1.7** | Mobile check-and-book + budget | **63** | n/a (customer path) | rescue + compound | `handleCheckProvidersForServiceLogic` / `handleBookNearestSlotLogic` — respect `maxPrice` when resolving service | **budget-1.7** |
+| **ai-cmd-customer-1.8** | Unified discovery mega-prompts | **discover-1** | both | both | shared `ai-service-catalog-rank.util.ts` + `ai-flexible-availability.util.ts` | **discover-1.1**–**1.6** |
+| **ai-cmd-customer-1.9** | Negative routing (no budget filter) | **63** | both | both | rescue: gift card → payments; package → `discover_packages`; deposit → checkout explain | **budget-1.8** |
+| **ai-cmd-customer-1.10** | Navigate hints after budget list | **63** | both | both | single match → `navigate: { path: 'services', query: { serviceId } }` | **budget-1.6** |
+| **ai-cmd-customer-1.11** | Existing catalog/booking (baseline — keep green) | shipped | both | both | `list_providers`, `business_info`, `booking_help`, checkout/currency/tour/clinic explain paths | regression in `test:sprint14` |
+
+---
+
+### ai-cmd-customer-2 — Customer-only actions (consumer mobile + logged-in web)
+
+Handler target: **`customer-ai-command.logic.ts`** → domain `Ai*Service` (not `PublicBookingAssistantService`).
+
+| Task ID | Domain | Example actions | Classifier | Integration spec | Notes |
+|---------|--------|-----------------|------------|------------------|-------|
+| **ai-cmd-customer-2.1** | Self-service booking | `cancel_my_booking`, `reschedule_my_booking`, `list_my_appointments`, `book_package`, cart/checkout | `buildCustomerClassifierSchema()` | `customer-ai-command.integration.spec.ts` | Already shipped — extend when new checkout fields |
+| **ai-cmd-customer-2.2** | Payments & gift cards | `book_with_gift_card`, `check_gift_card_balance`, `buy_gift_card`, … | customer schema + `rescuePaymentsIntent` | `ai-gift-card-payments.integration.spec.ts` | Must stay disjoint from **`maxPrice`** (**budget-1.8**) |
+| **ai-cmd-customer-2.3** | Subscriptions & packages | `discover_packages`, `my_subscriptions`, `select_subscription_plan` | customer schema | package integration specs | Package budget ≠ service **`maxPrice`** |
+| **ai-cmd-customer-2.4** | Clinic consumer | `list_my_test_results`, `book_lab_collection`, … | customer + public clinic appendices | `ai-clinic-lab-booking.integration.spec.ts` | Public clinic prompts overlap — keep surface tags |
+| **ai-cmd-customer-2.5** | Adoption & growth | `how_to_download_app`, `switch_to_consumer_app`, deep-link resume | `CONSUMER_ADOPTION_CLASSIFIER_RULES` | `ai-consumer-adoption.*` | **adopt-2**–**adopt-4** |
+| **ai-cmd-customer-2.6** | Parity audit | Shipped native intents (`CUSTOMER_INTENT_COVERAGE_REQUIRED`) have fixtures + customer eval — **`ai-customer-intent-coverage.util.ts`**, **`ai-customer-intent-coverage.spec.ts`**, **`ai-capability.matrix.integration.spec.ts`**; deferred rows in **`CUSTOMER_INTENT_COVERAGE_DEFERRED`** | — **shipped** (2026-06); feeds **parity-2.3** |
+
+---
+
+### ai-cmd-customer-3 — Tests & CI (both surfaces)
+
+| Task ID | Work | Gate |
+|---------|------|------|
+| **ai-cmd-customer-3.1** | Fixtures **`ai-budget-service-discovery.fixtures.ts`** — tag each row `surface: public \| customer \| both` | **budget-1.10**, **1.12** — **shipped** |
+| **ai-cmd-customer-3.2** | Shipped (discovery + shipped native audit) | EN + HY/RU multilingual eval duplicated for **public** and **customer** — **`ai-customer-public-eval-parity.spec.ts`**; **`ai-customer-intent-coverage.spec.ts`** gates **`CUSTOMER_INTENT_COVERAGE_REQUIRED`** via **`AI_COMMAND_EVAL_DETERMINISTIC_CASES`** |
+| **ai-cmd-customer-3.3** | Shipped | **`public-booking-assistant.budget.integration.spec.ts`** — wiring + handler pipeline |
+| **ai-cmd-customer-3.4** | Shipped | Discovery block in `customer-ai-command.integration.spec.ts` — **`npm run test:ai-cmd-ext`** |
+| **ai-cmd-customer-3.5** | Schema specs — assert `maxPrice` / rules present in **both** `buildPublicClassifierSchema()` and `buildCustomerClassifierSchema()` | `public-booking-assistant.schema.spec.ts`, `customer-ai-command.util.spec.ts` — **shipped** |
+| **ai-cmd-customer-3.6** | Merge gate **`npm run test:ai-service-discovery`** — budget + rank + avail + discover cross-sprint cases on public + customer | **discover-1.6** — **shipped** (CI: `ai-service-discovery-gate.yml`) |
+
+---
+
+### ai-cmd-customer — Implementation order
+
+| Phase | Task IDs | Unlocks |
+|-------|----------|---------|
+| **0 — Spine** | **ai-cmd-customer-0.1**–**0.5** | Session carry, public compounds, parity gate |
+| **1 — Budget (Sprint 63)** | **1.1**, **1.2**, **1.5**, **1.7**, **1.9**, **1.10** + **budget-1.2**–**1.3** | *"I have $50 for a haircut"* on web + app |
+| **2 — Rank (Sprint 64)** | **1.3** + **rank-1.*** | Premium / cheapest service discovery |
+| **3 — Avail (Sprint 65)** | **1.4**, **1.6** + **avail-1.*** | OR windows + budget compounds |
+| **4 — Discover** | **1.8** + **discover-1.*** | Mega-prompt matrix + unified util |
+| **5 — Customer-only audit** | **2.6** + **3.2** | Full mobile account coverage |
+
+**Key files map:**
+
+| Concern | Public web | Consumer mobile | Shared |
+|---------|------------|-----------------|--------|
+| Classifier | `public-booking-assistant.service.ts` `buildPublicClassifierSchema()` | `customer-ai-command.util.ts` `buildCustomerClassifierSchema()` | `ai-budget-service-discovery.fixtures.ts` rules |
+| Rescue | `PublicBookingAssistantService.chat()` rescue chain | `CustomerAiCommandService.rescueIntent()` | `ai-budget-service-discovery.util.ts` |
+| Catalog filter/sort | `handleListServices` / `handleRecommendSpecialists` | same (via `runPublicAssistant`) | `ai-service-catalog-rank.util.ts` ✅ **budget-1.1** |
+| Compounds | `tryExecutePublicCompound` ✅ **ai-cmd-customer-0.4** | `tryCompound` + `executeCustomerCompoundFromSteps` | `intent-decomposition.util.ts` golden patterns |
+| Eval | `surface: public` | `surface: customer` | `eval/ai-command-eval.cases.ts` |
 
 ---
 
@@ -266,7 +435,7 @@ in the end when I will have many clients:
 create Full marketplace per country
 Central place where clients discover and book across tenants
 
-- [ ] **ai-cmd-clinic-6** — Dashboard: **`upload_patient_result`** / **`explain_patient_results`** — legacy file-upload path; **superseded for v2** by **`enter_test_result`** / **`release_test_result`** (**ai-cmd-clinic-v2-2**); keep open only if legacy metadata upload is still required
+- [x] **ai-cmd-clinic-6** — Dashboard: **`upload_patient_result`** / **`explain_patient_results`** / **`configure_test_reference_range`** / **`list_abnormal_results`** — ext-2.1–2.4 shipped (`ai-clinic-test-result-ext.*`, rescue + eval); file-upload path guides to lab UI; value entry remains **`enter_test_result`** / **`release_test_result`** (**ai-cmd-clinic-v2-2**)
 
 **Depends on:** **ai-cmd-h1** classifier parity; registry entry in `ai-command-registry.build.ts` when implemented.
 
@@ -287,22 +456,24 @@ Central place where clients discover and book across tenants
 | Dashboard admin | Optional v1 | `list_services` READ with `maxPrice` when owner asks "show services under $X" |
 | Provider mobile | **Out of scope** | Providers do not budget-shop the catalog |
 
+**Customer surface plan (public web + consumer mobile — shared handlers):** see **ai-cmd-customer-1** in the **ai-cmd-customer** section.
+
 **Price semantics:** Compare against catalog **display price** (`service.price` in tenant default currency). Tax/deposit is checkout-only — assistant copy should say "from $X" when tax display is enabled (**tax-1**). Do not confuse with gift-card balance (**ai-payments**).
 
 ### budget-1 — Product & handler spine (planned)
 
-- [ ] **budget-1.1** — Shared util `filterServicesByMaxPrice(services, maxPrice)` + `sortServicesByPriceAsc`; unit spec for edge cases (null price, equal prices, empty catalog)
-- [ ] **budget-1.2** — Classifier param **`maxPrice`** (number) on public + customer schemas; wire **`BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
-- [ ] **budget-1.3** — Post-LLM rescue: `enrichBudgetFromPrompt()` reuses `extractAmountFromPrompt()` + "under/below/at most/no more than X" patterns; set `maxPrice` when classifier missed it
-- [ ] **budget-1.4** — **`handleListServices`** — after name/category filter, apply `maxPrice`; summary lists only matches sorted by price; **no-match** copy: cheapest option above budget + next-cheapest alternatives
-- [ ] **budget-1.5** — **`handleRecommendSpecialists`** — restrict `serviceIds` to budget-filtered services before `recommendProviders`; if none, same no-match copy as list
-- [ ] **budget-1.6** — Navigate hint — when exactly one match, `navigate: { path: 'services', query: { serviceId } }`; when multiple, services tab without pre-select
-- [ ] **budget-1.7** — Compound decomposition — budget + book nearest / check availability (mirror **ai-cmd-h1** check-and-book): e.g. *"book a haircut under $50 tomorrow ASAP"* → filter → `book_appointment` with `bookingFirstAvailable`
-- [ ] **budget-1.8** — Disambiguation — **`maxPrice` ≠ gift card** ("I have a $50 gift card" → promo/gift-card flow, not budget filter); **`maxPrice` ≠ package total** (route `discover_packages` only when user says package/bundle/deal)
-- [ ] **budget-1.9** — Optional dashboard READ — extend admin `list_services` handler with same filter when `maxPrice` present (lower priority than customer surfaces)
-- [ ] **budget-1.10** — Fixtures **`ai-budget-service-discovery.fixtures.ts`** — classifier rules + `SIMILAR_BUDGET_SERVICE_PROMPTS` (all scenario `id`s below); `it.each` in `*.util.spec.ts` + integration specs per surface
-- [ ] **budget-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer` (+ dashboard if shipped); gate **`npm run test:ai-budget`**
-- [ ] **budget-1.12** — Extended fixtures — sections **I–L** below (voice, session, currency, duration); ≥ **40** fixture `id`s total for budget domain
+- [x] **budget-1.1** — Shared util `filterServicesByMaxPrice(services, maxPrice)` + `sortServicesByPriceAsc`; unit spec for edge cases (null price, equal prices, empty catalog)
+- [x] **budget-1.2** — Classifier param **`maxPrice`** (number) on public + customer schemas; wire **`BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [x] **budget-1.3** — Post-LLM rescue: `enrichBudgetFromPrompt()` reuses `extractAmountFromPrompt()` + "under/below/at most/no more than X" patterns; set `maxPrice` when classifier missed it
+- [x] **budget-1.4** — **`handleListServices`** — after name/category filter, apply `maxPrice`; summary lists only matches sorted by price; **no-match** copy: cheapest option above budget + next-cheapest alternatives
+- [x] **budget-1.5** — **`handleRecommendSpecialists`** — restrict `serviceIds` to budget-filtered services before `recommendProviders`; if none, same no-match copy as list
+- [x] **budget-1.6** — Navigate hint — when exactly one match, `navigate: { path: 'services', query: { serviceId } }`; when multiple, services tab without pre-select
+- [x] **budget-1.7** — Compound decomposition — budget + book nearest / check availability (mirror **ai-cmd-h1** check-and-book): e.g. *"book a haircut under $50 tomorrow ASAP"* → filter → `book_appointment` with `bookingFirstAvailable`
+- [x] **budget-1.8** — Disambiguation — **`maxPrice` ≠ gift card** ("I have a $50 gift card" → promo/gift-card flow, not budget filter); **`maxPrice` ≠ package total** (route `discover_packages` only when user says package/bundle/deal)
+- [x] **budget-1.9** — Optional dashboard READ — extend admin `list_services` handler with same filter when `maxPrice` present (lower priority than customer surfaces)
+- [x] **budget-1.10** — Fixtures **`ai-budget-service-discovery.fixtures.ts`** — classifier rules + `SIMILAR_BUDGET_SERVICE_PROMPTS` (all scenario `id`s below); `it.each` in `*.util.spec.ts` + integration specs per surface
+- [x] **budget-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer` (+ dashboard if shipped); gate **`npm run test:ai-budget`**
+- [x] **budget-1.12** — Extended fixtures — sections **I–L** below (voice, session, currency, duration); ≥ **40** fixture `id`s total for budget domain
 
 **Depends on:** **ai-cmd-h1** (list/recommend handlers), **curr-1** (currency display in summaries), **extractAmountFromPrompt** in `ai-payments.util.ts`.
 
@@ -381,7 +552,7 @@ Add each row to `SIMILAR_BUDGET_SERVICE_PROMPTS` with `id`, `prompt`, `surface`,
 |----|----------------|-------|
 | `budget-voice-short-en` | Haircut fifty bucks max | `maxPrice`: 50, mobile brevity |
 | `budget-voice-no-verb-en` | Massage under 80 | Imperative omitted |
-| `budget-voice-asr-en` | I have 50 dollars for her cut | ASR homophone "her cut" → haircut |
+| `budget-voice-asr-en` | I have 50 dollars for her cut | [x] ASR homophone "her cut" → haircut, maxPrice: 50 |
 | `budget-voice-chip-en` | (tap suggest chip: "Services under $50") | Consumer assistant chip → `list_services`, `maxPrice`: 50 |
 | `budget-question-en` | Can I get a facial for less than 40? | Question form → same as budget list |
 
@@ -398,7 +569,7 @@ Add each row to `SIMILAR_BUDGET_SERVICE_PROMPTS` with `id`, `prompt`, `surface`,
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `budget-range-en` | Haircut between $40 and $60 | Phase 2: `minPrice` + `maxPrice`; v1 clarify or use `maxPrice`: 60 |
+| `budget-range-en` | Haircut between $40 and $60 | [x] `minPrice`: 40 + `maxPrice`: 60 inclusive band on list_services |
 | `budget-round-number-en` | About 50 dollars for styling | `maxPrice`: 50; "about" = ceiling |
 | `budget-tenant-amd-en` | (tenant currency AMD) under 15000 dram | Symbol-less amount + tenant default |
 | `budget-zero-en` | Free consultation options? | `maxPrice`: 0 or route free-price services only |
@@ -408,22 +579,22 @@ Add each row to `SIMILAR_BUDGET_SERVICE_PROMPTS` with `id`, `prompt`, `surface`,
 
 | id | Example prompt | Expected params |
 |----|----------------|-----------------|
-| `budget-named-service-en` | Is Swedish massage under $90? | `serviceName`: Swedish massage, `maxPrice`: 90 |
-| `budget-any-provider-en` | Any stylist for a cut under $45? | `allProviders`: true, `maxPrice`: 45 |
-| `budget-provider-no-match-en` | Karo — anything under $30? | Provider filter + budget; empty if none |
+| `budget-named-service-en` | Is Swedish massage under $90? | [x] `serviceName`: Swedish massage, `maxPrice`: 90 |
+| `budget-any-provider-en` | Any stylist for a cut under $45? | [x] `allProviders`: true, `maxPrice`: 45 — list_services not recommend_specialists |
+| `budget-provider-no-match-en` | Karo — anything under $30? | [x] employeeName=Karo, maxPrice=30; empty catalog + closest-options hint |
 
 #### L — Duration + budget (phase 2 hook)
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `budget-short-service-en` | Quick haircut under $40 | Prefer shorter `durationMinutes` within budget |
-| `budget-long-massage-en` | 90-minute massage under $100 | May no-match if all 90m > $100 — honest copy |
+| `budget-short-service-en` | Quick haircut under $40 | [x] preferShortDuration=true; shortest duration first within maxPrice=40 |
+| `budget-long-massage-en` | 90-minute massage under $100 | [x] minDurationMinutes=90 + maxPrice=100; honest no-match when all 90m exceed ceiling |
 
 **Implementation order:** fixtures (**budget-1.10**, **1.12**) → util + rescue (**budget-1.1**, **1.3**) → classifier wiring (**1.2**) → list/recommend handlers (**1.4–1.6**) → compounds (**1.7**) → disambiguation (**1.8**) → eval + gate (**1.11**).
 
 ---
 
-## Sprint 64 — Premium / best service discovery (planned)
+## Sprint 64 — Premium / best service discovery
 
 **Goal:** When a visitor asks *"What is the best and premium {serviceType}?"* or *"What's your top-tier / most expensive massage?"*, the assistant **deterministically** picks or ranks catalog **services** (not specialists) — e.g. highest price in category, cheapest, or (phase 2) most popular — instead of dumping an unsorted list or misrouting to `recommend_specialists`.
 
@@ -444,25 +615,25 @@ Add each row to `SIMILAR_BUDGET_SERVICE_PROMPTS` with `id`, `prompt`, `surface`,
 |-----------|-------|---------|
 | Best **rated** / top **specialist** / who is the best for {service} | `recommend_specialists` | Providers + ratings (existing) |
 | Best / premium / top-tier / luxury / deluxe **service** | `list_services` + `serviceRank` | One or ranked **services** from catalog |
-| Most **popular** service (customer) | `list_services` + `serviceRank: most_popular` | Phase 2 — needs booking-count aggregate on public catalog API |
+| Most **popular** service (customer) | `list_services` + `serviceRank: most_popular` | Rolling 90-day booking count on public catalog API |
 | Most popular service (owner) | `analyze_services` | Existing dashboard handler |
 
 **Rank semantics:** Default tie-breakers: price desc/asc → longer duration → name A–Z. "Premium" / "luxury" / "deluxe" / "top-tier" → `serviceRank: highest_price` within `serviceCategory`. Optional phase 2: admin **`isFeatured`** / **`serviceTier`** on service entity overrides price heuristic when set.
 
 ### rank-1 — Product & handler spine (planned)
 
-- [ ] **rank-1.1** — Shared util `sortServicesByPriceDesc` / `sortServicesByPriceAsc` (reuse from **budget-1.1**); `pickRankedServices(catalog, { serviceRank, serviceCategory, limit })` — returns top N; unit spec for ties and empty catalog
-- [ ] **rank-1.2** — Classifier param **`serviceRank`**: `highest_price` \| `lowest_price` \| `most_popular` \| null on public + customer schemas; wire **`SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
-- [ ] **rank-1.3** — Post-LLM rescue: `enrichServiceRankFromPrompt()` — map premium/luxury/deluxe/top-tier/most expensive/priciest → `highest_price`; cheapest/lowest/affordable → `lowest_price`; most popular/best-selling → `most_popular` (when phase 2 ready)
-- [ ] **rank-1.4** — **`handleListServices`** — after category filter, apply `serviceRank`; when `limit: 1` (default for "the best/premium service"), summary highlights single top match + price/duration; when user asks "show all premium options", return top 3–5 ranked
-- [ ] **rank-1.5** — **`recommend_specialists` guard** — when prompt asks for best/**service** (not specialist/stylist/therapist), rescue to `list_services` + `serviceRank` before provider recommendation
-- [ ] **rank-1.6** — Navigate hint — single top match → `navigate: { path: 'services', query: { serviceId } }`
-- [ ] **rank-1.7** — Compound decomposition — e.g. *"book your most premium facial tomorrow nearest slot"* → rank pick → `book_appointment` with resolved `serviceName`
-- [ ] **rank-1.8** — Phase 2 catalog metadata — optional `service.isFeatured` or `serviceTier: standard | premium` on dashboard service editor; rank util prefers featured/tier over raw price
-- [ ] **rank-1.9** — Phase 2 **`most_popular`** — public catalog endpoint exposes rolling 90d booking count per service (or reuse dashboard aggregate read-only); rank by count desc within category
-- [ ] **rank-1.10** — Fixtures **`ai-service-rank-discovery.fixtures.ts`** — classifier rules + `SIMILAR_SERVICE_RANK_PROMPTS` (scenario `id`s below); share price-sort helpers with **budget-1** fixtures spec
-- [ ] **rank-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer`; gate **`npm run test:ai-rank`** (or merge with **`test:ai-budget`** as **`test:ai-service-discovery`**)
-- [ ] **rank-1.12** — Extended fixtures — sections **I–L** below; ≥ **35** fixture `id`s total for rank domain
+- [x] **rank-1.1** — Shared util `sortServicesByPriceDesc` / `sortServicesByPriceAsc` (reuse from **budget-1.1**); `pickRankedServices(catalog, { serviceRank, serviceCategory, limit })` — returns top N; unit spec for ties and empty catalog
+- [x] **rank-1.2** — Classifier param **`serviceRank`**: `highest_price` \| `lowest_price` \| `most_popular` \| null on public + customer schemas; wire **`SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [x] **rank-1.3** — Post-LLM rescue: `enrichServiceRankFromPrompt()` — map premium/luxury/deluxe/top-tier/most expensive/priciest → `highest_price`; cheapest/lowest/affordable → `lowest_price`; most popular/best-selling → `most_popular` (when phase 2 ready)
+- [x] **rank-1.4** — **`handleListServices`** — after category filter, apply `serviceRank`; when `limit: 1` (default for "the best/premium service"), summary highlights single top match + price/duration; when user asks "show all premium options", return top 3–5 ranked
+- [x] **rank-1.5** — **`recommend_specialists` guard** — when prompt asks for best/**service** (not specialist/stylist/therapist), rescue to `list_services` + `serviceRank` before provider recommendation
+- [x] **rank-1.6** — Navigate hint — single top match → `navigate: { path: 'services', query: { serviceId } }`
+- [x] **rank-1.7** — Compound decomposition — e.g. *"book your most premium facial tomorrow nearest slot"* → rank pick → `book_appointment` with resolved `serviceName`
+- [x] **rank-1.8** — Phase 2 catalog metadata — optional `service.isFeatured` or `serviceTier: standard | premium` on dashboard service editor; rank util prefers featured/tier over raw price
+- [x] **rank-1.9** — Phase 2 **`most_popular`** — public catalog endpoint exposes rolling 90d booking count per service (or reuse dashboard aggregate read-only); rank by count desc within category
+- [x] **rank-1.10** — Fixtures **`ai-service-rank-discovery.fixtures.ts`** — classifier rules + `SIMILAR_SERVICE_RANK_PROMPTS` (scenario `id`s below); share price-sort helpers with **budget-1** fixtures spec
+- [x] **rank-1.11** — Eval cases in `eval/ai-command-eval.cases.ts` tagged `surface: public | customer`; gate **`npm run test:ai-rank`** (or merge with **`test:ai-budget`** as **`test:ai-service-discovery`**)
+- [x] **rank-1.12** — Extended fixtures — sections **I–L** below; ≥ **35** fixture `id`s total for rank domain
 
 **Depends on:** **ai-cmd-h1** (`list_services`, `recommend_specialists`), **budget-1.1** (shared sort utils — ship together or extract to `ai-service-catalog-rank.util.ts`).
 
@@ -492,9 +663,9 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 | id | Example prompt | Expected action | Why |
 |----|----------------|-----------------|-----|
 | `rank-not-specialist-en` | What's the best premium service for lashes? | `list_services` | **Service** catalog rank — not `recommend_specialists` |
-| `rank-specialist-stays-en` | Who is the best rated lash specialist this week? | `recommend_specialists` | **Provider** rank — existing behavior |
+| `rank-specialist-stays-en` | Who is the best rated lash specialist this week? | `recommend_specialists` | [x] providerRank; misroute rescue → rank_provider_specialists + serviceCategory=lash |
 | `rank-best-service-explicit-en` | Best service in your spa menu for relaxation | `list_services` | "best service" keyword → catalog |
-| `rank-best-for-me-en` | What's the best option for a first-time haircut? | `list_services` or clarify | May need `booking_help` if subjective — document clarify path |
+| `rank-best-for-me-en` | What's the best option for a first-time haircut? | `booking_help` | [x] subjectiveRank; no serviceRank; misroute rescue → rank_subjective_booking_help + serviceCategory=haircut |
 
 #### D — Handler outcomes (fixture catalog assertions)
 
@@ -503,7 +674,7 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 | `rank-single-premium-tie-price` | 2 hair services @ $80, 1 @ $50 | Return $80 pair or both with tie-break (duration then name) |
 | `rank-name-premium-fallback` | Services named "Premium Cut" ($45) and "Standard Cut" ($60) | Phase 1: rank by **price** ($60); Phase 2: `isFeatured` / name tier optional boost |
 | `rank-one-in-category` | Only one massage in catalog | Return that service with "our massage option" copy |
-| `rank-empty-category` | No facial services | Same not-found copy as today + suggest available categories |
+| `rank-empty-category` | No facial services | [x] honest not-found + Available categories: haircut, massage |
 | `rank-navigate-single` | One clear highest-price match | Navigate pre-select `serviceId` |
 
 #### E — Compounds (multi-step)
@@ -511,7 +682,7 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 | id | Example prompt | Steps |
 |----|----------------|-------|
 | `rank-book-premium-en` | Book your most premium facial tomorrow, nearest slot | `highest_price` pick → `book_appointment`, `bookingFirstAvailable`: true |
-| `rank-list-then-book-en` | What's your best massage and book it Saturday | Turn 1: rank pick; Turn 2: availability + book (or compound auto) |
+| `rank-list-then-book-en` | What's your best massage and book it Saturday | [x] rank compound list_services → book_appointment/book_nearest_slot; highest_price + massage + Saturday date |
 | `rank-premium-under-budget-en` | Best premium haircut I can get under $80 | **Both** `serviceRank`: highest_price + `maxPrice`: 80 (**Sprint 63** + **64** intersection) |
 
 #### F — Multilingual (EN / HY / RU)
@@ -526,18 +697,18 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 
 | id | Example prompt | Correct routing |
 |----|----------------|-----------------|
-| `rank-not-analyze-appt-en` | Most expensive appointment today | Dashboard `analyze_appointments` — not catalog rank |
-| `rank-not-analyze-services-admin-en` | (dashboard) most booked service this month | `analyze_services` — admin analytics |
-| `rank-not-package-en` | What's your premium spa package? | `discover_packages` when user says package/bundle |
+| `rank-not-analyze-appt-en` | Most expensive appointment today | [x] dashboard analyze_appointments; blocks catalog rank; rescue rank_to_analyze_appointments |
+| `rank-not-analyze-services-admin-en` | (dashboard) most booked service this month | [x] dashboard analyze_services; blocks catalog rank; rescue rank_to_analyze_services + serviceMetric=most_booked |
+| `rank-not-package-en` | What's your premium spa package? | [x] discover_packages (customer) / booking_help (public); blocks catalog serviceRank; rescue discover_packages |
 | `rank-rated-means-provider-en` | Best rated deep tissue massage | `recommend_specialists` — "rated" + no "service" noun |
 
 #### H — Phase 2 (document now, ship later)
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `rank-most-popular-en` | What's your most popular haircut? | `serviceRank`: most_popular — needs booking-count on catalog API |
+| `rank-most-popular-en` | What's your most popular haircut? | [x] serviceRank=most_popular + serviceCategory=haircut; 90d booking count rank; rescue + eval + handler |
 | `rank-featured-flag-en` | (catalog: `isFeatured` on mid-price service) | Featured wins over higher price |
-| `rank-tier-metadata-en` | Premium tier services for color | `serviceTier: premium` filter on service entity |
+| `rank-tier-metadata-en` | Premium tier services for color | [x] serviceTier=premium + serviceCategory=color; blocks serviceRank; tier filter handler + rescue rank_tier_filter |
 
 #### I — Synonyms & marketing language
 
@@ -548,33 +719,33 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 | `rank-flagship-en` | Flagship facial service | `highest_price` |
 | `rank-entry-level-en` | Entry-level manicure | `lowest_price` |
 | `rank-budget-friendly-en` | Budget-friendly pedicure | `lowest_price` |
-| `rank-mid-range-en` | Mid-range color service | Phase 2: percentile rank — v1 list sorted by price |
+| `rank-mid-range-en` | Mid-range color service | [x] list_services serviceCategory=color limit=3 price-sorted; NO serviceRank; rescue rank_mid_range_list |
 
 #### J — Voice / mobile + questions
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `rank-voice-premium-en` | Premium cut? | Short mobile; `limit`: 1 |
-| `rank-voice-cheapest-en` | Cheapest facial you got | Colloquial |
+| `rank-voice-premium-en` | Premium cut? | [x] customer list_services highest_price + haircut; short voice limit=1 |
+| `rank-voice-cheapest-en` | Cheapest facial you got | [x] customer list_services lowest_price + facial; colloquial "you got" |
 | `rank-compare-en` | What's the difference between standard and premium haircut? | List top 2 by rank asc+desc or `booking_help` |
-| `rank-recommend-not-provider-en` | Recommend your best spa service not a person | Force `list_services` + `highest_price` |
+| `rank-recommend-not-provider-en` | Recommend your best spa service not a person | [x] list_services highest_price + spa; anti-provider rescue |
 
 #### K — Session / multi-turn
 
 | id | Turn flow | Expected behavior |
 |----|-----------|-------------------|
-| `rank-session-upgrade-en` | T1: cheapest haircut / T2: show premium instead | Switch `serviceRank` lowest → highest |
-| `rank-session-then-budget-en` | T1: premium facial / T2: anything like that under $120? | Rank pick then filter or intersect |
-| `rank-session-pick-one-en` | T1: top 3 premium massages / T2: book the second one | Session list index → `serviceName` |
+| `rank-session-upgrade-en` | T1: cheapest haircut / T2: show premium instead | [x] lowest→highest rank switch; haircut category carry |
+| `rank-session-then-budget-en` | T1: premium facial / T2: anything like that under $120? | [x] highest_price + facial carry; maxPrice=120 intersect |
+| `rank-session-pick-one-en` | T1: top 3 premium massages / T2: book the second one | [x] rankedServiceIds session + ordinal pick → Relax massage |
 
 #### L — Handler edge cases
 
 | id | Catalog setup | Expected behavior |
 |----|---------------|-------------------|
 | `rank-all-same-price` | 4 massages all @ $70 | Tie-break duration then name; list all if user asked plural |
-| `rank-inactive-excluded` | Highest price service inactive | Skip inactive; next highest |
+| `rank-inactive-excluded` | Highest price service inactive | [x] filterActiveCatalogServices; skip $150 inactive → massage-90 |
 | `rank-zero-price` | Free consultation + paid consult | Free sorts `lowest_price`; premium excludes $0 unless asked |
-| `rank-missing-price` | Service with null price | Exclude from price rank or sort last with "price on request" copy |
+| `rank-missing-price` | Service with null price | [x] Exclude from price rank; list copy uses "price on request" |
 
 **Implementation order:** shared sort util with **budget-1.1** → fixtures (**rank-1.10**, **1.12**) → classifier + rescue (**rank-1.2**, **1.3**, **1.5**) → `handleListServices` rank (**1.4**, **1.6**) → compounds (**1.7**) → phase 2 metadata + popularity (**1.8**, **1.9**) → eval + gate (**rank-1.11**).
 
@@ -582,7 +753,7 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 
 ---
 
-## Sprint 65 — Flexible OR availability + budget compounds (planned)
+## Sprint 65 — Flexible OR availability + budget compounds
 
 **Goal:** Handle natural flexible scheduling prompts like *"I want a {serviceType} tomorrow evening or Friday afternoon, I have $50"* — multiple **alternative** date/time windows (OR, not AND), optional **budget** filter, and optional auto-book — instead of collapsing to a single `date` + single `timeOfDay`.
 
@@ -622,18 +793,18 @@ Add each row to `SIMILAR_SERVICE_RANK_PROMPTS` with `id`, `prompt`, `surface`, `
 
 ### avail-1 — Product & handler spine (planned)
 
-- [ ] **avail-1.1** — Shared util `parseAvailabilityWindowsFromPrompt()` + `normalizeAvailabilityWindows(params)` — detect "or", "either … or", comma-separated day+timeOfDay pairs; unit spec
-- [ ] **avail-1.2** — Classifier param **`availabilityWindows`** on public + customer schemas; wire **`FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
-- [ ] **avail-1.3** — Post-LLM rescue: `enrichAvailabilityWindowsFromPrompt()` — split OR phrases; map tomorrow / weekday names + morning/afternoon/evening per clause
-- [ ] **avail-1.4** — **`resolvePublicAvailabilityDateKeys`** — accept per-window date keys (don't flatten OR into one `weekdays` list that loses timeOfDay pairing)
-- [ ] **avail-1.5** — **`handleCheckAvailability`** — loop windows; apply **`filterSlotsByTimeOfDay`** per window (parity with dashboard); merge day reports labeled by window (*Tomorrow evening*, *Friday afternoon*)
-- [ ] **avail-1.6** — **`findNearestBookableSlot`** / book path — try windows in order (or earliest-across-all); first bookable slot wins; handoff preserves chosen window in session
-- [ ] **avail-1.7** — **Budget intersection** — when `maxPrice` set, filter `matchedServices` before slot scan (**budget-1.4**); summary mentions price cap ("options under $50")
-- [ ] **avail-1.8** — Compound decomposition — *"I want a haircut tomorrow evening or Friday afternoon, I have $50"* → filter services → `check_availability` with windows; optional follow-up / auto `book_appointment` with `bookingFirstAvailable` on winning window
-- [ ] **avail-1.9** — Clarify path — when windows overlap (tomorrow **is** Friday) or budget excludes all services, honest clarify / merged single window
-- [ ] **avail-1.10** — Fixtures **`ai-flexible-availability.fixtures.ts`** — classifier rules + `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` (scenario `id`s below)
-- [ ] **avail-1.11** — Eval cases tagged `surface: public | customer`; extend gate **`npm run test:ai-service-discovery`** or add **`npm run test:ai-availability-flex`**
-- [ ] **avail-1.12** — Extended fixtures — sections **I–M** below; ≥ **45** fixture `id`s total for availability domain
+- [x] **avail-1.1** — Shared util `parseAvailabilityWindowsFromPrompt()` + `normalizeAvailabilityWindows(params)` — detect "or", "either … or", comma-separated day+timeOfDay pairs; unit spec
+- [x] **avail-1.2** — Classifier param **`availabilityWindows`** on public + customer schemas; wire **`FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES`** into `buildPublicClassifierSchema()` + `buildCustomerClassifierSchema()`
+- [x] **avail-1.3** — Post-LLM rescue: `enrichAvailabilityWindowsFromPrompt()` — split OR phrases; map tomorrow / weekday names + morning/afternoon/evening per clause
+- [x] **avail-1.4** — **`resolvePublicAvailabilityDateKeys`** — accept per-window date keys (don't flatten OR into one `weekdays` list that loses timeOfDay pairing)
+- [x] **avail-1.5** — **`handleCheckAvailability`** — loop windows; apply **`filterSlotsByTimeOfDay`** per window (parity with dashboard); merge day reports labeled by window (*Tomorrow evening*, *Friday afternoon*)
+- [x] **avail-1.6** — **`findNearestBookableSlot`** / book path — try windows in order (or earliest-across-all); first bookable slot wins; handoff preserves chosen window in session
+- [x] **avail-1.7** — **Budget intersection** — when `maxPrice` set, filter `matchedServices` before slot scan (**budget-1.4**); summary mentions price cap ("options under $50")
+- [x] **avail-1.8** — Compound decomposition — *"I want a haircut tomorrow evening or Friday afternoon, I have $50"* → filter services → `check_availability` with windows; optional follow-up / auto `book_appointment` with `bookingFirstAvailable` on winning window
+- [x] **avail-1.9** — Clarify path — when windows overlap (tomorrow **is** Friday) or budget excludes all services, honest clarify / merged single window
+- [x] **avail-1.10** — Fixtures **`ai-flexible-availability.fixtures.ts`** — classifier rules + `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` (scenario `id`s below)
+- [x] **avail-1.11** — Eval cases tagged `surface: public | customer`; extend gate **`npm run test:ai-service-discovery`** or add **`npm run test:ai-availability-flex`**
+- [x] **avail-1.12** — Extended fixtures — sections **I–M** below; ≥ **45** fixture `id`s total for availability domain
 
 **Depends on:** **ai-cmd-h1** (check-and-book, `filterSlotsByTimeOfDay`, `resolvePublicAvailabilityDateKeys`), **budget-1** (`maxPrice` filter), **rank-1** optional (pick service when multiple under budget).
 
@@ -655,25 +826,25 @@ Add each row to `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` with `id`, `prompt`, `su
 | id | Example prompt | Expected params |
 |----|----------------|-----------------|
 | `avail-budget-or-en` | I want a haircut tomorrow evening or Friday afternoon, I have $50 | `serviceCategory`: haircut, `maxPrice`: 50, two OR windows |
-| `avail-budget-under-or-en` | Massage under $80 tomorrow or Thursday evening | `maxPrice`: 80, two windows |
-| `avail-budget-no-match-or-en` | (all haircuts > $50) same prompt | Soft fail: nothing under $50; show cheapest + ask to raise budget or pick another service |
-| `avail-budget-pick-service-first-en` | Two services under $50 — scan both for slots across windows | List matching services or pick cheapest under budget then availability |
+| `avail-budget-under-or-en` | Massage under $80 tomorrow or Thursday evening | [x] `maxPrice`: 80, two OR windows |
+| `avail-budget-no-match-or-en` | (all haircuts > $50) same prompt | [x] Soft fail: nothing under $50; closest options + budget clarify |
+| `avail-budget-pick-service-first-en` | Two services under $50 — scan both for slots across windows | [x] Budget filter returns both services; OR window scan |
 
 #### C — Single window (regression — must not break)
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `avail-single-tomorrow-evening-en` | Who's free tomorrow evening for massage? | One window; existing **ai-cmd-h1** behavior + **avail-1.5** timeOfDay filter on public |
-| `avail-single-friday-afternoon-en` | Any slots Friday afternoon for a facial? | `weekdays: [friday]`, `timeOfDay: afternoon` |
+| `avail-single-tomorrow-evening-en` | Who's free tomorrow evening for massage? | [x] Single window + **avail-1.5** timeOfDay filter on public |
+| `avail-single-friday-afternoon-en` | Any slots Friday afternoon for a facial? | [x] `weekdays: [friday]`, `timeOfDay: afternoon`, `allProviders` |
 | `avail-no-or-and-en` | Monday and Friday afternoon for color | **AND** two weekdays, **same** timeOfDay — not OR; expand date keys, single afternoon filter |
 
 #### D — Handler outcomes
 
 | id | Setup | Expected behavior |
 |----|-------|-------------------|
-| `avail-slots-window-a-only` | Slots only tomorrow evening | Report window A; note window B empty |
-| `avail-slots-window-b-only` | Slots only Friday afternoon | Report window B |
-| `avail-earliest-across-windows` | Both have slots | Highlight earliest slot across OR options |
+| `avail-slots-window-a-only` | Slots only tomorrow evening | [x] Report window A; `No open slots` for window B |
+| `avail-slots-window-b-only` | Slots only Friday afternoon | [x] Report window B; `No open slots` for window A |
+| `avail-earliest-across-windows` | Both have slots | [x] `pickEarliest` + handler navigate pre-select earliest OR slot |
 | `avail-overlap-tomorrow-is-friday` | Tomorrow is Friday | Merge/dedupe same calendar day; clarify if timeOfDay differs |
 | `avail-public-timeofday-filter` | Afternoon window | Public handler applies `filterSlotsByTimeOfDay` — no morning slots in summary |
 
@@ -682,32 +853,32 @@ Add each row to `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` with `id`, `prompt`, `su
 | id | Example prompt | Steps |
 |----|----------------|-------|
 | `avail-check-then-book-or-en` | Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest | Budget filter → check both windows → book nearest |
-| `avail-list-budget-then-or-en` | Show haircuts under $50, then check tomorrow evening or Friday | Turn 1: `list_services` + `maxPrice`; Turn 2: availability with windows |
-| `avail-rank-budget-or-en` | Best premium facial under $100 tomorrow or Saturday | **rank-1** + **budget-1** + **avail-1** intersection |
+| `avail-list-budget-then-or-en` | Show haircuts under $50, then check tomorrow evening or Friday | [x] Turn 1: `list_services` + `maxPrice`; Turn 2: availability with windows |
+| `avail-rank-budget-or-en` | Best premium facial under $100 tomorrow or Saturday | [x] **rank-1** + **budget-1** + **avail-1** intersection |
 
 #### F — Multilingual (EN / HY / RU)
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `avail-or-hy` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ կեսօրին | Two OR windows |
-| `avail-or-ru` | Хочу стрижку завтра вечером или в пятницу днём, у меня 50 долларов | Windows + `maxPrice`: 50 |
-| `avail-or-translit-en` | Haircut vaghva yereko yan kam urbat kesorin | Rescue OR from translit (optional) |
+| `avail-or-hy` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ կեսօրին | [x] Two OR windows |
+| `avail-or-ru` | Хочу стрижку завтра вечером или в пятницу днём, у меня 50 долларов | [x] Windows + `maxPrice`: 50 |
+| `avail-or-translit-en` | Haircut vaghva yereko yan kam urbat kesorin | [x] Rescue OR from translit |
 
 #### G — Negative / rescue
 
 | id | Example prompt | Correct routing |
 |----|----------------|-----------------|
 | `avail-not-single-timeofday-en` | (classifier sets one timeOfDay for whole prompt) | Rescue must split — never drop Friday afternoon |
-| `avail-not-gift-card-en` | $50 gift card, haircut tomorrow or Friday | Gift card flow — not `maxPrice` |
-| `avail-not-recommend-en` | Best specialist tomorrow or Friday for massage | `recommend_specialists` if "best rated" + provider focus; OR windows if availability ask |
+| `avail-not-gift-card-en` | $50 gift card, haircut tomorrow or Friday | [x] Gift card flow — not `maxPrice` or OR `availabilityWindows` |
+| `avail-not-recommend-en` | Who is free tomorrow or Friday for massage? | [x] `check_availability` / `check_providers_for_service` with OR windows — not `recommend_specialists` |
 
-#### H — Phase 2
+#### H — Specific times & per-window providers
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `avail-or-specific-times-en` | Tomorrow at 6pm or Friday at 2pm | Per-window `timeSlot` instead of `timeOfDay` |
-| `avail-or-with-provider-en` | Karo tomorrow evening or Mary Friday afternoon | Named providers per window |
-| `avail-dashboard-parity-en` | (dashboard) same OR pattern for staff | Optional staff `check_availability` multi-window |
+| `avail-or-specific-times-en` | Tomorrow at 6pm or Friday at 2pm | [x] Per-window `timeSlot` instead of `timeOfDay` |
+| `avail-or-with-provider-en` | Karo tomorrow evening or Mary Friday afternoon | [x] Named providers per window (`employeeName` on each OR entry) |
+| `avail-dashboard-parity-en` | Who is free tomorrow evening or Friday afternoon for massage? | [x] Dashboard `check_providers_for_service` with OR `availabilityWindows` + `allProviders` (multi-window handler) |
 
 #### I — Time-of-day & relative date variants
 
@@ -716,42 +887,42 @@ Add each row to `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` with `id`, `prompt`, `su
 | `avail-tonight-or-tomorrow-en` | Haircut tonight or tomorrow morning | `[{timeOfDay: evening, date: today}, {date: tomorrow, timeOfDay: morning}]` |
 | `avail-this-weekend-or-en` | Massage Saturday afternoon or Sunday morning | Weekend OR windows |
 | `avail-next-week-or-en` | Color next Tuesday or next Thursday evening | Relative week + OR |
-| `avail-after-work-en` | Facial after 5 tomorrow or Friday | Per-window `timeFrom`: 17:00 |
-| `avail-lunch-or-en` | Manicure tomorrow lunch or Friday lunch | `timeOfDay`: afternoon + narrow `timeFrom`/`timeTo` phase 2 |
+| `avail-after-work-en` | Facial after 5 tomorrow or Friday | [x] Per-window `timeFrom`: 17:00 (shared `after 5` applies to each OR clause) |
+| `avail-lunch-or-en` | Manicure tomorrow lunch or Friday lunch | [x] `timeOfDay`: afternoon + narrow `timeFrom` 12:00 / `timeTo` 14:00 per window |
 
 #### J — Voice / mobile phrasing
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
 | `avail-voice-short-en` | Haircut tomorrow eve or fri afternoon | Abbreviated weekday |
-| `avail-voice-asap-or-en` | Lashes ASAP or Saturday if not | `bookingFirstAvailable` + fallback window |
-| `avail-voice-chip-en` | (chip: "Evening or weekend slots") | Consumer suggest chip → OR windows |
-| `avail-imperative-en` | Need massage tomorrow PM or Sun AM | "Need" = check/book intent |
+| `avail-voice-asap-or-en` | Lashes ASAP or Saturday if not | [x] `bookingFirstAvailable` + OR windows (`tomorrow` + Saturday afternoon fallback) |
+| `avail-voice-chip-en` | (chip: "Evening or weekend slots") | [x] Consumer suggest chip → OR windows (`evening` + weekend weekdays) |
+| `avail-imperative-en` | Need massage tomorrow PM or Sun AM | [x] "Need" + PM/AM shorthand → OR windows (`tomorrow` afternoon + Sunday morning) |
 
 #### K — Session / multi-turn
 
 | id | Turn flow | Expected behavior |
 |----|-----------|-------------------|
-| `avail-session-add-window-en` | T1: tomorrow evening / T2: or Friday afternoon works too | Append second window to session |
-| `avail-session-drop-window-en` | T1: tomorrow or Friday / T2: Friday only | Replace with single window |
-| `avail-session-after-budget-en` | T1: under $50 options / T2: tomorrow eve or Fri for those | Carry `maxPrice` + add windows |
+| `avail-session-add-window-en` | T1: tomorrow evening / T2: or Friday afternoon works too | [x] Session append merges second OR window into `availabilityWindows[]` |
+| `avail-session-drop-window-en` | T1: tomorrow or Friday / T2: Friday only | [x] Session drop replaces OR windows with single Friday afternoon window |
+| `avail-session-after-budget-en` | T1: under $50 options / T2: tomorrow eve or Fri for those | [x] Session carries `maxPrice` + parses OR windows from budget follow-up |
 | `avail-session-pick-slot-en` | T1: shows both windows / T2: book Friday 2pm one | Resolve slot from prior summary |
 
 #### L — Provider preference + OR
 
 | id | Example prompt | Notes |
 |----|----------------|-------|
-| `avail-or-any-provider-en` | Any stylist tomorrow evening or Friday afternoon | `allProviders`: true across windows |
-| `avail-or-named-fallback-en` | Karo tomorrow or anyone Friday afternoon | Window A named provider; B fallback any |
-| `avail-or-same-provider-en` | Same person tomorrow or Friday afternoon | Single `employeeName`; scan both windows |
+| `avail-or-any-provider-en` | Any stylist tomorrow evening or Friday afternoon | [x] `allProviders=true` + OR windows across team-wide scan |
+| `avail-or-named-fallback-en` | Karo tomorrow or anyone Friday afternoon | [x] Window A `employeeName=Karo`; window B team-wide fallback (no top-level `allProviders`) |
+| `avail-or-same-provider-en` | Same person tomorrow or Friday afternoon | [x] `sameProviderAcrossWindows=true`; reuse session `employeeName`; scan both windows |
 
 #### M — No-slot / clarify outcomes
 
 | id | Setup | Expected behavior |
 |----|-------|-------------------|
-| `avail-neither-window-en` | No slots in either window | Suggest nearest alternative day/time |
-| `avail-partial-one-window-en` | Only window B has slots | Clear label which option worked |
-| `avail-budget-blocks-all-en` | Budget ok but no slots both windows | Separate budget vs availability messaging |
+| `avail-neither-window-en` | No slots in either window | [x] Grouped per-window no-slot labels; nearest alternative note when found |
+| `avail-partial-one-window-en` | Only window B has slots | [x] Grouped OR sections label filled vs empty windows |
+| `avail-budget-blocks-all-en` | Budget ok but no slots both windows | [x] Budget filter passes; per-window `availabilityWindowNoSlots` (not `budget_no_match`) |
 | `avail-clarify-overlap-en` | Tomorrow is Friday, different timeOfDay | Merge day; show evening vs afternoon sections |
 
 **Implementation order:** fixtures (**avail-1.10**, **1.12**) → window parse + rescue (**avail-1.1**, **1.3**) → classifier (**1.2**) → date-key resolver (**1.4**) → public check + timeOfDay filter (**1.5**) → nearest/book across windows (**1.6**) → budget intersection (**1.7**) → compounds (**1.8**) → eval + gate (**1.11**).
@@ -776,12 +947,12 @@ Add each row to `SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS` with `id`, `prompt`, `su
 
 **Shared module (ship once):**
 
-- [ ] **discover-1.1** — Extract **`ai-service-catalog-rank.util.ts`** — `filterServicesByMaxPrice`, `sortServicesByPriceAsc/Desc`, `pickRankedServices`, `resolveServiceDiscoveryParams()` (budget + rank intersection)
-- [ ] **discover-1.2** — Extract **`ai-flexible-availability.util.ts`** — `parseAvailabilityWindowsFromPrompt`, `normalizeAvailabilityWindows`, `scanWindowsForSlots()`, `pickEarliestSlotAcrossWindows()`
-- [ ] **discover-1.3** — Unified rescue pipeline: `enrichServiceDiscoveryFromPrompt()` (budget + rank) then `enrichAvailabilityWindowsFromPrompt()` — order documented in util spec
-- [ ] **discover-1.4** — Consumer assistant example chips — "Under $50", "Premium services", "Evening or weekend slots" wired to fixture prompts
-- [ ] **discover-1.5** — **`ai-service-discovery-multilingual.fixtures.ts`** — HY/RU/translit rows referencing budget/rank/avail `id`s
-- [ ] **discover-1.6** — Integration spec **`ai-service-discovery.integration.spec.ts`** — end-to-end public assistant for cross-sprint canonical cases below
+- [x] **discover-1.1** — Extract **`ai-service-catalog-rank.util.ts`** — `filterServicesByMaxPrice`, `sortServicesByPriceAsc/Desc`, `pickRankedServices`, `resolveServiceDiscoveryParams()` (budget + rank intersection)
+- [x] **discover-1.2** — Extract **`ai-flexible-availability.util.ts`** — `parseAvailabilityWindowsFromPrompt`, `normalizeAvailabilityWindows`, `scanWindowsForSlots()`, `pickEarliestSlotAcrossWindows()`
+- [x] **discover-1.3** — Unified rescue pipeline: `enrichServiceDiscoveryFromPrompt()` (budget + rank) then `enrichAvailabilityWindowsFromPrompt()` — order documented in util spec
+- [x] **discover-1.4** — Consumer assistant example chips — "Under $50", "Premium services", "Evening or weekend slots" wired to fixture prompts
+- [x] **discover-1.5** — **`ai-service-discovery-multilingual.fixtures.ts`** — HY/RU/translit rows referencing budget/rank/avail `id`s
+- [x] **discover-1.6** — Integration spec **`ai-service-discovery.integration.spec.ts`** — end-to-end public assistant for cross-sprint canonical cases below
 
 ### ai-cmd-discover — Cross-sprint mega-prompt matrix
 
@@ -793,83 +964,83 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 |----|----------------|-------------------|
 | `discover-cheapest-under-en` | Cheapest haircut under $50 | `lowest_price` + `maxPrice`: 50 → list |
 | `discover-premium-under-en` | Best premium facial under $120 | `highest_price` + `maxPrice`: 120 |
-| `discover-value-or-premium-en` | Affordable or premium massage — what fits $80? | List all ≤$80 sorted; note highest in range |
-| `discover-no-premium-in-budget-en` | Premium haircut under $30 (none exist) | No premium in range; cheapest above budget hint |
+| `discover-value-or-premium-en` | Affordable or premium massage — what fits $80? | [x] List all ≤$80 sorted; `isValueOrPremiumBudgetListPrompt` blocks rank; highest-in-range note |
+| `discover-no-premium-in-budget-en` | Premium haircut under $30 (none exist) | [x] `highest_price` + budget; `buildRankPremiumNoMatchInBudgetSummary` + closest above hint |
 
 #### B — Budget + availability (when, single window)
 
 | id | Example prompt | Expected pipeline |
 |----|----------------|-------------------|
 | `discover-budget-tomorrow-eve-en` | Haircut under $50 tomorrow evening | Filter services → check availability one window |
-| `discover-budget-asap-en` | Anything under $40 ASAP | `maxPrice` + `bookingFirstAvailable` |
-| `discover-budget-weekend-en` | Massage under $70 this Saturday afternoon | Budget + single weekend window |
+| `discover-budget-asap-en` | Anything under $40 ASAP | [x] `maxPrice` + `bookingFirstAvailable` + ASAP `date`; `limit: 1` budget pick → `manicure-25`; `resolveDiscoverConstrainedService` in book handler |
+| `discover-budget-weekend-en` | Massage under $70 this Saturday afternoon | [x] Budget filter → `massage-55`/`massage-65`; single Saturday afternoon window; `applyBudgetFilterForAvailabilityCheck` in check handler |
 
 #### C — Rank + availability (premium when)
 
 | id | Example prompt | Expected pipeline |
 |----|----------------|-------------------|
-| `discover-premium-tomorrow-en` | Book your most premium facial tomorrow nearest slot | Rank pick → book single day |
-| `discover-cheapest-friday-en` | Cheapest manicure Friday afternoon if available | Rank pick → check Friday afternoon |
+| `discover-premium-tomorrow-en` | Book your most premium facial tomorrow nearest slot | [x] `highest_price` + category → `facial-120`; rank compound `list_services` → `book_appointment`; `resolveDiscoverConstrainedService` in book handler |
+| `discover-cheapest-friday-en` | Cheapest manicure Friday afternoon if available | [x] `lowest_price` + category → `manicure-25`; single Friday afternoon window; rank pick in `handleCheckAvailability` |
 
 #### D — Triple intersection (budget + rank + OR windows) — flagship cases
 
 | id | Example prompt | Expected pipeline |
 |----|----------------|-------------------|
 | `discover-flagship-en` | I want a haircut tomorrow evening or Friday afternoon, I have $50 | **Canonical** — budget filter → OR window scan → grouped results |
-| `discover-flagship-book-en` | Book cheapest massage under $80 tomorrow or Thursday evening, soonest | Budget + lowest_price + OR + book nearest |
-| `discover-flagship-premium-en` | Premium styling under $150 tomorrow or Saturday, whichever opens first | Highest in budget + OR + earliest slot |
-| `discover-flagship-question-en` | Can I afford a deluxe facial tomorrow or Sunday under $100? | Affordability list + availability both windows |
+| `discover-flagship-book-en` | Book cheapest massage under $80 tomorrow or Thursday evening, soonest | [x] Budget + `lowest_price` → `massage-55`; OR windows; flexible budget compound `check_availability` → `book_appointment`; `findNearestBookableSlotAcrossWindows` |
+| `discover-flagship-premium-en` | Premium styling under $150 tomorrow or Saturday, whichever opens first | [x] Budget + `highest_price` → `style-140`; OR windows; flexible budget compound; earliest slot across windows |
+| `discover-flagship-question-en` | Can I afford a deluxe facial tomorrow or Sunday under $100? | [x] `isAffordabilityListPrompt` blocks rank; budget list `facial-55`/`facial-95`; OR windows tomorrow + Sunday |
 
 #### E — Triple + provider
 
 | id | Example prompt | Expected pipeline |
 |----|----------------|-------------------|
-| `discover-provider-budget-or-en` | Karo or anyone — haircut under $50 tomorrow eve or Fri PM | Provider fallback + budget + OR |
-| `discover-best-provider-budget-en` | Best rated stylist for a cut under $60 this week | `recommend_specialists` + `maxPrice` on serviceIds |
+| `discover-provider-budget-or-en` | Karo or anyone — haircut under $50 tomorrow eve or Fri PM | [x] `stripLeadingProviderOrAnyoneBudgetLead`; Karo on window A only; budget filter `hair-35`/`hair-45`; OR tomorrow eve + Fri PM |
+| `discover-best-provider-budget-en` | Best rated stylist for a cut under $60 this week | [x] `recommend_specialists` + `maxPrice: 60`; `for a cut` → `haircut`; budget filter `hair-35`/`hair-45`; no `serviceRank` |
 
 #### F — Multi-turn full journey
 
 | id | Turn flow | Expected pipeline |
 |----|-----------|-------------------|
-| `discover-journey-budget-list-book-en` | T1: what's under $50 for hair / T2: tomorrow evening or Friday / T3: book cheapest | list → avail → book |
-| `discover-journey-premium-en` | T1: premium options / T2: too much — under $90? / T3: Saturday afternoon | rank → budget pivot → avail |
-| `discover-journey-clarify-en` | T1: haircut $50 tomorrow or Friday / T2: (assistant: which service?) / T2 user: basic cut | Clarify service when multiple under budget |
+| `discover-journey-budget-list-book-en` | T1: what's under $50 for hair / T2: tomorrow evening or Friday / T3: book cheapest | [x] Session T1 list `hair-35`/`hair-45` → T2 OR windows + carried budget → T3 `lowest_price` pick `hair-35` |
+| `discover-journey-premium-en` | T1: premium options / T2: too much — under $90? / T3: Saturday afternoon | [x] Session massage + `highest_price` → T2 `maxPrice: 90` (`massage-65`) → T3 Sat PM window |
+| `discover-journey-clarify-en` | T1: haircut $50 tomorrow or Friday / T2: (assistant: which service?) / T2 user: basic cut | [x] Budget OR windows → T2 `basic cut` resolves `Haircut basic` (`hair-35`) |
 
 #### G — Consumer vs public surface parity
 
 | id | Surface | Example prompt | Same handler result |
 |----|---------|----------------|----------------------|
-| `discover-parity-budget-public` | public | Facials under €50? | Identical service list |
-| `discover-parity-budget-customer` | customer | Facials under €50? | Identical service list |
-| `discover-parity-or-public` | public | Massage tomorrow AM or Sat PM | Same window parse |
-| `discover-parity-or-customer` | customer | Massage tomorrow AM or Sat PM | Same window parse |
-| `discover-parity-voice-customer` | customer | (voice) Haircut fifty bucks tomorrow or Friday | ASR + mobile context |
+| `discover-parity-budget-public` | public | Facials under €50? | [x] `maxPrice: 50` + `facial`; identical empty catalog vs customer (cheapest facial is €55) |
+| `discover-parity-budget-customer` | customer | Facials under €50? | [x] Same enrichment + `composePublicListServicesBudgetResponse` as public |
+| `discover-parity-or-public` | public | Massage tomorrow AM or Sat PM | [x] OR windows: tomorrow morning + Sat afternoon; identical enrich vs customer |
+| `discover-parity-or-customer` | customer | Massage tomorrow AM or Sat PM | [x] Same `availabilityWindows` + `resolvePublicAvailabilityWindows` as public |
+| `discover-parity-voice-customer` | customer | (voice) Haircut fifty bucks tomorrow or Friday | [x] ASR `fifty bucks` → `maxPrice: 50`; OR windows; identical enrich vs public |
 
 #### H — Negative / must-not-break existing flows
 
 | id | Example prompt | Must route to |
 |----|----------------|---------------|
-| `discover-not-gift-en` | $50 gift card, premium cut tomorrow | Gift card — not discovery pipeline |
+| `discover-not-gift-en` | $50 gift card, premium cut tomorrow | [x] Strips `maxPrice`/`serviceRank`; public → `booking_help`; customer → `apply_gift_card_code` |
 | `discover-not-package-en` | Premium package under $200 | `discover_packages` |
-| `discover-not-admin-en` | (dashboard) services under $50 | Admin `list_services` READ |
-| `discover-not-multi-cart-en` | Two services under $100 total tomorrow | Phase 2 multi-service cart |
-| `discover-not-currency-explain-en` | Why is premium $120 in dram? | `explain_checkout_currency` |
+| `discover-not-admin-en` | (dashboard) services under $50 | [x] Dashboard `list_services` READ + `maxPrice: 50`; no avail/rank/cart; rescue null |
+| `discover-not-multi-cart-en` | Two services under $100 total tomorrow | [x] Phase 2: `maxTotalPrice` + `serviceCount` + `date`; no `maxPrice`; combo `hair-35`+`facial-55` |
+| `discover-not-currency-explain-en` | Why is premium $120 in dram? | [x] Strips `maxPrice`/`serviceRank`; public + customer → `explain_checkout_currency` |
 
 #### I — Multilingual cross-sprint (add to `discover-1.5`)
 
 | id | Example prompt | Combines |
 |----|----------------|----------|
-| `discover-hy-budget-or-en` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ, 5000 դրամ ունեմ | budget + OR |
-| `discover-ru-premium-en` | Люксовый массаж до 8000 рублей завтра вечером | rank + budget + single window |
-| `discover-hy-cheapest-en` | Ամենաէժան մանիկյուր $30-ից ցածր | rank + budget |
-| `discover-ru-or-book-en` | Стрижка завтра вечером или в субботу — забронируй | OR + book |
+| `discover-hy-budget-or-en` | Ցանկանում եմ մազակրտում վաղը երեկոյան կամ ուրբաթ, 5000 դրամ ունեմ | [x] `maxPrice: 5000` + haircut; OR: tomorrow evening + Friday; hy trailing dram strip |
+| `discover-ru-premium-en` | Люксовый массаж до 8000 рублей завтра вечером | [x] `highest_price` + `maxPrice: 8000` + massage; single window tomorrow evening; catalog `massage-95` |
+| `discover-hy-cheapest-en` | Ամենաէժան մանիկյուր $30-ից ցածր | [x] `lowest_price` + `maxPrice: 30` + manicure; catalog `manicure-25` |
+| `discover-ru-or-book-en` | Стрижка завтра вечером или в субботу — забронируй | [x] `haircut` + OR tomorrow evening + Saturday; `bookingFirstAvailable: true`; ru `забронируй` + OR rescue |
 
 **Exit criteria (all three sprints):**
 
-- [ ] **discover-exit-1** — ≥120 unique fixture `id`s across budget + rank + avail + cross-sprint; zero orphan prompts (every `id` in `it.each`)
-- [ ] **discover-exit-2** — Public `handleCheckAvailability` applies `filterSlotsByTimeOfDay`; OR windows ship in **avail-1.5**
-- [ ] **discover-exit-3** — **`npm run test:ai-service-discovery`** green in CI; eval harness includes ≥30 cross-sprint cases tagged `discover-*`
-- [ ] **discover-exit-4** — Consumer assistant chips documented in `consumer-copy-catalog.ts` matching fixture prompts
+- [x] **discover-exit-1** — ≥120 unique fixture `id`s across budget + rank + avail + cross-sprint; zero orphan prompts (every `id` in `it.each`)
+- [x] **discover-exit-2** — Public `handleCheckAvailability` applies `filterSlotsByTimeOfDay`; OR windows ship in **avail-1.5**
+- [x] **discover-exit-3** — **`npm run test:ai-service-discovery`** green in CI; eval harness includes ≥30 cross-sprint cases tagged `discover-*`
+- [x] **discover-exit-4** — Consumer assistant chips documented in `consumer-copy-catalog.ts` matching fixture prompts
 
 ---
 
@@ -980,10 +1151,18 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 **Goal:** Grow the golden eval set from hundreds to **thousands** of real, labeled prompts across all surfaces and locales; make accuracy a hard CI gate so no change can regress it.
 
+**Status (2026-06):** **`npm run test:ai-accuracy`** green — **2722/2722** deterministic cases (`AI_COMMAND_EVAL_DETERMINISTIC_CASES`).
+
+### acc-2.8 — Deterministic accuracy gate
+- [x] **acc-2.8** — **`npm run test:ai-accuracy`** — full deterministic eval + per-intent scorecard; zero failures required
+
+### acc-2.9 — Baseline ratchet
+- [x] **acc-2.9** — **`ai-command-eval.baseline.json`** snapshot + CI failure on stale case count or per-intent accuracy regression; refresh via **`npm run test:ai-accuracy:update-baseline`**
+
 ### acc-2.2 — Coverage parity & adversarial cases
-- [ ] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents (translate + transliterate variants, incl. Armenian/Russian mixed-script and Latin transliteration)
-- [ ] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts
-- [ ] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution
+- [ ] **acc-2.4** — **Locale parity** — every EN golden case has HY + RU equivalents — **partial (2026-06):** customer deferred in **`ai-customer-deferred-locale-parity.spec.ts`** (210 rows); provider push setup (+12 HY/RU); provider earnings (+28 HY/RU); provider exp-2 (+28 HY/RU); provider client context (+50 HY/RU); provider exp-3 retail/comms/schedule (+36 EN+HY/RU); provider session timeout (+8 HY/RU); provider open shifts (+6 EN+HY/RU); provider team whos next (+6 EN+HY/RU); provider time-off list (+9 EN+HY/RU); provider date format (+16 HY/RU for 8 remaining EN rows; 4 legacy via date-input) in **`ai-provider-*-locale-parity.spec.ts`**; discovery multilingual in **`ai-customer-public-eval-parity.spec.ts`**; implication corpus HY/RU in **`ai-implication-corpus-locale-parity.spec.ts`** (+50 eval rows, **pipe-1.11.5**)
+- [ ] **acc-2.5** — **Typo / fuzzy corpus** — auto-generate misspelled, abbreviated, lowercase, no-punctuation variants of top prompts — **partial (2026-06):** phase 1 lowercase/no-punctuation/double-spacing on 8 customer rescue seeds (+17 eval rows) in **`ai-typo-corpus.*`**; `hasConsumerAppContext` accepts flexible whitespace
+- [x] **acc-2.6** — **Ambiguity corpus** — prompts that *should* trigger clarify (missing date, ambiguous provider name, two services match) with expected clarify field, not an execution — **phase 1 (2026-06):** 10 validation-clarify + 4 false-compound in **`ai-ambiguity-corpus.*`** (+14 eval cases → **2551**)
 
 ---
 
@@ -1012,12 +1191,102 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 **Problem:** Context/paraphrase failures — when a user phrases a request with different words that convey the same meaning (e.g. "whoever has a gap soonest" vs "first available"), the deterministic rescue layer (`ai-intent-heuristics.ts`, `ai-intent-rescue.service.ts`) misses it because every phrasing must be anticipated by a hardcoded regex. Today this is handled by literal keyword/pattern heuristics; the better approach is matching by *meaning* instead.
 
-- [ ] **acc-3.11** — **Embedding-based intent matcher** — new `AiSemanticIntentService`: embed the incoming prompt and cosine-match against a curated bank of canonical phrasings per intent (seeded from `ai-command-eval.cases.ts`); above a confidence threshold, resolve the intent without a regex match — runs as a rescue tier *before* falling back to `unknown` (reuse `AiRagService` index)
-- [ ] **acc-3.12** — **Canonical phrasing bank** — per-intent example utterances (EN/HY/RU) stored + embedded once (reuse `AiRagService` + `AiPromptNormalizationService`); eval pipeline can add new paraphrases without code changes
+- [x] **acc-3.11** — **Embedding-based intent matcher** — new `AiSemanticIntentService`: embed the incoming prompt and cosine-match against a curated bank of canonical phrasings per intent (seeded from `ai-command-eval.cases.ts`); above a confidence threshold, resolve the intent without a regex match — runs as a rescue tier *before* falling back to `unknown` (reuse `AiRagService` index)
+- [x] **acc-3.12** — **Canonical phrasing bank** — per-intent example utterances (EN/HY/RU) stored + embedded once (reuse `AiRagService` + `AiPromptNormalizationService`); eval pipeline can add new paraphrases without code changes
 - [ ] **acc-3.13** — **Per-business paraphrase learning** — feed confirmed corrections and recurring phrasings into the matcher via `AiEntityMemoryService` (build on **acc-3.2**) so a business's own shorthand resolves on the first try
-- [ ] **acc-3.14** — **Heuristic → semantic migration** — incrementally replace the most paraphrase-sensitive regex resolvers (`isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers in `ai-intent-heuristics.ts`) with semantic matches; keep regex only for structured extraction (dates, times, numbers), not for intent meaning
+- [x] **acc-3.14** — **Heuristic → semantic migration** — paraphrase-sensitive resolvers migrated to semantic anchors: `isAnyProviderBookingPrompt`, `isRecommendSpecialistsPrompt`, metric resolvers in `ai-metric-resolvers.util.ts` → `*.semantic.util.ts` + phrasing bank `paramHints`; structural extraction in `ai-structural-extractors.ts` (**pipe-1.13.3**); `isFirstAvailableBookingPrompt` + `isTeamWideProviderAvailabilityQuery` (**pipe-1.13.1–1.13.2**); gate **`npm run test:pipe-acc-3.14`**
 - [ ] **acc-3.15** — **Confidence + clarify fallback** — low semantic-match confidence routes to smart clarification (**acc-4**) instead of a wrong guess; wrong-execution guardrail stays < 1%
-- [ ] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-command-eval.cases.ts`: each intent gets 5+ lexically-distinct equivalents (EN/HY/RU); CI asserts the semantic matcher resolves them (extends `npm run test:ai-accuracy` / **acc-2.8**)
+- [x] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-semantic-intent.fixtures.ts` + implication corpus wired to `ai-command-eval.cases.ts`; each core semantic intent (`create_booking`, `book_nearest_slot`, `check_providers_for_service`, `create_direct_schedule`) has ≥5 lexically-distinct equivalents with EN/HY/RU; CI asserts semantic matcher resolves them via **`ai-semantic-paraphrase-corpus.*`** + **`npm run test:pipe-acc-3.16`** (extends **`npm run test:ai-accuracy`** / **acc-2.8**)
+
+### pipe-1 — Confidence-gated command understanding pipeline
+
+**Goal:** Handle semantically equivalent requests with different wording. Heuristics + primary LLM for obvious cases; low-confidence / `unknown` escalates to embedding semantic match → re-rank → rescue → self-verify → structural enrich → validate → execute. Anchors (not phrase whitelists); no entity names in bank. Dashboard first; provider / customer / public via adapters. Implements **acc-3.11**–**3.16**, **acc-3.4**, **acc-3.15**, **acc-4.7** incrementally.
+
+**Target flow:** normalize → fast heuristics → LLM classify → confidence gate → (low: semantic + re-rank + optional narrow re-classify) → rescue → self-verify → structural enrich → validate → execute → telemetry.
+
+**Examples:** "Book me a haircut tomorrow" (classifier 99% → skip semantic) · "My hair is getting pretty long" (unknown 20% → semantic → `create_booking`) · "I think I need a trim soon" (unknown 35% → semantic → `create_booking`).
+
+- [ ] **pipe-1** — Confidence-gated command understanding pipeline
+
+#### pipe-1.0 — Pipeline spine (dashboard)
+- [x] **pipe-1.0.1** — Types: `IntentCandidate`, `ConfidenceGateResult`, `PipelineUnderstandResult` in `command-understanding.types.ts`; extend `PipelineStage` in `command-completion.types.ts`
+- [x] **pipe-1.0.2** — `CommandUnderstandingPipelineService` — orchestrate stages with ordered `PipelineTrace[]`
+- [x] **pipe-1.0.3** — Register in `ai.module.ts`
+- [x] **pipe-1.0.4** — Refactor `executeSingleIntent` to delegate understand-phase to pipeline; keep execute / confirm / plan in `AiCommandService`
+- [x] **pipe-1.0.5** — `command-understanding-pipeline.integration.spec.ts` — mocked classify + embed; assert stage order
+
+#### pipe-1.1 — Normalize
+- [x] **pipe-1.1.1** — Normalize runs first (reuse `AiPromptNormalizationService`); pass `normalized` + `classifierContext` through `PipelineContext`
+- [x] **pipe-1.1.2** — Unit spec: HY/RU passthrough, empty prompt, cache hit
+
+#### pipe-1.2 — Fast heuristics (obvious cases)
+- [x] **pipe-1.2.1** — `fast-intent-heuristics.service.ts` — score read-only tier, compound detection; return `IntentCandidate[]` not boolean
+- [x] **pipe-1.2.2** — High-confidence heuristic hits (≥0.90) feed re-rank; do not bypass LLM classify in phase 1
+- [x] **pipe-1.2.3** — Boundary doc: fast heuristics = routing + structural hints only; no new paraphrase regex for intent meaning (**acc-3.14** guard)
+- [x] **pipe-1.2.4** — `fast-intent-heuristics.service.spec.ts` — `it.each` over routing fixtures
+
+#### pipe-1.3 — Primary LLM classify + confidence gate
+- [x] **pipe-1.3.1** — Classify in pipeline; preserve parallel complexity routing (`runParallelRouteAndClassification`)
+- [x] **pipe-1.3.2** — `confidence-gate.util.ts` — `shouldEscalateToSemantic`: true when `unknown` OR `confidence < 0.65`; false when `confidence >= 0.82`
+- [x] **pipe-1.3.3** — Wire `aiConfig.confidence.low/high` from `AiSettingsService` as overrides
+- [x] **pipe-1.3.4** — Unit spec: high-confidence skips semantic; unknown@0.20 escalates
+
+#### pipe-1.4 — Semantic match + re-rank (low-confidence only)
+- [x] **pipe-1.4.1** — `intent-anchor.bank.ts` — generic anchors per intent (EN first); seed from eval; **no entity names**
+- [x] **pipe-1.4.2** — Restore `embedText()` on `openai-gateway.service.ts`; log via `ai-usage.service.ts`
+- [x] **pipe-1.4.3** — `ai-semantic-intent.service.ts` — pre-embed anchors; cosine match prompt vs anchors
+- [x] **pipe-1.4.4** — CI deterministic fallback in `ai-semantic-intent.util.ts` — token cosine when `NODE_ENV=test` or no API key
+- [x] **pipe-1.4.5** — `intent-candidate-rerank.util.ts` — merge classifier + semantic + heuristic candidates
+- [x] **pipe-1.4.6** — Restrict semantic `allowedActions` by surface + session `lastAction`
+- [x] **pipe-1.4.7** — Narrow re-classify when top-2 within 0.08 — 10-intent shortlist (**acc-3.3**)
+- [x] **pipe-1.4.8** — `ai-semantic-intent.util.spec.ts` — implication cases (hair long → `create_booking`; work time → `create_direct_schedule`)
+
+#### pipe-1.5 — Rescue (after semantic)
+- [x] **pipe-1.5.1** — Reorder `AiIntentRescueService.rescue`: domain rescues first; semantic is pipeline stage only (not inside rescue)
+- [x] **pipe-1.5.2** — Pass semantic winner into rescue for param hints only
+- [x] **pipe-1.5.3** — Regression: tour calendar, provider stats, recommendation prompts not stolen (**acc-2.8**)
+
+#### pipe-1.6 — Self-verify
+- [x] **pipe-1.6.1** — `ai-intent-self-verify.util.ts` — rule checks (schedule vocab, booking vs clear mismatch)
+- [x] **pipe-1.6.2** — Fail + confidence <0.55 → `ai-unknown-intent.util.ts` targeted clarify (**acc-3.4**, **acc-4.7**)
+- [x] **pipe-1.6.3** — `ai-intent-self-verify.util.spec.ts`
+
+#### pipe-1.7 — Structural enrichment (after intent locked)
+- [x] **pipe-1.7.1** — Move `enrichDateRangeFromPrompt`, `matchEmployeesInPrompt`, `inferDirectSchedulePeriods`, `applyAvailabilityFollowUpFromSession` to pipeline structural stage — **after** self-verify
+- [x] **pipe-1.7.2** — Default work-time periods 09:00–19:00 when `create_direct_schedule` and no hours in prompt
+- [x] **pipe-1.7.3** — Unit spec: structural enrich skipped when self-verify fails
+
+#### pipe-1.8 — Validate + unknown guard
+- [x] **pipe-1.8.1** — Block `unknown` from handler switch — clarify via `ai-unknown-intent.util.ts`
+- [x] **pipe-1.8.2** — Hand off to existing `command-completion.validator.ts` / `CommandCompletionPipelineService`
+
+#### pipe-1.9 — Execute
+- [x] **pipe-1.9.1** — Ensure `create_direct_schedule` in mutating-actions when pipeline resolves schedule intents
+- [x] **pipe-1.9.2** — ReAct fallback in `booking-command-graph.service.ts` only when still `unknown` after semantic + rescue
+
+#### pipe-1.10 — Telemetry
+- [x] **pipe-1.10.1** — `ai-command-trace.entity.ts` + `ai-command-trace.service.ts`
+- [x] **pipe-1.10.2** — Extend `ai-misroute-telemetry.util.ts` with `semanticAction`, `semanticConfidence`, `pipelineStage`
+- [x] **pipe-1.10.3** — Record trace on clarify, execute, misroute paths (**acc-1**)
+
+#### pipe-1.11 — Eval + CI
+- [x] **pipe-1.11.1** — `ai-implication-corpus.fixtures.ts` — ≥10 implication prompts per top intent (booking, schedule, availability)
+- [x] **pipe-1.11.2** — `AI_COMMAND_EVAL_IMPLICATION_CASES` in `eval/ai-command-eval.cases.ts`
+- [x] **pipe-1.11.3** — `npm run test:pipe-confidence` in `package.json`
+- [x] **pipe-1.11.4** — Green `npm run test:ai-accuracy`; update baseline if case count grows (**acc-2.9**)
+- [x] **pipe-1.11.5** — HY/RU implication anchors (**acc-2.4** partial) — **`intent-phrasing.bank.ts`** HY/RU implied anchors; **`ai-implication-corpus-multilingual.fixtures.ts`** (+50 HY/RU corpus rows); **`ai-implication-corpus-locale-parity.*`** parity gates; baseline **3270→3320** @ 100%
+
+#### pipe-1.12 — Multi-surface adapters
+- [x] **pipe-1.12.1** — Dashboard adapter (ships with **pipe-1.0**) — **`DashboardCommandUnderstandingAdapter`** + **`command-understanding-adapter.types.ts`**; **`AiCommandService`** delegates understand + route memoization; gate **`npm run test:pipe-dashboard-adapter`**
+- [x] **pipe-1.12.2** — Provider mobile — `provider-ai-command.service.ts` — **`ProviderCommandUnderstandingAdapter`**; pipeline understand + central rescue; thin post-pipeline `rescueProviderAiIntent` / coordination / mobile disambiguation; gate **`npm run test:pipe-provider-adapter`**
+- [x] **pipe-1.12.3** — Customer mobile — `customer-ai-command.service.ts` — **`CustomerCommandUnderstandingAdapter`**; pipeline understand + central rescue; thin post-pipeline budget/rank discovery rescue; gate **`npm run test:pipe-customer-adapter`**
+- [x] **pipe-1.12.4** — Public booking — `public-booking-assistant.service.ts` — **`PublicCommandUnderstandingAdapter`**; pipeline understand + central rescue; thin post-pipeline budget/rank discovery rescue; gate **`npm run test:pipe-public-adapter`**
+- [x] **pipe-1.12.5** — Per-surface implication eval cases (`surface: dashboard | provider | customer | public`) — **`ai-implication-corpus-surface-parity.*`** customer/public siblings from EN dashboard seeds; **`ai-implication-corpus-provider.fixtures.ts`** provider heuristic rows; eval runner **`useSurfaceProviderImplicationRescue`**; gates **`npm run test:pipe-implication-surface`** + **`test:pipe-implication-corpus`**; baseline **3320→3391** @ 100%
+
+#### pipe-1.13 — Heuristic shrink (ongoing)
+- [x] **pipe-1.13.1** — Migrate `isFirstAvailableBookingPrompt` meaning to semantic anchors; keep structural `bookingFirstAvailable` flag (**acc-3.14**) — **`booking-first-available.semantic.*`** + phrasing bank anchors (`en-nearest-free-time`, `en-compound-check-book-asap`, `ru-book-or-alternative`, `translit-book-nearest-slot`); `isFirstAvailableBookingPrompt` delegates to semantic util; gate **`npm run test:pipe-booking-first-available`**
+- [x] **pipe-1.13.2** — Migrate `isTeamWideProviderAvailabilityQuery` paraphrase half to semantic anchors (**acc-3.14**) — **`team-wide-availability.semantic.*`** + phrasing bank `paramHints: { allProviders: true }` on team-wide `check_providers_for_service` anchors (`en-check-who-free`, `en-free-slots-for-service`, `translit-check-who-free`, HY/RU siblings); `isTeamWideProviderAvailabilityQuery` + `enrichBookingTimeHintsFromPrompt` / `isFlexibleAvailabilityTeamWidePrompt` delegate to semantic util; gate **`npm run test:pipe-team-wide-availability`**; baseline **3408→3425** @ 100%
+- [x] **pipe-1.13.3** — Split `ai-intent-heuristics.ts` → `ai-structural-extractors.ts` (structural extraction) + `ai-booking-param-hints.util.ts` + `ai-metric-resolvers.util.ts`; semantic detectors in `*.semantic.util.ts` (**acc-3.14**); `ai-intent-heuristics.ts` thin `@deprecated` shim; gates **`npm run test:pipe-structural-extractors`**, **`npm run test:pipe-acc-3.14`**
 
 ---
 
@@ -1296,7 +1565,7 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 ### parity-2.1 — Gap closure by module
 
-**Inventory source:** **`ai-cmd-ext`** action tables + `ai-capability.matrix.ts` vs dashboard UI routes — close every gap in **parity-2.1**–**2.3** before **parity-4** CI gate.
+**Inventory source:** **`ai-cmd-ext`** action tables + `ai-capability.matrix.ts` vs dashboard UI routes — close every gap in **parity-2.1**–**2.3** before **parity-4** CI gate. Cross-ref **ai-cmd-ext-gap-1**, **ai-cmd-ext-gap-4**–**6**, **ai-cmd-customer-gap-1**, **ai-cmd-customer-gap-5**.
 - [ ] **parity-2.1** — **Owner / manager dashboard gaps** — add intents for every uncovered owner/manager dashboard action (settings, integrations, billing, staff ops, reports, marketing, loyalty) with handlers, registry bindings, `tiers`, `surfaces`, and `mutating` / `executionMode` flags
 - [ ] **parity-2.2** — **Staff / provider gaps** — add uncovered provider-app + staff-scoped dashboard actions (own schedule, assigned bookings, check-in, notes, breaks), honoring `STAFF_SCOPED_INTENTS` so staff only act within their own scope
 - [ ] **parity-2.3** — **Customer / public gaps** — add uncovered self-service + public actions (manage/reschedule/cancel own bookings, profile, payment methods, packages/subscriptions, loyalty, notification preferences, gift cards)
@@ -1367,7 +1636,189 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 <!-- - [ ] **polish-2** — Help center / in-app docs + support contact flow (Zendesk Help Center embed optional) -->
 
-- [ ] **10. Budget-aware service discovery** — assistant filters catalog by user budget (`maxPrice`); public + consumer AI; scenario matrix **Sprint 63** / **ai-cmd-budget**; gate `npm run test:ai-budget`
-- [ ] **11. Premium / best service discovery** — assistant ranks catalog by premium/top-tier/highest price (and cheapest); disambiguate service vs specialist; **Sprint 64** / **ai-cmd-rank**; shared util with #10; gate `npm run test:ai-service-discovery`
-- [ ] **12. Flexible OR availability + budget compounds** — multi-window scheduling (tomorrow evening or Friday afternoon) + optional `maxPrice`; public `filterSlotsByTimeOfDay` parity; **Sprint 65** / **ai-cmd-avail**; canonical prompt in scenario **`avail-budget-or-en`**
-- [ ] **13. Unified service discovery program** — cross-sprint budget + rank + OR availability; shared utils **`discover-1`**, mega-prompt matrix **`ai-cmd-discover`**, ≥120 fixture ids, gate **`npm run test:ai-service-discovery`**, consumer assistant chips (**discover-1.4**)
+- [x] **10. Budget-aware service discovery** — assistant filters catalog by user budget (`maxPrice`); public + consumer AI; scenario matrix **Sprint 63** / **ai-cmd-budget**; gate `npm run test:ai-budget`
+- [x] **11. Premium / best service discovery** — assistant ranks catalog by premium/top-tier/highest price (and cheapest); disambiguate service vs specialist; **Sprint 64** / **ai-cmd-rank**; shared util with #10; gate `npm run test:ai-service-discovery`
+- [x] **12. Flexible OR availability + budget compounds** — multi-window scheduling (tomorrow evening or Friday afternoon) + optional `maxPrice`; public `filterSlotsByTimeOfDay` parity; **Sprint 65** / **ai-cmd-avail**; canonical prompt in scenario **`avail-budget-or-en`**
+- [x] **13. Unified service discovery program** — cross-sprint budget + rank + OR availability; shared utils **`discover-1`**, mega-prompt matrix **`ai-cmd-discover`**, ≥120 fixture ids, gate **`npm run test:ai-service-discovery`**, consumer assistant chips (**discover-1.4**)
+
+---
+
+## ai-cmd-clinic-6-gap — Clinic ext-2.1–2.4 remaining DoD (dashboard)
+
+**Context:** **`ai-cmd-ext-2.1`–`2.4`** / **`ai-cmd-clinic-6`** shipped EN dashboard MVP — rescue, handlers, 44 EN eval cases, gate **`npm run test:ai-clinic-test-results`** (142 tests). **Not** fully closed under per-action DoD (**lines 124–129**), **parity-2.4**, **acc-2.4**, or **ai-cmd-ext-gap-7**.
+
+**Scope:** dashboard only — provider / customer / public out of scope for these four intents.
+
+**Shipped today (no new work):**
+
+| Intent | Handler | Behavior |
+|--------|---------|----------|
+| `upload_patient_result` | `handleUploadPatientResultLogic` | Requires `orderId`; guides to lab UI (no file attach via AI) |
+| `explain_patient_results` | `handleExplainPatientResultsLogic` | Released results; `customerName` / `orderId` scope |
+| `configure_test_reference_range` | `handleConfigureTestReferenceRangeLogic` | Requires `measurementCode`; guides to catalog UI |
+| `list_abnormal_results` | `handleListAbnormalResultsLogic` | Flagged measurements; optional customer scope |
+
+**Key paths:** `ai-clinic-test-result-ext.{fixtures,util,logic}.ts`, `ai-clinic-test-result.service.ts`, `eval/ai-command-eval.cases.ts` (`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES`).
+
+**Closes with:** **parity-2.4**, **acc-2.4**, **ai-cmd-ext-gap-1** (capability matrix), **ai-cmd-ext-gap-5**–**7**, **vert-clinic-2.1.6** (product CRUD for reference ranges).
+
+### ai-cmd-clinic-6-gap-1 — Locale parity (HY/RU) — **parity-2.4** / **acc-2.4**
+
+> **enter_test_result** / **release_test_result** have **`ai-clinic-test-result-multilingual.fixtures.ts`** (**i18n-clinic-v2-ai-2**). Ext intents are EN-only.
+
+- [ ] **ai-cmd-clinic-6-gap-1.1** — **`ai-clinic-test-result-ext-multilingual.fixtures.ts`** — ≥4 HY + ≥4 RU prompts per intent (`upload_patient_result`, `explain_patient_results`, `configure_test_reference_range`, `list_abnormal_results`); Latin measurement codes inside hy/ru sentences (mirror **i18n-clinic-v2-ai-2**)
+- [ ] **ai-cmd-clinic-6-gap-1.2** — Extend **`CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES`** (or append ext block in **`ai-clinic-test-result-ext.util.ts`**) — hy/ru upload / explain / configure / abnormal-list verbs wired into dashboard **`INTENT_SCHEMA`** appendix
+- [ ] **ai-cmd-clinic-6-gap-1.3** — **`MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS`** → **`eval/ai-command-eval.cases.ts`** — HY/RU rows with `surface: 'dashboard'`, `locale: 'hy' | 'ru'`, expected `rescuedAction` + `paramsPartial`; refresh baseline (**acc-2.9**)
+- [ ] **ai-cmd-clinic-6-gap-1.4** — **`ai-clinic-test-result-ext-locale-parity.spec.ts`** — asserts every EN ext eval id has HY + RU equivalents (pattern: **`ai-provider-*-locale-parity.spec.ts`**)
+- [ ] **ai-cmd-clinic-6-gap-1.5** — Unit **`it.each`** over multilingual fixtures in **`ai-clinic-test-result-ext.util.spec.ts`** + **`ai-clinic-test-result-multilingual.util.spec.ts`** extension if shared helpers added
+
+### ai-cmd-clinic-6-gap-2 — Eval metadata & classifier path — **acc-2** / **parity-2.4**
+
+- [ ] **ai-cmd-clinic-6-gap-2.1** — Add `surface: 'dashboard'` to all **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES`** (and base **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_*`** rows if missing)
+- [ ] **ai-cmd-clinic-6-gap-2.2** — Add expected access **`tier`** (`M` / `R`) per ext intent in eval cases (cross-ref **`access-control.matrix.ts`**)
+- [ ] **ai-cmd-clinic-6-gap-2.3** — Optional: classifier-without-rescue golden rows (misclassifiedAction omitted; assert direct `action` not only `rescuedAction`) for top EN/HY/RU prompts — extends **acc-2.6** ambiguity vs execution coverage
+
+### ai-cmd-clinic-6-gap-3 — Integration & dispatch depth — **feature-test-coverage**
+
+> Today **`ai-clinic-test-result.integration.spec.ts`** exercises **`AiIntentRescueService` only** — not Nest module → service → handler.
+
+- [ ] **ai-cmd-clinic-6-gap-3.1** — Nest **`Test.createTestingModule`** integration — **`AiClinicTestResultService`** → `handleUploadPatientResult` / `handleExplainPatientResults` / `handleConfigureTestReferenceRange` / `handleListAbnormalResults` with mocked repos (mirror depth of other domain `*.integration.spec.ts` where service is wired)
+- [ ] **ai-cmd-clinic-6-gap-3.2** — Dispatch smoke — `executeSingleIntent` `case` branches for ext intents return expected `CommandResult` shape (mock **`AiClinicTestResultService`** on **`AiCommandService`** or thin handler-coverage extension under **`test:ai-cmd-ext`**)
+
+### ai-cmd-clinic-6-gap-4 — Registry, validator, capability matrix — **ai-cmd-ext-gap-1** / **ai-cmd-ext-gap-4**
+
+- [ ] **ai-cmd-clinic-6-gap-4.1** — **`ai-capability.matrix.ts`** — explicit rows for **`upload_patient_result`**, **`explain_patient_results`**, **`configure_test_reference_range`**, **`list_abnormal_results`** (`surfaces: ['dashboard']`, `tier`, `mutating`, sprint **54**)
+- [ ] **ai-cmd-clinic-6-gap-4.2** — **`ai-command-entity-params.registry.ts`** + **`command-completion.validator.ts`** — required params per ext intent (`orderId`, `customerName`, `measurementCode`, `normalLow`/`normalHigh`, `limit`)
+- [ ] **ai-cmd-clinic-6-gap-4.3** — **`ai-capability.matrix.spec.ts`** — registry ↔ matrix parity for clinic test-result intent family (ext + enter/release)
+
+### ai-cmd-clinic-6-gap-5 — Product mutations (out of AI scope until vert ships)
+
+> By design today: upload + configure are **UI handoffs**. Real mutations tracked under clinic vertical.
+
+- [ ] **ai-cmd-clinic-6-gap-5.1** — **`vert-clinic-2.1.6`** — reference range entities + admin CRUD on test types; then wire **`configure_test_reference_range`** handler to persist ranges (replace catalog UI-only summary)
+- [ ] **ai-cmd-clinic-6-gap-5.2** — File attach path — when lab UI supports API upload by `orderId`, extend **`handleUploadPatientResultLogic`** or return deep-link with pre-filled `orderId` (keep **`enter_test_result`** for manual values)
+
+### ai-cmd-clinic-6-gap-6 — Compounds (optional — **ai-cmd-ext-4**)
+
+- [ ] **ai-cmd-clinic-6-gap-6.1** — Extend **`decomposeClinicCompoundPrompt`** — e.g. `list_abnormal_results` → `explain_patient_results` for flagged patient; document in **`ai-cmd-ext-4.2`** `clinic_lab_day_close` or new **`clinic_lab_review`** recipe
+- [ ] **ai-cmd-clinic-6-gap-6.2** — Eval `compoundSteps` for clinic ext multi-step flows when recipes ship (**parity-3.2**)
+
+### Exit criteria (close **ai-cmd-clinic-6** fully + **ai-cmd-ext-gap-7** for ext-2.1–2.4)
+
+| Gate | Target |
+|------|--------|
+| **`npm run test:ai-clinic-test-results`** | green; ext util coverage thresholds maintained or raised |
+| **`npm run test:ai-accuracy`** | all new HY/RU ext cases in baseline; no per-intent regression |
+| **Locale parity spec** | 0 missing HY/RU pairs for ext EN eval ids |
+| **Integration** | rescue + Nest service paths covered |
+| **parity-2.4** | classifier rules + EN/HY/RU eval tagged `surface: dashboard` + `tier` |
+
+- [ ] **ai-cmd-clinic-6-gap** — Mark **`ai-cmd-clinic-6`** DoD-complete only when **gap-1**–**4** exit criteria green (gap-5/6 optional product/compound follow-ups)
+
+---
+
+## ai-cmd-ext-2.5–2.8 — Dashboard staff operations (shipped)
+
+**Intents:** `create_employee`, `invite_staff_member`, `deactivate_employee`, `configure_online_booking` → `AiOperationsService` / `ai-staff-operations.*`
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-staff-operations`** | **217** tests — fixtures (44 EN + 88 HY/RU), util, logic, integration, locale parity |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_STAFF_OPERATIONS_*`) tagged `surface: dashboard` |
+| **Rescue** | `tryRescueStaffOperations` in `AiIntentRescueService` + param enrich; disambiguated vs `lookup_customer` / `configure_privacy_retention` |
+| **Validator** | `create_employee`, `invite_staff_member`, `deactivate_employee` in `command-completion.validator.ts` |
+| **Classifier** | `STAFF_OPERATIONS_CLASSIFIER_RULES` + `STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES` in dashboard `INTENT_SCHEMA` |
+
+- [x] **ai-cmd-ext-2.5** — `create_employee`
+- [x] **ai-cmd-ext-2.6** — `invite_staff_member`
+- [x] **ai-cmd-ext-2.7** — `deactivate_employee`
+- [x] **ai-cmd-ext-2.8** — `configure_online_booking`
+
+---
+
+## ai-cmd-ext-2.9–2.12 — Dashboard billing, loyalty, waitlist (shipped)
+
+**Intents:** `open_billing_settings`, `summarize_loyalty_program` → `AiMarketingGrowthService`; `list_waitlist_entries`, `offer_waitlist_slot` → `ai-waitlist-dashboard.logic.ts`
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-billing-waitlist-dashboard`** | **237** tests — fixtures (44 EN + 88 HY/RU), util, logic, integration, locale parity |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_BILLING_LOYALTY_*`, `AI_COMMAND_EVAL_WAITLIST_*`) tagged `surface: dashboard` |
+| **Rescue** | `tryRescueBillingLoyaltyDashboard` + `tryRescueWaitlistDashboard` in `AiIntentRescueService`; billing disambiguation vs `explain_plan_limits` / `summarize_client` |
+| **Validator** | `offer_waitlist_slot` requires `employeeName`, `date`, `timeSlot`; billing/loyalty + `list_waitlist_entries` read-only |
+| **Classifier** | EN + HY/RU rules in dashboard `INTENT_SCHEMA` |
+
+- [x] **ai-cmd-ext-2.9** — `open_billing_settings`
+- [x] **ai-cmd-ext-2.10** — `summarize_loyalty_program`
+- [x] **ai-cmd-ext-2.11** — `list_waitlist_entries`
+- [x] **ai-cmd-ext-2.12** — `offer_waitlist_slot`
+
+---
+
+## ai-cmd-ext-4.1 — Dashboard provider onboarding compound (shipped)
+
+**Recipe:** `onboard_new_provider` — general service provider onboarding (stylist, therapist, barber, provider, nail tech, esthetician, etc.)
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-provider-onboarding-compound`** | **69** tests — fixtures (11 EN + 22 HY/RU), util, integration, locale parity |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_PROVIDER_ONBOARDING_*`) tagged `surface: dashboard` |
+| **Decompose** | `decomposeProviderOnboardingCompoundPrompt` in `intent-decomposition.util.ts`; golden pattern `dashboard_onboard_new_provider` |
+| **Classifier** | `PROVIDER_ONBOARDING_COMPOUND_CLASSIFIER_RULES` in dashboard `INTENT_SCHEMA` |
+| **Registry** | `onboard_new_provider` in `buildCompoundCommandRecipes()` |
+
+- [x] **ai-cmd-ext-4.1** — `onboard_new_provider`
+
+---
+
+## ai-cmd-ext-4.2 — Dashboard clinic lab day close compound (shipped)
+
+**Recipe:** `clinic_lab_day_close` — end-of-day lab workflow: list orders → enter results → release to patient → notify
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-clinic-lab-day-close-compound`** | **71** tests — fixtures (11 EN + 22 HY/RU), util, integration, locale parity, rescue |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_*`) tagged `surface: dashboard` |
+| **Decompose** | `decomposeClinicLabDayCloseCompoundPrompt`; golden pattern `dashboard_clinic_lab_day_close` |
+| **Rescue** | `rescueClinicLabDayCloseCompoundIntent` in `AiIntentRescueService` (before order+notify clinic compound) |
+| **Classifier** | `CLINIC_LAB_DAY_CLOSE_CLASSIFIER_RULES` in dashboard `INTENT_SCHEMA` |
+| **Registry** | `clinic_lab_day_close` in `buildCompoundCommandRecipes()` |
+
+- [x] **ai-cmd-ext-4.2** — `clinic_lab_day_close`
+
+---
+
+## ai-cmd-ext-4.3 — Dashboard budget discover and book compound (shipped)
+
+**Recipe:** `budget_discover_and_book` — filter catalog by maxPrice → check providers → create booking (first available)
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-budget-discover-and-book-compound`** | **71** tests — fixtures (11 EN + 22 HY/RU), util, integration, locale parity, rescue |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_BUDGET_DISCOVER_AND_BOOK_*`) tagged `surface: dashboard`; baseline **3177** cases |
+| **Decompose** | `decomposeBudgetDiscoverAndBookCompoundPrompt`; golden pattern `dashboard_budget_discover_and_book` |
+| **Rescue** | `rescueBudgetDiscoverAndBookCompoundIntent` in `AiIntentRescueService` (before package/multi disambiguation) |
+| **Router** | `isBudgetDiscoverAndBookCompoundPrompt` early compound tier in `CommandComplexityRouterService` |
+| **Classifier** | `BUDGET_DISCOVER_AND_BOOK_CLASSIFIER_RULES` in dashboard `INTENT_SCHEMA` |
+| **Registry** | `budget_discover_and_book` in `buildCompoundCommandRecipes()` |
+
+- [x] **ai-cmd-ext-4.3** — `budget_discover_and_book`
+
+---
+
+## ai-cmd-ext-4.4 — Dashboard rank discover and book compound (shipped)
+
+**Recipe:** `rank_discover_and_book` — rank catalog by serviceRank → check providers → create booking (first available)
+
+| Gate | Status |
+|------|--------|
+| **`npm run test:ai-rank-discover-and-book-compound`** | **72** tests — fixtures (11 EN + 22 HY/RU), util, integration, locale parity, rescue |
+| **`npm run test:ai-accuracy`** | EN + HY/RU eval (`AI_COMMAND_EVAL_RANK_DISCOVER_AND_BOOK_*`) tagged `surface: dashboard`; baseline **3218** cases |
+| **Decompose** | `decomposeRankDiscoverAndBookCompoundPrompt`; golden pattern `dashboard_rank_discover_and_book` |
+| **Rescue** | `rescueRankDiscoverAndBookCompoundIntent` in `AiIntentRescueService` (after budget compound, before package/multi disambiguation) |
+| **Router** | `isRankDiscoverAndBookCompoundPrompt` early compound tier in `CommandComplexityRouterService` |
+| **Classifier** | `RANK_DISCOVER_AND_BOOK_CLASSIFIER_RULES` in dashboard `INTENT_SCHEMA` |
+| **Registry** | `rank_discover_and_book` in `buildCompoundCommandRecipes()` |
+| **2-step guard** | `isServiceRankDiscoveryCompoundPrompt` excludes check-step prompts (defers to 3-step dashboard recipe) |
+
+- [x] **ai-cmd-ext-4.4** — `rank_discover_and_book`

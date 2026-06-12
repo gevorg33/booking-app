@@ -26,6 +26,11 @@ import {
   isListPackageBookingsPrompt,
   isListMultiServiceBookingsPrompt,
   isMarkPaidPrompt,
+  extractMarkPaidEmployeeNameFromPrompt,
+  extractPossessiveAppointmentOwnerName,
+  extractMarkPaidTimeSlotFromPrompt,
+  applyMarkPaidCalendarDateAnchor,
+  enrichMarkPaidParamsFromPrompt,
   isAssignBookingResourcePrompt,
   isExplainBookingPolicyPrompt,
   BOOKING_DEPTH_INTENTS,
@@ -74,6 +79,14 @@ describe('ai-booking-depth.util', () => {
         isListMultiServiceBookingsPrompt('show multi-service groups'),
       ).toBe(true);
       expect(isMarkPaidPrompt('mark booking paid')).toBe(true);
+      expect(
+        isMarkPaidPrompt(
+          "mark Karo's appointment as done and paid on 5th of june from 9:50",
+        ),
+      ).toBe(true);
+      expect(isMarkPaidPrompt('appointment done and paid')).toBe(true);
+      expect(isMarkPaidPrompt('mark the visit as done')).toBe(true);
+      expect(isMarkPaidPrompt('hello world')).toBe(false);
       expect(isAssignBookingResourcePrompt('assign room 2 to facial')).toBe(
         true,
       );
@@ -193,6 +206,12 @@ describe('ai-booking-depth.util', () => {
       expect(
         rescueBookingDepthIntent('mark booking paid', 'update_bookings'),
       ).toBeNull();
+      expect(
+        rescueBookingDepthIntent(
+          "mark Karo's appointment as done and paid on 5th of june from 9:50",
+          'update_bookings',
+        )?.action,
+      ).toBe('mark_paid');
       expect(rescueBookingDepthIntent('hello world', 'unknown')).toBeNull();
     });
 
@@ -201,6 +220,349 @@ describe('ai-booking-depth.util', () => {
         rescueBookingDepthIntent('booking policy for cancel rules', 'unknown')
           ?.action,
       ).toBe('explain_booking_policy');
+    });
+  });
+
+  describe('mark paid param enrichment', () => {
+    const prompt =
+      "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50";
+
+    it('returns null possessive owner when phrasing is absent', () => {
+      expect(extractPossessiveAppointmentOwnerName('mark paid today')).toBeNull();
+    });
+
+    it('extracts stylist role as provider', () => {
+      expect(
+        extractPossessiveAppointmentOwnerName(
+          "mark stylist Karo Mazmanyan's appointment paid",
+        ),
+      ).toBe('Karo Mazmanyan');
+    });
+
+    it('extracts provider possessive, date, and time slot', () => {
+      expect(extractMarkPaidEmployeeNameFromPrompt(prompt)).toBe('Karo Mazmanyan');
+      expect(extractMarkPaidTimeSlotFromPrompt(prompt)).toBe('09:50');
+      const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
+        employees: [{ name: 'Karo Mazmanyan' }],
+      });
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.timeSlot).toBe('09:50');
+      expect(enriched.date).toBeTruthy();
+    });
+
+    it('clears misclassified customerName when possessive matches a provider', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        prompt,
+        { customerName: 'Karo' },
+        'UTC',
+        { employees: [{ name: 'Karo Mazmanyan' }] },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('uses customer roster when possessive matches a client not a provider', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        prompt,
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Gevorg Gasparyan' }],
+          customers: [{ name: 'Karo Mazmanyan' }],
+        },
+      );
+      expect(enriched.customerName).toBe('Karo Mazmanyan');
+      expect(enriched.employeeName).toBeUndefined();
+    });
+
+    it('prefers provider when possessive matches both rosters', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        prompt,
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Karo Mazmanyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('does not set bogus party hints when possessive name is not on either roster', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
+        employees: [{ name: 'Gevorg Gasparyan' }],
+        customers: [{ name: 'Someone Else' }],
+      });
+      expect(enriched.employeeName).toBeUndefined();
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('skips provider prefix before possessive owner name', () => {
+      const providerPrompt =
+        "make provider Karo Mazmanyan's appointment to done and paid on 5 june at 9:50";
+      expect(extractPossessiveAppointmentOwnerName(providerPrompt)).toBe(
+        'Karo Mazmanyan',
+      );
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        providerPrompt,
+        {},
+        'UTC',
+        { employees: [{ name: 'Karo Mazmanyan' }] },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.timeSlot).toBe('09:50');
+    });
+
+    it('matches customer name from roster without possessive phrasing', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark Gevorg Gasparyan done and paid on 5 june at 9:50',
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.customerName).toBe('Gevorg Gasparyan');
+      expect(enriched.employeeName).toBeUndefined();
+      expect(enriched.timeSlot).toBe('09:50');
+    });
+
+    it('matches provider name from roster without possessive phrasing', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark Karo Mazmanyan done and paid on 5 june at 9:50',
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('skips customer role when possessive name is not on customer roster', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        "mark customer Unknown Person's appointment done and paid on 5 june at 9:50",
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('skips provider role when possessive name is not on employee roster', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        "mark provider Unknown Person's appointment done and paid on 5 june at 9:50",
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBeUndefined();
+    });
+
+    it('honors explicit customer role on possessive appointment phrasing', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        "mark customer Gevorg Gasparyan's appointment done and paid on 5 june at 9:50",
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.customerName).toBe('Gevorg Gasparyan');
+      expect(enriched.employeeName).toBeUndefined();
+    });
+
+    it('honors explicit provider keyword without possessive phrasing', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark provider Karo Mazmanyan done and paid on 5 june at 9:50',
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('prefers explicit customer keyword when both names appear in prompt', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark customer Gevorg Gasparyan and Karo Mazmanyan done and paid on 5 june at 9:50',
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.customerName).toBe('Gevorg Gasparyan');
+    });
+
+    it('prefers provider when both roster names appear without role keyword', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark Karo Mazmanyan and Gevorg Gasparyan done and paid on 5 june at 9:50',
+        {},
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBeUndefined();
+    });
+
+    it('fills missing employee when customer is already set', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark Karo Mazmanyan done and paid on 5 june at 9:50',
+        { customerName: 'Gevorg Gasparyan' },
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.customerName).toBe('Gevorg Gasparyan');
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+    });
+
+    it('fills missing customer when employee is already set', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark Gevorg Gasparyan done and paid on 5 june at 9:50',
+        { employeeName: 'Karo Mazmanyan' },
+        'UTC',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          customers: [{ name: 'Gevorg Gasparyan' }],
+        },
+      );
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched.customerName).toBe('Gevorg Gasparyan');
+    });
+
+    it('preserves explicit bookingId from prompt', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark booking abc123-def456 paid',
+        {},
+        'UTC',
+      );
+      expect(enriched.bookingId).toBe('abc123-def456');
+    });
+
+    it('falls back to generic time extraction when no on-from phrase', () => {
+      expect(extractMarkPaidTimeSlotFromPrompt('mark paid at 14:30')).toBe(
+        '14:30',
+      );
+      expect(
+        extractMarkPaidTimeSlotFromPrompt('mark paid on 5th june from 9'),
+      ).toBe('09:00');
+    });
+
+    it('keeps params already set by the classifier', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        prompt,
+        {
+          bookingId: 'b-existing',
+          employeeName: 'Karo',
+          date: '05/06/2026',
+          timeSlot: '09:50',
+        },
+        'UTC',
+      );
+      expect(enriched.bookingId).toBe('b-existing');
+      expect(enriched.date).toBe('2026-06-05');
+      expect(enriched.timeSlot).toBe('09:50');
+    });
+
+    it('defaults timezone to UTC', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
+        employees: [{ name: 'Karo Mazmanyan' }],
+      });
+      expect(enriched.employeeName).toBe('Karo Mazmanyan');
+      expect(enriched._timeZone).toBe('UTC');
+    });
+
+    it('defaults timezone when enrich is called without timeZone argument', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt('mark paid tomorrow', {});
+      expect(enriched._timeZone).toBe('UTC');
+    });
+
+    it('anchors mark_paid to the visible bookings calendar day', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        "make provider Karo Mazmanyan's appointment to done and paid on 5 june at 9:50",
+        { date: '05/06/2027' },
+        'Asia/Yerevan',
+        {
+          employees: [{ name: 'Karo Mazmanyan' }],
+          sessionDate: '2026-06-05',
+          calendarRoute: '/dashboard/bookings',
+        },
+      );
+      expect(enriched.date).toBe('2026-06-05');
+      expect(enriched.timeSlot).toBe('09:50');
+    });
+
+    it('normalizes natural-language date params to ISO day', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark paid on 5 june at 9:50',
+        { date: '5 june' },
+        'Asia/Yerevan',
+        { employees: [{ name: 'Karo Mazmanyan' }] },
+      );
+      expect(enriched.date).toBe('2026-06-05');
+    });
+
+    it('applyMarkPaidCalendarDateAnchor sets ISO session date on bookings route', () => {
+      const params: Record<string, unknown> = { date: '05/06/2027' };
+      applyMarkPaidCalendarDateAnchor(params, {
+        route: '/dashboard/bookings',
+        date: '2026-06-05',
+      });
+      expect(params.date).toBe('2026-06-05');
+    });
+
+    it('applyMarkPaidCalendarDateAnchor is a no-op off the bookings route', () => {
+      const params: Record<string, unknown> = { date: '05/06/2027' };
+      applyMarkPaidCalendarDateAnchor(params, {
+        route: '/dashboard/customers',
+        date: '2026-06-05',
+      });
+      expect(params.date).toBe('05/06/2027');
+    });
+
+    it('leaves unparseable date strings unchanged when NL extraction fails', () => {
+      const enriched = enrichMarkPaidParamsFromPrompt(
+        'mark paid tomorrow',
+        { date: 'not-a-real-date' },
+        'UTC',
+      );
+      expect(enriched.date).toBe('not-a-real-date');
+    });
+
+    it('supports make-to-done-and-paid phrasing', () => {
+      const makePrompt =
+        "make Karo Mazmanyan's appointment to done and paid on 5 june at 9:50";
+      expect(isMarkPaidPrompt(makePrompt)).toBe(true);
+      expect(extractPossessiveAppointmentOwnerName(makePrompt)).toBe(
+        'Karo Mazmanyan',
+      );
+      const enriched = enrichMarkPaidParamsFromPrompt(makePrompt, {}, 'UTC', {
+        employees: [{ name: 'Karo Mazmanyan' }],
+      });
+      expect(enriched.timeSlot).toBe('09:50');
+      expect(enriched.date).toBeTruthy();
     });
   });
 

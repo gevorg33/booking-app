@@ -9,9 +9,9 @@ import {
   resolveAutoExecute,
   sanitizeProviderScopeFromPrompt,
 } from './ai-orchestration.helpers.js';
-import { shouldValidateAction } from './command-completion.validator.js';
+import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
-import type { CommandResult } from './command-completion.types.js';
+import type { CommandResult, PipelineTrace } from './command-completion.types.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
@@ -113,7 +113,7 @@ const CompoundState = Annotation.Root({
     reducer: (_p, n) => n,
     default: () => [],
   }),
-  pipelineTrace: Annotation<string[]>({
+  pipelineTrace: Annotation<PipelineTrace[]>({
     reducer: (_p, n) => n,
     default: () => [],
   }),
@@ -305,26 +305,30 @@ export class CompoundCommandGraphService {
       parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
     }
 
-    const resolved = this.completionPipeline.resolve(
-      state.businessId,
-      state.prompt,
-      parsed,
-      state.catalog,
-      state.timeZone,
+    const handoff = runCompletionValidateHandoff(
+      {
+        businessId: state.businessId,
+        prompt: state.prompt,
+        classified: parsed,
+        catalog: state.catalog,
+        timeZone: state.timeZone,
+        priorTrace: state.pipelineTrace,
+        clarifyExtras: { compoundStep: parsed.action },
+      },
+      this.completionPipeline,
     );
 
-    if (shouldValidateAction(parsed.action)) {
-      const validation = this.completionPipeline.validate(resolved);
-      if (!validation.ok) {
-        const clarify = this.completionPipeline.toClarifyResult(
-          resolved,
-          validation,
-        );
-        clarify.details.pipelineTrace = state.pipelineTrace;
-        clarify.details.compoundStep = parsed.action;
-        return { error: clarify };
-      }
+    if (handoff.status === 'clarify') {
+      const clarify = handoff.result;
+      clarify.details = {
+        ...(clarify.details ?? {}),
+        pipelineTrace: handoff.trace,
+        compoundStep: parsed.action,
+      };
+      return { error: clarify };
     }
+
+    const resolved = handoff.resolved;
 
     let plan: AgentPlan | null = null;
 

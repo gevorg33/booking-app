@@ -1,5 +1,9 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
-import { rescueAssignCategoryToProviderIntent } from './ai-category-assignment.util.js';
+import {
+  rescueAssignCategoryToProviderIntent,
+  rescueTransferServicesBetweenProvidersIntent,
+  rescueUnassignServicesFromProviderIntent,
+} from './ai-category-assignment.util.js';
 
 export const OPERATIONS_BOOKING_INTENTS = [
   'no_show_recovery',
@@ -13,9 +17,17 @@ export const OPERATIONS_OPS_INTENTS = [
   'revenue_forecast',
 ] as const;
 
+export const OPERATIONS_STAFF_INTENTS = [
+  'create_employee',
+  'invite_staff_member',
+  'deactivate_employee',
+  'configure_online_booking',
+] as const;
+
 export const OPERATIONS_INTENTS = [
   ...OPERATIONS_BOOKING_INTENTS,
   ...OPERATIONS_OPS_INTENTS,
+  ...OPERATIONS_STAFF_INTENTS,
 ] as const;
 
 export type OperationsIntent = (typeof OPERATIONS_INTENTS)[number];
@@ -469,6 +481,22 @@ export function rescueOperationsIntent(
   }
   if (isPricingAdjustmentPrompt(prompt) && action !== 'update_service_prices') {
     return { action: 'update_service_prices', params };
+  }
+  const transfer = rescueTransferServicesBetweenProvidersIntent(
+    prompt,
+    action,
+    params,
+  );
+  if (transfer) {
+    return { action: transfer.action, params: transfer.params };
+  }
+  const unassign = rescueUnassignServicesFromProviderIntent(
+    prompt,
+    action,
+    params,
+  );
+  if (unassign) {
+    return { action: unassign.action, params: unassign.params };
   }
   const categoryAssign = rescueAssignCategoryToProviderIntent(
     prompt,

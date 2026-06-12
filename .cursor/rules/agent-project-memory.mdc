@@ -18,10 +18,11 @@ alwaysApply: true
 
 | Skill | Use when |
 |-------|----------|
-| `ai-command-pipeline.mdc` | `backend/src/modules/ai/**`, AI command bar, assistants — gateway → classify → rescue → validate → execute → clarify |
+| `ai-command-pipeline.mdc` | `backend/src/modules/ai/**`, AI command bar, assistants — **pipe-1 target flow** (normalize → … → telemetry) + gateway → validate → execute |
 | `ai-multi-command-handling.mdc` | Compound prompts ("do X and Y"); `intent-decomposition.util.ts`, registry, eval |
 | `ai-accuracy-program.mdc` | `acc-*` tasks, eval expansion, AI ops dashboard (Sprints 38–43) |
 | `feature-clinic-vertical.mdc` | Clinic lab/EMR clone, `clinic-test-results/**`, clinic UI, `ai-cmd-clinic-*` |
+| `feature-fast-intent-heuristics.mdc` | `fast-intent-heuristics.*`, pipe-1.2 — acc-3.14 guard (no paraphrase regex) |
 
 Index: `.cursor/rules/README.md`. Roadmap: `TODO.md`.
 

@@ -3,6 +3,7 @@ import {
   CONSUMER_ADOPTION_CLASSIFIER_RULES,
 } from './ai-consumer-adoption.fixtures.js';
 import { isConfigureProviderPushDateFormatPrompt } from './ai-provider-date-format.util.js';
+import { isRescheduleMyBookingPrompt } from './ai-self-service-booking.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
@@ -122,6 +123,14 @@ export function rescueConsumerAdoptionIntent(
     return { action: 'share_salon_link', rescueReason: 'share_salon_link' };
   }
   if (REBOOK_LAST.test(text)) {
+    if (
+      isRescheduleMyBookingPrompt(text) &&
+      !/\b(rebook(?:\s+my)?\s+last|book again|repeat(?:\s+my)?\s+last|same as last|book my last|повторн.{0,20}запис|վeramragr.{0,20}(verjin|last)|նույն.{0,20}(amr|visit))/i.test(
+        text,
+      )
+    ) {
+      return null;
+    }
     return {
       action: 'rebook_last_appointment',
       rescueReason: 'rebook_last_appointment',

@@ -56,11 +56,14 @@ describe('AI command eval harness (Sprint 14 / gap-3.1 + ai-cmd-0.4)', () => {
   });
 
   it('maps every compound decomposition scenario to an eval case', () => {
-    expect(AI_COMMAND_EVAL_COMPOUND_CASES).toHaveLength(
+    expect(AI_COMMAND_EVAL_COMPOUND_CASES.length).toBeGreaterThanOrEqual(
       COMPOUND_DECOMPOSITION_SCENARIOS.length,
     );
     for (const scenario of COMPOUND_DECOMPOSITION_SCENARIOS) {
       const evalCase = compoundScenarioToEvalCase(scenario);
+      expect(
+        AI_COMMAND_EVAL_COMPOUND_CASES.some((entry) => entry.id === evalCase.id),
+      ).toBe(true);
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
     }

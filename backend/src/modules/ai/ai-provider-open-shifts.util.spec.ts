@@ -2,8 +2,10 @@ import {
   PROVIDER_OPEN_SHIFTS_FILL_PROMPT_SCENARIOS,
   SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS,
 } from '../provider-mobile/provider-open-shifts.fixtures.js';
+import { PROVIDER_OPEN_SHIFTS_MULTILINGUAL_SCENARIOS } from './ai-provider-open-shifts-multilingual.fixtures.js';
 import {
   PROVIDER_OPEN_SHIFTS_INTENTS,
+  isSuggestWaitlistForGapPrompt,
   rescueProviderOpenShiftsIntent,
 } from './ai-provider-open-shifts.util.js';
 
@@ -28,6 +30,13 @@ describe('ai-provider-open-shifts.util (prov-exp-7.3)', () => {
       expect(rescueProviderOpenShiftsIntent(scenario.prompt, 'unknown')?.action).toBe(
         scenario.expectedAction,
       );
+    },
+  );
+
+  it.each(PROVIDER_OPEN_SHIFTS_MULTILINGUAL_SCENARIOS)(
+    'detects suggest_waitlist_for_gap for i18n prompt $id',
+    (scenario) => {
+      expect(isSuggestWaitlistForGapPrompt(scenario.prompt)).toBe(true);
     },
   );
 

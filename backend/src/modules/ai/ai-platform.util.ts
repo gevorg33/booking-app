@@ -88,6 +88,8 @@ export const RECEPTIONIST_DENIED_INTENTS = new Set([
   'sick_day_replan',
   'day_replan',
   'assign_employee_services',
+  'unassign_employee_services',
+  'transfer_employee_services',
   'create_service',
   'create_services',
   'bulk_smart_cancel',

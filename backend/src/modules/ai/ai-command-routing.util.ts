@@ -105,7 +105,7 @@ export async function resolveParsedIntent(opts: {
   preclassified?: ClassifiedIntent | null;
   classify: () => Promise<ClassifiedIntent | null>;
 }): Promise<ClassifiedIntent | null> {
-  if (opts.preclassified !== undefined) {
+  if (opts.preclassified != null) {
     return opts.preclassified;
   }
   return opts.classify();

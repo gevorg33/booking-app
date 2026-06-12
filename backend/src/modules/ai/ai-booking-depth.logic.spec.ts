@@ -754,6 +754,884 @@ describe('ai-booking-depth.logic', () => {
         'user-1',
       );
     });
+
+    it('resolves booking using bookings calendar session date over wrong inferred year', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-session-date',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.NOT_APPLICABLE,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+        employee: { id: 'emp-karo', name: 'Karo Mazmanyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const prompt =
+        "make provider Karo Mazmanyan's appointment to done and paid on 5 june at 9:50";
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'Asia/Yerevan' },
+        'user-1',
+        {
+          prompt,
+          employees,
+          timeZone: 'Asia/Yerevan',
+          sessionDate: '2026-06-05',
+          calendarRoute: '/dashboard/bookings',
+        },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('resolves booking when business timezone differs from wall-clock UTC storage', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-tz',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+        employee: { id: 'emp-karo', name: 'Karo Mazmanyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const prompt =
+        "make Karo Mazmanyan's appointment to done and paid on 5 june at 9:50";
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'Asia/Yerevan' },
+        'user-1',
+        { prompt, employees, timeZone: 'Asia/Yerevan' },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('resolves booking from customer name date and time', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-gevorg',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const customers = [{ id: 'cust-1', name: 'Gevorg Gasparyan' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'UTC' },
+        'user-1',
+        {
+          prompt:
+            'mark Gevorg Gasparyan done and paid on 5 june at 9:50',
+          employees,
+          customers,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('Gevorg Gasparyan');
+    });
+
+    it('resolves booking from provider possessive date and time', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const endTime = new Date('2026-06-05T10:50:00.000Z');
+      const booking = {
+        id: 'b-karo',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime,
+        customer: { name: 'Gevorg Gasparyan' },
+        employee: { id: 'emp-karo', name: 'Karo' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const prompt =
+        "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50";
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'UTC' },
+        'user-1',
+        { prompt, employees, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('Gevorg Gasparyan');
+      expect(bookingService.update).toHaveBeenCalledWith(
+        'b-karo',
+        expect.objectContaining({
+          paymentStatus: PaymentStatus.PAID,
+          status: BookingStatus.COMPLETED,
+        }),
+        'user-1',
+      );
+    });
+
+    it('marks all bookings in a multi-service group at the same slot', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const endTime = new Date('2026-06-05T10:50:00.000Z');
+      const bookings = [
+        {
+          id: 'b-ms-1',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          multiServiceGroupId: 'grp-1',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime,
+          customer: { name: 'Gevorg Gasparyan' },
+        },
+        {
+          id: 'b-ms-2',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          multiServiceGroupId: 'grp-1',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime,
+          customer: { name: 'Gevorg Gasparyan' },
+        },
+      ];
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const findOne = jest.fn(async ({ where }: any) =>
+        bookings.find((b) => b.id === where.id),
+      );
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue(bookings),
+          findOne,
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'UTC' },
+        'user-1',
+        {
+          prompt:
+            "mark Karo's appointment as done and paid on 5th of june from 9:50",
+          employees,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('2 appointments');
+      expect(bookingService.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks for clarification when multiple appointments match without a time', async () => {
+      const startMorning = new Date('2026-06-05T09:00:00.000Z');
+      const startAfternoon = new Date('2026-06-05T14:00:00.000Z');
+      const bookings = [
+        {
+          id: 'b-1',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime: startMorning,
+          endTime: new Date('2026-06-05T10:00:00.000Z'),
+        },
+        {
+          id: 'b-2',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime: startAfternoon,
+          endTime: new Date('2026-06-05T15:00:00.000Z'),
+        },
+      ];
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue(bookings),
+          findOne: jest.fn(),
+        } as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { employeeName: 'Karo', date: '2026-06-05', _timeZone: 'UTC' },
+        'user-1',
+        { prompt: 'mark Karo paid on 5th of june', employees, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('2 matching appointments');
+    });
+
+    it('returns not found when resolved booking id is missing in storage', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([]),
+          findOne: jest.fn().mockResolvedValue(null),
+        } as any,
+      });
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { bookingId: 'missing-id' },
+        'user-1',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('missing-id');
+    });
+
+    it('filters by customer name when provided', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const bookings = [
+        {
+          id: 'b-target',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime: new Date('2026-06-05T10:50:00.000Z'),
+          customer: { name: 'Gevorg Gasparyan' },
+        },
+        {
+          id: 'b-other',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime: new Date('2026-06-05T10:50:00.000Z'),
+          customer: { name: 'Other Client' },
+        },
+      ];
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const findOne = jest.fn(async ({ where }: any) =>
+        bookings.find((b) => b.id === where.id),
+      );
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue(bookings),
+          findOne,
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          customerName: 'Gevorg',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        {
+          prompt: 'mark Gevorg paid on 5th of june from 9:50',
+          employees,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(bookingService.update).toHaveBeenCalledWith(
+        'b-target',
+        expect.any(Object),
+        'user-1',
+      );
+    });
+
+    it('returns empty lookup when provider name does not match roster', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([]),
+          findOne: jest.fn(),
+        } as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'UTC' },
+        'user-1',
+        {
+          prompt: "mark Unknown Person's appointment as done and paid on 5th of june",
+          employees,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(false);
+    });
+
+    it('resolves date range when only dateFrom/dateTo are present', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-range',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Karo',
+          dateFrom: '2026-06-05',
+          dateTo: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        { employees, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('marks multiple same-slot bookings when time is specified', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const bookings = [
+        {
+          id: 'b-a',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          multiServiceGroupId: 'grp-a',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime: new Date('2026-06-05T10:50:00.000Z'),
+        },
+        {
+          id: 'b-b',
+          businessId: 'biz-1',
+          employeeId: 'emp-karo',
+          multiServiceGroupId: 'grp-b',
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime,
+          endTime: new Date('2026-06-05T10:50:00.000Z'),
+        },
+      ];
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const findOne = jest.fn(async ({ where }: any) =>
+        bookings.find((b) => b.id === where.id),
+      );
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue(bookings),
+          findOne,
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Karo',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        { employees, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(bookingService.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('supports multiple named providers in lookup', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-karo',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+      };
+      const find = jest.fn().mockResolvedValue([booking]);
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find,
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [
+        { id: 'emp-karo', name: 'Karo' },
+        { id: 'emp-anna', name: 'Anna' },
+      ] as any[];
+
+      await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeNames: ['Karo', 'Anna'],
+          date: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        { employees, timeZone: 'UTC' },
+      );
+
+      expect(find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            employeeId: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('accepts explicit bookingIds array', async () => {
+      const booking = {
+        id: 'b-array',
+        businessId: 'biz-1',
+        metadata: {},
+        customer: { name: 'Sam' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { bookingIds: ['b-array'] },
+        'user-1',
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('falls back to already-completed bookings when none are actionable', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-done',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Sam' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'UTC' },
+        'user-1',
+        {
+          prompt:
+            "mark Karo's appointment as done and paid on 5th of june from 9:50",
+          employees,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('looks up by employee and time without an explicit date filter', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-no-date',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Sam' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Karo',
+          timeSlot: '09:50',
+        },
+        'user-1',
+        { employees, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('uses ctx defaults when employees and timezone are omitted', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([]),
+          findOne: jest.fn(),
+        } as any,
+      });
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Karo',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+        },
+        'user-1',
+        {},
+      );
+
+      expect(result.success).toBe(false);
+    });
+
+    it('matches appointment time in business timezone', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-tz',
+        businessId: 'biz-1',
+        employeeId: 'emp-karo',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T06:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+        employee: { id: 'emp-karo', name: 'Karo Mazmanyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const prompt =
+        "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50";
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'Asia/Yerevan' },
+        'user-1',
+        { prompt, employees, timeZone: 'Asia/Yerevan' },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('falls back to customer lookup when provider name does not match roster', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-customer',
+        businessId: 'biz-1',
+        employeeId: 'emp-other',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Karo Mazmanyan' },
+      };
+      const find = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([booking]);
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find,
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-other', name: 'Gevorg Gasparyan' }] as any[];
+      const customers = [{ id: 'cust-1', name: 'Karo Mazmanyan' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Gevorg Gasparyan',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        {
+          prompt:
+            "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50",
+          employees,
+          customers,
+          timeZone: 'UTC',
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(find).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries by customer after provider-scoped lookup is empty', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-customer-retry',
+        businessId: 'biz-1',
+        employeeId: 'emp-gevorg',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Karo Mazmanyan' },
+      };
+      const find = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([booking]);
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find,
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-gevorg', name: 'Gevorg Gasparyan' }] as any[];
+      const customers = [{ id: 'cust-1', name: 'Karo Mazmanyan' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Gevorg Gasparyan',
+          customerName: 'Karo Mazmanyan',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        { employees, customers, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(find).toHaveBeenCalledTimes(2);
+    });
+
+    it('filters by customer when no provider scope is resolved', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-customer-only',
+        businessId: 'biz-1',
+        employeeId: 'emp-other',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Karo Mazmanyan' },
+      };
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue([booking, {
+            id: 'other',
+            businessId: 'biz-1',
+            status: BookingStatus.CONFIRMED,
+            paymentStatus: PaymentStatus.UNPAID,
+            startTime,
+            endTime: new Date('2026-06-05T10:50:00.000Z'),
+            customer: { name: 'Someone Else' },
+          }]),
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const customers = [{ id: 'cust-1', name: 'Karo Mazmanyan' }] as any[];
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          customerName: 'Karo Mazmanyan',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+          _timeZone: 'UTC',
+        },
+        'user-1',
+        { customers, timeZone: 'UTC' },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('resolves by date and time when provider name does not match the booking', async () => {
+      const startTime = new Date('2026-06-05T09:50:00.000Z');
+      const booking = {
+        id: 'b-slot',
+        businessId: 'biz-1',
+        employeeId: 'emp-gevorg',
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.UNPAID,
+        startTime,
+        endTime: new Date('2026-06-05T10:50:00.000Z'),
+        customer: { name: 'Gevorg Gasparyan' },
+        employee: { id: 'emp-gevorg', name: 'Gevorg Gasparyan' },
+      };
+      const find = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([booking]);
+      const bookingService = { update: jest.fn(async () => ({})) };
+      const deps = buildDeps({
+        bookingRepo: {
+          find,
+          findOne: jest.fn().mockResolvedValue(booking),
+        } as any,
+        bookingService: bookingService as any,
+      });
+      const employees = [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[];
+      const prompt =
+        "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50";
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        { _timeZone: 'Asia/Yerevan' },
+        'user-1',
+        { prompt, employees, timeZone: 'Asia/Yerevan' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(bookingService.update).toHaveBeenCalledWith(
+        'b-slot',
+        expect.any(Object),
+        'user-1',
+      );
+    });
+
+    it('handles undefined booking query results', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn().mockResolvedValue(undefined),
+          findOne: jest.fn(),
+        } as any,
+      });
+
+      const result = await handleMarkPaidLogic(
+        deps,
+        'biz-1',
+        {
+          employeeName: 'Karo Mazmanyan',
+          date: '2026-06-05',
+          timeSlot: '09:50',
+        },
+        'user-1',
+        {
+          employees: [{ id: 'emp-karo', name: 'Karo Mazmanyan' }] as any[],
+        },
+      );
+
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('handleAssignBookingResourceLogic', () => {

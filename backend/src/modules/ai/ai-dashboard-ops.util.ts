@@ -6,9 +6,13 @@ import {
 import { isRevenueForecastPrompt } from './ai-operations.util.js';
 import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
 import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
+import { isConfigureOnlineBookingPrompt } from './ai-staff-operations.util.js';
 
 /** "Summarize customer Maria Lopez who has a booking with Gevorg today at 10:00". */
 export function isCustomerBookingContextPrompt(prompt: string): boolean {
+  if (isConfigureOnlineBookingPrompt(prompt)) {
+    return false;
+  }
   const lower = prompt.toLowerCase();
   if (
     /\b(anonymize|forget|erase|gdpr|erasure|right\s+to)\b/i.test(lower) &&

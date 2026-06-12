@@ -69,6 +69,8 @@ interface ServiceRecord {
     preparationNotes?: string;
   } | null;
   taxRatePercent?: number | null;
+  isFeatured?: boolean;
+  serviceTier?: 'standard' | 'premium' | null;
 }
 
 interface ServiceFormState {
@@ -94,6 +96,8 @@ interface ServiceFormState {
   requiresFasting: boolean;
   preparationNotes: string;
   taxRatePercent: string;
+  isFeatured: boolean;
+  serviceTier: '' | 'standard' | 'premium';
 }
 
 interface CategoryFormState {
@@ -125,6 +129,8 @@ const defaultForm = (): ServiceFormState => ({
   requiresFasting: false,
   preparationNotes: '',
   taxRatePercent: '',
+  isFeatured: false,
+  serviceTier: '',
 });
 
 const defaultCategoryForm = (): CategoryFormState => ({
@@ -195,6 +201,16 @@ function formToPayload(
         ? { taxRatePercent: null }
         : {}
       : { taxRatePercent: parseFloatField(form.taxRatePercent) };
+  const rankMetadata =
+    mode === 'update'
+      ? {
+          isFeatured: form.isFeatured,
+          serviceTier: form.serviceTier || ('' as const),
+        }
+      : {
+          ...(form.isFeatured ? { isFeatured: true } : {}),
+          ...(form.serviceTier ? { serviceTier: form.serviceTier } : {}),
+        };
 
   if (mode === 'update') {
     return {
@@ -202,6 +218,7 @@ function formToPayload(
       categoryId: form.categoryId || null,
       ...verticalPayload,
       ...taxOverride,
+      ...rankMetadata,
     };
   }
   return {
@@ -209,6 +226,7 @@ function formToPayload(
     ...(form.categoryId ? { categoryId: form.categoryId } : {}),
     ...verticalPayload,
     ...taxOverride,
+    ...rankMetadata,
   };
 }
 
@@ -252,6 +270,8 @@ function serviceToForm(svc: ServiceRecord): ServiceFormState {
       svc.taxRatePercent != null && svc.taxRatePercent >= 0
         ? String(svc.taxRatePercent)
         : '',
+    isFeatured: svc.isFeatured === true,
+    serviceTier: svc.serviceTier ?? '',
   };
 }
 
@@ -381,6 +401,35 @@ function ServiceFormFields({
           onFocus={(e) => e.target.select()}
         />
         <p className="text-xs text-gray-500 mt-1">{t('servicesPage.taxRateOverrideHint')}</p>
+      </div>
+      <div className="md:col-span-2 space-y-3 rounded-lg border border-amber-500/20 bg-amber-600/5 p-4">
+        <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+          {t('servicesPage.rankMetadataTitle')}
+        </p>
+        <p className="text-xs text-gray-500">{t('servicesPage.rankMetadataHint')}</p>
+        <ToggleChoice
+          variant="dashboard"
+          checked={form.isFeatured}
+          onChange={(isFeatured) => setForm({ ...form, isFeatured })}
+          label={t('servicesPage.isFeatured')}
+        />
+        <div>
+          <label className="label">{t('servicesPage.serviceTier')}</label>
+          <select
+            className="input"
+            value={form.serviceTier}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                serviceTier: e.target.value as ServiceFormState['serviceTier'],
+              })
+            }
+          >
+            <option value="">{t('servicesPage.serviceTierUnset')}</option>
+            <option value="standard">{t('servicesPage.serviceTierStandard')}</option>
+            <option value="premium">{t('servicesPage.serviceTierPremium')}</option>
+          </select>
+        </div>
       </div>
       {showTourVertical && (
       <div className="md:col-span-2 space-y-3 rounded-lg border border-violet-500/20 bg-violet-600/5 p-4">

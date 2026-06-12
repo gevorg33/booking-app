@@ -1,9 +1,13 @@
 import { Test } from '@nestjs/testing';
 import {
   buildCapabilitiesView,
+  CUSTOMER_PUBLIC_DELEGATED_INTENTS,
   getAllowedIntents,
+  getCustomerNativeIntents,
+  getPublicDelegatedCustomerIntents,
   isIntentAllowed,
   isMutatingIntent,
+  validateCustomerPublicDelegatedIntents,
 } from './ai-capability.matrix.js';
 import {
   CUSTOMER_INTENTS,
@@ -29,6 +33,12 @@ import {
   resolveCompoundRecipesForPrompt,
 } from './ai-command-registry.util.js';
 import { SELF_SERVICE_BOOKING_INTENTS } from './ai-self-service-booking.util.js';
+import {
+  auditCustomerIntentCoverage,
+  CUSTOMER_INTENT_COVERAGE_REQUIRED,
+  listCustomerIntentCoverageGaps,
+} from './ai-customer-intent-coverage.util.js';
+import { AI_COMMAND_EVAL_DETERMINISTIC_CASES } from './eval/ai-command-eval.cases.js';
 
 describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
   it('bootstraps registry service and validates zero drift against generated intent lists', async () => {
@@ -185,8 +195,38 @@ describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
     expect(view.accessTier).toBe('client');
     expect(view.allowedIntents).toContain('book_package');
     expect(view.planDeniedIntents).toEqual([]);
+    expect(view.publicDelegatedIntents).toEqual([
+      ...CUSTOMER_PUBLIC_DELEGATED_INTENTS,
+    ]);
+    expect(view.customerNativeIntents).toEqual(getCustomerNativeIntents('client'));
 
     expect(isIntentAllowed('customer', 'staff', 'book_package')).toBe(false);
     expect(getAllowedIntents('customer', 'manager')).toEqual(['unknown']);
+  });
+
+  it('aligns PUBLIC_ONLY_ASSISTANT_ACTIONS with registry + customer gateway (ai-cmd-customer-0.1)', () => {
+    expect(validateCustomerPublicDelegatedIntents()).toEqual([]);
+
+    for (const action of CUSTOMER_PUBLIC_DELEGATED_INTENTS) {
+      expect(PUBLIC_INTENTS).toContain(action);
+      expect(isIntentAllowed('customer', 'client', action)).toBe(true);
+      expect(isIntentAllowed('public', 'client', action)).toBe(true);
+      expect(getPublicDelegatedCustomerIntents('client')).toContain(action);
+      expect(getCustomerNativeIntents('client')).not.toContain(action);
+    }
+
+    expect(getCustomerNativeIntents('client')).toContain('book_package');
+    expect(getCustomerNativeIntents('client')).not.toContain('book_appointment');
+  });
+
+  it('audits shipped customer intents for fixture + eval coverage (ai-cmd-customer-2.6)', () => {
+    const gaps = listCustomerIntentCoverageGaps(
+      AI_COMMAND_EVAL_DETERMINISTIC_CASES,
+    );
+    expect(gaps).toEqual([]);
+    expect(CUSTOMER_INTENT_COVERAGE_REQUIRED.length).toBeGreaterThan(15);
+    expect(
+      auditCustomerIntentCoverage(AI_COMMAND_EVAL_DETERMINISTIC_CASES).length,
+    ).toBeGreaterThan(40);
   });
 });

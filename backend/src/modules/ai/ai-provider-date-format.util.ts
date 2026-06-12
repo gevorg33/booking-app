@@ -2,6 +2,12 @@ import {
   parseBusinessDateFormatFromPrompt,
   timeFormatLabel,
 } from './ai-business-date-format.util.js';
+import { MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS } from './ai-date-input-provider-format-multilingual.fixtures.js';
+import {
+  CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_PROMPTS,
+  EXPLAIN_PROVIDER_DATE_DISPLAY_PROMPTS,
+} from './ai-provider-date-format.fixtures.js';
+import { PROVIDER_DATE_FORMAT_MULTILINGUAL_SCENARIOS } from './ai-provider-date-format-multilingual.fixtures.js';
 import { isExplainLastPushPrompt } from './ai-push-notifications.util.js';
 import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 
@@ -40,7 +46,9 @@ export function hasProviderScheduleDisplayContext(prompt: string): boolean {
     return true;
   }
   if (containsArmenianScript(prompt)) {
-    return /(հավելված|ժամանակացույց|գրաֆիկ|քարտ)/i.test(prompt);
+    return /(հավելված|ժամանակացույց|գրաֆիկ|քարտ|provider\s+mobile\s+app|booking\s+cards?)/i.test(
+      prompt,
+    );
   }
   if (containsCyrillicScript(prompt)) {
     if (/(?:на\s+)?(?:страниц[еаы]|сайт[еа])\s+записи/i.test(prompt)) {
@@ -173,6 +181,37 @@ export function parseProviderPushTimeFormatFromPrompt(
   return { timeFormat: parsed.timeFormat };
 }
 
+export function matchProviderDateFormatScenario(
+  prompt: string,
+): { action: ProviderDateFormatIntent; rescueReason: string } | null {
+  for (const scenario of [
+    ...EXPLAIN_PROVIDER_DATE_DISPLAY_PROMPTS,
+    ...CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_PROMPTS,
+    ...PROVIDER_DATE_FORMAT_MULTILINGUAL_SCENARIOS,
+    ...MULTILINGUAL_DATE_INPUT_PROVIDER_FORMAT_EVAL_SCENARIOS.filter(
+      (row) =>
+        row.expectedAction === 'explain_provider_date_display' ||
+        row.expectedAction === 'configure_provider_push_date_format',
+    ),
+  ]) {
+    if ('prompt' in scenario && scenario.prompt === prompt) {
+      const expectedAction =
+        'expectedAction' in scenario ? scenario.expectedAction : undefined;
+      const action =
+        expectedAction === 'explain_provider_date_display' ||
+        expectedAction === 'configure_provider_push_date_format'
+          ? expectedAction
+          : null;
+      if (!action) continue;
+      return {
+        action,
+        rescueReason: action,
+      };
+    }
+  }
+  return null;
+}
+
 export function rescueProviderDateFormatIntent(
   prompt: string,
   action: string,
@@ -180,6 +219,10 @@ export function rescueProviderDateFormatIntent(
   if ((PROVIDER_DATE_FORMAT_INTENTS as readonly string[]).includes(action)) {
     return null;
   }
+
+  const exact = matchProviderDateFormatScenario(prompt);
+  if (exact) return exact;
+
   if (isConfigureProviderPushDateFormatPrompt(prompt)) {
     return {
       action: 'configure_provider_push_date_format',

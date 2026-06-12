@@ -24,6 +24,9 @@ import { CONSUMER_ADOPTION_CLASSIFIER_RULES } from './ai-consumer-adoption.fixtu
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
+import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-discovery.fixtures.js';
+import { FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from './ai-flexible-availability.fixtures.js';
+import { SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES } from './ai-service-rank-discovery.fixtures.js';
 import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from './ai-tour-day-slots.fixtures.js';
 import { CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import {
@@ -32,7 +35,8 @@ import {
 } from './ai-command-registry.build.js';
 import type { PublicAssistantResult } from '../public-booking/public-booking-assistant.service.js';
 
-/** Anonymous public-booking assistant intents routed via PublicBookingAssistantService. */
+/** Anonymous public-booking assistant intents routed via PublicBookingAssistantService.
+ *  Documented in `ai-capability.matrix.ts` as `CUSTOMER_PUBLIC_DELEGATED_INTENTS`. */
 export const PUBLIC_ONLY_ASSISTANT_ACTIONS = [
   'list_providers',
   'list_services',
@@ -145,6 +149,11 @@ Classify the user's message and extract parameters. Return JSON:
     "timeSlot": "HH:MM or null — omit when bookingFirstAvailable=true",
     "timeFrom": "HH:MM or null — earliest hour for flexible booking (e.g. after 16:00)",
     "timeOfDay": "morning | afternoon | evening | null",
+    "availabilityWindows": [{"date": "DD/MM/YYYY or null", "weekdays": ["monday", "friday", etc.] or null, "timeOfDay": "morning | afternoon | evening | null", "timeFrom": "HH:MM or null", "timeSlot": "HH:MM or null", "employeeName": "string or null — named specialist for that OR window only"}] or null — OR alternatives (tomorrow evening OR Friday afternoon); each window scanned independently",
+    "serviceCategory": "string or null — keyword to filter service type names (e.g. haircut, massage)",
+    "maxPrice": "number or null — inclusive catalog display-price ceiling when the user states a budget",
+    "serviceRank": "highest_price | lowest_price | most_popular | null — rank catalog services for list_services (premium/cheapest/popular service, not specialist ratings)",
+    "serviceTier": "standard | premium | null — filter catalog rows by entity metadata tier",
     "paymentMethod": "cash | online | gift_card | null",
     "customerName": "string or null",
     "customerEmail": "string or null",
@@ -161,6 +170,9 @@ Rules:
 - Default to "unknown" when unclear.
 ${CHECK_AND_BOOK_CLASSIFIER_RULES}
 ${CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES}
+${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}
+${FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES}
+${SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES}
 ${CHECKOUT_CURRENCY_CLASSIFIER_RULES}
 ${CHECKOUT_TAX_CLASSIFIER_RULES}
 ${TENANT_CURRENCY_CLASSIFIER_RULES}

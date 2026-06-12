@@ -21,7 +21,6 @@ import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
 import {
   resolveLocale,
   t,
-  localeLanguageInstruction,
   type AppLocale,
 } from '../../common/i18n/messages.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
@@ -35,13 +34,13 @@ import {
   PUBLIC_AVAILABILITY_SCAN_DAYS,
   resolveEmployees,
   resolvePublicAvailabilityDateKeys,
+  resolvePublicAvailabilityWindows,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
   stripServiceRoleNoise,
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
-import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
@@ -49,51 +48,84 @@ import {
   pickCheckProvidersHandoff,
   type CheckProvidersHandoff,
 } from '../ai/ai-check-book-handoff.util.js';
-import { buildNearestBookableSlotQuery } from '../ai/ai-nearest-slot-resolver.util.js';
-import { CLASSIFIER_MULTILINGUAL_RULES } from '../ai/ai-prompt-i18n.js';
-import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.fixtures.js';
-import { BOOKING_LANGUAGES_CLASSIFIER_RULES } from '../ai/ai-booking-languages.fixtures.js';
-import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from '../ai/ai-booking-date-format.fixtures.js';
-import { PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from '../ai/ai-package-display-name.fixtures.js';
-import { TOUR_BOOKING_CLASSIFIER_RULES } from '../ai/ai-tour-booking.fixtures.js';
-import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from '../ai/ai-tour-day-slots.fixtures.js';
-import { PACKAGE_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-package-currency.fixtures.js';
-import { rescueBookingLanguagesIntent } from '../ai/ai-booking-languages.util.js';
-import { rescueBookingDateFormatIntent } from '../ai/ai-booking-date-format.util.js';
+import {
+  applyChosenAvailabilityWindowToParams,
+  buildNearestAvailabilityWindowQueries,
+  buildNearestBookableSlotQuery,
+} from '../ai/ai-nearest-slot-resolver.util.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
-import { rescueCheckoutCurrencyIntent } from '../ai/ai-checkout-currency.util.js';
-import { rescueStripeCheckoutCurrencyIntent } from '../ai/ai-stripe-checkout-currency.util.js';
-import { STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-stripe-checkout-currency.fixtures.js';
-import { rescuePackageCurrencyIntent } from '../ai/ai-package-currency.util.js';
-import { rescuePackageDisplayNameIntent } from '../ai/ai-package-display-name.util.js';
-import { rescueDiagnoseTourCapacityIntent } from '../ai/ai-tour-capacity.util.js';
-import { TOUR_CAPACITY_CLASSIFIER_RULES } from '../ai/ai-tour-capacity.fixtures.js';
-import { CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations.fixtures.js';
-import { rescueTourBookingIntent } from '../ai/ai-tour-booking.util.js';
-import { rescueTourDaySlotsIntent } from '../ai/ai-tour-day-slots.util.js';
-import { rescueExplainCheckoutRecommendationsIntent } from '../ai/ai-checkout-recommendations.util.js';
-import { rescueExplainDataRightsIntent } from '../ai/ai-data-rights.util.js';
-import { rescueConsumerClinicTestResultsIntent } from '../ai/ai-consumer-clinic-test-results.util.js';
-import { DATA_RIGHTS_CLASSIFIER_RULES } from '../ai/ai-data-rights.fixtures.js';
-import { PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-v2-6.fixtures.js';
-import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from '../ai/ai-consumer-clinic-test-results.fixtures.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
 import { AiConsumerClinicTestResultsService } from '../ai/ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
-import { PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-lab-booking.fixtures.js';
-import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-lab-booking.fixtures.js';
-import { rescueConsumerClinicLabBookingIntent } from '../ai/ai-clinic-lab-booking.util.js';
-import { rescueExplainClinicBookingIntent } from '../ai/ai-clinic-booking.util.js';
-import { CLINIC_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-booking.fixtures.js';
 import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
 import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
 import { AiBusinessLanguagesService } from '../ai/ai-business-languages.service.js';
 import { AiPackageLocalizedNamesService } from '../ai/ai-package-localized-names.service.js';
-import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
-import { disambiguateMisclassifiedAvailabilityIntent } from '../ai/ai-intent-disambiguation.util.js';
+import { AiPromptNormalizationService } from '../ai/ai-prompt-normalization.service.js';
+import { PublicCommandUnderstandingAdapter } from '../ai/public-command-understanding.adapter.js';
+import {
+  buildPipelineClarifyCommandResult,
+  buildUnknownIntentClarifyResult,
+  shouldBlockUnknownFromHandlerSwitch,
+} from '../ai/ai-unknown-intent.util.js';
+import {
+  findClassifierCandidate,
+  pipelineRescueReason,
+  pipelineResultToClassifiedIntent,
+} from '../ai/command-understanding-result.util.js';
+import type { ClassifiedIntent } from '../ai/ai-command-routing.util.js';
+import type { PipelineUnderstandResult } from '../ai/command-understanding.types.js';
 import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
+import { rescueBudgetServiceDiscoveryIntent } from '../ai/ai-budget-service-discovery.util.js';
+import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from '../ai/ai-service-rank-discovery.util.js';
+import { rescueServiceCatalogBrowseIntent } from '../ai/ai-service-catalog-browse.util.js';
+import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
+export { buildPublicClassifierSchema } from './public-booking-classifier.schema.js';
+import {
+  applyBudgetFilterForRecommendSpecialists,
+  composePublicListServicesBudgetResponse,
+  resolveDiscoverConstrainedService,
+} from '../ai/ai-budget-list-services.logic.js';
+import {
+  composePublicListServicesMidRangeResponse,
+  composePublicListServicesRankResponse,
+  resolveListServicesRankLimitFromPrompt,
+} from '../ai/ai-rank-list-services.logic.js';
+import { resolveServiceTierParam } from '../../common/utils/service-rank-metadata.util.js';
+import {
+  isMidRangeServiceListPrompt,
+  isValueOrPremiumBudgetListPrompt,
+  resolveServiceRankParam,
+} from '../ai/ai-service-rank-discovery.util.js';
+import { isBudgetServiceDiscoveryCompoundPrompt } from '../ai/ai-budget-service-discovery-compound.util.js';
+import { isFlexibleAvailabilityBudgetBookCompoundPrompt } from '../ai/ai-flexible-availability-compound.util.js';
+import {
+  appendAvailabilityNearestAlternativeNote,
+  composeAvailabilityNoSlotsSummary,
+  composePublicAvailabilityCheckSummary,
+  composePublicAvailabilityGroupedEmptyWindowsSummary,
+  filterPublicProviderSlotsByTimeOfDay,
+  formatAvailabilityNearestAlternativeNote,
+  mergePublicProviderSlotTimes,
+  shouldGroupPublicAvailabilityByWindow,
+  shouldUseGroupedAvailabilityNoSlotsSummary,
+  applyBudgetFilterForAvailabilityCheck,
+  type PublicAvailabilityDayReport,
+  type PublicAvailabilityWindowReport,
+} from '../ai/ai-flexible-availability-check.logic.js';
+import {
+  buildAvailabilityBudgetClarifyDetails,
+  buildPublicAvailabilityWindowLabelForCheck,
+  prepareAvailabilityWindowsForCheck,
+  resolveAvailabilityBudgetClarifyMaxPrice,
+} from '../ai/ai-flexible-availability-clarify.logic.js';
+import { executePublicAssistantCompoundFromSteps } from './public-booking-assistant-compound.logic.js';
+import {
+  mergePublicAssistantSessionParams,
+  serializePublicAssistantDiscoverySessionFields,
+} from './public-booking-assistant-session.util.js';
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import {
@@ -130,84 +162,6 @@ export interface PublicAssistantResult {
   details?: Record<string, unknown>;
 }
 
-export function buildPublicClassifierSchema(): string {
-  return `You are a friendly booking assistant for a customer-facing online appointment page.
-Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
-
-{
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
-  "params": {
-    "employeeName": "string or null — one specialist from the Providers list",
-    "serviceName": "string or null — one exact or closest catalog service name",
-    "serviceCategory": "string or null — keyword to filter SERVICE TYPE NAMES in the catalog (e.g. 'massage' matches Swedish massage, facemassage); NOT a catalog category entity — never include words like specialist/therapist/provider",
-    "serviceNames": ["string"] or null — explicit list of catalog service names when user wants multiple related services,
-    "date": "DD/MM/YYYY or null",
-    "dateFrom": "DD/MM/YYYY or null",
-    "dateTo": "DD/MM/YYYY or null",
-    "weekdays": ["monday", "friday", etc.] or null — when user names weekdays without exact calendar dates",
-    "timeSlot": "HH:MM 24h or null — omit when bookingFirstAvailable=true",
-    "timeFrom": "HH:MM or null — earliest time when user says after 16:00 or for flexible booking",
-    "timeOfDay": "morning | afternoon | evening | null — tonight counts as evening",
-    "bookingFirstAvailable": boolean or null,
-    "allProviders": boolean or null — true when any specialist is acceptable",
-    "providerFallbackNames": ["string"] or null,
-    "fallbackAnyProvider": boolean or null,
-    "customerName": "string or null",
-    "customerEmail": "string or null",
-    "customerPhone": "string or null"
-  },
-  "reasoning": "one short sentence"
-}
-
-You MUST resolve relative dates yourself using Today's date from context (tomorrow, this week, Monday, next Friday → concrete DD/MM/YYYY or dateFrom/dateTo/weekdays). When the user mentions dates or weekdays in THIS message, set fresh date fields — ignore stale session dates for availability/recommend queries.
-
-Action rules:
-- recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
-- check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set weekdays for "Monday and Friday", dateFrom/dateTo for "this week". Set timeOfDay for morning/afternoon/evening/tonight.
-- list_providers: who works here (not ratings/availability).
-- list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required.
-- book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
-- Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
-- business_info / booking_help: as named.
-- explain_checkout_currency: why prices show € / ֏ / ₽ / $ on this booking page; READ only.
-- explain_stripe_checkout_currency: why online Stripe checkout charges in € / ֏ / ₽ / $; when stripeCurrencySupported is false use cash/pay-at-venue; READ only.
-- explain_package_currency: why package or gift-card totals use business default vs legacy bundled service currency; READ only.
-- explain_booking_languages: why the language menu only shows certain locales on this booking page; READ only.
-- explain_booking_date_format: why dates show DD/MM vs MM/DD (or ISO) on this booking page; READ only.
-${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
-
-Service extraction (critical):
-- "massage specialist" / "best rated massage" / "what kinds of massage" → serviceCategory: "massage" — keyword on service type names, NOT serviceName "massage specialist".
-- "Swedish massage" → serviceName: "Swedish massage".
-- Never invent services — only names from the Services list in context.
-- Multi-turn: fill missing employeeName/serviceName/date/timeSlot from Active session when the user omits them, EXCEPT bookingFirstAvailable (always fresh) and EXCEPT when this message sets new dates/weekdays.
-
-Examples:
-- "free slots on Monday for Gevorg" → check_availability, employeeName: Gevorg, weekdays: ["monday"]
-- "best rated massage this week" → recommend_specialists, serviceCategory: "massage", dateFrom/dateTo: this week
-- "book nearest facemassage on any specialist after 16:00" → book_appointment, serviceName: facemassage, bookingFirstAvailable: true, allProviders: true, timeFrom: "16:00"
-
-Normalize all dates to DD/MM/YYYY.
-${PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES}
-${PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES}
-${CHECKOUT_CURRENCY_CLASSIFIER_RULES}
-${STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES}
-${PACKAGE_CURRENCY_CLASSIFIER_RULES}
-${BOOKING_LANGUAGES_CLASSIFIER_RULES}
-${BOOKING_DATE_FORMAT_CLASSIFIER_RULES}
-${TOUR_BOOKING_CLASSIFIER_RULES}
-${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
-${TOUR_CAPACITY_CLASSIFIER_RULES}
-${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
-${DATA_RIGHTS_CLASSIFIER_RULES}
-${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
-${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
-${CLINIC_BOOKING_CLASSIFIER_RULES}
-${PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
-${PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX}
-
-${CLASSIFIER_MULTILINGUAL_RULES}`;
-}
 
 @Injectable()
 export class PublicBookingAssistantService {
@@ -220,6 +174,8 @@ export class PublicBookingAssistantService {
     private slotResolver: BookingSlotResolverService,
     private platform: AiPlatformService,
     private aiSettings: AiSettingsService,
+    private promptNormalization: AiPromptNormalizationService,
+    private publicUnderstanding: PublicCommandUnderstandingAdapter,
     private aiEvents: AiEventsService,
     private businessCurrency: AiBusinessCurrencyService,
     private businessLanguages: AiBusinessLanguagesService,
@@ -292,20 +248,92 @@ Providers: ${
     }
 Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.price} ${s.currency}`).join(', ') || 'none'}`;
 
-    const parsed = await this.classifyIntent(
-      business.id,
+    const compoundResult = await this.tryExecutePublicCompound(
+      slug,
       prompt,
-      contextBlock,
-      session?.history,
       orchestratedSession,
+      employees,
+      services,
       locale,
+      tz,
+      todayKey,
+      options,
     );
-    if (!parsed) {
+    if (compoundResult) return compoundResult;
+
+    const promptNorm = await this.promptNormalization.normalizeForClassifier(
+      business.id,
+      undefined,
+      prompt,
+    );
+
+    const understood = await this.publicUnderstanding.understand({
+      businessId: business.id,
+      effectivePrompt: prompt,
+      confidence: aiConfig.confidence,
+      sessionConfidenceHigh: orchestratedSession?._confidenceHigh as
+        | number
+        | undefined,
+      lastAction: orchestratedSession?.lastAction as string | undefined,
+      sessionContext: orchestratedSession,
+      history: session?.history,
+      locale,
+      businessContextBlock: contextBlock,
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      promptNorm,
+      classify: (normalizedPrompt, systemContext) =>
+        this.classifyIntent(
+          business.id,
+          normalizedPrompt,
+          systemContext,
+          session?.history,
+          orchestratedSession,
+          locale,
+        ),
+    });
+
+    if (understood.status === 'blocked') {
       return {
         success: false,
         action: 'unknown',
         summary: t(locale, 'assistant.unknown'),
       };
+    }
+
+    if (understood.status === 'clarify') {
+      return this.pipelineClarifyToPublicResult(understood, locale);
+    }
+
+    let parsed = pipelineResultToClassifiedIntent(understood);
+    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierAction = classifierCandidate?.action ?? parsed.action;
+    const classifierConfidence = classifierCandidate?.confidence;
+    let rescueReason: string | undefined = pipelineRescueReason(understood);
+
+    const discoveryRescue = this.applyBudgetAndRankServiceDiscoveryRescue(
+      prompt,
+      parsed.action,
+    );
+    if (discoveryRescue) {
+      parsed.action = discoveryRescue.action;
+      rescueReason = discoveryRescue.rescueReason;
+      if (discoveryRescue.params) {
+        parsed.params = { ...parsed.params, ...discoveryRescue.params };
+      }
+    }
+
+    if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+      return commandResultToPublicAssistantResult(
+        buildUnknownIntentClarifyResult({
+          surface: 'public',
+          prompt,
+          params: parsed.params,
+          reasoning: parsed.reasoning,
+          confidence:
+            typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          trace: understood.trace,
+        }),
+      );
     }
 
     const gateDenied = this.platform.gatePublicAction(parsed.action);
@@ -317,127 +345,6 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const classifierAction = parsed.action;
-    const classifierConfidence =
-      typeof parsed.confidence === 'number' ? parsed.confidence : undefined;
-    const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
-      'public',
-      prompt,
-      parsed.action,
-      parsed.params ?? {},
-    );
-    if (availabilityFix) {
-      parsed.action = availabilityFix.action;
-      parsed.params = {
-        ...parsed.params,
-        ...availabilityFix.params,
-      };
-    }
-
-    const packageCurrencyRescue = rescuePackageCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (packageCurrencyRescue) {
-      parsed.action = packageCurrencyRescue.action;
-    }
-
-    const stripeCheckoutCurrencyRescue = rescueStripeCheckoutCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (stripeCheckoutCurrencyRescue) {
-      parsed.action = stripeCheckoutCurrencyRescue.action;
-    }
-
-    const tourCapacityRescue = rescueDiagnoseTourCapacityIntent(
-      prompt,
-      parsed.action,
-    );
-    if (tourCapacityRescue) {
-      parsed.action = tourCapacityRescue.action;
-    }
-
-    const checkoutRecommendationsRescue =
-      rescueExplainCheckoutRecommendationsIntent(prompt, parsed.action);
-    if (checkoutRecommendationsRescue) {
-      parsed.action = checkoutRecommendationsRescue.action;
-    }
-
-    const tourDaySlotsRescue = rescueTourDaySlotsIntent(prompt, parsed.action);
-    if (tourDaySlotsRescue) {
-      parsed.action = tourDaySlotsRescue.action;
-    }
-
-    const tourBookingRescue = rescueTourBookingIntent(prompt, parsed.action);
-    if (tourBookingRescue) {
-      parsed.action = tourBookingRescue.action;
-    }
-
-    const checkoutCurrencyRescue = rescueCheckoutCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (checkoutCurrencyRescue) {
-      parsed.action = checkoutCurrencyRescue.action;
-    }
-
-    const packageDisplayNameRescue = rescuePackageDisplayNameIntent(
-      prompt,
-      parsed.action,
-    );
-    if (packageDisplayNameRescue) {
-      parsed.action = packageDisplayNameRescue.action;
-    }
-
-    const bookingLanguagesRescue = rescueBookingLanguagesIntent(
-      prompt,
-      parsed.action,
-    );
-    if (bookingLanguagesRescue) {
-      parsed.action = bookingLanguagesRescue.action;
-    }
-
-    const bookingDateFormatRescue = rescueBookingDateFormatIntent(
-      prompt,
-      parsed.action,
-    );
-    if (bookingDateFormatRescue) {
-      parsed.action = bookingDateFormatRescue.action;
-    }
-
-    const dataRightsRescue = rescueExplainDataRightsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (dataRightsRescue) {
-      parsed.action = dataRightsRescue.action;
-    }
-
-    const consumerClinicResultsRescue = rescueConsumerClinicTestResultsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (consumerClinicResultsRescue) {
-      parsed.action = consumerClinicResultsRescue.action;
-    }
-
-    const consumerClinicLabBookingRescue = rescueConsumerClinicLabBookingIntent(
-      prompt,
-      parsed.action,
-    );
-    if (consumerClinicLabBookingRescue) {
-      parsed.action = consumerClinicLabBookingRescue.action;
-    }
-
-    const clinicBookingRescue = rescueExplainClinicBookingIntent(
-      prompt,
-      parsed.action,
-    );
-    if (clinicBookingRescue) {
-      parsed.action = clinicBookingRescue.action;
-    }
-
     const compoundDecomposition = isCompoundPrompt(prompt)
       ? decomposeDeterministicForSurface('public', prompt)
       : null;
@@ -446,8 +353,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       prompt,
       classifierAction,
       rescuedAction: parsed.action,
-      rescueReason:
-        checkoutCurrencyRescue?.rescueReason ?? availabilityFix?.rescueReason,
+      rescueReason,
       classifierConfidence,
       compoundStepCount: compoundDecomposition?.steps.length ?? 1,
     });
@@ -481,6 +387,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           enrichListServicesParamsFromPrompt(prompt, parsed.params ?? {}),
           employees,
           locale,
+          prompt,
         );
         break;
       case 'check_availability':
@@ -699,6 +606,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: any,
     employees: Employee[],
     locale: AppLocale,
+    prompt = '',
   ): Promise<PublicAssistantResult> {
     const employee = params.employeeName
       ? this.fuzzyMatchByName(employees, params.employeeName)
@@ -738,24 +646,304 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const services = matched;
-    const lines = services.map(
-      (s) =>
-        `• ${s.name} — ${s.durationMinutes} min · ${s.price} ${s.currency}`,
-    );
+    const catalogRows = matched.map((service) => ({
+      id: service.id,
+      name: service.name,
+      price: service.price,
+      currency: service.currency,
+      durationMinutes: service.durationMinutes,
+      bookingCount: service.bookingCount90d ?? 0,
+      ...(service.category?.name ? { serviceCategory: service.category.name } : {}),
+      ...(service.isFeatured ? { isFeatured: true } : {}),
+      ...(service.serviceTier ? { serviceTier: service.serviceTier } : {}),
+    }));
 
+    const serviceRank = resolveServiceRankParam(params.serviceRank);
+    const serviceTier = resolveServiceTierParam(params.serviceTier);
     const serviceQuery = params.serviceCategory ?? params.serviceName;
+
+    if (isMidRangeServiceListPrompt(prompt) && !serviceRank) {
+      const midRangeLimit = resolveListServicesRankLimitFromPrompt(prompt, params);
+      const composed = composePublicListServicesMidRangeResponse({
+        matchedServices: catalogRows,
+        serviceCategory: params.serviceCategory ?? params.serviceName ?? null,
+        limit: midRangeLimit,
+        header: employee ? `Services with ${employee.name}:` : undefined,
+      });
+
+      return {
+        success: composed.success,
+        action: 'list_services',
+        summary: composed.summary,
+        navigate: composed.navigate,
+        sessionContext: {
+          serviceId:
+            composed.services.length === 1 ? composed.services[0]!.id : null,
+          serviceName:
+            composed.services.length === 1 ? composed.services[0]!.name : null,
+        },
+        details:
+          composed.services.length === 1
+            ? { serviceId: composed.services[0]!.id }
+            : undefined,
+      };
+    }
+
+    if (serviceRank || serviceTier) {
+      const rankLimit = resolveListServicesRankLimitFromPrompt(prompt, params);
+      const composed = composePublicListServicesRankResponse({
+        matchedServices: catalogRows,
+        serviceRank: serviceRank ?? undefined,
+        serviceTier,
+        limit: rankLimit,
+        maxPrice: params.maxPrice,
+        serviceCategory: params.serviceCategory ?? params.serviceName ?? null,
+        allCatalogServices: catalogRows,
+        header: employee ? `Services with ${employee.name}:` : undefined,
+      });
+
+      return {
+        success: composed.success,
+        action: 'list_services',
+        summary: composed.summary,
+        navigate: composed.navigate,
+        sessionContext: {
+          serviceId:
+            composed.services.length === 1 ? composed.services[0]!.id : null,
+          serviceName:
+            composed.services.length === 1 ? composed.services[0]!.name : null,
+          maxPrice:
+            params.maxPrice != null ? String(params.maxPrice) : null,
+          rankedServiceIds:
+            composed.services.length > 1
+              ? JSON.stringify(composed.services.map((service) => service.id))
+              : null,
+        },
+        details:
+          composed.services.length === 1
+            ? { serviceId: composed.services[0]!.id }
+            : undefined,
+      };
+    }
+
     const header = employee
       ? `Services with ${employee.name}:`
       : serviceQuery
         ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
-        : 'Our service types:';
+        : params.maxTotalPrice != null
+          ? `Service combos within your budget:`
+          : params.maxPrice != null
+            ? `Services within your budget:`
+            : 'Our service types:';
+
+    const composed = composePublicListServicesBudgetResponse({
+      matchedServices: catalogRows,
+      maxPrice: params.maxPrice,
+      minPrice: params.minPrice,
+      preferShortDuration: params.preferShortDuration,
+      minDurationMinutes: params.minDurationMinutes,
+      maxTotalPrice: params.maxTotalPrice,
+      serviceCount: params.serviceCount,
+      header,
+      valueOrPremiumBrowse: isValueOrPremiumBudgetListPrompt(prompt),
+    });
 
     return {
-      success: true,
+      success: composed.success,
       action: 'list_services',
-      summary: [header, '', ...lines].join('\n'),
+      summary: composed.summary,
+      navigate: composed.navigate,
+      sessionContext: {
+        serviceId:
+          composed.services.length === 1 ? composed.services[0]!.id : null,
+        serviceName:
+          composed.services.length === 1 ? composed.services[0]!.name : null,
+        maxPrice:
+          params.maxPrice != null ? String(params.maxPrice) : null,
+        maxTotalPrice:
+          params.maxTotalPrice != null ? String(params.maxTotalPrice) : null,
+        serviceCount:
+          params.serviceCount != null ? String(params.serviceCount) : null,
+      },
+      details:
+        composed.services.length === 1
+          ? { serviceId: composed.services[0]!.id }
+          : undefined,
     };
+  }
+
+  async executeDeterministicIntent(
+    slug: string,
+    input: {
+      action: string;
+      params: Record<string, any>;
+      prompt: string;
+      session?: Record<string, any>;
+      locale?: string;
+    },
+  ): Promise<PublicAssistantResult> {
+    const business = await this.businessService.findBySlug(slug);
+    const locale = resolveLocale(
+      input.locale,
+      resolveLocale(business.settings?.locale, 'en'),
+    );
+    const tz = resolveTimezone(business.timezone);
+    const todayKey = getDateKeyInTimezone(new Date(), tz);
+    const orchestratedSession = this.platform.enrichPublicSession(
+      input.session,
+      business.settings?.businessType as string | undefined,
+      await this.aiSettings.getSettings(business.id),
+    );
+    const [employees, services] = await Promise.all([
+      this.employeeRepo.find({
+        where: { businessId: business.id, isActive: true },
+        order: { name: 'ASC' },
+      }),
+      this.serviceRepo.find({
+        where: { businessId: business.id, isActive: true },
+        order: { name: 'ASC' },
+      }),
+    ]);
+
+    const mergedParams = this.mergeSessionContext(
+      enrichPublicAssistantParamsFromPrompt(
+        input.prompt,
+        input.params ?? {},
+        services.map((service) => ({ id: service.id, name: service.name })),
+        input.action,
+      ),
+      orchestratedSession,
+      input.action,
+    );
+    this.normalizeDateParams(mergedParams, todayKey);
+
+    const raw = await this.dispatchCompoundStepAction(
+      input.action,
+      mergedParams,
+      input.prompt,
+      slug,
+      employees,
+      services,
+      locale,
+      tz,
+    );
+    return this.attachSession(raw, mergedParams, employees, services, locale);
+  }
+
+  private async tryExecutePublicCompound(
+    slug: string,
+    prompt: string,
+    orchestratedSession: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    locale: AppLocale,
+    tz: string,
+    todayKey: string,
+    options?: { recordMetrics?: boolean },
+  ): Promise<PublicAssistantResult | null> {
+    if (
+      !isCompoundPrompt(prompt) &&
+      !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      !isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt)
+    ) {
+      return null;
+    }
+
+    const decomposition = decomposeDeterministicForSurface('public', prompt);
+    if (!decomposition || decomposition.steps.length < 2) return null;
+
+    const business = await this.businessService.findBySlug(slug);
+
+    const result = await executePublicAssistantCompoundFromSteps(
+      prompt,
+      decomposition.steps,
+      { ...orchestratedSession },
+      {
+        runStep: async (action, params, segment) => {
+          const enriched = enrichPublicAssistantParamsFromPrompt(
+            segment,
+            params,
+            services.map((service) => ({
+              id: service.id,
+              name: service.name,
+            })),
+            action,
+          );
+          this.normalizeDateParams(enriched, todayKey);
+          const raw = await this.dispatchCompoundStepAction(
+            action,
+            enriched,
+            segment,
+            slug,
+            employees,
+            services,
+            locale,
+            tz,
+          );
+          return this.attachSession(raw, enriched, employees, services, locale);
+        },
+      },
+    );
+
+    if (options?.recordMetrics !== false) {
+      void this.platform.recordCommandOutcome({
+        businessId: business.id,
+        result: result as unknown as Record<string, unknown>,
+        surface: 'public',
+        locationId:
+          typeof orchestratedSession.locationId === 'string'
+            ? orchestratedSession.locationId
+            : undefined,
+      });
+    }
+
+    return result;
+  }
+
+  private async dispatchCompoundStepAction(
+    action: string,
+    params: Record<string, any>,
+    prompt: string,
+    slug: string,
+    employees: Employee[],
+    services: Service[],
+    locale: AppLocale,
+    tz: string,
+  ): Promise<PublicAssistantResult> {
+    switch (action) {
+      case 'list_services':
+        return this.handleListServices(
+          slug,
+          enrichListServicesParamsFromPrompt(prompt, params),
+          employees,
+          locale,
+          prompt,
+        );
+      case 'check_availability':
+        return this.handleCheckAvailability(
+          slug,
+          params,
+          employees,
+          services,
+          locale,
+          tz,
+        );
+      case 'book_appointment':
+        return this.handleBookAppointment(
+          slug,
+          params,
+          employees,
+          services,
+          locale,
+          prompt,
+        );
+      default:
+        return {
+          success: false,
+          action,
+          summary: `Public compound step "${action}" is not supported yet.`,
+        };
+    }
   }
 
   private async handleCheckAvailability(
@@ -766,7 +954,72 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale,
     tz: string,
   ): Promise<PublicAssistantResult> {
-    const matchedServices = this.resolveServicesFromParams(params, services);
+    let matchedServices = this.resolveServicesFromParams(params, services);
+    const budgetFiltered = applyBudgetFilterForAvailabilityCheck(
+      matchedServices.map((service) => ({
+        id: service.id,
+        name: service.name,
+        price: Number(service.price),
+        durationMinutes: service.durationMinutes,
+      })),
+      params.maxPrice,
+    );
+    if (budgetFiltered.noMatchSummary) {
+      const clarifyMaxPrice = resolveAvailabilityBudgetClarifyMaxPrice(
+        params.maxPrice,
+        budgetFiltered.budgetMax,
+      );
+      return {
+        success: true,
+        action: 'check_availability',
+        summary: budgetFiltered.noMatchSummary,
+        details: clarifyMaxPrice
+          ? buildAvailabilityBudgetClarifyDetails(clarifyMaxPrice)
+          : { clarify: true, reason: 'budget_no_match' },
+      };
+    }
+    if (budgetFiltered.services.length > 0) {
+      matchedServices = budgetFiltered.services.map(
+        (entry) => services.find((service) => service.id === entry.id)!,
+      );
+    }
+
+    const serviceRank = resolveServiceRankParam(params.serviceRank);
+    if (serviceRank != null && matchedServices.length > 0) {
+      const rankResolved = resolveDiscoverConstrainedService(
+        matchedServices.map((service) => ({
+          id: service.id,
+          name: service.name,
+          price: Number(service.price),
+          durationMinutes: service.durationMinutes,
+        })),
+        params,
+      );
+      if (rankResolved.noMatchSummary) {
+        return {
+          success: true,
+          action: 'check_availability',
+          summary: rankResolved.noMatchSummary,
+          details: { clarify: true, reason: 'rank_no_match' },
+        };
+      }
+      if (rankResolved.service) {
+        matchedServices = [
+          services.find((service) => service.id === rankResolved.service!.id)!,
+        ];
+        params = {
+          ...params,
+          serviceId: rankResolved.service.id,
+          serviceName: rankResolved.service.name,
+        };
+      }
+    } else if (matchedServices.length === 1) {
+      params = {
+        ...params,
+        serviceId: matchedServices[0]!.id,
+        serviceName: matchedServices[0]!.name,
+      };
+    }
 
     if (
       (params.serviceName || params.serviceCategory) &&
@@ -798,16 +1051,41 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
-    if (dateKeys.length === 0 && matchedServices.length > 0) {
-      const todayKey = getDateKeyInTimezone(new Date(), tz);
-      dateKeys = Array.from(
+    let availabilityWindows = resolvePublicAvailabilityWindows(
+      params,
+      undefined,
+      tz,
+    );
+    const todayKey = getDateKeyInTimezone(new Date(), tz);
+    const preparedWindows = prepareAvailabilityWindowsForCheck({
+      windows: availabilityWindows,
+      locale,
+      timeZone: tz,
+      todayDateKey: todayKey,
+    });
+    availabilityWindows = preparedWindows.windows;
+    const overlapClarifyNote = preparedWindows.overlapClarifyNote;
+    const windowOverlap = preparedWindows.overlap;
+    if (availabilityWindows.length === 0 && matchedServices.length > 0) {
+      const defaultDateKeys = Array.from(
         { length: PUBLIC_AVAILABILITY_SCAN_DAYS },
         (_, offset) => addDaysToDateKey(todayKey, offset, tz),
       );
+      availabilityWindows = [
+        {
+          dateKeys: defaultDateKeys,
+          timeOfDay: params.timeOfDay ?? null,
+          timeFrom: params.timeFrom ?? null,
+          timeTo: params.timeTo ?? null,
+          timeSlot: params.timeSlot ?? null,
+        },
+      ];
     }
 
-    if (dateKeys.length === 0) {
+    const allDateKeys = [
+      ...new Set(availabilityWindows.flatMap((window) => window.dateKeys)),
+    ];
+    if (allDateKeys.length === 0) {
       return {
         success: true,
         action: 'check_availability',
@@ -822,82 +1100,92 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    type DayReport = {
-      dateKey: string;
-      providers: Array<{
-        employee: Employee;
-        times: string[];
-        firstSlot: string;
-      }>;
-    };
-    const dayReports: DayReport[] = [];
+    const groupByWindow = shouldGroupPublicAvailabilityByWindow(
+      availabilityWindows,
+      params,
+    );
+    const windowReports: PublicAvailabilityWindowReport[] = [];
+    const flatDayReports: PublicAvailabilityDayReport[] = [];
     let bestNavigate: { employeeId: string; startTime: string } | undefined;
 
-    for (const dateKey of dateKeys) {
-      const providersForDay: DayReport['providers'] = [];
+    for (const window of availabilityWindows) {
+      const dayReports: PublicAvailabilityDayReport[] = [];
+      const notBeforeTime = window.timeFrom ?? params.timeFrom ?? null;
 
-      for (const employee of targets) {
-        const serviceIds =
-          matchedServices.length > 0
-            ? matchedServices
-                .filter(
-                  (s) =>
-                    !employee.serviceIds?.length ||
-                    employee.serviceIds.includes(s.id),
-                )
-                .map((s) => s.id)
-            : [undefined];
+      for (const dateKey of window.dateKeys) {
+        const providersForDay: PublicAvailabilityDayReport['providers'] = [];
 
-        for (const serviceId of serviceIds) {
-          if (
-            serviceId &&
-            employee.serviceIds?.length &&
-            !employee.serviceIds.includes(serviceId)
-          ) {
-            continue;
-          }
+        for (const employee of targets) {
+          const serviceIds =
+            matchedServices.length > 0
+              ? matchedServices
+                  .filter(
+                    (s) =>
+                      !employee.serviceIds?.length ||
+                      employee.serviceIds.includes(s.id),
+                  )
+                  .map((s) => s.id)
+              : [undefined];
 
-          const { slots } = await this.publicBookingService.getProviderSlots(
-            slug,
-            employee.id,
-            dateKey,
-            {
-              serviceId,
-              notBeforeTime: params.timeFrom ?? null,
-            },
-          );
-
-          if (slots.length === 0) continue;
-
-          const existing = providersForDay.find(
-            (p) => p.employee.id === employee.id,
-          );
-          const times = slots.map((s) => formatTimeDisplay(s.startTime));
-          if (existing) {
-            const merged = [...new Set([...existing.times, ...times])].sort();
-            existing.times = merged;
-            if (slots[0].startTime < existing.firstSlot) {
-              existing.firstSlot = slots[0].startTime;
+          for (const serviceId of serviceIds) {
+            if (
+              serviceId &&
+              employee.serviceIds?.length &&
+              !employee.serviceIds.includes(serviceId)
+            ) {
+              continue;
             }
-          } else {
-            providersForDay.push({
-              employee,
-              times,
-              firstSlot: slots[0].startTime,
-            });
-          }
 
-          if (!bestNavigate || slots[0].startTime < bestNavigate.startTime) {
-            bestNavigate = {
+            const { slots: rawSlots } =
+              await this.publicBookingService.getProviderSlots(
+                slug,
+                employee.id,
+                dateKey,
+                {
+                  serviceId,
+                  notBeforeTime,
+                },
+              );
+            const slots = filterPublicProviderSlotsByTimeOfDay(
+              rawSlots,
+              window.timeOfDay,
+            );
+            if (slots.length === 0) continue;
+
+            mergePublicProviderSlotTimes({
+              providers: providersForDay,
               employeeId: employee.id,
-              startTime: slots[0].startTime,
-            };
+              employeeName: employee.name,
+              slots,
+            });
+
+            if (!bestNavigate || slots[0]!.startTime < bestNavigate.startTime) {
+              bestNavigate = {
+                employeeId: employee.id,
+                startTime: slots[0]!.startTime,
+              };
+            }
           }
+        }
+
+        if (providersForDay.length > 0) {
+          const dayReport = { dateKey, providers: providersForDay };
+          dayReports.push(dayReport);
+          flatDayReports.push(dayReport);
         }
       }
 
-      if (providersForDay.length > 0) {
-        dayReports.push({ dateKey, providers: providersForDay });
+      if (groupByWindow) {
+        windowReports.push({
+          label: buildPublicAvailabilityWindowLabelForCheck({
+            window,
+            overlap: windowOverlap,
+            locale,
+            timeZone: tz,
+            todayDateKey: todayKey,
+          }),
+          dayReports,
+        });
       }
     }
 
@@ -908,20 +1196,76 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             params.serviceCategory ?? params.serviceName,
           )
         : t(locale, 'assistant.anyService');
-    const dayCount = dateKeys.length;
+    const dayCount = allDateKeys.length;
 
-    if (dayReports.length === 0) {
+    if (flatDayReports.length === 0) {
+      if (shouldUseGroupedAvailabilityNoSlotsSummary(groupByWindow, windowReports)) {
+        let summary = composePublicAvailabilityGroupedEmptyWindowsSummary({
+          serviceLabel,
+          locale,
+          timeZone: tz,
+          singleProvider: targets.length === 1,
+          windowReports,
+          maxPrice: params.maxPrice,
+          overlapClarifyNote,
+        });
+
+        if (matchedServices.length === 1) {
+          const nearest = await this.publicBookingService.findNearestBookableSlot(
+            slug,
+            {
+              serviceId: matchedServices[0].id,
+              employeeId: targets.length === 1 ? targets[0].id : null,
+              startDateKey: [...allDateKeys].sort()[0] ?? null,
+            },
+          );
+          if (nearest) {
+            summary = appendAvailabilityNearestAlternativeNote(
+              summary,
+              formatAvailabilityNearestAlternativeNote({
+                locale,
+                timeZone: tz,
+                employeeName: nearest.employeeName,
+                dateKey: nearest.dateKey,
+                startTime: nearest.startTime,
+              }),
+            );
+          }
+        }
+
+        return this.withCheckProvidersHandoff(
+          {
+            success: true,
+            action: 'check_availability',
+            summary,
+            navigate:
+              targets.length === 1
+                ? { path: 'professionals', query: { employeeId: targets[0].id } }
+                : { path: 'professionals', query: {} },
+          },
+          this.buildPublicAvailabilityHandoff(
+            summary,
+            params,
+            [],
+            true,
+            allDateKeys[0],
+          ),
+        );
+      }
+
       const providerLabel =
         targets.length === 1
           ? targets[0].name
           : t(locale, 'assistant.anySpecialist');
-      const summary = t(locale, 'assistant.availabilityNoSlots', {
-        service: serviceLabel,
-        provider: providerLabel,
-        days:
+      const summary = composeAvailabilityNoSlotsSummary({
+        locale,
+        serviceLabel,
+        providerLabel,
+        daysLabel:
           dayCount === 1
-            ? formatDateDisplay(dateKeys[0], locale)
+            ? formatDateDisplay(allDateKeys[0], locale)
             : String(dayCount),
+        maxPrice: params.maxPrice,
       });
       return this.withCheckProvidersHandoff(
         {
@@ -938,46 +1282,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           params,
           [],
           true,
-          dateKeys[0],
+          allDateKeys[0],
         ),
       );
-    }
-
-    const lines: string[] = [
-      t(locale, 'assistant.availabilityHeader', {
-        service: serviceLabel,
-        days:
-          dayCount === 1
-            ? formatDateDisplay(dateKeys[0], locale)
-            : String(dayReports.length),
-      }),
-      '',
-    ];
-
-    for (const day of dayReports) {
-      const dayDate = dayjs.tz(day.dateKey, tz);
-      const weekday = formatWeekdayShortByDayIndex(dayDate.day(), locale);
-      const displayDay = formatDateDisplay(day.dateKey, locale);
-
-      if (targets.length === 1) {
-        const times = day.providers[0]?.times ?? [];
-        lines.push(
-          t(locale, 'assistant.availabilityDaySingleProvider', {
-            weekday,
-            date: displayDay,
-            times: times.slice(0, 8).join(', ') + (times.length > 8 ? '…' : ''),
-          }),
-        );
-        continue;
-      }
-
-      lines.push(`${weekday} ${displayDay}:`);
-      for (const provider of day.providers) {
-        const times =
-          provider.times.slice(0, 6).join(', ') +
-          (provider.times.length > 6 ? '…' : '');
-        lines.push(`• ${provider.employee.name}: ${times}`);
-      }
     }
 
     const navigateQuery: Record<string, string> = {};
@@ -990,11 +1297,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (matchedServices.length === 1)
       navigateQuery.serviceId = matchedServices[0].id;
 
-    const summary = lines.join('\n');
+    const summary = composePublicAvailabilityCheckSummary({
+      serviceLabel,
+      locale,
+      timeZone: tz,
+      singleProvider: targets.length === 1,
+      groupByWindow,
+      windowReports,
+      flatDayReports,
+      totalDayCount: dayCount,
+      maxPrice: params.maxPrice,
+      overlapClarifyNote,
+    });
     const availableProviders = [
       ...new Set(
-        dayReports.flatMap((day) =>
-          day.providers.map((provider) => provider.employee.name),
+        flatDayReports.flatMap((day) =>
+          day.providers.map((provider) => provider.employeeName),
         ),
       ),
     ];
@@ -1014,7 +1332,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         params,
         availableProviders,
         false,
-        dayReports[0]?.dateKey,
+        flatDayReports[0]?.dateKey,
       ),
     );
   }
@@ -1027,11 +1345,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale,
     tz: string,
   ): Promise<PublicAssistantResult> {
-    const matchedServices = this.resolveServicesFromParams(params, services);
+    const employeeRole =
+      typeof params.employeeRole === 'string' ? params.employeeRole : undefined;
+    let matchedServices = this.resolveServicesFromParams(params, services);
+
+    if (
+      employeeRole &&
+      params.serviceCategory === employeeRole &&
+      matchedServices.length === 0
+    ) {
+      matchedServices = [];
+    }
 
     if (
       (params.serviceName || params.serviceCategory) &&
-      matchedServices.length === 0
+      matchedServices.length === 0 &&
+      !employeeRole
     ) {
       return {
         success: false,
@@ -1043,7 +1372,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    if (matchedServices.length === 0) {
+    if (matchedServices.length === 0 && !employeeRole) {
       return {
         success: true,
         action: 'recommend_specialists',
@@ -1053,11 +1382,40 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const serviceLabel = inferServiceGroupLabel(
-      matchedServices,
-      params.serviceCategory ?? params.serviceName,
+    const servicesForRecommend =
+      matchedServices.length > 0 ? matchedServices : services;
+
+    const budgetRecommend = applyBudgetFilterForRecommendSpecialists(
+      servicesForRecommend.map((service) => ({
+        id: service.id,
+        name: service.name,
+        price: service.price,
+        durationMinutes: service.durationMinutes,
+      })),
+      params.maxPrice,
     );
-    const multiService = matchedServices.length > 1;
+    if (budgetRecommend.noMatchSummary) {
+      return {
+        success: true,
+        action: 'recommend_specialists',
+        summary: budgetRecommend.noMatchSummary,
+      };
+    }
+
+    const filteredServiceIds = new Set(
+      budgetRecommend.services.map((service) => service.id),
+    );
+    const filteredServices = servicesForRecommend.filter((service) =>
+      filteredServiceIds.has(service.id),
+    );
+
+    const serviceLabel = employeeRole
+      ? employeeRole.charAt(0).toUpperCase() + employeeRole.slice(1)
+      : inferServiceGroupLabel(
+          filteredServices,
+          params.serviceCategory ?? params.serviceName,
+        );
+    const multiService = filteredServices.length > 1;
 
     let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
     if (dateKeys.length === 0) {
@@ -1071,10 +1429,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const { providers } = await this.publicBookingService.recommendProviders(
       slug,
       {
-        serviceIds: matchedServices.map((s) => s.id),
+        serviceIds:
+          matchedServices.length > 0
+            ? filteredServices.map((service) => service.id)
+            : undefined,
         dateKeys,
         notBeforeTime: params.timeFrom ?? null,
         limit: 5,
+        employeeRole: employeeRole ?? null,
       },
     );
 
@@ -1578,13 +1940,37 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         : undefined;
 
     const matchedServices = this.resolveServicesFromParams(params, services);
-    const service =
-      matchedServices.length === 1
-        ? matchedServices[0]
-        : matchedServices.length > 1 && params.serviceName
-          ? (fuzzyMatchServiceByName(matchedServices, params.serviceName) ??
-            matchedServices[0])
-          : matchedServices[0];
+    const catalogPool =
+      matchedServices.length > 0
+        ? matchedServices.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            price: Number(entry.price),
+            durationMinutes: entry.durationMinutes,
+          }))
+        : services.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            price: Number(entry.price),
+            durationMinutes: entry.durationMinutes,
+          }));
+    const discoverResolved = resolveDiscoverConstrainedService(catalogPool, {
+      serviceId: params.serviceId,
+      serviceName: params.serviceName,
+      serviceCategory: params.serviceCategory,
+      maxPrice: params.maxPrice,
+      serviceRank: params.serviceRank,
+    });
+    if (discoverResolved.noMatchSummary) {
+      return {
+        success: false,
+        action: 'book_appointment',
+        summary: discoverResolved.noMatchSummary,
+      };
+    }
+    const service = discoverResolved.service
+      ? services.find((entry) => entry.id === discoverResolved.service!.id)
+      : undefined;
 
     if (params.employeeName && !employee) {
       return {
@@ -1616,18 +2002,23 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         prompt,
         employee?.id ?? null,
       );
-
-      const nearest = await this.publicBookingService.findNearestBookableSlot(
-        slug,
-        {
-          serviceId: service.id,
-          employeeId: slotQuery.employeeId,
-          notBeforeTime: slotQuery.notBeforeTime,
-          startDateKey: slotQuery.startDateKey,
-        },
+      const windowQueries = buildNearestAvailabilityWindowQueries(
+        params,
+        prompt,
+        tz,
       );
 
-      if (!nearest) {
+      const nearestResult =
+        await this.publicBookingService.findNearestBookableSlotAcrossWindows(
+          slug,
+          {
+            serviceId: service.id,
+            employeeId: slotQuery.employeeId,
+            windows: windowQueries,
+          },
+        );
+
+      if (!nearestResult) {
         const summary =
           locale === 'en'
             ? buildNoNearestSlotMessage({
@@ -1652,11 +2043,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         );
       }
 
-      params.employeeName = nearest.employeeName;
-      params.date = nearest.dateKey;
-      params.timeSlot = formatTimeDisplay(nearest.startTime);
-      params.startTime = nearest.startTime;
-      params.employeeId = nearest.employeeId;
+      Object.assign(
+        params,
+        applyChosenAvailabilityWindowToParams(params, nearestResult),
+      );
     }
 
     const wantsProviderFallback =
@@ -1903,18 +2293,69 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
   }
 
+  private applyBudgetAndRankServiceDiscoveryRescue(
+    prompt: string,
+    action: string,
+  ): {
+    action: string;
+    rescueReason: string;
+    params?: Record<string, unknown>;
+  } | null {
+    const rankDiscoveryRescue = rescueServiceRankDiscoveryIntent(
+      prompt,
+      action,
+      'public',
+    );
+    if (rankDiscoveryRescue) return rankDiscoveryRescue;
+
+    const catalogBrowseRescue = rescueServiceCatalogBrowseIntent(prompt, action);
+    const resolvedBrowseAction = catalogBrowseRescue?.action ?? action;
+    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+      prompt,
+      resolvedBrowseAction,
+      'public',
+    );
+    const resolvedAction = budgetRescue?.action ?? resolvedBrowseAction;
+    const rankRescue = rescueServiceRankFromRecommendSpecialistsIntent(
+      prompt,
+      resolvedAction,
+    );
+    return rankRescue ?? budgetRescue ?? catalogBrowseRescue ?? null;
+  }
+
+  private pipelineClarifyToPublicResult(
+    understood: PipelineUnderstandResult,
+    locale: AppLocale,
+  ): PublicAssistantResult {
+    const clarifyPayload = {
+      summary:
+        understood.clarifySummary ??
+        t(locale, 'assistant.unknown'),
+      clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+      suggestions: understood.clarifySuggestions ?? [],
+      loweredConfidence: understood.confidence,
+      ruleId:
+        understood.blockReason?.replace('self_verify clarify: ', '') ??
+        'unknown',
+      reason: understood.blockReason ?? 'self_verify_clarify',
+    };
+    return commandResultToPublicAssistantResult(
+      buildPipelineClarifyCommandResult(understood, clarifyPayload),
+    );
+  }
+
   private async classifyIntent(
     businessId: string,
-    prompt: string,
-    context: string,
+    normalizedPrompt: string,
+    systemContext: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
     locale: AppLocale = 'en',
-  ) {
+  ): Promise<ClassifiedIntent | null> {
     const sessionBlock =
       sessionContext &&
       Object.values(sessionContext).some((v) => v != null && v !== '')
-        ? `\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
+        ? `\n\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
         : '';
 
     const historyMessages = (history ?? []).slice(-8).map((m) => ({
@@ -1925,35 +2366,49 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${buildPublicClassifierSchema()}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+        content: `${systemContext}${sessionBlock}`,
       },
       ...historyMessages,
-      { role: 'user', content: prompt },
+      { role: 'user', content: normalizedPrompt },
     ];
 
-    const response = await this.openAi.chatCompletion(
-      {
-        businessId,
-        surface: 'public_booking',
-        operation: 'classify_intent',
-        actorType: 'customer',
-      },
-      {
-        messages,
-        responseFormat: 'json_object',
-        temperature: 0.2,
-        maxTokens: 650,
-      },
-    );
-
-    const raw = response?.choices[0]?.message?.content;
-    if (!raw) return null;
-
     try {
-      return JSON.parse(raw);
+      const response = await this.openAi.chatCompletion(
+        {
+          businessId,
+          surface: 'public_booking',
+          operation: 'classify_intent',
+          actorType: 'customer',
+        },
+        {
+          messages,
+          responseFormat: 'json_object',
+          temperature: 0.2,
+          maxTokens: 650,
+        },
+      );
+
+      const raw = response?.choices[0]?.message?.content;
+      if (!raw) return null;
+
+      const result = JSON.parse(raw) as {
+        action?: string;
+        params?: Record<string, unknown>;
+        reasoning?: string;
+        confidence?: number;
+      };
+      if (!result?.action) return null;
+
+      return {
+        action: result.action,
+        params: result.params ?? {},
+        reasoning: result.reasoning ?? '',
+        confidence:
+          typeof result.confidence === 'number' ? result.confidence : undefined,
+      };
     } catch (err: any) {
       this.logger.error(
-        `Public assistant classification parse failed: ${err.message}`,
+        `Public assistant classification failed: ${err.message}`,
       );
       return null;
     }
@@ -2004,46 +2459,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     session?: Record<string, any>,
     action?: string,
   ) {
-    if (!session) return params;
-    const merged = { ...params };
-    const skipForNearest =
-      action === 'book_appointment' && params.bookingFirstAvailable === true;
-    const skipSessionDate =
-      (action === 'check_availability' || action === 'recommend_specialists') &&
-      (params.weekdays?.length || params.dateFrom || params.dateTo);
-    for (const key of [
-      'employeeName',
-      'date',
-      'serviceName',
-      'serviceCategory',
-      'timeSlot',
-      'customerName',
-      'customerEmail',
-      'customerPhone',
-    ]) {
-      if (
-        skipForNearest &&
-        (key === 'date' || key === 'timeSlot' || key === 'employeeName')
-      ) {
-        continue;
-      }
-      if (key === 'date' && skipSessionDate) {
-        continue;
-      }
-      if ((merged[key] == null || merged[key] === '') && session[key]) {
-        merged[key] = session[key];
-      }
-    }
-    if (session.checkProvidersHandoff) {
-      merged.checkProvidersHandoff = session.checkProvidersHandoff;
-    }
-    if (session.priorCheckSummary && !merged.priorCheckSummary) {
-      merged.priorCheckSummary = session.priorCheckSummary;
-    }
-    if (session.availableProviders && !merged.availableProviders) {
-      merged.availableProviders = session.availableProviders;
-    }
-    return merged;
+    return mergePublicAssistantSessionParams(params, session, action) as Record<
+      string,
+      any
+    >;
   }
 
   private buildServiceUnfitSummary(
@@ -2156,6 +2575,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         date: params.date ? formatDateDisplay(params.date, locale) : null,
         serviceName: sessionService.serviceName,
         serviceCategory: sessionService.serviceCategory,
+        serviceId:
+          (result.sessionContext?.serviceId as string | null | undefined) ??
+          (typeof params.serviceId === 'string' ? params.serviceId : null),
+        ...serializePublicAssistantDiscoverySessionFields({
+          ...params,
+          timeOfDay:
+            (params.timeOfDay as string | undefined) ??
+            handoff?.timeOfDay ??
+            undefined,
+        }),
         timeSlot: params.timeSlot ?? null,
         customerName: params.customerName ?? null,
         customerEmail: params.customerEmail ?? null,

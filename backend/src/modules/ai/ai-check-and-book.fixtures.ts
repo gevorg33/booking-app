@@ -124,6 +124,13 @@ export const SIMILAR_CHECK_AND_BOOK_PROMPTS = [
     notBeforeTime: '17:00',
     timeOfDay: 'evening',
   },
+  {
+    id: 'book-service-then-who-free',
+    prompt: 'book hairstyle tomorrow who is free at nearest time',
+    serviceName: 'hairstyle',
+    notBeforeTime: null,
+    timeOfDay: null,
+  },
 ] as const;
 
 /** Core check+book compound prompts (dashboard + customer eval). */

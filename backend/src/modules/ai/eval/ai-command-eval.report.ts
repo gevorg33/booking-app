@@ -66,6 +66,15 @@ export const AI_ACCURACY_BASELINE_PATH = path.join(
 /** Primary intent label for scorecard grouping. */
 export function resolveEvalCaseIntentLabel(evalCase: AiCommandEvalCase): string {
   const { expect } = evalCase;
+  if (expect.useSemanticIntentMatch && expect.semanticMatchAction) {
+    if (expect.implicationTopIntent) {
+      return `implication:${expect.implicationTopIntent}:${expect.semanticMatchAction}`;
+    }
+    return `semantic:${expect.semanticMatchAction}`;
+  }
+  if (expect.implicationTopIntent && expect.rescuedAction) {
+    return `implication:${expect.implicationTopIntent}:${expect.rescuedAction}`;
+  }
   if (expect.rescuedAction) return expect.rescuedAction;
   if (expect.compoundSteps?.length) {
     return `compound:${expect.compoundSteps.join('+')}`;
@@ -74,6 +83,9 @@ export function resolveEvalCaseIntentLabel(evalCase: AiCommandEvalCase): string 
     return `compound:contains:${[...expect.compoundActionsContains].sort().join('+')}`;
   }
   if (expect.compoundExpectEmpty) return 'compound:none';
+  if (expect.expectValidationClarify) {
+    return `clarify:${expect.validationAction ?? 'unknown'}`;
+  }
   if (expect.compoundMinSteps !== undefined) return 'compound:decomposition';
   if (expect.phiGuard) return 'phi_guard';
   if (expect.routeTier) return `route:${expect.routeTier}`;
@@ -374,6 +386,33 @@ export function runAiAccuracyGate(
     );
   }
 
-  const exitCode = report.failed > 0 ? 1 : 0;
+  let exitCode = report.failed > 0 ? 1 : 0;
+  if (exitCode === 0 && !options.updateBaseline && report.baseline) {
+    if (report.baseline.totalCases !== report.totalCases) {
+      exitCode = 1;
+      console.error(
+        `\nAI accuracy baseline is stale (acc-2.9): baseline ${report.baseline.totalCases} cases, suite ${report.totalCases} cases. Run npm run test:ai-accuracy:update-baseline.`,
+      );
+    } else if (
+      report.baselineDiff &&
+      report.baselineDiff.regressedIntents.length > 0
+    ) {
+      exitCode = 1;
+      console.error(
+        `\nAI accuracy baseline ratchet failed (acc-2.9): ${report.baselineDiff.regressedIntents.length} regressed intent(s)`,
+      );
+      for (const row of report.baselineDiff.regressedIntents.slice(0, 15)) {
+        console.error(
+          `  - ${row.intent}: ${row.baselinePct}% → ${row.currentPct}% (${row.deltaPct >= 0 ? '+' : ''}${row.deltaPct}%)`,
+        );
+      }
+      if (report.baselineDiff.regressedIntents.length > 15) {
+        console.error(
+          `  … and ${report.baselineDiff.regressedIntents.length - 15} more`,
+        );
+      }
+    }
+  }
+
   return { report, exitCode, baselineWritten };
 }

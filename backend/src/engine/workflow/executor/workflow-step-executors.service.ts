@@ -104,6 +104,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
       assign_employee_services: (step, ctx) =>
         this.assignEmployeeServices(step, ctx),
+      unassign_employee_services: (step, ctx) =>
+        this.unassignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
       create_schedule_template: (step, ctx) =>
         this.createScheduleTemplate(step, ctx),
@@ -564,6 +566,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
     };
   }
 
+  private async unassignEmployeeServices(
+    step: WorkflowStep,
+    _ctx: Record<string, any>,
+  ) {
+    return this.assignEmployeeServices(step, _ctx);
+  }
+
   private async summarizeUtilization(step: WorkflowStep) {
     const { businessId } = step.params;
     const { start, end } = this.resolveDateRange(step.params);
@@ -600,11 +609,20 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       bufferMinutes,
       price,
       currency,
+      categoryId,
       userId,
     } = step.params;
     const service = await this.serviceService.create(
       businessId,
-      { name, description, durationMinutes, bufferMinutes, price, currency },
+      {
+        name,
+        description,
+        durationMinutes,
+        bufferMinutes,
+        price,
+        currency,
+        categoryId,
+      },
       userId,
     );
     ctx.lastServiceId = service.id;
@@ -618,11 +636,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async updateService(step: WorkflowStep, ctx: Record<string, any>) {
-    const { serviceId, price, userId } = step.params;
+    const { serviceId, price, categoryId, userId } = step.params;
     const before = await this.serviceService.findOne(serviceId);
     const service = await this.serviceService.update(
       serviceId,
-      { price },
+      {
+        ...(price !== undefined ? { price } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
+      },
       userId,
     );
     ctx.lastServiceId = service.id;
@@ -631,6 +652,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       name: service.name,
       previousPrice: before.price,
       price: service.price,
+      categoryId: service.categoryId,
     };
   }
 

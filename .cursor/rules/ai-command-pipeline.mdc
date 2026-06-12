@@ -1,5 +1,5 @@
 ---
-description: How the AI command system works end-to-end — gateway, four surfaces, classify→resolve→validate→plan→execute→clarify pipeline, intent registry, deterministic rescue, normalization, and the eval harness. Read this before editing any backend/src/modules/ai code, adding an intent, or handling an AI prompt task.
+description: Mandatory pipe-1 target flow for every new AI feature — normalize → fast heuristics → classify → confidence gate → semantic/re-rank → rescue → self-verify → structural enrich → validate → execute → telemetry. Gateway, four surfaces, registry, rescue, eval. Read before editing backend/src/modules/ai or adding an intent.
 globs: backend/src/modules/ai/**/*.ts,backend/src/modules/provider-mobile/provider-ai-*.ts,backend/src/modules/public-booking/*assistant*.ts,frontend/src/components/ai-command-*.tsx,frontend/src/lib/use-ai-command.ts
 alwaysApply: false
 ---
@@ -7,6 +7,41 @@ alwaysApply: false
 # AI Command Pipeline (architecture map — ground every AI prompt task here)
 
 Every natural-language request enters through **one gateway** and flows through a fixed pipeline. Do not invent new entry points; extend the existing stages.
+
+## Mandatory target flow (pipe-1 — every new AI feature)
+
+**Every new AI intent, rescue path, or command feature must plug into this understand → execute sequence.** Do not skip stages or add parallel classify/rescue paths outside the pipeline.
+
+```
+normalize → fast heuristics → LLM classify → confidence gate
+  → (low confidence: semantic match + re-rank + optional narrow re-classify)
+  → rescue → self-verify → structural enrich → validate → execute → telemetry
+```
+
+| Stage | Purpose | Where to extend |
+|-------|---------|-----------------|
+| **normalize** | HY/RU/translit, cache | `AiPromptNormalizationService` — pipeline runs first |
+| **fast heuristics** | Routing + structural hints only (not paraphrase meaning) | `FastIntentHeuristicsService` — see `feature-fast-intent-heuristics.mdc` |
+| **LLM classify** | Primary intent + params | Per-surface schema (`INTENT_SCHEMA`, `PROVIDER_INTENT_SCHEMA`, etc.) |
+| **confidence gate** | Escalate when `unknown` or low confidence | `confidence-gate.util.ts` + `AiSettingsService` thresholds |
+| **semantic + re-rank** | Low-confidence only; anchor match, merge candidates | `intent-anchor.bank.ts`, `ai-semantic-intent.service.ts`, `intent-candidate-rerank.util.ts` |
+| **narrow re-classify** | Top-2 within 0.08 | `narrow-reclassify-schema.util.ts` |
+| **rescue** | Deterministic post-LLM correction | `AiIntentRescueService` + domain `rescue*` utils — **prefer rescue over new LLM prompts** |
+| **self-verify** | Rule checks before enrich | `ai-intent-self-verify.util.ts` |
+| **structural enrich** | Dates, employees, schedule periods — after intent locked | `ai-intent-structural-enrich.util.ts`, structural extractors |
+| **validate** | Required params → clarify | `command-completion.validator.ts` / surface validators |
+| **execute** | Handler / plan / workflow | Surface `*CommandService` handlers, `command-pipeline-mutating-actions` |
+| **telemetry** | Trace + misroute analytics | `AiCommandTraceService`, `ai-misroute-telemetry.util.ts` |
+
+**Orchestrator:** `CommandUnderstandingPipelineService` (`command-understanding-pipeline.service.ts`).
+
+**All four surfaces** use surface adapters (pipe-1.12) that delegate understand-phase to this pipeline — dashboard, provider, customer, public. New features wire the same stages per applicable surface; see `feature-ai-prompt-coverage.mdc` for per-surface schema/rescue/eval.
+
+**Anti-patterns (do not ship):**
+- New paraphrase regex for intent *meaning* in heuristics (use semantic anchors + rescue — acc-3.14)
+- Rescue or classify logic only in one surface with no adapter parity
+- Handler execution before validate/self-verify
+- Skipping eval fixtures + `test:sprint14` / domain gate for the new action
 
 ## Single entry point
 
@@ -74,8 +109,17 @@ cd backend && npm run test:ai-providers   # availability + check-and-book
 cd backend && npm run test:ai-payments    # payments util/logic
 ```
 
+## Understand pipeline (pipe-1 — implementation detail)
+
+Canonical stage order (same as **Mandatory target flow** above):
+
+`normalize` → `fast_heuristics` → `classify` → `confidence_gate` → (`semantic_match` + `rerank` + optional `narrow_reclassify` when escalated) → `rescue` → `self_verify` → `structural_enrich` → then **validate → execute → telemetry** via gateway + surface services.
+
+**Fast heuristics boundary (pipe-1.2.3 / acc-3.14):** `FastIntentHeuristicsService` is **routing + structural hints only** — no new paraphrase regex for intent meaning. Read `docs/FAST_INTENT_HEURISTICS_BOUNDARY.md` and skill `feature-fast-intent-heuristics.mdc` before editing `fast-intent-heuristics.*`. CI: `npm run test:pipe-fast-heuristics-boundary`.
+
 ## Related skills
 
+- `feature-fast-intent-heuristics` — acc-3.14 guard for pipe-1.2 fast heuristics modules.
 - `feature-ai-prompt-coverage` — per-surface prompt checklist for any new feature.
 - `ai-multi-command-handling` — compound / "do X and Y" decomposition.
 - `ai-accuracy-program` — Sprints 38–43 playbook to reach 99% accurate executions.

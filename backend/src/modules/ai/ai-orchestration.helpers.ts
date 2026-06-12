@@ -21,6 +21,10 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
+import {
+  normalizeAvailabilityWindows,
+  type AvailabilityWindow,
+} from './ai-flexible-availability.util.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -70,7 +74,10 @@ function inferYearForMonthDay(
     `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     tz,
   );
-  if (candidate.isBefore(today, 'day')) year += 1;
+  if (candidate.isBefore(today, 'day')) {
+    const daysAgo = today.diff(candidate, 'day');
+    if (daysAgo > 90) year += 1;
+  }
   return year;
 }
 
@@ -120,6 +127,27 @@ function parseMonthDayToken(token: string, timeZone: string): string | null {
   }
 
   return null;
+}
+
+/** "next 5 days", "for the next 14 days" — inclusive range starting today. */
+export function extractNextDaysRangeFromPrompt(
+  prompt: string,
+  timeZone = 'UTC',
+): DateRange | null {
+  const match = prompt
+    .toLowerCase()
+    .match(/\b(?:for\s+)?(?:the\s+)?next\s+(\d{1,3})\s+days?\b/);
+  if (!match) return null;
+
+  const count = parseInt(match[1], 10);
+  if (!Number.isFinite(count) || count < 1 || count > 366) return null;
+
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  return {
+    start: todayKey,
+    end: addDaysToDateKey(todayKey, count - 1, tz),
+  };
 }
 
 /** Parse explicit date ranges from natural language (e.g. "June 2-June 10", "from 02/06 to 10/06"). */
@@ -217,6 +245,48 @@ export function extractSingleIsoDayFromPrompt(
     return parseMonthDayToken(numeric[1], timeZone);
   }
 
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const today = dayjs.tz(todayKey, tz);
+  const weekdayMap: Record<string, number> = {
+    sunday: 0,
+    sun: 0,
+    monday: 1,
+    mon: 1,
+    tuesday: 2,
+    tue: 2,
+    tues: 2,
+    wednesday: 3,
+    wed: 3,
+    thursday: 4,
+    thu: 4,
+    thurs: 4,
+    friday: 5,
+    fri: 5,
+    saturday: 6,
+    sat: 6,
+  };
+  const nextDayMatch = lower.match(
+    /\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (nextDayMatch) {
+    const target = weekdayMap[nextDayMatch[1]];
+    const cur = today.day();
+    let delta = (target - cur + 7) % 7;
+    if (delta === 0) delta = 7;
+    return today.add(delta, 'day').format('YYYY-MM-DD');
+  }
+
+  const bareDayMatch = lower.match(
+    /\b(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (bareDayMatch) {
+    const target = weekdayMap[bareDayMatch[1]];
+    const cur = today.day();
+    const delta = (target - cur + 7) % 7;
+    return today.add(delta, 'day').format('YYYY-MM-DD');
+  }
+
   return null;
 }
 
@@ -231,6 +301,14 @@ export function applyPromptDateOverride(
   if (!prompt?.trim()) return;
 
   applyRelativeDateFromPrompt(params, prompt, timeZone);
+
+  const nextDays = extractNextDaysRangeFromPrompt(prompt, timeZone);
+  if (nextDays) {
+    params.dateFrom = formatDateDisplay(nextDays.start);
+    params.dateTo = formatDateDisplay(nextDays.end);
+    delete params.date;
+    return;
+  }
 
   const singleIso = extractSingleIsoDayFromPrompt(prompt, timeZone);
   if (singleIso) {
@@ -257,6 +335,13 @@ export function enrichDateRangeFromPrompt(
   prompt: string,
   timeZone = 'UTC',
 ): void {
+  const nextDays = extractNextDaysRangeFromPrompt(prompt, timeZone);
+  if (nextDays) {
+    params.dateFrom = formatDateDisplay(nextDays.start);
+    params.dateTo = formatDateDisplay(nextDays.end);
+    return;
+  }
+
   if (params.dateFrom && params.dateTo) return;
   const range = extractDateRangeFromPrompt(prompt, timeZone);
   if (!range) return;
@@ -573,6 +658,8 @@ export function extractServiceTypeKeywordFromListPrompt(
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:services?|options?)\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
+    /\b(?:recommend|suggest)\s+(?:me\s+)?(?:some\s+)?([a-z][\w\s-]{1,40}?)\s+services?\b/i,
+    /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,40}?)(?:\s+service)?\s*$/i,
   ];
 
   for (const re of patterns) {
@@ -765,6 +852,9 @@ export function resolveDateRange(
   if (promptSingle) {
     return { start: promptSingle, end: promptSingle };
   }
+
+  const nextDaysRange = extractNextDaysRangeFromPrompt(prompt ?? '', tz);
+  if (nextDaysRange) return nextDaysRange;
 
   if (params.dateFrom && params.dateTo) {
     return {
@@ -1058,7 +1148,7 @@ export function parseTimeWindow(
   }
 
   const match = (prompt ?? '').match(
-    /(?:between\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
+    /(?:between\s+|from\s+)?(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/i,
   );
   if (match) {
     const timeFrom = normalizeTime24(`${match[1]}:${match[2] ?? '00'}`);
@@ -1108,6 +1198,27 @@ export function bookingOverlapsTimeWindow(
   return start < windowEnd && end > windowStart;
 }
 
+/** True when an open slot range overlaps a daily HH:MM window (e.g. 17:00–19:00). */
+export function openSlotOverlapsTimeRange(
+  slot: { start: string; end?: string },
+  timeFrom: string,
+  timeTo: string,
+): boolean {
+  const slotStart = timeToMinutes(slot.start);
+  const slotEnd = slot.end ? timeToMinutes(slot.end) : slotStart + 30;
+  const from = timeToMinutes(timeFrom);
+  const to = timeToMinutes(timeTo);
+  return slotStart < to && slotEnd > from;
+}
+
+export function filterOpenSlotsByTimeRange<
+  T extends { start: string; end?: string },
+>(slots: T[], timeFrom: string, timeTo: string): T[] {
+  return slots.filter((slot) =>
+    openSlotOverlapsTimeRange(slot, timeFrom, timeTo),
+  );
+}
+
 /** Narrow bookings to an explicit timeSlot or timeFrom–timeTo window (overlap, not start-only). */
 export function filterBookingsByTimeConstraints<
   T extends { startTime: Date; endTime: Date },
@@ -1139,7 +1250,14 @@ export function filterBookingsByTimeConstraints<
 
   if (params.timeSlot) {
     const slot = normalizeTime24(params.timeSlot);
-    return bookings.filter((b) => formatTimeDisplay(b.startTime) === slot);
+    // Bookings store wall-clock HH:mm as UTC components (see dashboard toISO).
+    return bookings.filter((b) => {
+      const start =
+        b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+      const hh = String(start.getUTCHours()).padStart(2, '0');
+      const min = String(start.getUTCMinutes()).padStart(2, '0');
+      return `${hh}:${min}` === slot;
+    });
   }
 
   return bookings;
@@ -1533,8 +1651,77 @@ export function hasExplicitWeekdayInAvailabilityPrompt(
   );
 }
 
-/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
-export function resolvePublicAvailabilityDateKeys(
+export type ResolvedPublicAvailabilityWindow = {
+  dateKeys: string[];
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | null;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  timeSlot?: string | null;
+};
+
+function resolveRelativeAvailabilityDateKey(
+  date: string,
+  timeZone: string,
+): string | null {
+  const tz = resolveTimezone(timeZone);
+  const lower = date.trim().toLowerCase();
+  if (lower === 'tomorrow') {
+    return addDaysToDateKey(getTodayDateKey(tz), 1, tz);
+  }
+  if (lower === 'today' || lower === 'tonight') {
+    return getTodayDateKey(tz);
+  }
+  return null;
+}
+
+/** Resolve ISO day keys for one availability window without merging OR alternatives (avail-1.4). */
+export function resolveDateKeysForAvailabilityWindow(
+  window: AvailabilityWindow,
+  timeZone: string,
+  scanDays: number = PUBLIC_AVAILABILITY_SCAN_DAYS,
+): string[] {
+  const tz = resolveTimezone(timeZone);
+  const todayKey = getTodayDateKey(tz);
+  const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
+
+  if (window.weekdays?.length) {
+    const weekdays = parseWeekdaysFromParams(
+      { weekdays: window.weekdays },
+      undefined,
+    );
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      const dateKey = addDaysToDateKey(todayKey, offset, tz);
+      if (weekdays.includes(dayjs.tz(dateKey, tz).day())) {
+        result.push(dateKey);
+      }
+    }
+    return dropPast(result);
+  }
+
+  if (window.date) {
+    const relative = resolveRelativeAvailabilityDateKey(window.date, tz);
+    if (relative) return dropPast([relative]);
+    return dropPast([toIsoDay(window.date, tz)]);
+  }
+
+  if (
+    window.timeOfDay ||
+    window.timeFrom ||
+    window.timeTo ||
+    window.timeSlot
+  ) {
+    const result: string[] = [];
+    for (let offset = 0; offset < scanDays; offset++) {
+      result.push(addDaysToDateKey(todayKey, offset, tz));
+    }
+    return dropPast(result);
+  }
+
+  return [];
+}
+
+function resolveLegacyPublicAvailabilityDateKeys(
   params: Record<string, any>,
   prompt: string | undefined,
   timeZone: string,
@@ -1555,7 +1742,6 @@ export function resolvePublicAvailabilityDateKeys(
 
   const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
 
-  // Weekday names in the prompt beat stale session dates (e.g. "Monday" must not reuse Friday from session).
   if (hasWeekdayFilter) {
     const result: string[] = [];
     for (let offset = 0; offset < scanDays; offset++) {
@@ -1567,7 +1753,6 @@ export function resolvePublicAvailabilityDateKeys(
     if (result.length > 0) return result;
   }
 
-  // Prefer dates parsed from the prompt itself, not inherited session params.date.
   const promptOnlyDates = resolveScheduleDates({ _timeZone: tz }, prompt);
   if (promptOnlyDates.length > 0) {
     return dropPast(promptOnlyDates).slice(0, scanDays);
@@ -1593,6 +1778,94 @@ export function resolvePublicAvailabilityDateKeys(
   return [];
 }
 
+function toResolvedPublicAvailabilityWindow(
+  window: AvailabilityWindow,
+  dateKeys: string[],
+): ResolvedPublicAvailabilityWindow {
+  return {
+    dateKeys,
+    timeOfDay: window.timeOfDay ?? null,
+    timeFrom: window.timeFrom ?? null,
+    timeTo: window.timeTo ?? null,
+    timeSlot: window.timeSlot ?? null,
+  };
+}
+
+/** Resolve availability windows with per-window date keys + timeOfDay pairing (avail-1.4). */
+export function resolvePublicAvailabilityWindows(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): ResolvedPublicAvailabilityWindow[] {
+  const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  const hasExplicitWindows = Array.isArray(params.availabilityWindows)
+    && params.availabilityWindows.length > 0;
+  const normalizedWindows = normalizeAvailabilityWindows(params);
+
+  if (hasExplicitWindows && normalizedWindows.length > 0) {
+    return normalizedWindows
+      .map((window) =>
+        toResolvedPublicAvailabilityWindow(
+          window,
+          resolveDateKeysForAvailabilityWindow(window, timeZone, scanDays),
+        ),
+      )
+      .filter((window) => window.dateKeys.length > 0);
+  }
+
+  if (
+    normalizedWindows.length === 1 &&
+    (normalizedWindows[0]?.weekdays?.length ||
+      normalizedWindows[0]?.date ||
+      normalizedWindows[0]?.timeOfDay)
+  ) {
+    const window = normalizedWindows[0]!;
+    const dateKeys = resolveDateKeysForAvailabilityWindow(
+      window,
+      timeZone,
+      scanDays,
+    );
+    if (dateKeys.length > 0) {
+      return [toResolvedPublicAvailabilityWindow(window, dateKeys)];
+    }
+  }
+
+  const legacyDateKeys = resolveLegacyPublicAvailabilityDateKeys(
+    params,
+    prompt,
+    timeZone,
+    options,
+  );
+  if (legacyDateKeys.length === 0) return [];
+
+  return [
+    {
+      dateKeys: legacyDateKeys,
+      timeOfDay: params.timeOfDay ?? null,
+      timeFrom: params.timeFrom ?? null,
+      timeTo: params.timeTo ?? null,
+      timeSlot: params.timeSlot ?? null,
+    },
+  ];
+}
+
+/** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
+export function resolvePublicAvailabilityDateKeys(
+  params: Record<string, any>,
+  prompt: string | undefined,
+  timeZone: string,
+  options: { defaultScanDays?: number } = {},
+): string[] {
+  return [
+    ...new Set(
+      resolvePublicAvailabilityWindows(params, prompt, timeZone, options).flatMap(
+        (window) => window.dateKeys,
+      ),
+    ),
+  ];
+}
+
 /** Drop session date when the user names weekdays or relative days in an availability question. */
 export function applyAvailabilityDateFromPrompt(
   params: Record<string, any>,
@@ -1601,13 +1874,19 @@ export function applyAvailabilityDateFromPrompt(
 ): void {
   if (!prompt?.trim()) return;
 
-  if (hasExplicitWeekdayInAvailabilityPrompt(params, prompt)) {
+  const clearedStaleSessionDate = hasExplicitWeekdayInAvailabilityPrompt(
+    params,
+    prompt,
+  );
+  if (clearedStaleSessionDate) {
     delete params.date;
     delete params.dateFrom;
     delete params.dateTo;
   }
 
-  applyPromptDateOverride(params, prompt, timeZone);
+  if (!clearedStaleSessionDate) {
+    applyPromptDateOverride(params, prompt, timeZone);
+  }
 }
 
 export function shouldAutoExecute(

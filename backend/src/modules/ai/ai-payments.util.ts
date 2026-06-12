@@ -225,12 +225,21 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
 export function isBookNearestSlotPrompt(prompt: string): boolean {
   if (isMultilingualBookNearestPrompt(prompt)) return true;
 
+  const hasBookVerb = /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt);
+  if (!hasBookVerb) return false;
+
+  // Dashboard create_booking — "book first available lashes", not nearest-slot checkout.
+  if (/\bfirst\s+available\b/i.test(prompt)) {
+    return /\bfirst\s+available\s+(?:slot|appointment|opening|time)\b/i.test(
+      prompt,
+    );
+  }
+
   const wantsFlexibleSlot =
-    /\b(first\s+available|nearest|soonest|next|earliest)\b/i.test(prompt) ||
+    /\b(nearest|soonest|next|earliest)\b/i.test(prompt) ||
     /\basap\b/i.test(prompt) ||
     /\bas soon as possible\b/i.test(prompt);
   return (
-    /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt) &&
     wantsFlexibleSlot &&
     (/\b(slot|appointment|opening|time)\b/i.test(prompt) ||
       !!extractServiceNameFromPrompt(prompt) ||
@@ -361,6 +370,40 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
     const name = takeService[1].trim().replace(/[,.]$/, '');
     if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
       return name;
+    }
+  }
+  const bookNamedServiceNearest = prompt.match(
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:nearest|soonest|first)\s+(?:available\s+)?(?:slot|appointment|opening|time)\b/i,
+  );
+  if (bookNamedServiceNearest) {
+    const name = bookNamedServiceNearest[1].trim().replace(/[,.]$/, '');
+    if (
+      name &&
+      !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
+        name,
+      )
+    ) {
+      return name;
+    }
+  }
+  const isFlexibleSlotOnlyBookPhrase =
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:(?:first|nearest|soonest)\s+(?:available\s+)?(?:slot|appointment|opening|time)|(?:slot|appointment|opening|time))\b/i.test(
+      prompt,
+    );
+  if (!isFlexibleSlotOnlyBookPhrase) {
+    const bookService = prompt.match(
+      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\b(?:slot|appointment|opening|time)\b|$))/i,
+    );
+    if (bookService) {
+      const name = bookService[1].trim().replace(/[,.]$/, '');
+      if (
+        name &&
+        !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
+          name,
+        )
+      ) {
+        return name;
+      }
     }
   }
   const nearest = prompt.match(

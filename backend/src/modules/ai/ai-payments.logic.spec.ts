@@ -29,6 +29,21 @@ import {
   handlePaymentsCompoundLogic,
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
+import { findNearestBookableSlotAcrossWindowsWithFinder } from './ai-nearest-slot-resolver.util.js';
+
+function attachNearestAcrossWindowsMock(publicBookingService: {
+  findNearestBookableSlot: jest.Mock;
+  findNearestBookableSlotAcrossWindows?: jest.Mock;
+}) {
+  publicBookingService.findNearestBookableSlotAcrossWindows = jest.fn(
+    async (slug, options) =>
+      findNearestBookableSlotAcrossWindowsWithFinder(
+        slug,
+        options,
+        publicBookingService.findNearestBookableSlot,
+      ),
+  );
+}
 
 const baseCard = {
   id: 'gc-1',
@@ -48,7 +63,7 @@ const services = [
 function buildDeps(
   overrides: Partial<PaymentsLogicDeps> = {},
 ): PaymentsLogicDeps {
-  return {
+  const deps: PaymentsLogicDeps = {
     giftCardsService: {
       validate: jest.fn(async () => baseCard),
       getBalanceView: jest.fn(async () => ({
@@ -92,6 +107,7 @@ function buildDeps(
         startTime: '2026-06-06T18:00:00Z',
         employeeId: 'e1',
         employeeName: 'Anna',
+        dateKey: '2026-06-06',
       })),
     } as any,
     accountingIntegrationService: {
@@ -188,6 +204,8 @@ function buildDeps(
     } as any,
     ...overrides,
   };
+  attachNearestAcrossWindowsMock(deps.publicBookingService as any);
+  return deps;
 }
 
 describe('ai-payments.logic', () => {
@@ -1907,13 +1925,18 @@ describe('ai-payments.logic', () => {
           )
         ).success,
       ).toBe(false);
-      expect(
-        (
-          await handleBookNearestSlotLogic(buildDeps(), 'biz-1', {
-            serviceId: 's1',
-          })
-        ).success,
-      ).toBe(true);
+      const nearestBooked = await handleBookNearestSlotLogic(buildDeps(), 'biz-1', {
+        serviceId: 's1',
+      });
+      expect(nearestBooked.success).toBe(true);
+      expect(nearestBooked.details?.navigate).toEqual({
+        path: 'checkout',
+        query: {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+        },
+      });
 
       expect(
         (

@@ -32,6 +32,18 @@ export function resolveAssistantSlotStartTime(
   return match?.startTime;
 }
 
+const BOOKING_NAVIGATE_PROMPT =
+  /\b(?:please\s+)?(?:book|reserve|schedule)\b/i;
+
+export function shouldAutoNavigateAssistantCheckout(
+  prompt: string,
+  navigate?: PublicAssistantNavigate | null,
+  success?: boolean,
+): boolean {
+  if (!success || navigate?.path !== 'checkout') return false;
+  return BOOKING_NAVIGATE_PROMPT.test(prompt.trim());
+}
+
 export function buildPublicAssistantCheckoutNavigate(
   details: Record<string, unknown> | undefined,
   provider: AiAvailableProvider,

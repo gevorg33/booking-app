@@ -5,6 +5,20 @@ import { StripeIntegrationService } from '../billing/stripe-integration.service.
 /** Partial mock placeholder — specs only wire deps they exercise. */
 const EMPTY = {} as any;
 
+/** Empty 90-day popularity query — specs that call getServices need bookingRepo.createQueryBuilder. */
+export function createEmptyBookingPopularityRepoMock() {
+  return {
+    createQueryBuilder: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    })),
+  };
+}
+
 export type PublicBookingHarnessDeps = {
   businessService?: unknown;
   bookingService?: unknown;
@@ -75,7 +89,7 @@ export function createPublicBookingServiceHarness(
     deps.serviceRepo ?? EMPTY,
     deps.slotRepo ?? EMPTY,
     deps.schedulingPeriodRepo ?? EMPTY,
-    deps.bookingRepo ?? EMPTY,
+    (deps.bookingRepo ?? createEmptyBookingPopularityRepoMock()) as any,
     deps.publicPreVisitIntakeService as never,
     deps.clinicTestOrderBookingRequestService as never,
   );

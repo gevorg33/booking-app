@@ -39,6 +39,7 @@ const UNDOABLE_ACTIONS = new Set([
   'reschedule_booking',
   'create_block_schedule',
   'assign_employee_services',
+  'unassign_employee_services',
   'create_direct_schedule',
 ]);
 
@@ -415,7 +416,8 @@ export class AgentTaskUndoService {
         );
         return;
       }
-      case 'assign_employee_services': {
+      case 'assign_employee_services':
+      case 'unassign_employee_services': {
         const employeeId =
           (result?.employeeId as string | undefined) ??
           (planStep.params.employeeId as string | undefined);

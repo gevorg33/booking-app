@@ -80,6 +80,10 @@ import {
   formatTimeDisplay,
   toIsoDay,
 } from '../../common/utils/date-format.util.js';
+import { slotOverlapsTimeWindow } from '../ai/ai-operations.util.js';
+import { employeeRoleMatchesHint } from '../ai/ai-employee-role-rank.util.js';
+import type { NearestAvailabilityWindowQuery } from '../ai/ai-nearest-slot-resolver.util.js';
+import { findNearestBookableSlotAcrossWindowsWithFinder } from '../ai/ai-nearest-slot-resolver.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import {
   extractPublicProfileLocalesFromSettings,
@@ -148,6 +152,8 @@ import {
   resolveTourDurationDays,
   sumBookedTourPax,
 } from '../../common/utils/tour-service.util.js';
+import { extractServiceRankMetadata } from '../../common/utils/service-rank-metadata.util.js';
+import { loadServiceBookingCounts90d } from '../../common/utils/service-booking-popularity.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 export interface PublicBranding {
@@ -574,6 +580,7 @@ export class PublicBookingService {
     hasSubscriptionPlans = false,
     displayLocale: AppLocale = 'en',
     hasIntakeQuestionnaire = false,
+    bookingCount90d = 0,
   ) {
     const wantsOnline = service.prepaymentMode !== PrepaymentMode.NONE;
     const serviceNames = extractLocalizedNamesFromMetadata(service.metadata);
@@ -585,6 +592,7 @@ export class PublicBookingService {
     const isTour = tour !== null;
     const clinic = extractClinicMetadata(service.metadata);
     const isClinic = clinic !== null;
+    const rankMetadata = extractServiceRankMetadata(service.metadata);
 
     return {
       id: service.id,
@@ -640,6 +648,9 @@ export class PublicBookingService {
         service.metadata,
         hasIntakeQuestionnaire,
       ),
+      isFeatured: rankMetadata.isFeatured ?? false,
+      serviceTier: rankMetadata.serviceTier ?? null,
+      bookingCount90d,
     };
   }
 
@@ -778,6 +789,7 @@ export class PublicBookingService {
       dateKeys: string[];
       notBeforeTime?: string | null;
       limit?: number;
+      employeeRole?: string | null;
     },
   ): Promise<{ providers: RecommendedProvider[] }> {
     const business = await this.resolveBusiness(slug);
@@ -793,6 +805,18 @@ export class PublicBookingService {
     let employees = await this.employeeRepo.find({
       where: { businessId: business.id, isActive: true },
     });
+
+    if (options.employeeRole) {
+      employees = employees.filter((employee) => {
+        const metadata = employee.metadata || {};
+        return employeeRoleMatchesHint(
+          typeof metadata.role === 'string' ? metadata.role : undefined,
+          typeof metadata.title === 'string' ? metadata.title : undefined,
+          options.employeeRole!,
+        );
+      });
+      if (!employees.length) return { providers: [] };
+    }
 
     let matchedServices: Service[] = [];
     if (uniqueIds.length > 0) {
@@ -1239,6 +1263,11 @@ export class PublicBookingService {
           business.id,
         )
       : false;
+    const bookingCounts = await loadServiceBookingCounts90d(
+      this.bookingRepo,
+      business.id,
+      services.map((service) => service.id),
+    );
 
     return {
       services: this.sortPublicServices(
@@ -1249,6 +1278,7 @@ export class PublicBookingService {
             planSet.has(s.id),
             displayLocale,
             hasIntakeQuestionnaire,
+            bookingCounts.get(s.id) ?? 0,
           ),
         ),
       ),
@@ -1371,6 +1401,8 @@ export class PublicBookingService {
       employeeId?: string | null;
       notBeforeTime?: string | null;
       startDateKey?: string | null;
+      dateKeys?: string[] | null;
+      timeOfDay?: 'morning' | 'afternoon' | 'evening' | null;
     },
   ): Promise<NearestBookableSlot | null> {
     const business = await this.resolveBusiness(slug);
@@ -1414,9 +1446,13 @@ export class PublicBookingService {
     let best: { employee: Employee; dateKey: string; startTime: Date } | null =
       null;
 
-    for (let offset = 0; offset < SCAN_DAYS; offset++) {
-      const dateKey = addDaysToDateKey(startKey, offset, tz);
+    const scanDateKeys = options.dateKeys?.length
+      ? [...options.dateKeys].sort()
+      : Array.from({ length: SCAN_DAYS }, (_, offset) =>
+          addDaysToDateKey(startKey, offset, tz),
+        );
 
+    for (const dateKey of scanDateKeys) {
       for (const employee of employees) {
         const daySlots = await this.getEmployeeStartTimes(
           business.id,
@@ -1441,6 +1477,18 @@ export class PublicBookingService {
             startTime.getTime() +
               (service.durationMinutes + service.bufferMinutes) * 60000,
           );
+          if (options.timeOfDay) {
+            const endDisplay = formatTimeDisplay(endTime);
+            if (
+              !slotOverlapsTimeWindow(
+                timeSlot,
+                endDisplay,
+                options.timeOfDay,
+              )
+            ) {
+              continue;
+            }
+          }
           try {
             await this.bookingService.validateServiceFitsWindow(
               business.id,
@@ -1468,6 +1516,28 @@ export class PublicBookingService {
       dateKey: best.dateKey,
       startTime: best.startTime.toISOString(),
     };
+  }
+
+  /** Earliest bookable slot across OR availability windows (avail-1.6). */
+  async findNearestBookableSlotAcrossWindows(
+    slug: string,
+    options: {
+      serviceId: string;
+      employeeId?: string | null;
+      windows: NearestAvailabilityWindowQuery[];
+    },
+  ): Promise<{
+    slot: NearestBookableSlot;
+    windowIndex: number;
+    timeOfDay: 'morning' | 'afternoon' | 'evening' | null;
+    dateKeys: string[];
+  } | null> {
+    return findNearestBookableSlotAcrossWindowsWithFinder(
+      slug,
+      options,
+      (targetSlug, windowOptions) =>
+        this.findNearestBookableSlot(targetSlug, windowOptions),
+    );
   }
 
   async resolvePublicBookingCustomer(
