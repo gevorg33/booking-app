@@ -204,7 +204,11 @@ import {
 import { resolveServiceRankParam } from './ai-service-rank-discovery.util.js';
 import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
-import { resolveAssignEmployeeServicesInput } from './ai-category-assignment.util.js';
+import {
+  resolveAssignEmployeeServicesInput,
+  resolveTransferEmployeeServicesInput,
+  resolveUnassignEmployeeServicesInput,
+} from './ai-category-assignment.util.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
 import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
@@ -405,7 +409,7 @@ and extract structured parameters. Return a JSON object with:
     "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services or check_availability when user asks premium/cheapest/popular service (not specialist ratings),
     "availabilityWindows": [{"date":"DD/MM/YYYY or tomorrow","weekdays":["monday"],"timeOfDay":"morning|afternoon|evening","timeFrom":"HH:MM","timeSlot":"HH:MM"}] or null — OR alternatives for check_availability / create_booking with bookingFirstAvailable,
     "serviceCategory": "string or null — keyword to filter service type names for list_services (e.g. haircut, massage)",
-    "categoryName": "string or null — service category entity name for create_service (place new service under category), update_service (move existing service into category), bulk_create_catalog, create_service_category, or assign_employee_services category scope",
+    "categoryName": "string or null — service category entity name for create_service (place new service under category), update_service (move existing service into category), bulk_create_catalog, create_service_category, assign_employee_services, unassign_employee_services, or transfer_employee_services category scope",
     "currency": "string or null — ISO currency code (create_service), default USD",
     "date": "DD/MM/YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31/05/2026). For other actions: the date referenced.",
     "dateFrom": "DD/MM/YYYY or null — start of range if a range is mentioned",
@@ -424,8 +428,11 @@ and extract structured parameters. Return a JSON object with:
     "holidayDates": ["YYYY-MM-DD"] or null — explicit holidays to skip or close,
     "closeDates": ["YYYY-MM-DD"] or null — full-day closure dates for holiday_mode,
     "swapWithEmployeeName": "string or null — second provider for swap_schedules",
-    "fromEmployeeName": "string or null — source provider for rebalance_capacity",
-    "toEmployeeName": "string or null — target provider for rebalance_capacity",
+    "fromEmployeeName": "string or null — source provider for rebalance_capacity or transfer_employee_services",
+    "toEmployeeName": "string or null — target provider for rebalance_capacity or transfer_employee_services",
+    "unassignAllServices": boolean or null — remove every skill from a provider (unassign_employee_services or transfer_employee_services),
+    "unassignFromCategory": boolean or null — category-scoped unassign from provider skills,
+    "transferFromCategory": boolean or null — category-scoped transfer between providers,
     "slotCount": number or null — how many appointments/slots to move for rebalance_capacity,
     "extendDate": "DD/MM/YYYY or null — day before closure to extend hours (holiday_mode)",
     "extendTimeFrom": "HH:MM or null — extended open time on extendDate",
@@ -614,6 +621,8 @@ ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 - clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Requires employeeName (or allProviders for whole team) and date (or dateFrom/dateTo). "Clear all schedules for Karo" means Karo only — set employeeName=Karo, allProviders=false. NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
 - assign_employee_services: assign services from catalog to a provider — always merges with existing provider skills (never replaces the full skill list). Single service: "Assign Neck Massage to Maria" → serviceName, employeeName. Category bulk: "Assign all services from Color category to Gevorg" → categoryName=Color, employeeName=Gevorg, assignFromCategory=true.
+- unassign_employee_services: remove provider skills only (never deletes catalog services). Single: "Remove Neck Massage from Maria" → serviceName, employeeName. Category: "Unassign all Color category services from Gevorg" → categoryName=Color, employeeName=Gevorg, unassignFromCategory=true. All skills: "Remove all services from James" → employeeName=James, unassignAllServices=true. NOT deactivate_service, NOT update_service.
+- transfer_employee_services: move skills from one provider to another (unassign source + merge onto target). "Move all Massage services from Maria to Anna" → fromEmployeeName=Maria, toEmployeeName=Anna, categoryName=Massage, transferFromCategory=true. "Transfer Spa Service A from Gevorg to Maria" → fromEmployeeName, toEmployeeName, serviceName. NOT rebalance_capacity (booked appointment slots with slotCount).
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
@@ -4604,6 +4613,24 @@ export class AiCommandService {
           userId,
         );
         break;
+      case 'unassign_employee_services':
+        result = await this.handleUnassignEmployeeServices(
+          businessId,
+          params,
+          employees,
+          services,
+          userId,
+        );
+        break;
+      case 'transfer_employee_services':
+        result = await this.handleTransferEmployeeServices(
+          businessId,
+          params,
+          employees,
+          services,
+          userId,
+        );
+        break;
       case 'summarize_utilization':
         result = await this.handleSummarizeUtilization(
           businessId,
@@ -5647,6 +5674,90 @@ export class AiCommandService {
       employeeId: resolved.employeeId,
       employeeName: resolved.employeeName,
       serviceIds: resolved.serviceIds,
+      serviceNames: resolved.serviceNames,
+      userId,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
+  }
+
+  private async handleUnassignEmployeeServices(
+    businessId: string,
+    params: any,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const resolved = resolveUnassignEmployeeServicesInput(
+      employees,
+      services,
+      params,
+    );
+    if (!resolved.ok) {
+      return {
+        success: false,
+        action: 'unassign_employee_services',
+        summary: resolved.summary,
+        details: resolved.details ?? { params },
+      };
+    }
+
+    const plan = this.planBuilder.buildUnassignEmployeeServicesPlan({
+      businessId,
+      employeeId: resolved.employeeId,
+      employeeName: resolved.employeeName,
+      serviceIds: resolved.serviceIds,
+      serviceNames: resolved.serviceNames,
+      removedServiceNames: resolved.serviceNames,
+      userId,
+    });
+
+    return this.toCommandResult(
+      await this.orchestration.executePlan({
+        plan,
+        businessId,
+        userId,
+        autoExecute: true,
+      }),
+    );
+  }
+
+  private async handleTransferEmployeeServices(
+    businessId: string,
+    params: any,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const resolved = resolveTransferEmployeeServicesInput(
+      employees,
+      services,
+      params,
+    );
+    if (!resolved.ok) {
+      return {
+        success: false,
+        action: 'transfer_employee_services',
+        summary: resolved.summary,
+        details: resolved.details ?? { params },
+      };
+    }
+
+    const plan = this.planBuilder.buildTransferEmployeeServicesPlan({
+      businessId,
+      fromEmployeeId: resolved.fromEmployeeId,
+      fromEmployeeName: resolved.fromEmployeeName,
+      fromServiceIds: resolved.fromServiceIds,
+      toEmployeeId: resolved.toEmployeeId,
+      toEmployeeName: resolved.toEmployeeName,
+      toServiceIds: resolved.toServiceIds,
       serviceNames: resolved.serviceNames,
       userId,
     });
@@ -7324,6 +7435,42 @@ export class AiCommandService {
           employeeId: resolved.employeeId,
           employeeName: resolved.employeeName,
           serviceIds: resolved.serviceIds,
+          serviceNames: resolved.serviceNames,
+          userId,
+        });
+      }
+      case 'unassign_employee_services': {
+        const resolved = resolveUnassignEmployeeServicesInput(
+          catalog.employees,
+          catalog.services,
+          params,
+        );
+        if (!resolved.ok) return null;
+        return this.planBuilder.buildUnassignEmployeeServicesPlan({
+          businessId,
+          employeeId: resolved.employeeId,
+          employeeName: resolved.employeeName,
+          serviceIds: resolved.serviceIds,
+          serviceNames: resolved.serviceNames,
+          removedServiceNames: resolved.serviceNames,
+          userId,
+        });
+      }
+      case 'transfer_employee_services': {
+        const resolved = resolveTransferEmployeeServicesInput(
+          catalog.employees,
+          catalog.services,
+          params,
+        );
+        if (!resolved.ok) return null;
+        return this.planBuilder.buildTransferEmployeeServicesPlan({
+          businessId,
+          fromEmployeeId: resolved.fromEmployeeId,
+          fromEmployeeName: resolved.fromEmployeeName,
+          fromServiceIds: resolved.fromServiceIds,
+          toEmployeeId: resolved.toEmployeeId,
+          toEmployeeName: resolved.toEmployeeName,
+          toServiceIds: resolved.toServiceIds,
           serviceNames: resolved.serviceNames,
           userId,
         });

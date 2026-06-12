@@ -104,6 +104,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       reschedule_booking: (step, ctx) => this.rescheduleBooking(step, ctx),
       assign_employee_services: (step, ctx) =>
         this.assignEmployeeServices(step, ctx),
+      unassign_employee_services: (step, ctx) =>
+        this.unassignEmployeeServices(step, ctx),
       summarize_utilization: (step) => this.summarizeUtilization(step),
       create_schedule_template: (step, ctx) =>
         this.createScheduleTemplate(step, ctx),
@@ -562,6 +564,13 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       serviceIds: employee.serviceIds,
       previousServiceIds: before.serviceIds ?? [],
     };
+  }
+
+  private async unassignEmployeeServices(
+    step: WorkflowStep,
+    _ctx: Record<string, any>,
+  ) {
+    return this.assignEmployeeServices(step, _ctx);
   }
 
   private async summarizeUtilization(step: WorkflowStep) {

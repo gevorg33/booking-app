@@ -33,7 +33,7 @@ interface AgentTask {
   result?: { preview?: { planDiff?: AgentPlanStep[] } };
 }
 import { confirmDialog } from '@/lib/app-dialog';
-import { AI_MUTATION_QUERY_KEYS } from '@/lib/ai-orchestration';
+import { invalidateDashboardQueries } from '@/lib/ai-orchestration';
 import {
   PlanDiffPreview,
   ConflictResolutionWorkspace,
@@ -50,12 +50,6 @@ import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
 import { TablePagination } from '@/components/table/table-pagination';
 
 const AGENT_TASKS_PAGE_SIZE = 10;
-
-function invalidateAiMutations(queryClient: ReturnType<typeof useQueryClient>) {
-  for (const key of AI_MUTATION_QUERY_KEYS) {
-    queryClient.invalidateQueries({ queryKey: [key] });
-  }
-}
 
 function getStatusConfig(status: string) {
   switch (status) {
@@ -126,7 +120,7 @@ export default function AiOpsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-pending'] });
-      invalidateAiMutations(queryClient);
+      invalidateDashboardQueries(queryClient);
     },
   });
 
@@ -147,7 +141,7 @@ export default function AiOpsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
-      invalidateAiMutations(queryClient);
+      invalidateDashboardQueries(queryClient);
     },
   });
 
@@ -160,7 +154,7 @@ export default function AiOpsPage() {
       setUndoMessage({ type: 'success', text: t('ai.undoSuccess') });
       queryClient.invalidateQueries({ queryKey: ['agent-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['agent-tasks-undo-preview'] });
-      invalidateAiMutations(queryClient);
+      invalidateDashboardQueries(queryClient);
     },
     onError: (error: unknown) => {
       const response = (error as { response?: { data?: { message?: unknown; error?: unknown } } })?.response?.data;
@@ -179,7 +173,7 @@ export default function AiOpsPage() {
       await api.put(`/businesses/${business.id}/bookings/${fix.bookingId}`, {
         startTime: fix.startTime,
       });
-      invalidateAiMutations(queryClient);
+      invalidateDashboardQueries(queryClient);
     } finally {
       setApplyingFixId(null);
     }

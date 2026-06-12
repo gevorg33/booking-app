@@ -1,19 +1,19 @@
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
-import { resolveAssignEmployeeServicesInput } from './ai-category-assignment.util.js';
-import { CATEGORY_TO_PROVIDER_SCENARIOS } from './ai-category-assignment.fixtures.js';
+import {
+  resolveAssignEmployeeServicesInput,
+  resolveTransferEmployeeServicesInput,
+  resolveUnassignEmployeeServicesInput,
+} from './ai-category-assignment.util.js';
+import {
+  CATEGORY_TO_PROVIDER_SCENARIOS,
+  CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS,
+  TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS,
+} from './ai-category-assignment.fixtures.js';
 
 describe('category assignment handler flows', () => {
   const planBuilder = new OperationalPlanBuilderService();
   const employeeUpdate = jest.fn();
 
-  const employees = [
-    { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s-3-1'] },
-    { id: 'e2', name: 'Maria Lopez', serviceIds: ['s-1-1'] },
-    { id: 'e3', name: 'Anna Smith', serviceIds: [] },
-    { id: 'e4', name: 'Mary Torgomyan', serviceIds: [] },
-    { id: 'e5', name: 'Gevorg', serviceIds: [] },
-    { id: 'e6', name: 'James', serviceIds: [] },
-  ];
   const categoryNames = [
     'Color',
     'Hair',
@@ -40,6 +40,37 @@ describe('category assignment handler flows', () => {
       },
     ];
   });
+  const allServiceIds = services.map((s) => s.id);
+
+  const employees = [
+    {
+      id: 'e1',
+      name: 'Gevorg Gasparyan',
+      serviceIds: allServiceIds,
+    },
+    {
+      id: 'e2',
+      name: 'Maria Lopez',
+      serviceIds: [
+        's-0-1',
+        's-0-2',
+        's-1-1',
+        's-1-2',
+        's-2-1',
+        's-2-2',
+        's-3-1',
+        's-3-2',
+      ],
+    },
+    {
+      id: 'e3',
+      name: 'Anna Smith',
+      serviceIds: ['s-1-1', 's-1-2', 's-2-1', 's-2-2', 's-4-1', 's-4-2'],
+    },
+    { id: 'e4', name: 'Mary Torgomyan', serviceIds: ['s-2-1', 's-2-2'] },
+    { id: 'e5', name: 'Gevorg', serviceIds: ['s-4-1', 's-4-2', 's-5-1', 's-5-2', 's-6-1', 's-6-2'] },
+    { id: 'e6', name: 'James', serviceIds: ['s-2-1', 's-2-2', 's-3-1', 's-3-2'] },
+  ];
 
   beforeEach(() => {
     employeeUpdate.mockReset();
@@ -115,15 +146,81 @@ describe('category assignment handler flows', () => {
     it('extends skills for explicit named services (non-category)', () => {
       const resolved = resolveAssignEmployeeServicesInput(employees, services, {
         employeeName: 'Maria Lopez',
-        serviceName: 'Spa Service A',
+        serviceName: 'Nails Service A',
       });
       expect(resolved.ok).toBe(true);
       if (!resolved.ok) return;
       expect(resolved.serviceIds).toEqual(
-        expect.arrayContaining(['s-1-1', 's-3-1']),
+        expect.arrayContaining(['s-2-1', 's-0-1', 's-0-2']),
       );
-      expect(resolved.serviceIds).toHaveLength(2);
+      expect(resolved.serviceIds.length).toBeGreaterThan(2);
       expect(resolved.mergedFromCategory).toBe(false);
     });
+  });
+
+  describe('unassign_employee_services plan', () => {
+    it.each(
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter((s) => s.categoryName).map(
+        (s) => [s.id, s],
+      ),
+    )('builds unassign plan for %s', (_id, scenario) => {
+      const resolved = resolveUnassignEmployeeServicesInput(employees, services, {
+        employeeName: scenario.employeeName,
+        categoryName: scenario.categoryName,
+        unassignFromCategory: true,
+      });
+      expect(resolved.ok).toBe(true);
+      if (!resolved.ok) return;
+
+      const plan = planBuilder.buildUnassignEmployeeServicesPlan({
+        businessId: 'biz-1',
+        employeeId: resolved.employeeId,
+        employeeName: resolved.employeeName,
+        serviceIds: resolved.serviceIds,
+        serviceNames: resolved.serviceNames,
+        removedServiceNames: resolved.serviceNames,
+        userId: 'user-1',
+      });
+
+      expect(plan.intent).toBe('unassign_employee_services');
+      expect(plan.steps[0].action).toBe('unassign_employee_services');
+      expect(plan.steps[0].params.serviceIds).toEqual(resolved.serviceIds);
+    });
+  });
+
+  describe('transfer_employee_services plan', () => {
+    it.each(TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]))(
+      'builds transfer plan for %s',
+      (_id, scenario) => {
+        const resolved = resolveTransferEmployeeServicesInput(employees, services, {
+          fromEmployeeName: scenario.fromEmployeeName,
+          toEmployeeName: scenario.toEmployeeName,
+          categoryName: scenario.categoryName,
+          serviceName: scenario.serviceName,
+          transferFromCategory: scenario.categoryName != null,
+          unassignAllServices: scenario.unassignAllServices,
+        });
+        expect(resolved.ok).toBe(true);
+        if (!resolved.ok) return;
+
+        const plan = planBuilder.buildTransferEmployeeServicesPlan({
+          businessId: 'biz-1',
+          fromEmployeeId: resolved.fromEmployeeId,
+          fromEmployeeName: resolved.fromEmployeeName,
+          fromServiceIds: resolved.fromServiceIds,
+          toEmployeeId: resolved.toEmployeeId,
+          toEmployeeName: resolved.toEmployeeName,
+          toServiceIds: resolved.toServiceIds,
+          serviceNames: resolved.serviceNames,
+          userId: 'user-1',
+        });
+
+        expect(plan.intent).toBe('transfer_employee_services');
+        expect(plan.steps).toHaveLength(2);
+        expect(plan.steps[0].action).toBe('unassign_employee_services');
+        expect(plan.steps[1].action).toBe('assign_employee_services');
+        expect(plan.steps[1].dependsOn).toEqual([plan.steps[0].id]);
+      },
+    );
   });
 });

@@ -417,6 +417,94 @@ export class OperationalPlanBuilderService {
     });
   }
 
+  buildUnassignEmployeeServicesPlan(
+    params: ResolvedAssignServicesParams & { removedServiceNames?: string[] },
+  ): AgentPlan {
+    const stepId = crypto.randomUUID();
+    const removed =
+      params.removedServiceNames?.length
+        ? params.removedServiceNames
+        : params.serviceNames;
+    const steps: AgentPlanStep[] = [
+      {
+        id: stepId,
+        action: 'unassign_employee_services',
+        description: `Unassign services from ${params.employeeName}`,
+        params: {
+          businessId: params.businessId,
+          employeeId: params.employeeId,
+          serviceIds: params.serviceIds,
+          userId: params.userId,
+        },
+        dependsOn: [],
+        estimatedImpact: `Removes ${removed.join(', ')} from ${params.employeeName}`,
+      },
+    ];
+
+    return this.wrapPlan(
+      params.businessId,
+      'unassign_employee_services',
+      steps,
+      {
+        reasoning: `Unassign ${removed.join(', ')} from ${params.employeeName}.`,
+        risk: { level: 'low', factors: ['Employee service assignment update'] },
+      },
+    );
+  }
+
+  buildTransferEmployeeServicesPlan(params: {
+    businessId: string;
+    fromEmployeeId: string;
+    fromEmployeeName: string;
+    fromServiceIds: string[];
+    toEmployeeId: string;
+    toEmployeeName: string;
+    toServiceIds: string[];
+    serviceNames: string[];
+    userId?: string;
+  }): AgentPlan {
+    const unassignStepId = crypto.randomUUID();
+    const assignStepId = crypto.randomUUID();
+    const steps: AgentPlanStep[] = [
+      {
+        id: unassignStepId,
+        action: 'unassign_employee_services',
+        description: `Unassign services from ${params.fromEmployeeName}`,
+        params: {
+          businessId: params.businessId,
+          employeeId: params.fromEmployeeId,
+          serviceIds: params.fromServiceIds,
+          userId: params.userId,
+        },
+        dependsOn: [],
+        estimatedImpact: `Removes services from ${params.fromEmployeeName}`,
+      },
+      {
+        id: assignStepId,
+        action: 'assign_employee_services',
+        description: `Assign services to ${params.toEmployeeName}`,
+        params: {
+          businessId: params.businessId,
+          employeeId: params.toEmployeeId,
+          serviceIds: params.toServiceIds,
+          userId: params.userId,
+        },
+        dependsOn: [unassignStepId],
+        estimatedImpact: `Adds services to ${params.toEmployeeName}`,
+      },
+    ];
+
+    return this.wrapPlan(
+      params.businessId,
+      'transfer_employee_services',
+      steps,
+      {
+        reasoning: `Move ${params.serviceNames.join(', ')} from ${params.fromEmployeeName} to ${params.toEmployeeName}.`,
+        risk: { level: 'low', factors: ['Employee service assignment update'] },
+      },
+    );
+  }
+
   buildCreateScheduleTemplatePlan(
     params: ResolvedCreateScheduleTemplateParams,
   ): AgentPlan {

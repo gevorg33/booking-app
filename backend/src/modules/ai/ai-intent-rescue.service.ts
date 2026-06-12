@@ -50,7 +50,11 @@ import {
 import { rescueOperationsIntent } from './ai-operations.util.js';
 import {
   isAssignCategoryToProviderPrompt,
+  isTransferServicesBetweenProvidersPrompt,
+  isUnassignServicesFromProviderPrompt,
   rescueAssignCategoryToProviderIntent,
+  rescueTransferServicesBetweenProvidersIntent,
+  rescueUnassignServicesFromProviderIntent,
 } from './ai-category-assignment.util.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
 import {
@@ -997,6 +1001,40 @@ export class AiIntentRescueService {
       };
     }
 
+    if (isTransferServicesBetweenProvidersPrompt(prompt)) {
+      const transfer = rescueTransferServicesBetweenProvidersIntent(
+        prompt,
+        action,
+        params,
+      );
+      if (transfer) {
+        return {
+          action: transfer.action,
+          params: transfer.params,
+          reasoning: 'Move provider skills from one team member to another.',
+          rescued: true,
+          rescueReason: transfer.rescueReason,
+        };
+      }
+    }
+
+    if (isUnassignServicesFromProviderPrompt(prompt)) {
+      const unassign = rescueUnassignServicesFromProviderIntent(
+        prompt,
+        action,
+        params,
+      );
+      if (unassign) {
+        return {
+          action: unassign.action,
+          params: unassign.params,
+          reasoning: 'Remove provider skills from a named team member.',
+          rescued: true,
+          rescueReason: unassign.rescueReason,
+        };
+      }
+    }
+
     if (isAssignCategoryToProviderPrompt(prompt)) {
       const categoryAssign = rescueAssignCategoryToProviderIntent(
         prompt,
@@ -1456,6 +1494,34 @@ export class AiIntentRescueService {
     action: string,
     params: Record<string, any>,
   ): IntentRescueResult | null {
+    const transfer = rescueTransferServicesBetweenProvidersIntent(
+      prompt,
+      action,
+      params,
+    );
+    if (transfer) {
+      return {
+        action: transfer.action,
+        params: transfer.params,
+        reasoning: 'Move provider skills from one team member to another.',
+        rescued: true,
+        rescueReason: transfer.rescueReason,
+      };
+    }
+    const unassign = rescueUnassignServicesFromProviderIntent(
+      prompt,
+      action,
+      params,
+    );
+    if (unassign) {
+      return {
+        action: unassign.action,
+        params: unassign.params,
+        reasoning: 'Remove provider skills from a named team member.',
+        rescued: true,
+        rescueReason: unassign.rescueReason,
+      };
+    }
     const categoryAssign = rescueAssignCategoryToProviderIntent(
       prompt,
       action,

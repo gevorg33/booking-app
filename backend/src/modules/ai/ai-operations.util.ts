@@ -1,5 +1,9 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
-import { rescueAssignCategoryToProviderIntent } from './ai-category-assignment.util.js';
+import {
+  rescueAssignCategoryToProviderIntent,
+  rescueTransferServicesBetweenProvidersIntent,
+  rescueUnassignServicesFromProviderIntent,
+} from './ai-category-assignment.util.js';
 
 export const OPERATIONS_BOOKING_INTENTS = [
   'no_show_recovery',
@@ -477,6 +481,22 @@ export function rescueOperationsIntent(
   }
   if (isPricingAdjustmentPrompt(prompt) && action !== 'update_service_prices') {
     return { action: 'update_service_prices', params };
+  }
+  const transfer = rescueTransferServicesBetweenProvidersIntent(
+    prompt,
+    action,
+    params,
+  );
+  if (transfer) {
+    return { action: transfer.action, params: transfer.params };
+  }
+  const unassign = rescueUnassignServicesFromProviderIntent(
+    prompt,
+    action,
+    params,
+  );
+  if (unassign) {
+    return { action: unassign.action, params: unassign.params };
   }
   const categoryAssign = rescueAssignCategoryToProviderIntent(
     prompt,

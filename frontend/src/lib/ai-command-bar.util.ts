@@ -17,34 +17,123 @@ export interface AiCommandMessageLike {
   action?: string;
 }
 
-const SCHEDULE_ACTIONS = new Set([
-  'fill_unused_slots',
-  'apply_schedule',
-  'block_schedule',
-  'create_direct_schedule',
-  'clear_schedule',
-  'setup_week_schedule',
-  'assign_employee_services',
+const NON_MUTATING_ACTIONS = new Set([
+  'unknown',
+  'error',
+  'clarify',
+  'security_blocked',
+  'plan_limit',
+  'approval',
+  'undo',
 ]);
 
-const ORCHESTRATION_ACTIONS = new Set([
-  'optimize_schedule',
-  'resolve_conflicts',
-  'reassign_cancelled',
-  'summarize_utilization',
-]);
+/** Read-only classifier actions — never trigger dashboard refetch. */
+const READ_ONLY_ACTION_PREFIXES = [
+  'list_',
+  'show_',
+  'explain_',
+  'summarize_',
+  'lookup_',
+  'discover_',
+  'validate_',
+  'preview_',
+  'view_',
+  'check_',
+  'query_',
+  'compare_',
+  'analyze_',
+  'recommend_',
+  'suggest_',
+] as const;
 
-export function shouldInvalidateAfterAi(action?: string, success?: boolean): boolean {
+/** Create / update / delete and other data-writing intents. */
+const MUTATION_ACTION_PREFIXES = [
+  'create_',
+  'update_',
+  'delete_',
+  'deactivate_',
+  'remove_',
+  'bulk_',
+  'cancel_',
+  'reschedule_',
+  'assign_',
+  'merge_',
+  'tag_',
+  'mark_',
+  'configure_',
+  'set_',
+  'apply_',
+  'import_',
+  'duplicate_',
+  'link_',
+  'extend_',
+  'enter_',
+  'release_',
+  'push_',
+  'clear_',
+  'block_',
+  'fill_',
+  'hide_',
+  'unhide_',
+  'swap_',
+  'staff_',
+  'admin_delete_',
+  'resolve_',
+  'reassign_',
+  'optimize_',
+  'payment_',
+  'no_show_',
+  'day_',
+  'sick_day_',
+  'holiday_',
+  'onboard_',
+  'rebalance_',
+  'rotate_',
+  'sync_',
+  'trigger_',
+  'toggle_',
+  'enable_',
+  'disable_',
+  'run_',
+  'notify_',
+  'collect_',
+  'refund_',
+  'adjust_',
+  'accept_',
+  'capture_',
+  'start_',
+  'migrate_',
+  'privacy_delete',
+  'privacy_export',
+  'book_',
+  'send_',
+  'export_',
+  'open_',
+  'contact_',
+  'retry_',
+  'dismiss_',
+  'report_',
+] as const;
+
+const EXACT_MUTATING_ACTIONS = new Set(['holiday_mode', 'compound_intent']);
+
+export function isAiDataMutatingAction(action: string): boolean {
+  if (NON_MUTATING_ACTIONS.has(action)) return false;
+  if (EXACT_MUTATING_ACTIONS.has(action)) return true;
+  if (READ_ONLY_ACTION_PREFIXES.some((prefix) => action.startsWith(prefix))) {
+    return false;
+  }
+  return MUTATION_ACTION_PREFIXES.some((prefix) => action.startsWith(prefix));
+}
+
+export function shouldInvalidateAfterAi(
+  action?: string,
+  success?: boolean,
+  details?: { requiresExecutionConfirmation?: boolean },
+): boolean {
   if (!success || !action) return false;
-  return (
-    action === 'cancel_bookings' ||
-    action === 'create_booking' ||
-    action === 'create_service' ||
-    action === 'create_services' ||
-    action === 'reschedule_booking' ||
-    SCHEDULE_ACTIONS.has(action) ||
-    ORCHESTRATION_ACTIONS.has(action)
-  );
+  if (details?.requiresExecutionConfirmation === true) return false;
+  return isAiDataMutatingAction(action);
 }
 
 export function extractSessionContext(result: {

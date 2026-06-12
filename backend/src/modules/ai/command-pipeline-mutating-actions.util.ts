@@ -55,6 +55,8 @@ export const DASHBOARD_PIPELINE_MUTATING_ACTIONS = new Set<string>([
   'create_service_category',
   'bulk_create_catalog',
   'update_service',
+  'unassign_employee_services',
+  'transfer_employee_services',
   'deactivate_service',
   'create_package',
   'update_package',

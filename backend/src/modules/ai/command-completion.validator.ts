@@ -751,6 +751,62 @@ const ACTION_RULES: Record<string, Rule> = {
           ]),
     ].filter(Boolean) as ValidationIssue[],
 
+  unassign_employee_services: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Service provider',
+        !!cmd.entities.employee,
+        'Gevorg Gasparyan',
+      ),
+      ...(cmd.entities.services.length > 0 ||
+      cmd.params.serviceName ||
+      cmd.params.categoryName ||
+      cmd.params.unassignFromCategory ||
+      cmd.params.unassignAllServices
+        ? []
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service(s), category, or all',
+              message:
+                'Specify which assigned service(s), category, or all services to remove',
+              example: 'Remove all Color services from Gevorg',
+            },
+          ]),
+    ].filter(Boolean) as ValidationIssue[],
+
+  transfer_employee_services: (cmd) =>
+    [
+      needs(
+        'fromEmployeeName',
+        'Source provider',
+        !!cmd.params.fromEmployeeName || !!cmd.entities.employee,
+        'Maria Lopez',
+      ),
+      needs(
+        'toEmployeeName',
+        'Target provider',
+        !!cmd.params.toEmployeeName,
+        'Anna Smith',
+      ),
+      ...(cmd.entities.services.length > 0 ||
+      cmd.params.serviceName ||
+      cmd.params.categoryName ||
+      cmd.params.transferFromCategory ||
+      cmd.params.unassignAllServices
+        ? []
+        : [
+            {
+              field: 'serviceName',
+              label: 'Service(s), category, or all',
+              message:
+                'Specify which assigned service(s), category, or all services to move',
+              example: 'Move all Massage services from Maria to Anna',
+            },
+          ]),
+    ].filter(Boolean) as ValidationIssue[],
+
   create_schedule_template: (cmd) =>
     [
       needs(
@@ -1677,6 +1733,8 @@ const VALIDATED_ACTIONS = new Set([
   'clear_schedule',
   'create_direct_schedule',
   'assign_employee_services',
+  'unassign_employee_services',
+  'transfer_employee_services',
   'list_schedule_gaps',
   'create_schedule_template',
   'mark_no_shows',

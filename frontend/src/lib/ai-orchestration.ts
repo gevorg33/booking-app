@@ -1,15 +1,60 @@
-/** Query keys invalidated after AI schedule/booking mutations */
+/** Query key prefixes invalidated after AI create/update/delete (and related mutations). */
 export const AI_MUTATION_QUERY_KEYS = [
   'bookings',
+  'booking',
   'provider-calendar',
   'services',
+  'service-categories',
+  'service-packages',
+  'subscription-plans',
+  'employees',
+  'team-members',
+  'customers',
+  'customers-dashboard',
+  'customer-detail',
   'block-schedules',
   'schedule-templates',
+  'schedules',
+  'slots',
   'agent-tasks',
+  'agent-tasks-pending',
+  'agent-tasks-undo-preview',
   'dashboard-overview',
   'appointments-dashboard',
-  'customers-dashboard',
+  'business',
+  'business-settings',
+  'business-profile',
+  'inventory',
+  'multi-service-settings',
+  'promo-codes',
+  'loyalty-settings',
+  'loyalty',
+  'products',
+  'clinic-test-types',
+  'clinic-test-panels',
+  'clinic-lab-queue',
+  'clinic-booking-lab-orders',
+  'patient-chart-orders',
+  'patient-encounters',
+  'patient-staff-notes',
+  'integrations-zendesk',
+  'integrations-distribution',
+  'integrations-webhooks',
+  'integrations-zapier',
+  'integrations-accounting',
+  'notification-settings',
+  'email-templates',
+  'time-off-requests',
+  'plan-entitlements',
 ] as const;
+
+export function invalidateDashboardQueries(
+  queryClient: { invalidateQueries: (opts: { queryKey: string[] }) => void },
+): void {
+  for (const key of AI_MUTATION_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
 
 export const AI_WEEKLY_TEAM_SCHEDULE_EXAMPLE =
   'Apply schedule for all employees for their services this week between 9–19:00; make 12:00–13:00 unavailable';

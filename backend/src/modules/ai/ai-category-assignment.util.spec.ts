@@ -1,16 +1,29 @@
 import {
   buildCategoryAssignRescueParams,
+  buildTransferRescueParams,
+  buildUnassignRescueParams,
   extractCategoryToProviderFromPrompt,
+  extractTransferBetweenProvidersFromPrompt,
+  extractUnassignFromProviderFromPrompt,
   isAssignCategoryToProviderPrompt,
+  isTransferServicesBetweenProvidersPrompt,
+  isUnassignServicesFromProviderPrompt,
   rescueAssignCategoryToProviderIntent,
+  rescueTransferServicesBetweenProvidersIntent,
+  rescueUnassignServicesFromProviderIntent,
   resolveAssignEmployeeServicesInput,
   resolveServicesByCategoryName,
   resolveServicesForEmployeeAssignment,
+  resolveTransferEmployeeServicesInput,
+  resolveUnassignEmployeeServicesInput,
+  resolveScopedEmployeeServices,
 } from './ai-category-assignment.util.js';
 import {
   ALL_CATEGORY_ASSIGNMENT_SCENARIOS,
   CATEGORY_ASSIGNMENT_NEGATIVE_SCENARIOS,
   CATEGORY_TO_PROVIDER_SCENARIOS,
+  CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS,
+  TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS,
 } from './ai-category-assignment.fixtures.js';
 
 const colorCategory = { id: 'cat-color', name: 'Color' };
@@ -44,8 +57,8 @@ const catalogServices = [
 ];
 
 const employees = [
-  { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s4'] },
-  { id: 'e2', name: 'Maria Lopez', serviceIds: [] },
+  { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
+  { id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] },
 ];
 
 describe('ai-category-assignment.util', () => {
@@ -178,8 +191,10 @@ describe('ai-category-assignment.util', () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.mergedFromCategory).toBe(false);
-      expect(result.serviceIds).toEqual(expect.arrayContaining(['s2', 's4']));
-      expect(result.serviceIds).toHaveLength(2);
+      expect(result.serviceIds).toEqual(
+        expect.arrayContaining(['s1', 's2', 's4']),
+      );
+      expect(result.serviceIds).toHaveLength(3);
     });
 
     it('fails when multiple providers match', () => {
@@ -396,5 +411,600 @@ describe('ai-category-assignment.util', () => {
       if (result.ok) return;
       expect(result.details?.categoryName).toBeNull();
     });
+  });
+
+  describe('unassign and transfer prompts', () => {
+    it.each(
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects unassign %s', (_id, prompt) => {
+      expect(isUnassignServicesFromProviderPrompt(prompt)).toBe(true);
+      expect(isTransferServicesBetweenProvidersPrompt(prompt)).toBe(false);
+      expect(isAssignCategoryToProviderPrompt(prompt)).toBe(false);
+    });
+
+    it.each(
+      TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects transfer %s', (_id, prompt) => {
+      expect(isTransferServicesBetweenProvidersPrompt(prompt)).toBe(true);
+      expect(isUnassignServicesFromProviderPrompt(prompt)).toBe(false);
+      expect(isAssignCategoryToProviderPrompt(prompt)).toBe(false);
+    });
+
+    it.each(
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.map((s) => [s.id, s]),
+    )('rescues unassign %s', (_id, scenario) => {
+      const rescued = rescueUnassignServicesFromProviderIntent(
+        scenario.prompt,
+        'unknown',
+        {},
+      );
+      expect(rescued?.action).toBe(scenario.expectedAction);
+      expect(rescued?.rescueReason).toBe(scenario.rescueReason);
+      expect(rescued?.params.employeeName).toBe(scenario.employeeName);
+      if (scenario.categoryName) {
+        expect(rescued?.params.categoryName).toBe(scenario.categoryName);
+        expect(rescued?.params.unassignFromCategory).toBe(true);
+      }
+      if (scenario.unassignAllServices) {
+        expect(rescued?.params.unassignAllServices).toBe(true);
+      }
+    });
+
+    it.each(
+      TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]),
+    )('rescues transfer %s', (_id, scenario) => {
+      const rescued = rescueTransferServicesBetweenProvidersIntent(
+        scenario.prompt,
+        'unknown',
+        {},
+      );
+      expect(rescued?.action).toBe(scenario.expectedAction);
+      expect(rescued?.rescueReason).toBe(scenario.rescueReason);
+      expect(rescued?.params.fromEmployeeName).toBe(
+        scenario.fromEmployeeName,
+      );
+      expect(rescued?.params.toEmployeeName).toBe(scenario.toEmployeeName);
+      if (scenario.categoryName) {
+        expect(rescued?.params.categoryName).toBe(scenario.categoryName);
+        expect(rescued?.params.transferFromCategory).toBe(true);
+      }
+    });
+
+    it('rejects capacity rebalance slot moves', () => {
+      expect(
+        isTransferServicesBetweenProvidersPrompt(
+          'Move 2 facemassage slots from Gevorg to Maria on Friday',
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects slot-count moves even without rebalance phrasing', () => {
+      expect(
+        isTransferServicesBetweenProvidersPrompt(
+          'move 2 bookings transfer Color services from Maria to Anna',
+        ),
+      ).toBe(false);
+    });
+
+    it('returns null when unassign action already classified', () => {
+      expect(
+        rescueUnassignServicesFromProviderIntent(
+          CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS[0].prompt,
+          'unassign_employee_services',
+          {},
+        ),
+      ).toBeNull();
+    });
+
+    it('returns null when transfer action already classified', () => {
+      expect(
+        rescueTransferServicesBetweenProvidersIntent(
+          TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS[0].prompt,
+          'transfer_employee_services',
+          {},
+        ),
+      ).toBeNull();
+    });
+  });
+
+  describe('resolveUnassignEmployeeServicesInput', () => {
+    it('removes category services currently assigned to provider', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+          unassignFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.serviceIds).toEqual(['s4']);
+      expect(result.serviceNames).toEqual(
+        expect.arrayContaining(['Balayage', 'Highlights']),
+      );
+    });
+
+    it('removes all assigned services from provider', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Maria Lopez',
+          unassignAllServices: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.serviceIds).toEqual([]);
+      expect(result.serviceNames).toHaveLength(2);
+    });
+
+    it('removes a single named service from provider', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          serviceName: 'Facial',
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.serviceIds).toEqual(['s1', 's2']);
+    });
+  });
+
+  describe('resolveTransferEmployeeServicesInput', () => {
+    it('moves category services from source to target', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+          transferFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.fromServiceIds).toEqual([]);
+      expect(result.toServiceIds).toEqual(
+        expect.arrayContaining(['s1', 's2', 's4']),
+      );
+      expect(result.serviceNames).toEqual(
+        expect.arrayContaining(['Balayage', 'Highlights']),
+      );
+    });
+
+    it('fails when source and target are the same provider', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Maria Lopez',
+          categoryName: 'Color',
+          transferFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('fails when source or target provider is missing', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Nobody',
+          toEmployeeName: 'Maria Lopez',
+          categoryName: 'Color',
+          transferFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('fails when source has no matching assigned services', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Gevorg Gasparyan',
+          serviceName: 'Facial',
+          transferFromCategory: false,
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('resolveUnassignEmployeeServicesInput failures', () => {
+    it('fails when provider is not specified', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        { categoryName: 'Color', unassignFromCategory: true },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('fails when provider has no matching assigned services', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Maria Lopez',
+          serviceName: 'Facial',
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('fails when scope is omitted', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        { employeeName: 'Gevorg Gasparyan' },
+      );
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('buildUnassignRescueParams', () => {
+    it('merges extracted and param fallbacks', () => {
+      expect(
+        buildUnassignRescueParams(
+          { categoryName: 'Hair', employeeName: 'Anna' },
+          { unassignAllServices: true },
+        ),
+      ).toEqual({
+        unassignAllServices: true,
+        categoryName: 'Hair',
+        employeeName: 'Anna',
+        unassignFromCategory: true,
+      });
+    });
+
+    it('uses string param fallbacks when extraction is empty', () => {
+      expect(
+        buildUnassignRescueParams(
+          {},
+          {
+            categoryName: 'Color',
+            employeeName: 'Gevorg',
+            unassignFromCategory: true,
+          },
+        ),
+      ).toEqual({
+        categoryName: 'Color',
+        employeeName: 'Gevorg',
+        unassignFromCategory: true,
+        unassignAllServices: false,
+      });
+    });
+  });
+
+  describe('buildTransferRescueParams', () => {
+    it('merges extracted and param fallbacks', () => {
+      expect(
+        buildTransferRescueParams(
+          {
+            fromEmployeeName: 'Maria',
+            toEmployeeName: 'Anna',
+            categoryName: 'Spa',
+          },
+          {},
+        ),
+      ).toEqual({
+        categoryName: 'Spa',
+        fromEmployeeName: 'Maria',
+        toEmployeeName: 'Anna',
+        unassignAllServices: false,
+        transferFromCategory: true,
+      });
+    });
+
+    it('uses string param fallbacks when extraction is empty', () => {
+      expect(
+        buildTransferRescueParams(
+          {},
+          {
+            fromEmployeeName: 'Maria',
+            toEmployeeName: 'Anna',
+            categoryName: 'Hair',
+            transferFromCategory: true,
+            unassignAllServices: true,
+          },
+        ),
+      ).toEqual({
+        fromEmployeeName: 'Maria',
+        toEmployeeName: 'Anna',
+        categoryName: 'Hair',
+        transferFromCategory: true,
+        unassignAllServices: true,
+      });
+    });
+  });
+
+  describe('scoped assignment edge branches', () => {
+    it('transfers all assigned services when unassignAllServices is set', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Gevorg Gasparyan',
+          unassignAllServices: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.fromServiceIds).toEqual([]);
+      expect(result.transferredServiceIds).toHaveLength(2);
+    });
+
+    it('supports serviceNames array for unassign', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          serviceNames: ['Balayage', 'Highlights'],
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.serviceIds).toEqual(['s4']);
+    });
+
+    it('fails when provider has no assigned services at all', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        [{ id: 'e9', name: 'Empty Provider', serviceIds: [] }],
+        catalogServices,
+        {
+          employeeName: 'Empty Provider',
+          unassignAllServices: true,
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('handles undefined serviceIds on employee', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        [{ id: 'e9', name: 'Empty Provider' }],
+        catalogServices,
+        {
+          employeeName: 'Empty Provider',
+          serviceName: 'Balayage',
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('ignores non-string rescue param fallbacks', () => {
+      expect(
+        buildUnassignRescueParams({}, { categoryName: 1, employeeName: null }),
+      ).toEqual({
+        categoryName: undefined,
+        employeeName: undefined,
+        unassignAllServices: false,
+        unassignFromCategory: false,
+      });
+      expect(
+        buildTransferRescueParams(
+          {},
+          {
+            fromEmployeeName: false,
+            toEmployeeName: 9,
+            categoryName: null,
+          },
+        ),
+      ).toEqual({
+        fromEmployeeName: undefined,
+        toEmployeeName: undefined,
+        categoryName: undefined,
+        unassignAllServices: false,
+        transferFromCategory: false,
+      });
+    });
+
+    it('scopes transfer via transferFromCategory flag alone', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+          transferFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.scopedFromCategory).toBe(true);
+    });
+
+    it('marks unassign scopedFromCategory when flag is set', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+          unassignFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.scopedFromCategory).toBe(true);
+    });
+
+    it('uses unassignFromCategory flag even when serviceName is present', () => {
+      const result = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+          serviceName: 'Nonexistent',
+          unassignFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.scopedFromCategory).toBe(true);
+    });
+
+    it('transfer scopedFromCategory honors transferFromCategory with serviceName set', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Gevorg Gasparyan',
+          toEmployeeName: 'Maria Lopez',
+          categoryName: 'Color',
+          serviceName: 'Nonexistent',
+          transferFromCategory: true,
+        },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.scopedFromCategory).toBe(true);
+    });
+
+    it('transfer fails when provider params are not strings', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 1,
+          toEmployeeName: null,
+          categoryName: 'Color',
+        },
+      );
+      expect(result.ok).toBe(false);
+    });
+
+    it('transfer supports serviceNames array and non-string serviceName', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Gevorg Gasparyan',
+          toEmployeeName: 'Maria Lopez',
+          serviceName: 42,
+          serviceNames: ['Balayage', 'Highlights'],
+        },
+      );
+      expect(result.ok).toBe(true);
+    });
+
+    it('transfer failure lists assigned services when source has undefined serviceIds', () => {
+      const result = resolveTransferEmployeeServicesInput(
+        [
+          { id: 'e9', name: 'Bare Provider' },
+          { id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] },
+        ],
+        catalogServices,
+        {
+          fromEmployeeName: 'Bare Provider',
+          toEmployeeName: 'Maria Lopez',
+          serviceName: 'Balayage',
+        },
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.details?.assignedServices).toEqual([]);
+    });
+
+    it('derives scopedFromCategory from categoryName without explicit flag', () => {
+      const unassign = resolveUnassignEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          employeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+        },
+      );
+      expect(unassign.ok).toBe(true);
+      if (!unassign.ok) return;
+      expect(unassign.scopedFromCategory).toBe(true);
+
+      const transfer = resolveTransferEmployeeServicesInput(
+        employees,
+        catalogServices,
+        {
+          fromEmployeeName: 'Maria Lopez',
+          toEmployeeName: 'Gevorg Gasparyan',
+          categoryName: 'Color',
+        },
+      );
+      expect(transfer.ok).toBe(true);
+      if (!transfer.ok) return;
+      expect(transfer.scopedFromCategory).toBe(true);
+    });
+  });
+
+  describe('resolveScopedEmployeeServices', () => {
+    it('uses unassignFromCategory branch for category scope', () => {
+      const scoped = resolveScopedEmployeeServices(
+        { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
+        catalogServices,
+        {
+          categoryName: 'Color',
+          unassignFromCategory: true,
+          serviceName: 'Nonexistent',
+        },
+      );
+      expect(scoped.map((s) => s.id)).toEqual(['s1', 's2']);
+    });
+
+    it('uses categoryName-only branch when flags are false', () => {
+      const scoped = resolveScopedEmployeeServices(
+        { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
+        catalogServices,
+        {
+          categoryName: 'Color',
+          unassignFromCategory: false,
+          transferFromCategory: false,
+        },
+      );
+      expect(scoped.map((s) => s.id)).toEqual(['s1', 's2']);
+    });
+  });
+
+  describe('extractUnassignFromProviderFromPrompt', () => {
+    it.each(
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter((s) => s.categoryName).map(
+        (s) => [s.id, s],
+      ),
+    )('extracts unassign fields for %s', (_id, scenario) => {
+      const extracted = extractUnassignFromProviderFromPrompt(scenario.prompt);
+      expect(extracted.employeeName).toBe(scenario.employeeName);
+      expect(extracted.categoryName).toBe(scenario.categoryName);
+    });
+  });
+
+  describe('extractTransferBetweenProvidersFromPrompt', () => {
+    it.each(TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]))(
+      'extracts transfer fields for %s',
+      (_id, scenario) => {
+        const extracted = extractTransferBetweenProvidersFromPrompt(
+          scenario.prompt,
+        );
+        expect(extracted.fromEmployeeName).toBe(scenario.fromEmployeeName);
+        expect(extracted.toEmployeeName).toBe(scenario.toEmployeeName);
+        if (scenario.categoryName) {
+          expect(extracted.categoryName).toBe(scenario.categoryName);
+        }
+      },
+    );
   });
 });
