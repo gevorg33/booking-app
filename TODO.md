@@ -57,7 +57,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | **37** | GDPR & HIPAA compliance hardening (core v1 shipped) | **compliance-1**, **ai-cmd-compliance** |
 | **38** | AI accuracy — telemetry & measurement | **acc-1** |
 | **39** | AI accuracy — eval set expansion & CI gate | **acc-2** |
-| **40** | AI accuracy — classification engine + semantic intent matching | **acc-3** |
+| **40** | AI accuracy — classification engine + semantic intent matching + confidence pipeline | **acc-3**, **pipe-1** |
 | **41** | AI accuracy — smart clarification & disambiguation | **acc-4** |
 | **42** | AI accuracy — execution verification & rollback | **acc-5** |
 | **43** | AI accuracy — continuous learning & escalation | **acc-6** |
@@ -1197,6 +1197,96 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 - [ ] **acc-3.14** — **Heuristic → semantic migration** — incrementally replace the most paraphrase-sensitive regex resolvers (`isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers in `ai-intent-heuristics.ts`) with semantic matches; keep regex only for structured extraction (dates, times, numbers), not for intent meaning
 - [ ] **acc-3.15** — **Confidence + clarify fallback** — low semantic-match confidence routes to smart clarification (**acc-4**) instead of a wrong guess; wrong-execution guardrail stays < 1%
 - [ ] **acc-3.16** — **Eval coverage** — paraphrase corpus in `ai-command-eval.cases.ts`: each intent gets 5+ lexically-distinct equivalents (EN/HY/RU); CI asserts the semantic matcher resolves them (extends `npm run test:ai-accuracy` / **acc-2.8**)
+
+### pipe-1 — Confidence-gated command understanding pipeline
+
+**Goal:** Handle semantically equivalent requests with different wording. Heuristics + primary LLM for obvious cases; low-confidence / `unknown` escalates to embedding semantic match → re-rank → rescue → self-verify → structural enrich → validate → execute. Anchors (not phrase whitelists); no entity names in bank. Dashboard first; provider / customer / public via adapters. Implements **acc-3.11**–**3.16**, **acc-3.4**, **acc-3.15**, **acc-4.7** incrementally.
+
+**Target flow:** normalize → fast heuristics → LLM classify → confidence gate → (low: semantic + re-rank + optional narrow re-classify) → rescue → self-verify → structural enrich → validate → execute → telemetry.
+
+**Examples:** "Book me a haircut tomorrow" (classifier 99% → skip semantic) · "My hair is getting pretty long" (unknown 20% → semantic → `create_booking`) · "I think I need a trim soon" (unknown 35% → semantic → `create_booking`).
+
+- [ ] **pipe-1** — Confidence-gated command understanding pipeline
+
+#### pipe-1.0 — Pipeline spine (dashboard)
+- [ ] **pipe-1.0.1** — Types: `IntentCandidate`, `ConfidenceGateResult`, `PipelineUnderstandResult` in `command-understanding.types.ts`; extend `PipelineStage` in `command-completion.types.ts`
+- [ ] **pipe-1.0.2** — `CommandUnderstandingPipelineService` — orchestrate stages with ordered `PipelineTrace[]`
+- [ ] **pipe-1.0.3** — Register in `ai.module.ts`
+- [ ] **pipe-1.0.4** — Refactor `executeSingleIntent` to delegate understand-phase to pipeline; keep execute / confirm / plan in `AiCommandService`
+- [ ] **pipe-1.0.5** — `command-understanding-pipeline.integration.spec.ts` — mocked classify + embed; assert stage order
+
+#### pipe-1.1 — Normalize
+- [ ] **pipe-1.1.1** — Normalize runs first (reuse `AiPromptNormalizationService`); pass `normalized` + `classifierContext` through `PipelineContext`
+- [ ] **pipe-1.1.2** — Unit spec: HY/RU passthrough, empty prompt, cache hit
+
+#### pipe-1.2 — Fast heuristics (obvious cases)
+- [ ] **pipe-1.2.1** — `fast-intent-heuristics.service.ts` — score read-only tier, compound detection; return `IntentCandidate[]` not boolean
+- [ ] **pipe-1.2.2** — High-confidence heuristic hits (≥0.90) feed re-rank; do not bypass LLM classify in phase 1
+- [ ] **pipe-1.2.3** — Boundary doc: fast heuristics = routing + structural hints only; no new paraphrase regex for intent meaning (**acc-3.14** guard)
+- [ ] **pipe-1.2.4** — `fast-intent-heuristics.service.spec.ts` — `it.each` over routing fixtures
+
+#### pipe-1.3 — Primary LLM classify + confidence gate
+- [ ] **pipe-1.3.1** — Classify in pipeline; preserve parallel complexity routing (`runParallelRouteAndClassification`)
+- [ ] **pipe-1.3.2** — `confidence-gate.util.ts` — `shouldEscalateToSemantic`: true when `unknown` OR `confidence < 0.65`; false when `confidence >= 0.82`
+- [ ] **pipe-1.3.3** — Wire `aiConfig.confidence.low/high` from `AiSettingsService` as overrides
+- [ ] **pipe-1.3.4** — Unit spec: high-confidence skips semantic; unknown@0.20 escalates
+
+#### pipe-1.4 — Semantic match + re-rank (low-confidence only)
+- [ ] **pipe-1.4.1** — `intent-anchor.bank.ts` — generic anchors per intent (EN first); seed from eval; **no entity names**
+- [ ] **pipe-1.4.2** — Restore `embedText()` on `openai-gateway.service.ts`; log via `ai-usage.service.ts`
+- [ ] **pipe-1.4.3** — `ai-semantic-intent.service.ts` — pre-embed anchors; cosine match prompt vs anchors
+- [ ] **pipe-1.4.4** — CI deterministic fallback in `ai-semantic-intent.util.ts` — token cosine when `NODE_ENV=test` or no API key
+- [ ] **pipe-1.4.5** — `intent-candidate-rerank.util.ts` — merge classifier + semantic + heuristic candidates
+- [ ] **pipe-1.4.6** — Restrict semantic `allowedActions` by surface + session `lastAction`
+- [ ] **pipe-1.4.7** — Narrow re-classify when top-2 within 0.08 — 10-intent shortlist (**acc-3.3**)
+- [ ] **pipe-1.4.8** — `ai-semantic-intent.util.spec.ts` — implication cases (hair long → `create_booking`; work time → `create_direct_schedule`)
+
+#### pipe-1.5 — Rescue (after semantic)
+- [ ] **pipe-1.5.1** — Reorder `AiIntentRescueService.rescue`: domain rescues first; semantic is pipeline stage only (not inside rescue)
+- [ ] **pipe-1.5.2** — Pass semantic winner into rescue for param hints only
+- [ ] **pipe-1.5.3** — Regression: tour calendar, provider stats, recommendation prompts not stolen (**acc-2.8**)
+
+#### pipe-1.6 — Self-verify
+- [ ] **pipe-1.6.1** — `ai-intent-self-verify.util.ts` — rule checks (schedule vocab, booking vs clear mismatch)
+- [ ] **pipe-1.6.2** — Fail + confidence <0.55 → `ai-unknown-intent.util.ts` targeted clarify (**acc-3.4**, **acc-4.7**)
+- [ ] **pipe-1.6.3** — `ai-intent-self-verify.util.spec.ts`
+
+#### pipe-1.7 — Structural enrichment (after intent locked)
+- [ ] **pipe-1.7.1** — Move `enrichDateRangeFromPrompt`, `matchEmployeesInPrompt`, `inferDirectSchedulePeriods`, `applyAvailabilityFollowUpFromSession` to pipeline structural stage — **after** self-verify
+- [ ] **pipe-1.7.2** — Default work-time periods 09:00–19:00 when `create_direct_schedule` and no hours in prompt
+- [ ] **pipe-1.7.3** — Unit spec: structural enrich skipped when self-verify fails
+
+#### pipe-1.8 — Validate + unknown guard
+- [ ] **pipe-1.8.1** — Block `unknown` from handler switch — clarify via `ai-unknown-intent.util.ts`
+- [ ] **pipe-1.8.2** — Hand off to existing `command-completion.validator.ts` / `CommandCompletionPipelineService`
+
+#### pipe-1.9 — Execute
+- [ ] **pipe-1.9.1** — Ensure `create_direct_schedule` in mutating-actions when pipeline resolves schedule intents
+- [ ] **pipe-1.9.2** — ReAct fallback in `booking-command-graph.service.ts` only when still `unknown` after semantic + rescue
+
+#### pipe-1.10 — Telemetry
+- [ ] **pipe-1.10.1** — `ai-command-trace.entity.ts` + `ai-command-trace.service.ts`
+- [ ] **pipe-1.10.2** — Extend `ai-misroute-telemetry.util.ts` with `semanticAction`, `semanticConfidence`, `pipelineStage`
+- [ ] **pipe-1.10.3** — Record trace on clarify, execute, misroute paths (**acc-1**)
+
+#### pipe-1.11 — Eval + CI
+- [ ] **pipe-1.11.1** — `ai-implication-corpus.fixtures.ts` — ≥10 implication prompts per top intent (booking, schedule, availability)
+- [ ] **pipe-1.11.2** — `AI_COMMAND_EVAL_IMPLICATION_CASES` in `eval/ai-command-eval.cases.ts`
+- [ ] **pipe-1.11.3** — `npm run test:pipe-confidence` in `package.json`
+- [ ] **pipe-1.11.4** — Green `npm run test:ai-accuracy`; update baseline if case count grows (**acc-2.9**)
+- [ ] **pipe-1.11.5** — HY/RU implication anchors (**acc-2.4** partial)
+
+#### pipe-1.12 — Multi-surface adapters
+- [ ] **pipe-1.12.1** — Dashboard adapter (ships with **pipe-1.0**)
+- [ ] **pipe-1.12.2** — Provider mobile — `provider-ai-command.service.ts`
+- [ ] **pipe-1.12.3** — Customer mobile — `customer-ai-command.service.ts`
+- [ ] **pipe-1.12.4** — Public booking — `public-booking-assistant.service.ts`
+- [ ] **pipe-1.12.5** — Per-surface implication eval cases (`surface: dashboard | provider | customer | public`)
+
+#### pipe-1.13 — Heuristic shrink (ongoing)
+- [ ] **pipe-1.13.1** — Migrate `isFirstAvailableBookingPrompt` meaning to semantic anchors; keep structural `bookingFirstAvailable` flag (**acc-3.14**)
+- [ ] **pipe-1.13.2** — Migrate `isTeamWideProviderAvailabilityQuery` paraphrase half to semantic
+- [ ] **pipe-1.13.3** — Split `ai-intent-heuristics.ts` → `ai-structural-extractors.ts` (keep) vs deprecated paraphrase detectors (remove)
 
 ---
 
