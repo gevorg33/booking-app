@@ -36,6 +36,8 @@ export interface AiCommandEvalExpectation {
   useSurfaceConsumerCheckoutTaxRescue?: boolean;
   /** When true, eval uses customer-surface clinic test results rescue only (acc-2.4 HY/RU). */
   useSurfaceConsumerClinicTestResultsRescue?: boolean;
+  /** When true, eval uses provider-surface implication heuristic rescue (pipe-1.12.5). */
+  useSurfaceProviderImplicationRescue?: boolean;
   /** When true, eval uses provider-surface push setup rescue only (acc-2.4 HY/RU). */
   useSurfaceProviderPushSetupRescue?: boolean;
   /** Validated action should fail with clarify (acc-2.6). */
@@ -45,6 +47,31 @@ export interface AiCommandEvalExpectation {
   clarifyFieldsContains?: string[];
   /** Expected rescueReason when stable. */
   rescueReason?: string;
+  /** acc-3.11 — assert embedding semantic matcher resolves unknown/low-confidence phrasing. */
+  useSemanticIntentMatch?: boolean;
+  semanticMatchAction?: string;
+  semanticMatchParamsPartial?: Record<string, unknown>;
+  /** pipe-1.11.2 — implication corpus bucket for accuracy scorecard grouping. */
+  implicationTopIntent?: 'booking' | 'schedule' | 'availability';
+  /** When true, adopt top-ranked anchor if resolveSemanticMatch is null but score ≥ threshold. */
+  semanticMatchUseTopAnchorFallback?: boolean;
+  /** pipe-1.13.1 — assert semantic anchors detect first-available booking meaning. */
+  useBookingFirstAvailableSemanticDetect?: boolean;
+  bookingFirstAvailableSemantic?: boolean;
+  /** pipe-1.13.2 — assert semantic anchors detect team-wide availability meaning. */
+  useTeamWideAvailabilitySemanticDetect?: boolean;
+  teamWideAvailabilitySemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors detect any-provider booking scope. */
+  useAnyProviderBookingSemanticDetect?: boolean;
+  anyProviderBookingSemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors detect recommend specialists phrasing. */
+  useRecommendSpecialistsSemanticDetect?: boolean;
+  recommendSpecialistsSemantic?: boolean;
+  /** acc-3.14 — assert semantic anchors resolve dashboard metric params. */
+  useMetricResolverSemanticDetect?: boolean;
+  metricResolverSemantic?: boolean;
+  metricResolverKind?: 'booking' | 'staff' | 'service' | 'customer' | 'appointment';
+  metricResolverExpected?: string;
   /** Use surface-scoped clinic lab booking rescue (i18n-clinic-v2-ai-8). */
   useSurfaceLabBookingRescue?: boolean;
   /** Use surface-scoped budget service discovery rescue (budget-1.11). */

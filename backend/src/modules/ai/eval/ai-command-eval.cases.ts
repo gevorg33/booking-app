@@ -347,6 +347,12 @@ import { AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES } from '../ai-marke
 import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CASES } from '../ai-consumer-checkout-success-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES } from '../ai-consumer-checkout-tax-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_TYPO_CORPUS_CASES } from '../ai-typo-corpus.eval.util.js';
+import { AI_COMMAND_EVAL_IMPLICATION_CASES } from '../ai-implication-corpus.eval.util.js';
+import { AI_COMMAND_EVAL_BOOKING_FIRST_AVAILABLE_SEMANTIC_CASES } from '../booking-first-available.semantic.eval.util.js';
+import { AI_COMMAND_EVAL_TEAM_WIDE_AVAILABILITY_SEMANTIC_CASES } from '../team-wide-availability.semantic.eval.util.js';
+import { AI_COMMAND_EVAL_ANY_PROVIDER_BOOKING_SEMANTIC_CASES } from '../any-provider-booking.semantic.eval.util.js';
+import { AI_COMMAND_EVAL_RECOMMEND_SPECIALISTS_SEMANTIC_CASES } from '../recommend-specialists.semantic.eval.util.js';
+import { AI_COMMAND_EVAL_METRIC_RESOLVER_SEMANTIC_CASES } from '../metric-resolvers.semantic.eval.util.js';
 import { AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_CASES } from '../ai-consumer-clinic-test-results-deferred-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_MULTILINGUAL_CASES } from '../ai-provider-push-setup-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_AMBIGUITY_CORPUS_CASES } from '../ai-ambiguity-corpus.eval.util.js';
@@ -387,6 +393,7 @@ import type {
   AiCommandEvalExpectation,
   AiEvalLocale,
 } from './ai-command-eval.types.js';
+import { AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES } from '../ai-semantic-intent.eval.util.js';
 
 export const AI_COMMAND_EVAL_AI_CMD_DOMAIN_CASES = AI_CMD_DOMAIN_EVAL_CASES;
 
@@ -4535,8 +4542,24 @@ export function dashboardOpsScenarioToEvalCase(
 export const AI_COMMAND_EVAL_DASHBOARD_OPS_CASES: AiCommandEvalCase[] =
   ALL_DASHBOARD_OPS_SCENARIOS.map(dashboardOpsScenarioToEvalCase);
 
+export { AI_COMMAND_EVAL_IMPLICATION_CASES };
+export { AI_COMMAND_EVAL_BOOKING_FIRST_AVAILABLE_SEMANTIC_CASES };
+export { AI_COMMAND_EVAL_TEAM_WIDE_AVAILABILITY_SEMANTIC_CASES };
+export { AI_COMMAND_EVAL_ANY_PROVIDER_BOOKING_SEMANTIC_CASES };
+export { AI_COMMAND_EVAL_RECOMMEND_SPECIALISTS_SEMANTIC_CASES };
+export { AI_COMMAND_EVAL_METRIC_RESOLVER_SEMANTIC_CASES };
+
+export { AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES };
+
 /** Full deterministic CI suite: routing/rescue + compound decomposition. */
 export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
+  ...AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES,
+  ...AI_COMMAND_EVAL_IMPLICATION_CASES,
+  ...AI_COMMAND_EVAL_BOOKING_FIRST_AVAILABLE_SEMANTIC_CASES,
+  ...AI_COMMAND_EVAL_TEAM_WIDE_AVAILABILITY_SEMANTIC_CASES,
+  ...AI_COMMAND_EVAL_ANY_PROVIDER_BOOKING_SEMANTIC_CASES,
+  ...AI_COMMAND_EVAL_RECOMMEND_SPECIALISTS_SEMANTIC_CASES,
+  ...AI_COMMAND_EVAL_METRIC_RESOLVER_SEMANTIC_CASES,
   ...AI_COMMAND_EVAL_CASES,
   ...AI_COMMAND_EVAL_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_CHECK_AND_BOOK_CASES,

@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-11T21:59:02.856Z",
-  "totalCases": 3221,
-  "passed": 3221,
+  "generatedAt": "2026-06-12T12:22:43.487Z",
+  "totalCases": 3488,
+  "passed": 3488,
   "failed": 0,
   "accuracyPct": 100,
   "llmCaseCount": 14,
@@ -308,9 +308,9 @@
       "accuracyPct": 100
     },
     "compound:check_providers_for_service+book_nearest_slot": {
-      "passed": 47,
+      "passed": 49,
       "failed": 0,
-      "total": 47,
+      "total": 49,
       "accuracyPct": 100
     },
     "compound:contains:add_services_to_cart+show_cart_total_duration": {
@@ -943,6 +943,72 @@
       "total": 3,
       "accuracyPct": 100
     },
+    "implication:availability:check_availability": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10,
+      "accuracyPct": 100
+    },
+    "implication:availability:check_providers_for_service": {
+      "passed": 55,
+      "failed": 0,
+      "total": 55,
+      "accuracyPct": 100
+    },
+    "implication:booking:create_booking": {
+      "passed": 46,
+      "failed": 0,
+      "total": 46,
+      "accuracyPct": 100
+    },
+    "implication:booking:show_appointments": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "implication:booking:summarize_my_appointments": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "implication:booking:team_whos_next": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "implication:schedule:block_my_time": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "implication:schedule:block_schedule": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "implication:schedule:create_direct_schedule": {
+      "passed": 24,
+      "failed": 0,
+      "total": 24,
+      "accuracyPct": 100
+    },
+    "implication:schedule:fill_unused_slots": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
+    "implication:schedule:suggest_waitlist_for_gap": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
     "invite_staff_member": {
       "passed": 33,
       "failed": 0,
@@ -1123,6 +1189,12 @@
       "total": 6,
       "accuracyPct": 100
     },
+    "misc": {
+      "passed": 89,
+      "failed": 0,
+      "total": 89,
+      "accuracyPct": 100
+    },
     "multilingual_detection": {
       "passed": 2,
       "failed": 0,
@@ -1301,6 +1373,30 @@
       "passed": 3,
       "failed": 0,
       "total": 3,
+      "accuracyPct": 100
+    },
+    "semantic:book_nearest_slot": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "accuracyPct": 100
+    },
+    "semantic:check_providers_for_service": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "accuracyPct": 100
+    },
+    "semantic:create_booking": {
+      "passed": 8,
+      "failed": 0,
+      "total": 8,
+      "accuracyPct": 100
+    },
+    "semantic:create_direct_schedule": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
       "accuracyPct": 100
     },
     "send_breach_notification": {

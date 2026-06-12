@@ -32,6 +32,20 @@ import {
 import { AiEventsService } from '../ai/ai-events.service.js';
 import { recordMisrouteTelemetry } from '../ai/ai-misroute-telemetry.util.js';
 import { AiPromptSecurityService } from '../ai/ai-prompt-security.service.js';
+import { AiSettingsService } from '../ai/ai-settings.service.js';
+import { AiPromptNormalizationService } from '../ai/ai-prompt-normalization.service.js';
+import { ProviderCommandUnderstandingAdapter } from '../ai/provider-command-understanding.adapter.js';
+import { buildNarrowClassifierSchema } from '../ai/narrow-reclassify-schema.util.js';
+import {
+  buildPipelineClarifyCommandResult,
+  buildUnknownIntentClarifyResult,
+  shouldBlockUnknownFromHandlerSwitch,
+} from '../ai/ai-unknown-intent.util.js';
+import {
+  findClassifierCandidate,
+  pipelineRescueReason,
+  pipelineResultToClassifiedIntent,
+} from '../ai/command-understanding-result.util.js';
 import { AiScheduleHandlersService } from '../ai/ai-schedule-handlers.service.js';
 import { isIntentAllowed } from '../ai/ai-capability.matrix.js';
 import {
@@ -72,8 +86,6 @@ import {
 import {
   applyProviderEntityMemory,
   buildCoordinateWaitlistConfirmation,
-  buildProviderClassifierAppendix,
-  buildProviderSessionContextBlock,
   formatProviderHistoryBlock,
   matchEmployeeByName,
   matchWaitlistCustomerByName,
@@ -91,20 +103,7 @@ import { AiBusinessTaxService } from '../ai/ai-business-tax.service.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
 import {
   parseExplainAppointmentTaxFromPrompt,
-  rescueAppointmentTaxIntent,
 } from '../ai/ai-appointment-tax.util.js';
-import { rescueProviderPaymentCurrencyIntent } from '../ai/ai-provider-payment-currency.util.js';
-import {
-  parseProviderPushTimeFormatFromPrompt,
-  rescueProviderDateFormatIntent,
-} from '../ai/ai-provider-date-format.util.js';
-import { rescueProviderSessionTimeoutIntent } from '../ai/ai-provider-session-timeout.util.js';
-import { rescueProviderPushSetupIntent } from '../ai/ai-provider-push-setup.util.js';
-import {
-  parseListMyCollectionQueueFromPrompt,
-  parseMarkSpecimenCollectedFromPrompt,
-  rescueProviderClinicCollectionIntent,
-} from '../ai/ai-provider-clinic-collection.util.js';
 import { AiProviderClinicCollectionService } from '../ai/ai-provider-clinic-collection.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { PROVIDER_MOBILE_CLASSIFIER_RULES } from '../ai/ai-provider-mobile.fixtures.js';
@@ -118,21 +117,11 @@ import {
 import { ProviderPushActionService } from './provider-push-action.service.js';
 import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
-import { rescueProviderEarningsIntent } from '../ai/ai-provider-earnings.util.js';
 import { AiProviderClientContextService } from '../ai/ai-provider-client-context.service.js';
 import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
 import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
-import { extractRetailProductName } from '../ai/ai-provider-exp-3.util.js';
-import {
-  extractBookingActionCustomerName,
-  extractRunningLateMinutesFromPrompt,
-} from '../ai/ai-provider-exp-2.util.js';
-import {
-  extractClientNoteBodyFromPrompt,
-  extractCustomerNameFromClientPrompt,
-} from '../ai/ai-provider-client-context.util.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -256,6 +245,9 @@ export class ProviderAiCommandService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private promptSecurity: AiPromptSecurityService,
+    private aiSettings: AiSettingsService,
+    private promptNormalization: AiPromptNormalizationService,
+    private providerUnderstanding: ProviderCommandUnderstandingAdapter,
     @Inject(forwardRef(() => AiPushNotificationsService))
     private pushNotifications: AiPushNotificationsService,
     @Inject(forwardRef(() => AiProviderBookingService))
@@ -376,23 +368,87 @@ export class ProviderAiCommandService {
       }
     }
 
-    const parsed = await this.classifyIntent(
+    const aiConfig = await this.aiSettings.getSettings(businessId);
+    const promptNorm = await this.promptNormalization.normalizeForClassifier(
       businessId,
       userId,
       prompt,
-      providerName,
-      access.viewMode,
-      history,
-      context,
     );
-    if (!parsed) {
+
+    const understood = await this.providerUnderstanding.understand({
+      businessId,
+      userId,
+      effectivePrompt: prompt,
+      providerName,
+      viewMode: access.viewMode,
+      confidence: aiConfig.confidence,
+      sessionConfidenceHigh: context?._confidenceHigh as number | undefined,
+      lastAction: context?.lastAction as string | undefined,
+      sessionContext: context,
+      employees: access.employee
+        ? [{ id: access.employee.id, name: access.employee.name }]
+        : [],
+      promptNorm,
+      classify: (normalizedPrompt, contextBlock, narrowShortlist) =>
+        this.classifyIntent(
+          businessId,
+          userId,
+          normalizedPrompt,
+          contextBlock,
+          providerName,
+          access.viewMode,
+          history,
+          context,
+          narrowShortlist,
+        ),
+    });
+
+    if (understood.status === 'blocked') {
       return {
         success: false,
         action: 'error',
         summary: 'Could not understand that command. Try rephrasing.',
-        details: {},
+        details: {
+          pipelineTrace: understood.trace,
+          blockReason: understood.blockReason,
+        },
       };
     }
+
+    if (understood.status === 'clarify') {
+      const clarifyPayload = {
+        summary:
+          understood.clarifySummary ??
+          'I need a bit more detail before I can run this.',
+        clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+        suggestions: understood.clarifySuggestions ?? [],
+        loweredConfidence: understood.confidence,
+        ruleId:
+          understood.blockReason?.replace('self_verify clarify: ', '') ??
+          'unknown',
+        reason: understood.blockReason ?? 'self_verify_clarify',
+      };
+      const clarify = buildPipelineClarifyCommandResult(
+        understood,
+        clarifyPayload,
+      );
+      this.aiEvents.emitClarify(businessId, {
+        action: understood.action,
+        summary: clarify.summary,
+        missing: clarify.details.missing,
+      });
+      return {
+        success: clarify.success,
+        action: clarify.action,
+        summary: clarify.summary,
+        details: clarify.details as Record<string, unknown>,
+      };
+    }
+
+    let parsed = pipelineResultToClassifiedIntent(understood);
+    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierAction = classifierCandidate?.action ?? parsed.action;
+    let rescueReason: string | undefined = pipelineRescueReason(understood);
 
     parsed.params = this.completionPipeline.mergeProviderSessionContext(
       parsed.params as Record<string, any>,
@@ -411,9 +467,6 @@ export class ProviderAiCommandService {
       parsed.params as Record<string, any>,
     );
 
-    const classifierAction = parsed.action;
-    let rescueReason: string | undefined;
-
     const providerHeuristic = rescueProviderAiIntent(prompt, parsed.action);
     if (providerHeuristic !== parsed.action) {
       parsed.action = providerHeuristic;
@@ -424,179 +477,6 @@ export class ProviderAiCommandService {
     if (coordination !== parsed.action) {
       parsed.action = coordination;
       rescueReason = 'coordination_intent';
-    }
-
-    const appointmentTaxRescue = rescueAppointmentTaxIntent(
-      prompt,
-      parsed.action,
-    );
-    if (appointmentTaxRescue) {
-      parsed.action = appointmentTaxRescue.action;
-      rescueReason = appointmentTaxRescue.rescueReason;
-    }
-
-    const providerPaymentCurrencyRescue = rescueProviderPaymentCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerPaymentCurrencyRescue) {
-      parsed.action = providerPaymentCurrencyRescue.action;
-      rescueReason = providerPaymentCurrencyRescue.rescueReason;
-    }
-
-    const providerSessionTimeoutRescue = rescueProviderSessionTimeoutIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerSessionTimeoutRescue) {
-      parsed.action = providerSessionTimeoutRescue.action;
-      rescueReason = providerSessionTimeoutRescue.rescueReason;
-    }
-
-    const providerClinicCollectionRescue = rescueProviderClinicCollectionIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerClinicCollectionRescue) {
-      parsed.action = providerClinicCollectionRescue.action;
-      rescueReason = providerClinicCollectionRescue.rescueReason;
-      if (providerClinicCollectionRescue.action === 'mark_specimen_collected') {
-        const markParsed = parseMarkSpecimenCollectedFromPrompt(prompt);
-        if (markParsed?.customerName) {
-          parsed.params.customerName = markParsed.customerName;
-        }
-        if (markParsed?.specimenId)
-          parsed.params.specimenId = markParsed.specimenId;
-        if (markParsed?.orderId) parsed.params.orderId = markParsed.orderId;
-      } else {
-        const listParsed = parseListMyCollectionQueueFromPrompt(prompt);
-        if (listParsed?.date) parsed.params.date = listParsed.date;
-      }
-    }
-
-    const providerDateFormatRescue = rescueProviderDateFormatIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerDateFormatRescue) {
-      parsed.action = providerDateFormatRescue.action;
-      rescueReason = providerDateFormatRescue.rescueReason;
-      const parsedTimeFormat = parseProviderPushTimeFormatFromPrompt(
-        prompt,
-        parsed.params,
-      );
-      if (parsedTimeFormat?.timeFormat) {
-        parsed.params.timeFormat = parsedTimeFormat.timeFormat;
-      }
-    }
-
-    const providerPushSetupRescue = rescueProviderPushSetupIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerPushSetupRescue) {
-      parsed.action = providerPushSetupRescue.action;
-      rescueReason = providerPushSetupRescue.rescueReason;
-    }
-
-    const providerEarningsRescue = rescueProviderEarningsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerEarningsRescue) {
-      parsed.action = providerEarningsRescue.action;
-      rescueReason = providerEarningsRescue.rescueReason;
-    }
-
-    const providerClientContextRescue =
-      this.providerClientContext.rescueProviderClientContextIntent(
-        prompt,
-        parsed.action,
-      );
-    if (providerClientContextRescue) {
-      parsed.action = providerClientContextRescue.action;
-      rescueReason = providerClientContextRescue.rescueReason;
-      if (providerClientContextRescue.action === 'add_client_note') {
-        const noteBody = extractClientNoteBodyFromPrompt(prompt);
-        if (noteBody) parsed.params.clientNote = noteBody;
-      }
-      const customerName = extractCustomerNameFromClientPrompt(prompt);
-      if (customerName && !parsed.params.customerName) {
-        parsed.params.customerName = customerName;
-      }
-    }
-
-    const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
-      prompt,
-      parsed.action,
-    );
-    if (providerExp2Rescue) {
-      parsed.action = providerExp2Rescue.action;
-      rescueReason = providerExp2Rescue.rescueReason;
-      const customerName = extractBookingActionCustomerName(
-        prompt,
-        parsed.params,
-      );
-      if (customerName && !parsed.params.customerName) {
-        parsed.params.customerName = customerName;
-      }
-      if (providerExp2Rescue.action === 'mark_running_late') {
-        const minutesLate = extractRunningLateMinutesFromPrompt(
-          prompt,
-          parsed.params,
-        );
-        if (minutesLate != null && parsed.params.minutesLate == null) {
-          parsed.params.minutesLate = minutesLate;
-        }
-      }
-    }
-
-    const providerTimeOffRescue = this.providerTimeOff.rescueProviderTimeOffIntent(
-      prompt,
-      parsed.action,
-    );
-    if (providerTimeOffRescue) {
-      parsed.action = providerTimeOffRescue.action;
-      rescueReason = providerTimeOffRescue.rescueReason;
-    }
-
-    const providerOpenShiftsRescue =
-      this.providerOpenShifts.rescueProviderOpenShiftsIntent(
-        prompt,
-        parsed.action,
-      );
-    if (providerOpenShiftsRescue) {
-      parsed.action = providerOpenShiftsRescue.action;
-      rescueReason = providerOpenShiftsRescue.rescueReason;
-    }
-
-    const providerExp3Rescue = this.providerExp3.rescueProviderExp3Intent(
-      prompt,
-      parsed.action,
-    );
-    if (providerExp3Rescue) {
-      parsed.action = providerExp3Rescue.action;
-      rescueReason = providerExp3Rescue.rescueReason;
-      const productName = extractRetailProductName(prompt, parsed.params);
-      if (productName && !parsed.params.productName) {
-        parsed.params.productName = productName;
-      }
-    }
-
-    const providerBookingRescue =
-      this.providerBooking.rescueProviderBookingIntent(prompt, parsed.action);
-    if (providerBookingRescue) {
-      parsed.action = providerBookingRescue.action;
-      rescueReason = providerBookingRescue.rescueReason;
-    }
-
-    const pushRescue = this.pushNotifications.rescuePushNotificationsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (pushRescue) {
-      parsed.action = pushRescue.action;
-      rescueReason = pushRescue.rescueReason;
     }
 
     const mobileFix = disambiguateProviderMobileAction(
@@ -625,6 +505,29 @@ export class ProviderAiCommandService {
         session: context,
       },
     );
+
+    if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+      const clarify = buildUnknownIntentClarifyResult({
+        surface: 'provider',
+        prompt,
+        params: parsed.params,
+        reasoning: parsed.reasoning,
+        confidence:
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        trace: understood.trace,
+      });
+      this.aiEvents.emitClarify(businessId, {
+        action: 'unknown',
+        summary: clarify.summary,
+        missing: clarify.details.missing,
+      });
+      return {
+        success: clarify.success,
+        action: clarify.action,
+        summary: clarify.summary,
+        details: clarify.details as Record<string, unknown>,
+      };
+    }
 
     if (shouldValidateProviderAction(parsed.action)) {
       const validation = validateProviderCommand(parsed.action, parsed.params);
@@ -1591,22 +1494,21 @@ export class ProviderAiCommandService {
     businessId: string,
     userId: string,
     prompt: string,
+    contextBlock: string,
     providerName: string,
     viewMode: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, unknown>,
+    narrowShortlist?: readonly string[],
   ): Promise<ParsedIntent | null> {
-    const contextBlock = `Current date: ${todayDisplay()} (DD/MM/YYYY, times 24h HH:mm)
-Logged-in user: ${providerName}
-View mode: ${viewMode}${viewMode === 'team' ? ' — manager/owner, all team appointments' : ' — own appointments only'}`;
-
-    const intelligenceBlock = buildProviderClassifierAppendix(sessionContext);
-    const sessionBlock = buildProviderSessionContextBlock(sessionContext);
     const historyBlock = formatProviderHistoryBlock(history);
+    const schemaHeader = narrowShortlist?.length
+      ? buildNarrowClassifierSchema('provider', narrowShortlist)
+      : PROVIDER_INTENT_SCHEMA;
 
     const result = await this.llm.completeJson<ParsedIntent>(
       businessId,
-      `${PROVIDER_INTENT_SCHEMA}\n\n${contextBlock}${intelligenceBlock}${sessionBlock}${historyBlock}`,
+      `${schemaHeader}\n\n${contextBlock}${historyBlock}`,
       prompt,
       {
         surface: 'provider_mobile',

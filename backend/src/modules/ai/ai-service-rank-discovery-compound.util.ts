@@ -34,7 +34,7 @@ function extractRankCompoundServiceCategory(
   prompt: string,
   params: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (params.serviceCategory || params.serviceName) return params;
+  if (params.serviceCategory) return params;
 
   const bookMatch = prompt.match(RANK_BOOK_SERVICE_CATEGORY_PATTERN);
   const rankMatch = prompt.match(RANK_CUE_SERVICE_CATEGORY_PATTERN);
@@ -43,7 +43,9 @@ function extractRankCompoundServiceCategory(
     ?.trim()
     .replace(/[,.]$/, '');
   if (keyword && keyword.length >= 3) {
-    return { ...params, serviceCategory: keyword };
+    const next: Record<string, unknown> = { ...params, serviceCategory: keyword };
+    if (params.serviceName) delete next.serviceName;
+    return next;
   }
   return params;
 }

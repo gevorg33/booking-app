@@ -11,7 +11,12 @@ import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
-import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
+import {
+  createAiGatewayPlatformMocks,
+  createCommandTraceServiceMock,
+} from './ai-gateway.test-mocks.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { COMMAND_TRACE_ID_CONTEXT_KEY } from './ai-command-trace-recorder.util.js';
 import type { CommandResult } from './command-completion.types.js';
 
 describe('AiGatewayService', () => {
@@ -100,6 +105,7 @@ describe('AiGatewayService', () => {
       mocks.planEntitlements as any,
       mocks.aiSettings as any,
       mocks.platform as any,
+      mocks.commandTrace as any,
     );
     return { service, ...mocks };
   }
@@ -122,6 +128,7 @@ describe('AiGatewayService', () => {
         { provide: PlanEntitlementsService, useValue: mocks.planEntitlements },
         { provide: AiSettingsService, useValue: mocks.aiSettings },
         { provide: AiPlatformService, useValue: mocks.platform },
+        { provide: AiCommandTraceService, useValue: mocks.commandTrace },
       ],
     }).compile();
     expect(moduleRef.get(AiGatewayService)).toBeInstanceOf(AiGatewayService);

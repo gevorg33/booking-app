@@ -225,12 +225,21 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
 export function isBookNearestSlotPrompt(prompt: string): boolean {
   if (isMultilingualBookNearestPrompt(prompt)) return true;
 
+  const hasBookVerb = /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt);
+  if (!hasBookVerb) return false;
+
+  // Dashboard create_booking — "book first available lashes", not nearest-slot checkout.
+  if (/\bfirst\s+available\b/i.test(prompt)) {
+    return /\bfirst\s+available\s+(?:slot|appointment|opening|time)\b/i.test(
+      prompt,
+    );
+  }
+
   const wantsFlexibleSlot =
-    /\b(first\s+available|nearest|soonest|next|earliest)\b/i.test(prompt) ||
+    /\b(nearest|soonest|next|earliest)\b/i.test(prompt) ||
     /\basap\b/i.test(prompt) ||
     /\bas soon as possible\b/i.test(prompt);
   return (
-    /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt) &&
     wantsFlexibleSlot &&
     (/\b(slot|appointment|opening|time)\b/i.test(prompt) ||
       !!extractServiceNameFromPrompt(prompt) ||

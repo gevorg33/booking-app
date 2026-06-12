@@ -600,11 +600,20 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       bufferMinutes,
       price,
       currency,
+      categoryId,
       userId,
     } = step.params;
     const service = await this.serviceService.create(
       businessId,
-      { name, description, durationMinutes, bufferMinutes, price, currency },
+      {
+        name,
+        description,
+        durationMinutes,
+        bufferMinutes,
+        price,
+        currency,
+        categoryId,
+      },
       userId,
     );
     ctx.lastServiceId = service.id;
@@ -618,11 +627,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
   }
 
   private async updateService(step: WorkflowStep, ctx: Record<string, any>) {
-    const { serviceId, price, userId } = step.params;
+    const { serviceId, price, categoryId, userId } = step.params;
     const before = await this.serviceService.findOne(serviceId);
     const service = await this.serviceService.update(
       serviceId,
-      { price },
+      {
+        ...(price !== undefined ? { price } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
+      },
       userId,
     );
     ctx.lastServiceId = service.id;
@@ -631,6 +643,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       name: service.name,
       previousPrice: before.price,
       price: service.price,
+      categoryId: service.categoryId,
     };
   }
 

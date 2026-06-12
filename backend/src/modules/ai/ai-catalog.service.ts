@@ -26,6 +26,8 @@ import {
   handleCatalogCompoundLogic,
   handleDeactivatePackageLogic,
   handleDeactivateServiceLogic,
+  handleUpdateServiceLogic,
+  resolveCategoryByName,
   handleDeactivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
@@ -90,6 +92,25 @@ export class AiCatalogService {
       businessId,
       params,
       services,
+    );
+  }
+
+  resolveCategoryByName(businessId: string, categoryName: string) {
+    return resolveCategoryByName(this.deps, businessId, categoryName);
+  }
+
+  handleUpdateService(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+    prompt?: string,
+  ) {
+    return handleUpdateServiceLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+      prompt,
     );
   }
 

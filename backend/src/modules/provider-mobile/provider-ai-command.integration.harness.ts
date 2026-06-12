@@ -1,10 +1,14 @@
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
+import type { ProviderUnderstandDeps } from '../ai/command-understanding-adapter.types.js';
 
 export type ProviderAiCommandHarnessOverrides = {
   llm?: {
     isAvailableForBusiness: jest.Mock;
     completeJson: jest.Mock;
   };
+  aiSettings?: Record<string, unknown>;
+  promptNormalization?: Record<string, unknown>;
+  providerUnderstanding?: Record<string, unknown>;
   providerMobile?: Record<string, unknown>;
   providerClientContext?: Record<string, unknown>;
   providerExp2?: Record<string, unknown>;
@@ -32,6 +36,95 @@ const noopAsync = async () => ({
   summary: 'ok',
   details: {},
 });
+
+function buildProviderUnderstandMock() {
+  return {
+    understand: jest.fn(async (deps: ProviderUnderstandDeps) => {
+      const classified = await deps.classify(
+        deps.effectivePrompt,
+        'Harness provider classifier context',
+      );
+      if (!classified?.action) {
+        return {
+          status: 'blocked' as const,
+          action: 'unknown',
+          params: {},
+          reasoning: 'blocked',
+          confidence: 0,
+          candidates: [],
+          trace: [],
+          gate: {
+            action: 'unknown',
+            confidence: 0,
+            shouldEscalateToSemantic: true,
+            decision: 'escalate_semantic' as const,
+            lowThreshold: 0.65,
+            highThreshold: 0.82,
+            reason: 'harness blocked',
+          },
+          context: {
+            originalPrompt: deps.effectivePrompt,
+            normalizedPrompt: deps.effectivePrompt,
+            classifierContext: null,
+            method: 'passthrough' as const,
+          },
+          normalization: {
+            original: deps.effectivePrompt,
+            normalized: deps.effectivePrompt,
+            method: 'passthrough' as const,
+            classifierContext: null,
+          },
+          surface: 'provider' as const,
+          blockReason: 'harness classify returned null',
+        };
+      }
+
+      return {
+        status: 'resolved' as const,
+        action: classified.action,
+        params: classified.params ?? {},
+        reasoning: classified.reasoning ?? 'harness',
+        confidence:
+          typeof classified.confidence === 'number' ? classified.confidence : 0.9,
+        candidates: [
+          {
+            action: classified.action,
+            confidence:
+              typeof classified.confidence === 'number'
+                ? classified.confidence
+                : 0.9,
+            source: 'classifier' as const,
+            params: classified.params ?? {},
+            reasoning: classified.reasoning,
+          },
+        ],
+        trace: [],
+        gate: {
+          action: classified.action,
+          confidence: classified.confidence,
+          shouldEscalateToSemantic: false,
+          decision: 'skip_semantic' as const,
+          lowThreshold: 0.65,
+          highThreshold: 0.82,
+          reason: 'harness high confidence',
+        },
+        context: {
+          originalPrompt: deps.effectivePrompt,
+          normalizedPrompt: deps.effectivePrompt,
+          classifierContext: null,
+          method: 'passthrough' as const,
+        },
+        normalization: {
+          original: deps.effectivePrompt,
+          normalized: deps.effectivePrompt,
+          method: 'passthrough' as const,
+          classifierContext: null,
+        },
+        surface: 'provider' as const,
+      };
+    }),
+  };
+}
 
 /** Minimal ProviderAiCommandService wiring for integration specs (prov-exp-11 gate). */
 export function createProviderAiCommandHarness(
@@ -84,6 +177,25 @@ export function createProviderAiCommandHarness(
       enforceAction: jest.fn(() => null),
       stripParams: jest.fn((params) => params),
       applyStaffScope: jest.fn((_tier, _action, params) => params),
+    } as any,
+    {
+      getSettings: jest.fn(async () => ({
+        confidence: { low: 0.65, high: 0.82 },
+      })),
+      ...overrides.aiSettings,
+    } as any,
+    {
+      normalizeForClassifier: jest.fn(async (_businessId, _userId, prompt) => ({
+        original: prompt,
+        normalized: prompt,
+        method: 'passthrough',
+        classifierContext: null,
+      })),
+      ...overrides.promptNormalization,
+    } as any,
+    {
+      ...buildProviderUnderstandMock(),
+      ...overrides.providerUnderstanding,
     } as any,
     {
       isPushNotificationsCompound: jest.fn(() => false),

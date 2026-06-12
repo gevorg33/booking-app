@@ -221,6 +221,9 @@ describe('ai-customer-crm.util', () => {
         rescueCustomerCrmIntent('Show my appointments', 'unknown')?.action,
       ).toBe('my_appointments');
       expect(
+        rescueCustomerCrmIntent('Show my appointments', 'list_my_appointments'),
+      ).toBeNull();
+      expect(
         rescueCustomerCrmIntent('Show my subscriptions', 'unknown')?.action,
       ).toBe('my_subscriptions');
       expect(

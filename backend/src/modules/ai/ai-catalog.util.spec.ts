@@ -23,6 +23,10 @@ import {
   parseBulkCatalogFromPrompt,
   parseBulkCatalogWithCountFromPrompt,
   parseCatalogServiceCountFromPrompt,
+  parseAssignServiceCategoryFromPrompt,
+  extractCreateServiceCategoryFromPrompt,
+  enrichServiceCategoryRescueParams,
+  isAssignServiceCategoryPrompt,
   parseLocalizedNamesFromPrompt,
   buildCountedCatalogDraft,
   isCatalogCompoundPrompt,
@@ -132,6 +136,7 @@ describe('ai-catalog.util', () => {
       );
       expect(isCreatePackagePrompt('Book spa day package visit')).toBe(false);
       expect(isUpdatePackagePrompt('update Spa package discount')).toBe(true);
+      expect(isUpdatePackagePrompt('изменить Spa package')).toBe(true);
       expect(isDeactivatePackagePrompt('deactivate Spa package')).toBe(true);
       expect(isDuplicatePackagePrompt('duplicate Spa package')).toBe(true);
       expect(
@@ -140,6 +145,9 @@ describe('ai-catalog.util', () => {
       expect(
         isUpdateSubscriptionPlanPrompt('update the nail subscription plan'),
       ).toBe(true);
+      expect(isUpdateSubscriptionPlanPrompt('update membership pricing')).toBe(
+        true,
+      );
       expect(
         isDeactivateSubscriptionPlanPrompt('deactivate membership plan Gold'),
       ).toBe(true);
@@ -215,6 +223,106 @@ describe('ai-catalog.util', () => {
     });
   });
 
+  describe('service category assignment prompts', () => {
+    it('detects move-under-category phrasing', () => {
+      const prompt = 'move Neck Massage under service category: Massage';
+      expect(isAssignServiceCategoryPrompt(prompt)).toBe(true);
+      expect(parseAssignServiceCategoryFromPrompt(prompt)).toEqual({
+        serviceName: 'Neck Massage',
+        categoryName: 'Massage',
+      });
+      expect(
+        rescueCatalogIntent(prompt, 'unknown')?.rescueReason,
+      ).toBe('assign_service_category');
+    });
+
+    it('extracts category for create_service prompts', () => {
+      expect(
+        extractCreateServiceCategoryFromPrompt(
+          'Add Neck Massage 30min $40 under service category: Massage',
+        ),
+      ).toBe('Massage');
+      expect(
+        extractCreateServiceCategoryFromPrompt(
+          'Add service Haircut under Hair category',
+        ),
+      ).toBe('Hair');
+    });
+
+    it('rejects provider-assignment phrasing and enriches rescue params', () => {
+      expect(
+        isAssignServiceCategoryPrompt(
+          'Assign all services under Spa category to provider Mary',
+        ),
+      ).toBe(false);
+      expect(
+        parseAssignServiceCategoryFromPrompt(
+          'move "Back Massage" to category Spa',
+        ),
+      ).toEqual({
+        serviceName: 'Back Massage',
+        categoryName: 'Spa',
+      });
+
+      const updateParams: Record<string, unknown> = {};
+      enrichServiceCategoryRescueParams(
+        'update_service',
+        updateParams,
+        'move Neck Massage under service category: Massage',
+      );
+      expect(updateParams).toEqual({
+        serviceName: 'Neck Massage',
+        categoryName: 'Massage',
+      });
+
+      const createParams: Record<string, unknown> = { categoryName: 'Hair' };
+      enrichServiceCategoryRescueParams(
+        'create_service',
+        createParams,
+        'Add trim under Massage category',
+      );
+      expect(createParams.categoryName).toBe('Hair');
+
+      const bulkParams: Record<string, unknown> = {};
+      enrichServiceCategoryRescueParams(
+        'create_services',
+        bulkParams,
+        'Add services under Spa category: cut 30m $20',
+      );
+      expect(bulkParams.categoryName).toBe('Spa');
+      expect(extractCreateServiceCategoryFromPrompt('hello world')).toBeUndefined();
+      expect(
+        rescueCatalogIntent(
+          'move Neck Massage under service category: Massage',
+          'unknown',
+        )?.params,
+      ).toEqual({
+        serviceName: 'Neck Massage',
+        categoryName: 'Massage',
+      });
+      expect(
+        rescueCatalogIntent(
+          'move Neck Massage under service category: Massage',
+          'update_service',
+        ),
+      ).toBeNull();
+
+      const prefilled: Record<string, unknown> = {
+        serviceName: 'Keep Me',
+        categoryName: 'Keep Cat',
+      };
+      enrichServiceCategoryRescueParams(
+        'update_service',
+        prefilled,
+        'move Other under service category: OtherCat',
+      );
+      expect(prefilled).toEqual({
+        serviceName: 'Keep Me',
+        categoryName: 'Keep Cat',
+      });
+    });
+  });
+
   describe('rescueCatalogIntent', () => {
     it('rescues all catalog intents from unknown', () => {
       expect(
@@ -280,6 +388,12 @@ describe('ai-catalog.util', () => {
         rescueCatalogIntent('Hide balayage from public catalog', 'unknown')
           ?.action,
       ).toBe('deactivate_service');
+      expect(
+        rescueCatalogIntent(
+          'move Neck Massage under service category: Massage',
+          'unknown',
+        )?.action,
+      ).toBe('update_service');
       expect(rescueCatalogIntent('list packages', 'unknown')?.action).toBe(
         'list_packages',
       );
@@ -477,6 +591,11 @@ describe('ai-catalog.util', () => {
       expect(updateNotify[0]?.action).toBe('update_package');
       expect(updateNotify[0]?.params.notifyCustomers).toBe(true);
       expect(updateNotify[0]?.params.packageName).toBe('Glow');
+
+      const skipNotify = decomposeCatalogCompoundPrompt(
+        'Update Glow package discount to 20% and do not notify customers',
+      );
+      expect(skipNotify[0]?.params.notifyCustomers).toBe(false);
     });
   });
 

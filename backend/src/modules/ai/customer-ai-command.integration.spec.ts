@@ -1,8 +1,15 @@
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
+import {
+  buildCustomerAiSettingsMock,
+  buildCustomerPromptNormalizationMock,
+  buildCustomerUnderstandMock,
+  resetCustomerUnderstandingHarness,
+} from './customer-ai-command.integration.harness.js';
 import { SIMILAR_BUDGET_SERVICE_PROMPTS } from './ai-budget-service-discovery.fixtures.js';
 import { AVAIL_CUSTOMER_PROMPTS } from './ai-flexible-availability.fixtures.js';
 import { SERVICE_RANK_DISCOVERY_CUSTOMER_PROMPTS } from './ai-service-rank-discovery.fixtures.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
+import * as intentDecomposition from './intent-decomposition.util.js';
 
 type CustomerIntegrationHarnessOptions = {
   llmAction?: string;
@@ -16,31 +23,33 @@ type CustomerIntegrationHarnessOptions = {
 function createCustomerIntegrationHarness(
   options: CustomerIntegrationHarnessOptions = {},
 ) {
-  const handler = (action: string) =>
-    jest.fn(
-      async (_businessId: string, params?: Record<string, unknown>) => ({
-        success: true,
-        action,
-        summary: `${action} ok`,
-        details: {
-          bookingId: 'bk-1',
-          packageId: params?.packageId ?? 'pkg-1',
-          manageUrl: 'https://example.com/manage/bk-1',
-          sessionContext: {
-            serviceName: 'Spa Day',
-            maxPrice: params?.maxPrice,
-            serviceCategory: params?.serviceCategory,
-          },
+  const handlerMocks = new Map<string, jest.Mock>();
+  const createHandlerMock = (action: string) =>
+    jest.fn(async (_businessId: string, params?: Record<string, unknown>) => ({
+      success: true,
+      action,
+      summary: `${action} ok`,
+      details: {
+        bookingId: 'bk-1',
+        packageId: params?.packageId ?? 'pkg-1',
+        manageUrl: 'https://example.com/manage/bk-1',
+        sessionContext: {
+          serviceName: 'Spa Day',
+          maxPrice: params?.maxPrice,
+          serviceCategory: params?.serviceCategory,
         },
-      }),
-    );
+      },
+    }));
 
   const sprintHandlers = new Proxy(
     {},
     {
       get: (_target, prop: string) => {
+        if (typeof prop !== 'string') return undefined;
+        if (handlerMocks.has(prop)) return handlerMocks.get(prop);
+
         if (prop === 'handleBuyGiftCard') {
-          return jest.fn(
+          const mock = jest.fn(
             async (
               _businessId: string,
               _params?: Record<string, unknown>,
@@ -57,6 +66,8 @@ function createCustomerIntegrationHarness(
               },
             }),
           );
+          handlerMocks.set(prop, mock);
+          return mock;
         }
         if (prop.startsWith('handle')) {
           const action = prop
@@ -66,7 +77,9 @@ function createCustomerIntegrationHarness(
             .replace(/^_/, '')
             .replace(/^my_/, 'my_')
             .replace(/^list_my_/, 'list_my_');
-          return handler(action);
+          const mock = createHandlerMock(action);
+          handlerMocks.set(prop, mock);
+          return mock;
         }
         if (prop === 'isCustomerBookingCompound') return () => false;
         if (prop === 'isPaymentsCompound') return () => false;
@@ -118,6 +131,9 @@ function createCustomerIntegrationHarness(
   const service = new CustomerAiCommandService(
     llm as any,
     promptSecurity as any,
+    buildCustomerAiSettingsMock() as any,
+    buildCustomerPromptNormalizationMock() as any,
+    buildCustomerUnderstandMock() as any,
     { gateCustomerAction: jest.fn(() => null) } as any,
     { emitMisrouteTelemetry: jest.fn() } as any,
     sprintHandlers as any,
@@ -191,6 +207,11 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     (scenario) => scenario.surface === 'customer' && !scenario.expectEmpty,
   );
 
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await resetCustomerUnderstandingHarness();
+  });
+
   function createIntegrationService() {
     return createCustomerIntegrationHarness();
   }
@@ -238,15 +259,25 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
   );
 
   it('falls back to classification when customer compound prompt has no deterministic match', async () => {
+    jest.spyOn(intentDecomposition, 'isCompoundPrompt').mockReturnValue(true);
+    jest
+      .spyOn(intentDecomposition, 'decomposeDeterministicForSurface')
+      .mockReturnValue(null);
     const { service, llm } = createIntegrationService();
+    llm.completeJson.mockResolvedValue({
+      action: 'discover_packages',
+      params: {},
+      reasoning: 'browse packages',
+      confidence: 0.88,
+    });
     const result = await service.executeCommand(
       'biz-1',
-      'Optimize schedule and rebalance capacity for next week',
+      'Zebra compound marker and zebra second clause',
       [],
       { slug: 'salon', customerId: 'cust-1' },
     );
     expect(llm.completeJson).toHaveBeenCalled();
-    expect(result.action).toBe('book_nearest_slot');
+    expect(result.action).toBe('discover_packages');
   });
 
   it('routes public discovery intent through public assistant after classification', async () => {
@@ -420,27 +451,13 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
     });
   });
 
-  it('delegates flexible availability check_availability to public assistant', async () => {
+  it('delegates flexible availability check_availability to customer check_providers_for_service after pipeline disambiguation', async () => {
     const scenario = AVAIL_CUSTOMER_PROMPTS.find(
       (entry) => entry.id === 'avail-imperative-en',
     )!;
-    const windows = scenario.expectedParams?.availabilityWindows;
-    const publicAssistant = {
-      chat: jest.fn(async () => ({
-        success: true,
-        action: 'check_availability',
-        summary: 'Massage slots',
-        sessionContext: {
-          serviceCategory: 'massage',
-          availabilityWindows: JSON.stringify(windows),
-        },
-      })),
-      executeDeterministicIntent: jest.fn(),
-    };
-    const { service } = createCustomerIntegrationHarness({
+    const { service, sprintHandlers } = createCustomerIntegrationHarness({
       llmAction: 'check_availability',
       llmParams: scenario.expectedParams ?? {},
-      publicAssistant,
     });
 
     const result = await service.executeCommand(
@@ -450,13 +467,8 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       { slug: 'salon', customerId: 'cust-1' },
     );
 
-    expect(publicAssistant.chat).toHaveBeenCalledWith(
-      'salon',
-      scenario.prompt,
-      expect.any(Object),
-      { recordMetrics: false },
-    );
-    expect(result.action).toBe('check_availability');
+    expect(sprintHandlers.handleCheckProvidersForService).toHaveBeenCalled();
+    expect(result.action).toBe('check_providers_for_service');
     expect(result.details?.sessionContext).toMatchObject({
       serviceCategory: 'massage',
     });

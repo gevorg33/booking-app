@@ -11,6 +11,7 @@ These `.mdc` files are **Cursor skills** — domain knowledge Cursor loads to ex
 | `ai-command-pipeline.mdc` | editing `backend/src/modules/ai/**`, provider/public assistants, AI command bar | Architecture map: `AiGatewayService.execute()` → classify → rescue → resolve → validate → plan → execute → clarify; registry, normalization, analytics, eval harness, conventions. **Read this first for any AI prompt task.** |
 | `ai-multi-command-handling.mdc` | editing decomposition / registry / check-and-book / eval | How to handle "do X and Y" compounds: detect → decompose (deterministic/golden), shared context across steps, per-step params, compound eval cases, false-compound guards. |
 | `ai-accuracy-program.mdc` | acc-* tasks, editing AI module / eval / AI-ops dashboard | Sprints 38–43 playbook (acc-1…acc-6) to reach 99% accurate executions: telemetry (`ai_command_trace`), eval expansion + `test:ai-accuracy` CI gate, classification engine, smart clarification, execution verification/rollback, continuous-learning loop. |
+| `feature-fast-intent-heuristics.mdc` | `fast-intent-heuristics.*`, understand pipeline | pipe-1.2.3 / acc-3.14: routing + structural hints only; forbidden paraphrase regex; boundary doc + CI gate. |
 
 ## How they map to the roadmap (`TODO.md`)
 

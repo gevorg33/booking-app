@@ -51,12 +51,24 @@ export interface ValidationResult {
 }
 
 export type PipelineStage =
+  /** pipe-1 understand phase */
+  | 'normalize'
+  | 'fast_heuristics'
   | 'classify'
+  | 'confidence_gate'
+  | 'semantic_match'
+  | 'rerank'
+  | 'narrow_reclassify'
+  | 'rescue'
+  | 'self_verify'
+  | 'structural_enrich'
+  /** completion + execution */
   | 'resolve'
   | 'validate'
   | 'plan'
   | 'execute'
-  | 'clarify';
+  | 'clarify'
+  | 'telemetry';
 
 export interface PipelineTrace {
   stage: PipelineStage;

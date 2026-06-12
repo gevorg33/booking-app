@@ -3,10 +3,8 @@ import {
   isCheckProvidersForServicePrompt,
   isBookNearestSlotPrompt,
 } from './ai-payments.util.js';
-import {
-  isFirstAvailableBookingPrompt,
-  isTeamWideProviderAvailabilityQuery,
-} from './ai-intent-heuristics.js';
+import { isFirstAvailableBookingPrompt } from './booking-first-available.semantic.util.js';
+import { isTeamWideProviderAvailabilityQuery } from './team-wide-availability.semantic.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 
 export type AvailabilityDisambiguationSurface = Extract<

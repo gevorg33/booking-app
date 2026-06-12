@@ -68,7 +68,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       })),
     };
 
-    const { aiSettings, platform } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as any,
       { executeCommand: jest.fn() } as any,
@@ -80,6 +80,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       planEntitlements as any,
       aiSettings as any,
       platform as any,
+      commandTrace as any,
     );
 
     return {

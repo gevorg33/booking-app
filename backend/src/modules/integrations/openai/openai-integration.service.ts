@@ -21,6 +21,7 @@ import {
 } from './openai-integration.types.js';
 import { OpenAiRuntimeConfig, AiUsageSummary } from './openai.types.js';
 import { AiUsageService } from './ai-usage.service.js';
+import { isUuid } from '../../../engine/langgraph/tools/booking-tool-context.helpers.js';
 
 @Injectable()
 export class OpenAiIntegrationService {
@@ -71,6 +72,9 @@ export class OpenAiIntegrationService {
   }
 
   async isAvailableForBusiness(businessId: string): Promise<boolean> {
+    if (!isUuid(businessId)) {
+      return Boolean(this.platformRuntimeConfig());
+    }
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });

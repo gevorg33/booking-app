@@ -66,6 +66,15 @@ export const AI_ACCURACY_BASELINE_PATH = path.join(
 /** Primary intent label for scorecard grouping. */
 export function resolveEvalCaseIntentLabel(evalCase: AiCommandEvalCase): string {
   const { expect } = evalCase;
+  if (expect.useSemanticIntentMatch && expect.semanticMatchAction) {
+    if (expect.implicationTopIntent) {
+      return `implication:${expect.implicationTopIntent}:${expect.semanticMatchAction}`;
+    }
+    return `semantic:${expect.semanticMatchAction}`;
+  }
+  if (expect.implicationTopIntent && expect.rescuedAction) {
+    return `implication:${expect.implicationTopIntent}:${expect.rescuedAction}`;
+  }
   if (expect.rescuedAction) return expect.rescuedAction;
   if (expect.compoundSteps?.length) {
     return `compound:${expect.compoundSteps.join('+')}`;

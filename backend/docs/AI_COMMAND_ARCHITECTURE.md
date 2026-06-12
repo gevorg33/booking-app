@@ -55,7 +55,7 @@ Request body supports `confirmed: true` for bulk/high-risk mutations after previ
 |------|----------|------|
 | `read_only` | list, summarize, check availability | Single classify → handler |
 | `simple_mutate` | one booking, one block | Single classify → handler/plan |
-| `orchestration` | optimize, fallback booking, ambiguous | ReAct agent (if LangGraph on) |
+| `orchestration` | optimize, fallback booking, ambiguous | Pipeline first; ReAct fallback if still `unknown` (pipe-1.9.2) |
 | `compound` | cancel then clear then hide | Decomposition → compound graph |
 
 Routing sources (merged inside `executeCommand`, in parallel with `classify_intent`):
@@ -82,9 +82,21 @@ When LangGraph is off, compound prompts still decompose via `IntentDecomposition
 
 ## Pipeline stages (single intent)
 
-0. **Multilingual hint** — `AiPromptNormalizationService` (no extra LLM; Armenian/Russian/transliteration get a classifier context block; cached per business+prompt; `classify_intent` has multilingual rules)
+Dashboard understand phase (`CommandUnderstandingPipelineService`, **pipe-1**):
+
+0. **Normalize** — `AiPromptNormalizationService` (HY/RU/translit classifier context; cached per business+prompt)
+1. **Fast heuristics** — `FastIntentHeuristicsService` emits `IntentCandidate[]` for **routing + structural shape only** (read_only/compound tier, list/show grammar). **Not** paraphrase meaning — see [Fast intent heuristics boundary](FAST_INTENT_HEURISTICS_BOUNDARY.md) (**pipe-1.2.3 / acc-3.14**). High-confidence hits (≥ 0.90) feed re-rank; LLM classify is never skipped in phase 1.
+2. **Classify** — `classify_intent` (optional parallel `complexity_route` when not `read_only`)
+3. **Confidence gate** — escalate to semantic when `unknown` or low confidence
+4. **Semantic match (acc-3.4)** — embedding paraphrase resolution when gate escalates
+5. **Re-rank** — merge classifier, semantic, and eligible fast-heuristic candidates
+6. **Rescue → self-verify → structural enrich** — then `runCompletionValidateHandoff()` (resolve + validate) and execute in `AiCommandService`
+
+Legacy single-path summary (pre-pipe-1 execute still uses these layers):
+
+0. **Multilingual hint** — same as normalize above
 1. **Route + classify (parallel)** — `complexity_route` and `classify_intent` LLM calls overlap after catalog load (classify result reused on single-intent path; compound path may ignore it)
-2. **Semantic intent match (acc-3.4, planned)** — only on `unknown`/low-confidence classify: `AiSemanticIntentService` embeds the prompt and cosine-matches a canonical phrasing bank to resolve paraphrases by *meaning* (see [Semantic intent matching](#semantic-intent-matching-acc-34-planned))
+2. **Semantic intent match (acc-3.4)** — only on `unknown`/low-confidence classify: `AiSemanticIntentService` embeds the prompt and cosine-matches a canonical phrasing bank to resolve paraphrases by *meaning* (see [Semantic intent matching](#semantic-intent-matching-acc-34-planned))
 3. **Rescue** — `AiIntentRescueService` maps `unknown`/misclassified intents via language rules
 4. **Capability** — role matrix enforcement (`ai-capability.matrix.ts`)
 5. **Merge session** — inherit provider/date/service from prior turns
@@ -109,6 +121,8 @@ Supported in compound plans: bookings, services, schedule ops, assign services, 
 
 39 tools (11 read + 28 propose). Mutations always require dashboard approval (`autoExecute: false`).
 
+**Invocation (pipe-1.9.2):** ReAct is a **fallback** in `BookingCommandGraphService` — only after the understand pipeline (semantic match + rescue) still returns `action: unknown`. Orchestration/ambiguous phrasing no longer bypasses classify; pipeline runs first.
+
 Key tools: `check_slot_availability`, `propose_book_with_fallback`, `propose_compound_workflow`, `propose_create_schedule_template`, `propose_mark_no_shows`, `propose_payment_sweep`, `propose_day_replan`.
 
 ## Semantic intent matching (acc-3.4, planned)
@@ -128,7 +142,7 @@ A meaning-based tier that sits **between classify (stage 1) and rescue (stage 3)
 
 **Guardrails:** low confidence never auto-executes a mutating/destructive intent (wrong-execution stays < 1%). Regex remains responsible for **structured extraction** (dates, times, counts); the semantic tier only decides *intent meaning*.
 
-**Telemetry:** matched intent, similarity score, and the `semantic_match` rescue reason are logged via `AiEventsService` (acc-1) to feed the eval/learning loop (`ai-command-eval.cases.ts`, `npm run test:ai-accuracy`).
+**Telemetry:** matched intent, similarity score, and the `semantic_match` rescue reason are logged via `AiEventsService` (acc-1) to feed the eval/learning loop (`ai-command-eval.cases.ts`, `npm run test:ai-accuracy`). Durable rows land in `ai_command_trace` via `AiCommandTraceService` (**pipe-1.10.1** / **acc-1.1**).
 
 ## Intent rescue (unknown → action)
 

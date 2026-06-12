@@ -8,6 +8,7 @@ import {
   AiKeySource,
   AiUsageSummary,
   AiUsageSurface,
+  DEFAULT_EMBEDDING_MODEL,
   DEFAULT_OPENAI_MODEL,
 } from './openai.types.js';
 
@@ -20,6 +21,17 @@ const MODEL_PRICING: Record<
   'gpt-5.4-mini': { inputPer1M: 0.75, outputPer1M: 4.5 },
   'gpt-5.4-mini-2026-03-17': { inputPer1M: 0.75, outputPer1M: 4.5 },
 };
+
+/** Embedding models bill input tokens only (pipe-1.4.2). */
+const EMBEDDING_MODEL_PRICING: Record<string, { inputPer1M: number }> = {
+  [DEFAULT_EMBEDDING_MODEL]: { inputPer1M: 0.02 },
+  'text-embedding-3-large': { inputPer1M: 0.13 },
+  'text-embedding-ada-002': { inputPer1M: 0.1 },
+};
+
+export function isEmbeddingModel(model: string): boolean {
+  return model.startsWith('text-embedding');
+}
 
 @Injectable()
 export class AiUsageService {
@@ -34,6 +46,16 @@ export class AiUsageService {
     keySource: AiKeySource,
   ): number {
     if (keySource !== 'platform') return 0;
+
+    if (isEmbeddingModel(model)) {
+      const pricing =
+        EMBEDDING_MODEL_PRICING[model] ??
+        EMBEDDING_MODEL_PRICING[DEFAULT_EMBEDDING_MODEL];
+      return Number(
+        ((promptTokens / 1_000_000) * pricing.inputPer1M).toFixed(6),
+      );
+    }
+
     const pricing = MODEL_PRICING[model] ?? MODEL_PRICING[DEFAULT_OPENAI_MODEL];
     const inputCost = (promptTokens / 1_000_000) * pricing.inputPer1M;
     const outputCost = (completionTokens / 1_000_000) * pricing.outputPer1M;

@@ -11,6 +11,7 @@ import {
   handleCreateSubscriptionPlanLogic,
   handleDeactivatePackageLogic,
   handleDeactivateServiceLogic,
+  handleUpdateServiceLogic,
   handleDeactivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
@@ -264,6 +265,127 @@ describe('ai-catalog.logic', () => {
         '',
       );
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('handleUpdateServiceLogic', () => {
+    it('moves a service into a category', async () => {
+      const catalogServices = [
+        { id: 'svc-neck', name: 'Neck Massage', price: 40, durationMinutes: 30 },
+        ...services,
+      ] as any[];
+      const update = jest.fn(async (id, dto) => ({
+        id,
+        name: 'Neck Massage',
+        categoryId: dto.categoryId,
+      }));
+      const deps = buildDeps({
+        categoryService: {
+          findAll: jest
+            .fn()
+            .mockResolvedValue([{ id: 'cat-massage', name: 'Massage' }]),
+          create: jest.fn(),
+        } as any,
+        serviceService: {
+          findAll: jest.fn(),
+          create: jest.fn(),
+          remove: jest.fn(),
+          update,
+        } as any,
+      });
+      const result = await handleUpdateServiceLogic(
+        deps,
+        'biz-1',
+        { serviceName: 'Neck Massage', categoryName: 'Massage' },
+        catalogServices,
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('Massage');
+      expect(update).toHaveBeenCalledWith(
+        'svc-neck',
+        { categoryId: 'cat-massage' },
+        undefined,
+      );
+    });
+
+    it('clarifies when category is missing', async () => {
+      const result = await handleUpdateServiceLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Neck Massage' },
+        services,
+      );
+      expect(result.success).toBe(false);
+      expect((result.details as any).clarify).toBe(true);
+      expect((result.details as any).missing).toContain('categoryName');
+    });
+
+    it('clarifies when service name is missing', async () => {
+      const result = await handleUpdateServiceLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Massage' },
+        services,
+      );
+      expect(result.success).toBe(false);
+      expect((result.details as any).missing).toContain('serviceName');
+    });
+
+    it('parses service and category names from prompt text', async () => {
+      const catalogServices = [
+        { id: 'svc-neck', name: 'Neck Massage', price: 40, durationMinutes: 30 },
+      ] as any[];
+      const update = jest.fn(async (id, dto) => ({
+        id,
+        name: 'Neck Massage',
+        categoryId: dto.categoryId,
+      }));
+      const deps = buildDeps({
+        categoryService: {
+          findAll: jest
+            .fn()
+            .mockResolvedValue([{ id: 'cat-massage', name: 'Massage' }]),
+          create: jest.fn(),
+        } as any,
+        serviceService: {
+          findAll: jest.fn(),
+          create: jest.fn(),
+          remove: jest.fn(),
+          update,
+        } as any,
+      });
+      const result = await handleUpdateServiceLogic(
+        deps,
+        'biz-1',
+        {},
+        catalogServices,
+        'move Neck Massage under service category: Massage',
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('fails when service or category cannot be resolved', async () => {
+      const missingService = await handleUpdateServiceLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Missing', categoryName: 'Massage' },
+        services,
+      );
+      expect(missingService.success).toBe(false);
+
+      const missingCategory = await handleUpdateServiceLogic(
+        buildDeps({
+          categoryService: {
+            findAll: jest.fn().mockResolvedValue([]),
+            create: jest.fn(),
+          } as any,
+        }),
+        'biz-1',
+        { serviceName: 'Massage', categoryName: 'Spa' },
+        services,
+      );
+      expect(missingCategory.success).toBe(false);
+      expect((missingCategory.details as any).missing).toContain('categoryName');
     });
   });
 
@@ -1301,6 +1423,64 @@ describe('ai-catalog.logic', () => {
               segment: 'x',
             },
           ])
+        ).success,
+      ).toBe(true);
+      const categoryDeps = buildDeps({
+        categoryService: {
+          findAll: jest
+            .fn()
+            .mockResolvedValue([{ id: 'cat-massage', name: 'Massage' }]),
+          create: jest.fn(async (_b, dto) => ({
+            id: `cat-${dto.name}`,
+            name: dto.name,
+          })),
+        } as any,
+        serviceService: {
+          findAll: jest.fn().mockImplementation(async () => [...services]),
+          create: jest.fn(async (_b, dto) => ({ id: `svc-${dto.name}`, ...dto })),
+          remove: jest.fn(),
+          update: jest.fn(async (id, dto) => ({
+            id,
+            name: 'Massage',
+            categoryId: dto.categoryId,
+          })),
+        } as any,
+      });
+      expect(
+        (
+          await handleCatalogCompoundLogic(
+            categoryDeps,
+            'biz-1',
+            'compound',
+            {
+              compoundSteps: [
+                {
+                  action: 'bulk_create_catalog',
+                  params: {
+                    catalogDraft: {
+                      categoryName: 'Extra',
+                      services: [
+                        { serviceName: 'Tint', durationMinutes: 20, price: 25 },
+                      ],
+                    },
+                  },
+                  segment: 'pad',
+                },
+                {
+                  action: 'update_service',
+                  params: {
+                    serviceName: 'Massage',
+                    categoryName: 'Massage',
+                  },
+                  segment: 'move Massage under Massage category',
+                },
+              ],
+            },
+            services,
+            customers,
+            resolveCustomer,
+            'user-1',
+          )
         ).success,
       ).toBe(true);
       expect(

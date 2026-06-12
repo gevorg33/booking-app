@@ -13,6 +13,14 @@ describe('BookingCommandGraphService', () => {
     useCompoundGraph: () => false,
   } as BookingAgentRouterService;
 
+  const reactAgent = {
+    run: jest.fn(),
+  } as unknown as ReactBookingAgentService;
+
+  const reactCompiler = {
+    compile: jest.fn(),
+  } as unknown as ReactResultCompilerService;
+
   const decomposition = {
     isCompoundPrompt: (p: string) => /\band then\b/i.test(p),
     decompose: jest.fn(async () => [
@@ -25,8 +33,6 @@ describe('BookingCommandGraphService', () => {
   const reasoning = {
     enrichResult: jest.fn(async (_biz, _prompt, result) => result),
   } as unknown as CommandReasoningService;
-  const reactAgent = {} as ReactBookingAgentService;
-  const reactCompiler = {} as ReactResultCompilerService;
 
   const graph = new BookingCommandGraphService(
     router,
@@ -95,5 +101,112 @@ describe('BookingCommandGraphService', () => {
     });
 
     expect(baseInput.delegates.executeLegacyCompound).toHaveBeenCalled();
+  });
+
+  describe('ReAct fallback (pipe-1.9.2)', () => {
+    const reactRouter = {
+      useCommandGraph: () => true,
+      useReactAgent: () => true,
+      useCompoundGraph: () => false,
+    } as BookingAgentRouterService;
+
+    const reactGraph = new BookingCommandGraphService(
+      reactRouter,
+      decomposition,
+      compoundGraph,
+      reasoning,
+      reactAgent,
+      reactCompiler,
+    );
+
+    it('invokes ReAct only when pipeline returns unknown', async () => {
+      (reactAgent.run as jest.Mock).mockResolvedValue({
+        messages: [],
+        proposals: [{ action: 'create_booking', params: {} }],
+      });
+      (reactCompiler.compile as jest.Mock).mockResolvedValue({
+        success: true,
+        action: 'react_agent',
+        summary: 'ReAct proposal',
+        details: { langGraphPath: 'react_agent' },
+      });
+
+      const unknownResult = {
+        success: false,
+        action: 'unknown',
+        summary: 'clarify',
+        details: { needsClarification: true },
+      };
+
+      const input = {
+        ...baseInput,
+        effectivePrompt: 'help me figure out what to do with tomorrow',
+        prompt: 'help me figure out what to do with tomorrow',
+        complexityRoute: { tier: 'orchestration' as const },
+        delegates: {
+          ...baseInput.delegates,
+          executeSingleIntent: jest.fn(async () => unknownResult),
+        },
+      };
+
+      const result = await reactGraph.run(input);
+
+      expect(input.delegates.executeSingleIntent).toHaveBeenCalled();
+      expect(reactAgent.run).toHaveBeenCalled();
+      expect(reactCompiler.compile).toHaveBeenCalled();
+      expect(result.action).toBe('react_agent');
+      expect(result.details.reactFallback).toBe(true);
+      expect(result.details.pipeMarker).toBe('pipe-1.9.2');
+    });
+
+    it('skips ReAct when pipeline resolves a concrete intent', async () => {
+      const input = {
+        ...baseInput,
+        effectivePrompt: 'Optimize tomorrow schedule',
+        prompt: 'Optimize tomorrow schedule',
+        complexityRoute: { tier: 'orchestration' as const },
+        delegates: {
+          ...baseInput.delegates,
+          executeSingleIntent: jest.fn(async () => ({
+            success: true,
+            action: 'optimize_schedule',
+            summary: 'optimized',
+            details: {},
+          })),
+        },
+      };
+
+      await reactGraph.run(input);
+
+      expect(input.delegates.executeSingleIntent).toHaveBeenCalled();
+      expect(reactAgent.run).not.toHaveBeenCalled();
+    });
+
+    it('returns pipeline unknown when ReAct fallback fails', async () => {
+      (reactAgent.run as jest.Mock).mockResolvedValue({ error: 'llm down' });
+
+      const unknownResult = {
+        success: false,
+        action: 'unknown',
+        summary: 'still unknown',
+        details: {},
+      };
+
+      const input = {
+        ...baseInput,
+        effectivePrompt: 'something vague',
+        prompt: 'something vague',
+        complexityRoute: { tier: 'orchestration' as const },
+        delegates: {
+          ...baseInput.delegates,
+          executeSingleIntent: jest.fn(async () => unknownResult),
+        },
+      };
+
+      const result = await reactGraph.run(input);
+
+      expect(reactAgent.run).toHaveBeenCalled();
+      expect(result).toEqual(unknownResult);
+    });
   });
 });

@@ -177,12 +177,10 @@ export function resolveAssignEmployeeServicesInput(
       !!params.categoryName.trim() &&
       !params.serviceName);
 
-  const serviceIds = mergedFromCategory
-    ? mergeServiceIds(
-        targets[0].serviceIds,
-        matched.map((s) => s.id),
-      )
-    : matched.map((s) => s.id);
+  const serviceIds = mergeServiceIds(
+    targets[0].serviceIds,
+    matched.map((s) => s.id),
+  );
 
   return {
     ok: true,

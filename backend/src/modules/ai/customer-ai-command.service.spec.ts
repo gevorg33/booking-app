@@ -1,8 +1,18 @@
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
+import {
+  buildCustomerAiSettingsMock,
+  buildCustomerPromptNormalizationMock,
+  buildCustomerUnderstandMock,
+  resetCustomerUnderstandingHarness,
+} from './customer-ai-command.integration.harness.js';
 import type { CommandResult } from './command-completion.types.js';
 import * as intentDecomposition from './intent-decomposition.util.js';
 
 describe('CustomerAiCommandService', () => {
+  afterEach(async () => {
+    await resetCustomerUnderstandingHarness();
+  });
+
   const compoundResult: CommandResult = {
     success: true,
     action: 'compound_intent',
@@ -52,9 +62,24 @@ describe('CustomerAiCommandService', () => {
       })),
     };
     const sprintHandlers = {
-      handleMyProfile: jest.fn(),
-      handleMyAppointments: jest.fn(),
-      handleDiscoverPackages: jest.fn(),
+      handleMyProfile: jest.fn(async () => ({
+        success: true,
+        action: 'my_profile',
+        summary: 'ok',
+        details: {},
+      })),
+      handleMyAppointments: jest.fn(async () => ({
+        success: true,
+        action: 'my_appointments',
+        summary: 'ok',
+        details: {},
+      })),
+      handleDiscoverPackages: jest.fn(async () => ({
+        success: true,
+        action: 'discover_packages',
+        summary: 'ok',
+        details: {},
+      })),
     };
     const consumerAdoption = {
       handleIntent: jest.fn(async () => ({
@@ -244,6 +269,9 @@ describe('CustomerAiCommandService', () => {
     const service = new CustomerAiCommandService(
       mocks.llm as any,
       mocks.promptSecurity as any,
+      buildCustomerAiSettingsMock() as any,
+      buildCustomerPromptNormalizationMock() as any,
+      buildCustomerUnderstandMock() as any,
       mocks.platform as any,
       mocks.aiEvents as any,
       mocks.customerCrm as any,
@@ -432,7 +460,7 @@ describe('CustomerAiCommandService', () => {
       throw new Error('llm down');
     });
     const { service } = createService(mocks);
-    const result = await service.executeCommand('biz-1', 'show packages', [], {
+    const result = await service.executeCommand('biz-1', 'xyzzy unknown phrase', [], {
       slug: 'salon',
     });
     expect(result.action).toBe('error');

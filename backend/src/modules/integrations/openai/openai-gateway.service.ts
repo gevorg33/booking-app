@@ -4,9 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import OpenAI from 'openai';
 import { Business } from '../../business/entities/business.entity.js';
-import { AiCallContext, DEFAULT_OPENAI_MODEL } from './openai.types.js';
+import {
+  AiCallContext,
+  DEFAULT_EMBEDDING_MODEL,
+  DEFAULT_OPENAI_MODEL,
+} from './openai.types.js';
 import { OpenAiIntegrationService } from './openai-integration.service.js';
 import { AiUsageService } from './ai-usage.service.js';
+import { isUuid } from '../../../engine/langgraph/tools/booking-tool-context.helpers.js';
 
 export interface ChatCompletionParams {
   model?: string;
@@ -57,9 +62,30 @@ export class OpenAiGatewayService {
     return this.integrationService.isAvailableForBusiness(businessId);
   }
 
+  private async getPlatformClient(): Promise<{
+    client: OpenAI;
+    source: 'platform';
+  } | null> {
+    const runtime = this.integrationService.platformRuntimeConfig();
+    if (!runtime) return null;
+
+    const cacheKey = `__platform__:${runtime.source}`;
+    let client = this.clientCache.get(cacheKey);
+    if (!client) {
+      client = new OpenAI({ apiKey: runtime.apiKey });
+      this.clientCache.set(cacheKey, client);
+    }
+
+    return { client, source: 'platform' };
+  }
+
   private async getClient(
     businessId: string,
   ): Promise<{ client: OpenAI; source: 'platform' | 'business' } | null> {
+    if (!isUuid(businessId)) {
+      return this.getPlatformClient();
+    }
+
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });
@@ -115,6 +141,52 @@ export class OpenAiGatewayService {
     } catch (err: any) {
       this.logger.error(
         `OpenAI completion failed [${context.surface}/${context.operation}] business=${context.businessId}: ${err.message}`,
+      );
+      return null;
+    }
+  }
+
+  private resolveEmbeddingModel(): string {
+    return (
+      this.config.get<string>('OPENAI_EMBEDDING_MODEL')?.trim() ||
+      DEFAULT_EMBEDDING_MODEL
+    );
+  }
+
+  /** Embeds text for semantic intent matching; usage logged via AiUsageService (pipe-1.4.2). */
+  async embedText(
+    context: AiCallContext,
+    text: string,
+  ): Promise<number[] | null> {
+    const resolved = await this.getClient(context.businessId);
+    if (!resolved) return null;
+
+    const model = this.resolveEmbeddingModel();
+    const input = text.trim();
+    if (!input) return null;
+
+    try {
+      const response = await resolved.client.embeddings.create({
+        model,
+        input,
+      });
+
+      const usage = response.usage;
+      if (usage && isUuid(context.businessId)) {
+        await this.usageService.recordUsage({
+          context,
+          model,
+          promptTokens: usage.prompt_tokens ?? 0,
+          completionTokens: 0,
+          keySource: resolved.source,
+        });
+      }
+
+      const vector = response.data[0]?.embedding;
+      return vector?.length ? vector : null;
+    } catch (err: any) {
+      this.logger.error(
+        `OpenAI embedding failed [${context.surface}/${context.operation}] business=${context.businessId}: ${err.message}`,
       );
       return null;
     }

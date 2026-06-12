@@ -46,6 +46,7 @@ export interface ResolvedCreateServiceParams {
   bufferMinutes?: number;
   price: number;
   currency?: string;
+  categoryId?: string;
   userId?: string;
 }
 
@@ -662,6 +663,7 @@ export class OperationalPlanBuilderService {
         bufferMinutes: service.bufferMinutes ?? 0,
         price: service.price,
         currency: service.currency ?? 'USD',
+        categoryId: service.categoryId,
         userId: params.userId,
       },
       dependsOn: [],

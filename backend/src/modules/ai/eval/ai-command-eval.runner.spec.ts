@@ -1,4 +1,5 @@
 import * as decompositionUtil from '../intent-decomposition.util.js';
+import { AI_COMMAND_EVAL_IMPLICATION_CASES } from '../ai-implication-corpus.eval.util.js';
 import {
   evaluateDeterministicEvalCase,
   runDeterministicEvalSuite,
@@ -441,6 +442,15 @@ describe('ai-command-eval.runner', () => {
     expect(result.errors.some((e) => e.includes('compoundRecipeId'))).toBe(
       true,
     );
+  });
+
+  it('uses top-anchor fallback for implication semantic eval cases (pipe-1.11.2)', () => {
+    const sample = AI_COMMAND_EVAL_IMPLICATION_CASES.find((row) =>
+      row.id.includes('en-hair-long-implied-booking'),
+    );
+    expect(sample).toBeDefined();
+    const result = evaluateDeterministicEvalCase(sample!);
+    expect(result.passed).toBe(true);
   });
 
   it('runDeterministicEvalSuite skips requiresLlm and counts failures', () => {

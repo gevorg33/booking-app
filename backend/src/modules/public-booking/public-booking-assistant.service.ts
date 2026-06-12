@@ -21,7 +21,6 @@ import { CreatePublicBookingDto } from './dto/public-booking.dto.js';
 import {
   resolveLocale,
   t,
-  localeLanguageInstruction,
   type AppLocale,
 } from '../../common/i18n/messages.js';
 import { formatWeekdayShortByDayIndex } from '../../common/i18n/locale-date.util.js';
@@ -42,7 +41,6 @@ import {
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
-import { PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-check-and-book.fixtures.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
@@ -55,55 +53,35 @@ import {
   buildNearestAvailabilityWindowQueries,
   buildNearestBookableSlotQuery,
 } from '../ai/ai-nearest-slot-resolver.util.js';
-import { CLASSIFIER_MULTILINGUAL_RULES } from '../ai/ai-prompt-i18n.js';
-import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.fixtures.js';
-import { BOOKING_LANGUAGES_CLASSIFIER_RULES } from '../ai/ai-booking-languages.fixtures.js';
-import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from '../ai/ai-booking-date-format.fixtures.js';
-import { PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from '../ai/ai-package-display-name.fixtures.js';
-import { TOUR_BOOKING_CLASSIFIER_RULES } from '../ai/ai-tour-booking.fixtures.js';
-import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from '../ai/ai-tour-day-slots.fixtures.js';
-import { PACKAGE_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-package-currency.fixtures.js';
-import { rescueBookingLanguagesIntent } from '../ai/ai-booking-languages.util.js';
-import { rescueBookingDateFormatIntent } from '../ai/ai-booking-date-format.util.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
-import { rescueCheckoutCurrencyIntent } from '../ai/ai-checkout-currency.util.js';
-import { rescueStripeCheckoutCurrencyIntent } from '../ai/ai-stripe-checkout-currency.util.js';
-import { STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-stripe-checkout-currency.fixtures.js';
-import { rescuePackageCurrencyIntent } from '../ai/ai-package-currency.util.js';
-import { rescuePackageDisplayNameIntent } from '../ai/ai-package-display-name.util.js';
-import { rescueDiagnoseTourCapacityIntent } from '../ai/ai-tour-capacity.util.js';
-import { TOUR_CAPACITY_CLASSIFIER_RULES } from '../ai/ai-tour-capacity.fixtures.js';
-import { CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations.fixtures.js';
-import { rescueTourBookingIntent } from '../ai/ai-tour-booking.util.js';
-import { rescueTourDaySlotsIntent } from '../ai/ai-tour-day-slots.util.js';
-import { rescueExplainCheckoutRecommendationsIntent } from '../ai/ai-checkout-recommendations.util.js';
-import { rescueExplainDataRightsIntent } from '../ai/ai-data-rights.util.js';
-import { rescueConsumerClinicTestResultsIntent } from '../ai/ai-consumer-clinic-test-results.util.js';
-import { DATA_RIGHTS_CLASSIFIER_RULES } from '../ai/ai-data-rights.fixtures.js';
-import { PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-v2-6.fixtures.js';
-import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from '../ai/ai-consumer-clinic-test-results.fixtures.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
 import { AiConsumerClinicTestResultsService } from '../ai/ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
-import { PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-lab-booking.fixtures.js';
-import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-lab-booking.fixtures.js';
-import { rescueConsumerClinicLabBookingIntent } from '../ai/ai-clinic-lab-booking.util.js';
-import { rescueExplainClinicBookingIntent } from '../ai/ai-clinic-booking.util.js';
-import { CLINIC_BOOKING_CLASSIFIER_RULES } from '../ai/ai-clinic-booking.fixtures.js';
-import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-budget-service-discovery.fixtures.js';
-import { FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from '../ai/ai-flexible-availability.fixtures.js';
-import { SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-service-rank-discovery.fixtures.js';
 import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
 import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
 import { AiBusinessLanguagesService } from '../ai/ai-business-languages.service.js';
 import { AiPackageLocalizedNamesService } from '../ai/ai-package-localized-names.service.js';
-import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
-import { disambiguateMisclassifiedAvailabilityIntent } from '../ai/ai-intent-disambiguation.util.js';
+import { AiPromptNormalizationService } from '../ai/ai-prompt-normalization.service.js';
+import { PublicCommandUnderstandingAdapter } from '../ai/public-command-understanding.adapter.js';
+import {
+  buildPipelineClarifyCommandResult,
+  buildUnknownIntentClarifyResult,
+  shouldBlockUnknownFromHandlerSwitch,
+} from '../ai/ai-unknown-intent.util.js';
+import {
+  findClassifierCandidate,
+  pipelineRescueReason,
+  pipelineResultToClassifiedIntent,
+} from '../ai/command-understanding-result.util.js';
+import type { ClassifiedIntent } from '../ai/ai-command-routing.util.js';
+import type { PipelineUnderstandResult } from '../ai/command-understanding.types.js';
 import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
 import { rescueBudgetServiceDiscoveryIntent } from '../ai/ai-budget-service-discovery.util.js';
 import { rescueServiceRankFromRecommendSpecialistsIntent } from '../ai/ai-service-rank-discovery.util.js';
+import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
+export { buildPublicClassifierSchema } from './public-booking-classifier.schema.js';
 import {
   applyBudgetFilterForRecommendSpecialists,
   composePublicListServicesBudgetResponse,
@@ -183,91 +161,6 @@ export interface PublicAssistantResult {
   details?: Record<string, unknown>;
 }
 
-export function buildPublicClassifierSchema(): string {
-  return `You are a friendly booking assistant for a customer-facing online appointment page.
-Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
-
-{
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
-  "params": {
-    "employeeName": "string or null — one specialist from the Providers list",
-    "serviceName": "string or null — one exact or closest catalog service name",
-    "serviceCategory": "string or null — keyword to filter SERVICE TYPE NAMES in the catalog (e.g. 'massage' matches Swedish massage, facemassage); NOT a catalog category entity — never include words like specialist/therapist/provider",
-    "serviceNames": ["string"] or null — explicit list of catalog service names when user wants multiple related services,
-    "date": "DD/MM/YYYY or null",
-    "dateFrom": "DD/MM/YYYY or null",
-    "dateTo": "DD/MM/YYYY or null",
-    "weekdays": ["monday", "friday", etc.] or null — when user names weekdays without exact calendar dates",
-    "timeSlot": "HH:MM 24h or null — omit when bookingFirstAvailable=true",
-    "timeFrom": "HH:MM or null — earliest time when user says after 16:00 or for flexible booking",
-    "timeOfDay": "morning | afternoon | evening | null — tonight counts as evening",
-    "availabilityWindows": [{"date": "DD/MM/YYYY or null", "weekdays": ["monday", "friday", etc.] or null, "timeOfDay": "morning | afternoon | evening | null", "timeFrom": "HH:MM or null", "timeSlot": "HH:MM or null", "employeeName": "string or null — named specialist for that OR window only"}] or null — OR alternatives when user says tomorrow evening OR Friday afternoon; each window scanned independently",
-    "bookingFirstAvailable": boolean or null,
-    "allProviders": boolean or null — true when any specialist is acceptable",
-    "providerFallbackNames": ["string"] or null,
-    "fallbackAnyProvider": boolean or null,
-    "maxPrice": number or null — inclusive catalog display-price ceiling when the user states a budget (under $X, I have $X, etc.),
-    "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services (premium/cheapest/popular service, not specialist ratings),
-    "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color),
-    "customerName": "string or null",
-    "customerEmail": "string or null",
-    "customerPhone": "string or null"
-  },
-  "reasoning": "one short sentence"
-}
-
-You MUST resolve relative dates yourself using Today's date from context (tomorrow, this week, Monday, next Friday → concrete DD/MM/YYYY or dateFrom/dateTo/weekdays). When the user mentions dates or weekdays in THIS message, set fresh date fields — ignore stale session dates for availability/recommend queries.
-
-Action rules:
-- recommend_specialists: best/top/highest-rated/suggested specialists. Set serviceCategory for broad requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
-- check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set availabilityWindows when the user lists OR alternatives (tomorrow evening or Friday afternoon). Set weekdays for "Monday and Friday" with the SAME timeOfDay (AND — not OR). Set timeOfDay for morning/afternoon/evening/tonight on single-window prompts.
-- list_providers: who works here (not ratings/availability).
-- list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings). Set serviceTier when they ask for premium tier or standard tier services (entity metadata filter — not serviceRank).
-- book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
-- Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
-- business_info / booking_help: as named.
-- explain_checkout_currency: why prices show € / ֏ / ₽ / $ on this booking page; READ only.
-- explain_stripe_checkout_currency: why online Stripe checkout charges in € / ֏ / ₽ / $; when stripeCurrencySupported is false use cash/pay-at-venue; READ only.
-- explain_package_currency: why package or gift-card totals use business default vs legacy bundled service currency; READ only.
-- explain_booking_languages: why the language menu only shows certain locales on this booking page; READ only.
-- explain_booking_date_format: why dates show DD/MM vs MM/DD (or ISO) on this booking page; READ only.
-${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
-
-Service extraction (critical):
-- "massage specialist" / "best rated massage" / "what kinds of massage" → serviceCategory: "massage" — keyword on service type names, NOT serviceName "massage specialist".
-- "Swedish massage" → serviceName: "Swedish massage".
-- Never invent services — only names from the Services list in context.
-- Multi-turn: fill missing employeeName/serviceName/date/timeSlot from Active session when the user omits them, EXCEPT bookingFirstAvailable (always fresh) and EXCEPT when this message sets new dates/weekdays.
-
-Examples:
-- "free slots on Monday for Gevorg" → check_availability, employeeName: Gevorg, weekdays: ["monday"]
-- "best rated massage this week" → recommend_specialists, serviceCategory: "massage", dateFrom/dateTo: this week
-- "book nearest facemassage on any specialist after 16:00" → book_appointment, serviceName: facemassage, bookingFirstAvailable: true, allProviders: true, timeFrom: "16:00"
-
-Normalize all dates to DD/MM/YYYY.
-${PUBLIC_CHECK_AND_BOOK_CLASSIFIER_RULES}
-${PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES}
-${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}
-${FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES}
-${SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES}
-${CHECKOUT_CURRENCY_CLASSIFIER_RULES}
-${STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES}
-${PACKAGE_CURRENCY_CLASSIFIER_RULES}
-${BOOKING_LANGUAGES_CLASSIFIER_RULES}
-${BOOKING_DATE_FORMAT_CLASSIFIER_RULES}
-${TOUR_BOOKING_CLASSIFIER_RULES}
-${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
-${TOUR_CAPACITY_CLASSIFIER_RULES}
-${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
-${DATA_RIGHTS_CLASSIFIER_RULES}
-${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
-${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}
-${CLINIC_BOOKING_CLASSIFIER_RULES}
-${PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
-${PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX}
-
-${CLASSIFIER_MULTILINGUAL_RULES}`;
-}
 
 @Injectable()
 export class PublicBookingAssistantService {
@@ -280,6 +173,8 @@ export class PublicBookingAssistantService {
     private slotResolver: BookingSlotResolverService,
     private platform: AiPlatformService,
     private aiSettings: AiSettingsService,
+    private promptNormalization: AiPromptNormalizationService,
+    private publicUnderstanding: PublicCommandUnderstandingAdapter,
     private aiEvents: AiEventsService,
     private businessCurrency: AiBusinessCurrencyService,
     private businessLanguages: AiBusinessLanguagesService,
@@ -365,20 +260,76 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     );
     if (compoundResult) return compoundResult;
 
-    const parsed = await this.classifyIntent(
+    const promptNorm = await this.promptNormalization.normalizeForClassifier(
       business.id,
+      undefined,
       prompt,
-      contextBlock,
-      session?.history,
-      orchestratedSession,
-      locale,
     );
-    if (!parsed) {
+
+    const understood = await this.publicUnderstanding.understand({
+      businessId: business.id,
+      effectivePrompt: prompt,
+      confidence: aiConfig.confidence,
+      sessionConfidenceHigh: orchestratedSession?._confidenceHigh as
+        | number
+        | undefined,
+      lastAction: orchestratedSession?.lastAction as string | undefined,
+      sessionContext: orchestratedSession,
+      history: session?.history,
+      locale,
+      businessContextBlock: contextBlock,
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      promptNorm,
+      classify: (normalizedPrompt, systemContext) =>
+        this.classifyIntent(
+          business.id,
+          normalizedPrompt,
+          systemContext,
+          session?.history,
+          orchestratedSession,
+          locale,
+        ),
+    });
+
+    if (understood.status === 'blocked') {
       return {
         success: false,
         action: 'unknown',
         summary: t(locale, 'assistant.unknown'),
       };
+    }
+
+    if (understood.status === 'clarify') {
+      return this.pipelineClarifyToPublicResult(understood, locale);
+    }
+
+    let parsed = pipelineResultToClassifiedIntent(understood);
+    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierAction = classifierCandidate?.action ?? parsed.action;
+    const classifierConfidence = classifierCandidate?.confidence;
+    let rescueReason: string | undefined = pipelineRescueReason(understood);
+
+    const discoveryRescue = this.applyBudgetAndRankServiceDiscoveryRescue(
+      prompt,
+      parsed.action,
+    );
+    if (discoveryRescue) {
+      parsed.action = discoveryRescue.action;
+      rescueReason = discoveryRescue.rescueReason;
+    }
+
+    if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+      return commandResultToPublicAssistantResult(
+        buildUnknownIntentClarifyResult({
+          surface: 'public',
+          prompt,
+          params: parsed.params,
+          reasoning: parsed.reasoning,
+          confidence:
+            typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          trace: understood.trace,
+        }),
+      );
     }
 
     const gateDenied = this.platform.gatePublicAction(parsed.action);
@@ -390,144 +341,6 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const classifierAction = parsed.action;
-    const classifierConfidence =
-      typeof parsed.confidence === 'number' ? parsed.confidence : undefined;
-    const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
-      'public',
-      prompt,
-      parsed.action,
-      parsed.params ?? {},
-    );
-    if (availabilityFix) {
-      parsed.action = availabilityFix.action;
-      parsed.params = {
-        ...parsed.params,
-        ...availabilityFix.params,
-      };
-    }
-
-    const packageCurrencyRescue = rescuePackageCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (packageCurrencyRescue) {
-      parsed.action = packageCurrencyRescue.action;
-    }
-
-    const stripeCheckoutCurrencyRescue = rescueStripeCheckoutCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (stripeCheckoutCurrencyRescue) {
-      parsed.action = stripeCheckoutCurrencyRescue.action;
-    }
-
-    const tourCapacityRescue = rescueDiagnoseTourCapacityIntent(
-      prompt,
-      parsed.action,
-    );
-    if (tourCapacityRescue) {
-      parsed.action = tourCapacityRescue.action;
-    }
-
-    const checkoutRecommendationsRescue =
-      rescueExplainCheckoutRecommendationsIntent(prompt, parsed.action);
-    if (checkoutRecommendationsRescue) {
-      parsed.action = checkoutRecommendationsRescue.action;
-    }
-
-    const tourDaySlotsRescue = rescueTourDaySlotsIntent(prompt, parsed.action);
-    if (tourDaySlotsRescue) {
-      parsed.action = tourDaySlotsRescue.action;
-    }
-
-    const tourBookingRescue = rescueTourBookingIntent(prompt, parsed.action);
-    if (tourBookingRescue) {
-      parsed.action = tourBookingRescue.action;
-    }
-
-    const checkoutCurrencyRescue = rescueCheckoutCurrencyIntent(
-      prompt,
-      parsed.action,
-    );
-    if (checkoutCurrencyRescue) {
-      parsed.action = checkoutCurrencyRescue.action;
-    }
-
-    const packageDisplayNameRescue = rescuePackageDisplayNameIntent(
-      prompt,
-      parsed.action,
-    );
-    if (packageDisplayNameRescue) {
-      parsed.action = packageDisplayNameRescue.action;
-    }
-
-    const bookingLanguagesRescue = rescueBookingLanguagesIntent(
-      prompt,
-      parsed.action,
-    );
-    if (bookingLanguagesRescue) {
-      parsed.action = bookingLanguagesRescue.action;
-    }
-
-    const bookingDateFormatRescue = rescueBookingDateFormatIntent(
-      prompt,
-      parsed.action,
-    );
-    if (bookingDateFormatRescue) {
-      parsed.action = bookingDateFormatRescue.action;
-    }
-
-    const dataRightsRescue = rescueExplainDataRightsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (dataRightsRescue) {
-      parsed.action = dataRightsRescue.action;
-    }
-
-    const consumerClinicResultsRescue = rescueConsumerClinicTestResultsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (consumerClinicResultsRescue) {
-      parsed.action = consumerClinicResultsRescue.action;
-    }
-
-    const consumerClinicLabBookingRescue = rescueConsumerClinicLabBookingIntent(
-      prompt,
-      parsed.action,
-    );
-    if (consumerClinicLabBookingRescue) {
-      parsed.action = consumerClinicLabBookingRescue.action;
-    }
-
-    const clinicBookingRescue = rescueExplainClinicBookingIntent(
-      prompt,
-      parsed.action,
-    );
-    if (clinicBookingRescue) {
-      parsed.action = clinicBookingRescue.action;
-    }
-
-    const budgetDiscoveryRescue = rescueBudgetServiceDiscoveryIntent(
-      prompt,
-      parsed.action,
-      'public',
-    );
-    if (budgetDiscoveryRescue) {
-      parsed.action = budgetDiscoveryRescue.action;
-    }
-
-    const rankRecommendRescue = rescueServiceRankFromRecommendSpecialistsIntent(
-      prompt,
-      parsed.action,
-    );
-    if (rankRecommendRescue) {
-      parsed.action = rankRecommendRescue.action;
-    }
-
     const compoundDecomposition = isCompoundPrompt(prompt)
       ? decomposeDeterministicForSurface('public', prompt)
       : null;
@@ -536,11 +349,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       prompt,
       classifierAction,
       rescuedAction: parsed.action,
-      rescueReason:
-        rankRecommendRescue?.rescueReason ??
-        budgetDiscoveryRescue?.rescueReason ??
-        checkoutCurrencyRescue?.rescueReason ??
-        availabilityFix?.rescueReason,
+      rescueReason,
       classifierConfidence,
       compoundStepCount: compoundDecomposition?.steps.length ?? 1,
     });
@@ -2460,18 +2269,56 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
   }
 
+  private applyBudgetAndRankServiceDiscoveryRescue(
+    prompt: string,
+    action: string,
+  ): { action: string; rescueReason: string } | null {
+    const budgetRescue = rescueBudgetServiceDiscoveryIntent(
+      prompt,
+      action,
+      'public',
+    );
+    const resolvedAction = budgetRescue?.action ?? action;
+    const rankRescue = rescueServiceRankFromRecommendSpecialistsIntent(
+      prompt,
+      resolvedAction,
+    );
+    return rankRescue ?? budgetRescue ?? null;
+  }
+
+  private pipelineClarifyToPublicResult(
+    understood: PipelineUnderstandResult,
+    locale: AppLocale,
+  ): PublicAssistantResult {
+    const clarifyPayload = {
+      summary:
+        understood.clarifySummary ??
+        t(locale, 'assistant.unknown'),
+      clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+      suggestions: understood.clarifySuggestions ?? [],
+      loweredConfidence: understood.confidence,
+      ruleId:
+        understood.blockReason?.replace('self_verify clarify: ', '') ??
+        'unknown',
+      reason: understood.blockReason ?? 'self_verify_clarify',
+    };
+    return commandResultToPublicAssistantResult(
+      buildPipelineClarifyCommandResult(understood, clarifyPayload),
+    );
+  }
+
   private async classifyIntent(
     businessId: string,
-    prompt: string,
-    context: string,
+    normalizedPrompt: string,
+    systemContext: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
     locale: AppLocale = 'en',
-  ) {
+  ): Promise<ClassifiedIntent | null> {
     const sessionBlock =
       sessionContext &&
       Object.values(sessionContext).some((v) => v != null && v !== '')
-        ? `\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
+        ? `\n\nActive session:\n${JSON.stringify(sessionContext, null, 2)}`
         : '';
 
     const historyMessages = (history ?? []).slice(-8).map((m) => ({
@@ -2482,35 +2329,49 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${buildPublicClassifierSchema()}\n\n${localeLanguageInstruction(locale)}\n\n${context}${sessionBlock}`,
+        content: `${systemContext}${sessionBlock}`,
       },
       ...historyMessages,
-      { role: 'user', content: prompt },
+      { role: 'user', content: normalizedPrompt },
     ];
 
-    const response = await this.openAi.chatCompletion(
-      {
-        businessId,
-        surface: 'public_booking',
-        operation: 'classify_intent',
-        actorType: 'customer',
-      },
-      {
-        messages,
-        responseFormat: 'json_object',
-        temperature: 0.2,
-        maxTokens: 650,
-      },
-    );
-
-    const raw = response?.choices[0]?.message?.content;
-    if (!raw) return null;
-
     try {
-      return JSON.parse(raw);
+      const response = await this.openAi.chatCompletion(
+        {
+          businessId,
+          surface: 'public_booking',
+          operation: 'classify_intent',
+          actorType: 'customer',
+        },
+        {
+          messages,
+          responseFormat: 'json_object',
+          temperature: 0.2,
+          maxTokens: 650,
+        },
+      );
+
+      const raw = response?.choices[0]?.message?.content;
+      if (!raw) return null;
+
+      const result = JSON.parse(raw) as {
+        action?: string;
+        params?: Record<string, unknown>;
+        reasoning?: string;
+        confidence?: number;
+      };
+      if (!result?.action) return null;
+
+      return {
+        action: result.action,
+        params: result.params ?? {},
+        reasoning: result.reasoning ?? '',
+        confidence:
+          typeof result.confidence === 'number' ? result.confidence : undefined,
+      };
     } catch (err: any) {
       this.logger.error(
-        `Public assistant classification parse failed: ${err.message}`,
+        `Public assistant classification failed: ${err.message}`,
       );
       return null;
     }

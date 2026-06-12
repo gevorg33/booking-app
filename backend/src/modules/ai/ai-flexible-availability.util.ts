@@ -4,7 +4,7 @@ import {
   promptMentionsMultilingualTomorrow,
 } from './ai-check-and-book-multilingual.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
-import { extractTimeSlotFromPrompt } from './ai-intent-heuristics.js';
+import { extractTimeSlotFromPrompt } from './ai-structural-extractors.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import { parseTimeOfDayWindow, type TimeOfDayWindow } from './ai-operations.util.js';
@@ -356,11 +356,11 @@ export function isFlexibleAvailabilityAnyProviderPrompt(prompt: string): boolean
 /** Team-wide availability phrasing — who's free / any slots (avail-single-*-en). */
 export function isFlexibleAvailabilityTeamWidePrompt(prompt: string): boolean {
   if (!prompt?.trim()) return false;
+  const { isTeamWideProviderAvailabilityQuery } =
+    require('./team-wide-availability.semantic.util.js') as typeof import('./team-wide-availability.semantic.util.js');
   return (
-    /\b(?:who'?s?|who is)\s+free\b/i.test(prompt) ||
     /\bany\s+slots?\b/i.test(prompt) ||
-    (/\b(?:who|which|anyone|anybody)\b/i.test(prompt) &&
-      /\b(?:free|available|open)\b/i.test(prompt))
+    isTeamWideProviderAvailabilityQuery(prompt)
   );
 }
 

@@ -74,8 +74,17 @@ cd backend && npm run test:ai-providers   # availability + check-and-book
 cd backend && npm run test:ai-payments    # payments util/logic
 ```
 
+## Understand pipeline (pipe-1 — dashboard)
+
+`CommandUnderstandingPipelineService` (`command-understanding-pipeline.service.ts`) runs before validate/execute on the dashboard single-intent path:
+
+`normalize` → `fast_heuristics` → `classify` → `confidence_gate` → `semantic_match` (when escalated) → `rerank` → `narrow_reclassify` → `rescue` → `self_verify` → `structural_enrich`
+
+**Fast heuristics boundary (pipe-1.2.3 / acc-3.14):** `FastIntentHeuristicsService` is **routing + structural hints only** — no new paraphrase regex for intent meaning. Read `docs/FAST_INTENT_HEURISTICS_BOUNDARY.md` and skill `feature-fast-intent-heuristics.mdc` before editing `fast-intent-heuristics.*`. CI: `npm run test:pipe-fast-heuristics-boundary`.
+
 ## Related skills
 
+- `feature-fast-intent-heuristics` — acc-3.14 guard for pipe-1.2 fast heuristics modules.
 - `feature-ai-prompt-coverage` — per-surface prompt checklist for any new feature.
 - `ai-multi-command-handling` — compound / "do X and Y" decomposition.
 - `ai-accuracy-program` — Sprints 38–43 playbook to reach 99% accurate executions.

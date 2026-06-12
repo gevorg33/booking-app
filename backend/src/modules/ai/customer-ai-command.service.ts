@@ -2,6 +2,19 @@ import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import { PublicBookingAssistantService } from '../public-booking/public-booking-assistant.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
+import { CustomerCommandUnderstandingAdapter } from './customer-command-understanding.adapter.js';
+import {
+  buildPipelineClarifyCommandResult,
+  buildUnknownIntentClarifyResult,
+  shouldBlockUnknownFromHandlerSwitch,
+} from './ai-unknown-intent.util.js';
+import {
+  findClassifierCandidate,
+  pipelineRescueReason,
+  pipelineResultToClassifiedIntent,
+} from './command-understanding-result.util.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import { AiEventsService } from './ai-events.service.js';
 import { recordMisrouteTelemetry } from './ai-misroute-telemetry.util.js';
@@ -18,47 +31,23 @@ import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
-import { rescueCheckoutTaxIntent } from './ai-checkout-tax.util.js';
-import { rescueExplainDataRightsIntent } from './ai-data-rights.util.js';
-import { rescueConsumerClinicTestResultsIntent } from './ai-consumer-clinic-test-results.util.js';
-import { rescueBookingLanguagesIntent } from './ai-booking-languages.util.js';
-import { rescueBookingDateFormatIntent } from './ai-booking-date-format.util.js';
-import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
-import { rescueStripeCheckoutCurrencyIntent } from './ai-stripe-checkout-currency.util.js';
-import { rescueNotificationCurrencyIntent } from './ai-notification-currency.util.js';
-import { rescueTenantCurrencyIntent } from './ai-tenant-currency.util.js';
+import {
+  rescueBudgetServiceDiscoveryIntent,
+} from './ai-budget-service-discovery.util.js';
 import { isIntentAllowed } from './ai-capability.matrix.js';
 import type { CommandResult } from './command-completion.types.js';
-import {
-  decomposeDeterministicForSurface,
-  isCompoundPrompt,
-} from './intent-decomposition.util.js';
-import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
-import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
-import { rescuePaymentsIntent } from './ai-payments.util.js';
-import { rescueDiagnoseTourCapacityIntent } from './ai-tour-capacity.util.js';
-import { rescueTourBookingIntent } from './ai-tour-booking.util.js';
-import { rescueTourDaySlotsIntent } from './ai-tour-day-slots.util.js';
+import { isCompoundPrompt, decomposeDeterministicForSurface } from './intent-decomposition.util.js';
+import { rescueServiceRankFromRecommendSpecialistsIntent } from './ai-service-rank-discovery.util.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
-import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
 import {
-  rescueBudgetServiceDiscoveryIntent,
-} from './ai-budget-service-discovery.util.js';
-import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
-import { rescueServiceRankFromRecommendSpecialistsIntent } from './ai-service-rank-discovery.util.js';
-import { rescueConsumerClinicLabBookingIntent } from './ai-clinic-lab-booking.util.js';
-import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
-import { rescueExplainCheckoutRecommendationsIntent } from './ai-checkout-recommendations.util.js';
-import { rescueExplainConsumerCheckoutSuccessIntent } from './ai-consumer-checkout-success.util.js';
-import { rescueExplainConsumerCheckoutTaxIntent } from './ai-consumer-checkout-tax.util.js';
-import { disambiguateMisclassifiedAvailabilityIntent } from './ai-intent-disambiguation.util.js';
+  enrichDiscoveryParamsFromPrompt,
+} from './ai-service-discovery-enrichment.util.js';
 import {
-  buildCustomerClassifierSchema,
   isPublicOnlyAssistantAction,
   publicAssistantResultToCommandResult,
 } from './customer-ai-command.util.js';
@@ -83,6 +72,9 @@ export class CustomerAiCommandService {
   constructor(
     private readonly llm: LlmService,
     private readonly promptSecurity: AiPromptSecurityService,
+    private readonly aiSettings: AiSettingsService,
+    private readonly promptNormalization: AiPromptNormalizationService,
+    private readonly customerUnderstanding: CustomerCommandUnderstandingAdapter,
     private readonly platform: AiPlatformService,
     private readonly aiEvents: AiEventsService,
     private readonly customerCrm: AiCustomerCrmService,
@@ -176,24 +168,79 @@ export class CustomerAiCommandService {
     const compound = await this.tryCompound(businessId, prompt, session);
     if (compound) return compound;
 
-    const parsed = await this.classifyIntent(
+    const aiConfig = await this.aiSettings.getSettings(businessId);
+    const promptNorm = await this.promptNormalization.normalizeForClassifier(
       businessId,
+      undefined,
       prompt,
-      history,
-      context,
     );
-    if (!parsed) {
+
+    const understood = await this.customerUnderstanding.understand({
+      businessId,
+      effectivePrompt: prompt,
+      confidence: aiConfig.confidence,
+      sessionConfidenceHigh: context?._confidenceHigh as number | undefined,
+      lastAction: context?.lastAction as string | undefined,
+      sessionContext: context,
+      history,
+      promptNorm,
+      classify: (normalizedPrompt, systemContext) =>
+        this.classifyIntent(
+          businessId,
+          normalizedPrompt,
+          systemContext,
+          history,
+          context,
+        ),
+    });
+
+    if (understood.status === 'blocked') {
       return {
         success: false,
         action: 'error',
         summary: 'Could not understand that request. Try rephrasing.',
-        details: {},
+        details: {
+          pipelineTrace: understood.trace,
+          blockReason: understood.blockReason,
+        },
       };
     }
 
-    const classifierAction = parsed.action;
-    const rescued = this.rescueIntent(prompt, parsed.action);
-    const action = rescued?.action ?? parsed.action;
+    if (understood.status === 'clarify') {
+      const clarifyPayload = {
+        summary:
+          understood.clarifySummary ??
+          'I need a bit more detail before I can run this.',
+        clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+        suggestions: understood.clarifySuggestions ?? [],
+        loweredConfidence: understood.confidence,
+        ruleId:
+          understood.blockReason?.replace('self_verify clarify: ', '') ??
+          'unknown',
+        reason: understood.blockReason ?? 'self_verify_clarify',
+      };
+      const clarify = buildPipelineClarifyCommandResult(
+        understood,
+        clarifyPayload,
+      );
+      return clarify;
+    }
+
+    let parsed = pipelineResultToClassifiedIntent(understood);
+    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierAction = classifierCandidate?.action ?? parsed.action;
+    let rescueReason: string | undefined = pipelineRescueReason(understood);
+
+    const discoveryRescue = this.applyBudgetAndRankServiceDiscoveryRescue(
+      prompt,
+      parsed.action,
+    );
+    if (discoveryRescue) {
+      parsed.action = discoveryRescue.action;
+      rescueReason = discoveryRescue.rescueReason;
+    }
+
+    const action = parsed.action;
     const params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
 
     recordMisrouteTelemetry(this.aiEvents, businessId, {
@@ -201,9 +248,21 @@ export class CustomerAiCommandService {
       prompt,
       classifierAction,
       rescuedAction: action,
-      rescueReason: rescued?.rescueReason,
+      rescueReason,
       compoundStepCount: 1,
     });
+
+    if (shouldBlockUnknownFromHandlerSwitch(action)) {
+      return buildUnknownIntentClarifyResult({
+        surface: 'customer',
+        prompt,
+        params,
+        reasoning: parsed.reasoning,
+        confidence:
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        trace: understood.trace,
+      });
+    }
 
     if (!isIntentAllowed('customer', 'client', action)) {
       return (
@@ -377,54 +436,13 @@ export class CustomerAiCommandService {
     return rankRescue ?? budgetRescue ?? null;
   }
 
-  private rescueIntent(prompt: string, action: string) {
-    const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
-      'customer',
-      prompt,
-      action,
-      {},
-    );
-    if (availabilityFix) {
-      return {
-        action: availabilityFix.action,
-        rescueReason: availabilityFix.rescueReason,
-      };
-    }
-    return (
-      rescueTenantCurrencyIntent(prompt, action) ??
-      rescueNotificationCurrencyIntent(prompt, action) ??
-      rescueStripeCheckoutCurrencyIntent(prompt, action) ??
-      rescueDiagnoseTourCapacityIntent(prompt, action) ??
-      rescueExplainConsumerCheckoutTaxIntent(prompt, action) ??
-      rescueExplainConsumerCheckoutSuccessIntent(prompt, action) ??
-      rescueExplainCheckoutRecommendationsIntent(prompt, action) ??
-      rescueTourDaySlotsIntent(prompt, action) ??
-      rescueTourBookingIntent(prompt, action) ??
-      rescueExplainDataRightsIntent(prompt, action) ??
-      rescueConsumerClinicTestResultsIntent(prompt, action) ??
-      rescueConsumerClinicLabBookingIntent(prompt, action) ??
-      rescueExplainClinicBookingIntent(prompt, action) ??
-      rescueCheckoutTaxIntent(prompt, action) ??
-      rescueCheckoutCurrencyIntent(prompt, action) ??
-      rescueBookingLanguagesIntent(prompt, action) ??
-      rescueBookingDateFormatIntent(prompt, action) ??
-      rescueSelfServiceBookingIntent(prompt, action) ??
-      rescueMarketingGrowthIntent(prompt, action) ??
-      rescueConsumerAdoptionIntent(prompt, action) ??
-      this.applyBudgetAndRankServiceDiscoveryRescue(prompt, action) ??
-      rescuePaymentsIntent(prompt, action)
-    );
-  }
-
   private async classifyIntent(
     businessId: string,
-    prompt: string,
+    normalizedPrompt: string,
+    systemContext: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     context?: Record<string, unknown>,
   ): Promise<ParsedCustomerIntent | null> {
-    const capabilityHints = context?._capabilityHints as string | undefined;
-    const system =
-      `${buildCustomerClassifierSchema()}\n\n${capabilityHints ?? ''}`.trim();
     const userBlock = [
       context?._conversationSummary
         ? `Conversation summary: ${context._conversationSummary}`
@@ -434,7 +452,7 @@ export class CustomerAiCommandService {
       history?.length
         ? `Recent messages:\n${history.map((m) => `${m.role}: ${m.content}`).join('\n')}`
         : '',
-      `User: ${this.promptSecurity.prepareUserPromptForClassifier(prompt)}`,
+      `User: ${this.promptSecurity.prepareUserPromptForClassifier(normalizedPrompt)}`,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -442,7 +460,7 @@ export class CustomerAiCommandService {
     try {
       const result = await this.llm.completeJson<ParsedCustomerIntent>(
         businessId,
-        system,
+        systemContext,
         userBlock,
         {
           surface: 'customer',

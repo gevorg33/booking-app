@@ -112,14 +112,17 @@ describe('category assignment handler flows', () => {
       );
     });
 
-    it('replaces skills for explicit named services (non-category)', () => {
+    it('extends skills for explicit named services (non-category)', () => {
       const resolved = resolveAssignEmployeeServicesInput(employees, services, {
         employeeName: 'Maria Lopez',
         serviceName: 'Spa Service A',
       });
       expect(resolved.ok).toBe(true);
       if (!resolved.ok) return;
-      expect(resolved.serviceIds).toEqual(['s-3-1']);
+      expect(resolved.serviceIds).toEqual(
+        expect.arrayContaining(['s-1-1', 's-3-1']),
+      );
+      expect(resolved.serviceIds).toHaveLength(2);
       expect(resolved.mergedFromCategory).toBe(false);
     });
   });

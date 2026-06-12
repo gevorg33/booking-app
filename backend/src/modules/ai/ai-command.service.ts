@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DASHBOARD_CLASSIFIER_ACTION_UNION } from './ai-command-intent-schema.build.js';
+import { commandSurfaceToAiUsageSurface } from './ai-usage-surface.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import OpenAI from 'openai';
@@ -140,6 +141,7 @@ import { AiPlatformService } from './ai-platform.service.js';
 import { AiProviderTimeOffService } from './ai-provider-time-off.service.js';
 import { DASHBOARD_TIME_OFF_CLASSIFIER_RULES } from '../provider-mobile/provider-time-off.fixtures.js';
 import { AiCatalogService } from './ai-catalog.service.js';
+import { enrichServiceCategoryRescueParams } from './ai-catalog.util.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
@@ -170,9 +172,6 @@ import {
   filterOpenSlotsByTimeRange,
   filterBookingsByTimeConstraints,
   isClearSchedulePrompt,
-  matchEmployeesInPrompt,
-  sanitizeProviderScopeFromPrompt,
-  inferDirectSchedulePeriods,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
 } from './ai-orchestration.helpers.js';
@@ -207,12 +206,16 @@ import { isWallClockSlotBookable } from '../../common/utils/timezone.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveAssignEmployeeServicesInput } from './ai-category-assignment.util.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
-import { shouldValidateAction } from './command-completion.validator.js';
+import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
+import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
 import { CommandResult } from './command-completion.types.js';
 import { buildUnwiredDashboardIntentResult } from './ai-command-unwired-intent.util.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiEventsService } from './ai-events.service.js';
-import { recordMisrouteTelemetry } from './ai-misroute-telemetry.util.js';
+import {
+  enrichMisrouteTelemetryFromUnderstand,
+  recordMisrouteTelemetry,
+} from './ai-misroute-telemetry.util.js';
 import { IntentDecompositionService } from './intent-decomposition.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
@@ -224,7 +227,6 @@ import {
   extractServiceFromPrompt,
   extractCustomerFromBookingPrompt,
   isTeamWideProviderAvailabilityQuery,
-  applyAvailabilityFollowUpFromSession,
   matchEntityInPrompt,
   resolveCustomerMetric,
   resolveAppointmentMetric,
@@ -240,6 +242,26 @@ import {
   type ServiceInsightMetric,
   type StaffInsightMetric,
 } from './ai-intent-heuristics.js';
+import { DashboardCommandUnderstandingAdapter } from './dashboard-command-understanding.adapter.js';
+import {
+  buildPipelineClarifyCommandResult,
+  buildUnknownIntentClarifyResult,
+  shouldBlockUnknownFromHandlerSwitch,
+} from './ai-unknown-intent.util.js';
+import { applyStructuralIntentEnrichment } from './ai-intent-structural-enrich.util.js';
+import { resolveConfidenceGateThresholds } from './confidence-gate.util.js';
+import {
+  findClassifierCandidate,
+  findRescueCandidate,
+  pipelineResultToClassifiedIntent,
+  pipelineRescueReason,
+  resolveWinningCandidateSource,
+} from './command-understanding-result.util.js';
+import {
+  type CommandTraceStampContext,
+  finalizeCommandTraceResult,
+  resolveCommandTraceId,
+} from './ai-command-trace-recorder.util.js';
 import { CLASSIFIER_MULTILINGUAL_RULES } from './ai-prompt-i18n.js';
 import {
   AiPromptNormalizationService,
@@ -252,15 +274,9 @@ import {
   type ComplexityRoute,
 } from './command-complexity-router.service.js';
 import { AiIntelligenceService } from './ai-intelligence.service.js';
-import {
-  appendMultilingualClassifierContext,
-  buildClassifierCatalogContext,
-  resolveMergedComplexityRoute,
-  resolveParsedIntent,
-  runParallelRouteAndClassification,
-  type ClassifiedIntent,
-} from './ai-command-routing.util.js';
-import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { type ClassifiedIntent } from './ai-command-routing.util.js';
+import { buildNarrowClassifierSchema } from './narrow-reclassify-schema.util.js';
+import type { CommandSurface } from './ai-command-registry.types.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
 import {
   clampReadDateRangeDays,
@@ -351,6 +367,7 @@ interface ParsedServiceDraft {
   bufferMinutes: number;
   price: number;
   currency: string;
+  categoryId?: string;
 }
 
 const INTENT_SCHEMA = `You are the Orchestrix operational AI — the sole intent classifier for this system (no heuristic fallback).
@@ -388,6 +405,7 @@ and extract structured parameters. Return a JSON object with:
     "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services or check_availability when user asks premium/cheapest/popular service (not specialist ratings),
     "availabilityWindows": [{"date":"DD/MM/YYYY or tomorrow","weekdays":["monday"],"timeOfDay":"morning|afternoon|evening","timeFrom":"HH:MM","timeSlot":"HH:MM"}] or null — OR alternatives for check_availability / create_booking with bookingFirstAvailable,
     "serviceCategory": "string or null — keyword to filter service type names for list_services (e.g. haircut, massage)",
+    "categoryName": "string or null — service category entity name for create_service (place new service under category), update_service (move existing service into category), bulk_create_catalog, create_service_category, or assign_employee_services category scope",
     "currency": "string or null — ISO currency code (create_service), default USD",
     "date": "DD/MM/YYYY or null — for reschedule_booking: the NEW destination date (tomorrow, Friday, 31/05/2026). For other actions: the date referenced.",
     "dateFrom": "DD/MM/YYYY or null — start of range if a range is mentioned",
@@ -454,7 +472,8 @@ Rules:
 - bookingFirstAvailable without allProviders: pick earliest open slot for the named provider only. allProviders without bookingFirstAvailable still requires timeSlot unless the user gives one.
 - Dashboard staff simulating customer checkout: check_providers_for_service + book_nearest_slot compound prompts are decomposed automatically before classification — if you must classify a single intent from combined wording, use create_booking with bookingFirstAvailable=true, allProviders=true, timeSlot=null, never a bare create_booking missing start time.
 - For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
-- create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc.
+- create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc. When the user scopes the new service to a catalog category ("under category Massage", "in service category: Hair"), set categoryName to that category entity — NOT serviceCategory (keyword filter).
+- update_service: move or assign ONE existing catalog service into a service category entity. "Move Neck Massage under service category: Massage" → serviceName=Neck Massage, categoryName=Massage. NOT create_service (new row), NOT bulk_create_catalog, NOT assign_employee_services (provider skills), NOT update_service_prices (bulk %).
 - create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
 - Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
 - Do not use create_service when booking an appointment — that is create_booking.
@@ -594,7 +613,7 @@ ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 - create_direct_schedule: set/replace applied schedule for one or more providers (allProviders=true for "all employees") for a day or date range. Hours like "9-19, 12-13 unavailable" can omit explicit periods — the system splits service blocks around lunch. When the user says "his/her/their services" or does not name specific services, leave serviceNames null — uses only services assigned to each provider. For ranges like "this week", set dateFrom and dateTo.
 - clear_schedule: remove/cleanup/wipe/reset a provider's applied schedule for a day or date range — deletes schedule periods and micro-slots so the day is free to re-apply a template. Does NOT cancel appointments. Requires employeeName (or allProviders for whole team) and date (or dateFrom/dateTo). "Clear all schedules for Karo" means Karo only — set employeeName=Karo, allProviders=false. NOT hide_appointments_from_calendar.
 - fill_unused_slots / create_direct_schedule with "for his services" / "their services": do not list every catalog service in serviceNames — leave serviceNames null so only the provider's assigned services are used.
-- assign_employee_services: assign services from catalog to a provider. For category bulk: "Assign all services from Color category to Gevorg" → categoryName=Color, employeeName=Gevorg, assignFromCategory=true (merges with existing provider skills).
+- assign_employee_services: assign services from catalog to a provider — always merges with existing provider skills (never replaces the full skill list). Single service: "Assign Neck Massage to Maria" → serviceName, employeeName. Category bulk: "Assign all services from Color category to Gevorg" → categoryName=Color, employeeName=Gevorg, assignFromCategory=true.
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
@@ -699,9 +718,9 @@ export class AiCommandService {
     private slotResolver: BookingSlotResolverService,
     private complexityRouter: CommandComplexityRouterService,
     private intelligence: AiIntelligenceService,
-    private intentRescue: AiIntentRescueService,
     private promptSecurity: AiPromptSecurityService,
     private promptNormalization: AiPromptNormalizationService,
+    private dashboardUnderstanding: DashboardCommandUnderstandingAdapter,
     private providerTimeOff: AiProviderTimeOffService,
   ) {}
 
@@ -780,17 +799,13 @@ export class AiCommandService {
       select: { id: true, settings: true },
     });
     const businessType = business?.settings?.businessType as string | undefined;
-    const { scope, classifierHint } = this.platform.resolveBranchContext(
+    const { scope } = this.platform.resolveBranchContext(
       session?.context,
       aiConfig,
     );
     const scopedCatalog = scope.locationId
       ? await this.platform.scopeCatalog(businessId, catalog, scope)
       : catalog;
-    const verticalHints = this.platform.buildVerticalHints(
-      businessType,
-      aiConfig,
-    );
 
     const playbook = this.aiSettings.matchPlaybook(aiConfig, prompt);
     const effectivePrompt = playbook ? playbook.prompt : prompt;
@@ -807,48 +822,24 @@ export class AiCommandService {
       _branchScope: scope,
       _businessType: businessType,
     };
-    const classifierCatalogContext = buildClassifierCatalogContext(
-      scopedCatalog,
-      timeZone,
-    );
-    const branchAugmented = classifierHint
-      ? `${classifierCatalogContext}\n${classifierHint}\n${verticalHints}`
-      : `${classifierCatalogContext}\n${verticalHints}`;
-    const contextWithI18n = appendMultilingualClassifierContext(
-      branchAugmented,
-      promptNorm.classifierContext,
-    );
-
     const presetRoute = session?.context?._complexityRoute as
       | ComplexityRoute
       | undefined;
-    const { route: mergedRoute, classification: preclassified } =
-      await runParallelRouteAndClassification({
-        resolveRoute: () =>
-          resolveMergedComplexityRoute(
-            businessId,
-            classifierPrompt,
-            employees,
-            this.complexityRouter,
-            this.intelligence,
-            presetRoute,
-          ),
-        classify: () =>
-          this.classifyIntent(
-            businessId,
-            userId,
-            classifierPrompt,
-            contextWithI18n,
-            session?.history,
-            sessionContext,
-          ),
-      });
+    const resolveComplexityRoute = this.dashboardUnderstanding.createResolveRoute({
+      businessId,
+      classifierPrompt,
+      employees,
+      router: this.complexityRouter,
+      intelligence: this.intelligence,
+      presetRoute,
+    });
+    const graphComplexityRoute = await resolveComplexityRoute();
 
     const sessionWithRoute: CommandSessionOptions = {
       ...session,
       context: {
         ...session?.context,
-        _complexityRoute: mergedRoute,
+        _complexityRoute: graphComplexityRoute,
       },
     };
 
@@ -1050,14 +1041,12 @@ export class AiCommandService {
       }
     }
 
-    if (this.bookingCommandGraph.isEnabled()) {
-      const complexityRoute = sessionWithRoute.context?._complexityRoute as
-        | {
-            tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
-            useDecomposition?: boolean;
-          }
-        | undefined;
+    const confidenceThresholds = resolveConfidenceGateThresholds(
+      aiConfig.confidence,
+      session?.context?._confidenceHigh as number | undefined,
+    );
 
+    if (this.bookingCommandGraph.isEnabled()) {
       return this.bookingCommandGraph.run({
         businessId,
         prompt,
@@ -1066,13 +1055,8 @@ export class AiCommandService {
         session: sessionWithRoute,
         catalog: scopedCatalog,
         timeZone,
-        confidenceThresholds: {
-          low: aiConfig.confidence.low,
-          high:
-            (session?.context?._confidenceHigh as number | undefined) ??
-            aiConfig.confidence.high,
-        },
-        complexityRoute,
+        confidenceThresholds,
+        complexityRoute: graphComplexityRoute,
         delegates: {
           executeSingleIntent: () =>
             this.executeSingleIntent(
@@ -1085,7 +1069,7 @@ export class AiCommandService {
               aiConfig,
               playbook,
               promptNorm,
-              preclassified,
+              resolveComplexityRoute,
             ),
           buildCompoundPlan: (
             action,
@@ -1144,7 +1128,7 @@ export class AiCommandService {
         timeZone,
       );
       if (subIntents.length > 1) {
-        recordMisrouteTelemetry(this.aiEvents, businessId, {
+        const misroutePayload = recordMisrouteTelemetry(this.aiEvents, businessId, {
           surface: 'dashboard',
           prompt: effectivePrompt,
           classifierAction: 'compound_intent',
@@ -1152,21 +1136,23 @@ export class AiCommandService {
           rescueReason: 'compound_decomposition',
           compoundStepCount: subIntents.length,
         });
-        return this.executeCompoundIntents(
+        const compoundResult = await this.executeCompoundIntents(
           businessId,
           effectivePrompt,
           userId,
           sessionWithRoute,
           subIntents,
           scopedCatalog,
-          {
-            low: aiConfig.confidence.low,
-            high:
-              (session?.context?._confidenceHigh as number | undefined) ??
-              aiConfig.confidence.high,
-          },
+          confidenceThresholds,
           timeZone,
         );
+        return finalizeCommandTraceResult(compoundResult, {
+          traceId: resolveCommandTraceId(sessionWithRoute?.context),
+          misrouteTelemetry: misroutePayload,
+          pipelineTrace: compoundResult.details?.pipelineTrace as
+            | import('./command-completion.types.js').PipelineTrace[]
+            | undefined,
+        });
       }
     }
 
@@ -1180,7 +1166,7 @@ export class AiCommandService {
       aiConfig,
       playbook,
       promptNorm,
-      preclassified,
+      resolveComplexityRoute,
     );
   }
 
@@ -1199,66 +1185,96 @@ export class AiCommandService {
     aiConfig: Awaited<ReturnType<AiSettingsService['getSettings']>>,
     playbook: ReturnType<AiSettingsService['matchPlaybook']>,
     promptNorm?: PromptNormalizationResult,
-    preclassified?: ClassifiedIntent | null,
+    resolveRoute?: () => Promise<ComplexityRoute>,
   ): Promise<CommandResult> {
     const { employees, services, customers, templates } = catalog;
 
     const sessionContext = { ...session?.context, timeZone };
 
-    let parsed = await resolveParsedIntent({
-      preclassified,
-      classify: async () => {
-        const norm =
-          promptNorm ??
-          (await this.promptNormalization.normalizeForClassifier(
-            businessId,
-            userId,
-            effectivePrompt,
-          ));
-        const contextBlock = buildClassifierCatalogContext(catalog, timeZone);
-        const contextWithI18n = appendMultilingualClassifierContext(
-          contextBlock,
-          norm.classifierContext,
-        );
-        return this.classifyIntent(
+    const confidenceThresholds = resolveConfidenceGateThresholds(
+      aiConfig.confidence,
+      session?.context?._confidenceHigh as number | undefined,
+    );
+
+    const understood = await this.dashboardUnderstanding.understand({
+      businessId,
+      userId,
+      effectivePrompt,
+      timeZone,
+      catalog,
+      confidence: aiConfig.confidence,
+      sessionConfidenceHigh: session?.context?._confidenceHigh as
+        | number
+        | undefined,
+      lastAction: session?.context?.lastAction as string | undefined,
+      sessionContext: { ...session?.context, timeZone },
+      promptNorm,
+      resolveRoute,
+      classify: (normalizedPrompt, context, narrowShortlist) =>
+        this.classifyIntent(
           businessId,
           userId,
-          norm.normalized,
-          contextWithI18n,
+          normalizedPrompt,
+          context,
           session?.history,
           sessionContext,
-        );
-      },
+          narrowShortlist
+            ? { narrowShortlist, surface: 'dashboard' }
+            : { surface: 'dashboard' },
+        ),
     });
-    if (!parsed) {
-      const fallbackRescue = this.intentRescue.rescue({
-        prompt: effectivePrompt,
-        action: 'unknown',
-        params: {},
-        employees: employees.map((e) => ({ id: e.id, name: e.name })),
-        customers: customers.map((c) => ({ id: c.id, name: c.name })),
-        timeZone,
-        surface: 'dashboard',
-      });
-      if (fallbackRescue?.rescued) {
-        parsed = {
-          action: fallbackRescue.action,
-          params: { ...fallbackRescue.params },
-          reasoning:
-            fallbackRescue.reasoning ??
-            'Recovered via deterministic rescue after classifier returned no result.',
-          confidence: 0.85,
-        };
-      }
-    }
-    if (!parsed) {
-      return {
+    const understandTrace = understood.trace;
+    const traceCtx: CommandTraceStampContext = {
+      traceId: resolveCommandTraceId(session?.context),
+      pipelineTrace: understandTrace,
+      routingTier: understood.complexityRoute?.tier,
+    };
+    const traceStamp = (result: CommandResult) =>
+      finalizeCommandTraceResult(result, traceCtx);
+
+    if (understood.status === 'blocked') {
+      return traceStamp({
         success: false,
         action: 'error',
         summary: 'Failed to understand the command. Please try rephrasing.',
-        details: {},
-      };
+        details: {
+          pipelineTrace: understandTrace,
+          blockReason: understood.blockReason,
+        },
+      });
     }
+
+    if (understood.status === 'clarify') {
+      const clarifyPayload = {
+        summary:
+          understood.clarifySummary ??
+          'I need a bit more detail before I can run this.',
+        clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+        suggestions: understood.clarifySuggestions ?? [],
+        loweredConfidence: understood.confidence,
+        ruleId:
+          understood.blockReason?.replace('self_verify clarify: ', '') ??
+          'unknown',
+        reason: understood.blockReason ?? 'self_verify_clarify',
+      };
+      const clarify = buildPipelineClarifyCommandResult(
+        understood,
+        clarifyPayload,
+      );
+      clarify.details.pipelineTrace = understandTrace;
+      this.aiEvents.emitClarify(businessId, {
+        action: understood.action,
+        summary: clarify.summary,
+        missing: clarify.details.missing,
+      });
+      return traceStamp(clarify);
+    }
+
+    let parsed = pipelineResultToClassifiedIntent(understood);
+    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierAction = classifierCandidate?.action ?? parsed.action;
+    const classifierConfidence = classifierCandidate?.confidence;
+    const rescueCandidate = findRescueCandidate(understood);
 
     parsed.params = this.completionPipeline.mergeSessionContext(
       parsed.params,
@@ -1284,17 +1300,6 @@ export class AiCommandService {
       sessionContext,
     );
     parsed.params._timeZone = timeZone;
-    this.enrichMultiEmployeeFromPrompt(
-      effectivePrompt,
-      parsed.params,
-      employees,
-    );
-    this.applyScheduleScopeFromPrompt(
-      effectivePrompt,
-      parsed.params,
-      parsed.action,
-      employees,
-    );
 
     if (parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
       parsed.action = 'clear_schedule';
@@ -1322,27 +1327,25 @@ export class AiCommandService {
       }
     }
 
-    const classifierAction = parsed.action;
-    const classifierConfidence =
-      typeof parsed.confidence === 'number' ? parsed.confidence : undefined;
+    if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+      const clarify = buildUnknownIntentClarifyResult({
+        surface: 'dashboard',
+        prompt: effectivePrompt,
+        params: parsed.params,
+        reasoning: parsed.reasoning,
+        confidence:
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        trace: understandTrace,
+      });
+      this.aiEvents.emitClarify(businessId, {
+        action: 'unknown',
+        summary: clarify.summary,
+        missing: clarify.details.missing,
+      });
+      return traceStamp(clarify);
+    }
 
-    const rescued = this.intentRescue.rescue({
-      prompt: effectivePrompt,
-      action: parsed.action,
-      params: parsed.params,
-      reasoning: parsed.reasoning,
-      employees: employees.map((e) => ({ id: e.id, name: e.name })),
-      customers: customers.map((c) => ({ id: c.id, name: c.name })),
-      timeZone,
-    });
-    if (rescued?.rescued) {
-      parsed.action = rescued.action;
-      parsed.params = { ...parsed.params, ...rescued.params };
-      parsed.reasoning = rescued.reasoning ?? parsed.reasoning;
-      parsed.confidence = Math.max(
-        typeof parsed.confidence === 'number' ? parsed.confidence : 0,
-        0.85,
-      );
+    if (rescueCandidate) {
       applyBookingRescheduleActionHints(
         parsed.action,
         parsed.params,
@@ -1387,15 +1390,23 @@ export class AiCommandService {
       );
     }
 
-    recordMisrouteTelemetry(this.aiEvents, businessId, {
-      surface: 'dashboard',
-      prompt: effectivePrompt,
-      classifierAction,
-      rescuedAction: parsed.action,
-      rescueReason: rescued?.rescued ? rescued.rescueReason : undefined,
-      classifierConfidence,
-      compoundStepCount: 1,
-    });
+    recordMisrouteTelemetry(
+      this.aiEvents,
+      businessId,
+      enrichMisrouteTelemetryFromUnderstand(
+        {
+          surface: 'dashboard',
+          prompt: effectivePrompt,
+          classifierAction,
+          rescuedAction: parsed.action,
+          rescueReason: pipelineRescueReason(understood),
+          classifierConfidence,
+          compoundStepCount: 1,
+        },
+        understood,
+        understandTrace,
+      ),
+    );
 
     this.applyBulkAppointmentScope(
       effectivePrompt,
@@ -1410,12 +1421,12 @@ export class AiCommandService {
         'owner',
     );
     if (!isIntentAllowed('dashboard', actorTier, parsed.action)) {
-      return {
+      return traceStamp({
         success: false,
         action: parsed.action,
         summary: `Action "${parsed.action.replace(/_/g, ' ')}" is not allowed for your role (${actorTier}).`,
         details: { tier: actorTier, action: parsed.action },
-      };
+      });
     }
 
     const roleProfile = this.platform.resolveRoleProfile(
@@ -1428,17 +1439,17 @@ export class AiCommandService {
       'dashboard',
       parsed.action,
     );
-    if (roleDenied) return roleDenied;
+    if (roleDenied) return traceStamp(roleDenied);
 
     const planTierId =
       (session?.context?._planTierId as PlanTierId | undefined) ?? 'solo';
     if (!isDashboardAiIntentAllowedByPlan(planTierId, parsed.action)) {
-      return {
+      return traceStamp({
         success: false,
         action: parsed.action,
         summary: `Action "${parsed.action.replace(/_/g, ' ')}" requires a paid plan. Upgrade to unlock advanced AI operations.`,
         details: { planTierId, action: parsed.action, upgradeRequired: true },
-      };
+      });
     }
 
     parsed.params = this.promptSecurity.stripParams(parsed.params) as Record<
@@ -1465,7 +1476,7 @@ export class AiCommandService {
       parsed.params,
     );
     if (securityDenied) {
-      return securityDenied;
+      return traceStamp(securityDenied);
     }
 
     const confidence =
@@ -1499,209 +1510,52 @@ export class AiCommandService {
       parsed.action === 'cancel_bookings' ||
       parsed.action === 'hide_appointments_from_calendar'
     ) {
-      this.completionPipeline.enrichDateRangeParams(
-        parsed.params,
-        effectivePrompt,
-        timeZone,
-      );
       this.completionPipeline.normalizeDateParams(
         parsed.params,
         effectivePrompt,
         timeZone,
       );
     }
-    if (parsed.action === 'create_direct_schedule') {
-      parsed.params.periods = inferDirectSchedulePeriods(
-        parsed.params,
-        effectivePrompt,
-      );
-    }
 
-    const resolved = this.completionPipeline.resolve(
-      businessId,
-      effectivePrompt,
-      parsed,
-      catalog,
-      timeZone,
+    const handoff = runCompletionValidateHandoff(
+      {
+        businessId,
+        prompt: effectivePrompt,
+        classified: parsed,
+        catalog,
+        timeZone,
+        priorTrace: understandTrace,
+      },
+      this.completionPipeline,
     );
-    const pipelineTrace = [
-      this.completionPipeline.trace(
-        'classify',
-        parsed.action,
-        parsed.reasoning,
-      ),
-      this.completionPipeline.trace('resolve', parsed.action),
-    ];
 
-    if (shouldValidateAction(parsed.action)) {
-      const validation = this.completionPipeline.validate(resolved);
-      pipelineTrace.push(
-        this.completionPipeline.trace(
-          'validate',
-          parsed.action,
-          validation.ok ? 'passed' : `${validation.issues.length} issue(s)`,
-        ),
-      );
-
-      if (!validation.ok) {
-        const clarify = this.completionPipeline.toClarifyResult(
-          resolved,
-          validation,
-        );
-        clarify.details.pipelineTrace = pipelineTrace;
-        this.aiEvents.emitClarify(businessId, {
-          action: parsed.action,
-          summary: clarify.summary,
-          missing: clarify.details.missing,
-        });
-        return clarify;
-      }
+    if (handoff.status === 'clarify') {
+      this.aiEvents.emitClarify(businessId, {
+        action: parsed.action,
+        summary: handoff.result.summary,
+        missing: handoff.result.details.missing,
+      });
+      traceCtx.pipelineTrace = handoff.trace;
+      return traceStamp(handoff.result);
     }
 
-    const mutatingActions = new Set([
-      'create_booking',
-      'create_service',
-      'create_services',
-      'cancel_bookings',
-      'update_bookings',
-      'bulk_smart_cancel',
-      'hide_appointments_from_calendar',
-      'unhide_appointments_from_calendar',
-      'fill_slot_from_waitlist',
-      'reschedule_booking',
-      'fill_unused_slots',
-      'apply_schedule',
-      'clear_schedule',
-      'block_schedule',
-      'setup_week_schedule',
-      'swap_schedules',
-      'rebalance_capacity',
-      'holiday_mode',
-      'onboard_provider_schedule',
-      'create_schedule_template',
-      'mark_no_shows',
-      'no_show_recovery',
-      'payment_sweep',
-      'day_replan',
-      'sick_day_replan',
-      'import_services_from_menu',
-      'update_service_prices',
-      'staff_service_matrix',
-      'create_booking_subscription_credit',
-      'create_booking_cash',
-      'create_package_booking',
-      'create_multi_service_booking',
-      'cancel_package_visit',
-      'cancel_multi_service_group',
-      'reschedule_package_visit',
-      'reschedule_multi_service_group',
-      'mark_paid',
-      'assign_booking_resource',
-      'create_service_category',
-      'bulk_create_catalog',
-      'deactivate_service',
-      'create_package',
-      'update_package',
-      'deactivate_package',
-      'duplicate_package',
-      'create_subscription_plan',
-      'update_subscription_plan',
-      'deactivate_subscription_plan',
-      'assign_subscription_to_customer',
-      'configure_gift_card_products',
-      'create_gift_card_bundle',
-      'configure_multi_service_settings',
-      'set_service_compatibility',
-      'extend_subscription',
-      'cancel_subscription_admin',
-      'merge_customers',
-      'export_customer_data',
-      'delete_customer_data',
-      'send_reengagement_message',
-      'tag_customer',
-      'request_gift_card_cancel',
-      'request_gift_card_modify',
-      'privacy_export',
-      'privacy_delete',
-      'create_resource',
-      'update_resource',
-      'deactivate_resource',
-      'assign_resource_hours',
-      'configure_multi_service_scheduling_mode',
-      'block_resource_unavailable',
-      'configure_cash_payments',
-      'configure_business_currency',
-      'configure_business_tax',
-      'configure_privacy_retention',
-      'configure_granular_consent',
-      'enable_hipaa_mode',
-      'configure_hipaa_session_timeout',
-      'admin_delete_customer_data',
-      'report_data_breach',
-      'send_breach_notification',
-      'configure_stacked_tax_rules',
-      'set_service_tax_rate',
-      'configure_business_languages',
-      'configure_business_date_format',
-      'configure_package_localized_names',
-      'configure_tour_service',
-      'configure_clinic_service',
-      'apply_clinic_playbook',
-      'configure_recommendation_product',
-      'link_recommended_products',
-      'apply_tour_playbook',
-      'bulk_strip_disabled_locale_translations',
-      'migrate_dashboard_date_display',
-      'notify_patient_result_ready',
-      'create_test_order',
-      'create_catalog_test_order',
-      'push_lab_booking_to_patient',
-      'staff_book_lab_collection',
-      'enter_test_result',
-      'release_test_result',
-      'bulk_update_service_currency',
-      'adjust_gift_card_balance',
-      'extend_gift_card_expiry',
-      'refund_gift_card_order',
-      'collect_cash_confirm',
-      'assign_card_creator',
-      'assign_delivery_staff',
-      'mark_shipped',
-      'mark_delivered',
-      'cancel_gift_card_order',
-      'extend_cancel_window',
-      'start_card_preparation',
-      'mark_card_ready',
-      'accept_delivery',
-      'mark_out_for_delivery',
-      'capture_delivery_proof',
-      'notify_delay',
-      'enter_shipping_address',
-      'create_webhook',
-      'rotate_api_key',
-      'configure_zapier',
-      'run_accounting_export',
-      'configure_zendesk',
-      'create_support_ticket',
-      'sync_customer_to_zendesk',
-      'configure_marketing_registration_email',
-      'contact_support',
-      'open_ticket_for_order',
-      'configure_marketing_automation',
-      'trigger_reengagement',
-      'toggle_annual_billing',
-      'configure_push_recipients',
-      'test_push',
-      'toggle_business_email_on_customer_change',
-      'retry_offline_action',
-      'dismiss_push',
-      'enable_notifications',
-    ]);
+    const resolved = handoff.resolved;
+    const pipelineTrace = handoff.trace;
+    traceCtx.pipelineTrace = pipelineTrace;
+    traceCtx.confidence = confidence;
+    traceCtx.candidateSource = resolveWinningCandidateSource(
+      understood,
+      parsed.action,
+    );
+
     if (
-      mutatingActions.has(parsed.action) &&
-      confidence < aiConfig.confidence.low
+      shouldBlockLowConfidencePipelineMutate(
+        parsed.action,
+        confidence,
+        aiConfig.confidence.low,
+      )
     ) {
-      return {
+      return traceStamp({
         success: false,
         action: parsed.action,
         summary: `I'm not fully confident I understood that (${Math.round(confidence * 100)}% confidence). Did you mean to "${parsed.action.replace(/_/g, ' ')}"? Please rephrase or add more detail.`,
@@ -1710,16 +1564,11 @@ export class AiCommandService {
           confidence,
           reasoning: parsed.reasoning,
           playbook: playbook?.name,
+          pipelineTrace,
         },
-      };
+      });
     }
 
-    const confidenceThresholds = {
-      low: aiConfig.confidence.low,
-      high:
-        (session?.context?._confidenceHigh as number | undefined) ??
-        aiConfig.confidence.high,
-    };
     const autoExecuteFlag = resolveAutoExecute({
       action: parsed.action,
       stepCount: 1,
@@ -1771,7 +1620,7 @@ export class AiCommandService {
         confidence,
         playbook: playbook?.name ?? null,
       };
-      return confirmResult;
+      return traceStamp(confirmResult);
     }
 
     const params = resolved.enrichedParams;
@@ -1980,6 +1829,14 @@ export class AiCommandService {
           businessId,
           effectivePrompt,
           params,
+        );
+        break;
+      case 'update_service':
+        result = await this.catalog.handleUpdateService(
+          businessId,
+          params,
+          services,
+          effectivePrompt,
         );
         break;
       case 'deactivate_service':
@@ -4296,31 +4153,48 @@ export class AiCommandService {
       case 'receipt_status':
         result = await this.payments.handleReceiptStatus(businessId, params);
         break;
-      case 'create_service':
-        if (Array.isArray(params.services) && params.services.length > 1) {
+      case 'create_service': {
+        const createParams = { ...params };
+        enrichServiceCategoryRescueParams(
+          'create_service',
+          createParams,
+          effectivePrompt,
+        );
+        if (
+          Array.isArray(createParams.services) &&
+          createParams.services.length > 1
+        ) {
           result = await this.handleCreateServices(
             businessId,
-            params,
+            createParams,
             services,
             userId,
           );
         } else {
           result = await this.handleCreateService(
             businessId,
-            params,
+            createParams,
             services,
             userId,
           );
         }
         break;
-      case 'create_services':
+      }
+      case 'create_services': {
+        const bulkCreateParams = { ...params };
+        enrichServiceCategoryRescueParams(
+          'create_services',
+          bulkCreateParams,
+          effectivePrompt,
+        );
         result = await this.handleCreateServices(
           businessId,
-          params,
+          bulkCreateParams,
           services,
           userId,
         );
         break;
+      }
       case 'cancel_bookings':
         if (
           /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(
@@ -4847,7 +4721,7 @@ export class AiCommandService {
 
     result.details = {
       ...result.details,
-      pipelineTrace,
+      pipelineTrace: traceCtx.pipelineTrace ?? pipelineTrace,
       confidence,
       playbook: playbook?.name ?? null,
     };
@@ -4856,7 +4730,7 @@ export class AiCommandService {
       resolved,
     );
     this.emitCommandEvents(businessId, final);
-    return final;
+    return traceStamp(final);
   }
 
   private emitCommandEvents(businessId: string, result: CommandResult) {
@@ -4897,50 +4771,6 @@ export class AiCommandService {
         summary: result.summary,
       });
     }
-  }
-
-  private enrichMultiEmployeeFromPrompt(
-    prompt: string,
-    params: Record<string, any>,
-    employees: Employee[],
-  ): void {
-    if (params.allProviders || (params.employeeNames?.length ?? 0) > 1) return;
-
-    const mentionsMultiple =
-      /\bboth\b/i.test(prompt) ||
-      /\band\b/i.test(prompt) ||
-      /[,/]/.test(prompt);
-
-    if (!mentionsMultiple) return;
-
-    const matched = matchEmployeesInPrompt(prompt, employees);
-    if (matched.length > 1) {
-      params.employeeNames = matched.map((e) => e.name);
-      params.employeeName = null;
-    }
-  }
-
-  private applyScheduleScopeFromPrompt(
-    prompt: string,
-    params: Record<string, any>,
-    action: string,
-    employees: Employee[],
-  ): void {
-    const scheduleActions = new Set([
-      'clear_schedule',
-      'create_direct_schedule',
-      'block_schedule',
-      'swap_schedules',
-      'rebalance_capacity',
-      'holiday_mode',
-      'onboard_provider_schedule',
-      'fill_unused_slots',
-      'apply_schedule',
-      'cancel_bookings',
-      'hide_appointments_from_calendar',
-    ]);
-    if (!scheduleActions.has(action)) return;
-    sanitizeProviderScopeFromPrompt(prompt, params, employees);
   }
 
   private applyBulkAppointmentScope(
@@ -5032,13 +4862,6 @@ export class AiCommandService {
         params.customerName = promptCustomer.name;
       }
     }
-
-    applyAvailabilityFollowUpFromSession(
-      prompt,
-      params,
-      session,
-      employees.map((e) => ({ name: e.name })),
-    );
 
     if (isTeamWideProviderAvailabilityQuery(prompt)) {
       const emp = matchEntityInPrompt(prompt, employees);
@@ -5143,7 +4966,14 @@ export class AiCommandService {
     context: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     sessionContext?: Record<string, any>,
+    options?: {
+      narrowShortlist?: readonly string[];
+      surface?: CommandSurface;
+    },
   ): Promise<ClassifiedIntent | null> {
+    const narrowShortlist = options?.narrowShortlist;
+    const isNarrow = (narrowShortlist?.length ?? 0) > 0;
+    const surface = options?.surface ?? 'dashboard';
     const strippedSession =
       stripIntelligenceKeysFromSessionContext(sessionContext);
     const sessionBlock =
@@ -5168,10 +4998,17 @@ export class AiCommandService {
         content: m.content,
       }));
 
+    const schemaHeader = isNarrow
+      ? buildNarrowClassifierSchema(surface, narrowShortlist!)
+      : INTENT_SCHEMA;
+    const domainClassifierRules = isNarrow
+      ? ''
+      : `\n\n${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${CATALOG_NOTIFY_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}`;
+
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `${INTENT_SCHEMA}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}\n\n${BUSINESS_CURRENCY_CLASSIFIER_RULES}\n\n${BUSINESS_TAX_CLASSIFIER_RULES}\n\n${BUSINESS_COMPLIANCE_CLASSIFIER_RULES}\n\n${CLINIC_TEST_ORDER_CLASSIFIER_RULES}\n\n${CLINIC_TEST_RESULT_CLASSIFIER_RULES}\n\n${CLINIC_PATIENT_CHART_CLASSIFIER_RULES}\n\n${DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}\n\n${CLINIC_SERVICE_CLASSIFIER_RULES}\n\n${QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES}\n\n${SUMMARIZE_CUSTOMER_TAX_PAID_CLASSIFIER_RULES}\n\n${LOOKUP_BOOKING_TAX_METADATA_CLASSIFIER_RULES}\n\n${STRIPE_TAX_CHARGE_CLASSIFIER_RULES}\n\n${BUSINESS_LANGUAGES_CLASSIFIER_RULES}\n\n${BUSINESS_DATE_FORMAT_CLASSIFIER_RULES}\n\n${PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES}\n\n${CATALOG_NOTIFY_CLASSIFIER_RULES}\n\n${DASHBOARD_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}\n\n${TOUR_SERVICE_CLASSIFIER_RULES}\n\n${TOUR_BOOKING_RECORD_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_SPAN_CLASSIFIER_RULES}\n\n${TOUR_CALENDAR_WEEK_CLASSIFIER_RULES}\n\n${UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PRODUCT_CLASSIFIER_RULES}\n\n${RECOMMENDATION_ANALYTICS_CLASSIFIER_RULES}\n\n${RECOMMENDATION_PERFORMANCE_CLASSIFIER_RULES}\n\n${STRIPE_CURRENCY_WARNING_CLASSIFIER_RULES}\n\n${STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}\n\n${REPORTS_CURRENCY_CLASSIFIER_RULES}\n\n${REVENUE_KPIS_CLASSIFIER_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
+        content: `${schemaHeader}\n\n${CLASSIFIER_MULTILINGUAL_RULES}${domainClassifierRules}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
       },
       ...historyMessages,
       {
@@ -5183,8 +5020,8 @@ export class AiCommandService {
     const response = await this.openAi.chatCompletion(
       {
         businessId,
-        surface: 'dashboard',
-        operation: 'classify_intent',
+        surface: commandSurfaceToAiUsageSurface(surface),
+        operation: isNarrow ? 'narrow_classify_intent' : 'classify_intent',
         actorType: 'manager',
         userId,
       },
@@ -5192,7 +5029,7 @@ export class AiCommandService {
         messages,
         responseFormat: 'json_object',
         temperature: 0.1,
-        maxTokens: 500,
+        maxTokens: isNarrow ? 400 : 500,
       },
     );
 
@@ -5200,7 +5037,18 @@ export class AiCommandService {
     if (!raw) return null;
 
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as ClassifiedIntent;
+      if (
+        isNarrow &&
+        parsed.action &&
+        !narrowShortlist!.includes(parsed.action)
+      ) {
+        this.logger.warn(
+          `Narrow classify returned out-of-shortlist action: ${parsed.action}`,
+        );
+        return null;
+      }
+      return parsed;
     } catch (err: any) {
       this.logger.error(`Intent classification parse failed: ${err.message}`);
       return null;
@@ -7228,12 +7076,13 @@ export class AiCommandService {
         params: parsedParams,
         reasoning: sub.reasoning,
       };
-      this.applyScheduleScopeFromPrompt(
+      const structurallyEnriched = applyStructuralIntentEnrichment(parsed, {
         prompt,
-        parsedParams,
-        parsed.action,
-        catalog.employees,
-      );
+        timeZone,
+        employees: catalog.employees.map((e) => ({ id: e.id, name: e.name })),
+        sessionContext: { ...session?.context, timeZone },
+      });
+      Object.assign(parsedParams, structurallyEnriched.params);
       enrichCompoundSubStepBookingHints(
         parsed.action,
         parsedParams,
@@ -7279,19 +7128,11 @@ export class AiCommandService {
         parsed.action === 'cancel_bookings' ||
         parsed.action === 'hide_appointments_from_calendar'
       ) {
-        this.completionPipeline.enrichDateRangeParams(
-          parsedParams,
-          prompt,
-          timeZone,
-        );
         this.completionPipeline.normalizeDateParams(
           parsedParams,
           prompt,
           timeZone,
         );
-      }
-      if (parsed.action === 'create_direct_schedule') {
-        parsedParams.periods = inferDirectSchedulePeriods(parsedParams, prompt);
       }
       if (
         parsed.action === 'hide_appointments_from_calendar' &&
@@ -7299,26 +7140,24 @@ export class AiCommandService {
       ) {
         parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
       }
-      const resolved = this.completionPipeline.resolve(
-        businessId,
-        prompt,
-        parsed,
-        catalog,
-        timeZone,
+      const handoff = runCompletionValidateHandoff(
+        {
+          businessId,
+          prompt,
+          classified: parsed,
+          catalog,
+          timeZone,
+          priorTrace: pipelineTrace,
+          clarifyExtras: { compoundStep: parsed.action },
+        },
+        this.completionPipeline,
       );
 
-      if (shouldValidateAction(parsed.action)) {
-        const validation = this.completionPipeline.validate(resolved);
-        if (!validation.ok) {
-          const clarify = this.completionPipeline.toClarifyResult(
-            resolved,
-            validation,
-          );
-          clarify.details.pipelineTrace = pipelineTrace;
-          clarify.details.compoundStep = parsed.action;
-          return clarify;
-        }
+      if (handoff.status === 'clarify') {
+        return handoff.result;
       }
+
+      const resolved = handoff.resolved;
 
       let plan: AgentPlan | null = null;
 
@@ -9389,6 +9228,33 @@ export class AiCommandService {
     );
   }
 
+  private async resolveCreateServiceCategoryId(
+    businessId: string,
+    categoryName?: string,
+  ): Promise<{ categoryId?: string; error?: CommandResult }> {
+    const trimmed = categoryName?.trim();
+    if (!trimmed) return {};
+    const category = await this.catalog.resolveCategoryByName(
+      businessId,
+      trimmed,
+    );
+    if (!category) {
+      return {
+        error: {
+          success: false,
+          action: 'create_service',
+          summary: `Service category "${trimmed}" not found. Create the category first or check the name.`,
+          details: {
+            clarify: true,
+            missing: ['categoryName'],
+            categoryName: trimmed,
+          },
+        },
+      };
+    }
+    return { categoryId: category.id };
+  }
+
   private async handleCreateService(
     businessId: string,
     params: any,
@@ -9404,6 +9270,12 @@ export class AiCommandService {
         details: { params, errors: parsed.errors },
       };
     }
+
+    const categoryResolved = await this.resolveCreateServiceCategoryId(
+      businessId,
+      params.categoryName,
+    );
+    if (categoryResolved.error) return categoryResolved.error;
 
     const draft = parsed.draft;
     const existing = this.resolveService(services, draft.name);
@@ -9423,6 +9295,7 @@ export class AiCommandService {
     const plan = this.planBuilder.buildCreateServicePlan({
       businessId,
       ...draft,
+      categoryId: categoryResolved.categoryId,
       userId,
     });
 
@@ -9501,6 +9374,17 @@ export class AiCommandService {
       toCreate.push(draft);
     }
 
+    const categoryResolved = await this.resolveCreateServiceCategoryId(
+      businessId,
+      params.categoryName,
+    );
+    if (categoryResolved.error) {
+      return {
+        ...categoryResolved.error,
+        action: 'create_services',
+      };
+    }
+
     if (toCreate.length === 0) {
       return {
         success: false,
@@ -9512,7 +9396,10 @@ export class AiCommandService {
 
     const plan = this.planBuilder.buildCreateServicesPlan({
       businessId,
-      services: toCreate,
+      services: toCreate.map((service) => ({
+        ...service,
+        categoryId: categoryResolved.categoryId,
+      })),
       userId,
     });
 

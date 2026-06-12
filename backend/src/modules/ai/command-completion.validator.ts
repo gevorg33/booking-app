@@ -144,6 +144,22 @@ const ACTION_RULES: Record<string, Rule> = {
       needs('price', 'Price', cmd.params.price != null, '50'),
     ].filter(Boolean) as ValidationIssue[],
 
+  update_service: (cmd) =>
+    [
+      needs(
+        'serviceName',
+        'Service name',
+        !!cmd.params.serviceName,
+        'Neck Massage',
+      ),
+      needs(
+        'categoryName',
+        'Service category',
+        !!cmd.params.categoryName,
+        'Massage',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
   create_services: (cmd) => {
     const list = cmd.params.services;
     if (!Array.isArray(list) || list.length === 0) {

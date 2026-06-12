@@ -166,19 +166,20 @@ describe('ai-category-assignment.util', () => {
       expect(result.employeeName).toBe('Gevorg Gasparyan');
     });
 
-    it('replaces services when assigning explicit service names', () => {
+    it('extends existing skills when assigning explicit service names', () => {
       const result = resolveAssignEmployeeServicesInput(
         employees,
         catalogServices,
         {
-          employeeName: 'Maria Lopez',
-          serviceName: 'Facial',
+          employeeName: 'Gevorg Gasparyan',
+          serviceName: 'Highlights',
         },
       );
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.mergedFromCategory).toBe(false);
-      expect(result.serviceIds).toEqual(['s4']);
+      expect(result.serviceIds).toEqual(expect.arrayContaining(['s2', 's4']));
+      expect(result.serviceIds).toHaveLength(2);
     });
 
     it('fails when multiple providers match', () => {

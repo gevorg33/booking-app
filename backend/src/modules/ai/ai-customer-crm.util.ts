@@ -424,8 +424,10 @@ export function rescueCustomerCrmIntent(
     return { action: 'my_gift_cards', rescueReason: 'my_gift_cards' };
   if (isMySubscriptionsPrompt(prompt))
     return { action: 'my_subscriptions', rescueReason: 'my_subscriptions' };
-  if (isMyAppointmentsPrompt(prompt))
+  if (isMyAppointmentsPrompt(prompt)) {
+    if (action === 'list_my_appointments') return null;
     return { action: 'my_appointments', rescueReason: 'my_appointments' };
+  }
   if (isMyProfilePrompt(prompt))
     return { action: 'my_profile', rescueReason: 'my_profile' };
 

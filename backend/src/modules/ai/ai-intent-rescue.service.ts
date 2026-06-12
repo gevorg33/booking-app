@@ -8,7 +8,6 @@ import {
   isAnyProviderBookingPrompt,
   isFirstAvailableBookingPrompt,
   enrichBookingTimeHintsFromPrompt,
-  isTeamWideProviderAvailabilityQuery,
   extractStatusFiltersFromPrompt,
   isBulkAllAppointmentsPrompt,
   extractBookingStatusFromPrompt,
@@ -54,7 +53,10 @@ import {
   rescueAssignCategoryToProviderIntent,
 } from './ai-category-assignment.util.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
-import { rescueCatalogIntent } from './ai-catalog.util.js';
+import {
+  enrichServiceCategoryRescueParams,
+  rescueCatalogIntent,
+} from './ai-catalog.util.js';
 import { enrichCatalogNotifyRescueParams } from './ai-catalog-notify.util.js';
 import { rescueCustomerCrmIntent } from './ai-customer-crm.util.js';
 import { rescueScheduleResourceIntent } from './ai-schedule-resources.util.js';
@@ -339,6 +341,14 @@ import {
   rescueExplainRecommendationSetupIntent,
   rescueLinkRecommendedProductsIntent,
 } from './ai-recommendation-product.util.js';
+import {
+  runIntentRescuePipeline,
+  type RescuePipelineContext,
+} from './ai-intent-rescue-pipeline.util.js';
+import { RESCUE_PIPELINE_BOUNDARY_MARKER } from './ai-intent-rescue.boundary.js';
+
+/** pipe-1.5.1 — domain rescues only; semantic match is a pipeline stage. */
+const _RESCUE_PIPELINE_BOUNDARY = RESCUE_PIPELINE_BOUNDARY_MARKER;
 
 export interface IntentRescueInput {
   prompt: string;
@@ -350,6 +360,11 @@ export interface IntentRescueInput {
   timeZone?: string;
   /** When set, budget discovery rescue uses surface-specific misroute mapping. */
   surface?: 'dashboard' | 'customer' | 'public' | 'provider';
+  /**
+   * pipe-1.5.2 — param hints from semantic_match winner only.
+   * Never used to pick or override rescue action.
+   */
+  semanticParamHints?: Record<string, unknown>;
 }
 
 export interface IntentRescueResult {
@@ -460,20 +475,13 @@ const READ_ONLY_ACTIONS = new Set([
 @Injectable()
 export class AiIntentRescueService {
   rescue(input: IntentRescueInput): IntentRescueResult | null {
-    const { prompt, employees = [], customers = [], timeZone = 'UTC' } = input;
-    const { action, params, reasoning } = input;
-    const budgetSurface:
-      | 'dashboard'
-      | 'customer'
-      | 'public'
-      | undefined =
-      input.surface === 'public' ||
-      input.surface === 'customer' ||
-      input.surface === 'dashboard'
-        ? input.surface
-        : undefined;
+    return runIntentRescuePipeline(this, input);
+  }
 
-    if (input.surface === 'provider') {
+  /** pipe-1.5.1 — provider surface domain rescues */
+  runRescueProviderPhase(input: IntentRescueInput): IntentRescueResult | null {
+    const { prompt, action } = input;
+    if (input.surface !== 'provider') return null;
       const providerBookingExact = this.tryRescueProviderBooking(prompt, action);
       if (providerBookingExact) return providerBookingExact;
       const providerClientContextExact =
@@ -496,9 +504,16 @@ export class AiIntentRescueService {
         action,
       );
       if (providerTimeOffExact) return providerTimeOffExact;
-    }
+    return null;
+  }
 
-    if (action !== 'unknown') {
+  /** pipe-1.5.1 — classified action domain disambiguation */
+  runRescueClassifiedPhase(
+    input: IntentRescueInput,
+    ctx: RescuePipelineContext,
+  ): IntentRescueResult | null {
+    const { prompt, action, params } = input;
+    const { employees, customers, timeZone, budgetSurface } = ctx;
       const budgetDiscoveryEarly = this.tryRescueBudgetServiceDiscovery(
         prompt,
         action,
@@ -668,8 +683,16 @@ export class AiIntentRescueService {
       if (scheduleResources) return scheduleResources;
       const customerCrm = this.tryRescueCustomerCrm(prompt, action);
       if (customerCrm) return customerCrm;
-      return null;
-    }
+    return null;
+  }
+
+  /** pipe-1.5.1 — unknown intent domain rescue chain */
+  runRescueUnknownPhase(
+    input: IntentRescueInput,
+    ctx: RescuePipelineContext,
+  ): IntentRescueResult | null {
+    const { prompt, action, params, reasoning } = input;
+    const { employees, customers, timeZone, budgetSurface } = ctx;
 
     const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
       prompt,
@@ -1348,6 +1371,7 @@ export class AiIntentRescueService {
 
     return null;
   }
+
 
   private tryRescueScheduling(
     prompt: string,
@@ -3292,7 +3316,10 @@ export class AiIntentRescueService {
 
     const rescued = rescueCatalogIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
-    const params: Record<string, unknown> = {};
+    const params: Record<string, unknown> = {
+      ...('params' in rescued && rescued.params ? rescued.params : {}),
+    };
+    enrichServiceCategoryRescueParams(rescued.action, params, prompt);
     enrichCatalogNotifyRescueParams(rescued.action, params, prompt);
     return {
       action: rescued.action,

@@ -5,6 +5,7 @@ import {
   isFillGapsFollowUpPrompt,
   isHideAppointmentsFromCalendarPrompt,
 } from './ai-schedule-ops-hints.util.js';
+import { applyStructuralIntentEnrichment } from './ai-intent-structural-enrich.util.js';
 
 describe('ai-schedule-ops-hints.util', () => {
   const employees = [
@@ -93,38 +94,42 @@ describe('ai-schedule-ops-hints.util', () => {
     });
   });
 
-  describe('multi-provider date ranges', () => {
+  describe('multi-provider date ranges (pipe-1.7.1 structural enrich)', () => {
     it('sets employeeNames for two providers in prompt', () => {
-      const params: Record<string, any> = {};
-      applyScheduleOpsPromptHints(
-        'apply_schedule',
-        params,
-        'Apply weekday template to Gevorg and Mary this week',
-        { employees, timeZone: 'UTC' },
+      const enriched = applyStructuralIntentEnrichment(
+        { action: 'apply_schedule', params: {}, reasoning: 'test' },
+        {
+          prompt: 'Apply weekday template to Gevorg and Mary this week',
+          employees,
+          timeZone: 'UTC',
+        },
       );
-      expect(params.employeeNames).toEqual([
+      expect(enriched.params.employeeNames).toEqual([
         'Gevorg Gasparyan',
         'Mary Torgomyan',
       ]);
-      expect(params.employeeName).toBeNull();
+      expect(enriched.params.employeeName).toBeNull();
     });
 
     it('enriches date range for clear_schedule', () => {
-      const params: Record<string, any> = {
-        employeeName: 'Gevorg Gasparyan',
-      };
-      applyScheduleOpsPromptHints(
-        'clear_schedule',
-        params,
-        'Clear Gevorg and Mary schedule from 02/06/2026 to 08/06/2026',
-        { employees, timeZone: 'UTC' },
+      const enriched = applyStructuralIntentEnrichment(
+        {
+          action: 'clear_schedule',
+          params: { employeeName: 'Gevorg Gasparyan' },
+          reasoning: 'test',
+        },
+        {
+          prompt: 'Clear Gevorg and Mary schedule from 02/06/2026 to 08/06/2026',
+          employees,
+          timeZone: 'UTC',
+        },
       );
-      expect(params.employeeNames).toEqual([
+      expect(enriched.params.employeeNames).toEqual([
         'Gevorg Gasparyan',
         'Mary Torgomyan',
       ]);
-      expect(params.dateFrom).toBe('02/06/2026');
-      expect(params.dateTo).toBe('08/06/2026');
+      expect(enriched.params.dateFrom).toBe('02/06/2026');
+      expect(enriched.params.dateTo).toBe('08/06/2026');
     });
   });
 });

@@ -1,0 +1,40 @@
+---
+description: Fast intent heuristics boundary — routing + structural hints only; acc-3.14 guard forbids new paraphrase regex in fast-intent-heuristics.*. Load before editing pipe-1.2 code.
+globs: backend/src/modules/ai/fast-intent-heuristics*.ts,backend/src/modules/ai/command-understanding-pipeline.service.ts
+alwaysApply: false
+---
+
+# Fast intent heuristics (pipe-1.2.3 / acc-3.14)
+
+**Read:** [docs/FAST_INTENT_HEURISTICS_BOUNDARY.md](../../docs/FAST_INTENT_HEURISTICS_BOUNDARY.md)
+
+## Allowed in `fast-intent-heuristics.*`
+
+- Complexity tier routing (`read_only`, `compound`) via `CommandComplexityRouterService`
+- Compound marker detection via `IntentDecompositionService`
+- Structural command shape (list/show + appointments, upcoming scope, availability **routing** via `resolveAvailabilityIntentFromPrompt`)
+- `paramHints` for re-rank (`complexityTier`, `useDecomposition`, structural flags)
+
+## Forbidden in `fast-intent-heuristics.*`
+
+- New paraphrase regex for **intent meaning** (acc-3.14)
+- Imports from `ai-intent-heuristics`, `ai-intent-rescue`, `ai-semantic-intent`
+- Symbols like `isFirstAvailableBookingPrompt`, `isTeamWideProviderAvailabilityQuery`, metric resolvers
+- Bypassing LLM classify (phase 1 always runs classify; heuristics only feed re-rank)
+
+## Where paraphrase goes
+
+| Layer | When |
+|-------|------|
+| `AiSemanticIntentService` | Unknown/low-confidence classify; embedding match |
+| `AiIntentRescueService` | Post-classify mislabel rescue |
+| Semantic anchors + eval | New phrasing regression coverage |
+
+## Before marking pipe-1.2 tasks done
+
+```bash
+cd backend && npm run test:pipe-fast-heuristics-boundary
+cd backend && npm run test:pipe-understanding
+```
+
+Update `fast-intent-heuristics.boundary.ts` allowlist if adding a new **structural** delegation import.

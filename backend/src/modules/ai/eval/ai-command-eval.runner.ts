@@ -6,7 +6,7 @@ import {
   resolveRescheduleParams,
   extractRescheduleTargetTime,
   extractRescheduleSourceTime,
-} from '../ai-intent-heuristics.js';
+} from '../ai-structural-extractors.js';
 import {
   decomposeDeterministicForSurface,
   isCompoundPrompt,
@@ -46,8 +46,29 @@ import {
   rescueConsumerClinicTestResultsIntent,
 } from '../ai-consumer-clinic-test-results.util.js';
 import { rescueProviderPushSetupIntent } from '../ai-provider-push-setup.util.js';
+import { rescueProviderAiIntent } from '../../provider-mobile/provider-ai-intent.util.js';
+import { impliesBookingFirstAvailableFromSemantic } from '../booking-first-available.semantic.util.js';
+import { impliesTeamWideAvailabilityFromSemantic } from '../team-wide-availability.semantic.util.js';
+import { impliesAnyProviderBookingFromSemantic } from '../any-provider-booking.semantic.util.js';
+import { impliesRecommendSpecialistsFromSemantic } from '../recommend-specialists.semantic.util.js';
+import {
+  resolveAppointmentMetricFromSemantic,
+  resolveBookingMetricFromSemantic,
+  resolveCustomerMetricFromSemantic,
+  resolveServiceMetricFromSemantic,
+  resolveStaffMetricFromSemantic,
+} from '../metric-resolvers.semantic.util.js';
 import { validateCommand } from '../command-completion.validator.js';
 import type { ResolvedCommand } from '../command-completion.types.js';
+import { getIntentAnchorBank } from '../intent-anchor.bank.js';
+import {
+  filterAnchorsForSurface,
+  rankAnchorsDeterministic,
+  buildSemanticMatchFromAnchor,
+  resolveSemanticMatch,
+  SEMANTIC_CONCEPT_THRESHOLD,
+} from '../ai-semantic-intent.util.js';
+import { resolveSemanticAllowedActions } from '../semantic-allowed-actions.util.js';
 import type {
   AiCommandEvalCase,
   AiEvalCaseResult,
@@ -119,6 +140,132 @@ export function evaluateDeterministicEvalCase(
   const errors: string[] = [];
   const { expect } = evalCase;
   const prompt = evalCase.prompt;
+
+  if (expect.useBookingFirstAvailableSemanticDetect) {
+    const surfaces = evalCase.surface
+      ? ([evalCase.surface] as const)
+      : undefined;
+    const actual = impliesBookingFirstAvailableFromSemantic(prompt, surfaces);
+    if (actual !== expect.bookingFirstAvailableSemantic) {
+      errors.push(
+        `bookingFirstAvailableSemantic: expected ${expect.bookingFirstAvailableSemantic}, got ${actual}`,
+      );
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
+
+  if (expect.useTeamWideAvailabilitySemanticDetect) {
+    const surfaces = evalCase.surface
+      ? ([evalCase.surface] as const)
+      : undefined;
+    const actual = impliesTeamWideAvailabilityFromSemantic(prompt, surfaces);
+    if (actual !== expect.teamWideAvailabilitySemantic) {
+      errors.push(
+        `teamWideAvailabilitySemantic: expected ${expect.teamWideAvailabilitySemantic}, got ${actual}`,
+      );
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
+
+  if (expect.useAnyProviderBookingSemanticDetect) {
+    const surfaces = evalCase.surface
+      ? ([evalCase.surface] as const)
+      : undefined;
+    const actual = impliesAnyProviderBookingFromSemantic(prompt, surfaces);
+    if (actual !== expect.anyProviderBookingSemantic) {
+      errors.push(
+        `anyProviderBookingSemantic: expected ${expect.anyProviderBookingSemantic}, got ${actual}`,
+      );
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
+
+  if (expect.useRecommendSpecialistsSemanticDetect) {
+    const surfaces = evalCase.surface
+      ? ([evalCase.surface] as const)
+      : undefined;
+    const actual = impliesRecommendSpecialistsFromSemantic(prompt, surfaces);
+    if (actual !== expect.recommendSpecialistsSemantic) {
+      errors.push(
+        `recommendSpecialistsSemantic: expected ${expect.recommendSpecialistsSemantic}, got ${actual}`,
+      );
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
+
+  if (expect.useMetricResolverSemanticDetect) {
+    const surface = evalCase.surface ?? 'dashboard';
+    const kind = expect.metricResolverKind;
+    const expected = expect.metricResolverExpected;
+    let actual: string | null = null;
+    if (kind === 'booking') {
+      actual = resolveBookingMetricFromSemantic(prompt, surface);
+    } else if (kind === 'staff') {
+      actual = resolveStaffMetricFromSemantic(prompt, surface);
+    } else if (kind === 'service') {
+      actual = resolveServiceMetricFromSemantic(prompt, surface);
+    } else if (kind === 'customer') {
+      actual = resolveCustomerMetricFromSemantic(prompt, surface);
+    } else if (kind === 'appointment') {
+      actual = resolveAppointmentMetricFromSemantic(prompt, surface);
+    }
+    const matched =
+      expect.metricResolverSemantic === true
+        ? actual === expected
+        : actual !== expected;
+    if (!matched) {
+      errors.push(
+        `metricResolverSemantic(${kind}): expected ${expect.metricResolverSemantic ? expected : `not ${expected}`}, got ${actual}`,
+      );
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
+
+  if (expect.useSemanticIntentMatch) {
+    const surface = evalCase.surface ?? 'dashboard';
+    const allowedActions = resolveSemanticAllowedActions(surface);
+    const anchors = filterAnchorsForSurface(
+      getIntentAnchorBank(),
+      surface,
+      allowedActions,
+    );
+    const ranked = rankAnchorsDeterministic(prompt, anchors);
+    let match = resolveSemanticMatch(ranked, {
+      threshold: SEMANTIC_CONCEPT_THRESHOLD,
+    });
+    if (
+      !match &&
+      expect.semanticMatchUseTopAnchorFallback &&
+      ranked[0] &&
+      ranked[0].score >= SEMANTIC_CONCEPT_THRESHOLD
+    ) {
+      match = buildSemanticMatchFromAnchor(ranked[0].anchor, ranked[0].score);
+    }
+    const expectedAction =
+      expect.semanticMatchAction ?? expect.rescuedAction ?? expect.action;
+    if (!expectedAction) {
+      errors.push('semanticMatchAction: missing expected action on eval case');
+    } else if (!match || match.action !== expectedAction) {
+      errors.push(
+        `semanticMatchAction: expected ${expectedAction}, got ${match?.action ?? 'none'}`,
+      );
+    }
+    if (expect.rescueReason && match?.rescueReason !== expect.rescueReason) {
+      errors.push(
+        `rescueReason: expected ${expect.rescueReason}, got ${match?.rescueReason ?? 'none'}`,
+      );
+    }
+    const paramsExpect =
+      expect.semanticMatchParamsPartial ?? expect.paramsPartial;
+    if (paramsExpect) {
+      if (!match?.paramHints) {
+        errors.push('semanticMatchParamsPartial: matcher returned no paramHints');
+      } else {
+        errors.push(...paramsMatchPartial(match.paramHints, paramsExpect));
+      }
+    }
+    return { id: evalCase.id, passed: errors.length === 0, errors };
+  }
 
   if (expect.needsMultilingual !== undefined) {
     const actual = needsMultilingualNormalization(prompt);
@@ -209,6 +356,9 @@ export function evaluateDeterministicEvalCase(
     const useSurfaceConsumerClinicTestResultsRescue =
       expect.useSurfaceConsumerClinicTestResultsRescue === true &&
       evalCase.surface === 'customer';
+    const useSurfaceProviderImplicationRescue =
+      expect.useSurfaceProviderImplicationRescue === true &&
+      evalCase.surface === 'provider';
     const useSurfaceProviderPushSetupRescue =
       expect.useSurfaceProviderPushSetupRescue === true &&
       evalCase.surface === 'provider';
@@ -277,6 +427,9 @@ export function evaluateDeterministicEvalCase(
     const providerPushSetupRescued = useSurfaceProviderPushSetupRescue
       ? rescueProviderPushSetupIntent(prompt, misclassifiedAction)
       : null;
+    const providerImplicationAction = useSurfaceProviderImplicationRescue
+      ? rescueProviderAiIntent(prompt, misclassifiedAction)
+      : null;
     const rescued = useSurfaceSelfServiceRescue
       ? selfServiceRescued
         ? {
@@ -330,6 +483,16 @@ export function evaluateDeterministicEvalCase(
                     rescueReason: consumerClinicTestResultsRescued.rescueReason,
                   }
                 : null
+              : useSurfaceProviderImplicationRescue
+                ? providerImplicationAction &&
+                  providerImplicationAction !== misclassifiedAction
+                  ? {
+                      action: providerImplicationAction,
+                      params: {},
+                      rescued: true,
+                      rescueReason: 'provider_heuristic',
+                    }
+                  : null
               : useSurfaceProviderPushSetupRescue
                 ? providerPushSetupRescued
                   ? {

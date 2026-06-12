@@ -35,7 +35,7 @@ export class BookingAgentRouterService {
     return this.useCommandGraph();
   }
 
-  /** ReAct tool-calling agent for orchestration / ambiguous prompts. */
+  /** ReAct tool-calling agent — fallback when pipeline still returns unknown (pipe-1.9.2). */
   useReactAgent(): boolean {
     return (
       this.config.get<string>('LANGGRAPH_REACT_AGENT') === 'true' ||
