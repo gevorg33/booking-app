@@ -74,7 +74,10 @@ function inferYearForMonthDay(
     `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     tz,
   );
-  if (candidate.isBefore(today, 'day')) year += 1;
+  if (candidate.isBefore(today, 'day')) {
+    const daysAgo = today.diff(candidate, 'day');
+    if (daysAgo > 90) year += 1;
+  }
   return year;
 }
 
@@ -1245,7 +1248,14 @@ export function filterBookingsByTimeConstraints<
 
   if (params.timeSlot) {
     const slot = normalizeTime24(params.timeSlot);
-    return bookings.filter((b) => formatTimeDisplay(b.startTime) === slot);
+    // Bookings store wall-clock HH:mm as UTC components (see dashboard toISO).
+    return bookings.filter((b) => {
+      const start =
+        b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+      const hh = String(start.getUTCHours()).padStart(2, '0');
+      const min = String(start.getUTCMinutes()).padStart(2, '0');
+      return `${hh}:${min}` === slot;
+    });
   }
 
   return bookings;

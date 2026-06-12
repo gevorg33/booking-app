@@ -1648,7 +1648,12 @@ export function validateEntityResolution(
   } else if (
     params.employeeName &&
     !params.allProviders &&
-    (entities.employees?.length ?? 0) === 0
+    (entities.employees?.length ?? 0) === 0 &&
+    !(
+      cmd.action === 'mark_paid' &&
+      params.date &&
+      params.timeSlot
+    )
   ) {
     issues.push({
       field: 'employeeName',

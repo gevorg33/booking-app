@@ -92,6 +92,17 @@ export function formatTimeDisplay(
   if (timeFormat) {
     return formatTimeWithFormat(d, timeFormat, options?.timeZone ?? 'UTC');
   }
+  if (options?.timeZone) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: options.timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d);
+    const hh = parts.find((p) => p.type === 'hour')?.value ?? '00';
+    const min = parts.find((p) => p.type === 'minute')?.value ?? '00';
+    return `${hh}:${min}`;
+  }
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const min = String(d.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${min}`;

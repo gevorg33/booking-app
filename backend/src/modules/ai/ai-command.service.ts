@@ -253,6 +253,7 @@ import {
   shouldBlockUnknownFromHandlerSwitch,
 } from './ai-unknown-intent.util.js';
 import { applyStructuralIntentEnrichment } from './ai-intent-structural-enrich.util.js';
+import { enrichMarkPaidParamsFromPrompt } from './ai-booking-depth.util.js';
 import { resolveConfidenceGateThresholds } from './confidence-gate.util.js';
 import {
   findClassifierCandidate,
@@ -1526,6 +1527,32 @@ export class AiCommandService {
       );
     }
 
+    if (parsed.action === 'mark_paid') {
+      const pageCtx = session?.context as Record<string, unknown> | undefined;
+      const markPaidSessionDate =
+        typeof pageCtx?.date === 'string' ? pageCtx.date : undefined;
+      Object.assign(
+        parsed.params,
+        enrichMarkPaidParamsFromPrompt(
+          effectivePrompt,
+          parsed.params,
+          timeZone,
+          {
+            employees: employees.map((e) => ({ name: e.name })),
+            customers: customers.map((c) => ({ name: c.name })),
+            sessionDate: markPaidSessionDate,
+            calendarRoute:
+              typeof pageCtx?.route === 'string' ? pageCtx.route : undefined,
+          },
+        ),
+      );
+      this.completionPipeline.normalizeDateParams(
+        parsed.params,
+        effectivePrompt,
+        timeZone,
+      );
+    }
+
     const handoff = runCompletionValidateHandoff(
       {
         businessId,
@@ -1807,13 +1834,25 @@ export class AiCommandService {
           params,
         );
         break;
-      case 'mark_paid':
+      case 'mark_paid': {
+        const pageCtx = session?.context as Record<string, unknown> | undefined;
         result = await this.bookingDepth.handleMarkPaid(
           businessId,
-          params,
+          { ...params, _timeZone: timeZone },
           userId,
+          {
+            prompt: effectivePrompt,
+            employees,
+            customers,
+            timeZone,
+            sessionDate:
+              typeof pageCtx?.date === 'string' ? pageCtx.date : undefined,
+            calendarRoute:
+              typeof pageCtx?.route === 'string' ? pageCtx.route : undefined,
+          },
         );
         break;
+      }
       case 'assign_booking_resource':
         result = await this.bookingDepth.handleAssignResource(
           businessId,
@@ -4880,7 +4919,7 @@ export class AiCommandService {
         params.customerName = null;
         delete params.customerId;
       }
-    } else if (action !== 'reschedule_booking') {
+    } else if (action !== 'reschedule_booking' && action !== 'mark_paid') {
       const promptCustomer = matchEntityInPrompt(
         prompt,
         customers.map((c) => ({ name: c.name })),
@@ -4893,7 +4932,7 @@ export class AiCommandService {
     if (isTeamWideProviderAvailabilityQuery(prompt)) {
       const emp = matchEntityInPrompt(prompt, employees);
       if (!emp) params.employeeName = null;
-    } else {
+    } else if (action !== 'mark_paid') {
       const emp = matchEntityInPrompt(prompt, employees);
       if (emp) params.employeeName = emp.name;
     }

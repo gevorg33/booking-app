@@ -7,6 +7,14 @@ alwaysApply: true
 
 **A feature is NOT shippable until AI can handle it on every surface where users interact with it.**
 
+## Pipe-1 target flow (mandatory stages)
+
+Every new AI feature must follow the confidence-gated understanding pipeline — see `ai-command-pipeline.mdc` for file-level detail:
+
+`normalize → fast heuristics → LLM classify → confidence gate → (low: semantic + re-rank + optional narrow re-classify) → rescue → self-verify → structural enrich → validate → execute → telemetry`
+
+Map your work to stages: classifier rules (classify), rescue fixtures (rescue), validators (validate), handlers (execute), eval cases (telemetry + accuracy). Do not bypass the pipeline with one-off classify/rescue shortcuts.
+
 ## Required surfaces (all four — never skip one)
 
 | Surface | Users | Classifier schema | Service |

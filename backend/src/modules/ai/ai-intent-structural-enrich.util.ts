@@ -6,6 +6,7 @@ import {
   sanitizeProviderScopeFromPrompt,
 } from './ai-orchestration.helpers.js';
 import { applyDefaultWorkTimeSchedulePeriods } from './ai-intent-structural-enrich-work-time.util.js';
+import { enrichMarkPaidParamsFromPrompt } from './ai-booking-depth.util.js';
 import { isScheduleOpsAction } from './ai-schedule-ops-hints.util.js';
 import { STRUCTURAL_ENRICH_PIPE_MARKER } from './ai-intent-structural-enrich.fixtures.js';
 
@@ -158,6 +159,15 @@ export function applyStructuralIntentEnrichment(
     params.periods = workTime.periods;
     hints.periods = true;
     hints.workTimeDefault = workTime.appliedDefault;
+  }
+
+  if (intent.action === 'mark_paid') {
+    Object.assign(
+      params,
+      enrichMarkPaidParamsFromPrompt(context.prompt, params, timeZone, {
+        employees: employees.map((e) => ({ name: e.name })),
+      }),
+    );
   }
 
   params._structuralEnrichHints = hints;

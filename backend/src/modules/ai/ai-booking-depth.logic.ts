@@ -1,4 +1,4 @@
-import { Between, Not, Repository } from 'typeorm';
+import { Between, In, Not, Repository } from 'typeorm';
 import {
   Booking,
   BookingStatus,
@@ -10,10 +10,16 @@ import { Service } from '../service/entities/service.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import type { CommandResult } from './command-completion.types.js';
-import { buildUtcStartTimeFromDayAndTime } from '../../common/utils/date-format.util.js';
-import { resolveDateRange } from './ai-orchestration.helpers.js';
+import { buildUtcStartTimeFromDayAndTime, toIsoDay } from '../../common/utils/date-format.util.js';
+import {
+  filterBookingsByTimeConstraints,
+  fuzzyMatchByName,
+  resolveDateRange,
+  resolveEmployees,
+} from './ai-orchestration.helpers.js';
 import {
   enrichCashBookingParams,
+  enrichMarkPaidParamsFromPrompt,
   enrichSubscriptionCreditParams,
   filterCashPendingBookings,
   filterMultiServiceBookings,
@@ -316,13 +322,13 @@ export async function handleExplainBookingPolicyLogic(
 
 async function loadPackageVisit(
   deps: Pick<BookingDepthLogicDeps, 'bookingRepo'>,
-  anchor: Booking,
+  businessId: string,
+  packagePurchaseId: string,
 ): Promise<Booking[]> {
-  if (!anchor.packagePurchaseId) return [];
   return deps.bookingRepo.find({
     where: {
-      businessId: anchor.businessId,
-      packagePurchaseId: anchor.packagePurchaseId,
+      businessId,
+      packagePurchaseId,
     },
     relations: { employee: true, service: true, customer: true },
     order: { startTime: 'ASC' },
@@ -354,7 +360,11 @@ export async function handleCancelPackageVisitLogic(
     );
   }
 
-  const visit = await loadPackageVisit(deps, anchor);
+  const visit = await loadPackageVisit(
+    deps,
+    anchor.businessId,
+    anchor.packagePurchaseId,
+  );
   const active = visit.filter((b) => ACTIVE_STATUSES.includes(b.status));
   if (!active.length) {
     return failure(
@@ -452,7 +462,9 @@ export async function handleReschedulePackageVisitLogic(
     );
   }
 
-  const visit = sortPackageVisitBookings(await loadPackageVisit(deps, anchor));
+  const visit = sortPackageVisitBookings(
+    await loadPackageVisit(deps, anchor.businessId, anchor.packagePurchaseId),
+  );
   const active = visit.filter((b) => ACTIVE_STATUSES.includes(b.status));
   if (!active.length) {
     return failure(
@@ -532,14 +544,217 @@ export async function handleRescheduleMultiServiceGroupLogic(
   );
 }
 
+export interface MarkPaidResolveContext {
+  prompt?: string;
+  employees?: Employee[];
+  customers?: Customer[];
+  timeZone?: string;
+  sessionDate?: string;
+  calendarRoute?: string;
+}
+
+function filterBookingsByCustomerName(
+  bookings: Booking[],
+  customerName: string,
+): Booking[] {
+  const needle = customerName.toLowerCase();
+  return bookings.filter((b) =>
+    b.customer?.name?.toLowerCase().includes(needle),
+  );
+}
+
+async function queryMarkPaidBookings(
+  deps: BookingDepthLogicDeps,
+  businessId: string,
+  enriched: Record<string, any>,
+  employeeIds: string[] | undefined,
+  tz: string,
+): Promise<Booking[]> {
+  const where: Record<string, unknown> = {
+    businessId,
+    status: Not(BookingStatus.CANCELLED),
+  };
+
+  if (employeeIds?.length === 1) {
+    where.employeeId = employeeIds[0];
+  } else if (employeeIds && employeeIds.length > 1) {
+    where.employeeId = In(employeeIds);
+  }
+
+  if (enriched.date) {
+    const isoDay = toIsoDay(enriched.date, tz);
+    const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
+    const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
+    where.startTime = Between(dayStart, dayEnd);
+  }
+
+  return deps.bookingRepo.find({
+    where,
+    relations: { employee: true, customer: true },
+    order: { startTime: 'ASC' },
+  }).then((rows) => rows ?? []);
+}
+
+async function findBookingsForMarkPaid(
+  deps: BookingDepthLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  ctx: MarkPaidResolveContext,
+): Promise<Booking[]> {
+  const employees = ctx.employees ?? [];
+  const customers = ctx.customers ?? [];
+  const prompt = ctx.prompt;
+  const tz = params._timeZone ?? ctx.timeZone ?? 'UTC';
+  let enriched = enrichMarkPaidParamsFromPrompt(
+    prompt ?? '',
+    params,
+    tz,
+    {
+      employees,
+      customers,
+    },
+  ) as Record<string, any>;
+
+  const range = resolveDateRange(enriched, prompt, tz);
+  if (range && !enriched.date) {
+    enriched = { ...enriched, date: toIsoDay(range.start, tz) };
+  }
+
+  let employeeIds: string[] | undefined;
+  if (enriched.employeeName || enriched.employeeNames?.length) {
+    const resolved = resolveEmployees(employees, enriched);
+    if (resolved.length) {
+      employeeIds = resolved.map((e) => e.id);
+    }
+  }
+
+  let bookings = await queryMarkPaidBookings(
+    deps,
+    businessId,
+    enriched,
+    employeeIds,
+    tz,
+  );
+
+  const customerResolved =
+    enriched.customerName &&
+    typeof enriched.customerName === 'string' &&
+    customers.length
+      ? fuzzyMatchByName(customers, enriched.customerName)
+      : undefined;
+
+  if (
+    !bookings.length &&
+    customerResolved &&
+    employeeIds?.length
+  ) {
+    bookings = await queryMarkPaidBookings(
+      deps,
+      businessId,
+      enriched,
+      undefined,
+      tz,
+    );
+    bookings = filterBookingsByCustomerName(bookings, customerResolved.name);
+  } else if (customerResolved && !employeeIds?.length) {
+    bookings = filterBookingsByCustomerName(bookings, customerResolved.name);
+  }
+
+  bookings = filterBookingsByTimeConstraints(bookings, enriched, prompt);
+
+  if (
+    !bookings.length &&
+    enriched.date &&
+    enriched.timeSlot
+  ) {
+    const bySlot = filterBookingsByTimeConstraints(
+      await queryMarkPaidBookings(deps, businessId, enriched, undefined, tz),
+      enriched,
+      prompt,
+    );
+    if (bySlot.length) bookings = bySlot;
+  }
+
+  const actionable = bookings.filter(
+    (b) =>
+      b.paymentStatus !== PaymentStatus.PAID &&
+      b.status !== BookingStatus.COMPLETED,
+  );
+  return actionable.length ? actionable : bookings;
+}
+
+function resolveMarkPaidBookingIds(
+  matches: Booking[],
+  params: Record<string, any>,
+): string[] {
+  if (!matches.length) return [];
+  if (matches.length === 1) return [matches[0]!.id];
+
+  const groupId = matches[0]!.multiServiceGroupId;
+  if (
+    groupId &&
+    matches.every((b) => b.multiServiceGroupId === groupId)
+  ) {
+    return matches.map((b) => b.id);
+  }
+
+  if (params.timeSlot) {
+    return matches.map((b) => b.id);
+  }
+
+  return [];
+}
+
 export async function handleMarkPaidLogic(
   deps: BookingDepthLogicDeps,
   businessId: string,
   params: Record<string, any>,
   userId?: string,
+  ctx?: MarkPaidResolveContext,
 ): Promise<CommandResult> {
-  const bookingId = params.bookingId as string | undefined;
-  if (!bookingId) {
+  const tz = params._timeZone ?? ctx?.timeZone ?? 'UTC';
+  const workingParams = ctx?.prompt
+    ? (enrichMarkPaidParamsFromPrompt(
+        ctx.prompt,
+        params,
+        tz,
+        {
+          employees: ctx.employees,
+          customers: ctx.customers,
+          sessionDate: ctx.sessionDate,
+          calendarRoute: ctx.calendarRoute,
+        },
+      ) as Record<string, any>)
+    : params;
+
+  let bookingIds: string[] = workingParams.bookingId
+    ? [workingParams.bookingId]
+    : Array.isArray(workingParams.bookingIds)
+      ? workingParams.bookingIds
+      : [];
+
+  if (!bookingIds.length && ctx) {
+    const matches = await findBookingsForMarkPaid(
+      deps,
+      businessId,
+      workingParams,
+      ctx,
+    );
+    bookingIds = resolveMarkPaidBookingIds(matches, workingParams);
+    if (!bookingIds.length && matches.length > 1) {
+      return failure(
+        'mark_paid',
+        `Found ${matches.length} matching appointments — specify a time or booking ID.`,
+        {
+          clarify: true,
+          missing: ['bookingId', 'timeSlot'],
+          matchedCount: matches.length,
+        },
+      );
+    }
+  }
+
+  if (!bookingIds.length) {
     return failure(
       'mark_paid',
       'Specify which booking to mark paid (booking ID or reference).',
@@ -550,35 +765,50 @@ export async function handleMarkPaidLogic(
     );
   }
 
-  const booking = await deps.bookingRepo.findOne({
-    where: { id: bookingId, businessId },
-    relations: { customer: true },
-  });
-  if (!booking) return failure('mark_paid', `Booking ${bookingId} not found.`);
+  const updatedIds: string[] = [];
+  let summaryName = 'appointment';
 
-  const isCash =
-    booking.metadata?.payAtVenue === true ||
-    booking.metadata?.paymentMethod === 'cash';
-  await deps.bookingService.update(
-    booking.id,
-    {
-      paymentStatus: PaymentStatus.PAID,
-      status: BookingStatus.COMPLETED,
-      metadata: {
-        ...(booking.metadata ?? {}),
-        paidVia: isCash ? 'cash' : 'manual',
-        paidAt: new Date().toISOString(),
-        paidByUserId: userId,
+  for (const bookingId of bookingIds) {
+    const booking = await deps.bookingRepo.findOne({
+      where: { id: bookingId, businessId },
+      relations: { customer: true },
+    });
+    if (!booking) continue;
+
+    const isCash =
+      booking.metadata?.payAtVenue === true ||
+      booking.metadata?.paymentMethod === 'cash';
+    await deps.bookingService.update(
+      booking.id,
+      {
+        paymentStatus: PaymentStatus.PAID,
+        status: BookingStatus.COMPLETED,
+        metadata: {
+          ...(booking.metadata ?? {}),
+          paidVia: isCash ? 'cash' : 'manual',
+          paidAt: new Date().toISOString(),
+          paidByUserId: userId,
+        },
       },
-    },
-    userId,
-  );
+      userId,
+    );
+    updatedIds.push(booking.id);
+    if (booking.customer?.name) summaryName = booking.customer.name;
+  }
 
-  return success(
-    'mark_paid',
-    `Marked paid — ${booking.customer?.name ?? 'appointment'}.`,
-    { bookingId: booking.id },
-  );
+  if (!updatedIds.length) {
+    return failure('mark_paid', `Booking ${bookingIds[0]} not found.`);
+  }
+
+  const summary =
+    updatedIds.length === 1
+      ? `Marked paid — ${summaryName}.`
+      : `Marked ${updatedIds.length} appointments paid.`;
+
+  return success('mark_paid', summary, {
+    bookingId: updatedIds[0],
+    bookingIds: updatedIds,
+  });
 }
 
 export async function handleAssignBookingResourceLogic(
