@@ -22,6 +22,8 @@ import {
 } from '../../common/utils/customer-self-service.util.js';
 import { getBusinessStripeIntegration } from '../billing/stripe-integration.types.js';
 import {
+  applyAvailabilityDateFromPrompt,
+  hasExplicitWeekdayInAvailabilityPrompt,
   resolveDateRange,
   resolvePublicAvailabilityWindows,
 } from './ai-orchestration.helpers.js';
@@ -773,8 +775,12 @@ export async function handleCheckProvidersForServiceLogic(
     where: { id: businessId },
   });
   const tz = resolveTimezone(business?.timezone);
+  const queryParams = { ...params };
+  if (hasExplicitWeekdayInAvailabilityPrompt(queryParams, prompt)) {
+    applyAvailabilityDateFromPrompt(queryParams, prompt, tz);
+  }
   const availabilityWindows = resolvePublicAvailabilityWindows(
-    params,
+    queryParams,
     prompt,
     tz,
   );
@@ -856,20 +862,31 @@ export async function handleCheckProvidersForServiceLogic(
     }
   }
 
-  const dateKey = resolveAvailabilityDateKey(params, prompt, tz);
-  const notBeforeTime = notBeforeTimeFromWindow(prompt ?? '', params);
+  const primaryWindow = availabilityWindows[0];
+  const dateKeys =
+    primaryWindow?.dateKeys?.length > 0
+      ? primaryWindow.dateKeys
+      : [resolveAvailabilityDateKey(queryParams, prompt, tz)];
+  const notBeforeTime =
+    primaryWindow?.timeFrom ??
+    notBeforeTimeFromWindow(prompt ?? '', queryParams);
   const timeOfDay =
-    (params.timeOfDay as string | undefined) ??
-    parseTimeOfDayWindow(prompt ?? '', params) ??
-    parseMultilingualTimeOfDayWindow(prompt ?? '', params);
+    primaryWindow?.timeOfDay ??
+    (queryParams.timeOfDay as string | undefined) ??
+    parseTimeOfDayWindow(prompt ?? '', queryParams) ??
+    parseMultilingualTimeOfDayWindow(prompt ?? '', queryParams);
 
   try {
     const result = await deps.publicBookingService.recommendProviders(slug, {
       serviceId: service.id,
-      dateKeys: [dateKey],
+      dateKeys,
       notBeforeTime,
-      limit: params.limit as number | undefined,
+      limit: queryParams.limit as number | undefined,
     });
+    const dateKey =
+      result.providers.find((provider) =>
+        dateKeys.includes(provider.earliestDateKey),
+      )?.earliestDateKey ?? dateKeys[0]!;
     const formatted = buildCheckProvidersSummary({
       serviceName: service.name,
       dateKey,

@@ -76,10 +76,14 @@ export function mergePublicAssistantSessionParams(
   const skipForNearest =
     action === 'book_appointment' && params.bookingFirstAvailable === true;
   const skipSessionDate =
-    (action === 'check_availability' || action === 'recommend_specialists') &&
+    (action === 'check_availability' ||
+      action === 'check_providers_for_service' ||
+      action === 'recommend_specialists') &&
     ((Array.isArray(params.weekdays) && params.weekdays.length > 0) ||
       params.dateFrom != null ||
-      params.dateTo != null);
+      params.dateTo != null ||
+      (Array.isArray(params.availabilityWindows) &&
+        params.availabilityWindows.length > 0));
 
   for (const key of PUBLIC_ASSISTANT_SESSION_MERGE_KEYS) {
     if (

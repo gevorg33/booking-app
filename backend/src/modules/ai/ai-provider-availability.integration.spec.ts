@@ -6,6 +6,28 @@ import {
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
 import { findNearestBookableSlotAcrossWindowsWithFinder } from './ai-nearest-slot-resolver.util.js';
+import {
+  addDaysToDateKey,
+} from '../../common/utils/timezone.util.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone.js';
+import utc from 'dayjs/plugin/utc.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+function nextMondayDateKeys(timeZone = 'UTC', scanDays = 14): string[] {
+  const todayKey = getTodayDateKey(timeZone);
+  const keys: string[] = [];
+  for (let offset = 0; offset < scanDays; offset++) {
+    const dateKey = addDaysToDateKey(todayKey, offset, timeZone);
+    if (dayjs.tz(dateKey, timeZone).day() === 1) {
+      keys.push(dateKey);
+    }
+  }
+  return keys;
+}
 
 function attachNearestAcrossWindowsMock(publicBookingService: {
   findNearestBookableSlot: jest.Mock;
@@ -28,6 +50,13 @@ const services = [
     name: 'Permanent lips',
     businessId: 'biz-1',
     price: 120,
+    isActive: true,
+  },
+  {
+    id: 's3',
+    name: 'permanent brows',
+    businessId: 'biz-1',
+    price: 85,
     isActive: true,
   },
 ] as any[];
@@ -101,10 +130,33 @@ function buildDeps(
 describe('ai provider availability integration', () => {
   describe('handleCheckProvidersForServiceLogic', () => {
     it('returns structured availability for a matched service and date', async () => {
+      const targetDate = addDaysToDateKey(getTodayDateKey('UTC'), 2, 'UTC');
       const result = await handleCheckProvidersForServiceLogic(
-        buildDeps(),
+        buildDeps({
+          publicBookingService: {
+            recommendProviders: jest.fn(async () => ({
+              providers: [
+                {
+                  id: 'e1',
+                  name: 'Karo Mazmanyan',
+                  role: 'Cosmetologist',
+                  earliestDateKey: targetDate,
+                  earliestStartTime: `${targetDate}T14:00:00Z`,
+                  previewTimes: ['14:00', '14:30'],
+                  matchedServiceId: 's2',
+                  matchedServiceName: 'Permanent lips',
+                },
+              ],
+            })),
+            findNearestBookableSlot: jest.fn(async () => ({
+              startTime: `${targetDate}T14:00:00Z`,
+              employeeId: 'e1',
+              employeeName: 'Karo Mazmanyan',
+            })),
+          } as any,
+        }),
         'biz-1',
-        { serviceName: 'Permanent lips', date: '2026-06-06' },
+        { serviceName: 'Permanent lips', date: targetDate },
         'tomorrow afternoon',
       );
 
@@ -121,7 +173,7 @@ describe('ai provider availability integration', () => {
         }),
       ]);
       expect(result.details?.serviceName).toBe('Permanent lips');
-      expect(result.details?.date).toBe('2026-06-06');
+      expect(result.details?.date).toBe(targetDate);
     });
 
     it('requires a service name', async () => {
@@ -186,6 +238,55 @@ describe('ai provider availability integration', () => {
       expect(result.summary).toContain('Jujo Karapetyan');
       expect(result.details?.date).toBe('2026-06-09');
       expect(result.summary).toContain('17:00');
+    });
+
+    it('uses monday evening windows instead of a stale session date', async () => {
+      const mondayKeys = nextMondayDateKeys('UTC');
+      const mondayKey = mondayKeys[0]!;
+      const recommendProviders = jest.fn(async () => ({
+        providers: [
+          {
+            id: 'e1',
+            name: 'Mary Torgomyan',
+            role: 'Permanent + Alexandrite',
+            earliestDateKey: mondayKey,
+            earliestStartTime: `${mondayKey}T17:30:00.000Z`,
+            previewTimes: ['17:30', '18:00', '18:30'],
+            matchedServiceName: 'permanent brows',
+          },
+        ],
+      }));
+      const result = await handleCheckProvidersForServiceLogic(
+        buildDeps({
+          publicBookingService: { recommendProviders } as any,
+          businessRepo: {
+            findOne: jest.fn(async () => ({
+              id: 'biz-1',
+              slug: 'salon',
+              timezone: 'UTC',
+            })),
+          } as any,
+        }),
+        'biz-1',
+        {
+          serviceName: 'permanent brows',
+          weekdays: ['monday'],
+          timeOfDay: 'evening',
+          date: '13/06/2026',
+        },
+        'I want to book permanent brows monday evening',
+      );
+
+      expect(recommendProviders).toHaveBeenCalledWith('salon', {
+        serviceId: 's3',
+        dateKeys: expect.arrayContaining([mondayKey]),
+        notBeforeTime: '17:00',
+        limit: undefined,
+      });
+      expect(result.success).toBe(true);
+      expect(result.details?.date).toBe(mondayKey);
+      expect(result.summary).toContain('Mary Torgomyan');
+      expect(result.summary).toContain('17:30');
     });
 
     it('returns no-provider summary when recommendProviders is empty', async () => {
