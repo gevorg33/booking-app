@@ -4,6 +4,9 @@ import {
   decomposeIntegrationsCompoundPrompt,
   isListWebhooksPrompt,
   isCreateWebhookPrompt,
+  isDeleteWebhookPrompt,
+  isToggleWebhookPrompt,
+  resolveWebhookEnabledFromPrompt,
   isTestWebhookPrompt,
   isRotateApiKeyPrompt,
   isListZapierTriggersPrompt,
@@ -82,6 +85,53 @@ describe('ai-integrations.util', () => {
       expect(
         isListIntegrationHealthPrompt('List integration health status'),
       ).toBe(true);
+    });
+
+    it.each([
+      'Delete the webhook for https://hooks.example.com/x',
+      'Remove webhook 123e4567-e89b-12d3-a456-426614174000',
+      'Drop the booking webhook',
+      'Unregister our webhook',
+      'Please delete that webhook subscription',
+      'Get rid of the old webhook',
+      'Remove the payment.received webhook',
+      'Delete webhooks pointing to the staging server',
+      'Can you remove the webhook we no longer use',
+      'Delete the second webhook',
+    ])('detects delete webhook prompt: %s', (prompt) => {
+      expect(isDeleteWebhookPrompt(prompt)).toBe(true);
+      expect(isCreateWebhookPrompt(prompt)).toBe(false);
+      expect(isToggleWebhookPrompt(prompt)).toBe(false);
+    });
+
+    it.each([
+      ['Disable the booking webhook', false],
+      ['Pause our webhook for now', false],
+      ['Turn off the webhook to https://hooks.example.com/x', false],
+      ['Deactivate webhook 123e4567-e89b-12d3-a456-426614174000', false],
+      ['Enable the webhook again', true],
+      ['Resume the paused webhook', true],
+      ['Turn on the payment webhook', true],
+      ['Reactivate our webhook subscription', true],
+      ['Activate the booking.created webhook', true],
+      ['Please disable webhooks until the migration is done', false],
+    ])('detects toggle webhook prompt: %s', (prompt, enabled) => {
+      expect(isToggleWebhookPrompt(prompt)).toBe(true);
+      expect(isDeleteWebhookPrompt(prompt)).toBe(false);
+      expect(resolveWebhookEnabledFromPrompt(prompt)).toBe(enabled);
+    });
+
+    it('keeps webhook delete/toggle apart from neighbours', () => {
+      expect(isDeleteWebhookPrompt('Create webhook for booking.created')).toBe(
+        false,
+      );
+      expect(isDeleteWebhookPrompt('Test webhook delivery')).toBe(false);
+      expect(isToggleWebhookPrompt('Configure Zapier integration')).toBe(false);
+      expect(isToggleWebhookPrompt('Enable online booking')).toBe(false);
+      expect(resolveWebhookEnabledFromPrompt('Enable online booking')).toBe(
+        undefined,
+      );
+      expect(resolveWebhookEnabledFromPrompt('List webhooks')).toBe(undefined);
     });
 
     it('detects customer integration prompts', () => {
@@ -302,6 +352,26 @@ describe('ai-integrations.util', () => {
       ).toBe('open_ticket_for_order');
     });
 
+    it('rescues delete and toggle webhook intents', () => {
+      expect(
+        rescueIntegrationsIntent(
+          'Delete the webhook for https://hooks.example.com/x',
+          'unknown',
+        )?.action,
+      ).toBe('delete_webhook');
+      expect(
+        rescueIntegrationsIntent('Disable the booking webhook', 'unknown')
+          ?.action,
+      ).toBe('toggle_webhook');
+      expect(
+        rescueIntegrationsIntent('Re-enable the paused webhook', 'unknown')
+          ?.action,
+      ).toBe('toggle_webhook');
+      expect(
+        rescueIntegrationsIntent('Disable the booking webhook', 'toggle_webhook'),
+      ).toBeNull();
+    });
+
     it('skips rescue for payments export accounting and customerCrm gift card tickets', () => {
       expect(
         rescueIntegrationsIntent('Export accounting for May', 'unknown'),
@@ -360,6 +430,18 @@ describe('ai-integrations.util', () => {
       ]);
       expect(steps[1].params.events).toEqual(['booking.created']);
 
+      const lifecycle = decomposeIntegrationsCompoundPrompt(
+        'Disable the webhook for https://hooks.example.com/x and delete webhook 123e4567-e89b-12d3-a456-426614174000',
+      );
+      expect(lifecycle.map((s) => s.action)).toEqual([
+        'toggle_webhook',
+        'delete_webhook',
+      ]);
+      expect(lifecycle[0].params.enabled).toBe(false);
+      expect(lifecycle[1].params.webhookId).toBe(
+        '123e4567-e89b-12d3-a456-426614174000',
+      );
+
       const zendesk = decomposeIntegrationsCompoundPrompt(
         'Configure Zendesk and sync customer Anna to Zendesk',
       );
@@ -386,7 +468,7 @@ describe('ai-integrations.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(INTEGRATIONS_INTENTS.length).toBe(14);
+      expect(INTEGRATIONS_INTENTS.length).toBe(16);
       expect(isIntegrationsIntent('list_webhooks')).toBe(true);
       expect(isIntegrationsIntent('not_real')).toBe(false);
       expect(decomposeIntegrationsCompoundPrompt('')).toEqual([]);

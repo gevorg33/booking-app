@@ -377,8 +377,16 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
   );
   if (bookNamedServiceNearest) {
     const name = bookNamedServiceNearest[1].trim().replace(/[,.]$/, '');
+    // Guard against the capture spanning a date/availability clause such as
+    // "book hairstyle tomorrow who is free at nearest time" — the real service
+    // is the head token; defer to the boundary-aware matcher below.
+    const spansClause =
+      /\b(tomorrow|tonight|today|who|whom|which|when|where|free|available|open|this|next)\b/i.test(
+        name,
+      );
     if (
       name &&
+      !spansClause &&
       !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
         name,
       )

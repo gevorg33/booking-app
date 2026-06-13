@@ -136,6 +136,8 @@ export const DASHBOARD_PIPELINE_MUTATING_ACTIONS = new Set<string>([
   'notify_delay',
   'enter_shipping_address',
   'create_webhook',
+  'delete_webhook',
+  'toggle_webhook',
   'rotate_api_key',
   'configure_zapier',
   'run_accounting_export',

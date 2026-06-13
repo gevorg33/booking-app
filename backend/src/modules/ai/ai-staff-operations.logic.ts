@@ -7,6 +7,7 @@ import type { CommandResult } from './command-completion.types.js';
 import {
   extractEmployeeEmailFromPrompt,
   extractEmployeeNameFromPrompt,
+  extractEmployeeUpdateFromPrompt,
   extractServiceNamesFromPrompt,
   parseOnlineBookingEnabledFromPrompt,
 } from './ai-staff-operations.util.js';
@@ -103,6 +104,92 @@ export async function handleCreateEmployeeLogic(
     return failure(
       'create_employee',
       err?.message ?? 'Could not create employee.',
+    );
+  }
+}
+
+export async function handleUpdateEmployeeLogic(
+  deps: StaffOperationsLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+  prompt: string | undefined,
+  userId?: string,
+): Promise<CommandResult> {
+  const extracted = extractEmployeeUpdateFromPrompt(prompt ?? '');
+  const employeeName =
+    (typeof params.employeeName === 'string' && params.employeeName.trim()) ||
+    extracted.employeeName ||
+    '';
+  if (!employeeName) {
+    return failure(
+      'update_employee',
+      'Please specify which team member to update (employeeName).',
+    );
+  }
+
+  const newName =
+    (typeof params.newName === 'string' && params.newName.trim()) ||
+    extracted.newName ||
+    undefined;
+  const email =
+    (typeof params.email === 'string' && params.email.trim()) ||
+    extracted.email ||
+    undefined;
+  const phone =
+    (typeof params.phone === 'string' && params.phone.trim()) ||
+    extracted.phone ||
+    undefined;
+  const title =
+    (typeof params.title === 'string' && params.title.trim()) ||
+    extracted.title ||
+    undefined;
+
+  if (!newName && !email && !phone && !title) {
+    return failure(
+      'update_employee',
+      `What should I change for ${employeeName}? Provide a new name, email, phone, or title.`,
+    );
+  }
+
+  const employees = await deps.employeeService.findAll(businessId);
+  const match = employees.find((e) =>
+    e.name.toLowerCase().includes(employeeName.toLowerCase()),
+  );
+  if (!match) {
+    return failure(
+      'update_employee',
+      `No active employee found matching "${employeeName}".`,
+    );
+  }
+
+  try {
+    const updated = await deps.employeeService.update(
+      match.id,
+      {
+        ...(newName ? { name: newName } : {}),
+        ...(email ? { email } : {}),
+        ...(phone ? { phone } : {}),
+        ...(title ? { title } : {}),
+      },
+      userId,
+    );
+    const changes = [
+      newName ? `name → ${newName}` : null,
+      email ? `email → ${email}` : null,
+      phone ? `phone → ${phone}` : null,
+      title ? `title → ${title}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return success(
+      'update_employee',
+      `Updated ${match.name}: ${changes}.`,
+      { employeeId: updated.id, employeeName: updated.name },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_employee',
+      err?.message ?? 'Could not update employee.',
     );
   }
 }

@@ -4,6 +4,7 @@ import { isAssignCategoryToProviderPrompt } from './ai-category-assignment.util.
 
 export const STAFF_OPERATIONS_MUTATE_INTENTS = [
   'create_employee',
+  'update_employee',
   'invite_staff_member',
   'deactivate_employee',
   'configure_online_booking',
@@ -16,12 +17,14 @@ export const STAFF_OPERATIONS_INTENTS = [
 export type StaffOperationsIntent = (typeof STAFF_OPERATIONS_INTENTS)[number];
 
 export const STAFF_OPERATIONS_CLASSIFIER_RULES = `- create_employee: MUTATE — add a new provider/team member to the business. Requires employeeName (display name). Optional email, phone, serviceNames (catalog skills to assign on create). Use for "add stylist Anna", "create employee Maria with massage services". NOT invite_staff_member (sends app invite to existing email), NOT assign_employee_services alone (assigns to existing provider).
+- update_employee: MUTATE — edit an existing team member's profile: rename, change email, phone, or job title. Requires employeeName (who to edit) plus at least one of newName, email, phone, title. Use for "rename Anna to Maria", "change Maria's email to m@salon.com", "update Jake's phone", "set Anna's title to Senior Stylist". NOT create_employee (new roster row), NOT deactivate_employee (removal), NOT assign_employee_services (skills), NOT update_service_prices (catalog prices).
 - invite_staff_member: MUTATE — send dashboard or provider-app invitation email. Requires email OR employeeName of an existing employee without app access. Optional role (contributor/manager). Use for "invite Maria to the provider app", "send staff invite to anna@salon.com". NOT create_employee (creates roster row first).
 - deactivate_employee: MUTATE — remove/deactivate a provider from active roster (soft delete). Requires employeeName. Use for "deactivate Gevorg", "remove Maria from the team". NOT cancel_bookings (cancels appointments), NOT block_schedule.
 - configure_online_booking: MUTATE — toggle or explain public booking page settings (enable/disable online booking). Optional enabled boolean. Use for "enable online booking", "turn off public booking page", "configure our booking website". NOT create_direct_schedule (staff hours).`;
 
 export const STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian dashboard staff operations (ai-cmd-ext-2.5–2.8):
   - create_employee: hy «ավելացրու Anna որպես stylist», «ստեղծիր աշխատակից Maria massage services-ով»; ru «добавь Anna в команду», «создай сотрудника Maria с услугами massage». Requires employeeName. NOT invite_staff_member.
+  - update_employee: hy «վերանվանիր Anna-ին Maria», «փոխիր Maria-ի email-ը m@salon.com», «թարմացրու Jake-ի հեռախոսը»; ru «переименуй Anna в Maria», «измени email Maria на m@salon.com», «обнови телефон Jake». Requires employeeName + a field. NOT create_employee, NOT deactivate_employee.
   - invite_staff_member: hy «հրավիր anna@salon.com provider app», «ուղարկիր հրավեր Maria-ին»; ru «пригласи anna@salon.com в приложение провайдера», «отправь приглашение Maria». Requires email or employeeName. NOT create_employee.
   - deactivate_employee: hy «ապաակտիվացրու Gevorg-ին», «հեռացրու Maria-ն թիմից»; ru «деактивируй Gevorg», «удали Maria из команды». Requires employeeName. NOT cancel_bookings.
   - configure_online_booking: hy «միացրու online booking public page-ում», «անջատիր public booking website-ը»; ru «включи онлайн-запись на публичной странице», «отключи публичную страницу записи». Optional enabled. NOT create_direct_schedule.`;
@@ -65,6 +68,128 @@ export function isCreateEmployeePrompt(prompt: string): boolean {
       prompt,
     )
   );
+}
+
+const UPDATE_EMPLOYEE_FIELD_WORDS =
+  /(?:email|mail|phone|number|title|job\s+title|contact|profile|почт|телефон|номер|должност|профил|էլ\.?\s*փոստ|հեռախոս|պաշտոն)/iu;
+
+export function isUpdateEmployeePrompt(prompt: string): boolean {
+  if (
+    /\b(?:booking|appointment|schedule|price|service\s+price|invite|deactivate|remove|delete|offboard|archive|webhook|notification)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  const lower = prompt.toLowerCase();
+  if (
+    matchLocale(lower, /(?:վերանվանիր|rename)/u) &&
+    /(?:employee|provider|stylist|staff|team|աշխատակից|[A-Z][\p{L}'-]+\s+(?:to|որպես)\s)/iu.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    matchLocale(lower, /(?:переименуй|переименовать)/u) &&
+    /(?:сотрудник|provider|stylist|staff|команд|[A-Z][\p{L}'-]+\s+в\s)/iu.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    matchLocale(lower, /(?:թարմացրու|փոխիր|դարձրու)/u) &&
+    (UPDATE_EMPLOYEE_FIELD_WORDS.test(prompt) ||
+      /(?:աշխատակից|provider|stylist|staff)/iu.test(prompt))
+  ) {
+    return true;
+  }
+  if (
+    matchLocale(lower, /(?:обнови|измени|поменяй|смени)/u) &&
+    UPDATE_EMPLOYEE_FIELD_WORDS.test(prompt) &&
+    /(?:сотрудник|provider|stylist|staff|команд|[A-Z][\p{L}'-]+)/u.test(prompt)
+  ) {
+    return true;
+  }
+  if (/\brename\b/i.test(prompt)) {
+    return (
+      /\b(?:employee|provider|stylist|therapist|barber|specialist|staff|team member)\b/i.test(
+        prompt,
+      ) || /\brename\s+[A-Z][\p{L}'-]+\s+to\s+[A-Z]/u.test(prompt)
+    );
+  }
+  return (
+    /\b(?:update|edit|change|set|fix|correct)\b/i.test(prompt) &&
+    UPDATE_EMPLOYEE_FIELD_WORDS.test(prompt) &&
+    (/\b(?:employee|provider|stylist|therapist|barber|specialist|staff|team member)\b/i.test(
+      prompt,
+    ) ||
+      /\b[A-Z][\p{L}'-]+(?:'s|’s)\s/u.test(prompt))
+  );
+}
+
+export interface EmployeeUpdateFields {
+  employeeName?: string;
+  newName?: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+}
+
+export function extractEmployeeUpdateFromPrompt(
+  prompt: string,
+): EmployeeUpdateFields {
+  const fields: EmployeeUpdateFields = {};
+
+  const rename = prompt.match(
+    /\b(?:rename|վերանվանիր|переименуй)\s+(?:employee\s+|provider\s+|stylist\s+|staff\s+member\s+|team\s+member\s+|barber\s+|therapist\s+|specialist\s+)?([A-Z][\p{L}'-]+)\s+(?:to|as|որպես|в)\s+([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+)?)/iu,
+  );
+  if (rename) {
+    fields.employeeName = rename[1].replace(/[-‑](ն|ին|ը|ի)$/u, '');
+    fields.newName = rename[2].trim();
+  }
+
+  const possessive = prompt.match(
+    /\b([A-Z][\p{L}']*?)(?:'s|’s|-ի)\s+(?:email|mail|phone|number|title|job\s+title|contact|profile|почт\w*|телефон|номер|должност\w*|հեռախոս|պաշտոն|էլ\.?\s*փոստ)/u,
+  );
+  if (!fields.employeeName && possessive) {
+    fields.employeeName = possessive[1];
+  }
+  const ruField = prompt.match(
+    /\b(?:email|почт\w*|телефон|номер|должност\w*)\s+(?:у\s+)?([A-Z][\p{L}'-]+)/u,
+  );
+  if (!fields.employeeName && ruField) {
+    fields.employeeName = ruField[1];
+  }
+  if (!fields.employeeName) {
+    const verbTarget = prompt.match(
+      /\b(?:update|edit|change|fix|correct|թարմացրու|փոխիր|обнови|измени|поменяй|смени)\s+(?:employee\s+|provider\s+|stylist\s+|staff\s+member\s+|team\s+member\s+)?([A-Z][\p{L}'-]+)\b/u,
+    );
+    if (verbTarget) {
+      const candidate = verbTarget[1];
+      if (!STAFF_ROLE_WORDS.has(candidate.toLowerCase())) {
+        fields.employeeName = candidate;
+      }
+    }
+  }
+
+  if (UPDATE_EMPLOYEE_FIELD_WORDS.test(prompt)) {
+    if (/(?:email|mail|почт|էլ\.?\s*փոստ)/iu.test(prompt)) {
+      const email = extractEmployeeEmailFromPrompt(prompt);
+      if (email) fields.email = email;
+    }
+    if (/(?:phone|number|телефон|номер|հեռախոս)/iu.test(prompt)) {
+      const phone = prompt.match(/(\+?\d[\d\s().-]{5,}\d)/);
+      if (phone) fields.phone = phone[1].trim();
+    }
+    const title = prompt.match(
+      /\b(?:title|job\s+title|должность|պաշտոնը?)\s+(?:to|на|որպես)?\s*["']?([A-Z][\w\s'-]{1,40}?)["']?\s*$/iu,
+    );
+    if (title) fields.title = title[1].trim();
+  }
+
+  return fields;
 }
 
 export function isInviteStaffMemberPrompt(prompt: string): boolean {
@@ -171,6 +296,9 @@ export function rescueStaffOperationsIntent(
     !isAssignCategoryToProviderPrompt(prompt)
   ) {
     return { action: 'create_employee', rescueReason: 'create_employee' };
+  }
+  if (isUpdateEmployeePrompt(prompt) && action !== 'update_employee') {
+    return { action: 'update_employee', rescueReason: 'update_employee' };
   }
   if (isInviteStaffMemberPrompt(prompt) && action !== 'invite_staff_member') {
     return {
@@ -392,6 +520,15 @@ export function enrichStaffOperationsRescueParams(
       const services = extractServiceNamesFromPrompt(prompt);
       if (services?.length) enriched.serviceNames = services;
     }
+  } else if (action === 'update_employee') {
+    const update = extractEmployeeUpdateFromPrompt(prompt);
+    if (!enriched.employeeName && update.employeeName) {
+      enriched.employeeName = update.employeeName;
+    }
+    if (!enriched.newName && update.newName) enriched.newName = update.newName;
+    if (!enriched.email && update.email) enriched.email = update.email;
+    if (!enriched.phone && update.phone) enriched.phone = update.phone;
+    if (!enriched.title && update.title) enriched.title = update.title;
   } else if (action === 'invite_staff_member') {
     if (!enriched.email) {
       const email = extractEmployeeEmailFromPrompt(prompt);

@@ -85,6 +85,11 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
       findAll: jest.fn(async () => [
         { id: 'emp-1', name: 'Maria Lopez', email: 'maria@salon.com' },
       ]),
+      update: jest.fn(async (_id, dto) => ({
+        id: 'emp-1',
+        name: dto.name ?? 'Maria Lopez',
+        email: dto.email ?? 'maria@salon.com',
+      })),
       remove: jest.fn(async () => undefined),
     };
     const invitationsService = {
@@ -122,6 +127,41 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
       );
       expect(result.success).toBe(true);
       expect(result.action).toBe('create_employee');
+    });
+
+    it('delegates update_employee through service', async () => {
+      const result = await service.handleUpdateEmployee(
+        'biz-1',
+        {},
+        "Change Maria's email to maria.new@salon.com",
+        'user-1',
+      );
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('update_employee');
+      expect(employeeService.update).toHaveBeenCalledWith(
+        'emp-1',
+        { email: 'maria.new@salon.com' },
+        'user-1',
+      );
+    });
+
+    it('rejects update_employee without a target or fields', async () => {
+      const missingTarget = await service.handleUpdateEmployee(
+        'biz-1',
+        {},
+        'Update the employee profile',
+        'user-1',
+      );
+      expect(missingTarget.success).toBe(false);
+
+      const missingFields = await service.handleUpdateEmployee(
+        'biz-1',
+        { employeeName: 'Maria' },
+        undefined,
+        'user-1',
+      );
+      expect(missingFields.success).toBe(false);
+      expect(missingFields.summary).toContain('What should I change');
     });
 
     it('delegates invite_staff_member through service', async () => {

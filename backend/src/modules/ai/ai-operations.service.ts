@@ -32,6 +32,7 @@ import {
   handleConfigureOnlineBookingLogic,
   handleCreateEmployeeLogic,
   handleDeactivateEmployeeLogic,
+  handleUpdateEmployeeLogic,
   handleInviteStaffMemberLogic,
   type StaffOperationsLogicDeps,
 } from './ai-staff-operations.logic.js';
@@ -272,6 +273,21 @@ export class AiOperationsService {
     userId?: string,
   ): Promise<CommandResult> {
     return handleCreateEmployeeLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      prompt,
+      userId,
+    );
+  }
+
+  handleUpdateEmployee(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleUpdateEmployeeLogic(
       this.staffDeps,
       businessId,
       params,

@@ -6,6 +6,8 @@ import {
 
 export const DASHBOARD_INTEGRATIONS_MUTATE_INTENTS = [
   'create_webhook',
+  'delete_webhook',
+  'toggle_webhook',
   'rotate_api_key',
   'configure_zapier',
   'run_accounting_export',
@@ -42,10 +44,10 @@ export interface IntegrationsCompoundStep {
 }
 
 const INTEGRATIONS_VERB =
-  /\b(list|create|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api\s*key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)\b/i;
+  /\b(list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api\s*key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)\b/i;
 
 const COMPOUND_NEXT =
-  '(?:list|create|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api|key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)';
+  '(?:list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api|key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)';
 
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*|\\s+and\\s+(?=${COMPOUND_NEXT}\\b)|\\s+then\\s+(?=${COMPOUND_NEXT}\\b)`,
@@ -81,6 +83,35 @@ export function isTestWebhookPrompt(prompt: string): boolean {
   return (
     /\b(test|ping|send\s+test)\b/i.test(prompt) && /\bwebhook\b/i.test(prompt)
   );
+}
+
+export function isDeleteWebhookPrompt(prompt: string): boolean {
+  return (
+    /\b(delete|remove|drop|unregister|get\s+rid\s+of)\b/i.test(prompt) &&
+    /\bwebhooks?\b/i.test(prompt) &&
+    !/\b(create|add|register|set\s+up|test|zapier)\b/i.test(prompt)
+  );
+}
+
+export function isToggleWebhookPrompt(prompt: string): boolean {
+  return (
+    /\b(enable|disable|turn\s+(?:on|off)|pause|resume|activate|deactivate|reactivate)\b/i.test(
+      prompt,
+    ) &&
+    /\bwebhooks?\b/i.test(prompt) &&
+    !/\b(create|add|register|delete|remove|test|zapier)\b/i.test(prompt)
+  );
+}
+
+export function resolveWebhookEnabledFromPrompt(
+  prompt: string,
+): boolean | undefined {
+  if (!/\bwebhooks?\b/i.test(prompt)) return undefined;
+  if (/\b(disable|turn\s+off|pause|deactivate)\b/i.test(prompt)) return false;
+  if (/\b(enable|turn\s+on|resume|activate|reactivate)\b/i.test(prompt)) {
+    return true;
+  }
+  return undefined;
 }
 
 export function isRotateApiKeyPrompt(prompt: string): boolean {
@@ -423,6 +454,12 @@ export function rescueIntegrationsIntent(
   if (isTestWebhookPrompt(prompt)) {
     return { action: 'test_webhook', rescueReason: 'test_webhook' };
   }
+  if (isDeleteWebhookPrompt(prompt)) {
+    return { action: 'delete_webhook', rescueReason: 'delete_webhook' };
+  }
+  if (isToggleWebhookPrompt(prompt)) {
+    return { action: 'toggle_webhook', rescueReason: 'toggle_webhook' };
+  }
   if (isCreateWebhookPrompt(prompt)) {
     return { action: 'create_webhook', rescueReason: 'create_webhook' };
   }
@@ -466,12 +503,20 @@ function classifyIntegrationsSegment(
   if (emails.length) base.marketingTeamEmails = emails;
   const zapierEnabled = resolveZapierEnabledFromPrompt(text);
   if (zapierEnabled !== undefined) base.enabled = zapierEnabled;
+  const webhookEnabled = resolveWebhookEnabledFromPrompt(text);
+  if (webhookEnabled !== undefined) base.enabled = webhookEnabled;
   const syncEnabled = resolveZendeskSyncEnabledFromPrompt(text);
   if (syncEnabled !== undefined) base.syncCustomersEnabled = syncEnabled;
   if (/\bthis\s+month\b/i.test(text)) base.dateRange = 'this_month';
 
   if (isListWebhooksPrompt(text)) {
     return { action: 'list_webhooks', params: base, segment: text };
+  }
+  if (isDeleteWebhookPrompt(text)) {
+    return { action: 'delete_webhook', params: base, segment: text };
+  }
+  if (isToggleWebhookPrompt(text)) {
+    return { action: 'toggle_webhook', params: base, segment: text };
   }
   if (
     isCreateWebhookPrompt(text) ||

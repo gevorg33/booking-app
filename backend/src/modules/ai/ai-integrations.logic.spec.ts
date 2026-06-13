@@ -1,6 +1,8 @@
 import {
   handleListWebhooksLogic,
   handleCreateWebhookLogic,
+  handleDeleteWebhookLogic,
+  handleToggleWebhookLogic,
   handleTestWebhookLogic,
   handleRotateApiKeyLogic,
   handleListZapierTriggersLogic,
@@ -184,6 +186,141 @@ describe('ai-integrations.logic', () => {
         await handleCreateWebhookLogic(failDeps, 'biz-1', {
           url: 'https://x',
           events: ['booking.created'],
+        })
+      ).success,
+    ).toBe(false);
+  });
+
+  it('deletes webhooks by id, url, or single subscription', async () => {
+    const deps = buildDeps({
+      webhooksService: {
+        ...buildDeps().webhooksService,
+        deleteSubscription: jest.fn(async () => ({ deleted: true })),
+      } as any,
+    });
+
+    const byUrl = await handleDeleteWebhookLogic(deps, 'biz-1', {
+      url: 'https://hooks.example.com/a',
+    });
+    expect(byUrl.success).toBe(true);
+    expect((byUrl.details as any).webhookId).toBe('wh-1');
+
+    const single = await handleDeleteWebhookLogic(deps, 'biz-1', {});
+    expect(single.success).toBe(true);
+
+    const emptyDeps = buildDeps({
+      webhooksService: {
+        listSubscriptions: jest.fn(async () => []),
+      } as any,
+    });
+    const none = await handleDeleteWebhookLogic(emptyDeps, 'biz-1', {});
+    expect(none.success).toBe(false);
+    expect(none.summary).toContain('no webhook');
+
+    const multiDeps = buildDeps({
+      webhooksService: {
+        ...buildDeps().webhooksService,
+        listSubscriptions: jest.fn(async () => [
+          {
+            id: 'wh-1',
+            url: 'https://hooks.example.com/a',
+            events: ['booking.created'],
+            isActive: true,
+          },
+          {
+            id: 'wh-2',
+            url: 'https://hooks.example.com/b',
+            events: ['payment.received'],
+            isActive: false,
+          },
+        ]),
+        deleteSubscription: jest.fn(async () => ({ deleted: true })),
+      } as any,
+    });
+    const ambiguous = await handleDeleteWebhookLogic(multiDeps, 'biz-1', {});
+    expect(ambiguous.success).toBe(false);
+    expect((ambiguous.details as any).clarify).toBe(true);
+    expect((ambiguous.details as any).webhooks).toHaveLength(2);
+
+    const byId = await handleDeleteWebhookLogic(multiDeps, 'biz-1', {
+      webhookId: 'wh-2',
+    });
+    expect(byId.success).toBe(true);
+    expect((byId.details as any).webhookId).toBe('wh-2');
+
+    const failDeps = buildDeps({
+      webhooksService: {
+        ...buildDeps().webhooksService,
+        deleteSubscription: jest.fn(async () => {
+          throw new Error('boom');
+        }),
+      } as any,
+    });
+    expect((await handleDeleteWebhookLogic(failDeps, 'biz-1', {})).success).toBe(
+      false,
+    );
+  });
+
+  it('toggles webhooks on and off with idempotent summaries', async () => {
+    const updateSubscription = jest.fn(async (_b: string, id: string, dto: any) => ({
+      id,
+      url: 'https://hooks.example.com/a',
+      events: ['booking.created'],
+      isActive: dto.isActive,
+    }));
+    const deps = buildDeps({
+      webhooksService: {
+        ...buildDeps().webhooksService,
+        updateSubscription,
+      } as any,
+    });
+
+    const needsDirection = await handleToggleWebhookLogic(deps, 'biz-1', {});
+    expect(needsDirection.success).toBe(false);
+    expect((needsDirection.details as any).missing).toEqual(['enabled']);
+
+    const disabled = await handleToggleWebhookLogic(
+      deps,
+      'biz-1',
+      {},
+      'Disable the booking webhook',
+    );
+    expect(disabled.success).toBe(true);
+    expect((disabled.details as any).isActive).toBe(false);
+    expect((disabled.details as any).changed).toBe(true);
+    expect(updateSubscription).toHaveBeenCalledWith('biz-1', 'wh-1', {
+      isActive: false,
+    });
+
+    const alreadyOn = await handleToggleWebhookLogic(deps, 'biz-1', {
+      enabled: true,
+    });
+    expect(alreadyOn.success).toBe(true);
+    expect((alreadyOn.details as any).changed).toBe(false);
+    expect(alreadyOn.summary).toContain('already enabled');
+
+    const emptyDeps = buildDeps({
+      webhooksService: {
+        listSubscriptions: jest.fn(async () => []),
+      } as any,
+    });
+    const none = await handleToggleWebhookLogic(emptyDeps, 'biz-1', {
+      enabled: false,
+    });
+    expect(none.success).toBe(false);
+
+    const failDeps = buildDeps({
+      webhooksService: {
+        ...buildDeps().webhooksService,
+        updateSubscription: jest.fn(async () => {
+          throw new Error('boom');
+        }),
+      } as any,
+    });
+    expect(
+      (
+        await handleToggleWebhookLogic(failDeps, 'biz-1', {
+          enabled: false,
         })
       ).success,
     ).toBe(false);
