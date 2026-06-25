@@ -11,6 +11,16 @@ function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
 }
 
+interface ReviewRecord {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+  customerName?: string | null;
+  customer?: { name?: string } | null;
+  employee?: { name?: string } | null;
+}
+
 function StarRating({ rating }: { rating: number }) {
   return (
     <span className="inline-flex gap-0.5">
@@ -32,7 +42,7 @@ export default function ReviewsPage() {
     queryKey: ['reviews', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/reviews`);
-      return unwrap<unknown[]>(data);
+      return unwrap<ReviewRecord[]>(data);
     },
     enabled: !!business?.id,
   });

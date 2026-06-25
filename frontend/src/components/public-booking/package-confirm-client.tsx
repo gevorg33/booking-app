@@ -35,6 +35,8 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
   const { t, locale } = useI18n();
   const tz = tenant.timezone || 'UTC';
   const primary = tenant.branding.primaryColor || '#7c3aed';
+  const money = (amount: number, entityCurrency?: string | null) =>
+    formatPublicMoney(amount, entityCurrency, tenant.currency, locale);
   const turnover = tenant.multiService?.turnoverBufferMinutes ?? 5;
   const dayOptions = useMemo(() => buildBookingDayOptions(tz, undefined, locale), [tz, locale]);
 
@@ -379,10 +381,10 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           <p className="font-medium text-gray-900 mb-3">{pkg.name}</p>
           <div className="flex flex-wrap gap-3 text-sm mb-4">
             <span className="font-semibold text-gray-900">
-              {formatPublicMoney(pkg.pricing.packagePrice, pkg.currency)}
+              {money(pkg.pricing.packagePrice, pkg.currency)}
             </span>
             <span className="text-gray-400 line-through">
-              {formatPublicMoney(pkg.pricing.regularTotal, pkg.currency)}
+              {money(pkg.pricing.regularTotal, pkg.currency)}
             </span>
             <span className="text-emerald-700 font-medium">
               {t('public.packageSavePercent', { percent: pkg.pricing.savingsPercent.toFixed(0) })}
@@ -414,16 +416,16 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
                     {discountedUnit != null && (
                       <p className="text-sm mt-1">
                         <span className="font-medium text-gray-900">
-                          {formatPublicMoney(discountedUnit, pkg.currency)}
+                          {money(discountedUnit, pkg.currency)}
                         </span>
                         {savingsUnit != null && savingsUnit > 0 && (
                           <>
                             <span className="text-gray-400 line-through ml-2">
-                              {formatPublicMoney(priced!.unitPrice, pkg.currency)}
+                              {money(priced!.unitPrice, pkg.currency)}
                             </span>
                             <span className="text-emerald-700 font-medium ml-2">
                               {t('public.packageItemSave', {
-                                amount: formatPublicMoney(savingsUnit, pkg.currency),
+                                amount: money(savingsUnit, pkg.currency),
                               })}
                             </span>
                           </>
@@ -438,7 +440,7 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           <div className="flex justify-between mt-4 pt-4 border-t border-gray-50 text-sm">
             <span className="font-semibold text-gray-900">{t('public.total')}</span>
             <span className="font-semibold text-gray-900">
-              {formatDuration(totalDuration)} · {formatPublicMoney(pkg.pricing.packagePrice, pkg.currency)}
+              {formatDuration(totalDuration)} · {money(pkg.pricing.packagePrice, pkg.currency)}
             </span>
           </div>
         </section>

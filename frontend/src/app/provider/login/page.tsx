@@ -63,11 +63,12 @@ export default function ProviderLoginPage() {
 
       finishLogin(result);
     } catch (err: unknown) {
-      if (!err.response) {
+      const axiosErr = err as { response?: { data?: { code?: string } } };
+      if (!axiosErr.response) {
         setError(t('provider.networkError'));
         return;
       }
-      const code = err.response?.data?.code;
+      const code = axiosErr.response.data?.code;
       if (code === 'ACCOUNT_NOT_FOUND') {
         setError(t('provider.accountNotFoundHint'));
       } else if (code === 'INVALID_CREDENTIALS') {

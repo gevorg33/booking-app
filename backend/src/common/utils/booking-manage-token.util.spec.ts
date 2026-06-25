@@ -7,15 +7,16 @@ import {
 } from './booking-manage-token.util.js';
 
 describe('booking-manage-token.util', () => {
-  it('buildBookingManageUrl strips trailing slash and encodes params', () => {
+  it('buildBookingManageUrl encodes params on tenant subdomain', () => {
     const url = buildBookingManageUrl(
       'https://app.test/',
       'salon',
       'book-1',
       'tok-abc',
+      'test',
     );
     expect(url).toBe(
-      'https://app.test/book/salon/manage?bookingId=book-1&token=tok-abc',
+      'https://salon.test/manage?bookingId=book-1&token=tok-abc',
     );
   });
 

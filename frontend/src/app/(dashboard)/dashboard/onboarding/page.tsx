@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, CheckCircle2, ArrowRight, SkipForward, Clock, Link2 } from 'lucide-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
@@ -53,6 +53,7 @@ interface VerticalPlaybookPreview {
       daysActive: string[];
     }>;
   }>;
+  categories?: CatalogCategoryDraft[];
 }
 
 type Step = 'type' | 'review' | 'schedule' | 'link' | 'done';
@@ -63,6 +64,7 @@ function unwrap<T>(res: unknown): T {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useI18n();
   const { business } = useAuthStore();
   const [step, setStep] = useState<Step>('type');
@@ -169,16 +171,24 @@ export default function OnboardingPage() {
 
   const completeMutation = useMutation({
     mutationFn: async () => {
-      await api.post(`/businesses/${business!.id}/onboarding/complete`);
+      const { data } = await api.post(`/businesses/${business!.id}/onboarding/complete`);
+      return unwrap<{ completed: boolean }>(data);
     },
-    onSuccess: () => setStep('done'),
+    onSuccess: (status) => {
+      queryClient.setQueryData(['onboarding-status', business!.id], status);
+      setStep('done');
+    },
   });
 
   const skipAllMutation = useMutation({
     mutationFn: async () => {
-      await api.post(`/businesses/${business!.id}/onboarding/complete`);
+      const { data } = await api.post(`/businesses/${business!.id}/onboarding/complete`);
+      return unwrap<{ completed: boolean }>(data);
     },
-    onSuccess: () => router.push('/dashboard'),
+    onSuccess: (status) => {
+      queryClient.setQueryData(['onboarding-status', business!.id], status);
+      router.push('/dashboard');
+    },
   });
 
   const totalServices = useMemo(
@@ -559,7 +569,10 @@ export default function OnboardingPage() {
           <p className="text-sm text-gray-400 mb-6">{t('onboarding.doneSubtitleFull')}</p>
           <button
             type="button"
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              queryClient.setQueryData(['onboarding-status', business.id], { completed: true });
+              router.push('/dashboard');
+            }}
             className="btn-primary inline-flex items-center gap-2"
           >
             {t('onboarding.goToDashboard')}

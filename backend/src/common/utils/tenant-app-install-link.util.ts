@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import type { AppLocale } from '../i18n/messages.js';
 import { t } from '../i18n/messages.js';
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
 export type TenantAppInstallCampaign =
   | 'venue_qr'
@@ -17,13 +18,19 @@ export function buildTenantAppInstallUrl(
   options?: {
     serviceId?: string;
     campaign?: TenantAppInstallCampaign;
+    rootDomain?: string;
   },
 ): string | null {
   const normalizedSlug = slug.trim().toLowerCase();
   if (!isValidTenantSlug(normalizedSlug)) return null;
 
-  const base = frontendUrl.replace(/\/$/, '');
-  const url = new URL(`${base}/book/${normalizedSlug}`);
+  const url = new URL(
+    buildTenantPublicUrl({
+      slug: normalizedSlug,
+      frontendUrl,
+      rootDomain: options?.rootDomain,
+    }),
+  );
   const serviceId = options?.serviceId?.trim();
   if (serviceId) url.searchParams.set('serviceId', serviceId);
   url.searchParams.set('src', 'qr');

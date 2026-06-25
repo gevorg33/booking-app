@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
 export const CLINIC_ORDER_BOOKING_REQUEST_TOKEN_METADATA_KEY =
   'clinicOrderToken';
@@ -94,21 +95,32 @@ export function buildClinicLabBookingRequestBookUrl(
   slug: string,
   collectionServiceId: string,
   token: string,
+  rootDomain?: string,
 ): string {
-  const base = frontendUrl.replace(/\/$/, '');
-  const params = new URLSearchParams({
-    serviceId: collectionServiceId,
-    clinicOrderToken: token,
+  return buildTenantPublicUrl({
+    slug,
+    frontendUrl,
+    rootDomain,
+    pathSuffix: '/any/availability',
+    query: {
+      serviceId: collectionServiceId,
+      clinicOrderToken: token,
+    },
   });
-  return `${base}/book/${slug}/any/availability?${params.toString()}`;
 }
 
 export function buildClinicLabBookingRequestAccountUrl(
   frontendUrl: string,
   slug: string,
+  rootDomain?: string,
 ): string {
-  const base = frontendUrl.replace(/\/$/, '');
-  return `${base}/book/${slug}/account?section=lab-requests`;
+  return buildTenantPublicUrl({
+    slug,
+    frontendUrl,
+    rootDomain,
+    pathSuffix: '/account',
+    query: { section: 'lab-requests' },
+  });
 }
 
 export function buildClinicOrderBookingMetadata(

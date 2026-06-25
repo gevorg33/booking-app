@@ -53,9 +53,8 @@ export function EmployeeFormModal({
 }: EmployeeFormModalProps) {
   const { t } = useI18n();
   const { business, user } = useAuthStore();
-  const defaultPhoneCountry =
-    business?.defaultPhoneCountryCode ||
-    (user?.locale === 'ru' ? '7' : user?.locale === 'hy' ? '374' : '374');
+  const locale = business?.locale ?? user?.locale;
+  const defaultPhoneCountry = locale === 'ru' ? '7' : locale === 'hy' ? '374' : '374';
 
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm());
   const [accessRole, setAccessRole] = useState<TeamMemberRole>('contributor');

@@ -16,7 +16,8 @@ export type AppAnalyticsEvent =
   | 'started_booking'
   | 'completed_booking'
   | 'rebooked'
-  | 'referral_sent';
+  | 'referral_sent'
+  | 'referral_accepted';
 
 export type AppAnalyticsSurface = 'consumer_app' | 'provider_app' | 'public_web';
 
@@ -52,9 +53,7 @@ const ANON_ID_PREFIX = 'app-analytics-anon-id-';
 const FLUSH_INTERVAL_MS = 5_000;
 const MAX_BATCH_SIZE = 10;
 
-function getApiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001').replace(/\/$/, '');
-}
+import { getApiBaseUrl } from '@/lib/api-base';
 
 let context: AppAnalyticsContext | null = null;
 let consentGranted = false;

@@ -90,13 +90,17 @@ function toMinutes(hhmm: string): number {
  * For template periods, only flags overlaps on days where both periods are active.
  */
 function getOverlappingIndexes(
-  periods: Array<{ startTime: string; endTime: string; [key: string]: unknown }>,
-  dayKey?: string, // if provided, only check periods active on that day
+  periods: Array<{ startTime: string; endTime: string }>,
+  dayKey?: string,
 ): Set<number> {
   const overlapping = new Set<number>();
   for (let i = 0; i < periods.length; i++) {
     for (let j = i + 1; j < periods.length; j++) {
-      if (dayKey && (!periods[i][dayKey] || !periods[j][dayKey])) continue;
+      if (dayKey) {
+        const aActive = (periods[i] as Record<string, unknown>)[dayKey];
+        const bActive = (periods[j] as Record<string, unknown>)[dayKey];
+        if (!aActive || !bActive) continue;
+      }
       const aStart = toMinutes(periods[i].startTime);
       const aEnd   = toMinutes(periods[i].endTime);
       const bStart = toMinutes(periods[j].startTime);
@@ -474,30 +478,30 @@ export default function SchedulePage() {
         </button>
       </div>
 
-      {tab === 'create' ? (
-        <CreateScheduleTab
-          business={business}
-          employees={employees}
-          services={services}
-          queryClient={queryClient}
-        />
-      ) : tab === 'templates' ? (
-        <TemplatesTab
-          business={business}
-          employees={employees}
-          services={services}
-          queryClient={queryClient}
-          setTemplates={setTemplates}
-          setApplyResult={setApplyResult}
-        />
-      ) : (
-        <>
-          <BlockScheduleTab business={business} employees={employees} />
-          {business?.id ? (
+      {business ? (
+        tab === 'create' ? (
+          <CreateScheduleTab
+            business={business}
+            employees={employees}
+            services={services}
+            queryClient={queryClient}
+          />
+        ) : tab === 'templates' ? (
+          <TemplatesTab
+            business={business}
+            employees={employees}
+            services={services}
+            queryClient={queryClient}
+            setTemplates={setTemplates}
+            setApplyResult={setApplyResult}
+          />
+        ) : (
+          <>
+            <BlockScheduleTab business={business} employees={employees} />
             <TimeOffRequestsPanel businessId={business.id} />
-          ) : null}
-        </>
-      )}
+          </>
+        )
+      ) : null}
     </div>
   );
 }
@@ -1118,9 +1122,9 @@ function TemplatesTab({
                             {name}
                           </span>
                         ))}
-                        {template.countDaysComplete > 0 && (
+                        {(template.countDaysComplete ?? 0) > 0 && (
                           <span className="text-xs px-1.5 py-0.5 rounded bg-green-600/10 text-green-400">
-                            {t('schedule.daysCount', { count: template.countDaysComplete })}
+                            {t('schedule.daysCount', { count: template.countDaysComplete ?? 0 })}
                           </span>
                         )}
                       </div>

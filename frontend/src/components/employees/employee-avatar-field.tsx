@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { uploadEmployeeAvatar } from '@/lib/upload';
+import { getErrorMessage } from '@/lib/error-message';
 import { useI18n } from '@/i18n';
 
 interface EmployeeAvatarFieldProps {
@@ -44,7 +45,7 @@ export function EmployeeAvatarField({
       onChange(url);
     } catch (err: unknown) {
       setPreview(null);
-      setError(err?.response?.data?.message || t('errors.uploadImageFailed'));
+      setError(getErrorMessage(err, t('errors.uploadImageFailed')));
     } finally {
       setUploading(false);
     }

@@ -1,4 +1,5 @@
 import { resolveFrontendBaseUrl } from '../../modules/gift-cards/gift-card-delivery-content.util.js';
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
 export interface ClinicResultReadyLinks {
   /** Public web account deep link — scrolls to My results. */
@@ -12,12 +13,19 @@ export interface ClinicResultReadyLinks {
 export function buildClinicResultReadyLinks(
   businessSlug: string | null | undefined,
   frontendUrl?: string | null,
+  rootDomain?: string,
 ): ClinicResultReadyLinks | null {
   if (!businessSlug?.trim()) return null;
-  const base = resolveFrontendBaseUrl(frontendUrl);
   const slug = businessSlug.trim();
+  const base = resolveFrontendBaseUrl(frontendUrl);
   return {
-    webResultsUrl: `${base}/book/${slug}/account?section=results`,
+    webResultsUrl: buildTenantPublicUrl({
+      slug,
+      frontendUrl,
+      rootDomain,
+      pathSuffix: '/account',
+      query: { section: 'results' },
+    }),
     consumerAppUrl: `optischedule://book/${slug}/results`,
     consumerWebUrl: `${base}/s/${slug}/results`,
   };

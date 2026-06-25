@@ -1,3 +1,4 @@
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -1520,7 +1521,13 @@ export class NotificationsService {
           return line;
         }
         const token = await ensureBookingManageToken(this.bookingRepo, b.id);
-        line.manageUrl = buildBookingManageUrl(frontendUrl, slug, b.id, token);
+        line.manageUrl = buildBookingManageUrl(
+          frontendUrl,
+          slug,
+          b.id,
+          token,
+          this.configService.get<string>('ROOT_DOMAIN'),
+        );
         line.manageLabel = manageLabel;
         return line;
       }),
@@ -1795,6 +1802,7 @@ export class NotificationsService {
       business.slug,
       booking.id,
       token,
+      this.configService.get<string>('ROOT_DOMAIN'),
     );
     return { label, url };
   }
@@ -1917,7 +1925,13 @@ export class NotificationsService {
   ): string {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    return `${frontendUrl}/book/${businessSlug}/review?bookingId=${bookingId}&token=${token}`;
+    return buildTenantPublicUrl({
+      slug: businessSlug,
+      frontendUrl,
+      rootDomain: this.configService.get<string>('ROOT_DOMAIN'),
+      pathSuffix: '/review',
+      query: { bookingId, token },
+    });
   }
 
   private reviewUrlWithRating(reviewUrl: string, rating: number): string {

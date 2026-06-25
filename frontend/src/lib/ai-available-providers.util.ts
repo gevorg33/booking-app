@@ -1,3 +1,5 @@
+import type { AiCommandDetails } from '@/lib/ai-client.types';
+
 export interface AiAvailableProvider {
   id?: string;
   name: string;
@@ -38,12 +40,13 @@ function asProviderRow(value: unknown): AiAvailableProvider | null {
 }
 
 export function normalizeAvailableProviders(
-  details?: Record<string, unknown>,
+  details?: AiCommandDetails | Record<string, unknown>,
 ): AiAvailableProvider[] {
   if (!details) return [];
 
+  const row = details as Record<string, unknown>;
   const structured = [
-    ...(Array.isArray(details.availability) ? details.availability : []),
+    ...(Array.isArray(row.availability) ? row.availability : []),
     ...(Array.isArray(details.providers) ? details.providers : []),
   ]
     .map(asProviderRow)

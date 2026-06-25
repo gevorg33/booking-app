@@ -53,7 +53,8 @@ export default function LoginPage() {
       savePreferredBusinessSlug(result.business.slug);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const code = err.response?.data?.code ?? null;
+      const code =
+        (err as { response?: { data?: { code?: string } } })?.response?.data?.code ?? null;
       const rawMessage = getErrorMessage(err);
       const message = Array.isArray(rawMessage) ? rawMessage[0] : rawMessage;
 

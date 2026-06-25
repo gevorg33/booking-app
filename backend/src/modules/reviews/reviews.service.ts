@@ -1,3 +1,4 @@
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import {
   Injectable,
   NotFoundException,
@@ -318,9 +319,14 @@ export class ReviewsService {
   }
 
   buildReviewUrl(slug: string, bookingId: string, token: string): string {
-    const base = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const params = new URLSearchParams({ bookingId, token });
-    return `${base}/book/${slug}/review?${params.toString()}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return buildTenantPublicUrl({
+      slug,
+      frontendUrl,
+      rootDomain: process.env.ROOT_DOMAIN,
+      pathSuffix: '/review',
+      query: { bookingId, token },
+    });
   }
 
   async getPublicContext(

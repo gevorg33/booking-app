@@ -1,3 +1,4 @@
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 import type { AppEventAnalyticsRow } from './app-adoption-analytics.util.js';
 import { buildConsumerBookServicePushUrl } from './consumer-booking-push-link.util.js';
 import {
@@ -119,16 +120,20 @@ export function buildActivationConciergeResumeWebUrl(input: {
   date?: string;
   slot?: string;
   employeeId?: string;
+  rootDomain?: string;
 }): string {
-  const base = `${input.frontendBaseUrl.replace(/\/$/, '')}/book/${input.slug}`;
-  const params = new URLSearchParams({
-    serviceId: input.serviceId,
-    resume: '1',
+  return buildTenantPublicUrl({
+    slug: input.slug,
+    frontendUrl: input.frontendBaseUrl,
+    rootDomain: input.rootDomain,
+    query: {
+      serviceId: input.serviceId,
+      resume: '1',
+      date: input.date,
+      slot: input.slot,
+      employeeId: input.employeeId,
+    },
   });
-  if (input.date) params.set('date', input.date);
-  if (input.slot) params.set('slot', input.slot);
-  if (input.employeeId) params.set('employeeId', input.employeeId);
-  return `${base}?${params.toString()}`;
 }
 
 export function listActivationConciergeCandidateInputs(

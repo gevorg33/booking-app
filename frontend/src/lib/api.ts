@@ -19,6 +19,7 @@ function readLocaleFromCookie(): string | null {
 }
 
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   if (typeof window !== 'undefined') {
     let token = localStorage.getItem('token');
     if (!token) {

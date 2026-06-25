@@ -28,6 +28,8 @@ export interface UploadedDocument {
 
 @Injectable()
 export class UploadService implements OnModuleInit {
+  private configured = false;
+
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
@@ -43,15 +45,20 @@ export class UploadService implements OnModuleInit {
         api_secret: apiSecret,
         secure: true,
       });
+      this.configured = true;
       return;
     }
 
     if (cloudinaryUrl) {
       cloudinary.config({ secure: true });
+      this.configured = true;
       return;
     }
+  }
 
-    throw new Error(
+  private assertConfigured(): void {
+    if (this.configured) return;
+    throw new BadRequestException(
       'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET (or CLOUDINARY_URL).',
     );
   }
@@ -61,6 +68,7 @@ export class UploadService implements OnModuleInit {
     businessId: string,
     subfolder = 'images',
   ): Promise<UploadedImage> {
+    this.assertConfigured();
     this.validateFile(file);
 
     const folder = `booking/${businessId}/${subfolder}`;
@@ -78,6 +86,7 @@ export class UploadService implements OnModuleInit {
     file: Express.Multer.File,
     businessId: string,
   ): Promise<UploadedImage> {
+    this.assertConfigured();
     this.validateFile(file);
 
     const folder = `booking/${businessId}/avatars`;
@@ -101,6 +110,7 @@ export class UploadService implements OnModuleInit {
     businessId: string,
     customerId: string,
   ): Promise<UploadedDocument> {
+    this.assertConfigured();
     this.validateDocumentFile(file);
 
     const folder = `booking/${businessId}/patient-documents/${customerId}`;

@@ -100,6 +100,7 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { ReferralProgramService } from '../referral-program/referral-program.service.js';
 import { ShareRewardService } from '../share-rewards/share-reward.service.js';
 import { getBusinessZendeskIntegration } from '../integrations/zendesk/zendesk-integration.types.js';
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import {
   buildMessagingLinksForBusiness,
   getDistributionIntegrations,
@@ -411,7 +412,12 @@ export class PublicBookingService {
     const dist = getDistributionIntegrations(settings);
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const bookingUrl = `${frontendUrl.replace(/\/$/, '')}/book/${business.slug}`;
+    const rootDomain = this.configService.get<string>('ROOT_DOMAIN');
+    const bookingUrl = buildTenantPublicUrl({
+      slug: business.slug,
+      frontendUrl,
+      rootDomain,
+    });
 
     const zendeskWidgetKey =
       zendesk.enabled &&
@@ -423,6 +429,7 @@ export class PublicBookingService {
     const messagingLinks = buildMessagingLinksForBusiness(
       business,
       frontendUrl,
+      rootDomain,
     );
     const hasMessaging =
       messagingLinks.telegramUrl ||

@@ -40,6 +40,7 @@ import { SupportTicketButton } from '@/components/integrations/support-ticket-bu
 import { ResizableDashboardSidebar } from '@/components/dashboard/resizable-dashboard-sidebar';
 import { BusinessDateFormatBootstrap } from '@/components/business-date-format-bootstrap';
 import { useI18n } from '@/i18n';
+import { normalizeAppLocale } from '@/lib/business-locale';
 import { useHipaaSessionTimeout } from '@/lib/use-hipaa-session-timeout';
 import { HipaaSessionNotice } from '@/components/hipaa-session-notice';
 
@@ -52,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isOnboardingRoute = pathname === '/dashboard/onboarding';
   useHipaaSessionTimeout();
 
-  const { data: onboardingStatus } = useQuery({
+  const { data: onboardingStatus, isPending: onboardingPending } = useQuery({
     queryKey: ['onboarding-status', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/onboarding/status`);
@@ -125,13 +126,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [mounted, token, router]);
 
   useEffect(() => {
-    if (user?.locale) setLocale(user.locale);
+    const locale = normalizeAppLocale(user?.locale);
+    if (locale) setLocale(locale);
   }, [user?.locale, setLocale]);
 
   useEffect(() => {
-    if (!onboardingStatus || isOnboardingRoute) return;
+    if (onboardingPending || !onboardingStatus || isOnboardingRoute) return;
     if (!onboardingStatus.completed) router.push('/dashboard/onboarding');
-  }, [onboardingStatus, isOnboardingRoute, router]);
+  }, [onboardingPending, onboardingStatus, isOnboardingRoute, router]);
 
   if (!mounted || !token) {
     return (

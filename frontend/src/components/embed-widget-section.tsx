@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useI18n } from '@/i18n';
-import { bookPath } from '@/lib/tenant-host';
+import { bookPath, bookPublicUrl } from '@/lib/tenant-host';
 
 export function EmbedWidgetSection({ slug, businessName }: { slug: string; businessName: string }) {
   const { t } = useI18n();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const embedUrl = `${origin}/embed/${slug}`;
-  const bookUrl = `${origin}${bookPath(slug, '/services')}`;
+  const bookUrl = bookPublicUrl(slug, '/services');
   const iframeSnippet = `<iframe src="${embedUrl}" width="100%" height="420" frameborder="0" title="${businessName} booking"></iframe>`;
   const scriptSnippet = `<div id="optischedule-booking"></div>
 <script>

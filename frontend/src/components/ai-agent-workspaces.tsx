@@ -2,22 +2,20 @@
 
 import { AlertTriangle, CalendarPlus, CalendarX, ArrowRightLeft, Sparkles, EyeOff, Eye } from 'lucide-react';
 import { useI18n } from '@/i18n';
-import { AiPolicyRiskBadge, type PolicyExplain } from '@/components/ai-policy-risk-badge';
+import { AiPolicyRiskBadge } from '@/components/ai-policy-risk-badge';
+import type {
+  AiCancellationRecoveryData,
+  AiConflictResolutionData,
+  AiPlanDiffStep,
+  AiPolicyExplain,
+  AiPolicyPreview,
+} from '@/lib/ai-client.types';
 
-export interface PlanDiffStep {
-  id: string;
-  action: string;
-  description: string;
-  impact: string;
-  estimatedImpact?: string;
-}
-
-export interface PolicyPreview {
-  decision: string;
-  riskLevel: string;
-  violations: string[];
-  reasons: string[];
-}
+export type PlanDiffStep = AiPlanDiffStep;
+export type PolicyPreview = AiPolicyPreview;
+export type PolicyExplain = AiPolicyExplain;
+export type ConflictResolutionData = AiConflictResolutionData;
+export type CancellationRecoveryData = AiCancellationRecoveryData;
 
 interface ConflictWorkspaceBooking {
   id: string;
@@ -106,21 +104,6 @@ export function PlanDiffPreview({
   );
 }
 
-interface ConflictResolutionData {
-  conflicts?: Array<{
-    employeeName?: string;
-    bookings?: Array<{ id: string; customerName: string; serviceName?: string; startTime: string; endTime: string }>;
-  }>;
-  resolutions?: Array<{
-    id: string;
-    employeeName?: string;
-    overlapMinutes?: number;
-    bookings?: Array<{ id: string; customer: string; service?: string; startTime: string; endTime: string }>;
-    action: string;
-    fix?: { type: string; bookingId: string; startTime: string } | null;
-  }>;
-}
-
 export function ConflictResolutionWorkspace({
   data,
   onApplyFix,
@@ -133,6 +116,23 @@ export function ConflictResolutionWorkspace({
   const { t } = useI18n();
   if (!data.conflicts?.length && !data.resolutions?.length) return null;
 
+  const items: ConflictWorkspaceItem[] = [
+    ...(data.resolutions ?? []).map((item) => ({
+      id: item.id,
+      employeeName: item.employeeName,
+      overlapMinutes: item.overlapMinutes,
+      bookings: item.bookings,
+      fix: item.fix ?? undefined,
+    })),
+    ...(data.conflicts ?? []).map((item, idx) => ({
+      id: item.id ?? `conflict-${idx}`,
+      employeeName: item.employeeName,
+      overlapMinutes: item.overlapMinutes,
+      bookings: item.bookings,
+      fix: item.fix ?? undefined,
+    })),
+  ];
+
   return (
     <div className="rounded-lg border border-red-500/30 bg-red-950/10 p-4 space-y-4">
       <h3 className="font-semibold text-red-200 flex items-center gap-2">
@@ -140,7 +140,7 @@ export function ConflictResolutionWorkspace({
         {t('ai.conflictWorkspaceTitle')}
       </h3>
 
-      {(data.resolutions ?? data.conflicts ?? []).map((item: ConflictWorkspaceItem, idx: number) => (
+      {items.map((item, idx) => (
         <div key={item.id ?? idx} className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
           <p className="text-sm font-medium text-gray-200">
             {item.employeeName ?? t('ai.providerFallback')}
@@ -164,7 +164,9 @@ export function ConflictResolutionWorkspace({
               type="button"
               className="mt-3 text-xs px-3 py-1.5 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
               disabled={applyingId === item.id}
-              onClick={() => onApplyFix(item.id, item.fix)}
+              onClick={() => {
+                if (item.id) onApplyFix(item.id, item.fix);
+              }}
             >
               {applyingId === item.id ? t('ai.applying') : t('ai.applySuggestedFix')}
             </button>
@@ -173,28 +175,6 @@ export function ConflictResolutionWorkspace({
       ))}
     </div>
   );
-}
-
-interface CancellationRecoveryData {
-  freedSlots?: Array<{
-    bookingId: string;
-    employeeName?: string;
-    serviceName?: string;
-    customerName?: string;
-    startTime: string;
-    endTime: string;
-  }>;
-  candidates?: Array<{
-    customerName: string;
-    source: string;
-    score: number;
-    suggestion: string;
-  }>;
-  proposals?: Array<{
-    id: string;
-    slot: CancellationRecoveryData['freedSlots'] extends (infer T)[] | undefined ? T : never;
-    recommendedCustomer?: { customerName: string; source: string; score: number } | null;
-  }>;
 }
 
 export function CancellationRecoveryBoard({

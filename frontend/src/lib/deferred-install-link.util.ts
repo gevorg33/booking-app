@@ -1,3 +1,5 @@
+import { buildTenantPublicUrl } from '@/lib/tenant-host';
+
 export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'share' | 'unknown';
 
 export type TenantAppInstallCampaign = 'venue_qr' | 'confirmation_qr' | 'receipt_qr';
@@ -61,8 +63,9 @@ export function buildAttributedBookUrl(
     'slug' | 'serviceId' | 'installSource' | 'campaign' | 'date' | 'slot' | 'employeeId'
   >,
 ): string {
-  const base = origin.replace(/\/$/, '');
-  const url = new URL(`${base}/book/${link.slug}`);
+  const url = new URL(
+    buildTenantPublicUrl(link.slug, '', { origin: origin.replace(/\/$/, '') }),
+  );
   if (link.serviceId?.trim()) url.searchParams.set('serviceId', link.serviceId.trim());
   if (link.installSource) url.searchParams.set('src', link.installSource);
   if (link.campaign?.trim()) url.searchParams.set('utm_campaign', link.campaign.trim());

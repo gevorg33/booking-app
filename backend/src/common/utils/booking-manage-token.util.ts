@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import type { Repository } from 'typeorm';
 import type { Booking } from '../../modules/booking/entities/booking.entity.js';
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
 export async function ensureBookingManageToken(
   bookingRepo: Repository<Booking>,
@@ -26,10 +27,15 @@ export function buildBookingManageUrl(
   slug: string,
   bookingId: string,
   token: string,
+  rootDomain?: string,
 ): string {
-  const base = frontendUrl.replace(/\/$/, '');
-  const params = new URLSearchParams({ bookingId, token });
-  return `${base}/book/${slug}/manage?${params.toString()}`;
+  return buildTenantPublicUrl({
+    slug,
+    frontendUrl,
+    rootDomain,
+    pathSuffix: '/manage',
+    query: { bookingId, token },
+  });
 }
 
 /** Plain-text fallback (includes URL for non-HTML clients). */
