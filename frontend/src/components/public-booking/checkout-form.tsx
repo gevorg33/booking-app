@@ -311,7 +311,14 @@ export function CheckoutForm({
     },
   });
 
-  const chargeBase = dueNow > 0 ? dueNow : service.price;
+  const chargeBase =
+    dueNow > 0
+      ? isTour
+        ? dueNow * paxCount
+        : dueNow
+      : isTour
+        ? service.price * paxCount
+        : service.price;
   const usingSubscriptionCredit =
     Boolean(activeSubscription?.appointmentsRemaining) &&
     useExistingSubscription &&

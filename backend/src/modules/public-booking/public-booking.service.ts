@@ -1628,6 +1628,7 @@ export class PublicBookingService {
         promoCode: dto.promoCode,
         loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
         purchasePlanId: dto.purchasePlanId,
+        paxCount: dto.paxCount,
       },
       authenticatedCustomerId,
     );

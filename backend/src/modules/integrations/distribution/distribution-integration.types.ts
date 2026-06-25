@@ -1,4 +1,4 @@
-import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import { buildTenantPublicUrl } from '../../../common/utils/tenant-public-url.util.js';
 
 export interface GoogleReserveIntegration {
   enabled?: boolean;

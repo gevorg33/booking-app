@@ -21,7 +21,7 @@ export function buildClinicResultReadyLinks(
   return {
     webResultsUrl: buildTenantPublicUrl({
       slug,
-      frontendUrl,
+      frontendUrl: frontendUrl ?? undefined,
       rootDomain,
       pathSuffix: '/account',
       query: { section: 'results' },

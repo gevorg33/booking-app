@@ -27,12 +27,15 @@ const SKIP = new Set([
   'FIREBASE_SERVICE_ACCOUNT_PATH',
 ]);
 
+const ROOT_DOMAIN = process.env.BOOKING_ROOT_DOMAIN || 'optischedule.com';
+const FRONTEND_URL = process.env.BOOKING_FRONTEND_URL || `https://${ROOT_DOMAIN}`;
+
 const PROD_OVERRIDES = {
   NODE_ENV: 'production',
-  CORS_ORIGIN: 'https://frontend-sand-six-17.vercel.app',
-  FRONTEND_URL: 'https://frontend-sand-six-17.vercel.app',
+  CORS_ORIGIN: `${FRONTEND_URL},https://frontend-sand-six-17.vercel.app`,
+  FRONTEND_URL,
   PUBLIC_API_URL: 'https://booking-backend-production-4898.up.railway.app',
-  ROOT_DOMAIN: 'frontend-sand-six-17.vercel.app',
+  ROOT_DOMAIN,
 };
 
 function parseEnvFile(path) {
