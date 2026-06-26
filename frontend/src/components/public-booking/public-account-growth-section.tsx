@@ -50,7 +50,7 @@ export function PublicAccountGrowthSection({
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share(payload);
-        trackAppAnalyticsEvent('referral_sent', { referralCode: program.referralCode, slug });
+        trackAppAnalyticsEvent('referral_sent', { referralCode: program.referralCode });
         return;
       } catch {
         /* fall through */
@@ -59,7 +59,7 @@ export function PublicAccountGrowthSection({
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(`${payload.text}\n${url}`);
     }
-    trackAppAnalyticsEvent('referral_sent', { referralCode: program.referralCode, slug });
+    trackAppAnalyticsEvent('referral_sent', { referralCode: program.referralCode });
   }, [program, slug, t, tenant.name]);
 
   if (!program?.enabled) return null;

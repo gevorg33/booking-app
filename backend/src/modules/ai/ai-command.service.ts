@@ -576,6 +576,8 @@ Rules:
 - how_to_download_app / switch_to_consumer_app / promo_code_help / loyalty_points_balance: customer app, promo, and loyalty (Sprint 34).
 - suggest_retail_upsell / add_retail_to_my_booking: provider retail at chair (Sprint 33).
 - list_webhooks / create_webhook / test_webhook / rotate_api_key / list_zapier_triggers / configure_zapier / run_accounting_export / configure_zendesk / create_support_ticket / sync_customer_to_zendesk / configure_marketing_registration_email / list_integration_health: integrations and back-office (Sprint 32).
+- delete_webhook: MUTATE — remove a webhook subscription. Optional webhookId (uuid) or url to pick the target; clarifies when several exist. Use for "delete the webhook for https://...", "remove webhook <id>". NOT create_webhook, NOT test_webhook.
+- toggle_webhook: MUTATE — enable, disable, pause, or resume a webhook subscription without deleting it. Requires enabled boolean (or enable/disable phrasing); optional webhookId or url. Use for "disable the booking webhook", "re-enable webhook <id>". NOT configure_zapier (Zapier toggle), NOT delete_webhook.
 - contact_support / open_ticket_for_order: customer Zendesk support (Sprint 32).
 - explain_payment_status / collect_cash_confirm: provider payment collection.
 - check_providers_for_service / book_nearest_slot / apply_gift_card_code / check_gift_card_balance / buy_gift_card / buy_gift_card_physical / choose_payment_method / pay_online / pay_cash_at_visit / purchase_subscription_checkout / explain_why_stripe_required / receipt_status: customer checkout and payments (code-based gift card balance, not my_gift_cards account balance).
@@ -2924,6 +2926,20 @@ export class AiCommandService {
           effectivePrompt,
         );
         break;
+      case 'delete_webhook':
+        result = await this.integrations.handleDeleteWebhook(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
+      case 'toggle_webhook':
+        result = await this.integrations.handleToggleWebhook(
+          businessId,
+          params,
+          effectivePrompt,
+        );
+        break;
       case 'test_webhook':
         result = await this.integrations.handleTestWebhook(
           businessId,
@@ -4528,6 +4544,14 @@ export class AiCommandService {
         break;
       case 'create_employee':
         result = await this.operations.handleCreateEmployee(
+          businessId,
+          params,
+          effectivePrompt,
+          userId,
+        );
+        break;
+      case 'update_employee':
+        result = await this.operations.handleUpdateEmployee(
           businessId,
           params,
           effectivePrompt,

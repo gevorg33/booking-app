@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const lanHost = process.env.LAN_HOST;
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   allowedDevOrigins: [
     'localhost',
     '127.0.0.1',

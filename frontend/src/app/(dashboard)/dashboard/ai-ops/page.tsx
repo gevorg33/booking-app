@@ -17,6 +17,24 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { getErrorMessage } from '@/lib/error-message';
+import type { AiAgentTaskPreview, AiExecutionTimelineEntry } from '@/lib/ai-client.types';
+import { confirmDialog } from '@/lib/app-dialog';
+import { invalidateDashboardQueries } from '@/lib/ai-orchestration';
+import {
+  PlanDiffPreview,
+  ConflictResolutionWorkspace,
+  CancellationRecoveryBoard,
+  type PlanDiffStep,
+} from '@/components/ai-agent-workspaces';
+import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
+import { AiAuditLog } from '@/components/ai-audit-log';
+import { AiWeeklyReportPanel } from '@/components/ai-weekly-report-panel';
+import { AiAnalyticsPanel } from '@/components/ai-analytics-panel';
+import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-panel';
+import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
+import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
+import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
+import { TablePagination } from '@/components/table/table-pagination';
 
 interface AgentPlanStep {
   id: string;
@@ -29,25 +47,20 @@ interface AgentTask {
   id: string;
   status: string;
   intent?: string;
-  plan?: { steps?: AgentPlanStep[] };
-  result?: { preview?: { planDiff?: AgentPlanStep[] } };
+  agentType?: string;
+  error?: string;
+  plan?: {
+    steps?: AgentPlanStep[];
+    riskAssessment?: { level?: string };
+  };
+  result?: {
+    preview?: AiAgentTaskPreview;
+    policyPreview?: AiAgentTaskPreview['policyPreview'];
+    policyExplain?: AiAgentTaskPreview['policyExplain'];
+    executionTimeline?: AiExecutionTimelineEntry[];
+    steps?: AiExecutionTimelineEntry[];
+  };
 }
-import { confirmDialog } from '@/lib/app-dialog';
-import { invalidateDashboardQueries } from '@/lib/ai-orchestration';
-import {
-  PlanDiffPreview,
-  ConflictResolutionWorkspace,
-  CancellationRecoveryBoard,
-} from '@/components/ai-agent-workspaces';
-import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
-import { AiAuditLog } from '@/components/ai-audit-log';
-import { AiWeeklyReportPanel } from '@/components/ai-weekly-report-panel';
-import { AiAnalyticsPanel } from '@/components/ai-analytics-panel';
-import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-panel';
-import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
-import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
-import { normalizeExecutionTimeline } from '@/lib/ai-clarify.util';
-import { TablePagination } from '@/components/table/table-pagination';
 
 const AGENT_TASKS_PAGE_SIZE = 10;
 
@@ -242,13 +255,15 @@ export default function AiOpsPage() {
             {pagedTasks.map((task) => {
             const { Icon: StatusIcon, color } = getStatusConfig(task.status);
             const preview = task.result?.preview;
-            const planDiff = preview?.planDiff ?? task.plan?.steps?.map((s) => ({
-              id: s.id,
-              action: s.action,
-              description: s.description,
-              impact: s.estimatedImpact ?? s.description,
-              estimatedImpact: s.estimatedImpact,
-            }));
+            const planDiff: PlanDiffStep[] | undefined =
+              preview?.planDiff ??
+              task.plan?.steps?.map((s) => ({
+                id: s.id,
+                action: s.action,
+                description: s.description,
+                impact: s.estimatedImpact ?? s.description,
+                estimatedImpact: s.estimatedImpact,
+              }));
             const expanded = expandedTaskId === task.id;
 
             return (

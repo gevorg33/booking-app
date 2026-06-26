@@ -10,6 +10,7 @@ import {
   type ReferrerRewardType,
 } from './referral-program.fixtures.js';
 import { getBusinessDefaultCurrency } from './business-currency.util.js';
+import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
 export {
   DEFAULT_REFERRAL_PROGRAM_SETTINGS,
@@ -131,8 +132,11 @@ export function buildReferralShareUrl(
   frontendUrl: string,
   slug: string,
   referralCode: string,
+  rootDomain?: string,
 ): string {
-  const url = new URL(`${frontendUrl.replace(/\/$/, '')}/book/${slug.trim().toLowerCase()}`);
+  const url = new URL(
+    buildTenantPublicUrl({ slug, frontendUrl, rootDomain }),
+  );
   url.searchParams.set('ref', referralCode);
   url.searchParams.set('src', 'referral');
   return url.toString();

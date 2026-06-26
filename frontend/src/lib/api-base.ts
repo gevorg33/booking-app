@@ -9,16 +9,20 @@ export function getServerApiBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
-/** Resolve API base URL — on mobile/Capacitor use the same host as the WebView. */
+/** Resolve API base URL for browser requests. */
 export function getApiBaseUrl(): string {
   if (typeof window === 'undefined') {
     return getServerApiBaseUrl();
   }
 
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (configured) return configured;
+
   const { hostname, protocol } = window.location;
+  // LAN / Capacitor dev fallback — API on same host, port 3001
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
     return `${protocol}//${hostname}:3001`;
   }
 
-  return process.env.NEXT_PUBLIC_API_URL || DEFAULT_DEV_API;
+  return DEFAULT_DEV_API;
 }

@@ -1332,13 +1332,13 @@ export default function ServicesPage() {
     () =>
       (services ?? [])
         .filter((svc) => {
-          const serviceType = (svc.metadata as { serviceType?: string } | undefined)?.serviceType;
+          const serviceType = svc.clinic?.serviceType;
           return serviceType === 'lab_test' || serviceType === 'procedure';
         })
         .map((svc) => ({
           id: svc.id,
           name: svc.name,
-          serviceType: (svc.metadata as { serviceType?: string } | undefined)?.serviceType,
+          serviceType: svc.clinic?.serviceType,
         })),
     [services],
   );

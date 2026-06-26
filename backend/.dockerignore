@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.log
+.git
+.gitignore
+test
+**/*.spec.ts
+**/*.integration.spec.ts
+README.md

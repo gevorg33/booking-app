@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { buildTenantPublicUrl } from '../../../common/utils/tenant-public-url.util.js';
 import { Business } from '../../business/entities/business.entity.js';
 import { Service } from '../../service/entities/service.entity.js';
 import { UpdateDistributionIntegrationDto } from '../dto/update-distribution-integration.dto.js';
@@ -47,12 +48,20 @@ export class DistributionIntegrationService {
     return this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   }
 
+  private rootDomain(): string | undefined {
+    return this.config.get<string>('ROOT_DOMAIN');
+  }
+
   private publicBookingUrl(slug: string): string {
-    return `${this.frontendUrl()}/book/${slug}`;
+    return buildTenantPublicUrl({
+      slug,
+      frontendUrl: this.frontendUrl(),
+      rootDomain: this.rootDomain(),
+    });
   }
 
   buildMessagingLinks(business: Business): MessagingDeepLinks {
-    return buildMessagingLinksForBusiness(business, this.frontendUrl());
+    return buildMessagingLinksForBusiness(business, this.frontendUrl(), this.rootDomain());
   }
 
   async getPublicSettings(

@@ -1,6 +1,7 @@
 /** adopt-6.1 — capture referral codes from public booking links. */
 
 import { trackAppAnalyticsEvent } from '@/lib/app-analytics';
+import { buildTenantPublicUrl } from '@/lib/tenant-host';
 
 const PENDING_REFERRAL_PREFIX = 'public_pending_referral:';
 const REFEREE_PROMO_PREFIX = 'public_referee_promo:';
@@ -20,7 +21,7 @@ export function savePendingReferralCode(slug: string, referralCode: string): voi
   const code = referralCode.trim().toUpperCase();
   if (!code) return;
   localStorage.setItem(pendingReferralStorageKey(slug), code);
-  trackAppAnalyticsEvent('referral_accepted', { referralCode: code, slug });
+  trackAppAnalyticsEvent('referral_accepted', { referralCode: code });
 }
 
 export function clearPendingReferralCode(slug: string): void {
@@ -74,7 +75,7 @@ export async function claimPendingReferralAfterSignIn(
 }
 
 export function buildReferralInviteUrl(origin: string, slug: string, referralCode: string): string {
-  const url = new URL(`${origin.replace(/\/$/, '')}/book/${slug.trim().toLowerCase()}`);
+  const url = new URL(buildTenantPublicUrl(slug, '', { origin }));
   url.searchParams.set('ref', referralCode);
   url.searchParams.set('src', 'referral');
   return url.toString();

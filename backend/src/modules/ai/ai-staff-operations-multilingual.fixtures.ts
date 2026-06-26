@@ -6,6 +6,7 @@ import {
   DEACTIVATE_EMPLOYEE_PROMPTS,
   INVITE_STAFF_MEMBER_PROMPTS,
   STAFF_OPERATIONS_EN_SCENARIO_IDS,
+  UPDATE_EMPLOYEE_PROMPTS,
 } from './ai-staff-operations.fixtures.js';
 
 export type StaffOperationsMultilingualScenario = {
@@ -62,6 +63,53 @@ const CREATE_I18N: Record<string, { hy: string; ru: string }> = {
   'staff-create-multi-skill-en': {
     hy: 'Hire արա provider Maya haircut and color services-ով',
     ru: 'Нанимай provider Maya с haircut and color services',
+  },
+};
+
+const UPDATE_I18N: Record<string, { hy: string; ru: string }> = {
+  'staff-update-rename-anna-en': {
+    hy: 'Վերանվանիր stylist Anna-ին որպես Maria',
+    ru: 'Переименуй stylist Anna в Maria',
+  },
+  'staff-update-email-maria-en': {
+    hy: 'Փոխիր Maria-ի email-ը maria@salon.com',
+    ru: 'Измени email Maria на maria@salon.com',
+  },
+  'staff-update-phone-jake-en': {
+    hy: 'Թարմացրու Jake-ի հեռախոսը +15551234567',
+    ru: 'Обнови телефон Jake на +15551234567',
+  },
+  'staff-update-title-anna-en': {
+    hy: 'Փոխիր Anna-ի պաշտոնը Senior Stylist',
+    ru: 'Измени должность Anna на Senior Stylist',
+  },
+  'staff-update-fix-email-emma-en': {
+    hy: 'Փոխիր provider Emma-ի email-ը emma@spa.com',
+    ru: 'Измени email provider Emma на emma@spa.com',
+  },
+  'staff-update-phone-leo-en': {
+    hy: 'Թարմացրու stylist Leo-ի հեռախոսի համարը +15559876543',
+    ru: 'Поменяй номер телефона stylist Leo на +15559876543',
+  },
+  'staff-update-rename-chris-en': {
+    hy: 'Վերանվանիր barber Chris-ին որպես Christopher',
+    ru: 'Переименуй barber Chris в Christopher',
+  },
+  'staff-update-job-title-david-en': {
+    hy: 'Թարմացրու David-ի job title-ը Color Director',
+    ru: 'Обнови job title David на Color Director',
+  },
+  'staff-update-email-nina-en': {
+    hy: 'Թարմացրու provider Nina-ի email-ը nina@salon.com',
+    ru: 'Обнови email provider Nina на nina@salon.com',
+  },
+  'staff-update-rename-olivia-en': {
+    hy: 'Վերանվանիր team member Olivia-ին որպես Liv',
+    ru: 'Переименуй team member Olivia в Liv',
+  },
+  'staff-update-phone-sofia-en': {
+    hy: 'Փոխիր Sofia-ի հեռախոսը +37491234567',
+    ru: 'Измени телефон Sofia на +37491234567',
   },
 };
 
@@ -208,6 +256,7 @@ const CONFIGURE_I18N: Record<string, { hy: string; ru: string }> = {
 
 const ALL_I18N: Record<string, { hy: string; ru: string }> = {
   ...CREATE_I18N,
+  ...UPDATE_I18N,
   ...INVITE_I18N,
   ...DEACTIVATE_I18N,
   ...CONFIGURE_I18N,
@@ -216,6 +265,7 @@ const ALL_I18N: Record<string, { hy: string; ru: string }> = {
 const EN_BY_ID = new Map(
   [
     ...CREATE_EMPLOYEE_PROMPTS,
+    ...UPDATE_EMPLOYEE_PROMPTS,
     ...INVITE_STAFF_MEMBER_PROMPTS,
     ...DEACTIVATE_EMPLOYEE_PROMPTS,
     ...CONFIGURE_ONLINE_BOOKING_PROMPTS,

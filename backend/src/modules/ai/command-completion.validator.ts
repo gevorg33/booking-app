@@ -907,6 +907,16 @@ const ACTION_RULES: Record<string, Rule> = {
       ),
     ].filter(Boolean) as ValidationIssue[],
 
+  update_employee: (cmd) =>
+    [
+      needs(
+        'employeeName',
+        'Team member name',
+        !!cmd.params.employeeName,
+        'Anna',
+      ),
+    ].filter(Boolean) as ValidationIssue[],
+
   invite_staff_member: (cmd) =>
     [
       needs(

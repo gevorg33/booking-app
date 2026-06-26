@@ -3,6 +3,7 @@ export type StaffOperationsPromptFixture = {
   prompt: string;
   expectedAction:
     | 'create_employee'
+    | 'update_employee'
     | 'invite_staff_member'
     | 'deactivate_employee'
     | 'configure_online_booking';
@@ -75,6 +76,75 @@ export const CREATE_EMPLOYEE_PROMPTS = [
     prompt: 'Hire provider Maya with haircut and color services',
     expectedAction: 'create_employee' as const,
     expectedParams: { employeeName: 'Maya' },
+  },
+] as const;
+
+export const UPDATE_EMPLOYEE_PROMPTS = [
+  {
+    id: 'staff-update-rename-anna-en',
+    prompt: 'Rename stylist Anna to Maria',
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Anna', newName: 'Maria' },
+  },
+  {
+    id: 'staff-update-email-maria-en',
+    prompt: "Change Maria's email to maria@salon.com",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Maria', email: 'maria@salon.com' },
+  },
+  {
+    id: 'staff-update-phone-jake-en',
+    prompt: "Update Jake's phone to +15551234567",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Jake', phone: '+15551234567' },
+  },
+  {
+    id: 'staff-update-title-anna-en',
+    prompt: "Set Anna's title to Senior Stylist",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Anna', title: 'Senior Stylist' },
+  },
+  {
+    id: 'staff-update-fix-email-emma-en',
+    prompt: "Fix provider Emma's email to emma@spa.com",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Emma', email: 'emma@spa.com' },
+  },
+  {
+    id: 'staff-update-phone-leo-en',
+    prompt: "Correct stylist Leo's phone number to +15559876543",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Leo', phone: '+15559876543' },
+  },
+  {
+    id: 'staff-update-rename-chris-en',
+    prompt: 'Rename barber Chris to Christopher',
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Chris', newName: 'Christopher' },
+  },
+  {
+    id: 'staff-update-job-title-david-en',
+    prompt: "Update David's job title to Color Director",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'David', title: 'Color Director' },
+  },
+  {
+    id: 'staff-update-email-nina-en',
+    prompt: "Update provider Nina's email to nina@salon.com",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Nina', email: 'nina@salon.com' },
+  },
+  {
+    id: 'staff-update-rename-olivia-en',
+    prompt: 'Rename team member Olivia to Liv',
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Olivia', newName: 'Liv' },
+  },
+  {
+    id: 'staff-update-phone-sofia-en',
+    prompt: "Edit Sofia's phone to +37491234567",
+    expectedAction: 'update_employee' as const,
+    expectedParams: { employeeName: 'Sofia', phone: '+37491234567' },
   },
 ] as const;
 
@@ -312,10 +382,23 @@ export const STAFF_OPERATIONS_RESCUE_SCENARIOS = [
     misclassifiedAction: 'unknown',
     expectedAction: 'create_employee' as const,
   },
+  {
+    id: 'misclass-update-as-create',
+    prompt: "Change Maria's email to maria@salon.com",
+    misclassifiedAction: 'create_employee',
+    expectedAction: 'update_employee' as const,
+  },
+  {
+    id: 'misclass-rename-as-deactivate',
+    prompt: 'Rename stylist Anna to Maria',
+    misclassifiedAction: 'deactivate_employee',
+    expectedAction: 'update_employee' as const,
+  },
 ] as const;
 
 export const STAFF_OPERATIONS_EN_SCENARIO_IDS = [
   ...CREATE_EMPLOYEE_PROMPTS.map((row) => row.id),
+  ...UPDATE_EMPLOYEE_PROMPTS.map((row) => row.id),
   ...INVITE_STAFF_MEMBER_PROMPTS.map((row) => row.id),
   ...DEACTIVATE_EMPLOYEE_PROMPTS.map((row) => row.id),
   ...CONFIGURE_ONLINE_BOOKING_PROMPTS.map((row) => row.id),
@@ -324,6 +407,7 @@ export const STAFF_OPERATIONS_EN_SCENARIO_IDS = [
 export const STAFF_OPERATIONS_PROMPT_FIXTURES: StaffOperationsPromptFixture[] =
   [
     ...CREATE_EMPLOYEE_PROMPTS,
+    ...UPDATE_EMPLOYEE_PROMPTS,
     ...INVITE_STAFF_MEMBER_PROMPTS,
     ...DEACTIVATE_EMPLOYEE_PROMPTS,
     ...CONFIGURE_ONLINE_BOOKING_PROMPTS,

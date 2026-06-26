@@ -12,6 +12,7 @@ import {
   formatSubscriptionPlanAssignLabel,
   serviceIdsWithSubscriptionPlans,
   subscriptionPlansForService,
+  type SubscriptionPlanSummary,
 } from '@/lib/subscription-plans';
 import { calculateSubscriptionPricing } from '@/lib/subscription-pricing';
 import { dateKeyToExpiresAtEndOfDay, formatDateDisplay, isExpiredAt } from '@/lib/date-format';
@@ -37,6 +38,41 @@ import {
 } from '@/lib/catalog-notify-customers.util';
 
 type Tab = 'gift-cards' | 'memberships' | 'loyalty' | 'promo-codes' | 'referrals';
+
+interface MonetizationSubscriptionPlan extends SubscriptionPlanSummary {
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  service?: { name: string; price?: number };
+  preview?: {
+    pricing?: {
+      subscriptionPrice?: number;
+      savings?: number;
+    };
+  };
+}
+
+interface LoyaltyTransaction {
+  id: string;
+  type: string;
+  points: number;
+  note?: string | null;
+}
+
+interface LoyaltyCustomerData {
+  account: { pointsBalance: number; lifetimeEarned: number };
+  transactions: LoyaltyTransaction[];
+}
+
+interface PromoCode {
+  id: string;
+  code: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  usedCount: number;
+  maxUses?: number | null;
+  expiresAt?: string | null;
+  isActive: boolean;
+}
 
 const TAB_FEATURE: Record<Tab, PlanFeatureFlag | null> = {
   'gift-cards': 'giftCards',
@@ -92,7 +128,7 @@ export default function MonetizationPage() {
         ))}
       </div>
 
-      {!tabAllowed && entitlements && (
+      {!tabAllowed && entitlements && TAB_FEATURE[tab] != null && (
         <UpgradePrompt feature={TAB_FEATURE[tab]} className="mb-6" />
       )}
       {tabAllowed && tab === 'gift-cards' && business?.id && (
@@ -157,7 +193,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
       const { data } = await api.get(
         `/businesses/${businessId}/subscriptions/plans?includeInactive=true`,
       );
-      return unwrap<unknown[]>(data);
+      return unwrap<MonetizationSubscriptionPlan[]>(data);
     },
   });
 
@@ -283,7 +319,7 @@ function MembershipsTab({ businessId }: { businessId: string }) {
     },
   });
 
-  const startEditingPlan = (plan: (typeof plans)[number]) => {
+  const startEditingPlan = (plan: MonetizationSubscriptionPlan) => {
     setEditingPlanId(plan.id);
     setCatalogNotify(defaultCatalogNotifyFormState());
     setNotifyError(null);
@@ -669,7 +705,7 @@ function LoyaltyTab({ businessId }: { businessId: string }) {
       const { data: res } = await api.get(
         `/businesses/${businessId}/loyalty/customer/${customerId}`,
       );
-      return unwrap<{ account: { pointsBalance: number; lifetimeEarned: number }; transactions: unknown[] }>(res);
+      return unwrap<LoyaltyCustomerData>(res);
     },
     enabled: !!customerId,
   });
@@ -869,7 +905,7 @@ function PromoCodesTab({ businessId }: { businessId: string }) {
     queryKey: ['promo-codes', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/promo-codes`);
-      return unwrap<unknown[]>(data);
+      return unwrap<PromoCode[]>(data);
     },
   });
 

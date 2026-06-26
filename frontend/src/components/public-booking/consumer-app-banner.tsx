@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { detectConsumerMobilePlatform } from '@/lib/consumer-app-platform';
 
+import { buildTenantPublicUrl } from '@/lib/tenant-host';
+
 const IOS_STORE_URL = process.env.NEXT_PUBLIC_CONSUMER_IOS_APP_STORE_URL?.trim() || '';
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_CONSUMER_ANDROID_PLAY_STORE_URL?.trim() || '';
 const WEB_ORIGIN =
@@ -11,7 +13,7 @@ const WEB_ORIGIN =
   (typeof window !== 'undefined' ? window.location.origin : '');
 
 function buildUniversalBookUrl(slug: string): string {
-  return `${WEB_ORIGIN}/book/${slug}`;
+  return buildTenantPublicUrl(slug, '', { origin: WEB_ORIGIN });
 }
 
 function buildCustomSchemeUrl(slug: string): string {

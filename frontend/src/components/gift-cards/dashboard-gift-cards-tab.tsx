@@ -23,6 +23,28 @@ function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
 }
 
+type GiftCardEmployee = {
+  id: string;
+  name?: string;
+  email?: string;
+};
+
+type GiftCardPackagePreview = {
+  id: string;
+  name: string;
+  preview?: {
+    pricing?: { packagePrice?: number };
+    items?: Array<{ serviceName: string; quantity: number }>;
+  };
+};
+
+type GiftCardSubscriptionPlanPreview = {
+  id: string;
+  name: string;
+  service?: { name?: string };
+  preview?: { pricing?: { subscriptionPrice?: number } };
+};
+
 type GiftCardChangeRequestRow = {
   id: string;
   requestType: 'cancel' | 'modify';
@@ -180,7 +202,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['employees', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/employees`);
-      return unwrap<unknown[]>(data);
+      return unwrap<GiftCardEmployee[]>(data);
     },
     enabled: subTab === 'settings',
   });
@@ -198,7 +220,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
     queryKey: ['service-packages', businessId, 'gift-products'],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/packages?filter=active`);
-      return unwrap<unknown[]>(data);
+      return unwrap<GiftCardPackagePreview[]>(data);
     },
     enabled: subTab === 'products',
   });
@@ -209,7 +231,7 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
       const { data } = await api.get(
         `/businesses/${businessId}/subscriptions/plans?includeInactive=false`,
       );
-      return unwrap<unknown[]>(data);
+      return unwrap<GiftCardSubscriptionPlanPreview[]>(data);
     },
     enabled: subTab === 'products',
   });
@@ -573,33 +595,20 @@ export function DashboardGiftCardsTab({ businessId }: { businessId: string }) {
               name: s.name,
               price: Number(s.price),
             }))}
-            packages={servicePackages.map(
-              (pkg: {
-                id: string;
-                name: string;
-                preview?: { pricing?: { packagePrice?: number }; items?: Array<{ serviceName: string; quantity: number }> };
-              }) => ({
-                id: pkg.id,
-                name: pkg.name,
-                packagePrice: Number(pkg.preview?.pricing?.packagePrice ?? 0),
-                itemSummary: (pkg.preview?.items ?? [])
-                  .map((item) => `${item.serviceName} × ${item.quantity}`)
-                  .join(', '),
-              }),
-            )}
-            subscriptionPlans={subscriptionPlans.map(
-              (plan: {
-                id: string;
-                name: string;
-                service?: { name?: string };
-                preview?: { pricing?: { subscriptionPrice?: number } };
-              }) => ({
-                id: plan.id,
-                name: plan.name,
-                serviceName: plan.service?.name ?? '',
-                subscriptionPrice: Number(plan.preview?.pricing?.subscriptionPrice ?? 0),
-              }),
-            )}
+            packages={servicePackages.map((pkg) => ({
+              id: pkg.id,
+              name: pkg.name,
+              packagePrice: Number(pkg.preview?.pricing?.packagePrice ?? 0),
+              itemSummary: (pkg.preview?.items ?? [])
+                .map((item) => `${item.serviceName} × ${item.quantity}`)
+                .join(', '),
+            }))}
+            subscriptionPlans={subscriptionPlans.map((plan) => ({
+              id: plan.id,
+              name: plan.name,
+              serviceName: plan.service?.name ?? '',
+              subscriptionPrice: Number(plan.preview?.pricing?.subscriptionPrice ?? 0),
+            }))}
             purchasableServices={settingsForm.purchasableServices ?? []}
             purchasablePackages={settingsForm.purchasablePackages ?? []}
             purchasableSubscriptionPlans={settingsForm.purchasableSubscriptionPlans ?? []}

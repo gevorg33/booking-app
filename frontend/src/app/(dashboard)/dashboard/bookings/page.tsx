@@ -535,11 +535,12 @@ export default function BookingsPage() {
   }, [calPeriods]);
 
   // Services offered by the selected period
-  const periodServices = useMemo(() => {
+  const periodServices = useMemo((): ServiceCatalogItem[] => {
     if (!selectedPeriod) return [];
     const ids = selectedPeriod.serviceIds;
-    if (!ids || ids.length === 0) return allServices;
-    return (allServices as ServiceCatalogItem[]).filter((s) => ids.includes(s.id));
+    const catalog = allServices as ServiceCatalogItem[];
+    if (!ids || ids.length === 0) return catalog;
+    return catalog.filter((s) => ids.includes(s.id));
   }, [selectedPeriod, allServices]);
 
   // Legend: unique services across all service_block periods

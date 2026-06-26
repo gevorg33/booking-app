@@ -46,6 +46,24 @@ describe('Public booking tour integration', () => {
     expect(result.booking.metadata).toMatchObject({ paxCount: 3 });
   });
 
+  it('passes paxCount through tour checkout quote', async () => {
+    const harness = createTourPublicBookingHarness();
+
+    await harness.service.quoteCheckout('alpine-tours', {
+      serviceId: 'svc-tour-1',
+      paxCount: 6,
+    });
+
+    expect(
+      harness.bookingPaymentService.resolveCheckoutPricing,
+    ).toHaveBeenCalledWith(
+      harness.business.id,
+      harness.tourService,
+      expect.objectContaining({ paxCount: 6 }),
+      undefined,
+    );
+  });
+
   it('rejects tour booking when requested pax exceeds remaining capacity', async () => {
     const harness = createTourPublicBookingHarness();
     harness.bookingRepo.find.mockResolvedValue([

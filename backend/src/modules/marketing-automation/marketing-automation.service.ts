@@ -1,3 +1,4 @@
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, MoreThanOrEqual, In } from 'typeorm';
@@ -1037,13 +1038,22 @@ export class MarketingAutomationService {
   private buildServiceBookingUrl(slug: string, serviceId: string): string {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    return `${frontendUrl.replace(/\/$/, '')}/book/${slug}?serviceId=${encodeURIComponent(serviceId)}`;
+    return buildTenantPublicUrl({
+      slug,
+      frontendUrl,
+      rootDomain: this.configService.get<string>('ROOT_DOMAIN'),
+      query: { serviceId },
+    });
   }
 
   private buildBookingUrl(slug: string): string {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    return `${frontendUrl.replace(/\/$/, '')}/book/${slug}`;
+    return buildTenantPublicUrl({
+      slug,
+      frontendUrl,
+      rootDomain: this.configService.get<string>('ROOT_DOMAIN'),
+    });
   }
 
   private async findBusiness(businessId: string): Promise<Business> {

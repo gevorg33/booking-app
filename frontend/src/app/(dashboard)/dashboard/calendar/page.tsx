@@ -609,11 +609,11 @@ export default function CalendarPage() {
                 </span>
               </Row>
               <Row label={t('calendarPage.tourDates')}>
-                {formatDateDisplay(parseDateKey(selectedTour.tourStartDate), locale)}
+                {formatDateDisplay(parseDateKey(selectedTour.tourStartDate) ?? selectedTour.tourStartDate, locale)}
                 {selectedTour.tourEndDate !== selectedTour.tourStartDate && (
                   <>
                     {' – '}
-                    {formatDateDisplay(parseDateKey(selectedTour.tourEndDate), locale)}
+                    {formatDateDisplay(parseDateKey(selectedTour.tourEndDate) ?? selectedTour.tourEndDate, locale)}
                   </>
                 )}
               </Row>

@@ -20,6 +20,7 @@ interface BookingPaymentBreakdownProps {
     loyaltyPoints: string;
     retailTotal: string;
     grandTotal: string;
+    taxIncluded: string;
   };
 }
 

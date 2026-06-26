@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-12T12:22:43.487Z",
-  "totalCases": 3488,
-  "passed": 3488,
+  "generatedAt": "2026-06-13T11:00:24.819Z",
+  "totalCases": 3521,
+  "passed": 3521,
   "failed": 0,
   "accuracyPct": 100,
   "llmCaseCount": 14,
@@ -1559,6 +1559,12 @@
       "passed": 1,
       "failed": 0,
       "total": 1,
+      "accuracyPct": 100
+    },
+    "update_employee": {
+      "passed": 33,
+      "failed": 0,
+      "total": 33,
       "accuracyPct": 100
     },
     "update_package": {

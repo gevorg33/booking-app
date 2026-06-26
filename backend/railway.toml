@@ -1,0 +1,11 @@
+# Railway deploy config — set service root directory to `backend` in the dashboard.
+# Add Postgres + Redis plugins, then wire env vars (see backend/.env.example).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+numReplicas = 1
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

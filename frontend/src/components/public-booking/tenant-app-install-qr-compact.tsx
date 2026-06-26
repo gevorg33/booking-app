@@ -84,5 +84,3 @@ export function TenantAppInstallQrCompact({
     </div>
   );
 }
-
-export { TenantAppInstallQrCompact };

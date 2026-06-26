@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { uploadBusinessLogo } from '@/lib/upload';
+import { getErrorMessage } from '@/lib/error-message';
 import { useI18n } from '@/i18n';
 
 interface BusinessLogoFieldProps {
@@ -33,7 +34,7 @@ export function BusinessLogoField({
       const url = await uploadBusinessLogo(businessId, file);
       onChange(url);
     } catch (err: unknown) {
-      setError(err?.response?.data?.message || t('errors.uploadLogoFailed'));
+      setError(getErrorMessage(err, t('errors.uploadLogoFailed')));
     } finally {
       setUploading(false);
     }

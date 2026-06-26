@@ -18,7 +18,7 @@ import {
 import { resolveCommandBarExamples } from '@/lib/ai-command-bar-examples.util';
 import { useOrchestrixEvents } from '@/components/ai-proactive-suggestions';
 import { AiAvailableProvidersPanel } from '@/components/ai-available-providers-panel';
-import { AiClarifyForm, type ClarifyIssue } from '@/components/ai-clarify-form';
+import { AiClarifyForm } from '@/components/ai-clarify-form';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
 import { normalizeAvailableProviders } from '@/lib/ai-available-providers.util';
 import { useAiEvents } from '@/lib/use-ai-events';
@@ -34,7 +34,7 @@ import {
 import { buildDashboardNavigateUrl } from '@/lib/compliance-dashboard-nav';
 import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
-import { AiCommandWizard, type WizardStepView } from '@/components/ai-command-wizard';
+import { AiCommandWizard } from '@/components/ai-command-wizard';
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname, useRouter } from 'next/navigation';
@@ -43,12 +43,13 @@ import type { OnboardingAiStep } from '@/lib/ai-onboarding.util';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isPlanLimitError, planLimitMessage } from '@/lib/plan-entitlements';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
+import type { AiCommandDetails } from '@/lib/ai-client.types';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  details?: unknown;
+  details?: AiCommandDetails;
   action?: string;
   success?: boolean;
   timestamp: Date;
@@ -238,12 +239,13 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
+        const apiErr = err as { response?: { data?: { message?: string } } };
         setMessages((prev) => [
           ...prev,
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: err?.response?.data?.message || t('ai.approvePlanFailed'),
+            text: apiErr.response?.data?.message || t('ai.approvePlanFailed'),
             success: false,
             action: 'error',
             timestamp: new Date(),
@@ -257,7 +259,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   );
 
   const followDashboardNavigate = useCallback(
-    (details?: Record<string, unknown>) => {
+    (details?: AiCommandDetails) => {
       const navigate = extractDashboardNavigate(details);
       if (!navigate) return;
       router.push(buildDashboardNavigateUrl(navigate));
@@ -300,24 +302,25 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         ]);
         setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
         if (result.success) {
-          followDashboardNavigate(result.details as Record<string, unknown> | undefined);
+          followDashboardNavigate(result.details);
         }
         if (
           shouldInvalidateAfterAi(
             result.action,
             result.success,
-            result.details as { requiresExecutionConfirmation?: boolean } | undefined,
+            result.details,
           )
         ) {
           invalidateDashboardQueries(queryClient);
         }
       } catch (err: unknown) {
+        const apiErr = err as { response?: { data?: { message?: string } } };
         setMessages((prev) => [
           ...prev,
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: err?.response?.data?.message || t('ai.confirmActionFailed'),
+            text: apiErr.response?.data?.message || t('ai.confirmActionFailed'),
             success: false,
             action: 'error',
             timestamp: new Date(),
@@ -622,17 +625,10 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
             )}
 
             {messages.map((msg) => {
-              const msgDetails =
-                msg.details && typeof msg.details === 'object'
-                  ? (msg.details as Record<string, unknown>)
-                  : undefined;
+              const msgDetails = msg.details;
               const availableProviders = normalizeAvailableProviders(msgDetails);
-              const providerServiceName =
-                typeof msgDetails?.serviceName === 'string'
-                  ? msgDetails.serviceName
-                  : undefined;
-              const providerDate =
-                typeof msgDetails?.date === 'string' ? msgDetails.date : undefined;
+              const providerServiceName = msgDetails?.serviceName;
+              const providerDate = msgDetails?.date;
 
               return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -669,12 +665,12 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
 
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <AiClarifyForm
-                      issues={msg.details.missing as ClarifyIssue[]}
+                      issues={msg.details.missing}
                       options={{
                         employees,
                         services,
                         availableProviderNames:
-                          (msg.details.availableProviders as string[] | undefined) ??
+                          msg.details.availableProviders ??
                           availableProviders.map((provider) => provider.name),
                       }}
                       onSubmit={(composed) => void runPrompt(composed)}
@@ -684,12 +680,8 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                   {msg.role === 'assistant' &&
                     normalizeExecutionTimeline(msg.details?.executionTimeline).length > 0 && (
                       <AiExecutionTimeline
-                        steps={normalizeExecutionTimeline(msg.details.executionTimeline)}
-                        taskId={
-                          typeof msg.details?.taskId === 'string'
-                            ? msg.details.taskId
-                            : undefined
-                        }
+                        steps={normalizeExecutionTimeline(msg.details?.executionTimeline)}
+                        taskId={msg.details?.taskId}
                         onRetry={retryWorkflowStep}
                         retryingStepId={retryingStepId}
                       />
@@ -738,14 +730,14 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                     </button>
                   )}
 
-                  {msg.details?.requiresApproval && msg.details?.taskId && (
+                  {msg.details?.requiresApproval && msg.details.taskId && (
                     <>
                       {msg.details.wizardMode &&
                       Array.isArray(msg.details.wizardSteps) &&
                       msg.details.wizardSteps.length > 0 ? (
                         <AiCommandWizard
-                          steps={msg.details.wizardSteps as WizardStepView[]}
-                          onApprove={() => approveTask(msg.details.taskId)}
+                          steps={msg.details.wizardSteps}
+                          onApprove={() => approveTask(msg.details!.taskId!)}
                           approving={approvingId === msg.details.taskId}
                         />
                       ) : (
@@ -759,7 +751,7 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                       )}
                       {!msg.details.wizardMode && (
                         <button
-                          onClick={() => approveTask(msg.details.taskId)}
+                          onClick={() => approveTask(msg.details!.taskId!)}
                           disabled={approvingId === msg.details.taskId}
                           className="mt-2 text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
                         >

@@ -23,6 +23,8 @@ import {
   handleContactSupportLogic,
   handleCreateSupportTicketLogic,
   handleCreateWebhookLogic,
+  handleDeleteWebhookLogic,
+  handleToggleWebhookLogic,
   handleIntegrationsCompoundLogic,
   handleListIntegrationHealthLogic,
   handleListWebhooksLogic,
@@ -85,6 +87,22 @@ export class AiIntegrationsService {
     prompt?: string,
   ) {
     return handleCreateWebhookLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleDeleteWebhook(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleDeleteWebhookLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleToggleWebhook(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleToggleWebhookLogic(this.deps, businessId, params, prompt);
   }
 
   handleTestWebhook(

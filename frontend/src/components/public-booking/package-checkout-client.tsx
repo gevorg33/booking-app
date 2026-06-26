@@ -195,6 +195,7 @@ export function PackageCheckoutClient({
   const checkoutSubtotal = quote?.subtotal ?? pkg.pricing.packagePrice;
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
   const requiresPayment = tenant.onlinePaymentsEnabled && amountDue > 0;
+  const showCashOption = tenant.acceptCashPayments === true && amountDue > 0;
   const promoApplied =
     !!appliedPromo &&
     (!quote ||

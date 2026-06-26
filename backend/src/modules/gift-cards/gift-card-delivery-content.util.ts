@@ -5,6 +5,7 @@ import {
   formatGiftCardPurchaseLine,
 } from '../../common/utils/notification-currency.util.js';
 import { formatNotificationExpiresLabel } from '../../common/utils/notification-date-format.util.js';
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import type { GiftCard } from './entities/gift-card.entity.js';
 import type { GiftCardType } from './gift-card.types.js';
 import { renderBusinessEmailTemplate } from '../notifications/notification-email-template.util.js';
@@ -22,14 +23,24 @@ export function resolveFrontendBaseUrl(frontendUrl?: string | null): string {
 export function buildPublicBookingLinks(
   businessSlug: string | null | undefined,
   frontendUrl?: string | null,
+  rootDomain?: string,
 ): PublicBookingLinks | null {
   if (!businessSlug?.trim()) return null;
-  const base = resolveFrontendBaseUrl(frontendUrl);
   const slug = businessSlug.trim();
   return {
-    bookingUrl: `${base}/book/${slug}`,
-    accountUrl: `${base}/book/${slug}/account`,
-    giftCardsUrl: `${base}/book/${slug}/gift-cards`,
+    bookingUrl: buildTenantPublicUrl({ slug, frontendUrl: frontendUrl ?? undefined, rootDomain }),
+    accountUrl: buildTenantPublicUrl({
+      slug,
+      frontendUrl: frontendUrl ?? undefined,
+      rootDomain,
+      pathSuffix: '/account',
+    }),
+    giftCardsUrl: buildTenantPublicUrl({
+      slug,
+      frontendUrl: frontendUrl ?? undefined,
+      rootDomain,
+      pathSuffix: '/gift-cards',
+    }),
   };
 }
 

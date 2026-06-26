@@ -1,14 +1,10 @@
-import type { AiPageContext } from '@/lib/ai-orchestration';
+import type { AiCommandDetails, AiCommandSessionContext } from '@/lib/ai-client.types';
 import {
   buildDashboardNavigateUrl,
   type DashboardNavigateTarget,
 } from '@/lib/compliance-dashboard-nav';
 
-export interface AiCommandSessionContext extends Partial<AiPageContext> {
-  lastAction?: string | null;
-  lastMetric?: string | null;
-  availableProviders?: string[];
-}
+export type { AiCommandSessionContext };
 
 export interface AiCommandMessageLike {
   id: string;
@@ -129,7 +125,7 @@ export function isAiDataMutatingAction(action: string): boolean {
 export function shouldInvalidateAfterAi(
   action?: string,
   success?: boolean,
-  details?: { requiresExecutionConfirmation?: boolean },
+  details?: Pick<AiCommandDetails, 'requiresExecutionConfirmation'>,
 ): boolean {
   if (!success || !action) return false;
   if (details?.requiresExecutionConfirmation === true) return false;
@@ -138,22 +134,13 @@ export function shouldInvalidateAfterAi(
 
 export function extractSessionContext(result: {
   action?: string;
-  details?: {
-    sessionContext?: AiCommandSessionContext;
-    employee?: string;
-    date?: string;
-    availableProviders?: string[];
-    params?: Record<string, unknown>;
-    metric?: unknown;
-    appointmentMetric?: unknown;
-    bookingMetric?: unknown;
-  };
+  details?: AiCommandDetails;
 }): AiCommandSessionContext {
   const ctx: AiCommandSessionContext = { ...(result.details?.sessionContext ?? {}) };
   if (result.details?.employee) ctx.employeeName = result.details.employee;
   if (result.details?.date) ctx.date = result.details.date;
   const params = result.details?.params;
-  const details = result.details as Record<string, unknown> | undefined;
+  const details = result.details;
   if (params?.employeeName && !ctx.employeeName) ctx.employeeName = String(params.employeeName);
   if (params?.date && !ctx.date) ctx.date = String(params.date);
   if (params?.serviceName && !ctx.serviceName) ctx.serviceName = String(params.serviceName);
@@ -206,7 +193,7 @@ export function mergeSessionContext(
 }
 
 export function extractDashboardNavigate(
-  details?: Record<string, unknown>,
+  details?: AiCommandDetails | Record<string, unknown>,
 ): DashboardNavigateTarget | null {
   const navigate = details?.navigate;
   if (!navigate || typeof navigate !== 'object') return null;

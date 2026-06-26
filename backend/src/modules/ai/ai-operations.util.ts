@@ -19,6 +19,7 @@ export const OPERATIONS_OPS_INTENTS = [
 
 export const OPERATIONS_STAFF_INTENTS = [
   'create_employee',
+  'update_employee',
   'invite_staff_member',
   'deactivate_employee',
   'configure_online_booking',

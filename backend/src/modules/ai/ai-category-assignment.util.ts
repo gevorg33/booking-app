@@ -28,6 +28,16 @@ export function isTransferServicesBetweenProvidersPrompt(
 export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
   if (isTransferServicesBetweenProvidersPrompt(prompt)) return false;
   if (SENIORITY_MATRIX_RE.test(prompt)) return false;
+  // Locale/translation cleanup ("strip translations from catalog", "remove
+  // Russian translation from Bridal package") is owned by the business-languages
+  // / package-localized-names rescuers — never the provider-service unassigner.
+  if (
+    /\b(translat\w+|localized?|localised?|locale|locales|localizedNames)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (
     /\b(?:seniors?|juniors?|matrix)\b/i.test(prompt) &&
     /\bonly\b/i.test(prompt)

@@ -15,6 +15,52 @@ import { useBusinessCurrency } from '@/hooks/use-business-currency';
 
 type Tab = 'locations' | 'resources' | 'inventory' | 'expenses' | 'commissions' | 'pl';
 
+interface Location {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  isDefault?: boolean;
+}
+
+interface InventoryProduct {
+  id: string;
+  name: string;
+  sku?: string | null;
+  quantityOnHand: number;
+  unitCost: number;
+  retailPrice?: number | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  externalLink?: string | null;
+  isActive?: boolean;
+}
+
+interface Expense {
+  id: string;
+  category: string;
+  description?: string | null;
+  amount: number;
+  expenseDate: string;
+}
+
+interface CommissionRule {
+  id: string;
+  type: string;
+  value: number;
+}
+
+interface ProfitAndLoss {
+  revenue: number;
+  grossRevenue: number;
+  taxCollected: number;
+  netRevenue: number;
+  expenses: number;
+  commissions: number;
+  netProfit: number;
+  currency: string;
+}
+
 function unwrap<T>(res: unknown): T {
   return ((res as { data?: T })?.data ?? res) as T;
 }
@@ -51,16 +97,7 @@ export default function OperationsPage() {
     queryKey: ['analytics-pl', business?.id, plParams],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/analytics/pl`, { params: plParams });
-      return unwrap<{
-        revenue: number;
-        grossRevenue: number;
-        taxCollected: number;
-        netRevenue: number;
-        expenses: number;
-        commissions: number;
-        netProfit: number;
-        currency: string;
-      }>(data);
+      return unwrap<ProfitAndLoss>(data);
     },
     enabled: !!business?.id && tab === 'pl',
   });
@@ -195,7 +232,7 @@ function LocationsTab({ businessId }: { businessId: string }) {
     queryKey: ['locations', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/locations`);
-      return unwrap<unknown[]>(data);
+      return unwrap<Location[]>(data);
     },
   });
 
@@ -299,7 +336,7 @@ function InventoryTab({ businessId }: { businessId: string }) {
     queryKey: ['inventory', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/inventory/products`);
-      return unwrap<unknown[]>(data);
+      return unwrap<InventoryProduct[]>(data);
     },
   });
 
@@ -538,7 +575,7 @@ function ExpensesTab({ businessId }: { businessId: string }) {
     queryKey: ['expenses', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/expenses`);
-      return unwrap<unknown[]>(data);
+      return unwrap<Expense[]>(data);
     },
   });
 
@@ -653,7 +690,7 @@ function CommissionsTab({ businessId }: { businessId: string }) {
     queryKey: ['commissions', businessId],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${businessId}/commissions`);
-      return unwrap<unknown[]>(data);
+      return unwrap<CommissionRule[]>(data);
     },
   });
 

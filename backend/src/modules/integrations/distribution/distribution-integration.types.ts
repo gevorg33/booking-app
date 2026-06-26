@@ -1,3 +1,5 @@
+import { buildTenantPublicUrl } from '../../../common/utils/tenant-public-url.util.js';
+
 export interface GoogleReserveIntegration {
   enabled?: boolean;
   /** Google Business / Merchant Center ID (when approved for Reserve with Google) */
@@ -75,11 +77,16 @@ export function getDistributionIntegrations(
 export function buildMessagingLinksForBusiness(
   business: { slug: string; name: string; settings?: Record<string, unknown> },
   frontendUrl: string,
+  rootDomain?: string,
 ): MessagingDeepLinks {
   const dist = getDistributionIntegrations(business.settings);
   const messaging = dist.messaging || {};
   const meta = dist.metaBooking || {};
-  const bookingUrl = `${frontendUrl.replace(/\/$/, '')}/book/${business.slug}`;
+  const bookingUrl = buildTenantPublicUrl({
+    slug: business.slug,
+    frontendUrl,
+    rootDomain,
+  });
 
   let telegramUrl: string | null = null;
   if (messaging.telegramEnabled && messaging.telegramBotUsername?.trim()) {

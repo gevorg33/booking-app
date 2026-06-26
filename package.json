@@ -9,6 +9,8 @@
     "dev:lan:be": "bash scripts/dev-lan-backend.sh",
     "dev:frontend": "bash scripts/dev-frontend.sh",
     "dev:backend": "bash scripts/dev-backend.sh",
-    "dev:stop": "bash scripts/dev-stop.sh"
+    "dev:stop": "bash scripts/dev-stop.sh",
+    "deploy:frontend": "bash scripts/deploy-vercel.sh --prod",
+    "deploy:backend": "bash scripts/deploy-railway.sh up --detach"
   }
 }

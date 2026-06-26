@@ -15,9 +15,9 @@ import {
 describe('tenant-app-install-link.util', () => {
   it.each(TENANT_APP_INSTALL_URL_SCENARIOS)(
     'buildTenantAppInstallUrl $id',
-    ({ frontendUrl, slug, serviceId, campaign, expectedUrl }) => {
+    ({ frontendUrl, slug, serviceId, campaign, rootDomain, expectedUrl }) => {
       expect(
-        buildTenantAppInstallUrl(frontendUrl, slug, { serviceId, campaign }),
+        buildTenantAppInstallUrl(frontendUrl, slug, { serviceId, campaign, rootDomain }),
       ).toBe(expectedUrl);
     },
   );

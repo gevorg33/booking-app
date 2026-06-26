@@ -27,6 +27,7 @@ import {
   extractWebhookUrlFromPrompt,
   extractZendeskSubdomainFromPrompt,
   parseFirstActiveWebhook,
+  resolveWebhookEnabledFromPrompt,
   resolveZapierEnabledFromPrompt,
   resolveZendeskSyncEnabledFromPrompt,
   sendTestWebhookDelivery,
@@ -180,6 +181,178 @@ export async function handleCreateWebhookLogic(
     return failure(
       'create_webhook',
       err?.message ?? 'Could not create webhook.',
+    );
+  }
+}
+
+interface WebhookSubscriptionSummary {
+  id: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+}
+
+async function resolveWebhookTarget(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<
+  | { target: WebhookSubscriptionSummary }
+  | { clarify: CommandResult['details'] }
+> {
+  const subscriptions = (await deps.webhooksService.listSubscriptions(
+    businessId,
+  )) as WebhookSubscriptionSummary[];
+  if (!subscriptions.length) {
+    return { clarify: { clarify: true, missing: ['webhookId'], webhooks: [] } };
+  }
+
+  const text = prompt ?? (params._prompt as string) ?? '';
+  const webhookId =
+    (params.webhookId as string | undefined) ??
+    extractWebhookIdFromPrompt(text);
+  if (webhookId) {
+    const byId = subscriptions.find((s) => s.id === webhookId);
+    if (byId) return { target: byId };
+  }
+
+  const url =
+    (params.url as string | undefined) ?? extractWebhookUrlFromPrompt(text);
+  if (url) {
+    const needle = url.toLowerCase().replace(/\/+$/, '');
+    const byUrl = subscriptions.find(
+      (s) => s.url.toLowerCase().replace(/\/+$/, '') === needle,
+    );
+    if (byUrl) return { target: byUrl };
+    const byUrlPartial = subscriptions.find((s) =>
+      s.url.toLowerCase().includes(needle),
+    );
+    if (byUrlPartial) return { target: byUrlPartial };
+  }
+
+  if (subscriptions.length === 1) {
+    return { target: subscriptions[0] };
+  }
+
+  return {
+    clarify: {
+      clarify: true,
+      missing: ['webhookId'],
+      webhooks: subscriptions.map((s) => ({
+        id: s.id,
+        url: s.url,
+        events: s.events,
+        isActive: s.isActive,
+      })),
+    },
+  };
+}
+
+export async function handleDeleteWebhookLogic(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const resolved = await resolveWebhookTarget(deps, businessId, params, prompt);
+  if ('clarify' in resolved) {
+    const hasAny = Array.isArray(resolved.clarify.webhooks)
+      ? resolved.clarify.webhooks.length > 0
+      : false;
+    return failure(
+      'delete_webhook',
+      hasAny
+        ? 'Which webhook should I delete? Specify its URL or id.'
+        : 'There are no webhook subscriptions to delete.',
+      resolved.clarify,
+    );
+  }
+
+  try {
+    await deps.webhooksService.deleteSubscription(
+      businessId,
+      resolved.target.id,
+    );
+    return success(
+      'delete_webhook',
+      `Deleted webhook ${resolved.target.url} (${resolved.target.events.join(', ')}).`,
+      { webhookId: resolved.target.id, url: resolved.target.url },
+    );
+  } catch (err: any) {
+    return failure(
+      'delete_webhook',
+      err?.message ?? 'Could not delete webhook.',
+    );
+  }
+}
+
+export async function handleToggleWebhookLogic(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const text = prompt ?? (params._prompt as string) ?? '';
+  const enabled =
+    typeof params.enabled === 'boolean'
+      ? params.enabled
+      : resolveWebhookEnabledFromPrompt(text);
+  if (enabled === undefined) {
+    return failure(
+      'toggle_webhook',
+      'Should the webhook be enabled or disabled?',
+      { clarify: true, missing: ['enabled'] },
+    );
+  }
+
+  const resolved = await resolveWebhookTarget(deps, businessId, params, prompt);
+  if ('clarify' in resolved) {
+    const hasAny = Array.isArray(resolved.clarify.webhooks)
+      ? resolved.clarify.webhooks.length > 0
+      : false;
+    return failure(
+      'toggle_webhook',
+      hasAny
+        ? `Which webhook should I ${enabled ? 'enable' : 'disable'}? Specify its URL or id.`
+        : 'There are no webhook subscriptions to update.',
+      resolved.clarify,
+    );
+  }
+
+  if (resolved.target.isActive === enabled) {
+    return success(
+      'toggle_webhook',
+      `Webhook ${resolved.target.url} is already ${enabled ? 'enabled' : 'disabled'}.`,
+      {
+        webhookId: resolved.target.id,
+        url: resolved.target.url,
+        isActive: enabled,
+        changed: false,
+      },
+    );
+  }
+
+  try {
+    const updated = await deps.webhooksService.updateSubscription(
+      businessId,
+      resolved.target.id,
+      { isActive: enabled },
+    );
+    return success(
+      'toggle_webhook',
+      `Webhook ${updated.url} is now ${enabled ? 'enabled' : 'disabled'}.`,
+      {
+        webhookId: updated.id,
+        url: updated.url,
+        isActive: updated.isActive,
+        changed: true,
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'toggle_webhook',
+      err?.message ?? 'Could not update webhook.',
     );
   }
 }
@@ -809,6 +982,22 @@ export async function handleIntegrationsCompoundLogic(
         break;
       case 'create_webhook':
         result = await handleCreateWebhookLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'delete_webhook':
+        result = await handleDeleteWebhookLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'toggle_webhook':
+        result = await handleToggleWebhookLogic(
           deps,
           businessId,
           stepParams,

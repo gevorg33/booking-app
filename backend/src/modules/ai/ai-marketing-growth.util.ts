@@ -1,3 +1,4 @@
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
 import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
@@ -275,7 +276,7 @@ export function buildConsumerAppDownloadGuidance(input: {
 } {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
   const pwaUrl = input.businessSlug
-    ? `${frontendUrl}/book/${input.businessSlug}`
+    ? buildTenantPublicUrl({ slug: input.businessSlug, frontendUrl: input.frontendUrl })
     : frontendUrl;
   const iosUrl = input.iosAppUrl?.trim() || null;
   const androidUrl = input.androidAppUrl?.trim() || null;
@@ -298,7 +299,7 @@ export function buildConsumerAppSwitchGuidance(input: {
 }): { summary: string; deepLink: string; steps: string[] } {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
   const deepLink = input.businessSlug
-    ? `${frontendUrl}/book/${input.businessSlug}`
+    ? buildTenantPublicUrl({ slug: input.businessSlug, frontendUrl: input.frontendUrl })
     : frontendUrl;
   return {
     summary:

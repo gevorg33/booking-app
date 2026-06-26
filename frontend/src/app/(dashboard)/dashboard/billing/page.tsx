@@ -126,8 +126,9 @@ export default function BillingPage() {
   });
 
   useEffect(() => {
-    if (stripeConnect?.connectCountry) {
-      queueMicrotask(() => setExpressCountry(stripeConnect.connectCountry));
+    const country = stripeConnect?.connectCountry;
+    if (country) {
+      queueMicrotask(() => setExpressCountry(country));
     }
   }, [stripeConnect?.connectCountry]);
 

@@ -13,7 +13,7 @@ import {
   type BusinessProfileForm,
 } from '@/lib/business-profile';
 import { unwrapBusinessApiPayload } from '@/lib/business-query';
-import { bookPath } from '@/lib/tenant-host';
+import { bookPath, bookPublicUrl } from '@/lib/tenant-host';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { BusinessPublicProfileLocaleFields } from '@/components/business/business-public-profile-locale-fields';
 import { useI18n, LOCALE_LABELS, type AppLocale } from '@/i18n';
@@ -72,9 +72,7 @@ export default function BusinessProfilePage() {
 
   if (!business) return null;
 
-  const publicUrl = business.slug
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}${bookPath(business.slug)}`
-    : null;
+  const publicUrl = business.slug ? bookPublicUrl(business.slug) : null;
 
   return (
     <div className="w-full">

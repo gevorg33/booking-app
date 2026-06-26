@@ -59,6 +59,19 @@ import {
   type PurchaseGiftCardInput,
 } from '../gift-cards/gift-card-purchase.service.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
+import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+
+function stripeTenantUrl(
+  frontendUrl: string,
+  slug: string,
+  pathSuffix: string,
+  query = '',
+): string {
+  const base = buildTenantPublicUrl({ slug, frontendUrl, pathSuffix });
+  if (!query) return base;
+  const joiner = base.includes('?') ? '&' : '?';
+  return `${base}${joiner}${query}`;
+}
 
 interface StripeCheckoutSession {
   id?: string;
@@ -315,8 +328,8 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${frontendUrl}/book/${slug}/packages/${dto.packageId}/checkout?canceled=1`,
+          success_url: `${stripeTenantUrl(frontendUrl, slug, `/packages/${dto.packageId}/checkout`, `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
+          cancel_url: stripeTenantUrl(frontendUrl, slug, `/packages/${dto.packageId}/checkout`, 'canceled=1'),
         },
         business.settings,
         stripeCheckout.amountCents,
@@ -432,8 +445,8 @@ export class BookingPaymentService {
             connectAccountId,
             checkoutKind: 'gift_card_purchase',
           },
-          success_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${frontendUrl}/book/${slug}/gift-cards/checkout?canceled=1`,
+          success_url: `${stripeTenantUrl(frontendUrl, slug, '/gift-cards/checkout', 'paid=1&session_id={CHECKOUT_SESSION_ID}')}`,
+          cancel_url: stripeTenantUrl(frontendUrl, slug, '/gift-cards/checkout', 'canceled=1'),
         },
         business.settings,
         Math.round(quote.total * 100),
@@ -599,8 +612,13 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${frontendUrl}/book/${slug}/multi/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${frontendUrl}/book/${slug}/multi/checkout?canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
+          success_url: `${stripeTenantUrl(frontendUrl, slug, '/multi/checkout', `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
+          cancel_url: stripeTenantUrl(
+            frontendUrl,
+            slug,
+            '/multi/checkout',
+            `canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
+          ),
         },
         business.settings,
         stripeCheckout.amountCents,
@@ -889,8 +907,13 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${frontendUrl}/book/${slug}/checkout?${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${frontendUrl}/book/${slug}/checkout?canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
+          success_url: `${stripeTenantUrl(frontendUrl, slug, '/checkout', `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
+          cancel_url: stripeTenantUrl(
+            frontendUrl,
+            slug,
+            '/checkout',
+            `canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
+          ),
         },
         business.settings,
         stripeCheckout.amountCents,
