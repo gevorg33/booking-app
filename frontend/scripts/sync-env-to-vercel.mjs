@@ -12,11 +12,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = join(__dirname, '..');
 const envPath = join(frontendRoot, '.env.local');
 
+const STAGING_HOST = 'frontend-sand-six-17.vercel.app';
+
 const STAGING_OVERRIDES = {
   NEXT_PUBLIC_API_URL: 'https://booking-backend-production-4898.up.railway.app',
   INTERNAL_API_URL: 'https://booking-backend-production-4898.up.railway.app',
   NEXT_PUBLIC_ROOT_DOMAIN:
-    process.env.BOOKING_ROOT_DOMAIN || 'optischedule.com',
+    process.env.BOOKING_ROOT_DOMAIN || STAGING_HOST,
 };
 
 const ENVIRONMENTS = ['production', 'preview', 'development'];
