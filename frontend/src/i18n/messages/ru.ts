@@ -3073,10 +3073,17 @@ const ru: MessageTree = {
   consumerApp: {
     bannerAria: 'Мобильное приложение',
     bannerTitle: 'Быстрее записаться в приложении OptiSchedule',
+    getApp: 'Скачать приложение',
     openInApp: 'Открыть в приложении',
     downloadIos: 'Скачать для iPhone',
     downloadAndroid: 'Google Play',
     dismiss: 'Закрыть',
+    close: 'Закрыть',
+    getAppTitle: 'Скачайте приложение OptiSchedule',
+    getAppSubtitle: 'Установите или откройте приложение — уже для этого салона.',
+    qrModalTitle: 'Сканируйте, чтобы скачать приложение',
+    qrModalHint: 'Этот QR откроет приложение для этого салона на вашем телефоне.',
+    qrUnavailable: 'QR-код для установки сейчас недоступен.',
   },
   growthDistribution: {
     appInstallQrTitle: 'QR-код для установки приложения',

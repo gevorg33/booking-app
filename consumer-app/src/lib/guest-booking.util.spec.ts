@@ -19,4 +19,21 @@ describe('guest-booking.util', () => {
       ),
     ).toEqual({ name: 'Logged In', email: 'a@b.com', phone: '' });
   });
+
+  it('merges guest email and phone when stored profile only has a name', () => {
+    expect(
+      resolveCheckoutContact(
+        { id: 'c1', name: 'Tina Kristina', email: null, phone: null },
+        normalizeGuestContact({
+          name: 'Tina Kristina',
+          email: 'guest@example.com',
+          phone: '+37495018414',
+        }),
+      ),
+    ).toEqual({
+      name: 'Tina Kristina',
+      email: 'guest@example.com',
+      phone: '+37495018414',
+    });
+  });
 });

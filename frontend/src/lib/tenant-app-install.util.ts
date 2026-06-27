@@ -21,6 +21,11 @@ export async function downloadTenantAppInstallQrPng(
 ): Promise<void> {
   if (typeof document === 'undefined') return;
   const dataUrl = await renderTenantAppInstallQrDataUrl(installUrl, 512);
+  downloadQrDataUrl(dataUrl, filename);
+}
+
+export function downloadQrDataUrl(dataUrl: string, filename: string): void {
+  if (typeof document === 'undefined') return;
   const anchor = document.createElement('a');
   anchor.href = dataUrl;
   anchor.download = filename;

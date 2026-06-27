@@ -12,7 +12,7 @@ import {
   IonTabs,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { calendarClearOutline, calendarOutline, checklistOutline, documentTextOutline, flaskOutline, giftOutline, peopleOutline, personOutline, todayOutline } from 'ionicons/icons';
+import { calendarClearOutline, calendarOutline, listOutline, documentTextOutline, flaskOutline, giftOutline, peopleOutline, personOutline, todayOutline } from 'ionicons/icons';
 import { useAuthStore } from './services/auth-store';
 import { useI18n } from './i18n';
 import { useProviderLabFeaturesEnabled } from './lib/use-provider-lab-features';
@@ -109,7 +109,7 @@ function AuthedTabs() {
         )}
         {showLabCollection && (
           <IonTabButton tab="clinic-tasks" href="/tabs/clinic-tasks">
-            <IonIcon icon={checklistOutline} />
+            <IonIcon icon={listOutline} />
             <IonLabel>{t('provider.navClinicTasks')}</IonLabel>
           </IonTabButton>
         )}

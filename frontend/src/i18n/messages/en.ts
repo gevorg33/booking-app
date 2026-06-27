@@ -4441,10 +4441,17 @@ const en: MessageTree = {
   consumerApp: {
     bannerAria: 'Mobile app',
     bannerTitle: 'Book faster in the OptiSchedule app',
+    getApp: 'Get app',
     openInApp: 'Open in app',
     downloadIos: 'Download for iPhone',
     downloadAndroid: 'Get it on Google Play',
     dismiss: 'Dismiss',
+    close: 'Close',
+    getAppTitle: 'Get the OptiSchedule app',
+    getAppSubtitle: 'Install or open the app — already scoped to this business.',
+    qrModalTitle: 'Scan to get the app',
+    qrModalHint: 'This QR opens the app for this business on your phone.',
+    qrUnavailable: 'App install QR is not available right now.',
   },
   growthDistribution: {
     appInstallQrTitle: 'App install QR code',

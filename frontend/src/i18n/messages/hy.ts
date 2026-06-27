@@ -3161,10 +3161,17 @@ const hy: MessageTree = {
   consumerApp: {
     bannerAria: 'Բջջային հավելված',
     bannerTitle: 'Ամրագրեք ավելի արագ OptiSchedule հավելվածով',
+    getApp: 'Ստանալ հավելված',
     openInApp: 'Բացել հավելվածում',
     downloadIos: 'Ներբեռնել iPhone-ի համար',
     downloadAndroid: 'Ստանալ Google Play-ից',
     dismiss: 'Փակել',
+    close: 'Փակել',
+    getAppTitle: 'Ստացեք OptiSchedule հավելվածը',
+    getAppSubtitle: 'Տեղադրեք կամ բացեք հավելվածը — արդեն այս բիզնեսի համար։',
+    qrModalTitle: 'Սканավորեք՝ հավելվածը ստանալու համար',
+    qrModalHint: 'Այս QR-ը բացում է հավելվածը այս բիզնեսի համար ձեր հեռախոսում։',
+    qrUnavailable: 'Հավելվածի QR-ը հիմա հասանելի չէ։',
   },
   growthDistribution: {
     appInstallQrTitle: 'Հավելվածի տեղադրման QR կոդ',

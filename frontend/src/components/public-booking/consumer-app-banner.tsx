@@ -1,47 +1,35 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
 import { detectConsumerMobilePlatform } from '@/lib/consumer-app-platform';
-
-import { buildTenantPublicUrl } from '@/lib/tenant-host';
+import { appendStoreSlugParam } from '@/lib/tenant-app-install-landing.util';
+import { saveDeferredInstallLink } from '@/lib/deferred-install-link.util';
+import { getPublicAppInstall } from '@/lib/public-api';
 
 const IOS_STORE_URL = process.env.NEXT_PUBLIC_CONSUMER_IOS_APP_STORE_URL?.trim() || '';
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_CONSUMER_ANDROID_PLAY_STORE_URL?.trim() || '';
-const WEB_ORIGIN =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
-  (typeof window !== 'undefined' ? window.location.origin : '');
-
-function buildUniversalBookUrl(slug: string): string {
-  return buildTenantPublicUrl(slug, '', { origin: WEB_ORIGIN });
-}
 
 function buildCustomSchemeUrl(slug: string): string {
   return `optischedule://book/${slug}`;
 }
 
-const DEFERRED_SLUG_KEY = 'consumer_deferred_slug';
-
-function stashDeferredSlug(slug: string): void {
-  try {
-    localStorage.setItem(DEFERRED_SLUG_KEY, slug);
-  } catch {
-    /* ignore */
-  }
-}
-
-function appendSlugParam(storeUrl: string, slug: string): string {
-  const param = `slug=${encodeURIComponent(slug)}`;
-  return storeUrl.includes('?') ? `${storeUrl}&${param}` : `${storeUrl}?${param}`;
-}
-
-/** Shown on public booking pages — open installed app or download from App Store / Play Store. */
+/** Shown on public booking pages — open installed app, download from store, or scan tenant QR. */
 export function ConsumerAppBanner({ slug }: { slug: string }) {
   const { t } = useI18n();
   const [dismissed, setDismissed] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
 
   const dismissKey = useMemo(() => `consumer_banner_dismiss_${slug}`, [slug]);
+
+  const { data: appInstall, isLoading: appInstallLoading } = useQuery({
+    queryKey: ['public-app-install', slug],
+    queryFn: () => getPublicAppInstall(slug),
+    enabled: qrOpen,
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     queueMicrotask(() => setPlatform(detectConsumerMobilePlatform()));
@@ -61,22 +49,21 @@ export function ConsumerAppBanner({ slug }: { slug: string }) {
     }
   }, [dismissKey]);
 
-  const openInApp = useCallback(() => {
-    stashDeferredSlug(slug);
-    const universal = buildUniversalBookUrl(slug);
-    const custom = buildCustomSchemeUrl(slug);
-    window.location.href = universal;
-    window.setTimeout(() => {
-      window.location.href = custom;
-    }, 600);
+  const rememberTenant = useCallback(() => {
+    saveDeferredInstallLink({ slug, installSource: 'web_banner', campaign: 'banner' });
   }, [slug]);
+
+  const openInApp = useCallback(() => {
+    rememberTenant();
+    window.location.href = buildCustomSchemeUrl(slug);
+  }, [rememberTenant, slug]);
 
   const openStore = useCallback(
     (url: string) => {
-      stashDeferredSlug(slug);
-      window.location.href = appendSlugParam(url, slug);
+      rememberTenant();
+      window.location.href = appendStoreSlugParam(url, slug);
     },
-    [slug],
+    [rememberTenant, slug],
   );
 
   const showIosDownload =
@@ -89,49 +76,103 @@ export function ConsumerAppBanner({ slug }: { slug: string }) {
   }
 
   return (
-    <div
-      role="region"
-      aria-label={t('consumerApp.bannerAria')}
-      className="border-b border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950"
-    >
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
-        <p className="font-medium">{t('consumerApp.bannerTitle')}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={openInApp}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-white hover:bg-violet-700"
-          >
-            {t('consumerApp.openInApp')}
-          </button>
-          {showIosDownload ? (
+    <>
+      <div
+        role="region"
+        aria-label={t('consumerApp.bannerAria')}
+        className="border-b border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950"
+      >
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+          <p className="font-medium">{t('consumerApp.bannerTitle')}</p>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => openStore(IOS_STORE_URL)}
-              className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 hover:bg-violet-100"
+              onClick={() => setQrOpen(true)}
+              className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 font-medium hover:bg-violet-100"
             >
-              {t('consumerApp.downloadIos')}
+              {t('consumerApp.getApp')}
             </button>
-          ) : null}
-          {showAndroidDownload ? (
             <button
               type="button"
-              onClick={() => openStore(PLAY_STORE_URL)}
-              className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 hover:bg-violet-100"
+              onClick={openInApp}
+              className="rounded-lg bg-violet-600 px-3 py-1.5 text-white hover:bg-violet-700"
             >
-              {t('consumerApp.downloadAndroid')}
+              {t('consumerApp.openInApp')}
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={dismiss}
-            className="px-2 text-violet-700/80 hover:text-violet-900"
-            aria-label={t('consumerApp.dismiss')}
-          >
-            ×
-          </button>
+            {showIosDownload ? (
+              <button
+                type="button"
+                onClick={() => openStore(IOS_STORE_URL)}
+                className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 hover:bg-violet-100"
+              >
+                {t('consumerApp.downloadIos')}
+              </button>
+            ) : null}
+            {showAndroidDownload ? (
+              <button
+                type="button"
+                onClick={() => openStore(PLAY_STORE_URL)}
+                className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 hover:bg-violet-100"
+              >
+                {t('consumerApp.downloadAndroid')}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={dismiss}
+              className="px-2 text-violet-700/80 hover:text-violet-900"
+              aria-label={t('consumerApp.dismiss')}
+            >
+              ×
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {qrOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('consumerApp.qrModalTitle')}
+          onClick={() => setQrOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-gray-900">{t('consumerApp.qrModalTitle')}</h2>
+            <p className="mt-1 text-sm text-gray-600">{t('consumerApp.qrModalHint')}</p>
+            {appInstallLoading ? (
+              <div className="mx-auto mt-4 h-48 w-48 animate-pulse rounded-lg bg-gray-100" />
+            ) : appInstall?.qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={appInstall.qrDataUrl}
+                alt={t('public.appInstallQrAlt')}
+                className="mx-auto mt-4 rounded-lg bg-white p-2"
+              />
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">{t('consumerApp.qrUnavailable')}</p>
+            )}
+            {appInstall?.landingUrl ? (
+              <a
+                href={appInstall.landingUrl}
+                className="mt-4 inline-block text-sm font-semibold text-violet-700 underline"
+              >
+                {t('public.appInstallOpenLink')}
+              </a>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setQrOpen(false)}
+              className="mt-4 block w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {t('consumerApp.close')}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -14,6 +14,7 @@ import { PublicBookingService } from '../public-booking/public-booking.service.j
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { ServiceService } from '../service/service.service.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { attachPublicBookingNearestAcrossWindowsMock } from './ai-nearest-slot-resolver.util.js';
 
@@ -177,6 +178,7 @@ describe('Sprint 30 payments AI scenarios', () => {
           provide: ServiceSubscriptionsService,
           useValue: subscriptionsService,
         },
+        { provide: ServiceService, useValue: { update: jest.fn(async (id, dto) => ({ id, ...dto })) } },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Booking), useValue: bookingRepo },
@@ -194,6 +196,22 @@ describe('Sprint 30 payments AI scenarios', () => {
         payments.rescuePaymentsIntent('Summarize unpaid bookings', 'unknown')
           ?.action,
       ).toBe('summarize_unpaid');
+      expect(
+        rescue.rescue({
+          prompt:
+            'Accept online payment on public booking for all services with 50% prepayment',
+          action: 'unknown',
+          params: {},
+        })?.action,
+      ).toBe('configure_service_online_payment');
+      expect(
+        rescue.rescue({
+          prompt:
+            'Decline online payment on public booking for all services',
+          action: 'unknown',
+          params: {},
+        })?.action,
+      ).toBe('configure_service_online_payment');
       expect(
         rescue.rescue({
           prompt: 'Who is available tomorrow evening for massage',

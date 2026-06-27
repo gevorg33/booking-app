@@ -100,6 +100,11 @@ export class PublicBookingController {
     return this.publicBookingService.getProfile(slug, locale);
   }
 
+  @Get('app-install')
+  getAppInstall(@Param('slug') slug: string) {
+    return this.publicBookingService.getAppInstall(slug);
+  }
+
   @Get('checkout/recommendations')
   getCheckoutRecommendations(
     @Param('slug') slug: string,

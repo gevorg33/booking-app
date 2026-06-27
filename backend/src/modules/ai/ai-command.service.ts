@@ -308,6 +308,8 @@ import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fix
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
 import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
 import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
+import { SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES } from './ai-service-online-payment.fixtures.js';
+import { enrichServiceOnlinePaymentParamsFromPrompt } from './ai-service-online-payment.util.js';
 import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import { DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from './ai-flexible-availability.fixtures.js';
 import { DASHBOARD_SUMMARIZE_BOOKINGS_CURRENCY_CLASSIFIER_RULES } from './ai-dashboard-summarize-bookings.fixtures.js';
@@ -515,7 +517,7 @@ Rules:
 - configure_multi_service_scheduling_mode: set same_visit vs per_service scheduling (not full multi-service limits — use configure_multi_service_settings).
 - my_resource_assignments / block_resource_unavailable: provider resource views and marking a room/chair unavailable.
 - check_multi_service_block_availability / check_package_line_availability / earliest_slot_all_services / providers_available_later_days / explain_why_no_slots: customer multi-service and package availability (serviceNames or serviceIds, packageId).
-- summarize_unpaid / configure_cash_payments / validate_gift_card / adjust_gift_card_balance / extend_gift_card_expiry / refund_gift_card_order / export_accounting / export_commissions / explain_checkout_total / list_subscription_revenue: payments, gift cards, and accounting (Sprint 30).
+- summarize_unpaid / configure_cash_payments / configure_service_online_payment / validate_gift_card / adjust_gift_card_balance / extend_gift_card_expiry / refund_gift_card_order / export_accounting / export_commissions / explain_checkout_total / list_subscription_revenue: payments, gift cards, and accounting (Sprint 30).
 - list_products / create_product / link_product_to_service / adjust_inventory / add_retail_sale_to_booking / remove_retail_line / record_expense / list_expenses / summarize_pl / commission_report / payout_export: inventory, retail POS, and finance (Sprint 33).
 - configure_recommendation_product: MUTATE — create or update a post-checkout recommendation product (name, description, imageUrl, externalLink, retailPrice). "Add a shampoo product for post-checkout with image and link" → productName, wantsImage, wantsLink. NOT create_product (retail SKU/stock), NOT link_recommended_products (service/category links).
 - link_recommended_products: MUTATE — attach existing products to a service or category for post-checkout recommendations. "Recommend shampoo and conditioner after haircut service" → productNames, serviceName. NOT link_product_to_service (inventory consumption), NOT configure_recommendation_product (create product).
@@ -649,6 +651,8 @@ ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 ${CHECK_AND_BOOK_CLASSIFIER_RULES}
 ${DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES}
 ${GIFT_CARD_PAYMENTS_CLASSIFIER_RULES}
+
+${SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES}
 ${DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES}
 ${DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES}
 
@@ -1632,6 +1636,7 @@ export class AiCommandService {
       'sick_day_replan',
       'import_services_from_menu',
       'update_service_prices',
+      'configure_service_online_payment',
       'staff_service_matrix',
       'bulk_create_catalog',
       'create_package',
@@ -3226,6 +3231,15 @@ export class AiCommandService {
           businessId,
           params,
           effectivePrompt,
+        );
+        break;
+      case 'configure_service_online_payment':
+        result = await this.payments.handleConfigureServiceOnlinePayment(
+          businessId,
+          params,
+          effectivePrompt,
+          services,
+          userId,
         );
         break;
       case 'configure_business_currency': {
@@ -5031,6 +5045,12 @@ export class AiCommandService {
       session,
     });
     applyGiftCardPaymentsPromptHints(action, params, prompt, { session });
+    if (action === 'configure_service_online_payment') {
+      Object.assign(
+        params,
+        enrichServiceOnlinePaymentParamsFromPrompt(params, prompt),
+      );
+    }
     applyCatalogNotifyPromptHints(action, params, prompt);
 
     if (action === 'check_providers_for_service' && params.allProviders) {

@@ -229,6 +229,18 @@ describe('ai-payments.util', () => {
         rescuePaymentsIntent('Enable cash payments', 'unknown')?.action,
       ).toBe('configure_cash_payments');
       expect(
+        rescuePaymentsIntent(
+          'Accept online payment on public booking for all services with 50% prepayment',
+          'unknown',
+        )?.action,
+      ).toBe('configure_service_online_payment');
+      expect(
+        rescuePaymentsIntent(
+          'Decline online payment on public booking for all services',
+          'unknown',
+        )?.action,
+      ).toBe('configure_service_online_payment');
+      expect(
         rescuePaymentsIntent('Adjust gift card balance', 'unknown')?.action,
       ).toBe('adjust_gift_card_balance');
       expect(

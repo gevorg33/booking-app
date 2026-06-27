@@ -12,6 +12,10 @@ import {
 export { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
+  isConfigureServiceOnlinePaymentPrompt,
+  enrichServiceOnlinePaymentParamsFromPrompt,
+} from './ai-service-online-payment.util.js';
+import {
   applyRelativeDateFromPrompt,
   getTodayDateKey,
   toIsoDay,
@@ -26,6 +30,7 @@ import {
 
 export const DASHBOARD_PAYMENTS_MUTATE_INTENTS = [
   'configure_cash_payments',
+  'configure_service_online_payment',
   'adjust_gift_card_balance',
   'extend_gift_card_expiry',
   'refund_gift_card_order',
@@ -141,6 +146,7 @@ export function isListSubscriptionRevenuePrompt(prompt: string): boolean {
 }
 
 export function isConfigureCashPaymentsPrompt(prompt: string): boolean {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
   return (
     /\b(configure|enable|disable|turn\s+on|turn\s+off|accept)\b/i.test(
       prompt,
@@ -559,6 +565,12 @@ export function rescuePaymentsIntent(
   if (isConfigureCashPaymentsPrompt(prompt)) {
     return { action: 'configure_cash_payments', rescueReason: 'cash_settings' };
   }
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) {
+    return {
+      action: 'configure_service_online_payment',
+      rescueReason: 'service_online_payment',
+    };
+  }
   if (isListSubscriptionRevenuePrompt(prompt)) {
     return {
       action: 'list_subscription_revenue',
@@ -699,6 +711,13 @@ function classifyPaymentsSegment(
   }
   if (isConfigureCashPaymentsPrompt(text)) {
     return { action: 'configure_cash_payments', params: base, segment: text };
+  }
+  if (isConfigureServiceOnlinePaymentPrompt(text)) {
+    return {
+      action: 'configure_service_online_payment',
+      params: enrichServiceOnlinePaymentParamsFromPrompt(base, text),
+      segment: text,
+    };
   }
   if (isAdjustGiftCardBalancePrompt(text)) {
     return { action: 'adjust_gift_card_balance', params: base, segment: text };

@@ -14,6 +14,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { MarketingAutomationSettingsPanel } from '@/components/integrations/marketing-automation-settings';
+import { TenantAppInstallQrPanel } from '@/components/integrations/tenant-app-install-qr-panel';
 import { CheckboxChoice, ToggleChoice } from '@/components/ui/radio-choice';
 
 function unwrap<T>(res: unknown): T {
@@ -57,6 +58,14 @@ interface DistributionSettings {
     telegramBotUsername?: string;
     whatsappBusinessPhone?: string;
   };
+}
+
+interface TenantAppInstallView {
+  slug: string;
+  landingUrl: string;
+  qrDataUrl: string;
+  customSchemeUrl: string;
+  generatedAt: string;
 }
 
 function CopyField({ value, label }: { value: string; label: string }) {
@@ -118,6 +127,15 @@ export function GrowthDistributionTab() {
     queryFn: async () => {
       const { data } = await api.get(`${base}/distribution`);
       return unwrap<DistributionSettings>(data);
+    },
+    enabled: !!business?.id,
+  });
+
+  const { data: appInstall, isLoading: appInstallLoading } = useQuery({
+    queryKey: ['business-app-install', business?.id],
+    queryFn: async () => {
+      const { data } = await api.get(`/businesses/${business!.id}/app-install`);
+      return unwrap<TenantAppInstallView>(data);
     },
     enabled: !!business?.id,
   });
@@ -260,13 +278,23 @@ export function GrowthDistributionTab() {
     },
   });
 
-  if (zendeskLoading || distLoading) {
+  if (zendeskLoading || distLoading || appInstallLoading) {
     return <p className="text-gray-500 text-sm py-8 text-center">Loading growth integrations…</p>;
   }
 
   return (
     <div className="space-y-6">
       <MarketingAutomationSettingsPanel />
+
+      {appInstall ? (
+        <div className="card">
+          <TenantAppInstallQrPanel
+            slug={appInstall.slug}
+            landingUrl={appInstall.landingUrl}
+            qrDataUrl={appInstall.qrDataUrl}
+          />
+        </div>
+      ) : null}
 
       {/* int-5 to int-8 Zendesk */}
       <div className="card">

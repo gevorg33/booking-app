@@ -88,6 +88,7 @@ import {
 } from '../ai-intent-disambiguation.fixtures.js';
 import { ALL_DASHBOARD_OPS_SCENARIOS } from '../ai-dashboard-ops.fixtures.js';
 import { STAFF_OPERATIONS_PROMPT_FIXTURES } from '../ai-staff-operations.fixtures.js';
+import { SERVICE_ONLINE_PAYMENT_PROMPTS } from '../ai-service-online-payment.fixtures.js';
 import {
   AI_COMMAND_EVAL_STAFF_OPERATIONS_MULTILINGUAL_CASES,
 } from '../ai-staff-operations-multilingual.eval.util.js';
@@ -4480,6 +4481,20 @@ export const AI_COMMAND_EVAL_SUMMARIZE_BOOKINGS_OVERVIEW_CASES: AiCommandEvalCas
     },
   }));
 
+/** Dashboard per-service online payment on public booking (Sprint 30+). */
+export const AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_CASES: AiCommandEvalCase[] =
+  SERVICE_ONLINE_PAYMENT_PROMPTS.map((entry) => ({
+    id: `service-online-payment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'service_online_payment',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
 /** Dashboard staff lifecycle intents (ai-cmd-ext-2.5–2.8). */
 export const AI_COMMAND_EVAL_STAFF_OPERATIONS_CASES: AiCommandEvalCase[] =
   STAFF_OPERATIONS_PROMPT_FIXTURES.map((entry) => ({
@@ -4572,6 +4587,7 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_SUMMARIZE_BOOKINGS_CURRENCY_CASES,
   ...AI_COMMAND_EVAL_SUMMARIZE_BOOKINGS_OVERVIEW_CASES,
   ...AI_COMMAND_EVAL_STAFF_OPERATIONS_CASES,
+  ...AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_CASES,
   ...AI_COMMAND_EVAL_STAFF_OPERATIONS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_CASES,
   ...AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_MULTILINGUAL_CASES,

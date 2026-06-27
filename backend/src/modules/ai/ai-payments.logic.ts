@@ -69,6 +69,14 @@ import {
 } from './ai-budget-list-services.logic.js';
 import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
 import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-hints.util.js';
+import type { ServiceService } from '../service/service.service.js';
+import { PrepaymentMode } from '../service/entities/service.entity.js';
+import {
+  computeServiceDepositAmount,
+  describePrepaymentMode,
+  parseServiceOnlinePaymentConfig,
+  resolveTargetServicesForOnlinePayment,
+} from './ai-service-online-payment.util.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -83,6 +91,7 @@ export interface PaymentsLogicDeps {
   businessRepo: Repository<Business>;
   serviceRepo: Repository<Service>;
   giftCardRepo: Repository<GiftCard>;
+  serviceService: ServiceService;
 }
 
 function failure(
@@ -473,6 +482,119 @@ export async function handleConfigureCashPaymentsLogic(
       ? 'Cash pay-at-venue enabled for public checkout.'
       : 'Cash payments disabled for public checkout.',
     { acceptCashPayments: toggle },
+  );
+}
+
+export async function handleConfigureServiceOnlinePaymentLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt: string | undefined,
+  catalogServices: Service[],
+  userId?: string,
+): Promise<CommandResult> {
+  const effectivePrompt = String(prompt || params._prompt || '');
+  const config = parseServiceOnlinePaymentConfig(effectivePrompt, params);
+  if (!config) {
+    return failure(
+      'configure_service_online_payment',
+      'Specify online payment scope and prepayment (e.g. "Accept online payment on public booking for all services with 50% prepayment").',
+      {
+        clarify: true,
+        missing: ['prepaymentMode', 'serviceName', 'allServices'],
+      },
+    );
+  }
+
+  if (
+    !config.allServices &&
+    !config.serviceName &&
+    !config.serviceNames?.length &&
+    !config.categoryName
+  ) {
+    return failure(
+      'configure_service_online_payment',
+      'Specify which services to update: all services, a category, or service names.',
+      {
+        clarify: true,
+        missing: ['allServices', 'serviceName', 'serviceNames', 'categoryName'],
+      },
+    );
+  }
+
+  const targets = resolveTargetServicesForOnlinePayment(
+    catalogServices.filter((s) => s.businessId === businessId),
+    config,
+  );
+  if (!targets.length) {
+    return failure(
+      'configure_service_online_payment',
+      'No matching services found for that scope.',
+      { clarify: true },
+    );
+  }
+
+  const updated: Array<{
+    id: string;
+    name: string;
+    prepaymentMode: PrepaymentMode;
+    depositAmount: number | null;
+  }> = [];
+
+  try {
+    for (const service of targets) {
+      const depositAmount = computeServiceDepositAmount(
+        Number(service.price),
+        config,
+      );
+      const updateDto: {
+        prepaymentMode: PrepaymentMode;
+        depositAmount?: number | null;
+      } = {
+        prepaymentMode: config.prepaymentMode,
+      };
+      if (config.prepaymentMode === PrepaymentMode.DEPOSIT) {
+        updateDto.depositAmount = depositAmount ?? null;
+      } else {
+        updateDto.depositAmount = null;
+      }
+      const saved = await deps.serviceService.update(
+        service.id,
+        updateDto,
+        userId,
+      );
+      updated.push({
+        id: saved.id,
+        name: saved.name,
+        prepaymentMode: saved.prepaymentMode,
+        depositAmount:
+          saved.depositAmount != null ? Number(saved.depositAmount) : null,
+      });
+    }
+  } catch (err: any) {
+    return failure(
+      'configure_service_online_payment',
+      err?.message ??
+        'Could not update service online payment settings. Connect Stripe in Dashboard → Billing if enabling prepayment.',
+      { updatedCount: updated.length, updated },
+    );
+  }
+
+  const modeLabel = describePrepaymentMode(config);
+  const scopeLabel = config.allServices
+    ? `all ${updated.length} services`
+    : updated.map((s) => s.name).join(', ');
+
+  return success(
+    'configure_service_online_payment',
+    config.prepaymentMode === PrepaymentMode.NONE
+      ? `Online payment disabled on public booking for ${scopeLabel}.`
+      : `Online payment on public booking enabled for ${scopeLabel} (${modeLabel}).`,
+    {
+      updatedCount: updated.length,
+      prepaymentMode: config.prepaymentMode,
+      services: updated,
+    },
   );
 }
 
@@ -1499,6 +1621,15 @@ export async function handlePaymentsCompoundLogic(
           businessId,
           stepParams,
           step.segment,
+        );
+        break;
+      case 'configure_service_online_payment':
+        result = await handleConfigureServiceOnlinePaymentLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+          [],
         );
         break;
       case 'adjust_gift_card_balance':

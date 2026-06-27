@@ -228,7 +228,7 @@ Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compo
 | **0 — Hygiene** | **ai-cmd-ext-0.1**–**0.3** | CI gate: no registry intent without handler path; union synced |
 | **1 — Param extensions** | **ai-cmd-ext-1.1**–**1.4** | **budget-1**, **rank-1**, **avail-1**, **discover-1** gates green |
 | **2 — New dashboard verbs** | **ai-cmd-ext-2.*** per product sprint | Each row meets per-action DoD + **parity-2.4** locale eval |
-| **3 — Provider dispatch** | **ai-cmd-ext-3.*** | Provider matrix 100% wired (**parity-1** inventory) |
+| **3 — Provider dispatch** | **ai-cmd-ext-3.*** | Provider matrix 100% wired (**parity-1** inventory) — **new intents:** **ai-cmd-provider-5** |
 | **4 — Compounds** | **ai-cmd-ext-4.*** | Labeled multi-step set ≥95% (**parity-3.2**) |
 | **5 — Refactor** | **ai-cmd-ext-0.4**–**0.5** | `AiCommandService` LOC reduced; dispatch table optional |
 
@@ -1606,7 +1606,7 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 **Policy:** Every user-visible slice needs unit + integration tests (`feature-test-coverage.mdc`). Staff-facing AI needs `PROVIDER_INTENT_SCHEMA` rules + eval cases tagged `surface: provider` (`feature-ai-prompt-coverage.mdc`). UI copy EN/HY/RU in `provider-app-i18n.ts` + `frontend/src/i18n/messages/*` `provider.*` keys.
 
-- [ ] **prov-exp** — Provider app expansion (Sprints 59–62)
+- [ ] **prov-exp** — Provider app expansion (Sprints 59–62) — **AI command backlog:** **ai-cmd-provider-5** (ease-of-life intents, compounds, page chips)
 
 ## Sprint 62 — Waitlist, growth visibility & polish
 
@@ -1822,3 +1822,1292 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 | **2-step guard** | `isServiceRankDiscoveryCompoundPrompt` excludes check-step prompts (defers to 3-step dashboard recipe) |
 
 - [x] **ai-cmd-ext-4.4** — `rank_discover_and_book`
+
+---
+
+## ai-cmd-ext-2.13 — Per-service online payment on public booking (partial — 2026-06)
+
+**Intent:** `configure_service_online_payment` → `AiPaymentsService` / `ai-service-online-payment.*`  
+**Product:** Services page → “Accept online payment on public booking” (`prepaymentMode`: none | full | deposit; default 50% deposit when `depositAmount` null).  
+**Surfaces:** **dashboard only** (admin catalog mutation). Customer/public consume checkout — no mutate there.
+
+| Gate | Status |
+|------|--------|
+| Registry + switch + rescue | **Shipped** — `DASHBOARD_PAYMENTS_MUTATE_INTENTS`, `ai-command.service.ts` case, `rescuePaymentsIntent`, staff/matrix disambiguation |
+| EN fixtures + eval | **Shipped** — 19 EN prompts (accept + decline/disable); `AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_CASES` |
+| Unit + integration tests | **Shipped** — `npm run test:ai-payments` / util spec (**97** tests in domain slice) |
+| Stripe guard | **Shipped** — `ServiceService.update` → `assertOnlinePaymentAllowed` |
+| Bulk confirm | **Shipped** — `allServices` in `bulkConfirmActions` |
+
+**Example prompts (accept):**
+- Accept online payment on public booking for all services with 50% prepayment
+- Require full prepayment on public booking for Massage
+- Accept online payment for Haircut and Blowdry with half prepayment
+
+**Example prompts (decline):**
+- Decline online payment on public booking for all services
+- Decline online payment on public booking for Massage
+- Do not accept online payment for massage services
+
+- [x] **ai-cmd-ext-2.13.1** — `configure_service_online_payment` handler + accept/decline scope parsing (all / named / category / some)
+- [ ] **ai-cmd-ext-2.13.2** — HY/RU locale parity — `ai-service-online-payment-multilingual.fixtures.ts` + eval rows (**parity-2.4**, **acc-2.4**)
+- [ ] **ai-cmd-ext-2.13.3** — `ai-capability.matrix.ts` explicit row (`surfaces: ['dashboard']`, tier `M`, sprint tag)
+- [ ] **ai-cmd-ext-2.13.4** — Dashboard page suggestions — add accept/decline online-payment examples to `AI_PAGE_SUGGESTIONS['/dashboard/services']` + localized i18n keys
+- [ ] **ai-cmd-ext-2.13.5** — Read companion **`explain_service_online_payment_setup`** — summarize which services have online payment + prepayment mode (Stripe Connect status); NOT `list_services` alone
+- [ ] **ai-cmd-ext-2.13.6** — **`npm run test:ai-service-online-payment`** gate script in `package.json` (util + logic + integration slice)
+- [ ] **ai-cmd-ext-gap-7** — Mark **ai-cmd-ext-2.13** DoD-complete when **2.13.2**–**2.13.6** green
+
+---
+
+## ai-cmd-ext-2.14+ — Dashboard command backlog (extend `AiCommandService`)
+
+**Goal:** Cover high-traffic dashboard settings & catalog mutations that owners already do in UI but cannot say in the AI bar yet. Each row = new or extended intent; wire per **ai-cmd-ext** DoD (**registry → classifier → case/delegate → rescue → ≥10 NL fixtures → eval**).
+
+**Priority legend:** **P0** = blocks onboarding/checkout; **P1** = weekly ops; **P2** = nice-to-have read/deep-link.
+
+### P0 — Checkout & payments (Services + Billing + Settings)
+
+| ID | Intent (proposed) | M/R | Handler home | Product UI | Notes |
+|----|-------------------|-----|--------------|------------|-------|
+| **ai-cmd-ext-2.14** | `explain_service_online_payment_setup` | R | `AiPaymentsService` | Services + Billing | Which services require prepayment; Stripe Connect ready?; cash still allowed? |
+| **ai-cmd-ext-2.15** | `configure_stripe_connect` | M | `AiMarketingGrowthService` or billing module | Settings → Billing | Deep-link + explain steps; optional “open Stripe onboarding” — NOT raw OAuth in AI |
+| **ai-cmd-ext-2.16** | `configure_checkout_defaults` | M | `AiPaymentsService` | Settings self-service + Services | Compound-friendly: cash at venue + default online prepayment policy for new services |
+| **ai-cmd-ext-2.17** | `update_service_duration_buffer` | M | `AiCatalogService` / operations | Services form | Bulk: “Set all massage services to 60 minutes with 15 min buffer” |
+| **ai-cmd-ext-2.18** | `configure_service_deposit_policy` | M | `AiPaymentsService` | Services | Alias/extension if split from **2.13**: fixed $ deposit vs % only (already partial in **2.13**) |
+
+- [ ] **ai-cmd-ext-2.14** — `explain_service_online_payment_setup`
+- [ ] **ai-cmd-ext-2.15** — `configure_stripe_connect`
+- [ ] **ai-cmd-ext-2.16** — `configure_checkout_defaults`
+- [ ] **ai-cmd-ext-2.17** — `update_service_duration_buffer`
+- [ ] **ai-cmd-ext-2.18** — `configure_service_deposit_policy` (close any **2.13** gaps: tier metadata, featured services)
+
+### P1 — Settings, notifications, growth (Settings / Integrations / Growth tabs)
+
+| ID | Intent (proposed) | M/R | Handler home | Product UI | Notes |
+|----|-------------------|-----|--------------|------------|-------|
+| **ai-cmd-ext-2.19** | `configure_notification_settings` | M | new `ai-notification-settings.*` | Settings → Notifications | Email/SMS/WhatsApp toggles; reminder 24h/1h; **not** customer prefs |
+| **ai-cmd-ext-2.20** | `configure_whatsapp_integration` | M | `AiIntegrationsService` | Settings → WhatsApp | Template names, connection mode; test send → `test_push` / webhook test pattern |
+| **ai-cmd-ext-2.21** | `configure_openai_integration` | M | `AiIntegrationsService` | Settings → OpenAI | Platform vs custom API key — admin only |
+| **ai-cmd-ext-2.22** | `explain_tenant_app_install` | R | `AiMarketingGrowthService` | Integrations → Growth QR | Per-tenant `/get-app/[slug]` landing + QR — **new product (2026-06)** |
+| **ai-cmd-ext-2.23** | `regenerate_tenant_app_install_qr` | M | business / growth service | Growth tab | Regenerate slug QR assets; idempotent `ensureForBusiness` |
+| **ai-cmd-ext-2.24** | `create_promo_code` | M | `AiMarketingGrowthService` | Marketing / promo admin | Admin CRUD — disjoint from customer `promo_code_help` |
+| **ai-cmd-ext-2.25** | `configure_loyalty_settings` | M | `AiMarketingGrowthService` | Loyalty settings | Points rules, earn/redeem toggles — extend **`summarize_loyalty_program`** (read) |
+
+- [ ] **ai-cmd-ext-2.19** — `configure_notification_settings`
+- [ ] **ai-cmd-ext-2.20** — `configure_whatsapp_integration`
+- [ ] **ai-cmd-ext-2.21** — `configure_openai_integration`
+- [ ] **ai-cmd-ext-2.22** — `explain_tenant_app_install`
+- [ ] **ai-cmd-ext-2.23** — `regenerate_tenant_app_install_qr`
+- [ ] **ai-cmd-ext-2.24** — `create_promo_code`
+- [ ] **ai-cmd-ext-2.25** — `configure_loyalty_settings`
+
+### P1 — Catalog & packages (Services tab extensions)
+
+| ID | Intent (proposed) | M/R | Handler home | Product UI | Notes |
+|----|-------------------|-----|--------------|------------|-------|
+| **ai-cmd-ext-2.26** | `configure_service_featured` | M | `AiCatalogService` | Services list | Mark/unmark featured; `serviceTier` / rank metadata (**rank-1** overlap) |
+| **ai-cmd-ext-2.27** | `bulk_assign_services_category` | M | `AiCatalogService` | Categories tab | “Move all hair services under Hair category” — extend `update_service` compounds |
+| **ai-cmd-ext-2.28** | `configure_package_online_payment` | M | `AiCatalogService` | Packages tab | Package-level prepayment if product adds it; else document out of scope |
+| **ai-cmd-ext-2.29** | `explain_multi_service_settings` | R | `AiScheduleResourcesService` | Multi-service tab | Explain limits + scheduling mode — pairs with existing **`configure_multi_service_*`** |
+
+- [ ] **ai-cmd-ext-2.26** — `configure_service_featured`
+- [ ] **ai-cmd-ext-2.27** — `bulk_assign_services_category`
+- [ ] **ai-cmd-ext-2.28** — `configure_package_online_payment` (product-dependent)
+- [ ] **ai-cmd-ext-2.29** — `explain_multi_service_settings`
+
+### P2 — Read-only “explain setup” helpers (reduce support load)
+
+| ID | Intent (proposed) | M/R | Handler home | Notes |
+|----|-------------------|-----|--------------|-------|
+| **ai-cmd-ext-2.30** | `explain_public_booking_checkout` | R | `AiPaymentsService` | How cash + online + gift card interact on booking page |
+| **ai-cmd-ext-2.31** | `explain_integration_health` | R | `AiIntegrationsService` | Extend **`list_integration_health`** with NL “is WhatsApp connected?” |
+| **ai-cmd-ext-2.32** | `audit_services_missing_online_payment` | R | `AiPaymentsService` | “Which services still don't accept online payment?” |
+
+- [ ] **ai-cmd-ext-2.30** — `explain_public_booking_checkout`
+- [ ] **ai-cmd-ext-2.31** — `explain_integration_health`
+- [ ] **ai-cmd-ext-2.32** — `audit_services_missing_online_payment`
+
+---
+
+## ai-cmd-ext-4.5+ — Dashboard compounds (checkout & onboarding)
+
+Multi-step recipes in `buildCompoundCommandRecipes()` + `intent-decomposition.util.ts`. Each needs classifier compound rules, rescue, eval `compoundSteps`, and confirmation preview.
+
+| ID | Recipe | Steps (high level) | Priority |
+|----|--------|-------------------|----------|
+| **ai-cmd-ext-4.5** | `setup_salon_checkout` | `configure_stripe_connect` (explain) → `configure_cash_payments` → `configure_service_online_payment` (all services, 50%) → `configure_online_booking` | **P0** |
+| **ai-cmd-ext-4.6** | `configure_services_payment_matrix` | `update_service_prices` optional → `configure_service_online_payment` per category → `configure_cash_payments` | **P1** |
+| **ai-cmd-ext-4.7** | `decline_online_payment_category` | `configure_service_online_payment` (prepaymentMode none) scoped — single-step today; compound when paired with “enable for others” | **P1** |
+| **ai-cmd-ext-4.8** | `onboard_salon_notifications` | `configure_notification_settings` → `configure_whatsapp_integration` → `test_push` | **P2** |
+| **ai-cmd-ext-4.9** | `launch_consumer_app_growth` | `explain_tenant_app_install` → `regenerate_tenant_app_install_qr` → `configure_marketing_registration_email` | **P2** |
+
+- [ ] **ai-cmd-ext-4.5** — `setup_salon_checkout`
+- [ ] **ai-cmd-ext-4.6** — `configure_services_payment_matrix`
+- [ ] **ai-cmd-ext-4.7** — `decline_online_payment_category` (accept/decline split in one message)
+- [ ] **ai-cmd-ext-4.8** — `onboard_salon_notifications`
+- [ ] **ai-cmd-ext-4.9** — `launch_consumer_app_growth`
+
+---
+
+## ai-cmd-ext-5 — Param extensions on existing handlers (quick wins)
+
+Extend **`ai-cmd-ext-1`** pattern — no new verb; enrich params + rescue on existing actions.
+
+| ID | Action | New params | Handler | Example prompt |
+|----|--------|------------|---------|----------------|
+| **ai-cmd-ext-5.1** | `list_services` | `prepaymentMode`, `onlinePaymentEnabled` | `handleListServices` | “List services that require online payment” |
+| **ai-cmd-ext-5.2** | `create_service` | `prepaymentMode`, `depositPercent` | catalog create | “Add massage $80 with 50% online prepayment” |
+| **ai-cmd-ext-5.3** | `create_services` | same as **5.2** per row | bulk create | Menu import + payment policy |
+| **ai-cmd-ext-5.4** | `update_service_prices` | `onlyWithOnlinePayment` filter | operations | “Raise prices 10% for services with online payment only” |
+| **ai-cmd-ext-5.5** | `deactivate_service` | `categoryName`, `allInCategory` | catalog | “Deactivate all dental services” |
+| **ai-cmd-ext-5.6** | `configure_cash_payments` | document pairing with **2.13** in classifier | payments | “Enable cash and decline online payment for all services” → compound **4.7** |
+
+- [ ] **ai-cmd-ext-5.1** — `list_services` payment filters
+- [ ] **ai-cmd-ext-5.2** — `create_service` prepayment on create
+- [ ] **ai-cmd-ext-5.3** — `create_services` bulk prepayment
+- [ ] **ai-cmd-ext-5.4** — `update_service_prices` scoped by online payment
+- [ ] **ai-cmd-ext-5.5** — `deactivate_service` category scope
+- [ ] **ai-cmd-ext-5.6** — cash + online compound classifier disambiguation
+
+---
+
+## ai-cmd-ext-6 — Orchestrator scale (parallel track)
+
+Unblocks adding **2.14+** without growing `ai-command.service.ts` further (~11k LOC today).
+
+- [ ] **ai-cmd-ext-6.1** — Extract payment/catalog/settings handlers from `AiCommandService` switch → `AiDashboardCoreService` / domain services (**extends ai-cmd-ext-0.4**)
+- [ ] **ai-cmd-ext-6.2** — Registry-driven dispatch map (`Map<intent, handlerFn>`) for all `handler: 'AiPaymentsService'` intents first (**extends ai-cmd-ext-0.5**)
+- [ ] **ai-cmd-ext-6.3** — Split `INTENT_SCHEMA` appendix into domain imports only (no inline prose) — one `*_CLASSIFIER_RULES` import per domain file
+- [ ] **ai-cmd-ext-6.4** — `test:ai-cmd-ext` coverage report: list registry intents missing ≥10 NL fixtures (**ai-cmd-ext-gap-5** automation)
+
+---
+
+## ai-cmd-ext-7 — Cross-surface parity (when dashboard command is customer-visible)
+
+Only when the configured setting affects public booking or consumer app UX:
+
+| Dashboard intent | Customer/public read-only counterpart | Status |
+|------------------|---------------------------------------|--------|
+| `configure_service_online_payment` | `explain_why_stripe_required`, `explain_checkout_total` (existing) | Partial — add “why prepayment?” copy |
+| `configure_cash_payments` | `pay_cash_at_visit`, `choose_payment_method` (existing) | OK |
+| `configure_notification_settings` | `explain_my_notifications` (customer) | Gap |
+| `explain_tenant_app_install` | `how_to_download_app` (customer) | Link copy alignment |
+
+- [ ] **ai-cmd-ext-7.1** — Customer/public read prompts when prepayment enabled/disabled (no mutate on those surfaces)
+- [ ] **ai-cmd-ext-7.2** — Public booking assistant: “Do I pay online for this service?” → explain service `prepaymentMode` from catalog context
+
+---
+
+## Suggested implementation order
+
+| Phase | IDs | Rationale |
+|-------|-----|-----------|
+| **A — Finish in-flight** | **2.13.2**–**2.13.6**, **5.1**, **5.2** | Complete online payment AI + list/create parity |
+| **B — Onboarding** | **2.15**, **4.5**, **2.14** | Stripe + checkout setup in one conversation |
+| **C — Settings** | **2.19**–**2.21**, **4.8** | Notification + integration configuration |
+| **D — Growth** | **2.22**–**2.25**, **4.9** | QR app install + promo/loyalty |
+| **E — Scale** | **6.1**–**6.4**, **3.*** (provider wire) | Maintainability + provider matrix |
+
+**Related sections:** **ai-cmd-ext-0** (hygiene), **ai-cmd-ext-3** (provider dispatch), **ai-cmd-h1**–**h4** (NLU quality), **parity-2.4**, **feature-ai-prompt-coverage** + **feature-test-coverage** skills.
+
+**File map for implementers:**
+
+| Layer | Path |
+|-------|------|
+| Intent union | `ai-command-intent-schema.build.ts` ← `DASHBOARD_INTENTS` |
+| Registry | `ai-command-registry.build.ts` |
+| Classifier rules | domain `*.fixtures.ts` → appended in `ai-command.service.ts` `INTENT_SCHEMA` |
+| Execute | `ai-command.service.ts` `case` → `*.service.ts` → `*.logic.ts` |
+| Rescue | `ai-intent-rescue.service.ts` + domain `rescue*Intent` |
+| Eval | `eval/ai-command-eval.cases.ts` |
+| Page chips | `frontend/src/lib/ai-orchestration.ts` `AI_PAGE_SUGGESTIONS` |
+
+---
+
+## ai-cmd-customer-4 — Customer ease-of-life commands (backlog)
+
+**Goal:** Reduce friction for **anonymous public booking** + **logged-in consumer app** users — the questions people ask when they are stressed, on mobile, or booking as a guest. Every row needs **both surfaces where applicable** (see **ai-cmd-customer-0** parity) unless marked customer-only.
+
+**Principle:** Prefer **read/explain + navigate** over mutate when the user is mid-checkout; compound “find → book → pay” only when session carry is explicit.
+
+**Pain themes from product:** guest checkout contact confusion, deposit vs full price, rebook-after-success state, multi-service cart, clinic prep, “what do I owe today?”, tour group capacity, package visit vs single booking, lost manage links, Stripe failures mid-checkout, push/offline on mobile, lab-to-book after order, specialist vs “any provider”, post-visit review prompts.
+
+---
+
+### ai-cmd-customer-4.0 — Promote deferred registry intents (close **CUSTOMER_INTENT_COVERAGE_DEFERRED**)
+
+Many customer-native intents exist in registry + handlers but lack ≥10 NL fixtures + eval — tracked in **`ai-customer-intent-coverage.util.ts`**. Promote to **`CUSTOMER_INTENT_COVERAGE_REQUIRED`** with full DoD per **ai-cmd-customer-gap-5**.
+
+| Priority | Intent | Why it helps customers | Surfaces |
+|----------|--------|------------------------|----------|
+| **P0** | `cancel_my_booking` | Self-serve cancel without calling salon | customer |
+| **P0** | `reschedule_my_booking` | Move visit without staff | customer |
+| **P0** | `pay_online` | Finish Stripe after slot pick | customer (+ public handoff) |
+| **P0** | `explain_why_stripe_required` | “Why must I pay now?” | customer + public |
+| **P1** | `book_multi_service` / `check_multi_service_availability` | Spa day / multiple treatments | customer + public |
+| **P1** | `use_subscription_credit` / `my_subscriptions` | Membership visits | customer |
+| **P1** | `promo_code_help` | Checkout discount confusion | customer + public |
+| **P1** | `loyalty_points_balance` | “How many points do I have?” | customer |
+| **P2** | `privacy_export` / `privacy_delete` | GDPR self-service | customer |
+| **P2** | `request_gift_card_cancel` | Post-purchase buyer regret | customer |
+| **P2** | `cancel_package_visit` / `reschedule_package_visit` | Bundle visit self-serve | customer |
+| **P2** | `list_my_package_visits` | “Visits left on my package” | customer |
+| **P3** | `explain_tour_*` / `diagnose_tour_capacity` | Tour pax + day-slot UX | customer + public |
+| **P3** | `explain_checkout_recommendations` | Product upsell on success | customer + public |
+| **P3** | `refer_a_friend` / `share_salon_link` | Growth loops | customer |
+
+- [ ] **ai-cmd-customer-4.0.1** — Audit **`CUSTOMER_INTENT_COVERAGE_DEFERRED`** → prioritize P0 table above
+- [ ] **ai-cmd-customer-4.0.2** — For each promoted intent: ≥10 EN + HY/RU fixtures, rescue, eval `surface: customer|public`, integration spec row
+- [ ] **ai-cmd-customer-4.0.3** — Extend **`npm run test:ai-customer-intent-coverage`** gate as intents graduate from deferred
+
+---
+
+### ai-cmd-customer-4.1 — Before booking (discovery & trust) — **public + customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.1.1** | `explain_service_price` | R | both | “How much is a haircut?”, “Is massage included in the $80?” | Service card price + tax badge + deposit note; extends **`list_services`** |
+| **4.1.2** | `explain_payment_options_for_service` | R | both | “Do I pay online for color?”, “Can I pay cash for massage?” | Reads `prepaymentMode` + `acceptCashPayments`; ties **ai-cmd-ext-7.2** |
+| **4.1.3** | `find_soonest_appointment` | R | both | “Who’s free soonest for a trim?”, “Earliest slot this week” | Thin wrapper on **`check_availability`** + **`bookingFirstAvailable`** |
+| **4.1.4** | `compare_services` | R | both | “Haircut vs blowdry price and duration” | Read catalog; optional navigate |
+| **4.1.5** | `explain_business_hours_and_location` | R | both | “When are you open Saturday?”, “Where are you located?” | Extend **`business_info`** with maps link + parking copy |
+| **4.1.6** | `explain_provider_specialty` | R | both | “Who is best for curly hair?”, “Tell me about Anna” | Extend **`recommend_specialists`** / provider profile |
+| **4.1.7** | `filter_services_no_prepayment` | R | both | “What can I book without paying online?” | **`list_services`** + filter `prepaymentMode=none` (**ai-cmd-ext-5.1**) |
+
+- [ ] **ai-cmd-customer-4.1.1** — `explain_service_price`
+- [ ] **ai-cmd-customer-4.1.2** — `explain_payment_options_for_service`
+- [ ] **ai-cmd-customer-4.1.3** — `find_soonest_appointment`
+- [ ] **ai-cmd-customer-4.1.4** — `compare_services`
+- [ ] **ai-cmd-customer-4.1.5** — `explain_business_hours_and_location`
+- [ ] **ai-cmd-customer-4.1.6** — `explain_provider_specialty`
+- [ ] **ai-cmd-customer-4.1.7** — `filter_services_no_prepayment`
+
+---
+
+### ai-cmd-customer-4.2 — During checkout (highest customer pain) — **public + customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.2.1** | `explain_amount_due_now` | R | both | “How much do I pay today?”, “Is 50% deposit $40?” | **`prepaymentDue()`** semantics; NOT **`maxPrice`** |
+| **4.2.2** | `explain_guest_checkout_fields` | R | both | “Why do you need my email?”, “Can I book without an account?” | Guest contact merge rules; reduce support tickets |
+| **4.2.3** | `resume_pending_payment` | R | customer | “Continue my payment”, “I closed the app mid-checkout” | **`PendingCheckoutPayment`** / session restore |
+| **4.2.4** | `choose_payment_method` | M | both | “Pay cash at visit”, “Pay online with card” | Exists — expand fixtures + compounds |
+| **4.2.5** | `apply_promo_code_checkout` | M | both | “Apply code SAVE10 at checkout” | Extend **`promo_code_help`** with session **`promoCode`** |
+| **4.2.6** | `explain_checkout_steps` | R | both | “Walk me through booking”, “What happens after I pick a time?” | Extend **`booking_help`** with step list |
+| **4.2.7** | `fix_checkout_validation_error` | R | both | “It says enter email but I filled it in” | Explain guest/profile merge; link to field hints |
+
+- [ ] **ai-cmd-customer-4.2.1** — `explain_amount_due_now`
+- [ ] **ai-cmd-customer-4.2.2** — `explain_guest_checkout_fields`
+- [ ] **ai-cmd-customer-4.2.3** — `resume_pending_payment`
+- [ ] **ai-cmd-customer-4.2.4** — Harden **`choose_payment_method`** + **`pay_online`** deferred promotion
+- [ ] **ai-cmd-customer-4.2.5** — `apply_promo_code_checkout`
+- [ ] **ai-cmd-customer-4.2.6** — `explain_checkout_steps`
+- [ ] **ai-cmd-customer-4.2.7** — `fix_checkout_validation_error`
+
+---
+
+### ai-cmd-customer-4.3 — After booking (confirmation & next steps) — **customer-first, public read**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.3.1** | `confirm_my_booking_details` | R | both | “What time is my appointment?”, “Summarize my booking” | Read session / last booking |
+| **4.3.2** | `add_booking_to_calendar` | R | both | “Add to my calendar”, “Send me an ICS” | Return calendar deep link / `.ics` URL if product supports |
+| **4.3.3** | `get_directions_to_salon` | R | both | “Directions to the salon”, “Where do I park?” | Maps URL from business address |
+| **4.3.4** | `explain_preparation_notes` | R | both | “Do I need to fast?”, “What should I bring?” | Clinic **`preparationNotes`**, tour meeting point |
+| **4.3.5** | `explain_consumer_checkout_success` | R | customer | “What’s on the success screen?” | **Shipped** — extend HY/RU + public read-only sibling |
+| **4.3.6** | `book_another_service` | R | both | “Book another service same day” | Navigate without stale success state (**BookPage** reset) |
+| **4.3.7** | `share_my_booking` | R | customer | “Share my appointment with my partner” | **Shipped** in adoption — add eval coverage |
+
+- [ ] **ai-cmd-customer-4.3.1** — `confirm_my_booking_details`
+- [ ] **ai-cmd-customer-4.3.2** — `add_booking_to_calendar`
+- [ ] **ai-cmd-customer-4.3.3** — `get_directions_to_salon`
+- [ ] **ai-cmd-customer-4.3.4** — `explain_preparation_notes`
+- [ ] **ai-cmd-customer-4.3.5** — HY/RU eval for **`explain_consumer_checkout_success`**
+- [ ] **ai-cmd-customer-4.3.6** — `book_another_service` (guard against success-state bug on rebook)
+- [ ] **ai-cmd-customer-4.3.7** — Full DoD for **`share_my_booking`**
+
+---
+
+### ai-cmd-customer-4.4 — Manage existing visits — **customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.4.1** | `list_my_upcoming_appointments` | R | customer | “What’s my next appointment?”, “Appointments this week” | Filter on **`list_my_appointments`** |
+| **4.4.2** | `cancel_my_booking` | M | customer | “Cancel tomorrow’s massage” | Promote from deferred **4.0** |
+| **4.4.3** | `reschedule_my_booking` | M | customer | “Move my visit to Friday 3pm” | Promote from deferred **4.0** |
+| **4.4.4** | `explain_cancel_policy` | R | customer | “Can I cancel for free?” | **Shipped** — add fee/deposit forfeiture copy |
+| **4.4.5** | `get_manage_link` | R | customer | “Send me a link to change my booking” | **Shipped** — guest email/SMS resend variant |
+| **4.4.6** | `notify_running_late` | M | customer | “I’m 15 minutes late” | Optional SMS/staff ping if product supports |
+| **4.4.7** | `join_waitlist` / `check_waitlist_status` | M/R | customer + public | “Notify me if something opens Friday” | Needs waitlist customer API parity with dashboard **offer_waitlist_slot** |
+| **4.4.8** | `rebook_last_appointment` | R | customer | “Book the same as last time” | **Shipped** in adoption — wire navigate + eval |
+
+- [ ] **ai-cmd-customer-4.4.1** — `list_my_upcoming_appointments`
+- [ ] **ai-cmd-customer-4.4.2** — `cancel_my_booking` (full DoD)
+- [ ] **ai-cmd-customer-4.4.3** — `reschedule_my_booking` (full DoD)
+- [ ] **ai-cmd-customer-4.4.4** — Enrich **`explain_cancel_policy`** (deposit forfeiture)
+- [ ] **ai-cmd-customer-4.4.5** — Guest **`get_manage_link`** via email/phone lookup
+- [ ] **ai-cmd-customer-4.4.6** — `notify_running_late` (product-dependent)
+- [ ] **ai-cmd-customer-4.4.7** — Customer waitlist join/status
+- [ ] **ai-cmd-customer-4.4.8** — Full DoD for **`rebook_last_appointment`**
+
+---
+
+### ai-cmd-customer-4.5 — Account, loyalty, subscriptions — **customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.5.1** | `explain_loyalty_points` | R | customer | “How do I earn points?”, “What are my points worth?” | Extend **`loyalty_points_balance`** |
+| **4.5.2** | `apply_loyalty_at_checkout` | M | customer | “Use my points on this booking” | Checkout mutation |
+| **4.5.3** | `explain_my_subscription` | R | customer | “How many visits left on my plan?” | **`my_subscriptions`** + **`subscription_usage`** |
+| **4.5.4** | `manage_notification_preferences` | M | customer | “Text me not email”, “Turn off reminders” | **Shipped** in adoption — eval HY/RU |
+| **4.5.5** | `explain_my_notifications` | R | customer | “Will you WhatsApp me?” | **Shipped** — align with salon **`configure_notification_settings`** copy |
+| **4.5.6** | `update_my_profile` | M | customer | “Change my phone number”, “Update my name” | **`my_profile`** read exists — mutate gap |
+| **4.5.7** | `how_to_download_app` | R | customer + public | “Get the app”, “Install on my phone” | Link **`explain_tenant_app_install`** / QR slug |
+
+- [ ] **ai-cmd-customer-4.5.1** — `explain_loyalty_points`
+- [ ] **ai-cmd-customer-4.5.2** — `apply_loyalty_at_checkout`
+- [ ] **ai-cmd-customer-4.5.3** — `explain_my_subscription`
+- [ ] **ai-cmd-customer-4.5.4** — HY/RU for **`manage_notification_preferences`**
+- [ ] **ai-cmd-customer-4.5.5** — HY/RU for **`explain_my_notifications`**
+- [ ] **ai-cmd-customer-4.5.6** — `update_my_profile`
+- [ ] **ai-cmd-customer-4.5.7** — Align app install prompts public ↔ customer
+
+---
+
+### ai-cmd-customer-4.6 — Multi-service, packages, gift cards — **both**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.6.1** | `explain_multi_service_cart` | R | customer | “How long is my spa day?”, “What’s in my cart?” | **`show_cart_total_duration`** exists — enrich |
+| **4.6.2** | `book_package_with_nearest_slot` | M | both | “Book the spa package earliest available” | Compound **`discover_packages`** → **`book_package`** |
+| **4.6.3** | `book_with_gift_card` | M | customer | “Use my gift card for this booking” | Promote deferred; disjoint from **`maxPrice`** |
+| **4.6.4** | `track_gift_card_delivery` | R | customer | “Where is my physical gift card?” | **`track_physical_gift_card_order`** — eval |
+| **4.6.5** | `explain_package_savings` | R | both | “Is the bundle cheaper than separate?” | Read package lines vs à la carte |
+
+- [ ] **ai-cmd-customer-4.6.1** — `explain_multi_service_cart`
+- [ ] **ai-cmd-customer-4.6.2** — `book_package_with_nearest_slot` compound
+- [ ] **ai-cmd-customer-4.6.3** — `book_with_gift_card` full DoD
+- [ ] **ai-cmd-customer-4.6.4** — Gift card delivery tracking eval
+- [ ] **ai-cmd-customer-4.6.5** — `explain_package_savings`
+
+---
+
+### ai-cmd-customer-4.7 — Clinic & lab (consumer) — **customer + public**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.7.1** | `explain_lab_prep` | R | both | “Do I need to fast for blood work?” | Clinic service **`requiresFasting`** |
+| **4.7.2** | `track_lab_order_status` | R | customer | “Are my results ready?” | Extend **`list_my_test_results`** / **`explain_result_status`** |
+| **4.7.3** | `book_lab_collection_nearest` | M | both | “Book lab draw earliest slot” | Compound lab booking + **`bookingFirstAvailable`** |
+| **4.7.4** | `explain_clinic_booking_fields` | R | both | “Why do you ask for my ID?” | Extend **`explain_clinic_booking`** |
+
+- [ ] **ai-cmd-customer-4.7.1** — `explain_lab_prep`
+- [ ] **ai-cmd-customer-4.7.2** — `track_lab_order_status`
+- [ ] **ai-cmd-customer-4.7.3** — `book_lab_collection_nearest`
+- [ ] **ai-cmd-customer-4.7.4** — `explain_clinic_booking_fields`
+
+---
+
+### ai-cmd-customer-4.8 — Customer compounds (one message, full job)
+
+| ID | Recipe | Steps | Example prompt |
+|----|--------|-------|----------------|
+| **4.8.1** | `discover_book_and_pay` | budget/rank list → check availability → book → choose payment / pay online | “Book cheapest massage under $60 tomorrow and pay online” |
+| **4.8.2** | `rebook_and_pay` | `rebook_last_appointment` → `choose_payment_method` | “Rebook my last visit and pay with card” |
+| **4.8.3** | `cancel_and_rebook` | `cancel_my_booking` → `book_nearest_slot` | “Cancel Friday and book the next available slot” |
+| **4.8.4** | `gift_card_checkout` | `check_gift_card_balance` → `apply_gift_card_code` → `book_nearest_slot` | “Use gift card GCM-XXX and book nearest haircut” |
+| **4.8.5** | `multi_service_day` | `add_services_to_cart` → `check_multi_service_availability` → book | “Massage and facial same afternoon — find a time” |
+| **4.8.6** | `guest_book_and_manage` | book as guest → `get_manage_link` | “Book as guest and email me the manage link” |
+
+- [ ] **ai-cmd-customer-4.8.1** — `discover_book_and_pay`
+- [ ] **ai-cmd-customer-4.8.2** — `rebook_and_pay`
+- [ ] **ai-cmd-customer-4.8.3** — `cancel_and_rebook`
+- [ ] **ai-cmd-customer-4.8.4** — `gift_card_checkout`
+- [ ] **ai-cmd-customer-4.8.5** — `multi_service_day`
+- [ ] **ai-cmd-customer-4.8.6** — `guest_book_and_manage`
+
+---
+
+### ai-cmd-customer-4.9 — Consumer app UI chips (quick wins)
+
+Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strings (mirror dashboard **ai-cmd-ext-2.13.4**).
+
+| Page / route | Suggested AI chips |
+|--------------|-------------------|
+| **`BookPage`** | “How much do I pay today?”, “Pay cash at visit”, “Why do you need my email?” |
+| **`ManageBookingPage`** | “Cancel this appointment”, “Reschedule to next week”, “Send manage link” |
+| **`AccountPage`** | “My next appointment”, “Turn off reminders”, “Rebook last visit” |
+| **`SalonHomePage`** | “What’s the cheapest service?”, “Who’s free tomorrow?” |
+| **`MultiServicePickerPage`** | “How long will this take?”, “Find afternoon slot for all services” |
+| **`GiftCardCheckoutPage`** | “Apply promo code”, “Explain total with tax” |
+| **`MultiServiceCheckoutPage`** | “Use my subscription”, “Why is total $0?” |
+| **`PackageConfirmPage`** | “How many visits in this package?”, “Book first visit now” |
+| **`LabToBookPage`** | “Book my lab draw”, “Why do I need collection?” |
+| **`MyResultsPage`** | “What does released mean?”, “Why is CBC still pending?” |
+| **`ManageBookingPage`** (guest) | “Sign in to manage”, “Resend manage link” |
+| **`WelcomePage`** | “Find my saved salons”, “How do I get the app?” |
+| **Public booking web** | Same as **4.1**–**4.2** where anonymous |
+
+- [ ] **ai-cmd-customer-4.9.1** — Consumer app page suggestion map in `frontend` + `consumer-app` i18n
+- [ ] **ai-cmd-customer-4.9.2** — Public booking assistant starter chips on checkout + service list
+
+---
+
+### ai-cmd-customer-4.10 — Tours & group bookings — **public + customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.10.1** | `explain_tour_booking` | R | both | “How many people can join?”, “Is price per person?” | **Shipped** — extend HY/RU + eval |
+| **4.10.2** | `explain_tour_day_slots` | R | both | “Why only one time per day?”, “How many spots left Friday?” | **Shipped** — `remainingSpots`, fully booked dates |
+| **4.10.3** | `diagnose_tour_capacity` | R | both | “Checkout says not enough seats”, “Why can’t I book 4 people?” | **Shipped** — pax vs max group at checkout |
+| **4.10.4** | `explain_tour_booking_record` | R | customer | “What’s my tour confirmation number?”, “Summarize my group booking” | Post-booking read |
+| **4.10.5** | `book_tour_nearest_departure` | M | both | “Book the wine tour earliest date for 2 people” | Compound tour catalog → pax → slot |
+| **4.10.6** | `explain_tour_meeting_point` | R | both | “Where do we meet?”, “What time should I arrive?” | Extend **`explain_preparation_notes`** for tours |
+
+- [ ] **ai-cmd-customer-4.10.1** — HY/RU eval for **`explain_tour_booking`**
+- [ ] **ai-cmd-customer-4.10.2** — HY/RU eval for **`explain_tour_day_slots`**
+- [ ] **ai-cmd-customer-4.10.3** — Checkout error copy for **`diagnose_tour_capacity`**
+- [ ] **ai-cmd-customer-4.10.4** — Full DoD for **`explain_tour_booking_record`**
+- [ ] **ai-cmd-customer-4.10.5** — `book_tour_nearest_departure` compound
+- [ ] **ai-cmd-customer-4.10.6** — `explain_tour_meeting_point`
+
+---
+
+### ai-cmd-customer-4.11 — Provider / specialist choice — **public + customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.11.1** | `explain_any_provider_option` | R | both | “What does Any stylist mean?”, “Will someone be assigned?” | **`ConsumerSlotSpecialistPicker`** / any-availability |
+| **4.11.2** | `pick_provider_for_service` | M | both | “Book with Anna for color”, “I want the same stylist as last time” | Navigate with `providerId`; tie **`rebook_last_appointment`** |
+| **4.11.3** | `explain_provider_availability` | R | both | “Is Marco working Saturday?”, “Who has openings tomorrow?” | Thin wrapper on **`check_availability`** + provider filter |
+| **4.11.4** | `switch_provider_same_time` | M | both | “Keep 3pm but different stylist” | Re-run availability with same slot block |
+| **4.11.5** | `explain_professional_profile` | R | both | “Show me Anna’s services”, “What does this stylist specialize in?” | **`ProviderProfilePage`** / **`ProfessionalsPage`** navigate |
+
+- [ ] **ai-cmd-customer-4.11.1** — `explain_any_provider_option`
+- [ ] **ai-cmd-customer-4.11.2** — `pick_provider_for_service`
+- [ ] **ai-cmd-customer-4.11.3** — `explain_provider_availability`
+- [ ] **ai-cmd-customer-4.11.4** — `switch_provider_same_time`
+- [ ] **ai-cmd-customer-4.11.5** — `explain_professional_profile`
+
+---
+
+### ai-cmd-customer-4.12 — Post-visit reviews, satisfaction & support — **customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.12.1** | `leave_visit_review` | M | customer | “Rate my last visit”, “Leave a review for today’s haircut” | **`PostVisitReviewPrompt`** / store review flow |
+| **4.12.2** | `explain_post_visit_review_prompt` | R | customer | “Why am I seeing a review popup?”, “Can I skip the rating?” | When prompt shows; dismiss behavior |
+| **4.12.3** | `report_booking_problem` | M | customer | “Something went wrong with my visit”, “I was charged twice” | **`postBookingSupport*`** — staff ticket or support form |
+| **4.12.4** | `explain_share_reward` | R | customer | “Do I get points for sharing?”, “What happens when I share my booking?” | **`shareBookingLinkWithReward`** / growth card |
+| **4.12.5** | `sign_in_after_booking` | R | customer | “Save this booking to my account”, “Sign in with Google after booking” | **`postBookingSignIn*`** — guest → account merge |
+
+- [ ] **ai-cmd-customer-4.12.1** — `leave_visit_review`
+- [ ] **ai-cmd-customer-4.12.2** — `explain_post_visit_review_prompt`
+- [ ] **ai-cmd-customer-4.12.3** — `report_booking_problem`
+- [ ] **ai-cmd-customer-4.12.4** — `explain_share_reward`
+- [ ] **ai-cmd-customer-4.12.5** — `sign_in_after_booking`
+
+---
+
+### ai-cmd-customer-4.13 — App health: push, offline, updates — **customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.13.1** | `enable_push_notifications` | M | customer | “Turn on push reminders”, “Notify me on my phone” | Distinct from **`manage_notification_preferences`** (channel prefs) |
+| **4.13.2** | `explain_push_permission` | R | customer | “Why didn’t I get a notification?”, “Open notification settings” | iOS provisional / Android POST_NOTIFICATIONS / denied re-ask |
+| **4.13.3** | `explain_offline_mode` | R | customer | “Why does it say offline?”, “Will my booking sync?” | **`offlineStatus*`** / queued mutations |
+| **4.13.4** | `explain_app_update_required` | R | customer | “Why must I update the app?”, “Skip this update” | **`appGate*`** kill switch / nudge |
+| **4.13.5** | `explain_analytics_consent` | R | customer | “Why are you asking about analytics?”, “Turn off usage tracking” | **`analyticsConsent*`** |
+| **4.13.6** | `explain_home_screen_widget` | R | customer | “Add next appointment to home screen”, “What does the widget show?” | **`widgetNextAppointment*`** / quick rebook |
+
+- [ ] **ai-cmd-customer-4.13.1** — `enable_push_notifications`
+- [ ] **ai-cmd-customer-4.13.2** — `explain_push_permission`
+- [ ] **ai-cmd-customer-4.13.3** — `explain_offline_mode`
+- [ ] **ai-cmd-customer-4.13.4** — `explain_app_update_required`
+- [ ] **ai-cmd-customer-4.13.5** — `explain_analytics_consent`
+- [ ] **ai-cmd-customer-4.13.6** — `explain_home_screen_widget`
+
+---
+
+### ai-cmd-customer-4.14 — Clinic intake, documents & lab-to-book — **customer + public**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.14.1** | `explain_public_intake_form` | R | both | “Why these health questions?”, “Can I skip the form?” | **`publicIntakeCheckout*`** before booking |
+| **4.14.2** | `complete_intake_and_book` | M | both | “Fill intake and book blood draw” | Compound intake → slot |
+| **4.14.3** | `explain_patient_alert` | R | customer | “What is this red banner?”, “Results ready — what do I do?” | **`ConsumerPatientAlertsBanner`** released / intake / lab-book |
+| **4.14.4** | `book_lab_from_order` | M | customer | “Book collection for my lab order”, “Schedule draw from Lab to book tab” | **`LabToBookPage`** / **`myLabToBook*`** |
+| **4.14.5** | `list_my_documents` | R | customer | “Show my referral letter”, “Where are my imaging reports?” | **`myDocuments*`** — NOT **`list_my_test_results`** |
+| **4.14.6** | `explain_abnormal_result_flag` | R | customer | “What does high mean on my CBC?”, “Is abnormal serious?” | Measurement flags — general FAQ, not medical advice |
+| **4.14.7** | `notify_when_results_ready` | R | customer | “Text me when results are ready” | Read-only explain until **`notify_patient_result_ready`** customer path exists |
+
+- [ ] **ai-cmd-customer-4.14.1** — `explain_public_intake_form`
+- [ ] **ai-cmd-customer-4.14.2** — `complete_intake_and_book`
+- [ ] **ai-cmd-customer-4.14.3** — `explain_patient_alert`
+- [ ] **ai-cmd-customer-4.14.4** — `book_lab_from_order`
+- [ ] **ai-cmd-customer-4.14.5** — `list_my_documents`
+- [ ] **ai-cmd-customer-4.14.6** — `explain_abnormal_result_flag`
+- [ ] **ai-cmd-customer-4.14.7** — `notify_when_results_ready` (read explain)
+
+---
+
+### ai-cmd-customer-4.15 — Package visits (multi-appointment bundles) — **customer**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.15.1** | `list_my_package_visits` | R | customer | “How many package visits left?”, “When is my next facial in the bundle?” | **`ConsumerPackageVisitActions`** / grouped account cards |
+| **4.15.2** | `cancel_package_visit` | M | customer | “Cancel visit 2 of my package”, “Skip next package appointment” | Distinct from **`cancel_my_booking`** (single booking) |
+| **4.15.3** | `reschedule_package_visit` | M | customer | “Move package visit 3 to next week” | **`reschedulePackageVisit*`** |
+| **4.15.4** | `explain_package_visit_rules` | R | customer | “Can I cancel one visit and keep the package?”, “Do unused visits expire?” | Package T&C from catalog |
+
+- [ ] **ai-cmd-customer-4.15.1** — `list_my_package_visits` full DoD
+- [ ] **ai-cmd-customer-4.15.2** — `cancel_package_visit` / **`cancel_package_visit_self`**
+- [ ] **ai-cmd-customer-4.15.3** — `reschedule_package_visit` / **`reschedule_package_visit_self`**
+- [ ] **ai-cmd-customer-4.15.4** — `explain_package_visit_rules`
+
+---
+
+### ai-cmd-customer-4.16 — Recommendations & upsell — **customer + public**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.16.1** | `explain_checkout_recommendations` | R | both | “Why these product suggestions?”, “Shop the recommended serum” | **Shipped** — extend success-screen disambiguation vs **4.3.5** |
+| **4.16.2** | `dismiss_recommendations` | M | customer | “Hide You might also like”, “Stop showing product cards” | Navigate/dismiss action — not cancel booking |
+| **4.16.3** | `explain_subscription_vs_one_time` | R | both | “Subscribe and save vs one visit?”, “Which plan includes massage?” | **`checkoutUseSubscription`** / plan picker |
+| **4.16.4** | `buy_gift_card_for_someone` | M | customer | “Buy a $100 gift card for my mom”, “Email a digital gift card” | **`GiftCardCatalogPage`** → checkout |
+
+- [ ] **ai-cmd-customer-4.16.1** — HY/RU for **`explain_checkout_recommendations`**
+- [ ] **ai-cmd-customer-4.16.2** — `dismiss_recommendations` (mutate navigate)
+- [ ] **ai-cmd-customer-4.16.3** — `explain_subscription_vs_one_time`
+- [ ] **ai-cmd-customer-4.16.4** — `buy_gift_card_for_someone`
+
+---
+
+### ai-cmd-customer-4.17 — Sign-in, recovery & manage-booking links — **both**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.17.1** | `explain_why_sign_in` | R | both | “Do I need an account?”, “What’s the benefit of signing in?” | Guest vs authed checkout + account history |
+| **4.17.2** | `sign_in_to_manage_booking` | R | both | “Sign in to change my appointment”, “Manage link says sign in” | **`ManageBookingPage`** invalid link / sign-in hint |
+| **4.17.3** | `recover_lost_manage_link` | R | both | “I lost my booking confirmation email”, “Resend manage link to john@…” | Extend **`get_manage_link`** with email/phone lookup |
+| **4.17.4** | `switch_salon_tenant` | R | customer | “Go back to Salon X”, “Show salons I visited” | **`ConsumerTenantSwitcher`** + **`find_my_saved_salons`** |
+| **4.17.5** | `explain_data_rights` | R | both | “Export my data”, “Delete my account” | **Shipped** — pair with **`privacy_export`** / **`privacy_delete`** mutate ( **4.0** P2) |
+
+- [ ] **ai-cmd-customer-4.17.1** — `explain_why_sign_in`
+- [ ] **ai-cmd-customer-4.17.2** — `sign_in_to_manage_booking`
+- [ ] **ai-cmd-customer-4.17.3** — `recover_lost_manage_link`
+- [ ] **ai-cmd-customer-4.17.4** — Full DoD for **`find_my_saved_salons`** + tenant switch navigate
+- [ ] **ai-cmd-customer-4.17.5** — Promote **`privacy_export`** / **`privacy_delete`** from **4.0** P2
+
+---
+
+### ai-cmd-customer-4.18 — Payment & checkout failures — **both**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.18.1** | `diagnose_stripe_checkout_failure` | R | both | “Payment failed — what now?”, “Card declined at checkout” | Customer-facing slice of dashboard diagnose |
+| **4.18.2** | `pay_at_venue_fallback` | M | both | “Pay at salon instead”, “Skip online payment” | **`activationPayAtVenue*`** when prepayment optional |
+| **4.18.3** | `resume_booking_draft` | R | both | “Continue where I left off”, “Restore my half-finished booking” | **`bookingDraftResume*`** slot/service restore |
+| **4.18.4** | `explain_slot_no_longer_available` | R | both | “That time disappeared”, “Someone took my slot” | Re-run **`check_availability`** + explain lock TTL |
+| **4.18.5** | `explain_multi_service_payment_return` | R | customer | “I paid but booking not confirmed”, “Return from Stripe for spa day” | **`multiServicePaymentReturnHint`** |
+| **4.18.6** | `retry_failed_network_action` | R | customer | “Booking didn’t save — retry?”, “Sync failed” | **`networkRetryAction`** / offline queue |
+
+- [ ] **ai-cmd-customer-4.18.1** — `diagnose_stripe_checkout_failure` (customer/public)
+- [ ] **ai-cmd-customer-4.18.2** — `pay_at_venue_fallback`
+- [ ] **ai-cmd-customer-4.18.3** — `resume_booking_draft`
+- [ ] **ai-cmd-customer-4.18.4** — `explain_slot_no_longer_available`
+- [ ] **ai-cmd-customer-4.18.5** — `explain_multi_service_payment_return`
+- [ ] **ai-cmd-customer-4.18.6** — `retry_failed_network_action`
+
+---
+
+### ai-cmd-customer-4.19 — Voice assistant & accessibility — **customer + public**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.19.1** | `explain_voice_input` | R | both | “How do I use voice?”, “Mic not working” | **`voiceStart`** / denied / no-speech errors |
+| **4.19.2** | `speak_assistant_reply` | M | both | “Read that aloud”, “Speak the answer” | **`speakReply`** TTS |
+| **4.19.3** | `give_ai_feedback` | M | both | “That was wrong”, “Wrong date picked” | **`feedbackUp`** / **`feedbackDown`** + reason chips |
+| **4.19.4** | `explain_rtl_layout` | R | both | “Why is text on the right?” | RTL copy / **`adoption-a11y.css`** |
+
+- [ ] **ai-cmd-customer-4.19.1** — `explain_voice_input`
+- [ ] **ai-cmd-customer-4.19.2** — `speak_assistant_reply`
+- [ ] **ai-cmd-customer-4.19.3** — `give_ai_feedback`
+- [ ] **ai-cmd-customer-4.19.4** — `explain_rtl_layout`
+
+---
+
+### ai-cmd-customer-4.20 — Additional checkout & discovery edge cases — **both**
+
+| ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
+|----|-------------------|-----|----------|-----------------|-------|
+| **4.20.1** | `explain_consumer_checkout_tax` | R | customer | “Why incl. VAT on services?”, “Tax line on confirmation” | **Shipped** — public sibling **`explain_checkout_tax`** |
+| **4.20.2** | `explain_deposit_forfeiture` | R | both | “Do I lose my deposit if I cancel?”, “Is the 50% refundable?” | Tie **`explain_cancel_policy`** + `prepaymentMode=deposit` |
+| **4.20.3** | `find_services_under_budget` | R | both | “Anything under $50?”, “Cheapest color treatment” | **`assistantDiscoverChipUnder50`** / budget discover |
+| **4.20.4** | `find_evening_weekend_slots` | R | both | “Evening or weekend only”, “After 6pm Saturday” | **`assistantDiscoverChipEveningWeekend`** |
+| **4.20.5** | `explain_salon_profile` | R | both | “Tell me about this salon”, “Show photos and reviews” | **`SalonProfilePage`** navigate |
+| **4.20.6** | `claim_gift_card_balance` | M | customer | “Redeem gift card code GCM-…”, “Add gift card to account” | **`ConsumerGiftCardClaimSection`** |
+| **4.20.7** | `explain_manage_booking_page` | R | both | “What can I do on this manage page?”, “Invalid manage link” | Guest **`ManageBookingPage`** UX |
+
+- [ ] **ai-cmd-customer-4.20.1** — Public **`explain_checkout_tax`** parity with consumer tax intent
+- [ ] **ai-cmd-customer-4.20.2** — `explain_deposit_forfeiture`
+- [ ] **ai-cmd-customer-4.20.3** — Wire budget discover chips → classifier
+- [ ] **ai-cmd-customer-4.20.4** — Wire evening/weekend discover chips → classifier
+- [ ] **ai-cmd-customer-4.20.5** — `explain_salon_profile`
+- [ ] **ai-cmd-customer-4.20.6** — `claim_gift_card_balance`
+- [ ] **ai-cmd-customer-4.20.7** — `explain_manage_booking_page`
+
+---
+
+### ai-cmd-customer-4.21 — More customer compounds
+
+| ID | Recipe | Steps | Example prompt |
+|----|--------|-------|----------------|
+| **4.21.1** | `intake_lab_book_pay` | intake → lab slot → pay online | “Complete health form, book earliest blood draw, pay deposit” |
+| **4.21.2** | `tour_group_checkout` | tour pax → **`diagnose_tour_capacity`** → book | “Wine tour for 6 next Saturday — book if enough seats” |
+| **4.21.3** | `provider_same_day_multi` | pick provider → multi-service afternoon block | “Anna — massage and facial same afternoon” |
+| **4.21.4** | `subscription_first_visit` | explain plan → book with subscription credit | “Use my membership for today’s massage” |
+| **4.21.5** | `results_then_rebook` | **`explain_result_status`** → **`rebook_last_appointment`** | “Results released — book follow-up like last time” |
+| **4.21.6** | `guest_pay_cash_manage` | guest book → pay cash → email manage link | “Book as guest, pay at visit, email manage link” |
+| **4.21.7** | `cancel_package_rebook_single` | cancel package visit → book single service | “Skip package visit 2 and book a trim instead” |
+
+- [ ] **ai-cmd-customer-4.21.1** — `intake_lab_book_pay`
+- [ ] **ai-cmd-customer-4.21.2** — `tour_group_checkout`
+- [ ] **ai-cmd-customer-4.21.3** — `provider_same_day_multi`
+- [ ] **ai-cmd-customer-4.21.4** — `subscription_first_visit`
+- [ ] **ai-cmd-customer-4.21.5** — `results_then_rebook`
+- [ ] **ai-cmd-customer-4.21.6** — `guest_pay_cash_manage`
+- [ ] **ai-cmd-customer-4.21.7** — `cancel_package_rebook_single`
+
+---
+
+### ai-cmd-customer-4 — Suggested implementation order
+
+| Phase | IDs | Customer outcome |
+|-------|-----|------------------|
+| **A — Checkout clarity** | **4.2.1**–**4.2.2**, **4.1.2**, **4.18.1**–**4.18.3**, **4.0** (`pay_online`, `explain_why_stripe_required`) | Less “how much do I pay?” / guest field / payment failure confusion |
+| **B — Self-serve visits** | **4.4.2**–**4.4.3**, **4.4.5**, **4.17.3**, **4.8.3**, **4.20.7** | Cancel/reschedule / recover manage link without calling |
+| **C — Faster rebooking** | **4.4.8**, **4.3.6**, **4.8.2**, **4.21.5** | One-tap repeat bookings + post-results follow-up |
+| **D — Discovery** | **4.1.3**, **4.1.5**, **4.1.7**, **4.20.3**–**4.20.4**, **4.11.*** | Find affordable / soonest slot / stylist in one ask |
+| **E — Loyalty & packages** | **4.5.***, **4.6.***, **4.15.***, **4.8.4**, **4.21.4** | Subscriptions, gift cards, spa packages, package visits |
+| **F — Clinic & tours** | **4.7.***, **4.10.***, **4.14.***, **4.21.1**–**4.21.2** | Lab prep, results, intake, tour capacity |
+| **G — App polish** | **4.9.***, **4.12.***, **4.13.***, **4.19.*** | Chips, reviews, push/offline, voice |
+| **H — Upsell & growth** | **4.16.***, **4.12.4**, **4.5.7**, **4.17.4** | Recommendations, referrals, saved salons |
+
+**Key files (customer):**
+
+| Layer | Public web | Consumer mobile |
+|-------|------------|-----------------|
+| Classifier | `public-booking-classifier.schema.ts` | `customer-ai-command.util.ts` |
+| Handler | `PublicBookingAssistantService` | `CustomerAiCommandService` → `customer-ai-command.logic.ts` |
+| Rescue | `PublicBookingAssistantService.chat()` | `CustomerAiCommandService` + `rescueConsumerAdoptionIntent` |
+| Fixtures | `surface: public \| both` in domain `*.fixtures.ts` | `surface: customer \| both` |
+| Eval | `AI_COMMAND_EVAL_*` with `surface: public` | same harness with `surface: customer` |
+
+**Cross-links:** **ai-cmd-customer-1**–**3** (discovery spine), **ai-cmd-ext-7** (payment explain parity with dashboard config), **ai-cmd-h1**–**h4** (NLU quality), **feature-ai-prompt-coverage** (both surfaces mandatory).
+
+---
+
+## ai-cmd-provider-5 — Provider ease-of-life commands (backlog)
+
+**Goal:** Make **`provider-app/`** the fastest path for stylists and floor managers between appointments — voice-friendly, one-sentence actions, minimal typing. **Provider mobile only** (`ProviderAiCommandService` / `PROVIDER_INTENT_SCHEMA`); dashboard admin stays under **ai-cmd-ext**.
+
+**Principle:** Session context first (`bookingId` from open detail modal, `lastPush`, today’s timeline). Prefer **mutate + confirm** for irreversible actions (cancel, mark paid). Mirror every **prov-exp** UI action in **`PROVIDER_EXP_UI_AI_PARITY`** (`provider-exp-ai-parity.fixtures.ts`).
+
+**Pain themes from product:** check-in while greeting client, “who’s next” on busy floor, mark paid at chair, fill cancellation gaps, retail upsell without leaving booking, running late SMS, offline queue after spotty Wi‑Fi, push confirm/mark paid from notification, clinic draw queue, end-of-day sweep, pending confirmations, in-progress vs complete status, multi-service spa days, gift card fulfillment queue, patient lookup before draw, tax line on payment breakdown, team view vs own calendar scope, hands-free voice between clients.
+
+**Baseline (already wired — harden, don’t re-build):** `summarize_client`, `check_in_client`, `mark_running_late`, `mark_paid`, `payment_sweep`, `add_retail_to_booking`, `send_client_message`, `block_my_time`, `request_time_off`, `team_floor_status`, `team_whos_next`, `suggest_waitlist_for_gap`, `confirm_booking_from_push`, `explain_last_push`, clinic collection queue — see **`provider-ai-command.service.ts`** switch + **ai-cmd-ext-3**.
+
+---
+
+### ai-cmd-provider-5.0 — Harden existing intents (prov-exp parity + eval DoD)
+
+Shipped handlers exist; gap is ≥10 EN + HY/RU fixtures, rescue, eval `surface: provider`, integration rows per **feature-ai-prompt-coverage**.
+
+| Priority | Intent | Why it helps providers | prov-exp / notes |
+|----------|--------|------------------------|------------------|
+| **P0** | `mark_paid` | Close visit at chair without dashboard | push action **`mark_paid`** |
+| **P0** | `check_in_client` | Arrival flow | **prov-exp-3.1** |
+| **P0** | `summarize_client` | Pre-visit snapshot | **prov-exp-1.1** |
+| **P0** | `show_appointments` / `summarize_my_appointments` | “What’s on today?” | **prov-exp-3.3** |
+| **P1** | `payment_sweep` | End-of-day bulk mark paid | suggestions **`unpaid-today`** |
+| **P1** | `reschedule_booking` | Move one appointment | push **`suggest_reschedule`** |
+| **P1** | `cancel_bookings` | Client cancelled by phone | — |
+| **P1** | `mark_no_shows` | Close missed slots | — |
+| **P1** | `add_retail_to_booking` | POS at chair | **prov-exp-5.1** |
+| **P1** | `send_client_message` | SMS/WhatsApp without copy-paste | **prov-exp-6.1** |
+| **P2** | `team_floor_status` / `team_whos_next` | Manager floor | **prov-exp-4.1** / **4.3** |
+| **P2** | `suggest_waitlist_for_gap` | Fill open shift | **prov-exp-7.3** |
+| **P2** | `list_my_collection_queue` | Clinic draw list | clinic vertical |
+| **P2** | `offline_queue_status` / `retry_offline_action` | Spotty salon Wi‑Fi | offline assistant |
+| **P3** | `update_bookings` | Start service / in-progress without full reschedule | booking detail status picker |
+| **P3** | `explain_appointment_tax` / `explain_payment_status` | “Why pending?” / VAT on breakdown | **`BookingPaymentBreakdown`** |
+| **P3** | `list_my_multi_service_groups` | Spa-day sequence at chair | multi-service badge |
+| **P3** | `configure_provider_push_date_format` | Push times look wrong | fmt-1.8 push bodies |
+
+- [ ] **ai-cmd-provider-5.0.1** — Audit **`PROVIDER_EXP_UI_AI_PARITY`** → every `provider-ai` row has ≥10 NL fixtures + eval
+- [ ] **ai-cmd-provider-5.0.2** — **`npm run test:prov-exp-ai-parity`** gate — fail on new UI action without intent mapping
+- [ ] **ai-cmd-provider-5.0.3** — Promote P0 table through locale parity spec (pattern: **`ai-provider-*-locale-parity.spec.ts`**)
+
+---
+
+### ai-cmd-provider-5.1 — Start of day & schedule glance — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.1.1** | `summarize_day` | R | “How’s today looking?”, “Any no-shows yet?” | Status breakdown narrative — extend fixtures |
+| **5.1.2** | `show_appointments` | R | “Who do I see at 2pm?”, “List my afternoon” | Filter by time/status; **5.0 P0** |
+| **5.1.3** | `summarize_my_appointments` | R | “How many bookings tomorrow?” | Count-only — vs full list |
+| **5.1.4** | `who_is_next` | R | “Who’s my next client?”, “Next appointment” | Thin alias → **`show_appointments`** + next slot |
+| **5.1.5** | `explain_today_timeline` | R | “Walk me through my day”, “Gaps between clients?” | **`ProviderTodayTimeline`** + gap chips |
+| **5.1.6** | `summarize_utilization` | R | “How full is my week?”, “Open hours this month?” | **`ProviderCalendarMonth`** bands |
+| **5.1.7** | `end_of_day_summary` | R | “Wrap up today”, “Anything still unpaid?” | **Shipped** — extend unpaid + no-show copy |
+
+- [ ] **ai-cmd-provider-5.1.1** — Full DoD **`summarize_day`**
+- [ ] **ai-cmd-provider-5.1.2** — Full DoD **`show_appointments`** (time filters)
+- [ ] **ai-cmd-provider-5.1.3** — Full DoD **`summarize_my_appointments`**
+- [ ] **ai-cmd-provider-5.1.4** — `who_is_next` alias + navigate to booking detail
+- [ ] **ai-cmd-provider-5.1.5** — `explain_today_timeline`
+- [ ] **ai-cmd-provider-5.1.6** — Full DoD **`summarize_utilization`**
+- [ ] **ai-cmd-provider-5.1.7** — Full DoD **`end_of_day_summary`**
+
+---
+
+### ai-cmd-provider-5.2 — At the chair (client in seat) — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.2.1** | `summarize_client` | R | “What should I know about Jane?”, “First visit?” | **Shipped** — badges, loyalty, intake summary |
+| **5.2.2** | `show_client_history` | R | “Past visits for Maria”, “Last color formula note?” | **`CustomerVisitHistoryStrip`** |
+| **5.2.3** | `add_client_note` | M | “Note: prefers silent appointment”, “Add allergy note” | **`BookingCustomerStaffNotesSection`** |
+| **5.2.4** | `explain_client_intake` | R | “Summarize her health form”, “Any intake flags?” | **`BookingPreVisitIntakeSection`** read-only |
+| **5.2.5** | `check_in_client` | M | “Check in Jane”, “Client arrived” | **Shipped** **5.0 P0** |
+| **5.2.6** | `mark_running_late` | M | “I’m 10 minutes behind”, “Running late for 3pm” | **Shipped** — add **`mark_ready_now`** sibling |
+| **5.2.7** | `mark_visit_complete` | M | “Mark done”, “Finish this appointment” | **`update_bookings`** status=completed — dedicated intent |
+| **5.2.8** | `explain_package_visit_context` | R | “Which visit is this in her package?”, “2 of 6 facials” | **`BookingCheckoutContextBadges`** |
+| **5.2.9** | `explain_multi_service_timeline` | R | “What’s next after this blowdry?”, “Spa day order” | **`list_my_multi_service_groups`** read |
+
+- [ ] **ai-cmd-provider-5.2.1** — HY/RU eval **`summarize_client`**
+- [ ] **ai-cmd-provider-5.2.2** — Full DoD **`show_client_history`**
+- [ ] **ai-cmd-provider-5.2.3** — Full DoD **`add_client_note`**
+- [ ] **ai-cmd-provider-5.2.4** — `explain_client_intake`
+- [ ] **ai-cmd-provider-5.2.5** — Voice fixtures: “check in [name]”
+- [ ] **ai-cmd-provider-5.2.6** — `mark_ready_now` (clears running-late flag)
+- [ ] **ai-cmd-provider-5.2.7** — `mark_visit_complete` (disambiguate vs **`mark_paid`**)
+- [ ] **ai-cmd-provider-5.2.8** — `explain_package_visit_context`
+- [ ] **ai-cmd-provider-5.2.9** — `explain_multi_service_timeline`
+
+---
+
+### ai-cmd-provider-5.3 — Payments at the chair — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.3.1** | `mark_paid` | M | “Mark Jane paid cash”, “Mark this booking paid” | **Shipped** — push parity |
+| **5.3.2** | `payment_sweep` | M | “Mark all today paid”, “Sweep unpaid from today” | Bulk — manager/own calendar scope |
+| **5.3.3** | `explain_booking_payment_breakdown` | R | “Why does it say pending?”, “She prepaid online — show breakdown” | **`BookingPaymentBreakdown`** |
+| **5.3.4** | `explain_provider_payment_currency` | R | “Why € on this booking?”, “Retail total currency” | **Shipped** read intent |
+| **5.3.5** | `explain_deposit_balance_due` | R | “How much left at checkout?”, “50% deposit — rest due?” | Prepayment + retail lines |
+| **5.3.6** | `collect_remaining_balance` | M | “Charge the balance on file”, “Collect rest at chair” | Product-dependent Stripe terminal / manual |
+
+- [ ] **ai-cmd-provider-5.3.1** — Full DoD **`mark_paid`** + push **`mark_paid`** action eval
+- [ ] **ai-cmd-provider-5.3.2** — Full DoD **`payment_sweep`**
+- [ ] **ai-cmd-provider-5.3.3** — `explain_booking_payment_breakdown`
+- [ ] **ai-cmd-provider-5.3.4** — HY/RU **`explain_provider_payment_currency`**
+- [ ] **ai-cmd-provider-5.3.5** — `explain_deposit_balance_due`
+- [ ] **ai-cmd-provider-5.3.6** — `collect_remaining_balance` (if product supports)
+
+---
+
+### ai-cmd-provider-5.4 — Retail upsell at chair — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.4.1** | `add_retail_to_booking` | M | “Add Olaplex 3 to this booking”, “Sell shampoo she uses” | **Shipped** **prov-exp-5.1** |
+| **5.4.2** | `suggest_retail_upsell` | R | “What should I recommend after color?”, “Upsell ideas for this client” | Parity fixture — read suggestions |
+| **5.4.3** | `explain_retail_cart` | R | “What’s on the retail tab?”, “Total with products” | **`BookingRetailPosSection`** |
+| **5.4.4** | `remove_retail_from_booking` | M | “Remove the serum from cart”, “Undo product add” | Gap — today UI-only? |
+| **5.4.5** | `search_retail_sku` | R | “Find SKU 12345”, “Do we carry bond builder?” | Navigate search — **`prov-exp-5.2** |
+
+- [ ] **ai-cmd-provider-5.4.1** — Full DoD **`add_retail_to_booking`** (voice SKU)
+- [ ] **ai-cmd-provider-5.4.2** — Full DoD **`suggest_retail_upsell`**
+- [ ] **ai-cmd-provider-5.4.3** — `explain_retail_cart`
+- [ ] **ai-cmd-provider-5.4.4** — `remove_retail_from_booking`
+- [ ] **ai-cmd-provider-5.4.5** — `search_retail_sku` navigate
+
+---
+
+### ai-cmd-provider-5.5 — Client communications — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.5.1** | `send_client_message` | M | “Text Jane I’m running 10 late”, “WhatsApp reminder she’s next” | **Shipped** **prov-exp-6.1** |
+| **5.5.2** | `send_canned_template` | M | “Send ‘running late’ template to Maria” | **`prov-exp-6.2`** template picker |
+| **5.5.3** | `draft_waitlist_offer_message` | R | “Draft SMS for waitlist when gap opens”, “Message top waitlist client” | **prov-exp-8.2** — copy-only or handoff |
+| **5.5.4** | `explain_message_templates` | R | “What templates can I send?”, “Edit canned messages?” | Read-only — edit stays dashboard |
+| **5.5.5** | `notify_client_ready` | M | “Tell her chair is ready”, “Send ‘your turn’ message” | Optional template |
+
+- [ ] **ai-cmd-provider-5.5.1** — Full DoD **`send_client_message`**
+- [ ] **ai-cmd-provider-5.5.2** — `send_canned_template` (templateId param)
+- [ ] **ai-cmd-provider-5.5.3** — `draft_waitlist_offer_message` (**prov-exp-8.2**)
+- [ ] **ai-cmd-provider-5.5.4** — `explain_message_templates`
+- [ ] **ai-cmd-provider-5.5.5** — `notify_client_ready`
+
+---
+
+### ai-cmd-provider-5.6 — Schedule self-service — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.6.1** | `block_my_time` | M | “Block lunch 1–2”, “Break until 3pm” | **Shipped** **prov-exp-7.1** |
+| **5.6.2** | `fill_unused_slots` | M | “Block gap 4–5 as personal”, “Fill unused 2pm slot” | Open shift → block vs book |
+| **5.6.3** | `request_time_off` | M | “Request off next Friday”, “Vacation Dec 20–27” | **Shipped** **prov-exp-7.2** |
+| **5.6.4** | `list_my_time_off_requests` | R | “Status of my time off?”, “Was Friday approved?” | **Shipped** |
+| **5.6.5** | `check_availability` | R | “Am I free Thursday 3pm?”, “Open slot today 5pm” | Own calendar |
+| **5.6.6** | `extend_my_block` | M | “Extend lunch 30 minutes”, “Push break to 2:30” | Edit existing block |
+| **5.6.7** | `explain_provider_date_display` | R | “Why dates look like DD/MM?”, “Time format on cards” | **Shipped** fmt-1.8 |
+
+- [ ] **ai-cmd-provider-5.6.1** — Full DoD **`block_my_time`**
+- [ ] **ai-cmd-provider-5.6.2** — Full DoD **`fill_unused_slots`**
+- [ ] **ai-cmd-provider-5.6.3** — HY/RU **`request_time_off`**
+- [ ] **ai-cmd-provider-5.6.4** — HY/RU **`list_my_time_off_requests`**
+- [ ] **ai-cmd-provider-5.6.5** — Full DoD **`check_availability`**
+- [ ] **ai-cmd-provider-5.6.6** — `extend_my_block`
+- [ ] **ai-cmd-provider-5.6.7** — HY/RU **`explain_provider_date_display`**
+
+---
+
+### ai-cmd-provider-5.7 — Booking changes (cancel / move / no-show) — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.7.1** | `reschedule_booking` | M | “Move Jane to 4pm”, “Reschedule my 2pm to tomorrow” | **Shipped** — slot picker handoff |
+| **5.7.2** | `cancel_bookings` | M | “Cancel Jane’s 2pm”, “Cancel all my afternoon” | **Shipped** — reason param |
+| **5.7.3** | `mark_no_shows` | M | “Mark no-shows today”, “Jane didn’t show — no show” | **Shipped** bulk + single |
+| **5.7.4** | `suggest_reschedule_from_push` | R | “Reschedule from this notification” | Push parity — opens AI |
+| **5.7.5** | `reassign_booking_same_day` | M | “Give Jane’s 3pm to Marco” | **Gap** — **`BookingReassignSection`** UI only today |
+| **5.7.6** | `explain_cancel_policy_for_client` | R | “Will she lose deposit?”, “Cancellation fee for this booking?” | Read salon policy for staff |
+
+- [ ] **ai-cmd-provider-5.7.1** — Full DoD **`reschedule_booking`** + compounds with **`check_availability`**
+- [ ] **ai-cmd-provider-5.7.2** — Full DoD **`cancel_bookings`**
+- [ ] **ai-cmd-provider-5.7.3** — Full DoD **`mark_no_shows`**
+- [ ] **ai-cmd-provider-5.7.4** — Push eval **`suggest_reschedule_from_push`**
+- [ ] **ai-cmd-provider-5.7.5** — `reassign_booking_same_day` (**prov-exp-4.2** AI parity)
+- [ ] **ai-cmd-provider-5.7.6** — `explain_cancel_policy_for_client`
+
+---
+
+### ai-cmd-provider-5.8 — Manager floor & team — **provider (manager/owner)**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.8.1** | `team_floor_status` | R | “Floor board”, “Who’s waiting vs in service?” | **Shipped** **prov-exp-4.1** |
+| **5.8.2** | `team_whos_next` | R | “Who’s next across the team?”, “Next 2 hours queue” | **Shipped** **prov-exp-4.3** |
+| **5.8.3** | `my_stats` | R | “My week stats”, “Team utilization this month” | **Shipped** scope=team |
+| **5.8.4** | `summarize_my_revenue` | R | “How much did I earn this week?”, “Tips this month” | **Shipped** narrative |
+| **5.8.5** | `list_team_unpaid_today` | R | “Anyone on the floor not paid yet?”, “Unpaid across team” | Manager **`payment_sweep`** preview |
+| **5.8.6** | `explain_reviews_inbox` | R | “Bad review yesterday — show it”, “My rating this month” | **`ProviderReviewsInboxSection`** + **`my_stats`** |
+
+- [ ] **ai-cmd-provider-5.8.1** — HY/RU **`team_floor_status`**
+- [ ] **ai-cmd-provider-5.8.2** — HY/RU **`team_whos_next`**
+- [ ] **ai-cmd-provider-5.8.3** — Full DoD **`my_stats`**
+- [ ] **ai-cmd-provider-5.8.4** — Full DoD **`summarize_my_revenue`**
+- [ ] **ai-cmd-provider-5.8.5** — `list_team_unpaid_today`
+- [ ] **ai-cmd-provider-5.8.6** — `explain_reviews_inbox`
+
+---
+
+### ai-cmd-provider-5.9 — Waitlist & gap recovery — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.9.1** | `suggest_waitlist_for_gap` | R | “Who can fill my 3pm gap?”, “Waitlist for this open slot” | **Shipped** **prov-exp-7.3** |
+| **5.9.2** | `list_waitlist_for_my_services` | R | “Show my waitlist”, “Who’s waiting for color?” | **prov-exp-8.1** panel |
+| **5.9.3** | `coordinate_waitlist_offer` | M | “Offer gap to top waitlist”, “Text waitlist about 3pm opening” | Manager — ties dashboard **`offer_waitlist_slot`** |
+| **5.9.4** | `list_rebooking_candidates` | R | “Who should I call after this cancel?”, “Regulars + waitlist” | **prov-exp-8.2** |
+| **5.9.5** | `book_walk_in_gap` | M | “Book walk-in in the 2pm gap”, “Quick book 30 min trim now” | New booking into open shift |
+
+- [ ] **ai-cmd-provider-5.9.1** — Full DoD **`suggest_waitlist_for_gap`**
+- [ ] **ai-cmd-provider-5.9.2** — `list_waitlist_for_my_services` (**prov-exp-8.1**)
+- [ ] **ai-cmd-provider-5.9.3** — Full DoD **`coordinate_waitlist_offer`**
+- [ ] **ai-cmd-provider-5.9.4** — `list_rebooking_candidates` (**prov-exp-8.2**)
+- [ ] **ai-cmd-provider-5.9.5** — `book_walk_in_gap`
+
+---
+
+### ai-cmd-provider-5.10 — Push notifications & deep links — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.10.1** | `confirm_booking_from_push` | M | “Confirm from notification”, “Accept new booking push” | **Shipped** push action |
+| **5.10.2** | `open_booking_from_push` | R | “Open booking from alert”, “Show me that notification appointment” | **`ProviderPushBridge`** |
+| **5.10.3** | `explain_last_push` | R | “What was that alert?”, “Explain my last notification” | **Shipped** **prov-exp-10.1** |
+| **5.10.4** | `dismiss_push` | M | “Dismiss notification”, “Mark alert read” | **Shipped** |
+| **5.10.5** | `explain_push_setup` | R | “How do push alerts work?”, “Enable booking notifications” | **Shipped** |
+| **5.10.6** | `enable_push_notifications` | M | “Turn on push”, “Enable alerts in profile” | **Shipped** — **`PushToggle`** |
+| **5.10.7** | `new_booking_push_actions` | R | “What can I do from a new booking push?” | Confirm / reschedule / mark paid menu |
+
+- [ ] **ai-cmd-provider-5.10.1** — Push action eval **`confirm_booking_from_push`**
+- [ ] **ai-cmd-provider-5.10.2** — Full DoD **`open_booking_from_push`**
+- [ ] **ai-cmd-provider-5.10.3** — HY/RU **`explain_last_push`**
+- [ ] **ai-cmd-provider-5.10.4** — Full DoD **`dismiss_push`**
+- [ ] **ai-cmd-provider-5.10.5** — HY/RU **`explain_push_setup`**
+- [ ] **ai-cmd-provider-5.10.6** — Full DoD **`enable_push_notifications`**
+- [ ] **ai-cmd-provider-5.10.7** — Full DoD **`new_booking_push_actions`**
+
+---
+
+### ai-cmd-provider-5.11 — Clinic vertical (provider mobile) — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.11.1** | `list_my_collection_queue` | R | “Who do I draw today?”, “Specimen collection list” | **Shipped** **`LabCollectionPage`** |
+| **5.11.2** | `mark_specimen_collected` | M | “Mark draw complete for Jane”, “Collected specimen order 123” | **Shipped** |
+| **5.11.3** | `list_patient_pending_lab_requests` | R | “Patients who still need to book lab”, “Pending lab self-book” | **`list_patient_pending_lab_requests`** |
+| **5.11.4** | `open_patient_chart` | R | “Open chart for Jane”, “Patient summary before draw” | **`PatientChartSummaryPage`** navigate |
+| **5.11.5** | `explain_lab_result_on_booking` | R | “Any flagged results on this visit?”, “Show CBC from last time” | **`BookingLabResultsSection`** |
+| **5.11.6** | `list_clinic_tasks` | R | “My tasks today”, “Outstanding clinic to-dos” | **`ClinicTasksPage`** |
+| **5.11.7** | `complete_clinic_task` | M | “Mark task done”, “Complete follow-up call task” | **`ProviderClinicTasksList`** |
+| **5.11.8** | `explain_provider_session_timeout` | R | “Why did I get logged out?”, “Session timeout on clinic app” | **Shipped** HIPAA clinic |
+
+- [ ] **ai-cmd-provider-5.11.1** — HY/RU **`list_my_collection_queue`**
+- [ ] **ai-cmd-provider-5.11.2** — Full DoD **`mark_specimen_collected`**
+- [ ] **ai-cmd-provider-5.11.3** — Full DoD **`list_patient_pending_lab_requests`**
+- [ ] **ai-cmd-provider-5.11.4** — `open_patient_chart`
+- [ ] **ai-cmd-provider-5.11.5** — `explain_lab_result_on_booking`
+- [ ] **ai-cmd-provider-5.11.6** — `list_clinic_tasks`
+- [ ] **ai-cmd-provider-5.11.7** — `complete_clinic_task`
+- [ ] **ai-cmd-provider-5.11.8** — HY/RU **`explain_provider_session_timeout`**
+
+---
+
+### ai-cmd-provider-5.12 — Gift cards & packages (provider) — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.12.1** | `list_package_appointments_today` | R | “Package visits today”, “Who’s on a bundle this afternoon?” | **Shipped** handler |
+| **5.12.2** | `list_my_package_visits` | R | “Show Jane’s package progress”, “Visits left on her plan” | Provider read at chair |
+| **5.12.3** | `explain_gift_card_redemption` | R | “She’s paying with gift card — balance?” | Checkout badge context |
+| **5.12.4** | `list_gift_card_fulfillment_queue` | R | “Physical cards to fulfill”, “Gift card pickup queue” | **`GiftCardQueuesPage`** |
+
+- [ ] **ai-cmd-provider-5.12.1** — Full DoD **`list_package_appointments_today`**
+- [ ] **ai-cmd-provider-5.12.2** — Full DoD **`list_my_package_visits`**
+- [ ] **ai-cmd-provider-5.12.3** — `explain_gift_card_redemption`
+- [ ] **ai-cmd-provider-5.12.4** — `list_gift_card_fulfillment_queue`
+
+---
+
+### ai-cmd-provider-5.13 — Offline, app health & voice — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.13.1** | `offline_queue_status` | R | “What’s queued offline?”, “Did my check-in save?” | **`ProviderOfflineBanner`** |
+| **5.13.2** | `retry_offline_action` | M | “Retry failed sync”, “Send queued actions now” | **Shipped** |
+| **5.13.3** | `explain_offline_mode` | R | “Why offline?”, “Will changes sync when back?” | Provider app offline copy |
+| **5.13.4** | `voice_check_in` | M | “Hey — check in Maria” | **`ProviderAiVoiceButton`** — hands-free |
+| **5.13.5** | `voice_mark_paid` | M | “Mark paid cash” | Voice compound at chair |
+| **5.13.6** | `explain_app_update_gate` | R | “Why must I update?”, “Skip update for now” | **`AppVersionGate`** |
+
+- [ ] **ai-cmd-provider-5.13.1** — Full DoD **`offline_queue_status`**
+- [ ] **ai-cmd-provider-5.13.2** — Full DoD **`retry_offline_action`**
+- [ ] **ai-cmd-provider-5.13.3** — `explain_offline_mode`
+- [ ] **ai-cmd-provider-5.13.4** — Voice fixture pack for chair actions
+- [ ] **ai-cmd-provider-5.13.5** — `voice_mark_paid` eval
+- [ ] **ai-cmd-provider-5.13.6** — `explain_app_update_gate`
+
+---
+
+### ai-cmd-provider-5.14 — Provider compounds (one message, full job)
+
+| ID | Recipe | Steps | Example prompt |
+|----|--------|-------|----------------|
+| **5.14.1** | `chair_closeout` | `mark_visit_complete` → `mark_paid` → `add_retail_to_booking`? | “Finish Jane, mark paid cash, add Olaplex” |
+| **5.14.2** | `running_late_notify` | `mark_running_late` → `send_client_message` | “I’m 15 late — text my next client” |
+| **5.14.3** | `gap_waitlist_fill` | `suggest_waitlist_for_gap` → `draft_waitlist_offer_message` → `coordinate_waitlist_offer` | “Fill my 3pm gap from waitlist” |
+| **5.14.4** | `cancel_and_recover` | `cancel_bookings` → `list_rebooking_candidates` → draft message | “Cancel 2pm and message waitlist” |
+| **5.14.5** | `pre_visit_brief` | `summarize_client` → `show_client_history` → `explain_client_intake` | “Brief me before Jane at 2” |
+| **5.14.6** | `end_of_day_close` | `end_of_day_summary` → `payment_sweep` → `mark_no_shows` | “Wrap today — mark paid and no-shows” |
+| **5.14.7** | `reschedule_and_notify` | `reschedule_booking` → `send_client_message` | “Move Maria to 4pm and text her” |
+| **5.14.8** | `clinic_draw_flow` | `list_my_collection_queue` → `open_patient_chart` → `mark_specimen_collected` | “Next draw — open chart and mark collected” |
+| **5.14.9** | `push_confirm_check_in` | `confirm_booking_from_push` → `check_in_client` | “Confirm push booking and check in when she arrives” |
+
+- [ ] **ai-cmd-provider-5.14.1** — `chair_closeout`
+- [ ] **ai-cmd-provider-5.14.2** — `running_late_notify`
+- [ ] **ai-cmd-provider-5.14.3** — `gap_waitlist_fill`
+- [ ] **ai-cmd-provider-5.14.4** — `cancel_and_recover`
+- [ ] **ai-cmd-provider-5.14.5** — `pre_visit_brief`
+- [ ] **ai-cmd-provider-5.14.6** — `end_of_day_close`
+- [ ] **ai-cmd-provider-5.14.7** — `reschedule_and_notify`
+- [ ] **ai-cmd-provider-5.14.8** — `clinic_draw_flow`
+- [ ] **ai-cmd-provider-5.14.9** — `push_confirm_check_in`
+
+---
+
+### ai-cmd-provider-5.15 — Provider app UI chips & contextual suggestions
+
+Extend **`ProviderAiSuggestionsService`** + localized starter prompts on each screen (mirror **ai-cmd-customer-4.9**).
+
+| Screen / route | Suggested AI chips |
+|--------------|-------------------|
+| **`TodayPage`** | “Who’s next?”, “Team floor status”, “Any unpaid today?” |
+| **`BookingDetailModal`** | “Summarize this client”, “Check in”, “Mark paid cash”, “Add retail product” |
+| **`SchedulePage`** | “Block lunch tomorrow”, “Request Friday off”, “My time off status” |
+| **`CalendarPage`** | “Gaps this week”, “Who can fill 3pm gap?”, “How full am I?” |
+| **`ProfilePage`** | “My stats this week”, “Enable push alerts”, “Explain notifications” |
+| **`LabCollectionPage`** | “Collection queue today”, “Mark specimen collected” |
+| **`PushNotificationsPage`** | “Explain last alert”, “Open booking from notification” |
+| **Push action sheet** | “Confirm booking”, “Mark paid”, “Reschedule” |
+| **`BookingDetailModal`** (open) | “Summarize client”, “Check in”, “Mark in progress”, “Mark paid cash” |
+| **`PatientLookupPage`** | “Find patient Jane”, “Open chart for DOB …” |
+| **`LabResultsPage`** | “Results waiting review”, “Open booking with abnormal CBC” |
+| **`GiftCardQueuesPage`** | “Cards to create today”, “Mark gift card ready for pickup” |
+| **`AcceptInvitePage`** | “What is this invite?”, “Help setting up my account” |
+| **`ClinicTasksPage`** | “My tasks due today”, “Mark intake follow-up done” |
+
+- [ ] **ai-cmd-provider-5.15.1** — Page → chip map in `provider-app` i18n + `ProviderAiSuggestionsService` context keys
+- [ ] **ai-cmd-provider-5.15.2** — Booking-detail session injects `bookingId` into assistant placeholder hints
+- [ ] **ai-cmd-provider-5.15.3** — Align suggestion **`prompt`** strings with classifier fixture ids for eval traceability
+- [ ] **ai-cmd-provider-5.15.4** — Extend **`getProviderQuickChips`** routes: `calendar`, `clinic-tasks`, `lab-collection`, `gift-cards` fulfillment prompts (**ai-m6**)
+- [ ] **ai-cmd-provider-5.15.5** — Manager vs stylist chip sets (`isManager`) for floor vs own-calendar wording
+
+---
+
+### ai-cmd-provider-5.16 — Visit status lifecycle — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.16.1** | `update_bookings` | M | “Start service”, “Mark in progress”, “Set confirmed” | **Shipped** generic status — disambiguate vs **`mark_visit_complete`** |
+| **5.16.2** | `mark_visit_in_progress` | M | “Begin Jane’s color”, “Start appointment now” | Dedicated alias → status=`in_progress` |
+| **5.16.3** | `mark_ready_now` | M | “Ready for next client”, “Clear running late” | **`markProviderBookingReadyNow`** metadata |
+| **5.16.4** | `confirm_pending_booking` | M | “Confirm all pending today”, “Accept Maria’s booking” | Suggestion **`confirm-pending`** — bulk + single |
+| **5.16.5** | `explain_booking_status_badge` | R | “What does pending mean?”, “Why in progress?” | Status colors on **`BookingDetailModal`** |
+| **5.16.6** | `explain_floor_status` | R | “Waiting vs in service?”, “What’s checked in?” | Check-in floor strip + **`team_floor_status`** |
+
+- [ ] **ai-cmd-provider-5.16.1** — Full DoD **`update_bookings`** status branches
+- [ ] **ai-cmd-provider-5.16.2** — `mark_visit_in_progress`
+- [ ] **ai-cmd-provider-5.16.3** — Full DoD **`mark_ready_now`** (pairs **5.2.6**)
+- [ ] **ai-cmd-provider-5.16.4** — `confirm_pending_booking`
+- [ ] **ai-cmd-provider-5.16.5** — `explain_booking_status_badge`
+- [ ] **ai-cmd-provider-5.16.6** — `explain_floor_status`
+
+---
+
+### ai-cmd-provider-5.17 — Tax, payment status & cash — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.17.1** | `explain_appointment_tax` | R | “Why VAT on this breakdown?”, “Inclusive vs exclusive tax?” | **Shipped** handler via **`businessTax`** |
+| **5.17.2** | `explain_payment_status` | R | “Why still pending after Stripe?”, “She paid online — why cash due?” | Provider slice of dashboard intent |
+| **5.17.3** | `explain_prepaid_vs_balance_due` | R | “Deposit paid — what’s left?”, “Gift card covered service only” | Retail + prepayment lines together |
+| **5.17.4** | `collect_cash_at_chair` | M | “Record cash collected $80”, “Mark cash payment received” | Distinct from **`mark_paid`** when partial |
+| **5.17.5** | `explain_stripe_prepay_on_booking` | R | “Client prepaid online — do I charge again?” | Tie **`configure_service_online_payment`** read copy |
+
+- [ ] **ai-cmd-provider-5.17.1** — HY/RU **`explain_appointment_tax`**
+- [ ] **ai-cmd-provider-5.17.2** — Provider **`explain_payment_status`** fixtures + eval
+- [ ] **ai-cmd-provider-5.17.3** — `explain_prepaid_vs_balance_due`
+- [ ] **ai-cmd-provider-5.17.4** — `collect_cash_at_chair`
+- [ ] **ai-cmd-provider-5.17.5** — `explain_stripe_prepay_on_booking` (**ai-cmd-ext-7** parity)
+
+---
+
+### ai-cmd-provider-5.18 — Multi-service, packages & tour groups — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.18.1** | `list_my_multi_service_groups` | R | “Spa day clients today”, “Who has massage + facial?” | **Shipped** handler |
+| **5.18.2** | `explain_multi_service_order` | R | “Which service is first?”, “Gap between her two appointments?” | Sequence + duration on timeline |
+| **5.18.3** | `mark_multi_service_step_done` | M | “Finish step 1 of spa day”, “Complete blowdry leg” | Per-leg status within group |
+| **5.18.4** | `explain_tour_group_on_booking` | R | “How many pax on this tour?”, “Group booking details” | Tour metadata on booking card |
+| **5.18.5** | `list_package_appointments_today` | R | “Package visits this afternoon” | **5.12.1** — group by bundle |
+
+- [ ] **ai-cmd-provider-5.18.1** — Full DoD **`list_my_multi_service_groups`**
+- [ ] **ai-cmd-provider-5.18.2** — `explain_multi_service_order`
+- [ ] **ai-cmd-provider-5.18.3** — `mark_multi_service_step_done`
+- [ ] **ai-cmd-provider-5.18.4** — `explain_tour_group_on_booking`
+- [ ] **ai-cmd-provider-5.18.5** — Package + multi-service compound read
+
+---
+
+### ai-cmd-provider-5.19 — Clinic extended (lookup, results, recollect) — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.19.1** | `search_patient` | R | “Find patient Jane Doe”, “Lookup by phone ending 4521” | **`PatientLookupPage`** navigate |
+| **5.19.2** | `list_lab_results_queue` | R | “Results needing review”, “Abnormal results today” | **`LabResultsPage`** / **`ProviderLabResultsList`** |
+| **5.19.3** | `explain_specimen_recollect` | R | “Why recollect required?”, “Failed draw — what next?” | Collection queue **RecollectRequired** |
+| **5.19.4** | `notify_patient_book_lab` | M | “Remind patient to book collection”, “Nudge pending lab self-book” | **`list_patient_pending_lab_requests`** → message |
+| **5.19.5** | `explain_clinic_task` | R | “What is this follow-up task?”, “Who assigned it?” | **`ProviderClinicTasksList`** |
+| **5.19.6** | `handoff_to_dashboard_phi` | R | “Open full intake on dashboard”, “Why can’t I edit intake here?” | **`preVisitIntakeOpenDashboard`** link explain |
+
+- [ ] **ai-cmd-provider-5.19.1** — `search_patient`
+- [ ] **ai-cmd-provider-5.19.2** — `list_lab_results_queue`
+- [ ] **ai-cmd-provider-5.19.3** — `explain_specimen_recollect`
+- [ ] **ai-cmd-provider-5.19.4** — `notify_patient_book_lab`
+- [ ] **ai-cmd-provider-5.19.5** — `explain_clinic_task`
+- [ ] **ai-cmd-provider-5.19.6** — `handoff_to_dashboard_phi`
+
+---
+
+### ai-cmd-provider-5.20 — Gift card fulfillment ops — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.20.1** | `list_gift_cards_to_create` | R | “Physical cards to print”, “Creation queue” | **`GiftCardQueuesPage`** creation tab |
+| **5.20.2** | `mark_gift_card_ready` | M | “Mark card GC-123 ready for pickup”, “Card printed — ready” | **`markReadyMutation`** |
+| **5.20.3** | `list_gift_cards_out_for_delivery` | R | “Cards to ship today”, “Delivery queue” | Delivery tab |
+| **5.20.4** | `mark_gift_card_shipped` | M | “Shipped to Anna — out for delivery”, “Mark delivered” | **`outForDeliveryMutation`** |
+| **5.20.5** | `explain_gift_card_order_details` | R | “What’s on this gift order?”, “Service credits on card” | Order card read |
+
+- [ ] **ai-cmd-provider-5.20.1** — `list_gift_cards_to_create`
+- [ ] **ai-cmd-provider-5.20.2** — `mark_gift_card_ready`
+- [ ] **ai-cmd-provider-5.20.3** — `list_gift_cards_out_for_delivery`
+- [ ] **ai-cmd-provider-5.20.4** — `mark_gift_card_shipped`
+- [ ] **ai-cmd-provider-5.20.5** — `explain_gift_card_order_details`
+
+---
+
+### ai-cmd-provider-5.21 — New staff & app setup — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.21.1** | `explain_staff_invite` | R | “What is this invite link?”, “Join salon as stylist” | **`AcceptInvitePage`** |
+| **5.21.2** | `explain_provider_app_tabs` | R | “What’s on Today vs Calendar?”, “Where is my schedule?” | Onboarding FAQ |
+| **5.21.3** | `explain_team_view_scope` | R | “Why do I see everyone’s bookings?”, “Switch to my calendar only” | Manager vs employee scope |
+| **5.21.4** | `explain_profile_settings` | R | “Change my title”, “Update avatar” | **`ProviderProfileSection`** — mutate stays UI |
+| **5.21.5** | `configure_provider_push_date_format` | M | “Show push times in 24h”, “Fix date format in alerts” | **Shipped** fmt-1.8 |
+
+- [ ] **ai-cmd-provider-5.21.1** — `explain_staff_invite`
+- [ ] **ai-cmd-provider-5.21.2** — `explain_provider_app_tabs`
+- [ ] **ai-cmd-provider-5.21.3** — `explain_team_view_scope`
+- [ ] **ai-cmd-provider-5.21.4** — `explain_profile_settings`
+- [ ] **ai-cmd-provider-5.21.5** — HY/RU **`configure_provider_push_date_format`**
+
+---
+
+### ai-cmd-provider-5.22 — Reviews & reputation — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.22.1** | `summarize_recent_reviews` | R | “Any bad reviews this week?”, “Latest 5-star reviews” | **`my_stats`** + inbox filter |
+| **5.22.2** | `explain_request_review_flow` | R | “How do I ask for a review?”, “Can I request from Jane?” | **prov-exp-2.2** dashboard-only policy explain |
+| **5.22.3** | `draft_review_response` | R | “Help reply to this review”, “Draft professional response” | Copy-only — publish stays dashboard |
+| **5.22.4** | `request_review_for_client` | M | “Ask Jane for a review after visit” | Product gate — if mobile API added |
+
+- [ ] **ai-cmd-provider-5.22.1** — `summarize_recent_reviews`
+- [ ] **ai-cmd-provider-5.22.2** — `explain_request_review_flow`
+- [ ] **ai-cmd-provider-5.22.3** — `draft_review_response`
+- [ ] **ai-cmd-provider-5.22.4** — `request_review_for_client` (optional API)
+
+---
+
+### ai-cmd-provider-5.23 — Calendar, gaps & open shifts — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.23.1** | `list_gaps_today` | R | “Open slots this afternoon”, “Gaps between clients” | **`ProviderCalendarGapsPanel`** / **`fill_unused_slots`** read |
+| **5.23.2** | `explain_calendar_utilization_bands` | R | “What do the green bands mean?”, “Fully booked day?” | **`ProviderCalendarMonth`** |
+| **5.23.3** | `block_schedule` | M | “Block 2–3pm team meeting”, “Block schedule Friday AM” | **Shipped** — vs **`block_my_time`** (own break) |
+| **5.23.4** | `explain_block_vs_time_off` | R | “Block vs request time off?”, “Which should I use for vacation?” | Self-service FAQ |
+| **5.23.5** | `list_bookings_on_date` | R | “Who do I see next Tuesday?”, “Bookings on 12 June” | **`list_bookings`** + date filter |
+
+- [ ] **ai-cmd-provider-5.23.1** — `list_gaps_today`
+- [ ] **ai-cmd-provider-5.23.2** — `explain_calendar_utilization_bands`
+- [ ] **ai-cmd-provider-5.23.3** — Disambiguate **`block_schedule`** vs **`block_my_time`** fixtures
+- [ ] **ai-cmd-provider-5.23.4** — `explain_block_vs_time_off`
+- [ ] **ai-cmd-provider-5.23.5** — Full DoD **`list_bookings`**
+
+---
+
+### ai-cmd-provider-5.24 — Assistant UX, offline & voice — **provider**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.24.1** | `explain_offline_suggestions` | R | “Why stale suggestions?”, “Refresh when online” | **`ProviderAiSuggestions`** offline cache |
+| **5.24.2** | `explain_assistant_confirm_swipe` | R | “Why swipe to confirm?”, “What will change?” | Bulk mutate preview (**`assistantSwipeConfirm`**) |
+| **5.24.3** | `give_provider_ai_feedback` | M | “Wrong client picked”, “That wasn’t my intent” | Mirror customer **4.19.3** |
+| **5.24.4** | `explain_provider_compound_steps` | R | “Do these one at a time?”, “What happens next in compound?” | **`provider_booking_compound`** / **`provider_push_compound`** |
+| **5.24.5** | `voice_summarize_next_client` | R | “Read me my next appointment” | TTS + **`show_appointments`** |
+| **5.24.6** | `explain_accessibility_settings` | R | “Bigger text in app?”, “Larger tap targets” | **prov-exp-10.3** — local UI explain |
+
+- [ ] **ai-cmd-provider-5.24.1** — `explain_offline_suggestions`
+- [ ] **ai-cmd-provider-5.24.2** — `explain_assistant_confirm_swipe`
+- [ ] **ai-cmd-provider-5.24.3** — `give_provider_ai_feedback`
+- [ ] **ai-cmd-provider-5.24.4** — `explain_provider_compound_steps`
+- [ ] **ai-cmd-provider-5.24.5** — `voice_summarize_next_client`
+- [ ] **ai-cmd-provider-5.24.6** — `explain_accessibility_settings`
+
+---
+
+### ai-cmd-provider-5.25 — Dashboard handoff (when mobile isn’t enough) — **provider read**
+
+| ID | Intent (proposed) | R/M | Example prompts | Notes |
+|----|-------------------|-----|-----------------|-------|
+| **5.25.1** | `explain_dashboard_only_action` | R | “Adjust loyalty points”, “Edit message templates” | Map **`PROVIDER_EXP_UI_AI_PARITY`** dashboard-only rows |
+| **5.25.2** | `explain_reassign_limit` | R | “Why can’t AI reassign multi-service?”, “Use reassign button” | **prov-exp-4.2** notes |
+| **5.25.3** | `explain_time_off_approval` | R | “Who approves my time off?”, “Pending manager approval” | Manager action on dashboard |
+| **5.25.4** | `open_dashboard_deep_link` | R | “Open CRM for Jane”, “Full intake on web” | Return URL when safe |
+
+- [ ] **ai-cmd-provider-5.25.1** — Auto-generate from **`PROVIDER_EXP_UI_AI_PARITY`** dashboard-only reasons
+- [ ] **ai-cmd-provider-5.25.2** — `explain_reassign_limit`
+- [ ] **ai-cmd-provider-5.25.3** — `explain_time_off_approval`
+- [ ] **ai-cmd-provider-5.25.4** — `open_dashboard_deep_link`
+
+---
+
+### ai-cmd-provider-5.26 — More provider compounds
+
+| ID | Recipe | Steps | Example prompt |
+|----|--------|-------|----------------|
+| **5.26.1** | `pending_confirm_day` | `confirm_pending_booking` → `summarize_day` | “Confirm all pending then summarize today” |
+| **5.26.2** | `check_in_start_complete` | `check_in_client` → `mark_visit_in_progress` → `mark_visit_complete` | “Check in Jane, start service, mark done” |
+| **5.26.3** | `retail_closeout` | `suggest_retail_upsell` → `add_retail_to_booking` → `mark_paid` | “Recommend product and close with cash” |
+| **5.26.4** | `gap_walk_in_book` | `list_gaps_today` → `book_walk_in_gap` → `check_in_client` | “Book walk-in in 2pm gap and check in” |
+| **5.26.5** | `no_show_recover` | `mark_no_shows` → `list_rebooking_candidates` → `draft_waitlist_offer_message` | “No-show at 2 — who should I offer slot to?” |
+| **5.26.6** | `multi_service_brief` | `list_my_multi_service_groups` → `explain_multi_service_order` → `summarize_client` | “Brief me on spa day client at 3” |
+| **5.26.7** | `gift_card_fulfill` | `list_gift_cards_to_create` → `mark_gift_card_ready` | “Show creation queue and mark first ready” |
+| **5.26.8** | `clinic_draw_patient` | `search_patient` → `open_patient_chart` → `mark_specimen_collected` | “Find Jane, open chart, mark draw done” |
+| **5.26.9** | `push_mark_paid_close` | `open_booking_from_push` → `mark_paid` → `mark_visit_complete` | “From notification — mark paid and complete” |
+| **5.26.10** | `manager_floor_sweep` | `team_floor_status` → `list_team_unpaid_today` → `payment_sweep` | “Floor status then sweep team unpaid” |
+
+- [ ] **ai-cmd-provider-5.26.1** — `pending_confirm_day`
+- [ ] **ai-cmd-provider-5.26.2** — `check_in_start_complete`
+- [ ] **ai-cmd-provider-5.26.3** — `retail_closeout`
+- [ ] **ai-cmd-provider-5.26.4** — `gap_walk_in_book`
+- [ ] **ai-cmd-provider-5.26.5** — `no_show_recover`
+- [ ] **ai-cmd-provider-5.26.6** — `multi_service_brief`
+- [ ] **ai-cmd-provider-5.26.7** — `gift_card_fulfill`
+- [ ] **ai-cmd-provider-5.26.8** — `clinic_draw_patient`
+- [ ] **ai-cmd-provider-5.26.9** — `push_mark_paid_close`
+- [ ] **ai-cmd-provider-5.26.10** — `manager_floor_sweep`
+
+---
+
+### ai-cmd-provider-5 — Suggested implementation order
+
+| Phase | IDs | Provider outcome |
+|-------|-----|------------------|
+| **A — Chair essentials** | **5.0 P0**, **5.2.5**–**5.2.7**, **5.3.1**, **5.16.2**–**5.16.3**, **5.14.1**, **5.26.2** | Check in → in progress → complete → paid |
+| **B — Day operations** | **5.1.*** , **5.3.2**, **5.7.*** , **5.16.4**, **5.14.6**, **5.26.1** | Today glance, pending confirm, cancel/reschedule, EOD sweep |
+| **C — Floor & gaps** | **5.8.*** , **5.9.*** , **5.23.*** , **5.14.3**–**5.14.4**, **5.26.4**–**5.26.5** | Manager floor + waitlist + calendar gaps |
+| **D — Client context** | **5.2.1**–**5.2.4**, **5.14.5**, **5.18.*** , **5.26.6** | Pre-visit brief, multi-service, packages |
+| **E — Comms & retail** | **5.4.*** , **5.5.*** , **5.14.2**, **5.14.7**, **5.26.3** | Message clients, upsell, close with retail |
+| **F — Clinic & gifts** | **5.11.*** , **5.19.*** , **5.20.*** , **5.14.8**, **5.26.7**–**5.26.8** | Draw queue, patient lookup, gift fulfillment |
+| **G — Push & offline** | **5.10.*** , **5.13.*** , **5.24.*** , **5.15.*** , **5.26.9** | Notifications, voice, chips, assistant UX |
+| **H — Money clarity** | **5.17.*** , **5.3.3**–**5.3.5** | Tax lines, pending vs paid, deposit balance |
+| **I — Onboarding & handoff** | **5.21.*** , **5.25.*** , **5.22.2** | New staff, dashboard-only explains |
+| **J — Manager compounds** | **5.26.10**, **5.8.5**, **5.14.6** | Team unpaid sweep + floor closeout |
+
+**Key files (provider):**
+
+| Layer | Path |
+|-------|------|
+| Classifier | `PROVIDER_MOBILE_CLASSIFIER_RULES` in `ai-provider-mobile.fixtures.ts` → `PROVIDER_INTENT_SCHEMA` in `provider-ai-command.service.ts` |
+| Handler | `ProviderAiCommandService` switch → `AiProviderExp2Service` / `AiProviderExp3Service` / `provider-booking-*` |
+| Rescue | `rescueProviderAiIntent` in `provider-ai-intent.util.ts` |
+| UI parity gate | `provider-exp-ai-parity.fixtures.ts` + **`test:prov-exp-ai-parity`** |
+| Suggestions | `provider-ai-suggestions.service.ts` + `provider-ai-suggestions.i18n.ts` |
+| Eval | `eval/ai-command-eval.cases.ts` with `surface: provider` |
+| Page chips | `ProviderAiSuggestions.tsx` + per-route chip config (**5.15**) |
+
+**Cross-links:** **ai-cmd-ext-3** (registry dispatch), **prov-exp-1**–**11** (UI slices), **ai-cmd-customer-4** (customer-facing mirror — e.g. running late notify), **feature-ai-prompt-coverage** (provider surface mandatory), **pipe-1.12.2** (provider pipeline adapter).
+

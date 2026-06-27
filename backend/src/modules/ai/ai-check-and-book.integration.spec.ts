@@ -31,6 +31,7 @@ import { PublicBookingService } from '../public-booking/public-booking.service.j
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { ServiceService } from '../service/service.service.js';
 import { SIMILAR_CHECK_AND_BOOK_PROMPTS } from './ai-check-and-book.fixtures.js';
 
 const services = [
@@ -264,6 +265,7 @@ describe('ai check-and-book integration', () => {
         { provide: AccountingIntegrationService, useValue: {} },
         { provide: CommissionsService, useValue: {} },
         { provide: ServiceSubscriptionsService, useValue: {} },
+        { provide: ServiceService, useValue: { update: jest.fn() } },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Booking), useValue: {} },

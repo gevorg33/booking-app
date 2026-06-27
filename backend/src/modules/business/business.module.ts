@@ -6,6 +6,7 @@ import { BusinessService } from './business.service.js';
 import { DashboardService } from './dashboard.service.js';
 import { TeamMembersService } from './team-members.service.js';
 import { TenantMemberContactService } from './tenant-member-contact.service.js';
+import { TenantAppInstallService } from './tenant-app-install.service.js';
 import { BusinessController } from './business.controller.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -33,12 +34,14 @@ import { User } from '../user/entities/user.entity.js';
     DashboardService,
     TeamMembersService,
     TenantMemberContactService,
+    TenantAppInstallService,
   ],
   exports: [
     BusinessService,
     DashboardService,
     TenantMemberContactService,
     TeamMembersService,
+    TenantAppInstallService,
   ],
 })
 export class BusinessModule {}

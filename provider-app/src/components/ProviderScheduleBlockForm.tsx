@@ -18,7 +18,7 @@ import {
   PROVIDER_SELF_BLOCK_PRESETS,
 } from '../lib/provider-self-block.util';
 import { operationFeedbackStore } from '../lib/operation-feedback-store';
-import DatePicker from './DatePicker';
+import { DatePicker } from './DatePicker';
 import { useI18n } from '../i18n';
 
 interface ProviderScheduleBlockFormProps {

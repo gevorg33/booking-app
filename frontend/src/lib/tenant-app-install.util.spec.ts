@@ -32,13 +32,13 @@ describe('tenant-app-install.util', () => {
         campaign: 'confirmation_qr',
       }),
     ).toBe(
-      'https://app.test/book/salon-a?serviceId=svc-1&src=qr&utm_campaign=confirmation_qr',
+      'https://app.test/get-app/salon-a?src=qr&utm_campaign=confirmation_qr&serviceId=svc-1',
     );
   });
 
   it('renderTenantAppInstallQrDataUrl returns a PNG data URL', async () => {
     const dataUrl = await renderTenantAppInstallQrDataUrl(
-      'https://app.test/book/salon-a?src=qr&utm_campaign=venue_qr',
+      'https://app.test/get-app/salon-a?src=qr&utm_campaign=venue_qr',
     );
     expect(dataUrl).toMatch(/^data:image\/png;base64,/);
   });
@@ -62,7 +62,7 @@ describe('tenant-app-install.util', () => {
       },
     });
     await downloadTenantAppInstallQrPng(
-      'https://app.test/book/salon-a?src=qr&utm_campaign=venue_qr',
+      'https://app.test/get-app/salon-a?src=qr&utm_campaign=venue_qr',
       'optischedule-salon-a-venue_qr.png',
     );
     expect(click).toHaveBeenCalled();

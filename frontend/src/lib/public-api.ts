@@ -349,6 +349,18 @@ export function getPublicProfile(slug: string, locale?: string) {
   return publicFetch<PublicBusinessProfile>(`/public/${slug}${q}`);
 }
 
+export interface PublicAppInstall {
+  slug: string;
+  landingUrl: string;
+  qrDataUrl: string;
+  customSchemeUrl: string;
+  generatedAt: string;
+}
+
+export function getPublicAppInstall(slug: string) {
+  return publicFetch<PublicAppInstall>(`/public/${slug}/app-install`);
+}
+
 export function getPublicProviders(slug: string, date?: string, locale?: string) {
   const params = new URLSearchParams();
   if (date) params.set('date', date);

@@ -88,6 +88,7 @@ export const DASHBOARD_PIPELINE_MUTATING_ACTIONS = new Set<string>([
   'configure_multi_service_scheduling_mode',
   'block_resource_unavailable',
   'configure_cash_payments',
+  'configure_service_online_payment',
   'configure_business_currency',
   'configure_business_tax',
   'configure_privacy_retention',

@@ -13,6 +13,7 @@ import { PublicBookingService } from '../public-booking/public-booking.service.j
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { ServiceService } from '../service/service.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposePaymentsCompoundPrompt,
@@ -29,6 +30,7 @@ import {
   handleChoosePaymentMethodLogic,
   handleCollectCashConfirmLogic,
   handleConfigureCashPaymentsLogic,
+  handleConfigureServiceOnlinePaymentLogic,
   handleExplainCheckoutTotalLogic,
   handleExplainPaymentStatusLogic,
   handleExplainWhyStripeRequiredLogic,
@@ -60,6 +62,7 @@ export class AiPaymentsService {
     accountingIntegrationService: AccountingIntegrationService,
     commissionsService: CommissionsService,
     subscriptionsService: ServiceSubscriptionsService,
+    serviceService: ServiceService,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Service) serviceRepo: Repository<Service>,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
@@ -78,6 +81,7 @@ export class AiPaymentsService {
       businessRepo,
       serviceRepo,
       giftCardRepo,
+      serviceService,
     };
   }
 
@@ -130,6 +134,23 @@ export class AiPaymentsService {
       businessId,
       params,
       prompt,
+    );
+  }
+
+  handleConfigureServiceOnlinePayment(
+    businessId: string,
+    params: Record<string, any>,
+    prompt: string | undefined,
+    catalogServices: Service[],
+    userId?: string,
+  ) {
+    return handleConfigureServiceOnlinePaymentLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogServices,
+      userId,
     );
   }
 

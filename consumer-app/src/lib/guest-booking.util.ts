@@ -28,14 +28,11 @@ export function resolveCheckoutContact(
   profile: PublicCustomerProfile | null | undefined,
   guest: GuestCheckoutContact,
 ): GuestCheckoutContact | null {
-  if (profile?.name?.trim()) {
-    return normalizeGuestContact({
-      name: profile.name,
-      email: profile.email ?? '',
-      phone: profile.phone ?? '',
-    });
-  }
-  const normalized = normalizeGuestContact(guest);
-  if (validateGuestCheckoutContact(normalized) !== null) return null;
-  return normalized;
+  const merged = normalizeGuestContact({
+    name: profile?.name?.trim() || guest.name,
+    email: profile?.email?.trim() || guest.email,
+    phone: profile?.phone?.trim() || guest.phone,
+  });
+  if (validateGuestCheckoutContact(merged) !== null) return null;
+  return merged;
 }

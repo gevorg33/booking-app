@@ -29,6 +29,7 @@ import {
   applyGiftCardPaymentsPromptHints,
   disambiguateGiftCardPaymentsAction,
 } from './ai-gift-card-payments-hints.util.js';
+import { enrichServiceOnlinePaymentParamsFromPrompt } from './ai-service-online-payment.util.js';
 import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
@@ -2926,6 +2927,12 @@ export class AiIntentRescueService {
     if (!rescued || rescued.action === action) return null;
     const rescuedParams: Record<string, any> = {};
     applyGiftCardPaymentsPromptHints(rescued.action, rescuedParams, prompt);
+    if (rescued.action === 'configure_service_online_payment') {
+      Object.assign(
+        rescuedParams,
+        enrichServiceOnlinePaymentParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
     return {
       action: rescued.action,
       params: rescuedParams,

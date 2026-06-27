@@ -14,7 +14,7 @@ import api, { unwrap } from '../services/api';
 import { getTodayDateKey } from '../lib/date-format';
 import { buildProviderTimeOffPayload } from '../lib/provider-time-off.util';
 import { operationFeedbackStore } from '../lib/operation-feedback-store';
-import DatePicker from './DatePicker';
+import { DatePicker } from './DatePicker';
 import { useI18n } from '../i18n';
 
 interface ProviderScheduleTimeOffFormProps {

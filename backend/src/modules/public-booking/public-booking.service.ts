@@ -101,6 +101,7 @@ import { ReferralProgramService } from '../referral-program/referral-program.ser
 import { ShareRewardService } from '../share-rewards/share-reward.service.js';
 import { getBusinessZendeskIntegration } from '../integrations/zendesk/zendesk-integration.types.js';
 import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import { TenantAppInstallService } from '../business/tenant-app-install.service.js';
 import {
   buildMessagingLinksForBusiness,
   getDistributionIntegrations,
@@ -360,6 +361,7 @@ export class PublicBookingService {
     private configService: ConfigService,
     private referralProgramService: ReferralProgramService,
     private shareRewardService: ShareRewardService,
+    private tenantAppInstallService: TenantAppInstallService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
     @InjectRepository(SchedulingSlot)
@@ -379,6 +381,11 @@ export class PublicBookingService {
       throw new ForbiddenException('This business is not accepting bookings');
     }
     return business;
+  }
+
+  async getAppInstall(slug: string) {
+    const business = await this.resolveBusiness(slug);
+    return this.tenantAppInstallService.ensureForBusiness(business);
   }
 
   private publicApiBaseUrl(): string {
