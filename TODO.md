@@ -97,10 +97,11 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| Dashboard intents in registry | **234** (138 mutating) | `DASHBOARD_INTENTS` in `ai-command-registry.build.ts` |
+| Dashboard intents in registry | **252** (mutating subset in `DASHBOARD_MUTATING_INTENTS`) | `DASHBOARD_INTENTS` in `ai-command-registry.build.ts` |
+| Dashboard REST ↔ AI audit | **~229** ops — **~58 gaps** | **ai-cmd-dashboard-6** (full table below **ai-cmd-provider-6**) |
 | `executeSingleIntent` switch cases | **~337** (multi-surface + aliases) | `ai-command.service.ts` |
 | LEGACY_CORE intents owned by `AiCommandService` | **~51 mutate + ~19 read** | `LEGACY_CORE_BINDINGS` in registry build |
-| `INTENT_SCHEMA` action union | **234** (from `DASHBOARD_INTENTS`) | `ai-command-intent-schema.build.ts` → `INTENT_SCHEMA` in `ai-command.service.ts` |
+| `INTENT_SCHEMA` action union | **252** (from `DASHBOARD_INTENTS`) | `ai-command-intent-schema.build.ts` → `INTENT_SCHEMA` in `ai-command.service.ts` |
 | Documented rules in schema appendix | **~200+ actions** | fixture constants appended to `INTENT_SCHEMA` |
 | Generic fallback on unknown handler | still active | `default` case → "don't know how to execute" |
 
@@ -119,7 +120,7 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 
 **Per-action definition of done** (every row in tables below):
 
-> **Audit (2026-06):** not met globally for all **234** dashboard registry intents — see **ai-cmd-ext-gap** below. Public/customer discovery (Sprints **63–65**) meets the spirit of this checklist; dashboard **`ai-cmd-ext-1`** param rows and **`ai-cmd-ext-2`** new verbs do not.
+> **Audit (2026-06):** not met globally for all **252** dashboard registry intents — see **ai-cmd-ext-gap** + REST audit **ai-cmd-dashboard-6**. Public/customer discovery (Sprints **63–65**) meets the spirit of this checklist; dashboard **`ai-cmd-ext-1`** param rows and **`ai-cmd-ext-2`** new verbs do not.
 
 - [ ] Registry binding + access tier in `access-control.matrix.ts`
 - [ ] `INTENT_SCHEMA` union entry + classifier rules wired
@@ -133,13 +134,15 @@ Status: `[ ]` todo · `[~]` in progress · `[x]` done
 | Gap ID | DoD criterion | Current state | Close with |
 |--------|---------------|---------------|------------|
 | **ai-cmd-ext-gap-1** | Registry + access tier | Registry ↔ capability matrix tested; **uncovered UI actions remain** | **parity-2.1**–**2.3**, explicit tier rows per new intent in `access-control.matrix.ts` |
-| **ai-cmd-ext-gap-2** | `INTENT_SCHEMA` union + classifier rules | **Union synced** — **234** actions from `DASHBOARD_INTENTS` via **`ai-command-intent-schema.build.ts`**; appendix rules still separate per domain | Per-intent classifier rules for appendix-only gaps — **parity-2.4** |
+| **ai-cmd-ext-gap-2** | `INTENT_SCHEMA` union + classifier rules | **Union synced** — **252** actions from `DASHBOARD_INTENTS` via **`ai-command-intent-schema.build.ts`**; appendix rules still separate per domain | Per-intent classifier rules for appendix-only gaps — **parity-2.4** |
 | **ai-cmd-ext-gap-3** | `executeSingleIntent` case or delegation | **`ai-cmd-ext-0.2` shipped**; **`ai-cmd-ext-0.3` shipped** — registry-aware default branch in `executeSingleIntent` | — |
 | **ai-cmd-ext-gap-4** | Handler + validator + entity params | **Shipped** — **`ai-cmd-ext-2.1`–`2.12`** registry + handlers + fixtures (`ai-staff-operations`, `ai-waitlist-dashboard`, `ai-clinic-test-result-ext`, billing/loyalty reads) | Extend validator/entity registry per new intent as needed |
 | **ai-cmd-ext-gap-5** | Rescue + ≥10 NL fixtures | Done for major domains (booking, clinic, payments, discover); **not every registry id** | **parity-2.4** per new intent; extend domain `*.fixtures.ts` |
 | **ai-cmd-ext-gap-6** | Eval golden cases | **`test:ai-accuracy`** — **2738/2738** deterministic cases (100%); baseline ratchet **acc-2.9** | **acc-2.4**–**2.6**, **parity-2.4** |
+| **ai-cmd-dashboard-gap-10** | Dashboard REST ↔ AI parity | **~58 REST gaps** vs **252** registry intents — no **`dashboard-api-ai-parity.fixtures.ts`** yet | **ai-cmd-dashboard-6.19**, **`test:dashboard-api-ai-parity`** |
 
-- [ ] **ai-cmd-ext-gap-7** — Mark per-action DoD checklist `[x]` only when **ai-cmd-ext-gap-1**–**6** are green for that table row (or row is explicitly out of scope with surface tag)
+- [ ] **ai-cmd-ext-gap-7** — Mark per-action DoD checklist `[x]` only when **ai-cmd-ext-gap-1**–**6** are green for that table row (or row is explicitly out of scope with surface tag). REST binding: see **ai-cmd-dashboard-6.19**.
+- [ ] **ai-cmd-dashboard-gap-10** — **`dashboard-api-ai-parity.fixtures.ts`** + gate — see **ai-cmd-dashboard-6.19**
 
 ---
 
@@ -280,6 +283,7 @@ Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compo
 | **ai-cmd-customer-gap-5** | ≥10 NL variants + eval EN/HY/RU | Discovery + deferred slices — **`ai-customer-deferred-locale-parity.spec.ts`** (210 EN/HY/RU eval rows); provider push (+12 HY/RU); provider earnings (+28 HY/RU); provider exp-2 (+28 HY/RU); provider client context (+50 HY/RU); provider exp-3 (+24 HY/RU); provider session timeout (+8 HY/RU); provider open shifts (+4 HY/RU); provider team whos next (+4 HY/RU); provider time-off list (+6 HY/RU); provider date format (+16 HY/RU for 8 remaining EN rows; 4 legacy via date-input) in **`ai-provider-*-locale-parity.spec.ts`** | **acc-2.4** remaining EN golden rows outside deferred/provider slices |
 | **ai-cmd-customer-gap-6** | Integration specs both surfaces | Public handler tests in domain specs + **`public-booking-assistant.budget.integration.spec.ts`** (**3.3**) + **`customer-ai-command.integration.spec.ts`** (**3.4**) | — **shipped** |
 | **ai-cmd-customer-gap-7** | Gate both surfaces | **`test:ai-service-discovery`** (1049 tests) + **`test:ai-cmd-ext`** | — **shipped** |
+| **ai-cmd-customer-gap-9** | Public API ↔ AI parity | Every **`public-api.ts`** export maps to intent or **`no-ai`** — **`test:customer-api-ai-parity`** | **ai-cmd-customer-6.13** |
 
 **Spine task status (audit):**
 
@@ -301,6 +305,7 @@ Register each in `buildCompoundCommandRecipes()` + eval `compoundSteps` / `compo
 | **ai-cmd-customer-3.4** | Shipped | Discovery block in `customer-ai-command.integration.spec.ts` — **`npm run test:ai-cmd-ext`** |
 
 - [ ] **ai-cmd-customer-gap-8** — Mark customer DoD checklist `[x]` only when **ai-cmd-customer-gap-1**–**7** are green for that feature row (customer-only rows exempt from public-schema bullets)
+- [ ] **ai-cmd-customer-gap-9** — **`customer-public-api-ai-parity.fixtures.ts`** + gate — see **ai-cmd-customer-6.13**
 
 ---
 
@@ -1565,7 +1570,7 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 ### parity-2.1 — Gap closure by module
 
-**Inventory source:** **`ai-cmd-ext`** action tables + `ai-capability.matrix.ts` vs dashboard UI routes — close every gap in **parity-2.1**–**2.3** before **parity-4** CI gate. Cross-ref **ai-cmd-ext-gap-1**, **ai-cmd-ext-gap-4**–**6**, **ai-cmd-customer-gap-1**, **ai-cmd-customer-gap-5**.
+**Inventory source:** **`ai-cmd-dashboard-6`** REST audit (below) + **`ai-cmd-ext`** action tables + `ai-capability.matrix.ts` vs dashboard UI routes — close every gap in **parity-2.1**–**2.3** before **parity-4** CI gate. Cross-ref **ai-cmd-ext-gap-1**, **ai-cmd-ext-gap-4**–**6**, **ai-cmd-customer-gap-1**, **ai-cmd-customer-gap-5**.
 - [ ] **parity-2.1** — **Owner / manager dashboard gaps** — add intents for every uncovered owner/manager dashboard action (settings, integrations, billing, staff ops, reports, marketing, loyalty) with handlers, registry bindings, `tiers`, `surfaces`, and `mutating` / `executionMode` flags
 - [ ] **parity-2.2** — **Staff / provider gaps** — add uncovered provider-app + staff-scoped dashboard actions (own schedule, assigned bookings, check-in, notes, breaks), honoring `STAFF_SCOPED_INTENTS` so staff only act within their own scope
 - [ ] **parity-2.3** — **Customer / public gaps** — add uncovered self-service + public actions (manage/reschedule/cancel own bookings, profile, payment methods, packages/subscriptions, loyalty, notification preferences, gift cards)
@@ -1606,7 +1611,7 @@ Full-stack prompts combining **Sprint 63 + 64 + 65**. Each row → fixture + int
 
 **Policy:** Every user-visible slice needs unit + integration tests (`feature-test-coverage.mdc`). Staff-facing AI needs `PROVIDER_INTENT_SCHEMA` rules + eval cases tagged `surface: provider` (`feature-ai-prompt-coverage.mdc`). UI copy EN/HY/RU in `provider-app-i18n.ts` + `frontend/src/i18n/messages/*` `provider.*` keys.
 
-- [ ] **prov-exp** — Provider app expansion (Sprints 59–62) — **AI command backlog:** **ai-cmd-provider-5** (ease-of-life intents, compounds, page chips)
+- [ ] **prov-exp** — Provider app expansion (Sprints 59–62) — **AI command backlog:** **ai-cmd-provider-5** + **API parity:** **ai-cmd-provider-6**
 
 ## Sprint 62 — Waitlist, growth visibility & polish
 
@@ -2508,7 +2513,306 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 
 ---
 
-## ai-cmd-provider-5 — Provider ease-of-life commands (backlog)
+## ai-cmd-customer-6 — Customer public API ↔ AI coverage audit
+
+**Audit (2026-06):** Map every customer/consumer/public REST call to an AI intent (or document intentional UI-only / no-AI). Sources: **`public-booking.controller.ts`**, **`gift-card-public.controller.ts`**, **`consumer-app/src/services/public-api.ts`**, **`frontend/src/lib/public-api.ts`**.
+
+**Totals:** ~**95** HTTP operations → **~38 covered** (handler wired), **~32 partial** (deferred registry / read-only explain / navigate handoff), **~25 gaps** (no intent or API-only with no assistant path).
+
+**Bulk note:** Customer public API has **no** dashboard-style `bulk_create` / `bulk_update` / `bulk_delete` routes. “Bulk” customer behavior is **array/batch semantics inside single endpoints** — multi-service cart, `book_multi_service`, package reschedule `lines[]`, GDPR export (single dump). New AI work should use **compounds** or **array params** on existing intents, not invent REST bulk routes unless product adds them.
+
+---
+
+### ai-cmd-customer-6.0 — Coverage legend
+
+| Status | Meaning |
+|--------|---------|
+| **✅ Covered** | Intent in registry + handler in `customer-ai-command.logic.ts` or `PublicBookingAssistantService` |
+| **🟡 Partial** | Intent exists but **deferred**, explain-only, or does not call the API mutate path |
+| **🔴 Gap** | No intent; user cannot accomplish via assistant |
+| **⚪ N/A** | Telemetry, static config, or auth bootstrap — no AI needed |
+
+---
+
+### ai-cmd-customer-6.1 — Discovery & catalog (read)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET /public/:slug` | 🟡 | `business_info` (public) | Extend profile fields (app install, privacy flags) |
+| `GET …/services`, `…/providers`, slots, nearest-slot, for-slot | ✅ | `list_services`, `list_providers`, `check_availability`, `check_providers_for_service`, `book_nearest_slot` | Harden deferred |
+| `GET …/packages`, suggest-*, block-slots, providers | 🟡 | `discover_packages`, `check_package_availability`, `check_package_line_availability` | **`suggest_package_block`** navigate gap |
+| `GET …/multi-service/*` (settings, block-slots, suggest-*, providers) | 🟡 | `check_multi_service_availability`, `check_multi_service_block_availability`, `show_cart_total_duration` | **`preview_multi_service_cart`** → `POST multi-service/preview` **🔴** |
+| `GET …/services/:id/subscription-plans` | 🟡 | `discover_subscription_plans`, `select_subscription_plan` | Read path OK; promote deferred |
+| `GET …/promotions` | 🔴 | — | **`list_public_promotions`** |
+| `GET …/providers/:id/reviews` | 🔴 | — | **`list_provider_reviews`** (read before book) |
+| `GET …/app-install` | 🟡 | `how_to_download_app`, `switch_to_consumer_app` | Align copy with QR landing |
+
+- [ ] **ai-cmd-customer-6.1.1** — `preview_multi_service_cart` → `POST …/multi-service/preview`
+- [ ] **ai-cmd-customer-6.1.2** — `list_public_promotions` → `GET …/promotions`
+- [ ] **ai-cmd-customer-6.1.3** — `list_provider_reviews` → `GET …/providers/:id/reviews`
+- [ ] **ai-cmd-customer-6.1.4** — `suggest_package_block` navigate → package suggest-block/suggest-slots APIs
+
+---
+
+### ai-cmd-customer-6.2 — Booking checkout pipeline (mutate + quote)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/bookings/quote` | 🔴 | `promo_code_help` (explain only) | **`get_booking_quote`** — apply promo/loyalty in session |
+| `POST …/bookings` | ✅ | `book_with_cash`, `book_nearest_slot`, `book_appointment` | — |
+| `POST …/bookings/checkout` | 🟡 | `pay_online`, `choose_payment_method` | Promote **4.0 P0** |
+| `POST …/bookings/confirm-payment` | 🟡 | `pay_online` | **`confirm_stripe_payment`** explicit post-return step **🔴** |
+| `POST …/packages/quote` | 🔴 | — | **`get_package_quote`** |
+| `POST …/packages/book`, `…/checkout` | ✅ | `book_package`, `pay_online` | — |
+| `POST …/multi-service/quote` | 🔴 | — | **`get_multi_service_quote`** |
+| `POST …/multi-service/book`, `…/checkout` | 🟡 | `book_multi_service`, `pay_online` | Promote deferred **4.0 P1** |
+
+- [ ] **ai-cmd-customer-6.2.1** — `get_booking_quote` → `POST …/bookings/quote`
+- [ ] **ai-cmd-customer-6.2.2** — `confirm_stripe_payment` → `POST …/bookings/confirm-payment`
+- [ ] **ai-cmd-customer-6.2.3** — `get_package_quote` → `POST …/packages/quote`
+- [ ] **ai-cmd-customer-6.2.4** — `get_multi_service_quote` → `POST …/multi-service/quote`
+
+---
+
+### ai-cmd-customer-6.3 — Manage booking (guest token + logged-in)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/me/bookings` | ✅ | `list_my_appointments`, `my_appointments` | — |
+| `POST …/me/bookings/:id/cancel` | 🟡 | `cancel_my_booking` | Promote **4.0 P0** |
+| `POST …/me/bookings/:id/reschedule` | 🟡 | `reschedule_my_booking`, `change_provider_on_reschedule` | Promote **4.0 P0** |
+| `POST …/me/bookings/:id/package/cancel` | 🟡 | `cancel_package_visit_self` | Promote **4.0 P2** |
+| `POST …/me/bookings/:id/package/reschedule` | 🟡 | `reschedule_package_visit_self` | **`reschedule_package_lines`** multi-line body **🟡** |
+| `GET …/bookings/manage` | 🟡 | `get_manage_link` | **`explain_manage_booking_context`** read **4.20.7** |
+| `POST …/bookings/manage/cancel` | 🔴 | — | **`cancel_booking_with_token`** (guest) |
+| `POST …/bookings/manage/reschedule` | 🔴 | — | **`reschedule_booking_with_token`** (guest) |
+| `POST …/bookings/manage/package/*` | 🔴 | — | **`cancel_package_visit_with_token`**, **`reschedule_package_visit_with_token`** |
+
+- [ ] **ai-cmd-customer-6.3.1** — Guest manage-token mutates (**6.3** table) — public + customer classifier parity
+- [ ] **ai-cmd-customer-6.3.2** — `reschedule_package_lines` — one NL command → `lines[]` on package reschedule API
+- [ ] **ai-cmd-customer-6.3.3** — Compound **`guest_manage_visit`**: `get_manage_link` → cancel/reschedule with token
+
+---
+
+### ai-cmd-customer-6.4 — Pre-visit intake (full gap)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/checkout/pre-visit-intake/config` | 🟡 | `explain_public_intake_form` (**4.14.1** proposed) | Read |
+| `POST …/me/pre-visit-intake/draft` | 🔴 | — | **`create_intake_draft`** |
+| `GET …/me/pre-visit-intake/:id` | 🔴 | — | **`get_intake_flow_status`** |
+| `POST …/…/start` | 🔴 | — | **`start_pre_visit_intake`** |
+| `POST …/…/answers` | 🔴 | — | **`submit_intake_answers`** (single + **batch answers** in one session) |
+
+- [ ] **ai-cmd-customer-6.4.1** — Intake mutate chain: draft → start → submit → continue booking (**4.14.2**, **4.21.1**)
+- [ ] **ai-cmd-customer-6.4.2** — Compound **`complete_intake_and_book`** wired to real API handlers
+
+---
+
+### ai-cmd-customer-6.5 — Account, auth, locale, privacy
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/auth/google|apple|phone` | 🔴 | `explain_why_sign_in` (**4.17.1** proposed) | **`sign_in_with_google`** navigate/mutate handoff |
+| `GET …/auth/me` | ✅ | `my_profile` | — |
+| `GET/PATCH …/me/locale` | 🔴 | — | **`get_my_locale`**, **`update_my_locale`** |
+| `GET/PATCH …/me/notification-preferences` | 🟡 | `manage_notification_preferences`, `explain_my_notifications` | Promote adoption intents |
+| `GET/DELETE …/me/data` | 🟡 | `privacy_export`, `privacy_delete`, `explain_data_rights` | Promote **4.0 P2** |
+
+- [ ] **ai-cmd-customer-6.5.1** — `update_my_locale` → `PATCH …/me/locale`
+- [ ] **ai-cmd-customer-6.5.2** — Auth mutate handoff intents (Google/Apple/Phone) — explain + deep link, not store password via AI
+- [ ] **ai-cmd-customer-6.5.3** — No **`PATCH …/me/profile`** API today — **`update_my_profile`** (**4.5.6**) blocked on product API or document UI-only
+
+---
+
+### ai-cmd-customer-6.6 — Loyalty, rewards, referrals, share
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/me/loyalty` | 🟡 | `loyalty_points_balance` | **`explain_loyalty_points`** **4.5.1** |
+| `GET …/me/rewards` | 🔴 | — | **`explain_rewards_wallet`** (promos + points) |
+| `GET …/me/referral` | 🟡 | `refer_a_friend` | Read OK |
+| `POST …/me/referral/claim` | 🔴 | — | **`claim_referral_code`** |
+| `GET …/me/share-rewards` | 🟡 | `share_my_booking`, `share_salon_link` | Explain share rewards **4.12.4** |
+| `POST …/me/share-rewards/claim` | 🔴 | — | **`claim_share_reward`** |
+| `GET …/me/subscriptions`, `…/active`, `…/usage` | 🟡 | `my_subscriptions`, `subscription_usage`, `use_subscription_credit` | Promote **4.5.3** |
+
+- [ ] **ai-cmd-customer-6.6.1** — `explain_rewards_wallet` → `GET …/me/rewards`
+- [ ] **ai-cmd-customer-6.6.2** — `claim_referral_code` → `POST …/me/referral/claim`
+- [ ] **ai-cmd-customer-6.6.3** — `claim_share_reward` → `POST …/me/share-rewards/claim`
+
+---
+
+### ai-cmd-customer-6.7 — Gift cards
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/gift-cards/catalog` | 🟡 | `discover_gift_card_products`, `buy_gift_card` | — |
+| `POST …/quote`, `checkout`, `purchase` | 🟡 | `buy_gift_card`, `buy_gift_card_physical`, `pay_online` | **`get_gift_card_quote`** **🔴** |
+| `POST …/claim` | 🟡 | `apply_gift_card_code` | **`claim_gift_card_to_account`** distinct from checkout apply **4.20.6** |
+| `GET …/orders`, `…/orders/:id` | 🟡 | `my_gift_cards`, `track_physical_gift_card_order` | **`explain_gift_card_order`** **🔴** |
+| `POST …/cancel-request`, `modify-request` | 🟡 | `request_gift_card_cancel`, `request_gift_card_modify` | Promote **4.0 P2** |
+
+- [ ] **ai-cmd-customer-6.7.1** — `get_gift_card_quote` → `POST …/gift-cards/quote`
+- [ ] **ai-cmd-customer-6.7.2** — `claim_gift_card_to_account` → `POST …/gift-cards/claim`
+- [ ] **ai-cmd-customer-6.7.3** — `explain_gift_card_order` → `GET …/gift-cards/orders/:id`
+
+---
+
+### ai-cmd-customer-6.8 — Clinic (results, documents, alerts, lab-to-book)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/me/clinic-test-results` | 🟡 | `list_my_test_results`, `explain_result_status` | Promote clinic deferred |
+| `GET …/me/clinic-lab-booking-requests` | 🟡 | `list_my_lab_booking_requests`, `book_lab_collection` | **4.14.4** |
+| `GET …/me/clinic-documents` | 🔴 | — | **`list_my_clinic_documents`** |
+| `GET …/me/clinic-documents/:id` | 🔴 | — | **`open_clinic_document`** |
+| `GET …/me/clinic-patient-alerts` | 🟡 | `explain_patient_alert` (**4.14.3** proposed) | Read |
+| `POST …/…/dismiss` | 🔴 | — | **`dismiss_patient_alert`** |
+
+- [ ] **ai-cmd-customer-6.8.1** — `list_my_clinic_documents` + `open_clinic_document`
+- [ ] **ai-cmd-customer-6.8.2** — `dismiss_patient_alert` → `POST …/clinic-patient-alerts/…/dismiss`
+
+---
+
+### ai-cmd-customer-6.9 — Reviews & support
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/reviews/context`, `POST …/reviews` | 🔴 | — | **`submit_review_with_token`** (email link guest) |
+| `POST …/providers/:id/reviews` | 🔴 | — | **`submit_provider_review`** |
+| `GET/POST …/me/bookings/:id/review` | 🔴 | `leave_visit_review` (**4.12.1** proposed) | **`submit_my_booking_review`** |
+| `POST …/me/support/ticket` | ✅ | `contact_support`, `open_ticket_for_order` | — |
+
+- [ ] **ai-cmd-customer-6.9.1** — `submit_my_booking_review` → logged-in review API
+- [ ] **ai-cmd-customer-6.9.2** — `submit_provider_review` → provider review API
+- [ ] **ai-cmd-customer-6.9.3** — `submit_review_with_token` → guest email review flow
+
+---
+
+### ai-cmd-customer-6.10 — Checkout recommendations & upsell
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/checkout/recommendations` | 🟡 | `explain_checkout_recommendations` | Read |
+| `POST …/checkout/recommendations/events` | ⚪ | — | Analytics — no AI |
+| Dismiss UI (client-only) | 🔴 | `dismiss_recommendations` (**4.16.2** proposed) | Client state — navigate intent |
+
+- [ ] **ai-cmd-customer-6.10.1** — `dismiss_recommendations` — client navigate + session flag (no REST)
+
+---
+
+### ai-cmd-customer-6.11 — Push, mobile config, analytics
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/me/push/register-native` | 🟡 | `enable_notifications`, `enable_push_notifications` | Provider has intent; **customer push register gap** **🔴** |
+| `POST …/me/push/delivery-ack` | ⚪ | — | Background — no AI |
+| `GET …/me/push/native-status` | 🔴 | — | **`explain_push_registration_status`** |
+| `GET /mobile-app/config` | 🟡 | `explain_app_update_gate` (**4.13.4** proposed) | Consumer version gate |
+| `POST /events/app` | ⚪ | — | Analytics consent UI — **`explain_analytics_consent`** **4.13.5** |
+| `GET …/assistant/capabilities` | ⚪ | — | Meta — chips derive from parity file |
+| `POST …/assistant` | ✅ | All customer/public intents | Gateway |
+
+- [ ] **ai-cmd-customer-6.11.1** — **`register_customer_push`** → `POST …/me/push/register-native`
+- [ ] **ai-cmd-customer-6.11.2** — `explain_push_registration_status` → `GET …/me/push/native-status`
+
+---
+
+### ai-cmd-customer-6.12 — “Bulk-like” batch semantics (no REST bulk routes)
+
+Customer APIs encode **multi-record** work inside single calls — AI should mirror with **array params** or **compounds**, not dashboard `bulk_*` intents.
+
+| Batch pattern | API shape | Current AI | Proposed |
+|---------------|-----------|------------|----------|
+| **Multi-add cart** | Client loops or single preview | `add_services_to_cart` (one service per call?) | **`add_services_to_cart`** accept **`serviceNames[]`** / **`serviceIds[]`** — one prompt → multiple cart lines |
+| **Multi-service book** | `POST multi-service/book` one payload | `book_multi_service` deferred | Promote + compound with quote |
+| **Package multi-line reschedule** | `lines[]` on package reschedule | `reschedule_package_visit_self` | **`reschedule_package_lines`** explicit array param |
+| **Intake multi-answer** | Repeated `POST …/answers` | — | **`submit_intake_answers`** batch in one compound step |
+| **Cancel all upcoming** | ❌ no API | — | **Out of scope** until `POST me/bookings/bulk-cancel` exists; do not fake via AI loop without confirm |
+| **Export all data** | Single `GET me/data` dump | `privacy_export` | ✅ single-shot “bulk read” |
+| **Delete account** | Single `DELETE me/data` | `privacy_delete` | ✅ single-shot “bulk delete” |
+
+- [ ] **ai-cmd-customer-6.12.1** — Extend **`add_services_to_cart`** handler for **`serviceIds[]`** (true multi-add in one NL command)
+- [ ] **ai-cmd-customer-6.12.2** — **`reschedule_package_lines`** — map NL “move visits 2 and 3 to next week” → `lines[]`
+- [ ] **ai-cmd-customer-6.12.3** — Document **no customer bulk-delete bookings** in capability matrix; redirect to **`cancel_my_booking`** per visit or **`contact_support`**
+- [ ] **ai-cmd-customer-6.12.4** — If product adds bulk APIs later, add rows to **`customer-public-api-ai-parity.fixtures.ts`** first
+
+---
+
+### ai-cmd-customer-6.13 — Parity gate (mirror **prov-exp-11**)
+
+Automate this audit so new public endpoints cannot ship without an AI mapping row.
+
+| ID | Task | Notes |
+|----|------|-------|
+| **6.13.1** | **`customer-public-api-ai-parity.fixtures.ts`** | One row per `public-api.ts` export → `{ kind: 'customer-ai' \| 'public-ai' \| 'dashboard-only' \| 'no-ai' }` |
+| **6.13.2** | **`test:customer-api-ai-parity`** | Fails on new export without fixture row (like **`test:prov-exp-ai-parity`**) |
+| **6.13.3** | Extend **`auditCustomerIntentCoverage()`** | Cross-check mutating intents have ≥1 API binding |
+| **6.13.4** | **`ai-cmd-customer-gap-9`** | Block feature **done** until API row has intent or explicit **`no-ai`** reason |
+
+- [ ] **ai-cmd-customer-6.13.1** — Create parity fixtures from this audit table
+- [ ] **ai-cmd-customer-6.13.2** — Wire **`npm run test:customer-api-ai-parity`**
+- [ ] **ai-cmd-customer-6.13.3** — Coverage util cross-check
+- [ ] **ai-cmd-customer-6.13.4** — Document in **ai-cmd-customer-gap-8** checklist
+
+---
+
+### ai-cmd-customer-6 — Gap summary (new intents to register)
+
+**P0 — checkout & visits (blocks booking completion):**
+
+`get_booking_quote`, `confirm_stripe_payment`, `get_multi_service_quote`, `cancel_booking_with_token`, `reschedule_booking_with_token`, `preview_multi_service_cart`
+
+**P1 — account growth & gifts:**
+
+`claim_referral_code`, `claim_share_reward`, `claim_gift_card_to_account`, `get_gift_card_quote`, `explain_rewards_wallet`, `register_customer_push`
+
+**P2 — clinic, intake, reviews:**
+
+`create_intake_draft`, `start_pre_visit_intake`, `submit_intake_answers`, `list_my_clinic_documents`, `open_clinic_document`, `dismiss_patient_alert`, `submit_my_booking_review`
+
+**P3 — read/helpers:**
+
+`list_public_promotions`, `list_provider_reviews`, `explain_gift_card_order`, `update_my_locale`, `explain_push_registration_status`, guest package manage-token mutates
+
+**Batch extensions (not new REST):**
+
+`add_services_to_cart[]`, `reschedule_package_lines[]`, intake answer batch compound
+
+---
+
+### ai-cmd-customer-6 — Suggested implementation order
+
+| Phase | IDs | Closes API gaps |
+|-------|-----|-----------------|
+| **A — Quote & pay** | **6.2.*** , **6.12.1** | Checkout quote + Stripe confirm + multi-add cart |
+| **B — Guest manage** | **6.3.*** | Manage-token cancel/reschedule |
+| **C — Intake + clinic** | **6.4.*** , **6.8.*** | Intake chain + documents + dismiss alert |
+| **D — Growth** | **6.6.*** , **6.7.*** | Referral/share claim, gift quote/claim |
+| **E — Reviews & push** | **6.9.*** , **6.11.*** | Submit review, push register |
+| **F — Gate** | **6.13.*** | Parity CI so gaps don’t regress |
+
+**Cross-links:** **ai-cmd-customer-4** (ease-of-life — many proposed intents overlap **6.x** rows), **ai-cmd-customer-gap-5** (eval/fixtures), **ai-cmd-ext-7** (payment explain), **feature-ai-prompt-coverage** (both surfaces).
+
+---
+
+### ai-cmd-customer-6.14 — Product blockers & out-of-scope (not AI-only work)
+
+| ID | Item | Why it affects AI | Action |
+|----|------|-------------------|--------|
+| **6.14.1** | **Nearest-slot path mismatch** | Consumer app calls `GET /public/:slug/nearest-slot?serviceId=` but backend is `GET …/services/:serviceId/nearest-slot` — breaks **`book_nearest_slot`** / discovery from app | Fix **`consumer-app/src/services/public-api.ts`** `fetchNearestBookableSlot` |
+| **6.14.2** | **Customer waitlist join** | **`join_waitlist`** (**4.4.7**) has **no public REST route** today (dashboard **`offer_waitlist_slot`** only) | Product API first, then intent |
+| **6.14.3** | **Customer profile PATCH** | **`update_my_profile`** (**4.5.6**) — only `PATCH me/locale` exists; no name/phone API | Product API or UI-only |
+| **6.14.4** | **Deep links / tab navigation** | Rebook, tenant switch, manage link open — client routes, not REST | Navigate intents only (**4.17.4**, **4.4.8**) |
+| **6.14.5** | **Dashboard bulk ops** | `bulk_create_bookings`, `bulk_smart_cancel`, etc. — **staff only**, not customer surface | Track under **ai-cmd-dashboard-6**, not **6.x** |
+
+- [ ] **ai-cmd-customer-6.14.1** — Fix nearest-slot URL in consumer app (unblocks **`book_nearest_slot`** E2E)
+- [ ] **ai-cmd-customer-6.14.2** — Document waitlist customer API dependency in **4.4.7**
+
+**Next audit:** see **`ai-cmd-provider-6`** (provider public API ↔ AI parity — full audit below **ai-cmd-provider-5**).
+
+---
 
 **Goal:** Make **`provider-app/`** the fastest path for stylists and floor managers between appointments — voice-friendly, one-sentence actions, minimal typing. **Provider mobile only** (`ProviderAiCommandService` / `PROVIDER_INTENT_SCHEMA`); dashboard admin stays under **ai-cmd-ext**.
 
@@ -3109,5 +3413,735 @@ Extend **`ProviderAiSuggestionsService`** + localized starter prompts on each sc
 | Eval | `eval/ai-command-eval.cases.ts` with `surface: provider` |
 | Page chips | `ProviderAiSuggestions.tsx` + per-route chip config (**5.15**) |
 
-**Cross-links:** **ai-cmd-ext-3** (registry dispatch), **prov-exp-1**–**11** (UI slices), **ai-cmd-customer-4** (customer-facing mirror — e.g. running late notify), **feature-ai-prompt-coverage** (provider surface mandatory), **pipe-1.12.2** (provider pipeline adapter).
+**Cross-links:** **ai-cmd-ext-3** (registry dispatch), **prov-exp-1**–**11** (UI slices), **ai-cmd-customer-4** (customer-facing mirror — e.g. running late notify), **ai-cmd-customer-6** (customer API parity pattern), **feature-ai-prompt-coverage** (provider surface mandatory), **pipe-1.12.2** (provider pipeline adapter).
 
+---
+
+## ai-cmd-provider-6 — Provider app API ↔ AI coverage audit
+
+**Audit (2026-06):** Map every **`provider-app/`** REST call to a provider AI intent (or document **`no-ai`**). Sources: **`provider-mobile.controller.ts`**, **`gift-cards.controller.ts`** (`GiftCardProviderController`), **`upload.controller.ts`**, **`POST /invitations/:token/accept`**, **`provider-app/src/**`** API wrappers.
+
+**Totals:** ~**69** HTTP operations → **~32 covered** (handler in **`ProviderAiCommandService`** or delegated service), **~22 partial** (registry intent exists but dashboard-only handler or deferred eval), **~15 gaps** (no provider intent / no handler wire).
+
+**Bulk note:** Provider has **no** REST paths named `bulk_*`. Bulk behavior is:
+
+| Pattern | Where | AI today |
+|---------|--------|----------|
+| **Bulk cancel** | AI `cancel_bookings` matches N bookings → internal `executeCancel` | ✅ intent; uses service layer not `PUT …/cancel` per row |
+| **Bulk status/paid** | AI `update_bookings`, `payment_sweep`, `mark_no_shows` | ✅ with **`BULK_CONFIRM_THRESHOLD=2`** swipe confirm |
+| **Bulk retail replace** | `PUT …/bookings/:id/retail-sales` **`lines[]`** replaces full cart | 🟡 `add_retail_to_booking` adds one; no **`set_retail_lines[]`** |
+| **Bulk push read** | `POST …/push/notifications/read-all` | 🔴 no intent |
+| **Bulk gift queue** | List queues + mark one-by-one | 🟡 registry intents **`mark_card_ready`** etc. — **dashboard `AiCommandService` only**, not **`ProviderAiCommandService`** |
+
+---
+
+### ai-cmd-provider-6.0 — Coverage legend
+
+Same as **ai-cmd-customer-6.0**: ✅ Covered · 🟡 Partial · 🔴 Gap · ⚪ N/A
+
+---
+
+### ai-cmd-provider-6.1 — AI gateway & suggestions
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/provider/ai/command` | ✅ | All provider intents | Gateway |
+| `POST …/provider/ai/command/confirm` | 🟡 | Bulk confirm after swipe | **`explain_assistant_confirm_swipe`** **5.24.2** — meta only |
+| `GET …/provider/ai/capabilities` | ⚪ | — | Meta |
+| `GET …/provider/ai/suggestions` | 🔴 | — | **`explain_ai_suggestions`** — maps suggestion id → prompt |
+| `GET …/provider/context` | 🔴 | — | **`explain_provider_context`** (team view, employee scope) |
+
+- [ ] **ai-cmd-provider-6.1.1** — Wire suggestion **`prompt`** strings to classifier fixture ids (**5.15.3**)
+- [ ] **ai-cmd-provider-6.1.2** — `explain_provider_context` → `GET …/context`
+
+---
+
+### ai-cmd-provider-6.2 — Today, floor & calendar (read)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/bookings/today` | 🟡 | `show_appointments`, `summarize_day` | **`get_today_bookings`** direct parity |
+| `GET …/bookings/upcoming` | 🔴 | — | **`list_upcoming_bookings`** |
+| `GET …/bookings/by-date` | 🟡 | `list_bookings`, `show_appointments` | Date filter fixtures |
+| `GET …/calendar/month` | 🟡 | `summarize_utilization` | **`get_calendar_month`** → **5.23.2** |
+| `GET …/floor/today` | ✅ | `team_floor_status` | — |
+| `GET …/floor/whos-next` | ✅ | `team_whos_next` | — |
+| `GET …/schedule/summary` | 🔴 | — | **`get_schedule_summary`** |
+| `GET …/schedule/gaps` | 🟡 | `suggest_waitlist_for_gap`, `fill_unused_slots` | **`list_schedule_gaps`** read **5.23.1** |
+| `GET …/stats` | ✅ | `my_stats`, `summarize_my_revenue` | — |
+
+- [ ] **ai-cmd-provider-6.2.1** — `list_upcoming_bookings` → `GET …/bookings/upcoming`
+- [ ] **ai-cmd-provider-6.2.2** — `get_schedule_summary` → `GET …/schedule/summary`
+
+---
+
+### ai-cmd-provider-6.3 — Booking detail & chair actions (single)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/bookings/:id` | 🔴 | — | **`open_booking_detail`** navigate |
+| `PUT …/bookings/:id` | 🟡 | `update_bookings` | Single-booking status/payment/notes — disambiguate bulk |
+| `PUT …/bookings/:id/cancel` | 🟡 | `cancel_bookings` | UI path; AI uses batch matcher — align |
+| `POST …/bookings/:id/check-in` | ✅ | `check_in_client` | — |
+| `POST …/bookings/:id/running-late` | ✅ | `mark_running_late` | — |
+| `POST …/bookings/:id/ready-now` | 🔴 | — | **`mark_ready_now`** **5.16.3** |
+| `POST …/bookings/:id/cancel/suggest-note` | 🔴 | — | **`suggest_cancel_note`** (AI draft cancel reason) |
+| `POST …/bookings/:id/request-review` | 🔴 | — | **`request_client_review`** **5.22.4** |
+| `GET …/bookings/:id/reassign/options` | 🔴 | — | **`list_reassign_options`** |
+| `POST …/bookings/:id/reassign` | 🔴 | — | **`reassign_booking_same_day`** **5.7.5** |
+
+- [ ] **ai-cmd-provider-6.3.1** — `mark_ready_now` → `POST …/ready-now`
+- [ ] **ai-cmd-provider-6.3.2** — `reassign_booking_same_day` → reassign API
+- [ ] **ai-cmd-provider-6.3.3** — `suggest_cancel_note` → cancel/suggest-note API
+- [ ] **ai-cmd-provider-6.3.4** — `request_client_review` → request-review API
+- [ ] **ai-cmd-provider-6.3.5** — Single-booking `update_bookings` → `PUT …/bookings/:id` (not only bulk matcher)
+
+---
+
+### ai-cmd-provider-6.4 — Bulk booking ops (AI-native — no dedicated REST bulk routes)
+
+These intents **bulk-update** multiple bookings via **`ProviderAiCommandService`** internal `executeCancel` / `executeUpdate` (same outcome as repeated `PUT` calls).
+
+| Intent | Bulk behavior | REST equivalent | Status |
+|--------|---------------|-----------------|--------|
+| `cancel_bookings` | Cancel all matching date/name/status | N× `PUT …/cancel` | ✅ — promote eval **5.0** |
+| `update_bookings` | Set status/payment on all matching | N× `PUT …/bookings/:id` | ✅ |
+| `payment_sweep` | Mark all unpaid matching as paid | N× `paymentStatus=paid` | ✅ |
+| `mark_no_shows` | Mark missed as no-show | N× status update | ✅ |
+| `mark_paid` | Single booking paid | `PUT …/bookings/:id` | ✅ |
+| `reschedule_booking` | One booking move | Not bulk | ✅ |
+
+- [ ] **ai-cmd-provider-6.4.1** — Document bulk intents in **`provider-public-api-ai-parity.fixtures.ts`** as **`kind: 'ai-bulk-internal'`** (no REST `bulk_*`)
+- [ ] **ai-cmd-provider-6.4.2** — Eval: “cancel all afternoon”, “mark all today paid”, “no-shows today” with **`confirmed: true`** confirm path
+- [ ] **ai-cmd-provider-6.4.3** — **`bulk_cancel_confirm_threshold`** — align **`BULK_CONFIRM_THRESHOLD=2`** with assistant swipe UX tests
+
+---
+
+### ai-cmd-provider-6.5 — Client context, intake & staff notes
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/bookings/:id/customer-context` | ✅ | `summarize_client` | Same data |
+| `GET …/bookings/:id/pre-visit-intake-summary` | 🟡 | `summarize_client`, `explain_client_intake` **5.2.4** | Dedicated read |
+| `GET …/bookings/:id/customer-staff-notes` | 🔴 | — | **`list_client_staff_notes`** |
+| `POST …/bookings/:id/customer-staff-notes` | ✅ | `add_client_note` | — |
+| `show_client_history` | 🟡 | Visit history via AI service | No dedicated GET — OK |
+
+- [ ] **ai-cmd-provider-6.5.1** — `list_client_staff_notes` → GET staff-notes
+- [ ] **ai-cmd-provider-6.5.2** — `explain_client_intake` → intake-summary GET
+
+---
+
+### ai-cmd-provider-6.6 — Retail POS (single add vs bulk lines replace)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/retail-pos/products` | 🟡 | `add_retail_to_booking`, `search_retail_sku` **5.4.5** | Product search |
+| `GET …/bookings/:id/retail-sales` | 🟡 | `explain_retail_cart` **5.4.3** | Read cart |
+| `PUT …/bookings/:id/retail-sales` | 🔴 | `add_retail_to_booking` adds one | **`set_retail_sales_lines`** — **`lines[]` bulk replace** |
+
+- [ ] **ai-cmd-provider-6.6.1** — **`set_retail_sales_lines`** → `PUT retail-sales` with **`lines[]`** (bulk insert/update/delete cart in one call)
+- [ ] **ai-cmd-provider-6.6.2** — Alias registry **`add_retail_to_my_booking`** ↔ **`add_retail_to_booking`** in provider switch
+- [ ] **ai-cmd-provider-6.6.3** — Compound **`retail_cart_replace`**: list products → set lines → mark paid
+
+---
+
+### ai-cmd-provider-6.7 — Schedule blocks & time off
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/schedule/blocks` | ✅ | `block_my_time`, `block_schedule` | — |
+| `POST …/time-off/requests` | ✅ | `request_time_off` | — |
+| `GET …/time-off/requests` | ✅ | `list_my_time_off_requests` | — |
+| `POST …/time-off/requests/:id/cancel` | 🔴 | — | **`cancel_time_off_request`** |
+| `GET …/time-off-requests` (dashboard) | ⚪ | Manager approve/deny | Dashboard **`approve_time_off_request`** — **5.25.3** |
+
+- [ ] **ai-cmd-provider-6.7.1** — `cancel_time_off_request` → provider cancel API
+
+---
+
+### ai-cmd-provider-6.8 — Push notifications (incl. bulk read)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/push/register-native` | 🟡 | `enable_push_notifications` | Wire to native register |
+| `GET …/push/native-status` | 🔴 | — | **`explain_push_registration_status`** |
+| `POST …/push/action` | ✅ | `confirm_booking_from_push`, `mark_paid`, `suggest_reschedule_from_push` | — |
+| `GET …/push/notifications` | 🟡 | `explain_last_push` | **`list_push_notifications`** |
+| `POST …/push/notifications/:id/read` | 🟡 | `dismiss_push` | Single read |
+| `POST …/push/notifications/read-all` | 🔴 | — | **`mark_all_notifications_read`** — **bulk update** |
+| `POST …/push/notifications/mark-booking-read` | 🔴 | — | **`mark_booking_notifications_read`** |
+| `GET …/push/vapid-public-key` | ⚪ | — | Web push bootstrap |
+| `POST/DELETE …/push/subscribe` | ⚪ | — | Web push — optional explain |
+
+- [ ] **ai-cmd-provider-6.8.1** — **`mark_all_notifications_read`** → read-all API (**bulk**)
+- [ ] **ai-cmd-provider-6.8.2** — `mark_booking_notifications_read` → mark-booking-read API
+- [ ] **ai-cmd-provider-6.8.3** — `list_push_notifications` → GET notifications inbox
+
+---
+
+### ai-cmd-provider-6.9 — Clinic (collection, results, tasks, patients)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/lab-collection/today` | ✅ | `list_my_collection_queue` | — |
+| `mark_specimen_collected` | ✅ | AI → clinic specimen service (no direct provider REST) | Internal |
+| `GET …/lab-results` | 🔴 | — | **`list_lab_results_queue`** **5.19.2** |
+| `GET …/clinic-tasks` | 🟡 | `list_clinic_tasks` **5.11.6** | — |
+| `POST …/clinic-tasks/:id/claim` | 🔴 | — | **`claim_clinic_task`** |
+| `POST …/clinic-tasks/:id/complete` | 🟡 | `complete_clinic_task` **5.11.7** | Wire handler |
+| `GET …/patients/search` | 🟡 | `search_patient` **5.19.1** | — |
+| `GET …/patients/:id/chart-summary` | 🟡 | `open_patient_chart` **5.11.4** | — |
+| `GET …/clinic-test-results/bookings/:bookingId/summaries` | 🔴 | — | **`list_booking_lab_summaries`** / **`explain_lab_result_on_booking`** — **`BookingLabResultsSection.tsx`** (staff clinic module, not `…/provider/` prefix) |
+
+- [ ] **ai-cmd-provider-6.9.1** — `list_lab_results_queue` → `GET …/lab-results`
+- [ ] **ai-cmd-provider-6.9.2** — `claim_clinic_task` → claim API
+- [ ] **ai-cmd-provider-6.9.3** — Wire **`complete_clinic_task`** to complete API
+- [ ] **ai-cmd-provider-6.9.4** — `list_booking_lab_summaries` → `GET …/clinic-test-results/bookings/:id/summaries` (booking detail modal; PHI scoped to assigned provider)
+
+---
+
+### ai-cmd-provider-6.10 — Gift card fulfillment (registry ≠ provider handler)
+
+Intents exist in **`PROVIDER_EXCLUSIVE_INTENTS`** but handlers live in **`AiCommandService`** (dashboard), **not** **`ProviderAiCommandService`**.
+
+| API | Registry intent | Provider AI switch | Gap |
+|-----|-----------------|-------------------|-----|
+| `GET …/gift-cards/card-creation` | `gift_card_creation_queue` | 🔴 missing | Wire read |
+| `PUT …/card-creation/:id/ready` | `mark_card_ready` | 🔴 missing | Wire mutate |
+| `GET …/gift-cards/delivery` | `delivery_queue` | 🔴 missing | Wire read |
+| `PUT …/delivery/:id/out-for-delivery` | `mark_out_for_delivery` | 🔴 missing | Wire mutate |
+| `PUT …/delivery/:id/delivered` | `mark_delivered` | 🔴 missing | Wire mutate |
+| — | `start_card_preparation`, `accept_delivery`, `capture_delivery_proof`, `notify_delay` | 🔴 | Product/API gap or dashboard-only |
+
+- [ ] **ai-cmd-provider-6.10.1** — Dispatch gift fulfillment intents in **`ProviderAiCommandService`** → **`GiftCardFulfillmentService`** (mirror dashboard handlers)
+- [ ] **ai-cmd-provider-6.10.2** — **`test:provider-gift-fulfillment-ai`** — provider surface eval for queue + mark ready/shipped/delivered
+- [ ] **ai-cmd-provider-6.10.3** — Compound **`gift_card_fulfill_batch`**: list creation queue → mark first N ready (**bulk-like** one message)
+
+---
+
+### ai-cmd-provider-6.11 — Profile, reviews & stats
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/profile` | 🟡 | `explain_profile_settings` **5.21.4** | Read |
+| `PUT …/profile` | 🔴 | — | **`update_provider_profile`** (title, avatar URL) |
+| `POST …/uploads/avatar` | 🔴 | — | **`upload_provider_avatar`** — file handoff / navigate |
+| `GET …/reviews` | 🟡 | `my_stats` | Summary |
+| `GET …/reviews/inbox` | 🟡 | `explain_reviews_inbox` **5.8.6** | Filtered inbox |
+
+- [ ] **ai-cmd-provider-6.11.1** — `update_provider_profile` → `PUT …/profile`
+- [ ] **ai-cmd-provider-6.11.2** — Avatar upload explain (cannot attach binary via NL — navigate to picker)
+
+---
+
+### ai-cmd-provider-6.12 — Onboarding, auth & analytics
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST /invitations/:token/accept` | 🔴 | `explain_staff_invite` **5.21.1** | **`complete_staff_invite`** read-only vs mutate |
+| `POST /auth/login`, `/auth/google`, `/forgot-password` | ⚪ | — | Staff auth — no AI |
+| `POST /events/app` | ⚪ | — | Analytics — **`explain_analytics_consent`** optional |
+
+- [ ] **ai-cmd-provider-6.12.1** — `explain_staff_invite` for AcceptInvitePage
+
+---
+
+### ai-cmd-provider-6.13 — Bulk insert / update / delete summary (provider)
+
+| Operation type | REST | AI intent | Status |
+|--------------|------|-----------|--------|
+| **Bulk update** (bookings) | Internal via AI | `update_bookings`, `payment_sweep`, `mark_no_shows` | ✅ AI-native |
+| **Bulk delete** (cancel) | Internal via AI | `cancel_bookings` | ✅ AI-native |
+| **Bulk insert** (retail lines) | `PUT retail-sales` **`lines[]`** | — | 🔴 need **`set_retail_sales_lines`** |
+| **Bulk update** (notifications) | `POST …/read-all` | — | 🔴 **`mark_all_notifications_read`** |
+| **Bulk insert** (bookings) | ❌ no API | — | **Out of scope** — walk-in **`book_walk_in_gap`** **5.9.5** needs product API |
+| **Bulk delete** (time off) | Single cancel | — | 🔴 **`cancel_time_off_request`** |
+
+- [ ] **ai-cmd-provider-6.13.1** — Implement **`set_retail_sales_lines`** (bulk cart replace)
+- [ ] **ai-cmd-provider-6.13.2** — Implement **`mark_all_notifications_read`** (bulk push read)
+- [ ] **ai-cmd-provider-6.13.3** — Document AI-native bulk booking intents in parity fixtures (**6.4.1**)
+
+---
+
+### ai-cmd-provider-6.14 — Parity gate (mirror **ai-cmd-customer-6.13**)
+
+| ID | Task | Notes |
+|----|------|-------|
+| **6.14.1** | **`provider-public-api-ai-parity.fixtures.ts`** | One row per provider-app API wrapper → intent or **`no-ai`** / **`ai-bulk-internal`** |
+| **6.14.2** | **`test:provider-api-ai-parity`** | Extend **`test:prov-exp-ai-parity`** or sibling gate |
+| **6.14.3** | Cross-check **`PROVIDER_EXCLUSIVE_INTENTS`** | Every provider-surface intent has handler in **`ProviderAiCommandService`** (gift gap **6.10**) |
+| **6.14.4** | **`ai-cmd-provider-gap-1`** | Block prov-exp **done** until API row mapped |
+
+- [ ] **ai-cmd-provider-6.14.1** — Create parity fixtures from this audit
+- [ ] **ai-cmd-provider-6.14.2** — Wire **`npm run test:provider-api-ai-parity`**
+- [ ] **ai-cmd-provider-6.14.3** — CI fails when registry adds provider intent without provider switch case
+- [ ] **ai-cmd-provider-6.14.4** — Link **prov-exp-11** gate to API parity file
+
+---
+
+### ai-cmd-provider-6.15 — Product blockers & out-of-scope (not AI-only work)
+
+| ID | Item | Why it affects AI | Action |
+|----|------|-------------------|--------|
+| **6.15.1** | **Gift fulfillment dispatch** | Registry intents exist; handlers only in dashboard **`AiCommandService`** | Wire **`ProviderAiCommandService`** (**6.10.1**) — not a new REST route |
+| **6.15.2** | **Walk-in / bulk booking create** | No provider REST to create N bookings at once | Product API first; then **`book_walk_in_gap`** compounds (**5.9.5**) |
+| **6.15.3** | **Avatar binary upload** | NL cannot attach file bytes | **`upload_provider_avatar`** → navigate to picker (**6.11.2**) |
+| **6.15.4** | **Manager time-off approve/deny** | `GET …/time-off-requests` is dashboard staff flow | Dashboard **`approve_time_off_request`** — **5.25.3**, not provider-6 |
+| **6.15.5** | **Dashboard bulk ops** | `bulk_smart_cancel`, retail admin, etc. | Track under **ai-cmd-dashboard-6**, not **provider-6** |
+
+- [ ] **ai-cmd-provider-6.15.1** — Unblock gift queue AI by mirroring dashboard handlers on provider surface (**6.10**)
+
+**Next audit:** see **`ai-cmd-dashboard-6`** (dashboard admin REST ↔ AI parity — full audit below **ai-cmd-ext-2.14+**).
+
+---
+
+### ai-cmd-provider-6 — Gap summary (new / wire intents)
+
+**P0 — chair & booking (REST exists, AI missing):**
+
+`mark_ready_now`, `reassign_booking_same_day`, `set_retail_sales_lines`, `mark_all_notifications_read`
+
+**P1 — wire registry → provider handler:**
+
+`gift_card_creation_queue`, `mark_card_ready`, `delivery_queue`, `mark_out_for_delivery`, `mark_delivered`, `add_retail_to_my_booking` alias
+
+**P2 — read/navigate:**
+
+`list_upcoming_bookings`, `list_lab_results_queue`, `list_booking_lab_summaries`, `list_push_notifications`, `list_client_staff_notes`, `list_reassign_options`, `suggest_cancel_note`, `request_client_review`, `cancel_time_off_request`
+
+**P3 — profile & onboarding:**
+
+`update_provider_profile`, `explain_staff_invite`, `explain_provider_context`
+
+**Bulk (AI-native already — harden eval):**
+
+`cancel_bookings`, `update_bookings`, `payment_sweep`, `mark_no_shows` + confirm swipe path
+
+---
+
+### ai-cmd-provider-6 — Suggested implementation order
+
+| Phase | IDs | Closes API gaps |
+|-------|-----|-----------------|
+| **A — Wire gift + retail bulk** | **6.10.*** , **6.6.*** , **6.13.1** | Gift queues + cart **`lines[]`** |
+| **B — Chair REST parity** | **6.3.*** , **6.4.2** | ready-now, reassign, single PUT update |
+| **C — Bulk hardening** | **6.4.*** , **6.8.1** | payment sweep / cancel eval + push read-all |
+| **D — Clinic & push inbox** | **6.9.*** , **6.8.2**–**6.8.3** | Lab results, tasks, notification list |
+| **E — Gate** | **6.14.*** | **`test:provider-api-ai-parity`** |
+
+**Cross-links:** **ai-cmd-provider-5** (ease-of-life scenarios), **ai-cmd-ext-3** (dispatch), **prov-exp-11**, **ai-cmd-customer-6** (audit pattern).
+
+---
+
+## ai-cmd-dashboard-6 — Dashboard admin API ↔ AI coverage audit
+
+**Audit (2026-06):** Map every **`frontend/`** dashboard REST call to a dashboard AI intent (or document **`no-ai`** / UI-only). Sources: **`frontend/src/**`** (`api.get/post/put/patch/delete` via **`lib/api.ts`**), excluding **`public-api.ts`** (see **ai-cmd-customer-6**) and **`app/provider/*`** pages (see **ai-cmd-provider-6**). Backend route reference: controllers under **`backend/src/modules/**`**.
+
+**Totals:** ~**229** HTTP operations → **~52 covered** (registry intent + handler in **`AiCommandService`** or delegated domain service), **~68 partial** (read/explain OK but mutate path missing, or intent exists without REST wire), **~58 gaps** (no intent), **~51 N/A** (auth bootstrap, file upload bytes, export downloads, analytics telemetry).
+
+**Registry context:** **252** dashboard intents in **`DASHBOARD_INTENTS`** — many are **AI-native** (no 1:1 REST button): `bulk_smart_cancel`, `cancel_bookings`, `fill_unused_slots`, compounds. This audit is **REST → intent**, not intent count.
+
+**Bulk note:** Dashboard has **no** REST paths named `bulk_*`. Bulk behavior is:
+
+| Pattern | REST example | AI today |
+|---------|--------------|----------|
+| **Bulk cancel/update bookings** | Repeated `PUT …/bookings/:id` | ✅ `cancel_bookings`, `update_bookings`, `bulk_smart_cancel` (internal matcher) |
+| **Bulk catalog seed** | `POST …/onboarding/apply-catalog`, playbook seed | 🟡 `bulk_create_catalog`, `apply_clinic_playbook` — not wired to CSV import |
+| **Bulk schedule delete** | `DELETE …/schedules/templates` + `{ templateIds[] }` | 🔴 no **`delete_schedule_templates`** |
+| **Bulk schedule apply** | `POST …/schedules/templates/apply` | ✅ `apply_schedule` |
+| **Bulk agent rebook/undo** | `POST …/agents/tasks/:id/rebook-all`, `…/undo-latest` | 🔴 no intents |
+| **Bulk retail cart replace** | `PUT …/bookings/:id/retail-sales` **`lines[]`** | 🟡 `add_retail_sale_to_booking` adds one line only |
+| **Bulk product recommendations** | `PUT …/inventory/recommendations/…` + `{ productIds[] }` | 🔴 no intent |
+| **Bulk locale strip** | (no REST — service layer) | ✅ `bulk_strip_disabled_locale_translations` |
+| **Bulk service currency** | (no REST — service layer) | ✅ `bulk_update_service_currency` |
+
+---
+
+### ai-cmd-dashboard-6.0 — Coverage legend
+
+Same as **ai-cmd-customer-6.0**: ✅ Covered · 🟡 Partial · 🔴 Gap · ⚪ N/A
+
+---
+
+### ai-cmd-dashboard-6.1 — AI gateway, agents & suggestions
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `POST …/ai/command`, `…/command/tasks/:id/approve`, `…/steps/:id/retry` | ✅ | All **`DASHBOARD_INTENTS`** via gateway | Meta-endpoint |
+| `GET …/ai/suggestions`, `…/capabilities`, `…/settings`, `…/analytics`, `…/audit`, `…/briefing`, `…/weekly-report` | 🟡 | `explain_ai_settings`, suggestions chips | Read helpers sparse |
+| `PUT …/ai/settings` | 🟡 | Autopilot/macros panels | **`configure_ai_autopilot`** **2.21** overlap |
+| `GET …/agents/tasks`, `…/pending`, `…/:id/preview` | 🟡 | Agent ops read | **`list_agent_tasks`** |
+| `POST …/agents/tasks/:id/rebook-all` | 🔴 | — | **`rebook_all_from_agent_task`** |
+| `GET …/agents/tasks/undo-latest/preview`, `POST …/undo-latest` | 🔴 | — | **`undo_latest_agent_task`** |
+
+- [ ] **ai-cmd-dashboard-6.1.1** — `rebook_all_from_agent_task` → rebook-all API (**ai-ops** page)
+- [ ] **ai-cmd-dashboard-6.1.2** — `undo_latest_agent_task` → undo-latest API + preview read
+- [ ] **ai-cmd-dashboard-6.1.3** — `list_agent_tasks` → GET tasks/pending
+
+---
+
+### ai-cmd-dashboard-6.2 — Business core, overview & onboarding
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/PUT …/businesses/:id`, `PUT …/profile` | 🟡 | `configure_online_booking`, business settings explains | **`update_business_profile`** |
+| `GET …/dashboard/overview` | 🟡 | `summarize_day`, KPI reads | **`get_dashboard_overview`** |
+| `GET …/onboarding/status`, `…/business-types`, `…/vertical-playbook` | 🟡 | Onboarding explain | Read |
+| `POST …/onboarding/business-type`, `…/recommend-catalog`, `…/apply-catalog`, `…/apply-schedule`, `…/skip-schedule`, `…/apply-playbook`, `…/complete` | 🟡 | `bulk_create_catalog`, `apply_schedule`, playbooks | **`complete_onboarding`**, wire apply-catalog → **`bulk_create_catalog`** handler |
+| `POST …/invitations` | ✅ | `invite_staff_member` | — |
+| `POST /invitations/:token/accept` | ⚪ | — | Auth bootstrap |
+
+- [ ] **ai-cmd-dashboard-6.2.1** — `complete_onboarding` → onboarding complete API
+- [ ] **ai-cmd-dashboard-6.2.2** — Wire **`apply_onboarding_catalog`** alias → `POST …/apply-catalog` (same as **`bulk_create_catalog`**)
+
+---
+
+### ai-cmd-dashboard-6.3 — Bookings, appointments & retail POS
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/bookings`, `…/bookings/dashboard`, `…/bookings/:id` | 🟡 | `list_bookings`, `show_appointments` | **`open_booking_detail`** navigate |
+| `GET …/bookings/availability` | ✅ | `check_availability` | — |
+| `POST …/bookings`, `…/quote` | ✅ | `create_booking` | Quote step partial |
+| `PUT …/bookings/:id`, `…/cancel` | ✅ | `update_bookings`, `cancel_bookings`, `bulk_smart_cancel` | Single vs bulk disambiguation |
+| `GET/PUT …/bookings/:id/retail-sales` | 🟡 | `add_retail_sale_to_booking`, `remove_retail_line` | **`set_retail_sales_lines`** — **`lines[]` bulk replace** |
+| `GET …/retail-pos/products` | 🟡 | `suggest_retail_upsell` | Product search read |
+| `GET/POST …/bookings/:id/pre-visit-intake` | 🟡 | Intake assign flow | **`assign_pre_visit_intake_to_booking`** |
+
+- [ ] **ai-cmd-dashboard-6.3.1** — **`set_retail_sales_lines`** → `PUT retail-sales` with **`lines[]`**
+- [ ] **ai-cmd-dashboard-6.3.2** — Compound **`retail_checkout`**: add lines → mark paid via `update_bookings`
+- [ ] **ai-cmd-dashboard-6.3.3** — `assign_pre_visit_intake_to_booking` → POST pre-visit-intake on booking
+
+---
+
+### ai-cmd-dashboard-6.4 — Services, categories, packages & multi-service
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/POST/PUT …/services`, `…/services/:id` | 🟡 | `create_service`, `update_service`, `configure_service_online_payment` | **`delete_service`** 🔴 |
+| `GET/POST/PUT/DELETE …/service-categories` | 🟡 | `create_service_category` | **`update_service_category`**, **`delete_service_category`** 🔴 |
+| `GET/POST/PUT/PATCH/DELETE …/packages`, activate/deactivate/duplicate | 🟡 | `create_package`, `deactivate_package`, `duplicate_package` | **`activate_package`**, **`update_package`** |
+| `GET/PUT …/multi-service/settings` | 🟡 | `configure_multi_service_settings`, `explain_multi_service_settings` **2.29** | Wire mutate |
+
+- [ ] **ai-cmd-dashboard-6.4.1** — `delete_service` → `DELETE …/services/:id`
+- [ ] **ai-cmd-dashboard-6.4.2** — `delete_service_category`, `update_service_category` → category CRUD
+- [ ] **ai-cmd-dashboard-6.4.3** — **`bulk_assign_services_category`** **2.27** → move many services under category (AI bulk, repeated PUT or new service API)
+- [ ] **ai-cmd-dashboard-6.4.4** — `configure_service_featured` **2.26** → featured flag on services
+
+---
+
+### ai-cmd-dashboard-6.5 — Schedules, blocks & time off
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/schedules/templates`, `…/block-schedules`, `…/provider-calendar` | 🟡 | `list_templates`, schedule reads | — |
+| `POST …/schedules/direct`, `…/templates`, `…/templates/:id/duplicate`, `…/templates/apply`, `…/block-schedules` | 🟡 | `create_schedule_template`, `apply_schedule`, `block_schedule`, `create_direct_schedule` | Duplicate template read |
+| `PUT …/schedules/templates/:id` | 🟡 | `update_schedule_template` (implicit) | Explicit intent |
+| `DELETE …/schedules/templates` + `{ templateIds[] }` | 🔴 | — | **`delete_schedule_templates`** — **bulk delete** |
+| `DELETE …/schedules/block-schedules/:id` | 🔴 | — | **`delete_schedule_block`** |
+| `GET …/time-off-requests`, `POST …/:id/approve`, `…/deny` | ✅ | `list_time_off_requests`, `approve_time_off_request`, `deny_time_off_request` | — |
+
+- [ ] **ai-cmd-dashboard-6.5.1** — **`delete_schedule_templates`** → `DELETE …/templates` with **`templateIds[]`**
+- [ ] **ai-cmd-dashboard-6.5.2** — `delete_schedule_block` → block-schedules DELETE
+- [ ] **ai-cmd-dashboard-6.5.3** — Compound **`apply_and_fill`**: `apply_schedule` + `fill_unused_slots`
+
+---
+
+### ai-cmd-dashboard-6.6 — Staff, employees & team
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/POST/PUT/PATCH/DELETE …/employees`, `…/access-role`, `…/send-app-access` | 🟡 | `create_employee`, `deactivate_employee`, `list_employees` | **`update_employee`**, **`delete_employee`** (hard delete vs deactivate) |
+| `GET/PATCH …/team-members`, `…/:id/role` | 🟡 | Team role reads | **`update_team_member_role`** |
+
+- [ ] **ai-cmd-dashboard-6.6.1** — `update_employee` → PUT employees (name, services, schedule link)
+- [ ] **ai-cmd-dashboard-6.6.2** — `update_team_member_role` → PATCH team-members role
+
+---
+
+### ai-cmd-dashboard-6.7 — Customers & patient chart
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/customers/dashboard`, `…/:id`, `…/detail` | 🟡 | `list_customers`, `summarize_client`, CRM reads | Search/filter fixtures |
+| `PUT …/customers/:id`, `…/clinical-profile` | 🔴 | — | **`update_customer`**, **`update_clinical_profile`** |
+| `GET/POST …/documents`, `PATCH …/release` | 🔴 | — | **`upload_patient_document`**, **`release_patient_document`** |
+| `GET/PUT/POST …/encounters`, addenda, by-booking | 🟡 | `explain_patient_chart` | **`create_encounter_addendum`**, **`update_encounter_by_booking`** |
+| `GET/POST …/pre-visit-intakes`, staff-notes | 🟡 | Staff notes partial | **`list_customer_staff_notes`**, **`add_customer_staff_note`** |
+| `GET/POST …/patient-chart/alerts`, dismiss | 🔴 | — | **`dismiss_patient_alert`** |
+| `GET …/orders`, `…/results` (chart) | 🟡 | `explain_patient_results`, clinic reads | — |
+| `GET/DELETE …/me/data` (admin paths) | 🟡 | `export_customer_data`, `delete_customer_data`, `admin_delete_customer_data` | GDPR admin |
+
+- [ ] **ai-cmd-dashboard-6.7.1** — Patient chart mutates: **`update_customer`**, **`update_clinical_profile`**, **`dismiss_patient_alert`**
+- [ ] **ai-cmd-dashboard-6.7.2** — Documents: **`release_patient_document`** (binary upload → navigate; release via NL)
+- [ ] **ai-cmd-dashboard-6.7.3** — Encounters: **`create_encounter_addendum`**, **`update_encounter_by_booking`**
+
+---
+
+### ai-cmd-dashboard-6.8 — Pre-visit intake & clinic questionnaires
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/POST …/pre-visit-intakes/:id`, `…/start`, `…/answers` | 🟡 | Intake flow (customer-side stronger) | **`staff_submit_intake_answers`** dashboard proxy |
+| `GET/POST/PUT …/clinic-questionnaires`, `…/definition`, `…/publish` | 🔴 | — | **`create_questionnaire`**, **`update_questionnaire`**, **`publish_questionnaire`** |
+
+- [ ] **ai-cmd-dashboard-6.8.1** — Questionnaire CRUD + publish intents → clinic-questionnaires API
+- [ ] **ai-cmd-dashboard-6.8.2** — Staff intake answer batch → `POST …/answers` (array body)
+
+---
+
+### ai-cmd-dashboard-6.9 — Clinic test results & lab ops
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/clinic-test-results/orders`, `…/specimens`, booking orders/results/summaries | 🟡 | `list_test_orders`, `explain_patient_results`, **`upload_patient_result`** | Queue reads |
+| `POST …/bookings/:id/orders`, `…/book-collection`, `…/push-to-patient` | 🟡 | `create_test_order`, `staff_book_lab_collection`, `push_lab_booking_to_patient` | Wire handlers |
+| `POST …/results/:id/transition`, `…/specimens/:id/transition` | 🟡 | `enter_test_result`, specimen transitions | State machine parity |
+| Catalog `test-types`/`panels` CRUD, `…/items` | 🔴 | `configure_test_reference_range` (guide only) | **`create_test_type`**, **`update_test_type`**, **`delete_test_type`**, panel CRUD |
+| `POST …/catalog/import-csv`, `…/seed-playbook` | 🔴 / 🟡 | `apply_clinic_playbook` | **`import_clinic_catalog_csv`** → import-csv API |
+| `GET …/specimens/:id/label`, change-history | 🟡 | Label print = UI | **`explain_lab_result_history`** read |
+
+- [ ] **ai-cmd-dashboard-6.9.1** — **`import_clinic_catalog_csv`** → `POST …/catalog/import-csv` (**bulk insert**)
+- [ ] **ai-cmd-dashboard-6.9.2** — Catalog CRUD intents → test-types/panels REST
+- [ ] **ai-cmd-dashboard-6.9.3** — Wire **`create_test_order`** + transitions to REST (close **ai-cmd-clinic-6-gap**)
+
+---
+
+### ai-cmd-dashboard-6.10 — Gift cards
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/gift-cards`, `…/settings`, `POST …/gift-cards` | 🟡 | `list_gift_card_orders`, `configure_gift_card_products`, `create_gift_card_bundle` | Issue card mutate |
+| `PUT …/settings`, `…/:id/expiration`, `…/expiration-audit` | 🟡 | `extend_gift_card_expiry`, product config | **`update_gift_card_settings`** |
+| `GET …/fulfillment`, `…/fulfillment/:id`, `PUT …/ship` | 🔴 | Provider has registry; dashboard handlers sparse | **`ship_gift_card`**, **`list_gift_fulfillment_queue`** |
+| `GET/PUT …/change-requests`, `…/resolve` | 🔴 | — | **`list_gift_card_change_requests`**, **`resolve_gift_card_change_request`** |
+| Refund/cancel (via order detail) | 🟡 | `refund_gift_card_order`, `cancel_gift_card_order` | — |
+
+- [ ] **ai-cmd-dashboard-6.10.1** — Fulfillment queue: **`ship_gift_card`**, **`mark_gift_card_ready`** (dashboard **`GiftCardFulfillmentService`**)
+- [ ] **ai-cmd-dashboard-6.10.2** — Change requests: **`resolve_gift_card_change_request`** → resolve API
+- [ ] **ai-cmd-dashboard-6.10.3** — Compound **`gift_fulfill_batch`**: list queue → ship first N
+
+---
+
+### ai-cmd-dashboard-6.11 — Subscriptions, loyalty & promos
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/POST/PUT/PATCH/DELETE …/subscriptions/plans`, activate/deactivate | 🟡 | `create_subscription_plan`, `deactivate_subscription_plan` | **`update_subscription_plan`**, **`activate_subscription_plan`** |
+| `POST …/subscriptions/assign`, customer subscription CRUD | 🟡 | `assign_subscription_to_customer`, `list_customer_subscriptions`, `cancel_subscription_admin` | — |
+| `GET/PATCH …/loyalty/settings`, `…/customer/:id`, `…/adjust` | 🟡 | `summarize_loyalty_program`, `adjust_loyalty_points` (if exists) | **`configure_loyalty_settings`** **2.25** |
+| `GET/POST/PATCH …/promo-codes`, deactivate | 🔴 | — | **`create_promo_code`** **2.24**, **`deactivate_promo_code`** |
+
+- [ ] **ai-cmd-dashboard-6.11.1** — `create_promo_code`, `deactivate_promo_code` → promo-codes API
+- [ ] **ai-cmd-dashboard-6.11.2** — `configure_loyalty_settings` → loyalty settings PUT
+- [ ] **ai-cmd-dashboard-6.11.3** — Subscription plan update/activate intents
+
+---
+
+### ai-cmd-dashboard-6.12 — Operations (inventory, locations, expenses, commissions, resources)
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/POST …/locations` | 🔴 | — | **`create_location`**, **`update_location`** |
+| `GET/POST/PUT …/inventory/products` | 🟡 | `adjust_inventory` | **`create_inventory_product`**, **`update_inventory_product`**, **`delete_inventory_product`** |
+| `GET/POST/DELETE …/inventory/service-links` | 🔴 | — | **`link_inventory_to_service`**, **`unlink_inventory_product`** |
+| `PUT …/inventory/recommendations/services\|categories/:id` + `{ productIds[] }` | 🔴 | — | **`set_recommended_products`** — **bulk replace** |
+| `GET/POST/DELETE …/expenses` | 🟡 | `record_expense`, `list_expenses` | **`delete_expense`** |
+| `GET/POST/DELETE …/commissions` | 🟡 | `commission_report`, `export_commissions` | **`create_commission_rule`**, **`delete_commission_rule`** |
+| `GET/POST/DELETE …/resources`, `PUT …/requirements` | 🟡 | `create_resource`, `assign_booking_resource` | **`delete_resource`**, **`set_service_resource_requirements`** |
+
+- [ ] **ai-cmd-dashboard-6.12.1** — **`set_recommended_products`** → recommendations PUT with **`productIds[]`**
+- [ ] **ai-cmd-dashboard-6.12.2** — Inventory product CRUD + service-links intents
+- [ ] **ai-cmd-dashboard-6.12.3** — Locations + commission rule mutates
+
+---
+
+### ai-cmd-dashboard-6.13 — Billing, SaaS & business settings
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET /billing/plans`, `…/billing/subscription`, entitlements, checkout, portal | 🟡 | `open_billing_settings` | **`start_billing_checkout`**, navigate only |
+| `GET/POST/PUT …/stripe-connect` (oauth, onboard, sync, login, disconnect) | 🔴 | — | **`configure_stripe_connect`** **2.15** |
+| Settings tabs: currency, tax, language, date format, pay-at-venue, privacy, compliance fields on `PUT …/businesses/:id` | 🔴 | Partial explains | **`configure_currency`**, **`configure_tax_settings`**, **`configure_business_languages`**, **`configure_pay_at_venue`** |
+| `GET/PUT …/provider/context` flags (open shifts, time off, self block, lab) | 🟡 | Provider settings explains | **`configure_provider_self_service_flags`** |
+
+- [ ] **ai-cmd-dashboard-6.13.1** — Settings mutates batch (**6.13** table) — map each settings tab to intent (**ai-cmd-ext-2.14**–**2.25**)
+- [ ] **ai-cmd-dashboard-6.13.2** — `configure_stripe_connect` → Stripe Connect REST (explain + deep link, not raw OAuth in NL)
+
+---
+
+### ai-cmd-dashboard-6.14 — Notifications, integrations & growth
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET/PUT …/notifications/settings`, whatsapp, email-templates, reset, custom-variables | 🔴 | `notification_history`, preview helpers | **`configure_notification_settings`** **2.19**, **`configure_whatsapp_integration`** **2.20** |
+| `GET/POST/DELETE …/integrations/api-keys`, webhooks, events, docs | 🟡 | `create_webhook`, `delete_webhook`, `list_integration_health` | **`create_api_key`**, **`revoke_api_key`** |
+| Zapier, accounting, distribution, google-reserve, openai, zendesk, app-install | 🔴 | `list_integration_health` partial | **`configure_zapier`**, **`configure_openai_integration`** **2.21**, **`explain_tenant_app_install`** **2.22** |
+| `POST …/integrations/zendesk/support-ticket` | 🟡 | Support button | **`create_support_ticket`** explain |
+| `GET/PUT …/marketing-automation/summary`, settings | 🔴 | — | **`configure_marketing_automation`** |
+
+- [ ] **ai-cmd-dashboard-6.14.1** — Notification + WhatsApp settings intents (**2.19**, **2.20**)
+- [ ] **ai-cmd-dashboard-6.14.2** — API keys + integration tab mutates
+- [ ] **ai-cmd-dashboard-6.14.3** — Growth: app-install QR + distribution settings
+
+---
+
+### ai-cmd-dashboard-6.15 — Analytics, reports & reviews
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/analytics/staff`, services, heatmap, pl, adoption | 🟡 | `summarize_staff_performance`, analytics reads | — |
+| `GET …/analytics/export.csv`, `export.pdf` | 🔴 | — | **`export_analytics_report`** (navigate/download — no binary via NL) |
+| `GET …/reviews`, `…/summary` | 🟡 | Reviews page read | **`summarize_reviews`** |
+
+- [ ] **ai-cmd-dashboard-6.15.1** — `export_analytics_report` → explain + open exports page
+- [ ] **ai-cmd-dashboard-6.15.2** — `summarize_reviews` → reviews summary API
+
+---
+
+### ai-cmd-dashboard-6.16 — Compliance, enterprise trust & strategy eval
+
+| API | Status | Intent(s) | Gap / action |
+|-----|--------|-----------|--------------|
+| `GET …/compliance/status`, breach-incidents, phi-access-audit | 🟡 | HIPAA session, compliance reads | — |
+| `POST …/compliance/breach-incidents` | 🟡 | `send_breach_notification` | Wire create incident |
+| Enterprise trust, strategy-eval, hipaa/marketplace frameworks | 🔴 | — | **`explain_enterprise_trust`**, **`update_strategy_eval`** — low-traffic admin |
+
+- [ ] **ai-cmd-dashboard-6.16.1** — Breach incident create + notification compound
+- [ ] **ai-cmd-dashboard-6.16.2** — Enterprise/strategy tabs — read-only explain intents (P3)
+
+---
+
+### ai-cmd-dashboard-6.17 — Auth, uploads & telemetry (out of scope)
+
+| API | Status | Notes |
+|-----|--------|-------|
+| `POST /auth/login`, register, reset-password, forgot-password, switch-business | ⚪ | Staff auth — no AI |
+| `PATCH /auth/preferences` | ⚪ | User prefs |
+| `POST …/uploads/avatar`, `…/logo` | ⚪ | Binary — **`explain_upload_logo`** navigate only |
+| `POST /events/app` | ⚪ | Analytics telemetry |
+
+---
+
+### ai-cmd-dashboard-6.18 — Bulk insert / update / delete summary (dashboard)
+
+| Operation type | REST / mechanism | AI intent | Status |
+|----------------|------------------|-----------|--------|
+| **Bulk cancel/update bookings** | AI matcher (no `bulk_*` REST) | `cancel_bookings`, `update_bookings`, `bulk_smart_cancel`, `payment_sweep`, `mark_no_shows` | ✅ AI-native |
+| **Bulk catalog create** | `POST onboarding/apply-catalog`, AI draft | `bulk_create_catalog`, playbooks | 🟡 wire apply-catalog |
+| **Bulk catalog CSV import** | `POST …/catalog/import-csv` | — | 🔴 **`import_clinic_catalog_csv`** |
+| **Bulk schedule delete** | `DELETE …/templates` + `templateIds[]` | — | 🔴 **`delete_schedule_templates`** |
+| **Bulk schedule apply** | `POST …/templates/apply` | `apply_schedule` | ✅ |
+| **Bulk agent rebook/undo** | `POST rebook-all`, `undo-latest` | — | 🔴 **`rebook_all_from_agent_task`**, **`undo_latest_agent_task`** |
+| **Bulk retail cart replace** | `PUT retail-sales` `lines[]` | `add_retail_sale_to_booking` (single) | 🔴 **`set_retail_sales_lines`** |
+| **Bulk product recommendations** | `PUT …/recommendations/…` `productIds[]` | — | 🔴 **`set_recommended_products`** |
+| **Bulk locale strip** | Service layer | `bulk_strip_disabled_locale_translations` | ✅ AI-native |
+| **Bulk service currency** | Service layer | `bulk_update_service_currency` | ✅ AI-native |
+| **Bulk service category assign** | Repeated PUT or future API | **`bulk_assign_services_category`** **2.27** (proposed) | 🔴 |
+| **Bulk gift fulfill** | List + ship one-by-one | — | 🔴 compound **`gift_fulfill_batch`** |
+
+- [ ] **ai-cmd-dashboard-6.18.1** — Implement **`delete_schedule_templates`** (bulk delete)
+- [ ] **ai-cmd-dashboard-6.18.2** — Implement **`set_retail_sales_lines`** + **`set_recommended_products`**
+- [ ] **ai-cmd-dashboard-6.18.3** — Agent bulk: **`rebook_all_from_agent_task`**, **`undo_latest_agent_task`**
+- [ ] **ai-cmd-dashboard-6.18.4** — **`import_clinic_catalog_csv`** (bulk insert)
+- [ ] **ai-cmd-dashboard-6.18.5** — Document AI-native booking bulk in **`dashboard-api-ai-parity.fixtures.ts`** as **`kind: 'ai-bulk-internal'`**
+
+---
+
+### ai-cmd-dashboard-6.19 — Parity gate (mirror **ai-cmd-customer-6.13**)
+
+| ID | Task | Notes |
+|----|------|-------|
+| **6.19.1** | **`dashboard-api-ai-parity.fixtures.ts`** | One row per `frontend/src/**` API wrapper → intent or **`no-ai`** / **`ai-bulk-internal`** |
+| **6.19.2** | **`test:dashboard-api-ai-parity`** | Fails on new dashboard REST call without fixture row |
+| **6.19.3** | Cross-check **`DASHBOARD_INTENTS`** | Every mutating intent maps to ≥1 REST path or **`ai-bulk-internal`** |
+| **6.19.4** | **`ai-cmd-dashboard-gap-10`** | Block **parity-2.1** / **ai-cmd-ext-gap-7** until row mapped |
+
+- [ ] **ai-cmd-dashboard-6.19.1** — Create parity fixtures from this audit
+- [ ] **ai-cmd-dashboard-6.19.2** — Wire **`npm run test:dashboard-api-ai-parity`**
+- [ ] **ai-cmd-dashboard-6.19.3** — Extend **`test:ai-cmd-ext`** handler coverage with REST binding column
+- [ ] **ai-cmd-dashboard-6.19.4** — Link **parity-2.1** gate to parity file
+
+---
+
+### ai-cmd-dashboard-6.20 — Product blockers & overlaps
+
+| ID | Item | Why it affects AI | Action |
+|----|------|-------------------|--------|
+| **6.20.1** | **Binary uploads** | Logo/avatar/document attach | Navigate intents only — cannot pass bytes via NL |
+| **6.20.2** | **Export downloads** | CSV/PDF/commission export | **`export_*`** explain + open URL — not attach file |
+| **6.20.3** | **Stripe OAuth** | Connect onboarding | Deep link only (**2.15**) — no token in chat |
+| **6.20.4** | **Provider/mobile overlap** | Same business APIs on provider pages in `frontend/app/provider` | Audited in **ai-cmd-provider-6** — dashboard-6 excludes those wrappers |
+| **6.20.5** | **Public booking overlap** | `public-api.ts` | **ai-cmd-customer-6** |
+
+- [ ] **ai-cmd-dashboard-6.20.1** — Document upload/export rows as **`no-ai-binary`** in parity fixtures
+
+---
+
+### ai-cmd-dashboard-6.21 — Audit follow-up (rows added after first pass)
+
+| API / mechanism | Status | Intent(s) | Gap / action |
+|-----------------|--------|-----------|--------------|
+| `POST …/billing/confirm-checkout` | 🔴 | — | **`confirm_billing_checkout`** — Stripe return handoff after SaaS checkout |
+| `GET …/billing/entitlements` | 🟡 | Plan gating reads | **`explain_plan_entitlements`** |
+| `PUT …/businesses/:id` + `settings.referralProgram` | 🔴 | — | **`configure_referral_program`** — **`dashboard-referral-program-tab.tsx`** |
+| `PUT …/businesses/:id` + `settings.staffMessageTemplates` | 🔴 | — | **`configure_staff_message_templates`** — settings tab |
+| `GET …/subscriptions/:id/usage` | 🟡 | `subscription_usage` (customer) | **`explain_subscription_usage`** dashboard admin read |
+| `GET/POST/PUT …/external-doctors` | 🔴 | — | **`create_external_doctor`**, **`update_external_doctor`**, **`list_external_doctors`** |
+| `GET …/clinic-test-results/bookings/:id/summaries` | 🟡 | `explain_patient_results` partial | Explicit **`list_booking_lab_summaries`** (same route as **provider-6.9.4**) |
+| `POST …/ai/command/tasks/:id/approve`, `…/steps/:id/retry` | 🟡 | Agent gateway | **`approve_agent_task`**, **`retry_agent_step`** |
+| `GET …/analytics/adoption` | 🟡 | Adoption dashboard panel | **`summarize_adoption_funnel`** read |
+| Socket.IO `WS /events` | ⚪ | Realtime invalidation for bookings/AI | No REST — document **`no-ai-realtime`** in parity fixtures |
+
+- [ ] **ai-cmd-dashboard-6.21.1** — Referral + staff message template intents → `PUT …/businesses/:id` settings blobs
+- [ ] **ai-cmd-dashboard-6.21.2** — External doctors CRUD intents
+- [ ] **ai-cmd-dashboard-6.21.3** — `confirm_billing_checkout` + `explain_plan_entitlements`
+
+**Nothing else to REST-audit:** all four surfaces now have audit sections — **customer-6**, **provider-6**, **dashboard-6**; public routes live under **customer-6**. Remaining work is **implementation + parity CI gates**, not more inventory.
+
+---
+
+### ai-cmd-dashboard-6 — Gap summary (new / wire intents)
+
+**P0 — daily ops (REST exists, AI missing or partial):**
+
+`set_retail_sales_lines`, `delete_schedule_templates`, `delete_service`, `ship_gift_card`, `resolve_gift_card_change_request`, `rebook_all_from_agent_task`, `import_clinic_catalog_csv`
+
+**P1 — settings & growth (ai-cmd-ext-2.14+ overlap):**
+
+`configure_stripe_connect`, `configure_notification_settings`, `configure_whatsapp_integration`, `configure_loyalty_settings`, `create_promo_code`, `update_customer`, `create_questionnaire`
+
+**P2 — operations & catalog:**
+
+`delete_service_category`, `set_recommended_products`, `delete_expense`, `create_location`, inventory CRUD, subscription plan update, gift fulfillment queue reads
+
+**P3 — enterprise / low traffic:**
+
+Strategy eval, enterprise trust, marketing automation settings
+
+**Bulk (AI-native already — harden eval + parity fixtures):**
+
+`cancel_bookings`, `update_bookings`, `bulk_smart_cancel`, `bulk_create_catalog`, `bulk_update_service_currency`, `bulk_strip_disabled_locale_translations`, `apply_schedule`
+
+**Bulk (REST batch — need new intents):**
+
+`delete_schedule_templates`, `set_retail_sales_lines`, `set_recommended_products`, `import_clinic_catalog_csv`, `rebook_all_from_agent_task`, `undo_latest_agent_task`, `bulk_assign_services_category`
+
+---
+
+### ai-cmd-dashboard-6 — Suggested implementation order
+
+| Phase | IDs | Closes API gaps |
+|-------|-----|-----------------|
+| **A — Bulk REST parity** | **6.18.*** , **6.5.1** , **6.3.1** , **6.12.1** | Templates delete, retail lines, recommendations |
+| **B — Chair & booking hardening** | **6.3.*** , **6.18.5** | Retail compound + AI-native bulk fixtures |
+| **C — Agent ops** | **6.1.*** | Rebook-all + undo-latest |
+| **D — Gift + clinic CSV** | **6.10.*** , **6.9.1** | Fulfillment + catalog import |
+| **E — Settings & growth** | **6.13.*** , **6.14.*** , **ai-cmd-ext-2.14+** | Stripe, notifications, promos |
+| **F — Patient chart & questionnaires** | **6.7.*** , **6.8.*** | CRM depth |
+| **G — Gate** | **6.19.*** | **`test:dashboard-api-ai-parity`** |
+
+**Cross-links:** **ai-cmd-ext** (252 registry intents), **ai-cmd-ext-2.14+** (proposed verbs), **parity-2.1**, **ai-cmd-customer-6**, **ai-cmd-provider-6**, **feature-ai-prompt-coverage** (dashboard surface only).
+
+---
