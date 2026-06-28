@@ -75,6 +75,14 @@ const RANK_SERVICE_CATEGORY_ALIASES: Record<string, string> = {
   massages: 'massage',
 };
 
+const LEADING_SERVICE_RANK_ADJECTIVE_PATTERN =
+  /^(?:cheapest|most affordable|lowest[\s-]?priced?|least expensive|premium|luxury|deluxe|best(?:[\s-]?selling)?|top[\s-]?tier|most popular|budget[\s-]?friendly|entry[\s-]?level|mid[\s-]?range)\s+/i;
+
+/** Strip catalog-rank adjectives before treating a token as serviceName (discover-flagship-book-en). */
+export function stripLeadingServiceRankAdjectives(name: string): string {
+  return name.replace(LEADING_SERVICE_RANK_ADJECTIVE_PATTERN, '').trim();
+}
+
 /** Generic catalog nouns — not a service category (discover-journey-premium-en T1). */
 const RANK_SERVICE_CATEGORY_NOISE = new Set([
   'option',

@@ -659,7 +659,7 @@ export function extractServiceTypeKeywordFromListPrompt(
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:services?|options?)\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
     /\b(?:recommend|suggest)\s+(?:me\s+)?(?:some\s+)?([a-z][\w\s-]{1,40}?)\s+services?\b/i,
-    /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,40}?)(?:\s+service)?\s*$/i,
+    /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|,|$))/i,
   ];
 
   for (const re of patterns) {
@@ -1679,9 +1679,10 @@ export function resolveDateKeysForAvailabilityWindow(
   window: AvailabilityWindow,
   timeZone: string,
   scanDays: number = PUBLIC_AVAILABILITY_SCAN_DAYS,
+  referenceTodayDateKey?: string,
 ): string[] {
   const tz = resolveTimezone(timeZone);
-  const todayKey = getTodayDateKey(tz);
+  const todayKey = referenceTodayDateKey ?? getTodayDateKey(tz);
   const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
 
   if (window.weekdays?.length) {
@@ -1725,7 +1726,7 @@ function resolveLegacyPublicAvailabilityDateKeys(
   params: Record<string, any>,
   prompt: string | undefined,
   timeZone: string,
-  options: { defaultScanDays?: number } = {},
+  options: { defaultScanDays?: number; referenceTodayDateKey?: string } = {},
 ): string[] {
   const tz = resolveTimezone(timeZone);
   const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
@@ -1738,7 +1739,7 @@ function resolveLegacyPublicAvailabilityDateKeys(
     enriched,
     prompt,
   );
-  const todayKey = getTodayDateKey(tz);
+  const todayKey = options.referenceTodayDateKey ?? getTodayDateKey(tz);
 
   const dropPast = (keys: string[]) => keys.filter((d) => d >= todayKey);
 
@@ -1796,9 +1797,10 @@ export function resolvePublicAvailabilityWindows(
   params: Record<string, any>,
   prompt: string | undefined,
   timeZone: string,
-  options: { defaultScanDays?: number } = {},
+  options: { defaultScanDays?: number; referenceTodayDateKey?: string } = {},
 ): ResolvedPublicAvailabilityWindow[] {
   const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
+  const referenceTodayDateKey = options.referenceTodayDateKey;
   const hasExplicitWindows = Array.isArray(params.availabilityWindows)
     && params.availabilityWindows.length > 0;
   const normalizedWindows = normalizeAvailabilityWindows(params);
@@ -1808,7 +1810,12 @@ export function resolvePublicAvailabilityWindows(
       .map((window) =>
         toResolvedPublicAvailabilityWindow(
           window,
-          resolveDateKeysForAvailabilityWindow(window, timeZone, scanDays),
+          resolveDateKeysForAvailabilityWindow(
+            window,
+            timeZone,
+            scanDays,
+            referenceTodayDateKey,
+          ),
         ),
       )
       .filter((window) => window.dateKeys.length > 0);
@@ -1825,6 +1832,7 @@ export function resolvePublicAvailabilityWindows(
       window,
       timeZone,
       scanDays,
+      referenceTodayDateKey,
     );
     if (dateKeys.length > 0) {
       return [toResolvedPublicAvailabilityWindow(window, dateKeys)];

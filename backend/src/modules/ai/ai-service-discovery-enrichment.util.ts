@@ -22,6 +22,25 @@ import {
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
 import { enrichEmployeeRoleRankFromPrompt } from './ai-employee-role-rank.util.js';
 
+function hasNamedProviderFallbackWindows(
+  params: Record<string, unknown>,
+): boolean {
+  const windows = params.availabilityWindows;
+  if (!Array.isArray(windows) || windows.length < 2) return false;
+  let hasNamed = false;
+  let hasOpen = false;
+  for (const window of windows) {
+    if (!window || typeof window !== 'object') continue;
+    const employeeName = (window as { employeeName?: unknown }).employeeName;
+    if (typeof employeeName === 'string' && employeeName.trim()) {
+      hasNamed = true;
+    } else {
+      hasOpen = true;
+    }
+  }
+  return hasNamed && hasOpen;
+}
+
 /** Post-LLM rescue step 1 — budget ceiling then catalog rank (discover-1.3). */
 export function enrichServiceDiscoveryFromPrompt(
   params: Record<string, unknown>,
@@ -80,7 +99,8 @@ export function enrichDiscoveryParamsFromPrompt(
     prompt?.trim() &&
     (isFlexibleAvailabilityAnyProviderPrompt(prompt) ||
       isFlexibleAvailabilityTeamWidePrompt(prompt)) &&
-    enriched.allProviders !== true
+    enriched.allProviders !== true &&
+    !hasNamedProviderFallbackWindows(enriched)
   ) {
     enriched = { ...enriched, allProviders: true };
   }

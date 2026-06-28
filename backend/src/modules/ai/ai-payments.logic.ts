@@ -70,6 +70,7 @@ import {
 import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
 import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-hints.util.js';
 import type { ServiceService } from '../service/service.service.js';
+import type { UpdateServiceDto } from '../service/dto/create-service.dto.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import {
   computeServiceDepositAmount,
@@ -547,16 +548,14 @@ export async function handleConfigureServiceOnlinePaymentLogic(
         Number(service.price),
         config,
       );
-      const updateDto: {
-        prepaymentMode: PrepaymentMode;
-        depositAmount?: number | null;
-      } = {
+      const updateDto: UpdateServiceDto = {
         prepaymentMode: config.prepaymentMode,
       };
-      if (config.prepaymentMode === PrepaymentMode.DEPOSIT) {
-        updateDto.depositAmount = depositAmount ?? null;
-      } else {
-        updateDto.depositAmount = null;
+      if (
+        config.prepaymentMode === PrepaymentMode.DEPOSIT &&
+        depositAmount != null
+      ) {
+        updateDto.depositAmount = depositAmount;
       }
       const saved = await deps.serviceService.update(
         service.id,

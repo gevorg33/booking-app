@@ -19,6 +19,8 @@ import { isTeamWideProviderAvailabilityQuery } from './team-wide-availability.se
 import { isAnyProviderBookingPrompt } from './any-provider-booking.semantic.util.js';
 import { isRecommendSpecialistsPrompt } from './recommend-specialists.semantic.util.js';
 import { extractServiceFromPrompt } from './ai-structural-extractors.js';
+import { normalizeAvailabilityServiceCategory } from './ai-flexible-availability.util.js';
+import { stripLeadingServiceRankAdjectives } from './ai-service-rank-discovery.util.js';
 
 export { isAnyProviderBookingPrompt, isRecommendSpecialistsPrompt };
 
@@ -41,15 +43,26 @@ export function applyPromptMentionedServiceOverrideToParams(
   const rawName = catalogMatch?.name ?? extractServiceNameFromPrompt(prompt);
   if (!rawName) return params;
 
+  const strippedName = stripLeadingServiceRankAdjectives(rawName);
+  const categoryFromPrompt = normalizeAvailabilityServiceCategory(
+    strippedName.split(/\s+/)[0] ?? strippedName,
+  );
+
   const next: Record<string, unknown> = {
     ...params,
-    serviceName: catalogMatch?.name ?? rawName,
-    serviceCategory: null,
     serviceNames: null,
   };
   if (catalogMatch) {
+    next.serviceName = catalogMatch.name;
     next.serviceId = catalogMatch.id;
+    next.serviceCategory = null;
+  } else if (strippedName.split(/\s+/).filter(Boolean).length === 1) {
+    next.serviceName = null;
+    next.serviceCategory = categoryFromPrompt;
+    delete next.serviceId;
   } else {
+    next.serviceName = strippedName;
+    next.serviceCategory = null;
     delete next.serviceId;
   }
   delete next.serviceRank;

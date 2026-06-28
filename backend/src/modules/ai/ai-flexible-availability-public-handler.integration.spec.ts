@@ -31,7 +31,7 @@ function runPublicAvailabilityHandlerPipeline(input: {
     input.params,
     undefined,
     'UTC',
-    { defaultScanDays: 14 },
+    { defaultScanDays: 14, referenceTodayDateKey: input.todayDateKey },
   );
   const groupByWindow = shouldGroupPublicAvailabilityByWindow(
     windows,
