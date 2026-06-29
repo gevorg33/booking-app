@@ -2459,6 +2459,8 @@ const en: MessageTree = {
     createdTitle: 'Schedule created',
     slotsGeneratedOne: '{count} slot generated for {date}',
     slotsGeneratedMany: '{count} slots generated for {date}',
+    slotsGeneratedRepetitive:
+      '{count} slots generated across {days} days ({start} – {end})',
     createAnother: 'Create another',
     createForDayTitle: 'Create schedule for a day',
     createForDayDesc:

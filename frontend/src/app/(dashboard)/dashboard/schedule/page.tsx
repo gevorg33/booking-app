@@ -56,6 +56,7 @@ type PeriodFieldValue = string | number | boolean | string[];
 
 interface ScheduleSuccessInfo {
   slotsCreated: number;
+  daysApplied?: number;
   optimization?: { reasoning?: string };
 }
 
@@ -520,13 +521,24 @@ function CreateScheduleTab({
   queryClient: QueryClient;
 }) {
   const { t, locale } = useI18n();
+  const daysOfWeek = useMemo(() => buildDaysOfWeek(locale), [locale]);
   const [employeeId, setEmployeeId] = useState('');
+  const [isRepetitive, setIsRepetitive] = useState(false);
   const [date, setDate] = useState(getTodayDateKey());
+  const [startDate, setStartDate] = useState(getTodayDateKey());
+  const [endDate, setEndDate] = useState(toDateKey(addCalendarDays(todayDateAnchor(), 30)));
+  const [applyDays, setApplyDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [periods, setPeriods] = useState<(TimePeriod & { serviceIds?: string[] })[]>([
     { ...emptyPeriod(), serviceIds: [] },
   ]);
   const [successInfo, setSuccessInfo] = useState<ScheduleSuccessInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleApplyDay = useCallback((day: number) => {
+    setApplyDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  }, []);
 
   const addPeriod = useCallback(() => {
     setPeriods((prev) => [...prev, { ...emptyPeriod(), serviceIds: [] }]);
@@ -541,11 +553,20 @@ function CreateScheduleTab({
   const createMutation = useMutation({
     mutationFn: async () => {
       setError(null);
-      const { data } = await api.post(`/businesses/${business.id}/schedules/direct`, {
-        employeeId,
-        date,
-        periods: mapDirectPeriodsForSave(periods),
-      });
+      const payload = isRepetitive
+        ? {
+            employeeId,
+            startDate,
+            endDate,
+            applyDays,
+            periods: mapDirectPeriodsForSave(periods),
+          }
+        : {
+            employeeId,
+            date,
+            periods: mapDirectPeriodsForSave(periods),
+          };
+      const { data } = await api.post(`/businesses/${business.id}/schedules/direct`, payload);
       return data.data || data;
     },
     onSuccess: (data) => {
@@ -562,10 +583,30 @@ function CreateScheduleTab({
     setError(null);
     setPeriods([{ ...emptyPeriod(), serviceIds: [] }]);
     setEmployeeId('');
+    setIsRepetitive(false);
     setDate(getTodayDateKey());
+    setStartDate(getTodayDateKey());
+    setEndDate(toDateKey(addCalendarDays(todayDateAnchor(), 30)));
+    setApplyDays([1, 2, 3, 4, 5]);
   };
 
   if (successInfo) {
+    const successMessage = successInfo.daysApplied
+      ? t('schedule.slotsGeneratedRepetitive', {
+          count: successInfo.slotsCreated,
+          days: successInfo.daysApplied,
+          start: formatDateDisplay(startDate, locale),
+          end: formatDateDisplay(endDate, locale),
+        })
+      : successInfo.slotsCreated === 1
+        ? t('schedule.slotsGeneratedOne', {
+            count: successInfo.slotsCreated,
+            date: formatDateDisplay(date, locale),
+          })
+        : t('schedule.slotsGeneratedMany', {
+            count: successInfo.slotsCreated,
+            date: formatDateDisplay(date, locale),
+          });
     return (
       <div className="card max-w-xl">
         <div className="flex items-center gap-3 mb-4">
@@ -573,15 +614,7 @@ function CreateScheduleTab({
           <div>
             <p className="font-semibold text-green-300">{t('schedule.createdTitle')}</p>
             <p className="text-sm text-gray-400">
-              {successInfo.slotsCreated === 1
-                ? t('schedule.slotsGeneratedOne', {
-                    count: successInfo.slotsCreated,
-                    date: formatDateDisplay(date, locale),
-                  })
-                : t('schedule.slotsGeneratedMany', {
-                    count: successInfo.slotsCreated,
-                    date: formatDateDisplay(date, locale),
-                  })}
+              {successMessage}
             </p>
           </div>
         </div>
@@ -619,15 +652,81 @@ function CreateScheduleTab({
             ))}
           </select>
         </div>
-        <div>
-          <label className="label">{t('common.date')}</label>
-          <DatePicker
-            value={date}
-            min={getTodayDateKey()}
-            onChange={setDate}
-          />
-        </div>
       </div>
+
+      <div className="flex gap-2 mb-5">
+        <button
+          type="button"
+          onClick={() => setIsRepetitive(false)}
+          className={`px-3 py-1.5 rounded-lg text-sm ${
+            !isRepetitive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'
+          }`}
+        >
+          {t('schedule.blockOneTime')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsRepetitive(true)}
+          className={`px-3 py-1.5 rounded-lg text-sm ${
+            isRepetitive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'
+          }`}
+        >
+          {t('schedule.blockRepetitive')}
+        </button>
+      </div>
+
+      {isRepetitive ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="label">{t('common.startDate')}</label>
+              <DatePicker
+                value={startDate}
+                min={getTodayDateKey()}
+                onChange={setStartDate}
+              />
+            </div>
+            <div>
+              <label className="label">{t('common.endDate')}</label>
+              <DatePicker
+                value={endDate}
+                min={startDate || getTodayDateKey()}
+                onChange={setEndDate}
+              />
+            </div>
+          </div>
+          <div className="mb-5">
+            <label className="label mb-2">{t('schedule.applyOnDays')}</label>
+            <div className="flex gap-2 flex-wrap">
+              {daysOfWeek.map((day) => (
+                <button
+                  key={day.value}
+                  type="button"
+                  onClick={() => toggleApplyDay(day.value)}
+                  className={`w-12 h-10 rounded-lg text-xs font-medium transition-colors ${
+                    applyDays.includes(day.value)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label className="label">{t('common.date')}</label>
+            <DatePicker
+              value={date}
+              min={getTodayDateKey()}
+              onChange={setDate}
+            />
+          </div>
+        </div>
+      )}
 
       {(() => {
         const overlapIndexes = getDirectOverlappingIndexes(periods);
@@ -655,7 +754,15 @@ function CreateScheduleTab({
               <button
                 onClick={() => createMutation.mutate()}
                 className="btn-primary"
-                disabled={!employeeId || !date || periods.length === 0 || hasAnyOverlap || createMutation.isPending}
+                disabled={
+                  !employeeId
+                  || periods.length === 0
+                  || hasAnyOverlap
+                  || createMutation.isPending
+                  || (isRepetitive
+                    ? !startDate || !endDate || applyDays.length === 0
+                    : !date)
+                }
                 title={hasAnyOverlap ? t('schedule.overlapSaveTitle') : undefined}
               >
                 {createMutation.isPending ? t('common.creating') : t('schedule.createSchedule')}

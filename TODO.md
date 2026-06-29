@@ -811,7 +811,7 @@ User question → normalize → isGuidePrompt? (heuristics)
 - [ ] **ai-guide-1.1.2** — Per-route flow playbooks — `guide-flows/dashboard/*.json`, `guide-flows/provider/*.json`, `guide-flows/customer/*.json`, `guide-flows/public/*.json` (ordered steps + `navigate` targets)
 - [ ] **ai-guide-1.1.3** — Vertical overlays — clinic lab/EMR, tour checkout, retail POS — merge into corpus by `business.vertical`
 - [ ] **ai-guide-1.1.4** — Role overlays — owner vs receptionist vs provider vs customer; hide manager-only topics from employee scope
-- [ ] **ai-guide-1.1.5** — EN/HY/RU parity for every `topicId` — mirror **i18n-clinic-v2** / **lang-1** patterns
+- [x] **ai-guide-1.1.5** — EN/HY/RU parity for every `topicId` — mirror **i18n-clinic-v2** / **lang-1** patterns (dashboard corpus — `ai-guide-corpus.spec.ts`)
 - [x] **ai-guide-1.1.6** — CI gate **`test:ai-guide-corpus`** — every dashboard nav route in `AI_ROUTE_CONTEXT_HINTS` has ≥1 playbook or explicit `no-guide` tag
 
 - [x] **ai-guide-1.2.1** — `AiProductGuideService` — retrieve + rank snippets by `{ route, role, vertical, locale, topicId? }`
@@ -829,7 +829,7 @@ User question → normalize → isGuidePrompt? (heuristics)
 
 - [ ] **ai-guide-1.4.1** — Provider intents — ship **ai-cmd-provider-5.21.1**–**5.21.4**, **5.24.2**, **5.24.4** under unified guide handlers (not one-off strings)
 - [ ] **ai-guide-1.4.2** — Pass `screenContext` + `mobileRoute` into guide retrieval — Today vs Calendar vs Clients vs Profile
-- [ ] **ai-guide-1.4.3** — Contextual suggestion chips on `ProviderAiAssistant` — “What’s on Today?”, “How do I mark paid?”, “Block vs time off?”
+- [x] **ai-guide-1.4.3** — Contextual suggestion chips on `ProviderAiAssistant` — “What’s on Today?”, “How do I mark paid?”, “Block vs time off?” (guide-mode examples + chip; backend handlers **1.4.1** still open)
 - [ ] **ai-guide-1.4.4** — Voice-friendly step summaries (**5.24.5**) reuse guide playbooks
 
 - [ ] **ai-guide-1.5.1** — Extend **`booking_help`** → full booking funnel guide (**ai-cmd-customer-4.2.6**) — step-aware by public booking route / consumer screen
@@ -842,8 +842,8 @@ User question → normalize → isGuidePrompt? (heuristics)
 - [ ] **ai-guide-1.6.2** — ≥10 NL prompt variants **per surface** per top-20 flows (`SIMILAR_APP_GUIDE_PROMPTS` with `id`, `surface`, `topicId`)
 - [ ] **ai-guide-1.6.3** — Rescue + enrich — `rescueProductGuideIntent`, `enrichGuideTopicFromPrompt` on each assistant entry path
 - [ ] **ai-guide-1.6.4** — Eval cases in `eval/ai-command-eval.cases.ts` — tag `surface: dashboard | provider | customer | public`; EN/HY/RU
-- [ ] **ai-guide-1.6.5** — Gate **`npm run test:ai-guide`** — unit + integration + corpus parity + eval slice
-- [ ] **ai-guide-1.6.6** — Compound: “explain then do” — e.g. `guide_user_flow` → `configure_service_online_payment` when user confirms
+- [x] **ai-guide-1.6.5** — Gate **`npm run test:ai-guide`** — unit + integration + corpus parity + eval slice (dashboard eval seeds; four-surface eval **1.6.4** still open)
+- [x] **ai-guide-1.6.6** — Compound: “explain then do” — e.g. `guide_user_flow` → `configure_service_online_payment` when user confirms (dashboard command bar handoff)
 
 - [ ] **ai-guide-1.7.1** — Optional Zendesk / help-center article ids per `topicId` (**polish-2**)
 - [ ] **ai-guide-1.7.2** — “Still stuck?” — support handoff with `{ surface, route, topicId, locale }` snapshot (no PII)
@@ -878,14 +878,14 @@ User question → normalize → isGuidePrompt? (heuristics)
 | Meta-AI help | Users ask about the assistant itself (chips, approval swipe, settings) | **1.8.7** |
 | Corpus drift | UI/route changes without playbook updates → wrong guidance | **1.8.8** |
 
-- [ ] **ai-guide-1.8.1** — **`explain_*` vs `guide_*` routing** — document + enforce: domain explainers (tax, currency, checkout totals) stay on existing handlers; **`explain_app_feature` / `guide_user_flow`** only for navigation, setup flows, and UI semantics; shared rescue disambiguation fixtures
+- [x] **ai-guide-1.8.1** — **`explain_*` vs `guide_*` routing** — document + enforce: domain explainers (tax, currency, checkout totals) stay on existing handlers; **`explain_app_feature` / `guide_user_flow`** only for navigation, setup flows, and UI semantics; shared rescue disambiguation fixtures
 - [ ] **ai-guide-1.8.2** — Multi-turn guide session — `guideFlowId`, `guideStepIndex`, `completedSteps[]` in dashboard + public + customer + provider session merge; “next step” / “go back” / “start over” prompts
 - [ ] **ai-guide-1.8.3** — Post-failure guide fallback — when classify → `unknown`, validator clarify, or handler `success: false`, append contextual guide snippet (“Here's how to … on this page”) — wire **acc-4.7**, **n99-1**
 - [ ] **ai-guide-1.8.4** — Tier / module-gated topics — playbook metadata `requiresPlan`, `requiresModule`; honest “not available on your plan” + upgrade path copy (**gap-6.2**, **gap-7.1**)
 - [ ] **ai-guide-1.8.5** — Registry + **`access-control.matrix.ts`** + **`command-completion.validator.ts`** rows for all guide intents; **`test:ai-cmd-ext`** handler coverage on four surfaces
 - [ ] **ai-guide-1.8.6** — Provider / customer / public **`AiProductGuideService`** dispatch — mirror **1.2.6** in `ProviderAiCommandService`, `CustomerAiCommandService`, `PublicBookingAssistantService` (surface-specific action names where verbs differ)
 - [ ] **ai-guide-1.8.7** — Meta-guide intents — **`explain_ai_settings`**, **`explain_ai_suggestions`**, **`explain_assistant_approval`** (dashboard diff preview + provider swipe confirm); map suggestion chip id → playbook step
-- [ ] **ai-guide-1.8.8** — Corpus maintenance CI — on `frontend` nav / guide page / mobile route change, fail **`test:ai-guide-corpus`** until playbook or `no-guide` updated (**parity-4** pattern)
+- [x] **ai-guide-1.8.8** — Corpus maintenance CI — on `frontend` nav / guide page / mobile route change, fail **`test:ai-guide-corpus`** until playbook or `no-guide` updated (**parity-4** pattern)
 - [ ] **ai-guide-1.8.9** — Permission / empty-state guides — “Why can't I see …?”, “No services shown”, “Stripe not connected” — tie to live business settings + integration health, not static FAQ
 - [ ] **ai-guide-1.8.10** — AI unavailable / quota — when OpenAI disabled or over limit (**ai-0.2**), static fallback to native guide screen + section anchor (**1.9**) or dashboard `/dashboard/guide` — offline provider cache (**5.24.1**)
 

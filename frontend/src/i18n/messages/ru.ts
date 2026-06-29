@@ -1492,6 +1492,8 @@ const ru: MessageTree = {
     createdTitle: 'Расписание создано',
     slotsGeneratedOne: 'Создан {count} слот на {date}',
     slotsGeneratedMany: 'Создано {count} слотов на {date}',
+    slotsGeneratedRepetitive:
+      'Создано {count} слотов за {days} дн. ({start} – {end})',
     createAnother: 'Создать ещё',
     createForDayTitle: 'Расписание на один день',
     createForDayDesc:

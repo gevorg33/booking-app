@@ -2718,6 +2718,8 @@ const hy: MessageTree = {
     createdTitle: 'Գրաֆիկը ստեղծվել է',
     slotsGeneratedOne: '{count} ժամանակահատված ստեղծվել է {date} համար',
     slotsGeneratedMany: '{count} ժամանակահատված ստեղծվել է {date} համար',
+    slotsGeneratedRepetitive:
+      '{count} ժամանակահատված ստեղծվել է {days} օրվա ընթացքում ({start} – {end})',
     createAnother: 'Ստեղծել ևս մեկ',
     createForDayTitle: 'Ստեղծել գրաֆիկ մեկ օրվա համար',
     createForDayDesc:

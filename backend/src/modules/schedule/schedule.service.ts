@@ -38,6 +38,10 @@ import {
   buildScheduleCreationSnapshot,
   deleteScheduleUndoSnapshot,
 } from './schedule-undo-snapshot.util.js';
+import {
+  getRepetitiveDirectScheduleDates,
+  isRepetitiveDirectScheduleDto,
+} from './schedule-direct-days.util.js';
 
 @Injectable()
 export class ScheduleService implements OnModuleInit {
@@ -366,6 +370,101 @@ export class ScheduleService implements OnModuleInit {
     businessId: string,
     dto: CreateDirectScheduleDto,
     userId?: string,
+  ): Promise<{
+    slotsCreated: number;
+    periodIds: string[];
+    slotIds: string[];
+    daysApplied?: number;
+  }> {
+    if (isRepetitiveDirectScheduleDto(dto)) {
+      return this.createRepetitiveDirectSchedule(businessId, dto, userId);
+    }
+
+    if (!dto.date) {
+      throw new BadRequestException(
+        'Provide date for a single day, or startDate, endDate, and applyDays for a repetitive schedule',
+      );
+    }
+
+    return this.createDirectScheduleForDay(businessId, dto, userId);
+  }
+
+  private async createRepetitiveDirectSchedule(
+    businessId: string,
+    dto: CreateDirectScheduleDto,
+    userId?: string,
+  ): Promise<{
+    slotsCreated: number;
+    periodIds: string[];
+    slotIds: string[];
+    daysApplied: number;
+  }> {
+    const startDate = new Date(dto.startDate!);
+    const endDate = new Date(dto.endDate!);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException('Invalid start or end date');
+    }
+    if (startDate < today) {
+      throw new BadRequestException('Cannot create schedule for past dates');
+    }
+    if (endDate < startDate) {
+      throw new BadRequestException('End date must be on or after start date');
+    }
+
+    const dates = getRepetitiveDirectScheduleDates(
+      dto.startDate!,
+      dto.endDate!,
+      dto.applyDays!,
+    );
+    if (dates.length === 0) {
+      throw new BadRequestException(
+        'No dates match the selected weekdays in this range',
+      );
+    }
+
+    let slotsCreated = 0;
+    const periodIds: string[] = [];
+    const slotIds: string[] = [];
+
+    for (const date of dates) {
+      const result = await this.createDirectScheduleForDay(
+        businessId,
+        { ...dto, date },
+        userId,
+        { skipEvent: true },
+      );
+      slotsCreated += result.slotsCreated;
+      periodIds.push(...result.periodIds);
+      slotIds.push(...result.slotIds);
+    }
+
+    await this.eventStore.publish({
+      eventType: EventType.SCHEDULE_SLOTS_GENERATED,
+      aggregateType: 'schedule_slot',
+      aggregateId: dto.employeeId,
+      businessId,
+      payload: {
+        employeeId: dto.employeeId,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        applyDays: dto.applyDays,
+        daysApplied: dates.length,
+        slotsCreated,
+      },
+      userId,
+    });
+
+    return { slotsCreated, periodIds, slotIds, daysApplied: dates.length };
+  }
+
+  private async createDirectScheduleForDay(
+    businessId: string,
+    dto: CreateDirectScheduleDto & { date: string },
+    userId?: string,
+    options?: { skipEvent?: boolean },
   ): Promise<{ slotsCreated: number; periodIds: string[]; slotIds: string[] }> {
     const targetDate = new Date(dto.date);
     if (Number.isNaN(targetDate.getTime())) {
@@ -487,18 +586,20 @@ export class ScheduleService implements OnModuleInit {
       );
     }
 
-    await this.eventStore.publish({
-      eventType: EventType.SCHEDULE_SLOTS_GENERATED,
-      aggregateType: 'schedule_slot',
-      aggregateId: dto.employeeId,
-      businessId,
-      payload: {
-        employeeId: dto.employeeId,
-        date: dto.date,
-        slotsCreated: slotsToSave.length,
-      },
-      userId,
-    });
+    if (!options?.skipEvent) {
+      await this.eventStore.publish({
+        eventType: EventType.SCHEDULE_SLOTS_GENERATED,
+        aggregateType: 'schedule_slot',
+        aggregateId: dto.employeeId,
+        businessId,
+        payload: {
+          employeeId: dto.employeeId,
+          date: dto.date,
+          slotsCreated: slotsToSave.length,
+        },
+        userId,
+      });
+    }
 
     return buildScheduleCreationSnapshot(
       savedPeriods,
