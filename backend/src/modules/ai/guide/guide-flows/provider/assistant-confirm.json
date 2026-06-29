@@ -1,0 +1,17 @@
+{
+  "topicId": "provider-assistant-confirm",
+  "surface": "provider",
+  "routes": ["/tabs/today", "/tabs/calendar", "/tabs/schedule", "/tabs/profile"],
+  "titleKey": "guide.flows.provider.assistantConfirm.title",
+  "summaryKey": "guide.flows.provider.assistantConfirm.summary",
+  "navigateTarget": { "path": "/tabs/today" },
+  "keywords": ["swipe to confirm", "confirm swipe", "what will change", "bulk confirm"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.assistantConfirm.step1"
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.provider.assistantConfirm.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.provider.assistantConfirm.step3" }
+  ]
+}

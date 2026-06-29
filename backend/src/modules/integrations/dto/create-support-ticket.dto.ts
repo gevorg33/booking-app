@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsEmail,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -40,4 +41,9 @@ export class CreateSupportTicketDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  /** Non-PII product guide snapshot from ai-guide-1.7.2 Still stuck? handoff. */
+  @IsOptional()
+  @IsObject()
+  guideSnapshot?: Record<string, unknown>;
 }

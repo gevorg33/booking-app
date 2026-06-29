@@ -43,7 +43,9 @@ export function BookingServiceCalendar({
   );
 
   useEffect(() => {
-    setViewMonthKey(monthKeyFromDateKey(selectedDateKey || minDateKey));
+    queueMicrotask(() => {
+      setViewMonthKey(monthKeyFromDateKey(selectedDateKey || minDateKey));
+    });
   }, [minDateKey, selectedDateKey]);
 
   useEffect(() => {

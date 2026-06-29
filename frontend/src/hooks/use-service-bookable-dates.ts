@@ -27,14 +27,20 @@ export function useServiceBookableDates({
 }: Params) {
   const bookableDatesRef = useRef<Set<string>>(new Set());
   const scannedDatesRef = useRef<Set<string>>(new Set());
-  const [version, setVersion] = useState(0);
+  const [bookableDates, setBookableDates] = useState<Set<string>>(() => new Set());
+  const [scannedDates, setScannedDates] = useState<Set<string>>(() => new Set());
   const [scanning, setScanning] = useState(false);
+
+  const syncSnapshot = useCallback(() => {
+    setBookableDates(new Set(bookableDatesRef.current));
+    setScannedDates(new Set(scannedDatesRef.current));
+  }, []);
 
   const reset = useCallback(() => {
     bookableDatesRef.current = new Set();
     scannedDatesRef.current = new Set();
-    setVersion((current) => current + 1);
-  }, []);
+    syncSnapshot();
+  }, [syncSnapshot]);
 
   const scanDates = useCallback(
     async (fromKey: string, toKey: string) => {
@@ -69,16 +75,18 @@ export function useServiceBookableDates({
             }
           }
         }
-        setVersion((current) => current + 1);
+        syncSnapshot();
       } finally {
         setScanning(false);
       }
     },
-    [enabled, serviceId, slug],
+    [enabled, serviceId, slug, syncSnapshot],
   );
 
   useEffect(() => {
-    reset();
+    queueMicrotask(() => {
+      reset();
+    });
     if (!enabled || !slug || !serviceId) return;
     const startDateKey = minDateKey.slice(0, 10);
     const endDateKey = addDaysToDateKey(
@@ -87,9 +95,6 @@ export function useServiceBookableDates({
     );
     void scanDates(startDateKey, endDateKey);
   }, [enabled, minDateKey, reset, scanDates, serviceId, slug]);
-
-  const bookableDates = useMemo(() => new Set(bookableDatesRef.current), [version]);
-  const scannedDates = useMemo(() => new Set(scannedDatesRef.current), [version]);
 
   const isDateEnabled = useMemo(
     () =>

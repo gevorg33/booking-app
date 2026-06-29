@@ -982,6 +982,19 @@ export function sendPublicAssistantMessage(
   });
 }
 
+export function ingestPublicGuideTelemetryEvents(
+  slug: string,
+  events: readonly import('@/lib/guide-telemetry.util').GuideTelemetryClientEvent[],
+) {
+  return publicFetch<{ recorded: number; skipped: number }>(
+    `/public/${slug}/assistant/guide-telemetry`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ events }),
+    },
+  );
+}
+
 export interface PublicRecommendationProduct {
   id: string;
   name: string;

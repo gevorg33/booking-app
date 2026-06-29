@@ -21,8 +21,8 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
     }
   });
 
-  it('wires PRODUCT_GUIDE_CLASSIFIER_RULES into INTENT_SCHEMA appendix', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('${PRODUCT_GUIDE_CLASSIFIER_RULES}');
+  it('wires APP_GUIDE_CLASSIFIER_RULES into INTENT_SCHEMA appendix', () => {
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain('${APP_GUIDE_CLASSIFIER_RULES}');
     expect(AI_COMMAND_SERVICE_SOURCE).toContain(
       '- explain_app_feature: READ — UI feature semantics',
     );
@@ -58,6 +58,8 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
       expect(AI_COMMAND_SERVICE_SOURCE).toContain(`case '${intent}':`);
     }
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('dispatchProductGuideIntent');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain('rescueProductGuideIntent');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain('enrichGuideTopicFromPrompt');
     expect(AI_COMMAND_SERVICE_SOURCE).toContain(
       'resolveProductGuideSessionContext',
     );
@@ -97,6 +99,15 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
       route: '/dashboard/schedule',
       locale: 'hy',
       vertical: 'clinic',
+      businessType: undefined,
+      role: undefined,
+      roleProfile: undefined,
+      retailPosEnabled: undefined,
+      enabledModules: undefined,
+      planTierId: 'solo',
+      mobileRoute: undefined,
+      screenTab: undefined,
+      surface: 'dashboard',
     });
   });
 });

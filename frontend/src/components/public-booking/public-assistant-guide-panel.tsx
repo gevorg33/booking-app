@@ -5,18 +5,38 @@ import { ChevronRight } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import type { AiGuideResponse } from '@/lib/ai-client.types';
 import { hasPublicAssistantGuideSteps } from '@/lib/public-assistant-guide.util';
+import { GuideStillStuckButton } from '@/components/guide-still-stuck-button';
+import {
+  buildGuideStepCompletedEvent,
+  createGuideTelemetrySessionId,
+} from '@/lib/guide-telemetry.util';
+import { ingestPublicGuideTelemetryEvents } from '@/lib/public-api';
 
 interface PublicAssistantGuidePanelProps {
   guide: AiGuideResponse;
+  slug: string;
   onNavigate?: (url: string) => void;
 }
 
 export function PublicAssistantGuidePanel({
   guide,
+  slug,
   onNavigate,
 }: PublicAssistantGuidePanelProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [cursor, setCursor] = useState(0);
+  const [telemetrySessionId] = useState(() => createGuideTelemetrySessionId());
+  const telemetrySurface = guide.supportHandoff?.snapshot.surface ?? 'public';
+  const telemetryRoute = guide.supportHandoff?.snapshot.route;
+  const recordGuideTelemetry = async (
+    events: ReturnType<typeof buildGuideStepCompletedEvent>[],
+  ) => {
+    try {
+      await ingestPublicGuideTelemetryEvents(slug, events);
+    } catch {
+      // Non-blocking telemetry (acc-1).
+    }
+  };
 
   if (!hasPublicAssistantGuideSteps(guide)) return null;
 
@@ -28,6 +48,7 @@ export function PublicAssistantGuidePanel({
   const stepNavigate = step.navigate;
   const guideNavigate = guide.navigate;
   const navigateTarget = stepNavigate ?? (atEnd ? guideNavigate : undefined);
+  const supportHandoff = atEnd ? guide.supportHandoff : undefined;
 
   return (
     <div className="space-y-3">
@@ -46,7 +67,20 @@ export function PublicAssistantGuidePanel({
           {!atEnd ? (
             <button
               type="button"
-              onClick={() => setCursor((current) => Math.min(current + 1, steps.length - 1))}
+              onClick={() => {
+                void recordGuideTelemetry([
+                  buildGuideStepCompletedEvent({
+                    surface: telemetrySurface,
+                    topicId: guide.topicId,
+                    route: telemetryRoute,
+                    locale,
+                    sessionId: telemetrySessionId,
+                    stepIndex: cursor,
+                    totalSteps: steps.length,
+                  }),
+                ]);
+                setCursor((current) => Math.min(current + 1, steps.length - 1));
+              }}
               className="text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white flex items-center gap-1"
             >
               {t('ai.guideNextStep')}
@@ -66,6 +100,13 @@ export function PublicAssistantGuidePanel({
             >
               {t('ai.guideOpenInApp')}
             </button>
+          ) : null}
+          {supportHandoff ? (
+            <GuideStillStuckButton
+              handoff={supportHandoff}
+              onSubmit={async () => undefined}
+              className="text-xs px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 inline-flex items-center gap-1"
+            />
           ) : null}
         </div>
       </div>

@@ -151,6 +151,7 @@ export type ConsumerCopy = {
   assistantGuideStepOf: string;
   assistantGuideNextStep: string;
   assistantGuideOpenInApp: string;
+  assistantGuideStillStuck: string;
   assistantPlaceholder: string;
   assistantThinking: string;
   assistantContinueBooking: string;
@@ -164,6 +165,9 @@ export type ConsumerCopy = {
   assistantExampleGuideCheckout: string;
   assistantExampleGuideServices: string;
   assistantExampleGuideLocation: string;
+  assistantFallbackProvider: string;
+  assistantFallbackService: string;
+  assistantFallbackServiceCategory: string;
   assistantDiscoverChipsTitle: string;
   assistantDiscoverChipUnder50: string;
   assistantDiscoverPromptUnder50: string;

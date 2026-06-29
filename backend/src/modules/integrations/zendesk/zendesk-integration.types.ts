@@ -38,6 +38,11 @@ export interface ZendeskPublicWidgetConfig {
   widgetKey: string;
 }
 
+export interface ZendeskDashboardWidgetContext {
+  widgetKey: string | null;
+  subdomain?: string;
+}
+
 export function getBusinessZendeskIntegration(
   settings?: Record<string, unknown>,
 ): BusinessZendeskIntegration {

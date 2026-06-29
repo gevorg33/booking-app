@@ -36,6 +36,8 @@ import {
   ProviderAiConfirmDto,
 } from './dto/provider-ai-command.dto.js';
 import { AiGatewayService } from '../ai/ai-gateway.service.js';
+import { GuideTelemetryService } from '../ai/guide-telemetry.service.js';
+import { IngestGuideTelemetryDto } from '../ai/dto/ingest-guide-telemetry.dto.js';
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import { ProviderAiSuggestionsService } from './provider-ai-suggestions.service.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
@@ -54,6 +56,7 @@ export class ProviderMobileController {
     private providerAiSuggestions: ProviderAiSuggestionsService,
     private pushActions: ProviderPushActionService,
     private pushHistory: ProviderPushHistoryService,
+    private guideTelemetry: GuideTelemetryService,
   ) {}
 
   @Get('context')
@@ -104,6 +107,19 @@ export class ProviderMobileController {
     @Body() dto: ProviderAiConfirmDto,
   ) {
     return this.providerAi.confirmAction(businessId, user.id, dto);
+  }
+
+  @Post('ai/guide-telemetry')
+  ingestGuideTelemetry(
+    @Param('businessId') businessId: string,
+    @Body() dto: IngestGuideTelemetryDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.guideTelemetry.ingestClientEvents(
+      businessId,
+      dto.events,
+      user.id,
+    );
   }
 
   @Get('ai/suggestions')

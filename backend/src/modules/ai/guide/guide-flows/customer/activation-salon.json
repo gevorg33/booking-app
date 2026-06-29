@@ -1,0 +1,24 @@
+{
+  "topicId": "consumer-activation-salon",
+  "surface": "customer",
+  "routes": ["/consumer/salon"],
+  "titleKey": "guide.flows.customer.activation.salon.title",
+  "summaryKey": "guide.flows.customer.activation.salon.summary",
+  "navigateTarget": { "path": "home" },
+  "keywords": ["pick salon", "choose business", "recent salons", "salon home"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.customer.activation.salon.step1",
+      "navigate": { "path": "home" }
+    },
+    {
+      "titleKey": "guide.flows.common.step2",
+      "bodyKey": "guide.flows.customer.activation.salon.step2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "bodyKey": "guide.flows.customer.activation.salon.step3"
+    }
+  ]
+}

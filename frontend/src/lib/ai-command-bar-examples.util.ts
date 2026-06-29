@@ -34,7 +34,7 @@ export function resolveCommandBarExamples(input: {
 
   const route = resolveCommandBarRoute(input.pathname);
   const guideExamples = buildCommandBarGuideExamples(route, input.t);
-  const routeActions = getLocalizedPageSuggestions(route, input.t);
+  const routeActions = getLocalizedPageSuggestions(route, input.t, input.tenant);
   const fallbackActions = buildAiCommandBarExamples(input.tenant, input.t);
   const actionExamples = routeActions.length > 0 ? routeActions : fallbackActions;
 

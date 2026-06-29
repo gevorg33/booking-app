@@ -52,14 +52,12 @@ export function AnyAvailabilityClient({
   const [slotError, setSlotError] = useState<string | null>(null);
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (bookableDatesScanning) return;
-    if (bookableDates.has(selectedDateKey)) return;
-    if (firstBookableDateKey && firstBookableDateKey !== selectedDateKey) {
-      setSelectedDateKey(firstBookableDateKey);
-      setSelectedStartTime(null);
-    }
-  }, [bookableDates, bookableDatesScanning, firstBookableDateKey, selectedDateKey]);
+  const resolvedDateKey =
+    !bookableDatesScanning &&
+    firstBookableDateKey &&
+    !bookableDates.has(selectedDateKey)
+      ? firstBookableDateKey
+      : selectedDateKey;
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +67,7 @@ export function AnyAvailabilityClient({
       setSelectedStartTime(null);
     });
 
-    getPublicServiceDaySlots(slug, service.id, selectedDateKey)
+    getPublicServiceDaySlots(slug, service.id, resolvedDateKey)
       .then((res) => {
         if (!cancelled) setSlots(res.slots);
       })
@@ -86,7 +84,7 @@ export function AnyAvailabilityClient({
     return () => {
       cancelled = true;
     };
-  }, [slug, service.id, selectedDateKey, t]);
+  }, [slug, service.id, resolvedDateKey, t]);
 
   const checkoutHref = useMemo(() => {
     if (!selectedStartTime) return null;
@@ -118,7 +116,7 @@ export function AnyAvailabilityClient({
         <p className="text-sm text-gray-500 mb-5">{service.name}</p>
 
         <BookingServiceCalendar
-          selectedDateKey={selectedDateKey}
+          selectedDateKey={resolvedDateKey}
           onSelectDateKey={onSelectDateKey}
           primaryColor={primary}
           minDateKey={minDateKey}

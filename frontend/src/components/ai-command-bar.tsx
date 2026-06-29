@@ -199,7 +199,12 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     queryKey: ['services', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/services`);
-      return (data.data || data || []) as Array<{ id: string; name: string; isActive?: boolean }>;
+      return (data.data || data || []) as Array<{
+        id: string;
+        name: string;
+        isActive?: boolean;
+        category?: { name?: string | null } | null;
+      }>;
     },
     enabled: !!business?.id,
     staleTime: 60_000,
@@ -210,7 +215,15 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
       resolveCommandBarExamples({
         variant: isOnboarding ? 'onboarding' : 'dashboard',
         onboardingStep,
-        tenant: { employees, services },
+        tenant: {
+          employees,
+          services: services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            isActive: service.isActive,
+            categoryName: service.category?.name ?? null,
+          })),
+        },
         t,
         pathname,
         guideMode,

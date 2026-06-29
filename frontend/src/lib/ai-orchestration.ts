@@ -526,9 +526,10 @@ export const AI_PAGE_SUGGESTION_GROUPS: Record<string, AiPageSuggestionGroup[]> 
 export function getAiPageSuggestionGroups(
   route: string,
   t?: AiTranslateFn,
+  ctx?: import('./ai-assistant-i18n').AssistantExampleTenantInput | null,
 ): AiPageSuggestionGroup[] {
   if (t) {
-    return getLocalizedAiPageSuggestionGroups(route, t);
+    return getLocalizedAiPageSuggestionGroups(route, t, ctx);
   }
   const grouped = AI_PAGE_SUGGESTION_GROUPS[route];
   if (grouped?.length) return grouped;
@@ -653,8 +654,12 @@ export function getBrowserTimeZone(): string {
   }
 }
 
-export function getSuggestionsForRoute(route: string, t?: AiTranslateFn): string[] {
-  if (t) return getLocalizedPageSuggestions(route, t);
+export function getSuggestionsForRoute(
+  route: string,
+  t?: AiTranslateFn,
+  ctx?: import('./ai-assistant-i18n').AssistantExampleTenantInput | null,
+): string[] {
+  if (t) return getLocalizedPageSuggestions(route, t, ctx);
   return AI_PAGE_SUGGESTIONS[route] ?? AI_BOOKING_EXAMPLES.slice(0, 4);
 }
 

@@ -178,6 +178,295 @@
         "limitationsBody": "Orchestrix assists scheduling — it does not replace your judgment on pricing, payroll, or client communication. Complex edge cases may need manual edits. AI quality depends on your OpenAI connection and complete booking data.",
         "readyTitle": "Ready to try Orchestrix?",
         "readyBody": "Open AI Operations or use the command bar from any dashboard page."
+      },
+      "flows": {
+        "common": {
+          "step1": "Step 1",
+          "step2": "Step 2",
+          "step3": "Step 3",
+          "step4": "Step 4",
+          "step5": "Step 5"
+        },
+        "provider": {
+          "gettingStarted": {
+            "title": "Getting started in the provider app",
+            "summary": "Sign in, accept your invite, and enable push notifications.",
+            "step1": "Open the invite email and tap Accept invite to install or open the app.",
+            "step2": "Sign in with the same email your manager invited.",
+            "step3": "Allow push notifications so you get booking reminders and AI suggestions."
+          },
+          "todayCalendar": {
+            "title": "Today, Calendar, and Schedule tabs",
+            "summary": "Use Today for your day, Calendar for week view, Schedule to block time.",
+            "step1": "Today lists upcoming appointments with quick actions.",
+            "step2": "Calendar shows your week; tap a slot for details.",
+            "step3": "Schedule is where you block time or request time off."
+          },
+          "appointments": {
+            "title": "Appointment actions",
+            "summary": "Check in clients, mark paid, and add notes from booking details.",
+            "voiceSummary": "Check in clients, mark paid, and add notes from Today or Calendar.",
+            "step1": "Open an appointment from Today or Calendar.",
+            "step2": "Tap Check in when the client arrives.",
+            "step3": "Use Mark paid after collecting payment.",
+            "step4": "Add client notes for preferences or allergies.",
+            "voiceStep1": "Open an appointment from Today or Calendar.",
+            "voiceStep2": "Check in when the client arrives.",
+            "voiceStep3": "Mark paid after collecting payment.",
+            "voiceStep4": "Add client notes for preferences or allergies."
+          },
+          "scheduleBlocks": {
+            "title": "Block my time vs block schedule",
+            "summary": "Block personal time on your calendar or block bookable schedule slots.",
+            "step1": "Open the Schedule tab.",
+            "step2": "Choose Block my time for lunch or breaks on your calendar.",
+            "step3": "Use Block schedule when the whole team should stop taking bookings."
+          },
+          "teamManager": {
+            "title": "Team view (managers)",
+            "summary": "Managers can see all providers and team calendars.",
+            "step1": "Open Profile and confirm your role is manager or owner.",
+            "step2": "Switch between providers in Calendar to review coverage.",
+            "step3": "Use AI team suggestions only after reviewing live bookings."
+          },
+          "assistant": {
+            "title": "Provider AI assistant",
+            "summary": "Ask in plain language and swipe to confirm actions.",
+            "step1": "Tap the AI FAB on any tab.",
+            "step2": "Try chips like Mark paid or Running late.",
+            "step3": "Swipe to confirm before changes go live."
+          },
+          "giftCards": {
+            "title": "Gift card fulfillment",
+            "summary": "Redeem and fulfill gift cards from the Gift cards tab.",
+            "step1": "Open Gift cards when the tab is enabled for your business.",
+            "step2": "Scan or enter a code to validate balance.",
+            "step3": "Complete fulfillment and hand the receipt to the client."
+          },
+          "staffInvite": {
+            "title": "Staff invite link",
+            "summary": "Accept your manager's invite to join the provider app.",
+            "step1": "Open the invite link from email or SMS — it lands on Accept invite.",
+            "step2": "Sign in with the same email address your manager invited.",
+            "step3": "Tap Accept to link your account and open Today for your schedule."
+          },
+          "profileSettings": {
+            "title": "Profile settings",
+            "summary": "Update how clients see you in the app.",
+            "step1": "Open the Profile tab.",
+            "step2": "Tap Edit profile to change display name, title, or avatar photo.",
+            "step3": "Save — clients see updates on booking confirmations and messages."
+          },
+          "viewScope": {
+            "title": "My calendar vs team view",
+            "summary": "Control whether you see only your bookings or the whole team.",
+            "step1": "Open Profile and check View mode — My calendar shows only your appointments.",
+            "step2": "Team view (managers) shows all providers; switch back to My calendar if you only need yours.",
+            "step3": "Managers can still open Calendar and pick another provider to review coverage."
+          },
+          "assistantConfirm": {
+            "title": "Swipe to confirm",
+            "summary": "Review what will change before bulk or mutating AI actions run.",
+            "step1": "When AI proposes cancel, mark paid, or other changes, a preview card appears.",
+            "step2": "Read the summary — it lists affected bookings or settings.",
+            "step3": "Swipe to confirm only when the preview matches what you intended."
+          },
+          "compoundSteps": {
+            "title": "Multi-step AI commands",
+            "summary": "Compound prompts run one step at a time with shared context.",
+            "step1": "Say combined requests with \"and\" or \"then\" — e.g. open push and mark paid.",
+            "step2": "The assistant runs the first step, then carries bookingId or date into the next.",
+            "step3": "Each mutating step still shows swipe-to-confirm before it executes."
+          },
+          "calendarView": {
+            "title": "Calendar tab",
+            "summary": "Browse your month, see utilization bands, and open a day's appointments.",
+            "step1": "Open Calendar to see the month grid with color bands for how full each day is.",
+            "step2": "Tap a day to load that date's appointment list below the grid.",
+            "step3": "Tap an appointment card to check in, mark paid, or add notes."
+          },
+          "voiceNextClient": {
+            "found": "Your next client is {customerName} at {time} for {serviceName}.",
+            "empty": "You have no upcoming appointments for the rest of today.",
+            "multiple": "Your next client is {customerName} at {time} for {serviceName}. You have {count} more upcoming today."
+          }
+        },
+        "customer": {
+          "gettingStarted": {
+            "title": "Getting started",
+            "summary": "Welcome → pick salon → service → slot → confirm your first booking.",
+            "step1": "Open the app welcome screen or follow your salon link.",
+            "step2": "Search or pick a salon from recent visits.",
+            "step3": "Open Services and choose the treatment you need.",
+            "step4": "Pick an open time slot — nearest available may be pre-selected.",
+            "step5": "Review details on the confirm step and save your booking."
+          },
+          "activation": {
+            "welcome": {
+              "title": "Welcome",
+              "summary": "Start here before you pick a salon.",
+              "step1": "Open the consumer app or tap your booking link.",
+              "step2": "Browse recent salons or search by name.",
+              "step3": "Tap a salon to open its home screen and continue."
+            },
+            "salon": {
+              "title": "Pick your salon",
+              "summary": "Choose the business where you want to book.",
+              "step1": "Confirm you are on the salon home screen.",
+              "step2": "Review promotions and upcoming bookings if shown.",
+              "step3": "Open Services to pick what you need next."
+            },
+            "service": {
+              "title": "Choose a service",
+              "summary": "Select the appointment type before picking a time.",
+              "step1": "Browse categories and compare duration and price.",
+              "step2": "Tap a service to open the booking calendar.",
+              "step3": "Continue to the time step when you are ready."
+            },
+            "slot": {
+              "title": "Pick a time",
+              "summary": "Choose an open slot from the calendar.",
+              "step1": "Review the suggested nearest slot if one is pre-selected.",
+              "step2": "Change the day or time if you need a different slot.",
+              "step3": "Select a slot to move to confirm."
+            },
+            "confirm": {
+              "title": "Confirm your booking",
+              "summary": "Review everything before you submit.",
+              "step1": "Check service, provider, date, and time.",
+              "step2": "Add notes or apply packages if offered.",
+              "step3": "Confirm and save your confirmation."
+            }
+          },
+          "tabs": {
+            "title": "Home, Services, and Account",
+            "summary": "Navigate the consumer app tabs.",
+            "step1": "Home shows upcoming bookings and promotions.",
+            "step2": "Services lists bookable categories and packages.",
+            "step3": "Account holds profile, notifications, and Help & guide."
+          },
+          "bookingFlow": {
+            "title": "Book an appointment",
+            "summary": "Professional → service → slot → checkout → confirmation.",
+            "step1": "Pick a professional or choose Any available.",
+            "step2": "Select the service and add-ons you need.",
+            "step3": "Choose an open slot from the calendar.",
+            "step4": "Complete checkout and save the confirmation."
+          },
+          "packages": {
+            "title": "Packages and gift cards",
+            "summary": "Buy bundles, subscriptions, or gift cards when offered.",
+            "step1": "Open Packages from Services or Account.",
+            "step2": "Review what is included and expiry rules.",
+            "step3": "Purchase and apply at checkout on your next booking."
+          },
+          "account": {
+            "title": "Account and bookings",
+            "summary": "Sign in, update profile, and manage upcoming visits.",
+            "step1": "Sign in with email or phone OTP.",
+            "step2": "Update profile details and notification preferences.",
+            "step3": "Reschedule or cancel from upcoming bookings when allowed."
+          },
+          "assistant": {
+            "title": "Consumer AI assistant",
+            "summary": "Ask booking questions with example prompts.",
+            "step1": "Tap the AI chip on booking screens.",
+            "step2": "Try suggested prompts or type your question.",
+            "step3": "Use feedback if an answer was wrong."
+          }
+        },
+        "public": {
+          "bookingFunnel": {
+            "title": "Book online",
+            "summary": "Anonymous visitors can book without an account when enabled.",
+            "step1": "Pick a service from the public booking page.",
+            "step2": "Choose a professional and available slot.",
+            "step3": "Enter contact details and confirm."
+          },
+          "professionals": {
+            "title": "Choose a professional",
+            "summary": "Pick who you want to see before choosing a service or time.",
+            "step1": "Browse the Professionals page and compare bios or ratings.",
+            "step2": "Tap a provider to see their services and open times.",
+            "step3": "Continue to Services or pick a slot to move toward checkout."
+          },
+          "services": {
+            "title": "Pick a service",
+            "summary": "Select the treatment or appointment type you need.",
+            "step1": "Open Services after choosing a professional (or from the menu).",
+            "step2": "Compare duration, price, and description for each service.",
+            "step3": "Tap a service to load available times and continue to checkout."
+          },
+          "checkout": {
+            "title": "Public checkout",
+            "summary": "Pay deposits or full amounts during online checkout.",
+            "step1": "Review price, duration, and cancellation policy.",
+            "step2": "Enter payment details if prepayment is required.",
+            "step3": "Save the confirmation email or SMS."
+          },
+          "availability": {
+            "title": "Check availability",
+            "summary": "See open slots before you commit to checkout.",
+            "step1": "Select a service to load the calendar.",
+            "step2": "Use next available or pick a specific day.",
+            "step3": "Slots update when the business calendar changes."
+          }
+        },
+        "overlays": {
+          "clinic": {
+            "consumer": {
+              "title": "Lab results and requests",
+              "summary": "Clinic customers can view lab results and preparation notes.",
+              "step1": "Open Results or Lab from the bottom tabs when enabled.",
+              "step2": "Review preparation instructions before your visit.",
+              "step3": "Download or share results when released by the clinic."
+            },
+            "provider": {
+              "title": "Clinic lab workflows",
+              "summary": "Collect specimens, enter results, and open patient charts.",
+              "step1": "Use Lab collection for specimen intake.",
+              "step2": "Enter or review results under Lab results.",
+              "step3": "Open Patients for chart history when authorized."
+            },
+            "dashboard": {
+              "title": "Clinic lab and EMR",
+              "summary": "Manage lab orders and results from Operations.",
+              "step1": "Open Operations for lab order queues.",
+              "step2": "Link results to the correct customer and booking.",
+              "step3": "Use AI guide chips for clinic-specific setup tasks."
+            }
+          },
+          "tour": {
+            "checkout": {
+              "title": "Tour checkout",
+              "summary": "Group tours may require deposits and party size.",
+              "step1": "Confirm party size and tour date.",
+              "step2": "Pay the deposit shown at checkout.",
+              "step3": "Save the confirmation with meeting point details."
+            },
+            "packages": {
+              "title": "Tour packages",
+              "summary": "Bundle multiple tour dates or add-ons.",
+              "step1": "Browse tour packages from Services.",
+              "step2": "Check group limits and blackout dates."
+            }
+          },
+          "retail": {
+            "dashboard": {
+              "title": "Retail POS",
+              "summary": "Ring up product sales alongside appointments.",
+              "step1": "Enable retail products in Operations inventory.",
+              "step2": "Train staff on POS checkout from the provider app.",
+              "step3": "Review retail revenue in Reports."
+            },
+            "provider": {
+              "title": "Retail sale from Today",
+              "summary": "Add product sales during a visit.",
+              "step1": "Open the appointment or walk-in sale flow.",
+              "step2": "Scan or pick products and complete payment."
+            }
+          }
+        }
       }
     },
     "helpCenter": {
@@ -399,6 +688,295 @@
         "limitationsBody": "AI-ն օգնական է, ոչ փոխարինող",
         "readyTitle": "Պատրա՞ստ եք փորձել",
         "readyBody": "Բացեք AI Operations կամ command bar"
+      },
+      "flows": {
+        "common": {
+          "step1": "Քայլ 1",
+          "step2": "Քայլ 2",
+          "step3": "Քայլ 3",
+          "step4": "Քայլ 4",
+          "step5": "Քայլ 5"
+        },
+        "provider": {
+          "gettingStarted": {
+            "title": "Սկսել provider հավելվածում",
+            "summary": "Sign in, accept your invite, and enable push notifications.",
+            "step1": "Open the invite email and tap Accept invite to install or open the app.",
+            "step2": "Sign in with the same email your manager invited.",
+            "step3": "Allow push notifications so you get booking reminders and AI suggestions."
+          },
+          "todayCalendar": {
+            "title": "Today, Calendar, and Schedule tabs",
+            "summary": "Use Today for your day, Calendar for week view, Schedule to block time.",
+            "step1": "Today lists upcoming appointments with quick actions.",
+            "step2": "Calendar shows your week; tap a slot for details.",
+            "step3": "Schedule is where you block time or request time off."
+          },
+          "appointments": {
+            "title": "Appointment actions",
+            "summary": "Check in clients, mark paid, and add notes from booking details.",
+            "voiceSummary": "Check in clients, mark paid, and add notes from Today or Calendar.",
+            "step1": "Open an appointment from Today or Calendar.",
+            "step2": "Tap Check in when the client arrives.",
+            "step3": "Use Mark paid after collecting payment.",
+            "step4": "Add client notes for preferences or allergies.",
+            "voiceStep1": "Open an appointment from Today or Calendar.",
+            "voiceStep2": "Check in when the client arrives.",
+            "voiceStep3": "Mark paid after collecting payment.",
+            "voiceStep4": "Add client notes for preferences or allergies."
+          },
+          "scheduleBlocks": {
+            "title": "Block my time vs block schedule",
+            "summary": "Block personal time on your calendar or block bookable schedule slots.",
+            "step1": "Open the Schedule tab.",
+            "step2": "Choose Block my time for lunch or breaks on your calendar.",
+            "step3": "Use Block schedule when the whole team should stop taking bookings."
+          },
+          "teamManager": {
+            "title": "Team view (managers)",
+            "summary": "Managers can see all providers and team calendars.",
+            "step1": "Open Profile and confirm your role is manager or owner.",
+            "step2": "Switch between providers in Calendar to review coverage.",
+            "step3": "Use AI team suggestions only after reviewing live bookings."
+          },
+          "assistant": {
+            "title": "Provider AI assistant",
+            "summary": "Ask in plain language and swipe to confirm actions.",
+            "step1": "Tap the AI FAB on any tab.",
+            "step2": "Try chips like Mark paid or Running late.",
+            "step3": "Swipe to confirm before changes go live."
+          },
+          "giftCards": {
+            "title": "Gift card fulfillment",
+            "summary": "Redeem and fulfill gift cards from the Gift cards tab.",
+            "step1": "Open Gift cards when the tab is enabled for your business.",
+            "step2": "Scan or enter a code to validate balance.",
+            "step3": "Complete fulfillment and hand the receipt to the client."
+          },
+          "staffInvite": {
+            "title": "Staff invite link",
+            "summary": "Accept your manager's invite to join the provider app.",
+            "step1": "Open the invite link from email or SMS — it lands on Accept invite.",
+            "step2": "Sign in with the same email address your manager invited.",
+            "step3": "Tap Accept to link your account and open Today for your schedule."
+          },
+          "profileSettings": {
+            "title": "Profile settings",
+            "summary": "Update how clients see you in the app.",
+            "step1": "Open the Profile tab.",
+            "step2": "Tap Edit profile to change display name, title, or avatar photo.",
+            "step3": "Save — clients see updates on booking confirmations and messages."
+          },
+          "viewScope": {
+            "title": "My calendar vs team view",
+            "summary": "Control whether you see only your bookings or the whole team.",
+            "step1": "Open Profile and check View mode — My calendar shows only your appointments.",
+            "step2": "Team view (managers) shows all providers; switch back to My calendar if you only need yours.",
+            "step3": "Managers can still open Calendar and pick another provider to review coverage."
+          },
+          "assistantConfirm": {
+            "title": "Swipe to confirm",
+            "summary": "Review what will change before bulk or mutating AI actions run.",
+            "step1": "When AI proposes cancel, mark paid, or other changes, a preview card appears.",
+            "step2": "Read the summary — it lists affected bookings or settings.",
+            "step3": "Swipe to confirm only when the preview matches what you intended."
+          },
+          "compoundSteps": {
+            "title": "Multi-step AI commands",
+            "summary": "Compound prompts run one step at a time with shared context.",
+            "step1": "Say combined requests with \"and\" or \"then\" — e.g. open push and mark paid.",
+            "step2": "The assistant runs the first step, then carries bookingId or date into the next.",
+            "step3": "Each mutating step still shows swipe-to-confirm before it executes."
+          },
+          "calendarView": {
+            "title": "Calendar tab",
+            "summary": "Browse your month, see utilization bands, and open a day's appointments.",
+            "step1": "Open Calendar to see the month grid with color bands for how full each day is.",
+            "step2": "Tap a day to load that date's appointment list below the grid.",
+            "step3": "Tap an appointment card to check in, mark paid, or add notes."
+          },
+          "voiceNextClient": {
+            "found": "Your next client is {customerName} at {time} for {serviceName}.",
+            "empty": "You have no upcoming appointments for the rest of today.",
+            "multiple": "Your next client is {customerName} at {time} for {serviceName}. You have {count} more upcoming today."
+          }
+        },
+        "customer": {
+          "gettingStarted": {
+            "title": "Սկսել",
+            "summary": "Բարի լույս → ընտրեք սրահ → ծառայություն → ժամ → հաստատեք առաջին ամրագրումը։",
+            "step1": "Բացեք հավելվածը կամ հետևեք ձեր սրահի ամրագրման հղմանը։",
+            "step2": "Գտեք սրահը կամ ընտրեք ձեր վերջին այցելություններից։",
+            "step3": "Բացեք «Ծառայություններ» և ընտրեք անհրաժեշտ ծառայությունը։",
+            "step4": "Ընտրեք ազատ ժամ — մոտակա slot-ը կարող է արդեն ընտրված լինել։",
+            "step5": "Հաստատման քայլում ստուգեք մանրամասները և պահպանեք ամրագրումը։"
+          },
+          "activation": {
+            "welcome": {
+              "title": "Բարի լույս",
+              "summary": "Սկսեք այստեղից, նախքան սրահ ընտրելը։",
+              "step1": "Բացեք հավելվածը կամ սեղմեք ամրագրման հղմանը։",
+              "step2": "Դիտեք վերջին սրահները կամ որոնեք անվամբ։",
+              "step3": "Սեղմեք սրահի վրա՝ դրա գլխավոր էկրանը բացելու և շարունակելու համար։"
+            },
+            "salon": {
+              "title": "Ընտրեք սրահ",
+              "summary": "Ընտրեք այն բիզնեսը, որտեղ ցանկանում եք ամրագրել։",
+              "step1": "Համոզվեք, որ գտնվում եք սրահի գլխավոր էկran-ում։",
+              "step2": "Դիտեք առաջարկները և առաջիկա ամրագրումները, եթե ցուցադրվում են։",
+              "step3": "Բացեք «Ծառայություններ»՝ հաջորդ քայլին անցնելու համար։"
+            },
+            "service": {
+              "title": "Ընտրեք ծառայություն",
+              "summary": "Ընտրեք ամրագրման տեսակը նախքան ժամ ընտրելը։",
+              "step1": "Դիտեք կategoriанer և համematiրteq տevoxutyun-ը ու գինը։",
+              "step2": "Սեղմեք ծառayutyun-i vra՝ amragrmanneri oratsuyts-ը bacelu hamar։",
+              "step3": "Շarunakreq jhami qaylin, erb patrast eq։"
+            },
+            "slot": {
+              "title": "Ընտրեք ժամ",
+              "summary": "Ընտրեք ազat slot oratsuytsic։",
+              "step1": "Ստուգեք arajarkvac motaka slot-ը, ete naxnakan yntrvats e։",
+              "step2": "Փoxarqeq or-ը kam jham-ը, ete urish slot eq uzum։",
+              "step3": "Ընtreq slot՝ hstatarum qaylin ancnelu hamar։"
+            },
+            "confirm": {
+              "title": "Հաստատեք ամրagrումը",
+              "summary": "Սtugeq amen inch naxkanc uxarkel-ը։",
+              "step1": "Սtugeq tsarayutyun-ը, masnaget-ը, amsativ-ը ev jham-ը։",
+              "step2": "Avelacreq nshumner kam paketner, ete arajarkvum en։",
+              "step3": "Hstaturum ev pahpaneq hstaturum-ը։"
+            }
+          },
+          "tabs": {
+            "title": "Գlխavar, Ծառayutyunner ev Հashiv",
+            "summary": "Navigatsia havelvatsi вклadokner-ov։",
+            "step1": "Գlխavar ekranum cuyc en trvum arajik amragrmanner ev arajarkner։",
+            "step2": "«Tsarayutyunner» вклadokum en kategorianer ev paketner։",
+            "step3": "«Heshiv» вклadokum en profil, push-ner ev «Ognut'yun ev guid»։"
+          },
+          "bookingFlow": {
+            "title": "Ամragreլ ayc",
+            "summary": "Masnaget → tsarayutyun → slot → vcharum → hstaturum։",
+            "step1": "Yntreq masnaget kam «Vorqan eli hasaneli»։",
+            "step2": "Yntreq tsarayutyun-ը ev avelacvumner-ը։",
+            "step3": "Yntreq azat slot oratsuytsic։",
+            "step4": "Avarteq vcharum-ը ev pahpaneq hstaturum-ը։"
+          },
+          "packages": {
+            "title": "Փաթեթներ էվ նվեր քարտեր",
+            "summary": "Գնեք Փաթեթներ, աբոնեմենտներ կամ նվեր քարտեր, երբ արաջարկվում են։",
+            "step1": "Bacreq «Paketner» Tsarayutyunneric kam Hesabic։",
+            "step2": "Stugeq inch e nerkayacvum ev vaghjnutyunner-ը։",
+            "step3": "Gneq ev checkout-um kirararkeq hajord amragrmanin։"
+          },
+          "account": {
+            "title": "Հաշիվ էվ ամրագրումներ",
+            "summary": "Մուտք գորզեք, թարմացրեք ժոգի ը կարավարեք արաջիկ այցելությունները։",
+            "step1": "Mutq gorzeq email-ov kam SMS kodov։",
+            "step2": "Tarkceq profil-i tvyalner-ը ev push kargavorman-ner-ը։",
+            "step3": "Tarmatsreq kam chancel areq arajik amragrmanneric, erb tuyllatrvum e։"
+          },
+          "assistant": {
+            "title": "Ամրագրման ողնական",
+            "summary": "Հարցրեք ամրագրումների մասին որինակ հարցերով։",
+            "step1": "Sxmek AI chip-ը amragrmanneri ekranerum։",
+            "step2": "Pordzarkeq arajarkvac harcer kam greq dzer harc-ը։",
+            "step3": "Tveq krknak vardzakutyun, ete patasxan-ը sxal er։"
+          }
+        },
+        "public": {
+          "bookingFunnel": {
+            "title": "Անլայն ամրագրել",
+            "summary": "Անոնիմ այցելություները կարոխ են ամրագրել արանց հաշիվի, երբ միացված է։",
+            "step1": "Yntreq tsarayutyun public booking ekranic-ic։",
+            "step2": "Yntreq masnaget ev azat slot։",
+            "step3": "Lratreq kap tvyalner-ը ev hstaturum։"
+          },
+          "professionals": {
+            "title": "Ընտրեւ մասնագետ",
+            "summary": "Ընտրեւ, խմ եք ըսկանում եք գալու, նախկանց ծարայություն կամ ժամ ընտրել։",
+            "step1": "Diteq «Masnagetner» ej-ը ev hamemativqteq bio ev reytingner-ը։",
+            "step2": "Sxmek masnaget-i vra՝ nra tsarayutyunner-ը ev azat jhamner-ը tesnelu hamar։",
+            "step3": "Sharunakreq Tsarayutyunner kam sxmek slot՝ checkout-in motecnelu hamar։"
+          },
+          "services": {
+            "title": "Ընտրեւ ծարայություն",
+            "summary": "Ընտրեւ այդ ամենայն տեսակը, որից ըսկանում եք ամրագրել։",
+            "step1": "Bacreq Tsarayutyunner masnaget yntreluc heto (kam menu-ic)։",
+            "step2": "Hamemativqteq tevoxutyun, gin ev nkaragrutyun։",
+            "step3": "Sxmek tsarayutyan vra՝ azat jhamner bacelu ev checkout sharunakelu hamar։"
+          },
+          "checkout": {
+            "title": "Անլայն ոճարում",
+            "summary": "Ոճարեք դեպոզիտ կամ ամբոբջ գումար անլայն ոճարումի իրաքիք։",
+            "step1": "Stugeq gin, tevoxutyun ev chancel policy։",
+            "step2": "Lratreq vcharayin tvyalner, ete naxkakan vcharum e pahpanvum։",
+            "step3": "Pahpaneq email/SMS hstaturum-ը։"
+          },
+          "availability": {
+            "title": "Ստուգեք ազատություն",
+            "summary": "Դիտեք ազատ slot-եր նախկանց ոճարումի։",
+            "step1": "Yntreq tsarayutyun՝ oratsuyts-ը bacelu hamar։",
+            "step2": "Ogtagortseq motaka azat kam yntreq konkret or։",
+            "step3": "Slot-ner-ը tarmacnum en, erb biznesi oratsuyts-ը poxvum e։"
+          }
+        },
+        "overlays": {
+          "clinic": {
+            "consumer": {
+              "title": "Լաբորատոր արդյունցներ էվ հրայտարարություններ",
+              "summary": "Կլինիկային հաչախները կարոխ են դիտել անալիզատոր արդյունցներ եվ հրայտարարություններ։",
+              "step1": "Bacreq «Ardyunqner» kam «Lab» вклadokic, erb miacvats e։",
+              "step2": "Kardal patasxanatvutyun-ner aydc-ic naxkanc aydc։",
+              "step3": "Neragrel kam share ardyunqner-ը, erb clinic-ը tesnum e։"
+            },
+            "provider": {
+              "title": "Clinic lab workflows",
+              "summary": "Collect specimens, enter results, and open patient charts.",
+              "step1": "Use Lab collection for specimen intake.",
+              "step2": "Enter or review results under Lab results.",
+              "step3": "Open Patients for chart history when authorized."
+            },
+            "dashboard": {
+              "title": "Clinic lab and EMR",
+              "summary": "Manage lab orders and results from Operations.",
+              "step1": "Open Operations for lab order queues.",
+              "step2": "Link results to the correct customer and booking.",
+              "step3": "Use AI guide chips for clinic-specific setup tasks."
+            }
+          },
+          "tour": {
+            "checkout": {
+              "title": "Տուրի ոճարում",
+              "summary": "Խուրդ տուրերի դեպո կարելի է դեպոզիտ եվ խունդի չապեր։",
+              "step1": "Hstaturum koxmaki chaps-ը ev tour amsativ-ը։",
+              "step2": "Vjarreq checkout-um tesvac depozit-ը։",
+              "step3": "Pahpaneq hstaturum-ը meeting point-ov։"
+            },
+            "packages": {
+              "title": "Տուրկային Փաթեթներ",
+              "summary": "Ամենատրեք միիցան տուրի ամսաթիներ կամ ավելացումներ։",
+              "step1": "Diteq tour paketner Tsarayutyunneric։",
+              "step2": "Stugeq koxmaki sahman-ner ev chgarelu amsativner։"
+            }
+          },
+          "retail": {
+            "dashboard": {
+              "title": "Retail POS",
+              "summary": "Ring up product sales alongside appointments.",
+              "step1": "Enable retail products in Operations inventory.",
+              "step2": "Train staff on POS checkout from the provider app.",
+              "step3": "Review retail revenue in Reports."
+            },
+            "provider": {
+              "title": "Retail sale from Today",
+              "summary": "Add product sales during a visit.",
+              "step1": "Open the appointment or walk-in sale flow.",
+              "step2": "Scan or pick products and complete payment."
+            }
+          }
+        }
       }
     },
     "helpCenter": {
@@ -620,6 +1198,295 @@
         "limitationsBody": "Orchestrix помогает с расписанием — не заменяет решения по ценам, зарплате и общению с клиентами. Сложные случаи могут потребовать ручной правки. Качество AI зависит от OpenAI и полноты данных о записях.",
         "readyTitle": "Готовы попробовать Orchestrix?",
         "readyBody": "Откройте AI Operations или command bar с любой страницы дашборда."
+      },
+      "flows": {
+        "common": {
+          "step1": "Шаг 1",
+          "step2": "Шаг 2",
+          "step3": "Шаг 3",
+          "step4": "Шаг 4",
+          "step5": "Шаг 5"
+        },
+        "provider": {
+          "gettingStarted": {
+            "title": "Начало работы в приложении провайдера",
+            "summary": "Sign in, accept your invite, and enable push notifications.",
+            "step1": "Open the invite email and tap Accept invite to install or open the app.",
+            "step2": "Sign in with the same email your manager invited.",
+            "step3": "Allow push notifications so you get booking reminders and AI suggestions."
+          },
+          "todayCalendar": {
+            "title": "Today, Calendar, and Schedule tabs",
+            "summary": "Use Today for your day, Calendar for week view, Schedule to block time.",
+            "step1": "Today lists upcoming appointments with quick actions.",
+            "step2": "Calendar shows your week; tap a slot for details.",
+            "step3": "Schedule is where you block time or request time off."
+          },
+          "appointments": {
+            "title": "Appointment actions",
+            "summary": "Check in clients, mark paid, and add notes from booking details.",
+            "voiceSummary": "Check in clients, mark paid, and add notes from Today or Calendar.",
+            "step1": "Open an appointment from Today or Calendar.",
+            "step2": "Tap Check in when the client arrives.",
+            "step3": "Use Mark paid after collecting payment.",
+            "step4": "Add client notes for preferences or allergies.",
+            "voiceStep1": "Open an appointment from Today or Calendar.",
+            "voiceStep2": "Check in when the client arrives.",
+            "voiceStep3": "Mark paid after collecting payment.",
+            "voiceStep4": "Add client notes for preferences or allergies."
+          },
+          "scheduleBlocks": {
+            "title": "Block my time vs block schedule",
+            "summary": "Block personal time on your calendar or block bookable schedule slots.",
+            "step1": "Open the Schedule tab.",
+            "step2": "Choose Block my time for lunch or breaks on your calendar.",
+            "step3": "Use Block schedule when the whole team should stop taking bookings."
+          },
+          "teamManager": {
+            "title": "Team view (managers)",
+            "summary": "Managers can see all providers and team calendars.",
+            "step1": "Open Profile and confirm your role is manager or owner.",
+            "step2": "Switch between providers in Calendar to review coverage.",
+            "step3": "Use AI team suggestions only after reviewing live bookings."
+          },
+          "assistant": {
+            "title": "Provider AI assistant",
+            "summary": "Ask in plain language and swipe to confirm actions.",
+            "step1": "Tap the AI FAB on any tab.",
+            "step2": "Try chips like Mark paid or Running late.",
+            "step3": "Swipe to confirm before changes go live."
+          },
+          "giftCards": {
+            "title": "Gift card fulfillment",
+            "summary": "Redeem and fulfill gift cards from the Gift cards tab.",
+            "step1": "Open Gift cards when the tab is enabled for your business.",
+            "step2": "Scan or enter a code to validate balance.",
+            "step3": "Complete fulfillment and hand the receipt to the client."
+          },
+          "staffInvite": {
+            "title": "Staff invite link",
+            "summary": "Accept your manager's invite to join the provider app.",
+            "step1": "Open the invite link from email or SMS — it lands on Accept invite.",
+            "step2": "Sign in with the same email address your manager invited.",
+            "step3": "Tap Accept to link your account and open Today for your schedule."
+          },
+          "profileSettings": {
+            "title": "Profile settings",
+            "summary": "Update how clients see you in the app.",
+            "step1": "Open the Profile tab.",
+            "step2": "Tap Edit profile to change display name, title, or avatar photo.",
+            "step3": "Save — clients see updates on booking confirmations and messages."
+          },
+          "viewScope": {
+            "title": "My calendar vs team view",
+            "summary": "Control whether you see only your bookings or the whole team.",
+            "step1": "Open Profile and check View mode — My calendar shows only your appointments.",
+            "step2": "Team view (managers) shows all providers; switch back to My calendar if you only need yours.",
+            "step3": "Managers can still open Calendar and pick another provider to review coverage."
+          },
+          "assistantConfirm": {
+            "title": "Swipe to confirm",
+            "summary": "Review what will change before bulk or mutating AI actions run.",
+            "step1": "When AI proposes cancel, mark paid, or other changes, a preview card appears.",
+            "step2": "Read the summary — it lists affected bookings or settings.",
+            "step3": "Swipe to confirm only when the preview matches what you intended."
+          },
+          "compoundSteps": {
+            "title": "Multi-step AI commands",
+            "summary": "Compound prompts run one step at a time with shared context.",
+            "step1": "Say combined requests with \"and\" or \"then\" — e.g. open push and mark paid.",
+            "step2": "The assistant runs the first step, then carries bookingId or date into the next.",
+            "step3": "Each mutating step still shows swipe-to-confirm before it executes."
+          },
+          "calendarView": {
+            "title": "Calendar tab",
+            "summary": "Browse your month, see utilization bands, and open a day's appointments.",
+            "step1": "Open Calendar to see the month grid with color bands for how full each day is.",
+            "step2": "Tap a day to load that date's appointment list below the grid.",
+            "step3": "Tap an appointment card to check in, mark paid, or add notes."
+          },
+          "voiceNextClient": {
+            "found": "Your next client is {customerName} at {time} for {serviceName}.",
+            "empty": "You have no upcoming appointments for the rest of today.",
+            "multiple": "Your next client is {customerName} at {time} for {serviceName}. You have {count} more upcoming today."
+          }
+        },
+        "customer": {
+          "gettingStarted": {
+            "title": "Начало работы",
+            "summary": "Приветствие → выбор салона → услуга → время → подтверждение первой записи.",
+            "step1": "Откройте приложение или перейдите по ссылке вашего салона.",
+            "step2": "Найдите салон или выберите его из недавних посещений.",
+            "step3": "Откройте «Услуги» и выберите нужную процедуру.",
+            "step4": "Выберите свободное время — ближайший слот может быть уже выбран.",
+            "step5": "На шаге подтверждения проверьте детали и сохраните запись."
+          },
+          "activation": {
+            "welcome": {
+              "title": "Приветствие",
+              "summary": "Начните здесь, прежде чем выбрать салон.",
+              "step1": "Откройте приложение или нажмите ссылку для записи.",
+              "step2": "Просмотрите недавние салоны или найдите по названию.",
+              "step3": "Нажмите на салон, чтобы открыть его главный экран и продолжить."
+            },
+            "salon": {
+              "title": "Выберите салон",
+              "summary": "Выберите бизнес, в котором хотите записаться.",
+              "step1": "Убедитесь, что вы на главном экране салона.",
+              "step2": "Просмотрите акции и предстоящие записи, если они показаны.",
+              "step3": "Откройте «Услуги», чтобы перейти к следующему шагу."
+            },
+            "service": {
+              "title": "Выберите услугу",
+              "summary": "Выберите тип записи, прежде чем выбирать время.",
+              "step1": "Просмотрите категории и сравните длительность и цену.",
+              "step2": "Нажмите на услугу, чтобы открыть календарь записи.",
+              "step3": "Перейдите к выбору времени, когда будете готовы."
+            },
+            "slot": {
+              "title": "Выберите время",
+              "summary": "Выберите свободный слот в календаре.",
+              "step1": "Проверьте предложенный ближайший слот, если он уже выбран.",
+              "step2": "Измените день или время, если нужен другой слот.",
+              "step3": "Выберите слот, чтобы перейти к подтверждению."
+            },
+            "confirm": {
+              "title": "Подтвердите запись",
+              "summary": "Проверьте всё перед отправкой.",
+              "step1": "Проверьте услугу, специалиста, дату и время.",
+              "step2": "Добавьте заметки или пакеты, если они предложены.",
+              "step3": "Подтвердите и сохраните подтверждение."
+            }
+          },
+          "tabs": {
+            "title": "Главная, Услуги и Аккаунт",
+            "summary": "Навигация по вкладкам приложения.",
+            "step1": "На главной показаны предстоящие записи и акции.",
+            "step2": "В «Услугах» — категории и пакеты.",
+            "step3": "В «Аккаунте» — профиль, уведомления и «Справка и гид»."
+          },
+          "bookingFlow": {
+            "title": "Записаться на приём",
+            "summary": "Специалист → услуга → слот → оплата → подтверждение.",
+            "step1": "Выберите специалиста или «Любой доступный».",
+            "step2": "Выберите услугу и дополнения.",
+            "step3": "Выберите свободный слот в календаре.",
+            "step4": "Завершите оплату и сохраните подтверждение."
+          },
+          "packages": {
+            "title": "Пакеты и подарочные карты",
+            "summary": "Покупайте наборы, абонементы или подарочные карты, когда они доступны.",
+            "step1": "Откройте «Пакеты» из «Услуг» или «Аккаунта».",
+            "step2": "Проверьте, что входит в пакет и срок действия.",
+            "step3": "Купите и примените при следующей записи на оплате."
+          },
+          "account": {
+            "title": "Аккаунт и записи",
+            "summary": "Войдите, обновите профиль и управляйте визитами.",
+            "step1": "Войдите по email или SMS-коду.",
+            "step2": "Обновите данные профиля и настройки уведомлений.",
+            "step3": "Перенесите или отмените запись из списка, если это разрешено."
+          },
+          "assistant": {
+            "title": "AI-помощник клиента",
+            "summary": "Задавайте вопросы о записи с примерами подсказок.",
+            "step1": "Нажмите AI-чип на экранах записи.",
+            "step2": "Попробуйте предложенные подсказки или введите свой вопрос.",
+            "step3": "Оставьте отзыв, если ответ был неверным."
+          }
+        },
+        "public": {
+          "bookingFunnel": {
+            "title": "Онлайн-запись",
+            "summary": "Посетители могут записаться без аккаунта, если это включено.",
+            "step1": "Выберите услугу на странице онлайн-записи.",
+            "step2": "Выберите специалиста и свободное время.",
+            "step3": "Введите контактные данные и подтвердите."
+          },
+          "professionals": {
+            "title": "Выберите специалиста",
+            "summary": "Выберите, к кому хотите записаться, до выбора услуги или времени.",
+            "step1": "Просмотрите страницу «Специалисты» и сравните биографии и рейтинги.",
+            "step2": "Нажмите на специалиста, чтобы увидеть его услуги и свободное время.",
+            "step3": "Перейдите к «Услугам» или выберите слот для оплаты."
+          },
+          "services": {
+            "title": "Выберите услугу",
+            "summary": "Выберите нужный тип записи.",
+            "step1": "Откройте «Услуги» после выбора специалиста (или из меню).",
+            "step2": "Сравните длительность, цену и описание.",
+            "step3": "Нажмите на услугу, чтобы загрузить время и перейти к оплате."
+          },
+          "checkout": {
+            "title": "Онлайн-оплата",
+            "summary": "Оплатите депозит или полную сумму при записи.",
+            "step1": "Проверьте цену, длительность и политику отмены.",
+            "step2": "Введите платёжные данные, если требуется предоплата.",
+            "step3": "Сохраните подтверждение по email или SMS."
+          },
+          "availability": {
+            "title": "Проверить доступность",
+            "summary": "Посмотрите свободные слоты до оплаты.",
+            "step1": "Выберите услугу, чтобы загрузить календарь.",
+            "step2": "Используйте «Ближайшее» или выберите конкретный день.",
+            "step3": "Слоты обновляются при изменении расписания бизнеса."
+          }
+        },
+        "overlays": {
+          "clinic": {
+            "consumer": {
+              "title": "Результаты анализов и заявки",
+              "summary": "Клиенты клиники могут просматривать результаты и инструкции.",
+              "step1": "Откройте «Результаты» или «Лаборатория» во вкладках, если включено.",
+              "step2": "Прочитайте инструкции по подготовке перед визитом.",
+              "step3": "Скачайте или поделитесь результатами, когда клиника их опубликует."
+            },
+            "provider": {
+              "title": "Clinic lab workflows",
+              "summary": "Collect specimens, enter results, and open patient charts.",
+              "step1": "Use Lab collection for specimen intake.",
+              "step2": "Enter or review results under Lab results.",
+              "step3": "Open Patients for chart history when authorized."
+            },
+            "dashboard": {
+              "title": "Clinic lab and EMR",
+              "summary": "Manage lab orders and results from Operations.",
+              "step1": "Open Operations for lab order queues.",
+              "step2": "Link results to the correct customer and booking.",
+              "step3": "Use AI guide chips for clinic-specific setup tasks."
+            }
+          },
+          "tour": {
+            "checkout": {
+              "title": "Оплата тура",
+              "summary": "Для групповых туров может потребоваться депозит и размер группы.",
+              "step1": "Подтвердите размер группы и дату тура.",
+              "step2": "Оплатите депозит, указанный при оформлении.",
+              "step3": "Сохраните подтверждение с местом встречи."
+            },
+            "packages": {
+              "title": "Турпакеты",
+              "summary": "Объедините несколько дат тура или дополнения.",
+              "step1": "Просмотрите турпакеты в «Услугах».",
+              "step2": "Проверьте лимиты группы и недоступные даты."
+            }
+          },
+          "retail": {
+            "dashboard": {
+              "title": "Retail POS",
+              "summary": "Ring up product sales alongside appointments.",
+              "step1": "Enable retail products in Operations inventory.",
+              "step2": "Train staff on POS checkout from the provider app.",
+              "step3": "Review retail revenue in Reports."
+            },
+            "provider": {
+              "title": "Retail sale from Today",
+              "summary": "Add product sales during a visit.",
+              "step1": "Open the appointment or walk-in sale flow.",
+              "step2": "Scan or pick products and complete payment."
+            }
+          }
+        }
       }
     },
     "helpCenter": {

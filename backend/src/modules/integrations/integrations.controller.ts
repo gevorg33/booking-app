@@ -194,11 +194,9 @@ export class IntegrationsController {
   ) {
     await this.businessService.ensureMember(businessId, user.id);
     const business = await this.businessService.findOne(businessId);
-    return {
-      widgetKey: this.zendeskIntegrationService.getDashboardWidgetKey(
-        business.settings,
-      ),
-    };
+    return this.zendeskIntegrationService.getDashboardWidgetContext(
+      business.settings,
+    );
   }
 
   @Put('openai')

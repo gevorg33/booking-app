@@ -1,0 +1,18 @@
+{
+  "topicId": "provider-schedule-blocks",
+  "surface": "provider",
+  "routes": ["/tabs/schedule"],
+  "titleKey": "guide.flows.provider.scheduleBlocks.title",
+  "summaryKey": "guide.flows.provider.scheduleBlocks.summary",
+  "navigateTarget": { "path": "/tabs/schedule" },
+  "keywords": ["block my time", "block schedule", "time off"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.scheduleBlocks.step1",
+      "navigate": { "path": "/tabs/schedule" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.provider.scheduleBlocks.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.provider.scheduleBlocks.step3" }
+  ]
+}

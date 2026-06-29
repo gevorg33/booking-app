@@ -60,6 +60,10 @@ import {
 } from '../metric-resolvers.semantic.util.js';
 import { validateCommand } from '../command-completion.validator.js';
 import type { ResolvedCommand } from '../command-completion.types.js';
+import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from '../ai-product-guide-rescue.util.js';
 import { getIntentAnchorBank } from '../intent-anchor.bank.js';
 import {
   filterAnchorsForSurface,
@@ -276,6 +280,21 @@ export function evaluateDeterministicEvalCase(
     }
   }
 
+  if (expect.useProductGuideTopicEnrich && evalCase.surface && !expect.rescuedAction) {
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: evalCase.surface,
+      route: expect.guideEvalRoute,
+      activationStep: expect.guideEvalActivationStep,
+    });
+    if (expect.paramsPartial?.topicId != null) {
+      if (topicId !== expect.paramsPartial.topicId) {
+        errors.push(
+          `guideTopicId: expected ${expect.paramsPartial.topicId}, got ${topicId ?? 'none'}`,
+        );
+      }
+    }
+  }
+
   if (expect.routeTier) {
     const route = router.routeDeterministic(prompt, SAMPLE_EMPLOYEES);
     if (route.tier !== expect.routeTier) {
@@ -313,7 +332,8 @@ export function evaluateDeterministicEvalCase(
     if (
       expect.paramsPartial &&
       !expect.rescuedAction &&
-      !expect.useSurfaceFlexibleAvailabilityEnrichment
+      !expect.useSurfaceFlexibleAvailabilityEnrichment &&
+      !expect.useProductGuideTopicEnrich
     ) {
       errors.push(...paramsMatchPartial(params, expect.paramsPartial));
     }
@@ -430,6 +450,32 @@ export function evaluateDeterministicEvalCase(
     const providerImplicationAction = useSurfaceProviderImplicationRescue
       ? rescueProviderAiIntent(prompt, misclassifiedAction)
       : null;
+    const useProductGuideRescue =
+      expect.useProductGuideRescue === true && !!evalCase.surface;
+    const productGuideRescued = useProductGuideRescue
+      ? (() => {
+          const result = rescueProductGuideIntent(prompt, misclassifiedAction, {
+            surface: evalCase.surface!,
+          });
+          if (result.action === misclassifiedAction) return null;
+          const params: Record<string, unknown> = {};
+          if (expect.useProductGuideTopicEnrich) {
+            const topicId = enrichGuideTopicFromPrompt(prompt, {
+              surface: evalCase.surface!,
+              route: expect.guideEvalRoute,
+              topicId: expect.paramsPartial?.topicId,
+              activationStep: expect.guideEvalActivationStep,
+            });
+            if (topicId) params.topicId = topicId;
+          }
+          return {
+            action: result.action,
+            params,
+            rescued: true,
+            rescueReason: result.rescueReason ?? 'product_guide_rescue',
+          };
+        })()
+      : null;
     const rescued = useSurfaceSelfServiceRescue
       ? selfServiceRescued
         ? {
@@ -511,7 +557,9 @@ export function evaluateDeterministicEvalCase(
             rescueReason: surfaceRescued.rescueReason,
           }
         : null
-      : useCheckoutCurrencyRescue
+      : useProductGuideRescue
+        ? productGuideRescued
+        : useCheckoutCurrencyRescue
         ? checkoutCurrencyRescued
           ? {
               action: checkoutCurrencyRescued.action,
@@ -546,9 +594,15 @@ export function evaluateDeterministicEvalCase(
             surface: evalCase.surface,
           });
     if (!rescued?.rescued || rescued.action !== expect.rescuedAction) {
-      errors.push(
-        `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
-      );
+      const keptMutateAction =
+        useProductGuideRescue &&
+        productGuideRescued === null &&
+        expect.rescuedAction === misclassifiedAction;
+      if (!keptMutateAction) {
+        errors.push(
+          `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
+        );
+      }
     }
     if (expect.rescueReason && rescued?.rescueReason !== expect.rescueReason) {
       errors.push(

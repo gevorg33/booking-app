@@ -115,6 +115,27 @@ describe('customer-ai-command.util', () => {
     );
   });
 
+  it('serializes guide multiturn session fields for public assistant clients (ai-guide-1.8.2)', () => {
+    expect(
+      commandResultToPublicAssistantResult({
+        success: true,
+        action: 'guide_user_flow',
+        summary: 'Step 2 of 4',
+        details: {
+          sessionContext: {
+            guideFlowId: 'public-booking-flow',
+            guideStepIndex: 1,
+            completedSteps: [0],
+          },
+        },
+      }).sessionContext,
+    ).toEqual({
+      guideFlowId: 'public-booking-flow',
+      guideStepIndex: '1',
+      completedSteps: '[0]',
+    });
+  });
+
   it('maps minimal command results to public assistant shape', () => {
     expect(
       commandResultToPublicAssistantResult({
@@ -212,6 +233,9 @@ describe('customer-ai-command.util', () => {
     );
     expect(schema).toContain('Monday and Friday afternoon');
     expect(schema).toContain('AND vs OR');
+    expect(schema).toContain('explain_app_feature: READ — consumer app UI feature semantics');
+    expect(schema).toContain('consumer-packages-gift-cards');
+    expect(schema).toContain('"topicId"');
   });
 
   it('merges discovery session context between compound steps (ai-cmd-customer-gap-4)', () => {

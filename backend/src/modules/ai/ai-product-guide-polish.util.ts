@@ -1,5 +1,6 @@
 import type { LlmService } from '../../engine/agent/llm.service.js';
 import type { GuideResponse } from './command-completion.types.js';
+import { buildVoiceFriendlyFallback, enrichGuideResponseVoiceSummaries } from './ai-product-guide-voice.util.js';
 import { verifyGuideResponseGrounding } from './ai-product-guide-grounding.util.js';
 import { GUIDE_CORPUS_MATCH_THRESHOLD } from './ai-product-guide-ranking.util.js';
 import type { AppGuideIntent } from './ai-product-guide.util.js';
@@ -58,14 +59,15 @@ export function mergePolishedGuideResponse(
       ...step,
       title: row.title?.trim() || step.title,
       body: row.body?.trim() || step.body,
+      voiceSummary: buildVoiceFriendlyFallback(row.body?.trim() || step.body),
     };
   });
 
-  return {
+  return enrichGuideResponseVoiceSummaries({
     ...baseGuide,
     summary: polished.summary?.trim() || baseGuide.summary,
     steps,
-  };
+  });
 }
 
 export function buildGuidePolishSystemPrompt(intent: AppGuideIntent): string {

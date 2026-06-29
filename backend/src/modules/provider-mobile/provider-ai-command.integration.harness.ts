@@ -1,5 +1,7 @@
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import type { ProviderUnderstandDeps } from '../ai/command-understanding-adapter.types.js';
+import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
+import { createMockGuideTelemetryService } from '../ai/guide/guide-telemetry.mock.js';
 
 export type ProviderAiCommandHarnessOverrides = {
   llm?: {
@@ -28,6 +30,8 @@ export type ProviderAiCommandHarnessOverrides = {
   planBuilder?: Record<string, unknown>;
   completionPipeline?: Record<string, unknown>;
   periodRepo?: Record<string, unknown>;
+  productGuide?: AiProductGuideService;
+  emptyStateGuide?: { runIntent: jest.Mock };
 };
 
 const noopAsync = async () => ({
@@ -138,6 +142,18 @@ export function createProviderAiCommandHarness(
       reasoning: 'test',
     })),
   };
+
+  const productGuide =
+    overrides.productGuide ??
+    new AiProductGuideService(
+      {
+        completeJson: jest.fn(async () => ({})),
+        isAvailableForBusiness: jest.fn(async () => false),
+        isModelConfigured: () => false,
+      } as any,
+      { isAvailableForBusiness: async () => false, embedText: jest.fn(), isModelConfigured: () => false } as any,
+      createMockGuideTelemetryService(),
+    );
 
   return new ProviderAiCommandService(
     (overrides.bookingRepo ?? { find: jest.fn(async () => []) }) as any,
@@ -259,5 +275,8 @@ export function createProviderAiCommandHarness(
       handleAction: jest.fn(),
       ...overrides.pushActions,
     } as any,
+    productGuide,
+    overrides.emptyStateGuide ??
+      ({ runIntent: jest.fn(async () => ({ success: true, action: 'explain_empty_catalog', summary: 'ok', details: {} })) } as any),
   );
 }

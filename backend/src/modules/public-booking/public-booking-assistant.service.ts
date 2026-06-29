@@ -58,6 +58,33 @@ import { AiBusinessComplianceService } from '../ai/ai-business-compliance.servic
 import { AiConsumerClinicTestResultsService } from '../ai/ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
+import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
+import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
+import {
+  mapCommandResultGuideNavigate,
+  runSurfaceProductGuideIntent,
+} from '../ai/ai-product-guide-surface.logic.js';
+import {
+  mapPublicBookingGuideRoute,
+  mergePublicBookingGuideContext,
+  resolvePublicBookingGuideIntent,
+  resolvePublicBookingGuideNavigate,
+  rewriteBookingHelpGuideResult,
+} from '../ai/ai-public-booking-guide.util.js';
+import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from '../ai/ai-product-guide-rescue.util.js';
+import { resolveProductGuideSessionContext } from '../ai/ai-product-guide-session.util.js';
+import {
+  isAppGuideIntent,
+  resolveProductGuidePromptMatch,
+  type AppGuideIntent,
+} from '../ai/ai-product-guide.util.js';
+import {
+  isEmptyStateGuideIntent,
+  type EmptyStateGuideIntent,
+} from '../ai/ai-product-guide-empty-state.util.js';
 import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js';
 import { AiTourServiceService } from '../ai/ai-tour-service.service.js';
 import { AiRecommendationProductService } from '../ai/ai-recommendation-product.service.js';
@@ -76,12 +103,21 @@ import {
   pipelineResultToClassifiedIntent,
 } from '../ai/command-understanding-result.util.js';
 import type { ClassifiedIntent } from '../ai/ai-command-routing.util.js';
+import type { CommandResult } from '../ai/command-completion.types.js';
 import type { PipelineUnderstandResult } from '../ai/command-understanding.types.js';
 import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
 import { rescueBudgetServiceDiscoveryIntent } from '../ai/ai-budget-service-discovery.util.js';
 import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from '../ai/ai-service-rank-discovery.util.js';
 import { rescueServiceCatalogBrowseIntent } from '../ai/ai-service-catalog-browse.util.js';
 import { commandResultToPublicAssistantResult } from '../ai/customer-ai-command.util.js';
+import {
+  appendPostFailureGuideFallback,
+  buildPostFailureGuideFallbackInput,
+} from '../ai/ai-product-guide-failure-fallback.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+} from '../ai/ai-product-guide-ai-unavailable.util.js';
 export { buildPublicClassifierSchema } from './public-booking-classifier.schema.js';
 import {
   applyBudgetFilterForRecommendSpecialists,
@@ -189,6 +225,8 @@ export class PublicBookingAssistantService {
     private consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private clinicLabBooking: AiClinicLabBookingService,
     private clinicBooking: AiClinicBookingService,
+    private productGuide: AiProductGuideService,
+    private emptyStateGuide: AiProductGuideEmptyStateService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -217,12 +255,44 @@ export class PublicBookingAssistantService {
     );
 
     if (!(await this.openAi.isAvailableForBusiness(business.id))) {
-      return {
-        success: false,
-        action: 'error',
-        summary: t(locale, 'assistant.unavailable'),
-      };
+      const fallback = await runAiUnavailableStaticGuideFallback({
+        productGuide: this.productGuide,
+        businessId: business.id,
+        prompt,
+        surface: 'public',
+        reason: 'openai_not_configured',
+        session: { context: orchestratedSession },
+        locale,
+      });
+      if (fallback) {
+        return commandResultToPublicAssistantResult(fallback);
+      }
+      return commandResultToPublicAssistantResult(
+        buildAiUnavailableErrorWithGuideLink({
+          surface: 'public',
+          reason: 'openai_not_configured',
+          route: mapPublicBookingGuideRoute(orchestratedSession),
+          locale,
+        }),
+      );
     }
+
+    const guideMatch = resolveProductGuidePromptMatch(prompt, {
+      surface: 'public',
+      assistantMode: orchestratedSession?.assistantMode as 'guide' | 'act' | undefined,
+    });
+    if (guideMatch.matched && guideMatch.intent) {
+      return commandResultToPublicAssistantResult(
+        await this.dispatchPublicAppGuideIntent(
+          business.id,
+          prompt,
+          guideMatch.intent as AppGuideIntent,
+          locale,
+          orchestratedSession,
+        ),
+      );
+    }
+
     const tz = resolveTimezone(business.timezone);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const todayDisplay = formatDateDisplay(todayKey, locale);
@@ -303,7 +373,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     if (understood.status === 'clarify') {
-      return this.pipelineClarifyToPublicResult(understood, locale);
+      return this.applyPostFailureGuideFallback(
+        this.pipelineClarifyToPublicResult(understood, locale),
+        orchestratedSession,
+        locale,
+      );
     }
 
     let parsed = pipelineResultToClassifiedIntent(understood);
@@ -311,6 +385,19 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const classifierAction = classifierCandidate?.action ?? parsed.action;
     const classifierConfidence = classifierCandidate?.confidence;
     let rescueReason: string | undefined = pipelineRescueReason(understood);
+
+    const bookingHelpRescue = rescueProductGuideIntent(prompt, parsed.action, {
+      surface: 'public',
+      assistantMode: orchestratedSession?.assistantMode as 'guide' | 'act' | undefined,
+      route: mapPublicBookingGuideRoute(
+        mergePublicBookingGuideContext(orchestratedSession),
+      ),
+      context: orchestratedSession,
+    });
+    if (bookingHelpRescue.action !== parsed.action) {
+      parsed.action = bookingHelpRescue.action;
+      rescueReason = bookingHelpRescue.rescueReason ?? 'public_booking_help';
+    }
 
     const discoveryRescue = this.applyBudgetAndRankServiceDiscoveryRescue(
       prompt,
@@ -325,16 +412,20 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     }
 
     if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
-      return commandResultToPublicAssistantResult(
-        buildUnknownIntentClarifyResult({
-          surface: 'public',
-          prompt,
-          params: parsed.params,
-          reasoning: parsed.reasoning,
-          confidence:
-            typeof parsed.confidence === 'number' ? parsed.confidence : 0,
-          trace: understood.trace,
-        }),
+      return this.applyPostFailureGuideFallback(
+        commandResultToPublicAssistantResult(
+          buildUnknownIntentClarifyResult({
+            surface: 'public',
+            prompt,
+            params: parsed.params,
+            reasoning: parsed.reasoning,
+            confidence:
+              typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+            trace: understood.trace,
+          }),
+        ),
+        orchestratedSession,
+        locale,
       );
     }
 
@@ -376,6 +467,32 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     this.logger.log(
       `Public assistant action="${parsed.action}" — ${parsed.reasoning}`,
     );
+
+    if (isAppGuideIntent(parsed.action)) {
+      return commandResultToPublicAssistantResult(
+        await this.dispatchPublicAppGuideIntent(
+          business.id,
+          prompt,
+          parsed.action as AppGuideIntent,
+          locale,
+          orchestratedSession,
+          parsed.params,
+        ),
+      );
+    }
+
+    if (isEmptyStateGuideIntent(parsed.action)) {
+      return commandResultToPublicAssistantResult(
+        await this.dispatchPublicEmptyStateGuideIntent(
+          business.id,
+          prompt,
+          parsed.action,
+          locale,
+          orchestratedSession,
+          parsed.params,
+        ),
+      );
+    }
 
     let result: PublicAssistantResult;
 
@@ -426,7 +543,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         );
         break;
       case 'booking_help':
-        result = this.handleBookingHelp(locale);
+        result = await this.handleBookingHelp(
+          business.id,
+          prompt,
+          locale,
+          orchestratedSession,
+        );
         break;
       case 'explain_checkout_currency':
         result = await this.handleExplainCheckoutCurrency(business.id);
@@ -558,7 +680,43 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             : undefined,
       });
     }
-    return final;
+    return this.applyPostFailureGuideFallback(final, orchestratedSession, locale);
+  }
+
+  private applyPostFailureGuideFallback(
+    result: PublicAssistantResult,
+    session?: Record<string, unknown>,
+    locale?: AppLocale,
+  ): PublicAssistantResult {
+    const asCommand: CommandResult = {
+      success: result.success,
+      action: result.action,
+      summary: result.summary,
+      details: {
+        ...(result.details ?? {}),
+        needsClarification: result.details?.needsClarification,
+        sessionContext: result.sessionContext,
+      },
+      guide: result.guide,
+    };
+    const enriched = appendPostFailureGuideFallback(
+      asCommand,
+      buildPostFailureGuideFallbackInput(
+        mergePublicBookingGuideContext({ ...session, locale }),
+        'public',
+        locale,
+      ),
+    );
+    if (enriched === asCommand) return result;
+    return {
+      ...result,
+      summary: enriched.summary,
+      guide: enriched.guide ?? result.guide,
+      details: {
+        ...(result.details ?? {}),
+        ...enriched.details,
+      },
+    };
   }
 
   private async handleListProviders(
@@ -1887,41 +2045,156 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
-  private handleBookingHelp(locale: AppLocale): PublicAssistantResult {
-    const steps =
-      locale === 'hy'
-        ? [
-            'Առցանց ամրագրումը հեշտ է՝',
-            '1. Ընտրեք մասնագետ և ժամ',
-            '2. Ընտրեք ծառայություն',
-            '3. Մուտքագրեք անուն և կոնտակտ',
-            '',
-            'Կամ ասեք, թե ինչ է պետք — օրինակ «Ամրագրիր facemassage Gevorg-ի հետ վաղը 10:00» — և ես կօգնեմ։',
-          ]
-        : locale === 'ru'
-          ? [
-              'Онлайн-запись проста:',
-              '1. Выберите специалиста и время',
-              '2. Выберите услугу',
-              '3. Укажите имя и контакт',
-              '',
-              'Или скажите, что нужно — например «Запиши facemassage с Gevorg на завтра в 10:00» — и я помогу.',
-            ]
-          : [
-              'Booking online is easy:',
-              '1. Choose a specialist and time',
-              '2. Pick a service',
-              '3. Enter your name and contact details',
-              '',
-              'Or tell me what you need — e.g. "Book facemassage with Gevorg tomorrow at 10:00", "Best rated specialists for massage this week", or "Free slots on Monday and Friday for haircut" — and I\'ll guide you.',
-            ];
+  private async handleBookingHelp(
+    businessId: string,
+    prompt: string,
+    locale: AppLocale,
+    sessionContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const guideResult = await this.dispatchPublicAppGuideIntent(
+      businessId,
+      prompt,
+      resolvePublicBookingGuideIntent(
+        prompt,
+        mapPublicBookingGuideRoute(mergePublicBookingGuideContext(sessionContext)),
+      ),
+      locale,
+      sessionContext,
+      {},
+      'booking_help',
+    );
 
-    return {
-      success: true,
-      action: 'booking_help',
-      summary: steps.join('\n'),
-      navigate: { path: 'professionals', query: {} },
-    };
+    if (guideResult.success && guideResult.guide) {
+      return commandResultToPublicAssistantResult(guideResult);
+    }
+
+    return commandResultToPublicAssistantResult(
+      rewriteBookingHelpGuideResult(
+        {
+          success: true,
+          action: 'booking_help',
+          summary:
+            locale === 'hy'
+              ? 'Ամրագրման քայլերը հասանելի չեն — փորձեք նորից կամ ընտրեք Professionals էջը։'
+              : locale === 'ru'
+                ? 'Шаги записи недоступны — попробуйте снова или откройте страницу специалистов.'
+                : 'Booking guide steps are unavailable — try again or open the Professionals page.',
+          details: {
+            navigate: { path: 'professionals' },
+            guideRoute: mapPublicBookingGuideRoute(
+              mergePublicBookingGuideContext(sessionContext),
+            ),
+          },
+        },
+        mapPublicBookingGuideRoute(mergePublicBookingGuideContext(sessionContext)),
+      ),
+    );
+  }
+
+  /** ai-guide-1.5.3 — checkout-step context drives public guide playbook selection. */
+  private async dispatchPublicAppGuideIntent(
+    businessId: string,
+    prompt: string,
+    intent: AppGuideIntent,
+    locale: AppLocale,
+    sessionContext?: Record<string, unknown>,
+    params: Record<string, unknown> = {},
+    surrogateAction?: 'booking_help',
+  ): Promise<CommandResult> {
+    const mergedContext = mergePublicBookingGuideContext({
+      ...sessionContext,
+      locale,
+    });
+    const guideContext = resolveProductGuideSessionContext(
+      { context: mergedContext },
+      'public',
+    );
+    const route = guideContext.route ?? mapPublicBookingGuideRoute(mergedContext);
+    const resolvedIntent = resolvePublicBookingGuideIntent(prompt, route, intent);
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: 'public',
+      route,
+      topicId: params.topicId,
+    });
+    const guideParams = topicId ? { ...params, topicId } : params;
+
+    const guideResult = mapCommandResultGuideNavigate(
+      await runSurfaceProductGuideIntent({
+        productGuide: this.productGuide,
+        businessId,
+        prompt: prompt.trim() || 'How do I book online?',
+        intent: resolvedIntent,
+        surface: 'public',
+        locale,
+        params: guideParams,
+        session: { context: mergedContext },
+        sessionContext: guideContext,
+      }),
+    );
+
+    const rewritten = surrogateAction
+      ? rewriteBookingHelpGuideResult(guideResult, route)
+      : {
+          ...guideResult,
+          details: {
+            ...guideResult.details,
+            guideRoute: route,
+            guideIntent: resolvedIntent,
+            bookingStep:
+              typeof mergedContext.bookingStep === 'string'
+                ? mergedContext.bookingStep
+                : undefined,
+          },
+          guide: guideResult.guide
+            ? {
+                ...guideResult.guide,
+                navigate:
+                  guideResult.guide.navigate ??
+                  resolvePublicBookingGuideNavigate(route),
+              }
+            : undefined,
+        };
+
+    return rewritten;
+  }
+
+  /** ai-guide-1.8.9 — public booking live catalog / Stripe empty-state guides. */
+  private async dispatchPublicEmptyStateGuideIntent(
+    businessId: string,
+    prompt: string,
+    intent: EmptyStateGuideIntent,
+    locale: AppLocale,
+    sessionContext?: Record<string, unknown>,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    if (!isEmptyStateGuideIntent(intent) || intent === 'explain_visibility_block') {
+      return {
+        success: false,
+        action: intent,
+        summary: 'Unsupported empty-state guide intent on public booking.',
+        details: {},
+      };
+    }
+    const mergedContext = mergePublicBookingGuideContext({
+      ...sessionContext,
+      locale,
+    });
+    const guideContext = resolveProductGuideSessionContext(
+      { context: mergedContext },
+      'public',
+    );
+    return mapCommandResultGuideNavigate(
+      await this.emptyStateGuide.runIntent({
+        businessId,
+        intent,
+        surface: 'public',
+        prompt,
+        params,
+        session: { context: mergedContext },
+        sessionContext: guideContext,
+        locale,
+      }),
+    );
   }
 
   private async handleBookAppointment(
@@ -2293,6 +2566,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         params,
       );
     }
+  }
+
+  private applyPublicBookingHelpRescue(
+    prompt: string,
+    action: string,
+  ): { action: string; rescueReason: string } | null {
+    const rescued = rescueProductGuideIntent(prompt, action, { surface: 'public' });
+    if (rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      rescueReason: rescued.rescueReason ?? 'public_booking_help',
+    };
   }
 
   private applyBudgetAndRankServiceDiscoveryRescue(

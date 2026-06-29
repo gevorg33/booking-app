@@ -1,3 +1,4 @@
+import type { AssistantExampleTenantInput } from './assistant-example-tenant.util';
 import {
   buildProviderAiExamples,
   type ProviderAiTranslateFn,
@@ -15,6 +16,7 @@ export function buildProviderAiGuideExamples(t: ProviderAiTranslateFn): string[]
 export function resolveProviderAiExamples(
   t: ProviderAiTranslateFn,
   guideMode: boolean,
+  tenant?: AssistantExampleTenantInput | null,
 ): string[] {
-  return guideMode ? buildProviderAiGuideExamples(t) : buildProviderAiExamples(t);
+  return guideMode ? buildProviderAiGuideExamples(t) : buildProviderAiExamples(t, tenant);
 }

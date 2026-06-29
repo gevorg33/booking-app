@@ -74,25 +74,24 @@ export function ProviderProfileClient({
     t('public.todayInline'),
   );
 
-  const chooseDisabled = useMemo(() => {
-    if (visibleSlots.length === 0) return true;
-    return !selectedStartTime;
-  }, [visibleSlots.length, selectedStartTime]);
-
-  useEffect(() => {
-    if (
-      selectedStartTime &&
-      !visibleSlots.some((slot) => slot.startTime === selectedStartTime)
-    ) {
-      setSelectedStartTime(visibleSlots[0]?.startTime ?? null);
+  const effectiveStartTime = useMemo(() => {
+    if (!selectedStartTime) return visibleSlots[0]?.startTime ?? null;
+    if (visibleSlots.some((slot) => slot.startTime === selectedStartTime)) {
+      return selectedStartTime;
     }
+    return visibleSlots[0]?.startTime ?? null;
   }, [visibleSlots, selectedStartTime]);
 
+  const chooseDisabled = useMemo(() => {
+    if (visibleSlots.length === 0) return true;
+    return !effectiveStartTime;
+  }, [visibleSlots.length, effectiveStartTime]);
+
   const onChoose = () => {
-    if (!selectedStartTime) return;
+    if (!effectiveStartTime) return;
     const q = new URLSearchParams({
       employeeId: provider.id,
-      startTime: selectedStartTime,
+      startTime: effectiveStartTime,
     });
     router.push(`${bookPath(slug, '/services')}?${q.toString()}`);
   };
@@ -138,7 +137,7 @@ export function ProviderProfileClient({
             </p>
             <div className="flex flex-wrap gap-2">
               {visibleSlots.map((slot) => {
-                const active = selectedStartTime === slot.startTime;
+                const active = effectiveStartTime === slot.startTime;
                 return (
                   <button
                     key={slot.startTime}

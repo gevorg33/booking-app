@@ -311,18 +311,42 @@ import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js
 import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtures.js';
 import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
-import { PRODUCT_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
+import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
+import { META_PRODUCT_GUIDE_CLASSIFIER_RULES } from './ai-meta-product-guide.fixtures.js';
+import { DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
+import {
+  isMetaProductGuideIntent,
+  runMetaProductGuideIntent,
+  type MetaProductGuideIntent,
+} from './ai-meta-product-guide.util.js';
+import { AiProductGuideEmptyStateService } from './ai-product-guide-empty-state.service.js';
+import {
+  isEmptyStateGuideIntent,
+  type EmptyStateGuideIntent,
+} from './ai-product-guide-empty-state.util.js';
 import {
   mergeProductGuideParams,
   resolveProductGuideSessionContext,
   type AppGuideIntent,
 } from './ai-product-guide.util.js';
 import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from './ai-product-guide-rescue.util.js';
+import {
   buildGuideHandoffExecutionPrompt,
   isGuideHandoffMutatingAction,
   readGuideHandoffDispatch,
   validateGuideHandoffDispatch,
 } from './ai-product-guide-handoff.util.js';
+import {
+  appendPostFailureGuideFallback,
+  buildPostFailureGuideFallbackInput,
+} from './ai-product-guide-failure-fallback.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+} from './ai-product-guide-ai-unavailable.util.js';
 import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
 import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES } from './ai-service-online-payment.fixtures.js';
@@ -561,6 +585,12 @@ Rules:
 - explain_app_feature: READ — UI feature semantics and where to find a dashboard setting or menu (AiProductGuideService). Optional topicId. NOT domain explain_* (tax/currency/checkout) and NOT configure_* mutates.
 - guide_user_flow: READ — dashboard setup walkthrough with numbered guide steps, no mutations (AiProductGuideService). Question-shaped bulk prompts must NOT become cancel_bookings / payment_sweep. Optional topicId.
 - explain_current_screen: READ — current page capabilities using session route context (AiProductGuideService). Triggers: this page/screen, what can I do here. NOT show_appointments or list_* reads.
+- explain_ai_settings: READ — AI/OpenAI settings in Settings → Integrations (AiProductGuideService meta guide). NOT configure_* mutates.
+- explain_ai_suggestions: READ — contextual AI suggestion chips; optional suggestionId maps chip → guide step. NOT executing the suggested command.
+- explain_assistant_approval: READ — plan diff preview and Approve & execute safety flow before mutating AI actions. NOT update_bookings mutate.
+- explain_visibility_block: READ — live diagnosis when a dashboard menu/page is missing (role, plan tier, disabled module). NOT explain_app_feature generic tour.
+- explain_empty_catalog: READ — live service/provider catalog counts and public booking flag when lists are empty. NOT list_services browse.
+- explain_stripe_not_connected: READ — live Stripe Connect health (configured, onboarding, chargesEnabled). NOT explain_why_stripe_required or explain_stripe_currency_warning.
 - explain_patient_chart: READ — clinic only: summarize patient chart — allergies, recent visits, pending lab results/orders. Requires customerName or customerId. NOT lookup_customer (CRM profile), NOT list_test_orders (lab queue), NOT list_bookings (all appointments).
 - explain_date_input_format: READ — how typed dashboard date fields parse slash input using business dateFormat vs calendar picker ISO selection. NOT preview_date_input_parse (sample parse) and NOT explain_business_date_format (display settings).
 - preview_date_input_parse: READ — preview typed date strings → ISO calendar day under current dateFormat (DD/MM vs MM/DD). Optional dateStrings. NOT explain_date_input_format (rules) and NOT preview_business_date_format (booking display).
@@ -690,7 +720,9 @@ ${WAITLIST_DASHBOARD_MULTILINGUAL_CLASSIFIER_RULES}
 ${CLINIC_TEST_RESULT_EXT_CLASSIFIER_RULES}
 ${BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES}
 ${BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES}
-${PRODUCT_GUIDE_CLASSIFIER_RULES}`;
+${APP_GUIDE_CLASSIFIER_RULES}
+${META_PRODUCT_GUIDE_CLASSIFIER_RULES}
+${DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -731,6 +763,7 @@ export class AiCommandService {
     private clinicTestResult: AiClinicTestResultService,
     private clinicPatientChart: AiClinicPatientChartService,
     private productGuide: AiProductGuideService,
+    private emptyStateGuide: AiProductGuideEmptyStateService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
     private tourService: AiTourServiceService,
     private clinicService: AiClinicServiceService,
@@ -811,13 +844,21 @@ export class AiCommandService {
     session?: CommandSessionOptions,
   ): Promise<CommandResult> {
     if (!(await this.openAi.isAvailableForBusiness(businessId))) {
-      return {
-        success: false,
-        action: 'error',
-        summary:
-          'AI is not configured. Add an OpenAI API key in Settings → API Keys, or contact your platform administrator.',
-        details: {},
-      };
+      const fallback = await runAiUnavailableStaticGuideFallback({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        surface: 'dashboard',
+        reason: 'openai_not_configured',
+        session,
+        userId,
+      });
+      if (fallback) return fallback;
+      return buildAiUnavailableErrorWithGuideLink({
+        surface: 'dashboard',
+        reason: 'openai_not_configured',
+        route: session?.context?.route as string | undefined,
+      });
     }
 
     const timeZone = await this.resolveCommandTimezone(businessId, session);
@@ -1241,8 +1282,12 @@ export class AiCommandService {
       traceId: resolveCommandTraceId(session?.context),
       pipelineTrace: [],
     };
+    const guideFallbackInput = buildPostFailureGuideFallbackInput(session, 'dashboard');
     const traceStamp = (result: CommandResult) =>
-      finalizeCommandTraceResult(result, traceCtx);
+      finalizeCommandTraceResult(
+        appendPostFailureGuideFallback(result, guideFallbackInput),
+        traceCtx,
+      );
 
     if (guideHandoff) {
       const handoffValidation = validateGuideHandoffDispatch(guideHandoff);
@@ -1407,6 +1452,34 @@ export class AiCommandService {
         parsed.confidence = Math.max(
           typeof parsed.confidence === 'number' ? parsed.confidence : 0,
           0.84,
+        );
+      }
+    }
+
+    if (!skipClassifierRescues) {
+      const guideSessionContext = resolveProductGuideSessionContext(
+        session,
+        'dashboard',
+      );
+      const guideRescue = rescueProductGuideIntent(
+        effectivePrompt,
+        parsed.action,
+        {
+          surface: 'dashboard',
+          assistantMode: session?.context?.assistantMode as
+            | 'guide'
+            | 'act'
+            | undefined,
+          route: guideSessionContext.route,
+          context: session?.context,
+        },
+      );
+      if (guideRescue.action !== parsed.action) {
+        parsed.action = guideRescue.action;
+        parsed.reasoning = `Product guide rescue → ${guideRescue.action}`;
+        parsed.confidence = Math.max(
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          0.86,
         );
       }
     }
@@ -3932,6 +4005,29 @@ export class AiCommandService {
           session,
         );
         break;
+      case 'explain_ai_settings':
+      case 'explain_ai_suggestions':
+      case 'explain_assistant_approval':
+        result = await this.dispatchMetaProductGuideIntent(
+          parsed.action,
+          businessId,
+          params,
+          effectivePrompt,
+          session,
+          userId,
+        );
+        break;
+      case 'explain_visibility_block':
+      case 'explain_empty_catalog':
+      case 'explain_stripe_not_connected':
+        result = await this.dispatchEmptyStateGuideIntent(
+          parsed.action,
+          businessId,
+          params,
+          effectivePrompt,
+          session,
+        );
+        break;
       case 'explain_date_input_format':
         result =
           await this.businessDateFormat.handleExplainDateInputFormat(
@@ -5366,6 +5462,65 @@ export class AiCommandService {
 
   // ─── Action handlers ────────────────────────────────────────────────────────
 
+  /** ai-guide-1.8.7 — meta-AI guide intents → AiProductGuideService playbooks. */
+  private async dispatchMetaProductGuideIntent(
+    action: MetaProductGuideIntent,
+    businessId: string,
+    params: Record<string, unknown>,
+    effectivePrompt: string,
+    session?: CommandSessionOptions,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const context = resolveProductGuideSessionContext(session, 'dashboard');
+    const payload = {
+      ...mergeProductGuideParams(params, session),
+      _prompt: effectivePrompt,
+    };
+    return runMetaProductGuideIntent({
+      productGuide: this.productGuide,
+      businessId,
+      prompt: effectivePrompt,
+      metaIntent: action,
+      surface: 'dashboard',
+      userId,
+      params: payload,
+      session: session ? { context: session.context } : undefined,
+      sessionContext: context,
+    });
+  }
+
+  /** ai-guide-1.8.9 — live permission / empty-state guides. */
+  private async dispatchEmptyStateGuideIntent(
+    action: EmptyStateGuideIntent,
+    businessId: string,
+    params: Record<string, unknown>,
+    effectivePrompt: string,
+    session?: CommandSessionOptions,
+  ): Promise<CommandResult> {
+    if (!isEmptyStateGuideIntent(action)) {
+      return {
+        success: false,
+        action,
+        summary: 'Unsupported empty-state guide intent on dashboard.',
+        details: {},
+      };
+    }
+    const context = resolveProductGuideSessionContext(session, 'dashboard');
+    return this.emptyStateGuide.runIntent({
+      businessId,
+      intent: action,
+      surface: 'dashboard',
+      prompt: effectivePrompt,
+      params: {
+        ...mergeProductGuideParams(params, session),
+        _prompt: effectivePrompt,
+      },
+      session: session ? { context: session.context } : undefined,
+      sessionContext: context,
+      locale: context.locale,
+    });
+  }
+
   /** ai-guide-1.2.6 — dashboard product guide intents → AiProductGuideService. */
   private async dispatchProductGuideIntent(
     action: AppGuideIntent,
@@ -5374,32 +5529,38 @@ export class AiCommandService {
     effectivePrompt: string,
     session?: CommandSessionOptions,
   ): Promise<CommandResult> {
+    const context = resolveProductGuideSessionContext(session, 'dashboard');
+    const topicId = enrichGuideTopicFromPrompt(effectivePrompt, {
+      surface: 'dashboard',
+      route: context.route,
+      topicId: params.topicId,
+    });
     const payload = {
       ...mergeProductGuideParams(params, session),
+      ...(topicId ? { topicId } : {}),
       _prompt: effectivePrompt,
     };
-    const context = resolveProductGuideSessionContext(session);
     switch (action) {
       case 'explain_app_feature':
         return this.productGuide.handleExplainAppFeatureAsync(
           businessId,
           payload,
           effectivePrompt,
-          context,
+          { ...context, session },
         );
       case 'guide_user_flow':
         return this.productGuide.handleGuideUserFlowAsync(
           businessId,
           payload,
           effectivePrompt,
-          context,
+          { ...context, session },
         );
       case 'explain_current_screen':
         return this.productGuide.handleExplainCurrentScreenAsync(
           businessId,
           payload,
           effectivePrompt,
-          context,
+          { ...context, session },
         );
       default:
         return {

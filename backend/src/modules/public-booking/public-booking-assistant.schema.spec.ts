@@ -81,5 +81,8 @@ describe('buildPublicClassifierSchema', () => {
     );
     expect(schema).toContain('Monday and Friday afternoon');
     expect(schema).toContain('AND vs OR');
+    expect(schema).toContain('booking_help: READ — step-aware booking funnel guide');
+    expect(schema).toContain('explain_app_feature: READ — public booking page UI semantics');
+    expect(schema).toContain('bookingStep in session selects playbook when omitted');
   });
 });

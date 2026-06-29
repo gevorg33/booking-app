@@ -1,0 +1,156 @@
+{
+  "common": {
+    "step1": "Քայլ 1",
+    "step2": "Քայլ 2",
+    "step3": "Քայլ 3",
+    "step4": "Քայլ 4",
+    "step5": "Քայլ 5"
+  },
+  "customer": {
+    "gettingStarted": {
+      "title": "Սկսել",
+      "summary": "Բարի լույս → ընտրեք սրահ → ծառայություն → ժամ → հաստատեք առաջին ամրագրումը։",
+      "step1": "Բացեք հավելվածը կամ հետևեք ձեր սրահի ամրագրման հղմանը։",
+      "step2": "Գտեք սրահը կամ ընտրեք ձեր վերջին այցելություններից։",
+      "step3": "Բացեք «Ծառայություններ» և ընտրեք անհրաժեշտ ծառայությունը։",
+      "step4": "Ընտրեք ազատ ժամ — մոտակա slot-ը կարող է արդեն ընտրված լինել։",
+      "step5": "Հաստատման քայլում ստուգեք մանրամասները և պահպանեք ամրագրումը։"
+    },
+    "activation": {
+      "welcome": {
+        "title": "Բարի լույս",
+        "summary": "Սկսեք այստեղից, նախքան սրահ ընտրելը։",
+        "step1": "Բացեք հավելվածը կամ սեղմեք ամրագրման հղմանը։",
+        "step2": "Դիտեք վերջին սրահները կամ որոնեք անվամբ։",
+        "step3": "Սեղմեք սրահի վրա՝ դրա գլխավոր էկրանը բացելու և շարունակելու համար։"
+      },
+      "salon": {
+        "title": "Ընտրեք սրահ",
+        "summary": "Ընտրեք այն բիզնեսը, որտեղ ցանկանում եք ամրագրել։",
+        "step1": "Համոզվեք, որ գտնվում եք սրահի գլխավոր էկran-ում։",
+        "step2": "Դիտեք առաջարկները և առաջիկա ամրագրումները, եթե ցուցադրվում են։",
+        "step3": "Բացեք «Ծառայություններ»՝ հաջորդ քայլին անցնելու համար։"
+      },
+      "service": {
+        "title": "Ընտրեք ծառայություն",
+        "summary": "Ընտրեք ամրագրման տեսակը նախքան ժամ ընտրելը։",
+        "step1": "Դիտեք կategoriанer և համematiրteq տevoxutyun-ը ու գինը։",
+        "step2": "Սեղմեք ծառayutyun-i vra՝ amragrmanneri oratsuyts-ը bacelu hamar։",
+        "step3": "Շarunakreq jhami qaylin, erb patrast eq։"
+      },
+      "slot": {
+        "title": "Ընտրեք ժամ",
+        "summary": "Ընտրեք ազat slot oratsuytsic։",
+        "step1": "Ստուգեք arajarkvac motaka slot-ը, ete naxnakan yntrvats e։",
+        "step2": "Փoxarqeq or-ը kam jham-ը, ete urish slot eq uzum։",
+        "step3": "Ընtreq slot՝ hstatarum qaylin ancnelu hamar։"
+      },
+      "confirm": {
+        "title": "Հաստատեք ամրagrումը",
+        "summary": "Սtugeq amen inch naxkanc uxarkel-ը։",
+        "step1": "Սtugeq tsarayutyun-ը, masnaget-ը, amsativ-ը ev jham-ը։",
+        "step2": "Avelacreq nshumner kam paketner, ete arajarkvum en։",
+        "step3": "Hstaturum ev pahpaneq hstaturum-ը։"
+      }
+    },
+    "tabs": {
+      "title": "Գlխavar, Ծառayutyunner ev Հashiv",
+      "summary": "Navigatsia havelvatsi вклadokner-ov։",
+      "step1": "Գlխavar ekranum cuyc en trvum arajik amragrmanner ev arajarkner։",
+      "step2": "«Tsarayutyunner» вклadokum en kategorianer ev paketner։",
+      "step3": "«Heshiv» вклadokum en profil, push-ner ev «Ognut'yun ev guid»։"
+    },
+    "bookingFlow": {
+      "title": "Ամragreլ ayc",
+      "summary": "Masnaget → tsarayutyun → slot → vcharum → hstaturum։",
+      "step1": "Yntreq masnaget kam «Vorqan eli hasaneli»։",
+      "step2": "Yntreq tsarayutyun-ը ev avelacvumner-ը։",
+      "step3": "Yntreq azat slot oratsuytsic։",
+      "step4": "Avarteq vcharum-ը ev pahpaneq hstaturum-ը։"
+    },
+    "packages": {
+      "title": "Փաթեթներ էվ նվեր քարտեր",
+      "summary": "Գնեք Փաթեթներ, աբոնեմենտներ կամ նվեր քարտեր, երբ արաջարկվում են։",
+      "step1": "Bacreq «Paketner» Tsarayutyunneric kam Hesabic։",
+      "step2": "Stugeq inch e nerkayacvum ev vaghjnutyunner-ը։",
+      "step3": "Gneq ev checkout-um kirararkeq hajord amragrmanin։"
+    },
+    "account": {
+      "title": "Հաշիվ էվ ամրագրումներ",
+      "summary": "Մուտք գորզեք, թարմացրեք ժոգի ը կարավարեք արաջիկ այցելությունները։",
+      "step1": "Mutq gorzeq email-ov kam SMS kodov։",
+      "step2": "Tarkceq profil-i tvyalner-ը ev push kargavorman-ner-ը։",
+      "step3": "Tarmatsreq kam chancel areq arajik amragrmanneric, erb tuyllatrvum e։"
+    },
+    "assistant": {
+      "title": "Ամրագրման ողնական",
+      "summary": "Հարցրեք ամրագրումների մասին որինակ հարցերով։",
+      "step1": "Sxmek AI chip-ը amragrmanneri ekranerum։",
+      "step2": "Pordzarkeq arajarkvac harcer kam greq dzer harc-ը։",
+      "step3": "Tveq krknak vardzakutyun, ete patasxan-ը sxal er։"
+    }
+  },
+  "public": {
+    "bookingFunnel": {
+      "title": "Անլայն ամրագրել",
+      "summary": "Անոնիմ այցելություները կարոխ են ամրագրել արանց հաշիվի, երբ միացված է։",
+      "step1": "Yntreq tsarayutyun public booking ekranic-ic։",
+      "step2": "Yntreq masnaget ev azat slot։",
+      "step3": "Lratreq kap tvyalner-ը ev hstaturum։"
+    },
+    "professionals": {
+      "title": "Ընտրեւ մասնագետ",
+      "summary": "Ընտրեւ, խմ եք ըսկանում եք գալու, նախկանց ծարայություն կամ ժամ ընտրել։",
+      "step1": "Diteq «Masnagetner» ej-ը ev hamemativqteq bio ev reytingner-ը։",
+      "step2": "Sxmek masnaget-i vra՝ nra tsarayutyunner-ը ev azat jhamner-ը tesnelu hamar։",
+      "step3": "Sharunakreq Tsarayutyunner kam sxmek slot՝ checkout-in motecnelu hamar։"
+    },
+    "services": {
+      "title": "Ընտրեւ ծարայություն",
+      "summary": "Ընտրեւ այդ ամենայն տեսակը, որից ըսկանում եք ամրագրել։",
+      "step1": "Bacreq Tsarayutyunner masnaget yntreluc heto (kam menu-ic)։",
+      "step2": "Hamemativqteq tevoxutyun, gin ev nkaragrutyun։",
+      "step3": "Sxmek tsarayutyan vra՝ azat jhamner bacelu ev checkout sharunakelu hamar։"
+    },
+    "checkout": {
+      "title": "Անլայն ոճարում",
+      "summary": "Ոճարեք դեպոզիտ կամ ամբոբջ գումար անլայն ոճարումի իրաքիք։",
+      "step1": "Stugeq gin, tevoxutyun ev chancel policy։",
+      "step2": "Lratreq vcharayin tvyalner, ete naxkakan vcharum e pahpanvum։",
+      "step3": "Pahpaneq email/SMS hstaturum-ը։"
+    },
+    "availability": {
+      "title": "Ստուգեք ազատություն",
+      "summary": "Դիտեք ազատ slot-եր նախկանց ոճարումի։",
+      "step1": "Yntreq tsarayutyun՝ oratsuyts-ը bacelu hamar։",
+      "step2": "Ogtagortseq motaka azat kam yntreq konkret or։",
+      "step3": "Slot-ner-ը tarmacnum en, erb biznesi oratsuyts-ը poxvum e։"
+    }
+  },
+  "overlays": {
+    "clinic": {
+      "consumer": {
+        "title": "Լաբորատոր արդյունցներ էվ հրայտարարություններ",
+        "summary": "Կլինիկային հաչախները կարոխ են դիտել անալիզատոր արդյունցներ եվ հրայտարարություններ։",
+        "step1": "Bacreq «Ardyunqner» kam «Lab» вклadokic, erb miacvats e։",
+        "step2": "Kardal patasxanatvutyun-ner aydc-ic naxkanc aydc։",
+        "step3": "Neragrel kam share ardyunqner-ը, erb clinic-ը tesnum e։"
+      }
+    },
+    "tour": {
+      "checkout": {
+        "title": "Տուրի ոճարում",
+        "summary": "Խուրդ տուրերի դեպո կարելի է դեպոզիտ եվ խունդի չապեր։",
+        "step1": "Hstaturum koxmaki chaps-ը ev tour amsativ-ը։",
+        "step2": "Vjarreq checkout-um tesvac depozit-ը։",
+        "step3": "Pahpaneq hstaturum-ը meeting point-ov։"
+      },
+      "packages": {
+        "title": "Տուրկային Փաթեթներ",
+        "summary": "Ամենատրեք միիցան տուրի ամսաթիներ կամ ավելացումներ։",
+        "step1": "Diteq tour paketner Tsarayutyunneric։",
+        "step2": "Stugeq koxmaki sahman-ner ev chgarelu amsativner։"
+      }
+    }
+  }
+}

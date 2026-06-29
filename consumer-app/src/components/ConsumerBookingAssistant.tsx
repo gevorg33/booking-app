@@ -7,6 +7,7 @@ import {
 import { close, send, sparkles } from 'ionicons/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { getConsumerDiscoveryChips } from '../lib/consumer-discovery-chips.js';
@@ -19,7 +20,14 @@ import { ConsumerBodyPortal } from './ConsumerBodyPortal.js';
 import {
   sendPublicAssistantMessage,
   type PublicAssistantResponse,
+  fetchPublicProviders,
 } from '../services/public-api.js';
+import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js';
+import { buildConsumerAssistantExamples } from '../lib/consumer-assistant-examples.util.js';
+import {
+  mapPublicProvidersForAssistantExamples,
+  mapPublicServicesForAssistantExamples,
+} from '../lib/assistant-example-tenant.util.js';
 import {
   buildProviderBookingPrompt,
   normalizeAvailableProviders,
@@ -31,7 +39,6 @@ import {
 } from '../lib/public-assistant-checkout.util.js';
 import {
   hasConsumerAssistantGuideSteps,
-  resolveConsumerAssistantExampleKeys,
 } from '../lib/consumer-assistant-guide.util.js';
 import {
   resolveAssistantModePayload,
@@ -50,6 +57,7 @@ import {
   type SpeechRecognitionErrorCode,
 } from '../lib/use-speech-recognition.js';
 import { loadRecentSalons } from '../lib/recent-salons.js';
+import { buildConsumerAssistantPageContext } from '../lib/public-booking-assistant-context.util.js';
 
 interface Message {
   id: string;
@@ -93,14 +101,30 @@ export function ConsumerBookingAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [guideMode, setGuideMode] = useState(false);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
-  const exampleKeys = useMemo(
-    () => resolveConsumerAssistantExampleKeys(guideMode),
-    [guideMode],
+  const { data: services = [] } = useCachedTenantServices(slug);
+  const { data: providers = [] } = useQuery({
+    queryKey: ['providers', slug, locale, 'assistant-examples'],
+    queryFn: () => fetchPublicProviders(slug, { locale }),
+    enabled: Boolean(slug),
+    staleTime: 60_000,
+  });
+  const exampleTenant = useMemo(
+    () => ({
+      services: mapPublicServicesForAssistantExamples(services),
+      providers: mapPublicProvidersForAssistantExamples(providers),
+    }),
+    [providers, services],
+  );
+  const examples = useMemo(
+    () => buildConsumerAssistantExamples(copy, guideMode, exampleTenant),
+    [copy, exampleTenant, guideMode],
   );
   const assistantContext = useMemo(
     () => ({
       ...sessionContext,
-      screen: location.pathname,
+      ...buildConsumerAssistantPageContext(location.pathname, {
+        slotSelected: Boolean(sessionContext.timeSlot),
+      }),
       recentSalons: loadRecentSalons().map((salon) => ({
         slug: salon.slug,
         name: salon.name,
@@ -112,7 +136,10 @@ export function ConsumerBookingAssistant({
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
   const fabBottomInset = useMemo(() => getConsumerFabDefaultBottomInset(), []);
-  const discoveryChips = useMemo(() => getConsumerDiscoveryChips(copy), [copy]);
+  const discoveryChips = useMemo(
+    () => getConsumerDiscoveryChips(copy, exampleTenant),
+    [copy, exampleTenant],
+  );
   const estimatedSize = useMemo(() => {
     const fab = { width: 56, height: 56 };
     if (!viewport.width) return fab;
@@ -465,13 +492,11 @@ export function ConsumerBookingAssistant({
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {exampleKeys.map((key) => {
-                    const example = copy[key as keyof typeof copy] as string;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setInput(example)}
+                  {examples.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => setInput(example)}
                         style={{
                           width: '100%',
                           textAlign: 'left',
@@ -485,8 +510,7 @@ export function ConsumerBookingAssistant({
                       >
                         &ldquo;{example}&rdquo;
                       </button>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             ) : null}

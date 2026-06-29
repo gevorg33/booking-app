@@ -12,21 +12,39 @@ import {
   handleGuideUserFlowLogicAsync,
   type ProductGuideLogicInput,
 } from './ai-product-guide.logic.js';
-import {
-  isGuideCorpusMatchConfident,
-  pickBestGuideCorpusTopic,
-  rankGuideCorpusTopics,
-  type ProductGuideRetrieveQuery,
-} from './ai-product-guide-ranking.util.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
 import { resolveLocale } from '../../common/i18n/messages.js';
+import type { ProductGuideRetrieveQuery } from './ai-product-guide-ranking.util.js';
+import {
+  rankAllGuideTopics,
+  resolveGuideKeywordMatch,
+} from './ai-product-guide-match.util.js';
+import { GuideTelemetryService } from './guide-telemetry.service.js';
+import type { ProductGuideTelemetryRecorder } from './guide/guide-telemetry.types.js';
 
 @Injectable()
 export class AiProductGuideService {
   constructor(
     private readonly llm: LlmService,
     private readonly openAi: OpenAiGatewayService,
+    private readonly guideTelemetry: GuideTelemetryService,
   ) {}
+
+  private buildTelemetryRecorder(): ProductGuideTelemetryRecorder {
+    return {
+      recordTopicOpened: (input) => this.guideTelemetry.recordTopicOpened(input),
+      recordGroundingFailure: (input) => this.guideTelemetry.recordGroundingFailure(input),
+    };
+  }
+
+  private withTelemetryContext(
+    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'>,
+  ): Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> {
+    return {
+      ...context,
+      telemetry: this.buildTelemetryRecorder(),
+    };
+  }
 
   private buildDeps(businessId: string, userId?: string) {
     return buildProductGuideLogicDeps(businessId, this.llm, this.openAi, userId);
@@ -35,17 +53,34 @@ export class AiProductGuideService {
   retrieveRankedTopics(query: ProductGuideRetrieveQuery) {
     const locale = resolveLocale(query.locale);
     const messages = getFrontendGuideCorpusMessages(locale);
-    return rankGuideCorpusTopics({ ...query, locale }, messages);
+    return rankAllGuideTopics({ ...query, locale }, messages);
   }
 
   isConfidentMatch(score: number): boolean {
-    return isGuideCorpusMatchConfident(score);
+    return score >= 0.55;
   }
 
   pickBestTopic(query: ProductGuideRetrieveQuery) {
     const locale = resolveLocale(query.locale);
     const messages = getFrontendGuideCorpusMessages(locale);
-    return pickBestGuideCorpusTopic({ ...query, locale }, messages);
+    const match = resolveGuideKeywordMatch({ ...query, locale }, messages);
+    if (match.kind === 'flow' && match.flowBest) {
+      return {
+        topicId: match.flowBest.topicId,
+        score: match.flowBest.score,
+        reasons: match.flowBest.reasons,
+        source: 'flow' as const,
+      };
+    }
+    if (match.kind === 'corpus' && match.corpusBest) {
+      return {
+        topicId: match.corpusBest.topicId,
+        score: match.corpusBest.score,
+        reasons: match.corpusBest.reasons,
+        source: 'corpus' as const,
+      };
+    }
+    return null;
   }
 
   handleExplainAppFeature(
@@ -58,7 +93,7 @@ export class AiProductGuideService {
       businessId,
       params,
       prompt: prompt || String(params._prompt ?? ''),
-      ...context,
+      ...this.withTelemetryContext(context),
     });
   }
 
@@ -73,7 +108,7 @@ export class AiProductGuideService {
         businessId,
         params,
         prompt: prompt || String(params._prompt ?? ''),
-        ...context,
+        ...this.withTelemetryContext(context),
       },
       this.buildDeps(businessId, context.userId),
     );
@@ -89,7 +124,7 @@ export class AiProductGuideService {
       businessId,
       params,
       prompt: prompt || String(params._prompt ?? ''),
-      ...context,
+      ...this.withTelemetryContext(context),
     });
   }
 
@@ -104,7 +139,7 @@ export class AiProductGuideService {
         businessId,
         params,
         prompt: prompt || String(params._prompt ?? ''),
-        ...context,
+        ...this.withTelemetryContext(context),
       },
       this.buildDeps(businessId, context.userId),
     );
@@ -120,7 +155,7 @@ export class AiProductGuideService {
       businessId,
       params,
       prompt: prompt || String(params._prompt ?? ''),
-      ...context,
+      ...this.withTelemetryContext(context),
     });
   }
 
@@ -135,7 +170,7 @@ export class AiProductGuideService {
         businessId,
         params,
         prompt: prompt || String(params._prompt ?? ''),
-        ...context,
+        ...this.withTelemetryContext(context),
       },
       this.buildDeps(businessId, context.userId),
     );

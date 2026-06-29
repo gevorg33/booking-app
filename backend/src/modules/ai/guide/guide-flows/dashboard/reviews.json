@@ -1,0 +1,19 @@
+{
+  "topicId": "dashboard.operations.problems",
+  "surface": "dashboard",
+  "routes": ["/dashboard/reviews"],
+  "titleKey": "guide.operations.problemsTitle",
+  "summaryKey": "guide.operations.problemsIntro",
+  "navigateTarget": { "path": "/dashboard/reviews" },
+  "corpusTopicId": "dashboard.operations.problems",
+  "keywords": ["reviews", "respond", "reputation"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.operations.solution1",
+      "navigate": { "path": "/dashboard/reviews" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.operations.solution2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.operations.solution3" }
+  ]
+}

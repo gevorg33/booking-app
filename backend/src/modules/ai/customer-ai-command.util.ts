@@ -21,6 +21,8 @@ import { DATA_RIGHTS_CLASSIFIER_RULES } from './ai-data-rights.fixtures.js';
 import { CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from './ai-clinic-v2-6.fixtures.js';
 import { CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES } from './ai-consumer-package-booking.fixtures.js';
 import { CONSUMER_ADOPTION_CLASSIFIER_RULES } from './ai-consumer-adoption.fixtures.js';
+import { CUSTOMER_APP_GUIDE_CLASSIFIER_RULES } from './ai-customer-product-guide.util.js';
+import { CUSTOMER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
@@ -101,6 +103,25 @@ const PUBLIC_ASSISTANT_UI_DETAIL_KEYS = [
   'serviceIds',
 ] as const;
 
+function serializePublicAssistantSessionContext(
+  sessionContext: unknown,
+): PublicAssistantResult['sessionContext'] {
+  if (!sessionContext || typeof sessionContext !== 'object') return undefined;
+  const out: Record<string, string | null> = {};
+  for (const [key, value] of Object.entries(sessionContext as Record<string, unknown>)) {
+    if (value == null || value === '') {
+      out[key] = null;
+      continue;
+    }
+    if (key === 'completedSteps' && Array.isArray(value)) {
+      out[key] = JSON.stringify(value);
+      continue;
+    }
+    out[key] = typeof value === 'string' ? value : String(value);
+  }
+  return out;
+}
+
 export function commandResultToPublicAssistantResult(
   result: CommandResult,
 ): PublicAssistantResult {
@@ -115,8 +136,7 @@ export function commandResultToPublicAssistantResult(
     success: result.success,
     action: result.action ?? 'unknown',
     summary: result.summary,
-    sessionContext:
-      details.sessionContext as PublicAssistantResult['sessionContext'],
+    sessionContext: serializePublicAssistantSessionContext(details.sessionContext),
     navigate: details.navigate as PublicAssistantResult['navigate'],
     bookingId: details.bookingId as string | undefined,
     guide: result.guide,
@@ -158,7 +178,8 @@ Classify the user's message and extract parameters. Return JSON:
     "paymentMethod": "cash | online | gift_card | null",
     "customerName": "string or null",
     "customerEmail": "string or null",
-    "customerPhone": "string or null"
+    "customerPhone": "string or null",
+    "topicId": "string or null — optional consumer guide playbook id (consumer-tabs, consumer-account, consumer-packages-gift-cards) for explain_app_feature / guide_user_flow / explain_current_screen"
   },
   "reasoning": "one short sentence"
 }
@@ -196,6 +217,8 @@ ${CLINIC_BOOKING_CLASSIFIER_RULES}
 ${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 ${CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES}
 ${CONSUMER_ADOPTION_CLASSIFIER_RULES}
+${CUSTOMER_APP_GUIDE_CLASSIFIER_RULES}
+${CUSTOMER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }

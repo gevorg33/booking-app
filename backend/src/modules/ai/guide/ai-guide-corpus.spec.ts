@@ -24,6 +24,8 @@ import {
 } from './ai-guide-corpus-i18n.util.js';
 import { getFrontendGuideCorpusMessages } from './ai-guide-corpus-i18n.fixtures.js';
 import { DASHBOARD_GUIDE_CORPUS_CROSS_LINK_INDEX } from './dashboard-guide-corpus.cross-link.util.js';
+import { assertGuideFlowRouteCoverage } from './guide-flow.routes.manifest.js';
+import { assertGuideFlowCatalogIntegrity } from './guide-flow.loader.js';
 
 describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
   it('ships stable unique topicIds aligned with dashboard guide anchors', () => {
@@ -52,6 +54,11 @@ describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
       'ai-examples',
       'ai-tips',
     ]);
+  });
+
+  it('guide-flow playbooks cover dashboard nav routes (ai-guide-1.1.2)', () => {
+    assertGuideFlowCatalogIntegrity();
+    assertGuideFlowRouteCoverage();
   });
 
   it('maps help-center topics and guide anchors to corpus topicIds', () => {

@@ -107,6 +107,16 @@ import {
 } from './ai-clinic-test-result.util.js';
 import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
 import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
+import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
+import {
+  META_PRODUCT_GUIDE_INTENTS,
+  PROVIDER_META_GUIDE_INTENTS,
+} from './ai-meta-product-guide.fixtures.js';
+import {
+  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
+  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
+  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+} from './ai-product-guide-empty-state.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
 import {
   PROVIDER_CLINIC_COLLECTION_INTENTS,
@@ -219,6 +229,7 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'team_floor_status',
   'check_in_client',
   'mark_running_late',
+  'voice_summarize_next_client',
 ] as const;
 
 /** Anonymous public-booking assistant (pre-login). */
@@ -354,9 +365,57 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
   },
   {
     intents: [...APP_GUIDE_INTENTS],
+    surfaces: ['dashboard', 'customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_PRODUCT_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...META_PRODUCT_GUIDE_INTENTS],
     surfaces: ['dashboard'],
     apiModule: 'ai-command',
     handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_META_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...DASHBOARD_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideEmptyStateService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideEmptyStateService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideEmptyStateService',
     sprint: 'productGuide',
     mutateIntents: [],
   },

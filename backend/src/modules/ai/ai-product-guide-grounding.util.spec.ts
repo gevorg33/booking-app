@@ -13,7 +13,10 @@ describe('ai-product-guide-grounding.util (ai-guide-1.2.4)', () => {
   it('accepts known dashboard routes and corpus-backed guides', () => {
     expect(isGroundedGuideRoute('/dashboard/schedule')).toBe(true);
     expect(isGroundedGuideRoute('/dashboard/operations/inventory')).toBe(true);
-    expect(isGroundedGuideRoute('/consumer/book')).toBe(false);
+    expect(isGroundedGuideRoute('/tabs/today')).toBe(true);
+    expect(isGroundedGuideRoute('/accept-invite')).toBe(true);
+    expect(isGroundedGuideRoute('professionals')).toBe(true);
+    expect(isGroundedGuideRoute('checkout')).toBe(true);
     expect(verifyGuideResponseGrounding(SAMPLE_GUIDE_RESPONSE).ok).toBe(true);
   });
 

@@ -111,6 +111,23 @@ export interface AiCommandEvalExpectation {
   compoundRecipeId?: string;
   /** Per-step param subset checks after decomposition. */
   compoundStepParams?: CompoundStepParamExpectation[];
+  /** Use surface-scoped product guide rescue (ai-guide-1.6.4). */
+  useProductGuideRescue?: boolean;
+  /** Assert enrichGuideTopicFromPrompt topicId (ai-guide-1.6.4). */
+  useProductGuideTopicEnrich?: boolean;
+  /** Route context for product guide topic enrichment eval. */
+  guideEvalRoute?: string;
+  /** ai-guide-1.8.10 — OpenAI disabled or quota exceeded fallback scenario metadata. */
+  aiUnavailableReason?: 'openai_not_configured' | 'quota_exceeded';
+  aiUnavailableExpectGuide?: boolean;
+  aiUnavailableExpectNativeNavigate?: boolean;
+  /** Activation step for customer guide topic enrichment eval. */
+  guideEvalActivationStep?:
+    | 'welcome'
+    | 'salon'
+    | 'service'
+    | 'slot'
+    | 'confirm';
   /** HIPAA PHI guard assessment (ai-cmd-compliance-15). */
   phiGuard?: {
     blocked: boolean;

@@ -4,22 +4,24 @@ import type { OpenAiGatewayService } from '../integrations/openai/openai-gateway
 import type {
   CommandResult,
   GuideResponse,
-  GuideStep,
 } from './command-completion.types.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
-import type { GuideCorpusTopic } from './guide/ai-guide-corpus.types.js';
-import { buildDashboardGuideTopicUrl } from './guide/dashboard-guide-corpus.manifest.js';
 import {
   getGuideCorpusTopic,
   resolveGuideCorpusTopic,
-  type ResolvedGuideCorpusTopic,
 } from './guide/ai-guide-corpus.util.js';
 import type { GuideCorpusTopicId } from './guide/ai-guide-corpus.types.js';
+import type { AccessTier } from './access-control.matrix.js';
+import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
+import type { GuideFlowSurface } from './guide/guide-flow.types.js';
 import {
   buildGuideCommandResult,
   type AppGuideIntent,
 } from './ai-product-guide.util.js';
+import { buildGuideResponseFromCorpus } from './ai-product-guide-corpus-response.util.js';
 import { enrichGuideResponseHandoffs } from './ai-product-guide-handoff.util.js';
+import { enrichGuideResponseHelpArticles } from './guide/guide-topic-help-articles.util.js';
+import { enrichGuideResponseSupportHandoff } from './guide/guide-support-handoff.util.js';
 import {
   buildGuideGroundingClarifyResult,
   verifyGuideResponseGrounding,
@@ -31,14 +33,30 @@ import {
 } from './ai-product-guide-polish.util.js';
 import {
   GUIDE_CORPUS_MATCH_THRESHOLD,
-  isGuideCorpusMatchConfident,
-  pickBestGuideCorpusTopic,
   type ProductGuideRetrieveQuery,
 } from './ai-product-guide-ranking.util.js';
 import {
-  resolveGuideCorpusMatch,
-  type GuideCorpusSemanticDeps,
-} from './ai-product-guide-semantic.util.js';
+  buildGuideResponseFromFlowPlaybook,
+  resolveGuideFlowPlaybook,
+} from './guide/guide-flow.corpus.util.js';
+import {
+  buildGuideClarifyResult,
+  resolveGuideFullMatch,
+  resolveGuideKeywordMatch,
+} from './ai-product-guide-match.util.js';
+import { resolveGuideFlowSurfaceFromRoute } from './guide/guide-flow.merge.util.js';
+import type { GuideCorpusSemanticDeps } from './ai-product-guide-semantic.util.js';
+import type { ProductGuideTelemetryRecorder } from './guide/guide-telemetry.types.js';
+import {
+  recordProductGuideGroundingFailureTelemetry,
+  recordProductGuideTopicOpenedTelemetry,
+} from './guide/guide-telemetry.util.js';
+import {
+  initializeGuideMultiTurnResult,
+  tryHandleGuideMultiTurnNavigation,
+} from './ai-product-guide-multiturn.util.js';
+import { tryResolvePlanGatedGuideResult } from './ai-product-guide-plan-gate.util.js';
+import { readPlanTierIdFromPageContext } from './ai-product-guide-session.util.js';
 
 export interface ProductGuideLogicInput {
   businessId: string;
@@ -49,6 +67,12 @@ export interface ProductGuideLogicInput {
   vertical?: string;
   locale?: string;
   userId?: string;
+  retailPosEnabled?: boolean;
+  enabledModules?: readonly string[];
+  roleProfile?: GuideFlowRoleScope;
+  surface?: GuideFlowSurface;
+  telemetry?: ProductGuideTelemetryRecorder;
+  session?: { context?: Record<string, unknown> };
 }
 
 export interface ProductGuideLogicDeps {
@@ -61,84 +85,11 @@ function readTopicIdParam(params?: Record<string, unknown>): string | undefined 
   return typeof topicId === 'string' && topicId.trim() ? topicId.trim() : undefined;
 }
 
-function parseDashboardGuideNavigateUrl(url: string): { path: string; hash?: string } {
-  const hashIndex = url.indexOf('#');
-  if (hashIndex === -1) return { path: url };
-  return {
-    path: url.slice(0, hashIndex),
-    hash: url.slice(hashIndex + 1),
-  };
-}
-
-function resolveTopicNavigateTarget(
-  topic: GuideCorpusTopic,
-  topicId: GuideCorpusTopicId,
-): GuideResponse['navigate'] {
-  if (topic.navigate) {
-    return { path: topic.navigate.path, hash: topic.navigate.hash };
-  }
-  return parseDashboardGuideNavigateUrl(buildDashboardGuideTopicUrl(topicId));
-}
-
 function resolveGuideLocale(locale?: string): AppLocale {
   return resolveLocale(locale);
 }
 
-export function buildGuideResponseFromCorpus(
-  resolved: ResolvedGuideCorpusTopic,
-  topic: GuideCorpusTopic,
-): GuideResponse {
-  const stepTexts = resolved.content
-    .filter((row) => row.kind === 'step')
-    .map((row) => row.text);
-
-  const steps: GuideStep[] = stepTexts.map((body, index) => ({
-    title: `Step ${index + 1}`,
-    body,
-    navigate:
-      index === 0 && topic.navigate
-        ? { path: topic.navigate.path, hash: topic.navigate.hash }
-        : undefined,
-  }));
-
-  if (steps.length === 0 && resolved.bullets.length > 0) {
-    resolved.bullets.forEach((body, index) => {
-      steps.push({
-        title: `Tip ${index + 1}`,
-        body,
-      });
-    });
-  }
-
-  if (steps.length === 0) {
-    steps.push({
-      title: resolved.title,
-      body: resolved.summary ?? resolved.body ?? resolved.title,
-      navigate: topic.navigate
-        ? { path: topic.navigate.path, hash: topic.navigate.hash }
-        : undefined,
-    });
-  }
-
-  const summary =
-    resolved.summary ??
-    resolved.body ??
-    `${resolved.title}${stepTexts.length ? ` — ${stepTexts.length} steps` : ''}`;
-
-  return {
-    topicId: resolved.topicId,
-    summary,
-    steps,
-    navigate: resolveTopicNavigateTarget(topic, resolved.topicId as GuideCorpusTopicId),
-    sources: [
-      {
-        topicId: resolved.topicId,
-        label: resolved.title,
-        kind: 'topic',
-      },
-    ],
-  };
-}
+export { buildGuideResponseFromCorpus } from './ai-product-guide-corpus-response.util.js';
 
 function buildProductGuideQuery(
   intent: AppGuideIntent,
@@ -150,34 +101,111 @@ function buildProductGuideQuery(
     intent,
     route: input.route,
     role: input.role,
+    roleProfile: input.roleProfile,
     vertical: input.vertical,
     locale,
     topicId: readTopicIdParam(input.params),
+    retailPosEnabled: input.retailPosEnabled,
+    enabledModules: input.enabledModules,
+    surface:
+      input.surface ??
+      resolveGuideFlowSurfaceFromRoute(input.route) ??
+      'dashboard',
+    planTierId: readPlanTierIdFromPageContext(input.session?.context),
   };
 }
 
-async function resolveBestGuideMatch(
-  query: ProductGuideRetrieveQuery,
+function finalizeGuideResponse(
+  guide: GuideResponse,
+  input: ProductGuideLogicInput,
+  intent: AppGuideIntent,
+  locale: AppLocale,
+): GuideResponse {
+  const withHandoffs = enrichGuideResponseHandoffs(guide, {
+    prompt: input.prompt,
+    route: input.route,
+    intent,
+  });
+  const withHelp = enrichGuideResponseHelpArticles(withHandoffs);
+  return enrichGuideResponseSupportHandoff(withHelp, {
+    surface:
+      input.surface ??
+      resolveGuideFlowSurfaceFromRoute(input.route) ??
+      'dashboard',
+    route: input.route,
+    topicId: guide.topicId,
+    locale,
+  });
+}
+
+function buildDeterministicFlowGuideResult(
+  intent: AppGuideIntent,
+  input: ProductGuideLogicInput,
+  best: NonNullable<Awaited<ReturnType<typeof resolveGuideKeywordMatch>>['flowBest']>,
+  locale: AppLocale,
   messages: ReturnType<typeof getFrontendGuideCorpusMessages>,
-  deps?: ProductGuideLogicDeps,
-) {
-  if (deps?.semantic) {
-    return resolveGuideCorpusMatch(query, messages, deps.semantic);
+): CommandResult {
+  const resolved = resolveGuideFlowPlaybook(best.playbook, messages);
+  const guide = finalizeGuideResponse(
+    buildGuideResponseFromFlowPlaybook(resolved),
+    input,
+    intent,
+    locale,
+  );
+
+  const grounding = verifyGuideResponseGrounding(guide);
+  if (!grounding.ok) {
+    recordProductGuideGroundingFailureTelemetry(
+      input.telemetry,
+      {
+        businessId: input.businessId,
+        userId: input.userId,
+        route: input.route,
+        surface: input.surface,
+        locale,
+        topicId: guide.topicId,
+      },
+      grounding.issues.map((issue) => issue.code),
+    );
+    return buildGuideGroundingClarifyResult(intent, grounding);
   }
 
-  const keywordBest = pickBestGuideCorpusTopic(query, messages);
-  return {
-    best: keywordBest,
-    retrievalPath: 'keyword' as const,
-    keywordBest,
-    semanticBest: null,
+  recordProductGuideTopicOpenedTelemetry(
+    input.telemetry,
+    {
+      businessId: input.businessId,
+      userId: input.userId,
+      route: input.route,
+      surface: input.surface,
+      locale,
+    },
+    guide,
+  );
+
+  const result = buildGuideCommandResult(intent, guide);
+  result.details = {
+    ...result.details,
+    confidence: best.score,
+    matchReasons: best.reasons,
+    locale,
+    retrievalPath: 'guide-flow',
+    deterministic: true,
+    playbookTopicId: best.topicId,
   };
+  return initializeGuideMultiTurnResult(result, input.session?.context);
+}
+
+function resolveGuideMatch(
+  query: ProductGuideRetrieveQuery,
+  messages: ReturnType<typeof getFrontendGuideCorpusMessages>,
+) {
+  return resolveGuideKeywordMatch(query, messages);
 }
 
 function buildDeterministicGuideResult(
   intent: AppGuideIntent,
   input: ProductGuideLogicInput,
-  best: NonNullable<Awaited<ReturnType<typeof resolveBestGuideMatch>>['best']>,
+  best: { topicId: string; score: number; reasons: readonly string[] },
   locale: AppLocale,
   retrievalPath: string,
 ): CommandResult {
@@ -196,15 +224,41 @@ function buildDeterministicGuideResult(
     };
   }
 
-  const guide = enrichGuideResponseHandoffs(
+  const guide = finalizeGuideResponse(
     buildGuideResponseFromCorpus(resolved, topic),
-    { prompt: input.prompt, route: input.route, intent },
+    input,
+    intent,
+    locale,
   );
 
   const grounding = verifyGuideResponseGrounding(guide);
   if (!grounding.ok) {
+    recordProductGuideGroundingFailureTelemetry(
+      input.telemetry,
+      {
+        businessId: input.businessId,
+        userId: input.userId,
+        route: input.route,
+        surface: input.surface,
+        locale,
+        topicId: guide.topicId,
+      },
+      grounding.issues.map((issue) => issue.code),
+    );
     return buildGuideGroundingClarifyResult(intent, grounding);
   }
+
+  recordProductGuideTopicOpenedTelemetry(
+    input.telemetry,
+    {
+      businessId: input.businessId,
+      userId: input.userId,
+      route: input.route,
+      surface: input.surface,
+      locale,
+    },
+    guide,
+  );
 
   const result = buildGuideCommandResult(intent, guide);
   result.details = {
@@ -215,7 +269,7 @@ function buildDeterministicGuideResult(
     retrievalPath,
     deterministic: true,
   };
-  return result;
+  return initializeGuideMultiTurnResult(result, input.session?.context);
 }
 
 /**
@@ -226,27 +280,31 @@ export function handleProductGuideIntentLogic(
   input: ProductGuideLogicInput,
 ): CommandResult {
   const locale = resolveGuideLocale(input.locale);
+  const navigationResult = tryHandleGuideMultiTurnNavigation(intent, input, locale);
+  if (navigationResult) return navigationResult;
+
+  const planGateResult = tryResolvePlanGatedGuideResult(intent, input, locale);
+  if (planGateResult) return planGateResult;
+
   const messages = getFrontendGuideCorpusMessages(locale);
   const query = buildProductGuideQuery(intent, input, locale);
+  const match = resolveGuideMatch(query, messages);
 
-  const best = pickBestGuideCorpusTopic(query, messages);
-  if (!best || !isGuideCorpusMatchConfident(best.score)) {
-    return {
-      success: false,
-      action: intent,
-      summary:
-        'I could not match that to a guide topic yet. Try naming the page — Schedule, Operations, AI command bar — or open Help & guide from the sidebar.',
-      details: {
-        clarify: true,
-        confidence: best?.score ?? 0,
-        threshold: GUIDE_CORPUS_MATCH_THRESHOLD,
-        suggestedTopicIds: best ? [best.topicId] : [],
-        route: input.route ?? null,
-      },
-    };
+  if (match.kind === 'flow' && match.flowBest) {
+    return buildDeterministicFlowGuideResult(intent, input, match.flowBest, locale, messages);
   }
 
-  return buildDeterministicGuideResult(intent, input, best, locale, 'keyword');
+  if (match.kind === 'corpus') {
+    return buildDeterministicGuideResult(
+      intent,
+      input,
+      match.corpusBest!,
+      locale,
+      'keyword',
+    );
+  }
+
+  return buildGuideClarifyResult(intent, match, input.route ?? null);
 }
 
 /**
@@ -259,34 +317,63 @@ export async function handleProductGuideIntentLogicAsync(
   deps?: ProductGuideLogicDeps,
 ): Promise<CommandResult> {
   const locale = resolveGuideLocale(input.locale);
+  const navigationResult = tryHandleGuideMultiTurnNavigation(intent, input, locale);
+  if (navigationResult) return navigationResult;
+
+  const planGateResult = tryResolvePlanGatedGuideResult(intent, input, locale);
+  if (planGateResult) return planGateResult;
+
   const messages = getFrontendGuideCorpusMessages(locale);
   const query = buildProductGuideQuery(intent, input, locale);
+  const resolution = await resolveGuideFullMatch(query, messages, deps?.semantic);
 
-  const resolution = await resolveBestGuideMatch(query, messages, deps);
-  const best = resolution.best;
-
-  if (!best || !isGuideCorpusMatchConfident(best.score)) {
-    return {
-      success: false,
-      action: intent,
-      summary:
-        'I could not match that to a guide topic yet. Try naming the page — Schedule, Operations, AI command bar — or open Help & guide from the sidebar.',
-      details: {
-        clarify: true,
-        confidence: best?.score ?? 0,
-        threshold: GUIDE_CORPUS_MATCH_THRESHOLD,
-        suggestedTopicIds: best ? [best.topicId] : [],
-        route: input.route ?? null,
-        retrievalPath: resolution.retrievalPath,
-        semanticScore: resolution.semanticBest?.score ?? null,
+  if (resolution.kind === 'flow' && resolution.flowBest) {
+    const flowResult = buildDeterministicFlowGuideResult(
+      intent,
+      input,
+      resolution.flowBest,
+      locale,
+      messages,
+    );
+    if (!flowResult.success || !flowResult.guide || !deps?.llm) {
+      return flowResult;
+    }
+    const resolved = resolveGuideFlowPlaybook(resolution.flowBest.playbook, messages);
+    const polished = await polishGuideResponseWithLlm(
+      {
+        businessId: input.businessId,
+        userId: input.userId,
+        prompt: input.prompt,
+        intent,
+        locale,
+        baseGuide: flowResult.guide,
+        corpusTitle: resolved.title,
+        matchConfidence: resolution.flowBest.score,
+        corpusSettingsPaths: [],
       },
+      deps.llm,
+    );
+    if (!polished.polished) return flowResult;
+    const result = buildGuideCommandResult(intent, polished.guide);
+    result.details = {
+      ...flowResult.details,
+      deterministic: false,
+      llmPolished: true,
     };
+    return initializeGuideMultiTurnResult(result, input.session?.context);
+  }
+
+  if (resolution.kind !== 'corpus' || !resolution.corpusBest) {
+    return buildGuideClarifyResult(intent, resolution, input.route ?? null, {
+      retrievalPath: resolution.retrievalPath,
+      semanticScore: resolution.semanticScore,
+    });
   }
 
   const deterministic = buildDeterministicGuideResult(
     intent,
     input,
-    best,
+    resolution.corpusBest,
     locale,
     resolution.retrievalPath,
   );
@@ -294,9 +381,9 @@ export async function handleProductGuideIntentLogicAsync(
     return deterministic;
   }
 
-  const topic = getGuideCorpusTopic(best.topicId as GuideCorpusTopicId);
+  const topic = getGuideCorpusTopic(resolution.corpusBest.topicId as GuideCorpusTopicId);
   const resolved = topic
-    ? resolveGuideCorpusTopic(best.topicId as GuideCorpusTopicId, messages)
+    ? resolveGuideCorpusTopic(resolution.corpusBest.topicId as GuideCorpusTopicId, messages)
     : null;
   if (!resolved) return deterministic;
 
@@ -309,7 +396,7 @@ export async function handleProductGuideIntentLogicAsync(
       locale,
       baseGuide: deterministic.guide,
       corpusTitle: resolved.title,
-      matchConfidence: best.score,
+      matchConfidence: resolution.corpusBest.score,
       corpusSettingsPaths: extractSettingsPathsFromCorpusTopic(resolved),
     },
     deps.llm,
@@ -325,7 +412,7 @@ export async function handleProductGuideIntentLogicAsync(
     deterministic: false,
     llmPolished: true,
   };
-  return result;
+  return initializeGuideMultiTurnResult(result, input.session?.context);
 }
 
 export function buildProductGuideLogicDeps(

@@ -1,9 +1,17 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import type { AiGuideResponse } from '@/lib/ai-client.types';
 import { AiGuideStepsPanel } from './ai-guide-steps-panel';
+
+vi.mock('@/lib/store', () => ({
+  useAuthStore: () => ({
+    business: { id: 'biz-test' },
+    user: { email: 'owner@example.com', firstName: 'Owner' },
+  }),
+}));
 
 const sampleGuide: AiGuideResponse = {
   summary: 'Set up your weekly schedule.',
@@ -23,9 +31,11 @@ describe('AiGuideStepsPanel integration', () => {
   let container: HTMLDivElement;
   let root: Root;
   let navigatedUrl: string | null;
+  let queryClient: QueryClient;
 
   beforeEach(() => {
     navigatedUrl = null;
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -39,14 +49,16 @@ describe('AiGuideStepsPanel integration', () => {
   async function mountPanel(guide: AiGuideResponse = sampleGuide) {
     await act(async () => {
       root.render(
-        <I18nProvider initialLocale="en">
-          <AiGuideStepsPanel
-            guide={guide}
-            onNavigate={(url) => {
-              navigatedUrl = url;
-            }}
-          />
-        </I18nProvider>,
+        <QueryClientProvider client={queryClient}>
+          <I18nProvider initialLocale="en">
+            <AiGuideStepsPanel
+              guide={guide}
+              onNavigate={(url) => {
+                navigatedUrl = url;
+              }}
+            />
+          </I18nProvider>
+        </QueryClientProvider>,
       );
       await Promise.resolve();
     });
@@ -102,24 +114,26 @@ describe('AiGuideStepsPanel integration', () => {
     let handoffLabel: string | null = null;
     await act(async () => {
       root.render(
-        <I18nProvider initialLocale="en">
-          <AiGuideStepsPanel
-            guide={{
-              ...sampleGuide,
-              relatedActions: [
-                {
-                  action: 'apply_schedule',
-                  label: 'Apply a schedule template',
-                  prompt: 'Apply the weekday schedule template',
-                },
-              ],
-            }}
-            onNavigate={() => undefined}
-            onHandoff={(related) => {
-              handoffLabel = related.label;
-            }}
-          />
-        </I18nProvider>,
+        <QueryClientProvider client={queryClient}>
+          <I18nProvider initialLocale="en">
+            <AiGuideStepsPanel
+              guide={{
+                ...sampleGuide,
+                relatedActions: [
+                  {
+                    action: 'apply_schedule',
+                    label: 'Apply a schedule template',
+                    prompt: 'Apply the weekday schedule template',
+                  },
+                ],
+              }}
+              onNavigate={() => undefined}
+              onHandoff={(related) => {
+                handoffLabel = related.label;
+              }}
+            />
+          </I18nProvider>
+        </QueryClientProvider>,
       );
       await Promise.resolve();
     });
@@ -138,5 +152,35 @@ describe('AiGuideStepsPanel integration', () => {
       handoffButton?.click();
     });
     expect(handoffLabel).toBe('Apply a schedule template');
+  });
+
+  it('shows Still stuck? on the final step when supportHandoff is present', async () => {
+    await mountPanel({
+      ...sampleGuide,
+      supportHandoff: {
+        action: 'create_support_ticket',
+        label: 'Still stuck?',
+        snapshot: {
+          surface: 'dashboard',
+          route: '/dashboard/schedule',
+          topicId: 'dashboard.core.schedule',
+          locale: 'en',
+        },
+        ticket: {
+          subject: 'Product guide help',
+          body: 'Product guide support handoff (no PII)',
+          tags: ['product-guide'],
+        },
+      },
+    });
+
+    const nextButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Next step'),
+    );
+    act(() => {
+      nextButton?.click();
+    });
+
+    expect(container.textContent).toContain('Still stuck?');
   });
 });

@@ -1,0 +1,40 @@
+{
+  "id": "retail",
+  "playbooks": [
+    {
+      "topicId": "dashboard-retail-pos",
+      "surface": "dashboard",
+      "routes": ["/dashboard/operations"],
+      "verticals": ["retail"],
+      "titleKey": "guide.flows.overlays.retail.dashboard.title",
+      "summaryKey": "guide.flows.overlays.retail.dashboard.summary",
+      "navigateTarget": { "path": "/dashboard/operations" },
+      "keywords": ["retail pos", "point of sale", "product sales"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.retail.dashboard.step1",
+          "navigate": { "path": "/dashboard/operations" }
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.retail.dashboard.step2" },
+        { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.overlays.retail.dashboard.step3" }
+      ]
+    },
+    {
+      "topicId": "provider-retail-pos",
+      "surface": "provider",
+      "routes": ["/tabs/today"],
+      "verticals": ["retail"],
+      "titleKey": "guide.flows.overlays.retail.provider.title",
+      "summaryKey": "guide.flows.overlays.retail.provider.summary",
+      "keywords": ["retail sale", "pos", "product checkout"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.retail.provider.step1"
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.retail.provider.step2" }
+      ]
+    }
+  ]
+}

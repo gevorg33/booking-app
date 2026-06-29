@@ -1,9 +1,12 @@
 import type { CommandSurface } from './ai-command-registry.types.js';
+import type { AccessTier } from './access-control.matrix.js';
+import type { AiRoleProfile } from './ai-settings.types.js';
 import type {
   CommandResult,
   GuideResponse,
 } from './command-completion.types.js';
 import type { AssistantMode } from './ai-assistant-mode.util.js';
+import type { GuideFlowSurface } from './guide/guide-flow.types.js';
 import {
   shouldApplyProductGuideRouting,
   shouldForceProductGuideRouting,
@@ -94,7 +97,7 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
       id: 'nav-vs-configure-online-payment',
       misclassifiedAction: /^configure_(service_)?online_payment$/,
       promptCue:
-        /\b(where|how\s+(?:do|can|to)|which\s+(?:menu|page|tab|setting)|walk\s+me\s+through|show\s+me\s+how|find\s+the\s+setting)\b/i,
+        /\b(where|how\s+(?:do|can|to)|which\s+(?:menu|page|tab|setting)|walk\s+me\s+through|show\s+me\s+how|find\s+the\s+setting)\b|(?:Որտեղ(?:ից|)?|որտեղ(?:ից|)?)|(?:где\s+(?:включить|найти|мне)|как\s+(?:включить|подключить))/iu,
       preferredIntent: 'guide_user_flow',
       rescueReason: 'product_guide_navigation',
       rationale:
@@ -134,7 +137,7 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
       id: 'nav-vs-booking-mutate',
       misclassifiedAction: /^(create_booking|book_appointment)$/,
       promptCue:
-        /\b(how\s+(?:do|can|to)|walk\s+me\s+through|help\s+me)\b.+\b(book|booking|appointment|schedule)\b/i,
+        /\b(how\s+(?:do|can|to)|where|walk\s+me\s+through|help\s+me)\b.+\b(book|booking|appointment|schedule)\b|(?:ինչպ(?:ե?՞?)?(?:ես|ս).+(?:booking|appointment|amragir|amragrum))|(?:как\s+(?:забронировать|записаться)|как.+(?:appointment|booking))/iu,
       preferredIntent: 'guide_user_flow',
       rescueReason: 'product_guide_navigation',
       rationale:
@@ -144,7 +147,7 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
       id: 'nav-vs-mark-paid',
       misclassifiedAction: /^mark_paid$/,
       promptCue:
-        /\b(where|how\s+(?:do|can|to))\b.+\b(mark\s+paid|paid|payment\s+status)\b/i,
+        /\b(where|how\s+(?:do|can|to))\b.+\b(mark\s+paid|paid|payment\s+status)\b|(?:где\s+отметить.+(?:оплат|paid))/iu,
       preferredIntent: 'guide_user_flow',
       rescueReason: 'product_guide_navigation',
       rationale:
@@ -154,7 +157,7 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
       id: 'screen-vs-unknown',
       misclassifiedAction: /^unknown$/,
       promptCue:
-        /\b(this\s+page|this\s+screen|what\s+am\s+i\s+looking\s+at|explain\s+what\s+i\s+(?:see|am\s+looking\s+at)|here\s+on\s+this)\b/i,
+        /\b(this\s+page|this\s+screen|what\s+am\s+i\s+looking\s+at|explain\s+what\s+i\s+(?:see|am\s+looking\s+at)|here\s+on\s+this)\b|(?:на\s+этой\s+странице|что\s+я\s+могу\s+сделать)/iu,
       preferredIntent: 'explain_current_screen',
       rescueReason: 'product_guide_screen',
       rationale: 'Screen semantics with route context → explain_current_screen.',
@@ -302,24 +305,8 @@ export function buildGuideCommandResult(
   };
 }
 
-/** Session page context for AiCommandService → AiProductGuideService dispatch (ai-guide-1.2.6). */
-export interface ProductGuideSessionContext {
-  route?: string;
-  locale?: string;
-  vertical?: string;
-}
-
-export function resolveProductGuideSessionContext(
-  session?: { context?: Record<string, unknown> },
-): ProductGuideSessionContext {
-  const pageCtx = session?.context;
-  return {
-    route: typeof pageCtx?.route === 'string' ? pageCtx.route : undefined,
-    locale: typeof pageCtx?.locale === 'string' ? pageCtx.locale : undefined,
-    vertical:
-      typeof pageCtx?.vertical === 'string' ? pageCtx.vertical : undefined,
-  };
-}
+export type { ProductGuideSessionContext } from './ai-product-guide-session.util.js';
+export { resolveProductGuideSessionContext } from './ai-product-guide-session.util.js';
 
 /** Merge conversational guideTopicId from dashboard context into classifier params (ai-guide-1.3.4). */
 export function mergeProductGuideParams(
@@ -347,22 +334,23 @@ const EXPLICIT_MUTATE_VERB =
   /\b(enable|disable|turn\s+on|turn\s+off|create|add|invite|book|schedule|cancel|reschedule|mark\b.+\bpaid|mark\s+no[- ]show|delete|remove|forget|set|keep|configure|assign|send|approve|deny|upload|release|notify|offer|accept|sign|report|open\s+ticket)\b/i;
 
 const GUIDE_NAVIGATION_CUE =
-  /\b(how\s+(?:do|can|could|to|i)|where\s+(?:is|are|do|can|i)|which\s+(?:menu|page|tab|screen|setting|button)|walk\s+me\s+through|show\s+me\s+how|help\s+me\s+(?:with|understand)|help\s+me\s+with\s+this\s+(?:page|screen)|what\s+can\s+i\s+do\s+(?:on|here)|take\s+me\s+to|find\s+the\s+(?:setting|page|menu))\b/i;
+  /\b(how\s+(?:do|can|could|to|i)|where\s+(?:is|are|do|can|i)|which\s+(?:menu|page|tab|screen|setting|button)|walk\s+me\s+through|show\s+me\s+how|help\s+me\s+(?:with|understand)|help\s+me\s+with\s+this\s+(?:page|screen)|what\s+can\s+i\s+do\s+(?:on|here)|take\s+me\s+to|find\s+the\s+(?:setting|page|menu))\b|(?:ինչպ(?:ե?՞?)?(?:ես|ս)|որտեղ(?:ից|)?|Որտեղ(?:ից|)?)|(?:как\s+(?:обновить|купить|посмотреть|забронировать|отметить)|где\s+(?:отметить|найти|включить)|как\s+(?:я\s+)?могу)/iu;
 
 /** UI feature semantics — guide, not domain explain (when not checkout/tax/currency topic). */
 const GUIDE_UI_FEATURE_MEANING_CUE =
   /\bwhat\s+does\s+.+\s+mean\b|\bwhat\s+is\s+.+\s+(?:feature|button|tab|toggle|switch|menu|screen)\b/i;
 
-const GUIDE_WALKTHROUGH_CUE = /\bwalk\s+me\s+through\b/i;
+const GUIDE_WALKTHROUGH_CUE =
+  /\bwalk\s+me\s+through\b|(?:քայլ\s+առ\s+քայլ|провед(?:и|ите)\s+меня\s+по\s+шагам)/iu;
 
 const GUIDE_SCREEN_CUE =
-  /\b(this\s+page|this\s+screen|on\s+this\s+(?:page|screen)|what\s+am\s+i\s+looking\s+at|explain\s+what\s+i\s+(?:see|am\s+looking\s+at)|here\s+on\s+this)\b/i;
+  /\b(this\s+page|this\s+screen|on\s+this\s+(?:page|screen)|what\s+am\s+i\s+looking\s+at|explain\s+what\s+i\s+(?:see|am\s+looking\s+at)|here\s+on\s+this)\b|(?:на\s+этой\s+странице|что\s+я\s+могу\s+сделать|այս\s+page(?:-ում|ում)?)/iu;
 
 const DOMAIN_EXPLAIN_TOPIC_CUE =
   /\b(why\s+(?:is|are|does|do)|what\s+(?:currency|tax|vat|deposit|fee|charge|total|amount)|why\s+(?:does|do)\s+.+\s+(?:show|display|cost)|checkout\s+total|stripe\s+fee|gdpr|data\s+rights?|privacy\s+rights?|hipaa|retention\s+period|sub[- ]?processor|currency\s+(?:on|in|for)|prices?\s+(?:shown|displayed|in))\b/i;
 
 const QUESTION_SHAPE =
-  /\?|\b(what|why|how|where|which|explain|mean|means|help)\b/i;
+  /\?|\b(what|why|how|where|which|explain|mean|means|help)\b|(?:ինչ|որտեղ|ինչպ(?:ե?՞?)?(?:ես|ս)|Что|Как|Где|Почему)/iu;
 
 export function isAppGuideIntent(action: string): action is AppGuideIntent {
   return (APP_GUIDE_INTENTS as readonly string[]).includes(action);

@@ -81,6 +81,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       aiSettings as any,
       platform as any,
       commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
 
     return {
@@ -170,6 +171,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       aiSettings as any,
       platform as any,
       commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
 
     await gateway.execute({

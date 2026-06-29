@@ -33,6 +33,7 @@ import {
   PlanEntitlementsService,
   type PlanEntitlementsView,
 } from '../billing/plan-entitlements.service.js';
+import { PlanLimitExceededException } from '../billing/plan-limit.exception.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
@@ -57,6 +58,12 @@ import {
   GUIDE_HANDOFF_CONTEXT_KEY,
   type GuideHandoffDispatch,
 } from './ai-product-guide-handoff.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+  shouldOfferAiUnavailableGuideFallback,
+} from './ai-product-guide-ai-unavailable.util.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
 
 export interface AiGatewayCapabilitiesView extends AiCapabilitiesView {
   usage: PlanEntitlementsView['usage'];
@@ -98,6 +105,7 @@ export class AiGatewayService {
   private readonly aiSettings: AiSettingsService;
   private readonly platform: AiPlatformService;
   private readonly commandTrace: AiCommandTraceService;
+  private readonly productGuide: AiProductGuideService;
 
   /* istanbul ignore start */
   constructor(
@@ -114,6 +122,7 @@ export class AiGatewayService {
     aiSettings: AiSettingsService,
     platform: AiPlatformService,
     commandTrace: AiCommandTraceService,
+    productGuide: AiProductGuideService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -126,6 +135,7 @@ export class AiGatewayService {
     this.aiSettings = aiSettings;
     this.platform = platform;
     this.commandTrace = commandTrace;
+    this.productGuide = productGuide;
   }
   /* istanbul ignore end */
 
@@ -220,9 +230,45 @@ export class AiGatewayService {
     }
 
     if (surface === 'dashboard') {
-      await this.planEntitlements.assertCanRunDashboardAiCommand(
-        params.businessId,
-      );
+      try {
+        await this.planEntitlements.assertCanRunDashboardAiCommand(
+          params.businessId,
+        );
+      } catch (error) {
+        if (
+          error instanceof PlanLimitExceededException &&
+          shouldOfferAiUnavailableGuideFallback(params.prompt, surface, {
+            context: params.context,
+          })
+        ) {
+          const fallback = await runAiUnavailableStaticGuideFallback({
+            productGuide: this.productGuide,
+            businessId: params.businessId,
+            prompt: params.prompt,
+            surface: 'dashboard',
+            reason: 'quota_exceeded',
+            session: { context: params.context },
+            userId: params.userId,
+            locale:
+              typeof params.context?.locale === 'string'
+                ? params.context.locale
+                : undefined,
+          });
+          if (fallback) {
+            const attached = attachGatewayMeta(fallback, surface, tier);
+            this.persistCommandTrace({
+              params,
+              result: fallback,
+              surface: this.toTraceSurface(surface),
+              traceId,
+              startedAt,
+              role: tier,
+            });
+            return attached;
+          }
+        }
+        throw error;
+      }
     }
 
     const entitlements = await this.planEntitlements.getEntitlements(

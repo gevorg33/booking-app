@@ -129,6 +129,17 @@ export interface AiCommandSessionContext extends Partial<AiPageContext> {
   lastAction?: string | null;
   lastMetric?: string | null;
   availableProviders?: string[];
+  /** Multi-turn guide walkthrough (ai-guide-1.8.2). */
+  guideFlowId?: string | null;
+  guideStepIndex?: number | null;
+  completedSteps?: number[] | null;
+}
+
+export interface AiGuideSessionState {
+  guideFlowId: string;
+  guideStepIndex: number;
+  completedSteps: number[];
+  totalSteps: number;
 }
 
 export interface AiGuideNavigateTarget {
@@ -166,6 +177,29 @@ export interface AiGuideSourceRef {
   kind?: 'topic' | 'playbook' | 'i18n' | 'static';
 }
 
+export interface AiGuideHelpArticleRef {
+  helpCenterTopicId?: string;
+  zendeskArticleId?: string;
+}
+
+export interface AiGuideSupportSnapshot {
+  surface: 'dashboard' | 'provider' | 'customer' | 'public';
+  route?: string;
+  topicId?: string;
+  locale: string;
+}
+
+export interface AiGuideSupportHandoff {
+  action: 'create_support_ticket';
+  label: string;
+  snapshot: AiGuideSupportSnapshot;
+  ticket: {
+    subject: string;
+    body: string;
+    tags: readonly string[];
+  };
+}
+
 /** Product-guide payload from dashboard AI command API (ai-guide-1.0.4). */
 export interface AiGuideResponse {
   summary: string;
@@ -174,6 +208,10 @@ export interface AiGuideResponse {
   relatedActions?: AiGuideRelatedAction[];
   topicId?: string;
   sources?: AiGuideSourceRef[];
+  helpArticle?: AiGuideHelpArticleRef;
+  supportHandoff?: AiGuideSupportHandoff;
+  /** Active multi-turn walkthrough position (ai-guide-1.8.2). */
+  guideSession?: AiGuideSessionState;
 }
 
 export interface AiCommandDetails {
@@ -207,6 +245,9 @@ export interface AiCommandDetails {
   bookingMetric?: unknown;
   customerMetric?: unknown;
   navigate?: { path: string; query?: Record<string, string>; hash?: string };
+  guideFlowId?: string | number;
+  guideStepIndex?: number;
+  completedSteps?: number[];
   status?: string;
   plan?: unknown;
 }

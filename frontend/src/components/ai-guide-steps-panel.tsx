@@ -3,13 +3,26 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, ExternalLink } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import type { AiGuideRelatedAction, AiGuideResponse } from '@/lib/ai-client.types';
 import { buildDashboardGuideTopicUrl } from '@/lib/dashboard-guide-corpus.util';
 import {
   buildGuideStepNavigateUrl,
   hasInteractiveGuideSteps,
 } from '@/lib/ai-guide-reply.util';
+import { resolveGuideHelpArticleUrl } from '@/lib/guide-topic-help-articles';
+import { GuideStillStuckButton } from '@/components/guide-still-stuck-button';
+import { submitGuideSupportHandoff } from '@/lib/guide-support-handoff.util';
+import {
+  buildGuideHandoffTelemetryEvent,
+  buildGuideStepCompletedEvent,
+  createGuideTelemetrySessionId,
+  ingestGuideTelemetryEvents,
+  type GuideTelemetrySurface,
+} from '@/lib/guide-telemetry.util';
 
 interface AiGuideStepsPanelProps {
   guide: AiGuideResponse;
@@ -17,9 +30,50 @@ interface AiGuideStepsPanelProps {
   onHandoff?: (related: AiGuideRelatedAction) => void;
 }
 
-export function AiGuideStepsPanel({ guide, onNavigate, onHandoff }: AiGuideStepsPanelProps) {
-  const { t } = useI18n();
-  const [cursor, setCursor] = useState(0);
+function unwrap<T>(res: unknown): T {
+  return ((res as { data?: T })?.data ?? res) as T;
+}
+
+export function AiGuideStepsPanel(props: AiGuideStepsPanelProps) {
+  const sessionKey = `${props.guide.topicId ?? 'guide'}-${props.guide.guideSession?.guideStepIndex ?? 0}`;
+  return <AiGuideStepsPanelInner key={sessionKey} {...props} />;
+}
+
+function AiGuideStepsPanelInner({ guide, onNavigate, onHandoff }: AiGuideStepsPanelProps) {
+  const { t, locale } = useI18n();
+  const { business, user } = useAuthStore();
+  const [cursor, setCursor] = useState(() => guide.guideSession?.guideStepIndex ?? 0);
+  const [telemetrySessionId] = useState(() => createGuideTelemetrySessionId());
+  const telemetrySurface =
+    (guide.supportHandoff?.snapshot.surface as GuideTelemetrySurface | undefined) ??
+    'dashboard';
+  const telemetryRoute = guide.supportHandoff?.snapshot.route;
+  const recordGuideTelemetry = async (
+    events: ReturnType<typeof buildGuideStepCompletedEvent>[],
+  ) => {
+    if (!business?.id) return;
+    try {
+      await ingestGuideTelemetryEvents(
+        async (path, body) => {
+          await api.post(path, body);
+        },
+        `/businesses/${business.id}/ai/guide-telemetry`,
+        events,
+      );
+    } catch {
+      // Non-blocking telemetry (acc-1).
+    }
+  };
+  const { data: zendesk } = useQuery({
+    queryKey: ['integrations-zendesk-widget', business?.id],
+    queryFn: async () => {
+      const { data: res } = await api.get(
+        `/businesses/${business!.id}/integrations/zendesk/widget`,
+      );
+      return unwrap<{ widgetKey: string | null; subdomain?: string }>(res);
+    },
+    enabled: Boolean(business?.id && guide.helpArticle?.zendeskArticleId),
+  });
 
   if (!hasInteractiveGuideSteps(guide)) return null;
 
@@ -30,8 +84,14 @@ export function AiGuideStepsPanel({ guide, onNavigate, onHandoff }: AiGuideSteps
   const atEnd = cursor >= steps.length - 1;
   const navigateUrl = buildGuideStepNavigateUrl(guide, cursor);
   const fullGuideUrl = guide.topicId ? buildDashboardGuideTopicUrl(guide.topicId) : null;
+  const helpArticleUrl = resolveGuideHelpArticleUrl(
+    guide.helpArticle,
+    zendesk?.subdomain,
+    locale,
+  );
   const handoffs = guide.relatedActions ?? [];
   const showHandoffs = atEnd && handoffs.length > 0 && onHandoff;
+  const supportHandoff = atEnd ? guide.supportHandoff : undefined;
 
   return (
     <div className="space-y-3">
@@ -94,7 +154,20 @@ export function AiGuideStepsPanel({ guide, onNavigate, onHandoff }: AiGuideSteps
           {!atEnd ? (
             <button
               type="button"
-              onClick={() => setCursor((current) => Math.min(current + 1, steps.length - 1))}
+              onClick={() => {
+                void recordGuideTelemetry([
+                  buildGuideStepCompletedEvent({
+                    surface: telemetrySurface,
+                    topicId: guide.topicId,
+                    route: telemetryRoute,
+                    locale,
+                    sessionId: telemetrySessionId,
+                    stepIndex: cursor,
+                    totalSteps: steps.length,
+                  }),
+                ]);
+                setCursor((current) => Math.min(current + 1, steps.length - 1));
+              }}
               className="text-xs px-2.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white flex items-center gap-1"
             >
               {t('ai.guideNextStep')}
@@ -119,18 +192,64 @@ export function AiGuideStepsPanel({ guide, onNavigate, onHandoff }: AiGuideSteps
               {t('ai.guideViewFullTopic')}
             </Link>
           ) : null}
+          {helpArticleUrl ? (
+            <a
+              href={helpArticleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs px-2.5 py-1 rounded-md border border-blue-500/40 bg-blue-950/30 hover:bg-blue-900/40 text-blue-100 inline-flex items-center gap-1"
+            >
+              {t('ai.guideReadHelpArticle')}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : null}
           {showHandoffs
             ? handoffs.map((related) => (
                 <button
                   key={`${related.action}-${related.label}`}
                   type="button"
-                  onClick={() => onHandoff(related)}
+                  onClick={() => {
+                    void recordGuideTelemetry([
+                      buildGuideHandoffTelemetryEvent({
+                        surface: telemetrySurface,
+                        topicId: guide.topicId,
+                        route: telemetryRoute,
+                        locale,
+                        sessionId: telemetrySessionId,
+                        handoffAction: related.action,
+                        totalSteps: steps.length,
+                      }),
+                    ]);
+                    onHandoff(related);
+                  }}
                   className="text-xs px-2.5 py-1 rounded-md bg-emerald-700/80 hover:bg-emerald-600 text-white"
                 >
                   {t('ai.guideDoThisForMe')}: {related.label}
                 </button>
               ))
             : null}
+          {supportHandoff && business?.id ? (
+            <GuideStillStuckButton
+              handoff={supportHandoff}
+              fallbackToWidget={false}
+              onSubmit={async () =>
+                submitGuideSupportHandoff(
+                  async (path, body) => {
+                    const { data } = await api.post(path, body);
+                    return unwrap(data);
+                  },
+                  {
+                    businessId: business.id,
+                    handoff: supportHandoff,
+                    requesterEmail: user?.email,
+                    requesterName: user?.firstName
+                      ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
+                      : undefined,
+                  },
+                )
+              }
+            />
+          ) : null}
         </div>
       </div>
     </div>

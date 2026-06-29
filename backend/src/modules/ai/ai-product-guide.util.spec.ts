@@ -129,10 +129,30 @@ describe('ai-product-guide.util (ai-guide-1.0.4 GuideResponse)', () => {
 
   it('resolveProductGuideSessionContext reads dashboard page context', () => {
     expect(
-      resolveProductGuideSessionContext({
-        context: { route: '/dashboard/calendar', locale: 'ru' },
-      }),
-    ).toEqual({ route: '/dashboard/calendar', locale: 'ru', vertical: undefined });
+      resolveProductGuideSessionContext(
+        {
+          context: {
+            route: '/dashboard/calendar',
+            locale: 'ru',
+            _accessTier: 'owner',
+          },
+        },
+        'dashboard',
+      ),
+    ).toEqual({
+      route: '/dashboard/calendar',
+      locale: 'ru',
+      vertical: undefined,
+      businessType: undefined,
+      role: 'owner',
+      roleProfile: 'owner',
+      retailPosEnabled: undefined,
+      enabledModules: undefined,
+      planTierId: 'solo',
+      mobileRoute: undefined,
+      screenTab: undefined,
+      surface: 'dashboard',
+    });
   });
 
   it('mergeProductGuideParams injects guideTopicId from session context', () => {

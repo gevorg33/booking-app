@@ -20,13 +20,15 @@ import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-budget-servi
 import { FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from '../ai/ai-flexible-availability.fixtures.js';
 import { SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-service-rank-discovery.fixtures.js';
 import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
+import { PUBLIC_BOOKING_HELP_CLASSIFIER_RULES, PUBLIC_APP_GUIDE_CLASSIFIER_RULES } from '../ai/ai-public-booking-guide.util.js';
+import { PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from '../ai/ai-product-guide-empty-state.fixtures.js';
 
 export function buildPublicClassifierSchema(): string {
   return `You are a friendly booking assistant for a customer-facing online appointment page.
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
+  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "employeeRole": "string or null — specialist role/title from the Providers list (e.g. cosmetologist, massage specialist) when the user asks for top/best rated by job title",
@@ -50,7 +52,8 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color)",
     "customerName": "string or null",
     "customerEmail": "string or null",
-    "customerPhone": "string or null"
+    "customerPhone": "string or null",
+    "topicId": "string or null — optional public guide playbook id (public-booking-professionals, public-booking-services, public-checkout) for explain_app_feature / guide_user_flow / explain_current_screen; bookingStep in session selects playbook when omitted"
   },
   "reasoning": "one short sentence"
 }
@@ -64,7 +67,10 @@ Action rules:
 - list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings). Set serviceTier when they ask for premium tier or standard tier services (entity metadata filter — not serviceRank).
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
-- business_info / booking_help: as named.
+- business_info: hours, location, contact, description; READ only.
+${PUBLIC_BOOKING_HELP_CLASSIFIER_RULES}
+${PUBLIC_APP_GUIDE_CLASSIFIER_RULES}
+${PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
 - explain_checkout_currency: why prices show € / ֏ / ₽ / $ on this booking page; READ only.
 - explain_stripe_checkout_currency: why online Stripe checkout charges in € / ֏ / ₽ / $; when stripeCurrencySupported is false use cash/pay-at-venue; READ only.
 - explain_package_currency: why package or gift-card totals use business default vs legacy bundled service currency; READ only.

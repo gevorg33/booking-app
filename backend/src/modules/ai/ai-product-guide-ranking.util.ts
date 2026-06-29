@@ -117,6 +117,11 @@ export interface ProductGuideRetrieveQuery {
   vertical?: string;
   locale?: string;
   topicId?: string;
+  retailPosEnabled?: boolean;
+  enabledModules?: readonly string[];
+  roleProfile?: import('./guide/guide-flow.types.js').GuideFlowRoleScope;
+  surface?: import('./guide/guide-flow.types.js').GuideFlowSurface;
+  planTierId?: import('../billing/plan-limits.js').PlanTierId;
 }
 
 export interface GuideCorpusRankedTopic {

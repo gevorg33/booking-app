@@ -1,6 +1,7 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { PRODUCT_GUIDE_MISROUTE_SCENARIOS } from './ai-product-guide.fixtures.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
+import { createMockGuideTelemetryService } from './guide/guide-telemetry.mock.js';
 import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
 import {
   COMMAND_REGISTRY_BY_ID,
@@ -58,17 +59,18 @@ describe('ai-product-guide integration (ai-guide-1.2.1–1.2.3)', () => {
     isAvailableForBusiness: jest.fn(async () => false),
     embedText: jest.fn(async () => null),
   };
-  const guide = new AiProductGuideService(llm as any, openAi as any);
+  const guide = new AiProductGuideService(llm as any, openAi as any, createMockGuideTelemetryService());
 
-  it('registers dashboard guide intents on AiProductGuideService', () => {
+  it('registers app guide intents on AiProductGuideService (dashboard + customer + public)', () => {
     expect(REGISTRY_VALIDATION_ERRORS).toEqual([]);
     for (const intent of APP_GUIDE_INTENTS) {
       const entry = COMMAND_REGISTRY_BY_ID.get(intent);
-      expect(entry?.surfaces).toEqual(['dashboard']);
+      expect(entry?.surfaces).toEqual(['dashboard', 'customer', 'public']);
       expect(entry?.handler).toBe('AiProductGuideService');
       expect(entry?.mutating).toBe(false);
       expect(entry?.tiers).toContain('staff');
       expect(entry?.tiers).toContain('owner');
+      expect(entry?.tiers).toContain('client');
     }
   });
 

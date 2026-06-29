@@ -3,12 +3,16 @@ import {
   getOnboardingPageSuggestionGroups,
   type OnboardingAiStep,
 } from '@/lib/ai-onboarding.util';
-import type { AiTranslateFn } from '@/lib/ai-assistant-i18n';
+import type {
+  AiTranslateFn,
+  AssistantExampleTenantInput,
+} from '@/lib/ai-assistant-i18n';
 
 export type ResolveAiPagePanelGroupsInput = {
   route: string;
   onboardingStep?: OnboardingAiStep;
   suggestions?: string[];
+  tenant?: AssistantExampleTenantInput | null;
   t: AiTranslateFn;
 };
 
@@ -16,12 +20,12 @@ export type ResolveAiPagePanelGroupsInput = {
 export function resolveAiPagePanelGroups(
   input: ResolveAiPagePanelGroupsInput,
 ): AiPageSuggestionGroup[] {
-  const { route, onboardingStep, suggestions, t } = input;
+  const { route, onboardingStep, suggestions, tenant, t } = input;
   if (route === '/dashboard/onboarding' && onboardingStep) {
     return getOnboardingPageSuggestionGroups(onboardingStep, t);
   }
   if (route) {
-    return getAiPageSuggestionGroups(route, t);
+    return getAiPageSuggestionGroups(route, t, tenant);
   }
   if (suggestions?.length) {
     return [{ id: 'commands', label: t('ai.quickCommands'), items: suggestions }];

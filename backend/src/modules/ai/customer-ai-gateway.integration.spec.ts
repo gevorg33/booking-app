@@ -62,6 +62,7 @@ describe('customer AI gateway integration (ai-cmd-0.5)', () => {
       sprintMocks.aiSettings as any,
       sprintMocks.platform as any,
       sprintMocks.commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
 
     return {

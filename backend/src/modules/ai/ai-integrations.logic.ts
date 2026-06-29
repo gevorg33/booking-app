@@ -10,6 +10,10 @@ import type { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-
 import type { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
 import { mergeMarketingNotificationSettings } from '../notifications/marketing-notification-settings.util.js';
 import type { CommandResult } from './command-completion.types.js';
+import {
+  buildGuideSupportTicketPayload,
+  parseGuideSupportSnapshot,
+} from './guide/guide-support-handoff.util.js';
 import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
 import {
   buildBookingCreatedTestPayload,
@@ -580,32 +584,49 @@ export async function handleCreateSupportTicketLogic(
   actorName?: string,
 ): Promise<CommandResult> {
   const promptText = prompt ?? (params._prompt as string) ?? '';
+  const guideSnapshot =
+    parseGuideSupportSnapshot(params.guideSnapshot) ??
+    parseGuideSupportSnapshot(params.snapshot);
+  const ticketFromSnapshot = guideSnapshot
+    ? buildGuideSupportTicketPayload(guideSnapshot)
+    : null;
+
   const subject =
     (params.subject as string | undefined) ??
+    ticketFromSnapshot?.subject ??
     extractTicketSubjectFromPrompt(promptText) ??
     'Support request from dashboard';
   const body =
     (params.body as string | undefined) ??
+    ticketFromSnapshot?.body ??
     extractTicketBodyFromPrompt(promptText) ??
     (promptText.slice(0, 500) || 'Support ticket created via AI assistant.');
+  const tags =
+    (params.tags as string[] | undefined) ?? ticketFromSnapshot?.tags ?? undefined;
 
   try {
-    const customer = await resolveCustomerByName(
-      deps,
-      businessId,
-      params,
-      promptText,
-    );
+    const customer =
+      guideSnapshot && !params.customerId && !params.customerName
+        ? null
+        : await resolveCustomerByName(
+            deps,
+            businessId,
+            params,
+            guideSnapshot ? '' : promptText,
+          );
     const ticket = await deps.zendeskIntegrationService.createSupportTicket(
       businessId,
       {
         subject,
         body,
-        customerId: customer?.id,
+        customerId: customer?.id ?? (params.customerId as string | undefined),
         bookingId: params.bookingId as string | undefined,
         requesterEmail: params.requesterEmail as string | undefined,
         requesterName: params.requesterName as string | undefined,
-        tags: params.tags as string[] | undefined,
+        tags: tags ? [...tags] : undefined,
+        ...(guideSnapshot
+          ? { guideSnapshot: guideSnapshot as unknown as Record<string, unknown> }
+          : {}),
       },
       actorEmail,
       actorName,

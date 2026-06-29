@@ -163,6 +163,16 @@ export function extractSessionContext(result: {
     details?.bookingMetric ??
     details?.metric;
   if (metric) ctx.lastMetric = String(metric);
+  if (details?.guideFlowId != null) ctx.guideFlowId = String(details.guideFlowId);
+  if (details?.guideStepIndex != null) {
+    const index = Number(details.guideStepIndex);
+    if (Number.isInteger(index) && index >= 0) ctx.guideStepIndex = index;
+  }
+  if (Array.isArray(details?.completedSteps)) {
+    ctx.completedSteps = details.completedSteps
+      .map((entry) => Number(entry))
+      .filter((entry) => Number.isInteger(entry) && entry >= 0);
+  }
   return ctx;
 }
 
@@ -189,6 +199,10 @@ export function mergeSessionContext(
     bookingMetric: next.bookingMetric ?? prev.bookingMetric,
     route: next.route ?? prev.route,
     availableProviders: next.availableProviders ?? prev.availableProviders,
+    guideFlowId: next.guideFlowId ?? prev.guideFlowId,
+    guideStepIndex:
+      next.guideStepIndex != null ? next.guideStepIndex : prev.guideStepIndex,
+    completedSteps: next.completedSteps ?? prev.completedSteps,
   };
 }
 

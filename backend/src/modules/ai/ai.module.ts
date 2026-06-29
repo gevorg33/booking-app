@@ -16,6 +16,7 @@ import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
+import { AiProductGuideEmptyStateService } from './ai-product-guide-empty-state.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
@@ -141,6 +142,8 @@ import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/pati
 import { ComplianceModule } from '../compliance/compliance.module.js';
 import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiGuideTelemetry } from './entities/ai-guide-telemetry.entity.js';
+import { GuideTelemetryService } from './guide-telemetry.service.js';
 
 @Module({
   imports: [
@@ -170,6 +173,7 @@ import { AiCommandTraceService } from './ai-command-trace.service.js';
       ClinicTestType,
       ClinicTestPanel,
       AiCommandTrace,
+      AiGuideTelemetry,
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
@@ -224,6 +228,8 @@ import { AiCommandTraceService } from './ai-command-trace.service.js';
     AiClinicTestResultService,
     AiClinicPatientChartService,
     AiProductGuideService,
+    AiProductGuideEmptyStateService,
+    GuideTelemetryService,
     AiConsumerClinicTestResultsService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,
@@ -335,6 +341,9 @@ import { AiCommandTraceService } from './ai-command-trace.service.js';
     ProviderCommandUnderstandingAdapter,
     CustomerCommandUnderstandingAdapter,
     PublicCommandUnderstandingAdapter,
+    AiProductGuideService,
+    AiProductGuideEmptyStateService,
+    GuideTelemetryService,
     AiCommandTraceService,
   ],
 })

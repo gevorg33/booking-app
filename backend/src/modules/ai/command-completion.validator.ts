@@ -69,12 +69,145 @@ import {
   parseConfigureTourServiceFromPrompt,
 } from './ai-tour-service.util.js';
 import {
+  parseAppGuideIntentFromPrompt,
+  parseMetaProductGuideIntentFromPrompt,
+} from './ai-product-guide-completion.util.js';
+import type { AppGuideIntent } from './ai-product-guide.util.js';
+import type { MetaProductGuideIntent } from './ai-meta-product-guide.fixtures.js';
+import type { EmptyStateGuideIntent } from './ai-product-guide-empty-state.fixtures.js';
+import { EMPTY_STATE_GUIDE_RESCUE_SCENARIOS } from './ai-product-guide-empty-state.fixtures.js';
+import {
   isApplyClinicPlaybookPrompt,
   isExplainClinicServicesPrompt,
   parseConfigureClinicServiceFromPrompt,
 } from './ai-clinic-service.util.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
+
+function buildAppGuideValidationIssues(
+  action: AppGuideIntent,
+  cmd: ResolvedCommand,
+): ValidationIssue[] {
+  if (parseAppGuideIntentFromPrompt(action, cmd.prompt ?? '', cmd.params)) {
+    return [];
+  }
+  if (action === 'explain_current_screen') {
+    return [
+      {
+        field: 'route',
+        label: 'Current screen',
+        message:
+          'Ask what you can do on this page/screen or include session route context',
+        example: 'What can I do on this page?',
+      },
+    ];
+  }
+  if (action === 'explain_app_feature') {
+    return [
+      {
+        field: 'prompt',
+        label: 'App feature',
+        message:
+          'Ask what a dashboard feature, menu, tab, or setting does and where to find it',
+        example: 'What does the command bar do?',
+      },
+    ];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Setup walkthrough',
+      message:
+        'Ask how to complete a dashboard setup task, or provide topicId/route for a known guide flow',
+      example: 'Walk me through setting up weekly schedule templates',
+    },
+  ];
+}
+
+function buildMetaGuideValidationIssues(
+  action: MetaProductGuideIntent,
+  cmd: ResolvedCommand,
+): ValidationIssue[] {
+  if (parseMetaProductGuideIntentFromPrompt(action, cmd.prompt ?? '', cmd.params)) {
+    return [];
+  }
+  if (action === 'explain_ai_settings') {
+    return [
+      {
+        field: 'prompt',
+        label: 'AI settings',
+        message:
+          'Ask about AI/OpenAI settings, API key mode, confidence, or autopilot configuration',
+        example: 'Where do I configure the OpenAI API key?',
+      },
+    ];
+  }
+  if (action === 'explain_ai_suggestions') {
+    return [
+      {
+        field: 'prompt',
+        label: 'AI suggestions',
+        message:
+          'Ask what suggestion chips/cards mean, or pass suggestionId for a specific chip',
+        example: 'What do the suggestion chips on Schedule mean?',
+      },
+    ];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Assistant approval',
+      message:
+        'Ask about the plan diff preview, Approve & execute, or swipe-to-confirm safety preview',
+      example: 'What is the diff preview before I approve an AI plan?',
+    },
+  ];
+}
+
+function buildEmptyStateGuideValidationIssues(
+  action: EmptyStateGuideIntent,
+  cmd: ResolvedCommand,
+): ValidationIssue[] {
+  const prompt = cmd.prompt ?? '';
+  if (
+    EMPTY_STATE_GUIDE_RESCUE_SCENARIOS.some(
+      (row) => row.intent === action && row.prompt.test(prompt),
+    )
+  ) {
+    return [];
+  }
+  if (action === 'explain_visibility_block') {
+    return [
+      {
+        field: 'prompt',
+        label: 'Visibility block',
+        message:
+          'Ask why a dashboard menu, page, or feature is missing (role, plan, or module gate)',
+        example: "Why can't I see the Integrations menu?",
+      },
+    ];
+  }
+  if (action === 'explain_empty_catalog') {
+    return [
+      {
+        field: 'prompt',
+        label: 'Empty catalog',
+        message:
+          'Ask why no services or providers appear (live catalog counts and public booking flag)',
+        example: 'No services shown on the booking page',
+      },
+    ];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Stripe Connect',
+      message:
+        'Ask why Stripe Connect is not set up or online card payments are unavailable',
+      example: 'Stripe is not connected — how do I fix it?',
+    },
+  ];
+}
 
 const needs = (
   field: string,
@@ -1655,6 +1788,24 @@ const ACTION_RULES: Record<string, Rule> = {
             example: 'Why did checkout reject 4 people for the mountain trek?',
           },
         ],
+
+  explain_app_feature: (cmd) =>
+    buildAppGuideValidationIssues('explain_app_feature', cmd),
+  guide_user_flow: (cmd) => buildAppGuideValidationIssues('guide_user_flow', cmd),
+  explain_current_screen: (cmd) =>
+    buildAppGuideValidationIssues('explain_current_screen', cmd),
+  explain_ai_settings: (cmd) =>
+    buildMetaGuideValidationIssues('explain_ai_settings', cmd),
+  explain_ai_suggestions: (cmd) =>
+    buildMetaGuideValidationIssues('explain_ai_suggestions', cmd),
+  explain_assistant_approval: (cmd) =>
+    buildMetaGuideValidationIssues('explain_assistant_approval', cmd),
+  explain_visibility_block: (cmd) =>
+    buildEmptyStateGuideValidationIssues('explain_visibility_block', cmd),
+  explain_empty_catalog: (cmd) =>
+    buildEmptyStateGuideValidationIssues('explain_empty_catalog', cmd),
+  explain_stripe_not_connected: (cmd) =>
+    buildEmptyStateGuideValidationIssues('explain_stripe_not_connected', cmd),
 };
 
 /** Entity resolution failures become clarify prompts */
@@ -1804,10 +1955,37 @@ const VALIDATED_ACTIONS = new Set([
   'configure_business_date_format',
   'configure_recommendation_product',
   'link_recommended_products',
+  'explain_app_feature',
+  'guide_user_flow',
+  'explain_current_screen',
+]);
+
+export const APP_GUIDE_VALIDATED_ACTIONS = new Set<string>([
+  'explain_app_feature',
+  'guide_user_flow',
+  'explain_current_screen',
+]);
+
+export const META_GUIDE_VALIDATED_ACTIONS = new Set<string>([
+  'explain_ai_settings',
+  'explain_ai_suggestions',
+  'explain_assistant_approval',
+]);
+
+export const EMPTY_STATE_GUIDE_VALIDATED_ACTIONS = new Set<string>([
+  'explain_visibility_block',
+  'explain_empty_catalog',
+  'explain_stripe_not_connected',
 ]);
 
 export function shouldValidateAction(action: string): boolean {
-  return VALIDATED_ACTIONS.has(action) || isAiCmdEntityValidatedAction(action);
+  return (
+    VALIDATED_ACTIONS.has(action) ||
+    APP_GUIDE_VALIDATED_ACTIONS.has(action) ||
+    META_GUIDE_VALIDATED_ACTIONS.has(action) ||
+    EMPTY_STATE_GUIDE_VALIDATED_ACTIONS.has(action) ||
+    isAiCmdEntityValidatedAction(action)
+  );
 }
 
 export function buildClarifySummary(issues: ValidationIssue[]): string {

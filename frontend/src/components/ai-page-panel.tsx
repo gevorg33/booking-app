@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   setAiPageContext,
@@ -14,6 +14,7 @@ import {
 } from '@/lib/ai-page-panel.util';
 import { useI18n } from '@/i18n';
 import { AiCollapsiblePanel, AiSuggestionGroupList } from '@/components/ai-suggestion-collapsible';
+import { useAssistantExampleTenant } from '@/hooks/use-assistant-example-tenant';
 
 interface AiPagePanelProps {
   title?: string;
@@ -34,6 +35,7 @@ export function AiPagePanel({
   className = '',
 }: AiPagePanelProps) {
   const { t } = useI18n();
+  const tenant = useAssistantExampleTenant();
   useEffect(() => {
     if (!context) return;
     setAiPageContext(context);
@@ -49,12 +51,17 @@ export function AiPagePanel({
     window.dispatchEvent(new CustomEvent('orchestrix:prompt', { detail: { prompt } }));
   };
 
-  const groups = resolveAiPagePanelGroups({
-    route: context?.route ?? '',
-    onboardingStep,
-    suggestions: suggestionsProp,
-    t,
-  });
+  const groups = useMemo(
+    () =>
+      resolveAiPagePanelGroups({
+        route: context?.route ?? '',
+        onboardingStep,
+        suggestions: suggestionsProp,
+        tenant,
+        t,
+      }),
+    [context?.route, onboardingStep, suggestionsProp, tenant, t],
+  );
 
   if (!aiPagePanelHasSuggestions(groups)) return null;
 

@@ -81,4 +81,74 @@ describe('ai-product-guide.logic (ai-guide-1.2.3)', () => {
       );
     },
   );
+
+  it('ai-guide-1.7.1 — attaches optional help-center / Zendesk article refs', () => {
+    const result = handleGuideUserFlowLogic({
+      businessId: 'biz-1',
+      prompt: 'How do I set up weekly schedule templates?',
+      route: '/dashboard/schedule',
+      locale: 'en',
+      params: { topicId: 'dashboard.core.schedule' },
+    });
+    expect(result.success).toBe(true);
+    expect(result.guide?.helpArticle).toEqual({
+      helpCenterTopicId: 'schedule',
+      zendeskArticleId: '360010001',
+    });
+  });
+
+  it('ai-guide-1.7.2 — attaches Still stuck? support handoff snapshot (no PII)', () => {
+    const result = handleGuideUserFlowLogic({
+      businessId: 'biz-1',
+      prompt: 'How do I set up weekly schedule templates for Anna?',
+      route: '/dashboard/schedule',
+      locale: 'en',
+      surface: 'dashboard',
+      params: { topicId: 'dashboard.core.schedule' },
+    });
+    expect(result.success).toBe(true);
+    expect(result.guide?.supportHandoff).toEqual({
+      action: 'create_support_ticket',
+      label: 'Still stuck?',
+      snapshot: {
+        surface: 'dashboard',
+        route: '/dashboard/schedule',
+        topicId: 'dashboard.core.schedule',
+        locale: 'en',
+      },
+      ticket: {
+        subject: 'Product guide help — dashboard.core.schedule (dashboard)',
+        body: expect.stringContaining('Product guide support handoff (no PII)'),
+        tags: expect.arrayContaining([
+          'product-guide',
+          'guide-dashboard',
+          'guide-topic-dashboard.core.schedule',
+        ]),
+      },
+    });
+    expect(result.guide?.supportHandoff?.ticket.body).not.toContain('Anna');
+  });
+
+  it('ai-guide-1.7.3 — records topic opened telemetry on successful guide', () => {
+    const recordTopicOpened = jest.fn();
+    const recordGroundingFailure = jest.fn();
+    const result = handleGuideUserFlowLogic({
+      businessId: 'biz-1',
+      prompt: 'How do I set up weekly schedule templates?',
+      route: '/dashboard/schedule',
+      locale: 'en',
+      surface: 'dashboard',
+      params: { topicId: 'dashboard.core.schedule' },
+      telemetry: { recordTopicOpened, recordGroundingFailure },
+    });
+    expect(result.success).toBe(true);
+    expect(recordTopicOpened).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessId: 'biz-1',
+        topicId: 'dashboard.core.schedule',
+        totalSteps: result.guide?.steps.length,
+      }),
+    );
+    expect(recordGroundingFailure).not.toHaveBeenCalled();
+  });
 });

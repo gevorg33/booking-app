@@ -120,9 +120,14 @@ describe('ai assistant i18n integration', () => {
 
   it('getLocalizedPageSuggestions returns route prompts and fallback for unknown routes', () => {
     const en = tFor('en');
-    const bookings = getLocalizedPageSuggestions('/dashboard/bookings', en);
+    const ctx = {
+      employees: [{ id: 'e1', name: 'Anna', isActive: true }],
+      services: [{ id: 's1', name: 'Facial', isActive: true }],
+    };
+    const bookings = getLocalizedPageSuggestions('/dashboard/bookings', en, ctx);
     expect(bookings.length).toBeGreaterThan(5);
     expect(bookings[0]).toBe(en('ai.prompts.howManyToday'));
+    expect(bookings.some((item) => item.includes('Facial'))).toBe(true);
 
     const fallback = getLocalizedPageSuggestions('/dashboard/unknown-route', en);
     expect(fallback).toHaveLength(4);

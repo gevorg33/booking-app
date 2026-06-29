@@ -122,6 +122,59 @@ import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
 import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
+import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
+import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
+import {
+  isAppGuideIntent,
+  resolveProductGuidePromptMatch,
+  type AppGuideIntent,
+} from '../ai/ai-product-guide.util.js';
+import {
+  mapCommandResultGuideNavigate,
+  runProviderProductGuideIntent,
+  runSurfaceProductGuideIntent,
+} from '../ai/ai-product-guide-surface.logic.js';
+import {
+  PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES,
+  buildVoiceSummarizeNextClientResult,
+  isVoiceSummarizeNextClientPrompt,
+  rescueVoiceSummarizeNextClientIntent,
+} from '../ai/ai-provider-voice-next-client.util.js';
+import { formatGuideVoiceText } from '../ai/ai-product-guide-voice.util.js';
+import {
+  mapProviderMobileGuideRoute,
+  mergeProviderMobileGuideContext,
+} from '../ai/ai-provider-guide-context.util.js';
+import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from '../ai/ai-product-guide-rescue.util.js';
+import {
+  resolveProductGuideSessionContext,
+  type ProductGuideSessionContext,
+} from '../ai/ai-product-guide-session.util.js';
+import {
+  isProviderProductGuideIntent,
+  type ProviderProductGuideIntent,
+} from '../ai/ai-provider-product-guide.util.js';
+import {
+  isMetaProductGuideIntent,
+  isProviderMetaGuideIntent,
+  runMetaProductGuideIntent,
+  type MetaProductGuideIntent,
+} from '../ai/ai-meta-product-guide.util.js';
+import {
+  isEmptyStateGuideIntent,
+  type EmptyStateGuideIntent,
+} from '../ai/ai-product-guide-empty-state.util.js';
+import {
+  appendPostFailureGuideFallback,
+  buildPostFailureGuideFallbackInput,
+} from '../ai/ai-product-guide-failure-fallback.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+} from '../ai/ai-product-guide-ai-unavailable.util.js';
 
 export interface ProviderPreviewItem {
   id: string;
@@ -136,6 +189,7 @@ export interface ProviderCommandResult {
   action: string;
   summary: string;
   details: Record<string, unknown>;
+  guide?: import('../ai/command-completion.types.js').GuideResponse;
 }
 
 const BULK_CONFIRM_THRESHOLD = 2;
@@ -144,7 +198,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "voice_summarize_next_client" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "explain_staff_invite" | "explain_provider_app_tabs" | "explain_team_view_scope" | "explain_profile_settings" | "explain_assistant_confirm_swipe" | "explain_provider_compound_steps" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -275,6 +329,8 @@ export class ProviderAiCommandService {
     @Inject(forwardRef(() => AiProviderExp3Service))
     private providerExp3: AiProviderExp3Service,
     private pushActions: ProviderPushActionService,
+    private productGuide: AiProductGuideService,
+    private emptyStateGuide: AiProductGuideEmptyStateService,
   ) {}
 
   async executeCommand(
@@ -285,12 +341,38 @@ export class ProviderAiCommandService {
     context?: Record<string, unknown>,
   ): Promise<ProviderCommandResult> {
     if (!(await this.llm.isAvailableForBusiness(businessId))) {
+      const fallback = await runAiUnavailableStaticGuideFallback({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        surface: 'provider',
+        reason: 'openai_not_configured',
+        session: { context },
+        userId,
+      });
+      if (fallback) {
+        return this.attachProviderSession(
+          this.attachGuideVoiceDetails({
+            success: fallback.success,
+            action: fallback.action,
+            summary: fallback.summary,
+            details: fallback.details ?? {},
+            guide: fallback.guide,
+          }),
+          context ?? {},
+        );
+      }
       return {
         success: false,
         action: 'error',
         summary:
           'AI assistant is not configured. Ask your business owner to add an OpenAI API key in Settings.',
         details: {},
+        guide: buildAiUnavailableErrorWithGuideLink({
+          surface: 'provider',
+          reason: 'openai_not_configured',
+          route: mapProviderMobileGuideRoute(context),
+        }).guide,
       };
     }
 
@@ -299,6 +381,87 @@ export class ProviderAiCommandService {
       userId,
     );
     const actorTier = this.resolveProviderAccessTier(access);
+
+    const rescuedProviderGuide = rescueProductGuideIntent(prompt, 'unknown', {
+      surface: 'provider',
+      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+      route: mapProviderMobileGuideRoute(context),
+      context,
+    });
+    if (isProviderProductGuideIntent(rescuedProviderGuide.action)) {
+      return this.attachProviderSession(
+        await this.dispatchProviderProductGuideIntent(
+          rescuedProviderGuide.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+        ),
+        context ?? {},
+      );
+    }
+    if (isMetaProductGuideIntent(rescuedProviderGuide.action)) {
+      return this.attachProviderSession(
+        await this.dispatchProviderMetaGuideIntent(
+          rescuedProviderGuide.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+        ),
+        context ?? {},
+      );
+    }
+    if (isAppGuideIntent(rescuedProviderGuide.action)) {
+      return this.attachProviderSession(
+        await this.dispatchProviderAppGuideIntent(
+          businessId,
+          userId,
+          prompt,
+          rescuedProviderGuide.action,
+          context,
+          access,
+          actorTier,
+        ),
+        context ?? {},
+      );
+    }
+
+    if (isVoiceSummarizeNextClientPrompt(prompt)) {
+      return this.attachProviderSession(
+        await this.handleVoiceSummarizeNextClient(
+          businessId,
+          access,
+          prompt,
+          {},
+          context,
+        ),
+        context ?? {},
+      );
+    }
+
+    const guideMatch = resolveProductGuidePromptMatch(prompt, {
+      surface: 'provider',
+      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+    });
+    if (guideMatch.matched && guideMatch.intent) {
+      return this.attachProviderSession(
+        await this.dispatchProviderAppGuideIntent(
+          businessId,
+          userId,
+          prompt,
+          guideMatch.intent as AppGuideIntent,
+          context,
+          access,
+          actorTier,
+        ),
+        context ?? {},
+      );
+    }
 
     const blocked = this.promptSecurity.preflightBlock(
       businessId,
@@ -437,12 +600,15 @@ export class ProviderAiCommandService {
         summary: clarify.summary,
         missing: clarify.details.missing,
       });
-      return {
-        success: clarify.success,
-        action: clarify.action,
-        summary: clarify.summary,
-        details: clarify.details as Record<string, unknown>,
-      };
+      return this.withPostFailureGuideFallback(
+        {
+          success: clarify.success,
+          action: clarify.action,
+          summary: clarify.summary,
+          details: clarify.details as Record<string, unknown>,
+        },
+        context,
+      );
     }
 
     let parsed = pipelineResultToClassifiedIntent(understood);
@@ -471,6 +637,26 @@ export class ProviderAiCommandService {
     if (providerHeuristic !== parsed.action) {
       parsed.action = providerHeuristic;
       rescueReason = 'provider_heuristic';
+    }
+
+    const voiceSummarizeRescue = rescueVoiceSummarizeNextClientIntent(
+      prompt,
+      parsed.action,
+    );
+    if (voiceSummarizeRescue !== parsed.action) {
+      parsed.action = voiceSummarizeRescue;
+      rescueReason = 'voice_summarize_next_client';
+    }
+
+    const providerGuideRescue = rescueProductGuideIntent(prompt, parsed.action, {
+      surface: 'provider',
+      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+      route: mapProviderMobileGuideRoute(context),
+      context,
+    });
+    if (providerGuideRescue.action !== parsed.action) {
+      parsed.action = providerGuideRescue.action;
+      rescueReason = providerGuideRescue.rescueReason ?? 'provider_product_guide';
     }
 
     const coordination = rescueCoordinationIntent(prompt, parsed.action);
@@ -521,16 +707,22 @@ export class ProviderAiCommandService {
         summary: clarify.summary,
         missing: clarify.details.missing,
       });
-      return {
-        success: clarify.success,
-        action: clarify.action,
-        summary: clarify.summary,
-        details: clarify.details as Record<string, unknown>,
-      };
+      return this.withPostFailureGuideFallback(
+        {
+          success: clarify.success,
+          action: clarify.action,
+          summary: clarify.summary,
+          details: clarify.details as Record<string, unknown>,
+        },
+        context,
+      );
     }
 
     if (shouldValidateProviderAction(parsed.action)) {
-      const validation = validateProviderCommand(parsed.action, parsed.params);
+      const validation = validateProviderCommand(parsed.action, {
+        ...parsed.params,
+        _prompt: prompt,
+      });
       if (!validation.ok) {
         const clarify = this.completionPipeline.toProviderClarifyResult(
           parsed.action,
@@ -545,7 +737,7 @@ export class ProviderAiCommandService {
             ? clarify.details.missing
             : undefined,
         });
-        return clarify;
+        return this.withPostFailureGuideFallback(clarify, context);
       }
     }
 
@@ -588,6 +780,46 @@ export class ProviderAiCommandService {
     this.logger.log(
       `Provider AI action="${parsed.action}" — ${parsed.reasoning}`,
     );
+
+    if (isAppGuideIntent(parsed.action)) {
+      return this.attachProviderSession(
+        await this.dispatchProviderAppGuideIntent(
+          businessId,
+          userId,
+          prompt,
+          parsed.action,
+          context,
+          access,
+          actorTier,
+          parsed.params,
+        ),
+        mergeProviderMobileHintsIntoSessionContext(
+          context ?? {},
+          parsed.params,
+          parsed.action,
+        ),
+      );
+    }
+
+    if (isMetaProductGuideIntent(parsed.action)) {
+      return this.attachProviderSession(
+        await this.dispatchProviderMetaGuideIntent(
+          parsed.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+          parsed.params,
+        ),
+        mergeProviderMobileHintsIntoSessionContext(
+          context ?? {},
+          parsed.params,
+          parsed.action,
+        ),
+      );
+    }
 
     let result: ProviderCommandResult;
 
@@ -661,6 +893,15 @@ export class ProviderAiCommandService {
           access,
           prompt,
           parsed.params,
+        );
+        break;
+      case 'voice_summarize_next_client':
+        result = await this.handleVoiceSummarizeNextClient(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+          context,
         );
         break;
       case 'team_whos_next':
@@ -969,6 +1210,49 @@ export class ProviderAiCommandService {
             businessId,
           );
         break;
+      case 'explain_staff_invite':
+      case 'explain_provider_app_tabs':
+      case 'explain_team_view_scope':
+      case 'explain_profile_settings':
+      case 'explain_assistant_confirm_swipe':
+      case 'explain_provider_compound_steps':
+        result = await this.dispatchProviderProductGuideIntent(
+          parsed.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+          parsed.params,
+        );
+        break;
+      case 'explain_ai_suggestions':
+      case 'explain_assistant_approval':
+        result = await this.dispatchProviderMetaGuideIntent(
+          parsed.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+          parsed.params,
+        );
+        break;
+      case 'explain_visibility_block':
+      case 'explain_empty_catalog':
+        result = await this.dispatchProviderEmptyStateGuideIntent(
+          parsed.action,
+          businessId,
+          userId,
+          prompt,
+          context,
+          access,
+          actorTier,
+          parsed.params,
+        );
+        break;
       case 'list_my_collection_queue':
         result =
           await this.providerClinicCollection.handleListMyCollectionQueue(
@@ -1015,14 +1299,30 @@ export class ProviderAiCommandService {
         };
     }
 
-    return this.attachProviderSession(
-      result,
-      mergeProviderMobileHintsIntoSessionContext(
-        context ?? {},
-        parsed.params,
-        parsed.action,
+    return this.withPostFailureGuideFallback(
+      this.attachProviderSession(
+        result,
+        mergeProviderMobileHintsIntoSessionContext(
+          context ?? {},
+          parsed.params,
+          parsed.action,
+        ),
       ),
+      context,
     );
+  }
+
+  private withPostFailureGuideFallback(
+    result: ProviderCommandResult,
+    context?: Record<string, unknown>,
+  ): ProviderCommandResult {
+    return appendPostFailureGuideFallback(
+      result,
+      buildPostFailureGuideFallbackInput(
+        mergeProviderMobileGuideContext(context),
+        'provider',
+      ),
+    ) as ProviderCommandResult;
   }
 
   private async handleProviderMobileCompound(
@@ -1628,6 +1928,249 @@ export class ProviderAiCommandService {
       return resolveAccessTier(access.membershipRole);
     }
     return 'staff';
+  }
+
+  /** ai-guide-1.4.1 — build session context for provider guide playbooks. */
+  private buildProviderGuideSessionContext(
+    context: Record<string, unknown> | undefined,
+    access: MobileAccess,
+    actorTier: AccessTier,
+  ): ProductGuideSessionContext {
+    return resolveProductGuideSessionContext(
+      {
+        context: {
+          ...mergeProviderMobileGuideContext(context),
+          _accessTier: actorTier,
+          roleProfile: access.viewMode === 'team' ? 'manager' : 'provider',
+          vertical: context?.businessType,
+          retailPosEnabled: context?.retailPosEnabled,
+          enabledModules: context?.enabledModules,
+        },
+      },
+      'provider',
+    );
+  }
+
+  /** ai-guide-1.8.7 — provider meta-AI guide intents → AiProductGuideService playbooks. */
+  private async dispatchProviderMetaGuideIntent(
+    action: MetaProductGuideIntent,
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+    access: MobileAccess,
+    actorTier: AccessTier,
+    params: Record<string, unknown> = {},
+  ): Promise<ProviderCommandResult> {
+    if (!isProviderMetaGuideIntent(action)) {
+      return {
+        success: false,
+        action,
+        summary: 'Unsupported meta guide intent on provider mobile.',
+        details: {},
+      };
+    }
+    const guideContext = this.buildProviderGuideSessionContext(
+      context,
+      access,
+      actorTier,
+    );
+    const guideResult = mapCommandResultGuideNavigate(
+      await runMetaProductGuideIntent({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        metaIntent: action,
+        surface: 'provider',
+        userId,
+        params,
+        session: { context: mergeProviderMobileGuideContext(context) },
+        sessionContext: guideContext,
+      }),
+    );
+    return this.attachGuideVoiceDetails({
+      success: guideResult.success,
+      action: guideResult.action,
+      summary: guideResult.summary,
+      details: guideResult.details ?? {},
+      guide: guideResult.guide,
+    });
+  }
+
+  /** ai-guide-1.8.6 — generic app guide intents (multiturn nav, heuristics) on provider mobile. */
+  private async dispatchProviderAppGuideIntent(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    intent: AppGuideIntent,
+    context: Record<string, unknown> | undefined,
+    access: MobileAccess,
+    actorTier: AccessTier,
+    params: Record<string, unknown> = {},
+  ): Promise<ProviderCommandResult> {
+    const guideContext = this.buildProviderGuideSessionContext(
+      context,
+      access,
+      actorTier,
+    );
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: 'provider',
+      route: guideContext.route,
+      topicId: params.topicId,
+    });
+    const guideParams = topicId ? { ...params, topicId } : params;
+    const guideResult = mapCommandResultGuideNavigate(
+      await runSurfaceProductGuideIntent({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        intent,
+        surface: 'provider',
+        userId,
+        params: guideParams,
+        session: { context: mergeProviderMobileGuideContext(context) },
+        sessionContext: guideContext,
+      }),
+    );
+    return this.attachGuideVoiceDetails({
+      success: guideResult.success,
+      action: guideResult.action,
+      summary: guideResult.summary,
+      details: guideResult.details ?? {},
+      guide: guideResult.guide,
+    });
+  }
+
+  /** ai-guide-1.8.9 — provider live permission / empty-state guides. */
+  private async dispatchProviderEmptyStateGuideIntent(
+    action: EmptyStateGuideIntent,
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+    access: MobileAccess,
+    actorTier: AccessTier,
+    params: Record<string, unknown> = {},
+  ): Promise<ProviderCommandResult> {
+    if (!isEmptyStateGuideIntent(action) || action === 'explain_stripe_not_connected') {
+      return {
+        success: false,
+        action,
+        summary: 'Unsupported empty-state guide intent on provider mobile.',
+        details: {},
+      };
+    }
+    const guideContext = this.buildProviderGuideSessionContext(
+      context,
+      access,
+      actorTier,
+    );
+    const guideResult = mapCommandResultGuideNavigate(
+      await this.emptyStateGuide.runIntent({
+        businessId,
+        intent: action,
+        surface: 'provider',
+        prompt,
+        params,
+        session: { context: mergeProviderMobileGuideContext(context) },
+        sessionContext: guideContext,
+        locale: guideContext.locale,
+        linkedEmployeeId: access.employee?.id ?? undefined,
+      }),
+    );
+    return this.attachGuideVoiceDetails({
+      success: guideResult.success,
+      action: guideResult.action,
+      summary: guideResult.summary,
+      details: guideResult.details ?? {},
+      guide: guideResult.guide,
+    });
+  }
+
+  /** ai-guide-1.4.1 — provider FAQ intents → AiProductGuideService playbooks. */
+  private async dispatchProviderProductGuideIntent(
+    action: ProviderProductGuideIntent,
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+    access: MobileAccess,
+    actorTier: AccessTier,
+    params: Record<string, unknown> = {},
+  ): Promise<ProviderCommandResult> {
+    const guideContext = this.buildProviderGuideSessionContext(
+      context,
+      access,
+      actorTier,
+    );
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: 'provider',
+      route: guideContext.route,
+      topicId: params.topicId,
+      providerIntent: action,
+    });
+    const guideParams = topicId ? { ...params, topicId } : params;
+    const guideResult = mapCommandResultGuideNavigate(
+      await runProviderProductGuideIntent({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        providerIntent: action,
+        userId,
+        params: guideParams,
+        session: { context },
+        sessionContext: guideContext,
+      }),
+    );
+    return this.attachGuideVoiceDetails({
+      success: guideResult.success,
+      action: guideResult.action,
+      summary: guideResult.summary,
+      details: guideResult.details ?? {},
+      guide: guideResult.guide,
+    });
+  }
+
+  private attachGuideVoiceDetails(
+    result: ProviderCommandResult,
+  ): ProviderCommandResult {
+    if (!result.guide) return result;
+    return {
+      ...result,
+      details: {
+        ...result.details,
+        voiceSummary: formatGuideVoiceText(result.guide, result.summary),
+      },
+    };
+  }
+
+  private async handleVoiceSummarizeNextClient(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown> = {},
+    context?: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const mergedParams = mergeShowAppointmentsParams(prompt, {
+      ...params,
+      statusFilter: 'upcoming',
+      date: params.date ?? toIsoDay(todayDisplay()),
+    });
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const bookings = filterBookingsForProviderList(
+      await this.findMatchingBookings(businessId, employeeId, mergedParams, {}),
+      'upcoming',
+      Date.now(),
+      (value) => this.normalizeStatus(value),
+    );
+
+    return buildVoiceSummarizeNextClientResult({
+      bookings,
+      formatLabel: (booking) => this.bookingLabel(booking as Booking),
+      formatTime: (booking) => formatTimeDisplay(booking.startTime),
+      locale: typeof context?.locale === 'string' ? context.locale : undefined,
+      emptySummary: this.noMatchMessage('show', mergedParams),
+    });
   }
 
   private async handleMarkNoShows(

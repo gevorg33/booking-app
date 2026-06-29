@@ -50,7 +50,8 @@ describe('ai-product-guide.logic async (ai-guide-1.2.3)', () => {
     expect(result.details.retrievalPath).not.toBe('keyword');
     expect(result.details.llmPolished).toBe(true);
     expect(result.details.deterministic).toBe(false);
-    expect(result.guide?.summary).toBe('Polished async summary.');
+    expect(result.guide?.guideSession?.guideStepIndex).toBe(0);
+    expect(result.guide?.summary).toMatch(/^Step 1 of \d+:/);
   });
 
   it('returns deterministic result when LLM polish is skipped', async () => {

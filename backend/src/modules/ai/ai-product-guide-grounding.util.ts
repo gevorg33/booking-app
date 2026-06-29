@@ -8,6 +8,8 @@ import { DASHBOARD_ROUTE_PRIMARY_TOPIC } from './ai-product-guide-ranking.util.j
 import type { AppGuideIntent } from './ai-product-guide.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import { collectUnknownSettingsPathIssues } from './ai-product-guide-settings-grounding.util.js';
+import { listAllGuideFlowPlaybookDefs } from './guide/guide-flow.loader.js';
+import { GUIDE_FLOW_ROUTE_PRIMARY_TOPIC } from './guide/guide-flow.routes.manifest.js';
 
 export type GuideGroundingIssueCode =
   | 'unknown_topic_id'
@@ -34,18 +36,33 @@ export interface GuideGroundingResult {
   issues: GuideGroundingIssue[];
 }
 
-const GROUNDED_TOPIC_IDS = new Set(
-  DASHBOARD_GUIDE_CORPUS_TOPICS.map((topic) => topic.topicId),
-);
+const GROUNDED_TOPIC_IDS = new Set([
+  ...DASHBOARD_GUIDE_CORPUS_TOPICS.map((topic) => topic.topicId),
+  ...listAllGuideFlowPlaybookDefs().map((playbook) => playbook.topicId),
+]);
 
 const GROUNDED_ROUTE_PREFIXES = [
   ...Object.keys(DASHBOARD_ROUTE_PRIMARY_TOPIC),
+  ...Object.keys(GUIDE_FLOW_ROUTE_PRIMARY_TOPIC),
   '/dashboard/settings',
   '/dashboard/guide',
   '/dashboard/operations',
 ].sort((a, b) => b.length - a.length);
 
 const GROUNDED_GUIDE_ANCHORS = new Set(Object.keys(GUIDE_CORPUS_ANCHOR_TO_TOPIC_ID));
+
+/** Public booking web + consumer assistant use slug-relative segments (not /book/...). */
+const PUBLIC_BOOKING_RELATIVE_NAV_SEGMENTS = new Set([
+  'professionals',
+  'services',
+  'checkout',
+  'profile',
+  'account',
+  'any',
+  'guide',
+  'home',
+  'packages',
+]);
 
 /** Intent-shaped tokens that may appear in synthesized guide copy. */
 const INTENT_CITATION_PATTERN = /\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b/g;
@@ -54,10 +71,22 @@ const INTENT_CITATION_PREFIX =
   /^(configure_|apply_|create_|cancel_|enable_|disable_|bulk_|payment_|mark_|update_|delete_|invite_|complete_)/;
 
 export function isGroundedGuideRoute(path: string | null | undefined): boolean {
-  if (typeof path !== 'string' || !path.startsWith('/dashboard')) return false;
-  return GROUNDED_ROUTE_PREFIXES.some((prefix) => {
+  if (typeof path !== 'string' || !path) return false;
+
+  if (!path.startsWith('/')) {
+    return PUBLIC_BOOKING_RELATIVE_NAV_SEGMENTS.has(path);
+  }
+
+  if (path.startsWith('/dashboard')) {
+    return GROUNDED_ROUTE_PREFIXES.some((prefix) => {
+      if (path === prefix) return true;
+      if (prefix === '/dashboard') return false;
+      return path.startsWith(`${prefix}/`);
+    });
+  }
+
+  return Object.keys(GUIDE_FLOW_ROUTE_PRIMARY_TOPIC).some((prefix) => {
     if (path === prefix) return true;
-    if (prefix === '/dashboard') return false;
     return path.startsWith(`${prefix}/`);
   });
 }

@@ -462,8 +462,8 @@ export const PRODUCT_GUIDE_MISROUTE_SCENARIOS: readonly ProductGuideMisrouteScen
     },
   ] as const;
 
-/** ai-guide-1.2.6 — dashboard classifier appendix for product guide intents. */
-export const PRODUCT_GUIDE_CLASSIFIER_RULES = `- explain_app_feature: READ — explain what a dashboard feature, menu, or setting does and where to find it in the UI. Triggers: what does X mean (UI feature/button/tab), what is X (feature), where is X, which menu/page has X. Optional topicId when the user names a known guide section. Returns GuideResponse steps from /dashboard/guide corpus. NOT domain explain_* (tax, currency, checkout lines), NOT configure_* / enable_* mutates, NOT booking_help on public/customer surfaces.
+/** ai-guide-1.6.1 — dashboard classifier appendix for product guide intents. */
+export const APP_GUIDE_CLASSIFIER_RULES = `- explain_app_feature: READ — explain what a dashboard feature, menu, or setting does and where to find it in the UI. Triggers: what does X mean (UI feature/button/tab), what is X (feature), where is X, which menu/page has X. Optional topicId when the user names a known guide section. Returns GuideResponse steps from /dashboard/guide corpus. NOT domain explain_* (tax, currency, checkout lines), NOT configure_* / enable_* mutates, NOT booking_help on public/customer surfaces.
 - guide_user_flow: READ — numbered walkthrough for a dashboard setup task without executing mutations. Triggers: how do I, how can I, walk me through, show me how, help me with (without imperative cancel/book/enable). Optional topicId. Misroute guard: question-shaped bulk prompts (cancel all, payment sweep) → guide_user_flow NOT cancel_bookings / payment_sweep.
 - explain_current_screen: READ — explain capabilities of the current dashboard page using session route context (/dashboard/schedule, /dashboard/operations, …). Triggers: this page, this screen, what can I do here/on this page, help me with this page, what am I looking at. Prefers route-mapped corpus topicId. NOT show_appointments, NOT list_* operational reads, NOT summarize_* analytics.
 
@@ -479,6 +479,27 @@ Examples:
 - "How do I run a payment sweep at end of day?" → guide_user_flow (NOT payment_sweep)
 - "Where do I turn on online payment?" → guide_user_flow (NOT configure_service_online_payment)
 - "What does the deposit field mean on checkout?" → explain_checkout_total or domain explain (NOT explain_app_feature)`;
+
+/** @deprecated use APP_GUIDE_CLASSIFIER_RULES (ai-guide-1.6.1) */
+export const PRODUCT_GUIDE_CLASSIFIER_RULES = APP_GUIDE_CLASSIFIER_RULES;
+
+/** ai-guide-1.6.1 — provider mobile product guide classifier appendix (ai-cmd-provider-5.21 / 5.24). */
+export const PROVIDER_APP_GUIDE_CLASSIFIER_RULES = `- explain_staff_invite: READ — staff invitation / Accept invite page FAQ (AiProductGuideService playbook provider-staff-invite). Triggers: what is this invite link, join salon as stylist, accept invite email. NOT complete_staff_invite mutate.
+- explain_provider_app_tabs: READ — Today vs Calendar vs Schedule tabs (playbook provider-today-calendar). Triggers: what's on Today tab, where is Schedule tab, Today vs Calendar difference. NOT show_appointments list read.
+- explain_team_view_scope: READ — manager team view vs my-calendar-only scope (playbook provider-view-scope). Triggers: why do I see everyone's bookings, switch to my calendar only, team view. NOT team_whos_next operational read.
+- explain_profile_settings: READ — profile title, avatar, display name walkthrough (playbook provider-profile-settings). Triggers: change my title, update avatar, edit profile. Mutations stay in Profile UI — NOT update_provider_profile unless user gives imperative edit command.
+- explain_assistant_confirm_swipe: READ — swipe-to-confirm safety preview (playbook provider-assistant-confirm). Triggers: why swipe to confirm, what will change before confirm. NOT bulk mutate execution.
+- explain_provider_compound_steps: READ — multi-step provider compounds run sequentially with shared context (playbook provider-compound-steps). Triggers: one at a time, what happens next in compound, do these separately. NOT provider_booking_compound execution.`;
+
+/** ai-guide-1.6.1 — consumer mobile product guide classifier appendix (ai-guide-1.5.2 / 1.5.4). */
+export const CUSTOMER_APP_GUIDE_CLASSIFIER_RULES = `- explain_app_feature: READ — consumer app UI feature semantics (tabs, profile fields, packages/gift cards/subscriptions screens) and activation funnel steps (welcome → salon → service → slot → confirm). Triggers: what does X mean, what is the account tab, where is profile, how do gift cards or subscriptions work (read-only explain). Uses session activationStep/guidedBookingStep/screen/route for consumer-activation-* vs consumer-tabs vs consumer-account playbooks. Returns GuideResponse steps. NOT book_package / discover_packages mutate, NOT promo_code_help apply, NOT domain explain_* checkout/tax/currency.
+- guide_user_flow: READ — step-by-step consumer app walkthrough (profile update, buy package, use tabs, first booking activation). Triggers: walk me through, step by step, how do I book my first appointment, what's next in onboarding. activationStep welcome → salon → service → slot → confirm drives playbook. Returns GuideResponse steps. NOT create_booking / book_nearest_slot mutate.
+- explain_current_screen: READ — explain the current consumer screen from session route/tab/screen/activationStep. Triggers: this page, this screen, what am I looking at here. On activation funnel screens, uses step-aware consumer-activation-* playbooks. NOT domain checkout currency/tax explainers.`;
+
+/** ai-guide-1.6.1 — public booking product guide classifier appendix (ai-guide-1.5.3). */
+export const PUBLIC_APP_GUIDE_CLASSIFIER_RULES = `- explain_app_feature: READ — public booking page UI semantics for the current funnel step (professionals, services, checkout). Triggers: what does this step mean, what is the services page, where do I pick a provider. Uses session bookingStep/screen/route for playbook selection (public-booking-professionals, public-booking-services, public-checkout). NOT explain_checkout_currency/tax, NOT list_services catalog browse.
+- guide_user_flow: READ — step-by-step public booking funnel walkthrough for the current step. Triggers: walk me through, step by step, what happens next on this page. bookingStep professionals → services → checkout drives playbook. NOT book_appointment mutate.
+- explain_current_screen: READ — explain capabilities of the current booking step from bookingStep/screen context. Triggers: this page, this screen, what am I looking at. NOT domain checkout currency/tax explainers.`;
 
 export interface ProductGuideClassifierScenario {
   id: string;
@@ -780,3 +801,13 @@ export const PRODUCT_GUIDE_POLISH_SCENARIOS: readonly ProductGuidePolishScenario
     stepCount: 4,
   },
 ] as const;
+
+/** ai-guide-1.6.2 — top-20 guide flows per surface + NL prompt variants (generated). */
+export type {
+  SimilarAppGuidePrompt,
+  TopAppGuideFlowDef,
+} from './similar-app-guide-prompts.generated.js';
+export {
+  SIMILAR_APP_GUIDE_PROMPTS,
+  TOP_APP_GUIDE_FLOWS,
+} from './similar-app-guide-prompts.generated.js';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
   IonIcon,
@@ -36,6 +36,11 @@ import { useOnlineStatus } from '../lib/use-online-status';
 import { useI18n } from '../i18n';
 import { resolveProviderAiExamples } from '../lib/provider-ai-guide-examples';
 import {
+  mapDashboardServicesForAssistantExamples,
+  type AssistantExampleTenantInput,
+} from '../lib/assistant-example-tenant.util';
+import { useAuthStore } from '../services/auth-store';
+import {
   resolveAssistantModePayload,
   withAssistantModeContext,
 } from '../lib/assistant-mode.util';
@@ -45,9 +50,17 @@ import {
   getProviderQuickChips,
   type ProviderMobileRoute,
 } from '../lib/provider-ai-quick-chips';
+import { buildProviderAiCommandContext } from '../lib/provider-ai-command-context.util';
 import { ProviderAiVoiceButton } from './ProviderAiVoiceButton';
+import { ProviderAiSpeakReplyButton } from './ProviderAiSpeakReplyButton';
+import { resolveAssistantSpeakText } from '../lib/provider-ai-guide-reply.util';
 import { enableNativePush } from '../services/native-push';
-import type { SpeechRecognitionErrorCode } from '../lib/use-speech-recognition.js';
+import {
+  isSpeechSynthesisSupported,
+  localeToSpeechLang,
+  speakText,
+  type SpeechRecognitionErrorCode,
+} from '../lib/use-speech-recognition.js';
 
 interface PreviewItem {
   id: string;
@@ -70,6 +83,9 @@ interface SessionContext {
   timeSlot?: string | null;
   serviceName?: string | null;
   allAppointments?: boolean | null;
+  guideFlowId?: string | null;
+  guideStepIndex?: number | null;
+  completedSteps?: number[] | null;
 }
 
 interface MessageDetails {
@@ -81,6 +97,8 @@ interface MessageDetails {
   previewItems?: PreviewItem[];
   pendingAction?: { action: string; params?: Record<string, unknown> };
   sessionContext?: SessionContext;
+  voiceSummary?: string;
+  autoSpeak?: boolean;
 }
 
 interface Message {
@@ -98,6 +116,8 @@ export interface ProviderAiScreenContext {
   serviceName?: string | null;
   timeSlot?: string | null;
   route?: string;
+  tab?: string;
+  mobileRoute?: ProviderMobileRoute;
 }
 
 interface ProviderAiAssistantProps {
@@ -119,6 +139,10 @@ function mergeSession(prev: SessionContext, next: SessionContext): SessionContex
     timeSlot: next.timeSlot ?? prev.timeSlot,
     serviceName: next.serviceName ?? prev.serviceName,
     allAppointments: next.allAppointments ?? prev.allAppointments,
+    guideFlowId: next.guideFlowId ?? prev.guideFlowId,
+    guideStepIndex:
+      next.guideStepIndex != null ? next.guideStepIndex : prev.guideStepIndex,
+    completedSteps: next.completedSteps ?? prev.completedSteps,
   };
 }
 
@@ -138,9 +162,43 @@ export default function ProviderAiAssistant({
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const quickChips = getProviderQuickChips(mobileRoute, t, { isManager });
   const [guideMode, setGuideMode] = useState(false);
+  const authEmployee = useAuthStore((state) => state.employee);
+  const { data: exampleTenant } = useQuery({
+    queryKey: ['provider-assistant-catalog', businessId],
+    queryFn: async (): Promise<AssistantExampleTenantInput> => {
+      const [employeesRes, servicesRes] = await Promise.all([
+        api.get(`/businesses/${businessId}/employees`).catch(() => ({ data: { data: [] } })),
+        api.get(`/businesses/${businessId}/services`).catch(() => ({ data: { data: [] } })),
+      ]);
+      const employees = unwrap<Array<{
+        id: string;
+        name: string;
+        serviceIds?: string[];
+        isActive?: boolean;
+      }>>(employeesRes.data);
+      const services = unwrap<Array<{
+        id: string;
+        name: string;
+        isActive?: boolean;
+        category?: { name?: string | null } | null;
+      }>>(servicesRes.data);
+      const normalizedEmployees =
+        employees.length > 0
+          ? employees
+          : authEmployee
+            ? [{ id: authEmployee.id, name: authEmployee.name, isActive: true }]
+            : [];
+      return {
+        employees: normalizedEmployees,
+        services: mapDashboardServicesForAssistantExamples(services),
+      };
+    },
+    enabled: Boolean(businessId),
+    staleTime: 60_000,
+  });
   const examples = useMemo(
-    () => resolveProviderAiExamples(t, guideMode),
-    [guideMode, t],
+    () => resolveProviderAiExamples(t, guideMode, exampleTenant),
+    [exampleTenant, guideMode, t],
   );
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(initialOpen);
@@ -235,11 +293,14 @@ export default function ProviderAiAssistant({
           prompt: prompt.trim(),
           history,
           context: withAssistantModeContext(
-            {
-              ...sessionContext,
-              ...screenContext,
-              nativePlatform: Capacitor.getPlatform(),
-            },
+            buildProviderAiCommandContext({
+              sessionContext: {
+                ...sessionContext,
+                nativePlatform: Capacitor.getPlatform(),
+              },
+              screenContext,
+              mobileRoute,
+            }),
             guideMode,
           ),
           ...(assistantMode ? { assistantMode } : {}),
@@ -251,6 +312,8 @@ export default function ProviderAiAssistant({
           details?: MessageDetails & {
             navigate?: { path?: string; query?: Record<string, string> };
             clientAction?: string;
+            voiceSummary?: string;
+            autoSpeak?: boolean;
           };
         }>(res);
 
@@ -269,6 +332,18 @@ export default function ProviderAiAssistant({
             details: result.details,
           },
         ]);
+
+        const speakPayload = resolveAssistantSpeakText({
+          summary: result.summary,
+          guide: result.guide,
+          voiceSummary:
+            typeof result.details?.voiceSummary === 'string'
+              ? result.details.voiceSummary
+              : undefined,
+        });
+        if (result.details?.autoSpeak && speakPayload) {
+          speakText(speakPayload, localeToSpeechLang(locale));
+        }
 
         if (result.success && !result.details?.requiresConfirmation) {
           invalidateBookings();
@@ -301,7 +376,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, guideMode, history, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
+    [businessId, guideMode, history, invalidateBookings, loading, locale, messages, online, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -481,6 +556,22 @@ export default function ProviderAiAssistant({
                   ) : (
                     <p>{msg.text}</p>
                   )}
+
+                  {msg.role === 'assistant' && isSpeechSynthesisSupported() ? (
+                    <ProviderAiSpeakReplyButton
+                      text={resolveAssistantSpeakText({
+                        text: msg.text,
+                        summary: msg.text,
+                        guide: msg.guide,
+                        voiceSummary:
+                          typeof msg.details?.voiceSummary === 'string'
+                            ? msg.details.voiceSummary
+                            : undefined,
+                      })}
+                      locale={locale}
+                      label={t('ai.speakReply')}
+                    />
+                  ) : null}
 
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <div className="ai-assistant-clarify">

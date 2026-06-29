@@ -1,0 +1,19 @@
+{
+  "topicId": "dashboard.ai.getting-started",
+  "surface": "dashboard",
+  "routes": ["/dashboard/onboarding", "/dashboard/settings"],
+  "titleKey": "guide.ai.gettingStartedTitle",
+  "summaryKey": "guide.ai.gettingStartedBody",
+  "navigateTarget": { "path": "/dashboard/onboarding" },
+  "corpusTopicId": "dashboard.ai.getting-started",
+  "keywords": ["onboarding", "setup", "getting started", "settings"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.ai.gettingStartedStep1",
+      "navigate": { "path": "/dashboard/onboarding" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.ai.gettingStartedStep2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.ai.gettingStartedStep3" }
+  ]
+}

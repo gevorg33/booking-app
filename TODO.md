@@ -808,9 +808,9 @@ User question → normalize → isGuidePrompt? (heuristics)
 - [x] **ai-guide-1.0.5** — Misroute guard — question-shaped prompts must not hit bulk mutate intents (rescue → guide)
 
 - [x] **ai-guide-1.1.1** — Structured corpus from `frontend/src/i18n/messages/*/guide.*` + dashboard guide page TOC — stable `topicId` per section
-- [ ] **ai-guide-1.1.2** — Per-route flow playbooks — `guide-flows/dashboard/*.json`, `guide-flows/provider/*.json`, `guide-flows/customer/*.json`, `guide-flows/public/*.json` (ordered steps + `navigate` targets)
-- [ ] **ai-guide-1.1.3** — Vertical overlays — clinic lab/EMR, tour checkout, retail POS — merge into corpus by `business.vertical`
-- [ ] **ai-guide-1.1.4** — Role overlays — owner vs receptionist vs provider vs customer; hide manager-only topics from employee scope
+- [x] **ai-guide-1.1.2** — Per-route flow playbooks — `guide-flows/dashboard/*.json`, `guide-flows/provider/*.json`, `guide-flows/customer/*.json`, `guide-flows/public/*.json` (ordered steps + `navigate` targets)
+- [x] **ai-guide-1.1.3** — Vertical overlays — clinic lab/EMR, tour checkout, retail POS — merge into corpus by `business.vertical`
+- [x] **ai-guide-1.1.4** — Role overlays — owner vs receptionist vs provider vs customer; hide manager-only topics from employee scope
 - [x] **ai-guide-1.1.5** — EN/HY/RU parity for every `topicId` — mirror **i18n-clinic-v2** / **lang-1** patterns (dashboard corpus — `ai-guide-corpus.spec.ts`)
 - [x] **ai-guide-1.1.6** — CI gate **`test:ai-guide-corpus`** — every dashboard nav route in `AI_ROUTE_CONTEXT_HINTS` has ≥1 playbook or explicit `no-guide` tag
 
@@ -827,28 +827,28 @@ User question → normalize → isGuidePrompt? (heuristics)
 - [x] **ai-guide-1.3.4** — Cross-link `/dashboard/guide#…` anchors ↔ conversational `topicId`
 - [x] **ai-guide-1.3.5** — Onboarding variant — when `variant="onboarding"`, prefer setup playbooks (**gap-6.1**, **ai-d21**)
 
-- [ ] **ai-guide-1.4.1** — Provider intents — ship **ai-cmd-provider-5.21.1**–**5.21.4**, **5.24.2**, **5.24.4** under unified guide handlers (not one-off strings)
-- [ ] **ai-guide-1.4.2** — Pass `screenContext` + `mobileRoute` into guide retrieval — Today vs Calendar vs Clients vs Profile
+- [x] **ai-guide-1.4.1** — Provider intents — ship **ai-cmd-provider-5.21.1**–**5.21.4**, **5.24.2**, **5.24.4** under unified guide handlers (not one-off strings)
+- [x] **ai-guide-1.4.2** — Pass `screenContext` + `mobileRoute` into guide retrieval — Today vs Calendar vs Clients vs Profile
 - [x] **ai-guide-1.4.3** — Contextual suggestion chips on `ProviderAiAssistant` — “What’s on Today?”, “How do I mark paid?”, “Block vs time off?” (guide-mode examples + chip; backend handlers **1.4.1** still open)
-- [ ] **ai-guide-1.4.4** — Voice-friendly step summaries (**5.24.5**) reuse guide playbooks
+- [x] **ai-guide-1.4.4** — Voice-friendly step summaries (**5.24.5**) reuse guide playbooks
 
-- [ ] **ai-guide-1.5.1** — Extend **`booking_help`** → full booking funnel guide (**ai-cmd-customer-4.2.6**) — step-aware by public booking route / consumer screen
-- [ ] **ai-guide-1.5.2** — Customer intents **`explain_app_feature`**, **`guide_user_flow`** — tabs, profile, packages, subscriptions, gift cards (read-only)
-- [ ] **ai-guide-1.5.3** — Public assistant — checkout-step context (`professionals` → `services` → `checkout`) drives playbook selection
-- [ ] **ai-guide-1.5.4** — Consumer activation guide aligned with **adopt-3.4** — welcome → salon → service → slot → confirm
-- [ ] **ai-guide-1.5.5** — HY/RU guide corpus for top 20 customer/public flows
+- [x] **ai-guide-1.5.1** — Extend **`booking_help`** → full booking funnel guide (**ai-cmd-customer-4.2.6**) — step-aware by public booking route / consumer screen
+- [x] **ai-guide-1.5.2** — Customer intents **`explain_app_feature`**, **`guide_user_flow`** — tabs, profile, packages, subscriptions, gift cards (read-only)
+- [x] **ai-guide-1.5.3** — Public assistant — checkout-step context (`professionals` → `services` → `checkout`) drives playbook selection
+- [x] **ai-guide-1.5.4** — Consumer activation guide aligned with **adopt-3.4** — welcome → salon → service → slot → confirm
+- [x] **ai-guide-1.5.5** — HY/RU guide corpus for top 20 customer/public flows
 
-- [ ] **ai-guide-1.6.1** — `ai-product-guide.fixtures.ts` — `APP_GUIDE_CLASSIFIER_RULES`, `PROVIDER_APP_GUIDE_CLASSIFIER_RULES`, `CUSTOMER_APP_GUIDE_CLASSIFIER_RULES`, `PUBLIC_APP_GUIDE_CLASSIFIER_RULES`
-- [ ] **ai-guide-1.6.2** — ≥10 NL prompt variants **per surface** per top-20 flows (`SIMILAR_APP_GUIDE_PROMPTS` with `id`, `surface`, `topicId`)
-- [ ] **ai-guide-1.6.3** — Rescue + enrich — `rescueProductGuideIntent`, `enrichGuideTopicFromPrompt` on each assistant entry path
-- [ ] **ai-guide-1.6.4** — Eval cases in `eval/ai-command-eval.cases.ts` — tag `surface: dashboard | provider | customer | public`; EN/HY/RU
+- [x] **ai-guide-1.6.1** — `ai-product-guide.fixtures.ts` — `APP_GUIDE_CLASSIFIER_RULES`, `PROVIDER_APP_GUIDE_CLASSIFIER_RULES`, `CUSTOMER_APP_GUIDE_CLASSIFIER_RULES`, `PUBLIC_APP_GUIDE_CLASSIFIER_RULES`
+- [x] **ai-guide-1.6.2** — ≥10 NL prompt variants **per surface** per top-20 flows (`SIMILAR_APP_GUIDE_PROMPTS` with `id`, `surface`, `topicId`)
+- [x] **ai-guide-1.6.3** — Rescue + enrich — `rescueProductGuideIntent`, `enrichGuideTopicFromPrompt` on each assistant entry path
+- [x] **ai-guide-1.6.4** — Eval cases in `eval/ai-command-eval.cases.ts` — tag `surface: dashboard | provider | customer | public`; EN/HY/RU
 - [x] **ai-guide-1.6.5** — Gate **`npm run test:ai-guide`** — unit + integration + corpus parity + eval slice (dashboard eval seeds; four-surface eval **1.6.4** still open)
 - [x] **ai-guide-1.6.6** — Compound: “explain then do” — e.g. `guide_user_flow` → `configure_service_online_payment` when user confirms (dashboard command bar handoff)
 
-- [ ] **ai-guide-1.7.1** — Optional Zendesk / help-center article ids per `topicId` (**polish-2**)
-- [ ] **ai-guide-1.7.2** — “Still stuck?” — support handoff with `{ surface, route, topicId, locale }` snapshot (no PII)
-- [ ] **ai-guide-1.7.3** — Telemetry — guide topic opened, steps completed, handoff-to-action rate, grounding failures (**acc-1**)
-- [ ] **ai-guide-1.7.4** — Dashboard AI Ops — top unanswered guide topics for corpus expansion
+- [x] **ai-guide-1.7.1** — Optional Zendesk / help-center article ids per `topicId` (**polish-2**)
+- [x] **ai-guide-1.7.2** — “Still stuck?” — support handoff with `{ surface, route, topicId, locale }` snapshot (no PII)
+- [x] **ai-guide-1.7.3** — Telemetry — guide topic opened, steps completed, handoff-to-action rate, grounding failures (**acc-1**)
+- [x] **ai-guide-1.7.4** — Dashboard AI Ops — top unanswered guide topics for corpus expansion
 
 ### ai-guide-1 — Suggested implementation order
 
@@ -879,15 +879,15 @@ User question → normalize → isGuidePrompt? (heuristics)
 | Corpus drift | UI/route changes without playbook updates → wrong guidance | **1.8.8** |
 
 - [x] **ai-guide-1.8.1** — **`explain_*` vs `guide_*` routing** — document + enforce: domain explainers (tax, currency, checkout totals) stay on existing handlers; **`explain_app_feature` / `guide_user_flow`** only for navigation, setup flows, and UI semantics; shared rescue disambiguation fixtures
-- [ ] **ai-guide-1.8.2** — Multi-turn guide session — `guideFlowId`, `guideStepIndex`, `completedSteps[]` in dashboard + public + customer + provider session merge; “next step” / “go back” / “start over” prompts
-- [ ] **ai-guide-1.8.3** — Post-failure guide fallback — when classify → `unknown`, validator clarify, or handler `success: false`, append contextual guide snippet (“Here's how to … on this page”) — wire **acc-4.7**, **n99-1**
-- [ ] **ai-guide-1.8.4** — Tier / module-gated topics — playbook metadata `requiresPlan`, `requiresModule`; honest “not available on your plan” + upgrade path copy (**gap-6.2**, **gap-7.1**)
-- [ ] **ai-guide-1.8.5** — Registry + **`access-control.matrix.ts`** + **`command-completion.validator.ts`** rows for all guide intents; **`test:ai-cmd-ext`** handler coverage on four surfaces
-- [ ] **ai-guide-1.8.6** — Provider / customer / public **`AiProductGuideService`** dispatch — mirror **1.2.6** in `ProviderAiCommandService`, `CustomerAiCommandService`, `PublicBookingAssistantService` (surface-specific action names where verbs differ)
-- [ ] **ai-guide-1.8.7** — Meta-guide intents — **`explain_ai_settings`**, **`explain_ai_suggestions`**, **`explain_assistant_approval`** (dashboard diff preview + provider swipe confirm); map suggestion chip id → playbook step
+- [x] **ai-guide-1.8.2** — Multi-turn guide session — `guideFlowId`, `guideStepIndex`, `completedSteps[]` in dashboard + public + customer + provider session merge; “next step” / “go back” / “start over” prompts
+- [x] **ai-guide-1.8.3** — Post-failure guide fallback — when classify → `unknown`, validator clarify, or handler `success: false`, append contextual guide snippet (“Here's how to … on this page”) — wire **acc-4.7**, **n99-1**
+- [x] **ai-guide-1.8.4** — Tier / module-gated topics — playbook metadata `requiresPlan`, `requiresModule`; honest “not available on your plan” + upgrade path copy (**gap-6.2**, **gap-7.1**)
+- [x] **ai-guide-1.8.5** — Registry + **`access-control.matrix.ts`** + **`command-completion.validator.ts`** rows for all guide intents; **`test:ai-cmd-ext`** handler coverage on four surfaces
+- [x] **ai-guide-1.8.6** — Provider / customer / public **`AiProductGuideService`** dispatch — mirror **1.2.6** in `ProviderAiCommandService`, `CustomerAiCommandService`, `PublicBookingAssistantService` (surface-specific action names where verbs differ)
+- [x] **ai-guide-1.8.7** — Meta-guide intents — **`explain_ai_settings`**, **`explain_ai_suggestions`**, **`explain_assistant_approval`** (dashboard diff preview + provider swipe confirm); map suggestion chip id → playbook step
 - [x] **ai-guide-1.8.8** — Corpus maintenance CI — on `frontend` nav / guide page / mobile route change, fail **`test:ai-guide-corpus`** until playbook or `no-guide` updated (**parity-4** pattern)
-- [ ] **ai-guide-1.8.9** — Permission / empty-state guides — “Why can't I see …?”, “No services shown”, “Stripe not connected” — tie to live business settings + integration health, not static FAQ
-- [ ] **ai-guide-1.8.10** — AI unavailable / quota — when OpenAI disabled or over limit (**ai-0.2**), static fallback to native guide screen + section anchor (**1.9**) or dashboard `/dashboard/guide` — offline provider cache (**5.24.1**)
+- [x] **ai-guide-1.8.9** — Permission / empty-state guides — “Why can't I see …?”, “No services shown”, “Stripe not connected” — tie to live business settings + integration health, not static FAQ
+- [x] **ai-guide-1.8.10** — AI unavailable / quota — when OpenAI disabled or over limit (**ai-0.2**), static fallback to native guide screen + section anchor (**1.9**) or dashboard `/dashboard/guide` — offline provider cache (**5.24.1**)
 
 **Also wire (no new epic — cross-ref only):** **compliance-1** / **explain_data_rights** (privacy copy in guide), **fmt-1** / **tax-1** / **curr-1** (settings explainers stay domain handlers), **ai-cmd-ext-7** (customer read-only mirror when dashboard setting changes UX).
 
@@ -1287,7 +1287,7 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 - [ ] **ai-cmd-customer-4.2.3** — `resume_pending_payment`
 - [ ] **ai-cmd-customer-4.2.4** — Harden **`choose_payment_method`** + **`pay_online`** deferred promotion
 - [ ] **ai-cmd-customer-4.2.5** — `apply_promo_code_checkout`
-- [ ] **ai-cmd-customer-4.2.6** — `explain_checkout_steps`
+- [x] **ai-cmd-customer-4.2.6** — `explain_checkout_steps`
 - [ ] **ai-cmd-customer-4.2.7** — `fix_checkout_validation_error`
 
 ---
@@ -2461,10 +2461,10 @@ Extend **`ProviderAiSuggestionsService`** + localized starter prompts on each sc
 | **5.21.4** | `explain_profile_settings` | R | “Change my title”, “Update avatar” | **`ProviderProfileSection`** — mutate stays UI |
 | **5.21.5** | `configure_provider_push_date_format` | M | “Show push times in 24h”, “Fix date format in alerts” | **Shipped** fmt-1.8 |
 
-- [ ] **ai-cmd-provider-5.21.1** — `explain_staff_invite`
-- [ ] **ai-cmd-provider-5.21.2** — `explain_provider_app_tabs`
-- [ ] **ai-cmd-provider-5.21.3** — `explain_team_view_scope`
-- [ ] **ai-cmd-provider-5.21.4** — `explain_profile_settings`
+- [x] **ai-cmd-provider-5.21.1** — `explain_staff_invite`
+- [x] **ai-cmd-provider-5.21.2** — `explain_provider_app_tabs`
+- [x] **ai-cmd-provider-5.21.3** — `explain_team_view_scope`
+- [x] **ai-cmd-provider-5.21.4** — `explain_profile_settings`
 - [ ] **ai-cmd-provider-5.21.5** — HY/RU **`configure_provider_push_date_format`**
 
 ---
@@ -2515,10 +2515,10 @@ Extend **`ProviderAiSuggestionsService`** + localized starter prompts on each sc
 | **5.24.6** | `explain_accessibility_settings` | R | “Bigger text in app?”, “Larger tap targets” | **prov-exp-10.3** — local UI explain |
 
 - [ ] **ai-cmd-provider-5.24.1** — `explain_offline_suggestions`
-- [ ] **ai-cmd-provider-5.24.2** — `explain_assistant_confirm_swipe`
+- [x] **ai-cmd-provider-5.24.2** — `explain_assistant_confirm_swipe`
 - [ ] **ai-cmd-provider-5.24.3** — `give_provider_ai_feedback`
-- [ ] **ai-cmd-provider-5.24.4** — `explain_provider_compound_steps`
-- [ ] **ai-cmd-provider-5.24.5** — `voice_summarize_next_client`
+- [x] **ai-cmd-provider-5.24.4** — `explain_provider_compound_steps`
+- [x] **ai-cmd-provider-5.24.5** — `voice_summarize_next_client`
 - [ ] **ai-cmd-provider-5.24.6** — `explain_accessibility_settings`
 
 ---
