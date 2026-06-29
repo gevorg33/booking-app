@@ -16,10 +16,6 @@ vi.mock('../services/auth-store', () => ({
     selector({ business: authState.business }),
 }));
 
-vi.mock('./ProviderAiFab', () => ({
-  ProviderAiFab: () => <div data-testid="provider-ai-fab" />,
-}));
-
 vi.mock('./ProviderAiAssistant', () => ({
   default: ({ mobileRoute }: { mobileRoute: string }) => (
     <div data-testid="provider-ai-assistant" data-route={mobileRoute} />
@@ -47,7 +43,7 @@ describe('ProviderAiShell integration', () => {
         <MemoryRouter initialEntries={[path]}>
           <Route path="/tabs/:tab">
             <ProviderAiShell>
-              <div data-testid="tab-outlet">Tab</div>
+              <div data-testid="tab-content" />
             </ProviderAiShell>
           </Route>
         </MemoryRouter>,
@@ -55,18 +51,17 @@ describe('ProviderAiShell integration', () => {
     });
   }
 
-  it('renders FAB and assistant with schedule route context', () => {
+  it('renders assistant with schedule route context', () => {
     mountAt('/tabs/schedule');
-    expect(container.querySelector('[data-testid="tab-outlet"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="provider-ai-fab"]')).toBeTruthy();
     const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
+    expect(assistant).toBeTruthy();
     expect(assistant?.getAttribute('data-route')).toBe('schedule');
   });
 
   it('hides AI chrome when business is not loaded', () => {
     authState.business = null;
     mountAt('/tabs/today');
-    expect(container.querySelector('[data-testid="provider-ai-fab"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-ai-assistant"]')).toBeNull();
     authState.business = { id: 'biz-1', membershipRole: 'staff' };
   });
 });

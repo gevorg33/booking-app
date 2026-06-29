@@ -16,7 +16,8 @@ export type IntentCandidateSource =
   | 'narrow_reclassify'
   | 'rescue'
   | 'self_verify'
-  | 'structural_enrich';
+  | 'structural_enrich'
+  | 'guide_handoff';
 
 /**
  * Scored intent hypothesis from any understand-stage producer.

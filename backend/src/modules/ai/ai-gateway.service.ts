@@ -48,6 +48,15 @@ import {
   assessPhiInAiContext,
   phiAiBlockMessage,
 } from '../../common/utils/phi-ai-guard.util.js';
+import {
+  ASSISTANT_MODE_CONTEXT_KEY,
+  resolveAssistantMode,
+  type AssistantMode,
+} from './ai-assistant-mode.util.js';
+import {
+  GUIDE_HANDOFF_CONTEXT_KEY,
+  type GuideHandoffDispatch,
+} from './ai-product-guide-handoff.util.js';
 
 export interface AiGatewayCapabilitiesView extends AiCapabilitiesView {
   usage: PlanEntitlementsView['usage'];
@@ -69,6 +78,10 @@ export interface AiGatewayExecuteParams {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   context?: Record<string, unknown>;
   autoSubmit?: boolean;
+  /** ai-guide-1.0.3 — optional guide vs act routing; inferred from prompt when omitted. */
+  assistantMode?: AssistantMode;
+  /** ai-guide-1.2.5 — direct dispatch from product guide “Do this for me”. */
+  guideHandoff?: GuideHandoffDispatch;
 }
 
 @Injectable()
@@ -252,6 +265,11 @@ export class AiGatewayService {
 
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
+      [ASSISTANT_MODE_CONTEXT_KEY]: resolveAssistantMode({
+        prompt: params.prompt,
+        surface: params.surface,
+        explicit: params.assistantMode ?? params.context?.[ASSISTANT_MODE_CONTEXT_KEY],
+      }),
       _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,
       _entityMemoryAliases: entityMemory.aliases,
@@ -268,6 +286,9 @@ export class AiGatewayService {
       _confidenceHigh: confidenceHigh,
       _abVariantId: abVariantId,
       [COMMAND_TRACE_ID_CONTEXT_KEY]: traceId,
+      ...(params.guideHandoff
+        ? { [GUIDE_HANDOFF_CONTEXT_KEY]: params.guideHandoff }
+        : {}),
     };
 
     if (params.surface === 'customer') {

@@ -159,6 +159,8 @@ export interface PublicAssistantResult {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  /** Product guide payload when assistant returns guide intents (ai-guide-1.0.3/1.0.4). */
+  guide?: import('../ai/command-completion.types.js').GuideResponse;
   details?: Record<string, unknown>;
 }
 

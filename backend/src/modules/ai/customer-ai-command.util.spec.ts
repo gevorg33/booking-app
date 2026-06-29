@@ -90,7 +90,29 @@ describe('customer-ai-command.util', () => {
       sessionContext: undefined,
       navigate: undefined,
       bookingId: undefined,
+      guide: undefined,
     });
+  });
+
+  it('forwards guide payloads for assistant guide responses (ai-guide-1.0.3)', () => {
+    expect(
+      commandResultToPublicAssistantResult({
+        success: true,
+        action: 'booking_help',
+        summary: 'How booking works',
+        guide: {
+          summary: 'How booking works',
+          steps: [{ title: 'Pick a service', body: 'Browse services first.' }],
+        },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        guide: {
+          summary: 'How booking works',
+          steps: [{ title: 'Pick a service', body: 'Browse services first.' }],
+        },
+      }),
+    );
   });
 
   it('maps minimal command results to public assistant shape', () => {

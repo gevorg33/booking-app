@@ -101,17 +101,16 @@ describe('ProviderAiAssistant offline integration', () => {
     act(() => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <ProviderAiAssistant businessId="biz-1" />
+          <ProviderAiAssistant businessId="biz-1" initialOpen />
         </QueryClientProvider>,
       );
     });
-    act(() => container.querySelector('.ai-assistant-card__header')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
   }
 
   async function sendPrompt(text: string) {
-    const input = container.querySelector('ion-input') as HTMLElement & { value?: string };
+    const input = document.body.querySelector('ion-input') as HTMLElement & { value?: string };
     act(() => input.dispatchEvent(new CustomEvent('ionInput', { detail: { value: text }, bubbles: true })));
-    act(() => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    act(() => document.body.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -121,7 +120,7 @@ describe('ProviderAiAssistant offline integration', () => {
     apiState.online = false;
     mount();
     await sendPrompt('mark all paid');
-    expect(container.textContent).toContain('provider.offlineCommandNeedsNetwork');
+    expect(document.body.textContent).toContain('provider.offlineCommandNeedsNetwork');
   });
 
   it('queues AI confirm actions with optimistic booking updates', async () => {
@@ -136,7 +135,7 @@ describe('ProviderAiAssistant offline integration', () => {
     });
     mount();
     await sendPrompt('mark all paid');
-    const confirmButton = Array.from(container.querySelectorAll('ion-button')).find((btn) =>
+    const confirmButton = Array.from(document.body.querySelectorAll('ion-button')).find((btn) =>
       btn.textContent?.includes('provider.assistantConfirmAll'),
     );
     expect(confirmButton).toBeTruthy();
@@ -145,7 +144,7 @@ describe('ProviderAiAssistant offline integration', () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(container.textContent).toContain('provider.offlineCommandQueued');
+    expect(document.body.textContent).toContain('provider.offlineCommandQueued');
     const detail = queryClient.getQueryData<{ paymentStatus?: string }>([
       'provider-booking',
       'biz-1',
@@ -157,7 +156,7 @@ describe('ProviderAiAssistant offline integration', () => {
   it('rolls back optimistic updates when confirm fails with API error', async () => {
     mount();
     await sendPrompt('mark all paid');
-    const confirmButton = Array.from(container.querySelectorAll('ion-button')).find((btn) =>
+    const confirmButton = Array.from(document.body.querySelectorAll('ion-button')).find((btn) =>
       btn.textContent?.includes('provider.assistantConfirmAll'),
     );
     apiState.confirmThrows = false;
@@ -184,6 +183,6 @@ describe('ProviderAiAssistant offline integration', () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(container.textContent).toContain('Denied');
+    expect(document.body.textContent).toContain('Denied');
   });
 });

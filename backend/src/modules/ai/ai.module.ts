@@ -222,6 +222,7 @@ import { AiCommandTraceService } from './ai-command-trace.service.js';
     AiClinicTestOrderService,
     AiClinicTestResultService,
     AiClinicPatientChartService,
+    AiProductGuideService,
     AiConsumerClinicTestResultsService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,

@@ -8,9 +8,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -19,12 +17,14 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay, formatTimeDisplay } from '../lib/date-format';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { isTeamView } from '../lib/provider-access';
 import type { ProviderPatientChartSummary } from '../lib/provider-patient-chart';
 import { ClinicLabStatusBadge } from '../components/ClinicLabStatusBadge';
 import BookingDetailModal from '../components/BookingDetailModal';
 
-export default function PatientChartSummaryPage() {
+export default function PatientChartSummaryPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const { customerId } = useParams<{ customerId: string }>();
@@ -43,7 +43,7 @@ export default function PatientChartSummaryPage() {
 
   if (data && !data.labFeaturesEnabled) {
     return (
-      <IonPage>
+      <ProviderTabPageShell embedded={embedded}>
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
@@ -52,10 +52,10 @@ export default function PatientChartSummaryPage() {
             <IonTitle>{t('provider.patientChartTitle')}</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="ion-padding">
+        <ProviderTabScrollContent className="ion-padding">
           <p className="ion-text-center ion-padding">{t('clinic.labState.gate.disabledReason')}</p>
-        </IonContent>
-      </IonPage>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
     );
   }
 
@@ -63,7 +63,7 @@ export default function PatientChartSummaryPage() {
   const customer = data?.customer;
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
@@ -72,7 +72,7 @@ export default function PatientChartSummaryPage() {
           <IonTitle>{customer?.name ?? t('provider.patientChartTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         {isLoading ? (
           <div className="empty-state">
             <IonSpinner />
@@ -216,7 +216,7 @@ export default function PatientChartSummaryPage() {
             onClose={() => setSelectedBookingId(null)}
           />
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

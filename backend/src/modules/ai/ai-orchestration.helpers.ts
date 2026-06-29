@@ -445,6 +445,21 @@ export function fuzzyMatchServiceByName<T extends { name: string }>(
   );
 }
 
+/** Exact catalog name match for create-service dedup — no fuzzy substring matching. */
+export function findServiceByExactName<T extends { name: string }>(
+  items: T[],
+  name: string,
+): T | undefined {
+  const lower = name.trim().toLowerCase();
+  if (!lower) return undefined;
+  const normalized = normalizeServiceLookup(lower);
+
+  return (
+    items.find((item) => item.name.toLowerCase() === lower) ||
+    items.find((item) => normalizeServiceLookup(item.name) === normalized)
+  );
+}
+
 const SERVICE_ROLE_WORDS =
   /\b(?:specialists?|therapists?|providers?|stylists?|masseurs?|doctors?|professionals?)\b/gi;
 const SERVICE_QUALITY_WORDS =

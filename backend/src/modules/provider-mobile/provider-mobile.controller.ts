@@ -93,6 +93,7 @@ export class ProviderMobileController {
       history: dto.history,
       context: dto.context,
       confirmed: dto.context?.confirmed === true,
+      assistantMode: dto.assistantMode,
     });
   }
 

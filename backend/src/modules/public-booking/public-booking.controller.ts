@@ -590,6 +590,7 @@ export class PublicBookingController {
         userEmail: user?.email ?? undefined,
         ...dto.context,
       },
+      assistantMode: dto.assistantMode,
     });
     return commandResultToPublicAssistantResult(
       result as import('../ai/command-completion.types.js').CommandResult,

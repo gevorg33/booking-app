@@ -20,6 +20,7 @@ export const FAST_HEURISTIC_ALLOWED_IMPORT_MODULES = [
   'intent-decomposition.service',
   'ai-intent-disambiguation.util',
   'ai-dashboard-ops.util',
+  'ai-product-guide.util',
   'command-understanding.types',
   'fast-intent-heuristics.util',
   'fast-intent-heuristics.boundary',

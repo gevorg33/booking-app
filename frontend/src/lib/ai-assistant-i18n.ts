@@ -1,3 +1,8 @@
+import {
+  allCommandBarGuidePromptKeys,
+  buildCommandBarGuideExamples,
+  buildContextualGuidePromptForRoute,
+} from './ai-command-bar-guide.util';
 import { onboardingPromptI18nKeys } from './ai-onboarding.util';
 import { AI_DASHBOARD_SURFACE_KEYS } from './dashboard-surfaces.i18n';
 
@@ -28,7 +33,7 @@ function p(t: AiTranslateFn, key: string, vars?: Record<string, string | number>
   return t(`ai.prompts.${key}`, vars);
 }
 
-/** Default example prompts shown in the command bar before the first message. */
+/** Default action example prompts shown in the command bar before the first message. */
 export function buildAiCommandBarExamples(
   ctx: AiExampleTenantContext | null | undefined,
   t: AiTranslateFn,
@@ -48,6 +53,13 @@ export function buildAiCommandBarExamples(
     p(t, 'bookNearestSlot', { service: serviceName, provider }),
   ];
 }
+
+/** Playbook-backed guide chips for the command bar empty state (ai-guide-1.3.2). */
+export function buildAiCommandBarGuideExamples(route: string, t: AiTranslateFn): string[] {
+  return buildCommandBarGuideExamples(route, t);
+}
+
+export { buildContextualGuidePromptForRoute };
 
 const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
   '/dashboard': [
@@ -323,6 +335,9 @@ export const AI_ASSISTANT_UI_KEYS = [
   'ai.opportunitiesTitle',
   'ai.opportunitiesOnPage',
   'ai.examples',
+  'ai.guideExamples',
+  'ai.helpChip',
+  'ai.helpChipHint',
   'ai.undoLatest',
   'ai.undoLatestHint',
   'ai.undoLatestNone',
@@ -359,6 +374,7 @@ export function allAiAssistantI18nKeys(): string[] {
       ...AI_ASSISTANT_UI_KEYS,
       ...AI_DASHBOARD_SURFACE_KEYS,
       ...allAiAssistantPromptKeys(),
+      ...allCommandBarGuidePromptKeys(),
       ...onboardingPromptI18nKeys(),
       'reports.aiInsightsTitle',
     ]),

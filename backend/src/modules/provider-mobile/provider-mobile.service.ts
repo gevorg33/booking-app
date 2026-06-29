@@ -155,8 +155,11 @@ import {
 import {
   formatZonedTime,
   getDateKeyInTimezone,
+  getUtcBoundsForDateKey,
   pickTimezone,
+  resolveBusinessWallClockTimezone,
 } from '../../common/utils/timezone.util.js';
+import { getBusinessDefaultLocale } from '../../common/utils/business-locale.util.js';
 import {
   buildProviderReassignEligibility,
   filterReassignTargetEmployees,
@@ -176,7 +179,6 @@ import {
 } from './provider-team-floor.util.js';
 import {
   buildTeamWhosNextView,
-  buildTeamWhosNextWindow,
   type TeamWhosNextView,
 } from './provider-team-whos-next.util.js';
 import { mergeBusinessNotificationSettings } from '../notifications/merge-business-notification-settings.js';
@@ -876,14 +878,22 @@ export class ProviderMobileService {
     }
 
     const now = new Date();
-    const { windowEnd } = buildTeamWhosNextWindow(now);
-    const today = new Date(now);
-    today.setUTCHours(0, 0, 0, 0);
+    const business = await this.businessService.findOne(businessId);
+    const settings = (business?.settings ?? {}) as Record<string, unknown>;
+    const wallClockTz = resolveBusinessWallClockTimezone(
+      business?.timezone,
+      getBusinessDefaultLocale(settings),
+    );
+    const todayKey = getDateKeyInTimezone(now, wallClockTz);
+    const { start: todayStart, end: todayEnd } = getUtcBoundsForDateKey(
+      todayKey,
+      'UTC',
+    );
 
     const bookings = await this.bookingRepo.find({
       where: {
         businessId,
-        startTime: Between(today, windowEnd),
+        startTime: Between(todayStart, todayEnd),
         status: Not(In([BookingStatus.CANCELLED])),
       },
       relations: { service: true, customer: true, employee: true },
@@ -898,6 +908,7 @@ export class ProviderMobileService {
         queuePosition: meta.queuePosition,
         teamFloorStatus: resolveTeamFloorChipStatus(booking),
       }),
+      wallClockTz,
       now,
     );
   }
@@ -1143,12 +1154,19 @@ export class ProviderMobileService {
 
     const business = await this.businessService.findOne(businessId);
     const settings = (business?.settings ?? {}) as Record<string, unknown>;
-    const todayEnd = new Date(start);
-    todayEnd.setUTCHours(23, 59, 59, 999);
+    const wallClockTz = resolveBusinessWallClockTimezone(
+      business?.timezone,
+      getBusinessDefaultLocale(settings),
+    );
+    const todayKey = getDateKeyInTimezone(new Date(), wallClockTz);
+    const { start: todayStart, end: todayEnd } = getUtcBoundsForDateKey(
+      todayKey,
+      'UTC',
+    );
 
     const todayWhere: Record<string, unknown> = {
       businessId,
-      startTime: Between(start, todayEnd),
+      startTime: Between(todayStart, todayEnd),
       status: Not(In([BookingStatus.CANCELLED])),
     };
     if (access.viewMode === 'provider') {
@@ -1163,7 +1181,7 @@ export class ProviderMobileService {
 
     const todayTimeline = buildProviderTodayTimelineView({
       enabled: providerMobileShowTodayTimeline(settings),
-      date: getTodayDateKey(),
+      date: todayKey,
       bookings: todayBookings.map((booking) => ({
         id: booking.id,
         startTime: booking.startTime,
@@ -1173,6 +1191,7 @@ export class ProviderMobileService {
           ? { name: booking.customer.name }
           : null,
       })),
+      timeZone: wallClockTz,
     });
 
     const timeOffRequests =

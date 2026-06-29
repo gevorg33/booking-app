@@ -5,12 +5,10 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
   IonItem,
   IonLabel,
   IonList,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -31,8 +29,10 @@ import { useProviderSelfBlockFormVisible } from '../lib/use-provider-self-block-
 import { useProviderTimeOffFormVisible } from '../lib/use-provider-time-off-enabled';
 import type { ProviderTimeOffRequestSummary } from '../lib/provider-time-off.util';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 
-export default function SchedulePage() {
+export default function SchedulePage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const { currency: businessCurrency } = useBusinessCurrency();
@@ -92,7 +92,7 @@ export default function SchedulePage() {
   const showTimeOffForm = useProviderTimeOffFormVisible();
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>
@@ -100,7 +100,7 @@ export default function SchedulePage() {
           </IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         {business?.id && (
           <>
             <ProviderAiSuggestions
@@ -196,7 +196,7 @@ export default function SchedulePage() {
             }}
           />
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

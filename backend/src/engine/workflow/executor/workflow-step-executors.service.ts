@@ -610,6 +610,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       price,
       currency,
       categoryId,
+      localizedNames,
       userId,
     } = step.params;
     const service = await this.serviceService.create(
@@ -622,6 +623,7 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         price,
         currency,
         categoryId,
+        localizedNames,
       },
       userId,
     );

@@ -14,6 +14,8 @@ import {
   enrichListServicesParamsFromPrompt,
   extractServiceTypeKeywordFromListPrompt,
   matchServicesByQuery,
+  findServiceByExactName,
+  fuzzyMatchServiceByName,
   resolveServicesFromCatalogParams,
   resolvePublicAssistantSessionServiceFields,
   extractRecommendServicesFromPrompt,
@@ -437,6 +439,21 @@ describe('resolveServicesFromCatalogParams', () => {
         serviceCategory: 'Hair',
       }).map((s) => s.name),
     ).toEqual(['Blow dry', 'Color']);
+  });
+});
+
+describe('findServiceByExactName', () => {
+  const catalog = [{ id: '1', name: "Men's Haircut" }];
+
+  it('matches only exact names for create-service dedup', () => {
+    expect(findServiceByExactName(catalog, "Men's Haircut")?.id).toBe('1');
+    expect(findServiceByExactName(catalog, "Men's haircut with head wash")).toBeUndefined();
+  });
+
+  it('still allows fuzzy lookup via fuzzyMatchServiceByName', () => {
+    expect(
+      fuzzyMatchServiceByName(catalog, "Men's haircut with head wash")?.id,
+    ).toBe('1');
   });
 });
 

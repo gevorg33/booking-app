@@ -3,9 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   IonCard,
   IonCardContent,
-  IonContent,
   IonHeader,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -25,10 +23,12 @@ import {
 import { monthKeyFromDateKey } from '../lib/date-picker-calendar.util';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { useProviderOpenShiftsEnabled } from '../lib/use-provider-open-shifts-enabled';
 import { ProviderCalendarGapsPanel } from '../components/ProviderCalendarGapsPanel';
 
-export default function CalendarPage() {
+export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const { currency: businessCurrency } = useBusinessCurrency();
@@ -73,14 +73,14 @@ export default function CalendarPage() {
   });
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.calendarTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
-        <IonCard>
+      <ProviderTabScrollContent className="ion-padding">
+        <IonCard className="provider-calendar-month-card">
           <IonCardContent>
             {isMonthLoading ? (
               <div className="empty-state">
@@ -99,9 +99,7 @@ export default function CalendarPage() {
           </IonCardContent>
         </IonCard>
 
-        <h2 style={{ fontSize: '1.05rem', margin: '16px 0 8px' }}>
-          {formatDateDisplay(selectedDate)}
-        </h2>
+        <h2 className="provider-calendar-day-heading">{formatDateDisplay(selectedDate)}</h2>
         <p className="booking-meta">{t('provider.calendarSelectDay')}</p>
 
         {showOpenShifts && business?.id ? (
@@ -120,7 +118,12 @@ export default function CalendarPage() {
           <p className="empty-state">{t('provider.calendarNoAppointments')}</p>
         ) : (
           dayBookings.bookings.map((booking) => (
-            <IonCard key={booking.id} button onClick={() => setSelectedBookingId(booking.id)}>
+            <IonCard
+              key={booking.id}
+              className="provider-calendar-appointment-card"
+              button
+              onClick={() => setSelectedBookingId(booking.id)}
+            >
               <IonCardContent>
                 <p className="booking-meta">{formatTimeDisplay(booking.startTime)}</p>
                 <p>
@@ -146,7 +149,7 @@ export default function CalendarPage() {
             onClose={() => setSelectedBookingId(null)}
           />
         ) : null}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

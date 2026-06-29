@@ -6,9 +6,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
-  IonPage,
   IonSegment,
   IonSegmentButton,
   IonSpinner,
@@ -19,6 +17,8 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 
 type GiftCardOrder = {
   id: string;
@@ -33,7 +33,7 @@ type GiftCardOrder = {
   serviceCredits?: Array<{ serviceName: string; quantityRemaining: number }>;
 };
 
-export default function GiftCardQueuesPage() {
+export default function GiftCardQueuesPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -101,7 +101,7 @@ export default function GiftCardQueuesPage() {
   const loading = queue === 'creation' ? creationLoading : deliveryLoading;
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.navGiftCards')}</IonTitle>
@@ -117,7 +117,7 @@ export default function GiftCardQueuesPage() {
           </IonSegment>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         {loading ? (
           <div className="ion-text-center ion-padding">
             <IonSpinner />
@@ -181,7 +181,7 @@ export default function GiftCardQueuesPage() {
             </IonCard>
           ))
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

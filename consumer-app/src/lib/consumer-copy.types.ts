@@ -145,6 +145,12 @@ export type ConsumerCopy = {
   patientAlertBodyLabBooking: string;
   assistantTitle: string;
   assistantHint: string;
+  assistantHelpChip: string;
+  assistantHelpChipHint: string;
+  assistantGuideExamples: string;
+  assistantGuideStepOf: string;
+  assistantGuideNextStep: string;
+  assistantGuideOpenInApp: string;
   assistantPlaceholder: string;
   assistantThinking: string;
   assistantContinueBooking: string;
@@ -154,6 +160,10 @@ export type ConsumerCopy = {
   assistantExampleServices: string;
   assistantExampleBook: string;
   assistantExampleLocation: string;
+  assistantExampleGuideBook: string;
+  assistantExampleGuideCheckout: string;
+  assistantExampleGuideServices: string;
+  assistantExampleGuideLocation: string;
   assistantDiscoverChipsTitle: string;
   assistantDiscoverChipUnder50: string;
   assistantDiscoverPromptUnder50: string;

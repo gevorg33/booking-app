@@ -68,7 +68,8 @@ export type PipelineStage =
   | 'plan'
   | 'execute'
   | 'clarify'
-  | 'telemetry';
+  | 'telemetry'
+  | 'guide_handoff';
 
 export interface PipelineTrace {
   stage: PipelineStage;
@@ -77,9 +78,54 @@ export interface PipelineTrace {
   detail?: string;
 }
 
+/** Deep link target for a guide step or whole response (ai-guide-1.0.4). */
+export interface GuideNavigateTarget {
+  path: string;
+  query?: Record<string, string>;
+  hash?: string;
+}
+
+/** One numbered step in a product guide response. */
+export interface GuideStep {
+  title: string;
+  body: string;
+  navigate?: GuideNavigateTarget;
+}
+
+/** Optional handoff to an existing mutate/read intent after the guide. */
+export interface GuideRelatedAction {
+  action: string;
+  label: string;
+  params?: Record<string, unknown>;
+  /** NL prompt for command-bar “Do this for me” execution (ai-guide-1.2.5). */
+  prompt?: string;
+}
+
+/** Corpus / playbook citation backing a guide answer. */
+export interface GuideSourceRef {
+  topicId: string;
+  label?: string;
+  kind?: 'topic' | 'playbook' | 'i18n' | 'static';
+}
+
+/**
+ * Shared product-guide payload for dashboard, provider, customer, and public assistants (ai-guide-1.0.4).
+ * Handlers set `CommandResult.guide`; UI renders summary + steps + optional navigate / relatedActions.
+ */
+export interface GuideResponse {
+  summary: string;
+  steps: GuideStep[];
+  navigate?: GuideNavigateTarget;
+  relatedActions?: GuideRelatedAction[];
+  topicId?: string;
+  sources?: GuideSourceRef[];
+}
+
 export interface CommandResult {
   success: boolean;
   action: string;
   summary: string;
   details: Record<string, any>;
+  /** Populated for product-guide intents (`explain_app_feature`, `guide_user_flow`, …). */
+  guide?: GuideResponse;
 }

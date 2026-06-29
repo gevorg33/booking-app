@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { AiSemanticIntentService } from './ai-semantic-intent.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import {
+  resolveAssistantModeFromSession,
+} from './ai-assistant-mode.util.js';
 import { FastIntentHeuristicsService } from './fast-intent-heuristics.service.js';
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
 import {
@@ -201,10 +204,16 @@ export class CommandUnderstandingPipelineService {
     trace: PipelineUnderstandResult['trace'],
     candidates: IntentCandidate[],
   ): void {
+    const assistantMode = resolveAssistantModeFromSession({
+      prompt: input.effectivePrompt,
+      surface: input.surface,
+      sessionContext: input.sessionContext,
+    });
     const heuristicCandidates = this.fastHeuristics.score({
       prompt: context.normalizedPrompt,
       surface: input.surface,
       employees: input.employees,
+      assistantMode,
     });
     candidates.push(...heuristicCandidates);
 
@@ -519,6 +528,11 @@ export class CommandUnderstandingPipelineService {
       customers: input.customers,
       timeZone: input.timeZone,
       surface: input.surface,
+      assistantMode: resolveAssistantModeFromSession({
+        prompt: input.effectivePrompt,
+        surface: input.surface,
+        sessionContext: input.sessionContext,
+      }),
       semanticParamHints: hasSemanticHints ? semanticParamHints : undefined,
     });
 

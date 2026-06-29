@@ -55,10 +55,12 @@ describe('provider operation-feedback', () => {
   });
 
   describe('shouldShowOperationFeedback', () => {
-    it('skips read-only, AI, and auth URL patterns', () => {
+    it('skips read-only, AI, auth, analytics, and push URL patterns', () => {
       expect(shouldShowOperationFeedback('get', '/businesses/1/bookings')).toBe(false);
       expect(shouldShowOperationFeedback('post', '/auth/login')).toBe(false);
       expect(shouldShowOperationFeedback('post', '/businesses/1/provider/ai/command')).toBe(false);
+      expect(shouldShowOperationFeedback('post', '/events/app')).toBe(false);
+      expect(shouldShowOperationFeedback('post', '/businesses/1/provider/push/register-native')).toBe(false);
       expect(shouldShowOperationFeedback('post', '/businesses/1/services', true)).toBe(false);
       expect(shouldShowOperationFeedback('post', undefined)).toBe(true);
       expect(shouldShowOperationFeedback('post', '/businesses/1/provider/bookings/1')).toBe(true);

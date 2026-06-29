@@ -124,6 +124,66 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
     expect(session.history).toEqual([{ role: 'user', content: 'earlier' }]);
   });
 
+  it('ai-guide-1.0.3 — resolves assistantMode onto session context', async () => {
+    const { gateway, dashboardCommands } = buildGateway();
+    await gateway.execute({
+      surface: 'dashboard',
+      businessId: 'biz-1',
+      prompt: 'How many appointments today?',
+      membershipRole: 'owner',
+      assistantMode: 'guide',
+    });
+
+    const session = dashboardCommands.executeCommand.mock.calls[0][3];
+    expect(session.context).toEqual(
+      expect.objectContaining({ assistantMode: 'guide' }),
+    );
+  });
+
+  it('ai-guide-1.0.3 — resolves assistantMode for provider surface', async () => {
+    const { gateway, providerCommands } = buildGateway();
+    await gateway.execute({
+      surface: 'provider',
+      businessId: 'biz-1',
+      prompt: 'How do I mark a booking paid?',
+      userId: 'user-1',
+      membershipRole: 'manager',
+      assistantMode: 'guide',
+    });
+
+    const context = providerCommands.executeCommand.mock.calls[0][4];
+    expect(context).toEqual(expect.objectContaining({ assistantMode: 'guide' }));
+  });
+
+  it('ai-guide-1.0.3 — resolves assistantMode for customer/public surface', async () => {
+    const customerCommands = { executeCommand: jest.fn(async () => dashboardResult) };
+    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const gateway = new AiGatewayService(
+      { executeCommand: jest.fn() } as any,
+      customerCommands as any,
+      { executeCommand: jest.fn() } as any,
+      { buildMemoryContextBlock: jest.fn(async () => ''), getEntityMemory: jest.fn(async () => ({ aliases: {} })), learnFromCommand: jest.fn() } as any,
+      { prepareHistoryForClassifier: jest.fn(async () => ({ history: [], summaryBlock: '' })) } as any,
+      { buildRagContextBlock: jest.fn(async () => '') } as any,
+      { preflightBlock: jest.fn(() => null) } as any,
+      { assertCanRunDashboardAiCommand: jest.fn(), getEntitlements: jest.fn(async () => ({ tierId: 'starter', usage: {}, atLimit: {}, aiUsageWarning: false })) } as any,
+      aiSettings as any,
+      platform as any,
+      commandTrace as any,
+    );
+
+    await gateway.execute({
+      surface: 'customer',
+      businessId: 'biz-1',
+      prompt: 'How do I book an appointment?',
+      context: { slug: 'demo-salon' },
+      assistantMode: 'act',
+    });
+
+    const context = customerCommands.executeCommand.mock.calls[0][3];
+    expect(context).toEqual(expect.objectContaining({ assistantMode: 'act' }));
+  });
+
   it('learns entity memory after successful dashboard commands', async () => {
     const { gateway, entityMemory } = buildGateway();
     await gateway.execute({

@@ -6,11 +6,13 @@ import { CircleHelp, X } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import {
+  getHelpTopicCorpusTopicId,
   getHelpTopicGuidePath,
   helpTopicTranslationPrefix,
   listHelpStepKeys,
   type HelpTopicId,
 } from '@/lib/help-center-topics';
+import { GuideTopicAskAiButton } from '@/components/guide-topic-ask-ai-button';
 
 export function ContextualHelpButton({ topicId }: { topicId: HelpTopicId }) {
   const { t } = useI18n();
@@ -81,13 +83,16 @@ export function ContextualHelpButton({ topicId }: { topicId: HelpTopicId }) {
               </ol>
             )}
 
-            <Link
-              href={getHelpTopicGuidePath(topicId)}
-              className="inline-flex text-sm font-medium text-blue-400 hover:text-blue-300"
-              onClick={() => setOpen(false)}
-            >
-              {t('helpCenter.openFullGuide')}
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={getHelpTopicGuidePath(topicId)}
+                className="inline-flex text-sm font-medium text-blue-400 hover:text-blue-300"
+                onClick={() => setOpen(false)}
+              >
+                {t('helpCenter.openFullGuide')}
+              </Link>
+              <GuideTopicAskAiButton topicId={getHelpTopicCorpusTopicId(topicId)} />
+            </div>
           </div>
         </>
       )}

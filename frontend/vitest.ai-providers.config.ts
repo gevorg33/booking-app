@@ -14,7 +14,9 @@ export default defineConfig({
     include: [
       'src/lib/ai-available-providers.util.spec.ts',
       'src/lib/ai-command-bar.util.spec.ts',
+      'src/lib/ai-guide-reply.util.spec.ts',
       'src/components/ai-available-providers-panel.integration.spec.tsx',
+      'src/components/ai-guide-steps-panel.integration.spec.tsx',
     ],
     coverage: {
       provider: 'v8',

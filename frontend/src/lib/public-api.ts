@@ -943,6 +943,7 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  guide?: import('@/lib/ai-client.types').AiGuideResponse;
   details?: Record<string, unknown>;
 }
 
@@ -953,6 +954,7 @@ export function sendPublicAssistantMessage(
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     context?: Record<string, unknown>;
     locale?: string;
+    assistantMode?: 'guide' | 'act';
   },
 ) {
   return publicFetch<PublicAssistantResponse>(`/public/${slug}/assistant`, {

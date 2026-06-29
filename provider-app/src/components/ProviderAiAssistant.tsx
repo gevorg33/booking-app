@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
   IonIcon,
   IonInput,
   IonItem,
@@ -18,7 +14,13 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
-import { chevronDownOutline, chevronUpOutline, sparklesOutline } from 'ionicons/icons';
+import { closeOutline, sparklesOutline } from 'ionicons/icons';
+import {
+  useDraggableFloatingPosition,
+  useViewportSize,
+} from '../lib/use-draggable-floating-position';
+import { getProviderFabDefaultBottomInset } from '../lib/provider-tab-bar-layout.util';
+import { ProviderBodyPortal } from './ProviderBodyPortal';
 import api, { unwrap } from '../services/api';
 import {
   aiConfirmErrorMessage,
@@ -32,7 +34,13 @@ import {
 import { useProviderAiEvents } from '../lib/use-ai-events';
 import { useOnlineStatus } from '../lib/use-online-status';
 import { useI18n } from '../i18n';
-import { buildProviderAiExamples } from '../lib/provider-ai-examples';
+import { resolveProviderAiExamples } from '../lib/provider-ai-guide-examples';
+import {
+  resolveAssistantModePayload,
+  withAssistantModeContext,
+} from '../lib/assistant-mode.util';
+import { ProviderAiGuidePanel } from './ProviderAiGuidePanel';
+import type { AiGuideResponse } from '../lib/ai-client.types';
 import {
   getProviderQuickChips,
   type ProviderMobileRoute,
@@ -80,6 +88,7 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   success?: boolean;
+  guide?: AiGuideResponse;
   details?: MessageDetails;
 }
 
@@ -98,6 +107,9 @@ interface ProviderAiAssistantProps {
   onSeedPromptConsumed?: () => void;
   mobileRoute?: ProviderMobileRoute;
   isManager?: boolean;
+  /** Test-only: start with panel open without FAB tap. */
+  initialOpen?: boolean;
+  overlaysVisible?: boolean;
 }
 
 function mergeSession(prev: SessionContext, next: SessionContext): SessionContext {
@@ -117,24 +129,72 @@ export default function ProviderAiAssistant({
   onSeedPromptConsumed,
   mobileRoute = 'today',
   isManager = false,
+  initialOpen = false,
+  overlaysVisible = true,
 }: ProviderAiAssistantProps) {
   const { t, locale } = useI18n();
   const history = useHistory();
   const online = useOnlineStatus();
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const quickChips = getProviderQuickChips(mobileRoute, t, { isManager });
-  const examples = buildProviderAiExamples(t);
+  const [guideMode, setGuideMode] = useState(false);
+  const examples = useMemo(
+    () => resolveProviderAiExamples(t, guideMode),
+    [guideMode, t],
+  );
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize();
+  const fabBottomInset = useMemo(() => getProviderFabDefaultBottomInset(), []);
+  const estimatedSize = useMemo(() => {
+    const fab = { width: 56, height: 56 };
+    if (!viewport.width) return fab;
+    if (open) {
+      return {
+        width: Math.min(400, viewport.width - 32),
+        height: Math.min(560, Math.round(viewport.height * 0.8)),
+      };
+    }
+    return fab;
+  }, [open, viewport.height, viewport.width]);
+  const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
+    useDraggableFloatingPosition({
+      storageKey: `provider-ai-position-${businessId}`,
+      estimatedSize,
+      defaultBottomInset: fabBottomInset,
+    });
+
+  const closeAssistant = useCallback(() => {
+    setOpen(false);
+    setVoiceError(null);
+  }, []);
+
+  const openFab = useCallback(() => {
+    setOpen(true);
+  }, []);
+
   useProviderAiEvents(businessId, (type) => {
     if (type === 'ai.clarify' || type === 'ai.task.progress') setOpen(true);
   });
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAssistant();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [closeAssistant, open]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, loading]);
 
   const invalidateBookings = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-today', businessId] });
@@ -170,18 +230,24 @@ export default function ProviderAiAssistant({
           content: m.text,
         }));
 
+        const assistantMode = resolveAssistantModePayload(guideMode);
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
-          context: {
-            ...sessionContext,
-            ...screenContext,
-            nativePlatform: Capacitor.getPlatform(),
-          },
+          context: withAssistantModeContext(
+            {
+              ...sessionContext,
+              ...screenContext,
+              nativePlatform: Capacitor.getPlatform(),
+            },
+            guideMode,
+          ),
+          ...(assistantMode ? { assistantMode } : {}),
         });
         const result = unwrap<{
           success: boolean;
           summary: string;
+          guide?: AiGuideResponse;
           details?: MessageDetails & {
             navigate?: { path?: string; query?: Record<string, string> };
             clientAction?: string;
@@ -199,6 +265,7 @@ export default function ProviderAiAssistant({
             role: 'assistant',
             text: result.summary,
             success: result.success,
+            guide: result.guide,
             details: result.details,
           },
         ]);
@@ -234,7 +301,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, history, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
+    [businessId, guideMode, history, invalidateBookings, loading, messages, online, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -323,74 +390,77 @@ export default function ProviderAiAssistant({
     return () => window.removeEventListener('provider:ai-prompt', onAiPrompt);
   }, [sendPrompt]);
 
-  return (
-    <>
-      <IonCard className="ai-assistant-card ion-margin-bottom">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') setOpen((v) => !v);
-        }}
-        className="ai-assistant-card__header"
-      >
-        <IonCardHeader>
-          <IonCardTitle className="ai-assistant-card__title">
-            <IonIcon icon={sparklesOutline} className="ai-assistant-card__icon" />
-            {t('provider.assistantTitle')}
-          </IonCardTitle>
-        </IonCardHeader>
-        <IonIcon icon={open ? chevronUpOutline : chevronDownOutline} />
-      </div>
+  const showSuggestions = messages.length === 0 && !loading;
 
-      {open && (
-        <IonCardContent>
-          {quickChips.length > 0 && (
-            <div className="ai-assistant-quick-chips">
-              <p className="booking-meta ai-assistant-quick-chips__label">{t('provider.quickChipsTitle')}</p>
-              <div className="ai-assistant-quick-chips__row">
-                {quickChips.map((c) => (
+  const assistantPanel = open ? (
+          <div className="ai-assistant-card__body">
+          {showSuggestions && (
+            <div className="ai-assistant-suggestions">
+              {quickChips.length > 0 && (
+                <div className="ai-assistant-quick-chips">
+                  <p className="booking-meta ai-assistant-quick-chips__label">{t('provider.quickChipsTitle')}</p>
+                  <div className="ai-assistant-quick-chips__row">
+                    {quickChips.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="ai-assistant-quick-chip"
+                        onClick={() => {
+                          if (c.id === 'teamWhosNext') {
+                            window.dispatchEvent(new CustomEvent('provider:show-team-whos-next'));
+                          }
+                          void sendPrompt(c.prompt);
+                        }}
+                        disabled={loading}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="ai-assistant-examples">
+                <div className="ai-assistant-guide-toggle">
                   <button
-                    key={c.id}
                     type="button"
-                    className="ai-assistant-quick-chip"
-                    onClick={() => {
-                      if (c.id === 'teamWhosNext') {
-                        window.dispatchEvent(new CustomEvent('provider:show-team-whos-next'));
-                      }
-                      void sendPrompt(c.prompt);
-                    }}
-                    disabled={loading}
+                    className={`ai-assistant-guide-chip${guideMode ? ' ai-assistant-guide-chip--active' : ''}`}
+                    aria-pressed={guideMode}
+                    title={t('provider.assistantHelpChipHint')}
+                    onClick={() => setGuideMode((active) => !active)}
                   >
-                    {c.label}
+                    {t('provider.assistantHelpChip')}
                   </button>
-                ))}
+                  <p className="booking-meta ai-assistant-guide-toggle__hint">
+                    {guideMode
+                      ? t('provider.assistantGuideExamples')
+                      : t('provider.assistantEmptyHint')}
+                  </p>
+                </div>
+                <div className="ai-assistant-examples__list">
+                  {examples.slice(0, 3).map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      className="ai-assistant-example"
+                      onClick={() => void sendPrompt(example)}
+                      disabled={loading}
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          <div className="ai-assistant-examples">
-            {examples.map((example) => (
-              <button
-                key={example}
-                type="button"
-                className="ai-assistant-example"
-                onClick={() => void sendPrompt(example)}
-                disabled={loading}
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-
           <div ref={scrollRef} className="ai-assistant-messages">
             {messages.length === 0 ? (
-              <IonText color="medium">
-                <p className="booking-meta">
-                  {t('provider.assistantEmptyHint')}
-                </p>
-              </IonText>
+              !showSuggestions ? (
+                <IonText color="medium">
+                  <p className="booking-meta">{t('provider.assistantEmptyHint')}</p>
+                </IonText>
+              ) : null
             ) : (
               messages.map((msg) => (
                 <div
@@ -403,7 +473,14 @@ export default function ProviderAiAssistant({
                         : ''
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  {msg.guide ? (
+                    <ProviderAiGuidePanel
+                      guide={msg.guide}
+                      onNavigate={(path) => history.push(path)}
+                    />
+                  ) : (
+                    <p>{msg.text}</p>
+                  )}
 
                   {msg.details?.needsClarification && Array.isArray(msg.details.missing) && (
                     <div className="ai-assistant-clarify">
@@ -518,56 +595,102 @@ export default function ProviderAiAssistant({
             )}
           </div>
 
-          {voiceError && (
-            <IonText color="danger">
-              <p className="booking-meta">{voiceError}</p>
-            </IonText>
-          )}
+          <div className="ai-assistant-composer">
+            {voiceError && (
+              <IonText color="danger">
+                <p className="booking-meta">{voiceError}</p>
+              </IonText>
+            )}
 
-          <form
-            className="ai-assistant-input-row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void sendPrompt(input);
-            }}
-          >
-            <ProviderAiVoiceButton
-              disabled={loading}
-              inputValue={input}
-              locale={locale}
-              labels={{
-                start: t('provider.voiceStart'),
-                stop: t('provider.voiceStop'),
+            <form
+              className="ai-assistant-input-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void sendPrompt(input);
               }}
-              onTranscript={(text) => {
-                setVoiceError(null);
-                setInput(text);
-              }}
-              onError={(code: SpeechRecognitionErrorCode) => {
-                const key =
-                  code === 'unsupported'
-                    ? 'provider.voiceUnsupported'
-                    : code === 'not-allowed'
-                      ? 'provider.voiceDenied'
-                      : code === 'no-speech'
-                        ? 'provider.voiceNoSpeech'
-                        : 'provider.voiceError';
-                setVoiceError(t(key));
-              }}
-            />
-            <IonInput
-              value={input}
-              placeholder={t('provider.assistantInputPlaceholder')}
-              onIonInput={(e) => setInput(e.detail.value ?? '')}
-              disabled={loading}
-            />
-            <IonButton type="submit" disabled={loading || !input.trim()}>
-              {t('ai.send')}
-            </IonButton>
-          </form>
-        </IonCardContent>
+            >
+              <ProviderAiVoiceButton
+                disabled={loading}
+                inputValue={input}
+                locale={locale}
+                labels={{
+                  start: t('provider.voiceStart'),
+                  stop: t('provider.voiceStop'),
+                }}
+                onTranscript={(text) => {
+                  setVoiceError(null);
+                  setInput(text);
+                }}
+                onError={(code: SpeechRecognitionErrorCode) => {
+                  const key =
+                    code === 'unsupported'
+                      ? 'provider.voiceUnsupported'
+                      : code === 'not-allowed'
+                        ? 'provider.voiceDenied'
+                        : code === 'no-speech'
+                          ? 'provider.voiceNoSpeech'
+                          : 'provider.voiceError';
+                  setVoiceError(t(key));
+                }}
+              />
+              <IonInput
+                value={input}
+                placeholder={t('provider.assistantInputPlaceholder')}
+                onIonInput={(e) => setInput(e.detail.value ?? '')}
+                disabled={loading}
+              />
+              <IonButton type="submit" disabled={loading || !input.trim()}>
+                {t('ai.send')}
+              </IonButton>
+            </form>
+          </div>
+          </div>
+  ) : null;
+
+  if (!overlaysVisible) return null;
+
+  return (
+    <ProviderBodyPortal>
+      {!open ? (
+        <button
+          ref={floatingRef}
+          type="button"
+          data-testid="provider-ai-fab"
+          {...bindDragHandle({ onPress: openFab })}
+          className="provider-ai-fab"
+          style={{
+            ...floatingStyle,
+            cursor: isDragging ? 'grabbing' : 'grab',
+          }}
+          aria-label={t('provider.openAssistantFab')}
+        >
+          <IonIcon icon={sparklesOutline} style={{ fontSize: 28, pointerEvents: 'none' }} />
+        </button>
+      ) : (
+        <div
+          ref={floatingRef}
+          className="ai-assistant-card ai-assistant-card--floating"
+          style={floatingStyle}
+        >
+          <div className="ai-assistant-card__header">
+            <div {...bindDragHandle()} className="ai-assistant-card__header-drag">
+              <IonIcon icon={sparklesOutline} className="ai-assistant-card__icon" />
+              <span className="ai-assistant-card__title">{t('provider.assistantTitle')}</span>
+            </div>
+            <button
+              type="button"
+              className="ai-assistant-card__close"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={closeAssistant}
+              aria-label={t('provider.assistantClose')}
+            >
+              <IonIcon icon={closeOutline} />
+            </button>
+          </div>
+          {assistantPanel}
+        </div>
       )}
-    </IonCard>
-    </>
+    </ProviderBodyPortal>
   );
 }

@@ -11,7 +11,7 @@ import {
   invalidateDashboardQueries,
   type AiPageContext,
 } from '@/lib/ai-orchestration';
-import type { AiChatMessage, AiCommandResult } from '@/lib/ai-client.types';
+import type { AiChatMessage, AiCommandResult, AssistantMode } from '@/lib/ai-client.types';
 
 export type { AiChatMessage, AiCommandResult };
 
@@ -44,17 +44,24 @@ export function useAiCommand(businessId: string | undefined, sessionContext: Ses
     async (
       prompt: string,
       history: Array<{ role: 'user' | 'assistant'; content: string }>,
-      options?: { confirmed?: boolean },
+      options?: { confirmed?: boolean; assistantMode?: AssistantMode },
     ) => {
       if (!businessId || !prompt.trim()) return null;
       setLoading(true);
       try {
         const pageCtx = getAiPageContext();
+        const context = buildAiRequestContext(
+          pathname,
+          sessionContext,
+          pageCtx,
+          options?.assistantMode ? { assistantMode: options.assistantMode } : {},
+        );
         const { data } = await api.post(`/businesses/${businessId}/ai/command`, {
           prompt: prompt.trim(),
           history,
           confirmed: options?.confirmed === true,
-          context: buildAiRequestContext(pathname, sessionContext, pageCtx),
+          context,
+          ...(options?.assistantMode ? { assistantMode: options.assistantMode } : {}),
         });
         const result = data.data || data;
         if (

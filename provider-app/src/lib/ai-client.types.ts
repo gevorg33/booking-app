@@ -2,6 +2,21 @@
 
 export type AiSurface = 'dashboard' | 'provider';
 
+export type AssistantMode = 'guide' | 'act';
+
+export interface AiGuideStep {
+  title: string;
+  body: string;
+  navigate?: { path: string; query?: Record<string, string>; hash?: string };
+}
+
+export interface AiGuideResponse {
+  summary: string;
+  steps: AiGuideStep[];
+  navigate?: { path: string; query?: Record<string, string>; hash?: string };
+  topicId?: string;
+}
+
 export interface AiChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -11,6 +26,7 @@ export interface AiCommandResult {
   success: boolean;
   action?: string;
   summary?: string;
+  guide?: AiGuideResponse;
   details?: Record<string, unknown>;
 }
 

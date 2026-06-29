@@ -8,6 +8,8 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ASSISTANT_MODE_VALUES } from '../ai-assistant-mode.util.js';
+import { GuideHandoffDto } from './guide-handoff.dto.js';
 
 class HistoryMessageDto {
   @IsString()
@@ -35,4 +37,13 @@ export class AiCommandDto {
   @IsOptional()
   @IsBoolean()
   confirmed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([...ASSISTANT_MODE_VALUES])
+  assistantMode?: 'guide' | 'act';
+
+  /** ai-guide-1.2.5 — skip classifier; dispatch prefilled action + params from product guide handoff. */
+  @IsOptional()
+  guideHandoff?: GuideHandoffDto;
 }

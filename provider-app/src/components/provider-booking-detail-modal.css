@@ -1,0 +1,24 @@
+.provider-booking-detail-modal {
+  --height: 100%;
+  --width: 100%;
+  z-index: 200;
+}
+
+.provider-booking-detail-modal ion-content.provider-booking-detail-content {
+  --padding-bottom: calc(var(--provider-tab-bar-total-height) + 32px);
+}
+
+.provider-booking-detail-modal ion-content.provider-booking-detail-content::part(scroll) {
+  padding-bottom: calc(var(--provider-tab-bar-total-height) + 32px);
+}
+
+.provider-booking-detail-scroll-spacer {
+  height: calc(var(--provider-tab-bar-total-height) + 48px);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.provider-booking-detail-modal ion-button[fill='outline'] {
+  --border-color: #60a5fa;
+  --color: #dbeafe;
+}

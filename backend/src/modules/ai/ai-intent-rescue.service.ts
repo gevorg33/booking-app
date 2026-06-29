@@ -78,6 +78,8 @@ import {
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
 import { rescueBudgetServiceDiscoveryIntent, enrichBudgetFromPrompt } from './ai-budget-service-discovery.util.js';
+import { rescueProductGuideMisroute } from './ai-product-guide.util.js';
+import type { AssistantMode } from './ai-assistant-mode.util.js';
 import {
   disambiguateMisclassifiedAvailabilityIntent,
   resolveAvailabilityIntentFromPrompt,
@@ -365,6 +367,8 @@ export interface IntentRescueInput {
   timeZone?: string;
   /** When set, budget discovery rescue uses surface-specific misroute mapping. */
   surface?: 'dashboard' | 'customer' | 'public' | 'provider';
+  /** ai-guide-1.0.3 — explicit guide vs act routing from request or inference. */
+  assistantMode?: AssistantMode;
   /**
    * pipe-1.5.2 — param hints from semantic_match winner only.
    * Never used to pick or override rescue action.
@@ -487,6 +491,13 @@ export class AiIntentRescueService {
   runRescueProviderPhase(input: IntentRescueInput): IntentRescueResult | null {
     const { prompt, action } = input;
     if (input.surface !== 'provider') return null;
+      const productGuideMisroute = this.tryRescueProductGuideMisroute(
+        prompt,
+        action,
+        input.surface,
+        input.assistantMode,
+      );
+      if (productGuideMisroute) return productGuideMisroute;
       const providerBookingExact = this.tryRescueProviderBooking(prompt, action);
       if (providerBookingExact) return providerBookingExact;
       const providerClientContextExact =
@@ -519,6 +530,13 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const { prompt, action, params } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
+      const productGuideMisroute = this.tryRescueProductGuideMisroute(
+        prompt,
+        action,
+        input.surface,
+        input.assistantMode,
+      );
+      if (productGuideMisroute) return productGuideMisroute;
       const budgetDiscoveryEarly = this.tryRescueBudgetServiceDiscovery(
         prompt,
         action,
@@ -1952,6 +1970,26 @@ export class AiIntentRescueService {
       action: rescued.action,
       params,
       reasoning: `Checkout recommendations explain rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProductGuideMisroute(
+    prompt: string,
+    action: string,
+    surface?: IntentRescueInput['surface'],
+    assistantMode?: AssistantMode,
+  ): IntentRescueResult | null {
+    const rescued = rescueProductGuideMisroute(prompt, action, {
+      surface,
+      assistantMode,
+    });
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Product guide misroute guard → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };

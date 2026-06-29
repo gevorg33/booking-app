@@ -1,0 +1,107 @@
+[
+  {
+    "topicId": "dashboard.core.schedule",
+    "anchor": "schedule",
+    "titleKey": "guide.core.scheduleTitle"
+  },
+  {
+    "topicId": "dashboard.core.calendar",
+    "anchor": "calendar",
+    "titleKey": "guide.core.calendarTitle"
+  },
+  {
+    "topicId": "dashboard.core.employees",
+    "anchor": "employees",
+    "titleKey": "guide.core.employeesTitle"
+  },
+  {
+    "topicId": "dashboard.operations.overview",
+    "anchor": "overview",
+    "titleKey": "guide.operations.overviewTitle"
+  },
+  {
+    "topicId": "dashboard.operations.problems",
+    "anchor": "problems",
+    "titleKey": "guide.operations.problemsTitle"
+  },
+  {
+    "topicId": "dashboard.operations.workflow",
+    "anchor": "workflow",
+    "titleKey": "guide.operations.workflowTitle"
+  },
+  {
+    "topicId": "dashboard.operations.locations",
+    "anchor": "locations",
+    "titleKey": "guide.operations.locationsTitle"
+  },
+  {
+    "topicId": "dashboard.operations.inventory",
+    "anchor": "inventory",
+    "titleKey": "guide.operations.inventoryTitle"
+  },
+  {
+    "topicId": "dashboard.operations.expenses",
+    "anchor": "expenses",
+    "titleKey": "guide.operations.expensesTitle"
+  },
+  {
+    "topicId": "dashboard.operations.commissions",
+    "anchor": "commissions",
+    "titleKey": "guide.operations.commissionsTitle"
+  },
+  {
+    "topicId": "dashboard.operations.pl",
+    "anchor": "pl",
+    "titleKey": "guide.operations.plTitle"
+  },
+  {
+    "topicId": "dashboard.operations.tips",
+    "anchor": "tips",
+    "titleKey": "guide.operations.tipsTitle"
+  },
+  {
+    "topicId": "dashboard.ai.overview",
+    "anchor": "ai-overview",
+    "titleKey": "guide.ai.overviewTitle"
+  },
+  {
+    "topicId": "dashboard.ai.getting-started",
+    "anchor": "ai-getting-started",
+    "titleKey": "guide.ai.gettingStartedTitle"
+  },
+  {
+    "topicId": "dashboard.ai.command-bar",
+    "anchor": "ai-command-bar",
+    "titleKey": "guide.ai.commandBarTitle"
+  },
+  {
+    "topicId": "dashboard.ai.dashboard",
+    "anchor": "ai-dashboard",
+    "titleKey": "guide.ai.dashboardTitle"
+  },
+  {
+    "topicId": "dashboard.ai.approval",
+    "anchor": "ai-approval",
+    "titleKey": "guide.ai.approvalTitle"
+  },
+  {
+    "topicId": "dashboard.ai.ops",
+    "anchor": "ai-ops",
+    "titleKey": "guide.ai.aiOpsTitle"
+  },
+  {
+    "topicId": "dashboard.ai.mobile",
+    "anchor": "ai-mobile",
+    "titleKey": "guide.ai.mobileTitle"
+  },
+  {
+    "topicId": "dashboard.ai.examples",
+    "anchor": "ai-examples",
+    "titleKey": "guide.ai.examplesTitle"
+  },
+  {
+    "topicId": "dashboard.ai.tips",
+    "anchor": "ai-tips",
+    "titleKey": "guide.ai.tipsTitle"
+  }
+]

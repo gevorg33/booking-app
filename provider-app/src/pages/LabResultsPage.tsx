@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  IonContent,
   IonHeader,
-  IonPage,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
@@ -11,12 +9,14 @@ import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { isTeamView } from '../lib/provider-access';
 import type { ProviderLabResultsQueue } from '../lib/provider-lab-results';
 import { ProviderLabResultsList } from '../components/ProviderLabResultsList';
 import BookingDetailModal from '../components/BookingDetailModal';
 
-export default function LabResultsPage() {
+export default function LabResultsPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -58,27 +58,27 @@ export default function LabResultsPage() {
 
   if (data && !data.labFeaturesEnabled) {
     return (
-      <IonPage>
+      <ProviderTabPageShell embedded={embedded}>
         <IonHeader>
           <IonToolbar>
             <IonTitle>{t('provider.labResultsTitle')}</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="ion-padding">
+        <ProviderTabScrollContent className="ion-padding">
           <p className="ion-text-center ion-padding">{t('clinic.labState.gate.disabledReason')}</p>
-        </IonContent>
-      </IonPage>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
     );
   }
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.labResultsTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         <p className="booking-meta">{t('provider.labResultsSubtitle')}</p>
         {isTeamView(data?.viewMode) ? (
           <p className="booking-meta">{t('provider.labResultsTeamLabel')}</p>
@@ -100,7 +100,7 @@ export default function LabResultsPage() {
             onClose={() => setSelectedBookingId(null)}
           />
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

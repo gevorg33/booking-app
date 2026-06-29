@@ -726,6 +726,7 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  guide?: import('../lib/consumer-assistant-guide.util.js').ConsumerAiGuideResponse;
   details?: Record<string, unknown>;
 }
 
@@ -736,6 +737,7 @@ export async function sendPublicAssistantMessage(
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     context?: Record<string, unknown>;
     locale?: string;
+    assistantMode?: 'guide' | 'act';
   },
 ): Promise<PublicAssistantResponse> {
   const { data } = await http.post(`/public/${slug}/assistant`, body, publicConfig(slug));

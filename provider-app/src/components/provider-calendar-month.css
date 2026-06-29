@@ -1,26 +1,27 @@
 .provider-calendar-month {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
 }
 
 .provider-calendar-month__weekday {
   text-align: center;
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: #9ca3af;
   font-weight: 600;
+  padding-bottom: 4px;
 }
 
 .provider-calendar-month__day {
-  aspect-ratio: 1;
-  border: none;
-  border-radius: 10px;
-  background: var(--ion-color-light);
-  color: var(--ion-color-dark);
-  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-size: 13px;
   font-weight: 600;
   position: relative;
-  padding: 4px 2px 2px;
+  min-height: 42px;
+  padding: 4px 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29,60 +30,74 @@
 }
 
 .provider-calendar-month__day--muted {
-  opacity: 0.35;
+  opacity: 0.38;
+  background: #111827;
+  color: #6b7280;
 }
 
 .provider-calendar-month__day--band-empty:not(.provider-calendar-month__day--selected) {
-  background: var(--ion-color-light);
+  background: #1f2937;
 }
 
 .provider-calendar-month__day--band-low:not(.provider-calendar-month__day--selected) {
-  background: rgba(var(--ion-color-success-rgb), 0.18);
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.22);
 }
 
 .provider-calendar-month__day--band-medium:not(.provider-calendar-month__day--selected) {
-  background: rgba(var(--ion-color-warning-rgb), 0.22);
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.24);
 }
 
 .provider-calendar-month__day--band-high:not(.provider-calendar-month__day--selected) {
-  background: rgba(var(--ion-color-danger-rgb), 0.18);
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.24);
 }
 
 .provider-calendar-month__day--selected {
   background: var(--ion-color-primary);
   color: #fff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
 }
 
 .provider-calendar-month__day--today:not(.provider-calendar-month__day--selected) {
-  box-shadow: inset 0 0 0 2px var(--ion-color-primary);
+  border-color: #60a5fa;
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.55);
 }
 
 .provider-calendar-month__day-number {
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .provider-calendar-month__count {
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   font-weight: 700;
-  opacity: 0.85;
+  min-width: 14px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
-.provider-calendar-month__day--selected .provider-calendar-month__count {
-  opacity: 1;
+.provider-calendar-month__day:not(.provider-calendar-month__day--selected) .provider-calendar-month__count {
+  background: rgba(96, 165, 250, 0.22);
+  color: #bfdbfe;
 }
 
 .provider-calendar-month__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .provider-calendar-month__title {
   font-size: 16px;
   font-weight: 700;
   margin: 0;
+  color: #f3f4f6;
 }
 
 .provider-calendar-month__legend {
@@ -90,19 +105,22 @@
   flex-wrap: wrap;
   gap: 8px 12px;
   margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #374151;
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: #d1d5db;
 }
 
 .provider-calendar-month__legend-title {
   width: 100%;
   font-weight: 600;
+  color: #9ca3af;
 }
 
 .provider-calendar-month__legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .provider-calendar-month__legend-swatch {
@@ -110,4 +128,45 @@
   height: 12px;
   border-radius: 4px;
   display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.provider-calendar-month__legend-swatch--empty {
+  background: #1f2937;
+}
+
+.provider-calendar-month__legend-swatch--low {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.provider-calendar-month__legend-swatch--medium {
+  background: rgba(245, 158, 11, 0.4);
+}
+
+.provider-calendar-month__legend-swatch--high {
+  background: rgba(239, 68, 68, 0.4);
+}
+
+.provider-calendar-day-heading {
+  font-size: 1.05rem;
+  margin: 14px 0 6px;
+  color: #f3f4f6;
+}
+
+.provider-calendar-month-card {
+  --background: #111827;
+  margin: 0;
+}
+
+.provider-calendar-month-card ion-card-content {
+  padding: 12px;
+}
+
+.provider-calendar-appointment-card {
+  margin-bottom: 10px;
+}
+
+.provider-calendar-appointment-card:last-of-type {
+  margin-bottom: 0;
 }

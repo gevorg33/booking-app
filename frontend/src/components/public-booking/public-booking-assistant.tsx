@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, Sparkles, X } from 'lucide-react';
+import { Send, Sparkles, X, HelpCircle } from 'lucide-react';
 import {
   useDraggableFloatingPosition,
   useViewportSize,
@@ -25,6 +25,16 @@ import {
   buildPublicAssistantCheckoutNavigate,
   shouldAutoNavigateAssistantCheckout,
 } from '@/lib/public-assistant-checkout.util';
+import {
+  hasPublicAssistantGuideSteps,
+  resolvePublicAssistantExampleKeys,
+} from '@/lib/public-assistant-guide.util';
+import {
+  resolveAssistantModePayload,
+  withAssistantModeContext,
+} from '@/lib/assistant-mode.util';
+import { PublicAssistantGuidePanel } from '@/components/public-booking/public-assistant-guide-panel';
+import type { AiGuideResponse } from '@/lib/ai-client.types';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
 
@@ -33,6 +43,7 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   navigate?: PublicAssistantResponse['navigate'];
+  guide?: AiGuideResponse;
   success?: boolean;
   details?: Record<string, unknown>;
 }
@@ -45,12 +56,6 @@ interface SessionContext {
   customerName?: string | null;
 }
 
-const EXAMPLE_KEYS = [
-  'public.exampleAvailable',
-  'public.exampleServices',
-  'public.exampleBook',
-  'public.exampleLocation',
-] as const;
 
 interface PublicBookingAssistantProps {
   slug: string;
@@ -66,7 +71,12 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
+  const [guideMode, setGuideMode] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const exampleKeys = useMemo(
+    () => resolvePublicAssistantExampleKeys(guideMode),
+    [guideMode],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -123,11 +133,16 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       const history = messages.map((m) => ({ role: m.role, content: m.text }));
 
       try {
+        const assistantMode = resolveAssistantModePayload(guideMode);
         const result = await sendPublicAssistantMessage(slug, {
           prompt,
           history,
-          context: sessionContext as Record<string, unknown>,
+          context: withAssistantModeContext(
+            sessionContext as Record<string, unknown>,
+            guideMode,
+          ),
           locale,
+          ...(assistantMode ? { assistantMode } : {}),
         });
 
         setMessages((prev) => [
@@ -137,6 +152,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
             role: 'assistant',
             text: result.summary,
             navigate: result.navigate,
+            guide: result.guide,
             success: result.success,
             details: result.details,
           },
@@ -159,7 +175,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         setLoading(false);
       }
     },
-    [followNavigate, input, loading, messages, sessionContext, slug, locale, t],
+    [followNavigate, guideMode, input, loading, messages, sessionContext, slug, locale, t],
   );
 
   const handleProviderSlotSelect = useCallback(
@@ -282,11 +298,27 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[180px]">
             {messages.length === 0 && (
               <div className="text-center py-4">
+                <div className="flex flex-wrap justify-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setGuideMode((active) => !active)}
+                    aria-pressed={guideMode}
+                    title={t('public.assistantHelpChipHint')}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      guideMode
+                        ? 'bg-violet-100 text-violet-800 border border-violet-300'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-violet-200'
+                    }`}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                    {t('public.assistantHelpChip')}
+                  </button>
+                </div>
                 <p className="text-sm text-gray-500 mb-4">
-                  {t('public.assistantHint')}
+                  {guideMode ? t('public.assistantGuideExamples') : t('public.assistantHint')}
                 </p>
                 <div className="space-y-2">
-                  {EXAMPLE_KEYS.map((key) => {
+                  {exampleKeys.map((key) => {
                     const ex = t(key);
                     return (
                     <button
@@ -339,7 +371,21 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                         : undefined
                   }
                 >
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  {hasPublicAssistantGuideSteps(msg.guide) ? (
+                    <PublicAssistantGuidePanel
+                      guide={msg.guide}
+                      onNavigate={(href) => {
+                        const trimmed = href.replace(/^\//, '');
+                        const [path, queryString] = trimmed.split('?');
+                        followNavigate({
+                          path: path as NonNullable<PublicAssistantResponse['navigate']>['path'],
+                          query: Object.fromEntries(new URLSearchParams(queryString ?? '')),
+                        });
+                      }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  )}
                   {availableProviders.length > 0 && (
                     <AiAvailableProvidersPanel
                       providers={availableProviders}

@@ -5,9 +5,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -17,12 +15,14 @@ import { useAuthStore } from '../services/auth-store';
 import { formatDateDisplay, formatTimeDisplay } from '../lib/date-format';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { isTeamView } from '../lib/provider-access';
 import type { ProviderLabCollectionQueue } from '../lib/provider-lab-collection';
 import { ClinicLabStatusBadge } from '../components/ClinicLabStatusBadge';
 import BookingDetailModal from '../components/BookingDetailModal';
 
-export default function LabCollectionPage() {
+export default function LabCollectionPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -64,27 +64,27 @@ export default function LabCollectionPage() {
 
   if (data && !data.labFeaturesEnabled) {
     return (
-      <IonPage>
+      <ProviderTabPageShell embedded={embedded}>
         <IonHeader>
           <IonToolbar>
             <IonTitle>{t('provider.labCollectionTitle')}</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="ion-padding">
+        <ProviderTabScrollContent className="ion-padding">
           <p className="ion-text-center ion-padding">{t('clinic.labState.gate.disabledReason')}</p>
-        </IonContent>
-      </IonPage>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
     );
   }
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.labCollectionTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         <p className="booking-meta">{t('provider.labCollectionSubtitle')}</p>
         {isTeamView(data?.viewMode) ? (
           <p className="booking-meta">{t('provider.labCollectionTeamLabel')}</p>
@@ -144,7 +144,7 @@ export default function LabCollectionPage() {
             onClose={() => setSelectedBookingId(null)}
           />
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

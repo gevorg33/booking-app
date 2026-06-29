@@ -20,6 +20,9 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { resolveGuideTopicIdFromAnchor } from '@/lib/dashboard-guide-corpus.util';
+import { useGuideHashAssistantSeed } from '@/lib/use-guide-hash-assistant-seed';
+import { GuideTopicAskAiButton } from '@/components/guide-topic-ask-ai-button';
 
 function GuideSection({
   id,
@@ -45,6 +48,7 @@ function GuideSection({
     },
   };
   const styles = accentStyles[accent];
+  const topicId = resolveGuideTopicIdFromAnchor(id);
 
   return (
     <section id={id} className="scroll-mt-6">
@@ -52,7 +56,8 @@ function GuideSection({
         <div className={`w-10 h-10 rounded-lg ${styles.iconBg} flex items-center justify-center shrink-0`}>
           <Icon className={`w-5 h-5 ${styles.iconColor}`} />
         </div>
-        <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
+        <h2 className="text-xl font-semibold text-gray-100 flex-1 min-w-0">{title}</h2>
+        {topicId ? <GuideTopicAskAiButton topicId={topicId} className="shrink-0" /> : null}
       </div>
       <div className="space-y-4 text-gray-300 leading-relaxed">{children}</div>
     </section>
@@ -112,6 +117,7 @@ function ExampleCommands({
 
 export default function GuidePage() {
   const { t } = useI18n();
+  useGuideHashAssistantSeed();
 
   const coreToc = [
     { id: 'schedule', label: t('guide.core.scheduleTitle') },

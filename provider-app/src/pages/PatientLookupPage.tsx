@@ -2,12 +2,10 @@ import { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  IonContent,
   IonHeader,
   IonItem,
   IonLabel,
   IonList,
-  IonPage,
   IonSearchbar,
   IonSpinner,
   IonTitle,
@@ -16,9 +14,11 @@ import {
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import type { ProviderPatientSearchResponse } from '../lib/provider-patient-chart';
 
-export default function PatientLookupPage() {
+export default function PatientLookupPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const history = useHistory();
@@ -42,27 +42,27 @@ export default function PatientLookupPage() {
 
   if (data && !data.labFeaturesEnabled) {
     return (
-      <IonPage>
+      <ProviderTabPageShell embedded={embedded}>
         <IonHeader>
           <IonToolbar>
             <IonTitle>{t('provider.patientLookupTitle')}</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="ion-padding">
+        <ProviderTabScrollContent className="ion-padding">
           <p className="ion-text-center ion-padding">{t('clinic.labState.gate.disabledReason')}</p>
-        </IonContent>
-      </IonPage>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
     );
   }
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.patientLookupTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         <p className="booking-meta">{t('provider.patientLookupSubtitle')}</p>
         <IonSearchbar
           value={query}
@@ -97,7 +97,7 @@ export default function PatientLookupPage() {
             ))}
           </IonList>
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

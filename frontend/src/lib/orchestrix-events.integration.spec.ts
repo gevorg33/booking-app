@@ -33,7 +33,10 @@ describe('orchestrix-events integration', () => {
     onPrompt.mockClear();
     onOpen.mockClear();
     fireOrchestrixRun('Run now', true);
-    expect(onRun).toHaveBeenCalledWith('Run now', true);
+    expect(onRun).toHaveBeenCalledWith({
+      prompt: 'Run now',
+      autoSubmit: true,
+    });
     expect(onOpen).toHaveBeenCalled();
     expect(onPrompt).not.toHaveBeenCalled();
 
@@ -65,7 +68,10 @@ describe('orchestrix-events integration', () => {
       }),
       { onRun },
     );
-    expect(onRun).toHaveBeenCalledWith('Slow', false);
+    expect(onRun).toHaveBeenCalledWith({
+      prompt: 'Slow',
+      autoSubmit: false,
+    });
   });
 
   it('ignores empty prompt and missing handlers', () => {

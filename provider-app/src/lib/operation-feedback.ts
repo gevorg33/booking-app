@@ -24,6 +24,9 @@ const SKIP_URL_PATTERNS: RegExp[] = [
   /\/me\b/i,
   /\/status\b/i,
   /\/provider\/ai\//i,
+  /\/events\/app\b/i,
+  /\/push\//i,
+  /\/register-native\b/i,
 ];
 
 function currentLocale(): AppLocale {

@@ -54,6 +54,7 @@ import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
 import { BUSINESS_COMPLIANCE_CLASSIFIER_RULES } from './ai-business-compliance.fixtures.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
@@ -141,7 +142,10 @@ import { AiPlatformService } from './ai-platform.service.js';
 import { AiProviderTimeOffService } from './ai-provider-time-off.service.js';
 import { DASHBOARD_TIME_OFF_CLASSIFIER_RULES } from '../provider-mobile/provider-time-off.fixtures.js';
 import { AiCatalogService } from './ai-catalog.service.js';
-import { enrichServiceCategoryRescueParams } from './ai-catalog.util.js';
+import { enrichServiceCategoryRescueParams, enrichCreateServiceParamsFromPrompt } from './ai-catalog.util.js';
+import { resolveCreateServiceLocalizedNames } from './ai-catalog-service-localized-names.logic.js';
+import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
+import type { LocalizedNamesMap } from '../../common/i18n/service-localized-names.util.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
@@ -165,6 +169,7 @@ import {
   resolveDateRange,
   resolveAutoExecute,
   fuzzyMatchServiceByName,
+  findServiceByExactName,
   getEmployeeServices,
   hasExplicitTimeWindow,
   isProviderOwnServicesPrompt,
@@ -212,7 +217,7 @@ import {
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
 import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
-import { CommandResult } from './command-completion.types.js';
+import { CommandResult, type PipelineTrace } from './command-completion.types.js';
 import { buildUnwiredDashboardIntentResult } from './ai-command-unwired-intent.util.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiEventsService } from './ai-events.service.js';
@@ -306,6 +311,18 @@ import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js
 import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtures.js';
 import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
+import { PRODUCT_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
+import {
+  mergeProductGuideParams,
+  resolveProductGuideSessionContext,
+  type AppGuideIntent,
+} from './ai-product-guide.util.js';
+import {
+  buildGuideHandoffExecutionPrompt,
+  isGuideHandoffMutatingAction,
+  readGuideHandoffDispatch,
+  validateGuideHandoffDispatch,
+} from './ai-product-guide-handoff.util.js';
 import { DASHBOARD_PACKAGE_MULTI_CLASSIFIER_RULES } from './ai-package-multi-service.fixtures.js';
 import { GIFT_CARD_PAYMENTS_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES } from './ai-service-online-payment.fixtures.js';
@@ -375,6 +392,7 @@ interface ParsedServiceDraft {
   price: number;
   currency: string;
   categoryId?: string;
+  localizedNames?: LocalizedNamesMap;
 }
 
 const INTENT_SCHEMA = `You are the Orchestrix operational AI — the sole intent classifier for this system (no heuristic fallback).
@@ -453,6 +471,7 @@ and extract structured parameters. Return a JSON object with:
     "staffMetric": "busiest | most_revenue | most_bookings | overview | null — for summarize_staff",
     "assignmentLookup": "providers_for_service | services_for_provider | null — for lookup_service_assignment",
     "limit": number or null — max rows to list (default 5),
+    "topicId": "string or null — optional stable product guide corpus id (dashboard.core.schedule, dashboard.ai.command-bar, …) for explain_app_feature / guide_user_flow / explain_current_screen",
     "status": "completed | in_progress | no_show | confirmed | pending | cancelled | null — for update_bookings",
     "paymentStatus": "paid | pending | refunded | not_applicable | null — for update_bookings",
     "allAppointments": boolean or null — true when user says all/every/any appointment(s) for the day (do NOT set serviceName/serviceNames)
@@ -482,7 +501,7 @@ Rules:
 - bookingFirstAvailable without allProviders: pick earliest open slot for the named provider only. allProviders without bookingFirstAvailable still requires timeSlot unless the user gives one.
 - Dashboard staff simulating customer checkout: check_providers_for_service + book_nearest_slot compound prompts are decomposed automatically before classification — if you must classify a single intent from combined wording, use create_booking with bookingFirstAvailable=true, allProviders=true, timeSlot=null, never a bare create_booking missing start time.
 - For adding a new service type to the catalog (add service, create service, new offering), use action "create_service" for ONE service, or "create_services" for TWO OR MORE.
-- create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc. When the user scopes the new service to a catalog category ("under category Massage", "in service category: Hair"), set categoryName to that category entity — NOT serviceCategory (keyword filter).
+- create_service requires serviceName, durationMinutes, and price at minimum. Extract duration from phrases like "60 minutes" or "1 hour" (60). Extract price from "$50", "50 USD", etc. When the user scopes the new service to a catalog category ("under category Massage", "in service category: Hair"), set categoryName to that category entity — NOT serviceCategory (keyword filter). For create_service/create_services, set serviceName to the NEW offering name exactly as the user wrote it — do NOT map to an existing Available services entry even when wording is similar. The system auto-translates new service titles to Armenian (hy) and Russian (ru) when those locales are enabled — optional localizedNames in params override auto-translation per locale.
 - update_service: move or assign ONE existing catalog service into a service category entity. "Move Neck Massage under service category: Massage" → serviceName=Neck Massage, categoryName=Massage. NOT create_service (new row), NOT bulk_create_catalog, NOT assign_employee_services (provider skills), NOT update_service_prices (bulk %).
 - create_services requires a "services" array — each entry needs serviceName, durationMinutes, and price. Use when the user lists multiple services, paste a menu, or says "add these services".
 - Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
@@ -539,6 +558,9 @@ Rules:
 - staff_book_lab_collection: MUTATE — clinic only: staff books collection slot linked to lab order. NOT push_lab_booking_to_patient and NOT create_booking without lab order.
 - enter_test_result: MUTATE — clinic only: record manual lab measurement value on an order/result (WBC, glucose, etc.). Requires measurementCode, value, orderId or resultId. NOT create_test_order and NOT release_test_result.
 - release_test_result: MUTATE — clinic only: release reviewed lab results to the patient chart. Optional customerName, orderId, resultId. NOT notify_patient_result_ready (notification) and NOT enter_test_result.
+- explain_app_feature: READ — UI feature semantics and where to find a dashboard setting or menu (AiProductGuideService). Optional topicId. NOT domain explain_* (tax/currency/checkout) and NOT configure_* mutates.
+- guide_user_flow: READ — dashboard setup walkthrough with numbered guide steps, no mutations (AiProductGuideService). Question-shaped bulk prompts must NOT become cancel_bookings / payment_sweep. Optional topicId.
+- explain_current_screen: READ — current page capabilities using session route context (AiProductGuideService). Triggers: this page/screen, what can I do here. NOT show_appointments or list_* reads.
 - explain_patient_chart: READ — clinic only: summarize patient chart — allergies, recent visits, pending lab results/orders. Requires customerName or customerId. NOT lookup_customer (CRM profile), NOT list_test_orders (lab queue), NOT list_bookings (all appointments).
 - explain_date_input_format: READ — how typed dashboard date fields parse slash input using business dateFormat vs calendar picker ISO selection. NOT preview_date_input_parse (sample parse) and NOT explain_business_date_format (display settings).
 - preview_date_input_parse: READ — preview typed date strings → ISO calendar day under current dateFormat (DD/MM vs MM/DD). Optional dateStrings. NOT explain_date_input_format (rules) and NOT preview_business_date_format (booking display).
@@ -640,7 +662,7 @@ ${DASHBOARD_TIME_OFF_CLASSIFIER_RULES}
 - Mutating actions compile into workflow plans — they do not execute directly.
 - If you cannot determine the action, use "unknown".
 - Multi-turn conversation: read prior messages and Active session context. Follow-up commands often omit provider, date, or customer — inherit them unless the user clearly switches topic.
-- CRITICAL: When the user's message mentions a service by name (e.g. "facemassage", "face massage", "permanent lips"), set serviceName to THAT service from the Available services list — never inherit a different serviceName from session context.
+- CRITICAL: When the user's message mentions a service by name (e.g. "facemassage", "face massage", "permanent lips"), set serviceName to THAT service from the Available services list — never inherit a different serviceName from session context. Exception: create_service and create_services — use the new catalog name from the user's message, not an existing catalog row.
 - CRITICAL: For team-wide questions ("who can do X today", "who is doing facemassage", "who has a free slot for X"), leave employeeName null and set serviceName from the message.
 - Example follow-up: after utilization summary for this week, "which exact days does Gevorg have gaps" → action list_schedule_gaps, employeeName="Gevorg Gasparyan", inherit dateFrom/dateTo from session.
 - Example follow-up: after list_schedule_gaps or summarize_utilization, "fill those gaps" / "fill them with his services" → action fill_unused_slots, inherit employeeName, dateFrom/dateTo, timeFrom/timeTo from session.
@@ -667,7 +689,8 @@ ${WAITLIST_DASHBOARD_CLASSIFIER_RULES}
 ${WAITLIST_DASHBOARD_MULTILINGUAL_CLASSIFIER_RULES}
 ${CLINIC_TEST_RESULT_EXT_CLASSIFIER_RULES}
 ${BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES}
-${BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES}`;
+${BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES}
+${PRODUCT_GUIDE_CLASSIFIER_RULES}`;
 
 export interface CommandSessionOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -707,6 +730,7 @@ export class AiCommandService {
     private clinicLabBooking: AiClinicLabBookingService,
     private clinicTestResult: AiClinicTestResultService,
     private clinicPatientChart: AiClinicPatientChartService,
+    private productGuide: AiProductGuideService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
     private tourService: AiTourServiceService,
     private clinicService: AiClinicServiceService,
@@ -1212,85 +1236,129 @@ export class AiCommandService {
       session?.context?._confidenceHigh as number | undefined,
     );
 
-    const understood = await this.dashboardUnderstanding.understand({
-      businessId,
-      userId,
-      effectivePrompt,
-      timeZone,
-      catalog,
-      confidence: aiConfig.confidence,
-      sessionConfidenceHigh: session?.context?._confidenceHigh as
-        | number
-        | undefined,
-      lastAction: session?.context?.lastAction as string | undefined,
-      sessionContext: { ...session?.context, timeZone },
-      promptNorm,
-      resolveRoute,
-      classify: (normalizedPrompt, context, narrowShortlist) =>
-        this.classifyIntent(
-          businessId,
-          userId,
-          normalizedPrompt,
-          context,
-          session?.history,
-          sessionContext,
-          narrowShortlist
-            ? { narrowShortlist, surface: 'dashboard' }
-            : { surface: 'dashboard' },
-        ),
-    });
-    const understandTrace = understood.trace;
+    const guideHandoff = readGuideHandoffDispatch(session);
     const traceCtx: CommandTraceStampContext = {
       traceId: resolveCommandTraceId(session?.context),
-      pipelineTrace: understandTrace,
-      routingTier: understood.complexityRoute?.tier,
+      pipelineTrace: [],
     };
     const traceStamp = (result: CommandResult) =>
       finalizeCommandTraceResult(result, traceCtx);
 
-    if (understood.status === 'blocked') {
-      return traceStamp({
-        success: false,
-        action: 'error',
-        summary: 'Failed to understand the command. Please try rephrasing.',
-        details: {
-          pipelineTrace: understandTrace,
-          blockReason: understood.blockReason,
-        },
-      });
+    if (guideHandoff) {
+      const handoffValidation = validateGuideHandoffDispatch(guideHandoff);
+      if (!handoffValidation.ok) {
+        return traceStamp({
+          success: false,
+          action: guideHandoff.action,
+          summary: handoffValidation.summary,
+          details: { guideHandoffRejected: true },
+        });
+      }
     }
 
-    if (understood.status === 'clarify') {
-      const clarifyPayload = {
-        summary:
-          understood.clarifySummary ??
-          'I need a bit more detail before I can run this.',
-        clarifyFields: understood.clarifyFields ?? ['intentChoice'],
-        suggestions: understood.clarifySuggestions ?? [],
-        loweredConfidence: understood.confidence,
-        ruleId:
-          understood.blockReason?.replace('self_verify clarify: ', '') ??
-          'unknown',
-        reason: understood.blockReason ?? 'self_verify_clarify',
+    let parsed: ClassifiedIntent;
+    let understandTrace: PipelineTrace[];
+    let skipClassifierRescues = false;
+    let understood: Awaited<
+      ReturnType<DashboardCommandUnderstandingAdapter['understand']>
+    > | null = null;
+
+    if (guideHandoff) {
+      parsed = {
+        action: guideHandoff.action,
+        params: { ...(guideHandoff.params ?? {}) },
+        confidence: 1,
+        reasoning: 'Product guide handoff (ai-guide-1.2.5 direct dispatch)',
       };
-      const clarify = buildPipelineClarifyCommandResult(
-        understood,
-        clarifyPayload,
-      );
-      clarify.details.pipelineTrace = understandTrace;
-      this.aiEvents.emitClarify(businessId, {
-        action: understood.action,
-        summary: clarify.summary,
-        missing: clarify.details.missing,
+      understandTrace = [
+        {
+          stage: 'guide_handoff',
+          action: guideHandoff.action,
+          at: new Date().toISOString(),
+          detail: 'skipped classify',
+        },
+      ];
+      skipClassifierRescues = true;
+      traceCtx.pipelineTrace = understandTrace;
+    } else {
+      understood = await this.dashboardUnderstanding.understand({
+        businessId,
+        userId,
+        effectivePrompt,
+        timeZone,
+        catalog,
+        confidence: aiConfig.confidence,
+        sessionConfidenceHigh: session?.context?._confidenceHigh as
+          | number
+          | undefined,
+        lastAction: session?.context?.lastAction as string | undefined,
+        sessionContext: { ...session?.context, timeZone },
+        promptNorm,
+        resolveRoute,
+        classify: (normalizedPrompt, context, narrowShortlist) =>
+          this.classifyIntent(
+            businessId,
+            userId,
+            normalizedPrompt,
+            context,
+            session?.history,
+            sessionContext,
+            narrowShortlist
+              ? { narrowShortlist, surface: 'dashboard' }
+              : { surface: 'dashboard' },
+          ),
       });
-      return traceStamp(clarify);
+      understandTrace = understood.trace;
+      traceCtx.pipelineTrace = understandTrace;
+      traceCtx.routingTier = understood.complexityRoute?.tier;
+
+      if (understood.status === 'blocked') {
+        return traceStamp({
+          success: false,
+          action: 'error',
+          summary: 'Failed to understand the command. Please try rephrasing.',
+          details: {
+            pipelineTrace: understandTrace,
+            blockReason: understood.blockReason,
+          },
+        });
+      }
+
+      if (understood.status === 'clarify') {
+        const clarifyPayload = {
+          summary:
+            understood.clarifySummary ??
+            'I need a bit more detail before I can run this.',
+          clarifyFields: understood.clarifyFields ?? ['intentChoice'],
+          suggestions: understood.clarifySuggestions ?? [],
+          loweredConfidence: understood.confidence,
+          ruleId:
+            understood.blockReason?.replace('self_verify clarify: ', '') ??
+            'unknown',
+          reason: understood.blockReason ?? 'self_verify_clarify',
+        };
+        const clarify = buildPipelineClarifyCommandResult(
+          understood,
+          clarifyPayload,
+        );
+        clarify.details.pipelineTrace = understandTrace;
+        this.aiEvents.emitClarify(businessId, {
+          action: understood.action,
+          summary: clarify.summary,
+          missing: clarify.details.missing,
+        });
+        return traceStamp(clarify);
+      }
+
+      parsed = pipelineResultToClassifiedIntent(understood);
     }
 
-    let parsed = pipelineResultToClassifiedIntent(understood);
-    const classifierCandidate = findClassifierCandidate(understood);
+    const classifierCandidate = understood
+      ? findClassifierCandidate(understood)
+      : null;
     const classifierAction = classifierCandidate?.action ?? parsed.action;
     const classifierConfidence = classifierCandidate?.confidence;
-    const rescueCandidate = findRescueCandidate(understood);
+    const rescueCandidate = understood ? findRescueCandidate(understood) : null;
 
     parsed.params = this.completionPipeline.mergeSessionContext(
       parsed.params,
@@ -1317,7 +1385,7 @@ export class AiCommandService {
     );
     parsed.params._timeZone = timeZone;
 
-    if (parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
+    if (!skipClassifierRescues && parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
       parsed.action = 'clear_schedule';
       parsed.reasoning =
         'Clear applied schedule periods and micro-slots for the provider on the specified date(s).';
@@ -1327,7 +1395,7 @@ export class AiCommandService {
       );
     }
 
-    if (parsed.action === 'unknown') {
+    if (!skipClassifierRescues && parsed.action === 'unknown') {
       const vertical = this.platform.rescueVerticalIntent(
         effectivePrompt,
         (session?.context?._businessType as string | undefined) ?? undefined,
@@ -1343,7 +1411,7 @@ export class AiCommandService {
       }
     }
 
-    if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+    if (!skipClassifierRescues && shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
       const clarify = buildUnknownIntentClarifyResult({
         surface: 'dashboard',
         prompt: effectivePrompt,
@@ -1361,7 +1429,7 @@ export class AiCommandService {
       return traceStamp(clarify);
     }
 
-    if (rescueCandidate) {
+    if (!skipClassifierRescues && rescueCandidate) {
       applyBookingRescheduleActionHints(
         parsed.action,
         parsed.params,
@@ -1406,23 +1474,25 @@ export class AiCommandService {
       );
     }
 
-    recordMisrouteTelemetry(
-      this.aiEvents,
-      businessId,
-      enrichMisrouteTelemetryFromUnderstand(
-        {
-          surface: 'dashboard',
-          prompt: effectivePrompt,
-          classifierAction,
-          rescuedAction: parsed.action,
-          rescueReason: pipelineRescueReason(understood),
-          classifierConfidence,
-          compoundStepCount: 1,
-        },
-        understood,
-        understandTrace,
-      ),
-    );
+    if (understood) {
+      recordMisrouteTelemetry(
+        this.aiEvents,
+        businessId,
+        enrichMisrouteTelemetryFromUnderstand(
+          {
+            surface: 'dashboard',
+            prompt: effectivePrompt,
+            classifierAction,
+            rescuedAction: parsed.action,
+            rescueReason: pipelineRescueReason(understood),
+            classifierConfidence,
+            compoundStepCount: 1,
+          },
+          understood,
+          understandTrace,
+        ),
+      );
+    }
 
     this.applyBulkAppointmentScope(
       effectivePrompt,
@@ -1585,12 +1655,17 @@ export class AiCommandService {
     const pipelineTrace = handoff.trace;
     traceCtx.pipelineTrace = pipelineTrace;
     traceCtx.confidence = confidence;
-    traceCtx.candidateSource = resolveWinningCandidateSource(
-      understood,
-      parsed.action,
-    );
+    if (understood) {
+      traceCtx.candidateSource = resolveWinningCandidateSource(
+        understood,
+        parsed.action,
+      );
+    } else if (guideHandoff) {
+      traceCtx.candidateSource = 'guide_handoff';
+    }
 
     if (
+      !guideHandoff &&
       shouldBlockLowConfidencePipelineMutate(
         parsed.action,
         confidence,
@@ -1621,6 +1696,33 @@ export class AiCommandService {
     });
 
     const confirmed = isExecutionConfirmed(session);
+    const handoffConfirmPrompt =
+      typeof guideHandoff?.params?.prompt === 'string'
+        ? String(guideHandoff.params.prompt)
+        : buildGuideHandoffExecutionPrompt(parsed.action, resolved.enrichedParams);
+
+    if (
+      guideHandoff &&
+      isGuideHandoffMutatingAction(parsed.action) &&
+      !confirmed
+    ) {
+      const confirmResult = buildExecutionConfirmationResult(
+        parsed.action,
+        parsed.reasoning,
+        handoffConfirmPrompt,
+        resolved.enrichedParams,
+      );
+      confirmResult.details = {
+        ...confirmResult.details,
+        guideHandoff,
+        directGuideHandoff: true,
+        pipelineTrace,
+        confidence,
+        playbook: playbook?.name ?? null,
+      };
+      return traceStamp(confirmResult);
+    }
+
     const bulkConfirmActions = new Set([
       'cancel_bookings',
       'update_bookings',
@@ -1662,6 +1764,7 @@ export class AiCommandService {
         pipelineTrace,
         confidence,
         playbook: playbook?.name ?? null,
+        ...(guideHandoff ? { guideHandoff, directGuideHandoff: true } : {}),
       };
       return traceStamp(confirmResult);
     }
@@ -3818,6 +3921,17 @@ export class AiCommandService {
           effectivePrompt,
         );
         break;
+      case 'explain_app_feature':
+      case 'guide_user_flow':
+      case 'explain_current_screen':
+        result = await this.dispatchProductGuideIntent(
+          parsed.action,
+          businessId,
+          params,
+          effectivePrompt,
+          session,
+        );
+        break;
       case 'explain_date_input_format':
         result =
           await this.businessDateFormat.handleExplainDateInputFormat(
@@ -4233,11 +4347,7 @@ export class AiCommandService {
         break;
       case 'create_service': {
         const createParams = { ...params };
-        enrichServiceCategoryRescueParams(
-          'create_service',
-          createParams,
-          effectivePrompt,
-        );
+        enrichCreateServiceParamsFromPrompt(createParams, effectivePrompt, services);
         if (
           Array.isArray(createParams.services) &&
           createParams.services.length > 1
@@ -4247,6 +4357,7 @@ export class AiCommandService {
             createParams,
             services,
             userId,
+            effectivePrompt,
           );
         } else {
           result = await this.handleCreateService(
@@ -4254,6 +4365,7 @@ export class AiCommandService {
             createParams,
             services,
             userId,
+            effectivePrompt,
           );
         }
         break;
@@ -4270,6 +4382,7 @@ export class AiCommandService {
           bulkCreateParams,
           services,
           userId,
+          effectivePrompt,
         );
         break;
       }
@@ -4938,7 +5051,11 @@ export class AiCommandService {
       params.allAppointments = true;
       delete params.serviceName;
       params.serviceNames = null;
-    } else if (promptService) {
+    } else if (
+      promptService &&
+      action !== 'create_service' &&
+      action !== 'create_services'
+    ) {
       params.serviceName = promptService.name;
       delete params.serviceId;
     }
@@ -5248,6 +5365,51 @@ export class AiCommandService {
   }
 
   // ─── Action handlers ────────────────────────────────────────────────────────
+
+  /** ai-guide-1.2.6 — dashboard product guide intents → AiProductGuideService. */
+  private async dispatchProductGuideIntent(
+    action: AppGuideIntent,
+    businessId: string,
+    params: Record<string, unknown>,
+    effectivePrompt: string,
+    session?: CommandSessionOptions,
+  ): Promise<CommandResult> {
+    const payload = {
+      ...mergeProductGuideParams(params, session),
+      _prompt: effectivePrompt,
+    };
+    const context = resolveProductGuideSessionContext(session);
+    switch (action) {
+      case 'explain_app_feature':
+        return this.productGuide.handleExplainAppFeatureAsync(
+          businessId,
+          payload,
+          effectivePrompt,
+          context,
+        );
+      case 'guide_user_flow':
+        return this.productGuide.handleGuideUserFlowAsync(
+          businessId,
+          payload,
+          effectivePrompt,
+          context,
+        );
+      case 'explain_current_screen':
+        return this.productGuide.handleExplainCurrentScreenAsync(
+          businessId,
+          payload,
+          effectivePrompt,
+          context,
+        );
+      default:
+        return {
+          success: false,
+          action,
+          summary: 'Unsupported product guide intent.',
+          details: {},
+        };
+    }
+  }
 
   private async handleCreateBooking(
     businessId: string,
@@ -7472,7 +7634,7 @@ export class AiCommandService {
       case 'create_service': {
         const parsed = this.parseServiceDraft(params, params.currency || 'USD');
         if (parsed.errors.length > 0 || !parsed.draft) return null;
-        const existing = this.resolveService(
+        const existing = findServiceByExactName(
           catalog.services,
           parsed.draft.name,
         );
@@ -7494,7 +7656,7 @@ export class AiCommandService {
           if (parsed.errors.length > 0 || !parsed.draft) continue;
           const key = parsed.draft.name.toLowerCase();
           if (batchNames.has(key)) continue;
-          if (this.resolveService(catalog.services, parsed.draft.name))
+          if (findServiceByExactName(catalog.services, parsed.draft.name))
             continue;
           batchNames.add(key);
           toCreate.push(parsed.draft);
@@ -9485,11 +9647,34 @@ export class AiCommandService {
     return { categoryId: category.id };
   }
 
+  private async resolveCreateServiceLocalizedNamesForDraft(
+    businessId: string,
+    userId: string | undefined,
+    draft: ParsedServiceDraft,
+    params: Record<string, unknown>,
+    prompt?: string,
+  ): Promise<LocalizedNamesMap | undefined> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+      select: { id: true, settings: true },
+    });
+    const enabledLocales = getBusinessEnabledLocales(business?.settings);
+    return resolveCreateServiceLocalizedNames(this.openAi, {
+      businessId,
+      userId,
+      serviceName: draft.name,
+      enabledLocales,
+      prompt,
+      params,
+    });
+  }
+
   private async handleCreateService(
     businessId: string,
     params: any,
     services: Service[],
     userId?: string,
+    prompt?: string,
   ): Promise<CommandResult> {
     const parsed = this.parseServiceDraft(params, params.currency || 'USD');
     if (parsed.errors.length > 0 || !parsed.draft) {
@@ -9508,12 +9693,12 @@ export class AiCommandService {
     if (categoryResolved.error) return categoryResolved.error;
 
     const draft = parsed.draft;
-    const existing = this.resolveService(services, draft.name);
+    const existing = findServiceByExactName(services, draft.name);
     if (existing) {
       return {
         success: false,
         action: 'create_service',
-        summary: `A service matching "${draft.name}" already exists: "${existing.name}". Choose a different name or update the existing service in Services.`,
+        summary: `A service named "${draft.name}" already exists. Choose a different name or update the existing service in Services.`,
         details: {
           params,
           existingServiceId: existing.id,
@@ -9522,9 +9707,18 @@ export class AiCommandService {
       };
     }
 
+    const localizedNames = await this.resolveCreateServiceLocalizedNamesForDraft(
+      businessId,
+      userId,
+      draft,
+      params,
+      prompt,
+    );
+
     const plan = this.planBuilder.buildCreateServicePlan({
       businessId,
       ...draft,
+      localizedNames,
       categoryId: categoryResolved.categoryId,
       userId,
     });
@@ -9544,6 +9738,7 @@ export class AiCommandService {
     params: any,
     catalog: Service[],
     userId?: string,
+    prompt?: string,
   ): Promise<CommandResult> {
     const rawList = Array.isArray(params.services) ? params.services : [];
     const defaultCurrency = (params.currency || 'USD').trim().toUpperCase();
@@ -9591,7 +9786,7 @@ export class AiCommandService {
         continue;
       }
 
-      const existing = this.resolveService(catalog, draft.name);
+      const existing = findServiceByExactName(catalog, draft.name);
       if (existing) {
         skipped.push({
           name: draft.name,
@@ -9624,12 +9819,23 @@ export class AiCommandService {
       };
     }
 
-    const plan = this.planBuilder.buildCreateServicesPlan({
-      businessId,
-      services: toCreate.map((service) => ({
+    const servicesWithTranslations = await Promise.all(
+      toCreate.map(async (service) => ({
         ...service,
         categoryId: categoryResolved.categoryId,
+        localizedNames: await this.resolveCreateServiceLocalizedNamesForDraft(
+          businessId,
+          userId,
+          service,
+          params,
+          prompt,
+        ),
       })),
+    );
+
+    const plan = this.planBuilder.buildCreateServicesPlan({
+      businessId,
+      services: servicesWithTranslations,
       userId,
     });
 

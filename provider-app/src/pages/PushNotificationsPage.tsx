@@ -1,13 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   IonButton,
-  IonContent,
   IonHeader,
   IonItem,
   IonLabel,
   IonList,
   IonNote,
-  IonPage,
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
@@ -28,6 +26,8 @@ import {
 } from '../lib/provider-push-notifications';
 import { providerTabPathFromPushUrl } from '../lib/provider-push-deep-link.util';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 
 function formatSentAt(value: string): string {
   const date = new Date(value);
@@ -54,7 +54,7 @@ function notificationKindLabel(
   }
 }
 
-export default function PushNotificationsPage() {
+export default function PushNotificationsPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const history = useHistory();
   const businessId = useAuthStore((s) => s.business?.id);
@@ -94,13 +94,13 @@ export default function PushNotificationsPage() {
   };
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.pushNotificationsTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent>
+      <ProviderTabScrollContent>
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent />
         </IonRefresher>
@@ -158,7 +158,7 @@ export default function PushNotificationsPage() {
             ))}
           </IonList>
         ) : null}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

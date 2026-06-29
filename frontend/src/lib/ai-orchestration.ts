@@ -565,6 +565,8 @@ export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
     'Prefer: summarize_customers no-shows, at_risk, top_spenders.',
 };
 
+export type AssistantMode = 'guide' | 'act';
+
 export interface AiPageContext {
   route?: string;
   routeHint?: string | null;
@@ -595,6 +597,10 @@ export interface AiPageContext {
   selectionTimeFrom?: string | null;
   selectionTimeTo?: string | null;
   selectionEmployeeId?: string | null;
+  /** ai-guide-1.0.3 — optional guide vs act routing for assistant APIs. */
+  assistantMode?: AssistantMode;
+  /** ai-guide-1.3.4 — optional stable corpus topic when launching guide from /dashboard/guide#… */
+  guideTopicId?: string;
 }
 
 let pageContext: AiPageContext = {};
@@ -626,14 +632,16 @@ export function buildAiRequestContext(
   pathname: string,
   session: Partial<AiPageContext>,
   page: Partial<AiPageContext> = getAiPageContext(),
+  overrides: Partial<AiPageContext> = {},
 ): AiPageContext {
-  const route = pathname || page.route || session.route;
+  const route = pathname || page.route || session.route || overrides.route;
   return {
     ...session,
     ...page,
+    ...overrides,
     route,
     routeHint: route ? (AI_ROUTE_CONTEXT_HINTS[route] ?? null) : null,
-    timeZone: session.timeZone ?? page.timeZone ?? getBrowserTimeZone(),
+    timeZone: session.timeZone ?? page.timeZone ?? overrides.timeZone ?? getBrowserTimeZone(),
   };
 }
 

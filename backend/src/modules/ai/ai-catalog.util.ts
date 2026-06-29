@@ -1,5 +1,9 @@
 import { PackageDiscountType } from '../service-packages/entities/service-package.entity.js';
 import {
+  findServiceByExactName,
+  fuzzyMatchServiceByName,
+} from './ai-orchestration.helpers.js';
+import {
   isCatalogNotifyCustomersPrompt,
   isCatalogNotifyExplicitSkipPrompt,
 } from './ai-catalog-notify.util.js';
@@ -161,6 +165,110 @@ export function extractCreateServiceCategoryFromPrompt(
   return undefined;
 }
 
+const CREATE_SERVICE_VERB =
+  '(?:create|add|register|list|offer|introduce|set\\s+up)';
+const CREATE_SERVICE_NOUN = '(?:service|offering|treatment)s?';
+const CREATE_SERVICE_NAME_STOP =
+  /(?:\s*,|\s+price\b|\s+duration\b|\s+for\s+\$|\s+\$\s*\d|\s+\d+\s*(?:min(?:ute)?s?|m)\b|\s+under\b|\s+in\s+(?:the\s+)?(?:service\s+)?category\b)/i;
+
+function trimCreateServiceNameSegment(raw: string): string | undefined {
+  let name = raw.trim().replace(/^["']|["']$/g, '');
+  const stop = name.search(CREATE_SERVICE_NAME_STOP);
+  if (stop >= 0) name = name.slice(0, stop);
+  name = name.trim().replace(/[,.]$/, '').trim();
+  return name.length >= 2 ? name : undefined;
+}
+
+function extractCreateServiceNameSegmentFromPrompt(
+  prompt: string,
+): string | undefined {
+  const colon = prompt.match(
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s*:\\s*(.+)$`,
+      'i',
+    ),
+  );
+  if (colon?.[1]) {
+    const segment = trimCreateServiceNameSegment(colon[1]);
+    if (segment) return segment;
+  }
+
+  const unquoted = prompt.match(
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?(.+?)${CREATE_SERVICE_NAME_STOP.source}`,
+      'i',
+    ),
+  );
+  return unquoted?.[1] ? trimCreateServiceNameSegment(unquoted[1]) : undefined;
+}
+
+/** Extract the new catalog service name from create_service prompts (quoted or before price/duration). */
+export function extractCreateServiceNameFromPrompt(
+  prompt: string,
+): string | undefined {
+  const quotedPatterns = [
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?"([^"]+)"`,
+      'i',
+    ),
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?'((?:[^']|'[a-z])+)'`,
+      'i',
+    ),
+    /\bservices?\s+(?:called\s+|named\s+)?"([^"]+)"/i,
+    /\bservices?\s+(?:called\s+|named\s+)?'((?:[^']|'[a-z])+)'/i,
+  ];
+  for (const pattern of quotedPatterns) {
+    const match = prompt.match(pattern);
+    const name = match?.[1]?.trim();
+    if (name) return name;
+  }
+
+  return extractCreateServiceNameSegmentFromPrompt(prompt);
+}
+
+/** Prefer prompt-derived new service names over classifier snaps to existing catalog rows. */
+export function reconcileCreateServiceNameFromPrompt(
+  prompt: string,
+  params: Record<string, unknown>,
+  existingServices: Array<{ name: string }>,
+): void {
+  const extracted = extractCreateServiceNameFromPrompt(prompt);
+  if (extracted) {
+    params.serviceName = extracted;
+    delete params.serviceId;
+    return;
+  }
+
+  const proposed =
+    typeof params.serviceName === 'string' ? params.serviceName.trim() : '';
+  if (!proposed || findServiceByExactName(existingServices, proposed)) {
+    return;
+  }
+
+  const fuzzy = fuzzyMatchServiceByName(existingServices, proposed);
+  if (!fuzzy) return;
+
+  const segment = extractCreateServiceNameSegmentFromPrompt(prompt);
+  if (
+    segment &&
+    segment.length > fuzzy.name.length &&
+    !findServiceByExactName(existingServices, segment)
+  ) {
+    params.serviceName = segment;
+    delete params.serviceId;
+  }
+}
+
+export function enrichCreateServiceParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+  existingServices: Array<{ name: string }>,
+): void {
+  enrichServiceCategoryRescueParams('create_service', params, prompt);
+  reconcileCreateServiceNameFromPrompt(prompt, params, existingServices);
+}
+
 export function enrichServiceCategoryRescueParams(
   action: string,
   params: Record<string, unknown>,
@@ -181,6 +289,13 @@ export function enrichServiceCategoryRescueParams(
     const categoryName = extractCreateServiceCategoryFromPrompt(prompt);
     if (categoryName && !params.categoryName) {
       params.categoryName = categoryName;
+    }
+    if (action === 'create_service') {
+      const serviceName = extractCreateServiceNameFromPrompt(prompt);
+      if (serviceName) {
+        params.serviceName = serviceName;
+        delete params.serviceId;
+      }
     }
   }
 }

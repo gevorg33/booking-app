@@ -119,6 +119,7 @@ export function commandResultToPublicAssistantResult(
       details.sessionContext as PublicAssistantResult['sessionContext'],
     navigate: details.navigate as PublicAssistantResult['navigate'],
     bookingId: details.bookingId as string | undefined,
+    guide: result.guide,
     details:
       Object.keys(assistantDetails).length > 0 ? assistantDetails : undefined,
   };

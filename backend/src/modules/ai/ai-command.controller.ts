@@ -123,6 +123,8 @@ export class AiCommandController {
       confirmed: dto.confirmed === true,
       history: dto.history,
       context: dto.context,
+      assistantMode: dto.assistantMode,
+      guideHandoff: dto.guideHandoff,
     });
   }
 

@@ -106,6 +106,7 @@ import {
   CLINIC_TEST_RESULT_MUTATE_INTENTS,
 } from './ai-clinic-test-result.util.js';
 import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
+import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
 import {
   PROVIDER_CLINIC_COLLECTION_INTENTS,
@@ -349,6 +350,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'patient-clinical-profiles',
     handler: 'AiClinicPatientChartService',
     sprint: 'clinicPatientChart',
+    mutateIntents: [],
+  },
+  {
+    intents: [...APP_GUIDE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
     mutateIntents: [],
   },
   {

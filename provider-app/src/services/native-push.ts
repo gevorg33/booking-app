@@ -68,10 +68,14 @@ function isLikelyEnabled(registered: boolean, permission: NativePushStatus['perm
 
 async function uploadTokenToBackend(businessId: string, token: string): Promise<boolean> {
   try {
-    await api.post(`/businesses/${businessId}/provider/push/register-native`, {
-      token,
-      platform: Capacitor.getPlatform(),
-    });
+    await api.post(
+      `/businesses/${businessId}/provider/push/register-native`,
+      {
+        token,
+        platform: Capacitor.getPlatform(),
+      },
+      { skipOperationFeedback: true },
+    );
     cacheFcmToken(token);
     markPushOptIn(true);
     return true;
@@ -86,10 +90,14 @@ async function handlePushAction(
   bookingId: string,
   actionId: string,
 ): Promise<void> {
-  await api.post(`/businesses/${bizId}/provider/push/action`, {
-    actionId,
-    bookingId,
-  });
+  await api.post(
+    `/businesses/${bizId}/provider/push/action`,
+    {
+      actionId,
+      bookingId,
+    },
+    { skipOperationFeedback: true },
+  );
 
   if (actionId === 'suggest_reschedule') {
     dispatchProviderPushEffects(

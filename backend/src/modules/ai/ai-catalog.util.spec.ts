@@ -25,7 +25,10 @@ import {
   parseCatalogServiceCountFromPrompt,
   parseAssignServiceCategoryFromPrompt,
   extractCreateServiceCategoryFromPrompt,
+  extractCreateServiceNameFromPrompt,
   enrichServiceCategoryRescueParams,
+  enrichCreateServiceParamsFromPrompt,
+  reconcileCreateServiceNameFromPrompt,
   isAssignServiceCategoryPrompt,
   parseLocalizedNamesFromPrompt,
   buildCountedCatalogDraft,
@@ -247,6 +250,47 @@ describe('ai-catalog.util', () => {
           'Add service Haircut under Hair category',
         ),
       ).toBe('Hair');
+    });
+
+    it('extracts quoted new service names for create_service prompts', () => {
+      const prompt =
+        "create a new service 'Men's haircut with head wash' price 15$ duration 40min";
+      expect(extractCreateServiceNameFromPrompt(prompt)).toBe(
+        "Men's haircut with head wash",
+      );
+
+      const params: Record<string, unknown> = {
+        serviceName: "Men's Haircut",
+      };
+      enrichServiceCategoryRescueParams('create_service', params, prompt);
+      expect(params.serviceName).toBe("Men's haircut with head wash");
+      expect(params.serviceId).toBeUndefined();
+    });
+
+    it('extracts paraphrased unquoted and colon create_service names', () => {
+      expect(
+        extractCreateServiceNameFromPrompt(
+          "create a new service men's haircut with head wash price 15$ duration 40min",
+        ),
+      ).toBe("men's haircut with head wash");
+      expect(
+        extractCreateServiceNameFromPrompt(
+          "Offer a new treatment: men's haircut with head wash, 40 minutes, $15",
+        ),
+      ).toBe("men's haircut with head wash");
+    });
+
+    it('reconciles classifier snaps to catalog when prompt names a distinct offering', () => {
+      const catalog = [{ name: "Men's Haircut" }];
+      const prompt =
+        "create a new service men's haircut with head wash price 15 duration 40";
+      const params: Record<string, unknown> = { serviceName: "Men's Haircut" };
+
+      reconcileCreateServiceNameFromPrompt(prompt, params, catalog);
+      expect(params.serviceName).toBe("men's haircut with head wash");
+
+      enrichCreateServiceParamsFromPrompt(params, prompt, catalog);
+      expect(params.serviceName).toBe("men's haircut with head wash");
     });
 
     it('rejects provider-assignment phrasing and enriches rescue params', () => {
