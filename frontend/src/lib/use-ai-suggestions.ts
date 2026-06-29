@@ -10,7 +10,7 @@ import {
   isSuggestionAllowedByCapabilities,
   useAiCapabilities,
 } from '@/lib/use-ai-capabilities';
-import { subscribeOrchestrixEvents } from '@/lib/orchestrix-events';
+import { subscribeOrchestrixEvents, type OrchestrixRunDetail } from '@/lib/orchestrix-events';
 
 const REFRESH_EVENT_TYPES = new Set([
   'booking.created',
@@ -101,7 +101,7 @@ export function useContextualAiSuggestions(
 
 export function useOrchestrixEvents(handlers: {
   onPrompt?: (prompt: string) => void;
-  onRun?: (prompt: string, autoSubmit: boolean) => void;
+  onRun?: (detail: OrchestrixRunDetail) => void;
   onOpen?: () => void;
 }) {
   useEffect(

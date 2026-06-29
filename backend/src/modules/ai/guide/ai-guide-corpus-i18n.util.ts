@@ -33,8 +33,10 @@ export function listGuideCorpusLocales(): readonly GuideCorpusLocale[] {
   return GUIDE_CORPUS_LOCALES;
 }
 
-/** Assert frontend message files exist (CI drift guard). */
+/** Assert frontend message files exist (CI drift guard; no-op in backend-only deploy). */
 export function assertFrontendGuideI18nPresent(): void {
+  const first = frontendGuideMessagesPath('en');
+  if (!existsSync(first)) return;
   for (const locale of GUIDE_CORPUS_LOCALES) {
     const path = frontendGuideMessagesPath(locale);
     if (!existsSync(path)) {

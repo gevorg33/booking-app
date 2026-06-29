@@ -1,39 +1,40 @@
-import en from '../../../../../frontend/src/i18n/messages/en.js';
-import hy from '../../../../../frontend/src/i18n/messages/hy.js';
-import ru from '../../../../../frontend/src/i18n/messages/ru.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { GuideCorpusLocale } from './ai-guide-corpus-i18n.util.js';
 
 type MessageTree = { [key: string]: string | MessageTree };
 
-function deepMergeMessages(base: MessageTree, override: MessageTree): MessageTree {
-  const result: MessageTree = { ...base };
-  for (const key of Object.keys(override)) {
-    const ov = override[key];
-    const b = base[key];
-    if (
-      ov != null &&
-      typeof ov === 'object' &&
-      !Array.isArray(ov) &&
-      b != null &&
-      typeof b === 'object' &&
-      !Array.isArray(b)
-    ) {
-      result[key] = deepMergeMessages(b as MessageTree, ov as MessageTree);
-    } else if (ov !== undefined) {
-      result[key] = ov;
-    }
+const SNAPSHOT_REL = join(
+  'modules',
+  'ai',
+  'guide',
+  'dashboard-guide-corpus-i18n.snapshot.json',
+);
+
+type GuideCorpusI18nSnapshot = Record<GuideCorpusLocale, MessageTree>;
+
+let cachedSnapshot: GuideCorpusI18nSnapshot | null = null;
+
+function resolveSnapshotPath(): string {
+  const candidates = [
+    join(process.cwd(), 'dist', SNAPSHOT_REL),
+    join(process.cwd(), 'src', SNAPSHOT_REL),
+  ];
+  for (const path of candidates) {
+    if (existsSync(path)) return path;
   }
-  return result;
+  throw new Error(`missing guide corpus i18n snapshot: ${candidates.join(' or ')}`);
 }
 
-const FRONTEND_GUIDE_MESSAGES: Record<GuideCorpusLocale, MessageTree> = {
-  en: en as MessageTree,
-  hy: deepMergeMessages(en as MessageTree, hy as MessageTree),
-  ru: deepMergeMessages(en as MessageTree, ru as MessageTree),
-};
+function loadGuideCorpusI18nSnapshot(): GuideCorpusI18nSnapshot {
+  if (cachedSnapshot) return cachedSnapshot;
+  const raw = readFileSync(resolveSnapshotPath(), 'utf8');
+  cachedSnapshot = JSON.parse(raw) as GuideCorpusI18nSnapshot;
+  return cachedSnapshot;
+}
 
 export function getFrontendGuideCorpusMessages(
   locale: GuideCorpusLocale,
 ): MessageTree {
-  return FRONTEND_GUIDE_MESSAGES[locale];
+  return loadGuideCorpusI18nSnapshot()[locale];
 }

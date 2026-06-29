@@ -68,7 +68,7 @@ export function ProviderProfileClient({
   const hasReviews = reviewCount > 0 && averageRating != null;
   const reviewsPageHref = bookPath(slug, `/providers/${provider.id}/reviews`);
   const nearestDateText = resolveNearestSlotDateLabel(
-    { ...provider, slots: visibleSlots },
+    provider,
     locale,
     wallClockTz,
     t('public.todayInline'),
