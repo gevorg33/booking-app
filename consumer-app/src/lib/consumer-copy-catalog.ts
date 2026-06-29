@@ -25,6 +25,8 @@ export type ConsumerDiscoveryChipCopyCatalogRow = {
     | 'assistantDiscoverPromptPremium'
     | 'assistantDiscoverPromptEveningWeekend';
   en: { label: string; prompt: string };
+  /** Backend eval golden prompt (`avail-voice-chip-en`); runtime chip uses `en.prompt` + tenant service. */
+  fixturePrompt?: string;
   hy: { label: string };
   ru: { label: string };
 };
@@ -61,6 +63,7 @@ export const CONSUMER_DISCOVERY_CHIP_COPY_CATALOG: readonly ConsumerDiscoveryChi
         label: 'Evening or weekend slots',
         prompt: 'Evening or weekend slots for {service}',
       },
+      fixturePrompt: 'Evening or weekend slots for a facial',
       hy: { label: 'Երեկոյան կամ հանգստյան օր' },
       ru: { label: 'Вечер или выходные' },
     },

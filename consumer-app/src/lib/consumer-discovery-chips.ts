@@ -33,14 +33,14 @@ export function getConsumerDiscoveryChips(
     serviceCategory: copy.assistantFallbackServiceCategory,
   });
   return CONSUMER_DISCOVERY_CHIP_COPY_CATALOG.map((row) => {
-    const prompt = copy[row.promptKey];
+    const promptTemplate = copy[row.promptKey];
     return {
       id: row.id,
       label: copy[row.labelKey],
       prompt:
         row.id === 'discover-chip-evening-weekend-en'
-          ? interpolateAssistantTemplate(prompt, { service: vars.service })
-          : prompt,
+          ? interpolateAssistantTemplate(promptTemplate, { service: vars.service })
+          : promptTemplate,
     };
   });
 }
