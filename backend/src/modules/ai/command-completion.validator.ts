@@ -45,6 +45,7 @@ import {
   parseConfigureRecommendationProductFromPrompt,
   parseLinkRecommendedProductsFromPrompt,
 } from './ai-recommendation-product.util.js';
+import { parseServiceOnlinePaymentConfig } from './ai-service-online-payment.util.js';
 import { parseBusinessLanguagesFromPrompt } from './ai-business-languages.util.js';
 import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.util.js';
 import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
@@ -1293,6 +1294,41 @@ const ACTION_RULES: Record<string, Rule> = {
         label: 'Service',
         message: 'Specify which service or category should show these products',
         example: 'Recommend shampoo after haircut service',
+      });
+    }
+    return issues;
+  },
+
+  configure_service_online_payment: (cmd) => {
+    const parsed = parseServiceOnlinePaymentConfig(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed?.prepaymentMode) {
+      issues.push({
+        field: 'prepaymentMode',
+        label: 'Prepayment',
+        message:
+          'Specify full prepayment, deposit percentage, or disable online payment',
+        example:
+          'Accept online payment on public booking for all services with 50% prepayment',
+      });
+    }
+    if (
+      parsed &&
+      !parsed.allServices &&
+      !parsed.serviceName &&
+      !parsed.serviceNames?.length &&
+      !parsed.categoryName
+    ) {
+      issues.push({
+        field: 'serviceName',
+        label: 'Services',
+        message:
+          'Specify all services, a category, or named services for online payment',
+        example:
+          'Accept online payment on public booking for Massage with full prepayment',
       });
     }
     return issues;

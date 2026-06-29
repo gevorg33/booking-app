@@ -925,6 +925,50 @@ export default function BookPage() {
     setUseExistingSubscription(true);
   }, [serviceId]);
 
+  const urlBookingKey = useMemo(
+    () =>
+      [
+        serviceId ?? '',
+        resumePrefill.date,
+        resumePrefill.slot,
+        resumePrefill.employeeId,
+      ].join('|'),
+    [serviceId, resumePrefill.date, resumePrefill.slot, resumePrefill.employeeId],
+  );
+  const prevUrlBookingKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const previousKey = prevUrlBookingKeyRef.current;
+    prevUrlBookingKeyRef.current = urlBookingKey;
+
+    if (previousKey !== null && previousKey !== urlBookingKey) {
+      setBookingSuccess(null);
+      setAwaitingPaymentReturn(false);
+      setCheckoutFailed(false);
+      setMessage('');
+      setSubmitting(false);
+      bookingCompletedRef.current = false;
+      guestBookingRef.current = false;
+      setPostBookingSignInDismissed(false);
+      setPostBookingSignedIn(false);
+      setPreConfirmSignInDismissed(false);
+      setPreConfirmSignedIn(false);
+      setSharingBooking(false);
+      setShowPushPriming(false);
+      setShowProvisionalUpgrade(false);
+      startedBookingTrackedRef.current = false;
+      confirmStepTrackedRef.current = false;
+    }
+
+    if (!resumePrefill.slot) return;
+    setDate(resumePrefill.date);
+    setSlot(resumePrefill.slot);
+    slotAutoSelectedRef.current = true;
+    if (resumePrefill.employeeId) {
+      setEmployeeId(resumePrefill.employeeId);
+    }
+  }, [urlBookingKey, resumePrefill.date, resumePrefill.slot, resumePrefill.employeeId]);
+
   useEffect(() => {
     if (!activeSubscription?.appointmentsRemaining) return;
     setUseExistingSubscription(true);

@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuthStore } from '../services/auth-store';
 import { useI18n } from '../i18n';
-import { useBusinessCurrency } from '../hooks/use-business-currency';
+import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isMobileManagerRole } from '../lib/provider-access';
 import {
   fetchProviderMyStats,

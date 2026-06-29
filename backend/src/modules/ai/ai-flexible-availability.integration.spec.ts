@@ -284,7 +284,7 @@ describe('ai flexible availability section D handler outcomes', () => {
       scenario.params,
       undefined,
       'UTC',
-      { defaultScanDays: 14 },
+      { defaultScanDays: 14, referenceTodayDateKey: scenario.todayDateKey },
     );
 
     const picked = await scanWindowsForSlots(windows, async (window, windowIndex) => {

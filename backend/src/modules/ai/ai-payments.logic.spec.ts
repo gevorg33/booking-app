@@ -10,6 +10,7 @@ import {
   handleExplainCheckoutTotalLogic,
   handleListSubscriptionRevenueLogic,
   handleConfigureCashPaymentsLogic,
+  handleConfigureServiceOnlinePaymentLogic,
   handleAdjustGiftCardBalanceLogic,
   handleExtendGiftCardExpiryLogic,
   handleRefundGiftCardOrderLogic,
@@ -201,6 +202,16 @@ function buildDeps(
         return null;
       }),
       save: jest.fn(async (c) => c),
+    } as any,
+    serviceService: {
+      update: jest.fn(async (id: string, dto: Record<string, unknown>) => {
+        const svc = services.find((s) => s.id === id)!;
+        return {
+          ...svc,
+          prepaymentMode: dto.prepaymentMode ?? svc.prepaymentMode,
+          depositAmount: dto.depositAmount ?? null,
+        };
+      }),
     } as any,
     ...overrides,
   };
@@ -399,6 +410,73 @@ describe('ai-payments.logic', () => {
           )
         ).success,
       ).toBe(false);
+    });
+
+    it('configures service online payment', async () => {
+      const result = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Accept online payment on public booking for all services with 50% prepayment',
+        services as any[],
+      );
+      expect(result.success).toBe(true);
+      expect(result.details?.updatedCount).toBe(2);
+
+      const single = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Accept online payment on public booking for Massage with full prepayment',
+        services as any[],
+      );
+      expect(single.success).toBe(true);
+
+      const missingScope = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        { prepaymentMode: 'full' },
+        'Enable online payment',
+        services as any[],
+      );
+      expect(missingScope.success).toBe(false);
+
+      const stripeFail = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps({
+          serviceService: {
+            update: jest.fn(async () => {
+              throw new Error(
+                'Connect your Stripe account in Dashboard → Billing before enabling online payment for a service',
+              );
+            }),
+          } as any,
+        }),
+        'biz-1',
+        {},
+        'Accept online payment on public booking for all services with full prepayment',
+        services as any[],
+      );
+      expect(stripeFail.success).toBe(false);
+
+      const declineAll = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Decline online payment on public booking for all services',
+        services as any[],
+      );
+      expect(declineAll.success).toBe(true);
+      expect(declineAll.summary).toContain('disabled');
+
+      const declineOne = await handleConfigureServiceOnlinePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Decline online payment on public booking for Massage',
+        services as any[],
+      );
+      expect(declineOne.success).toBe(true);
+      expect(declineOne.details?.prepaymentMode).toBe('none');
     });
 
     it('adjusts gift card balances', async () => {
@@ -646,7 +724,7 @@ describe('ai-payments.logic', () => {
             buildDeps(),
             'biz-1',
             {},
-            'nearest haircut',
+            'nearest available slot',
           )
         ).success,
       ).toBe(false);

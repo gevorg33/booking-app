@@ -1,4 +1,5 @@
 import { buildTenantPublicUrl } from '@/lib/tenant-host';
+import { buildTenantAppInstallLandingUrl } from '@/lib/tenant-app-install-landing.util';
 
 export type InstallSource = 'web_banner' | 'qr' | 'referral' | 'ad' | 'link' | 'share' | 'unknown';
 
@@ -130,8 +131,7 @@ export function buildTenantAppInstallUrl(
     campaign?: TenantAppInstallCampaign;
   },
 ): string {
-  return buildAttributedBookUrl(origin, {
-    slug,
+  return buildTenantAppInstallLandingUrl(origin, slug, {
     serviceId: options?.serviceId,
     installSource: options?.installSource ?? 'qr',
     campaign: options?.campaign ?? 'venue_qr',

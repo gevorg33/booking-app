@@ -33,7 +33,7 @@ describe('deferred-install-link.util (web)', () => {
 
   it('buildTenantAppInstallUrl defaults qr source and venue campaign', () => {
     expect(buildTenantAppInstallUrl('https://app.test', 'salon-a')).toBe(
-      'https://app.test/book/salon-a?src=qr&utm_campaign=venue_qr',
+      'https://app.test/get-app/salon-a?src=qr&utm_campaign=venue_qr',
     );
   });
 

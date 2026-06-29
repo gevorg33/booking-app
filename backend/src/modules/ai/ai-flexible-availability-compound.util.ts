@@ -111,6 +111,7 @@ function applyFlexibleAvailabilityBookHints(
   if (action !== 'book_appointment' && action !== 'book_nearest_slot') return;
   if (
     /\b(?:whichever|which ever)\s+is\s+sooner\b/i.test(prompt) ||
+    /\basap\b/i.test(prompt) ||
     isFirstAvailableBookingPrompt(prompt)
   ) {
     params.bookingFirstAvailable = true;

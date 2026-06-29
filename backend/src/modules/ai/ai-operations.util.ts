@@ -4,6 +4,7 @@ import {
   rescueTransferServicesBetweenProvidersIntent,
   rescueUnassignServicesFromProviderIntent,
 } from './ai-category-assignment.util.js';
+import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
 
 export const OPERATIONS_BOOKING_INTENTS = [
   'no_show_recovery',
@@ -243,6 +244,7 @@ export function applyPriceAdjustment(
 
 /** ai-o3 — staff-service matrix by seniority + category. */
 export function isStaffServiceMatrixPrompt(prompt: string): boolean {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
   if (/\bcurrenc/i.test(prompt)) return false;
   if (
     /\bto\s+(?:service\s+)?provider\s+[A-Za-z]/i.test(prompt) ||

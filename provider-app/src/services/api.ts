@@ -77,4 +77,18 @@ export function unwrap<T>(data: unknown): T {
   return ((data as { data?: T })?.data ?? data) as T;
 }
 
+export interface AppAnalyticsIngestBody {
+  businessId?: string;
+  tenantSlug?: string;
+  consentGranted: boolean;
+  events: Array<Record<string, unknown>>;
+}
+
+export async function recordAppAnalyticsEvents(
+  body: AppAnalyticsIngestBody,
+): Promise<{ recorded: number; skipped: number }> {
+  const { data } = await api.post('/events/app', body);
+  return unwrap<{ recorded: number; skipped: number }>(data);
+}
+
 export default api;

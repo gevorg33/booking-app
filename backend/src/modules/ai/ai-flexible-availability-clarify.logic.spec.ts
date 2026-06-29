@@ -81,7 +81,7 @@ describe('ai-flexible-availability-clarify.logic (avail-1.9)', () => {
       },
       undefined,
       'UTC',
-      { defaultScanDays: 14 },
+      { defaultScanDays: 14, referenceTodayDateKey: '2026-06-11' },
     );
 
     const prepared = prepareAvailabilityWindowsForCheck({

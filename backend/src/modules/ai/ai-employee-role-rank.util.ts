@@ -1,4 +1,7 @@
-import { isProviderRankDiscoveryPrompt } from './ai-service-rank-discovery.util.js';
+import {
+  extractProviderRankServiceCategoryFromPrompt,
+  isProviderRankDiscoveryPrompt,
+} from './ai-service-rank-discovery.util.js';
 
 const EMPLOYEE_ROLE_OCCUPATIONS = new Set([
   'cosmetologist',
@@ -149,7 +152,11 @@ export function extractEmployeeRoleFromPrompt(prompt: string): string | null {
     /\b(?:top|best|highest|rated|recommended|suggested)\b/i.test(prompt)
   ) {
     const normalized = normalizeEmployeeRoleTerm(roleWord[0]!);
-    if (normalized !== 'specialist' && normalized !== 'provider') {
+    if (
+      normalized !== 'specialist' &&
+      normalized !== 'provider' &&
+      !GENERIC_PROVIDER_ROLE_WORDS.has(normalized)
+    ) {
       return normalized;
     }
   }
@@ -164,6 +171,16 @@ export function enrichEmployeeRoleRankFromPrompt(
   if (!prompt?.trim()) return params;
   const employeeRole = extractEmployeeRoleFromPrompt(prompt);
   if (!employeeRole) return params;
+
+  const serviceCategoryHint =
+    (typeof params.serviceCategory === 'string' && params.serviceCategory.trim()) ||
+    extractProviderRankServiceCategoryFromPrompt(prompt);
+  if (
+    serviceCategoryHint &&
+    GENERIC_PROVIDER_ROLE_WORDS.has(employeeRole)
+  ) {
+    return params;
+  }
 
   const next: Record<string, unknown> = { ...params, employeeRole };
   if (next.serviceCategory === employeeRole) {

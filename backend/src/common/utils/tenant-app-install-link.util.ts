@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import type { AppLocale } from '../i18n/messages.js';
 import { t } from '../i18n/messages.js';
-import { buildTenantPublicUrl } from './tenant-public-url.util.js';
+import { buildTenantAppInstallLandingUrl } from './tenant-app-install-settings.util.js';
 
 export type TenantAppInstallCampaign =
   | 'venue_qr'
@@ -21,20 +21,18 @@ export function buildTenantAppInstallUrl(
     rootDomain?: string;
   },
 ): string | null {
-  const normalizedSlug = slug.trim().toLowerCase();
-  if (!isValidTenantSlug(normalizedSlug)) return null;
+  const landingUrl = buildTenantAppInstallLandingUrl(frontendUrl, slug, {
+    campaign: options?.campaign,
+    installSource: 'qr',
+  });
+  if (!landingUrl) return null;
 
-  const url = new URL(
-    buildTenantPublicUrl({
-      slug: normalizedSlug,
-      frontendUrl,
-      rootDomain: options?.rootDomain,
-    }),
-  );
-  const serviceId = options?.serviceId?.trim();
-  if (serviceId) url.searchParams.set('serviceId', serviceId);
-  url.searchParams.set('src', 'qr');
-  url.searchParams.set('utm_campaign', options?.campaign ?? 'venue_qr');
+  if (!options?.serviceId?.trim()) {
+    return landingUrl;
+  }
+
+  const url = new URL(landingUrl);
+  url.searchParams.set('serviceId', options.serviceId.trim());
   return url.toString();
 }
 
@@ -68,9 +66,10 @@ export function buildTenantAppInstallLinkHtml(
 
 export async function buildTenantAppInstallQrDataUrl(
   installUrl: string,
+  width = 140,
 ): Promise<string | null> {
   try {
-    return await QRCode.toDataURL(installUrl, { margin: 1, width: 140 });
+    return await QRCode.toDataURL(installUrl, { margin: 1, width });
   } catch {
     return null;
   }

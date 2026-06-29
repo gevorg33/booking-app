@@ -10,6 +10,7 @@ import {
 import { BusinessService } from './business.service.js';
 import { DashboardService } from './dashboard.service.js';
 import { TeamMembersService } from './team-members.service.js';
+import { TenantAppInstallService } from './tenant-app-install.service.js';
 import { UpdateBusinessProfileDto } from './dto/update-business-profile.dto.js';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
@@ -21,6 +22,7 @@ export class BusinessController {
     private businessService: BusinessService,
     private dashboardService: DashboardService,
     private teamMembersService: TeamMembersService,
+    private tenantAppInstallService: TenantAppInstallService,
   ) {}
 
   @Get('my')
@@ -58,6 +60,17 @@ export class BusinessController {
   @UseGuards(JwtAuthGuard)
   getDashboardOverview(@Param('id') id: string) {
     return this.dashboardService.getOverview(id);
+  }
+
+  @Get(':id/app-install')
+  @UseGuards(JwtAuthGuard)
+  async getAppInstall(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    await this.businessService.ensureMember(id, user.id);
+    const business = await this.businessService.findOne(id);
+    return this.tenantAppInstallService.ensureForBusiness(business);
   }
 
   @Get(':id')

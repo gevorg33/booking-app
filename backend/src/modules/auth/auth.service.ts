@@ -19,6 +19,10 @@ import {
 } from '../business/entities/business-member.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { PasswordResetToken } from './entities/password-reset-token.entity.js';
+import {
+  generateTenantAppInstallSettings,
+  mergeTenantAppInstallIntoSettings,
+} from '../../common/utils/tenant-app-install-settings.util.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
@@ -91,6 +95,18 @@ export class AuthService {
         },
       }),
     );
+
+    const appInstall = await generateTenantAppInstallSettings(
+      business.slug,
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+    );
+    if (appInstall) {
+      business.settings = mergeTenantAppInstallIntoSettings(
+        business.settings ?? {},
+        appInstall,
+      );
+      await this.businessRepo.save(business);
+    }
 
     await this.memberRepo.save(
       this.memberRepo.create({

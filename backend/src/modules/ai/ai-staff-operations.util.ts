@@ -251,6 +251,14 @@ export function isDeactivateEmployeePrompt(prompt: string): boolean {
 export function isConfigureOnlineBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (
+    /\b(online\s+payment|prepayment|pre[-\s]?pay|deposit|pay\s+online|stripe|card\s+checkout)\b/i.test(
+      prompt,
+    ) &&
+    /\bservices?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
     /\b(?:cookie|consent|privacy|retention|hipaa|gdpr|compliance|banner|push|notification|напоминан|оповещен|alert|fcm|format|дата|preferences|reminder)\b/i.test(
       lower,
     )
