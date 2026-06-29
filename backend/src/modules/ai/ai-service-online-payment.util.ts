@@ -309,7 +309,7 @@ function parsePrepaymentMode(
 ): PrepaymentMode | undefined {
   const fromParams = params.prepaymentMode;
   if (fromParams === 'none' || fromParams === 'full' || fromParams === 'deposit') {
-    return fromParams;
+    return fromParams as PrepaymentMode;
   }
 
   if (isDisablingOnlinePayment(prompt) && ONLINE_PAYMENT_SIGNAL.test(prompt)) {
@@ -317,7 +317,7 @@ function parsePrepaymentMode(
   }
 
   const depositPct = parseDepositPercent(prompt);
-  if (depositPct !== undefined && depositPct < 100) {
+  if (depositPct != null && depositPct < 100) {
     return PrepaymentMode.DEPOSIT;
   }
 
@@ -470,17 +470,17 @@ export function resolveTargetServicesForOnlinePayment<
   if (config.allServices) return active;
 
   if (config.serviceNames?.length) {
-    const matched = resolveServices(active as Service[], {
+    const matched = resolveServices(active as unknown as Service[], {
       serviceNames: config.serviceNames,
     });
-    if (matched.length) return matched as T[];
+    if (matched.length) return matched as unknown as T[];
   }
 
   if (config.serviceName) {
-    const matched = resolveServices(active as Service[], {
+    const matched = resolveServices(active as unknown as Service[], {
       serviceName: config.serviceName,
     });
-    if (matched.length) return matched as T[];
+    if (matched.length) return matched as unknown as T[];
   }
 
   if (config.categoryName) {

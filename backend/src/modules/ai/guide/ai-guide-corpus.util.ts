@@ -30,6 +30,7 @@ export {
   HELP_CENTER_TOPIC_TO_CORPUS_TOPIC_ID,
   buildDashboardGuideTopicUrl,
 };
+export type { ResolvedGuideCorpusTopic } from './ai-guide-corpus.types.js';
 
 export function isGuideCorpusTopicId(value: string): value is GuideCorpusTopicId {
   return TOPIC_BY_ID.has(value);

@@ -15,6 +15,7 @@ import { AiBusinessComplianceService } from './ai-business-compliance.service.js
 import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';

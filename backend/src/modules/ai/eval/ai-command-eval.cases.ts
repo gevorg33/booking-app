@@ -27,6 +27,7 @@ import {
   LIST_ABNORMAL_RESULTS_PROMPTS,
   UPLOAD_PATIENT_RESULT_PROMPTS,
 } from '../ai-clinic-test-result-ext.fixtures.js';
+import { EXPLAIN_PATIENT_CHART_PROMPTS } from '../ai-clinic-patient-chart.fixtures.js';
 import {
   MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS,
   type ClinicTestResultEvalScenario,

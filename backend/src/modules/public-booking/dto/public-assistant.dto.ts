@@ -7,7 +7,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ASSISTANT_MODE_VALUES } from '../ai/ai-assistant-mode.util.js';
+import { ASSISTANT_MODE_VALUES } from '../../ai/ai-assistant-mode.util.js';
 
 class AssistantHistoryMessageDto {
   @IsString()
