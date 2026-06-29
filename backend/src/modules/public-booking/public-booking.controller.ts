@@ -21,6 +21,7 @@ import {
   ConfirmBookingPaymentDto,
   GetProviderSlotsQueryDto,
   GetServiceSlotsQueryDto,
+  GetServiceBookableDatesQueryDto,
   GetServiceSlotProvidersQueryDto,
   PublicBookingQuoteDto,
   BookPublicPackageDto,
@@ -404,6 +405,20 @@ export class PublicBookingController {
       slug,
       dto,
       user?.customerId,
+    );
+  }
+
+  @Get('services/:serviceId/bookable-dates')
+  getServiceBookableDates(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceBookableDatesQueryDto,
+  ) {
+    return this.publicBookingService.getServiceBookableDates(
+      slug,
+      serviceId,
+      query.from,
+      query.to,
     );
   }
 

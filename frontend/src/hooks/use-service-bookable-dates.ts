@@ -1,21 +1,21 @@
+'use client';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDaysToDateKey,
   buildInclusiveDateKeyRange,
   buildServiceDateEnabled,
-  isoToDateKey,
   pickFirstBookableDateKey,
   SERVICE_BOOKABLE_DATE_MAX_RANGE,
   SERVICE_BOOKABLE_DATE_SCAN_DAYS,
   splitDateKeyRange,
-} from '../lib/service-bookable-dates.util.js';
-import { fetchServiceBookableDates } from '../services/public-api.js';
+} from '@/lib/service-bookable-dates.util';
+import { getPublicServiceBookableDates } from '@/lib/public-api';
 
 type Params = {
   slug: string | undefined;
   serviceId: string | undefined;
   enabled: boolean;
-  isDayLevelTour: boolean;
   minDateKey: string;
 };
 
@@ -23,7 +23,6 @@ export function useServiceBookableDates({
   slug,
   serviceId,
   enabled,
-  isDayLevelTour: _isDayLevelTour,
   minDateKey,
 }: Params) {
   const bookableDatesRef = useRef<Set<string>>(new Set());
@@ -56,7 +55,7 @@ export function useServiceBookableDates({
           SERVICE_BOOKABLE_DATE_MAX_RANGE,
         );
         for (const chunk of chunks) {
-          const result = await fetchServiceBookableDates(
+          const result = await getPublicServiceBookableDates(
             slug,
             serviceId,
             chunk.from,
@@ -113,7 +112,6 @@ export function useServiceBookableDates({
     scanning,
     isDateEnabled,
     firstBookableDateKey,
-    isoToDateKey,
     scanDates,
   };
 }

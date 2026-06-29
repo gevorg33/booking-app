@@ -13,24 +13,24 @@ describe('tenant-host', () => {
       slug: 'woodwork-decor-d44d9c9c',
       path: '',
       options: { origin: 'https://example.com', rootDomain: 'example.com' },
-      expected: 'https://woodwork-decor-d44d9c9c.example.com/',
+      expected: 'https://example.com/book/woodwork-decor-d44d9c9c',
     },
     {
       id: 'prod-services',
       slug: 'gloss',
       path: '/services',
       options: { origin: 'https://example.com', rootDomain: 'example.com' },
-      expected: 'https://gloss.example.com/services',
+      expected: 'https://example.com/book/gloss/services',
     },
     {
       id: 'staging-vercel',
-      slug: 'woodwork-decor-d44d9c9c',
-      path: '',
+      slug: 'gnuni-beauty-salon',
+      path: '/manage',
       options: {
         origin: 'https://frontend-sand-six-17.vercel.app',
         rootDomain: 'frontend-sand-six-17.vercel.app',
       },
-      expected: 'https://woodwork-decor-d44d9c9c.frontend-sand-six-17.vercel.app/',
+      expected: 'https://frontend-sand-six-17.vercel.app/book/gnuni-beauty-salon/manage',
     },
   ])('buildTenantPublicUrl $id', ({ slug, path, options, expected }) => {
     expect(buildTenantPublicUrl(slug, path, options)).toBe(expected);

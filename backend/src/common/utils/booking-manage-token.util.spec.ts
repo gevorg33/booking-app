@@ -7,7 +7,7 @@ import {
 } from './booking-manage-token.util.js';
 
 describe('booking-manage-token.util', () => {
-  it('buildBookingManageUrl encodes params on tenant subdomain', () => {
+  it('buildBookingManageUrl encodes params on book path', () => {
     const url = buildBookingManageUrl(
       'https://app.test/',
       'salon',
@@ -16,7 +16,7 @@ describe('booking-manage-token.util', () => {
       'test',
     );
     expect(url).toBe(
-      'https://salon.test/manage?bookingId=book-1&token=tok-abc',
+      'https://app.test/book/salon/manage?bookingId=book-1&token=tok-abc',
     );
   });
 

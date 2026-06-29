@@ -35,25 +35,23 @@ function inferProtocol(origin?: string): 'http' | 'https' {
   return 'https';
 }
 
-/** Shareable absolute URL: https://{slug}.{rootDomain}/… */
+/** Shareable absolute URL on the apex host: https://app.example.com/book/{slug}/… */
 export function buildTenantPublicUrl(
   slug: string,
   pathSuffix = '',
   options?: { origin?: string; rootDomain?: string; protocol?: 'http' | 'https' },
 ): string {
-  const normalizedSlug = slug.trim().toLowerCase();
-  const rootDomain = options?.rootDomain ?? getRootDomain();
-  const rootHost = rootDomain.split(':')[0].toLowerCase();
-  const port = rootDomain.includes(':') ? rootDomain.split(':').slice(1).join(':') : '';
-
-  let path = '';
-  if (pathSuffix && pathSuffix !== '/') {
-    path = pathSuffix.startsWith('/') ? pathSuffix : `/${pathSuffix}`;
+  const path = bookPath(slug, pathSuffix);
+  const origin = options?.origin?.replace(/\/$/, '');
+  if (origin) {
+    return `${origin}${path}`;
   }
 
   const protocol = options?.protocol ?? inferProtocol(options?.origin);
-  const tenantHost = port ? `${normalizedSlug}.${rootHost}:${port}` : `${normalizedSlug}.${rootHost}`;
-  return `${protocol}://${tenantHost}${path || '/'}`;
+  const rootDomain = options?.rootDomain ?? getRootDomain();
+  const rootHost = rootDomain.split(':')[0].toLowerCase();
+  const port = rootDomain.includes(':') ? `:${rootDomain.split(':').slice(1).join(':')}` : '';
+  return `${protocol}://${rootHost}${port}${path}`;
 }
 
 /** Convenience for dashboard/embed: absolute public booking URL on current deployment. */

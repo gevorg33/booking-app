@@ -659,6 +659,25 @@ export function getPublicServiceDaySlots(slug: string, serviceId: string, date: 
   }>(`/public/${slug}/services/${serviceId}/slots?date=${encodeURIComponent(date)}`);
 }
 
+export function getPublicServiceBookableDates(
+  slug: string,
+  serviceId: string,
+  from: string,
+  to: string,
+) {
+  const params = new URLSearchParams({
+    from: from.slice(0, 10),
+    to: to.slice(0, 10),
+  });
+  return publicFetch<{
+    from: string;
+    to: string;
+    serviceId: string;
+    serviceName: string;
+    dates: string[];
+  }>(`/public/${slug}/services/${serviceId}/bookable-dates?${params.toString()}`);
+}
+
 export interface PublicServiceSlotProvider {
   id: string;
   name: string;

@@ -1,5 +1,3 @@
-import type { PublicServiceDaySlots } from './types.js';
-
 export const SERVICE_BOOKABLE_DATE_SCAN_DAYS = 120;
 export const SERVICE_BOOKABLE_DATE_MAX_RANGE = 62;
 
@@ -49,39 +47,28 @@ export function splitDateKeyRange(
   return chunks;
 }
 
-export function dateKeysForMonth(year: number, month: number): string[] {
-  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const keys: string[] = [];
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    keys.push(
-      `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-    );
-  }
-  return keys;
-}
-
-export function dayHasBookableSlots(
-  daySlots: Pick<PublicServiceDaySlots, 'slots' | 'remainingSpots'>,
-  isDayLevelTour: boolean,
-): boolean {
-  if (daySlots.slots.length === 0) return false;
-  if (isDayLevelTour && daySlots.remainingSpots != null && daySlots.remainingSpots <= 0) {
-    return false;
-  }
-  return true;
+export function monthBoundsFromMonthKey(monthKey: string): { from: string; to: string } {
+  const year = Number(monthKey.slice(0, 4));
+  const month = Number(monthKey.slice(5, 7));
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const prefix = monthKey.slice(0, 7);
+  return {
+    from: `${prefix}-01`,
+    to: `${prefix}-${String(daysInMonth).padStart(2, '0')}`,
+  };
 }
 
 export function buildServiceDateEnabled(input: {
   bookableDates: ReadonlySet<string>;
   scannedDates: ReadonlySet<string>;
   minDateKey: string;
-}): (isoDate: string) => boolean {
+}): (dateKey: string) => boolean {
   const minDateKey = input.minDateKey.slice(0, 10);
-  return (isoDate: string) => {
-    const dateKey = isoToDateKey(isoDate);
-    if (dateKey < minDateKey) return false;
-    if (!input.scannedDates.has(dateKey)) return false;
-    return input.bookableDates.has(dateKey);
+  return (dateKey: string) => {
+    const key = isoToDateKey(dateKey);
+    if (key < minDateKey) return false;
+    if (!input.scannedDates.has(key)) return false;
+    return input.bookableDates.has(key);
   };
 }
 
@@ -91,22 +78,4 @@ export function pickFirstBookableDateKey(
 ): string | null {
   const sorted = [...bookableDates].sort();
   return sorted.find((dateKey) => dateKey >= minDateKey.slice(0, 10)) ?? null;
-}
-
-export async function mapWithConcurrency<T>(
-  items: readonly T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  if (items.length === 0) return;
-  let index = 0;
-  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (index < items.length) {
-      const current = items[index];
-      index += 1;
-      if (current === undefined) return;
-      await worker(current);
-    }
-  });
-  await Promise.all(runners);
 }

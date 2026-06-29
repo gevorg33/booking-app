@@ -200,6 +200,14 @@ export class GetServiceSlotsQueryDto {
   date: string;
 }
 
+export class GetServiceBookableDatesQueryDto {
+  @IsDateString()
+  from: string;
+
+  @IsDateString()
+  to: string;
+}
+
 export class GetServiceSlotProvidersQueryDto {
   @IsDateString()
   startTime: string;

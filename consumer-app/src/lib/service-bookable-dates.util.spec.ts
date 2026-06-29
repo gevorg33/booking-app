@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDateKeyRange,
+  buildInclusiveDateKeyRange,
   buildServiceDateEnabled,
   dateKeysForMonth,
   dayHasBookableSlots,
   pickFirstBookableDateKey,
+  splitDateKeyRange,
 } from './service-bookable-dates.util.js';
 
 describe('dayHasBookableSlots', () => {
@@ -55,6 +57,31 @@ describe('buildDateKeyRange', () => {
       '2026-06-09',
       '2026-06-10',
       '2026-06-11',
+    ]);
+  });
+});
+
+describe('buildInclusiveDateKeyRange', () => {
+  it('includes both endpoints', () => {
+    expect(buildInclusiveDateKeyRange('2026-06-09', '2026-06-11')).toEqual([
+      '2026-06-09',
+      '2026-06-10',
+      '2026-06-11',
+    ]);
+  });
+});
+
+describe('splitDateKeyRange', () => {
+  it('splits long ranges into max-sized chunks', () => {
+    expect(splitDateKeyRange('2026-06-01', '2026-08-15', 62)).toEqual([
+      { from: '2026-06-01', to: '2026-08-01' },
+      { from: '2026-08-02', to: '2026-08-15' },
+    ]);
+  });
+
+  it('returns a single chunk when the range fits', () => {
+    expect(splitDateKeyRange('2026-06-01', '2026-06-15', 62)).toEqual([
+      { from: '2026-06-01', to: '2026-06-15' },
     ]);
   });
 });
