@@ -931,29 +931,29 @@ User question → normalize → isGuidePrompt? (heuristics)
 | `provider-gift-cards` | Fulfillment queue tabs (when enabled) |
 | `provider-clinic` | Lab collection, results, patients (vertical overlay) |
 
-- [ ] **ai-guide-1.9.1** — Shared mobile guide module — `guide-flows/` JSON schema (`topicId`, `titleKey`, `steps[]`, `navigateTarget?`, `verticals?`, `roles?`) consumed by backend corpus (**1.1.2**) and both apps (generate or import at build time)
-- [ ] **ai-guide-1.9.2** — **consumer-app** — `GuidePage.tsx` at `/s/:slug/guide` — TOC sidebar or section list, anchor scroll to `topicId`, reuse step list UI pattern from dashboard guide
-- [ ] **ai-guide-1.9.3** — **consumer-app** — Entry points — Account tab **Help & guide** row; `ConsumerBookingAssistant` chip “Open guide”; optional link from **WelcomePage** (**adopt-3**)
-- [ ] **ai-guide-1.9.4** — **consumer-app** — EN/HY/RU copy for all consumer `topicId`s — parity gate in **`consumer-guide.copy.spec.ts`**
-- [ ] **ai-guide-1.9.5** — **consumer-app** — Deep link + in-app `navigate` handler — `topicId` query opens guide scrolled to section; wire **`ConsumerBookingAssistant`** `navigate.path === 'guide'`
-- [ ] **ai-guide-1.9.6** — **consumer-app** — Clinic vertical — show/hide **consumer-clinic** section from business metadata (same rules as Results / Lab tabs)
-- [ ] **ai-guide-1.9.7** — **provider-app** — `GuidePage.tsx` at `/tabs/profile/guide` — same TOC + anchor pattern; Ionic back to Profile
-- [ ] **ai-guide-1.9.8** — **provider-app** — Entry points — Profile **Help & guide**; `ProviderAiAssistant` chip; footer on **AcceptInvitePage** (**5.21.1**)
-- [ ] **ai-guide-1.9.9** — **provider-app** — Role-filtered TOC — hide **provider-team-manager** for non-managers; clinic sections from **`useProviderClinicNav`**
-- [ ] **ai-guide-1.9.10** — **provider-app** — EN/HY/RU guide namespace in **`provider-app-i18n.ts`** + locale parity spec
-- [ ] **ai-guide-1.9.11** — **provider-app** — `navigate.path === 'guide'` from **`ProviderAiAssistant`** + push/deep-link `…/guide?topicId=`
-- [ ] **ai-guide-1.9.12** — Offline bundle — embed latest `guide-flows/customer` + `guide-flows/provider` in app assets; refresh on app version bump (**1.8.10** fallback when AI down)
-- [ ] **ai-guide-1.9.13** — CI — extend **`test:ai-guide-corpus`** — every consumer route in **`App.tsx`** tab/booking paths and provider **`/tabs/*`** route has playbook section or `no-guide`; fail on drift
-- [ ] **ai-guide-1.9.14** — Component tests — **`GuidePage.spec.tsx`** (both apps): TOC render, `topicId` scroll, vertical gating, manager filter
-- [ ] **ai-guide-1.9.15** — “Ask about this section” — each guide section CTA seeds assistant with `topicId` pre-filled prompt (bridges static ↔ conversational guide)
+- [x] **ai-guide-1.9.1** — Shared mobile guide module — `guide-flows/` JSON schema (`topicId`, `titleKey`, `steps[]`, `navigateTarget?`, `verticals?`, `roles?`) consumed by backend corpus (**1.1.2**) and both apps (generate or import at build time)
+- [x] **ai-guide-1.9.2** — **consumer-app** — `GuidePage.tsx` at `/s/:slug/guide` — TOC sidebar or section list, anchor scroll to `topicId`, reuse step list UI pattern from dashboard guide
+- [x] **ai-guide-1.9.3** — **consumer-app** — Entry points — Account tab **Help & guide** row; `ConsumerBookingAssistant` chip “Open guide”; optional link from **WelcomePage** (**adopt-3**)
+- [x] **ai-guide-1.9.4** — **consumer-app** — EN/HY/RU copy for all consumer `topicId`s — parity gate in **`consumer-guide.copy.spec.ts`**
+- [x] **ai-guide-1.9.5** — **consumer-app** — Deep link + in-app `navigate` handler — `topicId` query opens guide scrolled to section; wire **`ConsumerBookingAssistant`** `navigate.path === 'guide'`
+- [x] **ai-guide-1.9.6** — **consumer-app** — Clinic vertical — show/hide **consumer-clinic** section from business metadata (same rules as Results / Lab tabs)
+- [x] **ai-guide-1.9.7** — **provider-app** — `GuidePage.tsx` at `/tabs/profile/guide` — same TOC + anchor pattern; Ionic back to Profile
+- [x] **ai-guide-1.9.8** — **provider-app** — Entry points — Profile **Help & guide**; `ProviderAiAssistant` chip; footer on **AcceptInvitePage** (**5.21.1**)
+- [x] **ai-guide-1.9.9** — **provider-app** — Role-filtered TOC — hide **provider-team-manager** for non-managers; clinic sections from **`useProviderClinicNav`**
+- [x] **ai-guide-1.9.10** — **provider-app** — EN/HY/RU guide namespace in **`provider-app-i18n.ts`** + locale parity spec
+- [x] **ai-guide-1.9.11** — **provider-app** — `navigate.path === 'guide'` from **`ProviderAiAssistant`** + push/deep-link `…/guide?topicId=`
+- [x] **ai-guide-1.9.12** — Offline bundle — embed latest `guide-flows/customer` + `guide-flows/provider` in app assets; refresh on app version bump (**1.8.10** fallback when AI down)
+- [x] **ai-guide-1.9.13** — CI — extend **`test:ai-guide-corpus`** — every consumer route in **`App.tsx`** tab/booking paths and provider **`/tabs/*`** route has playbook section or `no-guide`; fail on drift
+- [x] **ai-guide-1.9.14** — Component tests — **`GuidePage.spec.tsx`** (both apps): TOC render, `topicId` scroll, vertical gating, manager filter
+- [x] **ai-guide-1.9.15** — “Ask about this section” — each guide section CTA seeds assistant with `topicId` pre-filled prompt (bridges static ↔ conversational guide)
 
-- [ ] **ai-guide-1.9** — Mark **1.9** `[x]` when both apps ship guide route, entry points, EN/HY/RU, offline bundle, and **1.9.13** corpus gate green
+- [x] **ai-guide-1.9** — Mark **1.9** `[x]` when both apps ship guide route, entry points, EN/HY/RU, offline bundle, and **1.9.13** corpus gate green
 
 ---
 
 ## ai-cmd-clinic-6-gap — Clinic ext-2.1–2.4 remaining DoD (dashboard)
 
-**Context:** **`ai-cmd-ext-2.1`–`2.4`** / **`ai-cmd-clinic-6`** shipped EN dashboard MVP — rescue, handlers, 44 EN eval cases, gate **`npm run test:ai-clinic-test-results`** (142 tests). **Not** fully closed under per-action DoD (**lines 124–129**), **parity-2.4**, **acc-2.4**, or **ai-cmd-ext-gap-7**.
+**Context:** **`ai-cmd-ext-2.1`–`2.4`** / **`ai-cmd-clinic-6`** — dashboard ext intents closed under **gap-1**–**4** DoD (**parity-2.4**, **acc-2.4** for ext subset). Gate: **`npm run test:ai-clinic-6-gap`** (390+ tests in **`test:ai-clinic-test-results`** + exit/locale/integration specs). **ai-cmd-ext-gap-7** per-row checklist for all 252 intents remains global — not required to close this epic.
 
 **Scope:** dashboard only — provider / customer / public out of scope for these four intents.
 
@@ -961,7 +961,7 @@ User question → normalize → isGuidePrompt? (heuristics)
 
 | Intent | Handler | Behavior |
 |--------|---------|----------|
-| `upload_patient_result` | `handleUploadPatientResultLogic` | Requires `orderId`; guides to lab UI (no file attach via AI) |
+| `upload_patient_result` | `handleUploadPatientResultLogic` | Requires `orderId`; deep-link handoff to lab UI (`navigate` + `uploadHandoff`); use **`enter_test_result`** for manual values |
 | `explain_patient_results` | `handleExplainPatientResultsLogic` | Released results; `customerName` / `orderId` scope |
 | `configure_test_reference_range` | `handleConfigureTestReferenceRangeLogic` | Requires `measurementCode`; guides to catalog UI |
 | `list_abnormal_results` | `handleListAbnormalResultsLogic` | Flagged measurements; optional customer scope |
@@ -974,52 +974,52 @@ User question → normalize → isGuidePrompt? (heuristics)
 
 > **enter_test_result** / **release_test_result** have **`ai-clinic-test-result-multilingual.fixtures.ts`** (**i18n-clinic-v2-ai-2**). Ext intents are EN-only.
 
-- [ ] **ai-cmd-clinic-6-gap-1.1** — **`ai-clinic-test-result-ext-multilingual.fixtures.ts`** — ≥4 HY + ≥4 RU prompts per intent (`upload_patient_result`, `explain_patient_results`, `configure_test_reference_range`, `list_abnormal_results`); Latin measurement codes inside hy/ru sentences (mirror **i18n-clinic-v2-ai-2**)
-- [ ] **ai-cmd-clinic-6-gap-1.2** — Extend **`CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES`** (or append ext block in **`ai-clinic-test-result-ext.util.ts`**) — hy/ru upload / explain / configure / abnormal-list verbs wired into dashboard **`INTENT_SCHEMA`** appendix
-- [ ] **ai-cmd-clinic-6-gap-1.3** — **`MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS`** → **`eval/ai-command-eval.cases.ts`** — HY/RU rows with `surface: 'dashboard'`, `locale: 'hy' | 'ru'`, expected `rescuedAction` + `paramsPartial`; refresh baseline (**acc-2.9**)
-- [ ] **ai-cmd-clinic-6-gap-1.4** — **`ai-clinic-test-result-ext-locale-parity.spec.ts`** — asserts every EN ext eval id has HY + RU equivalents (pattern: **`ai-provider-*-locale-parity.spec.ts`**)
-- [ ] **ai-cmd-clinic-6-gap-1.5** — Unit **`it.each`** over multilingual fixtures in **`ai-clinic-test-result-ext.util.spec.ts`** + **`ai-clinic-test-result-multilingual.util.spec.ts`** extension if shared helpers added
+- [x] **ai-cmd-clinic-6-gap-1.1** — **`ai-clinic-test-result-ext-multilingual.fixtures.ts`** — ≥4 HY + ≥4 RU prompts per intent (`upload_patient_result`, `explain_patient_results`, `configure_test_reference_range`, `list_abnormal_results`); Latin measurement codes inside hy/ru sentences (mirror **i18n-clinic-v2-ai-2**)
+- [x] **ai-cmd-clinic-6-gap-1.2** — Extend **`CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES`** (or append ext block in **`ai-clinic-test-result-ext.util.ts`**) — hy/ru upload / explain / configure / abnormal-list verbs wired into dashboard **`INTENT_SCHEMA`** appendix
+- [x] **ai-cmd-clinic-6-gap-1.3** — **`MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS`** → **`eval/ai-command-eval.cases.ts`** — HY/RU rows with `surface: 'dashboard'`, `locale: 'hy' | 'ru'`, expected `rescuedAction` + `paramsPartial`; refresh baseline (**acc-2.9**)
+- [x] **ai-cmd-clinic-6-gap-1.4** — **`ai-clinic-test-result-ext-locale-parity.spec.ts`** — asserts every EN ext eval id has HY + RU equivalents (pattern: **`ai-provider-*-locale-parity.spec.ts`**)
+- [x] **ai-cmd-clinic-6-gap-1.5** — Unit **`it.each`** over multilingual fixtures in **`ai-clinic-test-result-ext.util.spec.ts`** + **`ai-clinic-test-result-multilingual.util.spec.ts`** extension if shared helpers added
 
-- [ ] **ai-cmd-clinic-6-gap-2.1** — Add `surface: 'dashboard'` to all **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES`** (and base **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_*`** rows if missing)
-- [ ] **ai-cmd-clinic-6-gap-2.2** — Add expected access **`tier`** (`M` / `R`) per ext intent in eval cases (cross-ref **`access-control.matrix.ts`**)
-- [ ] **ai-cmd-clinic-6-gap-2.3** — Optional: classifier-without-rescue golden rows (misclassifiedAction omitted; assert direct `action` not only `rescuedAction`) for top EN/HY/RU prompts — extends **acc-2.6** ambiguity vs execution coverage
+- [x] **ai-cmd-clinic-6-gap-2.1** — Add `surface: 'dashboard'` to all **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES`** (and base **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_*`** rows if missing)
+- [x] **ai-cmd-clinic-6-gap-2.2** — Add expected access **`tier`** (`M` / `R`) per ext intent in eval cases (cross-ref **`access-control.matrix.ts`**)
+- [x] **ai-cmd-clinic-6-gap-2.3** — Optional: classifier-without-rescue golden rows (misclassifiedAction omitted; assert direct `action` not only `rescuedAction`) for top EN/HY/RU prompts — extends **acc-2.6** ambiguity vs execution coverage
 
 ### ai-cmd-clinic-6-gap-3 — Integration & dispatch depth — **feature-test-coverage**
 
 > Today **`ai-clinic-test-result.integration.spec.ts`** exercises **`AiIntentRescueService` only** — not Nest module → service → handler.
 
-- [ ] **ai-cmd-clinic-6-gap-3.1** — Nest **`Test.createTestingModule`** integration — **`AiClinicTestResultService`** → `handleUploadPatientResult` / `handleExplainPatientResults` / `handleConfigureTestReferenceRange` / `handleListAbnormalResults` with mocked repos (mirror depth of other domain `*.integration.spec.ts` where service is wired)
-- [ ] **ai-cmd-clinic-6-gap-3.2** — Dispatch smoke — `executeSingleIntent` `case` branches for ext intents return expected `CommandResult` shape (mock **`AiClinicTestResultService`** on **`AiCommandService`** or thin handler-coverage extension under **`test:ai-cmd-ext`**)
+- [x] **ai-cmd-clinic-6-gap-3.1** — Nest **`Test.createTestingModule`** integration — **`AiClinicTestResultService`** → `handleUploadPatientResult` / `handleExplainPatientResults` / `handleConfigureTestReferenceRange` / `handleListAbnormalResults` with mocked repos (mirror depth of other domain `*.integration.spec.ts` where service is wired)
+- [x] **ai-cmd-clinic-6-gap-3.2** — Dispatch smoke — `executeSingleIntent` `case` branches for ext intents return expected `CommandResult` shape (mock **`AiClinicTestResultService`** on **`AiCommandService`** or thin handler-coverage extension under **`test:ai-cmd-ext`**)
 
-- [ ] **ai-cmd-clinic-6-gap-4.1** — **`ai-capability.matrix.ts`** — explicit rows for **`upload_patient_result`**, **`explain_patient_results`**, **`configure_test_reference_range`**, **`list_abnormal_results`** (`surfaces: ['dashboard']`, `tier`, `mutating`, sprint **54**)
-- [ ] **ai-cmd-clinic-6-gap-4.2** — **`ai-command-entity-params.registry.ts`** + **`command-completion.validator.ts`** — required params per ext intent (`orderId`, `customerName`, `measurementCode`, `normalLow`/`normalHigh`, `limit`)
-- [ ] **ai-cmd-clinic-6-gap-4.3** — **`ai-capability.matrix.spec.ts`** — registry ↔ matrix parity for clinic test-result intent family (ext + enter/release)
+- [x] **ai-cmd-clinic-6-gap-4.1** — **`ai-capability.matrix.ts`** — explicit rows for **`upload_patient_result`**, **`explain_patient_results`**, **`configure_test_reference_range`**, **`list_abnormal_results`** (`surfaces: ['dashboard']`, `tier`, `mutating`, sprint **54**)
+- [x] **ai-cmd-clinic-6-gap-4.2** — **`ai-command-entity-params.registry.ts`** + **`command-completion.validator.ts`** — required params per ext intent (`orderId`, `customerName`, `measurementCode`, `normalLow`/`normalHigh`, `limit`)
+- [x] **ai-cmd-clinic-6-gap-4.3** — **`ai-capability.matrix.spec.ts`** — registry ↔ matrix parity for clinic test-result intent family (ext + enter/release)
 
 ### ai-cmd-clinic-6-gap-5 — Product mutations (out of AI scope until vert ships)
 
 > By design today: upload + configure are **UI handoffs**. Real mutations tracked under clinic vertical.
 
-- [ ] **ai-cmd-clinic-6-gap-5.1** — **`vert-clinic-2.1.6`** — reference range entities + admin CRUD on test types; then wire **`configure_test_reference_range`** handler to persist ranges (replace catalog UI-only summary)
-- [ ] **ai-cmd-clinic-6-gap-5.2** — File attach path — when lab UI supports API upload by `orderId`, extend **`handleUploadPatientResultLogic`** or return deep-link with pre-filled `orderId` (keep **`enter_test_result`** for manual values)
+- [x] **ai-cmd-clinic-6-gap-5.1** — **`vert-clinic-2.1.6`** — reference range entities + admin CRUD on test types; then wire **`configure_test_reference_range`** handler to persist ranges (replace catalog UI-only summary)
+- [x] **ai-cmd-clinic-6-gap-5.2** — File attach path — when lab UI supports API upload by `orderId`, extend **`handleUploadPatientResultLogic`** or return deep-link with pre-filled `orderId` (keep **`enter_test_result`** for manual values)
 
-- [ ] **ai-cmd-clinic-6-gap-6.1** — Extend **`decomposeClinicCompoundPrompt`** — e.g. `list_abnormal_results` → `explain_patient_results` for flagged patient; document in **`ai-cmd-ext-4.2`** `clinic_lab_day_close` or new **`clinic_lab_review`** recipe
-- [ ] **ai-cmd-clinic-6-gap-6.2** — Eval `compoundSteps` for clinic ext multi-step flows when recipes ship (**parity-3.2**)
+- [x] **ai-cmd-clinic-6-gap-6.1** — Extend **`decomposeClinicCompoundPrompt`** — e.g. `list_abnormal_results` → `explain_patient_results` for flagged patient; document in **`ai-cmd-ext-4.2`** `clinic_lab_day_close` or new **`clinic_lab_review`** recipe
+- [x] **ai-cmd-clinic-6-gap-6.2** — Eval `compoundSteps` for clinic ext multi-step flows when recipes ship (**parity-3.2**)
 
 ### Exit criteria (close **ai-cmd-clinic-6** fully + **ai-cmd-ext-gap-7** for ext-2.1–2.4)
 
 | Gate | Target |
 |------|--------|
-| **`npm run test:ai-clinic-test-results`** | green; ext util coverage thresholds maintained or raised |
-| **`npm run test:ai-accuracy`** | all new HY/RU ext cases in baseline; no per-intent regression |
+| **`npm run test:ai-clinic-6-gap`** | green — includes **`test:ai-clinic-test-results`** + exit/locale/integration specs |
+| **Ext eval subset (`acc-2.4`)** | 0 failures on **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_*`** (EN + HY/RU + classifier) |
 | **Locale parity spec** | 0 missing HY/RU pairs for ext EN eval ids |
 | **Integration** | rescue + Nest service paths covered |
 | **parity-2.4** | classifier rules + EN/HY/RU eval tagged `surface: dashboard` + `tier` |
 
-- [ ] **ai-cmd-clinic-6-gap** — Mark **`ai-cmd-clinic-6`** DoD-complete only when **gap-1**–**4** exit criteria green (gap-5/6 optional product/compound follow-ups)
+- [x] **ai-cmd-clinic-6-gap** — **`ai-cmd-clinic-6`** DoD-complete for **gap-1**–**4** (gate **`npm run test:ai-clinic-6-gap`**); gap-5/6 product/compound follow-ups also shipped
 
 ---
 
-## ai-cmd-ext-2.13 — Per-service online payment on public booking (partial — 2026-06)
+## ai-cmd-ext-2.13 — Per-service online payment on public booking (DoD-complete — 2026-06)
 
 **Intent:** `configure_service_online_payment` → `AiPaymentsService` / `ai-service-online-payment.*`  
 **Product:** Services page → “Accept online payment on public booking” (`prepaymentMode`: none | full | deposit; default 50% deposit when `depositAmount` null).  
@@ -1036,12 +1036,12 @@ User question → normalize → isGuidePrompt? (heuristics)
 - Decline online payment on public booking for Massage
 - Do not accept online payment for massage services
 
-- [ ] **ai-cmd-ext-2.13.2** — HY/RU locale parity — `ai-service-online-payment-multilingual.fixtures.ts` + eval rows (**parity-2.4**, **acc-2.4**)
-- [ ] **ai-cmd-ext-2.13.3** — `ai-capability.matrix.ts` explicit row (`surfaces: ['dashboard']`, tier `M`, sprint tag)
-- [ ] **ai-cmd-ext-2.13.4** — Dashboard page suggestions — add accept/decline online-payment examples to `AI_PAGE_SUGGESTIONS['/dashboard/services']` + localized i18n keys
-- [ ] **ai-cmd-ext-2.13.5** — Read companion **`explain_service_online_payment_setup`** — summarize which services have online payment + prepayment mode (Stripe Connect status); NOT `list_services` alone
-- [ ] **ai-cmd-ext-2.13.6** — **`npm run test:ai-service-online-payment`** gate script in `package.json` (util + logic + integration slice)
-- [ ] **ai-cmd-ext-gap-7** — Mark **ai-cmd-ext-2.13** DoD-complete when **2.13.2**–**2.13.6** green
+- [x] **ai-cmd-ext-2.13.2** — HY/RU locale parity — `ai-service-online-payment-multilingual.fixtures.ts` + eval rows (**parity-2.4**, **acc-2.4**)
+- [x] **ai-cmd-ext-2.13.3** — `ai-capability.matrix.ts` explicit row (`surfaces: ['dashboard']`, tier `M`, sprint tag)
+- [x] **ai-cmd-ext-2.13.4** — Dashboard page suggestions — add accept/decline online-payment examples to `AI_PAGE_SUGGESTIONS['/dashboard/services']` + localized i18n keys
+- [x] **ai-cmd-ext-2.13.5** — Read companion **`explain_service_online_payment_setup`** — summarize which services have online payment + prepayment mode (Stripe Connect status); NOT `list_services` alone
+- [x] **ai-cmd-ext-2.13.6** — **`npm run test:ai-service-online-payment`** gate script in `package.json` (util + logic + integration slice)
+- [x] **ai-cmd-ext-gap-7** — Mark **ai-cmd-ext-2.13** DoD-complete when **2.13.2**–**2.13.6** green
 
 ---
 
@@ -1055,17 +1055,17 @@ User question → normalize → isGuidePrompt? (heuristics)
 
 | ID | Intent (proposed) | M/R | Handler home | Product UI | Notes |
 |----|-------------------|-----|--------------|------------|-------|
-| **ai-cmd-ext-2.14** | `explain_service_online_payment_setup` | R | `AiPaymentsService` | Services + Billing | Which services require prepayment; Stripe Connect ready?; cash still allowed? |
+| **ai-cmd-ext-2.14** | `explain_service_online_payment_setup` | R | `AiPaymentsService` | Services + Billing | Which services require prepayment; Stripe Connect ready?; cash still allowed? **Shipped as 2.13.5** |
 | **ai-cmd-ext-2.15** | `configure_stripe_connect` | M | `AiMarketingGrowthService` or billing module | Settings → Billing | Deep-link + explain steps; optional “open Stripe onboarding” — NOT raw OAuth in AI |
 | **ai-cmd-ext-2.16** | `configure_checkout_defaults` | M | `AiPaymentsService` | Settings self-service + Services | Compound-friendly: cash at venue + default online prepayment policy for new services |
 | **ai-cmd-ext-2.17** | `update_service_duration_buffer` | M | `AiCatalogService` / operations | Services form | Bulk: “Set all massage services to 60 minutes with 15 min buffer” |
 | **ai-cmd-ext-2.18** | `configure_service_deposit_policy` | M | `AiPaymentsService` | Services | Alias/extension if split from **2.13**: fixed $ deposit vs % only (already partial in **2.13**) |
 
-- [ ] **ai-cmd-ext-2.14** — `explain_service_online_payment_setup`
-- [ ] **ai-cmd-ext-2.15** — `configure_stripe_connect`
-- [ ] **ai-cmd-ext-2.16** — `configure_checkout_defaults`
-- [ ] **ai-cmd-ext-2.17** — `update_service_duration_buffer`
-- [ ] **ai-cmd-ext-2.18** — `configure_service_deposit_policy` (close any **2.13** gaps: tier metadata, featured services)
+- [x] **ai-cmd-ext-2.14** — `explain_service_online_payment_setup` (**duplicate of 2.13.5** — `ai-service-online-payment-setup.*`, gate **`npm run test:ai-service-online-payment`**)
+- [x] **ai-cmd-ext-2.15** — `configure_stripe_connect` — `ai-stripe-connect.*`, deep-link `/dashboard/billing`, optional `onboardingUrl` via `startConnect`
+- [x] **ai-cmd-ext-2.16** — `configure_checkout_defaults` — `ai-checkout-defaults.*`, business `publicBooking` defaults for cash + new-service prepayment
+- [x] **ai-cmd-ext-2.17** — `update_service_duration_buffer` — `ai-service-duration-buffer.*`, bulk duration/buffer on Services catalog
+- [x] **ai-cmd-ext-2.18** — `configure_service_deposit_policy` (close any **2.13** gaps: tier metadata, featured services)
 
 ### P1 — Settings, notifications, growth (Settings / Integrations / Growth tabs)
 
@@ -1079,13 +1079,13 @@ User question → normalize → isGuidePrompt? (heuristics)
 | **ai-cmd-ext-2.24** | `create_promo_code` | M | `AiMarketingGrowthService` | Marketing / promo admin | Admin CRUD — disjoint from customer `promo_code_help` |
 | **ai-cmd-ext-2.25** | `configure_loyalty_settings` | M | `AiMarketingGrowthService` | Loyalty settings | Points rules, earn/redeem toggles — extend **`summarize_loyalty_program`** (read) |
 
-- [ ] **ai-cmd-ext-2.19** — `configure_notification_settings`
-- [ ] **ai-cmd-ext-2.20** — `configure_whatsapp_integration`
-- [ ] **ai-cmd-ext-2.21** — `configure_openai_integration`
-- [ ] **ai-cmd-ext-2.22** — `explain_tenant_app_install`
-- [ ] **ai-cmd-ext-2.23** — `regenerate_tenant_app_install_qr`
-- [ ] **ai-cmd-ext-2.24** — `create_promo_code`
-- [ ] **ai-cmd-ext-2.25** — `configure_loyalty_settings`
+- [x] **ai-cmd-ext-2.19** — `configure_notification_settings`
+- [x] **ai-cmd-ext-2.20** — `configure_whatsapp_integration`
+- [x] **ai-cmd-ext-2.21** — `configure_openai_integration`
+- [x] **ai-cmd-ext-2.22** — `explain_tenant_app_install`
+- [x] **ai-cmd-ext-2.23** — `regenerate_tenant_app_install_qr`
+- [x] **ai-cmd-ext-2.24** — `create_promo_code`
+- [x] **ai-cmd-ext-2.25** — `configure_loyalty_settings`
 
 ### P1 — Catalog & packages (Services tab extensions)
 
@@ -1096,10 +1096,10 @@ User question → normalize → isGuidePrompt? (heuristics)
 | **ai-cmd-ext-2.28** | `configure_package_online_payment` | M | `AiCatalogService` | Packages tab | Package-level prepayment if product adds it; else document out of scope |
 | **ai-cmd-ext-2.29** | `explain_multi_service_settings` | R | `AiScheduleResourcesService` | Multi-service tab | Explain limits + scheduling mode — pairs with existing **`configure_multi_service_*`** |
 
-- [ ] **ai-cmd-ext-2.26** — `configure_service_featured`
-- [ ] **ai-cmd-ext-2.27** — `bulk_assign_services_category`
-- [ ] **ai-cmd-ext-2.28** — `configure_package_online_payment` (product-dependent)
-- [ ] **ai-cmd-ext-2.29** — `explain_multi_service_settings`
+- [x] **ai-cmd-ext-2.26** — `configure_service_featured`
+- [x] **ai-cmd-ext-2.27** — `bulk_assign_services_category`
+- [x] **ai-cmd-ext-2.28** — `configure_package_online_payment` (product-dependent)
+- [x] **ai-cmd-ext-2.29** — `explain_multi_service_settings`
 
 ### P2 — Read-only “explain setup” helpers (reduce support load)
 
@@ -1109,9 +1109,9 @@ User question → normalize → isGuidePrompt? (heuristics)
 | **ai-cmd-ext-2.31** | `explain_integration_health` | R | `AiIntegrationsService` | Extend **`list_integration_health`** with NL “is WhatsApp connected?” |
 | **ai-cmd-ext-2.32** | `audit_services_missing_online_payment` | R | `AiPaymentsService` | “Which services still don't accept online payment?” |
 
-- [ ] **ai-cmd-ext-2.30** — `explain_public_booking_checkout`
-- [ ] **ai-cmd-ext-2.31** — `explain_integration_health`
-- [ ] **ai-cmd-ext-2.32** — `audit_services_missing_online_payment`
+- [x] **ai-cmd-ext-2.30** — `explain_public_booking_checkout`
+- [x] **ai-cmd-ext-2.31** — `explain_integration_health`
+- [x] **ai-cmd-ext-2.32** — `audit_services_missing_online_payment`
 
 ---
 
@@ -1127,11 +1127,11 @@ Multi-step recipes in `buildCompoundCommandRecipes()` + `intent-decomposition.ut
 | **ai-cmd-ext-4.8** | `onboard_salon_notifications` | `configure_notification_settings` → `configure_whatsapp_integration` → `test_push` | **P2** |
 | **ai-cmd-ext-4.9** | `launch_consumer_app_growth` | `explain_tenant_app_install` → `regenerate_tenant_app_install_qr` → `configure_marketing_registration_email` | **P2** |
 
-- [ ] **ai-cmd-ext-4.5** — `setup_salon_checkout`
-- [ ] **ai-cmd-ext-4.6** — `configure_services_payment_matrix`
-- [ ] **ai-cmd-ext-4.7** — `decline_online_payment_category` (accept/decline split in one message)
-- [ ] **ai-cmd-ext-4.8** — `onboard_salon_notifications`
-- [ ] **ai-cmd-ext-4.9** — `launch_consumer_app_growth`
+- [x] **ai-cmd-ext-4.5** — `setup_salon_checkout`
+- [x] **ai-cmd-ext-4.6** — `configure_services_payment_matrix`
+- [x] **ai-cmd-ext-4.7** — `decline_online_payment_category` (accept/decline split in one message)
+- [x] **ai-cmd-ext-4.8** — `onboard_salon_notifications`
+- [x] **ai-cmd-ext-4.9** — `launch_consumer_app_growth`
 
 ---
 
@@ -1148,12 +1148,12 @@ Extend **`ai-cmd-ext-1`** pattern — no new verb; enrich params + rescue on exi
 | **ai-cmd-ext-5.5** | `deactivate_service` | `categoryName`, `allInCategory` | catalog | “Deactivate all dental services” |
 | **ai-cmd-ext-5.6** | `configure_cash_payments` | document pairing with **2.13** in classifier | payments | “Enable cash and decline online payment for all services” → compound **4.7** |
 
-- [ ] **ai-cmd-ext-5.1** — `list_services` payment filters
-- [ ] **ai-cmd-ext-5.2** — `create_service` prepayment on create
-- [ ] **ai-cmd-ext-5.3** — `create_services` bulk prepayment
-- [ ] **ai-cmd-ext-5.4** — `update_service_prices` scoped by online payment
-- [ ] **ai-cmd-ext-5.5** — `deactivate_service` category scope
-- [ ] **ai-cmd-ext-5.6** — cash + online compound classifier disambiguation
+- [x] **ai-cmd-ext-5.1** — `list_services` payment filters
+- [x] **ai-cmd-ext-5.2** — `create_service` prepayment on create
+- [x] **ai-cmd-ext-5.3** — `create_services` bulk prepayment
+- [x] **ai-cmd-ext-5.4** — `update_service_prices` scoped by online payment
+- [x] **ai-cmd-ext-5.5** — `deactivate_service` category scope
+- [x] **ai-cmd-ext-5.6** — cash + online compound classifier disambiguation
 
 ---
 
@@ -1161,10 +1161,10 @@ Extend **`ai-cmd-ext-1`** pattern — no new verb; enrich params + rescue on exi
 
 Unblocks adding **2.14+** without growing `ai-command.service.ts` further (~11k LOC today).
 
-- [ ] **ai-cmd-ext-6.1** — Extract payment/catalog/settings handlers from `AiCommandService` switch → `AiDashboardCoreService` / domain services (**extends ai-cmd-ext-0.4**)
-- [ ] **ai-cmd-ext-6.2** — Registry-driven dispatch map (`Map<intent, handlerFn>`) for all `handler: 'AiPaymentsService'` intents first (**extends ai-cmd-ext-0.5**)
-- [ ] **ai-cmd-ext-6.3** — Split `INTENT_SCHEMA` appendix into domain imports only (no inline prose) — one `*_CLASSIFIER_RULES` import per domain file
-- [ ] **ai-cmd-ext-6.4** — `test:ai-cmd-ext` coverage report: list registry intents missing ≥10 NL fixtures (**ai-cmd-ext-gap-5** automation)
+- [x] **ai-cmd-ext-6.1** — Extract payment/catalog/settings handlers from `AiCommandService` switch → `AiDashboardCoreService` / domain services (**extends ai-cmd-ext-0.4**)
+- [x] **ai-cmd-ext-6.2** — Registry-driven dispatch map (`Map<intent, handlerFn>`) for all `handler: 'AiPaymentsService'` intents first (**extends ai-cmd-ext-0.5**)
+- [x] **ai-cmd-ext-6.3** — Split `INTENT_SCHEMA` appendix into domain imports only (no inline prose) — one `*_CLASSIFIER_RULES` import per domain file
+- [x] **ai-cmd-ext-6.4** — `test:ai-cmd-ext` coverage report: list registry intents missing ≥10 NL fixtures (**ai-cmd-ext-gap-5** automation)
 
 ---
 
@@ -1174,13 +1174,16 @@ Only when the configured setting affects public booking or consumer app UX:
 
 | Dashboard intent | Customer/public read-only counterpart | Status |
 |------------------|---------------------------------------|--------|
-| `configure_service_online_payment` | `explain_why_stripe_required`, `explain_checkout_total` (existing) | Partial — add “why prepayment?” copy |
-| `configure_cash_payments` | `pay_cash_at_visit`, `choose_payment_method` (existing) | OK |
-| `configure_notification_settings` | `explain_my_notifications` (customer) | Gap |
-| `explain_tenant_app_install` | `how_to_download_app` (customer) | Link copy alignment |
+| `configure_service_online_payment` | `explain_why_stripe_required`, `explain_checkout_total` (existing) | **Shipped** — per-service prepayment copy on customer + public (**ai-cmd-ext-7.1**); public catalog-context “Do I pay online for this service?” (**ai-cmd-ext-7.2**) |
+| `configure_cash_payments` | `pay_cash_at_visit`, `choose_payment_method` (existing) | **Shipped** — cash-at-venue copy on customer + public (**ai-cmd-ext-7.3**) |
+| `configure_notification_settings` | `explain_my_notifications` (customer) | **Shipped** — salon channel/reminder copy grounded in business settings (**ai-cmd-ext-7.4**) |
+| `explain_tenant_app_install` | `how_to_download_app` (customer) | **Shipped** — `/get-app/[slug]` link copy aligned with Growth QR (**ai-cmd-ext-7.5**) |
 
-- [ ] **ai-cmd-ext-7.1** — Customer/public read prompts when prepayment enabled/disabled (no mutate on those surfaces)
-- [ ] **ai-cmd-ext-7.2** — Public booking assistant: “Do I pay online for this service?” → explain service `prepaymentMode` from catalog context
+- [x] **ai-cmd-ext-7.1** — Customer/public read prompts when prepayment enabled/disabled (no mutate on those surfaces)
+- [x] **ai-cmd-ext-7.3** — Customer/public checkout cash options when `configure_cash_payments` toggles pay-at-venue
+- [x] **ai-cmd-ext-7.4** — Customer `explain_my_notifications` copy aligned with salon `configure_notification_settings`
+- [x] **ai-cmd-ext-7.5** — Customer `how_to_download_app` copy aligned with salon `/get-app/[slug]` Growth QR
+- [x] **ai-cmd-ext-7.2** — Public booking assistant: “Do I pay online for this service?” → explain service `prepaymentMode` from catalog context
 
 ---
 
@@ -1226,25 +1229,25 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 
 | Priority | Intent | Why it helps customers | Surfaces |
 |----------|--------|------------------------|----------|
-| **P0** | `cancel_my_booking` | Self-serve cancel without calling salon | customer |
-| **P0** | `reschedule_my_booking` | Move visit without staff | customer |
-| **P0** | `pay_online` | Finish Stripe after slot pick | customer (+ public handoff) |
-| **P0** | `explain_why_stripe_required` | “Why must I pay now?” | customer + public |
-| **P1** | `book_multi_service` / `check_multi_service_availability` | Spa day / multiple treatments | customer + public |
-| **P1** | `use_subscription_credit` / `my_subscriptions` | Membership visits | customer |
-| **P1** | `promo_code_help` | Checkout discount confusion | customer + public |
-| **P1** | `loyalty_points_balance` | “How many points do I have?” | customer |
-| **P2** | `privacy_export` / `privacy_delete` | GDPR self-service | customer |
-| **P2** | `request_gift_card_cancel` | Post-purchase buyer regret | customer |
-| **P2** | `cancel_package_visit` / `reschedule_package_visit` | Bundle visit self-serve | customer |
-| **P2** | `list_my_package_visits` | “Visits left on my package” | customer |
-| **P3** | `explain_tour_*` / `diagnose_tour_capacity` | Tour pax + day-slot UX | customer + public |
-| **P3** | `explain_checkout_recommendations` | Product upsell on success | customer + public |
-| **P3** | `refer_a_friend` / `share_salon_link` | Growth loops | customer |
+| **P0** | `cancel_my_booking` | Self-serve cancel without calling salon | customer | **Shipped** — ai-cmd-customer-4.4.2 |
+| **P0** | `reschedule_my_booking` | Move visit without staff | customer | **Shipped** — ai-cmd-customer-4.4.3 |
+| **P0** | `pay_online` | Finish Stripe after slot pick | customer (+ public handoff) | **Shipped** — ai-cmd-customer-4.2.4 |
+| **P0** | `explain_why_stripe_required` | “Why must I pay now?” | customer + public | **Shipped** — ai-cmd-ext-7.1 + ai-cmd-customer-4.0 P0 |
+| **P1** | `book_multi_service` / `check_multi_service_availability` | Spa day / multiple treatments | customer + public | **Shipped** — ai-cmd-customer-4.0 P1 |
+| **P1** | `use_subscription_credit` / `my_subscriptions` | Membership visits | customer | **Shipped** — ai-cmd-customer-4.0 P1 |
+| **P1** | `promo_code_help` | Checkout discount confusion | customer + public | **Shipped** — ai-cmd-customer-4.0 P1 |
+| **P1** | `loyalty_points_balance` | “How many points do I have?” | customer | **Shipped** — ai-cmd-customer-4.0 P1 |
+| **P2** | `privacy_export` / `privacy_delete` | GDPR self-service | customer | **Shipped** — ai-cmd-customer-4.0 P2 |
+| **P2** | `request_gift_card_cancel` | Post-purchase buyer regret | customer | **Shipped** — ai-cmd-customer-4.0 P2 |
+| **P2** | `cancel_package_visit` / `reschedule_package_visit` | Bundle visit self-serve | customer | **Shipped** — ai-cmd-customer-4.0 P2 (`cancel_package_visit_self` / `reschedule_package_visit_self`) |
+| **P2** | `list_my_package_visits` | “Visits left on my package” | customer | **Shipped** — ai-cmd-customer-4.0 P2 |
+| **P3** | `explain_tour_*` / `diagnose_tour_capacity` | Tour pax + day-slot UX | customer + public | **Shipped** — ai-cmd-customer-4.0 P3 |
+| **P3** | `explain_checkout_recommendations` | Product upsell on success | customer + public | **Shipped** — ai-cmd-customer-4.0 P3 |
+| **P3** | `refer_a_friend` / `share_salon_link` | Growth loops | customer | **Shipped** — ai-cmd-customer-4.0 P3 |
 
-- [ ] **ai-cmd-customer-4.0.1** — Audit **`CUSTOMER_INTENT_COVERAGE_DEFERRED`** → prioritize P0 table above
-- [ ] **ai-cmd-customer-4.0.2** — For each promoted intent: ≥10 EN + HY/RU fixtures, rescue, eval `surface: customer|public`, integration spec row
-- [ ] **ai-cmd-customer-4.0.3** — Extend **`npm run test:ai-customer-intent-coverage`** gate as intents graduate from deferred
+- [x] **ai-cmd-customer-4.0.1** — Audit **`CUSTOMER_INTENT_COVERAGE_DEFERRED`** → prioritize P0 table above
+- [x] **ai-cmd-customer-4.0.2** — For each promoted intent: ≥10 EN + HY/RU fixtures, rescue, eval `surface: customer|public`, integration spec row
+- [x] **ai-cmd-customer-4.0.3** — Extend **`npm run test:ai-customer-intent-coverage`** gate as intents graduate from deferred
 
 ---
 
@@ -1260,13 +1263,13 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.1.6** | `explain_provider_specialty` | R | both | “Who is best for curly hair?”, “Tell me about Anna” | Extend **`recommend_specialists`** / provider profile |
 | **4.1.7** | `filter_services_no_prepayment` | R | both | “What can I book without paying online?” | **`list_services`** + filter `prepaymentMode=none` (**ai-cmd-ext-5.1**) |
 
-- [ ] **ai-cmd-customer-4.1.1** — `explain_service_price`
-- [ ] **ai-cmd-customer-4.1.2** — `explain_payment_options_for_service`
-- [ ] **ai-cmd-customer-4.1.3** — `find_soonest_appointment`
-- [ ] **ai-cmd-customer-4.1.4** — `compare_services`
-- [ ] **ai-cmd-customer-4.1.5** — `explain_business_hours_and_location`
-- [ ] **ai-cmd-customer-4.1.6** — `explain_provider_specialty`
-- [ ] **ai-cmd-customer-4.1.7** — `filter_services_no_prepayment`
+- [x] **ai-cmd-customer-4.1.1** — `explain_service_price`
+- [x] **ai-cmd-customer-4.1.2** — `explain_payment_options_for_service`
+- [x] **ai-cmd-customer-4.1.3** — `find_soonest_appointment`
+- [x] **ai-cmd-customer-4.1.4** — `compare_services`
+- [x] **ai-cmd-customer-4.1.5** — `explain_business_hours_and_location`
+- [x] **ai-cmd-customer-4.1.6** — `explain_provider_specialty`
+- [x] **ai-cmd-customer-4.1.7** — `filter_services_no_prepayment`
 
 ---
 
@@ -1282,10 +1285,10 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.2.6** | `explain_checkout_steps` | R | both | “Walk me through booking”, “What happens after I pick a time?” | Extend **`booking_help`** with step list |
 | **4.2.7** | `fix_checkout_validation_error` | R | both | “It says enter email but I filled it in” | Explain guest/profile merge; link to field hints |
 
-- [ ] **ai-cmd-customer-4.2.1** — `explain_amount_due_now`
-- [ ] **ai-cmd-customer-4.2.2** — `explain_guest_checkout_fields`
-- [ ] **ai-cmd-customer-4.2.3** — `resume_pending_payment`
-- [ ] **ai-cmd-customer-4.2.4** — Harden **`choose_payment_method`** + **`pay_online`** deferred promotion
+- [x] **ai-cmd-customer-4.2.1** — `explain_amount_due_now`
+- [x] **ai-cmd-customer-4.2.2** — `explain_guest_checkout_fields`
+- [x] **ai-cmd-customer-4.2.3** — `resume_pending_payment`
+- [x] **ai-cmd-customer-4.2.4** — Harden **`choose_payment_method`** + **`pay_online`** deferred promotion
 - [ ] **ai-cmd-customer-4.2.5** — `apply_promo_code_checkout`
 - [x] **ai-cmd-customer-4.2.6** — `explain_checkout_steps`
 - [ ] **ai-cmd-customer-4.2.7** — `fix_checkout_validation_error`
@@ -1328,8 +1331,8 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.4.8** | `rebook_last_appointment` | R | customer | “Book the same as last time” | **Shipped** in adoption — wire navigate + eval |
 
 - [ ] **ai-cmd-customer-4.4.1** — `list_my_upcoming_appointments`
-- [ ] **ai-cmd-customer-4.4.2** — `cancel_my_booking` (full DoD)
-- [ ] **ai-cmd-customer-4.4.3** — `reschedule_my_booking` (full DoD)
+- [x] **ai-cmd-customer-4.4.2** — `cancel_my_booking` (full DoD)
+- [x] **ai-cmd-customer-4.4.3** — `reschedule_my_booking` (full DoD)
 - [ ] **ai-cmd-customer-4.4.4** — Enrich **`explain_cancel_policy`** (deposit forfeiture)
 - [ ] **ai-cmd-customer-4.4.5** — Guest **`get_manage_link`** via email/phone lookup
 - [ ] **ai-cmd-customer-4.4.6** — `notify_running_late` (product-dependent)
@@ -1450,9 +1453,9 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.10.5** | `book_tour_nearest_departure` | M | both | “Book the wine tour earliest date for 2 people” | Compound tour catalog → pax → slot |
 | **4.10.6** | `explain_tour_meeting_point` | R | both | “Where do we meet?”, “What time should I arrive?” | Extend **`explain_preparation_notes`** for tours |
 
-- [ ] **ai-cmd-customer-4.10.1** — HY/RU eval for **`explain_tour_booking`**
-- [ ] **ai-cmd-customer-4.10.2** — HY/RU eval for **`explain_tour_day_slots`**
-- [ ] **ai-cmd-customer-4.10.3** — Checkout error copy for **`diagnose_tour_capacity`**
+- [x] **ai-cmd-customer-4.10.1** — HY/RU eval for **`explain_tour_booking`**
+- [x] **ai-cmd-customer-4.10.2** — HY/RU eval for **`explain_tour_day_slots`**
+- [x] **ai-cmd-customer-4.10.3** — Checkout error copy for **`diagnose_tour_capacity`**
 - [ ] **ai-cmd-customer-4.10.4** — Full DoD for **`explain_tour_booking_record`**
 - [ ] **ai-cmd-customer-4.10.5** — `book_tour_nearest_departure` compound
 - [ ] **ai-cmd-customer-4.10.6** — `explain_tour_meeting_point`
@@ -1541,12 +1544,12 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 
 | ID | Intent (proposed) | R/M | Surfaces | Example prompts | Notes |
 |----|-------------------|-----|----------|-----------------|-------|
-| **4.15.1** | `list_my_package_visits` | R | customer | “How many package visits left?”, “When is my next facial in the bundle?” | **`ConsumerPackageVisitActions`** / grouped account cards |
+| **4.15.1** | `list_my_package_visits` | R | customer | “How many package visits left?”, “When is my next facial in the bundle?” | **`ConsumerPackageVisitActions`** / grouped account cards | **Shipped** — ai-cmd-customer-4.0 P2 |
 | **4.15.2** | `cancel_package_visit` | M | customer | “Cancel visit 2 of my package”, “Skip next package appointment” | Distinct from **`cancel_my_booking`** (single booking) |
 | **4.15.3** | `reschedule_package_visit` | M | customer | “Move package visit 3 to next week” | **`reschedulePackageVisit*`** |
 | **4.15.4** | `explain_package_visit_rules` | R | customer | “Can I cancel one visit and keep the package?”, “Do unused visits expire?” | Package T&C from catalog |
 
-- [ ] **ai-cmd-customer-4.15.1** — `list_my_package_visits` full DoD
+- [x] **ai-cmd-customer-4.15.1** — `list_my_package_visits` full DoD
 - [ ] **ai-cmd-customer-4.15.2** — `cancel_package_visit` / **`cancel_package_visit_self`**
 - [ ] **ai-cmd-customer-4.15.3** — `reschedule_package_visit` / **`reschedule_package_visit_self`**
 - [ ] **ai-cmd-customer-4.15.4** — `explain_package_visit_rules`
@@ -1562,7 +1565,7 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.16.3** | `explain_subscription_vs_one_time` | R | both | “Subscribe and save vs one visit?”, “Which plan includes massage?” | **`checkoutUseSubscription`** / plan picker |
 | **4.16.4** | `buy_gift_card_for_someone` | M | customer | “Buy a $100 gift card for my mom”, “Email a digital gift card” | **`GiftCardCatalogPage`** → checkout |
 
-- [ ] **ai-cmd-customer-4.16.1** — HY/RU for **`explain_checkout_recommendations`**
+- [x] **ai-cmd-customer-4.16.1** — HY/RU for **`explain_checkout_recommendations`**
 - [ ] **ai-cmd-customer-4.16.2** — `dismiss_recommendations` (mutate navigate)
 - [ ] **ai-cmd-customer-4.16.3** — `explain_subscription_vs_one_time`
 - [ ] **ai-cmd-customer-4.16.4** — `buy_gift_card_for_someone`
@@ -1760,7 +1763,7 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | API | Status | Intent(s) | Gap / action |
 |-----|--------|-----------|--------------|
 | `GET …/me/bookings` | ✅ | `list_my_appointments`, `my_appointments` | — |
-| `POST …/me/bookings/:id/cancel` | 🟡 | `cancel_my_booking` | Promote **4.0 P0** |
+| `POST …/me/bookings/:id/cancel` | 🟡 | `cancel_my_booking` | **Shipped** — customer self-serve cancel (**ai-cmd-customer-4.4.2**) |
 | `POST …/me/bookings/:id/reschedule` | 🟡 | `reschedule_my_booking`, `change_provider_on_reschedule` | Promote **4.0 P0** |
 | `POST …/me/bookings/:id/package/cancel` | 🟡 | `cancel_package_visit_self` | Promote **4.0 P2** |
 | `POST …/me/bookings/:id/package/reschedule` | 🟡 | `reschedule_package_visit_self` | **`reschedule_package_lines`** multi-line body **🟡** |
@@ -3007,8 +3010,8 @@ Same as **ai-cmd-customer-6.0**: ✅ Covered · 🟡 Partial · 🔴 Gap · ⚪ 
 
 - [ ] **ai-cmd-dashboard-6.4.1** — `delete_service` → `DELETE …/services/:id`
 - [ ] **ai-cmd-dashboard-6.4.2** — `delete_service_category`, `update_service_category` → category CRUD
-- [ ] **ai-cmd-dashboard-6.4.3** — **`bulk_assign_services_category`** **2.27** → move many services under category (AI bulk, repeated PUT or new service API)
-- [ ] **ai-cmd-dashboard-6.4.4** — `configure_service_featured` **2.26** → featured flag on services
+- [x] **ai-cmd-dashboard-6.4.3** — **`bulk_assign_services_category`** **2.27** → move many services under category (AI bulk, repeated PUT or new service API)
+- [x] **ai-cmd-dashboard-6.4.4** — `configure_service_featured` **2.26** → featured flag on services
 
 ---
 

@@ -27,11 +27,18 @@ import {
   LIST_ABNORMAL_RESULTS_PROMPTS,
   UPLOAD_PATIENT_RESULT_PROMPTS,
 } from '../ai-clinic-test-result-ext.fixtures.js';
+import { buildClinicTestResultExtEvalExpectation } from '../ai-clinic-test-result-ext.eval.util.js';
+export { AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES } from '../ai-clinic-test-result-ext.eval.util.js';
+import { AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES } from '../ai-clinic-test-result-ext.eval.util.js';
 import { EXPLAIN_PATIENT_CHART_PROMPTS } from '../ai-clinic-patient-chart.fixtures.js';
 import {
   MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS,
   type ClinicTestResultEvalScenario,
 } from '../ai-clinic-test-result-multilingual.fixtures.js';
+import {
+  MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS,
+  type ClinicTestResultExtEvalScenario,
+} from '../ai-clinic-test-result-ext-multilingual.fixtures.js';
 import { AI_COMMAND_EVAL_PRODUCT_GUIDE_CASES } from '../ai-product-guide.eval.util.js';
 import {
   MULTILINGUAL_CLINIC_PATIENT_CHART_EVAL_SCENARIOS,
@@ -91,9 +98,58 @@ import { ALL_DASHBOARD_OPS_SCENARIOS } from '../ai-dashboard-ops.fixtures.js';
 import { STAFF_OPERATIONS_PROMPT_FIXTURES } from '../ai-staff-operations.fixtures.js';
 import { SERVICE_ONLINE_PAYMENT_PROMPTS } from '../ai-service-online-payment.fixtures.js';
 import {
+  EXPLAIN_SERVICE_ONLINE_PAYMENT_SETUP_PROMPTS,
+  EXPLAIN_SERVICE_ONLINE_PAYMENT_SETUP_INTENT,
+} from '../ai-service-online-payment-setup.fixtures.js';
+import {
+  AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_MULTILINGUAL_CASES,
+} from '../ai-service-online-payment-multilingual.eval.util.js';
+import {
   AI_COMMAND_EVAL_STAFF_OPERATIONS_MULTILINGUAL_CASES,
 } from '../ai-staff-operations-multilingual.eval.util.js';
 import { BILLING_LOYALTY_DASHBOARD_PROMPT_FIXTURES } from '../ai-billing-loyalty-dashboard.fixtures.js';
+import { CONFIGURE_STRIPE_CONNECT_PROMPTS } from '../ai-stripe-connect.fixtures.js';
+import { CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS } from '../ai-checkout-defaults.fixtures.js';
+import { CONFIGURE_SERVICE_DEPOSIT_POLICY_PROMPTS } from '../ai-service-deposit-policy.fixtures.js';
+import { CONFIGURE_SERVICE_FEATURED_PROMPTS } from '../ai-configure-service-featured.fixtures.js';
+import { BULK_ASSIGN_SERVICES_CATEGORY_PROMPTS } from '../ai-bulk-assign-services-category.fixtures.js';
+import { CONFIGURE_PACKAGE_ONLINE_PAYMENT_PROMPTS } from '../ai-configure-package-online-payment.fixtures.js';
+import { EXPLAIN_MULTI_SERVICE_SETTINGS_PROMPTS } from '../ai-explain-multi-service-settings.fixtures.js';
+import {
+  EXPLAIN_PUBLIC_BOOKING_CHECKOUT_INTENT,
+  EXPLAIN_PUBLIC_BOOKING_CHECKOUT_PROMPTS,
+} from '../ai-explain-public-booking-checkout.fixtures.js';
+import {
+  AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_INTENT,
+  AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_PROMPTS,
+} from '../ai-audit-services-missing-online-payment.fixtures.js';
+import {
+  LIST_SERVICES_PAYMENT_FILTER_PROMPTS,
+} from '../ai-list-services-payment-filters.fixtures.js';
+import {
+  CREATE_SERVICE_PREPAYMENT_PROMPTS,
+} from '../ai-create-service-prepayment.fixtures.js';
+import {
+  CREATE_SERVICES_PREPAYMENT_PROMPTS,
+} from '../ai-create-services-prepayment.fixtures.js';
+import {
+  UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS,
+} from '../ai-update-service-prices-online-payment-filter.fixtures.js';
+import {
+  DEACTIVATE_SERVICE_CATEGORY_SCOPE_PROMPTS,
+} from '../ai-deactivate-service-category-scope.fixtures.js';
+import { CONFIGURE_NOTIFICATION_SETTINGS_PROMPTS } from '../ai-notification-settings.fixtures.js';
+import { CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS } from '../ai-whatsapp-integration.fixtures.js';
+import { CONFIGURE_OPENAI_INTEGRATION_PROMPTS } from '../ai-openai-integration.fixtures.js';
+import {
+  EXPLAIN_INTEGRATION_HEALTH_INTENT,
+  EXPLAIN_INTEGRATION_HEALTH_PROMPTS,
+} from '../ai-explain-integration-health.fixtures.js';
+import { EXPLAIN_TENANT_APP_INSTALL_PROMPTS } from '../ai-tenant-app-install.fixtures.js';
+import { REGENERATE_TENANT_APP_INSTALL_QR_PROMPTS } from '../ai-tenant-app-install.fixtures.js';
+import { CREATE_PROMO_CODE_PROMPTS } from '../ai-create-promo-code.fixtures.js';
+import { CONFIGURE_LOYALTY_SETTINGS_PROMPTS } from '../ai-configure-loyalty-settings.fixtures.js';
+import { UPDATE_SERVICE_DURATION_BUFFER_PROMPTS } from '../ai-service-duration-buffer.fixtures.js';
 import {
   AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_MULTILINGUAL_CASES,
 } from '../ai-billing-loyalty-dashboard-multilingual.eval.util.js';
@@ -103,12 +159,40 @@ import {
 } from '../ai-waitlist-dashboard-multilingual.eval.util.js';
 import { PROVIDER_ONBOARDING_COMPOUND_PROMPTS } from '../ai-provider-onboarding-compound.fixtures.js';
 import {
+  SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS,
+  SETUP_SALON_CHECKOUT_RESCUE_SCENARIOS,
+} from '../ai-setup-salon-checkout-compound.fixtures.js';
+import {
+  CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS,
+  CONFIGURE_SERVICES_PAYMENT_MATRIX_RESCUE_SCENARIOS,
+} from '../ai-configure-services-payment-matrix-compound.fixtures.js';
+import {
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS,
+  CASH_AND_ONLINE_PAYMENT_RESCUE_SCENARIOS,
+} from '../ai-cash-online-payment-compound.fixtures.js';
+import {
+  DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS,
+  DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_SCENARIOS,
+} from '../ai-decline-online-payment-category-compound.fixtures.js';
+import {
+  ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS,
+  ONBOARD_SALON_NOTIFICATIONS_RESCUE_SCENARIOS,
+} from '../ai-onboard-salon-notifications-compound.fixtures.js';
+import {
+  LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS,
+  LAUNCH_CONSUMER_APP_GROWTH_RESCUE_SCENARIOS,
+} from '../ai-launch-consumer-app-growth-compound.fixtures.js';
+import {
   AI_COMMAND_EVAL_PROVIDER_ONBOARDING_MULTILINGUAL_CASES,
 } from '../ai-provider-onboarding-compound-multilingual.eval.util.js';
 import {
   CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS,
   CLINIC_LAB_DAY_CLOSE_RESCUE_SCENARIOS,
 } from '../ai-clinic-lab-day-close-compound.fixtures.js';
+import {
+  CLINIC_LAB_REVIEW_COMPOUND_PROMPTS,
+  CLINIC_LAB_REVIEW_RESCUE_SCENARIOS,
+} from '../ai-clinic-lab-review-compound.fixtures.js';
 import {
   BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS,
   BUDGET_DISCOVER_AND_BOOK_RESCUE_SCENARIOS,
@@ -126,6 +210,9 @@ import {
 import {
   AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_MULTILINGUAL_CASES,
 } from '../ai-clinic-lab-day-close-compound-multilingual.eval.util.js';
+import {
+  AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES,
+} from '../ai-clinic-lab-review-compound-multilingual.eval.util.js';
 import {
   RESCHEDULE_NEAREST_FREE_YEAR_PROMPT,
   SUMMARIZE_BOOKINGS_REVENUE_PROMPTS,
@@ -312,6 +399,10 @@ import {
   type RecommendationProductEvalScenario,
 } from '../ai-recommendation-product-multilingual.fixtures.js';
 import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from '../ai-checkout-recommendations.fixtures.js';
+import {
+  MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS,
+  type CheckoutRecommendationsEvalScenario,
+} from '../ai-checkout-recommendations-multilingual.fixtures.js';
 export {
   AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES,
   AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CUSTOMER_CASES,
@@ -344,7 +435,49 @@ export {
 } from '../ai-service-discovery.eval.util.js';
 export { buildFlexibleAvailabilityEvalParams } from '../ai-flexible-availability-compound.util.js';
 import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from '../ai-consumer-adoption.fixtures.js';
+import {
+  GROWTH_LOOPS_CUSTOMER_PROMPTS,
+  MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS,
+} from '../ai-growth-loops-customer.fixtures.js';
+import { CANCEL_MY_BOOKING_PROMPTS } from '../ai-cancel-my-booking.util.js';
+import { RESCHEDULE_MY_BOOKING_PROMPTS } from '../ai-reschedule-my-booking.util.js';
+import { PAY_ONLINE_CHECKOUT_PROMPTS } from '../ai-pay-online-checkout.util.js';
+import {
+  EXPLAIN_WHY_STRIPE_REQUIRED_PROMPTS,
+  PUBLIC_CATALOG_PREPAYMENT_PROMPTS,
+} from '../ai-explain-prepayment.util.js';
+import {
+  MULTI_SERVICE_CUSTOMER_PUBLIC_PROMPTS,
+} from '../ai-multi-service-customer-public.util.js';
+import { SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS } from '../ai-subscription-membership-customer.util.js';
+import { PROMO_CODE_HELP_PROMPTS } from '../ai-promo-code-help-customer-public.util.js';
+import { EXPLAIN_SERVICE_PRICE_PROMPTS } from '../ai-explain-service-price.util.js';
+import { EXPLAIN_SERVICE_PRICE_MULTILINGUAL_SCENARIOS } from '../ai-explain-service-price-multilingual.fixtures.js';
+import { EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS } from '../ai-explain-payment-options-for-service.util.js';
+import { EXPLAIN_PAYMENT_OPTIONS_MULTILINGUAL_SCENARIOS } from '../ai-explain-payment-options-for-service-multilingual.fixtures.js';
+import { FIND_SOONEST_APPOINTMENT_PROMPTS } from '../ai-find-soonest-appointment.util.js';
+import { FIND_SOONEST_APPOINTMENT_MULTILINGUAL_SCENARIOS } from '../ai-find-soonest-appointment-multilingual.fixtures.js';
+import { COMPARE_SERVICES_PROMPTS } from '../ai-compare-services.util.js';
+import { COMPARE_SERVICES_MULTILINGUAL_SCENARIOS } from '../ai-compare-services-multilingual.fixtures.js';
+import { FILTER_SERVICES_NO_PREPAYMENT_PROMPTS } from '../ai-filter-services-no-prepayment.util.js';
+import { EXPLAIN_AMOUNT_DUE_NOW_PROMPTS } from '../ai-explain-amount-due-now.util.js';
+import { EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_SCENARIOS } from '../ai-explain-amount-due-now-multilingual.fixtures.js';
+import { EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS } from '../ai-explain-guest-checkout-fields.fixtures.js';
+import { RESUME_PENDING_PAYMENT_PROMPTS } from '../ai-resume-pending-payment.fixtures.js';
+import { RESUME_PENDING_PAYMENT_MULTILINGUAL_SCENARIOS } from '../ai-resume-pending-payment-multilingual.fixtures.js';
+import { EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS } from '../ai-explain-guest-checkout-fields-multilingual.fixtures.js';
+import { FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_SCENARIOS } from '../ai-filter-services-no-prepayment-multilingual.fixtures.js';
+import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS } from '../ai-explain-business-hours-and-location.util.js';
+import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_SCENARIOS } from '../ai-explain-business-hours-and-location-multilingual.fixtures.js';
+import { EXPLAIN_PROVIDER_SPECIALTY_PROMPTS } from '../ai-explain-provider-specialty.util.js';
+import { EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_SCENARIOS } from '../ai-explain-provider-specialty-multilingual.fixtures.js';
+import { LOYALTY_POINTS_BALANCE_PROMPTS } from '../ai-loyalty-points-balance-customer.util.js';
+import { PRIVACY_GDPR_CUSTOMER_PROMPTS } from '../ai-privacy-gdpr-customer.util.js';
+import { GIFT_CARD_CANCEL_CUSTOMER_PROMPTS } from '../ai-gift-card-cancel-customer.util.js';
+import { PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS } from '../ai-package-visit-self-customer.util.js';
+import { LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS } from '../ai-list-my-package-visits-customer.util.js';
 import { AI_COMMAND_EVAL_SELF_SERVICE_BOOKING_MULTILINGUAL_CASES } from '../ai-self-service-booking-multilingual.eval.util.js';
+import { AI_COMMAND_EVAL_CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_CASES } from '../ai-customer-intent-promotion-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES } from '../ai-marketing-growth-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CASES } from '../ai-consumer-checkout-success-multilingual.eval.util.js';
 import { AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES } from '../ai-consumer-checkout-tax-multilingual.eval.util.js';
@@ -830,6 +963,7 @@ export function clinicTestResultScenarioToEvalCase(
     id: `clinic-test-result-${scenario.id}`,
     prompt: scenario.prompt,
     locale: scenario.locale,
+    surface: 'dashboard',
     expect,
   };
 }
@@ -851,6 +985,7 @@ export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES: AiCommandEvalCase[] = [
       id: `enter-test-result-${entry.id}`,
       prompt: entry.prompt,
       locale: 'en' as const,
+      surface: 'dashboard' as const,
       expect: {
         rescuedAction: 'enter_test_result',
         rescueReason: 'enter_test_result',
@@ -873,6 +1008,7 @@ export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES: AiCommandEvalCase[] = [
       id: `release-test-result-${entry.id}`,
       prompt: entry.prompt,
       locale: 'en' as const,
+      surface: 'dashboard' as const,
       expect: {
         rescuedAction: 'release_test_result',
         rescueReason: 'release_test_result',
@@ -888,11 +1024,11 @@ export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES: AiCommandEvalCase[] =
     id: `upload-patient-result-${entry.id}`,
     prompt: entry.prompt,
     locale: 'en' as const,
-    expect: {
-      rescuedAction: 'upload_patient_result',
+    surface: 'dashboard' as const,
+    expect: buildClinicTestResultExtEvalExpectation('upload_patient_result', {
       rescueReason: 'upload_patient_result',
       paramsPartial: { orderId: entry.orderId },
-    },
+    }),
   })),
   ...EXPLAIN_PATIENT_RESULTS_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
@@ -906,35 +1042,41 @@ export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES: AiCommandEvalCase[] =
       id: `explain-patient-results-${entry.id}`,
       prompt: entry.prompt,
       locale: 'en' as const,
-      expect: {
-        rescuedAction: 'explain_patient_results',
-        rescueReason: 'explain_patient_results',
-        paramsPartial,
-      },
+      surface: 'dashboard' as const,
+      expect: buildClinicTestResultExtEvalExpectation(
+        'explain_patient_results',
+        {
+          rescueReason: 'explain_patient_results',
+          paramsPartial,
+        },
+      ),
     };
   }),
   ...CONFIGURE_TEST_REFERENCE_RANGE_PROMPTS.map((entry) => ({
     id: `configure-reference-range-${entry.id}`,
     prompt: entry.prompt,
     locale: 'en' as const,
-    expect: {
-      rescuedAction: 'configure_test_reference_range',
-      rescueReason: 'configure_test_reference_range',
-      paramsPartial: {
-        measurementCode: entry.measurementCode,
-        normalLow: entry.normalLow,
-        normalHigh: entry.normalHigh,
+    surface: 'dashboard' as const,
+    expect: buildClinicTestResultExtEvalExpectation(
+      'configure_test_reference_range',
+      {
+        rescueReason: 'configure_test_reference_range',
+        paramsPartial: {
+          measurementCode: entry.measurementCode,
+          normalLow: entry.normalLow,
+          normalHigh: entry.normalHigh,
+        },
       },
-    },
+    ),
   })),
   ...LIST_ABNORMAL_RESULTS_PROMPTS.map((entry) => ({
     id: `list-abnormal-results-${entry.id}`,
     prompt: entry.prompt,
     locale: 'en' as const,
-    expect: {
-      rescuedAction: 'list_abnormal_results',
+    surface: 'dashboard' as const,
+    expect: buildClinicTestResultExtEvalExpectation('list_abnormal_results', {
       rescueReason: 'list_abnormal_results',
-    },
+    }),
   })),
 ];
 
@@ -942,6 +1084,34 @@ export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES: AiCommandEvalCase[] =
 export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES: AiCommandEvalCase[] =
   MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS.map(
     clinicTestResultScenarioToEvalCase,
+  );
+
+export function clinicTestResultExtScenarioToEvalCase(
+  scenario: ClinicTestResultExtEvalScenario,
+): AiCommandEvalCase {
+  const expect = buildClinicTestResultExtEvalExpectation(
+    scenario.expectedAction,
+    {
+      ...(scenario.rescueReason ? { rescueReason: scenario.rescueReason } : {}),
+      ...(scenario.paramsPartial
+        ? { paramsPartial: scenario.paramsPartial }
+        : {}),
+      ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+    },
+  );
+  return {
+    id: `clinic-test-result-ext-${scenario.id}`,
+    prompt: scenario.prompt,
+    locale: scenario.locale,
+    surface: 'dashboard',
+    expect,
+  };
+}
+
+/** Armenian/Russian clinic test result ext prompts (ai-cmd-clinic-6-gap-1.3). */
+export const AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES: AiCommandEvalCase[] =
+  MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS.map(
+    clinicTestResultExtScenarioToEvalCase,
   );
 
 export function clinicPatientChartScenarioToEvalCase(
@@ -1273,6 +1443,19 @@ export const AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_RESCUE_CASES: AiCommandEvalCas
     expect: {
       rescuedAction: 'compound_intent',
       rescueReason: 'clinic_lab_day_close_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Clinic lab review compound rescue (ai-cmd-clinic-6-gap-6.1). */
+export const AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_RESCUE_CASES: AiCommandEvalCase[] =
+  CLINIC_LAB_REVIEW_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `clinic-lab-review-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'clinic_lab_review_compound',
       rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
     },
   }));
@@ -2895,6 +3078,7 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_CASES: AiCommandEvalCase[] =
     return {
       id: `tour-booking-${entry.id}`,
       prompt: entry.prompt,
+      surface: entry.surface,
       locale:
         entry.id.includes('-hy-') || entry.id.startsWith('hy-')
           ? 'hy'
@@ -2904,6 +3088,7 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_CASES: AiCommandEvalCase[] =
       expect: {
         rescuedAction: 'explain_tour_booking',
         rescueReason: 'explain_tour_booking',
+        useSurfaceTourCustomerPublicRescue: true,
         ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
       },
     };
@@ -3138,6 +3323,7 @@ export const AI_COMMAND_EVAL_DIAGNOSE_TOUR_CAPACITY_CASES: AiCommandEvalCase[] =
     return {
       id: `tour-capacity-${entry.id}`,
       prompt: entry.prompt,
+      surface: entry.surface,
       locale: entry.id.startsWith('ru-')
         ? 'ru'
         : entry.id.startsWith('hy-')
@@ -3146,6 +3332,7 @@ export const AI_COMMAND_EVAL_DIAGNOSE_TOUR_CAPACITY_CASES: AiCommandEvalCase[] =
       expect: {
         rescuedAction: 'diagnose_tour_capacity',
         rescueReason: 'diagnose_tour_capacity',
+        useSurfaceTourCustomerPublicRescue: true,
         ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
       },
     };
@@ -3282,6 +3469,533 @@ export const AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES: AiCommandEvalCa
     consumerCheckoutSuccessScenarioToEvalCase,
   );
 
+/** Map customer cancel-my-booking prompts (ai-cmd-customer-4.4.2) to eval golden cases. */
+export const AI_COMMAND_EVAL_CANCEL_MY_BOOKING_CASES: AiCommandEvalCase[] =
+  CANCEL_MY_BOOKING_PROMPTS.map((entry) => ({
+    id: `cancel-my-booking-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'cancel_my_booking',
+      rescueReason: 'cancel_my',
+      useSurfaceSelfServiceRescue: true,
+      ...(entry.serviceName
+        ? { paramsPartial: { serviceName: entry.serviceName } }
+        : {}),
+    },
+  }));
+
+/** Map customer reschedule-my-booking prompts (ai-cmd-customer-4.4.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_RESCHEDULE_MY_BOOKING_CASES: AiCommandEvalCase[] =
+  RESCHEDULE_MY_BOOKING_PROMPTS.map((entry) => ({
+    id: `reschedule-my-booking-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'reschedule_my_booking',
+      rescueReason: 'reschedule_my',
+      useSurfaceSelfServiceRescue: true,
+      ...(entry.serviceName
+        ? { paramsPartial: { serviceName: entry.serviceName } }
+        : {}),
+    },
+  }));
+
+/** Map customer/public explain-why-stripe prompts (ai-cmd-customer-4.0 P0) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_WHY_STRIPE_REQUIRED_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_WHY_STRIPE_REQUIRED_PROMPTS.map((entry) => ({
+      id: `explain-why-stripe-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_why_stripe_required' as const,
+        useSurfacePaymentsRescue: true,
+        ...(entry.serviceName
+          ? { paramsPartial: { serviceName: entry.serviceName } }
+          : {}),
+      },
+    })),
+  ];
+
+/** Map customer/public multi-service booking prompts (ai-cmd-customer-4.0 P1) to eval golden cases. */
+export const AI_COMMAND_EVAL_MULTI_SERVICE_CUSTOMER_PUBLIC_CASES: AiCommandEvalCase[] =
+  MULTI_SERVICE_CUSTOMER_PUBLIC_PROMPTS.map((entry) => ({
+    id: `multi-service-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason:
+        entry.rescueReason ??
+        (entry.expectedAction === 'book_multi_service'
+          ? 'book_multi'
+          : entry.expectedAction === 'add_services_to_cart'
+            ? 'add_cart'
+            : 'multi_availability'),
+      useSurfaceSelfServiceRescue: true,
+      ...(entry.serviceNames
+        ? { paramsPartial: { serviceNames: entry.serviceNames } }
+        : {}),
+    },
+  }));
+
+/** Map customer membership/subscription prompts (ai-cmd-customer-4.0 P1) to eval golden cases. */
+export const AI_COMMAND_EVAL_SUBSCRIPTION_MEMBERSHIP_CUSTOMER_CASES: AiCommandEvalCase[] =
+  SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS.map((entry) => ({
+    id: `subscription-membership-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfaceMembershipCustomerRescue: true,
+      ...(entry.serviceName
+        ? { paramsPartial: { serviceName: entry.serviceName } }
+        : {}),
+    },
+  }));
+
+/** Map customer/public promo-code-help prompts (ai-cmd-customer-4.0 P1) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROMO_CODE_HELP_CUSTOMER_PUBLIC_CASES: AiCommandEvalCase[] =
+  PROMO_CODE_HELP_PROMPTS.map((entry) => ({
+    id: `promo-code-help-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'promo_code_help',
+      rescueReason: entry.rescueReason,
+      useSurfaceMarketingGrowthRescue: true,
+      ...(entry.promoCode
+        ? { paramsPartial: { promoCode: entry.promoCode } }
+        : {}),
+    },
+  }));
+
+/** Map customer/public explain-service-price prompts (ai-cmd-customer-4.1.1) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_SERVICE_PRICE_CASES: AiCommandEvalCase[] = [
+  ...EXPLAIN_SERVICE_PRICE_PROMPTS.map((entry) => ({
+    id: `explain-service-price-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'explain_service_price' as const,
+      rescueReason: entry.rescueReason,
+      useSurfacePaymentsRescue: true,
+      ...(entry.serviceName
+        ? { paramsPartial: { serviceName: entry.serviceName } }
+        : {}),
+    },
+  })),
+  ...EXPLAIN_SERVICE_PRICE_MULTILINGUAL_SCENARIOS.map((entry) => ({
+    id: `explain-service-price-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: entry.locale,
+    expect: {
+      rescuedAction: 'explain_service_price' as const,
+      rescueReason: entry.rescueReason,
+      useSurfacePaymentsRescue: true,
+    },
+  })),
+];
+
+/** Map customer/public explain-payment-options-for-service prompts (ai-cmd-customer-4.1.2) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map((entry) => ({
+      id: `explain-payment-options-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_payment_options_for_service' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+        ...(entry.serviceName
+          ? { paramsPartial: { serviceName: entry.serviceName } }
+          : {}),
+      },
+    })),
+    ...EXPLAIN_PAYMENT_OPTIONS_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `explain-payment-options-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'explain_payment_options_for_service' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+  ];
+
+/** Map customer/public find-soonest-appointment prompts (ai-cmd-customer-4.1.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_FIND_SOONEST_APPOINTMENT_CASES: AiCommandEvalCase[] =
+  [
+    ...FIND_SOONEST_APPOINTMENT_PROMPTS.map((entry) => ({
+      id: `find-soonest-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'find_soonest_appointment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+        ...(entry.serviceName
+          ? { paramsPartial: { serviceName: entry.serviceName } }
+          : {}),
+      },
+    })),
+    ...FIND_SOONEST_APPOINTMENT_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `find-soonest-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'find_soonest_appointment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+  ];
+
+/** Map customer/public compare-services prompts (ai-cmd-customer-4.1.4) to eval golden cases. */
+export const AI_COMMAND_EVAL_COMPARE_SERVICES_CASES: AiCommandEvalCase[] = [
+  ...COMPARE_SERVICES_PROMPTS.map((entry) => ({
+    id: `compare-services-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'compare_services' as const,
+      rescueReason: entry.rescueReason,
+      useSurfacePaymentsRescue: true,
+      paramsPartial: { serviceNames: [...entry.serviceNames] },
+    },
+  })),
+  ...COMPARE_SERVICES_MULTILINGUAL_SCENARIOS.map((entry) => ({
+    id: `compare-services-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: entry.locale,
+    expect: {
+      rescuedAction: 'compare_services' as const,
+      rescueReason: entry.rescueReason,
+      useSurfacePaymentsRescue: true,
+      paramsPartial: { serviceNames: [...entry.serviceNames] },
+    },
+  })),
+  ];
+
+/** Map customer/public no-prepayment service browse prompts (ai-cmd-customer-4.1.7) to eval golden cases. */
+export const AI_COMMAND_EVAL_FILTER_SERVICES_NO_PREPAYMENT_CASES: AiCommandEvalCase[] =
+  [
+    ...FILTER_SERVICES_NO_PREPAYMENT_PROMPTS.map((entry) => ({
+      id: `filter-no-prepayment-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'filter_services_no_prepayment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+        paramsPartial: {
+          prepaymentMode: 'none' as const,
+          onlinePaymentEnabled: false,
+          ...(entry.serviceCategory
+            ? { serviceCategory: entry.serviceCategory }
+            : {}),
+        },
+      },
+    })),
+    ...FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `filter-no-prepayment-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'filter_services_no_prepayment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+        paramsPartial: {
+          prepaymentMode: 'none' as const,
+          onlinePaymentEnabled: false,
+        },
+      },
+    })),
+  ];
+
+/** Map customer/public amount-due-now checkout prompts (ai-cmd-customer-4.2.1) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_AMOUNT_DUE_NOW_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_AMOUNT_DUE_NOW_PROMPTS.map((entry) => ({
+      id: `amount-due-now-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_amount_due_now' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+        ...(entry.serviceName
+          ? { paramsPartial: { serviceName: entry.serviceName } }
+          : {}),
+      },
+    })),
+    ...EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `amount-due-now-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'explain_amount_due_now' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+    ...PUBLIC_CATALOG_PREPAYMENT_PROMPTS.filter(
+      (entry) => entry.expectedAction === 'explain_amount_due_now',
+    ).map((entry) => ({
+      id: `amount-due-now-catalog-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_amount_due_now' as const,
+        rescueReason: 'amount_due_now' as const,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+  ];
+
+/** Map customer/public guest checkout field prompts (ai-cmd-customer-4.2.2) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_GUEST_CHECKOUT_FIELDS_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS.map((entry) => ({
+      id: `guest-checkout-fields-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_guest_checkout_fields' as const,
+        rescueReason: entry.rescueReason,
+        paramsPartial: { aspect: entry.aspect },
+      },
+    })),
+    ...EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `guest-checkout-fields-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'explain_guest_checkout_fields' as const,
+        rescueReason: entry.rescueReason,
+        ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+      },
+    })),
+  ];
+
+/** Map customer resume pending payment prompts (ai-cmd-customer-4.2.3) to eval golden cases. */
+export const AI_COMMAND_EVAL_RESUME_PENDING_PAYMENT_CASES: AiCommandEvalCase[] =
+  [
+    ...RESUME_PENDING_PAYMENT_PROMPTS.map((entry) => ({
+      id: `resume-pending-payment-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'resume_pending_payment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+    ...RESUME_PENDING_PAYMENT_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `resume-pending-payment-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'resume_pending_payment' as const,
+        rescueReason: entry.rescueReason,
+        useSurfacePaymentsRescue: true,
+      },
+    })),
+  ];
+
+/** Map customer/public business hours & location prompts (ai-cmd-customer-4.1.5) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map((entry) => ({
+      id: `business-hours-location-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_business_hours_and_location' as const,
+        rescueReason: entry.rescueReason,
+        paramsPartial: {
+          ...(entry.aspect ? { aspect: entry.aspect } : {}),
+          ...(entry.weekday ? { weekday: entry.weekday } : {}),
+        },
+      },
+    })),
+    ...EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_SCENARIOS.map(
+      (entry) => ({
+        id: `business-hours-location-${entry.id}`,
+        prompt: entry.prompt,
+        surface: entry.surface,
+        locale: entry.locale,
+        expect: {
+          rescuedAction: 'explain_business_hours_and_location' as const,
+          rescueReason: entry.rescueReason,
+          paramsPartial: {
+            ...(entry.aspect ? { aspect: entry.aspect } : {}),
+            ...(entry.weekday ? { weekday: entry.weekday } : {}),
+          },
+        },
+      }),
+    ),
+  ];
+
+/** Map customer/public provider specialty prompts (ai-cmd-customer-4.1.6) to eval golden cases. */
+export const AI_COMMAND_EVAL_EXPLAIN_PROVIDER_SPECIALTY_CASES: AiCommandEvalCase[] =
+  [
+    ...EXPLAIN_PROVIDER_SPECIALTY_PROMPTS.map((entry) => ({
+      id: `provider-specialty-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: 'explain_provider_specialty' as const,
+        rescueReason: entry.rescueReason,
+        paramsPartial: {
+          ...(entry.aspect ? { aspect: entry.aspect } : {}),
+          ...(entry.providerName ? { providerName: entry.providerName } : {}),
+          ...(entry.specialtyTopic ? { specialtyTopic: entry.specialtyTopic } : {}),
+        },
+      },
+    })),
+    ...EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_SCENARIOS.map((entry) => ({
+      id: `provider-specialty-${entry.id}`,
+      prompt: entry.prompt,
+      surface: entry.surface,
+      locale: entry.locale,
+      expect: {
+        rescuedAction: 'explain_provider_specialty' as const,
+        rescueReason: entry.rescueReason,
+        paramsPartial: {
+          ...(entry.aspect ? { aspect: entry.aspect } : {}),
+          ...(entry.providerName ? { providerName: entry.providerName } : {}),
+          ...(entry.specialtyTopic ? { specialtyTopic: entry.specialtyTopic } : {}),
+        },
+      },
+    })),
+  ];
+
+/** Map customer loyalty points balance prompts (ai-cmd-customer-4.0 P1) to eval golden cases. */
+export const AI_COMMAND_EVAL_LOYALTY_POINTS_BALANCE_CUSTOMER_CASES: AiCommandEvalCase[] =
+  LOYALTY_POINTS_BALANCE_PROMPTS.map((entry) => ({
+    id: `loyalty-points-balance-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfaceMarketingGrowthRescue: true,
+    },
+  }));
+
+/** Map customer GDPR privacy export/delete prompts (ai-cmd-customer-4.0 P2) to eval golden cases. */
+export const AI_COMMAND_EVAL_PRIVACY_GDPR_CUSTOMER_CASES: AiCommandEvalCase[] =
+  PRIVACY_GDPR_CUSTOMER_PROMPTS.map((entry) => ({
+    id: `privacy-gdpr-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfacePrivacyGdprCustomerRescue: true,
+    },
+  }));
+
+/** Map customer gift card cancel-request prompts (ai-cmd-customer-4.0 P2) to eval golden cases. */
+export const AI_COMMAND_EVAL_GIFT_CARD_CANCEL_CUSTOMER_CASES: AiCommandEvalCase[] =
+  GIFT_CARD_CANCEL_CUSTOMER_PROMPTS.map((entry) => ({
+    id: `gift-card-cancel-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfaceGiftCardCancelCustomerRescue: true,
+      ...(entry.giftCardId
+        ? { paramsPartial: { giftCardId: entry.giftCardId } }
+        : {}),
+    },
+  }));
+
+/** Map customer package visit self-service prompts (ai-cmd-customer-4.0 P2) to eval golden cases. */
+export const AI_COMMAND_EVAL_PACKAGE_VISIT_SELF_CUSTOMER_CASES: AiCommandEvalCase[] =
+  PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS.map((entry) => ({
+    id: `package-visit-self-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfacePackageVisitSelfCustomerRescue: true,
+      ...((entry.packageName || entry.visitIndex != null) && {
+        paramsPartial: {
+          ...(entry.packageName ? { packageName: entry.packageName } : {}),
+          ...(entry.visitIndex != null ? { visitIndex: entry.visitIndex } : {}),
+        },
+      }),
+    },
+  }));
+
+/** Map customer package visit list prompts (ai-cmd-customer-4.0 P2) to eval golden cases. */
+export const AI_COMMAND_EVAL_LIST_MY_PACKAGE_VISITS_CUSTOMER_CASES: AiCommandEvalCase[] =
+  LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.map((entry) => ({
+    id: `list-my-package-visits-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'customer' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.rescueReason,
+      useSurfaceListMyPackageVisitsCustomerRescue: true,
+      ...(entry.packageName
+        ? { paramsPartial: { packageName: entry.packageName } }
+        : {}),
+    },
+  }));
+
+/** Map customer/public pay-online checkout prompts (ai-cmd-customer-4.2.4) to eval golden cases. */
+export const AI_COMMAND_EVAL_PAY_ONLINE_CHECKOUT_CASES: AiCommandEvalCase[] =
+  PAY_ONLINE_CHECKOUT_PROMPTS.map((entry) => ({
+    id: `pay-online-checkout-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: 'pay_online',
+      rescueReason: 'pay_online',
+      useSurfacePaymentsRescue: true,
+    },
+  }));
+
 /** Map consumer adoption assistant prompts (adopt-6.6) to eval golden cases. */
 export const AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES: AiCommandEvalCase[] =
   CONSUMER_ADOPTION_PROMPT_SCENARIOS.map((entry) => ({
@@ -3296,11 +4010,47 @@ export const AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES: AiCommandEvalCase[] =
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+      useSurfaceConsumerAdoptionRescue: true,
       ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
         ? { needsMultilingual: true }
         : {}),
     },
   }));
+
+function growthLoopsScenarioToEvalCase(
+  scenario: (typeof MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS)[number],
+): AiCommandEvalCase {
+  return {
+    id: `growth-loops-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: scenario.surface,
+    locale: scenario.locale,
+    expect: {
+      rescuedAction: scenario.expectedAction,
+      rescueReason: scenario.rescueReason,
+      useSurfaceGrowthLoopsCustomerRescue: true,
+      ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+    },
+  };
+}
+
+export const AI_COMMAND_EVAL_GROWTH_LOOPS_CUSTOMER_CASES: AiCommandEvalCase[] =
+  [
+    ...GROWTH_LOOPS_CUSTOMER_PROMPTS.map((entry) => ({
+      id: `growth-loops-${entry.id}`,
+      prompt: entry.prompt,
+      surface: 'customer' as const,
+      locale: 'en' as const,
+      expect: {
+        rescuedAction: entry.expectedAction,
+        rescueReason: entry.rescueReason,
+        useSurfaceGrowthLoopsCustomerRescue: true,
+      },
+    })),
+    ...MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS.map(
+      growthLoopsScenarioToEvalCase,
+    ),
+  ];
 
 /** Map provider push setup prompts (adopt-6.7) to eval golden cases. */
 export const AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_CASES: AiCommandEvalCase[] =
@@ -3461,24 +4211,53 @@ export const AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES: AiCommandE
   });
 
 /** Map checkout success recommendation explain prompts (ai-cmd-rec-5) to eval golden cases. */
+export function checkoutRecommendationsScenarioToEvalCase(
+  scenario: CheckoutRecommendationsEvalScenario,
+): AiCommandEvalCase {
+  return {
+    id: `checkout-recommendations-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: scenario.surface,
+    locale: scenario.locale,
+    expect: {
+      rescuedAction: scenario.expectedAction,
+      rescueReason:
+        scenario.rescueReason ?? 'explain_checkout_recommendations',
+      useSurfaceCheckoutRecommendationsCustomerPublicRescue: true,
+      ...(scenario.needsMultilingual ? { needsMultilingual: true } : {}),
+      ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+    },
+  };
+}
+
 export const AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES: AiCommandEvalCase[] =
-  EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS.map((entry) => {
+  [
+    ...EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS.map((entry) => {
     const paramsPartial: Record<string, unknown> = {};
     if ('aspect' in entry && entry.aspect) paramsPartial.aspect = entry.aspect;
     if ('serviceName' in entry && entry.serviceName) {
       paramsPartial.serviceName = entry.serviceName;
     }
+    if ('productName' in entry && entry.productName) {
+      paramsPartial.productName = entry.productName;
+    }
     return {
       id: `checkout-recommendations-${entry.id}`,
       prompt: entry.prompt,
-      locale: 'en',
+      surface: entry.surface,
+      locale: 'en' as const,
       expect: {
         rescuedAction: 'explain_checkout_recommendations',
         rescueReason: 'explain_checkout_recommendations',
+        useSurfaceCheckoutRecommendationsCustomerPublicRescue: true,
         ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
       },
     };
-  });
+  }),
+    ...MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS.map(
+      checkoutRecommendationsScenarioToEvalCase,
+    ),
+  ];
 
 /** Map tour day slots explain prompts (ai-cmd-tour-6) to eval golden cases. */
 export const AI_COMMAND_EVAL_EXPLAIN_TOUR_DAY_SLOTS_CASES: AiCommandEvalCase[] =
@@ -3492,6 +4271,7 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_DAY_SLOTS_CASES: AiCommandEvalCase[] =
     return {
       id: `tour-day-slots-${entry.id}`,
       prompt: entry.prompt,
+      surface: entry.surface,
       locale:
         entry.id.includes('-hy-') || entry.id.startsWith('hy-')
           ? 'hy'
@@ -3501,6 +4281,7 @@ export const AI_COMMAND_EVAL_EXPLAIN_TOUR_DAY_SLOTS_CASES: AiCommandEvalCase[] =
       expect: {
         rescuedAction: 'explain_tour_day_slots',
         rescueReason: 'explain_tour_day_slots',
+        useSurfaceTourCustomerPublicRescue: true,
         ...(Object.keys(paramsPartial).length > 0 ? { paramsPartial } : {}),
       },
     };
@@ -3917,6 +4698,293 @@ export const AI_COMMAND_EVAL_PROVIDER_ONBOARDING_COMPOUND_CASES: AiCommandEvalCa
     }),
   );
 
+/** Dashboard salon checkout setup compound (ai-cmd-ext-4.5). */
+export const AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_COMPOUND_CASES: AiCommandEvalCase[] =
+  SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.expectedParams
+        ? [
+            ...(typeof entry.expectedParams.startOnboarding === 'boolean'
+              ? [
+                  {
+                    stepIndex: 0,
+                    key: 'startOnboarding',
+                    value: entry.expectedParams.startOnboarding,
+                  },
+                ]
+              : []),
+            ...(typeof entry.expectedParams.acceptCashPayments === 'boolean'
+              ? [
+                  {
+                    stepIndex: 1,
+                    key: 'acceptCashPayments',
+                    value: entry.expectedParams.acceptCashPayments,
+                  },
+                ]
+              : []),
+            ...(entry.expectedParams.allServices === true
+              ? [
+                  {
+                    stepIndex: 2,
+                    key: 'allServices',
+                    value: true,
+                  },
+                ]
+              : []),
+            ...(typeof entry.expectedParams.depositPercent === 'number'
+              ? [
+                  {
+                    stepIndex: 2,
+                    key: 'depositPercent',
+                    value: entry.expectedParams.depositPercent,
+                  },
+                ]
+              : []),
+            ...(typeof entry.expectedParams.enabled === 'boolean'
+              ? [
+                  {
+                    stepIndex: 3,
+                    key: 'enabled',
+                    value: entry.expectedParams.enabled,
+                  },
+                ]
+              : []),
+          ]
+        : undefined,
+      noLlm: true,
+      compoundRecipeId: 'setup_salon_checkout',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_RESCUE_CASES: AiCommandEvalCase[] =
+  SETUP_SALON_CHECKOUT_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `salon-checkout-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'setup_salon_checkout_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Dashboard services payment matrix compound (ai-cmd-ext-4.6). */
+export const AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_CASES: AiCommandEvalCase[] =
+  CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.expectedParams
+        ? [
+            ...(typeof entry.expectedParams.percentChange === 'number'
+              ? [
+                  {
+                    stepIndex: 0,
+                    key: 'percentChange',
+                    value: entry.expectedParams.percentChange,
+                  },
+                ]
+              : []),
+            ...(typeof entry.expectedParams.acceptCashPayments === 'boolean'
+              ? [
+                  {
+                    stepIndex: entry.orderedActions.length - 1,
+                    key: 'acceptCashPayments',
+                    value: entry.expectedParams.acceptCashPayments,
+                  },
+                ]
+              : []),
+          ]
+        : undefined,
+      noLlm: true,
+      compoundRecipeId: 'configure_services_payment_matrix',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_RESCUE_CASES: AiCommandEvalCase[] =
+  CONFIGURE_SERVICES_PAYMENT_MATRIX_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `payment-matrix-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'configure_services_payment_matrix_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Dashboard decline/accept category online payment compound (ai-cmd-ext-4.7). */
+export const AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_CASES: AiCommandEvalCase[] =
+  DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.categorySteps.flatMap((step, stepIndex) => [
+        { stepIndex, key: 'categoryName', value: step.categoryName },
+        { stepIndex, key: 'prepaymentMode', value: step.prepaymentMode },
+        ...(step.depositPercent != null
+          ? [{ stepIndex, key: 'depositPercent', value: step.depositPercent }]
+          : []),
+      ]),
+      noLlm: true,
+      compoundRecipeId: 'decline_online_payment_category',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_CASES: AiCommandEvalCase[] =
+  DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `decline-category-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'decline_online_payment_category_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Dashboard cash + online payment compound (ai-cmd-ext-5.6). */
+export const AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_COMPOUND_CASES: AiCommandEvalCase[] =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (entry) => entry.compoundRecipeId === 'cash_and_online_payment',
+  ).map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.paramChecks,
+      noLlm: true,
+      compoundRecipeId: 'cash_and_online_payment',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_DECLINE_CATEGORY_CASES: AiCommandEvalCase[] =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (entry) => entry.compoundRecipeId === 'decline_online_payment_category',
+  ).map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.paramChecks,
+      noLlm: true,
+      compoundRecipeId: 'decline_online_payment_category',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_RESCUE_CASES: AiCommandEvalCase[] =
+  CASH_AND_ONLINE_PAYMENT_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `cash-online-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'cash_and_online_payment_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Dashboard salon notification onboarding compound (ai-cmd-ext-4.8). */
+export const AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_COMPOUND_CASES: AiCommandEvalCase[] =
+  ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.expectedParams
+        ? [
+            ...(entry.expectedParams.emailEnabled === true
+              ? [{ stepIndex: 0, key: 'emailEnabled', value: true }]
+              : []),
+            ...(entry.expectedParams.whatsappEnabled === true
+              ? [{ stepIndex: 0, key: 'whatsappEnabled', value: true }]
+              : []),
+            ...(entry.expectedParams.reminder24hEmail === true
+              ? [{ stepIndex: 0, key: 'reminder24hEmail', value: true }]
+              : []),
+            ...(entry.expectedParams.reminder24hWhatsapp === true
+              ? [{ stepIndex: 0, key: 'reminder24hWhatsapp', value: true }]
+              : []),
+            ...(entry.expectedParams.usePlatformDefault === true
+              ? [{ stepIndex: 1, key: 'usePlatformDefault', value: true }]
+              : []),
+          ]
+        : undefined,
+      noLlm: true,
+      compoundRecipeId: 'onboard_salon_notifications',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_RESCUE_CASES: AiCommandEvalCase[] =
+  ONBOARD_SALON_NOTIFICATIONS_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `salon-notifications-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'onboard_salon_notifications_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
+/** Dashboard consumer app growth launch compound (ai-cmd-ext-4.9). */
+export const AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_CASES: AiCommandEvalCase[] =
+  LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.expectedParams
+        ? [
+            ...(entry.expectedParams.emailOnNewCustomerRegistration === true
+              ? [
+                  {
+                    stepIndex: 2,
+                    key: 'emailOnNewCustomerRegistration',
+                    value: true,
+                  },
+                ]
+              : []),
+            ...(entry.expectedParams.marketingTeamEmails
+              ? [
+                  {
+                    stepIndex: 2,
+                    key: 'marketingTeamEmails',
+                    value: entry.expectedParams.marketingTeamEmails,
+                  },
+                ]
+              : []),
+          ]
+        : undefined,
+      noLlm: true,
+      compoundRecipeId: 'launch_consumer_app_growth',
+    }),
+  );
+
+export const AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_RESCUE_CASES: AiCommandEvalCase[] =
+  LAUNCH_CONSUMER_APP_GROWTH_RESCUE_SCENARIOS.map((scenario) => ({
+    id: `consumer-app-growth-rescue-${scenario.id}`,
+    prompt: scenario.prompt,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'compound_intent',
+      rescueReason: 'launch_consumer_app_growth_compound',
+      rescueFromAction: scenario.misclassifiedAction ?? 'unknown',
+    },
+  }));
+
 /** Dashboard budget discover and book compound (ai-cmd-ext-4.3). */
 export const AI_COMMAND_EVAL_BUDGET_DISCOVER_AND_BOOK_COMPOUND_CASES: AiCommandEvalCase[] =
   BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS.map((entry) =>
@@ -4100,13 +5168,76 @@ export const AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_COMPOUND_CASES: AiCommandEvalC
     }),
   );
 
+/** Dashboard clinic lab review compound (ai-cmd-clinic-6-gap-6.1). */
+export const AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_COMPOUND_CASES: AiCommandEvalCase[] =
+  CLINIC_LAB_REVIEW_COMPOUND_PROMPTS.map((entry) =>
+    compoundScenarioToEvalCase({
+      id: entry.id,
+      surface: 'dashboard',
+      prompt: entry.prompt,
+      orderedActions: [...entry.orderedActions],
+      paramChecks: entry.expectedParams?.customerName
+        ? [
+            {
+              stepIndex: 0,
+              key: 'customerName',
+              value: entry.expectedParams.customerName,
+            },
+            {
+              stepIndex: 1,
+              key: 'customerName',
+              value: entry.expectedParams.customerName,
+            },
+          ]
+        : entry.expectedParams?.orderId
+          ? [
+              {
+                stepIndex: 0,
+                key: 'orderId',
+                value: entry.expectedParams.orderId,
+              },
+              {
+                stepIndex: 1,
+                key: 'orderId',
+                value: entry.expectedParams.orderId,
+              },
+            ]
+          : undefined,
+      noLlm: true,
+      compoundRecipeId: 'clinic_lab_review',
+    }),
+  );
+
+/** Dashboard clinic ext multi-step recipes (ai-cmd-ext-4.2, parity-3.2). */
+export const CLINIC_EXT_COMPOUND_RECIPE_IDS = [
+  'clinic_lab_day_close',
+  'clinic_lab_review',
+] as const;
+
+/** EN + HY/RU eval rows with explicit compoundSteps (ai-cmd-clinic-6-gap-6.2). */
+export const AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES: AiCommandEvalCase[] = [
+  ...AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES,
+];
+
 /** Golden compound NL prompts — multi-command decomposition (ai-cmd-0.4). */
 export const AI_COMMAND_EVAL_COMPOUND_CASES: AiCommandEvalCase[] = [
   ...COMPOUND_DECOMPOSITION_SCENARIOS.map(compoundScenarioToEvalCase),
   ...AI_COMMAND_EVAL_PROVIDER_ONBOARDING_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_ONBOARDING_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_DECLINE_CATEGORY_CASES,
+  ...AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_COMPOUND_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_BUDGET_DISCOVER_AND_BOOK_COMPOUND_CASES,
   ...AI_COMMAND_EVAL_BUDGET_DISCOVER_AND_BOOK_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_RANK_DISCOVER_AND_BOOK_COMPOUND_CASES,
@@ -4195,6 +5326,9 @@ export function buildRegistryCompoundEvalCases(): AiCommandEvalCase[] {
         expect: {
           routeTier: 'compound',
           compoundSurface: surface,
+          compoundSteps: decomposition!.steps.map((step) => step.action),
+          compoundRecipeId: decomposition!.recipeId,
+          compoundSource: decomposition!.source,
           compoundMinSteps: 2,
         },
       });
@@ -4496,6 +5630,20 @@ export const AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_CASES: AiCommandEvalCase[] =
     },
   }));
 
+/** Dashboard read companion for service online payment setup (ai-cmd-ext-2.13.5). */
+export const AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_SETUP_CASES: AiCommandEvalCase[] =
+  EXPLAIN_SERVICE_ONLINE_PAYMENT_SETUP_PROMPTS.map((entry) => ({
+    id: `service-online-payment-setup-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: EXPLAIN_SERVICE_ONLINE_PAYMENT_SETUP_INTENT,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
 /** Dashboard staff lifecycle intents (ai-cmd-ext-2.5–2.8). */
 export const AI_COMMAND_EVAL_STAFF_OPERATIONS_CASES: AiCommandEvalCase[] =
   STAFF_OPERATIONS_PROMPT_FIXTURES.map((entry) => ({
@@ -4520,6 +5668,328 @@ export const AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_CASES: AiCommandEvalCase[
     expect: {
       rescuedAction: entry.expectedAction,
       rescueReason: entry.expectedAction,
+    },
+  }));
+
+/** Dashboard Stripe Connect onboarding (ai-cmd-ext-2.15). */
+export const AI_COMMAND_EVAL_STRIPE_CONNECT_CASES: AiCommandEvalCase[] =
+  CONFIGURE_STRIPE_CONNECT_PROMPTS.map((entry) => ({
+    id: `stripe-connect-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard checkout defaults (ai-cmd-ext-2.16). */
+export const AI_COMMAND_EVAL_CHECKOUT_DEFAULTS_CASES: AiCommandEvalCase[] =
+  CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS.map((entry) => ({
+    id: `checkout-defaults-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard notification settings (ai-cmd-ext-2.19). */
+export const AI_COMMAND_EVAL_NOTIFICATION_SETTINGS_CASES: AiCommandEvalCase[] =
+  CONFIGURE_NOTIFICATION_SETTINGS_PROMPTS.map((entry) => ({
+    id: `notification-settings-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard WhatsApp integration (ai-cmd-ext-2.20). */
+export const AI_COMMAND_EVAL_WHATSAPP_INTEGRATION_CASES: AiCommandEvalCase[] =
+  CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS.map((entry) => ({
+    id: `whatsapp-integration-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard tenant app install regenerate (ai-cmd-ext-2.23). */
+export const AI_COMMAND_EVAL_REGENERATE_TENANT_APP_INSTALL_CASES: AiCommandEvalCase[] =
+  REGENERATE_TENANT_APP_INSTALL_QR_PROMPTS.map((entry) => ({
+    id: `regenerate-tenant-app-install-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'tenant_app_install_regenerate',
+    },
+  }));
+
+/** Dashboard configure loyalty settings (ai-cmd-ext-2.25). */
+export const AI_COMMAND_EVAL_CONFIGURE_LOYALTY_SETTINGS_CASES: AiCommandEvalCase[] =
+  CONFIGURE_LOYALTY_SETTINGS_PROMPTS.map((entry) => ({
+    id: `configure-loyalty-settings-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'configure_loyalty_settings',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard create promo code (ai-cmd-ext-2.24). */
+export const AI_COMMAND_EVAL_CREATE_PROMO_CODE_CASES: AiCommandEvalCase[] =
+  CREATE_PROMO_CODE_PROMPTS.map((entry) => ({
+    id: `create-promo-code-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'create_promo_code',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard tenant app install explain (ai-cmd-ext-2.22). */
+export const AI_COMMAND_EVAL_TENANT_APP_INSTALL_CASES: AiCommandEvalCase[] =
+  EXPLAIN_TENANT_APP_INSTALL_PROMPTS.map((entry) => ({
+    id: `tenant-app-install-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'tenant_app_install_explain',
+    },
+  }));
+
+/** Dashboard explain integration health (ai-cmd-ext-2.31). */
+export const AI_COMMAND_EVAL_EXPLAIN_INTEGRATION_HEALTH_CASES: AiCommandEvalCase[] =
+  EXPLAIN_INTEGRATION_HEALTH_PROMPTS.map((entry) => ({
+    id: `explain-integration-health-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: EXPLAIN_INTEGRATION_HEALTH_INTENT,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard OpenAI integration (ai-cmd-ext-2.21). */
+export const AI_COMMAND_EVAL_OPENAI_INTEGRATION_CASES: AiCommandEvalCase[] =
+  CONFIGURE_OPENAI_INTEGRATION_PROMPTS.map((entry) => ({
+    id: `openai-integration-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard configure service featured (ai-cmd-ext-2.26). */
+export const AI_COMMAND_EVAL_CONFIGURE_SERVICE_FEATURED_CASES: AiCommandEvalCase[] =
+  CONFIGURE_SERVICE_FEATURED_PROMPTS.map((entry) => ({
+    id: `configure-service-featured-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'configure_service_featured',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard bulk assign services category (ai-cmd-ext-2.27). */
+export const AI_COMMAND_EVAL_BULK_ASSIGN_SERVICES_CATEGORY_CASES: AiCommandEvalCase[] =
+  BULK_ASSIGN_SERVICES_CATEGORY_PROMPTS.map((entry) => ({
+    id: `bulk-assign-services-category-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'bulk_assign_services_category',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard configure package online payment (ai-cmd-ext-2.28). */
+export const AI_COMMAND_EVAL_CONFIGURE_PACKAGE_ONLINE_PAYMENT_CASES: AiCommandEvalCase[] =
+  CONFIGURE_PACKAGE_ONLINE_PAYMENT_PROMPTS.map((entry) => ({
+    id: `configure-package-online-payment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'configure_package_online_payment',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard explain multi-service settings (ai-cmd-ext-2.29). */
+export const AI_COMMAND_EVAL_EXPLAIN_MULTI_SERVICE_SETTINGS_CASES: AiCommandEvalCase[] =
+  EXPLAIN_MULTI_SERVICE_SETTINGS_PROMPTS.map((entry) => ({
+    id: `explain-multi-service-settings-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'explain_multi_service_settings',
+    },
+  }));
+
+/** Dashboard explain public booking checkout (ai-cmd-ext-2.30). */
+export const AI_COMMAND_EVAL_EXPLAIN_PUBLIC_BOOKING_CHECKOUT_CASES: AiCommandEvalCase[] =
+  EXPLAIN_PUBLIC_BOOKING_CHECKOUT_PROMPTS.map((entry) => ({
+    id: `explain-public-booking-checkout-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: EXPLAIN_PUBLIC_BOOKING_CHECKOUT_INTENT,
+    },
+  }));
+
+/** Dashboard audit services missing online payment (ai-cmd-ext-2.32). */
+export const AI_COMMAND_EVAL_AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_CASES: AiCommandEvalCase[] =
+  AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_PROMPTS.map((entry) => ({
+    id: `audit-services-missing-online-payment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_INTENT,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard create_services bulk prepayment (ai-cmd-ext-5.3). */
+export const AI_COMMAND_EVAL_CREATE_SERVICES_PREPAYMENT_CASES: AiCommandEvalCase[] =
+  CREATE_SERVICES_PREPAYMENT_PROMPTS.map((entry) => ({
+    id: `create-services-prepayment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'create_services_prepayment',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard create_service prepayment on create (ai-cmd-ext-5.2). */
+export const AI_COMMAND_EVAL_CREATE_SERVICE_PREPAYMENT_CASES: AiCommandEvalCase[] =
+  CREATE_SERVICE_PREPAYMENT_PROMPTS.map((entry) => ({
+    id: `create-service-prepayment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'create_service_prepayment',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard deactivate_service category scope (ai-cmd-ext-5.5). */
+export const AI_COMMAND_EVAL_DEACTIVATE_SERVICE_CATEGORY_SCOPE_CASES: AiCommandEvalCase[] =
+  DEACTIVATE_SERVICE_CATEGORY_SCOPE_PROMPTS.map((entry) => ({
+    id: `deactivate-service-category-scope-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.paramsPartial?.allInCategory
+        ? 'deactivate_service_category_scope'
+        : 'deactivate_service',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard update_service_prices online payment scope (ai-cmd-ext-5.4). */
+export const AI_COMMAND_EVAL_UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CASES: AiCommandEvalCase[] =
+  UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.map((entry) => ({
+    id: `update-service-prices-online-payment-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.paramsPartial?.onlyWithOnlinePayment
+        ? 'update_service_prices_online_payment_filter'
+        : 'operations_booking_ops',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard list_services payment filters (ai-cmd-ext-5.1). */
+export const AI_COMMAND_EVAL_LIST_SERVICES_PAYMENT_FILTER_CASES: AiCommandEvalCase[] =
+  LIST_SERVICES_PAYMENT_FILTER_PROMPTS.map((entry) => ({
+    id: `list-services-payment-filter-${entry.id}`,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'list_services_payment_filter',
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard service deposit policy (ai-cmd-ext-2.18). */
+export const AI_COMMAND_EVAL_SERVICE_DEPOSIT_POLICY_CASES: AiCommandEvalCase[] =
+  CONFIGURE_SERVICE_DEPOSIT_POLICY_PROMPTS.map((entry) => ({
+    id: `service-deposit-policy-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
+    },
+  }));
+
+/** Dashboard service duration/buffer bulk update (ai-cmd-ext-2.17). */
+export const AI_COMMAND_EVAL_SERVICE_DURATION_BUFFER_CASES: AiCommandEvalCase[] =
+  UPDATE_SERVICE_DURATION_BUFFER_PROMPTS.map((entry) => ({
+    id: `service-duration-buffer-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'dashboard' as const,
+    locale: 'en' as const,
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.paramsPartial ? { paramsPartial: entry.paramsPartial } : {}),
     },
   }));
 
@@ -4589,8 +6059,33 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_SUMMARIZE_BOOKINGS_OVERVIEW_CASES,
   ...AI_COMMAND_EVAL_STAFF_OPERATIONS_CASES,
   ...AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_CASES,
+  ...AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_SETUP_CASES,
+  ...AI_COMMAND_EVAL_SERVICE_ONLINE_PAYMENT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_STAFF_OPERATIONS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_CASES,
+  ...AI_COMMAND_EVAL_STRIPE_CONNECT_CASES,
+  ...AI_COMMAND_EVAL_CHECKOUT_DEFAULTS_CASES,
+  ...AI_COMMAND_EVAL_SERVICE_DEPOSIT_POLICY_CASES,
+  ...AI_COMMAND_EVAL_LIST_SERVICES_PAYMENT_FILTER_CASES,
+  ...AI_COMMAND_EVAL_CREATE_SERVICE_PREPAYMENT_CASES,
+  ...AI_COMMAND_EVAL_CREATE_SERVICES_PREPAYMENT_CASES,
+  ...AI_COMMAND_EVAL_UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CASES,
+  ...AI_COMMAND_EVAL_DEACTIVATE_SERVICE_CATEGORY_SCOPE_CASES,
+  ...AI_COMMAND_EVAL_CONFIGURE_SERVICE_FEATURED_CASES,
+  ...AI_COMMAND_EVAL_BULK_ASSIGN_SERVICES_CATEGORY_CASES,
+  ...AI_COMMAND_EVAL_CONFIGURE_PACKAGE_ONLINE_PAYMENT_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_MULTI_SERVICE_SETTINGS_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_PUBLIC_BOOKING_CHECKOUT_CASES,
+  ...AI_COMMAND_EVAL_AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_CASES,
+  ...AI_COMMAND_EVAL_NOTIFICATION_SETTINGS_CASES,
+  ...AI_COMMAND_EVAL_WHATSAPP_INTEGRATION_CASES,
+  ...AI_COMMAND_EVAL_OPENAI_INTEGRATION_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_INTEGRATION_HEALTH_CASES,
+  ...AI_COMMAND_EVAL_TENANT_APP_INSTALL_CASES,
+  ...AI_COMMAND_EVAL_REGENERATE_TENANT_APP_INSTALL_CASES,
+  ...AI_COMMAND_EVAL_CREATE_PROMO_CODE_CASES,
+  ...AI_COMMAND_EVAL_CONFIGURE_LOYALTY_SETTINGS_CASES,
+  ...AI_COMMAND_EVAL_SERVICE_DURATION_BUFFER_CASES,
   ...AI_COMMAND_EVAL_BILLING_LOYALTY_DASHBOARD_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_WAITLIST_DASHBOARD_CASES,
   ...AI_COMMAND_EVAL_WAITLIST_DASHBOARD_MULTILINGUAL_CASES,
@@ -4608,6 +6103,8 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES,
   ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_PATIENT_CHART_CASES,
   ...AI_COMMAND_EVAL_PRODUCT_GUIDE_CASES,
@@ -4629,7 +6126,14 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CLINIC_COMPOUND_MULTILINGUAL_RESCUE_CASES,
   ...AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_RESCUE_CASES,
   ...AI_COMMAND_EVAL_BUDGET_DISCOVER_AND_BOOK_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_CASH_AND_ONLINE_PAYMENT_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_RESCUE_CASES,
   ...AI_COMMAND_EVAL_RANK_DISCOVER_AND_BOOK_RESCUE_CASES,
   ...AI_COMMAND_EVAL_NOTIFICATION_DATE_FORMAT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_DATE_INPUT_PROVIDER_FORMAT_MULTILINGUAL_CASES,
@@ -4709,7 +6213,31 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_ADOPTION_CASES,
+  ...AI_COMMAND_EVAL_GROWTH_LOOPS_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_CANCEL_MY_BOOKING_CASES,
+  ...AI_COMMAND_EVAL_RESCHEDULE_MY_BOOKING_CASES,
+  ...AI_COMMAND_EVAL_PAY_ONLINE_CHECKOUT_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_WHY_STRIPE_REQUIRED_CASES,
+  ...AI_COMMAND_EVAL_MULTI_SERVICE_CUSTOMER_PUBLIC_CASES,
+  ...AI_COMMAND_EVAL_SUBSCRIPTION_MEMBERSHIP_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_PROMO_CODE_HELP_CUSTOMER_PUBLIC_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_SERVICE_PRICE_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CASES,
+  ...AI_COMMAND_EVAL_FIND_SOONEST_APPOINTMENT_CASES,
+  ...AI_COMMAND_EVAL_COMPARE_SERVICES_CASES,
+  ...AI_COMMAND_EVAL_FILTER_SERVICES_NO_PREPAYMENT_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_AMOUNT_DUE_NOW_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_GUEST_CHECKOUT_FIELDS_CASES,
+  ...AI_COMMAND_EVAL_RESUME_PENDING_PAYMENT_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CASES,
+  ...AI_COMMAND_EVAL_EXPLAIN_PROVIDER_SPECIALTY_CASES,
+  ...AI_COMMAND_EVAL_LOYALTY_POINTS_BALANCE_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_PRIVACY_GDPR_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_GIFT_CARD_CANCEL_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_PACKAGE_VISIT_SELF_CUSTOMER_CASES,
+  ...AI_COMMAND_EVAL_LIST_MY_PACKAGE_VISITS_CUSTOMER_CASES,
   ...AI_COMMAND_EVAL_SELF_SERVICE_BOOKING_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES,

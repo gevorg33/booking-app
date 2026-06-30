@@ -1,5 +1,6 @@
 import {
   buildNearestSlotBookedMessage,
+  buildSoonestAppointmentFoundMessage,
   buildNoNearestSlotMessage,
   buildNoProvidersAvailableMessage,
   buildNoSlotSuggestions,
@@ -13,6 +14,16 @@ describe('ai-booking-slot-messages.util (ai-cmd-h2.1)', () => {
         employeeName: 'Mary Torgomyan',
       }),
     ).toBe('Nearest slot: June 13 at 09:00 with Mary Torgomyan.');
+  });
+
+  it('formats soonest opening read-only message', () => {
+    expect(
+      buildSoonestAppointmentFoundMessage({
+        startTime: '2026-06-13T09:00:00.000Z',
+        employeeName: 'Anna',
+        serviceName: 'trim',
+      }),
+    ).toBe('Soonest opening for trim: June 13 at 09:00 with Anna.');
   });
 
   it('suggests morning or afternoon when evening has no availability', () => {

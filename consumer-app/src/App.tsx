@@ -25,6 +25,7 @@ import ProfessionalsPage from './pages/ProfessionalsPage.js';
 import ProfessionalServicesPage from './pages/ProfessionalServicesPage.js';
 import ProviderProfilePage from './pages/ProviderProfilePage.js';
 import SalonProfilePage from './pages/SalonProfilePage.js';
+import GuidePage from './pages/GuidePage.js';
 
 function AppRoutes() {
   const history = useHistory();
@@ -58,6 +59,7 @@ function AppRoutes() {
       <Route exact path="/s/:slug/gift-cards/checkout" component={GiftCardCheckoutPage} />
       <Route exact path="/s/:slug/gift-cards" component={GiftCardCatalogPage} />
       <Route exact path="/s/:slug/login" component={LoginPage} />
+      <Route exact path="/s/:slug/guide" component={GuidePage} />
       <Route exact path="/s/:slug/profile" component={SalonProfilePage} />
       <Route exact path="/s/:slug/home">
         <SalonTabRoute page="home" />

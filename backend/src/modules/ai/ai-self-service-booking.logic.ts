@@ -6,6 +6,7 @@ import { Service } from '../service/entities/service.entity.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import type { PublicCustomerBookingItem } from '../public-booking/public-customer-auth.types.js';
 import type { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import type { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import type { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
@@ -19,6 +20,20 @@ import {
   resolvePublicPaymentSettings,
 } from '../../common/utils/customer-self-service.util.js';
 import type { CommandResult } from './command-completion.types.js';
+import {
+  buildCancelMyBookingAmbiguousSummary,
+  enrichCancelMyBookingParamsFromPrompt,
+  matchCustomerOwnedBooking,
+} from './ai-cancel-my-booking.util.js';
+import {
+  buildRescheduleMyBookingAmbiguousSummary,
+  buildRescheduleOwnedBookingMatchParams,
+  enrichRescheduleMyBookingParamsFromPrompt,
+} from './ai-reschedule-my-booking.util.js';
+import {
+  groupCustomerPackageVisits,
+  type CustomerPackageVisitSummary,
+} from './ai-list-my-package-visits-customer.util.js';
 import {
   mergeCompoundStepParams,
   pickSharedEntitySessionSlice,
@@ -536,25 +551,66 @@ async function resolveOwnedBooking(
   businessId: string,
   customerId: string,
   params: Record<string, any>,
-): Promise<Booking | null> {
-  if (params.bookingId) {
-    return deps.bookingRepo.findOne({
-      where: { id: params.bookingId as string, businessId, customerId },
+  prompt = '',
+  options?: {
+    allowFirstWhenUnspecified?: boolean;
+    intent?: 'cancel' | 'reschedule' | 'default';
+  },
+): Promise<{
+  booking: Booking | null;
+  ambiguous: Booking[];
+}> {
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const intent = options?.intent ?? 'default';
+  const enrichedParams =
+    intent === 'reschedule'
+      ? enrichRescheduleMyBookingParamsFromPrompt(
+          params,
+          textPrompt,
+          String(params._timeZone ?? 'UTC'),
+        )
+      : enrichCancelMyBookingParamsFromPrompt(params, textPrompt);
+  const matchParams =
+    intent === 'reschedule'
+      ? buildRescheduleOwnedBookingMatchParams(enrichedParams)
+      : intent === 'default'
+        ? buildRescheduleOwnedBookingMatchParams(enrichedParams)
+        : enrichedParams;
+  const matchPrompt = intent === 'cancel' ? textPrompt : '';
+
+  if (enrichedParams.bookingId) {
+    const booking = await deps.bookingRepo.findOne({
+      where: {
+        id: enrichedParams.bookingId as string,
+        businessId,
+        customerId,
+      },
       relations: { employee: true, service: true },
     });
+    return { booking: booking ?? null, ambiguous: [] };
   }
-  const upcoming = await deps.bookingRepo.find({
+
+  const bookings = await deps.bookingRepo.find({
     where: { businessId, customerId, status: BookingStatus.CONFIRMED },
+    relations: { employee: true, service: true },
     order: { startTime: 'ASC' },
-    take: 1,
   });
-  return upcoming[0] ?? null;
+
+  const matched = matchCustomerOwnedBooking(
+    bookings,
+    matchParams,
+    matchPrompt,
+    String(params._timeZone ?? 'UTC'),
+    options,
+  );
+  return { booking: matched.booking, ambiguous: matched.ambiguous };
 }
 
 export async function handleCancelMyBookingLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt = '',
 ): Promise<CommandResult> {
   const customerId = resolveSessionCustomerId(params);
   if (!customerId)
@@ -565,12 +621,30 @@ export async function handleCancelMyBookingLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('cancel_my_booking', 'Business not found.');
 
-  const booking = await resolveOwnedBooking(
+  const resolved = await resolveOwnedBooking(
     deps,
     businessId,
     customerId,
     params,
+    prompt || String(params._prompt ?? ''),
+    { allowFirstWhenUnspecified: false, intent: 'cancel' },
   );
+  if (resolved.ambiguous.length > 1) {
+    return failure(
+      'cancel_my_booking',
+      buildCancelMyBookingAmbiguousSummary(resolved.ambiguous),
+      {
+        clarify: true,
+        missing: ['bookingId'],
+        candidates: resolved.ambiguous.map((row) => ({
+          bookingId: row.id,
+          serviceName: row.service?.name ?? null,
+          startTime: row.startTime.toISOString(),
+        })),
+      },
+    );
+  }
+  const booking = resolved.booking;
   if (!booking) {
     return failure(
       'cancel_my_booking',
@@ -586,12 +660,14 @@ export async function handleCancelMyBookingLogic(
         customerId,
         booking.id,
       );
+    const serviceLabel = booking.service?.name ?? 'appointment';
     return success(
       'cancel_my_booking',
-      `Cancelled your ${booking.service?.name ?? 'appointment'}.`,
+      `Cancelled your ${serviceLabel} — you're all set, no need to call the salon.`,
       {
         bookingId: cancelled.id,
         status: cancelled.status,
+        serviceName: booking.service?.name ?? null,
       },
     );
   } catch (err: any) {
@@ -609,6 +685,7 @@ export async function handleRescheduleMyBookingLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt = '',
 ): Promise<CommandResult> {
   const customerId = resolveSessionCustomerId(params);
   if (!customerId)
@@ -619,22 +696,47 @@ export async function handleRescheduleMyBookingLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('reschedule_my_booking', 'Business not found.');
 
-  const booking = await resolveOwnedBooking(
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const enrichedParams = enrichRescheduleMyBookingParamsFromPrompt(
+    params,
+    textPrompt,
+    String(params._timeZone ?? 'UTC'),
+  );
+
+  const resolved = await resolveOwnedBooking(
     deps,
     businessId,
     customerId,
     params,
+    textPrompt,
+    { allowFirstWhenUnspecified: false, intent: 'reschedule' },
   );
+  if (resolved.ambiguous.length > 1) {
+    return failure(
+      'reschedule_my_booking',
+      buildRescheduleMyBookingAmbiguousSummary(resolved.ambiguous),
+      {
+        clarify: true,
+        missing: ['bookingId'],
+        candidates: resolved.ambiguous.map((row) => ({
+          bookingId: row.id,
+          serviceName: row.service?.name ?? null,
+          startTime: row.startTime.toISOString(),
+        })),
+      },
+    );
+  }
+  const booking = resolved.booking;
   if (!booking) {
     return failure('reschedule_my_booking', 'No upcoming booking found.', {
       clarify: true,
     });
   }
 
-  if (!params.startTime && !params.date) {
+  if (!enrichedParams.startTime && !enrichedParams.date) {
     return success(
       'reschedule_my_booking',
-      `Pick a new time for your ${booking.service?.name ?? 'appointment'}.`,
+      `Pick a new time for your ${booking.service?.name ?? 'appointment'} — no need to call the salon.`,
       {
         bookingId: booking.id,
         clarify: true,
@@ -651,17 +753,19 @@ export async function handleRescheduleMyBookingLogic(
         booking.id,
         {
           startTime:
-            (params.startTime as string) ??
-            `${params.date}T${params.timeSlot ?? '09:00'}:00.000Z`,
-          employeeId: params.employeeId as string | undefined,
+            (enrichedParams.startTime as string) ??
+            `${enrichedParams.date}T${enrichedParams.timeSlot ?? '09:00'}:00.000Z`,
+          employeeId: enrichedParams.employeeId as string | undefined,
         },
       );
+    const serviceLabel = booking.service?.name ?? 'appointment';
     return success(
       'reschedule_my_booking',
-      'Your appointment has been rescheduled.',
+      `Moved your ${serviceLabel} — you're all set, no need to call the salon.`,
       {
         bookingId: updated.id,
         startTime: updated.startTime.toISOString(),
+        serviceName: booking.service?.name ?? null,
       },
     );
   } catch (err: any) {
@@ -691,11 +795,13 @@ export async function handleCancelPackageVisitSelfLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('cancel_package_visit_self', 'Business not found.');
 
-  const booking = await resolveOwnedBooking(
+  const { booking } = await resolveOwnedBooking(
     deps,
     businessId,
     customerId,
     params,
+    '',
+    { allowFirstWhenUnspecified: true, intent: 'default' },
   );
   if (!booking) {
     return failure('cancel_package_visit_self', 'No package visit found.', {
@@ -744,11 +850,13 @@ export async function handleReschedulePackageVisitSelfLogic(
   if (!slug)
     return failure('reschedule_package_visit_self', 'Business not found.');
 
-  const booking = await resolveOwnedBooking(
+  const { booking } = await resolveOwnedBooking(
     deps,
     businessId,
     customerId,
     params,
+    '',
+    { allowFirstWhenUnspecified: true, intent: 'default' },
   );
   if (!booking) {
     return failure('reschedule_package_visit_self', 'No package visit found.', {
@@ -794,6 +902,75 @@ export async function handleReschedulePackageVisitSelfLogic(
       },
     );
   }
+}
+
+export async function handleListMyPackageVisitsLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt = '',
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure(
+      'list_my_package_visits',
+      'Sign in to view your package visits.',
+      { clarify: true },
+    );
+  }
+
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) {
+    return failure('list_my_package_visits', 'Business not found.');
+  }
+
+  const { bookings } = await deps.publicCustomerAuthService.listBookings(
+    slug,
+    customerId,
+  );
+  let packageVisits = groupCustomerPackageVisits(
+    bookings as PublicCustomerBookingItem[],
+  );
+
+  const packageName =
+    (params.packageName as string | undefined) ??
+    extractPackageNameFromPrompt(prompt || String(params._prompt ?? ''));
+  if (packageName) {
+    const needle = packageName.toLowerCase();
+    packageVisits = packageVisits.filter((visit) =>
+      visit.packageName.toLowerCase().includes(needle),
+    );
+  }
+
+  if (!packageVisits.length) {
+    return success(
+      'list_my_package_visits',
+      'You have no package visits on your account.',
+      {
+        packageVisits: [] as CustomerPackageVisitSummary[],
+        navigate: { path: 'account', query: { tab: 'bookings' } },
+      },
+    );
+  }
+
+  const summaryLines = packageVisits.map((visit) => {
+    const next = visit.nextAppointment
+      ? ` — next: ${visit.nextAppointment.serviceName} ${visit.nextAppointment.startTime.slice(0, 16)}`
+      : '';
+    return `• ${visit.packageName}: ${visit.visitsRemaining} visit(s) remaining of ${visit.visitsTotal}${next}`;
+  });
+
+  return success(
+    'list_my_package_visits',
+    packageVisits.length === 1
+      ? `You have ${packageVisits[0].visitsRemaining} package visit(s) remaining on ${packageVisits[0].packageName}.`
+      : `You have ${packageVisits.length} package bundles on your account.`,
+    {
+      packageVisits,
+      summaryLines,
+      navigate: { path: 'account', query: { tab: 'bookings' } },
+    },
+  );
 }
 
 export async function handleListMyAppointmentsLogic(
@@ -857,7 +1034,14 @@ export async function handleGetManageLinkLogic(
       },
     });
   } else if (customerId) {
-    booking = await resolveOwnedBooking(deps, businessId, customerId, params);
+    ({ booking } = await resolveOwnedBooking(
+      deps,
+      businessId,
+      customerId,
+      params,
+      '',
+      { allowFirstWhenUnspecified: true, intent: 'default' },
+    ));
   }
 
   if (!booking) {
@@ -1268,13 +1452,19 @@ export async function handleCustomerBookingCompoundLogic(
         );
         break;
       case 'cancel_my_booking':
-        result = await handleCancelMyBookingLogic(deps, businessId, stepParams);
+        result = await handleCancelMyBookingLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
         break;
       case 'reschedule_my_booking':
         result = await handleRescheduleMyBookingLogic(
           deps,
           businessId,
           stepParams,
+          String(stepParams._prompt ?? prompt),
         );
         break;
       case 'cancel_package_visit_self':
@@ -1289,6 +1479,14 @@ export async function handleCustomerBookingCompoundLogic(
           deps,
           businessId,
           stepParams,
+        );
+        break;
+      case 'list_my_package_visits':
+        result = await handleListMyPackageVisitsLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
         );
         break;
       case 'list_my_appointments':

@@ -17,6 +17,7 @@ describe('ClinicTestCatalogService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     })),
+    createQueryBuilder: jest.fn(),
   };
   const testPanelRepo = {
     find: jest.fn(),
@@ -618,5 +619,83 @@ describe('ClinicTestCatalogService', () => {
     expect(summary.testTypesCreated).toBe(1);
     expect(summary.testTypesSkipped).toBe(1);
     expect(summary.unmatchedServiceNames).toContain('Missing service');
+  });
+
+  it('updates reference range by measurement code', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => ({
+        id: 'type-wbc',
+        businessId: 'biz-1',
+        code: 'WBC',
+        title: 'White blood cells',
+        price: 10,
+        requiresFasting: false,
+        isActive: true,
+        normalLow: null,
+        normalHigh: null,
+      })),
+    };
+    testTypeRepo.createQueryBuilder.mockReturnValue(qb);
+    testTypeRepo.findOne.mockResolvedValue({
+      id: 'type-wbc',
+      businessId: 'biz-1',
+      code: 'WBC',
+      title: 'White blood cells',
+      price: 10,
+      requiresFasting: false,
+      isActive: true,
+      normalLow: 4,
+      normalHigh: 11,
+      service: { category: { name: 'Laboratory' } },
+      clinicDiagnosticCode: null,
+    });
+
+    const view = await catalog.updateReferenceRangeByCode(
+      'biz-1',
+      'wbc',
+      '4',
+      '11',
+      MemberRole.MANAGER,
+    );
+
+    expect(view.code).toBe('WBC');
+    expect(view.normalLow).toBe(4);
+    expect(view.normalHigh).toBe(11);
+    expect(testTypeRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ normalLow: 4, normalHigh: 11 }),
+    );
+  });
+
+  it('rejects invalid reference range bounds on update by code', async () => {
+    await expect(
+      catalog.updateReferenceRangeByCode(
+        'biz-1',
+        'WBC',
+        '11',
+        '4',
+        MemberRole.OWNER,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('returns not found when measurement code is unknown', async () => {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => null),
+    };
+    testTypeRepo.createQueryBuilder.mockReturnValue(qb);
+
+    await expect(
+      catalog.updateReferenceRangeByCode(
+        'biz-1',
+        'UNKNOWN',
+        '1',
+        '2',
+        MemberRole.OWNER,
+      ),
+    ).rejects.toMatchObject({ message: expect.stringContaining('UNKNOWN') });
   });
 });

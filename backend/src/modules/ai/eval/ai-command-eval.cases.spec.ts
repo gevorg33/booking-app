@@ -51,6 +51,7 @@ import {
   AI_COMMAND_EVAL_RECOMMENDATION_ANALYTICS_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_RECOMMENDATION_PRODUCT_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES,
+  AI_COMMAND_EVAL_GROWTH_LOOPS_CUSTOMER_CASES,
   AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
   AI_COMMAND_EVAL_CONSUMER_CHECKOUT_SUCCESS_EN_CASES,
   AI_COMMAND_EVAL_APPLY_TOUR_PLAYBOOK_CASES,
@@ -77,7 +78,11 @@ import {
   AI_COMMAND_EVAL_ADMIN_DELETE_CUSTOMER_DATA_CASES,
   AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_CLINIC_TEST_ORDER_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES,
   AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES,
+  AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_CLINIC_PATIENT_CHART_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CASES,
   AI_COMMAND_EVAL_CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CASES,
@@ -96,6 +101,9 @@ import {
   AI_COMMAND_EVAL_CHECK_AND_BOOK_CASES,
   AI_COMMAND_EVAL_CHECK_AND_BOOK_LLM_CASES,
   AI_COMMAND_EVAL_COMPOUND_CASES,
+  AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES,
+  AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_COMPOUND_CASES,
+  CLINIC_EXT_COMPOUND_RECIPE_IDS,
   AI_COMMAND_EVAL_DISAMBIGUATION_CASES,
   AI_COMMAND_EVAL_DISAMBIGUATION_LLM_CASES,
   AI_COMMAND_EVAL_DASHBOARD_OPS_CASES,
@@ -114,7 +122,9 @@ import {
   flexibleBookingScenarioToEvalCase,
   multilingualCheckAndBookScenarioToEvalCase,
 } from './ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES } from '../ai-clinic-lab-review-compound-multilingual.eval.util.js';
 import { evaluateDeterministicEvalCase } from './ai-command-eval.runner.js';
+import { resolveClinicTestResultExtAccessTier } from '../ai-clinic-test-result-ext.eval.util.js';
 
 describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   it('maps golden customer scenario with promo param checks', () => {
@@ -227,8 +237,30 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
       const surface = evalCase.expect.compoundSurface!;
       const result = decomposeDeterministicForSurface(surface, evalCase.prompt);
       expect(result?.steps.length ?? 0).toBeGreaterThanOrEqual(2);
+      expect(evalCase.expect.compoundSteps?.length).toBeGreaterThanOrEqual(2);
+      expect(evalCase.expect.compoundRecipeId).toBe(result?.recipeId);
       expect(evalCase.id).toMatch(/^registry-compound-/);
     }
+  });
+
+  it('maps clinic ext compound eval cases with compoundSteps (parity-3.2)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES.length).toBeGreaterThanOrEqual(
+      40,
+    );
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES) {
+      expect(evalCase.expect.compoundSteps?.length).toBeGreaterThanOrEqual(2);
+      expect(CLINIC_EXT_COMPOUND_RECIPE_IDS).toContain(
+        evalCase.expect.compoundRecipeId,
+      );
+    }
+    const reviewSample = AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_COMPOUND_CASES[0];
+    expect(reviewSample.expect.compoundSteps).toEqual([
+      'list_abnormal_results',
+      'explain_patient_results',
+    ]);
+    expect(
+      AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES[0].expect.compoundSteps,
+    ).toEqual(['list_abnormal_results', 'explain_patient_results']);
   });
 
   it('passes every compound scenario through eval runner', () => {
@@ -863,6 +895,68 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
     expect(hyCases.length).toBeGreaterThanOrEqual(10);
     expect(ruCases.length).toBeGreaterThanOrEqual(10);
     for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES) {
+      expect(evalCase.surface).toBe('dashboard');
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('tags clinic test result eval rows with dashboard surface (ai-cmd-clinic-6-gap-2.1)', () => {
+    for (const evalCase of [
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_CASES,
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES,
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_MULTILINGUAL_CASES,
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES,
+    ]) {
+      expect(evalCase.surface).toBe('dashboard');
+    }
+  });
+
+  it('tags clinic test result ext eval rows with M/R access tier (ai-cmd-clinic-6-gap-2.2)', () => {
+    for (const evalCase of [
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES,
+      ...AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES,
+    ]) {
+      const action = evalCase.expect.rescuedAction;
+      expect(action).toBeTruthy();
+      expect(evalCase.expect.accessTier).toBe(
+        resolveClinicTestResultExtAccessTier(action!),
+      );
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes classifier-without-rescue golden rows for top EN/HY/RU prompts (ai-cmd-clinic-6-gap-2.3)', () => {
+    expect(AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES).toHaveLength(
+      12,
+    );
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES) {
+      expect(evalCase.surface).toBe('dashboard');
+      expect(evalCase.expect.action).toBeTruthy();
+      expect(evalCase.expect.rescuedAction).toBeUndefined();
+      expect(evalCase.expect.useClinicTestResultExtClassifierDetect).toBe(true);
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('passes every clinic test result ext multilingual eval case (ai-cmd-clinic-6-gap-1.3)', () => {
+    expect(
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.length,
+    ).toBe(32);
+    const hyCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
+        (entry) => entry.locale === 'ru',
+      );
+    expect(hyCases.length).toBe(16);
+    expect(ruCases.length).toBe(16);
+    for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES) {
+      expect(evalCase.surface).toBe('dashboard');
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
     }
@@ -1333,12 +1427,23 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
 
   it('maps checkout success recommendation explain prompts (ai-cmd-rec-5)', () => {
     expect(AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES.length).toBe(
-      20,
+      34,
     );
   });
 
   it('passes every checkout recommendations explain eval case (ai-cmd-rec-5)', () => {
     for (const evalCase of AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES) {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    }
+  });
+
+  it('maps growth loops customer prompts (ai-cmd-customer-4.0 P3)', () => {
+    expect(AI_COMMAND_EVAL_GROWTH_LOOPS_CUSTOMER_CASES.length).toBe(36);
+  });
+
+  it('passes every growth loops customer eval case (ai-cmd-customer-4.0 P3)', () => {
+    for (const evalCase of AI_COMMAND_EVAL_GROWTH_LOOPS_CUSTOMER_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
     }

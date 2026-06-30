@@ -16,8 +16,10 @@ import { ClinicTestType } from '../entities/clinic-test-type.entity.js';
 import { assertClinicLabFeaturesEnabled } from '../shared/clinic-test-results-gate.util.js';
 import {
   applyClinicTestTypeLinkToServiceMetadata,
+  assertClinicReferenceRangeBounds,
   buildClinicTestTypeCode,
   inheritCatalogFieldsFromService,
+  parseClinicReferenceRangeBound,
   readClinicTestTypeIdFromServiceMetadata,
   resolveClinicalDepartmentLabel,
 } from './clinic-test-catalog.util.js';
@@ -59,6 +61,8 @@ export interface ClinicTestTypeView {
   abbreviation?: string | null;
   description?: string | null;
   unit?: string | null;
+  normalLow?: number | null;
+  normalHigh?: number | null;
   price: number;
   requiresFasting: boolean;
   preparationNotes?: string | null;
@@ -134,6 +138,10 @@ export class ClinicTestCatalogService {
       abbreviation: entity.abbreviation ?? null,
       description: entity.description ?? null,
       unit: entity.unit ?? null,
+      normalLow:
+        entity.normalLow == null ? null : Number(entity.normalLow),
+      normalHigh:
+        entity.normalHigh == null ? null : Number(entity.normalHigh),
       price: Number(entity.price),
       requiresFasting: entity.requiresFasting,
       preparationNotes: entity.preparationNotes ?? null,
@@ -313,6 +321,23 @@ export class ClinicTestCatalogService {
       dto.clinicDiagnosticCodeId,
     );
 
+    const hasRangeInput =
+      dto.normalLow !== undefined || dto.normalHigh !== undefined;
+    const normalLow =
+      dto.normalLow === undefined
+        ? null
+        : parseClinicReferenceRangeBound(dto.normalLow);
+    const normalHigh =
+      dto.normalHigh === undefined
+        ? null
+        : parseClinicReferenceRangeBound(dto.normalHigh);
+    if (hasRangeInput) {
+      const rangeError = assertClinicReferenceRangeBounds(normalLow, normalHigh);
+      if (rangeError) {
+        throw new BadRequestException(rangeError);
+      }
+    }
+
     const entity = this.testTypeRepo.create({
       businessId,
       code,
@@ -320,6 +345,8 @@ export class ClinicTestCatalogService {
       abbreviation: dto.abbreviation?.trim() || null,
       description: dto.description?.trim() || null,
       unit: dto.unit?.trim() || null,
+      normalLow: hasRangeInput ? normalLow : null,
+      normalHigh: hasRangeInput ? normalHigh : null,
       price: inherited.price,
       requiresFasting: inherited.requiresFasting,
       preparationNotes: inherited.preparationNotes,
@@ -372,6 +399,21 @@ export class ClinicTestCatalogService {
       entity.description = dto.description?.trim() || null;
     }
     if (dto.unit !== undefined) entity.unit = dto.unit?.trim() || null;
+    if (dto.normalLow !== undefined) {
+      entity.normalLow = parseClinicReferenceRangeBound(dto.normalLow);
+    }
+    if (dto.normalHigh !== undefined) {
+      entity.normalHigh = parseClinicReferenceRangeBound(dto.normalHigh);
+    }
+    if (dto.normalLow !== undefined || dto.normalHigh !== undefined) {
+      const rangeError = assertClinicReferenceRangeBounds(
+        entity.normalLow ?? null,
+        entity.normalHigh ?? null,
+      );
+      if (rangeError) {
+        throw new BadRequestException(rangeError);
+      }
+    }
     if (dto.price !== undefined) entity.price = dto.price;
     if (dto.requiresFasting !== undefined) {
       entity.requiresFasting = dto.requiresFasting;
@@ -415,6 +457,64 @@ export class ClinicTestCatalogService {
       testTypeId,
       { isActive: false, serviceId: null },
       role,
+    );
+  }
+
+  private async findTestTypeByMeasurementCode(
+    businessId: string,
+    measurementCode: string,
+  ): Promise<ClinicTestType | null> {
+    const normalized = measurementCode.trim().toLowerCase();
+    if (!normalized) return null;
+    return this.testTypeRepo
+      .createQueryBuilder('testType')
+      .where('testType.business_id = :businessId', { businessId })
+      .andWhere(
+        '(LOWER(testType.code) = :normalized OR LOWER(testType.abbreviation) = :normalized)',
+        { normalized },
+      )
+      .getOne();
+  }
+
+  async updateReferenceRangeByCode(
+    businessId: string,
+    measurementCode: string,
+    normalLowInput: unknown,
+    normalHighInput: unknown,
+    role: string,
+  ): Promise<ClinicTestTypeView> {
+    await this.assertCatalogEnabled(businessId);
+    this.assertCatalogMutationRole(role);
+
+    const code = measurementCode.trim();
+    if (!code) {
+      throw new BadRequestException('measurementCode is required');
+    }
+
+    const normalLow = parseClinicReferenceRangeBound(normalLowInput);
+    const normalHigh = parseClinicReferenceRangeBound(normalHighInput);
+    const rangeError = assertClinicReferenceRangeBounds(normalLow, normalHigh);
+    if (rangeError) {
+      throw new BadRequestException(rangeError);
+    }
+
+    const entity = await this.findTestTypeByMeasurementCode(businessId, code);
+    if (!entity) {
+      throw new NotFoundException(
+        `Clinic test type not found for measurement code "${code}"`,
+      );
+    }
+
+    entity.normalLow = normalLow;
+    entity.normalHigh = normalHigh;
+    const saved = await this.testTypeRepo.save(entity);
+    const refreshed = await this.testTypeRepo.findOne({
+      where: { id: saved.id },
+      relations: { service: { category: true }, clinicDiagnosticCode: true },
+    });
+    return this.mapTestType(
+      refreshed ?? saved,
+      resolveClinicalDepartmentLabel(refreshed?.service?.category?.name),
     );
   }
 

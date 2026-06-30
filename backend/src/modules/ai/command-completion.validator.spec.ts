@@ -1,5 +1,6 @@
-import { validateCommand } from './command-completion.validator.js';
+import { validateCommand, shouldValidateAction } from './command-completion.validator.js';
 import type { ResolvedCommand } from './command-completion.types.js';
+import { CONFIGURE_TEST_REFERENCE_RANGE_PROMPTS } from './ai-clinic-test-result-ext.fixtures.js';
 
 function baseCmd(overrides: Partial<ResolvedCommand>): ResolvedCommand {
   return {
@@ -140,5 +141,39 @@ describe('command-completion.validator', () => {
       }),
     );
     expect(result.ok).toBe(false);
+  });
+
+  describe('clinic test-result ext intents (ai-cmd-clinic-6-gap-4.2)', () => {
+    it('registers ext intents for completion validation', () => {
+      expect(shouldValidateAction('upload_patient_result')).toBe(true);
+      expect(shouldValidateAction('configure_test_reference_range')).toBe(true);
+    });
+
+    it('requires orderId for upload_patient_result', () => {
+      const result = validateCommand(
+        baseCmd({
+          action: 'upload_patient_result',
+          prompt: 'Upload lab result',
+        }),
+      );
+      expect(result.ok).toBe(false);
+      expect(result.issues.some((issue) => issue.field === 'orderId')).toBe(true);
+    });
+
+    it('accepts configure_test_reference_range when range params are present', () => {
+      const sample = CONFIGURE_TEST_REFERENCE_RANGE_PROMPTS[0];
+      const result = validateCommand(
+        baseCmd({
+          action: 'configure_test_reference_range',
+          prompt: sample.prompt,
+          params: {
+            measurementCode: sample.measurementCode,
+            normalLow: sample.normalLow,
+            normalHigh: sample.normalHigh,
+          },
+        }),
+      );
+      expect(result.ok).toBe(true);
+    });
   });
 });

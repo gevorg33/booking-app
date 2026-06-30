@@ -25,6 +25,7 @@ import {
 import { getFrontendGuideCorpusMessages } from './ai-guide-corpus-i18n.fixtures.js';
 import { DASHBOARD_GUIDE_CORPUS_CROSS_LINK_INDEX } from './dashboard-guide-corpus.cross-link.util.js';
 import { assertGuideFlowRouteCoverage } from './guide-flow.routes.manifest.js';
+import { assertMobileGuideAppRouteCoverage } from './guide-flow.mobile-app-routes.util.js';
 import { assertGuideFlowCatalogIntegrity } from './guide-flow.loader.js';
 
 describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
@@ -59,6 +60,10 @@ describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
   it('guide-flow playbooks cover dashboard nav routes (ai-guide-1.1.2)', () => {
     assertGuideFlowCatalogIntegrity();
     assertGuideFlowRouteCoverage();
+  });
+
+  it('guide-flow playbooks cover mobile App.tsx routes (ai-guide-1.9.13)', () => {
+    assertMobileGuideAppRouteCoverage();
   });
 
   it('maps help-center topics and guide anchors to corpus topicIds', () => {

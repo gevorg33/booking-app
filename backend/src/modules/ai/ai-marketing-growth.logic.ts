@@ -8,6 +8,8 @@ import type { BillingService } from '../billing/billing.service.js';
 import type { LoyaltyService } from '../loyalty/loyalty.service.js';
 import type { PromoCodesService } from '../promo-codes/promo-codes.service.js';
 import type { StripeService } from '../billing/stripe.service.js';
+import type { StripeIntegrationService } from '../billing/stripe-integration.service.js';
+import type { TenantAppInstallService } from '../business/tenant-app-install.service.js';
 import { getActivePlans, getPlan } from '../billing/plans.js';
 import {
   TOP_SUBSCRIPTION_PLAN_ID,
@@ -17,7 +19,6 @@ import {
 import type { CommandResult } from './command-completion.types.js';
 import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
 import {
-  buildConsumerAppDownloadGuidance,
   buildConsumerAppSwitchGuidance,
   decomposeMarketingGrowthCompoundPrompt,
   extractAutomationToggleFromPrompt,
@@ -27,7 +28,13 @@ import {
   formatEntitlementsSummary,
   type MarketingGrowthCompoundStep,
 } from './ai-marketing-growth.util.js';
+import { buildHowToDownloadAppGuidance } from './ai-how-to-download-app.util.js';
 import { getEarnPercentCashback } from '../loyalty/loyalty-settings.util.js';
+import { handleConfigureStripeConnectLogic } from './ai-stripe-connect.logic.js';
+import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logic.js';
+import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
+import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
+import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
 
 export interface MarketingGrowthLogicDeps {
   marketingAutomationService: MarketingAutomationService;
@@ -36,9 +43,11 @@ export interface MarketingGrowthLogicDeps {
   loyaltyService: LoyaltyService;
   promoCodesService?: PromoCodesService;
   stripeService: StripeService;
+  stripeIntegrationService: StripeIntegrationService;
   configService: ConfigService;
   customerRepo: Repository<Customer>;
   businessRepo: Repository<Business>;
+  tenantAppInstallService: TenantAppInstallService;
 }
 
 function failure(
@@ -459,14 +468,26 @@ export async function handleHowToDownloadAppLogic(
   const androidAppUrl = deps.configService.get<string>(
     'CONSUMER_ANDROID_APP_URL',
   );
-  const businessSlug = await resolveBusinessSlug(deps, businessId);
-  const guidance = buildConsumerAppDownloadGuidance({
-    frontendUrl,
+
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  if (!business) {
+    return failure('how_to_download_app', 'Business not found.');
+  }
+
+  const view = await deps.tenantAppInstallService.ensureForBusiness(business);
+  const guidance = buildHowToDownloadAppGuidance({
+    view,
     iosAppUrl,
     androidAppUrl,
-    businessSlug,
   });
-  return success('how_to_download_app', guidance.summary, { guidance });
+
+  return success('how_to_download_app', guidance.summary, {
+    guidance,
+    appInstall: view,
+    frontendUrl,
+  });
 }
 
 export async function handleSwitchToConsumerAppLogic(
@@ -646,6 +667,13 @@ export function mergeMarketingGrowthCompoundContext(
   if (step.action === 'how_to_download_app' && details.guidance) {
     next.consumerAppGuidance = details.guidance;
   }
+  if (step.action === 'explain_tenant_app_install' && details.appInstall) {
+    next.tenantAppInstall = details.appInstall;
+  }
+  if (step.action === 'regenerate_tenant_app_install_qr' && details.appInstall) {
+    next.tenantAppInstall = details.appInstall;
+    next.tenantAppInstallRegenerated = details.regenerated === true;
+  }
   return next;
 }
 
@@ -687,6 +715,14 @@ export async function handleMarketingGrowthCompoundLogic(
           step.segment,
         );
         break;
+      case 'configure_stripe_connect':
+        result = await handleConfigureStripeConnectLogic(
+          { stripeIntegrationService: deps.stripeIntegrationService },
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
       case 'summarize_automation_performance':
         result = await handleSummarizeAutomationPerformanceLogic(
           deps,
@@ -715,6 +751,28 @@ export async function handleMarketingGrowthCompoundLogic(
         break;
       case 'summarize_new_registrations':
         result = await handleSummarizeNewRegistrationsLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'explain_tenant_app_install':
+        result = await handleExplainTenantAppInstallLogic(deps, businessId);
+        break;
+      case 'regenerate_tenant_app_install_qr':
+        result = await handleRegenerateTenantAppInstallQrLogic(deps, businessId);
+        break;
+      case 'create_promo_code':
+        result = await handleCreatePromoCodeLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'configure_loyalty_settings':
+        result = await handleConfigureLoyaltySettingsLogic(
           deps,
           businessId,
           stepParams,

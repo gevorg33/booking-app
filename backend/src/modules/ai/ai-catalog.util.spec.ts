@@ -429,6 +429,20 @@ describe('ai-catalog.util', () => {
           ?.action,
       ).toBe('set_service_compatibility');
       expect(
+        rescueCatalogIntent('Mark Haircut as featured', 'unknown')?.action,
+      ).toBe('configure_service_featured');
+      expect(
+        rescueCatalogIntent('Move all hair services under Hair category', 'unknown')
+          ?.action,
+      ).toBe('bulk_assign_services_category');
+      expect(
+        rescueCatalogIntent('Require 50% online prepayment for Spa Day package', 'unknown')
+          ?.action,
+      ).toBe('configure_package_online_payment');
+      expect(
+        rescueCatalogIntent('Require $25 deposit on featured services', 'unknown'),
+      ).toBeNull();
+      expect(
         rescueCatalogIntent('Hide balayage from public catalog', 'unknown')
           ?.action,
       ).toBe('deactivate_service');

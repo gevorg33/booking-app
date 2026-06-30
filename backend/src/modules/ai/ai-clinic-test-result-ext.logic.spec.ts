@@ -1,3 +1,4 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   handleConfigureTestReferenceRangeLogic,
@@ -28,14 +29,14 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
         status: 'Released',
         measurements: [
           {
-            testType: { name: 'WBC' },
+            testType: { code: 'WBC', name: 'WBC' },
             value: '12.5',
             measurementFlag: 'H',
           },
           {
-            testType: { name: 'glucose' },
+            testType: { code: 'glucose', name: 'glucose' },
             value: '95',
-            measurementFlag: 'N',
+            measurementFlag: 'Normal',
           },
         ],
       },
@@ -47,7 +48,7 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
         status: 'Reviewed',
         measurements: [
           {
-            testType: { name: 'sodium' },
+            testType: { code: 'sodium', name: 'sodium' },
             value: '130',
             measurementFlag: 'L',
           },
@@ -55,17 +56,37 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
       },
     ]),
   };
+  const orderRepo = {
+    findOne: jest.fn(async () => null),
+    find: jest.fn(async () => []),
+  };
   const deps = {
     bookingRepo,
     resultRepo,
+    orderRepo,
     clinicTestResultService: {},
+    clinicCatalogService: {
+      updateReferenceRangeByCode: jest.fn(async () => ({
+        id: 'type-wbc',
+        code: 'WBC',
+        normalLow: 4,
+        normalHigh: 11,
+      })),
+    },
+    clinicLabAccessService: {
+      resolveStaffContext: jest.fn(async () => ({
+        userId: 'user-1',
+        membershipRole: 'owner',
+        employeeId: null,
+      })),
+    },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('upload requires order id and guides to lab UI', async () => {
+  it('upload requires order id and opens lab upload handoff', async () => {
     const missing = await handleUploadPatientResultLogic(
       deps,
       'biz-1',
@@ -74,15 +95,65 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
     );
     expect(missing.success).toBe(false);
 
+    orderRepo.findOne.mockResolvedValueOnce({
+      id: 'order-abc123',
+      businessId: 'biz-1',
+      bookingId: 'booking-1',
+    });
     const guided = await handleUploadPatientResultLogic(
       deps,
       'biz-1',
       {},
       'Upload lab result for order #abc123',
     );
-    expect(guided.success).toBe(false);
+    expect(guided.success).toBe(true);
     expect(guided.summary).toContain('abc123');
-    expect(guided.summary).toContain('lab results UI');
+    expect(guided.summary).toContain('enter_test_result');
+    expect(guided.details?.navigate).toEqual({
+      path: '/dashboard/bookings',
+      query: {
+        bookingId: 'booking-1',
+        labTab: 'results',
+        orderId: 'order-abc123',
+        uploadResult: '1',
+      },
+    });
+    expect(guided.details?.uploadHandoff?.uploadApiPath).toContain(
+      'order-abc123/result-attachments',
+    );
+  });
+
+  it('upload handoff falls back to lab queue when order booking is unknown', async () => {
+    const guided = await handleUploadPatientResultLogic(
+      deps,
+      'biz-1',
+      { orderId: 'ord-42' },
+      undefined,
+    );
+    expect(guided.success).toBe(true);
+    expect(guided.details?.navigate).toEqual({
+      path: '/dashboard/lab-queue',
+      query: {
+        orderId: 'ord-42',
+        uploadResult: '1',
+      },
+    });
+  });
+
+  it('upload handoff resolves order id prefix from recent orders', async () => {
+    orderRepo.findOne.mockResolvedValueOnce(null);
+    orderRepo.find.mockResolvedValueOnce([
+      { id: 'order-abc123-full', businessId: 'biz-1', bookingId: 'booking-9' },
+    ]);
+    const guided = await handleUploadPatientResultLogic(
+      deps,
+      'biz-1',
+      { orderId: 'abc123' },
+      undefined,
+    );
+    expect(guided.success).toBe(true);
+    expect(guided.details?.orderId).toBe('order-abc123-full');
+    expect(guided.details?.navigate?.query?.bookingId).toBe('booking-9');
   });
 
   it('requires patient or order for explain', async () => {
@@ -149,18 +220,97 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
   });
 
   it('configure reference range requires measurement code', async () => {
-    const missing = await handleConfigureTestReferenceRangeLogic({});
+    const missing = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+    );
     expect(missing.success).toBe(false);
 
-    const guided = await handleConfigureTestReferenceRangeLogic({
-      measurementCode: 'WBC',
-      normalLow: '4',
-      normalHigh: '11',
-    });
-    expect(guided.success).toBe(false);
+    const guided = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {
+        measurementCode: 'WBC',
+        normalLow: '4',
+        normalHigh: '11',
+      },
+    );
+    expect(guided.success).toBe(true);
     expect(guided.summary).toContain('WBC');
     expect(guided.summary).toContain('4');
     expect(guided.summary).toContain('11');
+    expect(deps.clinicCatalogService.updateReferenceRangeByCode).toHaveBeenCalledWith(
+      'biz-1',
+      'WBC',
+      '4',
+      '11',
+      'owner',
+    );
+  });
+
+  it('configure reference range requires bounds when measurement code is present', async () => {
+    const result = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { measurementCode: 'WBC' },
+    );
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('normalLow');
+  });
+
+  it('configure reference range requires business membership', async () => {
+    deps.clinicLabAccessService.resolveStaffContext.mockRejectedValueOnce(
+      new Error('not a member'),
+    );
+    const result = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { measurementCode: 'WBC', normalLow: '4', normalHigh: '11' },
+    );
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('business member');
+  });
+
+  it('configure reference range surfaces catalog not-found and validation errors', async () => {
+    deps.clinicCatalogService.updateReferenceRangeByCode
+      .mockRejectedValueOnce(new NotFoundException('missing'))
+      .mockRejectedValueOnce(new BadRequestException('invalid bounds'));
+
+    const missing = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { measurementCode: 'WBC', normalLow: '4', normalHigh: '11' },
+    );
+    expect(missing.success).toBe(false);
+    expect(missing.summary).toContain('WBC');
+
+    const invalid = await handleConfigureTestReferenceRangeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { measurementCode: 'WBC', normalLow: '4', normalHigh: '11' },
+    );
+    expect(invalid.success).toBe(false);
+    expect(invalid.summary).toContain('invalid bounds');
+  });
+
+  it('rethrows unexpected catalog errors from configure reference range', async () => {
+    deps.clinicCatalogService.updateReferenceRangeByCode.mockRejectedValueOnce(
+      new Error('database unavailable'),
+    );
+    await expect(
+      handleConfigureTestReferenceRangeLogic(deps, 'biz-1', 'user-1', {
+        measurementCode: 'WBC',
+        normalLow: '4',
+        normalHigh: '11',
+      }),
+    ).rejects.toThrow('database unavailable');
   });
 
   it('lists abnormal measurements', async () => {
@@ -188,9 +338,9 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
         businessId: 'biz-1',
         measurements: [
           {
-            testType: { name: 'glucose' },
+            testType: { code: 'glucose', name: 'glucose' },
             value: '90',
-            measurementFlag: 'N',
+            measurementFlag: 'Normal',
           },
         ],
       },

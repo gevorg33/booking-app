@@ -585,14 +585,19 @@ body.provider-tab-active ion-page {
 
 .ai-assistant-guide-toggle {
   display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.35rem;
   margin-bottom: 0.5rem;
 }
 
+.ai-assistant-guide-toggle__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .ai-assistant-guide-toggle__hint {
-  margin: 0.15rem 0 0;
-  flex: 1;
+  margin: 0;
 }
 
 .ai-assistant-guide-chip {
@@ -611,6 +616,11 @@ body.provider-tab-active ion-page {
   border-color: rgba(96, 165, 250, 0.55);
   background: rgba(30, 58, 138, 0.45);
   color: #dbeafe;
+}
+
+.ai-assistant-guide-chip--open {
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #bfdbfe;
 }
 
 .ai-assistant-examples__list {

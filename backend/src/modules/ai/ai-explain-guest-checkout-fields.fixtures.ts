@@ -1,0 +1,227 @@
+import type { GuestCheckoutFieldsAspect } from './ai-explain-guest-checkout-fields.util.js';
+
+export type ExplainGuestCheckoutFieldsPromptFixture = {
+  id: string;
+  prompt: string;
+  surface: 'customer' | 'public';
+  expectedAction: 'explain_guest_checkout_fields';
+  aspect: GuestCheckoutFieldsAspect;
+  rescueReason: 'guest_checkout_fields';
+};
+
+export const EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS: readonly ExplainGuestCheckoutFieldsPromptFixture[] =
+  [
+    {
+      id: 'why-email-customer',
+      prompt: 'Why do you need my email at checkout?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'email',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'why-phone-customer',
+      prompt: 'Why is my phone required on the booking form?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'phone',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'name-field-customer',
+      prompt: 'What is the name field for on checkout?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'name',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'without-account-customer',
+      prompt: 'Can I book without an account?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'guest_vs_account',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'sign-up-required-customer',
+      prompt: 'Do I need to sign up to book an appointment?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'guest_vs_account',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'merge-after-sign-in-customer',
+      prompt: 'Will my guest booking link if I sign in with the same email later?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'contact_merge',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'same-phone-merge-customer',
+      prompt: 'What happens when I book as a guest with the same phone as my profile?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'contact_merge',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'email-or-phone-customer',
+      prompt: 'Do I need both email and phone at checkout?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'all',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'contact-details-customer',
+      prompt: 'Why do you ask for contact details when I confirm my booking?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'all',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'reminder-toggles-customer',
+      prompt: 'What are the email and SMS reminder toggles on checkout?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'reminders',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'privacy-consent-customer',
+      prompt: 'Why is there a privacy consent checkbox before I confirm?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'consent',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'phone-only-customer',
+      prompt: 'Can I checkout with just my phone number?',
+      surface: 'customer',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'phone',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'why-email-public',
+      prompt: 'Why do you need my email on this booking page?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'email',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'why-phone-public',
+      prompt: 'Why is phone required at checkout here?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'phone',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'name-field-public',
+      prompt: 'What should I put in the name field on checkout?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'name',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'without-account-public',
+      prompt: 'Can I book without creating an account on this page?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'guest_vs_account',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'guest-checkout-public',
+      prompt: 'Can I complete guest checkout without signing in?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'guest_vs_account',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'merge-after-sign-in-public',
+      prompt: 'If I book as a guest and later log in with the same phone, do bookings merge?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'contact_merge',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'profile-prefill-public',
+      prompt: 'How does signed-in checkout pre-fill my profile email and phone?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'contact_merge',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'email-or-phone-public',
+      prompt: 'Do I need email or phone — or both — on this checkout form?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'all',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'guest-fields-overview-public',
+      prompt: 'Explain what guest checkout requires on this page',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'all',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'whatsapp-reminder-public',
+      prompt: 'Why do WhatsApp reminders need my phone on checkout?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'reminders',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'privacy-consent-public',
+      prompt: 'What does the privacy consent checkbox mean at checkout?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'consent',
+      rescueReason: 'guest_checkout_fields',
+    },
+    {
+      id: 'email-only-public',
+      prompt: 'Can I book with just email and no phone number?',
+      surface: 'public',
+      expectedAction: 'explain_guest_checkout_fields',
+      aspect: 'email',
+      rescueReason: 'guest_checkout_fields',
+    },
+  ] as const;
+
+export const GUEST_CHECKOUT_FIELDS_RESCUE_SCENARIOS = [
+  {
+    id: 'booking-help-to-guest-fields',
+    prompt: 'Why do you need my email at checkout?',
+    misclassifiedAction: 'booking_help',
+    expectedAction: 'explain_guest_checkout_fields',
+  },
+  {
+    id: 'data-rights-to-guest-fields',
+    prompt: 'Can I book without an account?',
+    misclassifiedAction: 'explain_data_rights',
+    expectedAction: 'explain_guest_checkout_fields',
+  },
+  {
+    id: 'unknown-to-guest-fields',
+    prompt: 'Do I need both email and phone at checkout?',
+    misclassifiedAction: 'unknown',
+    expectedAction: 'explain_guest_checkout_fields',
+  },
+] as const;

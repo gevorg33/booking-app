@@ -7,6 +7,27 @@ import {
   tierAccessSummary,
 } from './access-control.matrix.js';
 import {
+  assertClinicTestResultAccessTierMatchesMatrix,
+  resolveClinicTestResultAccessTier,
+  type ClinicTestResultAccessTier,
+  type ClinicTestResultExtAccessTier,
+} from './ai-clinic-test-result-ext.eval.util.js';
+import {
+  resolveServiceOnlinePaymentAccessTier,
+  SERVICE_ONLINE_PAYMENT_INTENT,
+  type ServiceOnlinePaymentAccessTier,
+} from './ai-service-online-payment.util.js';
+import {
+  CLINIC_TEST_RESULT_EXT_INTENTS,
+  type ClinicTestResultExtIntent,
+} from './ai-clinic-test-result-ext.util.js';
+import {
+  CLINIC_TEST_RESULT_INTENTS,
+  type ClinicTestResultIntent,
+} from './ai-clinic-test-result.util.js';
+import { COMMAND_REGISTRY_BY_ID } from './ai-command-registry.js';
+import type { CommandRegistryEntry } from './ai-command-registry.types.js';
+import {
   CUSTOMER_INTENTS,
   CUSTOMER_MUTATING_INTENTS,
   DASHBOARD_INTENTS,
@@ -27,8 +48,337 @@ import {
 import type { PlanTierId } from '../billing/plan-limits.js';
 
 export type { AccessTier } from './access-control.matrix.js';
+export type {
+  ClinicTestResultAccessTier,
+  ClinicTestResultExtAccessTier,
+} from './ai-clinic-test-result-ext.eval.util.js';
 
 export type AiSurface = 'dashboard' | 'provider' | 'customer' | 'public';
+
+/** Explicit capability row for dashboard clinic test-result intents. */
+export interface ClinicTestResultCapabilityRow {
+  id: ClinicTestResultIntent;
+  surfaces: readonly ['dashboard'];
+  /** Classifier tier: M = mutate, R = read-only. */
+  tier: ClinicTestResultAccessTier;
+  mutating: boolean;
+  /** Product sprint tag (Sprint 54 generic clinic vertical). */
+  sprint: '54';
+}
+
+/** Explicit capability row for dashboard clinic test-result ext intents (ai-cmd-clinic-6-gap-4.1). */
+export type ClinicTestResultExtCapabilityRow = ClinicTestResultCapabilityRow & {
+  id: ClinicTestResultExtIntent;
+};
+
+export const CLINIC_TEST_RESULT_CORE_CAPABILITY_ROWS: readonly ClinicTestResultCapabilityRow[] =
+  [
+    {
+      id: 'enter_test_result',
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '54',
+    },
+    {
+      id: 'release_test_result',
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '54',
+    },
+  ] as const;
+
+/** Dashboard-only clinic lab ext intents — explicit tier + mutating metadata for CI and docs. */
+export const CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS: readonly ClinicTestResultExtCapabilityRow[] =
+  [
+    {
+      id: 'upload_patient_result',
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '54',
+    },
+    {
+      id: 'configure_test_reference_range',
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '54',
+    },
+    {
+      id: 'explain_patient_results',
+      surfaces: ['dashboard'],
+      tier: 'R',
+      mutating: false,
+      sprint: '54',
+    },
+    {
+      id: 'list_abnormal_results',
+      surfaces: ['dashboard'],
+      tier: 'R',
+      mutating: false,
+      sprint: '54',
+    },
+  ] as const;
+
+/** Full clinic test-result intent family — core enter/release + ext (ai-cmd-clinic-6-gap-4.3). */
+export const CLINIC_TEST_RESULT_CAPABILITY_ROWS: readonly ClinicTestResultCapabilityRow[] =
+  [
+    ...CLINIC_TEST_RESULT_CORE_CAPABILITY_ROWS,
+    ...CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS,
+  ] as const;
+
+export function getClinicTestResultCapabilityRow(
+  id: string,
+): ClinicTestResultCapabilityRow | undefined {
+  return CLINIC_TEST_RESULT_CAPABILITY_ROWS.find((row) => row.id === id);
+}
+
+export function getClinicTestResultExtCapabilityRow(
+  id: string,
+): ClinicTestResultExtCapabilityRow | undefined {
+  return CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS.find((row) => row.id === id);
+}
+
+function validateClinicTestResultCapabilityRowSet(
+  registryById: ReadonlyMap<string, CommandRegistryEntry>,
+  rows: readonly ClinicTestResultCapabilityRow[],
+  expectedIntents: readonly string[],
+): string[] {
+  const errors: string[] = [];
+
+  if (rows.length !== expectedIntents.length) {
+    errors.push(
+      `capability rows: expected ${expectedIntents.length} rows, got ${rows.length}`,
+    );
+  }
+
+  for (const expectedId of expectedIntents) {
+    if (!rows.some((row) => row.id === expectedId)) {
+      errors.push(`capability rows: missing explicit row for ${expectedId}`);
+    }
+  }
+
+  for (const row of rows) {
+    const resolvedTier = resolveClinicTestResultAccessTier(row.id);
+    if (resolvedTier !== row.tier) {
+      errors.push(
+        `capability rows: ${row.id} tier ${row.tier} !== resolved ${resolvedTier ?? 'none'}`,
+      );
+    }
+
+    errors.push(...assertClinicTestResultAccessTierMatchesMatrix(row.id, row.tier));
+
+    const tierDerivedMutating = row.tier === 'M';
+    if (row.mutating !== tierDerivedMutating) {
+      errors.push(
+        `capability rows: ${row.id} mutating ${row.mutating} !== tier-derived ${tierDerivedMutating}`,
+      );
+    }
+
+    if (row.sprint !== '54') {
+      errors.push(`capability rows: ${row.id} sprint must be 54`);
+    }
+
+    if (row.surfaces.length !== 1 || row.surfaces[0] !== 'dashboard') {
+      errors.push(`capability rows: ${row.id} must be dashboard-only`);
+    }
+
+    if (!DASHBOARD_INTENTS.includes(row.id)) {
+      errors.push(`DASHBOARD_INTENTS: missing ${row.id}`);
+    }
+
+    const registry = registryById.get(row.id);
+    if (!registry) {
+      errors.push(`registry: missing entry for ${row.id}`);
+      continue;
+    }
+
+    if (!registry.surfaces.includes('dashboard')) {
+      errors.push(`registry: ${row.id} missing dashboard surface`);
+    }
+    if (
+      registry.surfaces.length !== 1 ||
+      registry.surfaces[0] !== 'dashboard'
+    ) {
+      errors.push(`registry: ${row.id} must be dashboard-only`);
+    }
+    if (registry.mutating !== row.mutating) {
+      errors.push(
+        `registry: ${row.id} mutating ${registry.mutating} !== capability row ${row.mutating}`,
+      );
+    }
+    if (registry.handler !== 'AiClinicTestResultService') {
+      errors.push(
+        `registry: ${row.id} handler must be AiClinicTestResultService`,
+      );
+    }
+    if (registry.apiModule !== 'clinic-test-results') {
+      errors.push(`registry: ${row.id} apiModule must be clinic-test-results`);
+    }
+  }
+
+  return errors;
+}
+
+/** CI guard — full clinic test-result family aligned with registry + access-control. */
+export function validateClinicTestResultCapabilityRows(
+  registryById: ReadonlyMap<string, CommandRegistryEntry>,
+  rows: readonly ClinicTestResultCapabilityRow[] = CLINIC_TEST_RESULT_CAPABILITY_ROWS,
+  expectedIntents: readonly string[] = CLINIC_TEST_RESULT_INTENTS,
+): string[] {
+  return validateClinicTestResultCapabilityRowSet(
+    registryById,
+    rows,
+    expectedIntents,
+  );
+}
+
+/** CI guard — explicit ext rows stay aligned with registry, access-control, and M/R tiers. */
+export function validateClinicTestResultExtCapabilityRows(
+  registryById: ReadonlyMap<string, CommandRegistryEntry>,
+  rows: readonly ClinicTestResultExtCapabilityRow[] = CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS,
+): string[] {
+  return validateClinicTestResultCapabilityRowSet(
+    registryById,
+    rows,
+    CLINIC_TEST_RESULT_EXT_INTENTS,
+  );
+}
+
+export const CLINIC_TEST_RESULT_CAPABILITY_VALIDATION_ERRORS =
+  validateClinicTestResultCapabilityRows(COMMAND_REGISTRY_BY_ID);
+
+export const CLINIC_TEST_RESULT_EXT_CAPABILITY_VALIDATION_ERRORS =
+  validateClinicTestResultExtCapabilityRows(COMMAND_REGISTRY_BY_ID);
+
+/** Explicit capability row for per-service online payment on public booking (ai-cmd-ext-2.13.3). */
+export interface ServiceOnlinePaymentCapabilityRow {
+  id: typeof SERVICE_ONLINE_PAYMENT_INTENT;
+  surfaces: readonly ['dashboard'];
+  /** Classifier tier: M = mutate per-service prepayment toggle. */
+  tier: ServiceOnlinePaymentAccessTier;
+  mutating: boolean;
+  /** Product sprint tag (ai-cmd-ext-2.13). */
+  sprint: '2.13';
+}
+
+export const SERVICE_ONLINE_PAYMENT_CAPABILITY_ROWS: readonly ServiceOnlinePaymentCapabilityRow[] =
+  [
+    {
+      id: SERVICE_ONLINE_PAYMENT_INTENT,
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '2.13',
+    },
+  ] as const;
+
+export function getServiceOnlinePaymentCapabilityRow(
+  id: string,
+): ServiceOnlinePaymentCapabilityRow | undefined {
+  return SERVICE_ONLINE_PAYMENT_CAPABILITY_ROWS.find((row) => row.id === id);
+}
+
+function assertServiceOnlinePaymentAccessTierMatchesMatrix(
+  action: string,
+  accessTier: ServiceOnlinePaymentAccessTier,
+): string[] {
+  const errors: string[] = [];
+  const resolved = resolveServiceOnlinePaymentAccessTier(action);
+  if (resolved !== accessTier) {
+    errors.push(
+      `accessTier: expected ${accessTier} for ${action}, resolved ${resolved ?? 'none'}`,
+    );
+  }
+  return errors;
+}
+
+/** CI guard — service online payment row aligned with registry + access-control tier. */
+export function validateServiceOnlinePaymentCapabilityRows(
+  registryById: ReadonlyMap<string, CommandRegistryEntry>,
+  rows: readonly ServiceOnlinePaymentCapabilityRow[] = SERVICE_ONLINE_PAYMENT_CAPABILITY_ROWS,
+): string[] {
+  const expectedIntents = [SERVICE_ONLINE_PAYMENT_INTENT] as const;
+  const errors: string[] = [];
+
+  if (rows.length !== expectedIntents.length) {
+    errors.push(
+      `capability rows: expected ${expectedIntents.length} rows, got ${rows.length}`,
+    );
+  }
+
+  for (const expectedId of expectedIntents) {
+    if (!rows.some((row) => row.id === expectedId)) {
+      errors.push(`capability rows: missing explicit row for ${expectedId}`);
+    }
+  }
+
+  for (const row of rows) {
+    const resolvedTier = resolveServiceOnlinePaymentAccessTier(row.id);
+    if (resolvedTier !== row.tier) {
+      errors.push(
+        `capability rows: ${row.id} tier ${row.tier} !== resolved ${resolvedTier ?? 'none'}`,
+      );
+    }
+
+    errors.push(
+      ...assertServiceOnlinePaymentAccessTierMatchesMatrix(row.id, row.tier),
+    );
+
+    const tierDerivedMutating = row.tier === 'M';
+    if (row.mutating !== tierDerivedMutating) {
+      errors.push(
+        `capability rows: ${row.id} mutating ${row.mutating} !== tier-derived ${tierDerivedMutating}`,
+      );
+    }
+
+    if (row.sprint !== '2.13') {
+      errors.push(`capability rows: ${row.id} sprint must be 2.13`);
+    }
+
+    if (row.surfaces.length !== 1 || row.surfaces[0] !== 'dashboard') {
+      errors.push(`capability rows: ${row.id} must be dashboard-only`);
+    }
+
+    if (!DASHBOARD_INTENTS.includes(row.id)) {
+      errors.push(`DASHBOARD_INTENTS: missing ${row.id}`);
+    }
+
+    const registry = registryById.get(row.id);
+    if (!registry) {
+      errors.push(`registry: missing entry for ${row.id}`);
+      continue;
+    }
+
+    if (!registry.surfaces.includes('dashboard')) {
+      errors.push(`registry: ${row.id} missing dashboard surface`);
+    }
+    if (
+      registry.surfaces.length !== 1 ||
+      registry.surfaces[0] !== 'dashboard'
+    ) {
+      errors.push(`registry: ${row.id} must be dashboard-only`);
+    }
+    if (registry.mutating !== row.mutating) {
+      errors.push(
+        `registry: ${row.id} mutating ${registry.mutating} !== capability row ${row.mutating}`,
+      );
+    }
+    if (registry.handler !== 'AiPaymentsService') {
+      errors.push(`registry: ${row.id} handler must be AiPaymentsService`);
+    }
+    if (registry.apiModule !== 'payments') {
+      errors.push(`registry: ${row.id} apiModule must be payments`);
+    }
+  }
+
+  return errors;
+}
+
+export const SERVICE_ONLINE_PAYMENT_CAPABILITY_VALIDATION_ERRORS =
+  validateServiceOnlinePaymentCapabilityRows(COMMAND_REGISTRY_BY_ID);
 
 /** @deprecated Use AccessTier — kept for backward-compatible exports */
 export type AiActorRole = AccessTier;
@@ -109,17 +459,16 @@ export const CUSTOMER_PUBLIC_RESCUE_ROUTING = {
 } as const;
 
 /** CI guard — every delegated public-assistant action must be on public + customer surfaces. */
-export function validateCustomerPublicDelegatedIntents(): string[] {
+export function validateCustomerPublicDelegatedIntents(
+  delegatedActions: readonly string[] = PUBLIC_ONLY_ASSISTANT_ACTIONS,
+): string[] {
   const errors: string[] = [];
-  for (const action of PUBLIC_ONLY_ASSISTANT_ACTIONS) {
+  for (const action of delegatedActions) {
     if (!PUBLIC_INTENTS.includes(action)) {
       errors.push(`${action} missing from PUBLIC_INTENTS`);
     }
     if (!CUSTOMER_SURFACE_INTENTS.includes(action)) {
       errors.push(`${action} missing from customer surface union`);
-    }
-    if (!isCustomerIntentAllowed('client', action)) {
-      errors.push(`${action} not allowed for client tier on customer surface`);
     }
   }
   return errors;

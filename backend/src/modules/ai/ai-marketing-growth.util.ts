@@ -2,12 +2,41 @@ import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
 import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
+import {
+  isConfigureStripeConnectPrompt,
+  parseConfigureStripeConnectFromPrompt,
+  rescueConfigureStripeConnectIntent,
+} from './ai-stripe-connect.util.js';
 import { MARKETING_GROWTH_MULTILINGUAL_SCENARIOS } from './ai-marketing-growth-multilingual.fixtures.js';
+import {
+  isExplainTenantAppInstallPrompt,
+  isRegenerateTenantAppInstallQrPrompt,
+  rescueExplainTenantAppInstallIntent,
+  rescueRegenerateTenantAppInstallQrIntent,
+} from './ai-tenant-app-install.util.js';
+import {
+  isCreatePromoCodePrompt,
+  rescueCreatePromoCodeIntent,
+} from './ai-create-promo-code.util.js';
+import {
+  isConfigureLoyaltySettingsPrompt,
+  rescueConfigureLoyaltySettingsIntent,
+} from './ai-configure-loyalty-settings.util.js';
+import {
+  isHowToDownloadAppPrompt,
+  rescueHowToDownloadAppIntent,
+} from './ai-how-to-download-app.util.js';
+
+export { isHowToDownloadAppPrompt, rescueHowToDownloadAppIntent } from './ai-how-to-download-app.util.js';
 
 export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
   'configure_marketing_automation',
+  'configure_stripe_connect',
   'trigger_reengagement',
   'toggle_annual_billing',
+  'regenerate_tenant_app_install_qr',
+  'create_promo_code',
+  'configure_loyalty_settings',
 ] as const;
 
 export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
@@ -18,6 +47,7 @@ export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'summarize_new_registrations',
   'open_billing_settings',
   'summarize_loyalty_program',
+  'explain_tenant_app_install',
 ] as const;
 
 export const CUSTOMER_MARKETING_GROWTH_INTENTS = [
@@ -42,10 +72,10 @@ export interface MarketingGrowthCompoundStep {
 }
 
 const MARKETING_GROWTH_VERB =
-  /\b(configure|summarize|trigger|list|explain|suggest|toggle|switch|download|promo|loyalty|automation|re[\s-]?engagement|inactive|plan|billing|registration|annual|upgrade|app|points|consumer)\b/i;
+  /\b(configure|summarize|trigger|list|explain|suggest|toggle|switch|download|promo|loyalty|automation|re[\s-]?engagement|inactive|plan|billing|registration|annual|upgrade|app|points|consumer|stripe|connect|onboarding|regenerate|refresh|recreate|create|add|issue|generate|coupon|discount)\b/i;
 
 const COMPOUND_NEXT =
-  '(?:configure|summarize|trigger|list|explain|suggest|toggle|switch|download|check|promo|loyalty|automation|reengagement|re-engagement|inactive|plan|billing|registration|annual|upgrade|app|points|consumer|marketing|limits|performance|customers)';
+  '(?:configure|summarize|trigger|list|explain|suggest|toggle|switch|download|check|promo|loyalty|automation|reengagement|re-engagement|inactive|plan|billing|registration|annual|upgrade|app|points|consumer|marketing|limits|performance|customers|stripe|connect|onboarding|regenerate|refresh|recreate|qr|growth|install|create|add|issue|coupon|discount|code)';
 
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*|\\s+and\\s+(?=${COMPOUND_NEXT}\\b)|\\s+then\\s+(?=${COMPOUND_NEXT}\\b)`,
@@ -144,22 +174,6 @@ export function isSummarizeNewRegistrationsPrompt(prompt: string): boolean {
   );
 }
 
-export function isHowToDownloadAppPrompt(prompt: string): boolean {
-  return (
-    (/\b(how\s+(?:do\s+i|to)|where\s+(?:can\s+i|do\s+i)|download|get)\b/i.test(
-      prompt,
-    ) ||
-      /(ինչպես|նerbерн|download|get|скач|как)/i.test(prompt)) &&
-    (/\b(app|ios|android|iphone|mobile\s+app|consumer\s+app|booking\s+app)\b/i.test(
-      prompt,
-    ) ||
-      /(app|consumer app|booking app|прилож|мобильн|iphone|android)/i.test(
-        prompt,
-      )) &&
-    !isSwitchToConsumerAppPrompt(prompt)
-  );
-}
-
 export function isSwitchToConsumerAppPrompt(prompt: string): boolean {
   return (
     (/\b(switch|open|use|go\s+to|move\s+to)\b/i.test(prompt) ||
@@ -174,15 +188,83 @@ export function isSwitchToConsumerAppPrompt(prompt: string): boolean {
 }
 
 export function isPromoCodeHelpPrompt(prompt: string): boolean {
+  if (isCreatePromoCodePrompt(prompt)) return false;
+  if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
+  if (
+    /\bunder\s+\$?\d+/i.test(prompt) &&
+    /\bcode\s+[A-Z0-9_-]{3,}\b/i.test(prompt) &&
+    /\b(list|show|find|services?)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const mentionsPromo =
+    /\b(promo\s+codes?|discount\s+codes?|coupons?|vouchers?)\b/i.test(prompt) ||
+    /(promo code|discount code|промокод|промо|скидк|купон)/i.test(prompt) ||
+    /\bcode\s+[A-Z0-9_-]{3,}\b/i.test(prompt) ||
+    /\bvalidate\s+[A-Z0-9_-]{3,}\b/i.test(prompt);
+
+  const isCheckoutHelp =
+    /\b(how|work|help|explain|validate|check|apply|use|enter|where|why)\b/i.test(
+      prompt,
+    ) ||
+    /\b(didn'?t|wasn'?t|not\s+working|still\s+full|isn'?t)\b/i.test(prompt) ||
+    /(ինչպես|how|work|help|как|работ|примен|использ)/i.test(prompt);
+
   return (
-    (/\b(promo\s+codes?|discount\s+codes?|coupons?)\b/i.test(prompt) ||
-      /(promo code|discount code|промокод|промо|скидк|купон)/i.test(prompt)) &&
-    (/\b(how|work|help|explain|validate|check|apply|use)\b/i.test(prompt) ||
-      /(ինչպես|how|work|help|как|работ|примен|использ)/i.test(prompt))
+    (mentionsPromo && isCheckoutHelp) ||
+    /\bwhy\s+(?:didn'?t|wasn'?t)\s+(?:my\s+)?(?:discount|promo|coupon)\b/i.test(
+      prompt,
+    ) ||
+    /\bwhere\s+(?:do\s+i\s+)?(?:enter|apply|put)\s+(?:a\s+)?(?:promo|discount|coupon)\b/i.test(
+      prompt,
+    ) ||
+    /\bwhere\s+is\s+the\s+(?:promo|discount)\s+(?:code\s+)?(?:box|field)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:discount|promo|coupon)\s+(?:isn'?t|is\s+not)\s+working\b/i.test(
+      prompt,
+    ) ||
+    /\bwhy\s+(?:is\s+)?(?:the\s+)?(?:total|checkout)\s+still\s+full\b/i.test(
+      prompt,
+    ) ||
+    /\bis\s+[A-Z0-9_-]{3,}\s+valid\b/i.test(prompt)
   );
 }
 
 export function isLoyaltyPointsBalancePrompt(prompt: string): boolean {
+  if (isConfigureLoyaltySettingsPrompt(prompt)) return false;
+  if (/\bsummarize\s+loyalty\b/i.test(prompt)) return false;
+  if (
+    /\b(how\s+do\s+i\s+earn|how\s+to\s+earn|what\s+are\s+(?:my\s+)?points\s+worth|how\s+does\s+loyalty\s+work)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(use|apply|redeem|spend)\b/i.test(prompt) &&
+    /\bpoints?\b/i.test(prompt) &&
+    /\b(booking|checkout|visit|appointment|order)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  if (
+    /\bhow\s+many\s+(?:loyalty\s+|reward\s+|bonus\s+)?points?\s+(?:do\s+i\s+have|are\s+on\s+my\b)/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\bwhat(?:'s|\s+is)\s+my\s+points?\s+balance\b/i.test(prompt) ||
+    /\bmy\s+points?\s+balance\b/i.test(prompt) ||
+    /\bloyalty\s+balance\b/i.test(prompt)
+  ) {
+    return true;
+  }
+
   return (
     (/\b(loyalty|bonus|reward)\b/i.test(prompt) ||
       /(loyalty|bonus|reward|бонус|лояльн|балл)/i.test(prompt)) &&
@@ -208,6 +290,18 @@ export function extractPromoCodeFromPrompt(prompt: string): string | null {
   if (quoted) return quoted[1].trim();
   const validate = prompt.match(/\bvalidate\s+([A-Z0-9_-]{3,})\b/i);
   if (validate) return validate[1].trim();
+  const isValid = prompt.match(/\bis\s+([A-Z0-9_-]{3,})\s+valid\b/i);
+  if (isValid) return isValid[1].trim();
+  const applyCode = prompt.match(
+    /\bapply\s+code\s+([A-Z0-9_-]{3,})\b/i,
+  );
+  if (applyCode) return applyCode[1].trim();
+  const withCode = prompt.match(/\bwith\s+code\s+([A-Z0-9_-]{3,})\b/i);
+  if (withCode) return withCode[1].trim();
+  const helpCode = prompt.match(
+    /\b(?:discount|promo)\s+code\s+([A-Z0-9_-]{3,})\b/i,
+  );
+  if (helpCode) return helpCode[1].trim();
   const code = prompt.match(
     /\b(?:promo|discount|coupon)\s+codes?\s+([A-Z0-9_-]{3,})\b/i,
   );
@@ -352,15 +446,25 @@ export function rescueMarketingGrowthIntent(
       rescueReason: 'loyalty_balance',
     };
   }
+  const createPromo = rescueCreatePromoCodeIntent(prompt, action);
+  if (createPromo) return createPromo;
+  const configureLoyalty = rescueConfigureLoyaltySettingsIntent(prompt, action);
+  if (configureLoyalty) return configureLoyalty;
   if (isPromoCodeHelpPrompt(prompt)) {
     return { action: 'promo_code_help', rescueReason: 'promo_help' };
   }
   if (isSwitchToConsumerAppPrompt(prompt)) {
     return { action: 'switch_to_consumer_app', rescueReason: 'switch_app' };
   }
-  if (isHowToDownloadAppPrompt(prompt)) {
-    return { action: 'how_to_download_app', rescueReason: 'download_app' };
-  }
+  const regenerateTenantQr = rescueRegenerateTenantAppInstallQrIntent(
+    prompt,
+    action,
+  );
+  if (regenerateTenantQr) return regenerateTenantQr;
+  const downloadApp = rescueHowToDownloadAppIntent(prompt, action);
+  if (downloadApp) return downloadApp;
+  const tenantAppInstall = rescueExplainTenantAppInstallIntent(prompt, action);
+  if (tenantAppInstall) return tenantAppInstall;
 
   if (isToggleAnnualBillingPrompt(prompt)) {
     return { action: 'toggle_annual_billing', rescueReason: 'annual_billing' };
@@ -401,6 +505,8 @@ export function rescueMarketingGrowthIntent(
       rescueReason: 'configure_automation',
     };
   }
+  const stripeConnect = rescueConfigureStripeConnectIntent(prompt, action);
+  if (stripeConnect) return stripeConnect;
 
   return null;
 }
@@ -436,6 +542,14 @@ function classifyMarketingGrowthSegment(
       segment: text,
     };
   }
+  if (isConfigureStripeConnectPrompt(text)) {
+    const parsed = parseConfigureStripeConnectFromPrompt(text, base);
+    return {
+      action: 'configure_stripe_connect',
+      params: parsed ? { ...base, ...parsed } : base,
+      segment: text,
+    };
+  }
   if (isSummarizeAutomationPerformancePrompt(text)) {
     return {
       action: 'summarize_automation_performance',
@@ -465,11 +579,31 @@ function classifyMarketingGrowthSegment(
       segment: text,
     };
   }
+  if (isRegenerateTenantAppInstallQrPrompt(text)) {
+    return {
+      action: 'regenerate_tenant_app_install_qr',
+      params: base,
+      segment: text,
+    };
+  }
+  if (isExplainTenantAppInstallPrompt(text)) {
+    return {
+      action: 'explain_tenant_app_install',
+      params: base,
+      segment: text,
+    };
+  }
   if (isHowToDownloadAppPrompt(text)) {
     return { action: 'how_to_download_app', params: base, segment: text };
   }
   if (isSwitchToConsumerAppPrompt(text)) {
     return { action: 'switch_to_consumer_app', params: base, segment: text };
+  }
+  if (isCreatePromoCodePrompt(text)) {
+    return { action: 'create_promo_code', params: base, segment: text };
+  }
+  if (isConfigureLoyaltySettingsPrompt(text)) {
+    return { action: 'configure_loyalty_settings', params: base, segment: text };
   }
   if (isPromoCodeHelpPrompt(text)) {
     return { action: 'promo_code_help', params: base, segment: text };

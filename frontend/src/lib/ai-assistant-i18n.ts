@@ -42,6 +42,10 @@ const PROMPT_TENANT_VAR_KEYS: Partial<Record<string, (keyof AssistantExampleVars
   whoCanDoService: ['service'],
   howMuchService: ['service'],
   addServicesBulk: ['service', 'service2'],
+  requireFullPrepaymentService: ['service'],
+  acceptOnlinePaymentTwoServicesHalf: ['service', 'service2'],
+  declineOnlinePaymentService: ['service'],
+  declineOnlinePaymentCategory: ['serviceCategory'],
   bookServiceTomorrow: ['service'],
 };
 
@@ -172,6 +176,12 @@ const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
     'howMuchService',
     'addServicesBulk',
     'whoCanDoService',
+    'acceptOnlinePaymentAllHalf',
+    'requireFullPrepaymentService',
+    'acceptOnlinePaymentTwoServicesHalf',
+    'declineOnlinePaymentAll',
+    'declineOnlinePaymentService',
+    'declineOnlinePaymentCategory',
   ],
   '/dashboard/reports': [
     'explainUtilizationDrop',

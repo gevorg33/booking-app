@@ -49,6 +49,8 @@ export interface ResolvedCreateServiceParams {
   currency?: string;
   categoryId?: string;
   localizedNames?: LocalizedNamesMap;
+  prepaymentMode?: import('../service/entities/service.entity.js').PrepaymentMode;
+  depositAmount?: number;
   userId?: string;
 }
 
@@ -726,6 +728,12 @@ export class OperationalPlanBuilderService {
           currency: params.currency ?? 'USD',
           categoryId: params.categoryId,
           localizedNames: params.localizedNames,
+          ...(params.prepaymentMode
+            ? { prepaymentMode: params.prepaymentMode }
+            : {}),
+          ...(params.depositAmount != null
+            ? { depositAmount: params.depositAmount }
+            : {}),
           userId: params.userId,
         },
         dependsOn: [],
@@ -757,6 +765,12 @@ export class OperationalPlanBuilderService {
         currency: service.currency ?? 'USD',
         categoryId: service.categoryId,
         localizedNames: service.localizedNames,
+        ...(service.prepaymentMode
+          ? { prepaymentMode: service.prepaymentMode }
+          : {}),
+        ...(service.depositAmount != null
+          ? { depositAmount: service.depositAmount }
+          : {}),
         userId: params.userId,
       },
       dependsOn: [],

@@ -72,6 +72,10 @@ function buildDeps(
     serviceService: {
       findAll: jest.fn().mockImplementation(async () => [...services]),
       create: jest.fn(async (_b, dto) => ({ id: `svc-${dto.name}`, ...dto })),
+      update: jest.fn(async (id, dto) => {
+        const service = services.find((entry) => entry.id === id);
+        return { ...service, ...dto };
+      }),
       remove: jest.fn(),
     } as any,
     packagesService: {
@@ -412,6 +416,40 @@ describe('ai-catalog.logic', () => {
         services,
       );
       expect(ok.success).toBe(true);
+    });
+
+    it('deactivates all services in a category', async () => {
+      const deps = buildDeps();
+      const categoryServices = [
+        {
+          id: 'd1',
+          name: 'Dental A',
+          isActive: true,
+          category: { name: 'Dental' },
+        },
+        {
+          id: 'd2',
+          name: 'Dental B',
+          isActive: true,
+          category: { name: 'Dental' },
+        },
+        {
+          id: 'h1',
+          name: 'Haircut',
+          isActive: true,
+          category: { name: 'Hair' },
+        },
+      ] as any[];
+      const result = await handleDeactivateServiceLogic(
+        deps,
+        'biz-1',
+        { categoryName: 'Dental', allInCategory: true },
+        categoryServices,
+        'Deactivate all dental services',
+      );
+      expect(result.success).toBe(true);
+      expect(deps.serviceService.remove).toHaveBeenCalledTimes(2);
+      expect((result.details as any).count).toBe(2);
     });
   });
 
@@ -1421,6 +1459,36 @@ describe('ai-catalog.logic', () => {
               action: 'set_service_compatibility',
               params: { incompatibleServiceNames: ['Massage', 'Facial'] },
               segment: 'x',
+            },
+          ])
+        ).success,
+      ).toBe(true);
+      expect(
+        (
+          await runTwo([
+            {
+              action: 'configure_service_featured',
+              params: {},
+              segment: 'Mark Massage as featured',
+            },
+          ])
+        ).success,
+      ).toBe(true);
+      deps.packagesService.listPackages.mockResolvedValue([
+        {
+          id: 'pkg-1',
+          name: 'Spa Day',
+          isActive: true,
+          items: [{ serviceId: 's1', service: { id: 's1' } }],
+        },
+      ]);
+      expect(
+        (
+          await runTwo([
+            {
+              action: 'configure_package_online_payment',
+              params: {},
+              segment: 'Require 50% online prepayment for Spa Day package',
             },
           ])
         ).success,

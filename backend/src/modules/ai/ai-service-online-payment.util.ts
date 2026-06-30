@@ -4,8 +4,21 @@ import {
 } from '../service/entities/service.entity.js';
 import { resolveServices } from './ai-orchestration.helpers.js';
 import { resolveServicesByCategoryHint } from './ai-operations.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
 
-export const SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES = `- configure_service_online_payment: MUTATE — per-service "Accept online payment on public booking" (prepaymentMode none|full|deposit on catalog services). Maps to Services page online payment toggle. Requires Stripe Connect before enabling full/deposit prepayment.
+/** Dashboard intent id (ai-cmd-ext-2.13). */
+export const SERVICE_ONLINE_PAYMENT_INTENT =
+  'configure_service_online_payment' as const;
+
+export type ServiceOnlinePaymentAccessTier = 'M';
+
+export function resolveServiceOnlinePaymentAccessTier(
+  action: string,
+): ServiceOnlinePaymentAccessTier | null {
+  return action === SERVICE_ONLINE_PAYMENT_INTENT ? 'M' : null;
+}
+
+export const SERVICE_ONLINE_PAYMENT_CLASSIFIER_RULES = `- configure_service_online_payment: MUTATE — per-service "Accept online payment on public booking" (prepaymentMode none|full|deposit on catalog services). Maps to Services page online payment toggle. Requires Stripe Connect before enabling full/deposit prepayment. NOT explain_service_online_payment_setup (read-only summary of current prepayment modes and Stripe Connect status).
 - Scope: allServices=true for "all services/every service"; serviceName for one service; serviceNames[] for "Haircut and Blowdry"; categoryName for "massage services" / "services in Hair category". "Some services" with named list → serviceNames.
 - Prepayment: prepaymentMode=full for pay-in-full / 100% prepayment; prepaymentMode=deposit for deposit/partial prepayment; omit depositAmount (null) when prompt says 50% or half (default checkout deposit). depositPercent for other percentages (computed per service price); depositAmount for fixed dollar deposit. prepaymentMode=none to disable/decline online payment.
 - Decline/disable verbs: decline, disable, turn off, stop, reject, remove, refuse, "do not accept", "don't accept" → prepaymentMode=none with the same scope params as accept.
@@ -23,6 +36,29 @@ export type ServiceOnlinePaymentPromptFixture = {
   expectedAction: 'configure_service_online_payment';
   paramsPartial?: Record<string, unknown>;
 };
+
+export const SERVICE_ONLINE_PAYMENT_EN_SCENARIO_IDS =
+  [
+    'all-services-50-deposit',
+    'all-services-full',
+    'specific-service-deposit',
+    'named-services-deposit',
+    'category-services-full',
+    'some-services-25',
+    'disable-specific',
+    'disable-all',
+    'fixed-deposit-dollar',
+    'stripe-all-half',
+    'public-booking-single-full',
+    'category-disable',
+    'decline-all-services',
+    'decline-specific-service',
+    'decline-named-services',
+    'decline-category-services',
+    'decline-some-services',
+    'decline-single-service-suffix',
+    'decline-every-service',
+  ] as const;
 
 export const SERVICE_ONLINE_PAYMENT_PROMPTS: ServiceOnlinePaymentPromptFixture[] =
   [
@@ -214,10 +250,10 @@ export const SERVICE_ONLINE_PAYMENT_PROMPTS: ServiceOnlinePaymentPromptFixture[]
   ];
 
 const ONLINE_PAYMENT_SIGNAL =
-  /\b(online\s+payment|online\s+pay(?:ment)?s?|prepayment|pre[-\s]?pay|pay\s+online|stripe|card\s+checkout|checkout\s+online)\b/i;
+  /\b(online\s+payment|online\s+pay(?:ment)?s?|prepayment|pre[-\s]?pay|pay\s+online|stripe|card\s+checkout|checkout\s+online)\b|stripe\s+checkout/iu;
 
 const DISABLE_ONLINE_PAYMENT_RE =
-  /\b(decline(?:\s+to)?|disable|turn\s+off|stop|reject|remove|refuse|no\s+longer|do\s+not\s+accept|don't\s+accept|dont\s+accept)\b/i;
+  /\b(decline(?:\s+to)?|disable|turn\s+off|stop|reject|remove|refuse|no\s+longer|do\s+not\s+accept|don't\s+accept|dont\s+accept)\b|(?:մերժ\w*|անջատ\w*|դադարեց\w*|չընդուն\w*|չ\s*ընդուն|մի\s+ընդուն)|(?:отклон\w*|отключ\w*|выключ\w*|прекрат\w*|отказ\w*|не\s+приним\w*)/iu;
 
 function isDisablingOnlinePayment(prompt: string): boolean {
   return DISABLE_ONLINE_PAYMENT_RE.test(prompt);
@@ -235,7 +271,7 @@ export type ParsedServiceOnlinePaymentConfig = {
 
 function hasOnlinePaymentVerb(prompt: string): boolean {
   return (
-    /\b(accept|enable|disable|decline(?:\s+to)?|turn\s+(?:on|off)|require|configure|set\s+up|allow|stop|reject|refuse|do\s+not\s+accept|don't\s+accept|dont\s+accept)\b/i.test(
+    /\b(accept|enable|disable|decline(?:\s+to)?|turn\s+(?:on|off)|require|configure|set\s+up|allow|stop|reject|refuse|do\s+not\s+accept|don't\s+accept|dont\s+accept)\b|(?:ընդուն\w*|միացր\w*|կարգավոր\w*|պահանջ\w*|անջատ\w*|մերժ\w*|դադարեց\w*|թույլ\s+տուր)|(?:приним\w*|принять|включ\w*|настро\w*|требу\w*|отключ\w*|отклон\w*|прекрати\w*|отказ\w*|разреш\w*)/iu.test(
       prompt,
     ) || /\bprepayment\b/i.test(prompt)
   );
@@ -249,9 +285,56 @@ function hasServiceOnlinePaymentScope(prompt: string): boolean {
   );
 }
 
+function isCheckoutDefaultsScopePrompt(prompt: string): boolean {
+  if (/\bcheckout\s+defaults?\b/i.test(prompt)) return true;
+  const hasNewServices =
+    /\b(?:new|newly\s+added|future|added)\s+services?\b|\bfor\s+new\s+services?\b/i.test(
+      prompt,
+    );
+  if (
+    hasNewServices &&
+    /\b(default|prepayment|online\s+payment|cash|pay\s+at\s+(?:the\s+)?venue)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isDepositPolicyTierFeaturedScope(prompt: string): boolean {
+  const hasTierOrFeatured =
+    /\b(?:standard|premium)\s+tier\b/i.test(prompt) ||
+    /\bfeatured\s+services?\b/i.test(prompt);
+  const hasDeposit =
+    /\b(deposit|prepayment|pre[-\s]?pay)\b/i.test(prompt) ||
+    /\$\s*\d/.test(prompt) ||
+    /\b\d+\s*%/.test(prompt);
+  return hasTierOrFeatured && hasDeposit;
+}
+
+function isExplicitDepositPolicyPrompt(prompt: string): boolean {
+  return (
+    /\bdeposit\s+policy\b/i.test(prompt) &&
+    (/\b(deposit|prepayment|pre[-\s]?pay|\$\s*\d|\d+\s*%)\b/i.test(prompt) ||
+      /\bhalf\b/i.test(prompt))
+  );
+}
+
 export function isConfigureServiceOnlinePaymentPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isCheckoutDefaultsScopePrompt(text)) return false;
+  if (isExplainServiceOnlinePaymentSetupPrompt(text)) return false;
+  if (
+    /\bpackages?\b/i.test(text) &&
+    ONLINE_PAYMENT_SIGNAL.test(text)
+  ) {
+    return false;
+  }
+  if (isDepositPolicyTierFeaturedScope(text) || isExplicitDepositPolicyPrompt(text)) {
+    return false;
+  }
 
   const disabling =
     isDisablingOnlinePayment(text) &&
@@ -267,7 +350,7 @@ export function isConfigureServiceOnlinePaymentPrompt(prompt: string): boolean {
   return disabling || enabling;
 }
 
-function parseDepositPercent(prompt: string): number | null | undefined {
+export function parseDepositPercent(prompt: string): number | null | undefined {
   if (
     /\b(?:half|50\s*%\s*deposit|50\s*%\s*prepayment|50\s*%\s*pre[-\s]?pay)\b/i.test(
       prompt,
@@ -295,7 +378,7 @@ function parseDepositPercent(prompt: string): number | null | undefined {
   return undefined;
 }
 
-function parseFixedDepositAmount(prompt: string): number | undefined {
+export function parseFixedDepositAmount(prompt: string): number | undefined {
   const dollar = prompt.match(/\$\s*(\d+(?:\.\d+)?)/);
   if (dollar) return Number.parseFloat(dollar[1]);
   const words = prompt.match(/\b(\d+(?:\.\d+)?)\s+dollar\b/i);
@@ -352,15 +435,8 @@ function parseServiceScopeFromPrompt(prompt: string): {
     return { allServices: true };
   }
 
-  const categoryMatch = prompt.match(
-    /\bfor\s+(?:the\s+)?([a-z][\w&'-]+)\s+services?\b/i,
-  );
-  if (categoryMatch) {
-    return { categoryName: categoryMatch[1].trim() };
-  }
-
   const someList = prompt.match(
-    /\bsome\s+services?\s*[—–-]\s*([^—–-]+?)(?:\s+with|\s*$)/i,
+    /\bsome\s+services?\s*[—–-]\s*([^—–-]+?)(?:\s*[—–-]\s*with|\s+with|\s*$)/i,
   );
   if (someList) {
     const names = someList[1]
@@ -368,6 +444,13 @@ function parseServiceScopeFromPrompt(prompt: string): {
       .map((s) => s.trim())
       .filter(Boolean);
     if (names.length) return { serviceNames: names };
+  }
+
+  const categoryMatch = prompt.match(
+    /\bfor\s+(?:the\s+)?([a-z][\w&'-]+)\s+services\b/i,
+  );
+  if (categoryMatch && categoryMatch[1].toLowerCase() !== 'some') {
+    return { categoryName: categoryMatch[1].trim() };
   }
 
   const namedPair = prompt.match(

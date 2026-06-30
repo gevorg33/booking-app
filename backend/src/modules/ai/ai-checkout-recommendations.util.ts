@@ -42,6 +42,8 @@ export function hasCheckoutSuccessVisitorContext(prompt: string): boolean {
     /\b(?:booking\s+)?(?:success|confirmation)\s+(?:screen|page)\b/i.test(
       prompt,
     ) ||
+    /\bcheckout\s+success\b/i.test(prompt) ||
+    /\bconsumer\s+app\b.{0,24}\bsuccess\b/i.test(prompt) ||
     /\bafter\s+(?:i\s+)?booked\b/i.test(prompt) ||
     /\bafter\s+(?:my\s+)?(?:booking|appointment)\s+is\s+confirmed\b/i.test(
       prompt,
@@ -52,15 +54,29 @@ export function hasCheckoutSuccessVisitorContext(prompt: string): boolean {
     /\bproduct\s+cards?\s+(?:on|after)\b/i.test(prompt) ||
     /\bafter\s+(?:i\s+)?(?:confirm|booked)\b/i.test(prompt) ||
     /\bon\s+checkout\s+success\b/i.test(prompt) ||
-    /\bafter\s+booking\s+in\s+the\s+app\b/i.test(prompt)
+    /\bafter\s+booking\s+in\s+the\s+app\b/i.test(prompt) ||
+    /(?:запис|бронир|подтвержден|после\s+оплаты|забронирован)/i.test(
+      prompt,
+    ) ||
+    /(?:success screen|checkout success|հաստատման\s+էկրան|ամրագրումից\s+հետո|ամրագրած)/i.test(
+      prompt,
+    ) ||
+    (/(էկրան|экран)/i.test(prompt) &&
+      /(success|checkout|հաստատման|подтвержден)/i.test(prompt)) ||
+    /\bafter\s+checkout\b/i.test(prompt)
   );
 }
 
 function hasReadCheckoutRecommendationsCue(prompt: string): boolean {
   return (
-    /\b(what|which|why|how|explain|show|describe|mean|does|do|are|can)\b/i.test(
+    /\b(what|which|why|how|explain|show|describe|mean|does|do|are|can|shop|buy)\b/i.test(
       prompt,
-    ) || /\?\s*$/.test(prompt.trim())
+    ) ||
+    /(ինչ|ինչու|քանի|արդյոք|что|почему|сколько|какие|что\s+делает)/i.test(
+      prompt,
+    ) ||
+    /(?:эти|этот|այս).{0,40}(առաջարկ|рекомендац)/i.test(prompt) ||
+    /\?\s*$/.test(prompt.trim())
   );
 }
 
@@ -81,7 +97,11 @@ function hasCheckoutRecommendationsTopic(prompt: string): boolean {
     /\bconfirmation\s+screen\b/i.test(prompt) ||
     /\bcheckout\s+success\b/i.test(prompt) ||
     /\bsuccess\s+screen\b/i.test(prompt) ||
-    /\bfrom\s+my\s+booked\b/i.test(prompt)
+    /\bfrom\s+my\s+booked\b/i.test(prompt) ||
+    /\b(?:shop|buy)\b.+\b(?:recommended|serum|product)\b/i.test(prompt) ||
+    /shop\s+(?:հղում|ссылк)/i.test(prompt) ||
+    /(?:շամպուն|шампун)/i.test(prompt) ||
+    /(ապրանք|առաջարկ|товар|рекомендац)/i.test(prompt)
   );
 }
 
@@ -101,13 +121,19 @@ function isProviderRetailUpsellPrompt(prompt: string): boolean {
 function extractAspect(prompt: string): CheckoutRecommendationsAspect {
   if (
     /\b(?:shop|external)\s+links?\b/i.test(prompt) ||
-    /\bwhat\s+(?:is|does)\s+the\s+(?:shop|external)\s+link\b/i.test(prompt)
+    /\bshop\s+հղում/i.test(prompt) ||
+    /\bshop\s+ссылк/i.test(prompt) ||
+    /\bwhat\s+(?:is|does)\s+the\s+(?:shop|external)\s+link\b/i.test(prompt) ||
+    /\b(?:shop|buy)\b.+\b(?:recommended|serum|product)\b/i.test(prompt) ||
+    /(?:անում|делает).{0,20}(shop|հղում|ссылк)/i.test(prompt)
   ) {
     return 'shopLink';
   }
   if (
     /\bhow\s+many\s+products?\b/i.test(prompt) ||
-    /\bmax(?:imum)?\s+(?:product|card)\s+count\b/i.test(prompt)
+    /\bmax(?:imum)?\s+(?:product|card)\s+count\b/i.test(prompt) ||
+    /քանի\s+ապրանք/i.test(prompt) ||
+    /сколько\s+продукт/i.test(prompt)
   ) {
     return 'maxCount';
   }
@@ -117,13 +143,23 @@ function extractAspect(prompt: string): CheckoutRecommendationsAspect {
     ) ||
     /\bhow\s+were\b.+\b(?:chosen|picked|selected)\b/i.test(prompt) ||
     /\bfrom\s+my\s+booked\b/i.test(prompt) ||
-    /\bwhy\s+don'?t\s+i\s+see\b/i.test(prompt)
+    /\bwhy\s+don'?t\s+i\s+see\b/i.test(prompt) ||
+    /ինչու/i.test(prompt) ||
+    /почему/i.test(prompt) ||
+    /արդյո/i.test(prompt) ||
+    /(?:արդյո|эти|этот|այս).{0,40}(առաջարկ|рекомендац)/i.test(prompt) ||
+    /забронированн?.{0,40}(услуг|ծառայություն)/i.test(prompt)
   ) {
     return 'whyShown';
   }
   if (
     /\bwhat\s+are\b.+\b(?:products?|cards?|recommendations?)\b/i.test(prompt) ||
-    /\bwhat\s+products?\s+show\b/i.test(prompt)
+    /\bwhat\s+products?\s+show\b/i.test(prompt) ||
+    /ինչ\s+ապրանք/i.test(prompt) ||
+    /ինչ.{0,40}ապրանք/i.test(prompt) ||
+    /какие\s+товар/i.test(prompt) ||
+    (/\byou might also like\b/i.test(prompt) &&
+      (/\bwhat\s+are\b/i.test(prompt) || /что\s+за/i.test(prompt)))
   ) {
     return 'products';
   }
@@ -171,7 +207,8 @@ export function isExplainCheckoutRecommendationsPrompt(
     !/\bproduct\s+recommendations?\b/i.test(prompt) &&
     !/\b(?:shop|external)\s+links?\b/i.test(prompt) &&
     !/\brecommendation\s+card\b/i.test(prompt) &&
-    !/\bfrom\s+my\s+booked\b/i.test(prompt)
+    !/\bfrom\s+my\s+booked\b/i.test(prompt) &&
+    !/(ապրանք|առաջարկ|рекомендац|шампун|товар)/i.test(prompt)
   ) {
     return false;
   }

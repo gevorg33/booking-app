@@ -1320,6 +1320,19 @@ const en: MessageTree = {
     upcomingAppointments: 'Upcoming appointments',
     noUpcoming: 'No upcoming appointments.',
     profileTitle: 'Profile',
+    guidePageTitle: 'Help & guide',
+    guidePageSubtitle:
+      'Step-by-step help for Today, Calendar, Schedule, appointments, and your profile.',
+    guidePageTopicsLabel: 'Topics',
+    guidePageBack: 'Back',
+    guidePageOpenInApp: 'Open in app',
+    guidePageAskSection: 'Ask about this section',
+    guideWalkThroughTopic: 'Walk me through {topic}',
+    guidePageLoadError: 'Could not load the guide.',
+    guidePageAccountEntryHint:
+      'Step-by-step help for Today, Calendar, Schedule, and appointments.',
+    assistantOpenGuideChip: 'Open guide',
+    inviteGuideLink: 'What is this invite link?',
     profilePublicTitle: 'Public profile',
     profileEditTitle: 'Job title',
     profileTitlePlaceholder: 'e.g. Senior stylist',
@@ -3239,6 +3252,18 @@ const en: MessageTree = {
       howMuchService: 'How much does {service} cost?',
       addServicesBulk: 'Add {service} and {service2} to our catalog',
       whoCanDoService: 'Who can perform {service}?',
+      acceptOnlinePaymentAllHalf:
+        'Accept online payment on public booking for all services with 50% prepayment',
+      requireFullPrepaymentService:
+        'Require full prepayment on public booking for {service}',
+      acceptOnlinePaymentTwoServicesHalf:
+        'Accept online payment for {service} and {service2} with half prepayment',
+      declineOnlinePaymentAll:
+        'Decline online payment on public booking for all services',
+      declineOnlinePaymentService:
+        'Decline online payment on public booking for {service}',
+      declineOnlinePaymentCategory:
+        'Do not accept online payment for {serviceCategory} services',
       howManyAppointmentsWeek: 'How many appointments this week?',
       revenueMonth: 'Total revenue this month',
       topServicesRevenueMonth: 'Top services by revenue this month',
@@ -3337,6 +3362,8 @@ const en: MessageTree = {
         specimen: 'Specimen',
         measurement: 'Flag',
         unnamedResult: 'Lab result',
+        uploadHandoff:
+          'Attach the result file for order {orderId} here. Use the AI command bar to enter values manually (enter_test_result).',
       },
       ordersTab: {
         title: 'Lab orders',

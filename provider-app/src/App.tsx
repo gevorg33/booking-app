@@ -17,6 +17,7 @@ import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderTabRoute } from './components/ProviderTabRoute';
+import GuidePage from './pages/GuidePage';
 import { ProviderAppRedirect, ProviderRootRedirect } from './components/ProviderAppRedirect';
 import { AppStartupBridge } from './components/AppStartupBridge';
 import { BusinessDateFormatBootstrap } from './components/BusinessDateFormatBootstrap';
@@ -113,6 +114,7 @@ function AppRoutes() {
       <Route exact path="/tabs/schedule">
         <ProviderTabRoute page="schedule" />
       </Route>
+      <Route exact path="/tabs/profile/guide" component={GuidePage} />
       <Route exact path="/tabs/profile">
         <ProviderTabRoute page="profile" />
       </Route>

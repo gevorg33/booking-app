@@ -182,6 +182,30 @@ describe('ServiceService', () => {
     expect(created.currency).toBe('AMD');
   });
 
+  it('defaults prepayment mode from business checkout defaults when omitted on create', async () => {
+    businessRepo.findOne.mockResolvedValueOnce({
+      id: 'biz-1',
+      settings: {
+        currency: 'AMD',
+        stripeConnect: { chargesEnabled: true },
+        publicBooking: {
+          defaultServicePrepaymentMode: 'deposit',
+          defaultServiceDepositPercent: 25,
+        },
+      },
+    });
+
+    const created = await serviceService.create('biz-1', {
+      name: 'Massage',
+      durationMinutes: 60,
+      price: 100,
+      bufferMinutes: 0,
+    });
+
+    expect(created.prepaymentMode).toBe(PrepaymentMode.DEPOSIT);
+    expect(Number(created.depositAmount)).toBe(25);
+  });
+
   it('creates a service with localized names in metadata', async () => {
     const created = await serviceService.create(
       'biz-1',

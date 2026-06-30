@@ -110,6 +110,21 @@ export function buildNearestSlotBookedMessage(input: {
   return `Nearest slot: ${label} with ${input.employeeName}.`;
 }
 
+/** NL summary when the soonest opening is found (read-only). */
+export function buildSoonestAppointmentFoundMessage(input: {
+  startTime: string;
+  employeeName: string;
+  serviceName?: string;
+  locale?: unknown;
+}): string {
+  const label = formatNearestSlotStartTimeLabel(
+    input.startTime,
+    resolveAppLocale(input.locale),
+  );
+  const servicePhrase = input.serviceName ? ` for ${input.serviceName}` : '';
+  return `Soonest opening${servicePhrase}: ${label} with ${input.employeeName}.`;
+}
+
 /** NL summary when nearest/first-available booking finds no open slot. */
 export function buildNoNearestSlotMessage(
   input: Omit<NoSlotMessageInput, 'scenario'>,

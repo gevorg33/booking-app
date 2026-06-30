@@ -6,8 +6,14 @@ export interface CustomerSelfServiceSettings {
   allowProviderChangeOnReschedule: boolean;
 }
 
+export type DefaultServicePrepaymentMode = 'none' | 'full' | 'deposit';
+
 export interface PublicPaymentSettings {
   acceptCashPayments: boolean;
+  /** Default prepaymentMode applied when a new catalog service is created without one. */
+  defaultServicePrepaymentMode?: DefaultServicePrepaymentMode;
+  /** Deposit percent for new services when defaultServicePrepaymentMode is deposit; null = 50% at checkout. */
+  defaultServiceDepositPercent?: number | null;
 }
 
 export const DEFAULT_CUSTOMER_SELF_SERVICE_SETTINGS: CustomerSelfServiceSettings =
@@ -52,13 +58,39 @@ export function resolveCustomerSelfServiceSettings(
   };
 }
 
+function parseDefaultServicePrepaymentMode(
+  raw: unknown,
+): DefaultServicePrepaymentMode | undefined {
+  if (raw === 'none' || raw === 'full' || raw === 'deposit') return raw;
+  return undefined;
+}
+
+function parseDefaultServiceDepositPercent(raw: unknown): number | null | undefined {
+  if (raw === null) return null;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  if (raw <= 0 || raw >= 100) return undefined;
+  return raw;
+}
+
 export function resolvePublicPaymentSettings(
   settings: Record<string, unknown> | null | undefined,
 ): PublicPaymentSettings {
   const publicBooking =
     (settings?.publicBooking as Record<string, unknown> | undefined) ?? {};
+  const defaultServicePrepaymentMode = parseDefaultServicePrepaymentMode(
+    publicBooking.defaultServicePrepaymentMode,
+  );
+  const defaultServiceDepositPercent = parseDefaultServiceDepositPercent(
+    publicBooking.defaultServiceDepositPercent,
+  );
   return {
     acceptCashPayments: publicBooking.acceptCashPayments === true,
+    ...(defaultServicePrepaymentMode
+      ? { defaultServicePrepaymentMode }
+      : {}),
+    ...(defaultServiceDepositPercent !== undefined
+      ? { defaultServiceDepositPercent }
+      : {}),
   };
 }
 
@@ -89,6 +121,33 @@ export function applyCustomerSelfServiceToBusinessSettings(
   return { ...settings, publicBooking };
 }
 
+export function mergePublicPaymentSettingsPatch(
+  current: PublicPaymentSettings,
+  patch: Partial<PublicPaymentSettings>,
+): PublicPaymentSettings {
+  const next: PublicPaymentSettings = {
+    acceptCashPayments: patch.acceptCashPayments ?? current.acceptCashPayments,
+  };
+  if (
+    patch.defaultServicePrepaymentMode !== undefined ||
+    current.defaultServicePrepaymentMode !== undefined
+  ) {
+    next.defaultServicePrepaymentMode =
+      patch.defaultServicePrepaymentMode ?? current.defaultServicePrepaymentMode;
+  }
+  if (
+    patch.defaultServiceDepositPercent !== undefined ||
+    current.defaultServiceDepositPercent !== undefined
+  ) {
+    next.defaultServiceDepositPercent =
+      patch.defaultServiceDepositPercent ?? current.defaultServiceDepositPercent;
+  }
+  if (next.defaultServicePrepaymentMode !== 'deposit') {
+    delete next.defaultServiceDepositPercent;
+  }
+  return next;
+}
+
 export function applyPublicPaymentSettingsToBusinessSettings(
   settings: Record<string, unknown>,
   payment: PublicPaymentSettings,
@@ -97,6 +156,21 @@ export function applyPublicPaymentSettingsToBusinessSettings(
     ...((settings.publicBooking as Record<string, unknown>) ?? {}),
   };
   publicBooking.acceptCashPayments = payment.acceptCashPayments;
+  if (payment.defaultServicePrepaymentMode) {
+    publicBooking.defaultServicePrepaymentMode =
+      payment.defaultServicePrepaymentMode;
+  } else {
+    delete publicBooking.defaultServicePrepaymentMode;
+    delete publicBooking.defaultServiceDepositPercent;
+  }
+  if (payment.defaultServicePrepaymentMode === 'deposit') {
+    if (payment.defaultServiceDepositPercent !== undefined) {
+      publicBooking.defaultServiceDepositPercent =
+        payment.defaultServiceDepositPercent;
+    }
+  } else {
+    delete publicBooking.defaultServiceDepositPercent;
+  }
   return { ...settings, publicBooking };
 }
 

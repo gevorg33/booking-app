@@ -6,6 +6,7 @@ import {
   canCustomerManageBookingOnline,
   resolveBookingManageLinkLabel,
   mergeCustomerSelfServiceSettingsPatch,
+  mergePublicPaymentSettingsPatch,
   readRescheduleCount,
   resolveCustomerSelfServiceSettings,
   resolvePublicPaymentSettings,
@@ -47,6 +48,61 @@ describe('customer-self-service.util', () => {
         publicBooking: { acceptCashPayments: true },
       }),
     ).toEqual({ acceptCashPayments: true });
+    expect(
+      resolvePublicPaymentSettings({
+        publicBooking: {
+          acceptCashPayments: true,
+          defaultServicePrepaymentMode: 'deposit',
+          defaultServiceDepositPercent: 25,
+        },
+      }),
+    ).toEqual({
+      acceptCashPayments: true,
+      defaultServicePrepaymentMode: 'deposit',
+      defaultServiceDepositPercent: 25,
+    });
+  });
+
+  it('mergePublicPaymentSettingsPatch applies partial checkout default updates', () => {
+    const current = {
+      acceptCashPayments: false,
+      defaultServicePrepaymentMode: 'none' as const,
+    };
+    expect(
+      mergePublicPaymentSettingsPatch(current, { acceptCashPayments: true }),
+    ).toEqual({
+      acceptCashPayments: true,
+      defaultServicePrepaymentMode: 'none',
+    });
+    expect(
+      mergePublicPaymentSettingsPatch(current, {
+        defaultServicePrepaymentMode: 'deposit',
+        defaultServiceDepositPercent: 50,
+      }),
+    ).toEqual({
+      acceptCashPayments: false,
+      defaultServicePrepaymentMode: 'deposit',
+      defaultServiceDepositPercent: 50,
+    });
+  });
+
+  it('applyPublicPaymentSettingsToBusinessSettings stores default prepayment for new services', () => {
+    const settings = { locale: 'en', publicBooking: { enabled: true } };
+    expect(
+      applyPublicPaymentSettingsToBusinessSettings(settings, {
+        acceptCashPayments: true,
+        defaultServicePrepaymentMode: 'deposit',
+        defaultServiceDepositPercent: null,
+      }),
+    ).toEqual({
+      locale: 'en',
+      publicBooking: {
+        enabled: true,
+        acceptCashPayments: true,
+        defaultServicePrepaymentMode: 'deposit',
+        defaultServiceDepositPercent: null,
+      },
+    });
   });
 
   it('mergeCustomerSelfServiceSettingsPatch keeps current values for omitted fields', () => {

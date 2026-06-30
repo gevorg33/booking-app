@@ -29,6 +29,8 @@ import { AiSelfServiceBookingService } from './ai-self-service-booking.service.j
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
 import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-location.service.js';
+import { AiProviderSpecialtyService } from './ai-explain-provider-specialty.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import {
@@ -52,6 +54,8 @@ import { AiRecommendationProductService } from './ai-recommendation-product.serv
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { AiGuestCheckoutFieldsService } from './ai-explain-guest-checkout-fields.service.js';
+import { AiResumePendingPaymentService } from './ai-resume-pending-payment.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import {
   enrichDiscoveryParamsFromPrompt,
@@ -133,6 +137,8 @@ export class CustomerAiCommandService {
     private readonly businessCurrency: AiBusinessCurrencyService,
     private readonly businessLanguages: AiBusinessLanguagesService,
     private readonly businessDateFormat: AiBusinessDateFormatService,
+    private readonly businessHoursLocation: AiBusinessHoursLocationService,
+    private readonly providerSpecialty: AiProviderSpecialtyService,
     private readonly businessTax: AiBusinessTaxService,
     private readonly businessCompliance: AiBusinessComplianceService,
     private readonly tourService: AiTourServiceService,
@@ -140,6 +146,8 @@ export class CustomerAiCommandService {
     private readonly consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private readonly clinicLabBooking: AiClinicLabBookingService,
     private readonly clinicBooking: AiClinicBookingService,
+    private readonly guestCheckoutFields: AiGuestCheckoutFieldsService,
+    private readonly resumePendingPayment: AiResumePendingPaymentService,
     private readonly consumerAdoption: AiConsumerAdoptionService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
@@ -158,6 +166,8 @@ export class CustomerAiCommandService {
       businessCurrency: this.businessCurrency,
       businessLanguages: this.businessLanguages,
       businessDateFormat: this.businessDateFormat,
+      businessHoursLocation: this.businessHoursLocation,
+      providerSpecialty: this.providerSpecialty,
       businessTax: this.businessTax,
       businessCompliance: this.businessCompliance,
       tourService: this.tourService,
@@ -165,6 +175,8 @@ export class CustomerAiCommandService {
       consumerClinicTestResults: this.consumerClinicTestResults,
       clinicLabBooking: this.clinicLabBooking,
       clinicBooking: this.clinicBooking,
+      guestCheckoutFields: this.guestCheckoutFields,
+      resumePendingPayment: this.resumePendingPayment,
       consumerAdoption: this.consumerAdoption,
       runPublicAssistantStep: async (businessId, action, params, session) => {
         void businessId;
@@ -504,6 +516,18 @@ export class CustomerAiCommandService {
         | undefined,
       priorCheckSummary: context?.priorCheckSummary as string | undefined,
       noProviders: context?.noProviders as boolean | undefined,
+      pendingCheckoutSessionId: context?.pendingCheckoutSessionId as
+        | string
+        | undefined,
+      pendingCheckoutServiceId: context?.pendingCheckoutServiceId as
+        | string
+        | undefined,
+      pendingCheckoutStartTime: context?.pendingCheckoutStartTime as
+        | string
+        | undefined,
+      pendingCheckoutEmployeeId: context?.pendingCheckoutEmployeeId as
+        | string
+        | undefined,
       prompt,
     };
   }

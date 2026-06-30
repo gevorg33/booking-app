@@ -72,6 +72,9 @@ interface BookingDetailPanelProps {
   businessId: string;
   bookingId: string | null;
   onClose: () => void;
+  labInitialTab?: 'orders' | 'results';
+  labHighlightOrderId?: string | null;
+  labUploadResultRequested?: boolean;
 }
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -83,7 +86,14 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDetailPanelProps) {
+export function BookingDetailPanel({
+  businessId,
+  bookingId,
+  onClose,
+  labInitialTab,
+  labHighlightOrderId,
+  labUploadResultRequested,
+}: BookingDetailPanelProps) {
   const { t } = useI18n();
   const statusLabel = (status: BookingStatus) => bookingStatusLabel(t, status);
   const payLabel = (status: PaymentStatus) => paymentStatusLabel(t, status);
@@ -565,7 +575,13 @@ export function BookingDetailPanel({ businessId, bookingId, onClose }: BookingDe
             )}
 
             {showLabResultsTab && bookingId && (
-              <BookingLabSection businessId={businessId} bookingId={bookingId} />
+              <BookingLabSection
+                businessId={businessId}
+                bookingId={bookingId}
+                initialTab={labInitialTab}
+                highlightOrderId={labHighlightOrderId}
+                uploadResultRequested={labUploadResultRequested}
+              />
             )}
 
             {showClinicIntake && bookingId && (

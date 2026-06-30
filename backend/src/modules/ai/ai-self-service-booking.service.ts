@@ -32,6 +32,7 @@ import {
   handleExplainCancelPolicyLogic,
   handleGetManageLinkLogic,
   handleListMyAppointmentsLogic,
+  handleListMyPackageVisitsLogic,
   handleRemoveServiceFromCartLogic,
   handleRescheduleMyBookingLogic,
   handleReschedulePackageVisitSelfLogic,
@@ -135,12 +136,20 @@ export class AiSelfServiceBookingService {
     return handleUseSubscriptionCreditLogic(this.deps, businessId, params);
   }
 
-  handleCancelMyBooking(businessId: string, params: Record<string, any>) {
-    return handleCancelMyBookingLogic(this.deps, businessId, params);
+  handleCancelMyBooking(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleCancelMyBookingLogic(this.deps, businessId, params, prompt);
   }
 
-  handleRescheduleMyBooking(businessId: string, params: Record<string, any>) {
-    return handleRescheduleMyBookingLogic(this.deps, businessId, params);
+  handleRescheduleMyBooking(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleRescheduleMyBookingLogic(this.deps, businessId, params, prompt);
   }
 
   handleCancelPackageVisitSelf(
@@ -159,6 +168,19 @@ export class AiSelfServiceBookingService {
 
   handleListMyAppointments(businessId: string, params: Record<string, any>) {
     return handleListMyAppointmentsLogic(this.deps, businessId, params);
+  }
+
+  handleListMyPackageVisits(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleListMyPackageVisitsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleGetManageLink(businessId: string, params: Record<string, any>) {

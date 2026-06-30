@@ -8,6 +8,7 @@ import {
   isAiCmdEntityValidatedAction,
   validateAiCmdEntityFields,
 } from './ai-cmd-entity-completion.util.js';
+import { isClinicTestResultExtValidatedIntent } from './ai-command-entity-params.registry.js';
 import {
   hasAvailabilityWhen,
   hasRequiredBookingDate,
@@ -46,12 +47,21 @@ import {
   parseLinkRecommendedProductsFromPrompt,
 } from './ai-recommendation-product.util.js';
 import { parseServiceOnlinePaymentConfig } from './ai-service-online-payment.util.js';
+import { parseServiceDepositPolicyConfig } from './ai-service-deposit-policy.util.js';
+import { parseConfigureServiceFeaturedFromPrompt } from './ai-configure-service-featured.util.js';
+import { parseBulkAssignServicesCategoryFromPrompt } from './ai-bulk-assign-services-category.util.js';
+import { parseConfigurePackageOnlinePaymentFromPrompt } from './ai-configure-package-online-payment.util.js';
+import { parseConfigureNotificationSettingsFromPrompt } from './ai-notification-settings.util.js';
+import { parseConfigureWhatsappIntegrationFromPrompt } from './ai-whatsapp-integration.util.js';
+import { parseConfigureOpenaiIntegrationFromPrompt } from './ai-openai-integration.util.js';
 import { parseBusinessLanguagesFromPrompt } from './ai-business-languages.util.js';
 import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.util.js';
 import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
 import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
 import { parseExplainTourBookingFromPrompt } from './ai-tour-booking.util.js';
 import { parseExplainClinicBookingFromPrompt } from './ai-clinic-booking.util.js';
+import { parseExplainGuestCheckoutFieldsFromPrompt } from './ai-explain-guest-checkout-fields.util.js';
+import { parseResumePendingPaymentFromPrompt } from './ai-resume-pending-payment.util.js';
 import { parseExplainTourDaySlotsFromPrompt } from './ai-tour-day-slots.util.js';
 import { parseExplainCheckoutRecommendationsFromPrompt } from './ai-checkout-recommendations.util.js';
 import { parseExplainConsumerCheckoutSuccessFromPrompt } from './ai-consumer-checkout-success.util.js';
@@ -81,6 +91,7 @@ import {
   isExplainClinicServicesPrompt,
   parseConfigureClinicServiceFromPrompt,
 } from './ai-clinic-service.util.js';
+import { validateClinicTestResultExtCommand } from './ai-clinic-test-result-ext-completion.util.js';
 
 type Rule = (cmd: ResolvedCommand) => ValidationIssue[];
 
@@ -293,6 +304,8 @@ const ACTION_RULES: Record<string, Rule> = {
         'Massage',
       ),
     ].filter(Boolean) as ValidationIssue[],
+
+  update_service_duration_buffer: (_cmd) => [] as ValidationIssue[],
 
   create_services: (cmd) => {
     const list = cmd.params.services;
@@ -1075,6 +1088,202 @@ const ACTION_RULES: Record<string, Rule> = {
 
   open_billing_settings: (_cmd) => [] as ValidationIssue[],
 
+  configure_stripe_connect: (_cmd) => [] as ValidationIssue[],
+
+  configure_checkout_defaults: (_cmd) => [] as ValidationIssue[],
+
+  configure_notification_settings: (cmd) => {
+    const parsed = parseConfigureNotificationSettingsFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    if (!parsed) {
+      return [
+        {
+          field: 'emailEnabled',
+          label: 'Notification settings',
+          message:
+            'Specify channel or reminder toggles (email, SMS, WhatsApp, 24h/1h reminders)',
+          example:
+            'Configure notification settings — enable email and WhatsApp, disable SMS',
+        },
+      ];
+    }
+    return [] as ValidationIssue[];
+  },
+
+  configure_whatsapp_integration: (cmd) => {
+    const parsed = parseConfigureWhatsappIntegrationFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    if (parsed === null) {
+      return [
+        {
+          field: 'usePlatformDefault',
+          label: 'WhatsApp integration',
+          message:
+            'Specify connection mode, template names, or Meta credentials for WhatsApp',
+          example: 'Configure WhatsApp integration for the salon',
+        },
+      ];
+    }
+    return [] as ValidationIssue[];
+  },
+
+  configure_openai_integration: (cmd) => {
+    const parsed = parseConfigureOpenaiIntegrationFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    if (parsed === null) {
+      return [
+        {
+          field: 'usePlatformDefault',
+          label: 'OpenAI integration',
+          message:
+            'Specify platform default or tenant OpenAI API key (sk-…)',
+          example: 'Configure OpenAI integration for the salon',
+        },
+      ];
+    }
+    return [] as ValidationIssue[];
+  },
+
+  configure_service_deposit_policy: (cmd) => {
+    const parsed = parseServiceDepositPolicyConfig(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed) {
+      issues.push({
+        field: 'depositPercent',
+        label: 'Deposit',
+        message: 'Specify deposit percentage or fixed dollar amount',
+        example: 'Set 30% deposit on premium tier services',
+      });
+    }
+    if (
+      parsed &&
+      !parsed.allServices &&
+      !parsed.serviceName &&
+      !parsed.serviceNames?.length &&
+      !parsed.categoryName &&
+      !parsed.serviceTier &&
+      !parsed.featuredOnly
+    ) {
+      issues.push({
+        field: 'serviceTier',
+        label: 'Scope',
+        message:
+          'Specify tier, featured, category, named services, or all services',
+        example: 'Require $25 deposit on featured services',
+      });
+    }
+    return issues;
+  },
+
+  configure_service_featured: (cmd) => {
+    const parsed = parseConfigureServiceFeaturedFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed) {
+      issues.push({
+        field: 'isFeatured',
+        label: 'Featured metadata',
+        message: 'Specify featured flag or service tier to update',
+        example: 'Mark Haircut as featured',
+      });
+      return issues;
+    }
+    if (parsed.isFeatured == null && parsed.serviceTier == null) {
+      issues.push({
+        field: 'isFeatured',
+        label: 'Featured metadata',
+        message: 'Specify featured flag or service tier to update',
+        example: 'Set Blowdry to premium tier',
+      });
+    }
+    if (
+      !parsed.serviceName &&
+      !parsed.serviceNames?.length &&
+      !parsed.categoryName &&
+      !parsed.allServices
+    ) {
+      issues.push({
+        field: 'serviceName',
+        label: 'Service scope',
+        message: 'Specify which service or category to update',
+        example: 'Mark Haircut as featured',
+      });
+    }
+    return issues;
+  },
+
+  bulk_assign_services_category: (cmd) => {
+    const parsed = parseBulkAssignServicesCategoryFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed?.targetCategoryName) {
+      issues.push({
+        field: 'targetCategoryName',
+        label: 'Target category',
+        message: 'Specify which category to move services into',
+        example: 'Move all hair services under Hair category',
+      });
+    }
+    if (
+      parsed &&
+      !parsed.allServices &&
+      !parsed.serviceNames?.length &&
+      !parsed.sourceCategoryName &&
+      !parsed.sourceCategoryHint
+    ) {
+      issues.push({
+        field: 'sourceCategoryHint',
+        label: 'Service scope',
+        message: 'Specify which services to move (all, category, or names)',
+        example: 'Move all hair services under Hair category',
+      });
+    }
+    return issues;
+  },
+
+  configure_package_online_payment: (cmd) => {
+    const parsed = parseConfigurePackageOnlinePaymentFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    );
+    const issues: ValidationIssue[] = [];
+    if (!parsed?.prepaymentMode) {
+      issues.push({
+        field: 'prepaymentMode',
+        label: 'Prepayment mode',
+        message: 'Specify prepayment mode (full, deposit, or disable)',
+        example: 'Require 50% online prepayment for Spa Day package',
+      });
+    }
+    if (
+      parsed &&
+      !parsed.allPackages &&
+      !parsed.packageName &&
+      !parsed.packageNames?.length
+    ) {
+      issues.push({
+        field: 'packageName',
+        label: 'Package scope',
+        message: 'Specify which package or packages to update',
+        example: 'Enable full online payment for Bridal package',
+      });
+    }
+    return issues;
+  },
+
   summarize_loyalty_program: (_cmd) => [] as ValidationIssue[],
 
   list_waitlist_entries: (_cmd) => [] as ValidationIssue[],
@@ -1693,6 +1902,32 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  explain_guest_checkout_fields: (cmd) =>
+    parseExplainGuestCheckoutFieldsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Guest checkout field',
+            message:
+              'Ask why name/email/phone are required, guest vs account checkout, or contact merge rules',
+            example: 'Why do you need my email at checkout?',
+          },
+        ],
+
+  resume_pending_payment: (cmd) =>
+    parseResumePendingPaymentFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Resume pending payment',
+            message:
+              'Ask to restore an in-progress checkout after closing the app mid-payment',
+            example: 'Continue my payment',
+          },
+        ],
+
   explain_tour_day_slots: (cmd) =>
     parseExplainTourDaySlotsFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1806,6 +2041,11 @@ const ACTION_RULES: Record<string, Rule> = {
     buildEmptyStateGuideValidationIssues('explain_empty_catalog', cmd),
   explain_stripe_not_connected: (cmd) =>
     buildEmptyStateGuideValidationIssues('explain_stripe_not_connected', cmd),
+
+  upload_patient_result: validateClinicTestResultExtCommand,
+  explain_patient_results: validateClinicTestResultExtCommand,
+  configure_test_reference_range: validateClinicTestResultExtCommand,
+  list_abnormal_results: validateClinicTestResultExtCommand,
 };
 
 /** Entity resolution failures become clarify prompts */
@@ -1984,7 +2224,8 @@ export function shouldValidateAction(action: string): boolean {
     APP_GUIDE_VALIDATED_ACTIONS.has(action) ||
     META_GUIDE_VALIDATED_ACTIONS.has(action) ||
     EMPTY_STATE_GUIDE_VALIDATED_ACTIONS.has(action) ||
-    isAiCmdEntityValidatedAction(action)
+    isAiCmdEntityValidatedAction(action) ||
+    isClinicTestResultExtValidatedIntent(action)
   );
 }
 

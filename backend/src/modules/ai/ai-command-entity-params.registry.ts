@@ -1,5 +1,145 @@
 import type { SharedEntityParamId } from './ai-command-entity-params.types.js';
 
+/** Clinic lab ext intent params (ai-cmd-clinic-6-gap-4.2). */
+export const CLINIC_TEST_RESULT_EXT_PARAM_IDS = [
+  'orderId',
+  'customerName',
+  'measurementCode',
+  'normalLow',
+  'normalHigh',
+  'limit',
+] as const;
+
+export type ClinicTestResultExtParamId =
+  (typeof CLINIC_TEST_RESULT_EXT_PARAM_IDS)[number];
+
+export const CLINIC_TEST_RESULT_EXT_INTENT_IDS = [
+  'upload_patient_result',
+  'configure_test_reference_range',
+  'explain_patient_results',
+  'list_abnormal_results',
+] as const;
+
+export type ClinicTestResultExtIntent =
+  (typeof CLINIC_TEST_RESULT_EXT_INTENT_IDS)[number];
+
+export interface ClinicTestResultExtIntentParamSpec {
+  intent: ClinicTestResultExtIntent;
+  required: readonly ClinicTestResultExtParamId[];
+  optional: readonly ClinicTestResultExtParamId[];
+  requireAnyOf?: readonly ClinicTestResultExtParamId[];
+}
+
+/** Required / optional params per dashboard clinic test-result ext intent. */
+export const CLINIC_TEST_RESULT_EXT_INTENT_PARAM_SPECS: readonly ClinicTestResultExtIntentParamSpec[] =
+  [
+    {
+      intent: 'upload_patient_result',
+      required: ['orderId'],
+      optional: ['customerName'],
+    },
+    {
+      intent: 'explain_patient_results',
+      required: [],
+      optional: ['customerName', 'orderId'],
+      requireAnyOf: ['customerName', 'orderId'],
+    },
+    {
+      intent: 'configure_test_reference_range',
+      required: ['measurementCode', 'normalLow', 'normalHigh'],
+      optional: [],
+    },
+    {
+      intent: 'list_abnormal_results',
+      required: [],
+      optional: ['customerName', 'limit'],
+    },
+  ] as const;
+
+const CLINIC_TEST_RESULT_EXT_PARAM_SPEC_BY_INTENT = new Map<
+  ClinicTestResultExtIntent,
+  ClinicTestResultExtIntentParamSpec
+>(CLINIC_TEST_RESULT_EXT_INTENT_PARAM_SPECS.map((spec) => [spec.intent, spec]));
+
+export function getClinicTestResultExtIntentParamSpec(
+  intentId: string,
+): ClinicTestResultExtIntentParamSpec | undefined {
+  return CLINIC_TEST_RESULT_EXT_PARAM_SPEC_BY_INTENT.get(
+    intentId as ClinicTestResultExtIntent,
+  );
+}
+
+export function getRequiredClinicTestResultExtParams(
+  intentId: string,
+): readonly ClinicTestResultExtParamId[] {
+  return getClinicTestResultExtIntentParamSpec(intentId)?.required ?? [];
+}
+
+export function getOptionalClinicTestResultExtParams(
+  intentId: string,
+): readonly ClinicTestResultExtParamId[] {
+  return getClinicTestResultExtIntentParamSpec(intentId)?.optional ?? [];
+}
+
+export function listClinicTestResultExtIntentsForParam(
+  param: ClinicTestResultExtParamId,
+): ClinicTestResultExtIntent[] {
+  return CLINIC_TEST_RESULT_EXT_INTENT_PARAM_SPECS.filter(
+    (spec) =>
+      spec.required.includes(param) ||
+      spec.optional.includes(param) ||
+      spec.requireAnyOf?.includes(param),
+  ).map((spec) => spec.intent);
+}
+
+export function isClinicTestResultExtValidatedIntent(
+  action: string,
+): action is ClinicTestResultExtIntent {
+  return (CLINIC_TEST_RESULT_EXT_INTENT_IDS as readonly string[]).includes(
+    action,
+  );
+}
+
+/** CI guard — every ext intent has an explicit param spec row. */
+export function validateClinicTestResultExtIntentParamSpecs(
+  specs: readonly ClinicTestResultExtIntentParamSpec[] = CLINIC_TEST_RESULT_EXT_INTENT_PARAM_SPECS,
+): string[] {
+  const errors: string[] = [];
+  if (specs.length !== CLINIC_TEST_RESULT_EXT_INTENT_IDS.length) {
+    errors.push(
+      `param specs: expected ${CLINIC_TEST_RESULT_EXT_INTENT_IDS.length} rows, got ${specs.length}`,
+    );
+  }
+  const specByIntent = new Map(specs.map((spec) => [spec.intent, spec]));
+  for (const intent of CLINIC_TEST_RESULT_EXT_INTENT_IDS) {
+    if (!specByIntent.has(intent)) {
+      errors.push(`param specs: missing row for ${intent}`);
+    }
+  }
+  for (const spec of specs) {
+    for (const param of spec.required) {
+      if (!CLINIC_TEST_RESULT_EXT_PARAM_IDS.includes(param)) {
+        errors.push(`param specs: unknown required param ${param} on ${spec.intent}`);
+      }
+    }
+    for (const param of spec.optional) {
+      if (!CLINIC_TEST_RESULT_EXT_PARAM_IDS.includes(param)) {
+        errors.push(`param specs: unknown optional param ${param} on ${spec.intent}`);
+      }
+    }
+    if (spec.requireAnyOf) {
+      for (const param of spec.requireAnyOf) {
+        if (!spec.optional.includes(param)) {
+          errors.push(
+            `param specs: ${spec.intent} requireAnyOf param ${param} must be listed optional`,
+          );
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 /** Intents that accept each shared entity param (subset of command registry). */
 const PARAM_INTENT_BINDINGS: ReadonlyArray<{
   param: SharedEntityParamId;
@@ -141,6 +281,8 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'book_with_gift_card',
       'collect_cash_confirm',
       'explain_checkout_total',
+      'explain_service_price',
+      'explain_payment_options_for_service',
       'purchase_subscription_checkout',
     ],
   },

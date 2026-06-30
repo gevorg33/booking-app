@@ -43,10 +43,16 @@ import {
 import {
   resolveAssistantModePayload,
   withAssistantModeContext,
+  withGuideTopicSeedContext,
 } from '../lib/assistant-mode.util.js';
+import {
+  MOBILE_GUIDE_ASSISTANT_SEED_EVENT,
+  type MobileGuideAssistantSeedDetail,
+} from '@mobile-guide/mobile-guide-topic-ask.util.ts';
 import { ConsumerAiGuidePanel } from './ConsumerAiGuidePanel.js';
 import type { ConsumerAiGuideResponse } from '../lib/consumer-assistant-guide.util.js';
 import { buildConsumerAssistantHref } from '../lib/consumer-assistant-navigate.util.js';
+import { buildConsumerGuidePath } from '../lib/consumer-guide.util.js';
 import { AiAvailableProvidersPanel } from './AiAvailableProvidersPanel.js';
 import {
   ConsumerAiSpeakReplyButton,
@@ -57,6 +63,7 @@ import {
   type SpeechRecognitionErrorCode,
 } from '../lib/use-speech-recognition.js';
 import { loadRecentSalons } from '../lib/recent-salons.js';
+import { loadPendingCheckoutPayment } from '../lib/checkout-payment.util.js';
 import { buildConsumerAssistantPageContext } from '../lib/public-booking-assistant-context.util.js';
 
 interface Message {
@@ -120,17 +127,27 @@ export function ConsumerBookingAssistant({
     [copy, exampleTenant, guideMode],
   );
   const assistantContext = useMemo(
-    () => ({
-      ...sessionContext,
-      ...buildConsumerAssistantPageContext(location.pathname, {
-        slotSelected: Boolean(sessionContext.timeSlot),
-      }),
-      recentSalons: loadRecentSalons().map((salon) => ({
-        slug: salon.slug,
-        name: salon.name,
-      })),
-    }),
-    [location.pathname, sessionContext, open],
+    () => {
+      const pendingCheckout = loadPendingCheckoutPayment(slug);
+      return {
+        ...sessionContext,
+        ...buildConsumerAssistantPageContext(location.pathname, {
+          slotSelected: Boolean(sessionContext.timeSlot),
+        }),
+        recentSalons: loadRecentSalons().map((salon) => ({
+          slug: salon.slug,
+          name: salon.name,
+        })),
+        ...(pendingCheckout
+          ? {
+              pendingCheckoutSessionId: pendingCheckout.sessionId,
+              pendingCheckoutServiceId: pendingCheckout.serviceId,
+              pendingCheckoutStartTime: pendingCheckout.startTime,
+            }
+          : {}),
+      };
+    },
+    [location.pathname, sessionContext, open, slug],
   );
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -157,6 +174,11 @@ export function ConsumerBookingAssistant({
       estimatedSize,
       defaultBottomInset: fabBottomInset,
     });
+
+  const openNativeGuide = useCallback(() => {
+    history.push(buildConsumerGuidePath(slug));
+    setOpen(false);
+  }, [history, slug]);
 
   const closeAssistant = useCallback(() => {
     setOpen(false);
@@ -190,9 +212,15 @@ export function ConsumerBookingAssistant({
   );
 
   const submit = useCallback(
-    async (overridePrompt?: string) => {
+    async (
+      overridePrompt?: string,
+      seed?: { guideTopicId?: string; forceGuideMode?: boolean },
+    ) => {
       const prompt = (overridePrompt ?? input).trim();
       if (!prompt || loading) return;
+
+      const activeGuideMode = seed?.forceGuideMode ? true : guideMode;
+      if (seed?.forceGuideMode) setGuideMode(true);
 
       setMessages((prev) => [
         ...prev,
@@ -204,13 +232,16 @@ export function ConsumerBookingAssistant({
       const historyPayload = messages.map((m) => ({ role: m.role, content: m.text }));
 
       try {
-        const assistantMode = resolveAssistantModePayload(guideMode);
+        const assistantMode = resolveAssistantModePayload(activeGuideMode);
         const result = await sendPublicAssistantMessage(slug, {
           prompt,
           history: historyPayload,
-          context: withAssistantModeContext(
-            assistantContext as Record<string, unknown>,
-            guideMode,
+          context: withGuideTopicSeedContext(
+            withAssistantModeContext(
+              assistantContext as Record<string, unknown>,
+              activeGuideMode,
+            ),
+            seed?.guideTopicId,
           ),
           locale,
           ...(assistantMode ? { assistantMode } : {}),
@@ -264,6 +295,20 @@ export function ConsumerBookingAssistant({
       slug,
     ],
   );
+
+  useEffect(() => {
+    const onGuideSeed = (event: Event) => {
+      const detail = (event as CustomEvent<MobileGuideAssistantSeedDetail>).detail;
+      if (!detail?.prompt?.trim() || !detail.topicId?.trim()) return;
+      setOpen(true);
+      void submit(detail.prompt, {
+        guideTopicId: detail.topicId,
+        forceGuideMode: true,
+      });
+    };
+    window.addEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+    return () => window.removeEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+  }, [submit]);
 
   const handleProviderSlotSelect = useCallback(
     (
@@ -428,7 +473,15 @@ export function ConsumerBookingAssistant({
           >
             {messages.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
-                <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    justifyContent: 'center',
+                    marginBottom: 12,
+                  }}
+                >
                   <button
                     type="button"
                     aria-pressed={guideMode}
@@ -445,6 +498,22 @@ export function ConsumerBookingAssistant({
                     }}
                   >
                     {copy.assistantHelpChip}
+                  </button>
+                  <button
+                    type="button"
+                    title={copy.guidePageAccountEntryHint}
+                    onClick={openNativeGuide}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: primary,
+                      background: `${primary}14`,
+                      border: `1px solid ${primary}33`,
+                      borderRadius: 999,
+                      padding: '8px 14px',
+                    }}
+                  >
+                    {copy.assistantOpenGuideChip}
                   </button>
                 </div>
                 <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>

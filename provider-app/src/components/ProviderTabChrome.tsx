@@ -4,7 +4,7 @@ import { ProviderBodyPortal } from './ProviderBodyPortal';
 import { ProviderBottomTabBar } from './ProviderBottomTabBar';
 import { ProviderAiShell } from './ProviderAiShell';
 import { providerTabPath, type ProviderTabId } from '../lib/provider-tab-route.util';
-import { useProviderLabFeaturesEnabled } from '../lib/use-provider-lab-features';
+import { useProviderClinicNav } from '../lib/use-provider-clinic-nav';
 import { useProviderTabOverlaysVisible } from '../hooks/use-provider-tab-overlays-visible';
 
 /** Bottom tab bar + chrome for provider tab routes (no nested IonRouterOutlet). */
@@ -17,7 +17,7 @@ export function ProviderTabChrome({
 }) {
   const history = useHistory();
   const location = useLocation();
-  const showLabCollection = useProviderLabFeaturesEnabled();
+  const clinicNav = useProviderClinicNav();
   const { overlaysVisible } = useProviderTabOverlaysVisible();
 
   const openTab = (tab: ProviderTabId) => {
@@ -33,7 +33,7 @@ export function ProviderTabChrome({
         <ProviderBodyPortal>
           <ProviderBottomTabBar
             activeTab={activeTab}
-            showLabCollection={showLabCollection}
+            showLabCollection={clinicNav.showLabCollection}
             onOpenTab={openTab}
           />
         </ProviderBodyPortal>

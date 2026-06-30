@@ -135,4 +135,16 @@ export const EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS = [
     aspect: 'shopLink' as const,
     surface: 'customer' as const,
   },
+  {
+    id: 'public-shop-recommended-serum',
+    prompt: 'How do I shop the recommended serum on the success screen?',
+    aspect: 'shopLink' as const,
+    surface: 'public' as const,
+  },
+  {
+    id: 'customer-shop-recommended-serum',
+    prompt: 'How do I buy the recommended serum after booking in the app?',
+    aspect: 'shopLink' as const,
+    surface: 'customer' as const,
+  },
 ] as const;

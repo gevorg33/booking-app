@@ -152,6 +152,17 @@ export type ConsumerCopy = {
   assistantGuideNextStep: string;
   assistantGuideOpenInApp: string;
   assistantGuideStillStuck: string;
+  guidePageTitle: string;
+  guidePageSubtitle: string;
+  guidePageTopicsLabel: string;
+  guidePageBack: string;
+  guidePageOpenInApp: string;
+  guidePageAskSection: string;
+  guideWalkThroughTopic: string;
+  guidePageLoadError: string;
+  guidePageAccountEntryHint: string;
+  guidePageWelcomeLink: string;
+  assistantOpenGuideChip: string;
   assistantPlaceholder: string;
   assistantThinking: string;
   assistantContinueBooking: string;

@@ -260,6 +260,10 @@ describe('ai-schedule-resources.util', () => {
         rescueScheduleResourceIntent('List scheduling resources', 'unknown')
           ?.action,
       ).toBe('list_scheduling_resources');
+      expect(
+        rescueScheduleResourceIntent('Explain multi-service booking settings', 'unknown')
+          ?.action,
+      ).toBe('explain_multi_service_settings');
     });
 
     it('skips rescue when action already matches or compound', () => {

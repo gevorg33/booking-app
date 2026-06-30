@@ -1,4 +1,5 @@
 import { MULTILINGUAL_CLINIC_TEST_RESULT_EVAL_SCENARIOS } from './ai-clinic-test-result-multilingual.fixtures.js';
+import { assertClinicTestResultParamsPartial } from './ai-clinic-test-result-multilingual.util.js';
 import {
   parseEnterTestResultFromPrompt,
   parseReleaseTestResultFromPrompt,
@@ -17,23 +18,7 @@ describe('ai-clinic-test-result multilingual (i18n-clinic-v2-ai-2)', () => {
         expectedAction === 'enter_test_result'
           ? parseEnterTestResultFromPrompt(prompt)
           : parseReleaseTestResultFromPrompt(prompt);
-      expect(parsed).not.toBeNull();
-
-      if (paramsPartial?.measurementCode) {
-        expect(parsed?.measurementCode).toBe(paramsPartial.measurementCode);
-      }
-      if (paramsPartial?.value) {
-        expect(parsed?.value).toBe(paramsPartial.value);
-      }
-      if (paramsPartial?.orderId) {
-        expect(parsed?.orderId).toBe(paramsPartial.orderId);
-      }
-      if (paramsPartial?.resultId) {
-        expect(parsed?.resultId).toBe(paramsPartial.resultId);
-      }
-      if (paramsPartial?.customerName) {
-        expect(parsed?.customerName).toBe(paramsPartial.customerName);
-      }
+      assertClinicTestResultParamsPartial(parsed, paramsPartial);
     },
   );
 });

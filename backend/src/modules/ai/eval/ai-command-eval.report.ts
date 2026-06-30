@@ -76,6 +76,10 @@ export function resolveEvalCaseIntentLabel(evalCase: AiCommandEvalCase): string 
     return `implication:${expect.implicationTopIntent}:${expect.rescuedAction}`;
   }
   if (expect.rescuedAction) return expect.rescuedAction;
+  if (expect.action && expect.useClinicTestResultExtClassifierDetect) {
+    return `classifier:${expect.action}`;
+  }
+  if (expect.action) return expect.action;
   if (expect.compoundSteps?.length) {
     return `compound:${expect.compoundSteps.join('+')}`;
   }

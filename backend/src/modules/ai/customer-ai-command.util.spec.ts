@@ -204,6 +204,9 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('explain_checkout_recommendations');
     expect(schema).toContain('explain_consumer_checkout_success');
     expect(schema).toContain('explain_my_notifications');
+    expect(schema).toContain('configure_notification_settings');
+    expect(schema).toContain('how_to_download_app');
+    expect(schema).toContain('/get-app/');
     expect(schema).toContain('rebook_last_appointment');
     expect(schema).toContain('explain_consumer_checkout_tax');
     expect(schema).toContain('Dismiss recommendations');

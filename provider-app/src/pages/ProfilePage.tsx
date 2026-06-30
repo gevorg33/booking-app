@@ -22,6 +22,8 @@ import { enableNativePush, isFcmBuild } from '../services/native-push';
 import { useI18n } from '../i18n';
 import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
 import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
+import { ProviderGuideEntryRow } from '../components/ProviderGuideEntryRow';
+import { buildProviderGuideEntryPath } from '../lib/provider-guide-entry.util';
 
 export default function ProfilePage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
@@ -46,6 +48,8 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
         </IonToolbar>
       </IonHeader>
       <ProviderTabScrollContent className="ion-padding">
+        <ProviderGuideEntryRow onOpen={() => history.push(buildProviderGuideEntryPath())} />
+
         <IonCard>
           <IonCardHeader>
             <IonCardTitle>

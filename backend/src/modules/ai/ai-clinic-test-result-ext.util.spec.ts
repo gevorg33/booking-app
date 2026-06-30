@@ -5,6 +5,13 @@ import {
   LIST_ABNORMAL_RESULTS_PROMPTS,
   UPLOAD_PATIENT_RESULT_PROMPTS,
 } from './ai-clinic-test-result-ext.fixtures.js';
+import { MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS } from './ai-clinic-test-result-ext-multilingual.fixtures.js';
+import {
+  assertClinicTestResultExtMultilingualScenario,
+  isClinicTestResultExtPromptForIntent,
+  parseClinicTestResultExtFromPrompt,
+} from './ai-clinic-test-result-ext-multilingual.util.js';
+import { assertClinicTestResultParamsPartial } from './ai-clinic-test-result-multilingual.util.js';
 import {
   isConfigureTestReferenceRangePrompt,
   isExplainPatientResultsPrompt,
@@ -13,6 +20,7 @@ import {
   parseConfigureTestReferenceRangeFromPrompt,
   parseExplainPatientResultsFromPrompt,
   parseUploadPatientResultFromPrompt,
+  detectClinicTestResultExtIntentFromPrompt,
   rescueClinicTestResultExtIntent,
 } from './ai-clinic-test-result-ext.util.js';
 import { rescueClinicTestResultIntent } from './ai-clinic-test-result.util.js';
@@ -123,4 +131,48 @@ describe('ai-clinic-test-result-ext.util (ai-cmd-ext-2.1–2.4)', () => {
   it('returns null for unrelated clinic prompts', () => {
     expect(rescueClinicTestResultExtIntent('List employees', 'unknown')).toBeNull();
   });
+});
+
+describe('detectClinicTestResultExtIntentFromPrompt (ai-cmd-clinic-6-gap-2.3)', () => {
+  it('detects direct classifier action without rescue for top EN upload prompt', () => {
+    const prompt = 'Upload lab result for order #abc123';
+    expect(detectClinicTestResultExtIntentFromPrompt(prompt)).toEqual({
+      action: 'upload_patient_result',
+      params: { orderId: 'abc123' },
+    });
+    expect(rescueClinicTestResultExtIntent(prompt, 'upload_patient_result')).toBeNull();
+  });
+});
+
+describe('ai-clinic-test-result-ext multilingual (ai-cmd-clinic-6-gap-1.5)', () => {
+  it.each(MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS)(
+    'detects $locale ext prompt $id',
+    (scenario) => {
+      expect(
+        isClinicTestResultExtPromptForIntent(
+          scenario.prompt,
+          scenario.expectedAction,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.each(
+    MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS.filter(
+      (scenario) => scenario.expectedAction !== 'list_abnormal_results',
+    ),
+  )('parses $locale ext prompt $id', (scenario) => {
+    const parsed = parseClinicTestResultExtFromPrompt(
+      scenario.prompt,
+      scenario.expectedAction,
+    );
+    assertClinicTestResultParamsPartial(parsed, scenario.paramsPartial);
+  });
+
+  it.each(MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS)(
+    'rescues $locale ext prompt $id → $expectedAction',
+    (scenario) => {
+      assertClinicTestResultExtMultilingualScenario(scenario);
+    },
+  );
 });

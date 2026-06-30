@@ -11,11 +11,13 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { bookmark, bookmarkOutline, personCircleOutline } from 'ionicons/icons';
+import { bookmark, bookmarkOutline, bookOutline, personCircleOutline } from 'ionicons/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useIonViewWillEnter } from '@ionic/react';
 import { buildSalonPath, isValidSlug } from '../lib/deep-link.js';
+import { buildConsumerGuidePath } from '../lib/consumer-guide.util.js';
+import { getConsumerCopy } from '../lib/consumer-copy-catalog.js';
 import { buildRememberedTenants, type RememberedTenant } from '../lib/customer-auth.js';
 import {
   buildBookInThreeTapsCopy,
@@ -91,6 +93,8 @@ export default function WelcomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [refreshKey, quickReturnSlugs],
   );
+  const welcomeCopy = useMemo(() => getConsumerCopy('en'), []);
+  const welcomeGuideSlug = sections.quickReturn[0]?.slug ?? rememberedTenants[0]?.slug ?? null;
 
   const openSalon = (slug: string) => {
     if (!isValidSlug(slug)) return;
@@ -148,6 +152,17 @@ export default function WelcomePage() {
                 </li>
               ))}
             </ol>
+            {welcomeGuideSlug ? (
+              <IonButton
+                fill="clear"
+                size="small"
+                className="ion-margin-top"
+                onClick={() => history.push(buildConsumerGuidePath(welcomeGuideSlug))}
+              >
+                <IonIcon icon={bookOutline} slot="start" />
+                {welcomeCopy.guidePageWelcomeLink}
+              </IonButton>
+            ) : null}
           </div>
         ) : null}
 

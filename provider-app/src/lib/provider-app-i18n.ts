@@ -1,5 +1,24 @@
 import { listClinicLabStateI18nKeys } from '@booking-lib/clinic-i18n';
 
+/** Provider mobile guide page chrome — ai-guide-1.9.10. */
+export const PROVIDER_GUIDE_UI_I18N_KEYS = [
+  'provider.guidePageTitle',
+  'provider.guidePageSubtitle',
+  'provider.guidePageTopicsLabel',
+  'provider.guidePageBack',
+  'provider.guidePageOpenInApp',
+  'provider.guidePageAskSection',
+  'provider.guideWalkThroughTopic',
+  'provider.guidePageLoadError',
+  'provider.guidePageAccountEntryHint',
+  'provider.assistantOpenGuideChip',
+  'provider.inviteGuideLink',
+] as const;
+
+export function listProviderGuideUiI18nKeys(): string[] {
+  return [...PROVIDER_GUIDE_UI_I18N_KEYS];
+}
+
 /** Provider mobile app keys under `provider.*` (Capacitor app). */
 export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.navToday',
@@ -268,6 +287,7 @@ export const PROVIDER_MOBILE_I18N_KEYS = [
   'provider.upcomingAppointments',
   'provider.noUpcoming',
   'provider.profileTitle',
+  ...PROVIDER_GUIDE_UI_I18N_KEYS,
   'provider.profilePublicTitle',
   'provider.profileEditTitle',
   'provider.profileTitlePlaceholder',

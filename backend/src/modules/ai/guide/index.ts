@@ -7,6 +7,7 @@ export * from './guide-flow.loader.js';
 export * from './guide-flow.merge.util.js';
 export * from './guide-flow.corpus.util.js';
 export * from './guide-flow.routes.manifest.js';
+export * from './guide-flow.mobile-app-routes.util.js';
 export * from './guide-topic-help-articles.types.js';
 export * from './guide-topic-help-articles.manifest.js';
 export * from './guide-topic-help-articles.util.js';

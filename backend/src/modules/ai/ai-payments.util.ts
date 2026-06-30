@@ -12,9 +12,60 @@ import {
 export { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import {
+  isConfigureCheckoutDefaultsPrompt,
+  rescueConfigureCheckoutDefaultsIntent,
+} from './ai-checkout-defaults.util.js';
+import {
+  isConfigureServiceDepositPolicyPrompt,
+  enrichServiceDepositPolicyParamsFromPrompt,
+  rescueConfigureServiceDepositPolicyIntent,
+} from './ai-service-deposit-policy.util.js';
+import {
   isConfigureServiceOnlinePaymentPrompt,
   enrichServiceOnlinePaymentParamsFromPrompt,
 } from './ai-service-online-payment.util.js';
+import {
+  rescueListServicesPaymentFilterIntent,
+} from './ai-list-services-payment-filters.util.js';
+import { rescueFilterServicesNoPrepaymentIntent } from './ai-filter-services-no-prepayment.util.js';
+import { rescueExplainAmountDueNowIntent } from './ai-explain-amount-due-now.util.js';
+import {
+  rescueCreateServicePrepaymentIntent,
+  enrichCreateServicePrepaymentParamsFromPrompt,
+} from './ai-create-service-prepayment.util.js';
+import {
+  isAuditServicesMissingOnlinePaymentPrompt,
+  parseAuditServicesMissingOnlinePaymentFromPrompt,
+  rescueAuditServicesMissingOnlinePaymentIntent,
+} from './ai-audit-services-missing-online-payment.util.js';
+import {
+  isExplainPublicBookingCheckoutPrompt,
+  rescueExplainPublicBookingCheckoutIntent,
+} from './ai-explain-public-booking-checkout.util.js';
+import {
+  isExplainAmountDueNowPrompt,
+  isExplainWhyPrepaymentPrompt,
+  rescueExplainPrepaymentIntent,
+} from './ai-explain-prepayment.util.js';
+import { isExplainServicePricePrompt } from './ai-explain-service-price.util.js';
+import { isExplainPaymentOptionsForServicePrompt } from './ai-explain-payment-options-for-service.util.js';
+import { isFindSoonestAppointmentPrompt } from './ai-find-soonest-appointment.util.js';
+import { isCompareServicesPrompt } from './ai-compare-services.util.js';
+import {
+  isAskPaymentOptionsPrompt,
+  isExplicitPayCashAtVisitPrompt,
+  rescueCashPaymentCheckoutIntent,
+} from './ai-cash-payment-checkout.util.js';
+import {
+  isExplicitPayOnlinePrompt,
+  rescuePayOnlineCheckoutIntent,
+} from './ai-pay-online-checkout.util.js';
+import { rescueResumePendingPaymentIntent } from './ai-resume-pending-payment.util.js';
+import {
+  isExplainServiceOnlinePaymentSetupPrompt,
+  parseExplainServiceOnlinePaymentSetupFromPrompt,
+  rescueExplainServiceOnlinePaymentSetupIntent,
+} from './ai-service-online-payment-setup.util.js';
 import {
   applyRelativeDateFromPrompt,
   getTodayDateKey,
@@ -30,6 +81,8 @@ import {
 
 export const DASHBOARD_PAYMENTS_MUTATE_INTENTS = [
   'configure_cash_payments',
+  'configure_checkout_defaults',
+  'configure_service_deposit_policy',
   'configure_service_online_payment',
   'adjust_gift_card_balance',
   'extend_gift_card_expiry',
@@ -42,6 +95,9 @@ export const DASHBOARD_PAYMENTS_READ_INTENTS = [
   'export_accounting',
   'export_commissions',
   'explain_checkout_total',
+  'explain_service_online_payment_setup',
+  'explain_public_booking_checkout',
+  'audit_services_missing_online_payment',
   'list_subscription_revenue',
 ] as const;
 
@@ -50,6 +106,7 @@ export const PROVIDER_PAYMENTS_INTENTS = [
   'collect_cash_confirm',
 ] as const;
 
+/** Customer intents handled by AiPaymentsService (currency explainers use AiBusinessCurrencyService). */
 export const CUSTOMER_PAYMENTS_INTENTS = [
   'check_providers_for_service',
   'book_nearest_slot',
@@ -61,10 +118,6 @@ export const CUSTOMER_PAYMENTS_INTENTS = [
   'pay_online',
   'pay_cash_at_visit',
   'purchase_subscription_checkout',
-  'explain_checkout_currency',
-  'explain_stripe_checkout_currency',
-  'explain_tenant_currency',
-  'explain_notification_currency',
   'explain_why_stripe_required',
   'receipt_status',
 ] as const;
@@ -131,6 +184,13 @@ export function isExportCommissionsPrompt(prompt: string): boolean {
 }
 
 export function isExplainCheckoutTotalPrompt(prompt: string): boolean {
+  if (isExplainAmountDueNowPrompt(prompt)) return false;
+  if (
+    /\b(?:listed\s+)?price\s+(?:of|for)\b/i.test(prompt) &&
+    !/\b(checkout|total|amount\s+due|due\s+now|due\s+today)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(explain|break\s*down|what(?:'s| is))\b/i.test(prompt) &&
     /\b(checkout|total|price|amount\s+due)\b/i.test(prompt)
@@ -146,7 +206,14 @@ export function isListSubscriptionRevenuePrompt(prompt: string): boolean {
 }
 
 export function isConfigureCashPaymentsPrompt(prompt: string): boolean {
+  if (isConfigureCheckoutDefaultsPrompt(prompt)) return false;
   if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
+  if (
+    /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(prompt) &&
+    /\b(?:decline|disable|turn\s+off|accept|require|enable)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(configure|enable|disable|turn\s+on|turn\s+off|accept)\b/i.test(
       prompt,
@@ -196,6 +263,7 @@ export function isCollectCashConfirmPrompt(prompt: string): boolean {
 }
 
 export function isCheckProvidersForServicePrompt(prompt: string): boolean {
+  if (isFindSoonestAppointmentPrompt(prompt)) return false;
   if (
     isCheckMultiServiceBlockAvailabilityPrompt(prompt) ||
     isCheckPackageLineAvailabilityPrompt(prompt) ||
@@ -229,6 +297,7 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
 }
 
 export function isBookNearestSlotPrompt(prompt: string): boolean {
+  if (isFindSoonestAppointmentPrompt(prompt)) return false;
   if (isMultilingualBookNearestPrompt(prompt)) return true;
 
   const hasBookVerb = /\b(book|find|get|reserve|schedule|grab)\b/i.test(prompt);
@@ -293,6 +362,16 @@ export function isBuyGiftCardPhysicalPrompt(prompt: string): boolean {
 }
 
 export function isChoosePaymentMethodPrompt(prompt: string): boolean {
+  if (isExplainAmountDueNowPrompt(prompt) || isExplainCheckoutTotalPrompt(prompt)) {
+    return false;
+  }
+  if (
+    /\b(explain|describe|show|summarize|how)\b/i.test(prompt) &&
+    /\b(?:public\s+booking|booking\s+page)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (isAskPaymentOptionsPrompt(prompt)) return true;
   return (
     /\b(choose|select|what|which|payment\s+options?)\b/i.test(prompt) &&
     /\b(payment\s+method|pay\s+with|checkout)\b/i.test(prompt)
@@ -300,17 +379,12 @@ export function isChoosePaymentMethodPrompt(prompt: string): boolean {
 }
 
 export function isPayOnlinePrompt(prompt: string): boolean {
-  if (/\b(why|explain)\b/i.test(prompt) && /\bstripe\b/i.test(prompt))
-    return false;
-  return /\b(pay\s+online|card\s+payment|checkout\s+online)\b/i.test(prompt);
+  return isExplicitPayOnlinePrompt(prompt);
 }
 
 export function isPayCashAtVisitPrompt(prompt: string): boolean {
-  return (
-    /\b(pay\s+in\s+cash|cash\s+at\s+(?:the\s+)?visit|pay\s+at\s+venue|pay\s+cash)\b/i.test(
-      prompt,
-    ) && !/\b(show|list|display|appointments?|bookings?)\b/i.test(prompt)
-  );
+  if (isConfigureCheckoutDefaultsPrompt(prompt)) return false;
+  return isExplicitPayCashAtVisitPrompt(prompt);
 }
 
 export function isPurchaseSubscriptionCheckoutPrompt(prompt: string): boolean {
@@ -321,9 +395,14 @@ export function isPurchaseSubscriptionCheckoutPrompt(prompt: string): boolean {
 }
 
 export function isExplainWhyStripeRequiredPrompt(prompt: string): boolean {
+  if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
+  if (isExplainAmountDueNowPrompt(prompt)) return false;
+  if (isExplainWhyPrepaymentPrompt(prompt)) return true;
   return (
     /\b(why|explain)\b/i.test(prompt) &&
-    /\b(stripe|online\s+payment|card\s+required)\b/i.test(prompt)
+    /\b(stripe|online\s+payment|card\s+required|card\s+payment|pay\s+by\s+card)\b/i.test(
+      prompt,
+    )
   );
 }
 
@@ -365,6 +444,15 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
   );
   if (forService) {
     const name = forService[1].trim().replace(/[,.]$/, '');
+    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
+      return name;
+    }
+  }
+  const doesRequire = prompt.match(
+    /\bdoes\s+([a-z][\w\s'-]{2,40}?)\s+require\b/i,
+  );
+  if (doesRequire) {
+    const name = doesRequire[1].trim().replace(/[,.]$/, '');
     if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
       return name;
     }
@@ -482,17 +570,108 @@ export function notBeforeTimeFromWindow(
 }
 
 export function parseCashPaymentsToggle(prompt: string): boolean | null {
+  const cashEnable =
+    /\b(?:enable|turn\s+on|accept|allow)\b.{0,48}\b(?:cash|pay\s+at\s+(?:the\s+)?venue)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:cash|pay\s+at\s+(?:the\s+)?venue)\b.{0,48}\b(?:enable|turn\s+on|accept|allow)\b/i.test(
+      prompt,
+    );
+  const cashDisable =
+    /\b(?:disable|turn\s+off|reject|stop)\b.{0,48}\b(?:cash|pay\s+at\s+(?:the\s+)?venue)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:cash|pay\s+at\s+(?:the\s+)?venue)\b.{0,48}\b(?:disable|turn\s+off|reject|stop)\b/i.test(
+      prompt,
+    );
+  if (cashEnable) return true;
+  if (cashDisable) return false;
   if (/\b(disable|turn\s+off|reject|stop)\b/i.test(prompt)) return false;
   if (/\b(enable|turn\s+on|accept|allow)\b/i.test(prompt)) return true;
   return null;
+}
+
+export function hasCashMutateCue(prompt: string): boolean {
+  return (
+    /\b(?:cash|pay\s+at\s+(?:the\s+)?venue)\b/i.test(prompt) &&
+    /\b(?:enable|turn\s+on|accept|allow|disable|turn\s+off|reject|stop)\b/i.test(
+      prompt,
+    )
+  );
 }
 
 /** NL rescue when classifier returns unknown or a nearby action. */
 export function rescuePaymentsIntent(
   prompt: string,
   action: string,
-): { action: PaymentsIntent; rescueReason: string } | null {
+): {
+  action:
+    | PaymentsIntent
+    | 'list_services'
+    | 'create_service'
+    | 'create_services'
+    | 'filter_services_no_prepayment'
+    | 'compare_services'
+    | 'find_soonest_appointment'
+    | 'explain_payment_options_for_service'
+    | 'explain_service_price'
+    | 'explain_amount_due_now'
+    | 'explain_checkout_total'
+    | 'resume_pending_payment';
+  rescueReason: string;
+} | null {
+  const filterNoPrepayment = rescueFilterServicesNoPrepaymentIntent(
+    prompt,
+    action,
+  );
+  if (filterNoPrepayment) return filterNoPrepayment;
+
+  const listServicesPaymentFilter = rescueListServicesPaymentFilterIntent(
+    prompt,
+    action,
+  );
+  if (listServicesPaymentFilter) return listServicesPaymentFilter;
+
+  const createServicePrepayment = rescueCreateServicePrepaymentIntent(
+    prompt,
+    action,
+  );
+  if (createServicePrepayment) return createServicePrepayment;
+
   if (isPaymentsIntent(action)) return null;
+
+  if (isExplainPaymentOptionsForServicePrompt(prompt)) {
+    return {
+      action: 'explain_payment_options_for_service',
+      rescueReason: 'service_payment_options',
+    };
+  }
+
+  if (isFindSoonestAppointmentPrompt(prompt)) {
+    return {
+      action: 'find_soonest_appointment',
+      rescueReason: 'soonest_appointment',
+    };
+  }
+
+  if (isCompareServicesPrompt(prompt)) {
+    return {
+      action: 'compare_services',
+      rescueReason: 'service_compare',
+    };
+  }
+
+  const cashCheckout = rescueCashPaymentCheckoutIntent(prompt, action);
+  if (cashCheckout) return cashCheckout;
+
+  const explainPublicBookingCheckout =
+    rescueExplainPublicBookingCheckoutIntent(prompt, action);
+  if (explainPublicBookingCheckout) return explainPublicBookingCheckout;
+
+  const auditMissingOnlinePayment =
+    rescueAuditServicesMissingOnlinePaymentIntent(prompt, action);
+  if (auditMissingOnlinePayment) return auditMissingOnlinePayment;
+
   if (isPaymentsCompoundPrompt(prompt) && action !== 'compound_intent')
     return null;
   if (action === 'gift_card_balance' && isCheckGiftCardBalancePrompt(prompt)) {
@@ -501,6 +680,22 @@ export function rescuePaymentsIntent(
 
   if (isReceiptStatusPrompt(prompt))
     return { action: 'receipt_status', rescueReason: 'receipt' };
+  const explainOnlinePaymentSetup = rescueExplainServiceOnlinePaymentSetupIntent(
+    prompt,
+    action,
+  );
+  if (explainOnlinePaymentSetup) return explainOnlinePaymentSetup;
+  const amountDueNow = rescueExplainAmountDueNowIntent(prompt, action);
+  if (amountDueNow) return amountDueNow;
+  if (isExplainServicePricePrompt(prompt)) {
+    return { action: 'explain_service_price', rescueReason: 'service_price' };
+  }
+  const prepaymentExplain = rescueExplainPrepaymentIntent(prompt, action);
+  if (prepaymentExplain) return prepaymentExplain;
+  const checkoutDefaults = rescueConfigureCheckoutDefaultsIntent(prompt, action);
+  if (checkoutDefaults) return checkoutDefaults;
+  const depositPolicy = rescueConfigureServiceDepositPolicyIntent(prompt, action);
+  if (depositPolicy) return depositPolicy;
   if (isExplainWhyStripeRequiredPrompt(prompt)) {
     return {
       action: 'explain_why_stripe_required',
@@ -515,8 +710,13 @@ export function rescuePaymentsIntent(
   }
   if (isPayCashAtVisitPrompt(prompt))
     return { action: 'pay_cash_at_visit', rescueReason: 'pay_cash' };
-  if (isPayOnlinePrompt(prompt))
-    return { action: 'pay_online', rescueReason: 'pay_online' };
+  const resumePendingPaymentRescue = rescueResumePendingPaymentIntent(
+    prompt,
+    action,
+  );
+  if (resumePendingPaymentRescue) return resumePendingPaymentRescue;
+  const payOnlineRescue = rescuePayOnlineCheckoutIntent(prompt, action);
+  if (payOnlineRescue) return payOnlineRescue;
   if (isChoosePaymentMethodPrompt(prompt)) {
     return { action: 'choose_payment_method', rescueReason: 'payment_method' };
   }
@@ -675,6 +875,29 @@ function classifyPaymentsSegment(
   if (isChoosePaymentMethodPrompt(text)) {
     return { action: 'choose_payment_method', params: base, segment: text };
   }
+  if (isExplainPublicBookingCheckoutPrompt(text)) {
+    return {
+      action: 'explain_public_booking_checkout',
+      params: base,
+      segment: text,
+    };
+  }
+  if (isAuditServicesMissingOnlinePaymentPrompt(text)) {
+    const parsed = parseAuditServicesMissingOnlinePaymentFromPrompt(text, base);
+    return {
+      action: 'audit_services_missing_online_payment',
+      params: parsed ? { ...base, ...parsed } : base,
+      segment: text,
+    };
+  }
+  if (isExplainServiceOnlinePaymentSetupPrompt(text)) {
+    const parsed = parseExplainServiceOnlinePaymentSetupFromPrompt(text, base);
+    return {
+      action: 'explain_service_online_payment_setup',
+      params: parsed ? { ...base, ...parsed } : base,
+      segment: text,
+    };
+  }
   if (isExplainWhyStripeRequiredPrompt(text)) {
     return {
       action: 'explain_why_stripe_required',
@@ -708,6 +931,16 @@ function classifyPaymentsSegment(
   }
   if (isListSubscriptionRevenuePrompt(text)) {
     return { action: 'list_subscription_revenue', params: base, segment: text };
+  }
+  if (isConfigureCheckoutDefaultsPrompt(text)) {
+    return { action: 'configure_checkout_defaults', params: base, segment: text };
+  }
+  if (isConfigureServiceDepositPolicyPrompt(text)) {
+    return {
+      action: 'configure_service_deposit_policy',
+      params: enrichServiceDepositPolicyParamsFromPrompt(base, text),
+      segment: text,
+    };
   }
   if (isConfigureCashPaymentsPrompt(text)) {
     return { action: 'configure_cash_payments', params: base, segment: text };

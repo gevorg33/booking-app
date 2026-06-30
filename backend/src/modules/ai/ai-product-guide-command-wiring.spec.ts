@@ -6,7 +6,8 @@ import {
   resolveProductGuideSessionContext,
 } from './ai-product-guide.util.js';
 import { PRODUCT_GUIDE_CLASSIFIER_SCENARIOS } from './ai-product-guide.fixtures.js';
-import { DASHBOARD_CLASSIFIER_ACTION_UNION } from './ai-command-intent-schema.build.js';
+import { DASHBOARD_CLASSIFIER_ACTION_UNION, DASHBOARD_INTENT_SCHEMA } from './ai-command-intent-schema.build.js';
+import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 import { resolveHandlerForSurface } from './ai-command-registry.util.js';
 
 const AI_COMMAND_SERVICE_SOURCE = readFileSync(
@@ -22,32 +23,32 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
   });
 
   it('wires APP_GUIDE_CLASSIFIER_RULES into INTENT_SCHEMA appendix', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('${APP_GUIDE_CLASSIFIER_RULES}');
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- explain_app_feature: READ — UI feature semantics',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(APP_GUIDE_CLASSIFIER_RULES.trim());
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'explain_app_feature: READ — explain what a dashboard feature',
     );
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- guide_user_flow: READ — dashboard setup walkthrough',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'guide_user_flow: READ — numbered walkthrough',
     );
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- explain_current_screen: READ — current page capabilities',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'explain_current_screen: READ — explain capabilities',
     );
   });
 
-  it('documents guide intents inline in INTENT_SCHEMA action list', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- explain_app_feature: READ — UI feature semantics',
+  it('documents guide intents in DASHBOARD_INTENT_SCHEMA appendix', () => {
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'explain_app_feature: READ — explain what a dashboard feature',
     );
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- guide_user_flow: READ — dashboard setup walkthrough',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'guide_user_flow: READ — numbered walkthrough',
     );
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '- explain_current_screen: READ — current page capabilities',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'explain_current_screen: READ — explain capabilities',
     );
   });
 
   it('declares optional topicId classifier param', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('"topicId"');
+    expect(DASHBOARD_INTENT_SCHEMA).toContain('"topicId"');
   });
 
   it('routes dashboard guide intents through AiProductGuideService dispatch', () => {

@@ -18,6 +18,12 @@ import {
   isNotifyPatientResultReadyPrompt,
   parsePatientResultReadyParams,
 } from './ai-notification-date-format.util.js';
+import {
+  isExplainPatientResultsPrompt,
+  isListAbnormalResultsPrompt,
+  parseExplainPatientResultsFromPrompt,
+  parseListAbnormalResultsFromPrompt,
+} from './ai-clinic-test-result-ext.util.js';
 import { isCompoundPrompt } from './intent-decomposition.util.js';
 
 const UNICODE_WORD_SUFFIX = '[\\p{L}\\p{M}\\u055B]*';
@@ -167,6 +173,34 @@ function buildConsumerBookParams(
   return params;
 }
 
+function buildDashboardExplainResultsParams(
+  segment: string,
+): Record<string, unknown> {
+  const params = enrichParamsWithSharedEntities({}, segment);
+  const parsed = parseExplainPatientResultsFromPrompt(segment, params);
+  if (parsed?.customerName) params.customerName = parsed.customerName;
+  if (parsed?.orderId) params.orderId = parsed.orderId;
+  if (!params.customerName) {
+    const customerName = extractVisitCustomerNameFromPrompt(segment);
+    if (customerName) params.customerName = customerName;
+  }
+  return params;
+}
+
+function buildDashboardAbnormalListParams(
+  segment: string,
+): Record<string, unknown> {
+  const params = enrichParamsWithSharedEntities({}, segment);
+  const parsed = parseListAbnormalResultsFromPrompt(segment, params);
+  if (parsed?.customerName) params.customerName = parsed.customerName;
+  if (parsed?.orderId) params.orderId = parsed.orderId;
+  if (!params.customerName) {
+    const customerName = extractVisitCustomerNameFromPrompt(segment);
+    if (customerName) params.customerName = customerName;
+  }
+  return params;
+}
+
 function buildDashboardNotifyParams(segment: string): Record<string, unknown> {
   return parsePatientResultReadyParams(
     segment,
@@ -194,6 +228,20 @@ export function classifyClinicCompoundSegment(
   if (!text) return null;
 
   if (surface === 'dashboard') {
+    if (isListAbnormalResultsPrompt(text)) {
+      return {
+        action: 'list_abnormal_results',
+        params: buildDashboardAbnormalListParams(text),
+        segment: text,
+      };
+    }
+    if (isExplainPatientResultsPrompt(text)) {
+      return {
+        action: 'explain_patient_results',
+        params: buildDashboardExplainResultsParams(text),
+        segment: text,
+      };
+    }
     if (isClinicResultFollowUpSegment(text, surface)) {
       return {
         action: 'notify_patient_result_ready',
@@ -235,6 +283,7 @@ function hasRequiredClinicCompoundMix(
   steps: ClinicCompoundStep[],
   surface: CommandSurface,
 ): boolean {
+  const actions = new Set(steps.map((step) => step.action));
   const bookActions = bookActionsForSurface(surface);
   const followUpActions = followUpActionsForSurface(surface);
   return (

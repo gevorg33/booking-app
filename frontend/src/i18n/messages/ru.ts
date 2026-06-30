@@ -208,6 +208,19 @@ const ru: MessageTree = {
     upcomingAppointments: 'Предстоящие',
     noUpcoming: 'Нет предстоящих записей.',
     profileTitle: 'Профиль',
+    guidePageTitle: 'Справка и руководство',
+    guidePageSubtitle:
+      'Пошаговая помощь по вкладкам «Сегодня», «Календарь», «Расписание» и профилю.',
+    guidePageTopicsLabel: 'Разделы',
+    guidePageBack: 'Назад',
+    guidePageOpenInApp: 'Открыть в приложении',
+    guidePageAskSection: 'Спросить об этом разделе',
+    guideWalkThroughTopic: 'Проведите меня через {topic}',
+    guidePageLoadError: 'Не удалось загрузить руководство.',
+    guidePageAccountEntryHint:
+      'Пошаговая помощь по вкладкам «Сегодня», «Календарь», «Расписание» и записям.',
+    assistantOpenGuideChip: 'Открыть руководство',
+    inviteGuideLink: 'Что это за ссылка-приглашение?',
     profilePublicTitle: 'Публичный профиль',
     profileEditTitle: 'Должность',
     profileTitlePlaceholder: 'напр. Senior stylist',
@@ -1944,6 +1957,18 @@ const ru: MessageTree = {
       howMuchService: 'Сколько стоит {service}?',
       addServicesBulk: 'Добавить {service} и {service2} в каталог',
       whoCanDoService: 'Кто может выполнить {service}?',
+      acceptOnlinePaymentAllHalf:
+        'Принять online payment on public booking for all services with 50% prepayment',
+      requireFullPrepaymentService:
+        'Требовать full prepayment on public booking for {service}',
+      acceptOnlinePaymentTwoServicesHalf:
+        'Принять online payment for {service} and {service2} with half prepayment',
+      declineOnlinePaymentAll:
+        'Отклонить online payment on public booking for all services',
+      declineOnlinePaymentService:
+        'Отклонить online payment on public booking for {service}',
+      declineOnlinePaymentCategory:
+        'Не принимать online payment for {serviceCategory} services',
       howManyAppointmentsWeek: 'Сколько записей на этой неделе?',
       revenueMonth: 'Общая выручка за месяц',
       topServicesRevenueMonth: 'Топ услуг по выручке за месяц',

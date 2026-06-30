@@ -1466,6 +1466,19 @@ const hy: MessageTree = {
     noUpcoming: 'Առաջիկա ամրագրումներ չկան։',
   
     profileTitle: 'Պրոֆիլ',
+    guidePageTitle: 'Օգնություն և ուղեցույց',
+    guidePageSubtitle:
+      'Քայլ առ քայլ օգնություն «Այսօր», «Օրացույց», «Ժամանակացույց» և պրոֆիլի համար։',
+    guidePageTopicsLabel: 'Թեմաներ',
+    guidePageBack: 'Հետ',
+    guidePageOpenInApp: 'Բացել հավելվածում',
+    guidePageAskSection: 'Հարցնել այս բաժնի մասին',
+    guideWalkThroughTopic: 'Քայլ առ քայլ ցույց տուր {topic}',
+    guidePageLoadError: 'Չհաջողվեց բեռնել ուղեցույցը։',
+    guidePageAccountEntryHint:
+      'Քայլ առ քայլ օգնություն «Այսօր», «Օրացույց», «Ժամանակացույց» և հանդիպումների համար։',
+    assistantOpenGuideChip: 'Բացել ուղեցույցը',
+    inviteGuideLink: 'Ի՞նչ է այս հրավերի հղումը',
     profilePublicTitle: 'Հանրային պրոֆիլ',
     profileEditTitle: 'Պաշտոն',
     profileTitlePlaceholder: 'օր. Senior stylist',
@@ -3223,6 +3236,18 @@ const hy: MessageTree = {
       howMuchService: 'Որքա՞ն է արժե {service}-ը',
       addServicesBulk: 'Ավելացնել {service} և {service2} մեր կատալոգում',
       whoCanDoService: 'Ով կարող է մատուցել {service}-ը?',
+      acceptOnlinePaymentAllHalf:
+        'Ընդունել online payment on public booking for all services with 50% prepayment',
+      requireFullPrepaymentService:
+        'Պահանջել full prepayment on public booking for {service}',
+      acceptOnlinePaymentTwoServicesHalf:
+        'Ընդունել online payment for {service} and {service2} with half prepayment',
+      declineOnlinePaymentAll:
+        'Մերժել online payment on public booking for all services',
+      declineOnlinePaymentService:
+        'Մերժել online payment on public booking for {service}',
+      declineOnlinePaymentCategory:
+        'Չընդունել online payment for {serviceCategory} services',
       howManyAppointmentsWeek: 'Քանի ամրագրում այս շաբաթ?',
       revenueMonth: 'Ընդհանուր եկամուտ այս ամիս',
       topServicesRevenueMonth: 'Գումար վաստակած լավագույն ծառայությունները այս ամիս',

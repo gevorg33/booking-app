@@ -17,6 +17,7 @@ import {
   handleScheduleResourceCompoundLogic,
   type Sprint29ScheduleResourceLogicDeps,
 } from './ai-schedule-resources.logic.js';
+import { handleExplainMultiServiceSettingsLogic } from './ai-explain-multi-service-settings.logic.js';
 
 const services = [
   { id: 's1', name: 'Massage', businessId: 'biz-1' },
@@ -376,6 +377,19 @@ describe('ai-schedule-resources.logic', () => {
         ).success,
       ).toBe(false);
     });
+
+    it('explains multi-service settings', async () => {
+      expect(
+        (
+          await handleExplainMultiServiceSettingsLogic(
+            buildDeps(),
+            'biz-1',
+            {},
+            'Explain multi-service booking settings',
+          )
+        ).success,
+      ).toBe(true);
+    });
   });
 
   describe('provider resource handlers', () => {
@@ -728,6 +742,28 @@ describe('ai-schedule-resources.logic', () => {
       );
       expect(ok.success).toBe(true);
       expect((ok.details as any).scheduleResourceCompound).toBe(true);
+
+      const explainMultiService = await handleScheduleResourceCompoundLogic(
+        buildDeps(),
+        'biz-1',
+        'Explain multi-service booking settings and list scheduling resources',
+        {
+          compoundSteps: [
+            {
+              action: 'explain_multi_service_settings',
+              params: {},
+              segment: 'Explain multi-service booking settings',
+            },
+            {
+              action: 'list_scheduling_resources',
+              params: {},
+              segment: 'List scheduling resources',
+            },
+          ],
+        },
+        services,
+      );
+      expect(explainMultiService.success).toBe(true);
 
       const fail = await handleScheduleResourceCompoundLogic(
         buildDeps(),

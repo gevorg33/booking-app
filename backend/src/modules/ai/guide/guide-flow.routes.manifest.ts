@@ -1,6 +1,18 @@
 import type { GuideFlowSurface } from './guide-flow.types.js';
 import { matchGuideFlowRoute, mergeGuideFlowPlaybooks } from './guide-flow.merge.util.js';
 
+/** App.tsx routes intentionally excluded from mobile guide primary coverage (ai-guide-1.9.13). */
+export const CONSUMER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS: readonly RegExp[] = [
+  /^\/s\/:slug\/login$/,
+  /^\/s\/:slug\/guide$/,
+];
+
+export const PROVIDER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS: readonly RegExp[] = [
+  /^\/tabs$/,
+  /^\/tabs\/notifications$/,
+  /^\/tabs\/profile\/guide$/,
+];
+
 /** Primary flow playbook topicId per route — disambiguates overlapping routes (ai-guide-1.1.2). */
 export const GUIDE_FLOW_ROUTE_PRIMARY_TOPIC: Readonly<
   Partial<Record<string, string>>
@@ -29,7 +41,13 @@ export const GUIDE_FLOW_ROUTE_PRIMARY_TOPIC: Readonly<
   '/invite': 'provider-staff-invite',
   '/tabs/lab-collection': 'provider-clinic',
   '/tabs/lab-results': 'provider-clinic',
+  '/tabs/clinic-tasks': 'provider-clinic',
   '/tabs/patients': 'provider-clinic',
+  '/s/home': 'consumer-tabs',
+  '/s/services': 'consumer-booking-flow',
+  '/s/results': 'consumer-clinic',
+  '/s/lab-requests': 'consumer-clinic',
+  '/s/lab-to-book': 'consumer-clinic',
   '/s': 'consumer-tabs',
   '/consumer': 'consumer-tabs',
   '/s/book': 'consumer-booking-flow',
@@ -75,8 +93,21 @@ export const GUIDE_FLOW_SURFACE_NAV_ROUTES: Readonly<
     '/tabs/schedule',
     '/tabs/gift-cards',
     '/tabs/profile',
+    '/tabs/lab-collection',
+    '/tabs/lab-results',
+    '/tabs/clinic-tasks',
+    '/tabs/patients',
   ],
-  customer: ['/s', '/s/book', '/s/account', '/s/packages'],
+  customer: [
+    '/s',
+    '/s/home',
+    '/s/services',
+    '/s/book',
+    '/s/account',
+    '/s/packages',
+    '/s/results',
+    '/s/lab-requests',
+  ],
   public: ['/book', '/book/professionals', '/book/services', '/book/checkout'],
 };
 

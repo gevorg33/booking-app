@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run sync:mobile-guide-flows && tsc --noEmit && vite build",
     "preview": "vite preview",
     "cap:sync": "cap sync",
     "cap:ios": "cap open ios",
@@ -34,7 +34,10 @@
     "test:provider-exp-7.3": "vitest run src/lib/provider-open-shifts.util.spec.ts",
     "test:provider-exp-10.3": "vitest run --config vitest.provider-exp-10.3.config.ts",
     "test:provider-exp-10.4": "vitest run --config vitest.provider-i18n.config.ts",
-    "test:provider-exp": "npm run test:provider-exp-5.2 && npm run test:provider-exp-6.1 && npm run test:provider-exp-6.2 && npm run test:provider-exp-7.1 && npm run test:provider-exp-7.2 && npm run test:provider-exp-7.3 && npm run test:provider-exp-10.3 && npm run test:provider-exp-10.4"
+    "test:provider-exp": "npm run test:provider-exp-5.2 && npm run test:provider-exp-6.1 && npm run test:provider-exp-6.2 && npm run test:provider-exp-7.1 && npm run test:provider-exp-7.2 && npm run test:provider-exp-7.3 && npm run test:provider-exp-10.3 && npm run test:provider-exp-10.4",
+    "sync:mobile-guide-flows": "node ../scripts/sync-mobile-guide-flows.mjs",
+    "test:mobile-guide": "vitest run src/lib/mobile-guide/mobile-guide.spec.ts src/lib/provider-guide.util.spec.ts src/lib/provider-guide-gating.spec.ts src/lib/provider-guide-assistant-seed.util.spec.ts src/lib/provider-guide-entry.spec.ts src/lib/provider-assistant-navigate.util.spec.ts src/pages/GuidePage.spec.ts src/pages/GuidePage.spec.tsx",
+    "test:provider-guide-copy": "vitest run src/lib/provider-guide.copy.spec.ts"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

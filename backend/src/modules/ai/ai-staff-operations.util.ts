@@ -1,4 +1,6 @@
 import { isAssignCategoryToProviderPrompt } from './ai-category-assignment.util.js';
+import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
+import { isConfigureStripeConnectPrompt } from './ai-stripe-connect.util.js';
 
 /** Dashboard staff lifecycle intents (ai-cmd-ext-2.5–2.8). */
 
@@ -249,15 +251,9 @@ export function isDeactivateEmployeePrompt(prompt: string): boolean {
 }
 
 export function isConfigureOnlineBookingPrompt(prompt: string): boolean {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
+  if (isConfigureStripeConnectPrompt(prompt)) return false;
   const lower = prompt.toLowerCase();
-  if (
-    /\b(online\s+payment|prepayment|pre[-\s]?pay|deposit|pay\s+online|stripe|card\s+checkout)\b/i.test(
-      prompt,
-    ) &&
-    /\bservices?\b/i.test(prompt)
-  ) {
-    return false;
-  }
   if (
     /\b(?:cookie|consent|privacy|retention|hipaa|gdpr|compliance|banner|push|notification|напоминан|оповещен|alert|fcm|format|дата|preferences|reminder)\b/i.test(
       lower,

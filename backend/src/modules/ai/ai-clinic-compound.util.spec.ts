@@ -63,6 +63,21 @@ describe('ai-clinic-compound.util (ai-cmd-clinic-v2-7)', () => {
     },
   );
 
+  it('classifies dashboard abnormal list + explain segments', () => {
+    const listStep = classifyClinicCompoundSegment(
+      'List abnormal results for Maria',
+      'dashboard',
+    );
+    expect(listStep?.action).toBe('list_abnormal_results');
+    expect(listStep?.params.customerName).toBe('Maria');
+
+    const explainStep = classifyClinicCompoundSegment(
+      'explain her lab results',
+      'dashboard',
+    );
+    expect(explainStep?.action).toBe('explain_patient_results');
+  });
+
   it('classifies dashboard notify segment', () => {
     const step = classifyClinicCompoundSegment(
       'notify her when results are ready',

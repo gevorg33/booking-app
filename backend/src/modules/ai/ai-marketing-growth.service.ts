@@ -10,6 +10,8 @@ import { BillingService } from '../billing/billing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { PromoCodesService } from '../promo-codes/promo-codes.service.js';
 import { StripeService } from '../billing/stripe.service.js';
+import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
+import { TenantAppInstallService } from '../business/tenant-app-install.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeMarketingGrowthCompoundPrompt,
@@ -34,6 +36,11 @@ import {
   handleTriggerReengagementLogic,
   type MarketingGrowthLogicDeps,
 } from './ai-marketing-growth.logic.js';
+import { handleConfigureStripeConnectLogic } from './ai-stripe-connect.logic.js';
+import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logic.js';
+import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
+import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
+import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
 
 @Injectable()
 export class AiMarketingGrowthService {
@@ -46,7 +53,9 @@ export class AiMarketingGrowthService {
     loyaltyService: LoyaltyService,
     promoCodesService: PromoCodesService,
     stripeService: StripeService,
+    stripeIntegrationService: StripeIntegrationService,
     configService: ConfigService,
+    tenantAppInstallService: TenantAppInstallService,
     @InjectRepository(Customer) customerRepo: Repository<Customer>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
   ) {
@@ -57,9 +66,11 @@ export class AiMarketingGrowthService {
       loyaltyService,
       promoCodesService,
       stripeService,
+      stripeIntegrationService,
       configService,
       customerRepo,
       businessRepo,
+      tenantAppInstallService,
     };
   }
 
@@ -82,6 +93,19 @@ export class AiMarketingGrowthService {
   ) {
     return handleConfigureMarketingAutomationLogic(
       this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleConfigureStripeConnect(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleConfigureStripeConnectLogic(
+      { stripeIntegrationService: this.deps.stripeIntegrationService },
       businessId,
       params,
       prompt,
@@ -160,6 +184,35 @@ export class AiMarketingGrowthService {
 
   handleSummarizeLoyaltyProgram(businessId: string) {
     return handleSummarizeLoyaltyProgramLogic(this.deps, businessId);
+  }
+
+  handleExplainTenantAppInstall(businessId: string) {
+    return handleExplainTenantAppInstallLogic(this.deps, businessId);
+  }
+
+  handleRegenerateTenantAppInstallQr(businessId: string) {
+    return handleRegenerateTenantAppInstallQrLogic(this.deps, businessId);
+  }
+
+  handleCreatePromoCode(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleCreatePromoCodeLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleConfigureLoyaltySettings(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleConfigureLoyaltySettingsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleMarketingGrowthCompound(

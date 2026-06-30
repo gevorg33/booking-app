@@ -24,6 +24,10 @@ import {
 import { MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS } from './ai-service-discovery-multilingual.fixtures.js';
 import { SIMILAR_SERVICE_RANK_PROMPTS } from './ai-service-rank-discovery.fixtures.js';
 import type { AiCommandEvalCase } from './eval/ai-command-eval.types.js';
+import {
+  collectCustomerPromotionFixtureIntents,
+  promotionEvalIdTargetsCustomerSurface,
+} from './ai-customer-intent-promotion-coverage.util.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
 
 const CUSTOMER_INTENT_META = new Set([
@@ -55,6 +59,29 @@ export const CUSTOMER_INTENT_COVERAGE_REQUIRED: readonly string[] = [
   'book_lab_collection',
   'list_my_lab_booking_requests',
   'contact_support',
+  // ai-cmd-customer-4.0.2 — promoted P0→P3 intents
+  'cancel_my_booking',
+  'reschedule_my_booking',
+  'pay_online',
+  'explain_why_stripe_required',
+  'book_multi_service',
+  'check_multi_service_availability',
+  'promo_code_help',
+  'use_subscription_credit',
+  'my_subscriptions',
+  'loyalty_points_balance',
+  'privacy_export',
+  'privacy_delete',
+  'request_gift_card_cancel',
+  'cancel_package_visit_self',
+  'reschedule_package_visit_self',
+  'list_my_package_visits',
+  'explain_tour_booking',
+  'explain_tour_day_slots',
+  'diagnose_tour_capacity',
+  'explain_checkout_recommendations',
+  'refer_a_friend',
+  'share_salon_link',
 ];
 
 /** Registry intents tracked in parity-2.3 but not yet gated (ai-cmd-customer-2.6). */
@@ -192,6 +219,7 @@ export function evalCaseTargetsCustomerSurface(
   if (evalCase.id.startsWith('book-lab-collection-')) return true;
   if (evalCase.id.startsWith('list-my-lab-booking-requests-')) return true;
   if (evalCase.id.startsWith('compound-customer-')) return true;
+  if (promotionEvalIdTargetsCustomerSurface(evalCase.id)) return true;
 
   return false;
 }
@@ -321,6 +349,10 @@ export function collectCustomerFixtureIntents(): Set<string> {
     covered.add('list_my_lab_booking_requests');
   }
 
+  for (const intent of collectCustomerPromotionFixtureIntents()) {
+    covered.add(intent);
+  }
+
   return covered;
 }
 
@@ -390,3 +422,5 @@ export function listDeferredCustomerIntentCoverageGaps(
   }
   return gaps;
 }
+
+export { prioritizeDeferredCustomerIntents } from './ai-customer-intent-promotion.util.js';

@@ -24,6 +24,7 @@ import {
   getBusinessDefaultCurrency,
 } from '../../common/utils/business-currency.util.js';
 import { getBusinessEnabledLocales } from '../../common/utils/business-locale.util.js';
+import { resolvePublicPaymentSettings } from '../../common/utils/customer-self-service.util.js';
 import {
   applyClinicMetadataToServiceMetadata,
   extractClinicMetadata,
@@ -288,7 +289,6 @@ export class ServiceService {
     dto: CreateServiceDto,
     userId?: string,
   ): Promise<Service> {
-    await this.assertOnlinePaymentAllowed(businessId, dto.prepaymentMode);
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });
@@ -296,6 +296,12 @@ export class ServiceService {
     const businessSettings = business.settings as
       | Record<string, unknown>
       | undefined;
+    const paymentDefaults = resolvePublicPaymentSettings(businessSettings);
+    const prepaymentMode =
+      dto.prepaymentMode ??
+      (paymentDefaults.defaultServicePrepaymentMode as PrepaymentMode | undefined) ??
+      PrepaymentMode.NONE;
+    await this.assertOnlinePaymentAllowed(businessId, prepaymentMode);
     const defaultCurrency = getBusinessDefaultCurrency(businessSettings);
     const enabledLocales = getBusinessEnabledLocales(businessSettings);
     const categoryId = await this.resolveCategoryId(businessId, dto.categoryId);
@@ -332,6 +338,22 @@ export class ServiceService {
       metadata = applyServiceTaxRateToMetadata(metadata, dto.taxRatePercent);
     }
 
+    let depositAmount = dto.depositAmount ?? null;
+    if (
+      prepaymentMode === PrepaymentMode.DEPOSIT &&
+      depositAmount == null &&
+      dto.price != null &&
+      paymentDefaults.defaultServiceDepositPercent != null &&
+      paymentDefaults.defaultServiceDepositPercent !== 50
+    ) {
+      depositAmount =
+        Math.round(
+          Number(dto.price) *
+            (paymentDefaults.defaultServiceDepositPercent / 100) *
+            100,
+        ) / 100;
+    }
+
     const service = await this.serviceRepo.save(
       this.serviceRepo.create({
         ...serviceData,
@@ -339,6 +361,8 @@ export class ServiceService {
         categoryId: categoryId ?? null,
         bufferMinutes: dto.bufferMinutes || 0,
         currency: this.resolveServiceCurrency(dto.currency, defaultCurrency),
+        prepaymentMode,
+        depositAmount,
         metadata,
       }),
     );

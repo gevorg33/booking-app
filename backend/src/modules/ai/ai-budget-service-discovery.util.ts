@@ -23,6 +23,8 @@ import type {
   BudgetServiceDiscoveryPromptFixture,
 } from './ai-budget-service-discovery.fixtures.js';
 import { isProviderOrAnyoneBudgetLeadPrompt } from './ai-flexible-availability.util.js';
+import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
+import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
 
 const WORD_NUMBER_MAP: Record<string, number> = {
   zero: 0,
@@ -234,6 +236,8 @@ export function isBudgetPackageDiscoveryPrompt(prompt: string): boolean {
 }
 
 export function isBudgetDepositQuestion(prompt: string): boolean {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
+  if (isConfigureServiceDepositPolicyPrompt(prompt)) return false;
   return /\bdeposit\b/i.test(prompt);
 }
 
@@ -583,6 +587,7 @@ export function shouldExtractBudgetMaxPrice(prompt: string): boolean {
   if (isBudgetAdministrativeOrExplainContext(prompt)) return false;
   if (isBudgetGiftCardMisroute(prompt)) return false;
   if (isBudgetPackageDiscoveryPrompt(prompt)) return false;
+  if (isConfigureServiceDepositPolicyPrompt(prompt)) return false;
   if (isBudgetDepositQuestion(prompt)) return false;
   if (isBudgetSubscriptionBalancePrompt(prompt)) return false;
   if (isBudgetCartTotalPrompt(prompt)) return false;
@@ -744,6 +749,7 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
 }
 
 export function resolveBudgetMisrouteAction(prompt: string): string | null {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return null;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return null;
   if (isBudgetGiftCardMisroute(prompt)) return 'apply_gift_card_code';
   if (isBudgetPackageDiscoveryPrompt(prompt)) return 'discover_packages';
@@ -1003,6 +1009,8 @@ export function rescueBudgetServiceDiscoveryIntent(
   action: string,
   surface?: Exclude<BudgetDiscoverySurface, 'both'> | 'dashboard',
 ): { action: string; rescueReason: string } | null {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return null;
+  if (isConfigureServiceDepositPolicyPrompt(prompt)) return null;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return null;
 
   const misroute = surface

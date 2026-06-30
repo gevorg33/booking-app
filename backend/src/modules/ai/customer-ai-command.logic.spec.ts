@@ -95,43 +95,128 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
         'explain_why_no_slots',
       ),
     } as any,
-    payments: {
-      handleCheckProvidersForService: register(
-        's30.check_providers_for_service',
-        'check_providers_for_service',
-      ),
-      handleBookNearestSlot: register(
-        's30.book_nearest_slot',
-        'book_nearest_slot',
-      ),
-      handleApplyGiftCardCode: register(
-        's30.apply_gift_card_code',
-        'apply_gift_card_code',
-      ),
-      handleCheckGiftCardBalance: register(
-        's30.check_gift_card_balance',
-        'check_gift_card_balance',
-      ),
-      handleBuyGiftCard: register('s30.buy_gift_card', 'buy_gift_card'),
-      handleChoosePaymentMethod: register(
-        's30.choose_payment_method',
-        'choose_payment_method',
-      ),
-      handlePayOnline: register('s30.pay_online', 'pay_online'),
-      handlePayCashAtVisit: register(
-        's30.pay_cash_at_visit',
-        'pay_cash_at_visit',
-      ),
-      handlePurchaseSubscriptionCheckout: register(
-        's30.purchase_subscription_checkout',
-        'purchase_subscription_checkout',
-      ),
-      handleExplainWhyStripeRequired: register(
-        's30.explain_why_stripe_required',
-        'explain_why_stripe_required',
-      ),
-      handleReceiptStatus: register('s30.receipt_status', 'receipt_status'),
-    } as any,
+    payments: (() => {
+      const payments = {
+        handleCheckProvidersForService: register(
+          's30.check_providers_for_service',
+          'check_providers_for_service',
+        ),
+        handleBookNearestSlot: register(
+          's30.book_nearest_slot',
+          'book_nearest_slot',
+        ),
+        handleApplyGiftCardCode: register(
+          's30.apply_gift_card_code',
+          'apply_gift_card_code',
+        ),
+        handleCheckGiftCardBalance: register(
+          's30.check_gift_card_balance',
+          'check_gift_card_balance',
+        ),
+        handleBuyGiftCard: register('s30.buy_gift_card', 'buy_gift_card'),
+        handleChoosePaymentMethod: register(
+          's30.choose_payment_method',
+          'choose_payment_method',
+        ),
+        handlePayOnline: register('s30.pay_online', 'pay_online'),
+        handlePayCashAtVisit: register(
+          's30.pay_cash_at_visit',
+          'pay_cash_at_visit',
+        ),
+        handlePurchaseSubscriptionCheckout: register(
+          's30.purchase_subscription_checkout',
+          'purchase_subscription_checkout',
+        ),
+        handleExplainWhyStripeRequired: register(
+          's30.explain_why_stripe_required',
+          'explain_why_stripe_required',
+        ),
+        handleReceiptStatus: register('s30.receipt_status', 'receipt_status'),
+      } as any;
+      payments.dispatchIntent = jest.fn(
+        async (ctx: {
+          businessId: string;
+          action: string;
+          params: Record<string, unknown>;
+          prompt?: string;
+        }) => {
+          const prompt = ctx.prompt ?? '';
+          const withPrompt = { ...ctx.params, _prompt: prompt };
+          switch (ctx.action) {
+            case 'check_providers_for_service':
+              return payments.handleCheckProvidersForService(
+                ctx.businessId,
+                ctx.params,
+                prompt,
+              );
+            case 'book_nearest_slot':
+              return payments.handleBookNearestSlot(
+                ctx.businessId,
+                ctx.params,
+                prompt,
+              );
+            case 'apply_gift_card_code':
+              return payments.handleApplyGiftCardCode(
+                ctx.businessId,
+                ctx.params,
+                prompt,
+              );
+            case 'check_gift_card_balance':
+              return payments.handleCheckGiftCardBalance(
+                ctx.businessId,
+                ctx.params,
+                prompt,
+              );
+            case 'buy_gift_card':
+              return payments.handleBuyGiftCard(
+                ctx.businessId,
+                ctx.params,
+                false,
+              );
+            case 'buy_gift_card_physical':
+              return payments.handleBuyGiftCard(
+                ctx.businessId,
+                ctx.params,
+                true,
+              );
+            case 'choose_payment_method':
+              return payments.handleChoosePaymentMethod(
+                ctx.businessId,
+                withPrompt,
+                prompt,
+              );
+            case 'pay_online':
+              return payments.handlePayOnline(
+                ctx.businessId,
+                withPrompt,
+                prompt,
+              );
+            case 'pay_cash_at_visit':
+              return payments.handlePayCashAtVisit(
+                ctx.businessId,
+                withPrompt,
+                prompt,
+              );
+            case 'purchase_subscription_checkout':
+              return payments.handlePurchaseSubscriptionCheckout(
+                ctx.businessId,
+                ctx.params,
+              );
+            case 'explain_why_stripe_required':
+              return payments.handleExplainWhyStripeRequired(
+                ctx.businessId,
+                withPrompt,
+                prompt,
+              );
+            case 'receipt_status':
+              return payments.handleReceiptStatus(ctx.businessId, ctx.params);
+            default:
+              return null;
+          }
+        },
+      );
+      return payments;
+    })(),
     giftFulfillment: {
       handleEnterShippingAddress: register(
         's31.enter_shipping_address',
@@ -232,6 +317,10 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
       handleListMyAppointments: register(
         's36.list_my_appointments',
         'list_my_appointments',
+      ),
+      handleListMyPackageVisits: register(
+        's36.list_my_package_visits',
+        'list_my_package_visits',
       ),
       handleGetManageLink: register('s36.get_manage_link', 'get_manage_link'),
       handleExplainCancelPolicy: register(
@@ -462,6 +551,7 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
     callKey: 's36.reschedule_package_visit_self',
   },
   { action: 'list_my_appointments', callKey: 's36.list_my_appointments' },
+  { action: 'list_my_package_visits', callKey: 's36.list_my_package_visits' },
   { action: 'get_manage_link', callKey: 's36.get_manage_link' },
   { action: 'explain_cancel_policy', callKey: 's36.explain_cancel_policy' },
   { action: 'book_with_cash', callKey: 's36.book_with_cash' },
@@ -521,6 +611,8 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
     callKey: 'adopt.manage_notification_preferences',
   },
   { action: 'refer_a_friend', callKey: 'adopt.refer_a_friend' },
+  { action: 'share_salon_link', callKey: 'adopt.share_salon_link' },
+  { action: 'share_my_booking', callKey: 'adopt.share_my_booking' },
   { action: 'rebook_last_appointment', callKey: 'adopt.rebook_last_appointment' },
   { action: 'find_my_saved_salons', callKey: 'adopt.find_my_saved_salons' },
   {
@@ -629,6 +721,48 @@ describe('customer-ai-command.logic', () => {
         _prompt: 'help me book',
         extra: true,
       }),
+    );
+  });
+
+  it('passes prompt to pay_online handler', async () => {
+    const deps = buildDeps();
+    await dispatchCustomerIntent(deps, 'biz-1', 'pay_online', {}, session);
+    expect(deps.calls['s30.pay_online']).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'help me book',
+    );
+  });
+
+  it('passes prompt to reschedule_my_booking handler', async () => {
+    const deps = buildDeps();
+    await dispatchCustomerIntent(
+      deps,
+      'biz-1',
+      'reschedule_my_booking',
+      {},
+      session,
+    );
+    expect(deps.calls['s36.reschedule_my_booking']).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'help me book',
+    );
+  });
+
+  it('passes prompt to cancel_my_booking handler', async () => {
+    const deps = buildDeps();
+    await dispatchCustomerIntent(
+      deps,
+      'biz-1',
+      'cancel_my_booking',
+      {},
+      session,
+    );
+    expect(deps.calls['s36.cancel_my_booking']).toHaveBeenCalledWith(
+      'biz-1',
+      expect.any(Object),
+      'help me book',
     );
   });
 

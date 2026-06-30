@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-13T11:00:24.819Z",
-  "totalCases": 3521,
-  "passed": 3521,
-  "failed": 0,
-  "accuracyPct": 100,
+  "generatedAt": "2026-06-29T23:19:31.082Z",
+  "totalCases": 3696,
+  "passed": 3688,
+  "failed": 8,
+  "accuracyPct": 99.78,
   "llmCaseCount": 14,
   "byIntent": {
     "accept_hipaa_baa": {
@@ -109,6 +109,12 @@
       "total": 3,
       "accuracyPct": 100
     },
+    "booking_help": {
+      "passed": 9,
+      "failed": 0,
+      "total": 9,
+      "accuracyPct": 100
+    },
     "bulk_create_catalog": {
       "passed": 7,
       "failed": 0,
@@ -125,6 +131,12 @@
       "passed": 15,
       "failed": 0,
       "total": 15,
+      "accuracyPct": 100
+    },
+    "cancel_bookings": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
       "accuracyPct": 100
     },
     "cancel_my_booking": {
@@ -505,6 +517,12 @@
       "total": 16,
       "accuracyPct": 100
     },
+    "configure_service_online_payment": {
+      "passed": 12,
+      "failed": 7,
+      "total": 19,
+      "accuracyPct": 63.16
+    },
     "configure_stacked_tax_rules": {
       "passed": 16,
       "failed": 0,
@@ -512,9 +530,9 @@
       "accuracyPct": 100
     },
     "configure_test_reference_range": {
-      "passed": 11,
+      "passed": 19,
       "failed": 0,
-      "total": 11,
+      "total": 19,
       "accuracyPct": 100
     },
     "configure_tour_service": {
@@ -631,10 +649,40 @@
       "total": 29,
       "accuracyPct": 100
     },
+    "explain_ai_settings": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
+      "accuracyPct": 100
+    },
+    "explain_ai_suggestions": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
+    "explain_app_feature": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "explain_appointment_tax": {
       "passed": 8,
       "failed": 0,
       "total": 8,
+      "accuracyPct": 100
+    },
+    "explain_assistant_approval": {
+      "passed": 1,
+      "failed": 1,
+      "total": 2,
+      "accuracyPct": 50
+    },
+    "explain_assistant_confirm_swipe": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
       "accuracyPct": 100
     },
     "explain_booking_date_format": {
@@ -727,6 +775,12 @@
       "total": 25,
       "accuracyPct": 100
     },
+    "explain_current_screen": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6,
+      "accuracyPct": 100
+    },
     "explain_data_rights": {
       "passed": 6,
       "failed": 0,
@@ -737,6 +791,12 @@
       "passed": 16,
       "failed": 0,
       "total": 16,
+      "accuracyPct": 100
+    },
+    "explain_empty_catalog": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
       "accuracyPct": 100
     },
     "explain_gdpr_checklist": {
@@ -800,15 +860,21 @@
       "accuracyPct": 100
     },
     "explain_patient_results": {
-      "passed": 11,
+      "passed": 19,
       "failed": 0,
-      "total": 11,
+      "total": 19,
       "accuracyPct": 100
     },
     "explain_phi_encryption_status": {
       "passed": 4,
       "failed": 0,
       "total": 4,
+      "accuracyPct": 100
+    },
+    "explain_provider_app_tabs": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
       "accuracyPct": 100
     },
     "explain_provider_date_display": {
@@ -865,6 +931,12 @@
       "total": 14,
       "accuracyPct": 100
     },
+    "explain_staff_invite": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "explain_stripe_checkout_currency": {
       "passed": 10,
       "failed": 0,
@@ -877,10 +949,22 @@
       "total": 10,
       "accuracyPct": 100
     },
+    "explain_stripe_not_connected": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "accuracyPct": 100
+    },
     "explain_stripe_tax_charge": {
       "passed": 6,
       "failed": 0,
       "total": 6,
+      "accuracyPct": 100
+    },
+    "explain_team_view_scope": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1,
       "accuracyPct": 100
     },
     "explain_tenant_currency": {
@@ -919,6 +1003,12 @@
       "total": 19,
       "accuracyPct": 100
     },
+    "explain_visibility_block": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "accuracyPct": 100
+    },
     "find_my_saved_salons": {
       "passed": 3,
       "failed": 0,
@@ -935,6 +1025,12 @@
       "passed": 1,
       "failed": 0,
       "total": 1,
+      "accuracyPct": 100
+    },
+    "guide_user_flow": {
+      "passed": 68,
+      "failed": 0,
+      "total": 68,
       "accuracyPct": 100
     },
     "how_to_download_app": {
@@ -1022,9 +1118,9 @@
       "accuracyPct": 100
     },
     "list_abnormal_results": {
-      "passed": 11,
+      "passed": 19,
       "failed": 0,
-      "total": 11,
+      "total": 19,
       "accuracyPct": 100
     },
     "list_breach_incidents": {
@@ -1190,9 +1286,9 @@
       "accuracyPct": 100
     },
     "misc": {
-      "passed": 89,
+      "passed": 95,
       "failed": 0,
-      "total": 89,
+      "total": 95,
       "accuracyPct": 100
     },
     "multilingual_detection": {
@@ -1237,10 +1333,16 @@
       "total": 5,
       "accuracyPct": 100
     },
-    "payment_sweep": {
-      "passed": 1,
+    "params_parse": {
+      "passed": 9,
       "failed": 0,
-      "total": 1,
+      "total": 9,
+      "accuracyPct": 100
+    },
+    "payment_sweep": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
       "accuracyPct": 100
     },
     "phi_guard": {
@@ -1580,9 +1682,9 @@
       "accuracyPct": 100
     },
     "upload_patient_result": {
-      "passed": 11,
+      "passed": 19,
       "failed": 0,
-      "total": 11,
+      "total": 19,
       "accuracyPct": 100
     },
     "use_subscription_credit": {

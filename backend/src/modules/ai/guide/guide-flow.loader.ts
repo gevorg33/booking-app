@@ -23,8 +23,8 @@ let cachedOverlays: Map<GuideVerticalOverlayId, GuideFlowOverlayBundle> | null =
 
 function resolveGuideFlowsRoot(): string {
   const candidates = [
-    join(process.cwd(), 'dist', GUIDE_FLOWS_REL),
     join(process.cwd(), 'src', GUIDE_FLOWS_REL),
+    join(process.cwd(), 'dist', GUIDE_FLOWS_REL),
   ];
   for (const path of candidates) {
     if (existsSync(path)) return path;

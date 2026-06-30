@@ -24,6 +24,7 @@ describe('ai-clinic-lab-day-close-compound locale parity (parity-2.4)', () => {
     );
     for (const row of AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_COMPOUND_CASES) {
       expect(evalIds.has(row.id)).toBe(true);
+      expect(row.expect.compoundSteps?.length).toBe(4);
     }
     for (const row of AI_COMMAND_EVAL_CLINIC_LAB_DAY_CLOSE_MULTILINGUAL_CASES) {
       expect(evalIds.has(row.id)).toBe(true);

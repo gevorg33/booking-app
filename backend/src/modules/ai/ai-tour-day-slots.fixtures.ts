@@ -164,4 +164,60 @@ export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS = [
     aspect: 'fullyBooked' as const,
     surface: 'customer' as const,
   },
+  {
+    id: 'public-why-one-time-per-day',
+    prompt: 'Why only one time per day for tours?',
+    aspect: 'oneDeparture' as const,
+    surface: 'public' as const,
+  },
+  {
+    id: 'public-how-many-spots-friday',
+    prompt:
+      'How many spots left on Friday 15/08/2026 for the 3-Day Mountain Trek?',
+    serviceName: '3-Day Mountain Trek',
+    date: '2026-08-15',
+    aspect: 'remainingSpots' as const,
+    surface: 'public' as const,
+  },
+  {
+    id: 'public-date-grayed-out',
+    prompt: 'Why is this tour date grayed out on the booking page?',
+    aspect: 'fullyBooked' as const,
+    surface: 'public' as const,
+  },
+  {
+    id: 'public-one-slot-multi-day',
+    prompt: 'Why does a 3-day tour show just one slot per day here?',
+    aspect: 'oneDeparture' as const,
+    surface: 'public' as const,
+  },
+  {
+    id: 'customer-why-one-departure-app',
+    prompt: 'Why only one departure time per day when I book a tour?',
+    aspect: 'oneDeparture' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-how-many-spots-friday',
+    prompt:
+      'How many spots left Friday 15/08/2026 for the 3-Day Mountain Trek?',
+    serviceName: '3-Day Mountain Trek',
+    date: '2026-08-15',
+    aspect: 'remainingSpots' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-sold-out-date',
+    prompt: 'Why is 15/08/2026 sold out for the 3-Day Mountain Trek?',
+    serviceName: '3-Day Mountain Trek',
+    date: '2026-08-15',
+    aspect: 'fullyBooked' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-spots-left-meaning',
+    prompt: 'What does spots left mean for tour dates?',
+    aspect: 'remainingSpots' as const,
+    surface: 'customer' as const,
+  },
 ] as const;

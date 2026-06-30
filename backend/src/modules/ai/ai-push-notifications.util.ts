@@ -1,6 +1,18 @@
 import { isTestWebhookPrompt } from './ai-integrations.util.js';
+import {
+  isConfigureNotificationSettingsPrompt,
+  enrichNotificationSettingsParamsFromPrompt,
+  rescueConfigureNotificationSettingsIntent,
+} from './ai-notification-settings.util.js';
+import {
+  isConfigureWhatsappIntegrationPrompt,
+  enrichWhatsappIntegrationParamsFromPrompt,
+  rescueConfigureWhatsappIntegrationIntent,
+} from './ai-whatsapp-integration.util.js';
 
 export const DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
+  'configure_notification_settings',
+  'configure_whatsapp_integration',
   'configure_push_recipients',
   'test_push',
   'toggle_business_email_on_customer_change',
@@ -193,6 +205,7 @@ export function isToggleBusinessEmailOnCustomerChangePrompt(
 }
 
 export function isEnableNotificationsPrompt(prompt: string): boolean {
+  if (isConfigureNotificationSettingsPrompt(prompt)) return false;
   if (
     isNotificationHistoryPrompt(prompt) ||
     isAppointmentReminderPreferencesPrompt(prompt)
@@ -458,6 +471,18 @@ export function rescuePushNotificationsIntent(
   if (isPushNotificationsIntent(action)) return null;
   if (isPushNotificationsCompoundPrompt(prompt)) return null;
 
+  const notificationSettings = rescueConfigureNotificationSettingsIntent(
+    prompt,
+    action,
+  );
+  if (notificationSettings) return notificationSettings;
+
+  const whatsappIntegration = rescueConfigureWhatsappIntegrationIntent(
+    prompt,
+    action,
+  );
+  if (whatsappIntegration) return whatsappIntegration;
+
   if (isAppointmentReminderPreferencesPrompt(prompt)) {
     return {
       action: 'appointment_reminder_preferences',
@@ -536,6 +561,20 @@ export function classifyPushNotificationsSegment(
   const reminderHours = extractReminderHoursFromPrompt(text);
   if (reminderHours !== null) base.reminderHoursBefore = reminderHours;
 
+  if (isConfigureNotificationSettingsPrompt(text)) {
+    return {
+      action: 'configure_notification_settings',
+      params: enrichNotificationSettingsParamsFromPrompt(base, text),
+      segment: text,
+    };
+  }
+  if (isConfigureWhatsappIntegrationPrompt(text)) {
+    return {
+      action: 'configure_whatsapp_integration',
+      params: enrichWhatsappIntegrationParamsFromPrompt(base, text),
+      segment: text,
+    };
+  }
   if (isAppointmentReminderPreferencesPrompt(text)) {
     return {
       action: 'appointment_reminder_preferences',

@@ -11,6 +11,7 @@ import {
   shouldApplyProductGuideRouting,
   shouldForceProductGuideRouting,
 } from './ai-assistant-mode.util.js';
+import { isGrowthLoopsCustomerPrompt } from './ai-growth-loops-customer.util.js';
 
 /**
  * ai-guide-1.0.1 — Product guide vs domain explain vs action taxonomy.
@@ -204,6 +205,10 @@ export function resolveProductGuidePromptMatch(
 ): ProductGuidePromptMatch {
   const trimmed = prompt.trim();
   if (!trimmed) return { matched: false };
+
+  if (isGrowthLoopsCustomerPrompt(trimmed)) {
+    return { matched: false };
+  }
 
   if (options.assistantMode === 'act') {
     return { matched: false };
@@ -444,6 +449,10 @@ export function classifyPromptIntentBucket(
 ): ProductGuideIntentBucket {
   const trimmed = prompt.trim();
   if (!trimmed) return 'unknown';
+
+  if (isGrowthLoopsCustomerPrompt(trimmed)) {
+    return 'action';
+  }
 
   if (options.assistantMode === 'act') {
     if (hasExplicitMutateCue(trimmed)) return 'action';

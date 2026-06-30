@@ -191,6 +191,8 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'explain_patient_results',
     'configure_test_reference_range',
     'list_abnormal_results',
+    'enter_test_result',
+    'release_test_result',
   ]),
   staff: new Set([
     'list_employees',

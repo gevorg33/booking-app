@@ -14,6 +14,7 @@ import { RECOMMENDATION_PRODUCT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recom
 import { RECOMMENDATION_ANALYTICS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recommendation-analytics-multilingual.fixtures.js';
 import { CLINIC_TEST_ORDER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-test-order-multilingual.fixtures.js';
 import { CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-test-result-multilingual.fixtures.js';
+import { CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-test-result-ext-multilingual.fixtures.js';
 import { CLINIC_PATIENT_CHART_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-patient-chart-multilingual.fixtures.js';
 import { PROVIDER_CLINIC_COLLECTION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-clinic-collection-multilingual.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results-multilingual.fixtures.js';
@@ -173,6 +174,8 @@ ${CLINIC_SERVICE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CLINIC_TEST_ORDER_MULTILINGUAL_CLASSIFIER_RULES}
 
 ${CLINIC_TEST_RESULT_MULTILINGUAL_CLASSIFIER_RULES}
+
+${CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CLASSIFIER_RULES}
 
 ${CLINIC_PATIENT_CHART_MULTILINGUAL_CLASSIFIER_RULES}
 

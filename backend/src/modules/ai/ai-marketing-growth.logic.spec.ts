@@ -11,10 +11,16 @@ import {
   handleSwitchToConsumerAppLogic,
   handlePromoCodeHelpLogic,
   handleLoyaltyPointsBalanceLogic,
+  handleOpenBillingSettingsLogic,
+  handleSummarizeLoyaltyProgramLogic,
   handleMarketingGrowthCompoundLogic,
   mergeMarketingGrowthCompoundContext,
   type MarketingGrowthLogicDeps,
 } from './ai-marketing-growth.logic.js';
+import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logic.js';
+import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
+import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
+import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
 import * as plans from '../billing/plans.js';
 import * as orchestration from './ai-orchestration.helpers.js';
 
@@ -108,6 +114,7 @@ function buildDeps(
     } as any,
     planEntitlementsService: {
       getEntitlements: jest.fn(async () => entitlementsSolo),
+      assertFeature: jest.fn(async () => undefined),
     } as any,
     billingService: {
       getSubscription: jest.fn(async () => ({
@@ -117,6 +124,9 @@ function buildDeps(
       })),
       createCheckoutSession: jest.fn(async () => ({
         url: 'https://checkout.stripe.com/session',
+      })),
+      createPortalSession: jest.fn(async () => ({
+        url: 'https://billing.stripe.com/portal',
       })),
     } as any,
     loyaltyService: {
@@ -140,6 +150,17 @@ function buildDeps(
         minOrderAmount: null,
         expiresAt: null,
       })),
+      create: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
+        id: 'promo-1',
+        code: dto.code,
+        discountType: dto.discountType,
+        discountValue: dto.discountValue,
+        minOrderAmount: dto.minOrderAmount ?? null,
+        maxUses: dto.maxUses ?? null,
+        expiresAt: dto.expiresAt ?? null,
+        description: dto.description ?? null,
+        isActive: true,
+      })),
     } as any,
     stripeService: { isConfigured: false } as any,
     configService: {
@@ -155,7 +176,28 @@ function buildDeps(
       findOne: jest.fn(async () => ({
         id: 'biz-1',
         slug: 'salon',
-        settings: {},
+        settings: { loyalty: { earnPercentCashback: 5, enabled: true } },
+      })),
+      save: jest.fn(async (row: Record<string, unknown>) => row),
+    } as any,
+    stripeIntegrationService: {
+      getPublicSettings: jest.fn(async () => ({ configured: false })),
+      startConnect: jest.fn(async () => ({ url: 'https://stripe.test' })),
+    } as any,
+    tenantAppInstallService: {
+      ensureForBusiness: jest.fn(async (business: { slug: string }) => ({
+        slug: business.slug,
+        landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+        qrDataUrl: 'data:image/png;base64,abc',
+        customSchemeUrl: `optischedule://book/${business.slug}`,
+        generatedAt: '2026-06-01T00:00:00.000Z',
+      })),
+      regenerateForBusiness: jest.fn(async (business: { slug: string }) => ({
+        slug: business.slug,
+        landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+        qrDataUrl: 'data:image/png;base64,regenerated',
+        customSchemeUrl: `optischedule://book/${business.slug}`,
+        generatedAt: '2026-06-02T00:00:00.000Z',
       })),
     } as any,
     ...overrides,
@@ -368,6 +410,78 @@ describe('ai-marketing-growth.logic', () => {
     expect((await handleHowToDownloadAppLogic(deps, 'biz-1')).success).toBe(
       true,
     );
+    const download = await handleHowToDownloadAppLogic(deps, 'biz-1');
+    expect(download.summary).toContain('/get-app/salon');
+    expect(download.details?.guidance).toMatchObject({
+      landingUrl: expect.stringContaining('/get-app/salon'),
+    });
+    expect(
+      (await handleExplainTenantAppInstallLogic(deps, 'biz-1')).success,
+    ).toBe(true);
+    expect(
+      (await handleRegenerateTenantAppInstallQrLogic(deps, 'biz-1')).success,
+    ).toBe(true);
+    expect((await handleCreatePromoCodeLogic(deps, 'biz-1', {}, 'Create promo code SAVE10 for 20% off')).success).toBe(
+      true,
+    );
+    expect(
+      (
+        await handleConfigureLoyaltySettingsLogic(
+          deps,
+          'biz-1',
+          {},
+          'Set loyalty earn rate to 10%',
+        )
+      ).success,
+    ).toBe(true);
+    const loyaltyConfigureCompound = await handleMarketingGrowthCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'configure_loyalty_settings',
+            params: {},
+            segment: 'Set loyalty earn rate to 10%',
+          },
+          {
+            action: 'explain_plan_limits',
+            params: {},
+            segment: 'Explain plan limits',
+          },
+        ],
+      },
+    );
+    expect(loyaltyConfigureCompound.success).toBe(true);
+    expect(
+      (await handleOpenBillingSettingsLogic(deps, 'biz-1')).success,
+    ).toBe(true);
+    expect(
+      (await handleSummarizeLoyaltyProgramLogic(deps, 'biz-1')).success,
+    ).toBe(true);
+    const billingFail = buildDeps({
+      billingService: {
+        getSubscription: jest.fn(async () => ({ planId: null })),
+        createCheckoutSession: jest.fn(async () => ({ url: 'x' })),
+        createPortalSession: jest.fn(async () => {
+          throw new Error('portal fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleOpenBillingSettingsLogic(billingFail, 'biz-1')).success,
+    ).toBe(false);
+    const loyaltyFail = buildDeps({
+      businessRepo: {
+        findOne: jest.fn(async () => {
+          throw new Error('loyalty fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleSummarizeLoyaltyProgramLogic(loyaltyFail, 'biz-1')).success,
+    ).toBe(false);
     expect((await handleSwitchToConsumerAppLogic(deps, 'biz-1')).success).toBe(
       true,
     );
@@ -475,7 +589,7 @@ describe('ai-marketing-growth.logic', () => {
       businessRepo: { findOne: jest.fn(async () => null) } as any,
     });
     expect((await handleHowToDownloadAppLogic(noSlug, 'biz-1')).success).toBe(
-      true,
+      false,
     );
   });
 
@@ -583,10 +697,97 @@ describe('ai-marketing-growth.logic', () => {
           success: true,
           action: 'how_to_download_app',
           summary: '',
-          details: { guidance: { pwaUrl: 'x' } },
+          details: { guidance: { landingUrl: 'https://app.test/get-app/salon' } },
         },
       ).consumerAppGuidance,
-    ).toMatchObject({ pwaUrl: 'x' });
+    ).toMatchObject({ landingUrl: 'https://app.test/get-app/salon' });
+    expect(
+      mergeMarketingGrowthCompoundContext(
+        {},
+        { action: 'explain_tenant_app_install', params: {}, segment: 'x' },
+        {
+          success: true,
+          action: 'explain_tenant_app_install',
+          summary: '',
+          details: { appInstall: { slug: 'salon' } },
+        },
+      ).tenantAppInstall,
+    ).toEqual({ slug: 'salon' });
+    expect(
+      mergeMarketingGrowthCompoundContext(
+        {},
+        { action: 'regenerate_tenant_app_install_qr', params: {}, segment: 'x' },
+        {
+          success: true,
+          action: 'regenerate_tenant_app_install_qr',
+          summary: '',
+          details: { appInstall: { slug: 'salon' }, regenerated: true },
+        },
+      ).tenantAppInstallRegenerated,
+    ).toBe(true);
+
+    const tenantInstallCompound = await handleMarketingGrowthCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'explain_tenant_app_install',
+            params: {},
+            segment: 'Explain our tenant app install QR',
+          },
+          {
+            action: 'explain_plan_limits',
+            params: {},
+            segment: 'Explain plan limits',
+          },
+        ],
+      },
+    );
+    expect(tenantInstallCompound.success).toBe(true);
+
+    const regenerateCompound = await handleMarketingGrowthCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'regenerate_tenant_app_install_qr',
+            params: {},
+            segment: 'Regenerate tenant app install QR',
+          },
+          {
+            action: 'explain_tenant_app_install',
+            params: {},
+            segment: 'Explain our tenant app install QR',
+          },
+        ],
+      },
+    );
+    expect(regenerateCompound.success).toBe(true);
+
+    const stripeCompound = await handleMarketingGrowthCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'configure_stripe_connect',
+            params: {},
+            segment: 'Connect Stripe for payouts',
+          },
+          {
+            action: 'explain_plan_limits',
+            params: {},
+            segment: 'Explain plan limits',
+          },
+        ],
+      },
+    );
+    expect(stripeCompound.success).toBe(true);
 
     const unsupported = await handleMarketingGrowthCompoundLogic(
       deps,
@@ -950,7 +1151,7 @@ describe('ai-marketing-growth.logic', () => {
     });
     expect(
       (await handleHowToDownloadAppLogic(configFallback, 'biz-1')).success,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       (await handleSwitchToConsumerAppLogic(configFallback, 'biz-1')).success,
     ).toBe(true);

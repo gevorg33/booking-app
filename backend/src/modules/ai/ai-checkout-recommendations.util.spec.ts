@@ -1,4 +1,5 @@
 import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from './ai-checkout-recommendations.fixtures.js';
+import { MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS } from './ai-checkout-recommendations-multilingual.fixtures.js';
 import {
   isExplainCheckoutRecommendationsPrompt,
   parseExplainCheckoutRecommendationsFromPrompt,
@@ -60,5 +61,33 @@ describe('ai-checkout-recommendations.util (ai-cmd-rec-5)', () => {
         'explain_checkout_recommendations',
       ),
     ).toBeNull();
+  });
+
+  it.each(MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS)(
+    'detects multilingual checkout recommendations prompt $id',
+    ({ prompt, expectedAction, paramsPartial }) => {
+      expect(isExplainCheckoutRecommendationsPrompt(prompt)).toBe(true);
+      expect(
+        rescueExplainCheckoutRecommendationsIntent(prompt, 'unknown')?.action,
+      ).toBe(expectedAction);
+      if (paramsPartial?.aspect) {
+        expect(parseExplainCheckoutRecommendationsFromPrompt(prompt)?.aspect).toBe(
+          paramsPartial.aspect,
+        );
+      }
+    },
+  );
+
+  it('parses multilingual product-list aspects', () => {
+    expect(
+      parseExplainCheckoutRecommendationsFromPrompt(
+        'Ինչ են You might also like ապրանքները հաստատման էկրանում',
+      )?.aspect,
+    ).toBe('products');
+    expect(
+      parseExplainCheckoutRecommendationsFromPrompt(
+        'Что за You might also like на экране подтверждения записи',
+      )?.aspect,
+    ).toBe('products');
   });
 });

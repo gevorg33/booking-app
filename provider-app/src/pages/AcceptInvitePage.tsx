@@ -22,6 +22,7 @@ import {
   isValidPhone,
 } from '../lib/phone-format';
 import { useI18n } from '../i18n';
+import { buildProviderInviteGuideEntryPath } from '../lib/provider-guide-entry.util';
 
 interface InviteInfo {
   email: string;
@@ -195,6 +196,15 @@ export default function AcceptInvitePage() {
 
             <IonButton expand="block" className="ion-margin-top" onClick={() => void handleSubmit()} disabled={submitting}>
               {submitting ? <IonSpinner name="crescent" /> : t('provider.inviteCompleteSetup')}
+            </IonButton>
+
+            <IonButton
+              expand="block"
+              fill="clear"
+              className="ion-margin-top provider-invite-guide-link"
+              onClick={() => history.push(buildProviderInviteGuideEntryPath())}
+            >
+              {t('provider.inviteGuideLink')}
             </IonButton>
           </>
         ) : null}

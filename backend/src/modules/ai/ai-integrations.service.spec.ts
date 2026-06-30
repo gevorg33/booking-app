@@ -73,6 +73,25 @@ describe('AiIntegrationsService', () => {
     })),
     syncCustomerIfEnabled: jest.fn(async () => ({ userId: 1 })),
   };
+  const openAiIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: false,
+      usingPlatformDefault: false,
+      usage: { totalTokens: 0 },
+    })),
+    updateSettings: jest.fn(async (_id, patch) => ({
+      configured: true,
+      ...patch,
+      usage: { totalTokens: 0 },
+    })),
+  };
+  const whatsappIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: true,
+      usingPlatformDefault: false,
+      phoneNumberId: '15551234567',
+    })),
+  };
   const integrationsDocsService = { buildDocs: jest.fn(() => ({})) };
   const businessRepo = {
     findOne: jest.fn(async () => ({
@@ -118,6 +137,8 @@ describe('AiIntegrationsService', () => {
       accountingIntegrationService as any,
       zendeskIntegrationService as any,
       integrationsDocsService as any,
+      openAiIntegrationService as any,
+      whatsappIntegrationService as any,
       businessRepo as any,
       customerRepo as any,
       giftCardRepo as any,
@@ -200,6 +221,15 @@ describe('AiIntegrationsService', () => {
     expect((await service.handleListIntegrationHealth('biz-1')).success).toBe(
       true,
     );
+    expect(
+      (
+        await service.handleExplainIntegrationHealth(
+          'biz-1',
+          {},
+          'Is WhatsApp connected?',
+        )
+      ).success,
+    ).toBe(true);
     expect(
       (
         await service.handleContactSupport('biz-1', {

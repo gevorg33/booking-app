@@ -41,6 +41,7 @@ export const SELF_SERVICE_BOOKING_READ_INTENTS = [
   'check_package_availability',
   'check_multi_service_availability',
   'list_my_appointments',
+  'list_my_package_visits',
   'get_manage_link',
   'explain_cancel_policy',
   'show_cart_total_duration',
@@ -77,10 +78,26 @@ export function isSelfServiceBookingIntent(
   return (SELF_SERVICE_BOOKING_INTENTS as readonly string[]).includes(action);
 }
 
+const SELF_SERVICE_FOR_CLIENT_PATTERN =
+  /\bfor\s+(?!me\b|massage\b|facial\b|manicure\b|pedicure\b|haircut\b|color\b|blowdry\b|peel\b|beard\b|trim\b|spa\b|deep\b|swedish\b|tissue\b|my\s+cart\b|services?\b)[A-Za-z]/i;
+
+const SERVICE_WORD_AFTER_WITH =
+  /^(?:massage|facial|manicure|pedicure|haircut|color|blowdry|peel|beard|trim|spa|deep|tissue|swedish|a)$/i;
+
+function isBookWithNamedProviderPrompt(prompt: string): boolean {
+  const match = prompt.match(
+    /\b(?:book|reserve|schedule)\b[^.?]*\bwith\s+(?:dr\.?\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
+  );
+  if (!match?.[1]) return false;
+  if (/\bwith\s+a\s+spa\b/i.test(prompt)) return false;
+  const firstWord = match[1].trim().split(/\s+/)[0] ?? '';
+  return !SERVICE_WORD_AFTER_WITH.test(firstWord);
+}
+
 function isDashboardCustomerBookingPrompt(prompt: string): boolean {
   return (
     /\bfor\s+(?:customer|client)\b/i.test(prompt) ||
-    /\bfor\s+(?!me\b)[A-Za-z]/i.test(prompt) ||
+    SELF_SERVICE_FOR_CLIENT_PATTERN.test(prompt) ||
     (hasDashboardCustomerReference(prompt) &&
       /\b(customer|client)\b/i.test(prompt))
   );
@@ -92,6 +109,13 @@ export function isSelfServiceCustomerPrompt(prompt: string): boolean {
 }
 
 export function isBookPackagePrompt(prompt: string): boolean {
+  if (
+    /\bspa\s+day\b/i.test(prompt) &&
+    /\band\b/i.test(prompt) &&
+    !/\b(package|bundle|deal)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   const wantsPackage =
     /\bpackage\b/i.test(prompt) ||
     /\bbundle\b/i.test(prompt) ||
@@ -112,18 +136,31 @@ export function isBookPackagePrompt(prompt: string): boolean {
 }
 
 export function isBookMultiServicePrompt(prompt: string): boolean {
+  const wantsMultiServiceBook =
+    /\b(book|reserve|schedule|start)\b/i.test(prompt) ||
+    (/\b(want|need)\b/i.test(prompt) &&
+      /\bmultiple\s+(?:treatments?|services?)\b/i.test(prompt)) ||
+    /(amragrel|amragrum|grancvel|ամրագր)/i.test(prompt) ||
+    /(зabron|бронир|запис)/i.test(prompt);
   return (
     isSelfServiceCustomerPrompt(prompt) &&
-    !/\bwith\s+[A-Z][a-z]/i.test(prompt) &&
-    (/\b(book|reserve|schedule)\b/i.test(prompt) ||
-      /(amragrel|amragrum|grancvel|ամրագր)/i.test(prompt) ||
-      /(зabron|бронир|запис)/i.test(prompt)) &&
+    !isBookWithNamedProviderPrompt(prompt) &&
+    wantsMultiServiceBook &&
     (/\bmulti[\s-]?service\b/i.test(prompt) ||
       /\bmultiple\s+services?\b/i.test(prompt) ||
+      /\bmultiple\s+treatments?\b/i.test(prompt) ||
+      (/\bspa\s+day\b/i.test(prompt) &&
+        /\band\b/i.test(prompt) &&
+        !/\bpackage\b/i.test(prompt)) ||
       (/\b(and|together|և|ev|и|вместе)\b/i.test(prompt) &&
         /\b(massage|facial|service|services?|massage|массаж)\b/i.test(
           prompt,
         )) ||
+      (/\b(schedule|reserve|book)\b/i.test(prompt) &&
+        /\b[\w\s'-]+\s+and\s+[\w\s'-]+/i.test(prompt)) ||
+      (/\b(want|need)\b/i.test(prompt) &&
+        /\bmultiple\s+treatments?\b/i.test(prompt) &&
+        /\band\b/i.test(prompt)) ||
       (/\band\b/i.test(prompt) && /\bservices?\b/i.test(prompt)) ||
       /\bbook\s+[\w\s'-]+\s+and\s+[\w\s'-]+/i.test(prompt)) &&
     !isBookPackagePrompt(prompt)
@@ -155,7 +192,7 @@ export function isCheckPackageAvailabilityPrompt(prompt: string): boolean {
 
 export function isCheckMultiServiceAvailabilityPrompt(prompt: string): boolean {
   if (
-    /\bmulti[\s-]?service\s+block\b/i.test(prompt) ||
+    /\bmulti[\s-]?service\s+block\s+availability\b/i.test(prompt) ||
     /\bblock\s+availability\b/i.test(prompt)
   ) {
     return false;
@@ -167,6 +204,11 @@ export function isCheckMultiServiceAvailabilityPrompt(prompt: string): boolean {
         /\bcart\b/i.test(prompt)) &&
       /\b(available|availability|open|slots?|times?)\b/i.test(prompt)) ||
     /\bmulti[\s-]?service\s+availability\b/i.test(prompt) ||
+    (/\bwhen\s+can\s+(?:i|we)\s+(?:get|book)\b/i.test(prompt) &&
+      /\band\b/i.test(prompt)) ||
+    (/\b(open|times?)\b/i.test(prompt) &&
+      /\bfor\b/i.test(prompt) &&
+      /\band\b/i.test(prompt)) ||
     (/(stugel|stuge|check|is|show|tsuyts)/i.test(prompt) &&
       /(multi[\s-]?service|multiple services|cart|multi service)/i.test(
         prompt,
@@ -190,23 +232,51 @@ export function isSelectSubscriptionPlanPrompt(prompt: string): boolean {
 }
 
 export function isUseSubscriptionCreditPrompt(prompt: string): boolean {
+  if (/\b(create|assign|extend|cancel)\b/i.test(prompt)) return false;
+  if (
+    /\b(show|list|view|discover|open)\b/i.test(prompt) &&
+    !/\b(use|apply|redeem)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     (/\b(use|apply|redeem)\b/i.test(prompt) &&
-      /\b(subscription|membership|credit|visit)\b/i.test(prompt)) ||
+      /\b(subscription|membership|credit|visit)s?\b/i.test(prompt)) ||
+    (/\b(book|pay)\b/i.test(prompt) &&
+      /\b(?:with\s+)?my\s+(subscription|membership|plan)\b/i.test(prompt)) ||
+    /\bpay\s+with\s+membership\b/i.test(prompt) ||
+    /\buse\s+my\s+membership\b/i.test(prompt) ||
     (/(օգt|ogtagorz|օգtagorz)/i.test(prompt) &&
       /(abonament|subscription|membership|credit|kredit|visit)/i.test(
         prompt,
       )) ||
     (/(использов|примен|списать|использ)/i.test(prompt) &&
       /(подписк|кредит|абонемент|визит|membership|credit)/i.test(prompt))
-  ) && !/\b(create|assign|extend|cancel)\b/i.test(prompt);
+  );
 }
 
 export function isCancelMyBookingPrompt(prompt: string): boolean {
+  if (/\b(cancel\s+bookings|cancel\s+all|cancel\s+every)\b/i.test(prompt)) {
+    return false;
+  }
   return (
     (/\b(cancel)\b/i.test(prompt) &&
-      /\b(my|this)\b/i.test(prompt) &&
-      /\b(booking|appointment)\b/i.test(prompt)) ||
+      /\b(my|this|upcoming|next)\b/i.test(prompt) &&
+      /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(it|this)\b/i.test(prompt) &&
+      /\b(no\s+longer\s+need|don't\s+need)\b/i.test(prompt)) ||
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(tomorrow|today|tonight|next\s+week)\b/i.test(prompt)) ||
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(without\s+calling|no\s+longer\s+need|don't\s+need)\b/i.test(prompt)) ||
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\bmy\b/i.test(prompt) &&
+      /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
+        prompt,
+      )) ||
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
     (/(չեղարկ|չեղարկել)/i.test(prompt) &&
       /(իմ|այս)/i.test(prompt) &&
       /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
@@ -216,14 +286,33 @@ export function isCancelMyBookingPrompt(prompt: string): boolean {
   ) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
-    !hasDashboardCustomerReference(prompt);
+    (!hasDashboardCustomerReference(prompt) ||
+      /\b(my|I\s+booked)\b/i.test(prompt));
 }
 
 export function isRescheduleMyBookingPrompt(prompt: string): boolean {
   return (
-    (/\b(reschedule|move|change)\b/i.test(prompt) &&
+    (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+      /\b(my|this|upcoming|next)\b/i.test(prompt) &&
+      /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
+    (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+      /\b(to|for)\b/i.test(prompt) &&
+      /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+        prompt,
+      )) ||
+    (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+      /\b(without\s+calling|no\s+need\s+to\s+call)\b/i.test(prompt)) ||
+    (/\b(move|reschedule|change|shift)\b/i.test(prompt) &&
+      /\bmy\b/i.test(prompt) &&
+      /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
+        prompt,
+      )) ||
+    (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+      /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
+    (/\b(need\s+to|want\s+to)\b/i.test(prompt) &&
+      /\b(move|reschedule|change)\b/i.test(prompt) &&
       /\b(my|this)\b/i.test(prompt) &&
-      /\b(booking|appointment)\b/i.test(prompt)) ||
+      /\b(appointment|booking|visit)\b/i.test(prompt)) ||
     (/վերամրագր/i.test(prompt) &&
       /(իմ|այս)/i.test(prompt) &&
       /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
@@ -233,45 +322,73 @@ export function isRescheduleMyBookingPrompt(prompt: string): boolean {
   ) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
-    !hasDashboardCustomerReference(prompt);
+    (!hasDashboardCustomerReference(prompt) ||
+      /\b(my|I\s+booked)\b/i.test(prompt));
 }
 
 export function isCancelPackageVisitSelfPrompt(prompt: string): boolean {
-  return (
-    (/\b(cancel)\b/i.test(prompt) &&
-      /\b(my|this)\b/i.test(prompt) &&
-      (/\bpackage\s+visit\b/i.test(prompt) ||
-        /\bspa\s+day\b/i.test(prompt) ||
-        /\bpackage\s+appointment\b/i.test(prompt))) ||
-    (/(չեղարկ|չեղարկել)/i.test(prompt) &&
-      /(իմ|այս)/i.test(prompt) &&
-      (/\bpackage\s+visit\b/i.test(prompt) ||
-        /\bspa\s+day\b/i.test(prompt) ||
-        /(spa day|package visit|package appointment)/i.test(prompt))) ||
+  const packageContext =
+    /\b(package\s+visit|spa\s+day|package\s+appointment|package\s+bundle)\b/i.test(
+      prompt,
+    ) ||
+    (/\bpackage\b/i.test(prompt) && /\b(visit|appointment)\b/i.test(prompt)) ||
+    /\bmy\s+package\b/i.test(prompt) ||
+    /(spa day|package visit|package appointment)/i.test(prompt);
+
+  const selfScope =
+    /\bmy\b/i.test(prompt) ||
+    /\bthis\b/i.test(prompt) ||
+    /\b(next|upcoming)\s+package\b/i.test(prompt) ||
+    /\bvisit\s+\d+\s+of\s+my\b/i.test(prompt) ||
+    /\bvisit\s+\d+\s+on\s+my\b/i.test(prompt) ||
+    /\bpackage\s+visit\s+\d+\b/i.test(prompt);
+
+  const cancelIntent =
+    (/\b(cancel|skip)\b/i.test(prompt) &&
+      !/\b(cancel\s+policy|cancellation\s+policy)\b/i.test(prompt)) ||
+    (/(չեղարկ|չեղարկել)/i.test(prompt) && /(իմ|այս)/i.test(prompt)) ||
     (/(отмен|отменить|отмени)/i.test(prompt) &&
-      /(мою|моя|мой|эту|это)/i.test(prompt) &&
-      (/\bspa\s+day\b/i.test(prompt) ||
-        /(spa day|package visit|пакет|визит)/i.test(prompt)))
-  ) && !hasDashboardCustomerReference(prompt);
+      /(мою|моя|мой|эту|это)/i.test(prompt));
+
+  return (
+    packageContext &&
+    selfScope &&
+    cancelIntent &&
+    (!hasDashboardCustomerReference(prompt) ||
+      /\b(my|I\s+booked)\b/i.test(prompt))
+  );
 }
 
 export function isReschedulePackageVisitSelfPrompt(prompt: string): boolean {
-  return (
-    (/\b(reschedule|move|change)\b/i.test(prompt) &&
-      /\b(my|this)\b/i.test(prompt) &&
-      (/\bpackage\s+visit\b/i.test(prompt) ||
-        /\bspa\s+day\b/i.test(prompt) ||
-        /\bpackage\s+appointment\b/i.test(prompt))) ||
-    (/վeramagr/i.test(prompt) &&
-      /(իմ|այս)/i.test(prompt) &&
-      (/\bpackage\s+visit\b/i.test(prompt) ||
-        /\bspa\s+day\b/i.test(prompt) ||
-        /(spa day|package visit|package appointment)/i.test(prompt))) ||
+  const packageContext =
+    /\b(package\s+visit|spa\s+day|package\s+appointment|package\s+bundle)\b/i.test(
+      prompt,
+    ) ||
+    (/\bpackage\b/i.test(prompt) && /\b(visit|appointment)\b/i.test(prompt)) ||
+    /\bmy\s+package\b/i.test(prompt) ||
+    /(spa day|package visit|package appointment)/i.test(prompt);
+
+  const selfScope =
+    /\bmy\b/i.test(prompt) ||
+    /\bthis\b/i.test(prompt) ||
+    /\b(next|upcoming)\s+package\b/i.test(prompt) ||
+    /\bvisit\s+\d+\s+of\s+my\b/i.test(prompt) ||
+    /\bvisit\s+\d+\s+on\s+my\b/i.test(prompt) ||
+    /\bpackage\s+visit\s+\d+\b/i.test(prompt);
+
+  const rescheduleIntent =
+    /\b(reschedule|move|change|shift)\b/i.test(prompt) ||
+    (/վeramagr/i.test(prompt) && /(իմ|այս)/i.test(prompt)) ||
     (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
-      /(мою|моя|мой|эту|это)/i.test(prompt) &&
-      (/\bspa\s+day\b/i.test(prompt) ||
-        /(spa day|package visit|пакет|визит)/i.test(prompt)))
-  ) && !hasDashboardCustomerReference(prompt);
+      /(мою|моя|мой|эту|это)/i.test(prompt));
+
+  return (
+    packageContext &&
+    selfScope &&
+    rescheduleIntent &&
+    (!hasDashboardCustomerReference(prompt) ||
+      /\b(my|I\s+booked)\b/i.test(prompt))
+  );
 }
 
 export function isListMyAppointmentsPrompt(prompt: string): boolean {
@@ -288,8 +405,58 @@ export function isListMyAppointmentsPrompt(prompt: string): boolean {
       /(мои|моих|мою|моей)/i.test(prompt) &&
       /(запис|приём|прием|appointment|visit)/i.test(prompt))
   ) &&
-    !/\b(subscription|gift|package\s+visit)\b/i.test(prompt) &&
+    !/\b(subscription|gift|package\s+visit|package\s+appointment|package\s+bundle)\b/i.test(
+      prompt,
+    ) &&
+    !isListMyPackageVisitsCustomerPrompt(prompt) &&
     !hasDashboardCustomerReference(prompt);
+}
+
+export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
+  if (isCancelPackageVisitSelfPrompt(prompt)) return false;
+  if (isReschedulePackageVisitSelfPrompt(prompt)) return false;
+  if (
+    hasDashboardCustomerReference(prompt) &&
+    !/\bmy\b/i.test(prompt) &&
+    !/\bon\s+my\s+account\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(list|show)\b/i.test(prompt) &&
+    /\bpackage\s+(visits?|bookings?)\b/i.test(prompt) &&
+    !/\bmy\b/i.test(prompt) &&
+    !/\bon\s+my\s+account\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const packageContext =
+    /\b(package\s+visits?|spa\s+day|package\s+bundle|package\s+appointment)\b/i.test(
+      prompt,
+    ) ||
+    (/\bpackage\b/i.test(prompt) &&
+      /\b(visit|appointment|bundle)\b/i.test(prompt)) ||
+    /\bmy\s+package\b/i.test(prompt) ||
+    (/\bbundle\b/i.test(prompt) &&
+      /\b(my|next|facial|spa\s+day)\b/i.test(prompt));
+
+  const selfScope =
+    /\bmy\b/i.test(prompt) ||
+    /\bon\s+my\s+account\b/i.test(prompt) ||
+    (/\b(how\s+many|visits?\s+left|remaining|still\s+have)\b/i.test(prompt) &&
+      (/\bpackage\b/i.test(prompt) ||
+        /\bspa\s+day\b/i.test(prompt) ||
+        /\bbundle\b/i.test(prompt)) &&
+      !hasDashboardCustomerReference(prompt));
+
+  const readCue =
+    /\b(list|show|view|see|what|when|how\s+many|status|progress)\b/i.test(
+      prompt,
+    ) ||
+    /\b(visits?\s+left|remaining|still\s+have|next)\b/i.test(prompt);
+
+  return packageContext && selfScope && readCue;
 }
 
 export function isGetManageLinkPrompt(prompt: string): boolean {
@@ -455,13 +622,98 @@ export function extractServiceNamesFromPrompt(prompt: string): string[] {
     /\b(?:want|need|would\s+like|looking\s+for)\s+(.+?)(?:\s+tomorrow|\s+today|\s+(?:this|next)\s+\w+|\s+on\s+|\s+(?:morning|afternoon|evening)|\?|$)/i,
   );
   if (wantMatch?.[1] && /\band\b/i.test(wantMatch[1])) {
-    for (const part of wantMatch[1].split(/\s+and\s+|,/i)) {
+    const clause = wantMatch[1].replace(
+      /^\s*multiple\s+(?:treatments?|services?)\s*[—–-]\s*/i,
+      '',
+    );
+    for (const part of clause.split(/\s+and\s+|,/i)) {
       const trimmed = part.trim();
       if (trimmed.length >= 3) names.push(trimmed);
     }
   }
 
-  return [...new Set(names.filter(Boolean))];
+  const spaDayWithPair = prompt.match(
+    /\bbook\s+a\s+spa\s+day\s+with\s+(.+?)\s+and\s+(.+?)(?:\s*$|\?)/i,
+  );
+  if (spaDayWithPair) {
+    names.push(spaDayWithPair[1].trim(), spaDayWithPair[2].trim());
+  } else {
+    const bookPair = prompt.match(
+      /\bbook\s+(?!a\s+spa\s+day\b)(.+?)\s+and\s+(.+?)(?:\s+together|\s+same\s+visit|\s+for\s+me|\?|$)/i,
+    );
+    if (bookPair) {
+      names.push(bookPair[1].trim(), bookPair[2].trim());
+    }
+  }
+
+  const schedulePair = prompt.match(
+    /\b(?:schedule|reserve)\s+(.+?)\s+and\s+(.+?)(?:\s+on\s+(?:the\s+same|one)\s+visit|\s+together|\?|$)/i,
+  );
+  if (schedulePair) {
+    names.push(schedulePair[1].trim(), schedulePair[2].trim());
+  }
+
+  const leadingPair = prompt.match(
+    /^([A-Za-z][\w\s'-]+?)\s+and\s+([A-Za-z][\w\s'-]+?)\s+same\s+/i,
+  );
+  if (leadingPair) {
+    names.push(
+      leadingPair[1].trim().toLowerCase(),
+      leadingPair[2].trim().toLowerCase(),
+    );
+  }
+
+  const findTimeForPair = prompt.match(
+    /\bfind\s+a\s+time\s+for\s+(.+?)\s+and\s+(.+?)(?:\s+on\b|\?|$)/i,
+  );
+  if (findTimeForPair) {
+    names.push(findTimeForPair[1].trim(), findTimeForPair[2].trim());
+  } else {
+    const findTimePair = prompt.match(
+      /\bfor\s+(.+?)\s+and\s+(.+?)(?:\s+on\b|\s+this\b|\s+tomorrow|\s+today|\s+this\s+week|\?|$)/i,
+    );
+    if (findTimePair) {
+      names.push(findTimePair[1].trim(), findTimePair[2].trim());
+    }
+  }
+
+  const whenGetPair = prompt.match(
+    /\bwhen\s+can\s+i\s+(?:get|book)\s+(.+?)\s+and\s+(.+?)(?:\s+together|\?|$)/i,
+  );
+  if (whenGetPair) {
+    names.push(whenGetPair[1].trim(), whenGetPair[2].trim());
+  }
+
+  return pruneExtractedServiceNames(names);
+}
+
+function pruneExtractedServiceNames(names: string[]): string[] {
+  const normalized = names
+    .map((name) =>
+      name
+        .trim()
+        .replace(/^(?:schedule|reserve|book)\s+/i, '')
+        .replace(/^\s*multi[\s-]?service\s+/i, '')
+        .replace(
+          /^\s*multiple\s+(?:treatments?|services?)\s*[—–-]\s*/i,
+          '',
+        )
+        .replace(/\s+for\s+me$/i, '')
+        .replace(/^\s*find\s+a\s+time\s+for\s+/i, '')
+        .replace(/\s+(?:tomorrow|today|this\s+week)$/i, '')
+        .replace(/\s+on\s+one\s+visit$/i, '')
+        .replace(/\s+on\s+the(?:\s+same(?:\s+visit)?)?$/i, '')
+        .trim(),
+    )
+    .filter((name) => name.length >= 2);
+  const unique: string[] = [];
+  for (const name of normalized) {
+    const key = name.toLowerCase();
+    if (!unique.some((existing) => existing.toLowerCase() === key)) {
+      unique.push(name);
+    }
+  }
+  return unique;
 }
 
 export function enrichMultiServiceAvailabilityParams(
@@ -544,30 +796,57 @@ export function buildMultiServiceAvailabilitySummary(input: {
 }
 
 export function isMultiServiceAvailabilityDiscoveryPrompt(prompt: string): boolean {
+  if (
+    /\bmulti[\s-]?service\s+(?:blocks?|availability)\b/i.test(prompt) ||
+    (/\b(show|check)\b/i.test(prompt) &&
+      /\bmulti[\s-]?service\b/i.test(prompt) &&
+      /\b(open|blocks?|availability)\b/i.test(prompt))
+  ) {
+    return false;
+  }
+  if (
+    /\b(want|need)\b/i.test(prompt) &&
+    /\bmultiple\s+(?:treatments?|services?)\b/i.test(prompt) &&
+    !/\b(when|who|available|availability|free|open|time)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const isAvailabilityQuestion =
+    /\b(?:when|what)\s+(?:can|are)\s+(?:i|we)\b/i.test(prompt) ||
+    /\bwhat\s+times?\s+are\s+open\b/i.test(prompt) ||
+    /\bwho\s+is\s+free\b/i.test(prompt);
+
   const services = extractServiceNamesFromPrompt(prompt);
   const hasCompoundServices =
     services.length >= 2 ||
     (/\band\b/i.test(prompt) &&
-      /\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt));
+      (/\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt) ||
+        isAvailabilityQuestion ||
+        (/\b(open|times?)\b/i.test(prompt) && /\bfor\b/i.test(prompt))));
   if (!hasCompoundServices) return false;
 
   const hasExplicitBookTime =
     /\b(book|reserve|schedule)\b/i.test(prompt) &&
     !/\b(want|need|would\s+like)\b/i.test(prompt) &&
+    !isAvailabilityQuestion &&
     (/\bat\s+\d{1,2}(?::\d{2})?\b/i.test(prompt) ||
       /\b\d{1,2}:\d{2}\b/.test(prompt));
   if (hasExplicitBookTime) return false;
 
   if (
     /\b(book|reserve|schedule)\b/i.test(prompt) &&
-    !/\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt)
+    !/\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt) &&
+    !isAvailabilityQuestion
   ) {
     return false;
   }
 
   return (
     /\b(want|need|would\s+like|looking\s+for)\b/i.test(prompt) ||
+    isAvailabilityQuestion ||
     /\b(who\s+is\s+free|availability|available)\b/i.test(prompt) ||
+    /\bfind\s+(?:a\s+)?time\b/i.test(prompt) ||
     /\b(tomorrow|today|morning|afternoon|evening|tonight)\b/i.test(prompt)
   );
 }
@@ -743,6 +1022,12 @@ export function rescueSelfServiceBookingIntent(
   if (isGetManageLinkPrompt(prompt)) {
     return { action: 'get_manage_link', rescueReason: 'manage_link' };
   }
+  if (isListMyPackageVisitsCustomerPrompt(prompt)) {
+    return {
+      action: 'list_my_package_visits',
+      rescueReason: 'list_package_visits',
+    };
+  }
   if (isListMyAppointmentsPrompt(prompt)) {
     return {
       action: 'list_my_appointments',
@@ -856,6 +1141,9 @@ function classifyCustomerBookingSegment(
   }
   if (isGetManageLinkPrompt(text)) {
     return { action: 'get_manage_link', params: base, segment: text };
+  }
+  if (isListMyPackageVisitsCustomerPrompt(text)) {
+    return { action: 'list_my_package_visits', params: base, segment: text };
   }
   if (isListMyAppointmentsPrompt(text)) {
     return { action: 'list_my_appointments', params: base, segment: text };

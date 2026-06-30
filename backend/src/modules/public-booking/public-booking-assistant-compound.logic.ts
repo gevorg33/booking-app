@@ -47,6 +47,12 @@ function mergePublicCompoundContext(
   if (stepParams.chosenAvailabilityWindowIndex != null) {
     next.chosenAvailabilityWindowIndex = stepParams.chosenAvailabilityWindowIndex;
   }
+  if (result.sessionContext && typeof result.sessionContext === 'object') {
+    const session = result.sessionContext as Record<string, unknown>;
+    if (session.cartServiceIds != null) {
+      next.cartServiceIds = session.cartServiceIds;
+    }
+  }
   const details = (result.details ?? {}) as Record<string, unknown>;
   if (details.serviceId != null) {
     next.serviceId = details.serviceId;

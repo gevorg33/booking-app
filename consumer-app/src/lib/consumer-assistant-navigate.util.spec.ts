@@ -21,6 +21,22 @@ describe('buildConsumerAssistantHref', () => {
     );
   });
 
+  it('maps resume pending payment checkout with session_id', () => {
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'checkout',
+        query: {
+          serviceId: 'svc-1',
+          startTime: '2026-06-09T14:00:00.000Z',
+          session_id: 'cs_test_resume',
+          resumePayment: '1',
+        },
+      }),
+    ).toBe(
+      '/s/glow-nails/book/svc-1?slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&session_id=cs_test_resume',
+    );
+  });
+
   it('maps multi-service checkout to multi book route', () => {
     expect(
       buildConsumerAssistantHref('glow-nails', {
@@ -128,6 +144,15 @@ describe('buildConsumerAssistantHref', () => {
     ).toBe(
       '/s/glow-nails/book/multi/checkout?services=svc-a%2Csvc-b&startTime=2026-06-09T09%3A00%3A00.000Z',
     );
+  });
+
+  it('maps guide navigate to guide page with topicId', () => {
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'guide',
+        query: { topicId: 'consumer-getting-started' },
+      }),
+    ).toBe('/s/glow-nails/guide?topicId=consumer-getting-started');
   });
 
   it('maps account and rebook checkout paths', () => {

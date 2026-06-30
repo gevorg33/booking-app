@@ -11,6 +11,11 @@ import {
   resolveAccessTier,
   tierAccessSummary,
 } from './access-control.matrix.js';
+import {
+  resolveClinicTestResultAccessTier,
+  resolveClinicTestResultExtAccessTier,
+} from './ai-clinic-test-result-ext.eval.util.js';
+import { CLINIC_TEST_RESULT_INTENTS } from './ai-clinic-test-result.util.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 
 describe('access-control.matrix', () => {
@@ -52,6 +57,16 @@ describe('access-control.matrix', () => {
     expect(isDashboardIntentAllowed('client', 'unknown')).toBe(true);
     expect(isDashboardIntentAllowed('client', 'error')).toBe(true);
     expect(isDashboardIntentAllowed('client', 'security_blocked')).toBe(true);
+  });
+
+  it('denies clinic test result intents for client tier (ai-cmd-clinic-6-gap-2.2 / 4.3)', () => {
+    for (const action of CLINIC_TEST_RESULT_INTENTS) {
+      expect(DASHBOARD_DENIED_BY_TIER.client.has(action)).toBe(true);
+      expect(isDashboardIntentAllowed('client', action)).toBe(false);
+      expect(isDashboardIntentAllowed('staff', action)).toBe(true);
+      expect(resolveClinicTestResultAccessTier(action)).toMatch(/^[MR]$/);
+      expect(resolveClinicTestResultExtAccessTier(action)).toMatch(/^[MR]$/);
+    }
   });
 
   it('staff cannot run payment sweep or list all employees', () => {

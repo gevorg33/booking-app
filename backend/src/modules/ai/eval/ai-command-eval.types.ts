@@ -16,6 +16,8 @@ export interface AiCommandEvalExpectation {
   paramsPartial?: Record<string, unknown>;
   /** Deterministic complexity route tier */
   routeTier?: ComplexityRoute['tier'];
+  /** Mutate (M) vs read (R) access tier for dashboard clinic ext intents (ai-cmd-clinic-6-gap-2.2). */
+  accessTier?: 'M' | 'R';
   /** Parsed destination time (24h) for reschedule prompts */
   rescheduleTimeSlot?: string;
   /** Parsed source time for reschedule prompts */
@@ -28,6 +30,24 @@ export interface AiCommandEvalExpectation {
   rescueFromAction?: string;
   /** When true, eval uses surface-scoped self-service rescue (customer cancel/reschedule i18n). */
   useSurfaceSelfServiceRescue?: boolean;
+  /** When true, eval uses customer membership/subscription rescue (use_subscription_credit + my_subscriptions). */
+  useSurfaceMembershipCustomerRescue?: boolean;
+  /** When true, eval uses customer GDPR self-service rescue (privacy_export + privacy_delete). */
+  useSurfacePrivacyGdprCustomerRescue?: boolean;
+  /** When true, eval uses customer gift card cancel-request rescue (request_gift_card_cancel). */
+  useSurfaceGiftCardCancelCustomerRescue?: boolean;
+  /** When true, eval uses customer package visit self-service rescue (cancel/reschedule_package_visit_self). */
+  useSurfacePackageVisitSelfCustomerRescue?: boolean;
+  /** When true, eval uses customer package visit list rescue (list_my_package_visits). */
+  useSurfaceListMyPackageVisitsCustomerRescue?: boolean;
+  /** When true, eval uses customer/public tour booking, day slots, and capacity rescue. */
+  useSurfaceTourCustomerPublicRescue?: boolean;
+  /** When true, eval uses customer/public checkout success product-card rescue. */
+  useSurfaceCheckoutRecommendationsCustomerPublicRescue?: boolean;
+  /** When true, eval uses customer growth loops rescue (refer_a_friend / share_salon_link). */
+  useSurfaceGrowthLoopsCustomerRescue?: boolean;
+  /** When true, eval uses consumer adoption rescue (explain_my_notifications, rebook, etc.). */
+  useSurfaceConsumerAdoptionRescue?: boolean;
   /** When true, eval uses customer-surface self-service rescue only (acc-2.4 HY/RU). */
   useSurfaceMarketingGrowthRescue?: boolean;
   /** When true, eval uses customer-surface checkout success rescue only (acc-2.4 HY/RU). */
@@ -40,6 +60,8 @@ export interface AiCommandEvalExpectation {
   useSurfaceProviderImplicationRescue?: boolean;
   /** When true, eval uses provider-surface push setup rescue only (acc-2.4 HY/RU). */
   useSurfaceProviderPushSetupRescue?: boolean;
+  /** When true, eval uses payments-module rescue (customer/public checkout intents). */
+  useSurfacePaymentsRescue?: boolean;
   /** Validated action should fail with clarify (acc-2.6). */
   expectValidationClarify?: boolean;
   validationAction?: string;
@@ -82,6 +104,8 @@ export interface AiCommandEvalExpectation {
   useSurfaceRankRescue?: boolean;
   /** Use surface-scoped flexible availability enrichment (avail-1.11). */
   useSurfaceFlexibleAvailabilityEnrichment?: boolean;
+  /** acc-2.6 / ai-cmd-clinic-6-gap-2.3 — assert direct classifier action (no rescueFromAction). */
+  useClinicTestResultExtClassifierDetect?: boolean;
   /** Cross-sprint discover eval bucket tag (service-discovery eval harness). */
   discoverCrossSprintKind?: string;
   discoverClassifierParams?: Record<string, unknown>;

@@ -23,6 +23,10 @@ import { decomposeIntegrationsCompoundPrompt } from './ai-integrations.util.js';
 import { decomposeMarketingGrowthCompoundPrompt } from './ai-marketing-growth.util.js';
 import { decomposePushNotificationsCompoundPrompt } from './ai-push-notifications.util.js';
 import { decomposeCustomerBookingCompoundPrompt } from './ai-self-service-booking.util.js';
+import {
+  decomposePublicMultiServiceCompoundPrompt,
+  isPublicMultiServiceCompoundPrompt,
+} from './ai-multi-service-customer-public.util.js';
 import { decomposeProviderBookingCompoundPrompt } from './ai-provider-booking.util.js';
 import { decomposeDashboardPackageMultiServiceCompoundPrompt } from './ai-package-multi-service-hints.util.js';
 import {
@@ -68,10 +72,46 @@ import {
   CLINIC_LAB_DAY_CLOSE_RECIPE_ID,
 } from './ai-clinic-lab-day-close-compound.util.js';
 import {
+  decomposeClinicLabReviewCompoundPrompt,
+  isClinicLabReviewCompoundPrompt,
+  CLINIC_LAB_REVIEW_RECIPE_ID,
+} from './ai-clinic-lab-review-compound.util.js';
+import {
   decomposeProviderOnboardingCompoundPrompt,
   isProviderOnboardingCompoundPrompt,
   PROVIDER_ONBOARDING_COMPOUND_RECIPE_ID,
 } from './ai-provider-onboarding-compound.util.js';
+import {
+  decomposeSetupSalonCheckoutCompoundPrompt,
+  isSetupSalonCheckoutCompoundPrompt,
+  SETUP_SALON_CHECKOUT_COMPOUND_RECIPE_ID,
+} from './ai-setup-salon-checkout-compound.util.js';
+import {
+  decomposeConfigureServicesPaymentMatrixCompoundPrompt,
+  isConfigureServicesPaymentMatrixCompoundPrompt,
+  CONFIGURE_SERVICES_PAYMENT_MATRIX_RECIPE_ID,
+} from './ai-configure-services-payment-matrix-compound.util.js';
+import {
+  decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt,
+  isCashAndDeclineAllOnlinePaymentCompoundPrompt,
+  isCashAndOnlinePaymentCompoundPrompt,
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_RECIPE_ID,
+} from './ai-cash-online-payment-compound.util.js';
+import {
+  decomposeDeclineOnlinePaymentCategoryCompoundPrompt,
+  isDeclineOnlinePaymentCategoryCompoundPrompt,
+  DECLINE_ONLINE_PAYMENT_CATEGORY_RECIPE_ID,
+} from './ai-decline-online-payment-category-compound.util.js';
+import {
+  decomposeOnboardSalonNotificationsCompoundPrompt,
+  isOnboardSalonNotificationsCompoundPrompt,
+  ONBOARD_SALON_NOTIFICATIONS_RECIPE_ID,
+} from './ai-onboard-salon-notifications-compound.util.js';
+import {
+  decomposeLaunchConsumerAppGrowthCompoundPrompt,
+  isLaunchConsumerAppGrowthCompoundPrompt,
+  LAUNCH_CONSUMER_APP_GROWTH_RECIPE_ID,
+} from './ai-launch-consumer-app-growth-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -103,6 +143,7 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeIntegrationsCompoundPrompt,
   decomposeMarketingGrowthCompoundPrompt,
   decomposeCustomerBookingCompoundPrompt,
+  decomposePublicMultiServiceCompoundPrompt,
   decomposeProviderBookingCompoundPrompt,
   decomposePushNotificationsCompoundPrompt,
   decomposeDashboardPackageMultiServiceCompoundPrompt,
@@ -117,7 +158,14 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposePublicFlexibleAvailabilityBudgetCompoundPrompt,
   decomposeCustomerFlexibleAvailabilityBudgetCompoundPrompt,
   decomposeProviderOnboardingCompoundPrompt,
+  decomposeSetupSalonCheckoutCompoundPrompt,
+  decomposeConfigureServicesPaymentMatrixCompoundPrompt,
+  decomposeDeclineOnlinePaymentCategoryCompoundPrompt,
+  decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt,
+  decomposeOnboardSalonNotificationsCompoundPrompt,
+  decomposeLaunchConsumerAppGrowthCompoundPrompt,
   decomposeClinicLabDayCloseCompoundPrompt,
+  decomposeClinicLabReviewCompoundPrompt,
   decomposeBudgetDiscoverAndBookCompoundPrompt,
   decomposeRankDiscoverAndBookCompoundPrompt,
 };
@@ -513,6 +561,96 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     },
   },
   {
+    id: 'dashboard_setup_salon_checkout',
+    surface: 'dashboard',
+    recipeId: SETUP_SALON_CHECKOUT_COMPOUND_RECIPE_ID,
+    matches: (prompt) => isSetupSalonCheckoutCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeSetupSalonCheckoutCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Salon checkout setup compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_configure_services_payment_matrix',
+    surface: 'dashboard',
+    recipeId: CONFIGURE_SERVICES_PAYMENT_MATRIX_RECIPE_ID,
+    matches: (prompt) => isConfigureServicesPaymentMatrixCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeConfigureServicesPaymentMatrixCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Services payment matrix compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_cash_and_online_payment',
+    surface: 'dashboard',
+    recipeId: CASH_AND_ONLINE_PAYMENT_COMPOUND_RECIPE_ID,
+    matches: (prompt) => isCashAndDeclineAllOnlinePaymentCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Cash + online payment compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_decline_online_payment_category',
+    surface: 'dashboard',
+    recipeId: DECLINE_ONLINE_PAYMENT_CATEGORY_RECIPE_ID,
+    matches: (prompt) => isDeclineOnlinePaymentCategoryCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeDeclineOnlinePaymentCategoryCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Decline/accept category payment compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_onboard_salon_notifications',
+    surface: 'dashboard',
+    recipeId: ONBOARD_SALON_NOTIFICATIONS_RECIPE_ID,
+    matches: (prompt) => isOnboardSalonNotificationsCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeOnboardSalonNotificationsCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Salon notification onboarding compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_launch_consumer_app_growth',
+    surface: 'dashboard',
+    recipeId: LAUNCH_CONSUMER_APP_GROWTH_RECIPE_ID,
+    matches: (prompt) => isLaunchConsumerAppGrowthCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeLaunchConsumerAppGrowthCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Consumer app growth launch compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
     id: 'dashboard_clinic_lab_day_close',
     surface: 'dashboard',
     recipeId: CLINIC_LAB_DAY_CLOSE_RECIPE_ID,
@@ -523,6 +661,21 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
         action: step.action,
         params: step.params,
         reasoning: `Clinic lab day close compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'dashboard_clinic_lab_review',
+    surface: 'dashboard',
+    recipeId: CLINIC_LAB_REVIEW_RECIPE_ID,
+    matches: (prompt) => isClinicLabReviewCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeClinicLabReviewCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Clinic lab review compound: ${step.action}`,
         segment: step.segment,
       }));
     },
@@ -584,6 +737,12 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (isBudgetServiceDiscoveryCompoundPrompt(trimmed)) return true;
   if (isServiceRankDiscoveryCompoundPrompt(trimmed)) return true;
   if (isProviderOnboardingCompoundPrompt(trimmed)) return true;
+  if (isSetupSalonCheckoutCompoundPrompt(trimmed)) return true;
+  if (isConfigureServicesPaymentMatrixCompoundPrompt(trimmed)) return true;
+  if (isCashAndOnlinePaymentCompoundPrompt(trimmed)) return true;
+  if (isDeclineOnlinePaymentCategoryCompoundPrompt(trimmed)) return true;
+  if (isOnboardSalonNotificationsCompoundPrompt(trimmed)) return true;
+  if (isLaunchConsumerAppGrowthCompoundPrompt(trimmed)) return true;
   if (isClinicLabDayCloseCompoundPrompt(trimmed)) return true;
   if (isBudgetDiscoverAndBookCompoundPrompt(trimmed)) return true;
   if (isRankDiscoverAndBookCompoundPrompt(trimmed)) return true;
@@ -737,6 +896,24 @@ export function decomposeDeterministicForSurface(
         recipeId: 'customer_self_service_compound',
         source: 'deterministic',
         steps: customerSteps,
+      };
+    }
+  }
+
+  if (surface === 'public' && isPublicMultiServiceCompoundPrompt(prompt)) {
+    const rawSteps = decomposePublicMultiServiceCompoundPrompt(prompt);
+    if (rawSteps.length >= 2) {
+      const propagated = propagateCompoundStepParamsAcrossSteps(rawSteps);
+      return {
+        surface,
+        recipeId: 'public_multi_service_compound',
+        source: 'deterministic',
+        steps: propagated.map((step, index) => ({
+          action: step.action,
+          params: step.params,
+          segment: rawSteps[index]?.segment ?? prompt,
+          reasoning: `Public multi-service compound: ${step.action}`,
+        })),
       };
     }
   }

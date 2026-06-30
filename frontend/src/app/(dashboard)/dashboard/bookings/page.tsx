@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { parseClinicLabUploadSearchParams } from '@/lib/clinic-lab-upload-nav';
 import {
   ChevronLeft,
   ChevronRight,
@@ -413,6 +414,7 @@ export default function BookingsPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const urlBookingId = searchParams.get('bookingId');
+  const labUploadParams = parseClinicLabUploadSearchParams(searchParams);
   const activeBookingId = urlBookingId ?? selectedBookingId;
 
   const [showCancel, setShowCancel]         = useState<string | null>(null);
@@ -1291,6 +1293,9 @@ export default function BookingsPage() {
           businessId={business.id}
           bookingId={activeBookingId}
           onClose={() => setSelectedBookingId(null)}
+          labInitialTab={labUploadParams.labTab ?? undefined}
+          labHighlightOrderId={labUploadParams.orderId}
+          labUploadResultRequested={labUploadParams.uploadResult}
         />
       )}
     </div>

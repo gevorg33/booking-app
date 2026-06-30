@@ -8,6 +8,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import { PushService } from '../provider-mobile/push.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 
@@ -29,6 +30,17 @@ describe('Sprint 35 push/offline/notifications AI scenarios', () => {
     })),
   };
 
+  const whatsappIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: false,
+      usingPlatformDefault: false,
+    })),
+    updateSettings: jest.fn(async (_id, patch) => ({
+      configured: true,
+      ...patch,
+    })),
+  };
+
   const pushService = {
     isConfigured: true,
     sendToUser: jest.fn(async () => 1),
@@ -45,6 +57,10 @@ describe('Sprint 35 push/offline/notifications AI scenarios', () => {
         AiPushNotificationsService,
         AiIntentRescueService,
         { provide: NotificationsService, useValue: notificationsService },
+        {
+          provide: WhatsAppIntegrationService,
+          useValue: whatsappIntegrationService,
+        },
         { provide: PushService, useValue: pushService },
         { provide: ProviderMobileService, useValue: providerMobileService },
         {

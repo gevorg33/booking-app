@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildCustomerClassifierSchema } from './customer-ai-command.util.js';
 import { PROVIDER_MOBILE_CLASSIFIER_RULES } from './ai-provider-mobile.fixtures.js';
@@ -16,11 +15,7 @@ import {
   PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES,
 } from './ai-product-guide-empty-state.fixtures.js';
 import { buildPublicClassifierSchema } from '../public-booking/public-booking-classifier.schema.js';
-
-const AI_COMMAND_SERVICE_SOURCE = readFileSync(
-  join(__dirname, 'ai-command.service.ts'),
-  'utf8',
-);
+import { DASHBOARD_INTENT_SCHEMA } from './ai-command-intent-schema.build.js';
 
 describe('ai-product-guide classifier rules (ai-guide-1.6.1)', () => {
   it('exports four surface-specific classifier rule blocks from fixtures', () => {
@@ -74,8 +69,10 @@ describe('ai-product-guide classifier rules (ai-guide-1.6.1)', () => {
   });
 
   it('wires APP_GUIDE_CLASSIFIER_RULES into dashboard INTENT_SCHEMA appendix', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('${APP_GUIDE_CLASSIFIER_RULES}');
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('explain_app_feature: READ — UI feature semantics');
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(APP_GUIDE_CLASSIFIER_RULES.trim());
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'explain_app_feature: READ — explain what a dashboard feature',
+    );
   });
 
   it('wires PROVIDER_APP_GUIDE_CLASSIFIER_RULES into provider mobile classifier appendix', () => {
@@ -104,8 +101,8 @@ describe('ai-product-guide classifier rules (ai-guide-1.6.1)', () => {
     expect(PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES).toContain(
       'explain_empty_catalog: READ',
     );
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      '${DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}',
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES.trim(),
     );
     expect(PROVIDER_MOBILE_CLASSIFIER_RULES).toContain(
       PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES,

@@ -1,0 +1,4 @@
+export {
+  CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS,
+  WHATSAPP_INTEGRATION_CLASSIFIER_RULES,
+} from './ai-whatsapp-integration.util.js';

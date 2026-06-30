@@ -37,6 +37,10 @@ import {
   handleUpdateSubscriptionPlanLogic,
   type CatalogLogicDeps,
 } from './ai-catalog.logic.js';
+import { handleUpdateServiceDurationBufferLogic } from './ai-service-duration-buffer.logic.js';
+import { handleConfigureServiceFeaturedLogic } from './ai-configure-service-featured.logic.js';
+import { handleBulkAssignServicesCategoryLogic } from './ai-bulk-assign-services-category.logic.js';
+import { handleConfigurePackageOnlinePaymentLogic } from './ai-configure-package-online-payment.logic.js';
 
 @Injectable()
 export class AiCatalogService {
@@ -86,12 +90,14 @@ export class AiCatalogService {
     businessId: string,
     params: Record<string, any>,
     services: Service[],
+    prompt?: string,
   ) {
     return handleDeactivateServiceLogic(
       this.deps,
       businessId,
       params,
       services,
+      prompt,
     );
   }
 
@@ -111,6 +117,23 @@ export class AiCatalogService {
       params,
       services,
       prompt,
+    );
+  }
+
+  handleUpdateServiceDurationBuffer(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+    prompt?: string,
+    userId?: string,
+  ) {
+    return handleUpdateServiceDurationBufferLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+      prompt,
+      userId,
     );
   }
 
@@ -229,6 +252,57 @@ export class AiCatalogService {
       this.deps,
       businessId,
       params,
+    );
+  }
+
+  handleConfigureServiceFeatured(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+    prompt?: string,
+    userId?: string,
+  ) {
+    return handleConfigureServiceFeaturedLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+      prompt,
+      userId,
+    );
+  }
+
+  handleBulkAssignServicesCategory(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+    prompt?: string,
+    userId?: string,
+  ) {
+    return handleBulkAssignServicesCategoryLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+      prompt,
+      userId,
+    );
+  }
+
+  handleConfigurePackageOnlinePayment(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+    prompt?: string,
+    userId?: string,
+  ) {
+    return handleConfigurePackageOnlinePaymentLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+      prompt,
+      userId,
     );
   }
 

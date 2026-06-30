@@ -13,3 +13,11 @@ export function withAssistantModeContext<T extends Record<string, unknown>>(
   const mode = resolveAssistantModePayload(guideMode);
   return mode ? { ...context, assistantMode: mode } : context;
 }
+
+export function withGuideTopicSeedContext<T extends Record<string, unknown>>(
+  context: T,
+  guideTopicId?: string | null,
+): T & { guideTopicId?: string } {
+  const topicId = guideTopicId?.trim();
+  return topicId ? { ...context, guideTopicId: topicId } : context;
+}

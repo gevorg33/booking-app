@@ -21,7 +21,7 @@ export interface ParsedDiagnoseTourCapacity {
 
 function hasCheckoutRejectionCue(prompt: string): boolean {
   return (
-    /\b(reject(?:ed|ion)?|won'?t\s+accept|can'?t\s+book|cannot\s+book|failed?\s+to\s+book|booking\s+fail|checkout\s+fail|error|doesn'?t\s+let|wouldn'?t\s+let|not\s+accept)\b/i.test(
+    /\b(reject(?:ed|ion)?|won'?t\s+accept|can(?:not|'t)\s+(?:\w+\s+)?book|cannot\s+book|failed?\s+to\s+book|booking\s+fail|checkout\s+fail|error|doesn'?t\s+let|wouldn'?t\s+let|not\s+accept)\b/i.test(
       prompt,
     ) ||
     /\b(only\s+\d+\s+spots?\s+remaining|fully\s+booked|this\s+tour\s+date\s+is\s+fully\s+booked)\b/i.test(
@@ -35,6 +35,9 @@ function hasCheckoutRejectionCue(prompt: string): boolean {
       prompt,
     ) ||
     /\bexplain\b.{0,40}\b(capacity|rejected|rejection)\b/i.test(prompt) ||
+    /\bnot\s+enough\s+seats?\b/i.test(prompt) ||
+    /\bcheckout\s+says\b/i.test(prompt) ||
+    /\bbooking\s+failed?\b/i.test(prompt) ||
     /(մերժեց|checkout-?ը\s+մերժեց|չի\s+ընդունում|նվազեցրեց)/i.test(prompt) ||
     /(отклонил|не\s+принимает|checkout\s+отклон|уменьшил)/i.test(prompt)
   );
@@ -42,7 +45,7 @@ function hasCheckoutRejectionCue(prompt: string): boolean {
 
 function hasTourCapacityTopic(prompt: string): boolean {
   return (
-    /\b(pax|people|guests?|group\s+size|spots?\s+remaining|remaining\s+spots?|capacity|max\s+group)\b/i.test(
+    /\b(pax|people|guests?|group\s+size|spots?\s+remaining|remaining\s+spots?|capacity|max\s+group|seats?)\b/i.test(
       prompt,
     ) ||
     /\b(checkout|booking\s+page)\b/i.test(prompt) ||
@@ -160,11 +163,11 @@ function resolveTourCapacityAspect(prompt: string): TourCapacityAspect {
     (/\bwon'?t\s+accept\b/i.test(prompt) && /\b\d+\s+pax\b/i.test(prompt)) ||
     /\bclamp.{0,24}\bpax\b/i.test(prompt);
   const fullyBooked =
-    /\b(fully\s+booked|this\s+tour\s+date\s+is\s+fully\s+booked)\b/i.test(
+    /\b(fully\s+booked|this\s+tour\s+date\s+is\s+fully\s+booked|tour\s+date\s+full|date\s+full)\b/i.test(
       prompt,
     );
   const insufficient =
-    /\b(only\s+\d+\s+spots?\s+remaining|spots?\s+remaining|can'?t\s+book\s+\d+\s+pax)\b/i.test(
+    /\b(not\s+enough\s+seats?|only\s+\d+\s+spots?\s+remaining|spots?\s+remaining|can'?t\s+book\s+\d+\s+pax)\b/i.test(
       prompt,
     ) || /\breject(?:ed)?\s+\d+\s+(?:people|pax)\b/i.test(prompt);
   const maxGroup =

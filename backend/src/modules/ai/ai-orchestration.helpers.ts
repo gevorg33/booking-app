@@ -22,6 +22,9 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import {
+  enrichListServicesPaymentFilterParamsFromPrompt,
+} from './ai-list-services-payment-filters.util.js';
+import {
   normalizeAvailabilityWindows,
   type AvailabilityWindow,
 } from './ai-flexible-availability.util.js';
@@ -696,22 +699,30 @@ export function enrichListServicesParamsFromPrompt(
     serviceCategory?: string | null;
     serviceName?: string | null;
     serviceNames?: string[] | null;
+    prepaymentMode?: string | null;
+    onlinePaymentEnabled?: boolean;
   },
 ): {
   serviceCategory?: string | null;
   serviceName?: string | null;
   serviceNames?: string[] | null;
+  prepaymentMode?: string | null;
+  onlinePaymentEnabled?: boolean;
 } {
-  const hasFilter = !!(
-    params.serviceCategory ||
-    params.serviceName ||
-    (Array.isArray(params.serviceNames) && params.serviceNames.length)
+  const withPayment = enrichListServicesPaymentFilterParamsFromPrompt(
+    params,
+    prompt,
   );
-  if (hasFilter) return params;
+  const hasFilter = !!(
+    withPayment.serviceCategory ||
+    withPayment.serviceName ||
+    (Array.isArray(withPayment.serviceNames) && withPayment.serviceNames.length)
+  );
+  if (hasFilter) return withPayment;
 
   const keyword = extractServiceTypeKeywordFromListPrompt(prompt);
-  if (!keyword) return params;
-  return { ...params, serviceCategory: keyword };
+  if (!keyword) return withPayment;
+  return { ...withPayment, serviceCategory: keyword };
 }
 
 /** Only persist service filters that resolve against the live catalog (public assistant session). */

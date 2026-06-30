@@ -33,6 +33,7 @@ import {
   handleUpdateResourceLogic,
   type Sprint29ScheduleResourceLogicDeps,
 } from './ai-schedule-resources.logic.js';
+import { handleExplainMultiServiceSettingsLogic } from './ai-explain-multi-service-settings.logic.js';
 
 @Injectable()
 export class AiScheduleResourcesService {
@@ -109,6 +110,19 @@ export class AiScheduleResourcesService {
     params: Record<string, any>,
   ) {
     return handleExplainResourceConflictLogic(this.deps, businessId, params);
+  }
+
+  handleExplainMultiServiceSettings(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainMultiServiceSettingsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleConfigureMultiServiceSchedulingMode(

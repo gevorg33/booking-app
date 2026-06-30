@@ -43,7 +43,12 @@ import { useAuthStore } from '../services/auth-store';
 import {
   resolveAssistantModePayload,
   withAssistantModeContext,
+  withGuideTopicSeedContext,
 } from '../lib/assistant-mode.util';
+import {
+  MOBILE_GUIDE_ASSISTANT_SEED_EVENT,
+  type MobileGuideAssistantSeedDetail,
+} from '@mobile-guide/mobile-guide-topic-ask.util.ts';
 import { ProviderAiGuidePanel } from './ProviderAiGuidePanel';
 import type { AiGuideResponse } from '../lib/ai-client.types';
 import {
@@ -51,6 +56,11 @@ import {
   type ProviderMobileRoute,
 } from '../lib/provider-ai-quick-chips';
 import { buildProviderAiCommandContext } from '../lib/provider-ai-command-context.util';
+import {
+  buildProviderAssistantHref,
+  buildProviderAssistantHrefFromPathAndSearch,
+} from '../lib/provider-assistant-navigate.util';
+import { buildProviderGuideEntryPath } from '../lib/provider-guide-entry.util';
 import { ProviderAiVoiceButton } from './ProviderAiVoiceButton';
 import { ProviderAiSpeakReplyButton } from './ProviderAiSpeakReplyButton';
 import { resolveAssistantSpeakText } from '../lib/provider-ai-guide-reply.util';
@@ -233,6 +243,25 @@ export default function ProviderAiAssistant({
     setVoiceError(null);
   }, []);
 
+  const openNativeGuide = useCallback(() => {
+    history.push(buildProviderGuideEntryPath());
+    closeAssistant();
+  }, [closeAssistant, history]);
+
+  const followNavigate = useCallback(
+    (navigate?: { path?: string; query?: Record<string, string> }) => {
+      if (!navigate?.path) return;
+      const href = buildProviderAssistantHref({
+        path: navigate.path,
+        query: navigate.query,
+      });
+      if (!href) return;
+      history.push(href);
+      closeAssistant();
+    },
+    [closeAssistant, history],
+  );
+
   const openFab = useCallback(() => {
     setOpen(true);
   }, []);
@@ -261,8 +290,14 @@ export default function ProviderAiAssistant({
   }, [businessId, queryClient]);
 
   const sendPrompt = useCallback(
-    async (prompt: string) => {
+    async (
+      prompt: string,
+      seed?: { guideTopicId?: string; forceGuideMode?: boolean },
+    ) => {
       if (!prompt.trim() || loading) return;
+
+      const activeGuideMode = seed?.forceGuideMode ? true : guideMode;
+      if (seed?.forceGuideMode) setGuideMode(true);
 
       const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: prompt.trim() };
       setMessages((prev) => [...prev, userMsg]);
@@ -288,20 +323,23 @@ export default function ProviderAiAssistant({
           content: m.text,
         }));
 
-        const assistantMode = resolveAssistantModePayload(guideMode);
+        const assistantMode = resolveAssistantModePayload(activeGuideMode);
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
-          context: withAssistantModeContext(
-            buildProviderAiCommandContext({
-              sessionContext: {
-                ...sessionContext,
-                nativePlatform: Capacitor.getPlatform(),
-              },
-              screenContext,
-              mobileRoute,
-            }),
-            guideMode,
+          context: withGuideTopicSeedContext(
+            withAssistantModeContext(
+              buildProviderAiCommandContext({
+                sessionContext: {
+                  ...sessionContext,
+                  nativePlatform: Capacitor.getPlatform(),
+                },
+                screenContext,
+                mobileRoute,
+              }),
+              activeGuideMode,
+            ),
+            seed?.guideTopicId,
           ),
           ...(assistantMode ? { assistantMode } : {}),
         });
@@ -351,9 +389,7 @@ export default function ProviderAiAssistant({
 
         const navigate = result.details?.navigate;
         if (navigate?.path) {
-          const params = new URLSearchParams(navigate.query ?? {});
-          const qs = params.toString();
-          history.push(`${navigate.path}${qs ? `?${qs}` : ''}`);
+          followNavigate(navigate);
           if (result.details?.clientAction === 'enableNativePush') {
             void enableNativePush(businessId);
           }
@@ -376,7 +412,7 @@ export default function ProviderAiAssistant({
         });
       }
     },
-    [businessId, guideMode, history, invalidateBookings, loading, locale, messages, online, screenContext, sessionContext, t],
+    [businessId, closeAssistant, followNavigate, guideMode, history, invalidateBookings, loading, locale, messages, online, screenContext, sessionContext, t],
   );
 
   const confirmAction = useCallback(
@@ -455,6 +491,20 @@ export default function ProviderAiAssistant({
   }, [seedPrompt, onSeedPromptConsumed, sendPrompt]);
 
   useEffect(() => {
+    const onGuideSeed = (event: Event) => {
+      const detail = (event as CustomEvent<MobileGuideAssistantSeedDetail>).detail;
+      if (!detail?.prompt?.trim() || !detail.topicId?.trim()) return;
+      setOpen(true);
+      void sendPrompt(detail.prompt, {
+        guideTopicId: detail.topicId,
+        forceGuideMode: true,
+      });
+    };
+    window.addEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+    return () => window.removeEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+  }, [sendPrompt]);
+
+  useEffect(() => {
     const onAiPrompt = (e: Event) => {
       const prompt = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
       if (!prompt?.trim()) return;
@@ -497,15 +547,25 @@ export default function ProviderAiAssistant({
 
               <div className="ai-assistant-examples">
                 <div className="ai-assistant-guide-toggle">
-                  <button
-                    type="button"
-                    className={`ai-assistant-guide-chip${guideMode ? ' ai-assistant-guide-chip--active' : ''}`}
-                    aria-pressed={guideMode}
-                    title={t('provider.assistantHelpChipHint')}
-                    onClick={() => setGuideMode((active) => !active)}
-                  >
-                    {t('provider.assistantHelpChip')}
-                  </button>
+                  <div className="ai-assistant-guide-toggle__chips">
+                    <button
+                      type="button"
+                      className={`ai-assistant-guide-chip${guideMode ? ' ai-assistant-guide-chip--active' : ''}`}
+                      aria-pressed={guideMode}
+                      title={t('provider.assistantHelpChipHint')}
+                      onClick={() => setGuideMode((active) => !active)}
+                    >
+                      {t('provider.assistantHelpChip')}
+                    </button>
+                    <button
+                      type="button"
+                      className="ai-assistant-guide-chip ai-assistant-guide-chip--open"
+                      title={t('provider.guidePageAccountEntryHint')}
+                      onClick={openNativeGuide}
+                    >
+                      {t('provider.assistantOpenGuideChip')}
+                    </button>
+                  </div>
                   <p className="booking-meta ai-assistant-guide-toggle__hint">
                     {guideMode
                       ? t('provider.assistantGuideExamples')
@@ -551,7 +611,13 @@ export default function ProviderAiAssistant({
                   {msg.guide ? (
                     <ProviderAiGuidePanel
                       guide={msg.guide}
-                      onNavigate={(path) => history.push(path)}
+                      onNavigate={(path) => {
+                        const href = buildProviderAssistantHrefFromPathAndSearch(path);
+                        if (href) {
+                          history.push(href);
+                          closeAssistant();
+                        }
+                      }}
                     />
                   ) : (
                     <p>{msg.text}</p>

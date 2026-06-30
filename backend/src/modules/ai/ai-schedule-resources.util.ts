@@ -1,3 +1,8 @@
+import {
+  isExplainMultiServiceSettingsPrompt,
+  rescueExplainMultiServiceSettingsIntent,
+} from './ai-explain-multi-service-settings.util.js';
+
 export const DASHBOARD_RESOURCE_MUTATE_INTENTS = [
   'create_resource',
   'update_resource',
@@ -11,6 +16,7 @@ export const DASHBOARD_RESOURCE_READ_INTENTS = [
   'list_scheduling_resources',
   'list_resource_conflicts',
   'explain_resource_conflict',
+  'explain_multi_service_settings',
 ] as const;
 
 export const PROVIDER_RESOURCE_INTENTS = ['my_resource_assignments'] as const;
@@ -274,6 +280,11 @@ export function rescueScheduleResourceIntent(
       rescueReason: 'explain_conflict',
     };
   }
+  const explainMultiService = rescueExplainMultiServiceSettingsIntent(
+    prompt,
+    action,
+  );
+  if (explainMultiService) return explainMultiService;
   if (isListResourceConflictsPrompt(prompt))
     return {
       action: 'list_resource_conflicts',
@@ -331,6 +342,13 @@ function classifyScheduleSegment(
   }
   if (isExplainResourceConflictPrompt(text)) {
     return { action: 'explain_resource_conflict', params: base, segment: text };
+  }
+  if (isExplainMultiServiceSettingsPrompt(text)) {
+    return {
+      action: 'explain_multi_service_settings',
+      params: {},
+      segment: text,
+    };
   }
   if (isCreateResourcePrompt(text)) {
     return {

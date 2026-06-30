@@ -260,6 +260,7 @@ describe('CustomerAiCommandService', () => {
       consumerClinicTestResults: noopSprint,
       clinicLabBooking: noopSprint,
       clinicBooking: noopSprint,
+      guestCheckoutFields: noopSprint,
       consumerAdoption,
       publicAssistant,
     };
@@ -292,6 +293,7 @@ describe('CustomerAiCommandService', () => {
       mocks.consumerClinicTestResults as any,
       mocks.clinicLabBooking as any,
       mocks.clinicBooking as any,
+      mocks.guestCheckoutFields as any,
       mocks.consumerAdoption as any,
       mocks.publicAssistant as any,
     );
@@ -920,6 +922,66 @@ describe('CustomerAiCommandService', () => {
       'biz-1',
       expect.any(Object),
       'Why does the 3-Day Mountain Trek only show one departure per day?',
+    );
+  });
+
+  it('rescues refer_a_friend from referral program questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    mocks.consumerAdoption.handleIntent = jest.fn(async () => ({
+      success: true,
+      action: 'refer_a_friend',
+      summary: 'Share your code ABC12345 with friends.',
+      details: { referralCode: 'ABC12345' },
+    }));
+    const { service, consumerAdoption } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      "What's my referral code?",
+      [],
+      { customerId: 'cust-1', slug: 'demo-salon' },
+    );
+    expect(result.action).toBe('refer_a_friend');
+    expect(consumerAdoption.handleIntent).toHaveBeenCalledWith(
+      'biz-1',
+      'refer_a_friend',
+      expect.objectContaining({ sessionCustomerId: 'cust-1' }),
+      "What's my referral code?",
+    );
+  });
+
+  it('rescues share_salon_link from salon share questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    mocks.consumerAdoption.handleIntent = jest.fn(async () => ({
+      success: true,
+      action: 'share_salon_link',
+      summary: 'Open Account → Growth and tap Share link.',
+      details: { navigate: { path: 'account', query: { section: 'growth' } } },
+    }));
+    const { service, consumerAdoption } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      'How do I share this business?',
+      [],
+      { customerId: 'cust-1', slug: 'demo-salon' },
+    );
+    expect(result.action).toBe('share_salon_link');
+    expect(consumerAdoption.handleIntent).toHaveBeenCalledWith(
+      'biz-1',
+      'share_salon_link',
+      expect.objectContaining({ sessionCustomerId: 'cust-1' }),
+      'How do I share this business?',
     );
   });
 

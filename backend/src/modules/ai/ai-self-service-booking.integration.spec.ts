@@ -14,6 +14,9 @@ import { ServiceSubscriptionsService } from '../service-subscriptions/service-su
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 
 describe('Sprint 36 customer booking AI scenarios', () => {
+  const futureBookingStart = () =>
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
   const services = [
     {
       id: 'svc-1',
@@ -118,7 +121,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
           businessId: 'biz-1',
           customerId: 'cust-1',
           status: BookingStatus.CONFIRMED,
-          startTime: new Date('2026-06-10T10:00:00Z'),
+          startTime: futureBookingStart(),
           metadata: {},
           service: services[0],
           employee: { name: 'Maria' },
@@ -132,7 +135,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
         businessId: 'biz-1',
         customerId: 'cust-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-10T10:00:00Z'),
+        startTime: futureBookingStart(),
       },
     ]),
     save: jest.fn(async (b: any) => {
@@ -155,7 +158,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
         businessId: 'biz-1',
         customerId: 'cust-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-10T10:00:00Z'),
+        startTime: futureBookingStart(),
       },
     ]);
     bookingRepo.findOne.mockImplementation(
@@ -166,7 +169,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
             businessId: 'biz-1',
             customerId: 'cust-1',
             status: BookingStatus.CONFIRMED,
-            startTime: new Date('2026-06-10T10:00:00Z'),
+            startTime: futureBookingStart(),
             metadata: {},
             service: services[0],
             employee: { name: 'Maria' },
@@ -583,7 +586,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
         businessId: 'biz-1',
         customerId: 'cust-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-06-10T10:00:00Z'),
+        startTime: futureBookingStart(),
         metadata: {},
         service: services[0],
         employee: { name: 'Maria' },

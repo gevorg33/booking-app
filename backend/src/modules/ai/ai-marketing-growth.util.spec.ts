@@ -77,7 +77,13 @@ describe('ai-marketing-growth.util', () => {
       ).toBe(true);
       expect(isSwitchToConsumerAppPrompt('Switch to consumer app')).toBe(true);
       expect(isHowToDownloadAppPrompt('Switch to consumer app')).toBe(false);
+      expect(
+        isHowToDownloadAppPrompt('Explain our tenant app install QR'),
+      ).toBe(false);
       expect(isPromoCodeHelpPrompt('How do promo codes work')).toBe(true);
+      expect(isLoyaltyPointsBalancePrompt('How many points do I have?')).toBe(
+        true,
+      );
       expect(
         isLoyaltyPointsBalancePrompt('Check my loyalty points balance'),
       ).toBe(true);
@@ -240,6 +246,25 @@ describe('ai-marketing-growth.util', () => {
           ?.action,
       ).toBe('summarize_new_registrations');
       expect(
+        rescueMarketingGrowthIntent('Explain our tenant app install QR', 'unknown')
+          ?.action,
+      ).toBe('explain_tenant_app_install');
+      expect(
+        rescueMarketingGrowthIntent('Regenerate tenant app install QR', 'unknown')
+          ?.action,
+      ).toBe('regenerate_tenant_app_install_qr');
+      expect(
+        rescueMarketingGrowthIntent('Create promo code SAVE10 for 20% off', 'unknown')
+          ?.action,
+      ).toBe('create_promo_code');
+      expect(
+        rescueMarketingGrowthIntent('Set loyalty earn rate to 10%', 'unknown')
+          ?.action,
+      ).toBe('configure_loyalty_settings');
+      expect(
+        rescueMarketingGrowthIntent('How does loyalty work', 'unknown')?.action,
+      ).toBe('summarize_loyalty_program');
+      expect(
         rescueMarketingGrowthIntent('How do I download the app', 'unknown')
           ?.action,
       ).toBe('how_to_download_app');
@@ -251,6 +276,14 @@ describe('ai-marketing-growth.util', () => {
         rescueMarketingGrowthIntent('How do promo codes work', 'unknown')
           ?.action,
       ).toBe('promo_code_help');
+      expect(
+        rescueMarketingGrowthIntent('Explain promo code validation rules', 'unknown')
+          ?.action,
+      ).toBe('promo_code_help');
+      expect(
+        rescueMarketingGrowthIntent('Explain our tenant app install QR', 'unknown')
+          ?.action,
+      ).toBe('explain_tenant_app_install');
       expect(
         rescueMarketingGrowthIntent('Check my loyalty points', 'unknown')
           ?.action,
@@ -333,10 +366,26 @@ describe('ai-marketing-growth.util', () => {
         'how_to_download_app',
         'loyalty_points_balance',
       ]);
+
+      const tenantPlan = decomposeMarketingGrowthCompoundPrompt(
+        'Explain our tenant app install QR and explain plan limits',
+      );
+      expect(tenantPlan.map((s) => s.action)).toEqual([
+        'explain_tenant_app_install',
+        'explain_plan_limits',
+      ]);
+
+      const regenerateExplain = decomposeMarketingGrowthCompoundPrompt(
+        'Regenerate tenant app install QR and explain our tenant app install QR',
+      );
+      expect(regenerateExplain.map((s) => s.action)).toEqual([
+        'regenerate_tenant_app_install_qr',
+        'explain_tenant_app_install',
+      ]);
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(MARKETING_GROWTH_INTENTS.length).toBe(14);
+      expect(MARKETING_GROWTH_INTENTS.length).toBe(19);
       expect(isMarketingGrowthIntent('explain_plan_limits')).toBe(true);
       expect(isMarketingGrowthIntent('not_real')).toBe(false);
       expect(decomposeMarketingGrowthCompoundPrompt('')).toEqual([]);

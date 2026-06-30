@@ -54,10 +54,13 @@ import {
   buildNearestBookableSlotQuery,
 } from '../ai/ai-nearest-slot-resolver.util.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
+import { AiBusinessHoursLocationService } from '../ai/ai-explain-business-hours-and-location.service.js';
+import { AiProviderSpecialtyService } from '../ai/ai-explain-provider-specialty.service.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
 import { AiConsumerClinicTestResultsService } from '../ai/ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from '../ai/ai-clinic-booking.service.js';
+import { AiGuestCheckoutFieldsService } from '../ai/ai-explain-guest-checkout-fields.service.js';
 import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
 import {
@@ -124,6 +127,33 @@ import {
   composePublicListServicesBudgetResponse,
   resolveDiscoverConstrainedService,
 } from '../ai/ai-budget-list-services.logic.js';
+import {
+  buildListServicesPaymentFilterHeader,
+  filterServicesByListServicesPaymentPolicy,
+  hasListServicesPaymentFilter,
+  parseListServicesPaymentFilterFromPrompt,
+  rescueListServicesPaymentFilterIntent,
+  enrichListServicesPaymentFilterParamsFromPrompt,
+} from '../ai/ai-list-services-payment-filters.util.js';
+import { AiPaymentsService } from '../ai/ai-payments.service.js';
+import { rescueExplainPrepaymentIntent } from '../ai/ai-explain-prepayment.util.js';
+import { rescueExplainAmountDueNowIntent } from '../ai/ai-explain-amount-due-now.util.js';
+import { rescueExplainGuestCheckoutFieldsIntent } from '../ai/ai-explain-guest-checkout-fields.util.js';
+import { rescueFindSoonestAppointmentIntent } from '../ai/ai-find-soonest-appointment.util.js';
+import { rescueCompareServicesIntent } from '../ai/ai-compare-services.util.js';
+import { rescueFilterServicesNoPrepaymentIntent } from '../ai/ai-filter-services-no-prepayment.util.js';
+import { rescueExplainBusinessHoursAndLocationIntent } from '../ai/ai-explain-business-hours-and-location.util.js';
+import { rescueExplainProviderSpecialtyIntent } from '../ai/ai-explain-provider-specialty.util.js';
+import { rescueCashPaymentCheckoutIntent } from '../ai/ai-cash-payment-checkout.util.js';
+import { rescuePayOnlineCheckoutIntent } from '../ai/ai-pay-online-checkout.util.js';
+import { rescueMultiServiceCustomerPublicIntent } from '../ai/ai-multi-service-customer-public.util.js';
+import { isPublicMultiServiceCompoundPrompt } from '../ai/ai-multi-service-customer-public.util.js';
+import { rescuePromoCodeHelpCustomerPublicIntent } from '../ai/ai-promo-code-help-customer-public.util.js';
+import { rescueTourCustomerPublicIntent } from '../ai/ai-tour-customer-public.util.js';
+import { rescueCheckoutRecommendationsCustomerPublicIntent } from '../ai/ai-checkout-recommendations-customer-public.util.js';
+import { enrichPromoCodeHelpParamsFromPrompt } from '../ai/ai-promo-code-help-customer-public.util.js';
+import { AiMarketingGrowthService } from '../ai/ai-marketing-growth.service.js';
+import { AiSelfServiceBookingService } from '../ai/ai-self-service-booking.service.js';
 import {
   composePublicListServicesMidRangeResponse,
   composePublicListServicesRankResponse,
@@ -218,6 +248,8 @@ export class PublicBookingAssistantService {
     private businessCurrency: AiBusinessCurrencyService,
     private businessLanguages: AiBusinessLanguagesService,
     private businessDateFormat: AiBusinessDateFormatService,
+    private businessHoursLocation: AiBusinessHoursLocationService,
+    private providerSpecialty: AiProviderSpecialtyService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
     private tourService: AiTourServiceService,
     private recommendationProduct: AiRecommendationProductService,
@@ -225,8 +257,12 @@ export class PublicBookingAssistantService {
     private consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private clinicLabBooking: AiClinicLabBookingService,
     private clinicBooking: AiClinicBookingService,
+    private guestCheckoutFields: AiGuestCheckoutFieldsService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
+    private payments: AiPaymentsService,
+    private selfServiceBooking: AiSelfServiceBookingService,
+    private marketingGrowth: AiMarketingGrowthService,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     @InjectRepository(Service) private serviceRepo: Repository<Service>,
   ) {}
@@ -386,6 +422,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const classifierConfidence = classifierCandidate?.confidence;
     let rescueReason: string | undefined = pipelineRescueReason(understood);
 
+    const guestCheckoutFieldsRescue = rescueExplainGuestCheckoutFieldsIntent(
+      prompt,
+      parsed.action,
+    );
+    if (guestCheckoutFieldsRescue) {
+      parsed.action = guestCheckoutFieldsRescue.action;
+      rescueReason = guestCheckoutFieldsRescue.rescueReason;
+    }
+
     const bookingHelpRescue = rescueProductGuideIntent(prompt, parsed.action, {
       surface: 'public',
       assistantMode: orchestratedSession?.assistantMode as 'guide' | 'act' | undefined,
@@ -409,6 +454,113 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       if (discoveryRescue.params) {
         parsed.params = { ...parsed.params, ...discoveryRescue.params };
       }
+    }
+
+    const amountDueNowRescue = rescueExplainAmountDueNowIntent(
+      prompt,
+      parsed.action,
+    );
+    if (amountDueNowRescue) {
+      parsed.action = amountDueNowRescue.action;
+      rescueReason = amountDueNowRescue.rescueReason;
+    }
+
+    const prepaymentRescue = rescueExplainPrepaymentIntent(prompt, parsed.action);
+    if (prepaymentRescue) {
+      parsed.action = prepaymentRescue.action;
+      rescueReason = prepaymentRescue.rescueReason;
+    }
+
+    const soonestRescue = rescueFindSoonestAppointmentIntent(
+      prompt,
+      parsed.action,
+    );
+    if (soonestRescue) {
+      parsed.action = soonestRescue.action;
+      rescueReason = soonestRescue.rescueReason;
+    }
+
+    const compareServicesRescue = rescueCompareServicesIntent(
+      prompt,
+      parsed.action,
+    );
+    if (compareServicesRescue) {
+      parsed.action = compareServicesRescue.action;
+      rescueReason = compareServicesRescue.rescueReason;
+    }
+
+    const filterNoPrepaymentRescue = rescueFilterServicesNoPrepaymentIntent(
+      prompt,
+      parsed.action,
+    );
+    if (filterNoPrepaymentRescue) {
+      parsed.action = filterNoPrepaymentRescue.action;
+      rescueReason = filterNoPrepaymentRescue.rescueReason;
+    }
+
+    const businessHoursLocationRescue =
+      rescueExplainBusinessHoursAndLocationIntent(prompt, parsed.action);
+    if (businessHoursLocationRescue) {
+      parsed.action = businessHoursLocationRescue.action;
+      rescueReason = businessHoursLocationRescue.rescueReason;
+    }
+
+    const providerSpecialtyRescue = rescueExplainProviderSpecialtyIntent(
+      prompt,
+      parsed.action,
+    );
+    if (providerSpecialtyRescue) {
+      parsed.action = providerSpecialtyRescue.action;
+      rescueReason = providerSpecialtyRescue.rescueReason;
+    }
+
+    const cashCheckoutRescue = rescueCashPaymentCheckoutIntent(
+      prompt,
+      parsed.action,
+    );
+    if (cashCheckoutRescue) {
+      parsed.action = cashCheckoutRescue.action;
+      rescueReason = cashCheckoutRescue.rescueReason;
+    }
+
+    const payOnlineRescue = rescuePayOnlineCheckoutIntent(prompt, parsed.action);
+    if (payOnlineRescue) {
+      parsed.action = payOnlineRescue.action;
+      rescueReason = payOnlineRescue.rescueReason;
+    }
+
+    const multiServiceRescue = rescueMultiServiceCustomerPublicIntent(
+      prompt,
+      parsed.action,
+    );
+    if (multiServiceRescue) {
+      parsed.action = multiServiceRescue.action;
+      rescueReason = multiServiceRescue.rescueReason;
+    }
+
+    const promoCodeHelpRescue = rescuePromoCodeHelpCustomerPublicIntent(
+      prompt,
+      parsed.action,
+    );
+    if (promoCodeHelpRescue) {
+      parsed.action = promoCodeHelpRescue.action;
+      rescueReason = promoCodeHelpRescue.rescueReason;
+    }
+
+    const tourCustomerPublicRescue = rescueTourCustomerPublicIntent(
+      prompt,
+      parsed.action,
+    );
+    if (tourCustomerPublicRescue) {
+      parsed.action = tourCustomerPublicRescue.action;
+      rescueReason = tourCustomerPublicRescue.rescueReason;
+    }
+
+    const checkoutRecommendationsRescue =
+      rescueCheckoutRecommendationsCustomerPublicIntent(prompt, parsed.action);
+    if (checkoutRecommendationsRescue) {
+      parsed.action = checkoutRecommendationsRescue.action;
+      rescueReason = checkoutRecommendationsRescue.rescueReason;
     }
 
     if (shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
@@ -553,6 +705,134 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'explain_checkout_currency':
         result = await this.handleExplainCheckoutCurrency(business.id);
         break;
+      case 'explain_why_stripe_required':
+        result = await this.handleExplainWhyStripeRequired(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'explain_checkout_total':
+        result = await this.handleExplainCheckoutTotal(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'explain_amount_due_now':
+        result = await this.handleExplainAmountDueNow(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'explain_service_price':
+        result = await this.handleExplainServicePrice(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'explain_payment_options_for_service':
+        result = await this.handleExplainPaymentOptionsForService(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'find_soonest_appointment':
+        result = await this.handleFindSoonestAppointment(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'compare_services':
+        result = await this.handleCompareServices(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'filter_services_no_prepayment':
+        result = await this.handleFilterServicesNoPrepayment(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_business_hours_and_location':
+        result = await this.handleExplainBusinessHoursAndLocation(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_provider_specialty':
+        result = await this.handleExplainProviderSpecialty(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'choose_payment_method':
+        result = await this.handleChoosePaymentMethod(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'pay_cash_at_visit':
+        result = await this.handlePayCashAtVisit(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'pay_online':
+        result = await this.handlePayOnline(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'book_multi_service':
+        result = await this.handleBookMultiService(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'check_multi_service_availability':
+        result = await this.handleCheckMultiServiceAvailability(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'add_services_to_cart':
+        result = await this.handleAddServicesToCart(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'promo_code_help':
+        result = await this.handlePromoCodeHelp(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
       case 'explain_stripe_checkout_currency':
         result = await this.handleExplainStripeCheckoutCurrency(business.id);
         break;
@@ -606,6 +886,13 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         break;
       case 'explain_clinic_booking':
         result = await this.handleExplainClinicBooking(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+        );
+        break;
+      case 'explain_guest_checkout_fields':
+        result = await this.handleExplainGuestCheckoutFields(
           business.id,
           parsed.params ?? {},
           prompt,
@@ -806,7 +1093,23 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const catalogRows = matched.map((service) => ({
+    const paymentFilter = parseListServicesPaymentFilterFromPrompt(prompt, params);
+    let paymentMatched = matched;
+    if (hasListServicesPaymentFilter(paymentFilter)) {
+      paymentMatched = filterServicesByListServicesPaymentPolicy(
+        matched,
+        paymentFilter,
+      );
+      if (paymentMatched.length === 0) {
+        return {
+          success: false,
+          action: 'list_services',
+          summary: `No ${buildListServicesPaymentFilterHeader(paymentFilter).toLowerCase()} right now.`,
+        };
+      }
+    }
+
+    const catalogRows = paymentMatched.map((service) => ({
       id: service.id,
       name: service.name,
       price: service.price,
@@ -886,15 +1189,20 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       };
     }
 
-    const header = employee
-      ? `Services with ${employee.name}:`
-      : serviceQuery
-        ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
-        : params.maxTotalPrice != null
-          ? `Service combos within your budget:`
-          : params.maxPrice != null
-            ? `Services within your budget:`
-            : 'Our service types:';
+    const paymentFilterHeader = hasListServicesPaymentFilter(paymentFilter)
+      ? `${buildListServicesPaymentFilterHeader(paymentFilter)}:`
+      : undefined;
+
+    const header = paymentFilterHeader
+      ?? (employee
+        ? `Services with ${employee.name}:`
+        : serviceQuery
+          ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
+          : params.maxTotalPrice != null
+            ? `Service combos within your budget:`
+            : params.maxPrice != null
+              ? `Services within your budget:`
+              : 'Our service types:');
 
     const composed = composePublicListServicesBudgetResponse({
       matchedServices: catalogRows,
@@ -982,6 +1290,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       mergedParams,
       input.prompt,
       slug,
+      business.id,
       employees,
       services,
       locale,
@@ -1004,7 +1313,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (
       !isCompoundPrompt(prompt) &&
       !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
-      !isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt)
+      !isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt) &&
+      !isPublicMultiServiceCompoundPrompt(prompt)
     ) {
       return null;
     }
@@ -1035,6 +1345,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             enriched,
             segment,
             slug,
+            business.id,
             employees,
             services,
             locale,
@@ -1065,6 +1376,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: Record<string, any>,
     prompt: string,
     slug: string,
+    businessId: string,
     employees: Employee[],
     services: Service[],
     locale: AppLocale,
@@ -1097,6 +1409,17 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           locale,
           prompt,
         );
+      case 'book_multi_service':
+        return this.handleBookMultiService(businessId, params, prompt, {});
+      case 'check_multi_service_availability':
+        return this.handleCheckMultiServiceAvailability(
+          businessId,
+          params,
+          prompt,
+          {},
+        );
+      case 'add_services_to_cart':
+        return this.handleAddServicesToCart(businessId, params, prompt, {});
       default:
         return {
           success: false,
@@ -1787,6 +2110,272 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
+  private async handleExplainWhyStripeRequired(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    catalogContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleExplainWhyStripeRequired(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+      catalogContext,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainCheckoutTotal(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    catalogContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleExplainCheckoutTotal(
+      businessId,
+      { ...params, _prompt: prompt },
+      catalogContext,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainAmountDueNow(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    catalogContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleExplainAmountDueNow(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+      catalogContext,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainServicePrice(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    catalogContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleExplainServicePrice(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+      catalogContext,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainPaymentOptionsForService(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    catalogContext?: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleExplainPaymentOptionsForService(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+      catalogContext,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleFindSoonestAppointment(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleFindSoonestAppointment(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleCompareServices(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleCompareServices(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleFilterServicesNoPrepayment(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleFilterServicesNoPrepayment(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainBusinessHoursAndLocation(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.businessHoursLocation.handleExplainBusinessHoursAndLocation(
+        businessId,
+        { ...params, _prompt: prompt },
+        prompt,
+      );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleExplainProviderSpecialty(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.providerSpecialty.handleExplainProviderSpecialty(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleChoosePaymentMethod(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleChoosePaymentMethod(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handlePayCashAtVisit(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handlePayCashAtVisit(
+      businessId,
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handlePayOnline(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const mergedParams = {
+      ...params,
+      serviceId: params.serviceId ?? session.serviceId,
+      employeeId: params.employeeId ?? session.employeeId,
+      startTime: params.startTime ?? session.startTime,
+      cartServiceIds: params.cartServiceIds ?? session.cartServiceIds,
+      packageId: params.packageId ?? session.packageId,
+      _prompt: prompt,
+    };
+    const result = await this.payments.handlePayOnline(
+      businessId,
+      mergedParams,
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handlePromoCodeHelp(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const enriched = enrichPromoCodeHelpParamsFromPrompt(
+      { ...params, _prompt: prompt },
+      prompt,
+    );
+    const result = await this.marketingGrowth.handlePromoCodeHelp(
+      businessId,
+      enriched,
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private mergeMultiServiceSessionParams(
+    params: Record<string, unknown>,
+    session: Record<string, unknown>,
+    prompt: string,
+  ): Record<string, unknown> {
+    const cartRaw = params.cartServiceIds ?? session.cartServiceIds;
+    const cartServiceIds =
+      typeof cartRaw === 'string'
+        ? cartRaw
+        : Array.isArray(cartRaw)
+          ? cartRaw.join(',')
+          : undefined;
+    return {
+      ...params,
+      cartServiceIds,
+      _prompt: prompt,
+    };
+  }
+
+  private async handleBookMultiService(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleBookMultiService(
+      businessId,
+      this.mergeMultiServiceSessionParams(params, session, prompt),
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleCheckMultiServiceAvailability(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.selfServiceBooking.handleCheckMultiServiceAvailability(
+        businessId,
+        this.mergeMultiServiceSessionParams(params, session, prompt),
+        prompt,
+      );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleAddServicesToCart(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleAddServicesToCart(
+      businessId,
+      this.mergeMultiServiceSessionParams(params, session, prompt),
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
   private async handleExplainDataRights(
     businessId: string,
     prompt: string,
@@ -1964,6 +2553,24 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return {
       success: result.success,
       action: result.action ?? 'explain_clinic_booking',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleExplainGuestCheckoutFields(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.guestCheckoutFields.handleExplainGuestCheckoutFields(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_guest_checkout_fields',
       summary: result.summary,
       details: result.details,
     };
@@ -2588,6 +3195,17 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     rescueReason: string;
     params?: Record<string, unknown>;
   } | null {
+    const paymentFilterRescue = rescueListServicesPaymentFilterIntent(
+      prompt,
+      action,
+    );
+    if (paymentFilterRescue) {
+      return {
+        ...paymentFilterRescue,
+        params: enrichListServicesPaymentFilterParamsFromPrompt({}, prompt),
+      };
+    }
+
     const rankDiscoveryRescue = rescueServiceRankDiscoveryIntent(
       prompt,
       action,
