@@ -144,6 +144,7 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
 import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.entity.js';
 import { ClinicTestType } from '../clinic-test-results/entities/clinic-test-type.entity.js';
 import { ClinicTestPanel } from '../clinic-test-results/entities/clinic-test-panel.entity.js';
 import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-results.module.js';
@@ -181,6 +182,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
       CategoryRecommendedProduct,
       NotificationLog,
       ClinicTestResult,
+      ClinicTestOrder,
       ClinicTestType,
       ClinicTestPanel,
       AiCommandTrace,
