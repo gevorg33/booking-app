@@ -45,6 +45,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       aiSettings as never,
       platform as never,
       commandTrace as never,
+      { handleGuideUserFlowAsync: jest.fn() } as never,
     );
     return { gateway, dashboardCommands, commandTrace };
   }
@@ -164,6 +165,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       aiSettings as never,
       platform as never,
       commandTrace as never,
+      { handleGuideUserFlowAsync: jest.fn() } as never,
     );
     await gateway.execute({
       surface: 'dashboard',

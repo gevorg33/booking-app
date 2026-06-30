@@ -1,5 +1,7 @@
 /** Sprint 20 — parse FCM data and map provider URLs to in-app routes. */
 
+import { mapProviderGuidePushUrl } from './provider-assistant-navigate.util.js';
+
 export type ProviderPushType = 'booking_created' | 'booking_updated' | 'end_of_day';
 
 export interface ProviderPushPayload {
@@ -42,6 +44,9 @@ export function providerTabPathFromPushUrl(url: string): string {
   if (!trimmed) return '/tabs/today';
 
   const query = pushUrlQuerySuffix(trimmed);
+  if (trimmed.includes('/profile/guide')) {
+    return mapProviderGuidePushUrl(trimmed);
+  }
   if (trimmed.includes('/schedule')) return `/tabs/schedule${query}`;
   if (trimmed.includes('/profile')) return `/tabs/profile${query}`;
   if (trimmed.includes('/gift-cards')) return `/tabs/gift-cards${query}`;

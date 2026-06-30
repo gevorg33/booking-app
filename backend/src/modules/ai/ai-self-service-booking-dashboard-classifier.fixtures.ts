@@ -1,0 +1,4 @@
+/** Dashboard customer self-service booking classifier rules. */
+export const SELF_SERVICE_BOOKING_DASHBOARD_CLASSIFIER_RULES = `- book_package / book_multi_service / check_package_availability / check_multi_service_availability / select_subscription_plan / use_subscription_credit: customer package, multi-service, and subscription booking flows (Sprint 36). NOT create_package_booking (dashboard staff).
+- cancel_my_booking / reschedule_my_booking / cancel_package_visit_self / reschedule_package_visit_self / list_my_appointments / get_manage_link / explain_cancel_policy: customer self-service (Sprint 36). NOT cancel_bookings (staff).
+- book_with_cash / book_with_gift_card / change_provider_on_reschedule / add_services_to_cart / remove_service_from_cart / show_cart_total_duration: customer checkout cart and payment prefs (Sprint 36). book_with_cash is booking-flow cash; pay_cash_at_visit is checkout step (Sprint 30).`;

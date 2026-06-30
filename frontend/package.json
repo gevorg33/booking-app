@@ -22,6 +22,7 @@
     "test:toasts-errors": "vitest run --config vitest.toasts-errors.config.ts --coverage",
     "test:i18n-clinic-v2": "vitest run --config vitest.i18n-clinic-v2.config.ts --coverage",
     "test:ai-assistant": "vitest run --config vitest.ai-assistant.config.ts --coverage",
+    "test:ai-guide-corpus": "vitest run src/lib/dashboard-guide-corpus.util.spec.ts src/lib/dashboard-guide-hash.util.spec.ts",
     "test:ai-providers": "vitest run --config vitest.ai-providers.config.ts --coverage",
     "test:sprint16": "vitest run --config vitest.sprint16.config.ts --coverage",
     "test:sprint17": "vitest run --config vitest.sprint17.config.ts --coverage",

@@ -1,0 +1,18 @@
+{
+  "topicId": "provider-staff-invite",
+  "surface": "provider",
+  "routes": ["/accept-invite", "/invite"],
+  "titleKey": "guide.flows.provider.staffInvite.title",
+  "summaryKey": "guide.flows.provider.staffInvite.summary",
+  "navigateTarget": { "path": "/accept-invite" },
+  "keywords": ["invite link", "accept invite", "join salon", "staff invitation"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.staffInvite.step1",
+      "navigate": { "path": "/accept-invite" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.provider.staffInvite.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.provider.staffInvite.step3" }
+  ]
+}

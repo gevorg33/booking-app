@@ -1,0 +1,18 @@
+{
+  "topicId": "provider-getting-started",
+  "surface": "provider",
+  "routes": ["/tabs/profile"],
+  "titleKey": "guide.flows.provider.gettingStarted.title",
+  "summaryKey": "guide.flows.provider.gettingStarted.summary",
+  "navigateTarget": { "path": "guide", "query": { "topicId": "provider-getting-started" } },
+  "keywords": ["login", "invite", "push notifications", "getting started"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.gettingStarted.step1",
+      "navigate": { "path": "/tabs/profile" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.provider.gettingStarted.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.provider.gettingStarted.step3" }
+  ]
+}

@@ -27,7 +27,16 @@ import {
   type CatalogCompoundStep,
   type CatalogServiceDraft,
 } from './ai-catalog.util.js';
+import {
+  enrichDeactivateServiceCategoryScopeParamsFromPrompt,
+  parseDeactivateServiceCategoryScopeFromPrompt,
+  resolveServicesForDeactivateCategoryScope,
+} from './ai-deactivate-service-category-scope.util.js';
 import { resolveAiCatalogNotifyPayload } from './ai-catalog-notify.util.js';
+import { handleUpdateServiceDurationBufferLogic } from './ai-service-duration-buffer.logic.js';
+import { handleConfigureServiceFeaturedLogic } from './ai-configure-service-featured.logic.js';
+import { handleBulkAssignServicesCategoryLogic } from './ai-bulk-assign-services-category.logic.js';
+import { handleConfigurePackageOnlinePaymentLogic } from './ai-configure-package-online-payment.logic.js';
 
 export interface CatalogLogicDeps {
   businessRepo: Repository<Business>;
@@ -317,8 +326,45 @@ export async function handleDeactivateServiceLogic(
   businessId: string,
   params: Record<string, any>,
   services: Service[],
+  prompt?: string,
 ): Promise<CommandResult> {
-  const serviceName = params.serviceName as string | undefined;
+  const enriched = enrichDeactivateServiceCategoryScopeParamsFromPrompt(
+    params,
+    String(prompt ?? params._prompt ?? ''),
+  );
+  const parsed = parseDeactivateServiceCategoryScopeFromPrompt(
+    String(prompt ?? params._prompt ?? ''),
+    enriched,
+  );
+
+  if (parsed?.allInCategory && parsed.categoryName) {
+    const matched = resolveServicesForDeactivateCategoryScope(
+      services,
+      parsed.categoryName,
+    );
+    if (!matched.length) {
+      return failure(
+        'deactivate_service',
+        `No active services found in category "${parsed.categoryName}".`,
+        { clarify: true, categoryName: parsed.categoryName },
+      );
+    }
+    for (const service of matched) {
+      await deps.serviceService.remove(service.id);
+    }
+    const names = matched.map((service) => service.name).join(', ');
+    return success(
+      'deactivate_service',
+      `Deactivated ${matched.length} service(s) in ${parsed.categoryName}: ${names}.`,
+      {
+        categoryName: parsed.categoryName,
+        serviceIds: matched.map((service) => service.id),
+        count: matched.length,
+      },
+    );
+  }
+
+  const serviceName = (enriched.serviceName as string | undefined)?.trim();
   if (!serviceName) {
     return failure(
       'deactivate_service',
@@ -1064,6 +1110,46 @@ export async function handleCatalogCompoundLogic(
           services,
         );
         break;
+      case 'update_service_duration_buffer':
+        result = await handleUpdateServiceDurationBufferLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+          step.segment,
+          userId,
+        );
+        break;
+      case 'configure_service_featured':
+        result = await handleConfigureServiceFeaturedLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+          step.segment,
+          userId,
+        );
+        break;
+      case 'bulk_assign_services_category':
+        result = await handleBulkAssignServicesCategoryLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+          step.segment,
+          userId,
+        );
+        break;
+      case 'configure_package_online_payment':
+        result = await handleConfigurePackageOnlinePaymentLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+          step.segment,
+          userId,
+        );
+        break;
       case 'update_service':
         result = await handleUpdateServiceLogic(
           deps,
@@ -1079,6 +1165,7 @@ export async function handleCatalogCompoundLogic(
           businessId,
           stepParams,
           services,
+          step.segment,
         );
         break;
       case 'assign_subscription_to_customer':

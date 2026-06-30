@@ -8,6 +8,7 @@ import {
   resolveBudgetMisrouteAction,
   resolveBudgetMisrouteActionForSurface,
 } from './ai-budget-service-discovery.util.js';
+import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
 import { resolveServiceMetric } from './ai-intent-heuristics.js';
 import {
   enrichServiceTierFromPrompt,
@@ -536,6 +537,8 @@ export function rescueServiceRankDiscoveryIntent(
   rescueReason: string;
   params: Record<string, unknown>;
 } | null {
+  if (isConfigureServiceDepositPolicyPrompt(prompt)) return null;
+
   if (
     surface === 'dashboard' &&
     (action === 'unknown' || action === 'list_services') &&

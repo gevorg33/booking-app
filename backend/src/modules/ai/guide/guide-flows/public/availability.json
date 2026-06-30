@@ -1,0 +1,16 @@
+{
+  "topicId": "public-availability",
+  "surface": "public",
+  "routes": ["/book", "/public"],
+  "titleKey": "guide.flows.public.availability.title",
+  "summaryKey": "guide.flows.public.availability.summary",
+  "keywords": ["availability", "open slots", "calendar"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.public.availability.step1"
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.public.availability.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.public.availability.step3" }
+  ]
+}

@@ -55,6 +55,15 @@ describe('AiMarketingGrowthService', () => {
     })),
   };
   const stripeService = { isConfigured: false };
+  const stripeIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: false,
+      chargesEnabled: false,
+      detailsSubmitted: false,
+      oauthAvailable: true,
+    })),
+    startConnect: jest.fn(async () => ({ url: 'https://stripe.test/onboard' })),
+  };
   const configService = {
     get: jest.fn((key: string) =>
       key === 'FRONTEND_URL' ? 'https://app.test' : undefined,
@@ -63,6 +72,22 @@ describe('AiMarketingGrowthService', () => {
   const customerRepo = { count: jest.fn(async () => 3) };
   const businessRepo = {
     findOne: jest.fn(async () => ({ slug: 'salon', settings: {} })),
+  };
+  const tenantAppInstallService = {
+    ensureForBusiness: jest.fn(async (business: { slug: string }) => ({
+      slug: business.slug,
+      landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+      qrDataUrl: 'data:image/png;base64,abc',
+      customSchemeUrl: `optischedule://book/${business.slug}`,
+      generatedAt: '2026-06-01T00:00:00.000Z',
+    })),
+    regenerateForBusiness: jest.fn(async (business: { slug: string }) => ({
+      slug: business.slug,
+      landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+      qrDataUrl: 'data:image/png;base64,regenerated',
+      customSchemeUrl: `optischedule://book/${business.slug}`,
+      generatedAt: '2026-06-02T00:00:00.000Z',
+    })),
   };
 
   let service: AiMarketingGrowthService;
@@ -76,7 +101,9 @@ describe('AiMarketingGrowthService', () => {
       loyaltyService as any,
       promoCodesService as any,
       stripeService as any,
+      stripeIntegrationService as any,
       configService as any,
+      tenantAppInstallService as any,
       customerRepo as any,
       businessRepo as any,
     );
@@ -97,6 +124,10 @@ describe('AiMarketingGrowthService', () => {
         'Explain plan limits and suggest upgrade',
       ),
     ).toHaveLength(2);
+    expect(
+      service.rescueMarketingGrowthIntent('Connect Stripe for client payments', 'unknown')
+        ?.action,
+    ).toBe('configure_stripe_connect');
   });
 
   it('delegates intent handlers', async () => {

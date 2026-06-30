@@ -18,6 +18,10 @@ import { PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-prov
 import { PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-time-off-list-multilingual.fixtures.js';
 import { PROVIDER_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-provider-date-format-multilingual.fixtures.js';
 import { PROVIDER_EXP_3_CLASSIFIER_RULES } from './ai-provider-exp-3.fixtures.js';
+import { PROVIDER_APP_GUIDE_CLASSIFIER_RULES } from './ai-provider-product-guide.fixtures.js';
+import { PROVIDER_META_GUIDE_CLASSIFIER_RULES } from './ai-meta-product-guide.fixtures.js';
+import { PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
+import { PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES } from './ai-provider-voice-next-client.util.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
 export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: same outcome as tapping Confirm on a new-booking push — requires bookingId (from lastPush or prompt). Triggers: "confirm this booking from the push", "confirm appointment from notification". NOT update_bookings unless user names status explicitly without push context.
@@ -48,4 +52,8 @@ ${PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_TIME_OFF_LIST_MULTILINGUAL_CLASSIFIER_RULES}
 ${PROVIDER_DATE_FORMAT_MULTILINGUAL_CLASSIFIER_RULES}
-${PROVIDER_EXP_3_CLASSIFIER_RULES}`;
+${PROVIDER_EXP_3_CLASSIFIER_RULES}
+${PROVIDER_APP_GUIDE_CLASSIFIER_RULES}
+${PROVIDER_META_GUIDE_CLASSIFIER_RULES}
+${PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
+${PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES}`;

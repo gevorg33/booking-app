@@ -20,25 +20,14 @@ export function buildTenantPublicPath(slug: string, pathSuffix = ''): string {
   return `/book/${normalized}${path}`;
 }
 
-function inferProtocol(frontendUrl?: string): 'http' | 'https' {
-  return frontendUrl?.startsWith('http://') ? 'http' : 'https';
+function resolveFrontendBaseUrl(frontendUrl?: string): string {
+  return (frontendUrl || 'http://localhost:3000').replace(/\/$/, '');
 }
 
-/** Shareable absolute URL: https://{slug}.{rootDomain}/… */
+/** Shareable absolute URL on the apex frontend host: https://app.example.com/book/{slug}/… */
 export function buildTenantPublicUrl(input: BuildTenantPublicUrlInput): string {
-  const normalized = input.slug.trim().toLowerCase();
-  const rootDomain = input.rootDomain ?? getRootDomainFromEnv();
-  const rootHost = rootDomain.split(':')[0].toLowerCase();
-  const port = rootDomain.includes(':') ? rootDomain.split(':').slice(1).join(':') : '';
-
-  let path = '';
-  if (input.pathSuffix && input.pathSuffix !== '/') {
-    path = input.pathSuffix.startsWith('/') ? input.pathSuffix : `/${input.pathSuffix}`;
-  }
-
-  const protocol = inferProtocol(input.frontendUrl);
-  const tenantHost = port ? `${normalized}.${rootHost}:${port}` : `${normalized}.${rootHost}`;
-  const url = new URL(`${protocol}://${tenantHost}${path || '/'}`);
+  const path = buildTenantPublicPath(input.slug, input.pathSuffix);
+  const url = new URL(`${resolveFrontendBaseUrl(input.frontendUrl)}${path}`);
 
   if (input.query) {
     for (const [key, value] of Object.entries(input.query)) {

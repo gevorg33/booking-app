@@ -5,6 +5,10 @@ import {
   rescueUnassignServicesFromProviderIntent,
 } from './ai-category-assignment.util.js';
 import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
+import {
+  enrichUpdateServicePricesParamsFromPrompt,
+  rescueUpdateServicePricesOnlinePaymentFilterIntent,
+} from './ai-update-service-prices-online-payment-filter.util.js';
 
 export const OPERATIONS_BOOKING_INTENTS = [
   'no_show_recovery',
@@ -482,8 +486,21 @@ export function rescueOperationsIntent(
   ) {
     return { action: 'import_services_from_menu', params };
   }
+  const priceOnlinePayment = rescueUpdateServicePricesOnlinePaymentFilterIntent(
+    prompt,
+    action,
+  );
+  if (priceOnlinePayment) {
+    return {
+      action: priceOnlinePayment.action,
+      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+    };
+  }
   if (isPricingAdjustmentPrompt(prompt) && action !== 'update_service_prices') {
-    return { action: 'update_service_prices', params };
+    return {
+      action: 'update_service_prices',
+      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+    };
   }
   const transfer = rescueTransferServicesBetweenProvidersIntent(
     prompt,
@@ -527,6 +544,12 @@ export function rescueOperationsIntent(
       action: 'payment_sweep',
       params: enrichPaymentSweepParams(prompt, params),
     };
+  }
+  if (action === 'update_service_prices') {
+    const enriched = enrichUpdateServicePricesParamsFromPrompt(params, prompt);
+    if (JSON.stringify(enriched) !== JSON.stringify(params)) {
+      return { action: 'update_service_prices', params: enriched };
+    }
   }
   if (action === 'check_availability') {
     const timeOfDay = parseTimeOfDayWindow(prompt, params);

@@ -1,5 +1,6 @@
 import { pickSharedBookingContextSlice } from '../ai/ai-compound-booking-context.util.js';
 import { serializeRankedServiceIds } from '../ai/ai-rank-session-pick.util.js';
+import { GUIDE_MULTITURN_SESSION_KEYS } from '../ai/ai-product-guide-multiturn.util.js';
 
 /** Discovery + booking keys restored from public assistant session on follow-up turns. */
 export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
@@ -19,6 +20,7 @@ export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
   'availabilityWindows',
   'chosenAvailabilityWindow',
   'chosenAvailabilityWindowIndex',
+  ...GUIDE_MULTITURN_SESSION_KEYS,
 ] as const;
 
 export function parsePublicAssistantSessionValue(
@@ -39,6 +41,21 @@ export function parsePublicAssistantSessionValue(
       }
     }
     return value;
+  }
+  if (key === 'completedSteps') {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        return Array.isArray(parsed) ? parsed : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    return value;
+  }
+  if (key === 'guideStepIndex') {
+    const numeric = Number(value);
+    return Number.isInteger(numeric) && numeric >= 0 ? numeric : value;
   }
   return value;
 }

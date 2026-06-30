@@ -18,7 +18,9 @@ import { AiSettingsService } from './ai-settings.service.js';
 import { AiAuditService } from './ai-audit.service.js';
 import { AiWeeklyReportService } from './ai-weekly-report.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
+import { GuideTelemetryService } from './guide-telemetry.service.js';
 import { AiCommandDto } from './dto/ai-command.dto.js';
+import { IngestGuideTelemetryDto } from './dto/ingest-guide-telemetry.dto.js';
 import type { AiSettings } from './ai-settings.types.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -34,6 +36,7 @@ export class AiCommandController {
     private auditService: AiAuditService,
     private weeklyReportService: AiWeeklyReportService,
     private platform: AiPlatformService,
+    private guideTelemetry: GuideTelemetryService,
   ) {}
 
   @Get('capabilities')
@@ -83,6 +86,30 @@ export class AiCommandController {
     return this.platform.getCommandAnalytics(businessId, periodDays);
   }
 
+  @Get('guide-telemetry/analytics')
+  getGuideTelemetryAnalytics(
+    @Param('businessId') businessId: string,
+    @Query('days') days?: string,
+  ) {
+    const periodDays = days
+      ? Math.min(90, Math.max(7, Number(days) || 30))
+      : 30;
+    return this.guideTelemetry.getAnalytics(businessId, periodDays);
+  }
+
+  @Post('guide-telemetry')
+  ingestGuideTelemetry(
+    @Param('businessId') businessId: string,
+    @Body() dto: IngestGuideTelemetryDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.guideTelemetry.ingestClientEvents(
+      businessId,
+      dto.events,
+      user.id,
+    );
+  }
+
   @Get('settings')
   getAiSettings(@Param('businessId') businessId: string) {
     return this.aiSettings.getSettings(businessId);
@@ -123,6 +150,8 @@ export class AiCommandController {
       confirmed: dto.confirmed === true,
       history: dto.history,
       context: dto.context,
+      assistantMode: dto.assistantMode,
+      guideHandoff: dto.guideHandoff,
     });
   }
 

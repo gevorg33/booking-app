@@ -1,8 +1,11 @@
 import {
   applyClinicTestTypeLinkToServiceMetadata,
+  assertClinicReferenceRangeBounds,
   buildClinicTestTypeCode,
+  formatClinicTestTypeReferenceRange,
   inheritCatalogFieldsFromService,
   isKnownClinicalDepartment,
+  parseClinicReferenceRangeBound,
   readClinicTestTypeIdFromServiceMetadata,
   resolveClinicalDepartmentLabel,
 } from './clinic-test-catalog.util.js';
@@ -59,5 +62,15 @@ describe('clinic-test-catalog.util', () => {
     expect(resolveClinicalDepartmentLabel(' Laboratory ')).toBe('Laboratory');
     expect(isKnownClinicalDepartment('Cardiology')).toBe(true);
     expect(isKnownClinicalDepartment('Spa')).toBe(false);
+  });
+
+  it('parses and formats reference range bounds', () => {
+    expect(parseClinicReferenceRangeBound('4.5')).toBe(4.5);
+    expect(parseClinicReferenceRangeBound(11)).toBe(11);
+    expect(parseClinicReferenceRangeBound('')).toBeNull();
+    expect(formatClinicTestTypeReferenceRange(4, 11)).toBe('4–11');
+    expect(formatClinicTestTypeReferenceRange(4, null)).toBe('≥ 4');
+    expect(formatClinicTestTypeReferenceRange(null, 11)).toBe('≤ 11');
+    expect(assertClinicReferenceRangeBounds(11, 4)).toMatch(/normalLow/);
   });
 });

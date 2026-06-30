@@ -21,6 +21,19 @@ import {
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
 import {
+  handleExplainServiceOnlinePaymentSetupLogic,
+} from './ai-service-online-payment-setup.logic.js';
+import { handleExplainPublicBookingCheckoutLogic } from './ai-explain-public-booking-checkout.logic.js';
+import { handleExplainServicePriceLogic } from './ai-explain-service-price.logic.js';
+import { handleExplainPaymentOptionsForServiceLogic } from './ai-explain-payment-options-for-service.logic.js';
+import { handleFindSoonestAppointmentLogic } from './ai-find-soonest-appointment.logic.js';
+import { handleExplainAmountDueNowLogic } from './ai-explain-amount-due-now.logic.js';
+import { handleCompareServicesLogic } from './ai-compare-services.logic.js';
+import { handleFilterServicesNoPrepaymentLogic } from './ai-filter-services-no-prepayment.logic.js';
+import { handleAuditServicesMissingOnlinePaymentLogic } from './ai-audit-services-missing-online-payment.logic.js';
+import { handleConfigureCheckoutDefaultsLogic } from './ai-checkout-defaults.logic.js';
+import { handleConfigureServiceDepositPolicyLogic } from './ai-service-deposit-policy.logic.js';
+import {
   handleAdjustGiftCardBalanceLogic,
   handleApplyGiftCardCodeLogic,
   handleBookNearestSlotLogic,
@@ -40,7 +53,6 @@ import {
   handleListSubscriptionRevenueLogic,
   handlePayCashAtVisitLogic,
   handlePayOnlineLogic,
-  handlePaymentsCompoundLogic,
   handlePurchaseSubscriptionCheckoutLogic,
   handleReceiptStatusLogic,
   handleRefundGiftCardOrderLogic,
@@ -48,6 +60,11 @@ import {
   handleValidateGiftCardLogic,
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
+import { handlePaymentsCompoundLogic } from './ai-payments-compound.logic.js';
+import {
+  dispatchPaymentsLogicIntent,
+} from './ai-payments-dispatch.util.js';
+import type { PaymentsDispatchContext } from './ai-payments-dispatch.build.js';
 
 @Injectable()
 export class AiPaymentsService {
@@ -113,8 +130,140 @@ export class AiPaymentsService {
     return handleExportCommissionsLogic(this.deps, businessId, params);
   }
 
-  handleExplainCheckoutTotal(businessId: string, params: Record<string, any>) {
-    return handleExplainCheckoutTotalLogic(this.deps, businessId, params);
+  handleExplainCheckoutTotal(
+    businessId: string,
+    params: Record<string, any>,
+    catalogContext?: Record<string, unknown>,
+  ) {
+    return handleExplainCheckoutTotalLogic(
+      this.deps,
+      businessId,
+      params,
+      catalogContext,
+    );
+  }
+
+  handleExplainAmountDueNow(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+    catalogContext?: Record<string, unknown>,
+  ) {
+    return handleExplainAmountDueNowLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogContext,
+    );
+  }
+
+  handleExplainServicePrice(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+    catalogContext?: Record<string, unknown>,
+  ) {
+    return handleExplainServicePriceLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogContext,
+    );
+  }
+
+  handleExplainPaymentOptionsForService(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+    catalogContext?: Record<string, unknown>,
+  ) {
+    return handleExplainPaymentOptionsForServiceLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogContext,
+    );
+  }
+
+  handleFindSoonestAppointment(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handleFindSoonestAppointmentLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleCompareServices(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handleCompareServicesLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleFilterServicesNoPrepayment(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handleFilterServicesNoPrepaymentLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainServiceOnlinePaymentSetup(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainServiceOnlinePaymentSetupLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainPublicBookingCheckout(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainPublicBookingCheckoutLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleAuditServicesMissingOnlinePayment(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleAuditServicesMissingOnlinePaymentLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleListSubscriptionRevenue(
@@ -134,6 +283,36 @@ export class AiPaymentsService {
       businessId,
       params,
       prompt,
+    );
+  }
+
+  handleConfigureCheckoutDefaults(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleConfigureCheckoutDefaultsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleConfigureServiceDepositPolicy(
+    businessId: string,
+    params: Record<string, any>,
+    prompt: string | undefined,
+    catalogServices: Service[],
+    userId?: string,
+  ) {
+    return handleConfigureServiceDepositPolicyLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogServices,
+      userId,
     );
   }
 
@@ -246,16 +425,33 @@ export class AiPaymentsService {
     return handleBuyGiftCardLogic(this.deps, businessId, params, physical);
   }
 
-  handleChoosePaymentMethod(businessId: string) {
-    return handleChoosePaymentMethodLogic(this.deps, businessId);
+  handleChoosePaymentMethod(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handleChoosePaymentMethodLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
-  handlePayOnline(businessId: string) {
-    return handlePayOnlineLogic(this.deps, businessId);
+  handlePayOnline(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handlePayOnlineLogic(this.deps, businessId, params, prompt);
   }
 
-  handlePayCashAtVisit(businessId: string) {
-    return handlePayCashAtVisitLogic(this.deps, businessId);
+  handlePayCashAtVisit(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handlePayCashAtVisitLogic(this.deps, businessId, params, prompt);
   }
 
   handlePurchaseSubscriptionCheckout(
@@ -269,8 +465,19 @@ export class AiPaymentsService {
     );
   }
 
-  handleExplainWhyStripeRequired(businessId: string) {
-    return handleExplainWhyStripeRequiredLogic(this.deps, businessId);
+  handleExplainWhyStripeRequired(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+    catalogContext?: Record<string, unknown>,
+  ) {
+    return handleExplainWhyStripeRequiredLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+      catalogContext,
+    );
   }
 
   handleReceiptStatus(businessId: string, params: Record<string, any>) {
@@ -290,5 +497,12 @@ export class AiPaymentsService {
       params,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-6.2). Returns null when action is not a payments intent. */
+  dispatchIntent(
+    ctx: PaymentsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchPaymentsLogicIntent(this.deps, ctx);
   }
 }

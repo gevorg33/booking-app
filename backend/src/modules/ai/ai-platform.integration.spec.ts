@@ -97,6 +97,7 @@ describe('Sprint 15 AI platform integration', () => {
       aiSettings as any,
       platform as any,
       commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
     return { gateway, dashboardCommands, providerCommands };
   }

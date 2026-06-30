@@ -43,7 +43,7 @@ function hasReadTourDaySlotsCue(prompt: string): boolean {
 
 function hasBookingVisitorContext(prompt: string): boolean {
   return (
-    /\b(booking\s+page|online\s+booking|public\s+booking|this\s+page|on\s+this\s+page|here|catalog|when\s+(?:i\s+)?book|consumer\s+app)\b/i.test(
+    /\b(booking\s+page|online\s+booking|public\s+booking|mobile\s+booking|this\s+page|on\s+this\s+page|here|catalog|when\s+(?:i\s+)?book|consumer\s+app|in\s+the\s+app)\b/i.test(
       prompt,
     ) ||
     /(գրանցման\s+էջ|այս\s+էջ|կայք|գրանցել|ցուցադր)/i.test(prompt) ||
@@ -53,7 +53,7 @@ function hasBookingVisitorContext(prompt: string): boolean {
 
 function hasTourDaySlotsTopic(prompt: string): boolean {
   return (
-    /\b(one\s+departure|single\s+departure|one\s+(?:time\s+)?slot|day[-\s]?level|remaining\s+spots?|spots?\s+left|spots?\s+remaining|fully\s+booked|sold\s+out|no\s+(?:departure\s+)?times?|no\s+slots?|no\s+availability)\b/i.test(
+    /\b(one\s+departure|single\s+departure|one\s+time\s+per\s+day|one\s+(?:time\s+)?slot|day[-\s]?level|remaining\s+spots?|spots?\s+left|spots?\s+remaining|fully\s+booked|sold\s+out|grayed\s+out|no\s+(?:departure\s+)?times?|no\s+slots?|no\s+availability)\b/i.test(
       prompt,
     ) ||
     /\b(multi[-\s]?day\s+tours?).{0,60}\b(one|single)\b/i.test(prompt) ||
@@ -70,7 +70,7 @@ function hasTourDaySlotsTopic(prompt: string): boolean {
 
 function hasTourServiceReference(prompt: string): boolean {
   return (
-    /\b(tour|trek|excursion|hike)\b/i.test(prompt) ||
+    /\b(tours?|trek|excursion|hike)\b/i.test(prompt) ||
     /(էքսկուրսիա|տուր)/i.test(prompt) ||
     /(тур|экскурс)/i.test(prompt)
   );
@@ -213,7 +213,7 @@ function resolveTourDaySlotsAspect(prompt: string): TourDaySlotsAspect {
     /(сколько\s+мест|осталось)/i.test(prompt) ||
     /(մնաց|տեղ)/i.test(prompt);
   const fullyBooked =
-    /\b(fully\s+booked|sold\s+out|no\s+(?:departure\s+)?times?|no\s+slots?|unavailable)\b/i.test(
+    /\b(fully\s+booked|sold\s+out|grayed\s+out|no\s+(?:departure\s+)?times?|no\s+slots?|unavailable)\b/i.test(
       prompt,
     ) || /(недоступен|ամբողջությամբ\s+ամրագրված)/i.test(prompt);
 

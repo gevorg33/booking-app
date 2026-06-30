@@ -100,8 +100,13 @@ export function assertConsumerDiscoveryChipsCopyCatalog(
   for (const chip of CONSUMER_DISCOVERY_CHIP_FIXTURES) {
     expect(catalogSource).toContain(chip.id);
     expect(catalogSource).toContain(chip.fixtureId);
-    expect(catalogSource).toContain(chip.prompt);
     expect(catalogSource).toContain(chip.label);
+    if (chip.domain === 'availability') {
+      expect(catalogSource).toContain('Evening or weekend slots for {service}');
+      expect(catalogSource).toContain(`fixturePrompt: '${chip.prompt}'`);
+    } else {
+      expect(catalogSource).toContain(chip.prompt);
+    }
   }
 
   expect(catalogSource).toContain("promptKey: 'assistantDiscoverPromptUnder50'");

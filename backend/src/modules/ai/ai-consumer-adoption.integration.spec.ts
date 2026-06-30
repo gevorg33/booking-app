@@ -3,7 +3,9 @@ import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from './ai-consumer-adoption.fixtures.js';
+import { DEFAULT_BUSINESS_NOTIFICATION_SETTINGS } from '../notifications/notification.types.js';
 import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
 
 describe('Sprint adopt-6.6 — consumer adoption AI scenarios', () => {
@@ -53,6 +55,14 @@ describe('Sprint adopt-6.6 — consumer adoption AI scenarios', () => {
               action: 'enable_notifications',
               summary: 'Appointment notifications enabled.',
               details: {},
+            })),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            getBusinessSettings: jest.fn(async () => ({
+              ...DEFAULT_BUSINESS_NOTIFICATION_SETTINGS,
             })),
           },
         },

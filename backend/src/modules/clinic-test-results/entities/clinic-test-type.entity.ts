@@ -46,6 +46,12 @@ export class ClinicTestType {
   @Column({ type: 'varchar', length: 32, nullable: true })
   unit?: string | null;
 
+  @Column({ name: 'normal_low', type: 'decimal', precision: 12, scale: 4, nullable: true })
+  normalLow?: number | null;
+
+  @Column({ name: 'normal_high', type: 'decimal', precision: 12, scale: 4, nullable: true })
+  normalHigh?: number | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   price: number;
 

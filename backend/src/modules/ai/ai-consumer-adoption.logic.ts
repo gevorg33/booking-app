@@ -3,12 +3,19 @@ import { buildConsumerRebookAccountPath } from '../../common/utils/consumer-rebo
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
+import type { NotificationsService } from '../notifications/notifications.service.js';
 import type { CommandResult } from './command-completion.types.js';
+import {
+  DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES,
+  getCustomerNotificationPreferences,
+} from '../notifications/notification.types.js';
+import { buildMyNotificationsExplainCopy } from './ai-explain-my-notifications.util.js';
 
 export interface ConsumerAdoptionLogicDeps {
   publicCustomerAuthService: PublicCustomerAuthService;
   publicBookingService: PublicBookingService;
   pushNotifications: AiPushNotificationsService;
+  notificationsService: NotificationsService;
 }
 
 function failure(
@@ -46,6 +53,7 @@ function pickLastCompletedBooking<
 }
 
 export async function handleExplainMyNotificationsLogic(
+  deps: ConsumerAdoptionLogicDeps,
   businessId: string,
   params: Record<string, unknown>,
 ): Promise<CommandResult> {
@@ -58,14 +66,33 @@ export async function handleExplainMyNotificationsLogic(
     );
   }
 
-  return success(
-    'explain_my_notifications',
-    'After you book, you may receive appointment reminders by email, SMS, or WhatsApp when your salon enables them and you opt in. Push notifications appear in the consumer app when enabled on your device. Open Account → Notification preferences to review or change reminder channels.',
-    {
-      navigate: { path: 'account', query: { section: 'notifications' } },
-      channels: ['email', 'sms', 'whatsapp', 'push'],
-    },
-  );
+  const businessSettings =
+    await deps.notificationsService.getBusinessSettings(businessId);
+  let customerPrefs = DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES;
+  try {
+    const customer = await deps.publicCustomerAuthService.getCustomerById(
+      businessId,
+      customerId,
+    );
+    customerPrefs = getCustomerNotificationPreferences(customer.metadata);
+  } catch {
+    customerPrefs = DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES;
+  }
+
+  const copy = buildMyNotificationsExplainCopy({
+    businessSettings,
+    customerPrefs,
+  });
+
+  return success('explain_my_notifications', copy.summary, {
+    navigate: { path: 'account', query: { section: 'notifications' } },
+    channels: copy.salonChannels,
+    confirmations: copy.confirmations,
+    reminders: copy.reminders,
+    pushNotifications: copy.pushNotifications,
+    customerOptIn: copy.customerOptIn,
+    businessSettings: copy.businessSettings,
+  });
 }
 
 export async function handleManageNotificationPreferencesLogic(
@@ -278,7 +305,7 @@ export async function dispatchConsumerAdoptionIntent(
 ): Promise<CommandResult | null> {
   switch (action) {
     case 'explain_my_notifications':
-      return handleExplainMyNotificationsLogic(businessId, params);
+      return handleExplainMyNotificationsLogic(deps, businessId, params);
     case 'manage_notification_preferences':
       return handleManageNotificationPreferencesLogic(
         deps,

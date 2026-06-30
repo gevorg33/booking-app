@@ -56,6 +56,13 @@ function buildDeps(
         secret: 'sec',
       })),
       getEventOptions: jest.fn(() => ({ events: ['booking.created'] })),
+      deleteSubscription: jest.fn(async () => ({ deleted: true })),
+      updateSubscription: jest.fn(async (_b: string, id: string, dto: any) => ({
+        id,
+        url: 'https://hooks.example.com/a',
+        events: ['booking.created'],
+        isActive: dto.isActive ?? true,
+      })),
     } as any,
     apiKeyService: {
       listKeys: jest.fn(async () => [{ id: 'k1', name: 'Main' }]),
@@ -80,6 +87,25 @@ function buildDeps(
         setupSteps: [],
         apiBaseUrl: 'http://localhost:3001',
         makeCompatible: true,
+      })),
+    } as any,
+    openAiIntegrationService: {
+      getPublicSettings: jest.fn(async () => ({
+        configured: false,
+        usingPlatformDefault: false,
+        usage: { totalTokens: 0 },
+      })),
+      updateSettings: jest.fn(async (_businessId: string, patch: object) => ({
+        configured: true,
+        usingPlatformDefault: patch,
+        usage: { totalTokens: 0 },
+      })),
+    } as any,
+    whatsappIntegrationService: {
+      getPublicSettings: jest.fn(async () => ({
+        configured: true,
+        usingPlatformDefault: false,
+        phoneNumberId: '15551234567',
       })),
     } as any,
     accountingIntegrationService: {
@@ -204,6 +230,12 @@ describe('ai-integrations.logic', () => {
     });
     expect(byUrl.success).toBe(true);
     expect((byUrl.details as any).webhookId).toBe('wh-1');
+
+    const byPartialUrl = await handleDeleteWebhookLogic(deps, 'biz-1', {
+      url: 'hooks.example.com/a',
+    });
+    expect(byPartialUrl.success).toBe(true);
+    expect((byPartialUrl.details as any).webhookId).toBe('wh-1');
 
     const single = await handleDeleteWebhookLogic(deps, 'biz-1', {});
     expect(single.success).toBe(true);
@@ -658,6 +690,10 @@ describe('ai-integrations.logic', () => {
     const health = await handleListIntegrationHealthLogic(deps, 'biz-1');
     expect(health.success).toBe(true);
     expect((health.details as any).health.webhooks.configured).toBe(true);
+    expect((health.details as any).health.whatsapp.configured).toBe(true);
+    expect((health.details as any).health.openAi).toBeDefined();
+    expect((health.details as any).health.stripe).toBeDefined();
+    expect(health.summary).toContain('/8 integration area(s)');
     expect((health.details as any).docsAvailable).toBe(true);
 
     const noDocs = buildDeps({ integrationsDocsService: undefined });
@@ -863,6 +899,44 @@ describe('ai-integrations.logic', () => {
       },
     );
     expect(moreSteps.success).toBe(true);
+
+    const openAiCompound = await handleIntegrationsCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'configure_openai_integration',
+            params: {},
+            segment: 'Use platform default OpenAI API',
+          },
+          { action: 'configure_zapier', params: {}, segment: 'cz' },
+        ],
+      },
+    );
+    expect(openAiCompound.success).toBe(true);
+
+    const webhookMutations = await handleIntegrationsCompoundLogic(
+      deps,
+      'biz-1',
+      'compound',
+      {
+        compoundSteps: [
+          {
+            action: 'toggle_webhook',
+            params: { enabled: false, webhookId: 'wh-1' },
+            segment: 'disable webhook wh-1',
+          },
+          {
+            action: 'delete_webhook',
+            params: { webhookId: 'wh-1' },
+            segment: 'delete webhook wh-1',
+          },
+        ],
+      },
+    );
+    expect(webhookMutations.success).toBe(true);
 
     const createThenTest = await handleIntegrationsCompoundLogic(
       deps,

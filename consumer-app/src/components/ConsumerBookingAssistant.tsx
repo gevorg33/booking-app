@@ -7,6 +7,7 @@ import {
 import { close, send, sparkles } from 'ionicons/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { getConsumerDiscoveryChips } from '../lib/consumer-discovery-chips.js';
@@ -19,7 +20,14 @@ import { ConsumerBodyPortal } from './ConsumerBodyPortal.js';
 import {
   sendPublicAssistantMessage,
   type PublicAssistantResponse,
+  fetchPublicProviders,
 } from '../services/public-api.js';
+import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js';
+import { buildConsumerAssistantExamples } from '../lib/consumer-assistant-examples.util.js';
+import {
+  mapPublicProvidersForAssistantExamples,
+  mapPublicServicesForAssistantExamples,
+} from '../lib/assistant-example-tenant.util.js';
 import {
   buildProviderBookingPrompt,
   normalizeAvailableProviders,
@@ -29,7 +37,22 @@ import {
   buildPublicAssistantCheckoutNavigate,
   shouldAutoNavigateAssistantCheckout,
 } from '../lib/public-assistant-checkout.util.js';
+import {
+  hasConsumerAssistantGuideSteps,
+} from '../lib/consumer-assistant-guide.util.js';
+import {
+  resolveAssistantModePayload,
+  withAssistantModeContext,
+  withGuideTopicSeedContext,
+} from '../lib/assistant-mode.util.js';
+import {
+  MOBILE_GUIDE_ASSISTANT_SEED_EVENT,
+  type MobileGuideAssistantSeedDetail,
+} from '@mobile-guide/mobile-guide-topic-ask.util.ts';
+import { ConsumerAiGuidePanel } from './ConsumerAiGuidePanel.js';
+import type { ConsumerAiGuideResponse } from '../lib/consumer-assistant-guide.util.js';
 import { buildConsumerAssistantHref } from '../lib/consumer-assistant-navigate.util.js';
+import { buildConsumerGuidePath } from '../lib/consumer-guide.util.js';
 import { AiAvailableProvidersPanel } from './AiAvailableProvidersPanel.js';
 import {
   ConsumerAiSpeakReplyButton,
@@ -40,12 +63,15 @@ import {
   type SpeechRecognitionErrorCode,
 } from '../lib/use-speech-recognition.js';
 import { loadRecentSalons } from '../lib/recent-salons.js';
+import { loadPendingCheckoutPayment } from '../lib/checkout-payment.util.js';
+import { buildConsumerAssistantPageContext } from '../lib/public-booking-assistant-context.util.js';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   navigate?: PublicAssistantResponse['navigate'];
+  guide?: ConsumerAiGuideResponse;
   success?: boolean;
   details?: Record<string, unknown>;
 }
@@ -59,19 +85,6 @@ interface SessionContext {
   screen?: string | null;
   recentSalons?: Array<{ slug: string; name: string }>;
 }
-
-const EXAMPLE_KEYS = [
-  'assistantExampleAvailable',
-  'assistantExampleServices',
-  'assistantExampleBook',
-  'assistantExampleLocation',
-  'assistantExampleSubscriptions',
-  'assistantExampleRebook',
-  'assistantExampleReferral',
-  'assistantExampleNotifications',
-  'assistantExampleSavedSalons',
-  'assistantExampleExportData',
-] as const;
 
 export function ConsumerBookingAssistant({
   slug,
@@ -93,23 +106,57 @@ export function ConsumerBookingAssistant({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [guideMode, setGuideMode] = useState(false);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
-  const assistantContext = useMemo(
+  const { data: services = [] } = useCachedTenantServices(slug);
+  const { data: providers = [] } = useQuery({
+    queryKey: ['providers', slug, locale, 'assistant-examples'],
+    queryFn: () => fetchPublicProviders(slug, { locale }),
+    enabled: Boolean(slug),
+    staleTime: 60_000,
+  });
+  const exampleTenant = useMemo(
     () => ({
-      ...sessionContext,
-      screen: location.pathname,
-      recentSalons: loadRecentSalons().map((salon) => ({
-        slug: salon.slug,
-        name: salon.name,
-      })),
+      services: mapPublicServicesForAssistantExamples(services),
+      providers: mapPublicProvidersForAssistantExamples(providers),
     }),
-    [location.pathname, sessionContext, open],
+    [providers, services],
+  );
+  const examples = useMemo(
+    () => buildConsumerAssistantExamples(copy, guideMode, exampleTenant),
+    [copy, exampleTenant, guideMode],
+  );
+  const assistantContext = useMemo(
+    () => {
+      const pendingCheckout = loadPendingCheckoutPayment(slug);
+      return {
+        ...sessionContext,
+        ...buildConsumerAssistantPageContext(location.pathname, {
+          slotSelected: Boolean(sessionContext.timeSlot),
+        }),
+        recentSalons: loadRecentSalons().map((salon) => ({
+          slug: salon.slug,
+          name: salon.name,
+        })),
+        ...(pendingCheckout
+          ? {
+              pendingCheckoutSessionId: pendingCheckout.sessionId,
+              pendingCheckoutServiceId: pendingCheckout.serviceId,
+              pendingCheckoutStartTime: pendingCheckout.startTime,
+            }
+          : {}),
+      };
+    },
+    [location.pathname, sessionContext, open, slug],
   );
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
   const fabBottomInset = useMemo(() => getConsumerFabDefaultBottomInset(), []);
-  const discoveryChips = useMemo(() => getConsumerDiscoveryChips(copy), [copy]);
+  const discoveryChips = useMemo(
+    () => getConsumerDiscoveryChips(copy, exampleTenant),
+    [copy, exampleTenant],
+  );
   const estimatedSize = useMemo(() => {
     const fab = { width: 56, height: 56 };
     if (!viewport.width) return fab;
@@ -127,6 +174,11 @@ export function ConsumerBookingAssistant({
       estimatedSize,
       defaultBottomInset: fabBottomInset,
     });
+
+  const openNativeGuide = useCallback(() => {
+    history.push(buildConsumerGuidePath(slug));
+    setOpen(false);
+  }, [history, slug]);
 
   const closeAssistant = useCallback(() => {
     setOpen(false);
@@ -160,9 +212,15 @@ export function ConsumerBookingAssistant({
   );
 
   const submit = useCallback(
-    async (overridePrompt?: string) => {
+    async (
+      overridePrompt?: string,
+      seed?: { guideTopicId?: string; forceGuideMode?: boolean },
+    ) => {
       const prompt = (overridePrompt ?? input).trim();
       if (!prompt || loading) return;
+
+      const activeGuideMode = seed?.forceGuideMode ? true : guideMode;
+      if (seed?.forceGuideMode) setGuideMode(true);
 
       setMessages((prev) => [
         ...prev,
@@ -174,11 +232,19 @@ export function ConsumerBookingAssistant({
       const historyPayload = messages.map((m) => ({ role: m.role, content: m.text }));
 
       try {
+        const assistantMode = resolveAssistantModePayload(activeGuideMode);
         const result = await sendPublicAssistantMessage(slug, {
           prompt,
           history: historyPayload,
-          context: assistantContext as Record<string, unknown>,
+          context: withGuideTopicSeedContext(
+            withAssistantModeContext(
+              assistantContext as Record<string, unknown>,
+              activeGuideMode,
+            ),
+            seed?.guideTopicId,
+          ),
           locale,
+          ...(assistantMode ? { assistantMode } : {}),
         });
 
         setMessages((prev) => [
@@ -188,6 +254,7 @@ export function ConsumerBookingAssistant({
             role: 'assistant',
             text: result.summary,
             navigate: result.navigate,
+            guide: result.guide,
             success: result.success,
             details: result.details,
           },
@@ -220,6 +287,7 @@ export function ConsumerBookingAssistant({
       assistantContext,
       copy.assistantErrorGeneric,
       followNavigate,
+      guideMode,
       input,
       loading,
       locale,
@@ -227,6 +295,20 @@ export function ConsumerBookingAssistant({
       slug,
     ],
   );
+
+  useEffect(() => {
+    const onGuideSeed = (event: Event) => {
+      const detail = (event as CustomEvent<MobileGuideAssistantSeedDetail>).detail;
+      if (!detail?.prompt?.trim() || !detail.topicId?.trim()) return;
+      setOpen(true);
+      void submit(detail.prompt, {
+        guideTopicId: detail.topicId,
+        forceGuideMode: true,
+      });
+    };
+    window.addEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+    return () => window.removeEventListener(MOBILE_GUIDE_ASSISTANT_SEED_EVENT, onGuideSeed);
+  }, [submit]);
 
   const handleProviderSlotSelect = useCallback(
     (
@@ -391,7 +473,52 @@ export function ConsumerBookingAssistant({
           >
             {messages.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
-                <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>{copy.assistantHint}</p>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    justifyContent: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={guideMode}
+                    title={copy.assistantHelpChipHint}
+                    onClick={() => setGuideMode((active) => !active)}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: guideMode ? primary : '#6b7280',
+                      background: guideMode ? `${primary}14` : '#f9fafb',
+                      border: `1px solid ${guideMode ? `${primary}55` : '#e5e7eb'}`,
+                      borderRadius: 999,
+                      padding: '8px 14px',
+                    }}
+                  >
+                    {copy.assistantHelpChip}
+                  </button>
+                  <button
+                    type="button"
+                    title={copy.guidePageAccountEntryHint}
+                    onClick={openNativeGuide}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: primary,
+                      background: `${primary}14`,
+                      border: `1px solid ${primary}33`,
+                      borderRadius: 999,
+                      padding: '8px 14px',
+                    }}
+                  >
+                    {copy.assistantOpenGuideChip}
+                  </button>
+                </div>
+                <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>
+                  {guideMode ? copy.assistantGuideExamples : copy.assistantHint}
+                </p>
                 <div style={{ marginBottom: 16 }}>
                   <p
                     style={{
@@ -434,13 +561,11 @@ export function ConsumerBookingAssistant({
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {EXAMPLE_KEYS.map((key) => {
-                    const example = copy[key];
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setInput(example)}
+                  {examples.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => setInput(example)}
                         style={{
                           width: '100%',
                           textAlign: 'left',
@@ -454,8 +579,7 @@ export function ConsumerBookingAssistant({
                       >
                         &ldquo;{example}&rdquo;
                       </button>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             ) : null}
@@ -512,7 +636,26 @@ export function ConsumerBookingAssistant({
                       ...bubbleStyle,
                     }}
                   >
-                    <p style={{ margin: 0 }}>{msg.text}</p>
+                    {hasConsumerAssistantGuideSteps(msg.guide) ? (
+                      <ConsumerAiGuidePanel
+                        guide={msg.guide}
+                        copy={copy}
+                        onNavigate={(href) => {
+                          const nav = buildConsumerAssistantHref(slug, {
+                            path: href.split('?')[0] ?? href,
+                            query: Object.fromEntries(
+                              new URLSearchParams(href.split('?')[1] ?? ''),
+                            ),
+                          });
+                          if (nav) {
+                            history.push(nav);
+                            setOpen(false);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <p style={{ margin: 0 }}>{msg.text}</p>
+                    )}
                     {availableProviders.length > 0 ? (
                       <AiAvailableProvidersPanel
                         providers={availableProviders}

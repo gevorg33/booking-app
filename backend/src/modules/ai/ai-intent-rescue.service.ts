@@ -30,6 +30,29 @@ import {
   disambiguateGiftCardPaymentsAction,
 } from './ai-gift-card-payments-hints.util.js';
 import { enrichServiceOnlinePaymentParamsFromPrompt } from './ai-service-online-payment.util.js';
+import { enrichServiceDepositPolicyParamsFromPrompt } from './ai-service-deposit-policy.util.js';
+import { enrichExplainServicePriceParamsFromPrompt } from './ai-explain-service-price.util.js';
+import { enrichExplainPaymentOptionsParamsFromPrompt } from './ai-explain-payment-options-for-service.util.js';
+import { enrichFindSoonestParamsFromPrompt } from './ai-find-soonest-appointment.util.js';
+import { enrichCompareServicesParamsFromPrompt } from './ai-compare-services.util.js';
+import {
+  enrichFilterServicesNoPrepaymentParamsFromPrompt,
+  rescueFilterServicesNoPrepaymentIntent,
+} from './ai-filter-services-no-prepayment.util.js';
+import { enrichExplainBusinessHoursLocationParamsFromPrompt } from './ai-explain-business-hours-and-location.util.js';
+import {
+  enrichCreateServicePrepaymentParamsFromPrompt,
+  enrichCreateServicesPrepaymentParamsFromPrompt,
+  rescueCreateServicePrepaymentIntent,
+} from './ai-create-service-prepayment.util.js';
+import {
+  enrichListServicesPaymentFilterParamsFromPrompt,
+  rescueListServicesPaymentFilterIntent,
+} from './ai-list-services-payment-filters.util.js';
+import { enrichConfigureServiceFeaturedParamsFromPrompt } from './ai-configure-service-featured.util.js';
+import { enrichBulkAssignServicesCategoryParamsFromPrompt } from './ai-bulk-assign-services-category.util.js';
+import { enrichConfigurePackageOnlinePaymentParamsFromPrompt } from './ai-configure-package-online-payment.util.js';
+import { enrichDeactivateServiceCategoryScopeParamsFromPrompt } from './ai-deactivate-service-category-scope.util.js';
 import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
@@ -78,6 +101,8 @@ import {
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
 import { rescueBudgetServiceDiscoveryIntent, enrichBudgetFromPrompt } from './ai-budget-service-discovery.util.js';
+import { rescueProductGuideMisroute } from './ai-product-guide.util.js';
+import type { AssistantMode } from './ai-assistant-mode.util.js';
 import {
   disambiguateMisclassifiedAvailabilityIntent,
   resolveAvailabilityIntentFromPrompt,
@@ -137,6 +162,11 @@ import {
   rescueNotificationDateFormatIntent,
 } from './ai-notification-date-format.util.js';
 import { rescueBookingLanguagesIntent } from './ai-booking-languages.util.js';
+import { rescueExplainBusinessHoursAndLocationIntent } from './ai-explain-business-hours-and-location.util.js';
+import {
+  enrichExplainProviderSpecialtyParamsFromPrompt,
+  rescueExplainProviderSpecialtyIntent,
+} from './ai-explain-provider-specialty.util.js';
 import { rescueBookingDateFormatIntent } from './ai-booking-date-format.util.js';
 import {
   parsePackageLocalizedNamesFromPrompt,
@@ -186,6 +216,11 @@ import {
   rescueExplainClinicBookingIntent,
 } from './ai-clinic-booking.util.js';
 import {
+  parseExplainGuestCheckoutFieldsFromPrompt,
+  rescueExplainGuestCheckoutFieldsIntent,
+} from './ai-explain-guest-checkout-fields.util.js';
+import { rescueResumePendingPaymentIntent } from './ai-resume-pending-payment.util.js';
+import {
   parseDiagnoseTourCapacityFromPrompt,
   rescueDiagnoseTourCapacityIntent,
 } from './ai-tour-capacity.util.js';
@@ -209,8 +244,15 @@ import {
 } from './ai-clinic-test-order.util.js';
 import { rescueClinicCompoundIntent } from './ai-clinic-compound.util.js';
 import { rescueClinicLabDayCloseCompoundIntent } from './ai-clinic-lab-day-close-compound.util.js';
+import { rescueClinicLabReviewCompoundIntent } from './ai-clinic-lab-review-compound.util.js';
 import { rescueBudgetDiscoverAndBookCompoundIntent } from './ai-budget-discover-and-book-compound.util.js';
 import { rescueRankDiscoverAndBookCompoundIntent } from './ai-rank-discover-and-book-compound.util.js';
+import { rescueSetupSalonCheckoutCompoundIntent } from './ai-setup-salon-checkout-compound.util.js';
+import { rescueConfigureServicesPaymentMatrixCompoundIntent } from './ai-configure-services-payment-matrix-compound.util.js';
+import { rescueCashAndOnlinePaymentCompoundIntent } from './ai-cash-online-payment-compound.util.js';
+import { rescueDeclineOnlinePaymentCategoryCompoundIntent } from './ai-decline-online-payment-category-compound.util.js';
+import { rescueOnboardSalonNotificationsCompoundIntent } from './ai-onboard-salon-notifications-compound.util.js';
+import { rescueLaunchConsumerAppGrowthCompoundIntent } from './ai-launch-consumer-app-growth-compound.util.js';
 import { enrichServiceRankFromPrompt } from './ai-service-rank-discovery.util.js';
 import {
   parseEnterTestResultFromPrompt,
@@ -365,6 +407,8 @@ export interface IntentRescueInput {
   timeZone?: string;
   /** When set, budget discovery rescue uses surface-specific misroute mapping. */
   surface?: 'dashboard' | 'customer' | 'public' | 'provider';
+  /** ai-guide-1.0.3 — explicit guide vs act routing from request or inference. */
+  assistantMode?: AssistantMode;
   /**
    * pipe-1.5.2 — param hints from semantic_match winner only.
    * Never used to pick or override rescue action.
@@ -436,6 +480,16 @@ const READ_ONLY_ACTIONS = new Set([
   'export_accounting',
   'export_commissions',
   'explain_checkout_total',
+  'explain_amount_due_now',
+  'explain_guest_checkout_fields',
+  'resume_pending_payment',
+  'explain_service_price',
+  'explain_payment_options_for_service',
+  'find_soonest_appointment',
+  'compare_services',
+  'filter_services_no_prepayment',
+  'explain_business_hours_and_location',
+  'explain_provider_specialty',
   'list_subscription_revenue',
   'explain_business_currency',
   'explain_checkout_currency',
@@ -487,6 +541,13 @@ export class AiIntentRescueService {
   runRescueProviderPhase(input: IntentRescueInput): IntentRescueResult | null {
     const { prompt, action } = input;
     if (input.surface !== 'provider') return null;
+      const productGuideMisroute = this.tryRescueProductGuideMisroute(
+        prompt,
+        action,
+        input.surface,
+        input.assistantMode,
+      );
+      if (productGuideMisroute) return productGuideMisroute;
       const providerBookingExact = this.tryRescueProviderBooking(prompt, action);
       if (providerBookingExact) return providerBookingExact;
       const providerClientContextExact =
@@ -519,6 +580,19 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const { prompt, action, params } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
+      const productGuideMisroute = this.tryRescueProductGuideMisroute(
+        prompt,
+        action,
+        input.surface,
+        input.assistantMode,
+      );
+      if (productGuideMisroute) return productGuideMisroute;
+      const createServicePrepaymentEarly =
+        this.tryRescueCreateServicePrepayment(prompt, action);
+      if (createServicePrepaymentEarly) return createServicePrepaymentEarly;
+      const listServicesPaymentFilterEarly =
+        this.tryRescueListServicesPaymentFilter(prompt, action);
+      if (listServicesPaymentFilterEarly) return listServicesPaymentFilterEarly;
       const budgetDiscoveryEarly = this.tryRescueBudgetServiceDiscovery(
         prompt,
         action,
@@ -531,6 +605,45 @@ export class AiIntentRescueService {
         budgetSurface,
       );
       if (rankDiscoveryEarly) return rankDiscoveryEarly;
+      const salonCheckoutEarly = this.tryRescueSetupSalonCheckoutCompound(
+        prompt,
+        action,
+        budgetSurface,
+      );
+      if (salonCheckoutEarly) return salonCheckoutEarly;
+      const paymentMatrixEarly = this.tryRescueConfigureServicesPaymentMatrixCompound(
+        prompt,
+        action,
+        budgetSurface,
+      );
+      if (paymentMatrixEarly) return paymentMatrixEarly;
+      const cashOnlineEarly = this.tryRescueCashAndOnlinePaymentCompound(
+        prompt,
+        action,
+        budgetSurface,
+      );
+      if (cashOnlineEarly) return cashOnlineEarly;
+      const declineCategoryEarly =
+        this.tryRescueDeclineOnlinePaymentCategoryCompound(
+          prompt,
+          action,
+          budgetSurface,
+        );
+      if (declineCategoryEarly) return declineCategoryEarly;
+      const salonNotificationsEarly =
+        this.tryRescueOnboardSalonNotificationsCompound(
+          prompt,
+          action,
+          budgetSurface,
+        );
+      if (salonNotificationsEarly) return salonNotificationsEarly;
+      const consumerAppGrowthEarly =
+        this.tryRescueLaunchConsumerAppGrowthCompound(
+          prompt,
+          action,
+          budgetSurface,
+        );
+      if (consumerAppGrowthEarly) return consumerAppGrowthEarly;
       const disambiguated = this.disambiguateMisclassified(
         prompt,
         action,
@@ -542,6 +655,15 @@ export class AiIntentRescueService {
       if (disambiguated) return disambiguated;
       const clinicCompoundEarly = this.tryRescueClinicCompound(prompt, action);
       if (clinicCompoundEarly) return clinicCompoundEarly;
+      const explainGuestCheckoutFieldsEarly =
+        this.tryRescueExplainGuestCheckoutFields(prompt, action);
+      if (explainGuestCheckoutFieldsEarly) return explainGuestCheckoutFieldsEarly;
+      const resumePendingPaymentEarly = this.tryRescueResumePendingPayment(
+        prompt,
+        action,
+        input.surface,
+      );
+      if (resumePendingPaymentEarly) return resumePendingPaymentEarly;
       const explainClinicBookingEarly = this.tryRescueExplainClinicBooking(
         prompt,
         action,
@@ -705,6 +827,14 @@ export class AiIntentRescueService {
     );
     if (reportsCurrencyUnknown) return reportsCurrencyUnknown;
 
+    const createServicePrepaymentUnknown =
+      this.tryRescueCreateServicePrepayment(prompt, action);
+    if (createServicePrepaymentUnknown) return createServicePrepaymentUnknown;
+
+    const listServicesPaymentFilterUnknown =
+      this.tryRescueListServicesPaymentFilter(prompt, action);
+    if (listServicesPaymentFilterUnknown) return listServicesPaymentFilterUnknown;
+
     const budgetDiscoveryUnknown = this.tryRescueBudgetServiceDiscovery(
       prompt,
       action,
@@ -811,6 +941,17 @@ export class AiIntentRescueService {
     if (dashboardClinicLabBookingUnknown)
       return dashboardClinicLabBookingUnknown;
 
+    const explainGuestCheckoutFieldsUnknown =
+      this.tryRescueExplainGuestCheckoutFields(prompt, action);
+    if (explainGuestCheckoutFieldsUnknown) return explainGuestCheckoutFieldsUnknown;
+
+    const resumePendingPaymentUnknown = this.tryRescueResumePendingPayment(
+      prompt,
+      action,
+      input.surface,
+    );
+    if (resumePendingPaymentUnknown) return resumePendingPaymentUnknown;
+
     const explainClinicBookingUnknown = this.tryRescueExplainClinicBooking(
       prompt,
       action,
@@ -909,6 +1050,10 @@ export class AiIntentRescueService {
       return notificationCurrencyUnknownEarly;
     }
 
+    const checkoutRecommendationsUnknown =
+      this.tryRescueCheckoutRecommendations(prompt, action);
+    if (checkoutRecommendationsUnknown) return checkoutRecommendationsUnknown;
+
     const consumerAdoptionUnknownEarly = this.tryRescueConsumerAdoption(
       prompt,
       action,
@@ -920,10 +1065,6 @@ export class AiIntentRescueService {
     if (recommendationProductUnknownBeforeCheckout) {
       return recommendationProductUnknownBeforeCheckout;
     }
-
-    const checkoutRecommendationsUnknown =
-      this.tryRescueCheckoutRecommendations(prompt, action);
-    if (checkoutRecommendationsUnknown) return checkoutRecommendationsUnknown;
 
     const tourConsumerEarly = this.tryRescueTourConsumer(prompt, action);
     if (tourConsumerEarly) return tourConsumerEarly;
@@ -1861,6 +2002,21 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const salonNotifications = rescueOnboardSalonNotificationsCompoundIntent(
+      prompt,
+      action,
+    );
+    if (salonNotifications) {
+      return {
+        action: salonNotifications.action,
+        params: {},
+        reasoning:
+          'Salon notification onboarding compound — notification settings, WhatsApp integration, test push.',
+        rescued: true,
+        rescueReason: salonNotifications.rescueReason,
+      };
+    }
+
     const rescued = rescuePushNotificationsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     return {
@@ -1876,6 +2032,21 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const consumerAppGrowth = rescueLaunchConsumerAppGrowthCompoundIntent(
+      prompt,
+      action,
+    );
+    if (consumerAppGrowth) {
+      return {
+        action: consumerAppGrowth.action,
+        params: {},
+        reasoning:
+          'Consumer app growth launch compound — explain install QR, regenerate assets, marketing registration email.',
+        rescued: true,
+        rescueReason: consumerAppGrowth.rescueReason,
+      };
+    }
+
     const rescued = rescueMarketingGrowthIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     return {
@@ -1957,6 +2128,59 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueProductGuideMisroute(
+    prompt: string,
+    action: string,
+    surface?: IntentRescueInput['surface'],
+    assistantMode?: AssistantMode,
+  ): IntentRescueResult | null {
+    const rescued = rescueProductGuideMisroute(prompt, action, {
+      surface,
+      assistantMode,
+    });
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Product guide misroute guard → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueCreateServicePrepayment(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueCreateServicePrepaymentIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params:
+        rescued.action === 'create_services'
+          ? enrichCreateServicesPrepaymentParamsFromPrompt({}, prompt)
+          : enrichCreateServicePrepaymentParamsFromPrompt({}, prompt),
+      reasoning: `Create service prepayment rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueListServicesPaymentFilter(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueListServicesPaymentFilterIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: enrichListServicesPaymentFilterParamsFromPrompt({}, prompt),
+      reasoning: `Service catalog payment filter rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueBudgetServiceDiscovery(
     prompt: string,
     action: string,
@@ -2005,7 +2229,127 @@ export class AiIntentRescueService {
         prompt,
       ),
       reasoning:
-        'Rank discover and book compound — rank catalog, check providers, create booking.',
+        'Rank discover and book compound — filter catalog, check providers, create booking.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueSetupSalonCheckoutCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueSetupSalonCheckoutCompoundIntent(prompt, action);
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Salon checkout setup compound — Stripe guide, cash, online prepayment, booking page.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueConfigureServicesPaymentMatrixCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueConfigureServicesPaymentMatrixCompoundIntent(
+      prompt,
+      action,
+    );
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Services payment matrix compound — optional price update, per-category online payment, cash.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueCashAndOnlinePaymentCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueCashAndOnlinePaymentCompoundIntent(prompt, action);
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Cash + online payment compound — configure cash then per-service online payment.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueDeclineOnlinePaymentCategoryCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueDeclineOnlinePaymentCategoryCompoundIntent(
+      prompt,
+      action,
+    );
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Decline/accept category payment compound — per-category online payment split.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueOnboardSalonNotificationsCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueOnboardSalonNotificationsCompoundIntent(
+      prompt,
+      action,
+    );
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Salon notification onboarding compound — notification settings, WhatsApp integration, test push.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
+    };
+  }
+
+  private tryRescueLaunchConsumerAppGrowthCompound(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public',
+  ): IntentRescueResult | null {
+    if (surface !== 'dashboard') return null;
+    const compound = rescueLaunchConsumerAppGrowthCompoundIntent(
+      prompt,
+      action,
+    );
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Consumer app growth launch compound — explain install QR, regenerate assets, marketing registration email.',
       rescued: true,
       rescueReason: compound.rescueReason,
     };
@@ -2262,6 +2606,31 @@ export class AiIntentRescueService {
         reasoning: `Booking languages rescue → ${bookingLanguages.action}`,
         rescued: true,
         rescueReason: bookingLanguages.rescueReason,
+      };
+    }
+
+    const businessHoursLocation = rescueExplainBusinessHoursAndLocationIntent(
+      prompt,
+      action,
+    );
+    if (businessHoursLocation) {
+      return {
+        action: businessHoursLocation.action,
+        params: enrichExplainBusinessHoursLocationParamsFromPrompt({}, prompt),
+        reasoning: `Business hours/location rescue → ${businessHoursLocation.action}`,
+        rescued: true,
+        rescueReason: businessHoursLocation.rescueReason,
+      };
+    }
+
+    const providerSpecialty = rescueExplainProviderSpecialtyIntent(prompt, action);
+    if (providerSpecialty) {
+      return {
+        action: providerSpecialty.action,
+        params: enrichExplainProviderSpecialtyParamsFromPrompt({}, prompt),
+        reasoning: `Provider specialty rescue → ${providerSpecialty.action}`,
+        rescued: true,
+        rescueReason: providerSpecialty.rescueReason,
       };
     }
 
@@ -2906,6 +3275,60 @@ export class AiIntentRescueService {
     prompt: string,
     action: string,
   ): IntentRescueResult | null {
+    const salonCheckout = rescueSetupSalonCheckoutCompoundIntent(prompt, action);
+    if (salonCheckout) {
+      return {
+        action: salonCheckout.action,
+        params: {},
+        reasoning:
+          'Salon checkout setup compound — Stripe guide, cash, online prepayment, booking page.',
+        rescued: true,
+        rescueReason: salonCheckout.rescueReason,
+      };
+    }
+
+    const paymentMatrix = rescueConfigureServicesPaymentMatrixCompoundIntent(
+      prompt,
+      action,
+    );
+    if (paymentMatrix) {
+      return {
+        action: paymentMatrix.action,
+        params: {},
+        reasoning:
+          'Services payment matrix compound — optional price update, per-category online payment, cash.',
+        rescued: true,
+        rescueReason: paymentMatrix.rescueReason,
+      };
+    }
+
+    const cashOnline = rescueCashAndOnlinePaymentCompoundIntent(prompt, action);
+    if (cashOnline) {
+      return {
+        action: cashOnline.action,
+        params: {},
+        reasoning:
+          'Cash + online payment compound — configure cash then per-service online payment.',
+        rescued: true,
+        rescueReason: cashOnline.rescueReason,
+      };
+    }
+
+    const declineCategory = rescueDeclineOnlinePaymentCategoryCompoundIntent(
+      prompt,
+      action,
+    );
+    if (declineCategory) {
+      return {
+        action: declineCategory.action,
+        params: {},
+        reasoning:
+          'Decline/accept category payment compound — per-category online payment split.',
+        rescued: true,
+        rescueReason: declineCategory.rescueReason,
+      };
+    }
+
     const disambiguated = disambiguateGiftCardPaymentsAction(prompt, action);
     if (disambiguated && disambiguated.action !== action) {
       const rescuedParams: Record<string, any> = {};
@@ -2931,6 +3354,69 @@ export class AiIntentRescueService {
       Object.assign(
         rescuedParams,
         enrichServiceOnlinePaymentParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'configure_service_deposit_policy') {
+      Object.assign(
+        rescuedParams,
+        enrichServiceDepositPolicyParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'explain_service_price') {
+      Object.assign(
+        rescuedParams,
+        enrichExplainServicePriceParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'explain_payment_options_for_service') {
+      Object.assign(
+        rescuedParams,
+        enrichExplainPaymentOptionsParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'find_soonest_appointment') {
+      Object.assign(
+        rescuedParams,
+        enrichFindSoonestParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'compare_services') {
+      Object.assign(
+        rescuedParams,
+        enrichCompareServicesParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'filter_services_no_prepayment') {
+      Object.assign(
+        rescuedParams,
+        enrichFilterServicesNoPrepaymentParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if ((rescued.action as string) === 'explain_business_hours_and_location') {
+      Object.assign(
+        rescuedParams,
+        enrichExplainBusinessHoursLocationParamsFromPrompt(
+          rescuedParams,
+          prompt,
+        ),
+      );
+    }
+    if (rescued.action === 'list_services') {
+      Object.assign(
+        rescuedParams,
+        enrichListServicesPaymentFilterParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'create_service') {
+      Object.assign(
+        rescuedParams,
+        enrichCreateServicePrepaymentParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if (rescued.action === 'create_services') {
+      Object.assign(
+        rescuedParams,
+        enrichCreateServicesPrepaymentParamsFromPrompt(rescuedParams, prompt),
       );
     }
     return {
@@ -3203,6 +3689,42 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueExplainGuestCheckoutFields(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainGuestCheckoutFieldsIntent(prompt, action);
+    if (!rescued) return null;
+    const parsed = parseExplainGuestCheckoutFieldsFromPrompt(prompt);
+    if (!parsed) return null;
+
+    return {
+      action: rescued.action,
+      params: { aspect: parsed.aspect },
+      reasoning: `Guest checkout fields explain rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueResumePendingPayment(
+    prompt: string,
+    action: string,
+    surface?: 'dashboard' | 'customer' | 'public' | 'provider',
+  ): IntentRescueResult | null {
+    if (surface !== 'customer') return null;
+    const rescued = rescueResumePendingPaymentIntent(prompt, action);
+    if (!rescued) return null;
+
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Resume pending payment rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueExplainClinicBooking(
     prompt: string,
     action: string,
@@ -3394,6 +3916,30 @@ export class AiIntentRescueService {
     };
     enrichServiceCategoryRescueParams(rescued.action, params, prompt);
     enrichCatalogNotifyRescueParams(rescued.action, params, prompt);
+    if (rescued.action === 'configure_service_featured') {
+      Object.assign(
+        params,
+        enrichConfigureServiceFeaturedParamsFromPrompt(params, prompt),
+      );
+    }
+    if (rescued.action === 'bulk_assign_services_category') {
+      Object.assign(
+        params,
+        enrichBulkAssignServicesCategoryParamsFromPrompt(params, prompt),
+      );
+    }
+    if (rescued.action === 'configure_package_online_payment') {
+      Object.assign(
+        params,
+        enrichConfigurePackageOnlinePaymentParamsFromPrompt(params, prompt),
+      );
+    }
+    if (rescued.action === 'deactivate_service') {
+      Object.assign(
+        params,
+        enrichDeactivateServiceCategoryScopeParamsFromPrompt(params, prompt),
+      );
+    }
     return {
       action: rescued.action,
       params,
@@ -3793,6 +4339,17 @@ export class AiIntentRescueService {
           'Clinic lab day close compound — list orders, enter results, release, notify.',
         rescued: true,
         rescueReason: labDayClose.rescueReason,
+      };
+    }
+    const labReview = rescueClinicLabReviewCompoundIntent(prompt, action);
+    if (labReview) {
+      return {
+        action: labReview.action,
+        params: {},
+        reasoning:
+          'Clinic lab review compound — list abnormal flags, then explain results.',
+        rescued: true,
+        rescueReason: labReview.rescueReason,
       };
     }
     const rescued = rescueClinicCompoundIntent(prompt, action);

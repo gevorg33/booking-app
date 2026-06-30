@@ -41,6 +41,16 @@ function buildDeps(
       })),
       getProviderStatus: jest.fn(),
     } as any,
+    whatsappIntegrationService: {
+      getPublicSettings: jest.fn(async () => ({
+        configured: false,
+        usingPlatformDefault: false,
+      })),
+      updateSettings: jest.fn(async (_businessId: string, patch: object) => ({
+        configured: true,
+        ...patch,
+      })),
+    } as any,
     pushService: {
       isConfigured: true,
       sendToUser: jest.fn(async () => 1),
@@ -603,6 +613,16 @@ describe('ai-push-notifications.logic', () => {
             action: 'configure_push_recipients',
             params: {},
             segment: 'recipients',
+          },
+          {
+            action: 'configure_notification_settings',
+            params: {},
+            segment: 'Turn on email notifications for the salon',
+          },
+          {
+            action: 'configure_whatsapp_integration',
+            params: {},
+            segment: 'Use platform default WhatsApp connection',
           },
           {
             action: 'test_push',

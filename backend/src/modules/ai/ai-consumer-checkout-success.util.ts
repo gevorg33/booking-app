@@ -129,6 +129,9 @@ function isProductRecommendationDetailPrompt(prompt: string): boolean {
 
   return (
     /\b(?:which|what)\s+products?\b/i.test(prompt) ||
+    /ինչ\s+ապրանք/i.test(prompt) ||
+    /какие\s+товар/i.test(prompt) ||
+    /(товар|ապրանք).{0,48}(показыва|ցուցադրվ)/i.test(prompt) ||
     /\bwhy am i seeing\b/i.test(prompt) ||
     /\b(?:shop|external)\s+links?\b/i.test(prompt) ||
     /\bhow (?:were|were these)\b.+\b(?:chosen|picked|selected)\b/i.test(

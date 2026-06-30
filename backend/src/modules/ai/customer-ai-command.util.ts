@@ -13,6 +13,7 @@ import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from './ai-booking-date-format.f
 import { TOUR_BOOKING_CLASSIFIER_RULES } from './ai-tour-booking.fixtures.js';
 import { TOUR_CAPACITY_CLASSIFIER_RULES } from './ai-tour-capacity.fixtures.js';
 import { CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from './ai-checkout-recommendations.fixtures.js';
+import { CHECKOUT_RECOMMENDATIONS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-checkout-recommendations-multilingual.fixtures.js';
 import { CONSUMER_CHECKOUT_SUCCESS_CLASSIFIER_RULES } from './ai-consumer-checkout-success.fixtures.js';
 import { CONSUMER_CHECKOUT_SUCCESS_EN_CLASSIFIER_RULES } from './ai-consumer-checkout-success-en.fixtures.js';
 import { CONSUMER_CHECKOUT_TAX_CLASSIFIER_RULES } from './ai-consumer-checkout-tax.fixtures.js';
@@ -21,6 +22,43 @@ import { DATA_RIGHTS_CLASSIFIER_RULES } from './ai-data-rights.fixtures.js';
 import { CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from './ai-clinic-v2-6.fixtures.js';
 import { CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES } from './ai-consumer-package-booking.fixtures.js';
 import { CONSUMER_ADOPTION_CLASSIFIER_RULES } from './ai-consumer-adoption.fixtures.js';
+import { CUSTOMER_EXPLAIN_MY_NOTIFICATIONS_CLASSIFIER_RULES } from './ai-explain-my-notifications.util.js';
+import { CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES } from './ai-how-to-download-app.util.js';
+import { CUSTOMER_CANCEL_MY_BOOKING_CLASSIFIER_RULES } from './ai-cancel-my-booking.util.js';
+import { CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES } from './ai-reschedule-my-booking.util.js';
+import { CUSTOMER_APP_GUIDE_CLASSIFIER_RULES } from './ai-customer-product-guide.util.js';
+import { CUSTOMER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
+import { CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES } from './ai-explain-prepayment.util.js';
+import { CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES } from './ai-cash-payment-checkout.util.js';
+import { CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES } from './ai-pay-online-checkout.util.js';
+import { CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES } from './ai-multi-service-customer-public.util.js';
+import { CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES } from './ai-subscription-membership-customer.util.js';
+import { CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES } from './ai-promo-code-help-customer-public.util.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES } from './ai-explain-service-price.util.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES } from './ai-explain-payment-options-for-service.util.js';
+import { CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES } from './ai-find-soonest-appointment.util.js';
+import { CUSTOMER_PUBLIC_COMPARE_SERVICES_CLASSIFIER_RULES } from './ai-compare-services.util.js';
+import { COMPARE_SERVICES_MULTILINGUAL_CLASSIFIER_RULES } from './ai-compare-services-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_FILTER_SERVICES_NO_PREPAYMENT_CLASSIFIER_RULES } from './ai-filter-services-no-prepayment.util.js';
+import { FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-filter-services-no-prepayment-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES } from './ai-explain-amount-due-now.util.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES } from './ai-explain-guest-checkout-fields.util.js';
+import { CUSTOMER_RESUME_PENDING_PAYMENT_CLASSIFIER_RULES } from './ai-resume-pending-payment.util.js';
+import { RESUME_PENDING_PAYMENT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-resume-pending-payment-multilingual.fixtures.js';
+import { EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-amount-due-now-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES } from './ai-explain-business-hours-and-location.util.js';
+import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-business-hours-and-location-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES } from './ai-explain-provider-specialty.util.js';
+import { EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-provider-specialty-multilingual.fixtures.js';
+import { CUSTOMER_LOYALTY_POINTS_BALANCE_CLASSIFIER_RULES } from './ai-loyalty-points-balance-customer.util.js';
+import {
+  CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES,
+  GROWTH_LOOPS_MULTILINGUAL_CLASSIFIER_RULES,
+} from './ai-growth-loops-customer.util.js';
+import { CUSTOMER_PRIVACY_GDPR_CLASSIFIER_RULES } from './ai-privacy-gdpr-customer.util.js';
+import { CUSTOMER_GIFT_CARD_CANCEL_CLASSIFIER_RULES } from './ai-gift-card-cancel-customer.util.js';
+import { CUSTOMER_PACKAGE_VISIT_SELF_CLASSIFIER_RULES } from './ai-package-visit-self-customer.util.js';
+import { CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES } from './ai-list-my-package-visits-customer.util.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES } from './ai-clinic-lab-booking.fixtures.js';
 import { CLINIC_BOOKING_CLASSIFIER_RULES } from './ai-clinic-booking.fixtures.js';
@@ -101,6 +139,25 @@ const PUBLIC_ASSISTANT_UI_DETAIL_KEYS = [
   'serviceIds',
 ] as const;
 
+function serializePublicAssistantSessionContext(
+  sessionContext: unknown,
+): PublicAssistantResult['sessionContext'] {
+  if (!sessionContext || typeof sessionContext !== 'object') return undefined;
+  const out: Record<string, string | null> = {};
+  for (const [key, value] of Object.entries(sessionContext as Record<string, unknown>)) {
+    if (value == null || value === '') {
+      out[key] = null;
+      continue;
+    }
+    if (key === 'completedSteps' && Array.isArray(value)) {
+      out[key] = JSON.stringify(value);
+      continue;
+    }
+    out[key] = typeof value === 'string' ? value : String(value);
+  }
+  return out;
+}
+
 export function commandResultToPublicAssistantResult(
   result: CommandResult,
 ): PublicAssistantResult {
@@ -115,10 +172,10 @@ export function commandResultToPublicAssistantResult(
     success: result.success,
     action: result.action ?? 'unknown',
     summary: result.summary,
-    sessionContext:
-      details.sessionContext as PublicAssistantResult['sessionContext'],
+    sessionContext: serializePublicAssistantSessionContext(details.sessionContext),
     navigate: details.navigate as PublicAssistantResult['navigate'],
     bookingId: details.bookingId as string | undefined,
+    guide: result.guide,
     details:
       Object.keys(assistantDetails).length > 0 ? assistantDetails : undefined,
   };
@@ -157,7 +214,8 @@ Classify the user's message and extract parameters. Return JSON:
     "paymentMethod": "cash | online | gift_card | null",
     "customerName": "string or null",
     "customerEmail": "string or null",
-    "customerPhone": "string or null"
+    "customerPhone": "string or null",
+    "topicId": "string or null — optional consumer guide playbook id (consumer-tabs, consumer-account, consumer-packages-gift-cards) for explain_app_feature / guide_user_flow / explain_current_screen"
   },
   "reasoning": "one short sentence"
 }
@@ -184,6 +242,7 @@ ${TOUR_BOOKING_CLASSIFIER_RULES}
 ${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
 ${TOUR_CAPACITY_CLASSIFIER_RULES}
 ${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
+${CHECKOUT_RECOMMENDATIONS_MULTILINGUAL_CLASSIFIER_RULES}
 ${CONSUMER_CHECKOUT_SUCCESS_CLASSIFIER_RULES}
 ${CONSUMER_CHECKOUT_SUCCESS_EN_CLASSIFIER_RULES}
 ${CONSUMER_CHECKOUT_TAX_CLASSIFIER_RULES}
@@ -195,6 +254,41 @@ ${CLINIC_BOOKING_CLASSIFIER_RULES}
 ${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 ${CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES}
 ${CONSUMER_ADOPTION_CLASSIFIER_RULES}
+${CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES}
+${GROWTH_LOOPS_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_EXPLAIN_MY_NOTIFICATIONS_CLASSIFIER_RULES}
+${CUSTOMER_APP_GUIDE_CLASSIFIER_RULES}
+${CUSTOMER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES}
+${CUSTOMER_RESUME_PENDING_PAYMENT_CLASSIFIER_RULES}
+${RESUME_PENDING_PAYMENT_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES}
+${CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_COMPARE_SERVICES_CLASSIFIER_RULES}
+${COMPARE_SERVICES_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_FILTER_SERVICES_NO_PREPAYMENT_CLASSIFIER_RULES}
+${FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES}
+${EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES}
+${EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES}
+${EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_LOYALTY_POINTS_BALANCE_CLASSIFIER_RULES}
+${CUSTOMER_PRIVACY_GDPR_CLASSIFIER_RULES}
+${CUSTOMER_GIFT_CARD_CANCEL_CLASSIFIER_RULES}
+${CUSTOMER_PACKAGE_VISIT_SELF_CLASSIFIER_RULES}
+${CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES}
+${CUSTOMER_CANCEL_MY_BOOKING_CLASSIFIER_RULES}
+${CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES}
 
 ${CLASSIFIER_MULTILINGUAL_RULES}`;
 }

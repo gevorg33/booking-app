@@ -33,6 +33,7 @@ import {
   PlanEntitlementsService,
   type PlanEntitlementsView,
 } from '../billing/plan-entitlements.service.js';
+import { PlanLimitExceededException } from '../billing/plan-limit.exception.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
@@ -48,6 +49,21 @@ import {
   assessPhiInAiContext,
   phiAiBlockMessage,
 } from '../../common/utils/phi-ai-guard.util.js';
+import {
+  ASSISTANT_MODE_CONTEXT_KEY,
+  resolveAssistantMode,
+  type AssistantMode,
+} from './ai-assistant-mode.util.js';
+import {
+  GUIDE_HANDOFF_CONTEXT_KEY,
+  type GuideHandoffDispatch,
+} from './ai-product-guide-handoff.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+  shouldOfferAiUnavailableGuideFallback,
+} from './ai-product-guide-ai-unavailable.util.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
 
 export interface AiGatewayCapabilitiesView extends AiCapabilitiesView {
   usage: PlanEntitlementsView['usage'];
@@ -69,6 +85,10 @@ export interface AiGatewayExecuteParams {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   context?: Record<string, unknown>;
   autoSubmit?: boolean;
+  /** ai-guide-1.0.3 — optional guide vs act routing; inferred from prompt when omitted. */
+  assistantMode?: AssistantMode;
+  /** ai-guide-1.2.5 — direct dispatch from product guide “Do this for me”. */
+  guideHandoff?: GuideHandoffDispatch;
 }
 
 @Injectable()
@@ -85,6 +105,7 @@ export class AiGatewayService {
   private readonly aiSettings: AiSettingsService;
   private readonly platform: AiPlatformService;
   private readonly commandTrace: AiCommandTraceService;
+  private readonly productGuide: AiProductGuideService;
 
   /* istanbul ignore start */
   constructor(
@@ -101,6 +122,7 @@ export class AiGatewayService {
     aiSettings: AiSettingsService,
     platform: AiPlatformService,
     commandTrace: AiCommandTraceService,
+    productGuide: AiProductGuideService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -113,6 +135,7 @@ export class AiGatewayService {
     this.aiSettings = aiSettings;
     this.platform = platform;
     this.commandTrace = commandTrace;
+    this.productGuide = productGuide;
   }
   /* istanbul ignore end */
 
@@ -207,9 +230,45 @@ export class AiGatewayService {
     }
 
     if (surface === 'dashboard') {
-      await this.planEntitlements.assertCanRunDashboardAiCommand(
-        params.businessId,
-      );
+      try {
+        await this.planEntitlements.assertCanRunDashboardAiCommand(
+          params.businessId,
+        );
+      } catch (error) {
+        if (
+          error instanceof PlanLimitExceededException &&
+          shouldOfferAiUnavailableGuideFallback(params.prompt, surface, {
+            context: params.context,
+          })
+        ) {
+          const fallback = await runAiUnavailableStaticGuideFallback({
+            productGuide: this.productGuide,
+            businessId: params.businessId,
+            prompt: params.prompt,
+            surface: 'dashboard',
+            reason: 'quota_exceeded',
+            session: { context: params.context },
+            userId: params.userId,
+            locale:
+              typeof params.context?.locale === 'string'
+                ? params.context.locale
+                : undefined,
+          });
+          if (fallback) {
+            const attached = attachGatewayMeta(fallback, surface, tier);
+            this.persistCommandTrace({
+              params,
+              result: fallback,
+              surface: this.toTraceSurface(surface),
+              traceId,
+              startedAt,
+              role: tier,
+            });
+            return attached;
+          }
+        }
+        throw error;
+      }
     }
 
     const entitlements = await this.planEntitlements.getEntitlements(
@@ -252,6 +311,11 @@ export class AiGatewayService {
 
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
+      [ASSISTANT_MODE_CONTEXT_KEY]: resolveAssistantMode({
+        prompt: params.prompt,
+        surface: params.surface,
+        explicit: params.assistantMode ?? params.context?.[ASSISTANT_MODE_CONTEXT_KEY],
+      }),
       _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,
       _entityMemoryAliases: entityMemory.aliases,
@@ -268,6 +332,9 @@ export class AiGatewayService {
       _confidenceHigh: confidenceHigh,
       _abVariantId: abVariantId,
       [COMMAND_TRACE_ID_CONTEXT_KEY]: traceId,
+      ...(params.guideHandoff
+        ? { [GUIDE_HANDOFF_CONTEXT_KEY]: params.guideHandoff }
+        : {}),
     };
 
     if (params.surface === 'customer') {

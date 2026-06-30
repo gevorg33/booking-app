@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run sync:mobile-guide-flows && tsc --noEmit && vite build",
     "preview": "vite preview",
     "cap:sync": "cap sync",
     "cap:ios": "cap open ios",
@@ -41,6 +41,9 @@
     "test:consumer-tours": "vitest run src/lib/tour-service.util.spec.ts src/lib/tour-booking.util.spec.ts src/lib/consumer-copy.spec.ts",
     "test:consumer-clinic": "vitest run src/lib/clinic-service.spec.ts src/lib/clinic-booking.util.spec.ts src/lib/consumer-copy.spec.ts",
     "test:consumer-subscriptions-account": "vitest run src/lib/subscription-account.util.spec.ts src/lib/consumer-assistant-navigate.util.spec.ts src/lib/consumer-copy.spec.ts",
+    "sync:mobile-guide-flows": "node ../scripts/sync-mobile-guide-flows.mjs",
+    "test:mobile-guide": "vitest run src/lib/mobile-guide/mobile-guide.spec.ts src/lib/consumer-guide.util.spec.ts src/lib/consumer-guide-clinic-gating.spec.ts src/lib/consumer-guide.copy.spec.ts src/lib/consumer-guide-entry.spec.ts src/lib/consumer-guide-assistant-seed.util.spec.ts src/lib/consumer-assistant-navigate.util.spec.ts src/pages/GuidePage.spec.ts src/pages/GuidePage.spec.tsx",
+    "test:consumer-guide-copy": "vitest run src/lib/consumer-guide.copy.spec.ts",
     "test:sprint48": "vitest run --config vitest.sprint48.config.ts",
     "test:n99-3.1": "vitest run src/lib/deferred-install-resume.util.spec.ts src/lib/deferred-install-link.util.spec.ts src/lib/deep-link.spec.ts src/lib/activation-onboarding.util.spec.ts",
     "test:n99-3.2": "vitest run src/lib/post-booking-sign-in.util.spec.ts",

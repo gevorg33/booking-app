@@ -4,6 +4,7 @@ import {
   getOnboardingCommandBarExamples,
   getOnboardingPageSuggestionGroups,
   onboardingPromptI18nKeys,
+  resolveOnboardingCommandBarExamples,
 } from './ai-onboarding.util';
 
 function tFor(locale: 'en' | 'hy' | 'ru') {
@@ -28,6 +29,12 @@ describe('ai-onboarding.util', () => {
     const en = tFor('en');
     expect(getOnboardingCommandBarExamples('link', en)).toHaveLength(3);
     expect(getOnboardingCommandBarExamples('done', en)[0]).toContain('appointment');
+  });
+
+  it('ai-guide-1.3.5 — guide chip toggles onboarding example mix', () => {
+    const en = tFor('en');
+    expect(resolveOnboardingCommandBarExamples('schedule', en, true)).toHaveLength(3);
+    expect(resolveOnboardingCommandBarExamples('schedule', en, false)).toHaveLength(4);
   });
 
   it('falls back to type step for unknown step keys', () => {

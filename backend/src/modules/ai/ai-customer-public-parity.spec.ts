@@ -29,6 +29,11 @@ const SHARED_DISCOVERY_PROMPT_SAMPLES = [
   'recommend_specialists, serviceCategory=massage — NO serviceRank',
 ] as const;
 
+function extractSchemaActionUnion(schema: string): string {
+  const match = schema.match(/"action":\s*(.+?),\s*\n\s*"params"/s);
+  return match?.[1] ?? '';
+}
+
 describe('ai customer public parity (ai-cmd-customer-0.5 / gap-1)', () => {
   const publicSchema = buildPublicClassifierSchema();
   const customerSchema = buildCustomerClassifierSchema();
@@ -66,7 +71,9 @@ describe('ai customer public parity (ai-cmd-customer-0.5 / gap-1)', () => {
     for (const action of PUBLIC_ONLY_ASSISTANT_ACTIONS) {
       expect(customerSchema).toContain(action);
     }
-    expect(customerSchema).toContain('book_package');
-    expect(publicSchema).not.toContain('book_package');
+    const customerActionUnion = extractSchemaActionUnion(customerSchema);
+    const publicActionUnion = extractSchemaActionUnion(publicSchema);
+    expect(customerActionUnion).toMatch(/\bbook_package\b/);
+    expect(publicActionUnion).not.toMatch(/\bbook_package\b/);
   });
 });

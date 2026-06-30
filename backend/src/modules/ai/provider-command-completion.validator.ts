@@ -2,6 +2,19 @@ import {
   ValidationIssue,
   ValidationResult,
 } from './command-completion.types.js';
+import {
+  parseMetaProductGuideIntentFromPrompt,
+  parseProviderProductGuideIntentFromPrompt,
+} from './ai-product-guide-completion.util.js';
+import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
+import type { ProviderProductGuideIntent } from './ai-provider-product-guide.util.js';
+import { PROVIDER_META_GUIDE_INTENTS } from './ai-meta-product-guide.fixtures.js';
+import type { ProviderMetaGuideIntent } from './ai-meta-product-guide.fixtures.js';
+import {
+  EMPTY_STATE_GUIDE_RESCUE_SCENARIOS,
+  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+} from './ai-product-guide-empty-state.fixtures.js';
+import type { ProviderEmptyStateGuideIntent } from './ai-product-guide-empty-state.fixtures.js';
 import { buildClarifySummary } from './command-completion.validator.js';
 import {
   hasAvailabilityWhen,
@@ -33,6 +46,15 @@ const PROVIDER_VALIDATED_ACTIONS = new Set([
   'send_client_message',
   'block_my_time',
   'request_time_off',
+  ...PROVIDER_PRODUCT_GUIDE_INTENTS,
+  ...PROVIDER_META_GUIDE_INTENTS,
+  ...PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+]);
+
+export const PROVIDER_GUIDE_VALIDATED_ACTIONS = new Set<string>([
+  ...PROVIDER_PRODUCT_GUIDE_INTENTS,
+  ...PROVIDER_META_GUIDE_INTENTS,
+  ...PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
 ]);
 
 export function shouldValidateProviderAction(action: string): boolean {
@@ -47,6 +69,91 @@ function hasBookingFilter(params: Record<string, unknown>): boolean {
     !!params.timeSlot ||
     !!params.serviceName
   );
+}
+
+function readPrompt(params: Record<string, unknown>): string {
+  return typeof params._prompt === 'string' ? params._prompt : '';
+}
+
+function buildProviderGuideValidationIssues(
+  action: ProviderProductGuideIntent,
+  params: Record<string, unknown>,
+): ValidationIssue[] {
+  if (parseProviderProductGuideIntentFromPrompt(action, readPrompt(params), params)) {
+    return [];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Provider guide',
+      message:
+        'Ask about the provider app screen, invite link, team view, profile settings, assistant confirm swipe, or compound steps',
+      example: 'What is this invite link?',
+    },
+  ];
+}
+
+function buildProviderMetaGuideValidationIssues(
+  action: ProviderMetaGuideIntent,
+  params: Record<string, unknown>,
+): ValidationIssue[] {
+  if (parseMetaProductGuideIntentFromPrompt(action, readPrompt(params), params)) {
+    return [];
+  }
+  if (action === 'explain_ai_suggestions') {
+    return [
+      {
+        field: 'prompt',
+        label: 'AI suggestions',
+        message:
+          'Ask what Today tab suggestion cards mean, or pass suggestionId for a specific chip',
+        example: 'What are the Today tab AI suggestion cards?',
+      },
+    ];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Assistant approval',
+      message:
+        'Ask about swipe-to-confirm preview or what will change before AI mutates bookings',
+      example: 'Why swipe to confirm before AI changes run?',
+    },
+  ];
+}
+
+function buildProviderEmptyStateGuideValidationIssues(
+  action: ProviderEmptyStateGuideIntent,
+  params: Record<string, unknown>,
+): ValidationIssue[] {
+  const prompt = readPrompt(params);
+  if (
+    EMPTY_STATE_GUIDE_RESCUE_SCENARIOS.some(
+      (row) => row.intent === action && row.prompt.test(prompt),
+    )
+  ) {
+    return [];
+  }
+  if (action === 'explain_visibility_block') {
+    return [
+      {
+        field: 'prompt',
+        label: 'Visibility block',
+        message:
+          'Ask why a provider app screen or team view is missing for your role',
+        example: "Why can't I see the team schedule tab?",
+      },
+    ];
+  }
+  return [
+    {
+      field: 'prompt',
+      label: 'Empty catalog',
+      message:
+        'Ask why no services appear on your provider profile or booking flow',
+      example: 'No services are assigned to my profile',
+    },
+  ];
 }
 
 const PROVIDER_ACTION_RULES: Record<
@@ -275,6 +382,27 @@ const PROVIDER_ACTION_RULES: Record<
             example: "I'm running 10 minutes late for Jane",
           },
         ],
+
+  explain_staff_invite: (params) =>
+    buildProviderGuideValidationIssues('explain_staff_invite', params),
+  explain_provider_app_tabs: (params) =>
+    buildProviderGuideValidationIssues('explain_provider_app_tabs', params),
+  explain_team_view_scope: (params) =>
+    buildProviderGuideValidationIssues('explain_team_view_scope', params),
+  explain_profile_settings: (params) =>
+    buildProviderGuideValidationIssues('explain_profile_settings', params),
+  explain_assistant_confirm_swipe: (params) =>
+    buildProviderGuideValidationIssues('explain_assistant_confirm_swipe', params),
+  explain_provider_compound_steps: (params) =>
+    buildProviderGuideValidationIssues('explain_provider_compound_steps', params),
+  explain_ai_suggestions: (params) =>
+    buildProviderMetaGuideValidationIssues('explain_ai_suggestions', params),
+  explain_assistant_approval: (params) =>
+    buildProviderMetaGuideValidationIssues('explain_assistant_approval', params),
+  explain_visibility_block: (params) =>
+    buildProviderEmptyStateGuideValidationIssues('explain_visibility_block', params),
+  explain_empty_catalog: (params) =>
+    buildProviderEmptyStateGuideValidationIssues('explain_empty_catalog', params),
 };
 
 export function validateProviderCommand(

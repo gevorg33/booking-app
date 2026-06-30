@@ -29,12 +29,22 @@ import { AiSelfServiceBookingService } from './ai-self-service-booking.service.j
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
 import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-location.service.js';
+import { AiProviderSpecialtyService } from './ai-explain-provider-specialty.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import {
   rescueBudgetServiceDiscoveryIntent,
 } from './ai-budget-service-discovery.util.js';
 import { isIntentAllowed } from './ai-capability.matrix.js';
+import {
+  appendPostFailureGuideFallback,
+  buildPostFailureGuideFallbackInput,
+} from './ai-product-guide-failure-fallback.util.js';
+import {
+  buildAiUnavailableErrorWithGuideLink,
+  runAiUnavailableStaticGuideFallback,
+} from './ai-product-guide-ai-unavailable.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import { isCompoundPrompt, decomposeDeterministicForSurface } from './intent-decomposition.util.js';
 import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from './ai-service-rank-discovery.util.js';
@@ -44,6 +54,8 @@ import { AiRecommendationProductService } from './ai-recommendation-product.serv
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
+import { AiGuestCheckoutFieldsService } from './ai-explain-guest-checkout-fields.service.js';
+import { AiResumePendingPaymentService } from './ai-resume-pending-payment.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import {
   enrichDiscoveryParamsFromPrompt,
@@ -64,6 +76,36 @@ import {
   type CustomerAiCommandLogicDeps,
   type CustomerIntentSession,
 } from './customer-ai-command.logic.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
+import { AiProductGuideEmptyStateService } from './ai-product-guide-empty-state.service.js';
+import {
+  mapCustomerMobileGuideRoute,
+  resolveProductGuideSessionContext,
+} from './ai-product-guide-session.util.js';
+import {
+  mapCustomerActivationGuideRoute,
+  mergeCustomerActivationGuideContext,
+  resolveCustomerGuideIntent,
+  resolveCustomerGuideNavigate,
+  type ConsumerActivationStep,
+} from './ai-customer-product-guide.util.js';
+import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from './ai-product-guide-rescue.util.js';
+import {
+  isAppGuideIntent,
+  resolveProductGuidePromptMatch,
+  type AppGuideIntent,
+} from './ai-product-guide.util.js';
+import {
+  isEmptyStateGuideIntent,
+  type EmptyStateGuideIntent,
+} from './ai-product-guide-empty-state.util.js';
+import {
+  mapCommandResultGuideNavigate,
+  runSurfaceProductGuideIntent,
+} from './ai-product-guide-surface.logic.js';
 
 interface ParsedCustomerIntent {
   action: string;
@@ -95,6 +137,8 @@ export class CustomerAiCommandService {
     private readonly businessCurrency: AiBusinessCurrencyService,
     private readonly businessLanguages: AiBusinessLanguagesService,
     private readonly businessDateFormat: AiBusinessDateFormatService,
+    private readonly businessHoursLocation: AiBusinessHoursLocationService,
+    private readonly providerSpecialty: AiProviderSpecialtyService,
     private readonly businessTax: AiBusinessTaxService,
     private readonly businessCompliance: AiBusinessComplianceService,
     private readonly tourService: AiTourServiceService,
@@ -102,9 +146,13 @@ export class CustomerAiCommandService {
     private readonly consumerClinicTestResults: AiConsumerClinicTestResultsService,
     private readonly clinicLabBooking: AiClinicLabBookingService,
     private readonly clinicBooking: AiClinicBookingService,
+    private readonly guestCheckoutFields: AiGuestCheckoutFieldsService,
+    private readonly resumePendingPayment: AiResumePendingPaymentService,
     private readonly consumerAdoption: AiConsumerAdoptionService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
+    private readonly productGuide: AiProductGuideService,
+    private readonly emptyStateGuide: AiProductGuideEmptyStateService,
   ) {
     this.deps = {
       customerCrm: this.customerCrm,
@@ -118,6 +166,8 @@ export class CustomerAiCommandService {
       businessCurrency: this.businessCurrency,
       businessLanguages: this.businessLanguages,
       businessDateFormat: this.businessDateFormat,
+      businessHoursLocation: this.businessHoursLocation,
+      providerSpecialty: this.providerSpecialty,
       businessTax: this.businessTax,
       businessCompliance: this.businessCompliance,
       tourService: this.tourService,
@@ -125,6 +175,8 @@ export class CustomerAiCommandService {
       consumerClinicTestResults: this.consumerClinicTestResults,
       clinicLabBooking: this.clinicLabBooking,
       clinicBooking: this.clinicBooking,
+      guestCheckoutFields: this.guestCheckoutFields,
+      resumePendingPayment: this.resumePendingPayment,
       consumerAdoption: this.consumerAdoption,
       runPublicAssistantStep: async (businessId, action, params, session) => {
         void businessId;
@@ -156,12 +208,21 @@ export class CustomerAiCommandService {
     context?: Record<string, unknown>,
   ): Promise<CommandResult> {
     if (!(await this.llm.isAvailableForBusiness(businessId))) {
-      return {
-        success: false,
-        action: 'error',
-        summary: 'AI assistant is not configured for this business.',
-        details: {},
-      };
+      const fallback = await runAiUnavailableStaticGuideFallback({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        surface: 'customer',
+        reason: 'openai_not_configured',
+        session: { context },
+      });
+      if (fallback) return fallback;
+      return buildAiUnavailableErrorWithGuideLink({
+        surface: 'customer',
+        reason: 'openai_not_configured',
+        route: mapCustomerMobileGuideRoute(context),
+        locale: typeof context?.locale === 'string' ? context.locale : undefined,
+      });
     }
 
     const blocked = this.promptSecurity.preflightBlock(
@@ -170,6 +231,19 @@ export class CustomerAiCommandService {
       'customer',
     );
     if (blocked) return blocked;
+
+    const guideMatch = resolveProductGuidePromptMatch(prompt, {
+      surface: 'customer',
+      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+    });
+    if (guideMatch.matched && guideMatch.intent) {
+      return this.dispatchCustomerAppGuideIntent(
+        businessId,
+        prompt,
+        guideMatch.intent as AppGuideIntent,
+        context,
+      );
+    }
 
     const session = this.buildSession(context, prompt);
     const compound = await this.tryCompound(businessId, prompt, session);
@@ -230,13 +304,24 @@ export class CustomerAiCommandService {
         understood,
         clarifyPayload,
       );
-      return clarify;
+      return this.withPostFailureGuideFallback(clarify, context);
     }
 
     let parsed = pipelineResultToClassifiedIntent(understood);
     const classifierCandidate = findClassifierCandidate(understood);
     const classifierAction = classifierCandidate?.action ?? parsed.action;
     let rescueReason: string | undefined = pipelineRescueReason(understood);
+
+    const guideRescue = rescueProductGuideIntent(prompt, parsed.action, {
+      surface: 'customer',
+      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+      route: mapCustomerMobileGuideRoute(context),
+      context,
+    });
+    if (guideRescue.action !== parsed.action) {
+      parsed.action = guideRescue.action;
+      rescueReason = guideRescue.rescueReason ?? 'customer_app_guide';
+    }
 
     const discoveryRescue = this.applyBudgetAndRankServiceDiscoveryRescue(
       prompt,
@@ -272,15 +357,18 @@ export class CustomerAiCommandService {
     });
 
     if (shouldBlockUnknownFromHandlerSwitch(action)) {
-      return buildUnknownIntentClarifyResult({
-        surface: 'customer',
-        prompt,
-        params,
-        reasoning: parsed.reasoning,
-        confidence:
-          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
-        trace: understood.trace,
-      });
+      return this.withPostFailureGuideFallback(
+        buildUnknownIntentClarifyResult({
+          surface: 'customer',
+          prompt,
+          params,
+          reasoning: parsed.reasoning,
+          confidence:
+            typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+          trace: understood.trace,
+        }),
+        context,
+      );
     }
 
     if (!isIntentAllowed('customer', 'client', action)) {
@@ -298,13 +386,46 @@ export class CustomerAiCommandService {
       return this.runPublicAssistant(session, prompt, history, context);
     }
 
+    if (isAppGuideIntent(action)) {
+      return this.dispatchCustomerAppGuideIntent(
+        businessId,
+        prompt,
+        action as AppGuideIntent,
+        context,
+        params,
+      );
+    }
+
+    if (isEmptyStateGuideIntent(action)) {
+      return this.dispatchCustomerEmptyStateGuideIntent(
+        businessId,
+        prompt,
+        action,
+        context,
+        params,
+      );
+    }
+
     this.logger.log(`Customer AI action="${action}" — ${parsed.reasoning}`);
-    return dispatchCustomerIntent(
-      this.deps,
-      businessId,
-      action,
-      params,
-      session,
+    return this.withPostFailureGuideFallback(
+      await dispatchCustomerIntent(
+        this.deps,
+        businessId,
+        action,
+        params,
+        session,
+      ),
+      context,
+    );
+  }
+
+  private withPostFailureGuideFallback(
+    result: CommandResult,
+    context?: Record<string, unknown>,
+  ): CommandResult {
+    return appendPostFailureGuideFallback(
+      result,
+      buildPostFailureGuideFallbackInput(context, 'customer'),
     );
   }
 
@@ -395,6 +516,18 @@ export class CustomerAiCommandService {
         | undefined,
       priorCheckSummary: context?.priorCheckSummary as string | undefined,
       noProviders: context?.noProviders as boolean | undefined,
+      pendingCheckoutSessionId: context?.pendingCheckoutSessionId as
+        | string
+        | undefined,
+      pendingCheckoutServiceId: context?.pendingCheckoutServiceId as
+        | string
+        | undefined,
+      pendingCheckoutStartTime: context?.pendingCheckoutStartTime as
+        | string
+        | undefined,
+      pendingCheckoutEmployeeId: context?.pendingCheckoutEmployeeId as
+        | string
+        | undefined,
       prompt,
     };
   }
@@ -608,5 +741,124 @@ export class CustomerAiCommandService {
       { recordMetrics: false },
     );
     return publicAssistantResultToCommandResult(result);
+  }
+
+  /** ai-guide-1.5.2 — consumer app guide intents → AiProductGuideService playbooks. */
+  private async dispatchCustomerAppGuideIntent(
+    businessId: string,
+    prompt: string,
+    intent: AppGuideIntent,
+    context?: Record<string, unknown>,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    const mergedContext = mergeCustomerActivationGuideContext(context);
+    const activationRoute = mapCustomerActivationGuideRoute(mergedContext);
+    const guideContext = resolveProductGuideSessionContext(
+      {
+        context: {
+          ...mergedContext,
+          route: activationRoute ?? mapCustomerMobileGuideRoute(mergedContext),
+          _accessTier: 'client',
+          roleProfile: 'customer',
+          vertical: mergedContext?.businessType ?? mergedContext?.vertical,
+          enabledModules: mergedContext?.enabledModules,
+        },
+      },
+      'customer',
+    );
+    const route =
+      activationRoute ??
+      guideContext.route ??
+      mapCustomerMobileGuideRoute(mergedContext);
+    const resolvedIntent = resolveCustomerGuideIntent(prompt, intent, route);
+    const activationStep =
+      typeof mergedContext.activationStep === 'string'
+        ? (mergedContext.activationStep as ConsumerActivationStep)
+        : undefined;
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: 'customer',
+      route,
+      topicId: params.topicId,
+      activationStep,
+    });
+    const guideParams = topicId ? { ...params, topicId } : params;
+
+    const guideResult = mapCommandResultGuideNavigate(
+      await runSurfaceProductGuideIntent({
+        productGuide: this.productGuide,
+        businessId,
+        prompt,
+        intent: resolvedIntent,
+        surface: 'customer',
+        locale:
+          typeof mergedContext?.locale === 'string' && mergedContext.locale.trim()
+            ? mergedContext.locale.trim()
+            : undefined,
+        params: guideParams,
+        session: { context: mergedContext },
+        sessionContext: guideContext,
+      }),
+    );
+
+    const navigate =
+      guideResult.guide?.navigate ?? resolveCustomerGuideNavigate(route);
+    return {
+      ...guideResult,
+      details: {
+        ...guideResult.details,
+        ...(navigate ? { navigate } : {}),
+        guideRoute: route,
+        guideIntent: resolvedIntent,
+        ...(activationStep ? { activationStep } : {}),
+      },
+      guide: guideResult.guide
+        ? {
+            ...guideResult.guide,
+            navigate: guideResult.guide.navigate ?? navigate,
+          }
+        : undefined,
+    };
+  }
+
+  /** ai-guide-1.8.9 — consumer live catalog / Stripe empty-state guides. */
+  private async dispatchCustomerEmptyStateGuideIntent(
+    businessId: string,
+    prompt: string,
+    intent: EmptyStateGuideIntent,
+    context?: Record<string, unknown>,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    if (!isEmptyStateGuideIntent(intent) || intent === 'explain_visibility_block') {
+      return {
+        success: false,
+        action: intent,
+        summary: 'Unsupported empty-state guide intent on customer mobile.',
+        details: {},
+      };
+    }
+    const mergedContext = mergeCustomerActivationGuideContext(context);
+    const guideContext = resolveProductGuideSessionContext(
+      {
+        context: {
+          ...mergedContext,
+          route: mapCustomerMobileGuideRoute(mergedContext),
+          _accessTier: 'client',
+          roleProfile: 'customer',
+        },
+      },
+      'customer',
+    );
+    return mapCommandResultGuideNavigate(
+      await this.emptyStateGuide.runIntent({
+        businessId,
+        intent,
+        surface: 'customer',
+        prompt,
+        params,
+        session: { context: mergedContext },
+        sessionContext: guideContext,
+        locale: guideContext.locale,
+      }),
+    );
   }
 }

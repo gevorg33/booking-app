@@ -283,6 +283,21 @@ describe('ai-command-eval.runner', () => {
     expect(result.errors[0]).toMatch(/requiresLlm/);
   });
 
+  it('passes clinic ext classifier-without-rescue golden rows (ai-cmd-clinic-6-gap-2.3)', () => {
+    const result = evaluateDeterministicEvalCase({
+      id: 'clinic-ext-classifier-upload',
+      prompt: 'Upload lab result for order #abc123',
+      surface: 'dashboard',
+      expect: {
+        action: 'upload_patient_result',
+        accessTier: 'M',
+        useClinicTestResultExtClassifierDetect: true,
+        paramsPartial: { orderId: 'abc123' },
+      },
+    });
+    expect(result.passed).toBe(true);
+  });
+
   it('passes compound golden decomposition expectations', () => {
     const result = evaluateDeterministicEvalCase({
       id: 'compound-ok',

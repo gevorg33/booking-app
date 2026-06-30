@@ -28,6 +28,17 @@ export class TenantAppInstallService {
       return toTenantAppInstallView(business.slug, existing);
     }
 
+    return this.persistGeneratedAssets(business);
+  }
+
+  /** Force-regenerate landing URL + QR assets (Growth tab refresh). */
+  async regenerateForBusiness(business: Business): Promise<TenantAppInstallView> {
+    return this.persistGeneratedAssets(business);
+  }
+
+  private async persistGeneratedAssets(
+    business: Business,
+  ): Promise<TenantAppInstallView> {
     const generated = await generateTenantAppInstallSettings(
       business.slug,
       this.frontendUrl(),

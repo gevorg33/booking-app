@@ -14,8 +14,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@mobile-guide/*": ["../shared/mobile-guide/src/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "../shared/mobile-guide/src"],
   "exclude": ["src/**/*.spec.ts"]
 }

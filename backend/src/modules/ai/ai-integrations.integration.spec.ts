@@ -11,6 +11,8 @@ import { ZapierIntegrationService } from '../integrations/zapier/zapier-integrat
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
+import { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
+import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 
 describe('Sprint 32 integrations AI scenarios', () => {
   const webhooksService = {
@@ -94,6 +96,25 @@ describe('Sprint 32 integrations AI scenarios', () => {
   const integrationsDocsService = {
     buildDocs: jest.fn(() => ({ baseUrl: 'http://localhost:3001' })),
   };
+  const openAiIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: false,
+      usingPlatformDefault: false,
+      usage: { totalTokens: 0 },
+    })),
+    updateSettings: jest.fn(async (_id, patch) => ({
+      configured: true,
+      ...patch,
+      usage: { totalTokens: 0 },
+    })),
+  };
+  const whatsappIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: true,
+      usingPlatformDefault: false,
+      phoneNumberId: '15551234567',
+    })),
+  };
   const businessRepo = {
     findOne: jest.fn(async () => ({
       id: 'biz-1',
@@ -153,6 +174,14 @@ describe('Sprint 32 integrations AI scenarios', () => {
           useValue: zendeskIntegrationService,
         },
         { provide: IntegrationsDocsService, useValue: integrationsDocsService },
+        {
+          provide: OpenAiIntegrationService,
+          useValue: openAiIntegrationService,
+        },
+        {
+          provide: WhatsAppIntegrationService,
+          useValue: whatsappIntegrationService,
+        },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: getRepositoryToken(GiftCard), useValue: giftCardRepo },
@@ -283,6 +312,15 @@ describe('Sprint 32 integrations AI scenarios', () => {
       ).toBe(true);
       expect(
         (await integrations.handleListIntegrationHealth('biz-1')).success,
+      ).toBe(true);
+      expect(
+        (
+          await integrations.handleExplainIntegrationHealth(
+            'biz-1',
+            {},
+            'Is WhatsApp connected?',
+          )
+        ).success,
       ).toBe(true);
     });
 

@@ -1,0 +1,18 @@
+{
+  "topicId": "provider-profile-settings",
+  "surface": "provider",
+  "routes": ["/tabs/profile"],
+  "titleKey": "guide.flows.provider.profileSettings.title",
+  "summaryKey": "guide.flows.provider.profileSettings.summary",
+  "navigateTarget": { "path": "/tabs/profile" },
+  "keywords": ["profile", "avatar", "title", "display name", "photo"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.profileSettings.step1",
+      "navigate": { "path": "/tabs/profile" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.provider.profileSettings.step2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.provider.profileSettings.step3" }
+  ]
+}

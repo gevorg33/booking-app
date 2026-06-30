@@ -1,6 +1,14 @@
 /** prov-exp-3.3 — compact Today timeline from today's bookings. */
 
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import {
+  computeWallClockNowMarkerPercent,
+  getWallClockNowFromInstant,
+  isWallClockRangeActiveAt,
+  isWallClockStartStrictlyFutureAt,
+  minutesUntilWallClockStartAt,
+  resolveBusinessWallClockTimezone,
+} from '../../common/utils/timezone.util.js';
 
 export type ProviderTodayTimelineSegmentKind = 'booking' | 'gap';
 
@@ -96,41 +104,54 @@ export function computeProviderTodayNowMarkerPercent(
 
 export function resolveProviderTodayNextClient(
   bookings: ProviderTodayTimelineBookingLike[],
-  nowMs: number,
+  timeZone: string,
+  now?: Date,
 ): ProviderTodayTimelineNextClient | null {
+  const wallNow = getWallClockNowFromInstant(now ?? new Date(), timeZone);
   const upcoming = bookings
     .map((booking) => {
       const start = parseInstant(booking.startTime);
       if (!start || !UPCOMING_STATUSES.has(booking.status)) return null;
-      if (start.getTime() <= nowMs) return null;
-      return { booking, startMs: start.getTime() };
+      if (!isWallClockStartStrictlyFutureAt(start, wallNow)) return null;
+      return { booking, start };
     })
-    .filter((entry): entry is { booking: ProviderTodayTimelineBookingLike; startMs: number } =>
-      Boolean(entry),
+    .filter(
+      (
+        entry,
+      ): entry is {
+        booking: ProviderTodayTimelineBookingLike;
+        start: Date;
+      } => Boolean(entry),
     )
-    .sort((a, b) => a.startMs - b.startMs);
+    .sort(
+      (a, b) =>
+        minutesUntilWallClockStartAt(a.start, wallNow) -
+        minutesUntilWallClockStartAt(b.start, wallNow),
+    );
 
   const next = upcoming[0];
   if (!next) return null;
 
   return {
     bookingId: next.booking.id,
-    startTime: toIso(new Date(next.startMs)),
+    startTime: toIso(next.start),
     customerName: next.booking.customer?.name?.trim() || null,
-    minutesUntilStart: minutesBetween(nowMs, next.startMs),
+    minutesUntilStart: minutesUntilWallClockStartAt(next.start, wallNow),
   };
 }
 
 export function resolveProviderTodayActiveBookingId(
   bookings: ProviderTodayTimelineBookingLike[],
-  nowMs: number,
+  timeZone: string,
+  now?: Date,
 ): string | null {
+  const wallNow = getWallClockNowFromInstant(now ?? new Date(), timeZone);
   for (const booking of bookings) {
     if (!UPCOMING_STATUSES.has(booking.status)) continue;
     const start = parseInstant(booking.startTime);
     const end = parseInstant(booking.endTime);
     if (!start || !end) continue;
-    if (start.getTime() <= nowMs && nowMs <= end.getTime()) {
+    if (isWallClockRangeActiveAt(start, end, wallNow)) {
       return booking.id;
     }
   }
@@ -196,8 +217,10 @@ export function buildProviderTodayTimelineView(input: {
   date: string;
   bookings: ProviderTodayTimelineBookingLike[];
   now?: Date;
+  timeZone?: string;
 }): ProviderTodayTimelineView {
-  const nowMs = (input.now ?? new Date()).getTime();
+  const timeZone = input.timeZone ?? 'UTC';
+  const wallNow = getWallClockNowFromInstant(input.now ?? new Date(), timeZone);
   const segments = buildProviderTodayTimelineSegments(input.bookings);
 
   const bookingSegments = segments.filter(
@@ -231,13 +254,21 @@ export function buildProviderTodayTimelineView(input: {
     rangeStart: new Date(rangeStartMs).toISOString(),
     rangeEnd: new Date(rangeEndMs).toISOString(),
     segments,
-    nowMarkerPercent: computeProviderTodayNowMarkerPercent(
-      rangeStartMs,
-      rangeEndMs,
-      nowMs,
+    nowMarkerPercent: computeWallClockNowMarkerPercent(
+      new Date(rangeStartMs),
+      new Date(rangeEndMs),
+      wallNow,
     ),
-    nextClient: resolveProviderTodayNextClient(input.bookings, nowMs),
-    activeBookingId: resolveProviderTodayActiveBookingId(input.bookings, nowMs),
+    nextClient: resolveProviderTodayNextClient(
+      input.bookings,
+      timeZone,
+      input.now,
+    ),
+    activeBookingId: resolveProviderTodayActiveBookingId(
+      input.bookings,
+      timeZone,
+      input.now,
+    ),
   };
 }
 

@@ -5,7 +5,13 @@ export const ORCHESTRIX_PROMPT = 'orchestrix:prompt';
 export const ORCHESTRIX_RUN = 'orchestrix:run';
 
 export type OrchestrixPromptDetail = { prompt: string };
-export type OrchestrixRunDetail = { prompt: string; autoSubmit?: boolean };
+export type OrchestrixRunDetail = {
+  prompt: string;
+  autoSubmit?: boolean;
+  assistantMode?: 'guide' | 'act';
+  guideTopicId?: string;
+};
+export type OrchestrixRunOptions = Omit<OrchestrixRunDetail, 'prompt'>;
 
 export function fireOrchestrixOpen() {
   window.dispatchEvent(new CustomEvent(ORCHESTRIX_OPEN));
@@ -24,10 +30,18 @@ export function fireOrchestrixEdit(prompt: string) {
 }
 
 /** Run: optional immediate submit (ai-d3). */
-export function fireOrchestrixRun(prompt: string, autoSubmit = true) {
+export function fireOrchestrixRun(
+  prompt: string,
+  autoSubmitOrOptions: boolean | OrchestrixRunOptions = true,
+  options: OrchestrixRunOptions = {},
+) {
+  const resolved =
+    typeof autoSubmitOrOptions === 'boolean'
+      ? { autoSubmit: autoSubmitOrOptions, ...options }
+      : autoSubmitOrOptions;
   window.dispatchEvent(
     new CustomEvent<OrchestrixRunDetail>(ORCHESTRIX_RUN, {
-      detail: { prompt, autoSubmit },
+      detail: { prompt, ...resolved },
     }),
   );
   fireOrchestrixOpen();
@@ -35,7 +49,7 @@ export function fireOrchestrixRun(prompt: string, autoSubmit = true) {
 
 export type OrchestrixHandlers = {
   onPrompt?: (prompt: string) => void;
-  onRun?: (prompt: string, autoSubmit: boolean) => void;
+  onRun?: (detail: OrchestrixRunDetail) => void;
   onOpen?: () => void;
 };
 
@@ -49,7 +63,7 @@ export function handleOrchestrixRunEvent(e: Event, handlers: OrchestrixHandlers)
   const prompt = detail?.prompt;
   if (!prompt) return;
   if (handlers.onRun) {
-    handlers.onRun(prompt, detail.autoSubmit !== false);
+    handlers.onRun({ ...detail, prompt, autoSubmit: detail.autoSubmit !== false });
   } else if (handlers.onPrompt) {
     handlers.onPrompt(prompt);
   }

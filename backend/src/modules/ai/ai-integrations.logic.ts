@@ -8,8 +8,20 @@ import type { ZapierIntegrationService } from '../integrations/zapier/zapier-int
 import type { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import type { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import type { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
+import type { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
+import type { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import { mergeMarketingNotificationSettings } from '../notifications/marketing-notification-settings.util.js';
 import type { CommandResult } from './command-completion.types.js';
+import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
+import { handleExplainIntegrationHealthLogic } from './ai-explain-integration-health.logic.js';
+import {
+  countConfiguredIntegrationAreas,
+  loadIntegrationHealthSnapshot,
+} from './ai-integration-health.snapshot.js';
+import {
+  buildGuideSupportTicketPayload,
+  parseGuideSupportSnapshot,
+} from './guide/guide-support-handoff.util.js';
 import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
 import {
   buildBookingCreatedTestPayload,
@@ -38,6 +50,11 @@ export interface IntegrationsLogicDeps {
   webhooksService: WebhooksService;
   apiKeyService: ApiKeyService;
   zapierIntegrationService: ZapierIntegrationService;
+  openAiIntegrationService: OpenAiIntegrationService;
+  whatsappIntegrationService?: Pick<
+    WhatsAppIntegrationService,
+    'getPublicSettings'
+  >;
   accountingIntegrationService: AccountingIntegrationService;
   zendeskIntegrationService: ZendeskIntegrationService;
   integrationsDocsService?: IntegrationsDocsService;
@@ -580,32 +597,49 @@ export async function handleCreateSupportTicketLogic(
   actorName?: string,
 ): Promise<CommandResult> {
   const promptText = prompt ?? (params._prompt as string) ?? '';
+  const guideSnapshot =
+    parseGuideSupportSnapshot(params.guideSnapshot) ??
+    parseGuideSupportSnapshot(params.snapshot);
+  const ticketFromSnapshot = guideSnapshot
+    ? buildGuideSupportTicketPayload(guideSnapshot)
+    : null;
+
   const subject =
     (params.subject as string | undefined) ??
+    ticketFromSnapshot?.subject ??
     extractTicketSubjectFromPrompt(promptText) ??
     'Support request from dashboard';
   const body =
     (params.body as string | undefined) ??
+    ticketFromSnapshot?.body ??
     extractTicketBodyFromPrompt(promptText) ??
     (promptText.slice(0, 500) || 'Support ticket created via AI assistant.');
+  const tags =
+    (params.tags as string[] | undefined) ?? ticketFromSnapshot?.tags ?? undefined;
 
   try {
-    const customer = await resolveCustomerByName(
-      deps,
-      businessId,
-      params,
-      promptText,
-    );
+    const customer =
+      guideSnapshot && !params.customerId && !params.customerName
+        ? null
+        : await resolveCustomerByName(
+            deps,
+            businessId,
+            params,
+            guideSnapshot ? '' : promptText,
+          );
     const ticket = await deps.zendeskIntegrationService.createSupportTicket(
       businessId,
       {
         subject,
         body,
-        customerId: customer?.id,
+        customerId: customer?.id ?? (params.customerId as string | undefined),
         bookingId: params.bookingId as string | undefined,
         requesterEmail: params.requesterEmail as string | undefined,
         requesterName: params.requesterName as string | undefined,
-        tags: params.tags as string[] | undefined,
+        tags: tags ? [...tags] : undefined,
+        ...(guideSnapshot
+          ? { guideSnapshot: guideSnapshot as unknown as Record<string, unknown> }
+          : {}),
       },
       actorEmail,
       actorName,
@@ -726,53 +760,13 @@ export async function handleListIntegrationHealthLogic(
   deps: IntegrationsLogicDeps,
   businessId: string,
 ): Promise<CommandResult> {
-  const [webhooks, apiKeys, zendesk, zapier, accounting] = await Promise.all([
-    deps.webhooksService.listSubscriptions(businessId),
-    deps.apiKeyService.listKeys(businessId),
-    deps.zendeskIntegrationService.getPublicSettings(businessId),
-    deps.zapierIntegrationService.getPublicSettings(businessId),
-    deps.accountingIntegrationService.getPublicSettings(businessId),
-  ]);
-
-  const health = {
-    webhooks: {
-      configured: webhooks.length > 0,
-      count: webhooks.length,
-      active: webhooks.filter((w) => w.isActive).length,
-    },
-    apiKeys: {
-      configured: apiKeys.length > 0,
-      count: apiKeys.length,
-    },
-    zendesk: {
-      configured: zendesk.configured,
-      enabled: zendesk.enabled,
-      syncCustomersEnabled: zendesk.syncCustomersEnabled,
-    },
-    zapier: {
-      configured: zapier.enabled,
-      enabled: zapier.enabled,
-      triggerCount: zapier.webhookEvents.length,
-    },
-    accounting: {
-      configured: accounting.enabled,
-      enabled: accounting.enabled,
-      provider: accounting.provider,
-    },
-  };
-
-  const configuredCount = [
-    health.webhooks.configured,
-    health.apiKeys.configured,
-    health.zendesk.configured,
-    health.zapier.enabled,
-    health.accounting.enabled,
-  ].filter(Boolean).length;
+  const snapshot = await loadIntegrationHealthSnapshot(deps, businessId);
+  const configuredCount = countConfiguredIntegrationAreas(snapshot);
 
   return success(
     'list_integration_health',
-    `${configuredCount}/5 integration area(s) configured.`,
-    { health, docsAvailable: Boolean(deps.integrationsDocsService) },
+    `${configuredCount}/8 integration area(s) configured.`,
+    { health: snapshot, docsAvailable: Boolean(deps.integrationsDocsService) },
   );
 }
 
@@ -1032,6 +1026,14 @@ export async function handleIntegrationsCompoundLogic(
           step.segment,
         );
         break;
+      case 'configure_openai_integration':
+        result = await handleConfigureOpenaiIntegrationLogic(
+          { openAiIntegrationService: deps.openAiIntegrationService },
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
       case 'run_accounting_export':
         result = await handleRunAccountingExportLogic(
           deps,
@@ -1076,6 +1078,14 @@ export async function handleIntegrationsCompoundLogic(
         break;
       case 'list_integration_health':
         result = await handleListIntegrationHealthLogic(deps, businessId);
+        break;
+      case 'explain_integration_health':
+        result = await handleExplainIntegrationHealthLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
         break;
       case 'contact_support':
         result = await handleContactSupportLogic(

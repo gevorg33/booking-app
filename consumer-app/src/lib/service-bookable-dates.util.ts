@@ -1,6 +1,7 @@
 import type { PublicServiceDaySlots } from './types.js';
 
 export const SERVICE_BOOKABLE_DATE_SCAN_DAYS = 120;
+export const SERVICE_BOOKABLE_DATE_MAX_RANGE = 62;
 
 export function isoToDateKey(iso: string): string {
   return iso.slice(0, 10);
@@ -18,6 +19,34 @@ export function buildDateKeyRange(startDateKey: string, dayCount: number): strin
     keys.push(addDaysToDateKey(startDateKey, index));
   }
   return keys;
+}
+
+export function buildInclusiveDateKeyRange(fromKey: string, toKey: string): string[] {
+  if (fromKey > toKey) return [];
+  const keys: string[] = [];
+  let current = fromKey;
+  while (current <= toKey) {
+    keys.push(current);
+    current = addDaysToDateKey(current, 1);
+  }
+  return keys;
+}
+
+export function splitDateKeyRange(
+  fromKey: string,
+  toKey: string,
+  maxDays: number,
+): Array<{ from: string; to: string }> {
+  if (fromKey > toKey || maxDays < 1) return [];
+  const chunks: Array<{ from: string; to: string }> = [];
+  let current = fromKey;
+  while (current <= toKey) {
+    const chunkEnd = addDaysToDateKey(current, maxDays - 1);
+    const end = chunkEnd > toKey ? toKey : chunkEnd;
+    chunks.push({ from: current, to: end });
+    current = addDaysToDateKey(end, 1);
+  }
+  return chunks;
 }
 
 export function dateKeysForMonth(year: number, month: number): string[] {

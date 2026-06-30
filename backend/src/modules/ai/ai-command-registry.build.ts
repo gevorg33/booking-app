@@ -69,6 +69,7 @@ import {
   SELF_SERVICE_BOOKING_INTENTS,
   SELF_SERVICE_BOOKING_MUTATE_INTENTS,
 } from './ai-self-service-booking.util.js';
+import { PUBLIC_MULTI_SERVICE_BOOKING_INTENTS } from './ai-multi-service-customer-public.util.js';
 import {
   PROVIDER_BOOKING_INTENTS,
   PROVIDER_BOOKING_MUTATE_INTENTS,
@@ -106,6 +107,17 @@ import {
   CLINIC_TEST_RESULT_MUTATE_INTENTS,
 } from './ai-clinic-test-result.util.js';
 import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
+import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
+import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
+import {
+  META_PRODUCT_GUIDE_INTENTS,
+  PROVIDER_META_GUIDE_INTENTS,
+} from './ai-meta-product-guide.fixtures.js';
+import {
+  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
+  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
+  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+} from './ai-product-guide-empty-state.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
 import {
   PROVIDER_CLINIC_COLLECTION_INTENTS,
@@ -218,6 +230,7 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'team_floor_status',
   'check_in_client',
   'mark_running_late',
+  'voice_summarize_next_client',
 ] as const;
 
 /** Anonymous public-booking assistant (pre-login). */
@@ -241,6 +254,7 @@ const PUBLIC_ANONYMOUS_INTENTS = [
   'diagnose_tour_capacity',
   'explain_checkout_recommendations',
   'explain_clinic_booking',
+  'explain_guest_checkout_fields',
   'explain_data_rights',
 ] as const;
 
@@ -250,6 +264,10 @@ const SURFACE_HANDLER_OVERRIDES: Record<
 > = {
   mark_paid: {
     dashboard: 'AiBookingDepthService',
+    provider: 'AiProviderBookingService',
+  },
+  list_my_package_visits: {
+    customer: 'AiSelfServiceBookingService',
     provider: 'AiProviderBookingService',
   },
   ...Object.fromEntries(
@@ -352,6 +370,62 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: [],
   },
   {
+    intents: [...APP_GUIDE_INTENTS],
+    surfaces: ['dashboard', 'customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_PRODUCT_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...META_PRODUCT_GUIDE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_META_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...DASHBOARD_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideEmptyStateService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...PROVIDER_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['provider'],
+    apiModule: 'provider-mobile',
+    handler: 'AiProductGuideEmptyStateService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
+    intents: [...CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiProductGuideEmptyStateService',
+    sprint: 'productGuide',
+    mutateIntents: [],
+  },
+  {
     intents: [...CONSUMER_CLINIC_TEST_RESULTS_INTENTS],
     surfaces: ['customer', 'public'],
     apiModule: 'clinic-test-results',
@@ -381,6 +455,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'ai-command',
     handler: 'AiClinicBookingService',
     sprint: 'clinicBooking',
+    mutateIntents: [],
+  },
+  {
+    intents: ['explain_guest_checkout_fields'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiGuestCheckoutFieldsService',
+    sprint: 'guestCheckout',
     mutateIntents: [],
   },
   {
@@ -497,6 +579,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'ai-command',
     handler: 'AiRecommendationProductService',
     sprint: 'recommendationProduct',
+    mutateIntents: [],
+  },
+  {
+    intents: ['resume_pending_payment'],
+    surfaces: ['customer'],
+    apiModule: 'ai-command',
+    handler: 'AiResumePendingPaymentService',
+    sprint: 'pendingCheckout',
     mutateIntents: [],
   },
   {
@@ -797,6 +887,84 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     ],
   },
   {
+    intents: ['explain_checkout_total'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['explain_amount_due_now'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['explain_service_price'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['explain_payment_options_for_service'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['find_soonest_appointment'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['compare_services'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['filter_services_no_prepayment'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['explain_business_hours_and_location'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiBusinessHoursLocationService',
+    sprint: 'businessProfile',
+  },
+  {
+    intents: ['explain_provider_specialty'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiProviderSpecialtyService',
+    sprint: 'businessProfile',
+  },
+  {
+    intents: ['explain_why_stripe_required'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+  },
+  {
+    intents: ['choose_payment_method', 'pay_cash_at_visit', 'pay_online'],
+    surfaces: ['public'],
+    apiModule: 'payments',
+    handler: 'AiPaymentsService',
+    sprint: 'payments',
+    mutateIntents: ['choose_payment_method', 'pay_cash_at_visit', 'pay_online'],
+  },
+  {
     intents: [
       ...DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
       ...DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS,
@@ -907,6 +1075,14 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     handler: 'AiSelfServiceBookingService',
     sprint: 'selfServiceBooking',
     mutateIntents: SELF_SERVICE_BOOKING_MUTATE_INTENTS,
+  },
+  {
+    intents: PUBLIC_MULTI_SERVICE_BOOKING_INTENTS,
+    surfaces: ['public'],
+    apiModule: 'public-booking',
+    handler: 'AiSelfServiceBookingService',
+    sprint: 'selfServiceBooking',
+    mutateIntents: ['book_multi_service', 'add_services_to_cart'],
   },
   {
     intents: PROVIDER_BOOKING_INTENTS,
@@ -1537,6 +1713,113 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
       sprint: 'staffOnboarding',
     },
     {
+      id: 'setup_salon_checkout',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeSetupSalonCheckoutCompoundPrompt',
+      maxSteps: 4,
+      allowedStepIntentIds: [
+        'configure_stripe_connect',
+        'configure_cash_payments',
+        'configure_service_online_payment',
+        'configure_online_booking',
+      ],
+      examplePrompts: [
+        'Set up salon checkout end-to-end: connect Stripe for client payments, enable cash at venue, accept online payment on all services with 50% prepayment, enable online booking',
+        'Full checkout setup for our spa — link Stripe Connect, turn on cash payments, require 50% online prepayment on every service, and enable the public booking page',
+        'Configure salon checkout from scratch; connect Stripe; enable cash at checkout; accept online payment on all services with half deposit; turn on online booking',
+      ],
+      sprint: 'salonCheckout',
+    },
+    {
+      id: 'configure_services_payment_matrix',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeConfigureServicesPaymentMatrixCompoundPrompt',
+      maxSteps: 8,
+      allowedStepIntentIds: [
+        'update_service_prices',
+        'configure_service_online_payment',
+        'configure_cash_payments',
+      ],
+      examplePrompts: [
+        'Configure services payment matrix — full prepayment for massage services and 50% deposit for hair services; enable cash at venue',
+        'Raise massage prices 10% — services payment matrix: require full prepayment for massage services; accept 50% deposit for hair services; turn on cash payments',
+        'Category payment matrix end-to-end: massage: full prepayment; hair: 50% deposit; facial: full prepayment; enable cash at checkout',
+      ],
+      sprint: 'servicesPaymentMatrix',
+    },
+    {
+      id: 'cash_and_online_payment',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt',
+      maxSteps: 2,
+      allowedStepIntentIds: [
+        'configure_cash_payments',
+        'configure_service_online_payment',
+      ],
+      examplePrompts: [
+        'Enable cash and decline online payment for all services',
+        'Turn on cash payments at checkout and decline online payment on public booking for all services',
+        'Accept cash at venue and disable online prepayment for every service',
+      ],
+      sprint: 'cashAndOnlinePayment',
+    },
+    {
+      id: 'decline_online_payment_category',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeDeclineOnlinePaymentCategoryCompoundPrompt',
+      maxSteps: 6,
+      allowedStepIntentIds: [
+        'configure_service_online_payment',
+        'configure_cash_payments',
+      ],
+      examplePrompts: [
+        'Decline online payment on public booking for dental services but accept 50% prepayment for massage services',
+        'Turn off online payment for hair category and enable full prepayment for facial services',
+        'Decline online payment for waxing services; require online payment on public booking for massage services with 50% deposit',
+      ],
+      sprint: 'declineOnlinePaymentCategory',
+    },
+    {
+      id: 'onboard_salon_notifications',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeOnboardSalonNotificationsCompoundPrompt',
+      maxSteps: 3,
+      allowedStepIntentIds: [
+        'configure_notification_settings',
+        'configure_whatsapp_integration',
+        'test_push',
+      ],
+      examplePrompts: [
+        'Onboard salon notifications end-to-end: configure notification settings with email and WhatsApp reminders, connect WhatsApp integration with platform default, and test push notifications',
+        'Notification onboarding for our spa — enable email and 24h WhatsApp reminders, use platform default WhatsApp connection, send test push',
+        'Set up salon notifications from scratch; turn on email appointment reminders; configure WhatsApp integration; test push',
+      ],
+      sprint: 'salonNotifications',
+    },
+    {
+      id: 'launch_consumer_app_growth',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeLaunchConsumerAppGrowthCompoundPrompt',
+      maxSteps: 3,
+      allowedStepIntentIds: [
+        'explain_tenant_app_install',
+        'regenerate_tenant_app_install_qr',
+        'configure_marketing_registration_email',
+      ],
+      examplePrompts: [
+        'Launch consumer app growth end-to-end: explain our tenant app install QR, regenerate the growth QR code, and configure marketing registration email notifications',
+        'Launch customer app growth for our spa — explain get-app link, refresh growth QR, enable marketing registration emails to team@salon.com',
+        'Set up consumer app growth from scratch; explain app install landing page; regenerate tenant app install QR; configure marketing registration email',
+      ],
+      sprint: 'consumerAppGrowth',
+    },
+    {
       id: 'budget_discover_and_book',
       surfaces: ['dashboard'],
       handler: 'AiCommandService.executeCommand',
@@ -1590,6 +1873,23 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Lab closeout for today; list pending lab orders; enter CBC 4.2 for order abc123; release results to Anna; notify her when results are ready',
       ],
       sprint: 'clinicLabDayClose',
+    },
+    {
+      id: 'clinic_lab_review',
+      surfaces: ['dashboard'],
+      handler: 'AiCommandService.executeCommand',
+      decomposeUtil: 'decomposeClinicLabReviewCompoundPrompt',
+      maxSteps: 2,
+      allowedStepIntentIds: [
+        'list_abnormal_results',
+        'explain_patient_results',
+      ],
+      examplePrompts: [
+        'Lab review for Maria: list abnormal flagged measurements and explain her lab results',
+        'List abnormal results for John and then explain his lab results',
+        'Review flagged lab results for Anna; show abnormal measurements; explain what they mean',
+      ],
+      sprint: 'clinicTestResults',
     },
     {
       id: 'dashboard_clinic_compound',
@@ -1781,6 +2081,20 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book appointment and show business info',
       ],
       sprint: 'platform',
+    },
+    {
+      id: 'public_multi_service_compound',
+      surfaces: ['public'],
+      handler: 'PublicBookingAssistantService.executeCommand',
+      decomposeUtil: 'decomposePublicMultiServiceCompoundPrompt',
+      llmDecompose: false,
+      maxSteps: 4,
+      allowedStepIntentIds: [...PUBLIC_MULTI_SERVICE_BOOKING_INTENTS],
+      examplePrompts: [
+        'Add massage and facial to cart and check multi-service availability',
+        'Check availability for massage and facial and book multi-service together',
+      ],
+      sprint: 'selfServiceBooking',
     },
   ];
 }

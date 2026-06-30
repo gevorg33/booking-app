@@ -1,6 +1,15 @@
 /** prov-exp-4.3 — manager team queue for the next 2 hours. */
 
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import {
+  getWallClockNowFromInstant,
+  isWallClockRangeActiveAt,
+  isWallClockStartInPastAt,
+  isWallClockStartStrictlyFutureAt,
+  minutesUntilWallClockStartAt,
+  wallClockDateKeyFromDate,
+  wallClockMinutesFromDate,
+} from '../../common/utils/timezone.util.js';
 import { resolveTeamFloorChipStatus } from './provider-team-floor.util.js';
 
 export const TEAM_WHOS_NEXT_WINDOW_HOURS = 2;
@@ -73,51 +82,65 @@ export function buildTeamWhosNextWindow(now: Date = new Date()): {
 
 export function isBookingInTeamWhosNextWindow(
   booking: Pick<TeamWhosNextBookingLike, 'startTime' | 'endTime' | 'status'>,
-  now: Date,
-  windowEnd: Date,
+  timeZone: string,
+  now: Date = new Date(),
 ): boolean {
   if (BLOCKED_STATUSES.has(booking.status)) return false;
 
-  const startMs = new Date(booking.startTime).getTime();
-  const endMs = new Date(booking.endTime).getTime();
-  const nowMs = now.getTime();
-  const windowEndMs = windowEnd.getTime();
+  const start = new Date(booking.startTime);
+  const end = new Date(booking.endTime);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return false;
+  }
 
-  if (endMs <= nowMs) return false;
-  if (startMs >= windowEndMs) return false;
-  return true;
+  const wallNow = getWallClockNowFromInstant(now, timeZone);
+  if (isWallClockStartInPastAt(end, wallNow)) return false;
+
+  if (isWallClockRangeActiveAt(start, end, wallNow)) return true;
+
+  if (!isWallClockStartStrictlyFutureAt(start, wallNow)) return false;
+
+  const startDay = wallClockDateKeyFromDate(start);
+  if (startDay !== wallNow.dateKey) return false;
+
+  return (
+    minutesUntilWallClockStartAt(start, wallNow) <
+    TEAM_WHOS_NEXT_WINDOW_HOURS * 60
+  );
 }
 
 export function filterBookingsInTeamWhosNextWindow<T extends TeamWhosNextBookingLike>(
   bookings: T[],
+  timeZone: string,
   now: Date = new Date(),
 ): T[] {
-  const { windowEnd } = buildTeamWhosNextWindow(now);
   return bookings.filter((booking) =>
-    isBookingInTeamWhosNextWindow(booking, now, windowEnd),
+    isBookingInTeamWhosNextWindow(booking, timeZone, now),
   );
 }
 
 export function resolveNextQueueBookingId<T extends TeamWhosNextBookingLike>(
   queue: T[],
+  timeZone: string,
   now: Date = new Date(),
 ): string | null {
-  const nowMs = now.getTime();
+  const wallNow = getWallClockNowFromInstant(now, timeZone);
   const sorted = [...queue].sort(
     (a, b) =>
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+      wallClockMinutesFromDate(new Date(a.startTime)) -
+      wallClockMinutesFromDate(new Date(b.startTime)),
   );
 
   const active = sorted.find((booking) => {
     if (booking.status === BookingStatus.IN_PROGRESS) return true;
-    const startMs = new Date(booking.startTime).getTime();
-    const endMs = new Date(booking.endTime).getTime();
-    return startMs <= nowMs && endMs > nowMs;
+    const start = new Date(booking.startTime);
+    const end = new Date(booking.endTime);
+    return isWallClockRangeActiveAt(start, end, wallNow);
   });
   if (active) return active.id;
 
-  const upcoming = sorted.find(
-    (booking) => new Date(booking.startTime).getTime() >= nowMs,
+  const upcoming = sorted.find((booking) =>
+    isWallClockStartStrictlyFutureAt(new Date(booking.startTime), wallNow),
   );
   return upcoming?.id ?? sorted[0]?.id ?? null;
 }
@@ -128,11 +151,16 @@ export function buildTeamWhosNextColumns<T extends TeamWhosNextBookingLike>(
     booking: T,
     meta: { isNext: boolean; queuePosition: number },
   ) => TeamWhosNextQueueItem,
+  timeZone: string,
   now: Date = new Date(),
 ): TeamWhosNextProviderColumn[] {
   const grouped = new Map<string, { employeeName: string; bookings: T[] }>();
 
-  for (const booking of filterBookingsInTeamWhosNextWindow(bookings, now)) {
+  for (const booking of filterBookingsInTeamWhosNextWindow(
+    bookings,
+    timeZone,
+    now,
+  )) {
     const employeeId = booking.employee?.id ?? UNASSIGNED_EMPLOYEE_ID;
     const employeeName = booking.employee?.name ?? 'Unassigned';
     const entry = grouped.get(employeeId) ?? { employeeName, bookings: [] };
@@ -146,7 +174,7 @@ export function buildTeamWhosNextColumns<T extends TeamWhosNextBookingLike>(
         (a, b) =>
           new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
       );
-      const nextBookingId = resolveNextQueueBookingId(sorted, now);
+      const nextBookingId = resolveNextQueueBookingId(sorted, timeZone, now);
       const queue = sorted.map((booking, index) =>
         mapQueueItem(booking, {
           isNext: booking.id === nextBookingId,
@@ -169,10 +197,16 @@ export function buildTeamWhosNextView<T extends TeamWhosNextBookingLike>(
     booking: T,
     meta: { isNext: boolean; queuePosition: number },
   ) => TeamWhosNextQueueItem,
+  timeZone: string,
   now: Date = new Date(),
 ): TeamWhosNextView {
   const { windowStart, windowEnd } = buildTeamWhosNextWindow(now);
-  const columns = buildTeamWhosNextColumns(bookings, mapQueueItem, now);
+  const columns = buildTeamWhosNextColumns(
+    bookings,
+    mapQueueItem,
+    timeZone,
+    now,
+  );
   return {
     viewMode: 'team',
     windowHours: TEAM_WHOS_NEXT_WINDOW_HOURS,

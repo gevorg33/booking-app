@@ -365,6 +365,12 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
     'How much is facemassage?',
     'Add services: facemassage 60min $50, haircut 30min $25',
     'Who can do facemassage?',
+    'Accept online payment on public booking for all services with 50% prepayment',
+    'Require full prepayment on public booking for Massage',
+    'Accept online payment for Haircut and Blowdry with half prepayment',
+    'Decline online payment on public booking for all services',
+    'Decline online payment on public booking for Massage',
+    'Do not accept online payment for massage services',
   ],
   '/dashboard/reports': [
     "Explain this week's drop in utilization",
@@ -526,9 +532,10 @@ export const AI_PAGE_SUGGESTION_GROUPS: Record<string, AiPageSuggestionGroup[]> 
 export function getAiPageSuggestionGroups(
   route: string,
   t?: AiTranslateFn,
+  ctx?: import('./ai-assistant-i18n').AssistantExampleTenantInput | null,
 ): AiPageSuggestionGroup[] {
   if (t) {
-    return getLocalizedAiPageSuggestionGroups(route, t);
+    return getLocalizedAiPageSuggestionGroups(route, t, ctx);
   }
   const grouped = AI_PAGE_SUGGESTION_GROUPS[route];
   if (grouped?.length) return grouped;
@@ -554,7 +561,7 @@ export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
   '/dashboard/employees':
     'Prefer: assign_employee_services, lookup_service_assignment, summarize_utilization, check_availability, summarize_bookings busiest_provider.',
   '/dashboard/services':
-    'Prefer: list_services, create_service, create_services, analyze_services, lookup_service_assignment providers_for_service.',
+    'Prefer: list_services, create_service, create_services, analyze_services, configure_service_online_payment (accept/decline online payment prepayment on public booking), lookup_service_assignment providers_for_service.',
   '/dashboard/reports':
     'Prefer: summarize_utilization (compare weeks when user asks about drops or changes), summarize_bookings revenue/count, summarize_customers top_spenders.',
   '/dashboard/onboarding':
@@ -564,6 +571,8 @@ export const AI_ROUTE_CONTEXT_HINTS: Record<string, string> = {
   '/dashboard/reviews':
     'Prefer: summarize_customers no-shows, at_risk, top_spenders.',
 };
+
+export type AssistantMode = 'guide' | 'act';
 
 export interface AiPageContext {
   route?: string;
@@ -595,6 +604,10 @@ export interface AiPageContext {
   selectionTimeFrom?: string | null;
   selectionTimeTo?: string | null;
   selectionEmployeeId?: string | null;
+  /** ai-guide-1.0.3 — optional guide vs act routing for assistant APIs. */
+  assistantMode?: AssistantMode;
+  /** ai-guide-1.3.4 — optional stable corpus topic when launching guide from /dashboard/guide#… */
+  guideTopicId?: string;
 }
 
 let pageContext: AiPageContext = {};
@@ -626,14 +639,16 @@ export function buildAiRequestContext(
   pathname: string,
   session: Partial<AiPageContext>,
   page: Partial<AiPageContext> = getAiPageContext(),
+  overrides: Partial<AiPageContext> = {},
 ): AiPageContext {
-  const route = pathname || page.route || session.route;
+  const route = pathname || page.route || session.route || overrides.route;
   return {
     ...session,
     ...page,
+    ...overrides,
     route,
     routeHint: route ? (AI_ROUTE_CONTEXT_HINTS[route] ?? null) : null,
-    timeZone: session.timeZone ?? page.timeZone ?? getBrowserTimeZone(),
+    timeZone: session.timeZone ?? page.timeZone ?? overrides.timeZone ?? getBrowserTimeZone(),
   };
 }
 
@@ -645,8 +660,12 @@ export function getBrowserTimeZone(): string {
   }
 }
 
-export function getSuggestionsForRoute(route: string, t?: AiTranslateFn): string[] {
-  if (t) return getLocalizedPageSuggestions(route, t);
+export function getSuggestionsForRoute(
+  route: string,
+  t?: AiTranslateFn,
+  ctx?: import('./ai-assistant-i18n').AssistantExampleTenantInput | null,
+): string[] {
+  if (t) return getLocalizedPageSuggestions(route, t, ctx);
   return AI_PAGE_SUGGESTIONS[route] ?? AI_BOOKING_EXAMPLES.slice(0, 4);
 }
 

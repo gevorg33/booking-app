@@ -18,8 +18,9 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@shared-i18n/*": ["../frontend/src/i18n/*"],
-      "@booking-lib/*": ["../frontend/src/lib/*"]
+      "@booking-lib/*": ["../frontend/src/lib/*"],
+      "@mobile-guide/*": ["../shared/mobile-guide/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../shared/mobile-guide/src"]
 }

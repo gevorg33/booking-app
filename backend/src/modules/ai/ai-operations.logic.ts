@@ -31,6 +31,10 @@ import {
   shouldAutoExecuteOperations,
 } from './ai-operations.util.js';
 import {
+  enrichUpdateServicePricesParamsFromPrompt,
+  filterServicesForUpdateServicePricesOnlinePayment,
+} from './ai-update-service-prices-online-payment-filter.util.js';
+import {
   buildImportServicesReviewPlanMeta,
   buildImportServicesReviewPlanSteps,
   buildNoShowRecoveryPlanMeta,
@@ -298,7 +302,8 @@ export function prepareUpdateServicePricesPlanLogic(
   services: Service[],
   userId?: string,
 ): AgentPlan | null {
-  const adjustment = parsePriceAdjustment(prompt, params);
+  const enrichedParams = enrichUpdateServicePricesParamsFromPrompt(params, prompt);
+  const adjustment = parsePriceAdjustment(prompt, enrichedParams);
   if (!adjustment) return null;
 
   let matched = services;
@@ -308,6 +313,10 @@ export function prepareUpdateServicePricesPlanLogic(
     });
   } else if (adjustment.categoryHint) {
     matched = resolveServicesByCategoryHint(services, adjustment.categoryHint);
+  }
+
+  if (enrichedParams.onlyWithOnlinePayment === true) {
+    matched = filterServicesForUpdateServicePricesOnlinePayment(matched);
   }
 
   if (!matched.length) return null;

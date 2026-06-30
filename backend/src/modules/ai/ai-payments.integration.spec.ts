@@ -214,6 +214,13 @@ describe('Sprint 30 payments AI scenarios', () => {
       ).toBe('configure_service_online_payment');
       expect(
         rescue.rescue({
+          prompt: 'Which services require prepayment on public booking?',
+          action: 'unknown',
+          params: {},
+        })?.action,
+      ).toBe('explain_service_online_payment_setup');
+      expect(
+        rescue.rescue({
           prompt: 'Who is available tomorrow evening for massage',
           action: 'unknown',
           params: {},
@@ -262,6 +269,33 @@ describe('Sprint 30 payments AI scenarios', () => {
       ).toBe(true);
       expect(
         (await payments.handleListSubscriptionRevenue('biz-1', {})).success,
+      ).toBe(true);
+      expect(
+        (
+          await payments.handleExplainServiceOnlinePaymentSetup(
+            'biz-1',
+            {},
+            'Explain service online payment setup',
+          )
+        ).success,
+      ).toBe(true);
+      expect(
+        (
+          await payments.handleExplainPublicBookingCheckout(
+            'biz-1',
+            {},
+            'Explain public booking checkout payment options',
+          )
+        ).success,
+      ).toBe(true);
+      expect(
+        (
+          await payments.handleAuditServicesMissingOnlinePayment(
+            'biz-1',
+            {},
+            "Which services still don't accept online payment?",
+          )
+        ).success,
       ).toBe(true);
       expect(
         (

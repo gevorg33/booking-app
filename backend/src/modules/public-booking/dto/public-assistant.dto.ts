@@ -7,6 +7,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ASSISTANT_MODE_VALUES } from '../../ai/ai-assistant-mode.util.js';
 
 class AssistantHistoryMessageDto {
   @IsString()
@@ -35,4 +36,9 @@ export class PublicAssistantDto {
   @IsString()
   @IsIn(['en', 'hy', 'ru'])
   locale?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([...ASSISTANT_MODE_VALUES])
+  assistantMode?: 'guide' | 'act';
 }

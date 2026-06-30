@@ -18,14 +18,21 @@ export function isHelpTopicId(value: string): value is HelpTopicId {
   return (HELP_TOPIC_IDS as readonly string[]).includes(value);
 }
 
+import { buildDashboardGuideTopicUrl } from '@/lib/dashboard-guide-corpus.util';
+
+export const HELP_TOPIC_CORPUS_TOPIC_IDS: Record<HelpTopicId, string> = {
+  schedule: 'dashboard.core.schedule',
+  calendar: 'dashboard.core.calendar',
+  employees: 'dashboard.core.employees',
+  'operations-inventory': 'dashboard.operations.inventory',
+};
+
+export function getHelpTopicCorpusTopicId(topicId: HelpTopicId): string {
+  return HELP_TOPIC_CORPUS_TOPIC_IDS[topicId];
+}
+
 export function getHelpTopicGuidePath(topicId: HelpTopicId): string {
-  const anchors: Record<HelpTopicId, string> = {
-    schedule: '/dashboard/guide#schedule',
-    calendar: '/dashboard/guide#calendar',
-    employees: '/dashboard/guide#employees',
-    'operations-inventory': '/dashboard/guide#inventory',
-  };
-  return anchors[topicId];
+  return buildDashboardGuideTopicUrl(getHelpTopicCorpusTopicId(topicId));
 }
 
 export function helpTopicTranslationPrefix(topicId: HelpTopicId): string {

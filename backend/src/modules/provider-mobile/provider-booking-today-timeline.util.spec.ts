@@ -48,7 +48,8 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
     ({ bookings, now, expectedBookingId, expectedMinutes }) => {
       const next = resolveProviderTodayNextClient(
         bookings,
-        Date.parse(now),
+        'UTC',
+        new Date(now),
       );
       if (!expectedBookingId) {
         expect(next).toBeNull();
@@ -67,6 +68,7 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
         date: '2026-06-09',
         bookings,
         now: now ? new Date(now) : undefined,
+        timeZone: 'UTC',
       });
       if (expectEmpty) {
         expect(view.segments).toEqual([]);
@@ -104,9 +106,35 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
           customer: { name: 'Sooner' },
         },
       ],
-      Date.parse('2026-06-09T10:00:00.000Z'),
+      'UTC',
+      new Date('2026-06-09T10:00:00.000Z'),
     );
     expect(next?.bookingId).toBe('sooner');
+  });
+
+  it('excludes past wall-clock bookings in Asia/Yerevan', () => {
+    const next = resolveProviderTodayNextClient(
+      [
+        {
+          id: 'past',
+          startTime: '2026-06-29T16:30:00.000Z',
+          endTime: '2026-06-29T17:00:00.000Z',
+          status: 'confirmed',
+          customer: { name: 'Gevorg Gasparyan' },
+        },
+        {
+          id: 'future',
+          startTime: '2026-06-29T18:00:00.000Z',
+          endTime: '2026-06-29T18:30:00.000Z',
+          status: 'confirmed',
+          customer: { name: 'Later Client' },
+        },
+      ],
+      'Asia/Yerevan',
+      new Date('2026-06-29T13:01:00.000Z'),
+    );
+    expect(next?.bookingId).toBe('future');
+    expect(next?.minutesUntilStart).toBe(59);
   });
 
   it('resolveProviderTodayActiveBookingId returns null when between visits', () => {
@@ -120,7 +148,8 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
             status: 'confirmed',
           },
         ],
-        Date.parse('2026-06-09T11:30:00.000Z'),
+        'UTC',
+        new Date('2026-06-09T11:30:00.000Z'),
       ),
     ).toBeNull();
   });
@@ -164,7 +193,8 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
             status: 'completed',
           },
         ],
-        Date.parse('2026-06-09T10:30:00.000Z'),
+        'UTC',
+        new Date('2026-06-09T10:30:00.000Z'),
       ),
     ).toBeNull();
   });

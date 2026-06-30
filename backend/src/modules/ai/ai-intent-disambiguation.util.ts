@@ -1,4 +1,5 @@
 import { isMultilingualBookNearestPrompt } from './ai-check-and-book-multilingual.util.js';
+import { isFindSoonestAppointmentPrompt } from './ai-find-soonest-appointment.util.js';
 import {
   isCheckProvidersForServicePrompt,
   isBookNearestSlotPrompt,
@@ -57,6 +58,13 @@ export function isLookupServiceAssignmentPrompt(prompt: string): boolean {
 function publicAvailabilityAction(
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
+  if (isFindSoonestAppointmentPrompt(prompt)) {
+    return {
+      action: 'find_soonest_appointment',
+      rescueReason: 'soonest_appointment',
+      params: { bookingFirstAvailable: true, allProviders: true },
+    };
+  }
   if (hasBookVerb(prompt)) {
     if (
       isBookNearestSlotPrompt(prompt) ||
@@ -90,6 +98,13 @@ function dashboardOrCustomerAvailabilityAction(
   surface: 'dashboard' | 'customer',
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
+  if (isFindSoonestAppointmentPrompt(prompt) && !hasBookVerb(prompt)) {
+    return {
+      action: 'find_soonest_appointment',
+      rescueReason: 'soonest_appointment',
+      params: { bookingFirstAvailable: true, allProviders: true },
+    };
+  }
   if (isCheckProvidersForServicePrompt(prompt) && !hasBookVerb(prompt)) {
     return {
       action: 'check_providers_for_service',
@@ -142,6 +157,7 @@ export function disambiguateMisclassifiedAvailabilityIntent(
     'create_booking',
     'lookup_service_assignment',
     'check_availability',
+    'check_providers_for_service',
     'book_appointment',
   ]);
   if (!confusedActions.has(action)) return null;

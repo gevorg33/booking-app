@@ -25,6 +25,9 @@ export function resolveProviderAppLocale(
       ? defaultLocale
       : (enabled[0] ?? 'en');
 
+  const stored = readStoredLocale();
+  if (stored && enabled.includes(stored)) return stored;
+
   if (
     userLocale &&
     SUPPORTED_LOCALES.includes(userLocale as AppLocale) &&
@@ -40,9 +43,6 @@ export function resolveProviderAppLocale(
   ) {
     return businessLocale as AppLocale;
   }
-
-  const stored = readStoredLocale();
-  if (stored && enabled.includes(stored)) return stored;
 
   return fallback;
 }

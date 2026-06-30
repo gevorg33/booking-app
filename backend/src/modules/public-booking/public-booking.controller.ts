@@ -21,6 +21,7 @@ import {
   ConfirmBookingPaymentDto,
   GetProviderSlotsQueryDto,
   GetServiceSlotsQueryDto,
+  GetServiceBookableDatesQueryDto,
   GetServiceSlotProvidersQueryDto,
   PublicBookingQuoteDto,
   BookPublicPackageDto,
@@ -74,6 +75,8 @@ import { UpdatePublicCustomerPreferredLocaleDto } from './dto/public-customer-pr
 import { ClaimReferralCodeDto } from './dto/claim-referral.dto.js';
 import { ClaimShareRewardDto } from './dto/claim-share-reward.dto.js';
 import { SubmitCustomerReviewDto } from './dto/submit-customer-review.dto.js';
+import { GuideTelemetryService } from '../ai/guide-telemetry.service.js';
+import { IngestGuideTelemetryDto } from '../ai/dto/ingest-guide-telemetry.dto.js';
 
 @Controller('public/:slug')
 export class PublicBookingController {
@@ -93,6 +96,7 @@ export class PublicBookingController {
     private patientClinicalAlertsService: PatientClinicalAlertsService,
     private consumerPushTokenService: ConsumerPushTokenService,
     private publicConsumerSupportService: PublicConsumerSupportService,
+    private guideTelemetry: GuideTelemetryService,
   ) {}
 
   @Get()
@@ -407,6 +411,20 @@ export class PublicBookingController {
     );
   }
 
+  @Get('services/:serviceId/bookable-dates')
+  getServiceBookableDates(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Query() query: GetServiceBookableDatesQueryDto,
+  ) {
+    return this.publicBookingService.getServiceBookableDates(
+      slug,
+      serviceId,
+      query.from,
+      query.to,
+    );
+  }
+
   @Get('services/:serviceId/slots')
   getServiceDaySlots(
     @Param('slug') slug: string,
@@ -590,9 +608,25 @@ export class PublicBookingController {
         userEmail: user?.email ?? undefined,
         ...dto.context,
       },
+      assistantMode: dto.assistantMode,
     });
     return commandResultToPublicAssistantResult(
       result as import('../ai/command-completion.types.js').CommandResult,
+    );
+  }
+
+  @Post('assistant/guide-telemetry')
+  @UseGuards(OptionalPublicCustomerAuthGuard)
+  async ingestGuideTelemetry(
+    @Param('slug') slug: string,
+    @Body() dto: IngestGuideTelemetryDto,
+    @CurrentUser() user?: PublicCustomerRequestUser,
+  ) {
+    const business = await this.businessService.findBySlug(slug);
+    return this.guideTelemetry.ingestClientEvents(
+      business.id,
+      dto.events,
+      user?.customerId,
     );
   }
 

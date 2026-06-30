@@ -1,10 +1,15 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Users } from 'lucide-react';
 import { formatScheduleTime, resolveNearestSlotDateLabel } from '@/lib/date-format';
 import type { PublicProvider } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
+import {
+  filterBookableWallClockSlots,
+  resolveBusinessWallClockTimezone,
+} from '@/lib/wall-clock-slot.util';
 import { useI18n } from '@/i18n';
 import { ProviderReviewSummary } from '@/components/public-booking/provider-reviews';
 
@@ -17,6 +22,7 @@ interface ProviderListProps {
   onSelect: (employeeId: string, startTime: string) => void;
   showAnySpecialistOption?: boolean;
   timeZone?: string;
+  businessLocale?: string;
 }
 
 export function ProviderList({
@@ -28,9 +34,29 @@ export function ProviderList({
   onSelect,
   showAnySpecialistOption = true,
   timeZone = 'UTC',
+  businessLocale,
 }: ProviderListProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const [nowTick, setNowTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const wallClockTz = resolveBusinessWallClockTimezone(
+    timeZone,
+    businessLocale ?? locale,
+  );
+  const visibleProviders = useMemo(
+    () =>
+      providers.map((provider) => ({
+        ...provider,
+        slots: filterBookableWallClockSlots(provider.slots, wallClockTz),
+      })),
+    [providers, wallClockTz, nowTick],
+  );
 
   return (
     <div className="space-y-3 pb-8">
@@ -51,7 +77,7 @@ export function ProviderList({
         </button>
       )}
 
-      {providers.map((provider) => {
+      {visibleProviders.map((provider) => {
         const isSelected = selectedEmployeeId === provider.id;
         const reviewCount = Number(provider.reviewCount ?? 0);
         const averageRating =
@@ -60,7 +86,7 @@ export function ProviderList({
         const profileHref = bookPath(slug, `/providers/${provider.id}`);
         const nearestDateText =
           provider.slots.length > 0
-            ? resolveNearestSlotDateLabel(provider, locale, timeZone, t('public.todayInline'))
+            ? resolveNearestSlotDateLabel(provider, locale, wallClockTz, t('public.todayInline'))
             : null;
 
         return (

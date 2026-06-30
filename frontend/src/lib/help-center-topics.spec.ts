@@ -6,6 +6,7 @@ import {
   isHelpTopicId,
   listHelpStepKeys,
 } from './help-center-topics';
+import { resolveHelpTopicZendeskArticleId } from './guide-topic-help-articles';
 
 describe('help-center-topics', () => {
   it('lists known help topics', () => {
@@ -29,5 +30,10 @@ describe('help-center-topics', () => {
     expect(listHelpStepKeys('operations-inventory')[0]).toBe(
       'helpCenter.topics.operations-inventory.step1',
     );
+  });
+
+  it('maps contextual help topics to optional Zendesk article ids (ai-guide-1.7.1)', () => {
+    expect(resolveHelpTopicZendeskArticleId('schedule')).toBe('360010001');
+    expect(resolveHelpTopicZendeskArticleId('calendar')).toBe('360010002');
   });
 });

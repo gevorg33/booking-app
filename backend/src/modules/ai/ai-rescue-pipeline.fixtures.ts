@@ -10,7 +10,14 @@ import {
 import { BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS } from './ai-budget-discover-and-book-compound.fixtures.js';
 import { RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS } from './ai-rank-discover-and-book-compound.fixtures.js';
 import { PROVIDER_ONBOARDING_COMPOUND_PROMPTS } from './ai-provider-onboarding-compound.fixtures.js';
+import { SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS } from './ai-setup-salon-checkout-compound.fixtures.js';
+import { CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS } from './ai-configure-services-payment-matrix-compound.fixtures.js';
+import { CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS } from './ai-cash-online-payment-compound.fixtures.js';
+import { DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS } from './ai-decline-online-payment-category-compound.fixtures.js';
+import { ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS } from './ai-onboard-salon-notifications-compound.fixtures.js';
+import { LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS } from './ai-launch-consumer-app-growth-compound.fixtures.js';
 import { CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS } from './ai-clinic-lab-day-close-compound.fixtures.js';
+import { CLINIC_LAB_REVIEW_COMPOUND_PROMPTS } from './ai-clinic-lab-review-compound.fixtures.js';
 import { FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS } from './ai-flexible-availability.fixtures.js';
 
 /** Post-LLM rescue scenarios for compound checkout families (ai-cmd-h4.2). */
@@ -120,7 +127,19 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
   dashboard_rank_discover_and_book:
     RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
   dashboard_onboard_new_provider: PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
+  dashboard_setup_salon_checkout: SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS[0].prompt,
+  dashboard_configure_services_payment_matrix:
+    CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS[0].prompt,
+  dashboard_decline_online_payment_category:
+    DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS[0].prompt,
+  dashboard_cash_and_online_payment:
+    CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS[0].prompt,
+  dashboard_onboard_salon_notifications:
+    ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS[0].prompt,
+  dashboard_launch_consumer_app_growth:
+    LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS[0].prompt,
   dashboard_clinic_lab_day_close: CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
+  dashboard_clinic_lab_review: CLINIC_LAB_REVIEW_COMPOUND_PROMPTS[0].prompt,
 };
 
 /** Enrichment scenarios: compound prompts that must set bookingFirstAvailable hints. */

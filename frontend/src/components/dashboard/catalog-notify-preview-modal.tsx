@@ -49,8 +49,10 @@ export function CatalogNotifyPreviewModal({
 
   useEffect(() => {
     if (!open) return;
-    setActiveLocale(enabledLocales.includes(initialLocale) ? initialLocale : fallbackLocale);
-    setActiveChannel('email');
+    queueMicrotask(() => {
+      setActiveLocale(enabledLocales.includes(initialLocale) ? initialLocale : fallbackLocale);
+      setActiveChannel('email');
+    });
   }, [open, initialLocale, enabledLocales, fallbackLocale]);
 
   const localeTemplate = catalogNotifyLocaleTemplate(value.template, activeLocale);

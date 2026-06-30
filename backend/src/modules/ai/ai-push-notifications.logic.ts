@@ -5,6 +5,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
+import type { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import type { PushService } from '../provider-mobile/push.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import {
@@ -14,6 +15,8 @@ import {
 import { mergeBusinessNotificationSettings } from '../notifications/notification.types.js';
 import { mergeCustomerReminderChoiceSettings } from '../notifications/appointment-reminder-settings.util.js';
 import type { CommandResult } from './command-completion.types.js';
+import { handleConfigureNotificationSettingsLogic } from './ai-notification-settings.logic.js';
+import { handleConfigureWhatsappIntegrationLogic } from './ai-whatsapp-integration.logic.js';
 import {
   buildNewBookingPushActionsGuide,
   buildOfflineQueueStatusSummary,
@@ -34,6 +37,7 @@ import {
 
 export interface PushNotificationsLogicDeps {
   notificationsService: NotificationsService;
+  whatsappIntegrationService: WhatsAppIntegrationService;
   pushService: PushService;
   providerMobileService: ProviderMobileService;
   bookingRepo: Repository<Booking>;
@@ -711,6 +715,22 @@ export async function handlePushNotificationsCompoundLogic(
       case 'configure_push_recipients':
         result = await handleConfigurePushRecipientsLogic(
           deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'configure_notification_settings':
+        result = await handleConfigureNotificationSettingsLogic(
+          { notificationsService: deps.notificationsService },
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'configure_whatsapp_integration':
+        result = await handleConfigureWhatsappIntegrationLogic(
+          { whatsappIntegrationService: deps.whatsappIntegrationService },
           businessId,
           stepParams,
           step.segment,

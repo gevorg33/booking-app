@@ -21,6 +21,7 @@ import {
 } from '../lib/provider-profile';
 import { ProviderReviewsInboxSection } from './ProviderReviewsInboxSection';
 import { uploadProviderAvatar } from '../services/provider-upload';
+import './provider-profile-section.css';
 
 export function ProviderProfileSection() {
   const { t } = useI18n();
@@ -89,23 +90,13 @@ export function ProviderProfileSection() {
         <IonCardContent>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
             <IonAvatar
-              style={{ width: 72, height: 72, cursor: 'pointer' }}
+              className="provider-profile-avatar"
               onClick={() => fileRef.current?.click()}
             >
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt={profile.name} />
               ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: 'var(--ion-color-light)',
-                    fontWeight: 700,
-                    fontSize: 24,
-                  }}
-                >
+                <div className="provider-profile-avatar-fallback">
                   {profile.name.slice(0, 1).toUpperCase()}
                 </div>
               )}

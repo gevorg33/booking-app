@@ -2,6 +2,7 @@ import {
   PaymentStatus,
   BookingStatus,
 } from '../booking/entities/booking.entity.js';
+import { PrepaymentMode } from '../service/entities/service.entity.js';
 import {
   handleSummarizeUnpaidLogic,
   handleValidateGiftCardLogic,
@@ -57,8 +58,24 @@ const baseCard = {
 };
 
 const services = [
-  { id: 's1', name: 'Massage', businessId: 'biz-1', price: 80, isActive: true },
-  { id: 's2', name: 'Haircut', businessId: 'biz-1', price: 40, isActive: true },
+  {
+    id: 's1',
+    name: 'Massage',
+    businessId: 'biz-1',
+    price: 80,
+    isActive: true,
+    prepaymentMode: PrepaymentMode.DEPOSIT,
+    depositAmount: null,
+  },
+  {
+    id: 's2',
+    name: 'Haircut',
+    businessId: 'biz-1',
+    price: 40,
+    isActive: true,
+    prepaymentMode: PrepaymentMode.NONE,
+    depositAmount: null,
+  },
 ] as any[];
 
 function buildDeps(
@@ -327,6 +344,14 @@ describe('ai-payments.logic', () => {
       );
       expect(invalidCard.success).toBe(true);
       expect((invalidCard.details as any).giftCardApplied).toBe(0);
+      const depositBreakdown = await handleExplainCheckoutTotalLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage' },
+      );
+      expect(depositBreakdown.success).toBe(true);
+      expect((depositBreakdown.details as any).prepaymentDue).toBe(40);
+      expect((depositBreakdown.details as any).balanceAtVisit).toBe(40);
     });
 
     it('lists subscription revenue and handles export failures', async () => {
@@ -894,24 +919,46 @@ describe('ai-payments.logic', () => {
     });
 
     it('resolves payment methods and subscription checkout', async () => {
-      expect(
-        (await handleChoosePaymentMethodLogic(buildDeps(), 'biz-1')).success,
-      ).toBe(true);
+      const methods = await handleChoosePaymentMethodLogic(buildDeps(), 'biz-1');
+      expect(methods.success).toBe(true);
+      expect(methods.summary).toContain('Payment options');
       const noMethods = await handleChoosePaymentMethodLogic(
         buildDeps({
           businessRepo: {
             findOne: jest.fn(async () => ({
               id: 'biz-1',
-              settings: { publicBooking: { acceptCashPayments: false } },
+              settings: {
+                publicBooking: { acceptCashPayments: false },
+                integrations: { stripe: { connectAccountId: 'acct_1' } },
+              },
             })),
           } as any,
         }),
         'biz-1',
       );
-      expect(noMethods.success).toBe(false);
-      expect((await handlePayOnlineLogic(buildDeps(), 'biz-1')).success).toBe(
-        true,
-      );
+      expect(noMethods.success).toBe(true);
+      expect(noMethods.summary).toContain('cash at venue is not enabled');
+      const payOnlineNoSlot = await handlePayOnlineLogic(buildDeps(), 'biz-1');
+      expect(payOnlineNoSlot.success).toBe(false);
+      expect(payOnlineNoSlot.summary).toContain('Pick a time slot first');
+      const payOnlineWithSlot = await handlePayOnlineLogic(buildDeps(), 'biz-1', {
+        serviceId: 's1',
+        employeeId: 'e1',
+        startTime: '2026-06-06T18:00:00Z',
+      });
+      expect(payOnlineWithSlot.success).toBe(true);
+      expect(payOnlineWithSlot.details?.navigate).toEqual({
+        path: 'checkout',
+        query: {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+          payment: 'online',
+        },
+      });
+      expect(payOnlineWithSlot.details?.sessionContext).toEqual({
+        paymentMethod: 'online',
+      });
       const noStripe = await handlePayOnlineLogic(
         buildDeps({
           businessRepo: {
@@ -921,9 +968,9 @@ describe('ai-payments.logic', () => {
         'biz-1',
       );
       expect(noStripe.success).toBe(false);
-      expect(
-        (await handlePayCashAtVisitLogic(buildDeps(), 'biz-1')).success,
-      ).toBe(true);
+      const cashVisit = await handlePayCashAtVisitLogic(buildDeps(), 'biz-1');
+      expect(cashVisit.success).toBe(true);
+      expect(cashVisit.summary).toContain('pay at your appointment');
       const noCash = await handlePayCashAtVisitLogic(
         buildDeps({
           businessRepo: {
@@ -936,6 +983,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
       );
       expect(noCash.success).toBe(false);
+      expect(noCash.summary).toContain('not enabled');
       expect(
         (
           await handlePurchaseSubscriptionCheckoutLogic(buildDeps(), 'biz-1', {
@@ -964,6 +1012,50 @@ describe('ai-payments.logic', () => {
         { planId: 'x' },
       );
       expect(subFail.success).toBe(false);
+    });
+
+    it('explains service-specific cash availability at checkout', async () => {
+      const deps = buildDeps({
+        businessRepo: {
+          findOne: jest.fn(async () => ({
+            id: 'biz-1',
+            settings: {
+              publicBooking: { acceptCashPayments: true },
+              integrations: { stripe: { connectAccountId: 'acct_1' } },
+            },
+          })),
+        } as any,
+        serviceRepo: {
+          find: jest.fn(async () => [
+            {
+              id: 'svc-1',
+              name: 'Color',
+              price: 120,
+              prepaymentMode: 'full',
+              isActive: true,
+              businessId: 'biz-1',
+            },
+          ]),
+        } as any,
+      });
+      const options = await handleChoosePaymentMethodLogic(
+        deps,
+        'biz-1',
+        { serviceName: 'Color' },
+        'Can I pay cash for color?',
+      );
+      expect(options.success).toBe(true);
+      expect(options.details?.serviceCash).toMatchObject({
+        prepaymentBlocksCashOnly: true,
+      });
+      const payCash = await handlePayCashAtVisitLogic(
+        deps,
+        'biz-1',
+        { serviceName: 'Color' },
+        'Pay cash at visit for color',
+      );
+      expect(payCash.success).toBe(false);
+      expect(payCash.summary).toContain('full payment online');
     });
 
     it('explains stripe requirement and receipt status', async () => {
@@ -1001,6 +1093,70 @@ describe('ai-payments.logic', () => {
         'biz-1',
       );
       expect(onlineOnly.summary).toContain('only');
+      const servicePrepayment = await handleExplainWhyStripeRequiredLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Why prepayment for massage?',
+      );
+      expect(servicePrepayment.success).toBe(true);
+      expect(servicePrepayment.summary).toContain('50% deposit');
+      expect((servicePrepayment.details as any).amountDueNow).toBe(40);
+      const noPrepayment = await handleExplainWhyStripeRequiredLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Why prepayment for haircut?',
+      );
+      expect(noPrepayment.success).toBe(true);
+      expect(noPrepayment.summary).toContain('does not require online prepayment');
+      const noPrepaymentCheckout = await handleExplainCheckoutTotalLogic(
+        buildDeps(),
+        'biz-1',
+        { _prompt: 'How much do I pay today for haircut?' },
+      );
+      expect(noPrepaymentCheckout.success).toBe(true);
+      expect((noPrepaymentCheckout.details as any).prepaymentDue).toBe(0);
+      expect((noPrepaymentCheckout.details as any).amountDue).toBe(40);
+      const catalogDeposit = await handleExplainWhyStripeRequiredLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Do I pay online for this service?',
+        { serviceId: 's1', serviceName: 'Massage' },
+      );
+      expect(catalogDeposit.success).toBe(true);
+      expect(catalogDeposit.summary).toMatch(/^Yes —/);
+      expect((catalogDeposit.details as any).prepaymentMode).toBe(
+        PrepaymentMode.DEPOSIT,
+      );
+      const catalogNone = await handleExplainWhyStripeRequiredLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        'Do I pay online for the selected service?',
+        { serviceId: 's2', serviceName: 'Haircut' },
+      );
+      expect(catalogNone.success).toBe(true);
+      expect(catalogNone.summary).toMatch(/^No —/);
+      expect(
+        (
+          await handleExplainWhyStripeRequiredLogic(
+            buildDeps(),
+            'biz-1',
+            {},
+            'Do I pay online for this service?',
+            {},
+          )
+        ).success,
+      ).toBe(false);
+      expect(
+        (
+          await handleExplainCheckoutTotalLogic(buildDeps(), 'biz-1', {
+            _prompt: 'How much do I pay today for this service?',
+          }, { serviceId: 's1', serviceName: 'Massage' })
+        ).success,
+      ).toBe(true);
       expect(
         (
           await handleReceiptStatusLogic(buildDeps(), 'biz-1', {
@@ -1210,7 +1366,15 @@ describe('ai-payments.logic', () => {
               params: { amount: 50 },
               segment: 'b',
             },
-            { action: 'pay_online', params: {}, segment: 'c' },
+            {
+              action: 'pay_online',
+              params: {
+                serviceId: 's2',
+                employeeId: 'e1',
+                startTime: '2026-06-06T18:00:00Z',
+              },
+              segment: 'c',
+            },
             { action: 'pay_cash_at_visit', params: {}, segment: 'd' },
           ],
         },

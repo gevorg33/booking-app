@@ -147,6 +147,11 @@ describe('ai-self-service-booking.util', () => {
         'Spa Day',
       );
       expect(
+        extractServiceNamesFromPrompt(
+          'Schedule haircut and color on the same visit',
+        ),
+      ).toEqual(['haircut', 'color']);
+      expect(
         extractServiceNamesFromPrompt('add massage and facial to my cart'),
       ).toEqual(expect.arrayContaining(['massage', 'facial']));
       expect(
@@ -533,6 +538,7 @@ describe('ai-self-service-booking.util', () => {
         ['Reschedule my appointment', 'reschedule_my_booking'],
         ['Cancel my package visit', 'cancel_package_visit_self'],
         ['Reschedule my spa day', 'reschedule_package_visit_self'],
+        ['List my package visits', 'list_my_package_visits'],
         ['List my appointments', 'list_my_appointments'],
         ['Get manage link', 'get_manage_link'],
         ['Explain cancel policy', 'explain_cancel_policy'],

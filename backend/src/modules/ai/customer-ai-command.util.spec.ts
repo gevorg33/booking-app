@@ -90,6 +90,49 @@ describe('customer-ai-command.util', () => {
       sessionContext: undefined,
       navigate: undefined,
       bookingId: undefined,
+      guide: undefined,
+    });
+  });
+
+  it('forwards guide payloads for assistant guide responses (ai-guide-1.0.3)', () => {
+    expect(
+      commandResultToPublicAssistantResult({
+        success: true,
+        action: 'booking_help',
+        summary: 'How booking works',
+        guide: {
+          summary: 'How booking works',
+          steps: [{ title: 'Pick a service', body: 'Browse services first.' }],
+        },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        guide: {
+          summary: 'How booking works',
+          steps: [{ title: 'Pick a service', body: 'Browse services first.' }],
+        },
+      }),
+    );
+  });
+
+  it('serializes guide multiturn session fields for public assistant clients (ai-guide-1.8.2)', () => {
+    expect(
+      commandResultToPublicAssistantResult({
+        success: true,
+        action: 'guide_user_flow',
+        summary: 'Step 2 of 4',
+        details: {
+          sessionContext: {
+            guideFlowId: 'public-booking-flow',
+            guideStepIndex: 1,
+            completedSteps: [0],
+          },
+        },
+      }).sessionContext,
+    ).toEqual({
+      guideFlowId: 'public-booking-flow',
+      guideStepIndex: '1',
+      completedSteps: '[0]',
     });
   });
 
@@ -161,6 +204,9 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('explain_checkout_recommendations');
     expect(schema).toContain('explain_consumer_checkout_success');
     expect(schema).toContain('explain_my_notifications');
+    expect(schema).toContain('configure_notification_settings');
+    expect(schema).toContain('how_to_download_app');
+    expect(schema).toContain('/get-app/');
     expect(schema).toContain('rebook_last_appointment');
     expect(schema).toContain('explain_consumer_checkout_tax');
     expect(schema).toContain('Dismiss recommendations');
@@ -190,6 +236,9 @@ describe('customer-ai-command.util', () => {
     );
     expect(schema).toContain('Monday and Friday afternoon');
     expect(schema).toContain('AND vs OR');
+    expect(schema).toContain('explain_app_feature: READ — consumer app UI feature semantics');
+    expect(schema).toContain('consumer-packages-gift-cards');
+    expect(schema).toContain('"topicId"');
   });
 
   it('merges discovery session context between compound steps (ai-cmd-customer-gap-4)', () => {

@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Send, Sparkles, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { Send, Sparkles, X, HelpCircle } from 'lucide-react';
 import {
   useDraggableFloatingPosition,
   useViewportSize,
@@ -11,6 +12,8 @@ import {
   sendPublicAssistantMessage,
   type PublicAssistantResponse,
   type PublicBusinessProfile,
+  getPublicProviders,
+  getPublicServices,
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
@@ -25,14 +28,31 @@ import {
   buildPublicAssistantCheckoutNavigate,
   shouldAutoNavigateAssistantCheckout,
 } from '@/lib/public-assistant-checkout.util';
+import {
+  hasPublicAssistantGuideSteps,
+} from '@/lib/public-assistant-guide.util';
+import {
+  buildPublicAssistantExampleTenant,
+  buildPublicAssistantExamples,
+} from '@/lib/public-assistant-examples.util';
+import {
+  resolveAssistantModePayload,
+  withAssistantModeContext,
+} from '@/lib/assistant-mode.util';
+import { PublicAssistantGuidePanel } from '@/components/public-booking/public-assistant-guide-panel';
+import type { AiGuideResponse } from '@/lib/ai-client.types';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
+import {
+  buildPublicAssistantPageContext,
+} from '@/lib/public-booking-assistant-context.util';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   navigate?: PublicAssistantResponse['navigate'];
+  guide?: AiGuideResponse;
   success?: boolean;
   details?: Record<string, unknown>;
 }
@@ -45,12 +65,6 @@ interface SessionContext {
   customerName?: string | null;
 }
 
-const EXAMPLE_KEYS = [
-  'public.exampleAvailable',
-  'public.exampleServices',
-  'public.exampleBook',
-  'public.exampleLocation',
-] as const;
 
 interface PublicBookingAssistantProps {
   slug: string;
@@ -59,6 +73,7 @@ interface PublicBookingAssistantProps {
 
 export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [open, setOpen] = useState(false);
@@ -66,7 +81,38 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
+  const [guideMode, setGuideMode] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const { data: publicServices = [] } = useQuery({
+    queryKey: ['public-services', slug, locale, 'assistant-examples'],
+    queryFn: async () => {
+      const response = await getPublicServices(slug, { locale });
+      return response.services ?? [];
+    },
+    enabled: Boolean(slug),
+    staleTime: 60_000,
+  });
+  const { data: publicProviders = [] } = useQuery({
+    queryKey: ['public-providers', slug, locale, 'assistant-examples'],
+    queryFn: async () => {
+      const response = await getPublicProviders(slug, undefined, locale);
+      return response.providers ?? [];
+    },
+    enabled: Boolean(slug),
+    staleTime: 60_000,
+  });
+  const exampleTenant = useMemo(
+    () =>
+      buildPublicAssistantExampleTenant({
+        services: publicServices,
+        providers: publicProviders,
+      }),
+    [publicProviders, publicServices],
+  );
+  const examples = useMemo(
+    () => buildPublicAssistantExamples(guideMode, t, exampleTenant),
+    [exampleTenant, guideMode, t],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -108,6 +154,11 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     [router, slug],
   );
 
+  const assistantPageContext = useMemo(
+    () => buildPublicAssistantPageContext(pathname),
+    [pathname],
+  );
+
   const submit = useCallback(
     async (overridePrompt?: string) => {
       const prompt = (overridePrompt ?? input).trim();
@@ -123,11 +174,19 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       const history = messages.map((m) => ({ role: m.role, content: m.text }));
 
       try {
+        const assistantMode = resolveAssistantModePayload(guideMode);
         const result = await sendPublicAssistantMessage(slug, {
           prompt,
           history,
-          context: sessionContext as Record<string, unknown>,
+          context: withAssistantModeContext(
+            {
+              ...sessionContext,
+              ...assistantPageContext,
+            } as Record<string, unknown>,
+            guideMode,
+          ),
           locale,
+          ...(assistantMode ? { assistantMode } : {}),
         });
 
         setMessages((prev) => [
@@ -137,6 +196,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
             role: 'assistant',
             text: result.summary,
             navigate: result.navigate,
+            guide: result.guide,
             success: result.success,
             details: result.details,
           },
@@ -159,7 +219,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         setLoading(false);
       }
     },
-    [followNavigate, input, loading, messages, sessionContext, slug, locale, t],
+    [assistantPageContext, followNavigate, guideMode, input, loading, messages, sessionContext, slug, locale, t],
   );
 
   const handleProviderSlotSelect = useCallback(
@@ -282,15 +342,29 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[180px]">
             {messages.length === 0 && (
               <div className="text-center py-4">
+                <div className="flex flex-wrap justify-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setGuideMode((active) => !active)}
+                    aria-pressed={guideMode}
+                    title={t('public.assistantHelpChipHint')}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      guideMode
+                        ? 'bg-violet-100 text-violet-800 border border-violet-300'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-violet-200'
+                    }`}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                    {t('public.assistantHelpChip')}
+                  </button>
+                </div>
                 <p className="text-sm text-gray-500 mb-4">
-                  {t('public.assistantHint')}
+                  {guideMode ? t('public.assistantGuideExamples') : t('public.assistantHint')}
                 </p>
                 <div className="space-y-2">
-                  {EXAMPLE_KEYS.map((key) => {
-                    const ex = t(key);
-                    return (
+                  {examples.map((ex) => (
                     <button
-                      key={key}
+                      key={ex}
                       type="button"
                       onClick={() => {
                         setInput(ex);
@@ -300,8 +374,7 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                     >
                       &ldquo;{ex}&rdquo;
                     </button>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             )}
@@ -339,7 +412,22 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                         : undefined
                   }
                 >
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  {hasPublicAssistantGuideSteps(msg.guide) ? (
+                    <PublicAssistantGuidePanel
+                      guide={msg.guide}
+                      slug={slug}
+                      onNavigate={(href) => {
+                        const trimmed = href.replace(/^\//, '');
+                        const [path, queryString] = trimmed.split('?');
+                        followNavigate({
+                          path: path as NonNullable<PublicAssistantResponse['navigate']>['path'],
+                          query: Object.fromEntries(new URLSearchParams(queryString ?? '')),
+                        });
+                      }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  )}
                   {availableProviders.length > 0 && (
                     <AiAvailableProvidersPanel
                       providers={availableProviders}

@@ -29,8 +29,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
     'window filter $id',
     ({ now, booking, expected }) => {
       const current = new Date(now);
-      const { windowEnd } = buildTeamWhosNextWindow(current);
-      expect(isBookingInTeamWhosNextWindow(booking, current, windowEnd)).toBe(
+      expect(isBookingInTeamWhosNextWindow(booking, 'UTC', current)).toBe(
         expected,
       );
     },
@@ -59,6 +58,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
           service: null,
           customer: null,
         }),
+        'UTC',
         current,
       );
 
@@ -93,8 +93,8 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
       },
     ];
 
-    expect(resolveNextQueueBookingId(bookings, now)).toBe('active');
-    const filtered = filterBookingsInTeamWhosNextWindow(bookings, now);
+    expect(resolveNextQueueBookingId(bookings, 'UTC', now)).toBe('active');
+    const filtered = filterBookingsInTeamWhosNextWindow(bookings, 'UTC', now);
     expect(filtered.map((booking) => booking.id)).toEqual(['active', 'later']);
   });
 
@@ -190,6 +190,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
         service: null,
         customer: null,
       }),
+      'UTC',
       new Date('2026-06-09T10:00:00.000Z'),
     );
 
@@ -214,6 +215,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
             status: 'confirmed',
           },
         ],
+        'UTC',
         now,
       ),
     ).toBe('in-progress');
@@ -233,6 +235,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
             status: 'confirmed',
           },
         ],
+        'UTC',
         now,
       ),
     ).toBe('overlap');
@@ -246,10 +249,11 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
             status: 'confirmed',
           },
         ],
+        'UTC',
         now,
       ),
     ).toBe('future');
-    expect(resolveNextQueueBookingId([], now)).toBeNull();
+    expect(resolveNextQueueBookingId([], 'UTC', now)).toBeNull();
   });
 
   it('uses the earliest upcoming booking when nothing is active yet', () => {
@@ -270,6 +274,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
             status: 'confirmed',
           },
         ],
+        'UTC',
         now,
       ),
     ).toBe('first');
@@ -277,7 +282,6 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
 
   it('excludes ended and out-of-window bookings from the filter', () => {
     const now = new Date('2026-06-09T10:00:00.000Z');
-    const { windowEnd } = buildTeamWhosNextWindow(now);
     expect(
       isBookingInTeamWhosNextWindow(
         {
@@ -285,8 +289,8 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
           endTime: '2026-06-09T09:30:00.000Z',
           status: 'confirmed',
         },
+        'UTC',
         now,
-        windowEnd,
       ),
     ).toBe(false);
     expect(
@@ -299,6 +303,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
             status: 'cancelled',
           },
         ],
+        'UTC',
         now,
       ),
     ).toEqual([]);
@@ -335,16 +340,15 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
 
   it('blocks bookings starting at or after the window end', () => {
     const now = new Date('2026-06-09T10:00:00.000Z');
-    const { windowEnd } = buildTeamWhosNextWindow(now);
     expect(
       isBookingInTeamWhosNextWindow(
         {
-          startTime: windowEnd.toISOString(),
+          startTime: '2026-06-09T12:00:00.000Z',
           endTime: '2026-06-09T13:00:00.000Z',
           status: 'confirmed',
         },
+        'UTC',
         now,
-        windowEnd,
       ),
     ).toBe(false);
   });
@@ -361,6 +365,21 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
       expect(isTeamWhosNextPrompt(prompt)).toBe(expected);
     },
   );
+
+  it('excludes past wall-clock bookings in Asia/Yerevan', () => {
+    const now = new Date('2026-06-29T13:01:00.000Z');
+    expect(
+      isBookingInTeamWhosNextWindow(
+        {
+          startTime: '2026-06-29T16:30:00.000Z',
+          endTime: '2026-06-29T17:00:00.000Z',
+          status: 'confirmed',
+        },
+        'Asia/Yerevan',
+        now,
+      ),
+    ).toBe(false);
+  });
 
   it('buildTeamWhosNextView aggregates totals', () => {
     const view = buildTeamWhosNextView(
@@ -384,6 +403,7 @@ describe('provider-team-whos-next.util (prov-exp-4.3)', () => {
         service: null,
         customer: null,
       }),
+      'UTC',
       new Date('2026-06-09T10:00:00.000Z'),
     );
 

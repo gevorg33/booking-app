@@ -4,6 +4,11 @@ import {
   CONSUMER_DISCOVERY_CHIP_IDS,
   type ConsumerDiscoveryChipCopyCatalogRow,
 } from './consumer-copy-catalog.js';
+import {
+  interpolateAssistantTemplate,
+  pickAssistantExampleVars,
+  type AssistantExampleTenantInput,
+} from './assistant-example-tenant.util.js';
 
 export { CONSUMER_DISCOVERY_CHIP_IDS };
 
@@ -19,10 +24,23 @@ export type ConsumerDiscoveryChip = {
 /** One-tap discover chips — label in UI, full fixture prompt sent to assistant. */
 export function getConsumerDiscoveryChips(
   copy: ConsumerCopy,
+  tenant?: AssistantExampleTenantInput | null,
 ): ConsumerDiscoveryChip[] {
-  return CONSUMER_DISCOVERY_CHIP_COPY_CATALOG.map((row) => ({
-    id: row.id,
-    label: copy[row.labelKey],
-    prompt: copy[row.promptKey],
-  }));
+  const vars = pickAssistantExampleVars(tenant, {
+    provider: copy.assistantFallbackProvider,
+    service: copy.assistantFallbackService,
+    service2: copy.assistantFallbackService,
+    serviceCategory: copy.assistantFallbackServiceCategory,
+  });
+  return CONSUMER_DISCOVERY_CHIP_COPY_CATALOG.map((row) => {
+    const promptTemplate = copy[row.promptKey];
+    return {
+      id: row.id,
+      label: copy[row.labelKey],
+      prompt:
+        row.id === 'discover-chip-evening-weekend-en'
+          ? interpolateAssistantTemplate(promptTemplate, { service: vars.service })
+          : promptTemplate,
+    };
+  });
 }

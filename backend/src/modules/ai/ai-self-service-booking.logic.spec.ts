@@ -13,6 +13,7 @@ import {
   handleExplainCancelPolicyLogic,
   handleGetManageLinkLogic,
   handleListMyAppointmentsLogic,
+  handleListMyPackageVisitsLogic,
   handleRemoveServiceFromCartLogic,
   handleRescheduleMyBookingLogic,
   handleReschedulePackageVisitSelfLogic,
@@ -66,7 +67,7 @@ function buildDeps(
     businessId: 'biz-1',
     customerId: 'cust-1',
     status: BookingStatus.CONFIRMED,
-    startTime: new Date('2026-06-10T10:00:00Z'),
+    startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     metadata: {},
     service: services[0],
     employee: { name: 'Maria' },
@@ -394,6 +395,14 @@ describe('ai-self-service-booking.logic', () => {
         })
       ).success,
     ).toBe(true);
+    expect(
+      (
+        await handleCancelMyBookingLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+          bookingId: 'book-1',
+        })
+      ).summary,
+    ).toContain('no need to call the salon');
     (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
     expect(
       (
@@ -402,6 +411,31 @@ describe('ai-self-service-booking.logic', () => {
         })
       ).success,
     ).toBe(false);
+    (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'book-1',
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+        status: BookingStatus.CONFIRMED,
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        service: { name: 'Massage' },
+        employee: { name: 'Maria' },
+      },
+      {
+        id: 'book-2',
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+        status: BookingStatus.CONFIRMED,
+        startTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+        service: { name: 'Facial' },
+        employee: { name: 'Alex' },
+      },
+    ]);
+    const ambiguous = await handleCancelMyBookingLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
+    });
+    expect(ambiguous.success).toBe(false);
+    expect(ambiguous.summary).toContain('several upcoming appointments');
     (
       deps.publicCustomerBookingService.cancelBooking as jest.Mock
     ).mockRejectedValueOnce(new Error('denied'));
@@ -432,6 +466,40 @@ describe('ai-self-service-booking.logic', () => {
         })
       ).success,
     ).toBe(true);
+    expect(
+      (
+        await handleRescheduleMyBookingLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).summary,
+    ).toContain('no need to call the salon');
+    (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'book-1',
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+        status: BookingStatus.CONFIRMED,
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        service: { name: 'Massage' },
+        employee: { name: 'Maria' },
+      },
+      {
+        id: 'book-2',
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+        status: BookingStatus.CONFIRMED,
+        startTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+        service: { name: 'Facial' },
+        employee: { name: 'Alex' },
+      },
+    ]);
+    const rescheduleAmbiguous = await handleRescheduleMyBookingLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+    );
+    expect(rescheduleAmbiguous.success).toBe(false);
+    expect(rescheduleAmbiguous.summary).toContain('several upcoming appointments');
     (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
     expect(
       (
@@ -1072,6 +1140,47 @@ describe('ai-self-service-booking.logic', () => {
           })
         ).summary,
       ).toContain('no upcoming');
+
+      (
+        deps.publicCustomerAuthService.listBookings as jest.Mock
+      ).mockResolvedValueOnce({
+        bookings: [
+          {
+            id: 'book-p1',
+            packagePurchaseId: 'purchase-1',
+            packageId: 'pkg-1',
+            packageName: 'Spa Day',
+            serviceName: 'Massage',
+            employeeName: 'Anna',
+            startTime: '2026-07-01T10:00:00.000Z',
+            status: 'confirmed',
+          },
+          {
+            id: 'book-p2',
+            packagePurchaseId: 'purchase-1',
+            packageId: 'pkg-1',
+            packageName: 'Spa Day',
+            serviceName: 'Facial',
+            employeeName: 'Anna',
+            startTime: '2026-07-08T10:00:00.000Z',
+            status: 'confirmed',
+          },
+        ],
+      });
+      const packageVisits = await handleListMyPackageVisitsLogic(
+        deps,
+        'biz-1',
+        { sessionCustomerId: 'cust-1' },
+        'Visits left on my package',
+      );
+      expect(packageVisits.success).toBe(true);
+      expect((packageVisits.details as any).packageVisits).toEqual([
+        expect.objectContaining({
+          packagePurchaseId: 'purchase-1',
+          visitsTotal: 2,
+          visitsRemaining: 2,
+        }),
+      ]);
 
       (deps.businessRepo.findOne as jest.Mock).mockResolvedValueOnce({
         id: 'biz-1',

@@ -7,6 +7,7 @@ import {
   parseServiceOnlinePaymentConfig,
   resolveTargetServicesForOnlinePayment,
 } from './ai-service-online-payment.util.js';
+import { SERVICE_ONLINE_PAYMENT_MULTILINGUAL_SCENARIOS } from './ai-service-online-payment-multilingual.fixtures.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 
 const catalog = [
@@ -61,6 +62,51 @@ describe('ai-service-online-payment.util', () => {
       if (paramsPartial?.depositAmount != null) {
         expect(parsed?.depositAmount).toBe(paramsPartial.depositAmount);
       }
+      if (paramsPartial?.serviceName) {
+        expect(parsed?.serviceName).toBe(paramsPartial.serviceName);
+      }
+      if (paramsPartial?.serviceNames?.length) {
+        expect(parsed?.serviceNames).toEqual(paramsPartial.serviceNames);
+      }
+      if (paramsPartial?.categoryName) {
+        expect(parsed?.categoryName).toBe(paramsPartial.categoryName);
+      }
+    },
+  );
+
+  it.each(SERVICE_ONLINE_PAYMENT_MULTILINGUAL_SCENARIOS)(
+    'detects multilingual configure prompt $id',
+    ({ prompt }) => {
+      expect(isConfigureServiceOnlinePaymentPrompt(prompt)).toBe(true);
+    },
+  );
+
+  it.each(SERVICE_ONLINE_PAYMENT_MULTILINGUAL_SCENARIOS)(
+    'parses multilingual config for fixture $id',
+    ({ prompt, paramsPartial }) => {
+      const parsed = parseServiceOnlinePaymentConfig(prompt, {});
+      expect(parsed).not.toBeNull();
+      if (paramsPartial?.allServices) {
+        expect(parsed?.allServices).toBe(true);
+      }
+      if (paramsPartial?.prepaymentMode) {
+        expect(parsed?.prepaymentMode).toBe(paramsPartial.prepaymentMode);
+      }
+      if (paramsPartial?.depositPercent != null) {
+        expect(parsed?.depositPercent).toBe(paramsPartial.depositPercent);
+      }
+      if (paramsPartial?.depositAmount != null) {
+        expect(parsed?.depositAmount).toBe(paramsPartial.depositAmount);
+      }
+      if (paramsPartial?.serviceName) {
+        expect(parsed?.serviceName).toBe(paramsPartial.serviceName);
+      }
+      if (paramsPartial?.serviceNames?.length) {
+        expect(parsed?.serviceNames).toEqual(paramsPartial.serviceNames);
+      }
+      if (paramsPartial?.categoryName) {
+        expect(parsed?.categoryName).toBe(paramsPartial.categoryName);
+      }
     },
   );
 
@@ -68,6 +114,19 @@ describe('ai-service-online-payment.util', () => {
     expect(isConfigureServiceOnlinePaymentPrompt('Enable cash payments')).toBe(
       false,
     );
+  });
+
+  it('does not steal checkout defaults for new services', () => {
+    expect(
+      isConfigureServiceOnlinePaymentPrompt(
+        'Set checkout defaults: allow cash at venue and 50% prepayment for new services',
+      ),
+    ).toBe(false);
+    expect(
+      isConfigureServiceOnlinePaymentPrompt(
+        'Default new services to full prepayment',
+      ),
+    ).toBe(false);
   });
 
   it('does not steal public booking page toggle', () => {

@@ -9,6 +9,7 @@ import {
 import { buildCanonicalPhrasingBank } from './intent-phrasing-bank.util.js';
 import { RECOMMEND_SPECIALISTS_SEMANTIC_PIPE_MARKER } from './recommend-specialists.semantic.fixtures.js';
 import { impliesTeamWideAvailabilityFromSemantic } from './team-wide-availability.semantic.util.js';
+import { isExplainProviderSpecialtyPrompt } from './ai-explain-provider-specialty.util.js';
 
 export { RECOMMEND_SPECIALISTS_SEMANTIC_PIPE_MARKER };
 
@@ -53,7 +54,10 @@ export function resolveRecommendSpecialistsSemanticHints(
   surface: CommandSurface = 'dashboard',
 ): { recommendSpecialists: true } | null {
   const trimmed = prompt.trim();
-  if (!trimmed || promptImpliesPlainAvailabilityNotRecommend(trimmed)) {
+  if (!trimmed || isExplainProviderSpecialtyPrompt(trimmed)) {
+    return null;
+  }
+  if (promptImpliesPlainAvailabilityNotRecommend(trimmed)) {
     return null;
   }
 

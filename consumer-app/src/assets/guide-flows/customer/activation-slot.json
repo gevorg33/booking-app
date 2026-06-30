@@ -1,0 +1,23 @@
+{
+  "topicId": "consumer-activation-slot",
+  "surface": "customer",
+  "routes": ["/consumer/slot"],
+  "titleKey": "guide.flows.customer.activation.slot.title",
+  "summaryKey": "guide.flows.customer.activation.slot.summary",
+  "navigateTarget": { "path": "checkout" },
+  "keywords": ["pick time", "choose slot", "calendar", "nearest available"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.customer.activation.slot.step1"
+    },
+    {
+      "titleKey": "guide.flows.common.step2",
+      "bodyKey": "guide.flows.customer.activation.slot.step2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "bodyKey": "guide.flows.customer.activation.slot.step3"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, Send, X, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { Sparkles, Send, X, ChevronDown, ChevronUp, Undo2, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -32,6 +32,14 @@ import {
   type AiCommandSessionContext,
 } from '@/lib/ai-command-bar.util';
 import { buildDashboardNavigateUrl } from '@/lib/compliance-dashboard-nav';
+import {
+  extractGuideNavigate,
+  formatGuideAssistantText,
+  hasInteractiveGuideSteps,
+  buildGuideHandoffRequest,
+} from '@/lib/ai-guide-reply.util';
+import type { AiGuideRelatedAction } from '@/lib/ai-client.types';
+import { AiGuideStepsPanel } from '@/components/ai-guide-steps-panel';
 import { confirmDialog } from '@/lib/app-dialog';
 import { PlanDiffPreview } from '@/components/ai-agent-workspaces';
 import { AiCommandWizard } from '@/components/ai-command-wizard';
@@ -39,16 +47,21 @@ import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { usePathname, useRouter } from 'next/navigation';
 import { useI18n } from '@/i18n';
-import type { OnboardingAiStep } from '@/lib/ai-onboarding.util';
+import {
+  resolveOnboardingGuideTopicId,
+  type OnboardingAiStep,
+} from '@/lib/ai-onboarding.util';
+import type { AssistantMode } from '@/lib/ai-orchestration';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
 import { isPlanLimitError, planLimitMessage } from '@/lib/plan-entitlements';
 import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
-import type { AiCommandDetails } from '@/lib/ai-client.types';
+import type { AiCommandDetails, AiCommandResult, AiGuideResponse } from '@/lib/ai-client.types';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  guide?: AiGuideResponse;
   details?: AiCommandDetails;
   action?: string;
   success?: boolean;
@@ -78,6 +91,8 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [retryingStepId, setRetryingStepId] = useState<string | null>(null);
+  const [guideMode, setGuideMode] = useState(() => variant === 'onboarding');
+  const [pendingGuideTopicId, setPendingGuideTopicId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -184,7 +199,12 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
     queryKey: ['services', business?.id],
     queryFn: async () => {
       const { data } = await api.get(`/businesses/${business!.id}/services`);
-      return (data.data || data || []) as Array<{ id: string; name: string; isActive?: boolean }>;
+      return (data.data || data || []) as Array<{
+        id: string;
+        name: string;
+        isActive?: boolean;
+        category?: { name?: string | null } | null;
+      }>;
     },
     enabled: !!business?.id,
     staleTime: 60_000,
@@ -195,10 +215,20 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
       resolveCommandBarExamples({
         variant: isOnboarding ? 'onboarding' : 'dashboard',
         onboardingStep,
-        tenant: { employees, services },
+        tenant: {
+          employees,
+          services: services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            isActive: service.isActive,
+            categoryName: service.category?.name ?? null,
+          })),
+        },
         t,
+        pathname,
+        guideMode,
       }),
-    [employees, isOnboarding, onboardingStep, services, t],
+    [employees, guideMode, isOnboarding, onboardingStep, pathname, services, t],
   );
 
   useEffect(() => {
@@ -259,8 +289,10 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   );
 
   const followDashboardNavigate = useCallback(
-    (details?: AiCommandDetails) => {
-      const navigate = extractDashboardNavigate(details);
+    (details?: AiCommandDetails, guide?: AiCommandResult['guide']) => {
+      if (hasInteractiveGuideSteps(guide)) return;
+      const navigate =
+        extractDashboardNavigate(details) ?? extractGuideNavigate(guide ?? undefined);
       if (!navigate) return;
       router.push(buildDashboardNavigateUrl(navigate));
     },
@@ -280,10 +312,12 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
           .map((m) => ({ role: m.role, content: m.text }));
 
         const pageCtx = getAiPageContext();
+        const guideHandoff = msg.details?.guideHandoff;
         const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
           prompt,
           history,
           confirmed: true,
+          ...(guideHandoff ? { guideHandoff } : {}),
           context: buildAiRequestContext(pathname, sessionContext, pageCtx),
         });
         const result = data.data || data;
@@ -349,7 +383,10 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
   );
 
   const runPrompt = useCallback(
-    async (rawPrompt: string) => {
+    async (
+      rawPrompt: string,
+      options?: { assistantMode?: AssistantMode; guideTopicId?: string | null },
+    ) => {
       const prompt = rawPrompt.trim();
       if (!prompt || !business?.id || loading) return;
 
@@ -365,22 +402,146 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
 
       const history = messages.map((m) => ({
         role: m.role,
-        content: m.text,
+        content: hasInteractiveGuideSteps(m.guide)
+          ? formatGuideAssistantText(m.guide, m.text)
+          : m.text,
+      }));
+
+      const assistantMode =
+        options?.assistantMode ??
+        (guideMode || isOnboarding ? ('guide' as const) : undefined);
+      const guideTopicId =
+        options?.guideTopicId ??
+        pendingGuideTopicId ??
+        (isOnboarding ? resolveOnboardingGuideTopicId(onboardingStep) : null);
+
+      try {
+        const pageCtx = getAiPageContext();
+        const contextOverrides = {
+          ...(assistantMode ? { assistantMode } : {}),
+          ...(guideTopicId ? { guideTopicId } : {}),
+        };
+        const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
+          prompt,
+          history,
+          context: buildAiRequestContext(pathname, sessionContext, pageCtx, contextOverrides),
+          ...(assistantMode ? { assistantMode } : {}),
+        });
+        const result = (data.data || data) as AiCommandResult;
+
+        const assistantMsg: Message = {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: hasInteractiveGuideSteps(result.guide)
+            ? (result.guide.summary || result.summary || '')
+            : formatGuideAssistantText(result.guide, result.summary),
+          guide: result.guide,
+          details: result.details,
+          action: result.action,
+          success: result.success,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSessionContext((prev) => mergeSessionContext(prev, extractSessionContext(result)));
+
+        if (result.success) {
+          followDashboardNavigate(
+            result.details as Record<string, unknown> | undefined,
+            result.guide,
+          );
+        }
+
+        if (
+          shouldInvalidateAfterAi(
+            result.action,
+            result.success,
+            result.details as { requiresExecutionConfirmation?: boolean } | undefined,
+          )
+        ) {
+          invalidateDashboardQueries(queryClient);
+        }
+      } catch (err: unknown) {
+        const limitMsg = planLimitMessage(err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}`,
+            role: 'assistant',
+            text:
+              limitMsg ??
+              (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+              t('common.errorGeneric'),
+            success: false,
+            action: isPlanLimitError(err) ? 'plan_limit' : 'error',
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setPendingGuideTopicId(null);
+        setLoading(false);
+      }
+    },
+    [
+      business?.id,
+      followDashboardNavigate,
+      guideMode,
+      isOnboarding,
+      loading,
+      messages,
+      onboardingStep,
+      pathname,
+      pendingGuideTopicId,
+      queryClient,
+      sessionContext,
+      t,
+    ],
+  );
+
+  const submit = useCallback(() => {
+    void runPrompt(input);
+  }, [input, runPrompt]);
+
+  const runGuideHandoff = useCallback(
+    async (related: AiGuideRelatedAction) => {
+      if (!business?.id || loading) return;
+
+      const guideHandoff = buildGuideHandoffRequest(related);
+      const displayPrompt =
+        typeof guideHandoff.params?.prompt === 'string'
+          ? guideHandoff.params.prompt
+          : related.label;
+
+      const userMsg: Message = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        text: displayPrompt,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setInput('');
+      setLoading(true);
+
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: hasInteractiveGuideSteps(m.guide)
+          ? formatGuideAssistantText(m.guide, m.text)
+          : m.text,
       }));
 
       try {
         const pageCtx = getAiPageContext();
         const { data } = await api.post(`/businesses/${business.id}/ai/command`, {
-          prompt,
+          prompt: displayPrompt,
           history,
+          guideHandoff,
           context: buildAiRequestContext(pathname, sessionContext, pageCtx),
         });
-        const result = data.data || data;
+        const result = (data.data || data) as AiCommandResult;
 
         const assistantMsg: Message = {
           id: `a-${Date.now()}`,
           role: 'assistant',
-          text: result.summary,
+          text: result.summary ?? '',
           details: result.details,
           action: result.action,
           success: result.success,
@@ -422,12 +583,25 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
         setLoading(false);
       }
     },
-    [business?.id, followDashboardNavigate, loading, queryClient, messages, sessionContext, pathname, t],
+    [
+      business?.id,
+      followDashboardNavigate,
+      loading,
+      messages,
+      pathname,
+      queryClient,
+      sessionContext,
+      t,
+    ],
   );
 
-  const submit = useCallback(() => {
-    void runPrompt(input);
-  }, [input, runPrompt]);
+  const handleGuideHandoff = useCallback(
+    (related: AiGuideRelatedAction) => {
+      setGuideMode(false);
+      void runGuideHandoff(related);
+    },
+    [runGuideHandoff],
+  );
 
   useOrchestrixEvents({
     onOpen: () => setOpen(true),
@@ -436,11 +610,19 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
       setInput(prompt);
       inputRef.current?.focus();
     },
-    onRun: (prompt, autoSubmit) => {
+    onRun: (detail) => {
       setOpen(true);
-      setInput(prompt);
-      if (autoSubmit) void runPrompt(prompt);
-      else inputRef.current?.focus();
+      setInput(detail.prompt);
+      if (detail.assistantMode === 'guide') setGuideMode(true);
+      if (detail.guideTopicId) setPendingGuideTopicId(detail.guideTopicId);
+      if (detail.autoSubmit !== false) {
+        void runPrompt(detail.prompt, {
+          assistantMode: detail.assistantMode,
+          guideTopicId: detail.guideTopicId ?? null,
+        });
+      } else {
+        inputRef.current?.focus();
+      }
     },
   });
 
@@ -608,7 +790,25 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
               <div className="text-center py-6">
                 <Sparkles className="w-8 h-8 text-violet-500/50 mx-auto mb-3" />
                 <p className="text-sm text-gray-400 mb-4">{t('ai.emptyHint')}</p>
-                <p className="text-[11px] text-gray-500 mb-2">{t('ai.examples')}</p>
+                <div className="flex flex-wrap justify-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setGuideMode((active) => !active)}
+                    aria-pressed={guideMode}
+                    title={t('ai.helpChipHint')}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      guideMode
+                        ? 'bg-violet-600/30 text-violet-200 border border-violet-500/50'
+                        : 'bg-gray-800/70 text-gray-400 border border-gray-700 hover:text-violet-300 hover:border-violet-500/40'
+                    }`}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                    {t('ai.helpChip')}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500 mb-2">
+                  {guideMode ? t('ai.guideExamples') : t('ai.examples')}
+                </p>
                 <AiCommandMacrosPanel compact />
                 <div className="space-y-2 mt-3">
                   {examples.map((ex) => (
@@ -629,6 +829,10 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
               const availableProviders = normalizeAvailableProviders(msgDetails);
               const providerServiceName = msgDetails?.serviceName;
               const providerDate = msgDetails?.date;
+              const interactiveGuide = hasInteractiveGuideSteps(msg.guide);
+              const speakText = interactiveGuide
+                ? formatGuideAssistantText(msg.guide, msg.text)
+                : msg.text;
 
               return (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -643,11 +847,19 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                           : 'bg-gray-800 border border-gray-700 text-gray-200'
                   }`}
                 >
-                  <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{msg.text}</pre>
+                  {interactiveGuide && msg.guide ? (
+                    <AiGuideStepsPanel
+                      guide={msg.guide}
+                      onNavigate={(url) => router.push(url)}
+                      onHandoff={handleGuideHandoff}
+                    />
+                  ) : (
+                    <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed">{msg.text}</pre>
+                  )}
 
                   {msg.role === 'assistant' && isSpeechSynthesisSupported() && (
                     <AiSpeakReplyButton
-                      text={msg.text}
+                      text={speakText}
                       locale={locale}
                       label={t('ai.speakReply')}
                       variant="dark"

@@ -1,10 +1,68 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
+  handleExplainMyNotificationsLogic,
   handleFindMySavedSalonsLogic,
   handleRebookLastAppointmentLogic,
 } from './ai-consumer-adoption.logic.js';
+import { DEFAULT_BUSINESS_NOTIFICATION_SETTINGS } from '../notifications/notification.types.js';
 
 describe('ai-consumer-adoption.logic', () => {
+  it('explains notifications from salon settings and customer prefs', async () => {
+    const result = await handleExplainMyNotificationsLogic(
+      {
+        publicCustomerAuthService: {
+          getCustomerById: jest.fn(async () => ({
+            metadata: {
+              notifications: {
+                emailReminders: true,
+                smsReminders: false,
+                whatsappReminders: true,
+                pushReminders: true,
+                pushOffers: false,
+                pushNews: false,
+              },
+            },
+          })),
+        } as any,
+        publicBookingService: {} as any,
+        pushNotifications: {} as any,
+        notificationsService: {
+          getBusinessSettings: jest.fn(async () => ({
+            ...DEFAULT_BUSINESS_NOTIFICATION_SETTINGS,
+            smsEnabled: false,
+          })),
+        } as any,
+      },
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_my_notifications');
+    expect(result.summary).toContain('WhatsApp');
+    expect(result.details?.reminders).toEqual(
+      expect.arrayContaining([expect.stringMatching(/WhatsApp reminder/i)]),
+    );
+    expect(result.details?.navigate).toMatchObject({
+      path: 'account',
+      query: { section: 'notifications' },
+    });
+  });
+
+  it('requires sign-in for explain_my_notifications', async () => {
+    const result = await handleExplainMyNotificationsLogic(
+      {
+        publicCustomerAuthService: {} as any,
+        publicBookingService: {} as any,
+        pushNotifications: {} as any,
+        notificationsService: {} as any,
+      },
+      'biz-1',
+      {},
+    );
+    expect(result.success).toBe(false);
+  });
+
   it('lists saved salons from client context', async () => {
     const result = await handleFindMySavedSalonsLogic({
       recentSalons: [{ slug: 'demo-salon', name: 'Demo Salon' }],
@@ -34,6 +92,7 @@ describe('ai-consumer-adoption.logic', () => {
         } as any,
         publicBookingService: {} as any,
         pushNotifications: {} as any,
+        notificationsService: {} as any,
       },
       'biz-1',
       {

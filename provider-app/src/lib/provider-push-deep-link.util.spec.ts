@@ -47,6 +47,12 @@ describe('provider-push-deep-link.util', () => {
     expect(providerTabPathFromPushUrl('')).toBe('/tabs/today');
     expect(providerTabPathFromPushUrl('::::/schedule/list')).toBe('/tabs/schedule');
     expect(providerTabPathFromPushUrl('::::/profile/settings')).toBe('/tabs/profile');
+    expect(providerTabPathFromPushUrl('/provider/profile/guide?topicId=provider-tabs')).toBe(
+      '/tabs/profile/guide?topicId=provider-tabs',
+    );
+    expect(providerTabPathFromPushUrl('/tabs/profile/guide?topicId=provider-tabs')).toBe(
+      '/tabs/profile/guide?topicId=provider-tabs',
+    );
     expect(providerTabPathFromPushUrl('::::/gift-cards')).toBe('/tabs/gift-cards');
     expect(providerTabPathFromPushUrl('/tabs/today?x=1')).toBe('/tabs/today?x=1');
   });

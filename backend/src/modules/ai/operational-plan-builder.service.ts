@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { LocalizedNamesMap } from '../../common/i18n/service-localized-names.util.js';
 import {
   AgentPlan,
   AgentPlanStep,
@@ -47,6 +48,9 @@ export interface ResolvedCreateServiceParams {
   price: number;
   currency?: string;
   categoryId?: string;
+  localizedNames?: LocalizedNamesMap;
+  prepaymentMode?: import('../service/entities/service.entity.js').PrepaymentMode;
+  depositAmount?: number;
   userId?: string;
 }
 
@@ -722,6 +726,14 @@ export class OperationalPlanBuilderService {
           bufferMinutes: params.bufferMinutes ?? 0,
           price: params.price,
           currency: params.currency ?? 'USD',
+          categoryId: params.categoryId,
+          localizedNames: params.localizedNames,
+          ...(params.prepaymentMode
+            ? { prepaymentMode: params.prepaymentMode }
+            : {}),
+          ...(params.depositAmount != null
+            ? { depositAmount: params.depositAmount }
+            : {}),
           userId: params.userId,
         },
         dependsOn: [],
@@ -752,6 +764,13 @@ export class OperationalPlanBuilderService {
         price: service.price,
         currency: service.currency ?? 'USD',
         categoryId: service.categoryId,
+        localizedNames: service.localizedNames,
+        ...(service.prepaymentMode
+          ? { prepaymentMode: service.prepaymentMode }
+          : {}),
+        ...(service.depositAmount != null
+          ? { depositAmount: service.depositAmount }
+          : {}),
         userId: params.userId,
       },
       dependsOn: [],

@@ -1,0 +1,20 @@
+{
+  "topicId": "dashboard.ai.overview",
+  "surface": "dashboard",
+  "routes": ["/dashboard/guide"],
+  "titleKey": "guide.ai.overviewTitle",
+  "summaryKey": "guide.ai.overviewBody",
+  "navigateTarget": { "path": "/dashboard/guide" },
+  "corpusTopicId": "dashboard.ai.overview",
+  "keywords": ["help center", "guide", "documentation"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.ai.overviewPoint1",
+      "navigate": { "path": "/dashboard/guide" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.ai.overviewPoint2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.ai.overviewPoint3" },
+    { "titleKey": "guide.flows.common.step4", "bodyKey": "guide.ai.overviewPoint4" }
+  ]
+}

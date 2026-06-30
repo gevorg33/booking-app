@@ -30,6 +30,7 @@ import { AiAutopilotSettings } from '@/components/ai-autopilot-settings';
 import { AiAuditLog } from '@/components/ai-audit-log';
 import { AiWeeklyReportPanel } from '@/components/ai-weekly-report-panel';
 import { AiAnalyticsPanel } from '@/components/ai-analytics-panel';
+import { AiGuideCorpusExpansionPanel } from '@/components/ai-guide-corpus-expansion-panel';
 import { AiEnterpriseSettingsPanel } from '@/components/ai-enterprise-settings-panel';
 import { AiCommandMacrosPanel } from '@/components/ai-command-macros-panel';
 import { AiExecutionTimeline } from '@/components/ai-execution-timeline';
@@ -382,6 +383,10 @@ export default function AiOpsPage() {
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AiAnalyticsPanel />
         <AiWeeklyReportPanel />
+      </div>
+
+      <div className="mt-8">
+        <AiGuideCorpusExpansionPanel />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">

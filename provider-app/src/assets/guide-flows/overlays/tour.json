@@ -1,0 +1,38 @@
+{
+  "id": "tour",
+  "playbooks": [
+    {
+      "topicId": "public-tour-checkout",
+      "surface": "public",
+      "routes": ["/book/checkout", "/public/checkout"],
+      "verticals": ["tour"],
+      "titleKey": "guide.flows.overlays.tour.checkout.title",
+      "summaryKey": "guide.flows.overlays.tour.checkout.summary",
+      "keywords": ["tour checkout", "group booking", "deposit"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.tour.checkout.step1"
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.tour.checkout.step2" },
+        { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.overlays.tour.checkout.step3" }
+      ]
+    },
+    {
+      "topicId": "consumer-tour-packages",
+      "surface": "customer",
+      "routes": ["/s/packages", "/consumer/packages"],
+      "verticals": ["tour"],
+      "titleKey": "guide.flows.overlays.tour.packages.title",
+      "summaryKey": "guide.flows.overlays.tour.packages.summary",
+      "keywords": ["tour packages", "group size", "itinerary"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.tour.packages.step1"
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.tour.packages.step2" }
+      ]
+    }
+  ]
+}

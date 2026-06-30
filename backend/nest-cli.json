@@ -3,6 +3,17 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": false
+    "deleteOutDir": false,
+    "assets": [
+      {
+        "include": "modules/ai/guide/*.json",
+        "outDir": "dist"
+      },
+      {
+        "include": "modules/ai/guide/guide-flows/**/*.json",
+        "outDir": "dist"
+      }
+    ],
+    "watchAssets": true
   }
 }

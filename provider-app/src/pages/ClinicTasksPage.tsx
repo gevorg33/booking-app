@@ -1,20 +1,20 @@
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  IonContent,
   IonHeader,
-  IonPage,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { isTeamView } from '../lib/provider-access';
 import type { ProviderClinicTaskInbox } from '../lib/provider-clinic-tasks';
 import { ProviderClinicTasksList } from '../components/ProviderClinicTasksList';
 
-export default function ClinicTasksPage() {
+export default function ClinicTasksPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
@@ -69,27 +69,27 @@ export default function ClinicTasksPage() {
 
   if (data && !data.labFeaturesEnabled) {
     return (
-      <IonPage>
+      <ProviderTabPageShell embedded={embedded}>
         <IonHeader>
           <IonToolbar>
             <IonTitle>{t('provider.clinicTasksTitle')}</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="ion-padding">
+        <ProviderTabScrollContent className="ion-padding">
           <p className="ion-text-center ion-padding">{t('clinic.labState.gate.disabledReason')}</p>
-        </IonContent>
-      </IonPage>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
     );
   }
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.clinicTasksTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         <p className="booking-meta">{t('provider.clinicTasksSubtitle')}</p>
         {isTeamView(data?.viewMode) ? (
           <p className="booking-meta">{t('provider.clinicTasksTeamLabel')}</p>
@@ -105,7 +105,7 @@ export default function ClinicTasksPage() {
           onClaim={(taskId) => claimMutation.mutate(taskId)}
           onComplete={(taskId) => completeMutation.mutate(taskId)}
         />
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

@@ -1,0 +1,62 @@
+{
+  "id": "clinic",
+  "playbooks": [
+    {
+      "topicId": "consumer-clinic",
+      "surface": "customer",
+      "routes": ["/s/results", "/s/lab", "/s/lab-requests", "/s/lab-to-book", "/consumer/results"],
+      "verticals": ["clinic"],
+      "titleKey": "guide.flows.overlays.clinic.consumer.title",
+      "summaryKey": "guide.flows.overlays.clinic.consumer.summary",
+      "navigateTarget": { "path": "guide", "query": { "topicId": "consumer-clinic" } },
+      "keywords": ["lab results", "lab requests", "preparation notes"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.clinic.consumer.step1"
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.clinic.consumer.step2" },
+        { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.overlays.clinic.consumer.step3" }
+      ]
+    },
+    {
+      "topicId": "provider-clinic",
+      "surface": "provider",
+      "routes": ["/tabs/lab-collection", "/tabs/lab-results", "/tabs/clinic-tasks", "/tabs/patients"],
+      "verticals": ["clinic"],
+      "titleKey": "guide.flows.overlays.clinic.provider.title",
+      "summaryKey": "guide.flows.overlays.clinic.provider.summary",
+      "navigateTarget": { "path": "/tabs/lab-collection" },
+      "keywords": ["lab collection", "specimens", "patient chart"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.clinic.provider.step1",
+          "navigate": { "path": "/tabs/lab-collection" }
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.clinic.provider.step2" },
+        { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.overlays.clinic.provider.step3" }
+      ]
+    },
+    {
+      "topicId": "dashboard-clinic-lab",
+      "surface": "dashboard",
+      "routes": ["/dashboard/operations"],
+      "verticals": ["clinic"],
+      "titleKey": "guide.flows.overlays.clinic.dashboard.title",
+      "summaryKey": "guide.flows.overlays.clinic.dashboard.summary",
+      "corpusTopicId": "dashboard.operations.workflow",
+      "navigateTarget": { "path": "/dashboard/operations" },
+      "keywords": ["lab orders", "test results", "emr", "clinic"],
+      "steps": [
+        {
+          "titleKey": "guide.flows.common.step1",
+          "bodyKey": "guide.flows.overlays.clinic.dashboard.step1",
+          "navigate": { "path": "/dashboard/operations" }
+        },
+        { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.overlays.clinic.dashboard.step2" },
+        { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.overlays.clinic.dashboard.step3" }
+      ]
+    }
+  ]
+}

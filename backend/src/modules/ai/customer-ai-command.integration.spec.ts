@@ -280,7 +280,7 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     expect(result.action).toBe('discover_packages');
   });
 
-  it('routes public discovery intent through public assistant after classification', async () => {
+  it('routes team-wide slot discovery through customer check_providers_for_service', async () => {
     const publicAssistant = {
       chat: jest.fn(async () => ({
         success: true,
@@ -310,13 +310,47 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       },
     );
 
+    expect(publicAssistant.chat).not.toHaveBeenCalled();
+    expect(result.action).toBe('check_providers_for_service');
+  });
+
+  it('routes public-only discovery intent through public assistant after classification', async () => {
+    const publicAssistant = {
+      chat: jest.fn(async () => ({
+        success: true,
+        action: 'list_services',
+        summary: 'services listed',
+        sessionContext: { serviceName: 'Massage' },
+      })),
+      executeDeterministicIntent: jest.fn(async (_slug, input) => ({
+        success: true,
+        action: input.action,
+        summary: `${input.action} ok`,
+        sessionContext: {},
+      })),
+    };
+    const { service } = createCustomerIntegrationHarness({
+      llmAction: 'list_services',
+      llmParams: { serviceName: 'Massage' },
+      publicAssistant,
+    });
+
+    const result = await service.executeCommand(
+      'biz-1',
+      'Show massage services on the booking page',
+      [],
+      {
+        slug: 'salon',
+      },
+    );
+
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
-      'Any slots for massage tomorrow?',
+      'Show massage services on the booking page',
       expect.objectContaining({ locale: undefined }),
       { recordMetrics: false },
     );
-    expect(result.action).toBe('check_availability');
+    expect(result.action).toBe('list_services');
     expect(result.details?.sessionContext).toEqual({ serviceName: 'Massage' });
   });
 });

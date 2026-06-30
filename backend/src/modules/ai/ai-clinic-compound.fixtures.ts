@@ -17,9 +17,10 @@ export interface ClinicCompoundScenario {
 /** Classifier hints for clinic lab-order + result-notification compounds (ai-cmd-clinic-v2-7). */
 export const CLINIC_COMPOUND_CLASSIFIER_RULES = `- Clinic lab compounds (multi-step):
   - dashboard: "Order lipid panel for Maria and notify her when results are ready" → compound: create_test_order then notify_patient_result_ready (share customerName/testNames)
+  - dashboard: "List abnormal results for Maria and explain her lab results" → compound: list_abnormal_results then explain_patient_results (share customerName) OR clinic_lab_review golden recipe
   - customer: "Book lipid panel and notify me when results are ready" → compound: book_nearest_slot then explain_result_status (patient FAQ — NOT notify_patient_result_ready)
   - public: "Book a CBC and tell me when results are ready on this page" → compound: book_appointment then explain_result_status
-  - NOT single create_test_order when prompt also asks to notify/send/tell about results ready; NOT single explain_result_status when prompt also asks to book/order/schedule a lab panel first.`;
+  - NOT single create_test_order when prompt also asks to notify/send/tell about results ready; NOT single explain_result_status when prompt also asks to book/order/schedule a lab panel first; NOT single list_abnormal_results when prompt also asks to explain/summarize flagged results.`;
 
 export const DASHBOARD_CLINIC_COMPOUND_PROMPTS: ClinicCompoundScenario[] = [
   {

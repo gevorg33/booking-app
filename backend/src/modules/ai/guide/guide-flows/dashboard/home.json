@@ -1,0 +1,20 @@
+{
+  "topicId": "dashboard.ai.dashboard",
+  "surface": "dashboard",
+  "routes": ["/dashboard"],
+  "titleKey": "guide.ai.dashboardTitle",
+  "summaryKey": "guide.ai.dashboardBody",
+  "navigateTarget": { "path": "/dashboard" },
+  "corpusTopicId": "dashboard.ai.dashboard",
+  "keywords": ["dashboard home", "overview", "quick actions"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.ai.dashboardFeature1",
+      "navigate": { "path": "/dashboard" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.ai.dashboardFeature2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.ai.dashboardFeature3" },
+    { "titleKey": "guide.flows.common.step4", "bodyKey": "guide.ai.dashboardFeature4" }
+  ]
+}

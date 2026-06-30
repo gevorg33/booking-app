@@ -12,6 +12,14 @@ import { Business } from '../business/entities/business.entity.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { todayDisplay } from '../../common/utils/date-format.util.js';
+import {
+  getDateKeyInTimezone,
+  getUtcBoundsForDateKey,
+  getWallClockNow,
+  isWallClockStartStrictlyFutureAt,
+  resolveBusinessWallClockTimezone,
+} from '../../common/utils/timezone.util.js';
+import { getBusinessDefaultLocale } from '../../common/utils/business-locale.util.js';
 import type { AiSuggestion } from '../ai/ai-suggestions.service.js';
 import {
   providerSuggestionText,
@@ -46,7 +54,7 @@ export class ProviderAiSuggestionsService {
       }),
       this.businessRepo.findOne({
         where: { id: businessId },
-        select: { settings: true },
+        select: { settings: true, timezone: true },
       }),
     ]);
     const settings = business?.settings as { locale?: string } | undefined;
@@ -54,15 +62,19 @@ export class ProviderAiSuggestionsService {
       user?.locale,
       settings?.locale,
     );
+    const wallClockTz = resolveBusinessWallClockTimezone(
+      business?.timezone,
+      getBusinessDefaultLocale(settings as Record<string, unknown> | undefined),
+    );
+    const wallNow = getWallClockNow(wallClockTz);
+    const todayKey = getDateKeyInTimezone(new Date(), wallClockTz);
+    const { start: today, end: dayEnd } = getUtcBoundsForDateKey(
+      todayKey,
+      'UTC',
+    );
     const ts = (key: string, vars?: Record<string, string | number>) =>
       providerSuggestionText(locale, key, vars);
-
     const suggestions: AiSuggestion[] = [];
-
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(today);
-    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const where: Record<string, unknown> = {
       businessId,
@@ -127,7 +139,9 @@ export class ProviderAiSuggestionsService {
     }
 
     const upcoming = todayBookings.filter(
-      (b) => b.startTime > new Date() && b.status !== BookingStatus.COMPLETED,
+      (b) =>
+        b.status !== BookingStatus.COMPLETED &&
+        isWallClockStartStrictlyFutureAt(b.startTime, wallNow),
     );
     if (upcoming.length > 0) {
       const next = upcoming[0];

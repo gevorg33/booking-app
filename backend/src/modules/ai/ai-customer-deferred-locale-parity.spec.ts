@@ -69,13 +69,11 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
     expect(untracked).toEqual([]);
   });
 
-  it('tracks registered marketing-growth intents as deferred customer rows', () => {
+  it('tracks registered marketing-growth intents still deferred after 4.0 promotion', () => {
     const registered = registeredDeferredMarketingGrowthIntents();
     expect(registered).toEqual([
       'how_to_download_app',
       'switch_to_consumer_app',
-      'promo_code_help',
-      'loyalty_points_balance',
     ]);
   });
 
@@ -310,8 +308,8 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
       (row) => row.locale === 'ru',
     );
 
-    expect(hyCases.length).toBeGreaterThanOrEqual(7);
-    expect(ruCases.length).toBeGreaterThanOrEqual(7);
+    expect(hyCases.length).toBe(5);
+    expect(ruCases.length).toBe(5);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
   });
@@ -324,8 +322,8 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
       (row) => row.locale === 'ru',
     );
 
-    expect(hyCases.length).toBe(19);
-    expect(ruCases.length).toBe(19);
+    expect(hyCases.length).toBe(26);
+    expect(ruCases.length).toBe(26);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(
@@ -341,8 +339,8 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
       (row) => row.locale === 'ru',
     );
 
-    expect(hyCases.length).toBe(4);
-    expect(ruCases.length).toBe(4);
+    expect(hyCases.length).toBe(6);
+    expect(ruCases.length).toBe(6);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(

@@ -31,6 +31,38 @@ import {
 import { buildDashboardFlexibleAvailabilityEvalParams } from '../ai-flexible-availability.eval.util.js';
 import { buildFlexibleAvailabilityEvalParams } from '../ai-flexible-availability-compound.util.js';
 import { rescueSelfServiceBookingIntent } from '../ai-self-service-booking.util.js';
+import { enrichCancelMyBookingParamsFromPrompt } from '../ai-cancel-my-booking.util.js';
+import { enrichRescheduleMyBookingParamsFromPrompt } from '../ai-reschedule-my-booking.util.js';
+import { enrichMultiServiceBookingParamsFromPrompt } from '../ai-multi-service-customer-public.util.js';
+import { enrichPromoCodeHelpParamsFromPrompt } from '../ai-promo-code-help-customer-public.util.js';
+import {
+  enrichUseSubscriptionCreditParamsFromPrompt,
+  rescueMembershipCustomerIntent,
+} from '../ai-subscription-membership-customer.util.js';
+import { rescuePrivacyGdprCustomerIntent } from '../ai-privacy-gdpr-customer.util.js';
+import {
+  enrichRequestGiftCardCancelParamsFromPrompt,
+  rescueGiftCardCancelCustomerIntent,
+} from '../ai-gift-card-cancel-customer.util.js';
+import {
+  enrichPackageVisitSelfParamsFromPrompt,
+  rescuePackageVisitSelfCustomerIntent,
+} from '../ai-package-visit-self-customer.util.js';
+import {
+  enrichListMyPackageVisitsParamsFromPrompt,
+  rescueListMyPackageVisitsCustomerIntent,
+} from '../ai-list-my-package-visits-customer.util.js';
+import {
+  enrichTourCustomerPublicParamsFromPrompt,
+  rescueTourCustomerPublicIntent,
+  type TourCustomerPublicAction,
+} from '../ai-tour-customer-public.util.js';
+import {
+  enrichCheckoutRecommendationsParamsFromPrompt,
+  rescueCheckoutRecommendationsCustomerPublicIntent,
+} from '../ai-checkout-recommendations-customer-public.util.js';
+import { rescueGrowthLoopsCustomerIntent } from '../ai-growth-loops-customer.util.js';
+import { rescueConsumerAdoptionIntent } from '../ai-consumer-adoption.util.js';
 import { rescueMarketingGrowthIntent } from '../ai-marketing-growth.util.js';
 import {
   parseExplainConsumerCheckoutSuccessFromPrompt,
@@ -46,7 +78,21 @@ import {
   rescueConsumerClinicTestResultsIntent,
 } from '../ai-consumer-clinic-test-results.util.js';
 import { rescueProviderPushSetupIntent } from '../ai-provider-push-setup.util.js';
+import { rescuePaymentsIntent, extractServiceNameFromPrompt } from '../ai-payments.util.js';
+import { enrichPrepaymentExplainParamsFromPrompt } from '../ai-explain-prepayment.util.js';
+import { enrichExplainServicePriceParamsFromPrompt } from '../ai-explain-service-price.util.js';
+import { enrichExplainPaymentOptionsParamsFromPrompt } from '../ai-explain-payment-options-for-service.util.js';
+import { enrichFindSoonestParamsFromPrompt } from '../ai-find-soonest-appointment.util.js';
+import { enrichCompareServicesParamsFromPrompt } from '../ai-compare-services.util.js';
+import { enrichFilterServicesNoPrepaymentParamsFromPrompt } from '../ai-filter-services-no-prepayment.util.js';
+import {
+  enrichExplainAmountDueNowParamsFromPrompt,
+} from '../ai-explain-amount-due-now.util.js';
 import { rescueProviderAiIntent } from '../../provider-mobile/provider-ai-intent.util.js';
+import {
+  assertClinicTestResultExtAccessTierMatchesMatrix,
+  assertClinicTestResultExtClassifierDetect,
+} from '../ai-clinic-test-result-ext.eval.util.js';
 import { impliesBookingFirstAvailableFromSemantic } from '../booking-first-available.semantic.util.js';
 import { impliesTeamWideAvailabilityFromSemantic } from '../team-wide-availability.semantic.util.js';
 import { impliesAnyProviderBookingFromSemantic } from '../any-provider-booking.semantic.util.js';
@@ -60,6 +106,10 @@ import {
 } from '../metric-resolvers.semantic.util.js';
 import { validateCommand } from '../command-completion.validator.js';
 import type { ResolvedCommand } from '../command-completion.types.js';
+import {
+  enrichGuideTopicFromPrompt,
+  rescueProductGuideIntent,
+} from '../ai-product-guide-rescue.util.js';
 import { getIntentAnchorBank } from '../intent-anchor.bank.js';
 import {
   filterAnchorsForSurface,
@@ -276,6 +326,21 @@ export function evaluateDeterministicEvalCase(
     }
   }
 
+  if (expect.useProductGuideTopicEnrich && evalCase.surface && !expect.rescuedAction) {
+    const topicId = enrichGuideTopicFromPrompt(prompt, {
+      surface: evalCase.surface,
+      route: expect.guideEvalRoute,
+      activationStep: expect.guideEvalActivationStep,
+    });
+    if (expect.paramsPartial?.topicId != null) {
+      if (topicId !== expect.paramsPartial.topicId) {
+        errors.push(
+          `guideTopicId: expected ${expect.paramsPartial.topicId}, got ${topicId ?? 'none'}`,
+        );
+      }
+    }
+  }
+
   if (expect.routeTier) {
     const route = router.routeDeterministic(prompt, SAMPLE_EMPLOYEES);
     if (route.tier !== expect.routeTier) {
@@ -313,7 +378,9 @@ export function evaluateDeterministicEvalCase(
     if (
       expect.paramsPartial &&
       !expect.rescuedAction &&
-      !expect.useSurfaceFlexibleAvailabilityEnrichment
+      !expect.useClinicTestResultExtClassifierDetect &&
+      !expect.useSurfaceFlexibleAvailabilityEnrichment &&
+      !expect.useProductGuideTopicEnrich
     ) {
       errors.push(...paramsMatchPartial(params, expect.paramsPartial));
     }
@@ -343,10 +410,37 @@ export function evaluateDeterministicEvalCase(
     const misclassifiedAction = expect.rescueFromAction ?? 'unknown';
     const useSurfaceSelfServiceRescue =
       expect.useSurfaceSelfServiceRescue === true &&
+      (evalCase.surface === 'customer' || evalCase.surface === 'public');
+    const useSurfaceMembershipCustomerRescue =
+      expect.useSurfaceMembershipCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfacePrivacyGdprCustomerRescue =
+      expect.useSurfacePrivacyGdprCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceGiftCardCancelCustomerRescue =
+      expect.useSurfaceGiftCardCancelCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfacePackageVisitSelfCustomerRescue =
+      expect.useSurfacePackageVisitSelfCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceListMyPackageVisitsCustomerRescue =
+      expect.useSurfaceListMyPackageVisitsCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceTourCustomerPublicRescue =
+      expect.useSurfaceTourCustomerPublicRescue === true &&
+      (evalCase.surface === 'customer' || evalCase.surface === 'public');
+    const useSurfaceCheckoutRecommendationsCustomerPublicRescue =
+      expect.useSurfaceCheckoutRecommendationsCustomerPublicRescue === true &&
+      (evalCase.surface === 'customer' || evalCase.surface === 'public');
+    const useSurfaceGrowthLoopsCustomerRescue =
+      expect.useSurfaceGrowthLoopsCustomerRescue === true &&
+      evalCase.surface === 'customer';
+    const useSurfaceConsumerAdoptionRescue =
+      expect.useSurfaceConsumerAdoptionRescue === true &&
       evalCase.surface === 'customer';
     const useSurfaceMarketingGrowthRescue =
       expect.useSurfaceMarketingGrowthRescue === true &&
-      evalCase.surface === 'customer';
+      (evalCase.surface === 'customer' || evalCase.surface === 'public');
     const useSurfaceConsumerCheckoutSuccessRescue =
       expect.useSurfaceConsumerCheckoutSuccessRescue === true &&
       evalCase.surface === 'customer';
@@ -362,6 +456,9 @@ export function evaluateDeterministicEvalCase(
     const useSurfaceProviderPushSetupRescue =
       expect.useSurfaceProviderPushSetupRescue === true &&
       evalCase.surface === 'provider';
+    const useSurfacePaymentsRescue =
+      expect.useSurfacePaymentsRescue === true &&
+      (evalCase.surface === 'customer' || evalCase.surface === 'public');
     const useSurfaceLabBookingRescue =
       expect.useSurfaceLabBookingRescue === true && !!evalCase.surface;
     const useSurfaceBudgetRescue =
@@ -397,6 +494,39 @@ export function evaluateDeterministicEvalCase(
     const selfServiceRescued = useSurfaceSelfServiceRescue
       ? rescueSelfServiceBookingIntent(prompt, misclassifiedAction)
       : null;
+    const membershipCustomerRescued = useSurfaceMembershipCustomerRescue
+      ? rescueMembershipCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const privacyGdprCustomerRescued = useSurfacePrivacyGdprCustomerRescue
+      ? rescuePrivacyGdprCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const giftCardCancelCustomerRescued = useSurfaceGiftCardCancelCustomerRescue
+      ? rescueGiftCardCancelCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const packageVisitSelfCustomerRescued =
+      useSurfacePackageVisitSelfCustomerRescue
+        ? rescuePackageVisitSelfCustomerIntent(prompt, misclassifiedAction)
+        : null;
+    const listMyPackageVisitsCustomerRescued =
+      useSurfaceListMyPackageVisitsCustomerRescue
+        ? rescueListMyPackageVisitsCustomerIntent(prompt, misclassifiedAction)
+        : null;
+    const tourCustomerPublicRescued = useSurfaceTourCustomerPublicRescue
+      ? rescueTourCustomerPublicIntent(prompt, misclassifiedAction)
+      : null;
+    const checkoutRecommendationsCustomerPublicRescued =
+      useSurfaceCheckoutRecommendationsCustomerPublicRescue
+        ? rescueCheckoutRecommendationsCustomerPublicIntent(
+            prompt,
+            misclassifiedAction,
+          )
+        : null;
+    const growthLoopsCustomerRescued = useSurfaceGrowthLoopsCustomerRescue
+      ? rescueGrowthLoopsCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const consumerAdoptionRescued = useSurfaceConsumerAdoptionRescue
+      ? rescueConsumerAdoptionIntent(prompt, misclassifiedAction)
+      : null;
     const marketingGrowthRescued = useSurfaceMarketingGrowthRescue
       ? rescueMarketingGrowthIntent(prompt, misclassifiedAction)
       : null;
@@ -427,14 +557,146 @@ export function evaluateDeterministicEvalCase(
     const providerPushSetupRescued = useSurfaceProviderPushSetupRescue
       ? rescueProviderPushSetupIntent(prompt, misclassifiedAction)
       : null;
+    const paymentsRescued = useSurfacePaymentsRescue
+      ? rescuePaymentsIntent(prompt, misclassifiedAction)
+      : null;
     const providerImplicationAction = useSurfaceProviderImplicationRescue
       ? rescueProviderAiIntent(prompt, misclassifiedAction)
       : null;
-    const rescued = useSurfaceSelfServiceRescue
+    const useProductGuideRescue =
+      expect.useProductGuideRescue === true && !!evalCase.surface;
+    const productGuideRescued = useProductGuideRescue
+      ? (() => {
+          const result = rescueProductGuideIntent(prompt, misclassifiedAction, {
+            surface: evalCase.surface!,
+          });
+          if (result.action === misclassifiedAction) return null;
+          const params: Record<string, unknown> = {};
+          if (expect.useProductGuideTopicEnrich) {
+            const topicId = enrichGuideTopicFromPrompt(prompt, {
+              surface: evalCase.surface!,
+              route: expect.guideEvalRoute,
+              topicId: expect.paramsPartial?.topicId,
+              activationStep: expect.guideEvalActivationStep,
+            });
+            if (topicId) params.topicId = topicId;
+          }
+          return {
+            action: result.action,
+            params,
+            rescued: true,
+            rescueReason: result.rescueReason ?? 'product_guide_rescue',
+          };
+        })()
+      : null;
+    const rescued = useSurfaceGrowthLoopsCustomerRescue
+      ? growthLoopsCustomerRescued
+        ? {
+            action: growthLoopsCustomerRescued.action,
+            params: {},
+            rescued: true,
+            rescueReason: growthLoopsCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfaceConsumerAdoptionRescue
+      ? consumerAdoptionRescued
+        ? {
+            action: consumerAdoptionRescued.action,
+            params: {},
+            rescued: true,
+            rescueReason: consumerAdoptionRescued.rescueReason,
+          }
+        : null
+      : useSurfaceCheckoutRecommendationsCustomerPublicRescue
+      ? checkoutRecommendationsCustomerPublicRescued
+        ? {
+            action: checkoutRecommendationsCustomerPublicRescued.action,
+            params: enrichCheckoutRecommendationsParamsFromPrompt({}, prompt),
+            rescued: true,
+            rescueReason:
+              checkoutRecommendationsCustomerPublicRescued.rescueReason,
+          }
+        : null
+      : useSurfaceTourCustomerPublicRescue
+      ? tourCustomerPublicRescued
+        ? {
+            action: tourCustomerPublicRescued.action,
+            params: enrichTourCustomerPublicParamsFromPrompt(
+              {},
+              prompt,
+              tourCustomerPublicRescued.action as TourCustomerPublicAction,
+            ),
+            rescued: true,
+            rescueReason: tourCustomerPublicRescued.rescueReason,
+          }
+        : null
+      : useSurfaceListMyPackageVisitsCustomerRescue
+      ? listMyPackageVisitsCustomerRescued
+        ? {
+            action: listMyPackageVisitsCustomerRescued.action,
+            params: enrichListMyPackageVisitsParamsFromPrompt({}, prompt),
+            rescued: true,
+            rescueReason: listMyPackageVisitsCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfacePackageVisitSelfCustomerRescue
+      ? packageVisitSelfCustomerRescued
+        ? {
+            action: packageVisitSelfCustomerRescued.action,
+            params: enrichPackageVisitSelfParamsFromPrompt(
+              {},
+              prompt,
+              packageVisitSelfCustomerRescued.action,
+            ),
+            rescued: true,
+            rescueReason: packageVisitSelfCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfaceGiftCardCancelCustomerRescue
+      ? giftCardCancelCustomerRescued
+        ? {
+            action: giftCardCancelCustomerRescued.action,
+            params: enrichRequestGiftCardCancelParamsFromPrompt({}, prompt),
+            rescued: true,
+            rescueReason: giftCardCancelCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfacePrivacyGdprCustomerRescue
+      ? privacyGdprCustomerRescued
+        ? {
+            action: privacyGdprCustomerRescued.action,
+            params: {},
+            rescued: true,
+            rescueReason: privacyGdprCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfaceMembershipCustomerRescue
+      ? membershipCustomerRescued
+        ? {
+            action: membershipCustomerRescued.action,
+            params:
+              membershipCustomerRescued.action === 'use_subscription_credit'
+                ? enrichUseSubscriptionCreditParamsFromPrompt({}, prompt)
+                : {},
+            rescued: true,
+            rescueReason: membershipCustomerRescued.rescueReason,
+          }
+        : null
+      : useSurfaceSelfServiceRescue
       ? selfServiceRescued
         ? {
             action: selfServiceRescued.action,
-            params: {},
+            params:
+              selfServiceRescued.action === 'cancel_my_booking'
+                ? enrichCancelMyBookingParamsFromPrompt({}, prompt)
+                : selfServiceRescued.action === 'reschedule_my_booking'
+                  ? enrichRescheduleMyBookingParamsFromPrompt({}, prompt)
+                  : selfServiceRescued.action === 'book_multi_service' ||
+                      selfServiceRescued.action ===
+                        'check_multi_service_availability' ||
+                      selfServiceRescued.action === 'add_services_to_cart'
+                    ? enrichMultiServiceBookingParamsFromPrompt({}, prompt)
+                    : {},
             rescued: true,
             rescueReason: selfServiceRescued.rescueReason,
           }
@@ -443,7 +705,10 @@ export function evaluateDeterministicEvalCase(
         ? marketingGrowthRescued
           ? {
               action: marketingGrowthRescued.action,
-              params: {},
+              params:
+                marketingGrowthRescued.action === 'promo_code_help'
+                  ? enrichPromoCodeHelpParamsFromPrompt({}, prompt)
+                  : {},
               rescued: true,
               rescueReason: marketingGrowthRescued.rescueReason,
             }
@@ -502,6 +767,60 @@ export function evaluateDeterministicEvalCase(
                       rescueReason: providerPushSetupRescued.rescueReason,
                     }
                   : null
+                : useSurfacePaymentsRescue
+                  ? paymentsRescued
+                    ? {
+                        action: paymentsRescued.action,
+                        params:
+                          paymentsRescued.action ===
+                            'explain_why_stripe_required' ||
+                          paymentsRescued.action === 'explain_checkout_total' ||
+                          paymentsRescued.action === 'explain_service_price' ||
+                          paymentsRescued.action ===
+                            'explain_payment_options_for_service' ||
+                          paymentsRescued.action === 'find_soonest_appointment' ||
+                          paymentsRescued.action === 'compare_services' ||
+                          paymentsRescued.action === 'filter_services_no_prepayment' ||
+                          paymentsRescued.action === 'explain_amount_due_now'
+                            ? paymentsRescued.action === 'explain_service_price'
+                              ? enrichExplainServicePriceParamsFromPrompt({}, prompt)
+                              : paymentsRescued.action ===
+                                  'explain_payment_options_for_service'
+                                ? enrichExplainPaymentOptionsParamsFromPrompt(
+                                    {},
+                                    prompt,
+                                  )
+                                : paymentsRescued.action ===
+                                    'find_soonest_appointment'
+                                  ? enrichFindSoonestParamsFromPrompt({}, prompt)
+                                  : paymentsRescued.action === 'compare_services'
+                                    ? enrichCompareServicesParamsFromPrompt(
+                                        {},
+                                        prompt,
+                                      )
+                                    : paymentsRescued.action ===
+                                        'filter_services_no_prepayment'
+                                      ? enrichFilterServicesNoPrepaymentParamsFromPrompt(
+                                          {},
+                                          prompt,
+                                        )
+                                      : paymentsRescued.action ===
+                                          'explain_amount_due_now'
+                                        ? enrichExplainAmountDueNowParamsFromPrompt(
+                                            {},
+                                            prompt,
+                                            extractServiceNameFromPrompt,
+                                          )
+                                        : enrichPrepaymentExplainParamsFromPrompt(
+                                          {},
+                                          prompt,
+                                          extractServiceNameFromPrompt,
+                                        )
+                            : {},
+                        rescued: true,
+                        rescueReason: paymentsRescued.rescueReason,
+                      }
+                    : null
       : useSurfaceLabBookingRescue
       ? surfaceRescued
         ? {
@@ -511,7 +830,9 @@ export function evaluateDeterministicEvalCase(
             rescueReason: surfaceRescued.rescueReason,
           }
         : null
-      : useCheckoutCurrencyRescue
+      : useProductGuideRescue
+        ? productGuideRescued
+        : useCheckoutCurrencyRescue
         ? checkoutCurrencyRescued
           ? {
               action: checkoutCurrencyRescued.action,
@@ -546,9 +867,15 @@ export function evaluateDeterministicEvalCase(
             surface: evalCase.surface,
           });
     if (!rescued?.rescued || rescued.action !== expect.rescuedAction) {
-      errors.push(
-        `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
-      );
+      const keptMutateAction =
+        useProductGuideRescue &&
+        productGuideRescued === null &&
+        expect.rescuedAction === misclassifiedAction;
+      if (!keptMutateAction) {
+        errors.push(
+          `rescuedAction: expected ${expect.rescuedAction}, got ${rescued?.action ?? 'none'}`,
+        );
+      }
     }
     if (expect.rescueReason && rescued?.rescueReason !== expect.rescueReason) {
       errors.push(
@@ -567,10 +894,24 @@ export function evaluateDeterministicEvalCase(
     }
   }
 
-  if (expect.action && !expect.rescuedAction) {
+  if (expect.action && !expect.rescuedAction && !expect.useClinicTestResultExtClassifierDetect) {
     errors.push(
       'action expectation requires requiresLlm or rescuedAction in deterministic eval',
     );
+  }
+
+  if (expect.useClinicTestResultExtClassifierDetect) {
+    errors.push(
+      ...assertClinicTestResultExtClassifierDetect(prompt, expect),
+    );
+    if (expect.needsMultilingual !== undefined) {
+      const actual = needsMultilingualNormalization(prompt);
+      if (actual !== expect.needsMultilingual) {
+        errors.push(
+          `needsMultilingual: expected ${expect.needsMultilingual}, got ${actual}`,
+        );
+      }
+    }
   }
 
   if (
@@ -732,6 +1073,20 @@ export function evaluateDeterministicEvalCase(
           }
         }
       }
+    }
+  }
+
+  if (expect.accessTier) {
+    const action = expect.rescuedAction ?? expect.action;
+    if (!action) {
+      errors.push('accessTier: rescuedAction or action required');
+    } else {
+      errors.push(
+        ...assertClinicTestResultExtAccessTierMatchesMatrix(
+          action,
+          expect.accessTier,
+        ),
+      );
     }
   }
 

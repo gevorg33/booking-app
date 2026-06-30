@@ -8,6 +8,7 @@ import {
   isWallClockSlotBookable,
   isWallClockStartInPast,
   pickTimezone,
+  resolveBusinessWallClockTimezone,
   resolveTimezone,
 } from './timezone.util.js';
 
@@ -27,6 +28,26 @@ describe('pickTimezone', () => {
   it('returns first valid candidate', () => {
     expect(pickTimezone(null, '', 'Europe/Berlin')).toBe('Europe/Berlin');
     expect(pickTimezone()).toBe('UTC');
+  });
+});
+
+describe('resolveBusinessWallClockTimezone', () => {
+  it('keeps explicit non-UTC timezone', () => {
+    expect(resolveBusinessWallClockTimezone('Europe/Berlin', 'en')).toBe(
+      'Europe/Berlin',
+    );
+  });
+
+  it('infers Asia/Yerevan for hy locale when timezone is UTC', () => {
+    expect(resolveBusinessWallClockTimezone('UTC', 'hy')).toBe('Asia/Yerevan');
+  });
+
+  it('filters past slots with inferred timezone', () => {
+    const tz = resolveBusinessWallClockTimezone('UTC', 'hy');
+    const now = getWallClockNow(tz);
+    const pastHour = Math.max(0, Math.floor(now.minutes / 60) - 2);
+    const pastSlot = `${String(pastHour).padStart(2, '0')}:00`;
+    expect(isWallClockSlotBookable(now.dateKey, pastSlot, tz)).toBe(false);
   });
 });
 

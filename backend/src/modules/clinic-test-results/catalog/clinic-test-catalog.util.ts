@@ -101,3 +101,42 @@ export function readClinicTestTypeIdFromServiceMetadata(
   const value = metadata?.clinicTestTypeId;
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
+
+export function parseClinicReferenceRangeBound(
+  value: unknown,
+): number | null {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function formatClinicTestTypeReferenceRange(
+  normalLow: number | null | undefined,
+  normalHigh: number | null | undefined,
+): string {
+  const low = normalLow == null ? null : Number(normalLow);
+  const high = normalHigh == null ? null : Number(normalHigh);
+  if (low != null && high != null) return `${low}–${high}`;
+  if (low != null) return `≥ ${low}`;
+  if (high != null) return `≤ ${high}`;
+  return 'not set';
+}
+
+export function assertClinicReferenceRangeBounds(
+  normalLow: number | null,
+  normalHigh: number | null,
+): string | null {
+  if (normalLow == null && normalHigh == null) {
+    return 'Specify at least one reference range bound (normalLow or normalHigh).';
+  }
+  if (normalLow != null && normalHigh != null && normalLow > normalHigh) {
+    return 'normalLow must be less than or equal to normalHigh.';
+  }
+  return null;
+}

@@ -7,6 +7,8 @@ import {
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
+import { handleConfigureCheckoutDefaultsLogic } from './ai-checkout-defaults.logic.js';
+import { handleConfigureServiceDepositPolicyLogic } from './ai-service-deposit-policy.logic.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { GiftCardsService } from '../gift-cards/gift-cards.service.js';
 import type { GiftCardPurchaseService } from '../gift-cards/gift-card-purchase.service.js';
@@ -28,13 +30,12 @@ import {
   resolvePublicAvailabilityWindows,
 } from './ai-orchestration.helpers.js';
 import {
-  decomposePaymentsCompoundPrompt,
   extractAmountFromPrompt,
   extractGiftCardCodeFromPrompt,
+  extractServiceNameFromPrompt,
   notBeforeTimeFromWindow,
   parseCashPaymentsToggle,
   resolveAvailabilityDateKey,
-  type PaymentsCompoundStep,
 } from './ai-payments.util.js';
 import { resolveTimezone } from '../../common/utils/timezone.util.js';
 import {
@@ -43,7 +44,6 @@ import {
 } from './ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
-  mergeCheckProvidersHandoffIntoContext,
   pickCheckProvidersHandoff,
 } from './ai-check-book-handoff.util.js';
 import {
@@ -59,7 +59,6 @@ import {
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
-import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import {
   resolveBudgetMaxPrice,
 } from './ai-budget-service-discovery.util.js';
@@ -78,6 +77,29 @@ import {
   parseServiceOnlinePaymentConfig,
   resolveTargetServicesForOnlinePayment,
 } from './ai-service-online-payment.util.js';
+import { handleExplainServiceOnlinePaymentSetupLogic } from './ai-service-online-payment-setup.logic.js';
+import { handleExplainPublicBookingCheckoutLogic } from './ai-explain-public-booking-checkout.logic.js';
+import {
+  buildBusinessPrepaymentExplainCopy,
+  buildServicePrepaymentExplainCopy,
+  enrichPrepaymentExplainParamsFromPrompt,
+  enrichPrepaymentParamsFromCatalogContext,
+  isDoIPayOnlineForServicePrompt,
+  needsCatalogServiceClarify,
+  resolveServicePrepaymentDueAmount,
+} from './ai-explain-prepayment.util.js';
+import {
+  buildPayCashAtVisitCopy,
+  buildPaymentMethodOptionsCopy,
+  enrichCashPaymentParamsFromPrompt,
+} from './ai-cash-payment-checkout.util.js';
+import {
+  buildPayOnlineCheckoutNavigate,
+  buildPayOnlineCopy,
+  enrichPayOnlineParamsFromPrompt,
+  hasPayOnlineSlotContext,
+} from './ai-pay-online-checkout.util.js';
+import { handleAuditServicesMissingOnlinePaymentLogic } from './ai-audit-services-missing-online-payment.logic.js';
 
 export interface PaymentsLogicDeps {
   giftCardsService: GiftCardsService;
@@ -358,8 +380,30 @@ export async function handleExplainCheckoutTotalLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  catalogContext?: Record<string, unknown>,
 ): Promise<CommandResult> {
-  const service = await resolveService(deps, businessId, params);
+  const textPrompt = String(params._prompt ?? '');
+  const withCatalog = enrichPrepaymentParamsFromCatalogContext(
+    params,
+    textPrompt,
+    catalogContext,
+  );
+  const enrichedParams = enrichPrepaymentExplainParamsFromPrompt(
+    withCatalog,
+    textPrompt,
+    extractServiceNameFromPrompt,
+  );
+  if (needsCatalogServiceClarify(textPrompt, enrichedParams)) {
+    return failure(
+      'explain_checkout_total',
+      'Select a service first, or tell me which service to price at checkout.',
+      {
+        clarify: true,
+        missing: ['serviceName'],
+      },
+    );
+  }
+  const service = await resolveService(deps, businessId, enrichedParams);
   if (!service) {
     return failure(
       'explain_checkout_total',
@@ -372,6 +416,7 @@ export async function handleExplainCheckoutTotalLogic(
   }
 
   const servicePrice = Number(service.price);
+  const prepaymentDue = resolveServicePrepaymentDueAmount(service);
   let giftCardApplied = 0;
   let balanceView: unknown = null;
   const code =
@@ -385,7 +430,7 @@ export async function handleExplainCheckoutTotalLogic(
         code,
       );
       giftCardApplied = Math.min(
-        servicePrice,
+        prepaymentDue > 0 ? prepaymentDue : servicePrice,
         Number((balanceView as any).balance ?? 0),
       );
     } catch {
@@ -393,14 +438,28 @@ export async function handleExplainCheckoutTotalLogic(
     }
   }
 
-  const amountDue = Math.max(0, servicePrice - giftCardApplied);
+  const chargeBase = prepaymentDue > 0 ? prepaymentDue : servicePrice;
+  const amountDue = Math.max(0, chargeBase - giftCardApplied);
+  const balanceAtVisit =
+    prepaymentDue > 0 ? Math.max(0, servicePrice - prepaymentDue) : 0;
+  const summaryParts = [
+    `Service $${servicePrice.toFixed(2)}`,
+    prepaymentDue > 0
+      ? ` — $${prepaymentDue.toFixed(2)} due now${balanceAtVisit > 0 ? `, $${balanceAtVisit.toFixed(2)} at visit` : ''}`
+      : '',
+    giftCardApplied ? ` − gift card $${giftCardApplied.toFixed(2)}` : '',
+    ` = $${amountDue.toFixed(2)} due now.`,
+  ];
   return success(
     'explain_checkout_total',
-    `Service $${servicePrice.toFixed(2)}${giftCardApplied ? ` − gift card $${giftCardApplied.toFixed(2)}` : ''} = $${amountDue.toFixed(2)} due.`,
+    summaryParts.join(''),
     {
       serviceId: service.id,
       serviceName: service.name,
       servicePrice,
+      prepaymentMode: service.prepaymentMode,
+      prepaymentDue,
+      balanceAtVisit,
       giftCardApplied,
       amountDue,
       giftCardBalance: balanceView,
@@ -1310,6 +1369,8 @@ export async function handleBuyGiftCardLogic(
 export async function handleChoosePaymentMethodLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
+  params: Record<string, any> = {},
+  prompt = '',
 ): Promise<CommandResult> {
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
@@ -1318,82 +1379,139 @@ export async function handleChoosePaymentMethodLogic(
 
   const payment = resolvePublicPaymentSettings(business.settings);
   const online = isOnlinePaymentsEnabled(business.settings);
-  const options: Array<{ method: string; label: string; available: boolean }> =
-    [];
-  if (online)
-    options.push({
-      method: 'online',
-      label: 'Pay online (card)',
-      available: true,
+  const enrichedParams = enrichCashPaymentParamsFromPrompt(
+    params,
+    prompt || String(params._prompt ?? ''),
+    extractServiceNameFromPrompt,
+  );
+  const service = enrichedParams.serviceName
+    ? await resolveService(deps, businessId, enrichedParams)
+    : undefined;
+  const copy = buildPaymentMethodOptionsCopy({
+    onlineEnabled: online,
+    acceptCashPayments: payment.acceptCashPayments,
+    service,
+  });
+
+  if (!copy.options.some((option) => option.available)) {
+    return failure('choose_payment_method', copy.summary, {
+      options: copy.options,
+      acceptCashPayments: copy.acceptCashPayments,
+      onlinePaymentsEnabled: copy.onlinePaymentsEnabled,
+      serviceCash: copy.serviceCash,
+      serviceName: service?.name,
     });
-  if (payment.acceptCashPayments) {
-    options.push({
-      method: 'cash',
-      label: 'Pay cash at visit',
-      available: true,
-    });
-  }
-  if (!options.length) {
-    return failure(
-      'choose_payment_method',
-      'No payment methods configured — enable Stripe or cash payments.',
-    );
   }
 
-  return success(
-    'choose_payment_method',
-    `Payment options: ${options.map((o) => o.label).join(', ')}.`,
-    {
-      options,
-      acceptCashPayments: payment.acceptCashPayments,
-      onlinePaymentsEnabled: online,
-    },
-  );
+  return success('choose_payment_method', copy.summary, {
+    options: copy.options,
+    acceptCashPayments: copy.acceptCashPayments,
+    onlinePaymentsEnabled: copy.onlinePaymentsEnabled,
+    serviceCash: copy.serviceCash,
+    serviceName: service?.name,
+    sessionContext: { paymentMethod: null },
+  });
 }
 
 export async function handlePayOnlineLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
+  params: Record<string, any> = {},
+  prompt = '',
 ): Promise<CommandResult> {
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
   if (!business) return failure('pay_online', 'Business not found.');
-  if (!isOnlinePaymentsEnabled(business.settings)) {
+
+  const online = isOnlinePaymentsEnabled(business.settings);
+  const stripeConfigured = online;
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const enrichedParams = enrichPayOnlineParamsFromPrompt(
+    params,
+    textPrompt,
+    extractServiceNameFromPrompt,
+  );
+  const service =
+    enrichedParams.serviceName || enrichedParams.serviceId
+      ? await resolveService(deps, businessId, enrichedParams)
+      : undefined;
+  const hasSlotContext = hasPayOnlineSlotContext(enrichedParams);
+  const copy = buildPayOnlineCopy({
+    onlineEnabled: online,
+    stripeConfigured,
+    service,
+    hasSlotContext,
+  });
+
+  if (!copy.available) {
+    return failure('pay_online', copy.summary, {
+      ...copy.details,
+      serviceName: service?.name ?? null,
+    });
+  }
+
+  const navigate = buildPayOnlineCheckoutNavigate(enrichedParams);
+  if (!navigate && !hasSlotContext) {
     return failure(
       'pay_online',
-      'Online card payments are not configured for this business.',
+      'Pick a time slot first, then say pay online to open secure Stripe checkout.',
+      {
+        clarify: true,
+        missing: ['startTime', 'serviceId'],
+        ...copy.details,
+        serviceName: service?.name ?? null,
+      },
     );
   }
-  return success('pay_online', 'Proceed to Stripe checkout to pay online.', {
-    paymentMethod: 'online',
-    onlinePaymentsEnabled: true,
+
+  return success('pay_online', copy.summary, {
+    ...copy.details,
+    serviceName: service?.name ?? null,
+    sessionContext: { paymentMethod: 'online' },
+    ...(navigate ? { navigate } : {}),
   });
 }
 
 export async function handlePayCashAtVisitLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
+  params: Record<string, any> = {},
+  prompt = '',
 ): Promise<CommandResult> {
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
   if (!business) return failure('pay_cash_at_visit', 'Business not found.');
+
   const payment = resolvePublicPaymentSettings(business.settings);
-  if (!payment.acceptCashPayments) {
-    return failure(
-      'pay_cash_at_visit',
-      'Cash pay-at-venue is not enabled for this business.',
-    );
-  }
-  return success(
-    'pay_cash_at_visit',
-    'Book with cash payment — pay at your appointment.',
-    {
-      paymentMethod: 'cash',
-      payAtVenue: true,
-    },
+  const online = isOnlinePaymentsEnabled(business.settings);
+  const enrichedParams = enrichCashPaymentParamsFromPrompt(
+    params,
+    prompt || String(params._prompt ?? ''),
+    extractServiceNameFromPrompt,
   );
+  const service = enrichedParams.serviceName
+    ? await resolveService(deps, businessId, enrichedParams)
+    : undefined;
+  const copy = buildPayCashAtVisitCopy({
+    acceptCashPayments: payment.acceptCashPayments,
+    onlineEnabled: online,
+    service,
+  });
+
+  if (!copy.available) {
+    return failure('pay_cash_at_visit', copy.summary, {
+      ...copy.details,
+      serviceName: service?.name,
+    });
+  }
+
+  return success('pay_cash_at_visit', copy.summary, {
+    ...copy.details,
+    serviceName: service?.name,
+    sessionContext: { paymentMethod: 'cash' },
+  });
 }
 
 export async function handlePurchaseSubscriptionCheckoutLogic(
@@ -1433,6 +1551,9 @@ export async function handlePurchaseSubscriptionCheckoutLogic(
 export async function handleExplainWhyStripeRequiredLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
+  params: Record<string, any> = {},
+  prompt = '',
+  catalogContext?: Record<string, unknown>,
 ): Promise<CommandResult> {
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
@@ -1442,23 +1563,51 @@ export async function handleExplainWhyStripeRequiredLogic(
 
   const payment = resolvePublicPaymentSettings(business.settings);
   const online = isOnlinePaymentsEnabled(business.settings);
-  const reasons: string[] = [];
-  if (online && !payment.acceptCashPayments) {
-    reasons.push(
-      'This salon accepts online card payments only — Stripe checkout is required.',
-    );
-  } else if (online) {
-    reasons.push('Online card payment uses Stripe for secure checkout.');
-  } else {
-    reasons.push(
-      'Stripe is not configured — enable Connect to accept online payments.',
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const withCatalog = enrichPrepaymentParamsFromCatalogContext(
+    params,
+    textPrompt,
+    catalogContext,
+  );
+  const enrichedParams = enrichPrepaymentExplainParamsFromPrompt(
+    withCatalog,
+    textPrompt,
+    extractServiceNameFromPrompt,
+  );
+  if (needsCatalogServiceClarify(textPrompt, enrichedParams)) {
+    return failure(
+      'explain_why_stripe_required',
+      'Select a service first, or tell me which service you mean.',
+      {
+        clarify: true,
+        missing: ['serviceName'],
+      },
     );
   }
+  const service = await resolveService(deps, businessId, enrichedParams);
+  if (service) {
+    const copy = buildServicePrepaymentExplainCopy(service, {
+      onlineEnabled: online,
+      acceptCash: payment.acceptCashPayments,
+      directOnlinePaymentQuestion: isDoIPayOnlineForServicePrompt(textPrompt),
+    });
+    return success('explain_why_stripe_required', copy.summary, {
+      ...copy,
+      onlinePaymentsEnabled: online,
+      acceptCashPayments: payment.acceptCashPayments,
+      serviceId: service.id,
+      serviceName: service.name,
+    });
+  }
 
-  return success('explain_why_stripe_required', reasons.join(' '), {
+  const copy = buildBusinessPrepaymentExplainCopy({
+    onlineEnabled: online,
+    acceptCash: payment.acceptCashPayments,
+  });
+  return success('explain_why_stripe_required', copy.summary, {
+    ...copy,
     onlinePaymentsEnabled: online,
     acceptCashPayments: payment.acceptCashPayments,
-    reasons,
   });
 }
 
@@ -1501,295 +1650,4 @@ export async function handleReceiptStatusLogic(
   });
 }
 
-function mergeCompoundContext(
-  context: Record<string, unknown>,
-  step: PaymentsCompoundStep,
-  result: CommandResult,
-): Record<string, unknown> {
-  const details = result.details as Record<string, unknown>;
-  const next = {
-    ...context,
-    ...pickSharedBookingContextSlice(step.params),
-  };
-
-  if (step.action === 'book_nearest_slot') {
-    next.serviceId = details.serviceId;
-    next.employeeId = details.employeeId;
-    next.startTime = details.startTime;
-    next.serviceName = details.serviceName;
-    if (details.date) next.date = details.date;
-    if (details.timeOfDay) next.timeOfDay = details.timeOfDay;
-    if (details.chosenAvailabilityWindow) {
-      next.chosenAvailabilityWindow = details.chosenAvailabilityWindow;
-    }
-  }
-  if (step.action === 'check_providers_for_service') {
-    next.serviceId = details.serviceId;
-    next.serviceName = details.serviceName;
-    const providers = details.providers as Array<{ id: string }> | undefined;
-    if (providers?.length && !next.employeeId)
-      next.employeeId = providers[0].id;
-    Object.assign(next, mergeCheckProvidersHandoffIntoContext({}, result));
-  }
-  if (
-    step.action === 'apply_gift_card_code' ||
-    step.action === 'check_gift_card_balance'
-  ) {
-    const balance = details.balance as { code?: string } | undefined;
-    if (balance?.code) next.giftCardCode = balance.code;
-  }
-  Object.assign(next, pickSharedBookingContextSlice(details));
-  return next;
-}
-
-export async function handlePaymentsCompoundLogic(
-  deps: PaymentsLogicDeps,
-  businessId: string,
-  prompt: string,
-  params: Record<string, any>,
-  userId?: string,
-): Promise<CommandResult> {
-  const safeParams = params ?? {};
-  const steps: PaymentsCompoundStep[] =
-    (safeParams.compoundSteps as PaymentsCompoundStep[] | undefined) ??
-    decomposePaymentsCompoundPrompt(prompt);
-
-  if (steps.length < 2) {
-    return failure(
-      'compound_intent',
-      'Could not split this into multiple payment/checkout commands. Try separating with "and" or semicolons.',
-      { clarify: true },
-    );
-  }
-
-  const results: CommandResult[] = [];
-  let compoundContext: Record<string, unknown> = {
-    ...safeParams,
-    _prompt: prompt,
-  };
-
-  for (const step of steps.slice(0, 4)) {
-    const stepParams = {
-      ...step.params,
-      ...compoundContext,
-      _prompt: step.segment,
-    };
-    let result: CommandResult;
-    switch (step.action) {
-      case 'summarize_unpaid':
-        result = await handleSummarizeUnpaidLogic(deps, businessId, stepParams);
-        break;
-      case 'validate_gift_card':
-        result = await handleValidateGiftCardLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'export_accounting':
-        result = await handleExportAccountingLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'export_commissions':
-        result = await handleExportCommissionsLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'explain_checkout_total':
-        result = await handleExplainCheckoutTotalLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'list_subscription_revenue':
-        result = await handleListSubscriptionRevenueLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'configure_cash_payments':
-        result = await handleConfigureCashPaymentsLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-        );
-        break;
-      case 'configure_service_online_payment':
-        result = await handleConfigureServiceOnlinePaymentLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-          [],
-        );
-        break;
-      case 'adjust_gift_card_balance':
-        result = await handleAdjustGiftCardBalanceLogic(
-          deps,
-          businessId,
-          stepParams,
-          userId,
-        );
-        break;
-      case 'extend_gift_card_expiry':
-        result = await handleExtendGiftCardExpiryLogic(
-          deps,
-          businessId,
-          stepParams,
-          userId,
-        );
-        break;
-      case 'refund_gift_card_order':
-        result = await handleRefundGiftCardOrderLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'explain_payment_status':
-        result = await handleExplainPaymentStatusLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'collect_cash_confirm':
-        result = await handleCollectCashConfirmLogic(
-          deps,
-          businessId,
-          stepParams,
-          userId,
-        );
-        break;
-      case 'check_providers_for_service':
-        result = await handleCheckProvidersForServiceLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-        );
-        break;
-      case 'book_nearest_slot':
-        result = await handleBookNearestSlotLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-        );
-        break;
-      case 'apply_gift_card_code':
-        result = await handleApplyGiftCardCodeLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-        );
-        break;
-      case 'check_gift_card_balance':
-        result = await handleCheckGiftCardBalanceLogic(
-          deps,
-          businessId,
-          stepParams,
-          step.segment,
-        );
-        break;
-      case 'buy_gift_card':
-        result = await handleBuyGiftCardLogic(
-          deps,
-          businessId,
-          stepParams,
-          false,
-        );
-        break;
-      case 'buy_gift_card_physical':
-        result = await handleBuyGiftCardLogic(
-          deps,
-          businessId,
-          stepParams,
-          true,
-        );
-        break;
-      case 'choose_payment_method':
-        result = await handleChoosePaymentMethodLogic(deps, businessId);
-        break;
-      case 'pay_online':
-        result = await handlePayOnlineLogic(deps, businessId);
-        break;
-      case 'pay_cash_at_visit':
-        result = await handlePayCashAtVisitLogic(deps, businessId);
-        break;
-      case 'purchase_subscription_checkout':
-        result = await handlePurchaseSubscriptionCheckoutLogic(
-          deps,
-          businessId,
-          stepParams,
-        );
-        break;
-      case 'explain_why_stripe_required':
-        result = await handleExplainWhyStripeRequiredLogic(deps, businessId);
-        break;
-      case 'receipt_status':
-        result = await handleReceiptStatusLogic(deps, businessId, stepParams);
-        break;
-      default:
-        result = failure(
-          step.action,
-          `Unsupported payments compound step: ${step.action}.`,
-        );
-    }
-    results.push(result);
-    if (!result.success) {
-      return {
-        success: false,
-        action: 'compound_intent',
-        summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}`,
-        details: {
-          steps: results.map((r) => r.action),
-          failedStep: step.action,
-          userId,
-        },
-      };
-    }
-    compoundContext = mergeCompoundContext(compoundContext, step, result);
-  }
-
-  const providerStep = [...results]
-    .reverse()
-    .find((entry) => entry.action === 'check_providers_for_service');
-  const providerDetails = providerStep?.details as
-    | Record<string, unknown>
-    | undefined;
-  const bookStep = [...results]
-    .reverse()
-    .find((entry) => entry.action === 'book_nearest_slot');
-  const bookDetails = bookStep?.details as Record<string, unknown> | undefined;
-
-  return {
-    success: true,
-    action: 'compound_intent',
-    summary: `Completed ${results.length} payment/checkout step(s): ${results.map((r) => r.action.replace(/_/g, ' ')).join(', ')}.`,
-    details: {
-      steps: results.map((r) => ({ action: r.action, summary: r.summary })),
-      decomposed: true,
-      paymentsCompound: true,
-      userId,
-      finalContext: compoundContext,
-      providers: providerDetails?.providers,
-      availableProviders: providerDetails?.availableProviders,
-      availability: providerDetails?.availability,
-      serviceName: providerDetails?.serviceName,
-      date: providerDetails?.date,
-      checkProvidersHandoff:
-        bookDetails?.checkProvidersHandoff ??
-        compoundContext.checkProvidersHandoff,
-    },
-  };
-}
+export { handlePaymentsCompoundLogic } from './ai-payments-compound.logic.js';

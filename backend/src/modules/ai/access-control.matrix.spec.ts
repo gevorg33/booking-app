@@ -1,14 +1,21 @@
 import {
   canAccessDataCategory,
+  ALL_PRODUCT_GUIDE_INTENTS,
   DASHBOARD_DENIED_BY_TIER,
   isCustomerIntentAllowed,
   isDashboardIntentAllowed,
+  isProductGuideIntentAllowed,
   isProviderIntentAllowed,
   isRevenueRelatedRequest,
   isStaffDirectoryRequest,
   resolveAccessTier,
   tierAccessSummary,
 } from './access-control.matrix.js';
+import {
+  resolveClinicTestResultAccessTier,
+  resolveClinicTestResultExtAccessTier,
+} from './ai-clinic-test-result-ext.eval.util.js';
+import { CLINIC_TEST_RESULT_INTENTS } from './ai-clinic-test-result.util.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 
 describe('access-control.matrix', () => {
@@ -50,6 +57,16 @@ describe('access-control.matrix', () => {
     expect(isDashboardIntentAllowed('client', 'unknown')).toBe(true);
     expect(isDashboardIntentAllowed('client', 'error')).toBe(true);
     expect(isDashboardIntentAllowed('client', 'security_blocked')).toBe(true);
+  });
+
+  it('denies clinic test result intents for client tier (ai-cmd-clinic-6-gap-2.2 / 4.3)', () => {
+    for (const action of CLINIC_TEST_RESULT_INTENTS) {
+      expect(DASHBOARD_DENIED_BY_TIER.client.has(action)).toBe(true);
+      expect(isDashboardIntentAllowed('client', action)).toBe(false);
+      expect(isDashboardIntentAllowed('staff', action)).toBe(true);
+      expect(resolveClinicTestResultAccessTier(action)).toMatch(/^[MR]$/);
+      expect(resolveClinicTestResultExtAccessTier(action)).toMatch(/^[MR]$/);
+    }
   });
 
   it('staff cannot run payment sweep or list all employees', () => {
@@ -152,5 +169,35 @@ describe('access-control.matrix', () => {
   it('detects staff directory requests', () => {
     expect(isStaffDirectoryRequest('list_employees')).toBe(true);
     expect(isStaffDirectoryRequest('list_bookings')).toBe(false);
+  });
+
+  it('allows product guide intents on their surfaces (ai-guide-1.8.5)', () => {
+    expect(ALL_PRODUCT_GUIDE_INTENTS.length).toBe(12);
+    expect(isProductGuideIntentAllowed('owner', 'dashboard', 'guide_user_flow')).toBe(
+      true,
+    );
+    expect(isProductGuideIntentAllowed('owner', 'dashboard', 'explain_ai_settings')).toBe(
+      true,
+    );
+    expect(isProductGuideIntentAllowed('staff', 'provider', 'explain_ai_suggestions')).toBe(
+      true,
+    );
+    expect(isProductGuideIntentAllowed('staff', 'provider', 'explain_ai_settings')).toBe(
+      false,
+    );
+    expect(isProductGuideIntentAllowed('client', 'customer', 'explain_app_feature')).toBe(
+      true,
+    );
+    expect(isProductGuideIntentAllowed('staff', 'provider', 'explain_staff_invite')).toBe(
+      true,
+    );
+    expect(isProductGuideIntentAllowed('staff', 'dashboard', 'explain_staff_invite')).toBe(
+      false,
+    );
+    for (const tier of ['client', 'staff', 'manager', 'owner'] as const) {
+      for (const intent of ALL_PRODUCT_GUIDE_INTENTS) {
+        expect(DASHBOARD_DENIED_BY_TIER[tier].has(intent)).toBe(false);
+      }
+    }
   });
 });

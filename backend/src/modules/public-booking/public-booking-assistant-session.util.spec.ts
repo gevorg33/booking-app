@@ -67,6 +67,21 @@ describe('public-booking-assistant-session.util (ai-cmd-customer-gap-4)', () => 
     expect(merged.serviceRank).toBeUndefined();
   });
 
+  it('merges guide multiturn session fields from prior turn', () => {
+    const merged = mergePublicAssistantSessionParams(
+      {},
+      {
+        guideFlowId: 'public-booking-flow',
+        guideStepIndex: '2',
+        completedSteps: JSON.stringify([0, 1]),
+      },
+      'guide_user_flow',
+    );
+    expect(merged.guideFlowId).toBe('public-booking-flow');
+    expect(merged.guideStepIndex).toBe(2);
+    expect(merged.completedSteps).toEqual([0, 1]);
+  });
+
   it('serializes discovery fields for sessionContext response', () => {
     expect(
       serializePublicAssistantDiscoverySessionFields({

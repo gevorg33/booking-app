@@ -1,5 +1,15 @@
 import { isExportAccountingPrompt } from './ai-payments.util.js';
 import {
+  isExplainIntegrationHealthPrompt,
+  parseExplainIntegrationHealthFromPrompt,
+  rescueExplainIntegrationHealthIntent,
+} from './ai-explain-integration-health.util.js';
+import {
+  enrichOpenaiIntegrationParamsFromPrompt,
+  isConfigureOpenaiIntegrationPrompt,
+  rescueConfigureOpenaiIntegrationIntent,
+} from './ai-openai-integration.util.js';
+import {
   isRequestGiftCardCancelPrompt,
   isRequestGiftCardModifyPrompt,
 } from './ai-customer-crm.util.js';
@@ -10,6 +20,7 @@ export const DASHBOARD_INTEGRATIONS_MUTATE_INTENTS = [
   'toggle_webhook',
   'rotate_api_key',
   'configure_zapier',
+  'configure_openai_integration',
   'run_accounting_export',
   'configure_zendesk',
   'create_support_ticket',
@@ -22,6 +33,7 @@ export const DASHBOARD_INTEGRATIONS_READ_INTENTS = [
   'test_webhook',
   'list_zapier_triggers',
   'list_integration_health',
+  'explain_integration_health',
 ] as const;
 
 export const CUSTOMER_INTEGRATIONS_INTENTS = [
@@ -44,10 +56,10 @@ export interface IntegrationsCompoundStep {
 }
 
 const INTEGRATIONS_VERB =
-  /\b(list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api\s*key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)\b/i;
+  /\b(list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api\s*key|zapier|openai|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)\b/i;
 
 const COMPOUND_NEXT =
-  '(?:list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api|key|zapier|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)';
+  '(?:list|create|delete|remove|disable|pause|resume|test|rotate|configure|run|sync|contact|open|show|enable|webhook|webhooks|api|key|zapier|openai|accounting|export|zendesk|support|ticket|customer|marketing|registration|email|health|integration|integrations)';
 
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*|\\s+and\\s+(?=${COMPOUND_NEXT}\\b)|\\s+then\\s+(?=${COMPOUND_NEXT}\\b)`,
@@ -421,6 +433,12 @@ export function rescueIntegrationsIntent(
     };
   }
 
+  const explainIntegrationHealth = rescueExplainIntegrationHealthIntent(
+    prompt,
+    action,
+  );
+  if (explainIntegrationHealth) return explainIntegrationHealth;
+
   if (isListIntegrationHealthPrompt(prompt)) {
     return {
       action: 'list_integration_health',
@@ -433,6 +451,8 @@ export function rescueIntegrationsIntent(
       rescueReason: 'marketing_email',
     };
   }
+  const openaiIntegration = rescueConfigureOpenaiIntegrationIntent(prompt, action);
+  if (openaiIntegration) return openaiIntegration;
   if (isSyncCustomerToZendeskPrompt(prompt)) {
     return { action: 'sync_customer_to_zendesk', rescueReason: 'sync_zendesk' };
   }
@@ -555,6 +575,21 @@ function classifyIntegrationsSegment(
     return {
       action: 'configure_marketing_registration_email',
       params: base,
+      segment: text,
+    };
+  }
+  if (isConfigureOpenaiIntegrationPrompt(text)) {
+    return {
+      action: 'configure_openai_integration',
+      params: enrichOpenaiIntegrationParamsFromPrompt(base, text),
+      segment: text,
+    };
+  }
+  if (isExplainIntegrationHealthPrompt(text)) {
+    const parsed = parseExplainIntegrationHealthFromPrompt(text, base);
+    return {
+      action: 'explain_integration_health',
+      params: parsed ? { ...base, ...parsed } : base,
       segment: text,
     };
   }

@@ -87,7 +87,7 @@ export interface AppAnalyticsIngestBody {
 export async function recordAppAnalyticsEvents(
   body: AppAnalyticsIngestBody,
 ): Promise<{ recorded: number; skipped: number }> {
-  const { data } = await api.post('/events/app', body);
+  const { data } = await api.post('/events/app', body, { skipOperationFeedback: true });
   return unwrap<{ recorded: number; skipped: number }>(data);
 }
 

@@ -53,6 +53,14 @@ export class CreateClinicTestTypeDto {
   serviceId?: string | null;
 
   @IsOptional()
+  @IsNumber()
+  normalLow?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  normalHigh?: number | null;
+
+  @IsOptional()
   @IsUUID()
   clinicDiagnosticCodeId?: string | null;
 }
@@ -102,6 +110,14 @@ export class UpdateClinicTestTypeDto {
   @IsOptional()
   @IsUUID()
   serviceId?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  normalLow?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  normalHigh?: number | null;
 
   @IsOptional()
   @IsUUID()

@@ -74,7 +74,7 @@ const LAB_RESULT_NOUN = new RegExp(
   'iu',
 );
 
-function orderIdMatches(
+export function orderIdMatches(
   candidate: string | null | undefined,
   needle: string,
 ): boolean {

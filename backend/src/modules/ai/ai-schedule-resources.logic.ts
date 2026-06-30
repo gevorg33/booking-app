@@ -16,6 +16,7 @@ import {
   decomposeScheduleResourceCompoundPrompt,
   type ScheduleResourceCompoundStep,
 } from './ai-schedule-resources.util.js';
+import { handleExplainMultiServiceSettingsLogic } from './ai-explain-multi-service-settings.logic.js';
 
 export interface Sprint29ScheduleResourceLogicDeps {
   resourcesService: SchedulingResourcesService;
@@ -768,6 +769,14 @@ export async function handleScheduleResourceCompoundLogic(
           deps,
           businessId,
           stepParams,
+        );
+        break;
+      case 'explain_multi_service_settings':
+        result = await handleExplainMultiServiceSettingsLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
         );
         break;
       case 'configure_multi_service_scheduling_mode':

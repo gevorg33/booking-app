@@ -60,6 +60,7 @@ describe('Sprint 37 — AI gateway PHI guard', () => {
       sprintMocks.aiSettings as never,
       sprintMocks.platform as never,
       sprintMocks.commandTrace as never,
+      { handleGuideUserFlowAsync: jest.fn() } as never,
     );
 
     return { gateway, dashboardCommands };

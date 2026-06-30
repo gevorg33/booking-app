@@ -22,6 +22,7 @@ import {
   BusinessZendeskIntegration,
   getBusinessZendeskIntegration,
   ZendeskIntegrationPublicView,
+  ZendeskDashboardWidgetContext,
   ZendeskPublicWidgetConfig,
 } from './zendesk-integration.types.js';
 import {
@@ -232,15 +233,26 @@ export class ZendeskIntegrationService {
   }
 
   getDashboardWidgetKey(settings?: Record<string, unknown>): string | null {
+    return this.getDashboardWidgetContext(settings).widgetKey;
+  }
+
+  getDashboardWidgetContext(
+    settings?: Record<string, unknown>,
+  ): ZendeskDashboardWidgetContext {
     const integration = getBusinessZendeskIntegration(settings);
     if (
       !integration.enabled ||
       integration.widgetEnabledOnDashboard === false ||
       !integration.widgetKey?.trim()
     ) {
-      return null;
+      return { widgetKey: null };
     }
-    return integration.widgetKey.trim();
+    return {
+      widgetKey: integration.widgetKey.trim(),
+      ...(integration.subdomain?.trim()
+        ? { subdomain: integration.subdomain.trim() }
+        : {}),
+    };
   }
 
   getPublicWidgetKey(settings?: Record<string, unknown>): string | null {

@@ -1,13 +1,44 @@
 import { PackageDiscountType } from '../service-packages/entities/service-package.entity.js';
 import {
+  findServiceByExactName,
+  fuzzyMatchServiceByName,
+} from './ai-orchestration.helpers.js';
+import {
+  enrichCreateServicePrepaymentParamsFromPrompt,
+  enrichCreateServicesPrepaymentParamsFromPrompt,
+} from './ai-create-service-prepayment.util.js';
+import {
   isCatalogNotifyCustomersPrompt,
   isCatalogNotifyExplicitSkipPrompt,
 } from './ai-catalog-notify.util.js';
+import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
+import {
+  isUpdateServiceDurationBufferPrompt,
+  rescueUpdateServiceDurationBufferIntent,
+  enrichServiceDurationBufferParamsFromPrompt,
+} from './ai-service-duration-buffer.util.js';
+import {
+  isConfigureServiceFeaturedPrompt,
+  rescueConfigureServiceFeaturedIntent,
+} from './ai-configure-service-featured.util.js';
+import {
+  isBulkAssignServicesCategoryPrompt,
+  rescueBulkAssignServicesCategoryIntent,
+} from './ai-bulk-assign-services-category.util.js';
+import {
+  isConfigurePackageOnlinePaymentPrompt,
+  rescueConfigurePackageOnlinePaymentIntent,
+} from './ai-configure-package-online-payment.util.js';
+import {
+  enrichDeactivateServiceCategoryScopeParamsFromPrompt,
+  rescueDeactivateServiceCategoryScopeIntent,
+} from './ai-deactivate-service-category-scope.util.js';
 
 export const CATALOG_MUTATE_INTENTS = [
   'create_service_category',
   'bulk_create_catalog',
   'update_service',
+  'update_service_duration_buffer',
   'deactivate_service',
   'create_package',
   'update_package',
@@ -21,6 +52,9 @@ export const CATALOG_MUTATE_INTENTS = [
   'create_gift_card_bundle',
   'configure_multi_service_settings',
   'set_service_compatibility',
+  'configure_service_featured',
+  'bulk_assign_services_category',
+  'configure_package_online_payment',
 ] as const;
 
 export const CATALOG_READ_INTENTS = [
@@ -97,6 +131,7 @@ export function isCreateServiceCategoryPrompt(prompt: string): boolean {
 }
 
 export function isDeactivateServicePrompt(prompt: string): boolean {
+  if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
   return (
     /\b(hide|deactivate|disable|remove)\b/i.test(prompt) &&
     /\b(from\s+public|service|offering|catalog)\b/i.test(prompt) &&
@@ -106,6 +141,8 @@ export function isDeactivateServicePrompt(prompt: string): boolean {
 
 /** "Move Neck Massage under service category: Massage". */
 export function isAssignServiceCategoryPrompt(prompt: string): boolean {
+  if (isBulkAssignServicesCategoryPrompt(prompt)) return false;
+  if (isUpdateServiceDurationBufferPrompt(prompt)) return false;
   if (isDeactivateServicePrompt(prompt)) return false;
   if (/\b(?:senior|junior|provider|employee|staff)\b/i.test(prompt)) {
     return false;
@@ -161,6 +198,125 @@ export function extractCreateServiceCategoryFromPrompt(
   return undefined;
 }
 
+const CREATE_SERVICE_VERB =
+  '(?:create|add|register|list|offer|introduce|set\\s+up)';
+const CREATE_SERVICE_NOUN = '(?:service|offering|treatment)s?';
+const CREATE_SERVICE_NAME_STOP =
+  /(?:\s*,|\s+price\b|\s+duration\b|\s+for\s+\$|\s+\$\s*\d|\s+\d+\s*(?:min(?:ute)?s?|m)\b|\s+under\b|\s+with\s+\d+\s*%|\s+with\s+(?:full|deposit|online)\s+prepayment|\s+—\s+|\s+no\s+online\b|\s+requiring\s+online\b|\s+in\s+(?:the\s+)?(?:service\s+)?category\b)/i;
+
+function trimCreateServiceNameSegment(raw: string): string | undefined {
+  let name = raw.trim().replace(/^["']|["']$/g, '');
+  const stop = name.search(CREATE_SERVICE_NAME_STOP);
+  if (stop >= 0) name = name.slice(0, stop);
+  name = name.trim().replace(/[,.]$/, '').trim();
+  return name.length >= 2 ? name : undefined;
+}
+
+function extractCreateServiceNameSegmentFromPrompt(
+  prompt: string,
+): string | undefined {
+  const colon = prompt.match(
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s*:\\s*(.+)$`,
+      'i',
+    ),
+  );
+  if (colon?.[1]) {
+    const segment = trimCreateServiceNameSegment(colon[1]);
+    if (segment) return segment;
+  }
+
+  const unquoted = prompt.match(
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?(.+?)${CREATE_SERVICE_NAME_STOP.source}`,
+      'i',
+    ),
+  );
+  return unquoted?.[1] ? trimCreateServiceNameSegment(unquoted[1]) : undefined;
+}
+
+/** Extract the new catalog service name from create_service prompts (quoted or before price/duration). */
+export function extractCreateServiceNameFromPrompt(
+  prompt: string,
+): string | undefined {
+  const quotedPatterns = [
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?"([^"]+)"`,
+      'i',
+    ),
+    new RegExp(
+      `\\b${CREATE_SERVICE_VERB}\\s+(?:a\\s+)?(?:new\\s+)?${CREATE_SERVICE_NOUN}\\s+(?:called\\s+|named\\s+)?'((?:[^']|'[a-z])+)'`,
+      'i',
+    ),
+    /\bservices?\s+(?:called\s+|named\s+)?"([^"]+)"/i,
+    /\bservices?\s+(?:called\s+|named\s+)?'((?:[^']|'[a-z])+)'/i,
+  ];
+  for (const pattern of quotedPatterns) {
+    const match = prompt.match(pattern);
+    const name = match?.[1]?.trim();
+    if (name) return name;
+  }
+
+  return extractCreateServiceNameSegmentFromPrompt(prompt);
+}
+
+/** Prefer prompt-derived new service names over classifier snaps to existing catalog rows. */
+export function reconcileCreateServiceNameFromPrompt(
+  prompt: string,
+  params: Record<string, unknown>,
+  existingServices: Array<{ name: string }>,
+): void {
+  const extracted = extractCreateServiceNameFromPrompt(prompt);
+  if (extracted) {
+    params.serviceName = extracted;
+    delete params.serviceId;
+    return;
+  }
+
+  const proposed =
+    typeof params.serviceName === 'string' ? params.serviceName.trim() : '';
+  if (!proposed || findServiceByExactName(existingServices, proposed)) {
+    return;
+  }
+
+  const fuzzy = fuzzyMatchServiceByName(existingServices, proposed);
+  if (!fuzzy) return;
+
+  const segment = extractCreateServiceNameSegmentFromPrompt(prompt);
+  if (
+    segment &&
+    segment.length > fuzzy.name.length &&
+    !findServiceByExactName(existingServices, segment)
+  ) {
+    params.serviceName = segment;
+    delete params.serviceId;
+  }
+}
+
+export function enrichCreateServicesParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+): void {
+  enrichServiceCategoryRescueParams('create_services', params, prompt);
+  Object.assign(
+    params,
+    enrichCreateServicesPrepaymentParamsFromPrompt(params, prompt),
+  );
+}
+
+export function enrichCreateServiceParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+  existingServices: Array<{ name: string }>,
+): void {
+  enrichServiceCategoryRescueParams('create_service', params, prompt);
+  reconcileCreateServiceNameFromPrompt(prompt, params, existingServices);
+  Object.assign(
+    params,
+    enrichCreateServicePrepaymentParamsFromPrompt(params, prompt),
+  );
+}
+
 export function enrichServiceCategoryRescueParams(
   action: string,
   params: Record<string, unknown>,
@@ -181,6 +337,13 @@ export function enrichServiceCategoryRescueParams(
     const categoryName = extractCreateServiceCategoryFromPrompt(prompt);
     if (categoryName && !params.categoryName) {
       params.categoryName = categoryName;
+    }
+    if (action === 'create_service') {
+      const serviceName = extractCreateServiceNameFromPrompt(prompt);
+      if (serviceName) {
+        params.serviceName = serviceName;
+        delete params.serviceId;
+      }
     }
   }
 }
@@ -458,8 +621,32 @@ export function rescueCatalogIntent(
       rescueReason: 'service_compatibility',
     };
   }
+  const durationBuffer = rescueUpdateServiceDurationBufferIntent(prompt, action);
+  if (durationBuffer) return durationBuffer;
+  const featured = rescueConfigureServiceFeaturedIntent(prompt, action);
+  if (featured) return featured;
+  const bulkCategory = rescueBulkAssignServicesCategoryIntent(prompt, action);
+  if (bulkCategory) return bulkCategory;
+  const packageOnlinePayment =
+    rescueConfigurePackageOnlinePaymentIntent(prompt, action);
+  if (packageOnlinePayment) return packageOnlinePayment;
+  const categoryDeactivate = rescueDeactivateServiceCategoryScopeIntent(
+    prompt,
+    action,
+  );
+  if (categoryDeactivate) {
+    return {
+      action: 'deactivate_service',
+      rescueReason: categoryDeactivate.rescueReason,
+      params: enrichDeactivateServiceCategoryScopeParamsFromPrompt({}, prompt),
+    };
+  }
   if (isDeactivateServicePrompt(prompt) && action !== 'update_service_prices') {
-    return { action: 'deactivate_service', rescueReason: 'deactivate_service' };
+    return {
+      action: 'deactivate_service',
+      rescueReason: 'deactivate_service',
+      params: enrichDeactivateServiceCategoryScopeParamsFromPrompt({}, prompt),
+    };
   }
   if (
     isAssignServiceCategoryPrompt(prompt) &&
@@ -827,13 +1014,38 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
       segment: text,
     };
   }
+  if (isConfigureServiceFeaturedPrompt(text)) {
+    return {
+      action: 'configure_service_featured',
+      params: {},
+      segment: text,
+    };
+  }
+  if (isBulkAssignServicesCategoryPrompt(text)) {
+    return {
+      action: 'bulk_assign_services_category',
+      params: {},
+      segment: text,
+    };
+  }
+  if (isConfigurePackageOnlinePaymentPrompt(text)) {
+    return {
+      action: 'configure_package_online_payment',
+      params: {},
+      segment: text,
+    };
+  }
+  if (isUpdateServiceDurationBufferPrompt(text)) {
+    return {
+      action: 'update_service_duration_buffer',
+      params: enrichServiceDurationBufferParamsFromPrompt({}, text),
+      segment: text,
+    };
+  }
   if (isDeactivateServicePrompt(text)) {
-    const svc = text
-      .match(/\b(?:service|hide|deactivate)\s+([A-Za-z][\w\s]+)/i)?.[1]
-      ?.trim();
     return {
       action: 'deactivate_service',
-      params: { serviceName: svc },
+      params: enrichDeactivateServiceCategoryScopeParamsFromPrompt({}, text),
       segment: text,
     };
   }

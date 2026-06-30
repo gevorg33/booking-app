@@ -1,4 +1,5 @@
 import { buildSalonPath } from './deep-link.js';
+import { buildConsumerGuidePath } from './consumer-guide.util.js';
 import {
   buildPackageConfirmPath,
   buildPackagePickerPath,
@@ -85,6 +86,8 @@ export function buildConsumerAssistantHref(
     }
     const employeeId = query.employeeId?.trim();
     if (employeeId) params.set('employeeId', employeeId);
+    const sessionId = query.session_id?.trim();
+    if (sessionId) params.set('session_id', sessionId);
     if (query.rebook?.trim()) params.set('rebook', query.rebook.trim());
     if (query.rebookBookingId?.trim()) {
       params.set('rebookBookingId', query.rebookBookingId.trim());
@@ -111,6 +114,10 @@ export function buildConsumerAssistantHref(
     const params = new URLSearchParams(query);
     const qs = params.toString();
     return `/s/${slug}/book/multi/checkout${qs ? `?${qs}` : ''}`;
+  }
+
+  if (path === 'guide') {
+    return buildConsumerGuidePath(slug, query);
   }
 
   return null;

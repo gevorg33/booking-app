@@ -11,6 +11,8 @@ import { BillingService } from '../billing/billing.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
 import { PromoCodesService } from '../promo-codes/promo-codes.service.js';
 import { StripeService } from '../billing/stripe.service.js';
+import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
+import { TenantAppInstallService } from '../business/tenant-app-install.service.js';
 
 describe('Sprint 34 marketing/growth AI scenarios', () => {
   const marketingAutomationService = {
@@ -108,6 +110,15 @@ describe('Sprint 34 marketing/growth AI scenarios', () => {
   };
 
   const stripeService = { isConfigured: false };
+  const stripeIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({
+      configured: false,
+      chargesEnabled: false,
+      detailsSubmitted: false,
+      oauthAvailable: true,
+    })),
+    startConnect: jest.fn(async () => ({ url: 'https://stripe.test/onboard' })),
+  };
   const configService = {
     get: jest.fn((key: string) => {
       if (key === 'FRONTEND_URL') return 'https://app.test';
@@ -133,7 +144,27 @@ describe('Sprint 34 marketing/growth AI scenarios', () => {
         { provide: LoyaltyService, useValue: loyaltyService },
         { provide: PromoCodesService, useValue: promoCodesService },
         { provide: StripeService, useValue: stripeService },
+        { provide: StripeIntegrationService, useValue: stripeIntegrationService },
         { provide: ConfigService, useValue: configService },
+        {
+          provide: TenantAppInstallService,
+          useValue: {
+            ensureForBusiness: jest.fn(async (business: { slug: string }) => ({
+              slug: business.slug,
+              landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+              qrDataUrl: 'data:image/png;base64,abc',
+              customSchemeUrl: `optischedule://book/${business.slug}`,
+              generatedAt: '2026-06-01T00:00:00.000Z',
+            })),
+            regenerateForBusiness: jest.fn(async (business: { slug: string }) => ({
+              slug: business.slug,
+              landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+              qrDataUrl: 'data:image/png;base64,regenerated',
+              customSchemeUrl: `optischedule://book/${business.slug}`,
+              generatedAt: '2026-06-02T00:00:00.000Z',
+            })),
+          },
+        },
         {
           provide: getRepositoryToken(Customer),
           useValue: { count: jest.fn(async () => 7) },

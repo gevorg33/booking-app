@@ -9,6 +9,7 @@ import {
   isSuggestUpgradePrompt,
   isToggleAnnualBillingPrompt,
 } from './ai-marketing-growth.util.js';
+import { isConfigureLoyaltySettingsPrompt } from './ai-configure-loyalty-settings.util.js';
 
 export const BILLING_LOYALTY_DASHBOARD_READ_INTENTS = [
   'open_billing_settings',
@@ -87,6 +88,7 @@ export function isOpenBillingSettingsPrompt(prompt: string): boolean {
 
 export function isSummarizeLoyaltyProgramPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  if (isConfigureLoyaltySettingsPrompt(prompt)) return false;
   if (/\b(?:my\s+points|balance|redeem)\b/i.test(prompt)) return false;
 
   if (

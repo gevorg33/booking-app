@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { parseClinicLabUploadSearchParams } from '@/lib/clinic-lab-upload-nav';
 import {
   ChevronLeft,
   ChevronRight,
@@ -412,13 +413,9 @@ export default function BookingsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<CalPeriod | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const bookingId = searchParams.get('bookingId');
-    if (bookingId) {
-      setSelectedBookingId(bookingId);
-    }
-  }, [searchParams]);
+  const urlBookingId = searchParams.get('bookingId');
+  const labUploadParams = parseClinicLabUploadSearchParams(searchParams);
+  const activeBookingId = urlBookingId ?? selectedBookingId;
 
   const [showCancel, setShowCancel]         = useState<string | null>(null);
   const [cancelReason, setCancelReason]     = useState('');
@@ -950,7 +947,7 @@ export default function BookingsPage() {
                             sublabel={bookingBlockSublabel(b)}
                             onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
                             faded
-                            selected={selectedBookingId === b.id}
+                            selected={activeBookingId === b.id}
                             col={lay.col}
                             totalCols={lay.totalCols}
                             zIndex={5}
@@ -971,7 +968,7 @@ export default function BookingsPage() {
                             label={bookingBlockLabel(b)}
                             sublabel={bookingBlockSublabel(b)}
                             onClick={() => openBookingDetail(b.id, setSelectedBookingId, setSelectedPeriod)}
-                            selected={selectedBookingId === b.id}
+                            selected={activeBookingId === b.id}
                             col={lay.col}
                             totalCols={lay.totalCols}
                             zIndex={10}
@@ -1254,7 +1251,7 @@ export default function BookingsPage() {
                   }
                 }}
                 className={`py-3 flex items-center justify-between gap-3 cursor-pointer rounded-lg px-2 -mx-2 transition-colors hover:bg-gray-800/50 ${
-                  selectedBookingId === b.id ? 'bg-gray-800/70 ring-1 ring-blue-500/40' : ''
+                  activeBookingId === b.id ? 'bg-gray-800/70 ring-1 ring-blue-500/40' : ''
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -1294,8 +1291,11 @@ export default function BookingsPage() {
       {business?.id && (
         <BookingDetailPanel
           businessId={business.id}
-          bookingId={selectedBookingId}
+          bookingId={activeBookingId}
           onClose={() => setSelectedBookingId(null)}
+          labInitialTab={labUploadParams.labTab ?? undefined}
+          labHighlightOrderId={labUploadParams.orderId}
+          labUploadResultRequested={labUploadParams.uploadResult}
         />
       )}
     </div>

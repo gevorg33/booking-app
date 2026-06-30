@@ -7,9 +7,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
-  IonPage,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -40,9 +38,11 @@ import ProviderAiSuggestions from '../components/ProviderAiSuggestions';
 import { ProviderOfflineBanner } from '../components/ProviderOfflineBanner';
 import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
 import { PROVIDER_OPEN_BOOKING_EVENT, PROVIDER_TEAM_WHOS_NEXT_EVENT } from '../lib/provider-push-deep-link.util';
 
-export default function TodayPage() {
+export default function TodayPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const { business, user } = useAuthStore();
   const { currency: businessCurrency } = useBusinessCurrency();
@@ -156,7 +156,7 @@ export default function TodayPage() {
   });
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>
@@ -166,7 +166,7 @@ export default function TodayPage() {
           </IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
         <ProviderOfflineBanner />
         {business?.id && (
           <>
@@ -269,7 +269,7 @@ export default function TodayPage() {
             }}
           />
         )}
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

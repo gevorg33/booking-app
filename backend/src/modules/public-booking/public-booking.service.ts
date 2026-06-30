@@ -56,7 +56,7 @@ import {
   getDateKeyInTimezone,
   getUtcBoundsForDateKey,
   isWallClockSlotBookable,
-  resolveTimezone,
+  resolveBusinessWallClockTimezone,
 } from '../../common/utils/timezone.util.js';
 import { readBusinessDateFormatSettings } from '../../common/utils/business-date-format.util.js';
 import {
@@ -337,6 +337,7 @@ export interface PublicServiceSlotProvider {
 
 const SCAN_DAYS = 14;
 const SLOT_STEP_MINUTES = 30;
+export const MAX_SERVICE_BOOKABLE_DATES_RANGE_DAYS = 62;
 
 @Injectable()
 export class PublicBookingService {
@@ -480,7 +481,7 @@ export class PublicBookingService {
         locale,
         'address',
       ),
-      timezone: business.timezone,
+      timezone: this.resolveWallClockTimezone(business),
       locale: getBusinessDefaultLocale(settings as Record<string, unknown>),
       defaultLocale: getBusinessDefaultLocale(
         settings as Record<string, unknown>,
@@ -761,7 +762,7 @@ export class PublicBookingService {
       order: { name: 'ASC' },
     });
 
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     // Scan from business-local today, but date keys align with UTC schedule days
     const startDateKey = date?.match(/^\d{4}-\d{2}-\d{2}$/) ? date : todayKey;
@@ -808,7 +809,7 @@ export class PublicBookingService {
   ): Promise<{ providers: RecommendedProvider[] }> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
 
     const requestedIds = [
       ...(options.serviceIds ?? []),
@@ -994,7 +995,7 @@ export class PublicBookingService {
     });
     if (!employee) throw new NotFoundException('Provider not found');
 
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const rawSlots = await this.getEmployeeStartTimes(
       business.id,
       employee,
@@ -1065,7 +1066,7 @@ export class PublicBookingService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     let employees = await this.employeeRepo.find({
       where: { businessId: business.id, isActive: true },
       order: { name: 'ASC' },
@@ -1144,6 +1145,177 @@ export class PublicBookingService {
       slots,
       ...(remainingSpots != null ? { remainingSpots } : {}),
     };
+  }
+
+  async getServiceBookableDates(
+    slug: string,
+    serviceId: string,
+    from: string,
+    to: string,
+  ): Promise<{
+    from: string;
+    to: string;
+    serviceId: string;
+    serviceName: string;
+    dates: string[];
+  }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId, businessId: business.id, isActive: true },
+    });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const tz = this.resolveWallClockTimezone(business);
+    const fromKey = toIsoDay(from, tz);
+    const toKey = toIsoDay(to, tz);
+    if (fromKey > toKey) {
+      throw new BadRequestException('from must be on or before to');
+    }
+
+    const dateKeys = this.buildInclusiveDateKeyRange(fromKey, toKey, tz);
+    if (dateKeys.length > MAX_SERVICE_BOOKABLE_DATES_RANGE_DAYS) {
+      throw new BadRequestException(
+        `Date range cannot exceed ${MAX_SERVICE_BOOKABLE_DATES_RANGE_DAYS} days`,
+      );
+    }
+
+    const employees = await this.listEmployeesForService(business.id, service);
+    const dates: string[] = [];
+
+    for (const dateKey of dateKeys) {
+      if (
+        await this.serviceDayHasBookableSlots(
+          business,
+          service,
+          employees,
+          dateKey,
+        )
+      ) {
+        dates.push(dateKey);
+      }
+    }
+
+    return {
+      from: fromKey,
+      to: toKey,
+      serviceId: service.id,
+      serviceName: service.name,
+      dates,
+    };
+  }
+
+  private buildInclusiveDateKeyRange(
+    fromKey: string,
+    toKey: string,
+    timeZone: string,
+  ): string[] {
+    const keys: string[] = [];
+    let current = fromKey;
+    while (current <= toKey) {
+      keys.push(current);
+      current = addDaysToDateKey(current, 1, timeZone);
+    }
+    return keys;
+  }
+
+  private async listEmployeesForService(
+    businessId: string,
+    service: Service,
+  ): Promise<Employee[]> {
+    let employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+      order: { name: 'ASC' },
+    });
+    return employees.filter((employee) => {
+      if (!employee.serviceIds?.length) return true;
+      return employee.serviceIds.includes(service.id);
+    });
+  }
+
+  private async hasAnyBookableStartTimeWithService(
+    businessId: string,
+    employee: Employee,
+    startTimes: Date[],
+    service: Service,
+  ): Promise<boolean> {
+    if (
+      employee.serviceIds?.length &&
+      !employee.serviceIds.includes(service.id)
+    ) {
+      return false;
+    }
+
+    for (const startTime of startTimes) {
+      if (
+        await this.canBookServiceAt(
+          businessId,
+          employee.id,
+          startTime,
+          service,
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private async serviceDayHasBookableSlots(
+    business: Business,
+    service: Service,
+    employees: Employee[],
+    dateKey: string,
+    options?: { notBeforeTime?: string | null },
+  ): Promise<boolean> {
+    const tz = this.resolveWallClockTimezone(business);
+    let hasScheduleMatch = false;
+
+    for (const employee of employees) {
+      const rawSlots = await this.getEmployeeStartTimes(
+        business.id,
+        employee,
+        dateKey,
+      );
+      const upcoming = rawSlots.filter((startTime) =>
+        isWallClockSlotBookable(
+          dateKey,
+          formatTimeDisplay(startTime),
+          tz,
+          options?.notBeforeTime ?? null,
+        ),
+      );
+      if (
+        await this.hasAnyBookableStartTimeWithService(
+          business.id,
+          employee,
+          upcoming,
+          service,
+        )
+      ) {
+        hasScheduleMatch = true;
+        break;
+      }
+    }
+
+    if (!hasScheduleMatch) return false;
+
+    const tour = extractTourMetadata(service.metadata);
+    if (tour?.maxGroupSize) {
+      const bookedPax = await this.countTourPaxForDate(
+        business.id,
+        service.id,
+        dateKey,
+      );
+      const remainingSpots = resolveRemainingTourSpots(
+        tour.maxGroupSize,
+        bookedPax,
+      );
+      return (remainingSpots ?? 0) > 0;
+    }
+
+    return true;
   }
 
   private async countTourPaxForDate(
@@ -1427,7 +1599,7 @@ export class PublicBookingService {
     });
     if (!service) return null;
 
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const startKey = options.startDateKey
       ? toIsoDay(options.startDateKey, tz)
@@ -2146,7 +2318,7 @@ export class PublicBookingService {
       );
     }
 
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const slotMap = new Map<string, PublicServiceDaySlot>();
 
     for (const employee of employees) {
@@ -2217,7 +2389,7 @@ export class PublicBookingService {
         'No provider can perform all selected services',
       );
     }
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
     const blockDurationMinutes = preview.totals!.blockDurationMinutes;
 
@@ -2829,7 +3001,7 @@ export class PublicBookingService {
     }>,
     settings: MultiServiceSettings,
   ): Promise<{ startTime: string } | null> {
-    const tz = resolveTimezone(business.timezone);
+    const tz = this.resolveWallClockTimezone(business);
     const todayKey = getDateKeyInTimezone(new Date(), tz);
 
     const blockDurationMinutes =
@@ -3139,6 +3311,13 @@ export class PublicBookingService {
       paymentMethod: wantsCash ? 'cash' : 'online',
       amountDue: pricing.amountDue,
     };
+  }
+
+  private resolveWallClockTimezone(business: Business): string {
+    return resolveBusinessWallClockTimezone(
+      business.timezone,
+      getBusinessDefaultLocale(business.settings as Record<string, unknown>),
+    );
   }
 
   private assertPublicBookingEnabled(business: Business) {

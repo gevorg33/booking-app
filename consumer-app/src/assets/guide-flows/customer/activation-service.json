@@ -1,0 +1,24 @@
+{
+  "topicId": "consumer-activation-service",
+  "surface": "customer",
+  "routes": ["/consumer/service"],
+  "titleKey": "guide.flows.customer.activation.service.title",
+  "summaryKey": "guide.flows.customer.activation.service.summary",
+  "navigateTarget": { "path": "services" },
+  "keywords": ["pick service", "choose treatment", "services list", "duration price"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.customer.activation.service.step1",
+      "navigate": { "path": "services" }
+    },
+    {
+      "titleKey": "guide.flows.common.step2",
+      "bodyKey": "guide.flows.customer.activation.service.step2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "bodyKey": "guide.flows.customer.activation.service.step3"
+    }
+  ]
+}

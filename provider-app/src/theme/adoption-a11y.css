@@ -35,6 +35,11 @@
   min-width: var(--adoption-hit-target-min);
 }
 
+.adoption-a11y-root .provider-today-timeline-segment {
+  min-height: 40px;
+  max-height: 40px;
+}
+
 .adoption-a11y-root button:focus-visible,
 .adoption-a11y-root a:focus-visible,
 .adoption-a11y-root ion-button:focus-visible,

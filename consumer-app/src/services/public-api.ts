@@ -132,6 +132,37 @@ export async function fetchServiceDaySlots(
   };
 }
 
+export type PublicServiceBookableDates = {
+  from: string;
+  to: string;
+  serviceId: string;
+  serviceName: string;
+  dates: string[];
+};
+
+export async function fetchServiceBookableDates(
+  slug: string,
+  serviceId: string,
+  from: string,
+  to: string,
+): Promise<PublicServiceBookableDates> {
+  const params = new URLSearchParams({
+    from: from.slice(0, 10),
+    to: to.slice(0, 10),
+  });
+  const { data } = await http.get(
+    `/public/${slug}/services/${serviceId}/bookable-dates?${params.toString()}`,
+  );
+  const body = unwrap<PublicServiceBookableDates>(data);
+  return {
+    from: body.from ?? from.slice(0, 10),
+    to: body.to ?? to.slice(0, 10),
+    serviceId: body.serviceId ?? serviceId,
+    serviceName: body.serviceName ?? '',
+    dates: body.dates ?? [],
+  };
+}
+
 export async function fetchServiceSlotProviders(
   slug: string,
   serviceId: string,
@@ -726,6 +757,7 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  guide?: import('../lib/consumer-assistant-guide.util.js').ConsumerAiGuideResponse;
   details?: Record<string, unknown>;
 }
 
@@ -736,6 +768,7 @@ export async function sendPublicAssistantMessage(
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     context?: Record<string, unknown>;
     locale?: string;
+    assistantMode?: 'guide' | 'act';
   },
 ): Promise<PublicAssistantResponse> {
   const { data } = await http.post(`/public/${slug}/assistant`, body, publicConfig(slug));

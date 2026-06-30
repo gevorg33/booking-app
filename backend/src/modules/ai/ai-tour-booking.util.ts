@@ -39,7 +39,7 @@ function hasReadTourBookingCue(prompt: string): boolean {
 
 function hasBookingVisitorContext(prompt: string): boolean {
   return (
-    /\b(booking\s+page|online\s+booking|public\s+booking|this\s+page|on\s+this\s+page|here|catalog|when\s+(?:i\s+)?book|book(?:ing)?\s+(?:this|a)\s+tour|consumer\s+app)\b/i.test(
+    /\b(booking\s+page|online\s+booking|public\s+booking|mobile\s+booking|consumer\s+booking|this\s+page|on\s+this\s+page|here|catalog|when\s+(?:i\s+)?book|book(?:ing)?\s+(?:this|a)\s+tour|consumer\s+app|in\s+the\s+app)\b/i.test(
       prompt,
     ) ||
     /(գրանցման\s+էջ|այս\s+էջ|կայք|գրանցել|ցուցադր)/i.test(prompt) ||
@@ -51,7 +51,7 @@ function hasBookingVisitorContext(prompt: string): boolean {
 
 function hasTourBookingTopic(prompt: string): boolean {
   return (
-    /\b(max\s+group|group\s+(?:size|cap)|how\s+many\s+(?:people|guests|pax)|per[-\s]?person|price\s+per|per\s+person|priced\s+per|multi[-\s]?day)\b/i.test(
+    /\b(max\s+group|group\s+(?:size|cap|limit)|max\s+pax|how\s+many\s+(?:people|guests|pax)|per[-\s]?person|price\s+per|per\s+person|priced\s+per|multi[-\s]?day)\b/i.test(
       prompt,
     ) ||
     /\b(duration|how\s+long|how\s+many\s+days?|day\s+tour|\d+\s*day)\b/i.test(
@@ -69,7 +69,7 @@ function hasTourBookingTopic(prompt: string): boolean {
 
 function hasTourServiceReference(prompt: string): boolean {
   return (
-    /\b(tour|trek|excursion|hike)\b/i.test(prompt) ||
+    /\b(tours?|trek|excursion|hike)\b/i.test(prompt) ||
     /(էքսկուրսիա|տուր)/i.test(prompt) ||
     /(тур|экскурс)/i.test(prompt)
   );
@@ -182,6 +182,8 @@ function extractServiceNameFromPrompt(prompt: string): string | null {
     /([A-Za-z0-9][\w\s&'-]+?)\s+տուր/i,
     /\bfor\s+([A-Za-z0-9][\w\s&'-]+)\s+on\s+online\s+booking\b/i,
     /\bgroup\s+cap\s+for\s+([A-Za-z0-9][\w\s&'-]+)\b/i,
+    /\bmax\s+pax\s+for\s+([A-Za-z0-9][\w\s&'-]+?)\s+on\b/i,
+    /\bgroup\s+limit\s+for\s+(?:the\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+tour\b/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
@@ -193,13 +195,14 @@ function extractServiceNameFromPrompt(prompt: string): string | null {
 
 function resolveTourBookingAspect(prompt: string): TourBookingAspect {
   const groupSize =
+    /\b(group\s+limit|max\s+pax)\b/i.test(prompt) ||
     /\b(max\s+group|group\s+(?:size|cap)|how\s+many\s+(?:people|guests|pax)|bring\s+\d+\s+people)\b/i.test(
       prompt,
     ) ||
     /(առավելագույն\s+խումբ|մարդ|հոգի|անձ(?!ի))/i.test(prompt) ||
     /(размер\s+групп|человек\s+максимум|сколько\s+человек)/i.test(prompt);
   const pricing =
-    /\b(per[-\s]?person|price\s+per|per\s+person|priced\s+per)\b/i.test(
+    /\b(per[-\s]?person|price\s+per|per\s+person|priced\s+per|charged\s+per)\b/i.test(
       prompt,
     ) ||
     /(մեկ\s+անձ|անձի\s+համար)/i.test(prompt) ||
@@ -238,7 +241,9 @@ function isSingleTourBookingDetailPrompt(prompt: string): boolean {
 
   const serviceName = extractServiceNameFromPrompt(prompt);
   if (serviceName && !isDashboardTourCatalogMaxGroupPrompt(prompt)) return true;
-  if (/\bthe\s+tour\b/i.test(prompt) && !serviceName) return false;
+  if (/\bthe\s+tour\b/i.test(prompt) && !serviceName) {
+    return hasTourBookingTopic(prompt) && hasReadTourBookingCue(prompt);
+  }
   if (
     hasBookingVisitorContext(prompt) &&
     hasTourServiceReference(prompt) &&

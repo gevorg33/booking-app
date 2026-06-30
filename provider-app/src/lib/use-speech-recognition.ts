@@ -192,3 +192,18 @@ export function useSpeechRecognition({
 
   return { isSupported, isListening, start, stop, toggle };
 }
+
+export function speakText(text: string, lang = 'en-US'): boolean {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !text.trim()) {
+    return false;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.trim());
+  utterance.lang = lang;
+  window.speechSynthesis.speak(utterance);
+  return true;
+}
+
+export function isSpeechSynthesisSupported(): boolean {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+}

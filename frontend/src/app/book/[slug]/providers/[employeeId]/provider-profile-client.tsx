@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
@@ -18,6 +18,10 @@ import type {
   PublicProviderReviewsPage,
 } from '@/lib/public-api';
 import { formatScheduleTime, resolveNearestSlotDateLabel } from '@/lib/date-format';
+import {
+  filterBookableWallClockSlots,
+  resolveBusinessWallClockTimezone,
+} from '@/lib/wall-clock-slot.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -38,10 +42,24 @@ export function ProviderProfileClient({
 }: ProviderProfileClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
-  const timeZone = tenant.timezone || 'UTC';
+  const wallClockTz = resolveBusinessWallClockTimezone(
+    tenant.timezone,
+    tenant.locale ?? locale,
+  );
+  const [nowTick, setNowTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const visibleSlots = useMemo(
+    () => filterBookableWallClockSlots(provider.slots, wallClockTz),
+    [provider.slots, wallClockTz, nowTick],
+  );
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(
-    provider.slots[0]?.startTime ?? null,
+    visibleSlots[0]?.startTime ?? null,
   );
   const [reviewItems, setReviewItems] = useState(reviews.items);
   const [reviewCount, setReviewCount] = useState(reviews.reviewCount);
@@ -52,20 +70,28 @@ export function ProviderProfileClient({
   const nearestDateText = resolveNearestSlotDateLabel(
     provider,
     locale,
-    timeZone,
+    wallClockTz,
     t('public.todayInline'),
   );
 
+  const effectiveStartTime = useMemo(() => {
+    if (!selectedStartTime) return visibleSlots[0]?.startTime ?? null;
+    if (visibleSlots.some((slot) => slot.startTime === selectedStartTime)) {
+      return selectedStartTime;
+    }
+    return visibleSlots[0]?.startTime ?? null;
+  }, [visibleSlots, selectedStartTime]);
+
   const chooseDisabled = useMemo(() => {
-    if (provider.slots.length === 0) return true;
-    return !selectedStartTime;
-  }, [provider.slots.length, selectedStartTime]);
+    if (visibleSlots.length === 0) return true;
+    return !effectiveStartTime;
+  }, [visibleSlots.length, effectiveStartTime]);
 
   const onChoose = () => {
-    if (!selectedStartTime) return;
+    if (!effectiveStartTime) return;
     const q = new URLSearchParams({
       employeeId: provider.id,
-      startTime: selectedStartTime,
+      startTime: effectiveStartTime,
     });
     router.push(`${bookPath(slug, '/services')}?${q.toString()}`);
   };
@@ -102,7 +128,7 @@ export function ProviderProfileClient({
           )}
         </section>
 
-        {provider.slots.length > 0 && (
+        {visibleSlots.length > 0 && (
           <section className="mt-5">
             <p className="text-xs text-gray-500 mb-2 px-1">
               {nearestDateText
@@ -110,8 +136,8 @@ export function ProviderProfileClient({
                 : t('public.availableSlots')}
             </p>
             <div className="flex flex-wrap gap-2">
-              {provider.slots.map((slot) => {
-                const active = selectedStartTime === slot.startTime;
+              {visibleSlots.map((slot) => {
+                const active = effectiveStartTime === slot.startTime;
                 return (
                   <button
                     key={slot.startTime}
@@ -132,7 +158,7 @@ export function ProviderProfileClient({
           </section>
         )}
 
-        {provider.slots.length === 0 && (
+        {visibleSlots.length === 0 && (
           <p className="text-sm text-gray-400 mt-5 px-1">{t('public.noSlots')}</p>
         )}
 

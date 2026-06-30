@@ -101,6 +101,30 @@ export function isMultilingualBookNearestPrompt(prompt: string): boolean {
   );
 }
 
+/** READ soonest/earliest slot without book intent (hy/ru/translit). */
+export function isMultilingualFindSoonestAppointmentPrompt(
+  prompt: string,
+): boolean {
+  if (MULTILINGUAL_BOOK_VERBS.test(prompt)) return false;
+  if (/\b(book|reserve|schedule|grab)\b/i.test(prompt)) return false;
+
+  if (
+    MULTILINGUAL_FLEXIBLE_SLOT.test(prompt) &&
+    (isMultilingualCheckProvidersPrompt(prompt) ||
+      MULTILINGUAL_SLOT_NOUNS.test(prompt) ||
+      MULTILINGUAL_SERVICE_HINT.test(prompt) ||
+      /(?:когда|երբ)/iu.test(prompt))
+  ) {
+    return true;
+  }
+
+  return (
+    /(?:ով|кто)/iu.test(prompt) &&
+    MULTILINGUAL_PROVIDER_AVAILABILITY.test(prompt) &&
+    /(?:ամենաառաջին|ամենամոտ|առաջին|раньше\s+всех)/iu.test(prompt)
+  );
+}
+
 /** First-available flexible booking in hy/ru/translit (rescue + enrichment). */
 export function isMultilingualFirstAvailableBookingPrompt(
   prompt: string,

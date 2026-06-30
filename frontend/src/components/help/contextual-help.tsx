@@ -2,24 +2,54 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { CircleHelp, X } from 'lucide-react';
+import { CircleHelp, ExternalLink, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/i18n';
+import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { DashboardPageToolbar } from '@/components/dashboard/dashboard-page-shell';
 import {
+  getHelpTopicCorpusTopicId,
   getHelpTopicGuidePath,
   helpTopicTranslationPrefix,
   listHelpStepKeys,
   type HelpTopicId,
 } from '@/lib/help-center-topics';
+import { GuideTopicAskAiButton } from '@/components/guide-topic-ask-ai-button';
+import {
+  resolveGuideHelpArticleUrl,
+  resolveHelpTopicZendeskArticleId,
+} from '@/lib/guide-topic-help-articles';
+
+function unwrap<T>(res: unknown): T {
+  return ((res as { data?: T })?.data ?? res) as T;
+}
 
 export function ContextualHelpButton({ topicId }: { topicId: HelpTopicId }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { business } = useAuthStore();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const prefix = helpTopicTranslationPrefix(topicId);
   const steps = listHelpStepKeys(topicId)
     .map((key) => t(key))
     .filter((step) => !step.startsWith('helpCenter.'));
+  const zendeskArticleId = resolveHelpTopicZendeskArticleId(topicId);
+  const { data: zendesk } = useQuery({
+    queryKey: ['integrations-zendesk-widget', business?.id],
+    queryFn: async () => {
+      const { data: res } = await api.get(
+        `/businesses/${business!.id}/integrations/zendesk/widget`,
+      );
+      return unwrap<{ widgetKey: string | null; subdomain?: string }>(res);
+    },
+    enabled: Boolean(business?.id && zendeskArticleId),
+  });
+  const helpArticleUrl = resolveGuideHelpArticleUrl(
+    zendeskArticleId ? { zendeskArticleId } : undefined,
+    zendesk?.subdomain,
+    locale,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -81,13 +111,28 @@ export function ContextualHelpButton({ topicId }: { topicId: HelpTopicId }) {
               </ol>
             )}
 
-            <Link
-              href={getHelpTopicGuidePath(topicId)}
-              className="inline-flex text-sm font-medium text-blue-400 hover:text-blue-300"
-              onClick={() => setOpen(false)}
-            >
-              {t('helpCenter.openFullGuide')}
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={getHelpTopicGuidePath(topicId)}
+                className="inline-flex text-sm font-medium text-blue-400 hover:text-blue-300"
+                onClick={() => setOpen(false)}
+              >
+                {t('helpCenter.openFullGuide')}
+              </Link>
+              {helpArticleUrl ? (
+                <a
+                  href={helpArticleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-blue-300 hover:text-blue-200"
+                  onClick={() => setOpen(false)}
+                >
+                  {t('ai.guideReadHelpArticle')}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : null}
+              <GuideTopicAskAiButton topicId={getHelpTopicCorpusTopicId(topicId)} />
+            </div>
           </div>
         </>
       )}

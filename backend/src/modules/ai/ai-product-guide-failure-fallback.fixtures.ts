@@ -1,0 +1,106 @@
+import type { CommandSurface } from './ai-command-registry.types.js';
+
+/** Post-failure guide fallback scenarios (ai-guide-1.8.3, acc-4.7, n99-1). */
+export const POST_FAILURE_GUIDE_FALLBACK_SCENARIOS = [
+  {
+    id: 'dashboard-unknown-clarify',
+    surface: 'dashboard' as CommandSurface,
+    route: '/dashboard/schedule',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'unknown',
+      summary: "I didn't fully understand that command. Which of these did you mean?",
+      details: {
+        needsClarification: true,
+        pipelineStage: 'unknown_intent_clarify',
+      },
+    },
+    expectSnippet: true,
+  },
+  {
+    id: 'provider-validator-clarify',
+    surface: 'provider' as CommandSurface,
+    route: '/tabs/today',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'mark_paid',
+      summary: 'Which booking should I mark as paid?',
+      details: { needsClarification: true },
+    },
+    expectSnippet: true,
+  },
+  {
+    id: 'customer-handler-failure',
+    surface: 'customer' as CommandSurface,
+    route: '/s/book',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'book_nearest_slot',
+      summary: 'No available slots matched that request.',
+      details: {},
+    },
+    expectSnippet: true,
+  },
+  {
+    id: 'public-unknown-clarify',
+    surface: 'public' as CommandSurface,
+    route: '/book/checkout',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'unknown',
+      summary: "I didn't fully understand that. What would you like to do?",
+      details: {
+        needsClarification: true,
+        pipelineStage: 'unknown_intent_clarify',
+      },
+    },
+    expectSnippet: true,
+  },
+  {
+    id: 'skip-when-success',
+    surface: 'dashboard' as CommandSurface,
+    route: '/dashboard/schedule',
+    locale: 'en',
+    result: {
+      success: true,
+      action: 'query_bookings',
+      summary: 'Found 3 bookings.',
+      details: {},
+    },
+    expectSnippet: false,
+  },
+  {
+    id: 'skip-when-guide-present',
+    surface: 'dashboard' as CommandSurface,
+    route: '/dashboard/schedule',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'guide_user_flow',
+      summary: 'Guide clarify',
+      details: { needsClarification: true },
+      guide: {
+        summary: 'Existing guide',
+        steps: [{ title: 'Step 1', body: 'Body' }],
+      },
+    },
+    expectSnippet: false,
+  },
+  {
+    id: 'skip-security-blocked',
+    surface: 'customer' as CommandSurface,
+    route: '/s/account',
+    locale: 'en',
+    result: {
+      success: false,
+      action: 'security_blocked',
+      summary: 'Not allowed.',
+      details: {},
+    },
+    expectSnippet: false,
+  },
+] as const;

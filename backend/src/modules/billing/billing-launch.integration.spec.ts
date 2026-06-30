@@ -364,6 +364,7 @@ describe('Sprint 12.a billing launch integration', () => {
       aiSettings as any,
       platform as any,
       commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
 
     it('blocks dashboard AI when monthly command cap reached', async () => {
@@ -405,6 +406,7 @@ describe('Sprint 12.a billing launch integration', () => {
         aiSettings as any,
         platform as any,
         commandTrace as any,
+        { handleGuideUserFlowAsync: jest.fn() } as any,
       );
       await mobileGateway.execute({
         surface: 'provider',

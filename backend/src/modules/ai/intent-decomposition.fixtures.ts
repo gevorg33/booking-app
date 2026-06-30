@@ -234,6 +234,149 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     compoundRecipeId: 'onboard_new_provider',
   },
   {
+    id: 'dashboard_setup_salon_checkout_e2e',
+    surface: 'dashboard',
+    prompt:
+      'Set up salon checkout end-to-end: connect Stripe for client payments, enable cash at venue, accept online payment on all services with 50% prepayment, enable online booking',
+    orderedActions: [
+      'configure_stripe_connect',
+      'configure_cash_payments',
+      'configure_service_online_payment',
+      'configure_online_booking',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'startOnboarding', value: false },
+      { stepIndex: 1, key: 'acceptCashPayments', value: true },
+      { stepIndex: 2, key: 'allServices', value: true },
+      { stepIndex: 2, key: 'depositPercent', value: 50 },
+      { stepIndex: 3, key: 'enabled', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'setup_salon_checkout',
+  },
+  {
+    id: 'dashboard_setup_salon_checkout_spa',
+    surface: 'dashboard',
+    prompt:
+      'Full checkout setup for our spa — link Stripe Connect, turn on cash payments, require 50% online prepayment on every service, and enable the public booking page',
+    orderedActions: [
+      'configure_stripe_connect',
+      'configure_cash_payments',
+      'configure_service_online_payment',
+      'configure_online_booking',
+    ],
+    noLlm: true,
+    compoundRecipeId: 'setup_salon_checkout',
+  },
+  {
+    id: 'dashboard_configure_services_payment_matrix_massage_hair',
+    surface: 'dashboard',
+    prompt:
+      'Configure services payment matrix — full prepayment for massage services and 50% deposit for hair services; enable cash at venue',
+    orderedActions: [
+      'configure_service_online_payment',
+      'configure_service_online_payment',
+      'configure_cash_payments',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'categoryName', value: 'massage' },
+      { stepIndex: 0, key: 'prepaymentMode', value: 'full' },
+      { stepIndex: 1, key: 'categoryName', value: 'hair' },
+      { stepIndex: 1, key: 'prepaymentMode', value: 'deposit' },
+      { stepIndex: 1, key: 'depositPercent', value: 50 },
+      { stepIndex: 2, key: 'acceptCashPayments', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'configure_services_payment_matrix',
+  },
+  {
+    id: 'dashboard_configure_services_payment_matrix_price',
+    surface: 'dashboard',
+    prompt:
+      'Raise massage prices 10% — services payment matrix: require full prepayment for massage services; accept 50% deposit for hair services; turn on cash payments',
+    orderedActions: [
+      'update_service_prices',
+      'configure_service_online_payment',
+      'configure_service_online_payment',
+      'configure_cash_payments',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'percentChange', value: 10 },
+      { stepIndex: 3, key: 'acceptCashPayments', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'configure_services_payment_matrix',
+  },
+  {
+    id: 'dashboard_decline_online_payment_category_dental_massage',
+    surface: 'dashboard',
+    prompt:
+      'Decline online payment on public booking for dental services but accept 50% prepayment for massage services',
+    orderedActions: [
+      'configure_service_online_payment',
+      'configure_service_online_payment',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'categoryName', value: 'dental' },
+      { stepIndex: 0, key: 'prepaymentMode', value: 'none' },
+      { stepIndex: 1, key: 'categoryName', value: 'massage' },
+      { stepIndex: 1, key: 'prepaymentMode', value: 'deposit' },
+      { stepIndex: 1, key: 'depositPercent', value: 50 },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'decline_online_payment_category',
+  },
+  {
+    id: 'dashboard_cash_and_online_payment_all_services',
+    surface: 'dashboard',
+    prompt: 'Enable cash and decline online payment for all services',
+    orderedActions: [
+      'configure_cash_payments',
+      'configure_service_online_payment',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'acceptCashPayments', value: true },
+      { stepIndex: 1, key: 'allServices', value: true },
+      { stepIndex: 1, key: 'prepaymentMode', value: 'none' },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'cash_and_online_payment',
+  },
+  {
+    id: 'dashboard_onboard_salon_notifications_e2e',
+    surface: 'dashboard',
+    prompt:
+      'Onboard salon notifications end-to-end: configure notification settings with email and WhatsApp reminders, connect WhatsApp integration with platform default, and test push notifications',
+    orderedActions: [
+      'configure_notification_settings',
+      'configure_whatsapp_integration',
+      'test_push',
+    ],
+    paramChecks: [
+      { stepIndex: 0, key: 'emailEnabled', value: true },
+      { stepIndex: 0, key: 'whatsappEnabled', value: true },
+      { stepIndex: 1, key: 'usePlatformDefault', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'onboard_salon_notifications',
+  },
+  {
+    id: 'dashboard_launch_consumer_app_growth_e2e',
+    surface: 'dashboard',
+    prompt:
+      'Launch consumer app growth end-to-end: explain our tenant app install QR, regenerate the growth QR code, and configure marketing registration email notifications',
+    orderedActions: [
+      'explain_tenant_app_install',
+      'regenerate_tenant_app_install_qr',
+      'configure_marketing_registration_email',
+    ],
+    paramChecks: [
+      { stepIndex: 2, key: 'emailOnNewCustomerRegistration', value: true },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'launch_consumer_app_growth',
+  },
+  {
     id: 'dashboard_budget_discover_book_haircut',
     surface: 'dashboard',
     prompt:
@@ -368,6 +511,25 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     ],
     noLlm: true,
     compoundRecipeId: 'clinic_lab_day_close',
+  },
+  {
+    id: 'dashboard_clinic_lab_review_maria',
+    surface: 'dashboard',
+    prompt:
+      'Lab review for Maria: list abnormal flagged measurements and explain her lab results in plain language',
+    orderedActions: ['list_abnormal_results', 'explain_patient_results'],
+    paramChecks: [{ stepIndex: 0, key: 'customerName', value: 'Maria' }],
+    noLlm: true,
+    compoundRecipeId: 'clinic_lab_review',
+  },
+  {
+    id: 'dashboard_clinic_lab_review_john',
+    surface: 'dashboard',
+    prompt: 'List abnormal results for John and then explain his lab results',
+    orderedActions: ['list_abnormal_results', 'explain_patient_results'],
+    paramChecks: [{ stepIndex: 1, key: 'customerName', value: 'John' }],
+    noLlm: true,
+    compoundRecipeId: 'clinic_lab_review',
   },
   {
     id: 'dashboard_crm_subscriptions_tag_vip',

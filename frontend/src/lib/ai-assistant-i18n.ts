@@ -1,53 +1,110 @@
+import {
+  allCommandBarGuidePromptKeys,
+  buildCommandBarGuideExamples,
+  buildContextualGuidePromptForRoute,
+} from './ai-command-bar-guide.util';
 import { onboardingPromptI18nKeys } from './ai-onboarding.util';
 import { AI_DASHBOARD_SURFACE_KEYS } from './dashboard-surfaces.i18n';
+import {
+  pickAssistantExampleVars,
+  type AssistantExampleTenantInput,
+  type AssistantExampleVars,
+} from './assistant-example-tenant.util';
 
 export interface AiExampleTenantContext {
   employees: Array<{ id: string; name: string; serviceIds?: string[]; isActive?: boolean }>;
-  services: Array<{ id: string; name: string; isActive?: boolean }>;
+  services: Array<{
+    id: string;
+    name: string;
+    isActive?: boolean;
+    categoryName?: string | null;
+  }>;
 }
+
+export type { AssistantExampleTenantInput, AssistantExampleVars };
 
 export type AiTranslateFn = (
   key: string,
   vars?: Record<string, string | number>,
 ) => string;
 
-function pickExampleEmployee(ctx: AiExampleTenantContext) {
-  return ctx.employees.find((e) => e.isActive !== false && e.name?.trim()) ?? null;
+const PROMPT_TENANT_VAR_KEYS: Partial<Record<string, (keyof AssistantExampleVars)[]>> = {
+  fillGapsProviderWeek: ['provider'],
+  cancelBookingSlotProvider: ['provider'],
+  bookNearestSlot: ['service', 'provider'],
+  applyWeekdayTemplateProvider: ['provider'],
+  showProviderScheduleTomorrow: ['provider'],
+  availableSlotsTomorrow: ['provider'],
+  unhideCancelledProviderToday: ['provider'],
+  assignServicesProvider: ['serviceCategory', 'provider'],
+  servicesProviderPerforms: ['provider'],
+  whoCanDoServiceTomorrow: ['service'],
+  whoCanDoService: ['service'],
+  howMuchService: ['service'],
+  addServicesBulk: ['service', 'service2'],
+  requireFullPrepaymentService: ['service'],
+  acceptOnlinePaymentTwoServicesHalf: ['service', 'service2'],
+  declineOnlinePaymentService: ['service'],
+  declineOnlinePaymentCategory: ['serviceCategory'],
+  bookServiceTomorrow: ['service'],
+};
+
+function resolveAssistantExampleFallbacks(t: AiTranslateFn): AssistantExampleVars {
+  return {
+    provider: t('ai.fallbackProvider'),
+    service: t('ai.fallbackService'),
+    service2: t('ai.fallbackService'),
+    serviceCategory: t('ai.fallbackServiceCategory'),
+  };
 }
 
-function pickExampleService(ctx: AiExampleTenantContext, employee: { serviceIds?: string[] } | null) {
-  const services = ctx.services.filter((s) => s.isActive !== false && s.name?.trim());
-  if (employee?.serviceIds?.length) {
-    const assigned = services.find((s) => employee.serviceIds!.includes(s.id));
-    if (assigned) return assigned;
-  }
-  return services[0] ?? null;
+export function resolveAssistantExampleVarsFromTenant(
+  ctx: AssistantExampleTenantInput | null | undefined,
+  t: AiTranslateFn,
+): AssistantExampleVars {
+  return pickAssistantExampleVars(ctx, resolveAssistantExampleFallbacks(t));
 }
 
 function p(t: AiTranslateFn, key: string, vars?: Record<string, string | number>): string {
   return t(`ai.prompts.${key}`, vars);
 }
 
-/** Default example prompts shown in the command bar before the first message. */
+function translatePromptKey(
+  key: string,
+  t: AiTranslateFn,
+  vars: AssistantExampleVars,
+): string {
+  const fields = PROMPT_TENANT_VAR_KEYS[key];
+  if (!fields?.length) return p(t, key);
+  const subset: Record<string, string> = {};
+  for (const field of fields) subset[field] = vars[field];
+  return p(t, key, subset);
+}
+
+/** Default action example prompts shown in the command bar before the first message. */
 export function buildAiCommandBarExamples(
   ctx: AiExampleTenantContext | null | undefined,
   t: AiTranslateFn,
 ): string[] {
-  const employee = ctx ? pickExampleEmployee(ctx) : null;
-  const service = ctx ? pickExampleService(ctx, employee) : null;
-  const provider = employee?.name?.trim() || t('ai.fallbackProvider');
-  const serviceName = service?.name?.trim() || t('ai.fallbackService');
+  const vars = resolveAssistantExampleVarsFromTenant(ctx, t);
 
   return [
     p(t, 'weekdayTemplateAll'),
     p(t, 'blockLunchWeek'),
-    p(t, 'fillGapsProviderWeek', { provider }),
+    translatePromptKey('fillGapsProviderWeek', t, vars),
     p(t, 'howManyToday'),
     p(t, 'weeklyTeamSchedule'),
-    p(t, 'cancelBookingSlotProvider', { provider }),
-    p(t, 'bookNearestSlot', { service: serviceName, provider }),
+    translatePromptKey('cancelBookingSlotProvider', t, vars),
+    translatePromptKey('bookNearestSlot', t, vars),
   ];
 }
+
+/** Playbook-backed guide chips for the command bar empty state (ai-guide-1.3.2). */
+export function buildAiCommandBarGuideExamples(route: string, t: AiTranslateFn): string[] {
+  return buildCommandBarGuideExamples(route, t);
+}
+
+export { buildContextualGuidePromptForRoute };
 
 const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
   '/dashboard': [
@@ -119,6 +176,12 @@ const ROUTE_PROMPT_KEYS: Record<string, string[]> = {
     'howMuchService',
     'addServicesBulk',
     'whoCanDoService',
+    'acceptOnlinePaymentAllHalf',
+    'requireFullPrepaymentService',
+    'acceptOnlinePaymentTwoServicesHalf',
+    'declineOnlinePaymentAll',
+    'declineOnlinePaymentService',
+    'declineOnlinePaymentCategory',
   ],
   '/dashboard/reports': [
     'explainUtilizationDrop',
@@ -244,9 +307,14 @@ const FALLBACK_PROMPT_KEYS = [
   'whatsComingUpToday',
 ];
 
-export function getLocalizedPageSuggestions(route: string, t: AiTranslateFn): string[] {
+export function getLocalizedPageSuggestions(
+  route: string,
+  t: AiTranslateFn,
+  ctx?: AssistantExampleTenantInput | null,
+): string[] {
   const keys = ROUTE_PROMPT_KEYS[route] ?? FALLBACK_PROMPT_KEYS;
-  return keys.map((key) => p(t, key));
+  const vars = resolveAssistantExampleVarsFromTenant(ctx, t);
+  return keys.map((key) => translatePromptKey(key, t, vars));
 }
 
 export type LocalizedAiPageSuggestionGroup = {
@@ -258,16 +326,18 @@ export type LocalizedAiPageSuggestionGroup = {
 export function getLocalizedAiPageSuggestionGroups(
   route: string,
   t: AiTranslateFn,
+  ctx?: AssistantExampleTenantInput | null,
 ): LocalizedAiPageSuggestionGroup[] {
+  const vars = resolveAssistantExampleVarsFromTenant(ctx, t);
   const grouped = ROUTE_GROUP_DEFS[route];
   if (grouped?.length) {
     return grouped.map((g) => ({
       id: g.id,
       label: t(`ai.groupLabels.${g.labelKey}`),
-      items: g.itemKeys.map((key) => p(t, key)),
+      items: g.itemKeys.map((key) => translatePromptKey(key, t, vars)),
     }));
   }
-  const flat = getLocalizedPageSuggestions(route, t);
+  const flat = getLocalizedPageSuggestions(route, t, ctx);
   return [{ id: 'commands', label: t('ai.quickCommands'), items: flat }];
 }
 
@@ -309,6 +379,7 @@ export const AI_ASSISTANT_UI_KEYS = [
   'ai.inputPlaceholderExample',
   'ai.fallbackProvider',
   'ai.fallbackService',
+  'ai.fallbackServiceCategory',
   'ai.showDetails',
   'ai.hideDetails',
   'ai.confirmExecute',
@@ -323,6 +394,9 @@ export const AI_ASSISTANT_UI_KEYS = [
   'ai.opportunitiesTitle',
   'ai.opportunitiesOnPage',
   'ai.examples',
+  'ai.guideExamples',
+  'ai.helpChip',
+  'ai.helpChipHint',
   'ai.undoLatest',
   'ai.undoLatestHint',
   'ai.undoLatestNone',
@@ -359,6 +433,7 @@ export function allAiAssistantI18nKeys(): string[] {
       ...AI_ASSISTANT_UI_KEYS,
       ...AI_DASHBOARD_SURFACE_KEYS,
       ...allAiAssistantPromptKeys(),
+      ...allCommandBarGuidePromptKeys(),
       ...onboardingPromptI18nKeys(),
       'reports.aiInsightsTitle',
     ]),

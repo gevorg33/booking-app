@@ -15,6 +15,7 @@ import {
   type BusinessRetentionSettings,
   type RetentionField,
 } from '../../common/utils/business-compliance.util.js';
+import { isUpdateServiceDurationBufferPrompt } from './ai-service-duration-buffer.util.js';
 
 export const BUSINESS_COMPLIANCE_READ_INTENTS = [
   'explain_compliance_status',
@@ -617,6 +618,7 @@ export function isExplainPhiEncryptionStatusPrompt(prompt: string): boolean {
 }
 
 export function isConfigureHipaaSessionTimeoutPrompt(prompt: string): boolean {
+  if (isUpdateServiceDurationBufferPrompt(prompt)) return false;
   if (!MUTATE_COMPLIANCE_VERBS.test(prompt)) return false;
 
   const timeout = parseHipaaSessionTimeoutMinutes(prompt);

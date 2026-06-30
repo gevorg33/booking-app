@@ -200,10 +200,37 @@ export function isMyAppointmentsPrompt(prompt: string): boolean {
 }
 
 export function isMySubscriptionsPrompt(prompt: string): boolean {
+  if (isSubscriptionUsagePrompt(prompt)) return false;
+  if (hasDashboardCustomerReference(prompt) && !/\bmy\b/i.test(prompt)) {
+    return false;
+  }
+  if (
+    /\b(use|apply|redeem|book|pay)\b/i.test(prompt) &&
+    /\b(subscription|membership|plan|credit|visit)s?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(discover|browse|sign\s+up|subscribe\s+to|select|choose|pick)\b/i.test(
+      prompt,
+    ) &&
+    /\b(subscription|membership|plan)s?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  const mentionsMembership = /\b(subscription|membership|plan)s?\b/i.test(prompt);
+  if (!mentionsMembership) return false;
+
   return (
-    /\bmy\b/i.test(prompt) &&
-    /\b(subscription|membership|plan)s?\b/i.test(prompt) &&
-    !/\busage\b/i.test(prompt)
+    (/\bmy\b/i.test(prompt) &&
+      !/\b(usage|visits?\s+left|remaining|credits?)\b/i.test(prompt)) ||
+    /\b(show|list|view|open|where)\b/i.test(prompt) ||
+    /\bdo\s+i\s+have\s+(?:a\s+)?(?:subscription|membership|plan)s?\b/i.test(
+      prompt,
+    ) ||
+    /\bwhat\s+memberships?\s+do\s+i\s+have\b/i.test(prompt) ||
+    /\bwhat\s+(?:are\s+)?my\s+active\s+subscriptions?\b/i.test(prompt) ||
+    /\bwhat\s+is\s+on\s+my\s+subscription\b/i.test(prompt)
   );
 }
 
@@ -238,11 +265,41 @@ export function isGiftCardRedemptionHistoryPrompt(prompt: string): boolean {
 }
 
 export function isRequestGiftCardCancelPrompt(prompt: string): boolean {
-  return (
-    /\b(cancel|refund)\b/i.test(prompt) &&
-    /\b(gift\s*card|order)\b/i.test(prompt) &&
-    (/\bmy\b/i.test(prompt) || /\brequest\b/i.test(prompt))
-  );
+  if (
+    /\b(cancel)\b/i.test(prompt) &&
+    /\b(gift\s*card)\b/i.test(prompt) &&
+    /\b(order)\b/i.test(prompt) &&
+    !/\bmy\b/i.test(prompt) &&
+    !/\brequest\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    hasDashboardCustomerReference(prompt) &&
+    !/\bmy\b/i.test(prompt) &&
+    !/\brequest\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const selfScope =
+    /\bmy\b/i.test(prompt) ||
+    /\brequest\b/i.test(prompt) ||
+    /\b(i\s+)?bought\b/i.test(prompt) ||
+    (/\b(this|the)\b/i.test(prompt) && /\bregret\b/i.test(prompt));
+
+  const cancelIntent =
+    /\b(cancel|refund|return|undo|void|stop)\b/i.test(prompt) ||
+    /\b(regret|buyer'?s?\s+remorse)\b/i.test(prompt);
+
+  const giftTarget =
+    /\b(gift\s*card|gift\s*card\s+order|gift\s*card\s+purchase)\b/i.test(
+      prompt,
+    ) ||
+    (/\border\b/i.test(prompt) &&
+      /\b(gift|purchase|bought|card)\b/i.test(prompt));
+
+  return selfScope && cancelIntent && giftTarget;
 }
 
 export function isRequestGiftCardModifyPrompt(prompt: string): boolean {
@@ -260,19 +317,67 @@ export function isTrackPhysicalGiftCardPrompt(prompt: string): boolean {
   );
 }
 
+export function isPrivacySelfServiceMutateCommand(prompt: string): boolean {
+  if (
+    /\b(how\s+(?:can|do)\s+i|what\s+are\s+my\s+data\s+rights|why\s+do\s+i)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /^(?:can|could)\s+i\b/i.test(prompt.trim()) ||
+    (/\?\s*$/.test(prompt.trim()) &&
+      /\b(how|what|why|can|could)\b/i.test(prompt))
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function isPrivacyExportPrompt(prompt: string): boolean {
-  return (
-    (/\bmy\b/i.test(prompt) || /\bprivacy\b/i.test(prompt)) &&
-    /\b(export|download)\b/i.test(prompt) &&
-    /\b(data|information)\b/i.test(prompt)
-  );
+  if (hasDashboardCustomerReference(prompt) && !/\bmy\b/i.test(prompt)) {
+    return false;
+  }
+  if (isExportCustomerDataPrompt(prompt)) return false;
+
+  const selfScope =
+    /\bmy\b/i.test(prompt) ||
+    /\bprivacy\b/i.test(prompt) ||
+    /\bmy\s+(?:personal\s+)?/i.test(prompt);
+
+  const exportIntent =
+    /\b(export|download)\b/i.test(prompt) ||
+    /\bdata\s+export\b/i.test(prompt) ||
+    /\bgdpr\s+export\b/i.test(prompt) ||
+    /\bget\s+my\s+data\s+export\b/i.test(prompt);
+
+  const dataTarget =
+    /\b(data|information|account|profile|personal)\b/i.test(prompt);
+
+  return selfScope && exportIntent && dataTarget;
 }
 
 export function isPrivacyDeletePrompt(prompt: string): boolean {
+  if (hasDashboardCustomerReference(prompt) && !/\bmy\b/i.test(prompt)) {
+    return false;
+  }
+  if (isDeleteCustomerDataPrompt(prompt)) return false;
+
+  const selfScope = /\bmy\b/i.test(prompt) || /\bprivacy\b/i.test(prompt);
+
+  const deleteIntent =
+    /\b(delete|erase|remove|forget|anonymi[sz]e)\b/i.test(prompt) ||
+    /\bright\s+to\s+be\s+forgotten\b/i.test(prompt) ||
+    /\bgdpr\s+delete\b/i.test(prompt);
+
+  const dataTarget =
+    /\b(data|account|information|profile|personal)\b/i.test(prompt);
+
   return (
-    (/\bmy\b/i.test(prompt) || /\bprivacy\b/i.test(prompt)) &&
-    /\b(delete|erase|remove)\b/i.test(prompt) &&
-    /\b(data|account|information)\b/i.test(prompt)
+    selfScope &&
+    deleteIntent &&
+    (dataTarget || /\bmy\s+account\b/i.test(prompt))
   );
 }
 
@@ -392,10 +497,12 @@ export function rescueCustomerCrmIntent(
   }
   if (isProviderMobileClientContextPrompt(prompt)) return null;
 
-  if (isPrivacyDeletePrompt(prompt))
-    return { action: 'privacy_delete', rescueReason: 'privacy_delete' };
-  if (isPrivacyExportPrompt(prompt))
-    return { action: 'privacy_export', rescueReason: 'privacy_export' };
+  if (isPrivacySelfServiceMutateCommand(prompt)) {
+    if (isPrivacyDeletePrompt(prompt))
+      return { action: 'privacy_delete', rescueReason: 'privacy_delete' };
+    if (isPrivacyExportPrompt(prompt))
+      return { action: 'privacy_export', rescueReason: 'privacy_export' };
+  }
   if (isRequestGiftCardModifyPrompt(prompt))
     return {
       action: 'request_gift_card_modify',
@@ -422,6 +529,15 @@ export function rescueCustomerCrmIntent(
     return { action: 'subscription_usage', rescueReason: 'subscription_usage' };
   if (isMyGiftCardsPrompt(prompt))
     return { action: 'my_gift_cards', rescueReason: 'my_gift_cards' };
+  if (
+    isListCustomerSubscriptionsPrompt(prompt) &&
+    action !== 'list_subscription_plans'
+  ) {
+    return {
+      action: 'list_customer_subscriptions',
+      rescueReason: 'list_subscriptions',
+    };
+  }
   if (isMySubscriptionsPrompt(prompt))
     return { action: 'my_subscriptions', rescueReason: 'my_subscriptions' };
   if (isMyAppointmentsPrompt(prompt)) {
@@ -501,15 +617,6 @@ export function rescueCustomerCrmIntent(
     return {
       action: 'list_customer_bookings',
       rescueReason: 'list_customer_bookings',
-    };
-  }
-  if (
-    isListCustomerSubscriptionsPrompt(prompt) &&
-    action !== 'list_subscription_plans'
-  ) {
-    return {
-      action: 'list_customer_subscriptions',
-      rescueReason: 'list_subscriptions',
     };
   }
 

@@ -120,9 +120,14 @@ describe('ai assistant i18n integration', () => {
 
   it('getLocalizedPageSuggestions returns route prompts and fallback for unknown routes', () => {
     const en = tFor('en');
-    const bookings = getLocalizedPageSuggestions('/dashboard/bookings', en);
+    const ctx = {
+      employees: [{ id: 'e1', name: 'Anna', isActive: true }],
+      services: [{ id: 's1', name: 'Facial', isActive: true }],
+    };
+    const bookings = getLocalizedPageSuggestions('/dashboard/bookings', en, ctx);
     expect(bookings.length).toBeGreaterThan(5);
     expect(bookings[0]).toBe(en('ai.prompts.howManyToday'));
+    expect(bookings.some((item) => item.includes('Facial'))).toBe(true);
 
     const fallback = getLocalizedPageSuggestions('/dashboard/unknown-route', en);
     expect(fallback).toHaveLength(4);
@@ -156,9 +161,30 @@ describe('ai assistant i18n integration', () => {
     expect(guide[0].label).toBe(hy('ai.quickCommands'));
   });
 
+  it('localizes services page online payment accept/decline suggestions (ai-cmd-ext-2.13.4)', () => {
+    const ctx = {
+      employees: [{ id: 'e1', name: 'Anna', isActive: true }],
+      services: [
+        { id: 's1', name: 'Massage', isActive: true, categoryName: 'Massage' },
+        { id: 's2', name: 'Haircut', isActive: true },
+        { id: 's3', name: 'Blowdry', isActive: true },
+      ],
+    };
+
+    for (const locale of LOCALES) {
+      const tr = tFor(locale);
+      const services = getLocalizedPageSuggestions('/dashboard/services', tr, ctx);
+      expect(services).toContain(tr('ai.prompts.acceptOnlinePaymentAllHalf'));
+      expect(services).toContain(tr('ai.prompts.declineOnlinePaymentAll'));
+      expect(services.some((item) => item.includes('Massage'))).toBe(true);
+      expect(services.some((item) => item.includes('Haircut'))).toBe(true);
+    }
+  });
+
   it('exports stable key registries', () => {
     const prompts = allAiAssistantPromptKeys();
     expect(prompts).toContain('ai.prompts.howManyToday');
+    expect(prompts).toContain('ai.prompts.acceptOnlinePaymentAllHalf');
     expect(prompts).toContain('ai.groupLabels.bookingsOverview');
 
     const all = allAiAssistantI18nKeys();

@@ -10,6 +10,7 @@ import {
   hasProviderPushTimeContext,
   hasProviderScheduleDisplayContext,
 } from './ai-provider-date-format.util.js';
+import { isExplainBusinessHoursAndLocationPrompt } from './ai-explain-business-hours-and-location.util.js';
 
 export const BUSINESS_DATE_FORMAT_INTENTS = [
   'configure_business_date_format',
@@ -465,6 +466,7 @@ export function isPreviewBusinessDateFormatPrompt(prompt: string): boolean {
 }
 
 export function isExplainBusinessDateFormatPrompt(prompt: string): boolean {
+  if (isExplainBusinessHoursAndLocationPrompt(prompt)) return false;
   if (hasProviderScheduleDisplayContext(prompt)) return false;
   if (isMigrateDashboardDateDisplayPrompt(prompt)) return false;
   if (isAuditDashboardDateSurfacesPrompt(prompt)) return false;

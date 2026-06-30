@@ -8,16 +8,32 @@ import { BookingLabResultsSection } from './booking-lab-results-section';
 export interface BookingLabSectionProps {
   businessId: string;
   bookingId: string;
+  initialTab?: LabDetailTab;
+  highlightOrderId?: string | null;
+  uploadResultRequested?: boolean;
 }
 
 type LabDetailTab = 'orders' | 'results';
 
-export function BookingLabSection({ businessId, bookingId }: BookingLabSectionProps) {
+export function BookingLabSection({
+  businessId,
+  bookingId,
+  initialTab = 'orders',
+  highlightOrderId,
+  uploadResultRequested = false,
+}: BookingLabSectionProps) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<LabDetailTab>('orders');
+  const [tab, setTab] = useState<LabDetailTab>(initialTab);
 
   return (
     <div className="mb-5">
+      {uploadResultRequested && highlightOrderId ? (
+        <div className="mb-3 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+          {t('clinic.labState.resultsTab.uploadHandoff', {
+            orderId: highlightOrderId,
+          })}
+        </div>
+      ) : null}
       <div className="mb-3 inline-flex rounded-lg border border-gray-700/80 bg-gray-900/40 p-1">
         {(['orders', 'results'] as const).map((value) => (
           <button

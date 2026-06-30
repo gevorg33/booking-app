@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import api, { unwrap } from '../services/api';
-import type { AiChatMessage, AiCommandResult } from './ai-client.types';
+import type { AiChatMessage, AiCommandResult, AssistantMode } from './ai-client.types';
 
 const PROVIDER_INVALIDATION_KEYS = [
   'provider-bookings-today',
@@ -25,6 +25,7 @@ export function useProviderAiCommand(businessId: string) {
       prompt: string,
       history: AiChatMessage[],
       context?: Record<string, unknown>,
+      assistantMode?: AssistantMode,
     ): Promise<AiCommandResult | null> => {
       if (!prompt.trim()) return null;
       setLoading(true);
@@ -32,7 +33,8 @@ export function useProviderAiCommand(businessId: string) {
         const { data: res } = await api.post(`/businesses/${businessId}/provider/ai/command`, {
           prompt: prompt.trim(),
           history,
-          context,
+          context: assistantMode ? { ...context, assistantMode } : context,
+          ...(assistantMode ? { assistantMode } : {}),
         });
         const result = unwrap(res) as AiCommandResult;
         if (result.success) invalidate();

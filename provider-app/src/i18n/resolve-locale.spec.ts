@@ -28,13 +28,16 @@ describe('resolve-locale', () => {
   });
 
   describe('resolveProviderAppLocale', () => {
-    it('prefers user locale over business and stored', () => {
+    it('prefers stored locale over user and business when set', () => {
       writeStoredLocale('ru');
+      expect(resolveProviderAppLocale('hy', 'en')).toBe('ru');
+    });
+
+    it('prefers user locale over business when no stored override', () => {
       expect(resolveProviderAppLocale('hy', 'ru')).toBe('hy');
     });
 
-    it('uses business locale when user locale is missing or invalid', () => {
-      writeStoredLocale('en');
+    it('uses business locale when user locale is missing or invalid and no stored override', () => {
       expect(resolveProviderAppLocale(null, 'ru')).toBe('ru');
       expect(resolveProviderAppLocale('de', 'hy')).toBe('hy');
     });

@@ -1,4 +1,21 @@
 import { MemberRole } from '../business/entities/business-member.entity.js';
+import {
+  ALL_PRODUCT_GUIDE_INTENTS,
+  isAnyProductGuideIntent,
+} from './ai-product-guide-completion.util.js';
+import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
+import {
+  META_PRODUCT_GUIDE_INTENTS,
+  PROVIDER_META_GUIDE_INTENTS,
+} from './ai-meta-product-guide.fixtures.js';
+import {
+  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
+  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
+  EMPTY_STATE_GUIDE_INTENTS,
+  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+} from './ai-product-guide-empty-state.fixtures.js';
+import { isEmptyStateGuideIntentOnSurface } from './ai-product-guide-empty-state.util.js';
+import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
 
 /**
  * Product access tiers (maps to typical roles in the booking platform).
@@ -174,6 +191,8 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'explain_patient_results',
     'configure_test_reference_range',
     'list_abnormal_results',
+    'enter_test_result',
+    'release_test_result',
   ]),
   staff: new Set([
     'list_employees',
@@ -352,10 +371,101 @@ export function isStaffDirectoryRequest(action: string): boolean {
   return action === 'list_employees';
 }
 
+/** Read-only product guide intents — never revenue-scoped (ai-guide-1.8.5). */
+export {
+  ALL_PRODUCT_GUIDE_INTENTS,
+  isAnyProductGuideIntent,
+  PRODUCT_GUIDE_INTENT_SET,
+} from './ai-product-guide-completion.util.js';
+
+export const APP_GUIDE_INTENT_SET = new Set<string>(APP_GUIDE_INTENTS);
+export const PROVIDER_PRODUCT_GUIDE_INTENT_SET = new Set<string>(
+  PROVIDER_PRODUCT_GUIDE_INTENTS,
+);
+export const META_PRODUCT_GUIDE_INTENT_SET = new Set<string>(
+  META_PRODUCT_GUIDE_INTENTS,
+);
+export const PROVIDER_META_GUIDE_INTENT_SET = new Set<string>(
+  PROVIDER_META_GUIDE_INTENTS,
+);
+export const EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(EMPTY_STATE_GUIDE_INTENTS);
+export const DASHBOARD_EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
+  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
+);
+export const PROVIDER_EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
+  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
+);
+export const CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
+  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
+);
+
+export type ProductGuideSurface = 'dashboard' | 'provider' | 'customer' | 'public';
+
+export function isAppGuideIntentOnSurface(
+  action: string,
+  surface: ProductGuideSurface,
+): boolean {
+  if (!APP_GUIDE_INTENT_SET.has(action)) return false;
+  return surface === 'dashboard' || surface === 'customer' || surface === 'public';
+}
+
+export function isProviderProductGuideIntentOnSurface(
+  action: string,
+  surface: ProductGuideSurface,
+): boolean {
+  return surface === 'provider' && PROVIDER_PRODUCT_GUIDE_INTENT_SET.has(action);
+}
+
+export function isMetaProductGuideIntentOnSurface(
+  action: string,
+  surface: ProductGuideSurface,
+): boolean {
+  if (!META_PRODUCT_GUIDE_INTENT_SET.has(action)) return false;
+  if (action === 'explain_ai_settings') return surface === 'dashboard';
+  if (surface === 'dashboard') return true;
+  return surface === 'provider' && PROVIDER_META_GUIDE_INTENT_SET.has(action);
+}
+
+export function isEmptyStateProductGuideIntentOnSurface(
+  action: string,
+  surface: ProductGuideSurface,
+): boolean {
+  if (!EMPTY_STATE_GUIDE_INTENT_SET.has(action)) return false;
+  return isEmptyStateGuideIntentOnSurface(action, surface);
+}
+
+/** Tier + surface gate for unified product guide intents (ai-guide-1.8.5). */
+export function isProductGuideIntentAllowed(
+  tier: AccessTier,
+  surface: ProductGuideSurface,
+  action: string,
+): boolean {
+  if (isAppGuideIntentOnSurface(action, surface)) {
+    if (surface === 'dashboard') return isDashboardIntentAllowed(tier, action);
+    if (surface === 'customer') return isCustomerIntentAllowed(tier, action);
+    return tier === 'client';
+  }
+  if (isMetaProductGuideIntentOnSurface(action, surface)) {
+    if (surface === 'dashboard') return isDashboardIntentAllowed(tier, action);
+    return isProviderIntentAllowed(tier, action);
+  }
+  if (isEmptyStateProductGuideIntentOnSurface(action, surface)) {
+    if (surface === 'dashboard') return isDashboardIntentAllowed(tier, action);
+    if (surface === 'provider') return isProviderIntentAllowed(tier, action);
+    if (surface === 'customer') return isCustomerIntentAllowed(tier, action);
+    return tier === 'client';
+  }
+  if (isProviderProductGuideIntentOnSurface(action, surface)) {
+    return isProviderIntentAllowed(tier, action);
+  }
+  return false;
+}
+
 /** Intents that staff must scope to their own employeeId when linked. */
 export const STAFF_SCOPED_INTENTS = new Set([
   'list_bookings',
   'show_appointments',
+  'voice_summarize_next_client',
   'summarize_day',
   'cancel_bookings',
   'reschedule_booking',

@@ -10,6 +10,8 @@ import { ZapierIntegrationService } from '../integrations/zapier/zapier-integrat
 import { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
+import { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
+import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeIntegrationsCompoundPrompt,
@@ -36,6 +38,8 @@ import {
   handleTestWebhookLogic,
   type IntegrationsLogicDeps,
 } from './ai-integrations.logic.js';
+import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
+import { handleExplainIntegrationHealthLogic } from './ai-explain-integration-health.logic.js';
 
 @Injectable()
 export class AiIntegrationsService {
@@ -48,6 +52,8 @@ export class AiIntegrationsService {
     accountingIntegrationService: AccountingIntegrationService,
     zendeskIntegrationService: ZendeskIntegrationService,
     integrationsDocsService: IntegrationsDocsService,
+    openAiIntegrationService: OpenAiIntegrationService,
+    whatsappIntegrationService: WhatsAppIntegrationService,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Customer) customerRepo: Repository<Customer>,
     @InjectRepository(GiftCard) giftCardRepo: Repository<GiftCard>,
@@ -59,6 +65,8 @@ export class AiIntegrationsService {
       accountingIntegrationService,
       zendeskIntegrationService,
       integrationsDocsService,
+      openAiIntegrationService,
+      whatsappIntegrationService,
       businessRepo,
       customerRepo,
       giftCardRepo,
@@ -140,6 +148,19 @@ export class AiIntegrationsService {
     return handleConfigureZapierLogic(this.deps, businessId, params, prompt);
   }
 
+  handleConfigureOpenaiIntegration(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleConfigureOpenaiIntegrationLogic(
+      { openAiIntegrationService: this.deps.openAiIntegrationService },
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
   handleRunAccountingExport(
     businessId: string,
     params: Record<string, any>,
@@ -206,6 +227,19 @@ export class AiIntegrationsService {
 
   handleListIntegrationHealth(businessId: string) {
     return handleListIntegrationHealthLogic(this.deps, businessId);
+  }
+
+  handleExplainIntegrationHealth(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainIntegrationHealthLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleContactSupport(

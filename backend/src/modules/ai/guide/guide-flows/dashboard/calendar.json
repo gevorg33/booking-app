@@ -1,0 +1,20 @@
+{
+  "topicId": "dashboard.core.calendar",
+  "surface": "dashboard",
+  "routes": ["/dashboard/calendar", "/dashboard/bookings", "/dashboard/appointments"],
+  "titleKey": "guide.core.calendarTitle",
+  "summaryKey": "helpCenter.topics.calendar.summary",
+  "navigateTarget": { "path": "/dashboard/calendar" },
+  "corpusTopicId": "dashboard.core.calendar",
+  "keywords": ["calendar", "availability", "appointments", "bookings"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.core.calendarStep1",
+      "navigate": { "path": "/dashboard/calendar" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.core.calendarStep2" },
+    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.core.calendarStep3" },
+    { "titleKey": "guide.flows.common.step4", "bodyKey": "guide.core.calendarStep4" }
+  ]
+}

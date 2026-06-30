@@ -72,6 +72,9 @@ export default function ProviderTodayTimeline({
               rangeStart,
               rangeEnd,
             );
+            const label = renderSegmentLabel(segment, t);
+            const showInlineLabel =
+              segment.kind === 'booking' && widthPercent >= 8;
             const className =
               segment.kind === 'gap'
                 ? 'provider-today-timeline-segment provider-today-timeline-gap'
@@ -94,7 +97,11 @@ export default function ProviderTodayTimeline({
                     onSelectBooking?.(segment.bookingId);
                   }
                 }}
-              />
+              >
+                {showInlineLabel ? (
+                  <span className="provider-today-timeline-segment-label">{label}</span>
+                ) : null}
+              </button>
             );
           })}
           {view.nowMarkerPercent != null ? (
@@ -107,11 +114,11 @@ export default function ProviderTodayTimeline({
         </div>
 
         <ul className="provider-today-timeline-legend">
-          {view.segments.map((segment, index) => (
-            <li key={`legend-${segment.kind}-${index}`}>
-              {renderSegmentLabel(segment, t)}
-            </li>
-          ))}
+          {view.segments
+            .filter((segment) => segment.kind === 'gap')
+            .map((segment, index) => (
+              <li key={`legend-gap-${index}`}>{renderSegmentLabel(segment, t)}</li>
+            ))}
         </ul>
       </IonCardContent>
     </IonCard>

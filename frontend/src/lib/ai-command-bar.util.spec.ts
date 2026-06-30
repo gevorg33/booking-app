@@ -148,6 +148,22 @@ describe('ai-command-bar.util', () => {
       });
       expect(ctx.availableProviders).toEqual(['Anna']);
     });
+
+    it('extracts guide multiturn session fields from details', () => {
+      const ctx = extractSessionContext({
+        action: 'guide_user_flow',
+        details: {
+          sessionContext: { employeeName: 'Anna' },
+          guideFlowId: 'dashboard.core.schedule',
+          guideStepIndex: 2,
+          completedSteps: [0, 1],
+        },
+      });
+      expect(ctx.guideFlowId).toBe('dashboard.core.schedule');
+      expect(ctx.guideStepIndex).toBe(2);
+      expect(ctx.completedSteps).toEqual([0, 1]);
+      expect(ctx.employeeName).toBe('Anna');
+    });
   });
 
   describe('mergeSessionContext', () => {
@@ -209,6 +225,21 @@ describe('ai-command-bar.util', () => {
         availableProviders: ['B'],
       };
       expect(mergeSessionContext(prev, next)).toEqual(next);
+    });
+
+    it('preserves guide session when next omits guide fields', () => {
+      const merged = mergeSessionContext(
+        {
+          guideFlowId: 'dashboard.core.schedule',
+          guideStepIndex: 1,
+          completedSteps: [0],
+        },
+        { employeeName: 'Anna' },
+      );
+      expect(merged.guideFlowId).toBe('dashboard.core.schedule');
+      expect(merged.guideStepIndex).toBe(1);
+      expect(merged.completedSteps).toEqual([0]);
+      expect(merged.employeeName).toBe('Anna');
     });
   });
 

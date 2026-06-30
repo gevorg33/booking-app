@@ -64,6 +64,7 @@ import {
   markProviderBookingRunningLate,
   visitStatusBadgeColor,
 } from '../lib/provider-booking-visit-status';
+import './provider-booking-detail-modal.css';
 
 interface BookingDetailModalProps {
   businessId: string;
@@ -465,7 +466,7 @@ export default function BookingDetailModal({
   };
 
   return (
-    <IonModal isOpen={!!bookingId} onDidDismiss={onClose}>
+    <IonModal isOpen={!!bookingId} onDidDismiss={onClose} className="provider-booking-detail-modal">
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('appointments.detailTitle')}</IonTitle>
@@ -474,7 +475,7 @@ export default function BookingDetailModal({
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent className="ion-padding provider-booking-detail-content">
         {isLoading ? (
           <div className="empty-state"><IonSpinner /></div>
         ) : isError || !booking ? (
@@ -854,6 +855,7 @@ export default function BookingDetailModal({
                 )}
               </IonButton>
             )}
+            <div className="provider-booking-detail-scroll-spacer" aria-hidden />
           </>
         )}
       </IonContent>

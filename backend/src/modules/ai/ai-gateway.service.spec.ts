@@ -16,6 +16,7 @@ import {
   createCommandTraceServiceMock,
 } from './ai-gateway.test-mocks.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiProductGuideService } from './ai-product-guide.service.js';
 import { COMMAND_TRACE_ID_CONTEXT_KEY } from './ai-command-trace-recorder.util.js';
 import type { CommandResult } from './command-completion.types.js';
 
@@ -106,6 +107,7 @@ describe('AiGatewayService', () => {
       mocks.aiSettings as any,
       mocks.platform as any,
       mocks.commandTrace as any,
+      { handleGuideUserFlowAsync: jest.fn() } as any,
     );
     return { service, ...mocks };
   }
@@ -129,6 +131,10 @@ describe('AiGatewayService', () => {
         { provide: AiSettingsService, useValue: mocks.aiSettings },
         { provide: AiPlatformService, useValue: mocks.platform },
         { provide: AiCommandTraceService, useValue: mocks.commandTrace },
+        {
+          provide: AiProductGuideService,
+          useValue: { handleGuideUserFlowAsync: jest.fn() },
+        },
       ],
     }).compile();
     expect(moduleRef.get(AiGatewayService)).toBeInstanceOf(AiGatewayService);

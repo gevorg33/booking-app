@@ -4,9 +4,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonContent,
   IonHeader,
-  IonPage,
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
@@ -18,11 +16,16 @@ import { isMobileManagerRole, managerRoleLabel } from '../lib/provider-access';
 import { ProviderPushNotificationsLink } from '../components/ProviderPushNotificationsLink';
 import PushToggle from '../components/PushToggle';
 import { ProviderProfileSection } from '../components/ProviderProfileSection';
+import { ProviderLanguagePicker } from '../components/ProviderLanguagePicker';
 import { ProviderMyStatsSection } from '../components/ProviderMyStatsSection';
 import { enableNativePush, isFcmBuild } from '../services/native-push';
 import { useI18n } from '../i18n';
+import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
+import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
+import { ProviderGuideEntryRow } from '../components/ProviderGuideEntryRow';
+import { buildProviderGuideEntryPath } from '../lib/provider-guide-entry.util';
 
-export default function ProfilePage() {
+export default function ProfilePage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const history = useHistory();
   const location = useLocation();
@@ -38,13 +41,15 @@ export default function ProfilePage() {
   }, [business?.id, location.search]);
 
   return (
-    <IonPage>
+    <ProviderTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{t('provider.profileTitle')}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <ProviderTabScrollContent className="ion-padding">
+        <ProviderGuideEntryRow onOpen={() => history.push(buildProviderGuideEntryPath())} />
+
         <IonCard>
           <IonCardHeader>
             <IonCardTitle>
@@ -65,6 +70,15 @@ export default function ProfilePage() {
         <ProviderMyStatsSection />
 
         <ProviderProfileSection />
+
+        <IonCard>
+          <IonCardHeader>
+            <IonCardTitle>{t('languages.title')}</IonCardTitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <ProviderLanguagePicker />
+          </IonCardContent>
+        </IonCard>
 
         <IonCard>
           <IonCardHeader>
@@ -91,7 +105,7 @@ export default function ProfilePage() {
         >
           {t('provider.signOut')}
         </IonButton>
-      </IonContent>
-    </IonPage>
+      </ProviderTabScrollContent>
+    </ProviderTabPageShell>
   );
 }

@@ -5,6 +5,7 @@ import {
 import {
   isMultilingualBookNearestPrompt,
   isMultilingualCheckProvidersPrompt,
+  isMultilingualFindSoonestAppointmentPrompt,
   isMultilingualFirstAvailableBookingPrompt,
   parseMultilingualTimeOfDayWindow,
   promptMentionsMultilingualTomorrow,
@@ -57,6 +58,27 @@ describe('ai-check-and-book-multilingual.util', () => {
       const prompt = 'Стрижка завтра вечером или в субботу — забронируй';
       expect(isMultilingualFirstAvailableBookingPrompt(prompt)).toBe(true);
       expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
+    });
+
+    it('detects hy/ru find-soonest without book verb', () => {
+      expect(
+        isMultilingualFindSoonestAppointmentPrompt(
+          'Ով է ամենաառաջին ազատ trim-ի համար',
+        ),
+      ).toBe(true);
+      expect(
+        isMultilingualFindSoonestAppointmentPrompt('Ближайший слот на массаж'),
+      ).toBe(true);
+      expect(
+        isMultilingualFindSoonestAppointmentPrompt(
+          'Когда ближайшая запись на facial',
+        ),
+      ).toBe(true);
+      expect(
+        isMultilingualFindSoonestAppointmentPrompt(
+          'забронируй ближайший слот на массаж',
+        ),
+      ).toBe(false);
     });
   });
 

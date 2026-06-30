@@ -1,0 +1,33 @@
+{
+  "topicId": "provider-appointments",
+  "surface": "provider",
+  "routes": ["/tabs/today"],
+  "titleKey": "guide.flows.provider.appointments.title",
+  "summaryKey": "guide.flows.provider.appointments.summary",
+  "voiceSummaryKey": "guide.flows.provider.appointments.voiceSummary",
+  "navigateTarget": { "path": "/tabs/today" },
+  "keywords": ["check in", "mark paid", "running late", "client notes"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.flows.provider.appointments.step1",
+      "voiceSummaryKey": "guide.flows.provider.appointments.voiceStep1",
+      "navigate": { "path": "/tabs/today" }
+    },
+    {
+      "titleKey": "guide.flows.common.step2",
+      "bodyKey": "guide.flows.provider.appointments.step2",
+      "voiceSummaryKey": "guide.flows.provider.appointments.voiceStep2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "bodyKey": "guide.flows.provider.appointments.step3",
+      "voiceSummaryKey": "guide.flows.provider.appointments.voiceStep3"
+    },
+    {
+      "titleKey": "guide.flows.common.step4",
+      "bodyKey": "guide.flows.provider.appointments.step4",
+      "voiceSummaryKey": "guide.flows.provider.appointments.voiceStep4"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ const FIRST_OPEN_PREFIX = 'app-analytics-first-open-';
 
 let sessionId = createAnalyticsSessionId();
 let sessionStartType: AppAnalyticsStartType = 'cold';
-let lifetimeUserTypeByTenant = new Map<string, AppAnalyticsUserType>();
+const lifetimeUserTypeByTenant = new Map<string, AppAnalyticsUserType>();
 
 function getStorage(): Storage | null {
   try {

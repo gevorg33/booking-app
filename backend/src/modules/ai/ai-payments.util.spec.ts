@@ -62,6 +62,11 @@ describe('ai-payments.util', () => {
         isConfigureCashPaymentsPrompt('Enable cash payments for checkout'),
       ).toBe(true);
       expect(
+        isConfigureCashPaymentsPrompt(
+          'Enable cash and decline online payment for all services',
+        ),
+      ).toBe(false);
+      expect(
         isAdjustGiftCardBalancePrompt('Adjust gift card balance by $10'),
       ).toBe(true);
       expect(
@@ -241,6 +246,34 @@ describe('ai-payments.util', () => {
         )?.action,
       ).toBe('configure_service_online_payment');
       expect(
+        rescuePaymentsIntent(
+          'Which services require prepayment on public booking?',
+          'unknown',
+        )?.action,
+      ).toBe('explain_service_online_payment_setup');
+      expect(
+        rescuePaymentsIntent(
+          "Which services still don't accept online payment?",
+          'unknown',
+        )?.action,
+      ).toBe('audit_services_missing_online_payment');
+      expect(
+        rescuePaymentsIntent(
+          'Explain public booking checkout payment options',
+          'unknown',
+        )?.action,
+      ).toBe('explain_public_booking_checkout');
+      expect(
+        rescuePaymentsIntent(
+          'How do cash and gift cards interact on the booking page?',
+          'unknown',
+        )?.action,
+      ).toBe('explain_public_booking_checkout');
+      expect(
+        rescuePaymentsIntent('Explain service online payment setup', 'unknown')
+          ?.action,
+      ).toBe('explain_service_online_payment_setup');
+      expect(
         rescuePaymentsIntent('Adjust gift card balance', 'unknown')?.action,
       ).toBe('adjust_gift_card_balance');
       expect(
@@ -297,6 +330,39 @@ describe('ai-payments.util', () => {
       expect(rescuePaymentsIntent('Receipt status', 'unknown')?.action).toBe(
         'receipt_status',
       );
+    });
+
+    it('rescues list_services payment filter before audit gap', () => {
+      expect(
+        rescuePaymentsIntent(
+          'List services that require online payment',
+          'audit_services_missing_online_payment',
+        )?.action,
+      ).toBe('list_services');
+      expect(
+        rescuePaymentsIntent(
+          'Show services that accept online prepayment on public booking',
+          'explain_service_online_payment_setup',
+        )?.action,
+      ).toBe('list_services');
+    });
+
+    it('rescues create_services bulk prepayment before configure', () => {
+      expect(
+        rescuePaymentsIntent(
+          'Add services: facemassage 60min $50, haircut 30min $25 — all with 50% online prepayment',
+          'configure_service_online_payment',
+        )?.action,
+      ).toBe('create_services');
+    });
+
+    it('rescues create_service prepayment before configure online payment', () => {
+      expect(
+        rescuePaymentsIntent(
+          'Add massage 60 minutes $80 with 50% online prepayment',
+          'configure_service_online_payment',
+        )?.action,
+      ).toBe('create_service');
     });
 
     it('rescues check_gift_card_balance over gift_card_balance', () => {

@@ -119,7 +119,7 @@ export function ProviderCalendarMonth({
         {legendItems.map((item) => (
           <span key={item.band} className="provider-calendar-month__legend-item">
             <span
-              className={`provider-calendar-month__legend-swatch provider-calendar-month__day--band-${item.band}`}
+              className={`provider-calendar-month__legend-swatch provider-calendar-month__legend-swatch--${item.band}`}
             />
             {item.label}
           </span>

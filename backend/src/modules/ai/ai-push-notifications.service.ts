@@ -7,6 +7,7 @@ import { Customer } from '../customer/entities/customer.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { NotificationLog } from '../notifications/entities/notification-log.entity.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import { PushService } from '../provider-mobile/push.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -39,6 +40,7 @@ export class AiPushNotificationsService {
 
   constructor(
     notificationsService: NotificationsService,
+    whatsappIntegrationService: WhatsAppIntegrationService,
     pushService: PushService,
     providerMobileService: ProviderMobileService,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
@@ -50,6 +52,7 @@ export class AiPushNotificationsService {
   ) {
     this.deps = {
       notificationsService,
+      whatsappIntegrationService,
       pushService,
       providerMobileService,
       bookingRepo,

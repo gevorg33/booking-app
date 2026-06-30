@@ -659,6 +659,25 @@ export function getPublicServiceDaySlots(slug: string, serviceId: string, date: 
   }>(`/public/${slug}/services/${serviceId}/slots?date=${encodeURIComponent(date)}`);
 }
 
+export function getPublicServiceBookableDates(
+  slug: string,
+  serviceId: string,
+  from: string,
+  to: string,
+) {
+  const params = new URLSearchParams({
+    from: from.slice(0, 10),
+    to: to.slice(0, 10),
+  });
+  return publicFetch<{
+    from: string;
+    to: string;
+    serviceId: string;
+    serviceName: string;
+    dates: string[];
+  }>(`/public/${slug}/services/${serviceId}/bookable-dates?${params.toString()}`);
+}
+
 export interface PublicServiceSlotProvider {
   id: string;
   name: string;
@@ -943,6 +962,7 @@ export interface PublicAssistantResponse {
   sessionContext?: Record<string, string | null>;
   navigate?: PublicAssistantNavigate;
   bookingId?: string;
+  guide?: import('@/lib/ai-client.types').AiGuideResponse;
   details?: Record<string, unknown>;
 }
 
@@ -953,12 +973,26 @@ export function sendPublicAssistantMessage(
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     context?: Record<string, unknown>;
     locale?: string;
+    assistantMode?: 'guide' | 'act';
   },
 ) {
   return publicFetch<PublicAssistantResponse>(`/public/${slug}/assistant`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function ingestPublicGuideTelemetryEvents(
+  slug: string,
+  events: readonly import('@/lib/guide-telemetry.util').GuideTelemetryClientEvent[],
+) {
+  return publicFetch<{ recorded: number; skipped: number }>(
+    `/public/${slug}/assistant/guide-telemetry`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ events }),
+    },
+  );
 }
 
 export interface PublicRecommendationProduct {

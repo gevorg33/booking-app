@@ -319,6 +319,12 @@ describe('ai-integrations.util', () => {
         rescueIntegrationsIntent('Configure Zapier', 'unknown')?.action,
       ).toBe('configure_zapier');
       expect(
+        rescueIntegrationsIntent(
+          'Configure OpenAI integration for the salon',
+          'unknown',
+        )?.action,
+      ).toBe('configure_openai_integration');
+      expect(
         rescueIntegrationsIntent('Run accounting export this month', 'unknown')
           ?.action,
       ).toBe('run_accounting_export');
@@ -341,6 +347,13 @@ describe('ai-integrations.util', () => {
       expect(
         rescueIntegrationsIntent('List integration health', 'unknown')?.action,
       ).toBe('list_integration_health');
+      expect(
+        rescueIntegrationsIntent('Is WhatsApp connected?', 'unknown')?.action,
+      ).toBe('explain_integration_health');
+      expect(
+        rescueIntegrationsIntent('Which integrations are connected?', 'unknown')
+          ?.action,
+      ).toBe('explain_integration_health');
       expect(
         rescueIntegrationsIntent('Contact support', 'unknown')?.action,
       ).toBe('contact_support');
@@ -468,7 +481,7 @@ describe('ai-integrations.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(INTEGRATIONS_INTENTS.length).toBe(16);
+      expect(INTEGRATIONS_INTENTS.length).toBe(18);
       expect(isIntegrationsIntent('list_webhooks')).toBe(true);
       expect(isIntegrationsIntent('not_real')).toBe(false);
       expect(decomposeIntegrationsCompoundPrompt('')).toEqual([]);

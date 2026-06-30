@@ -8,6 +8,10 @@ describe('AiPushNotificationsService', () => {
     })),
     updateBusinessSettings: jest.fn(async (_, patch) => patch),
   };
+  const whatsappIntegrationService = {
+    getPublicSettings: jest.fn(async () => ({ configured: false })),
+    updateSettings: jest.fn(async (_id, patch) => patch),
+  };
   const pushService = {
     isConfigured: true,
     sendToUser: jest.fn(async () => 1),
@@ -31,6 +35,7 @@ describe('AiPushNotificationsService', () => {
     jest.clearAllMocks();
     service = new AiPushNotificationsService(
       notificationsService as any,
+      whatsappIntegrationService as any,
       pushService as any,
       providerMobileService as any,
       bookingRepo as any,

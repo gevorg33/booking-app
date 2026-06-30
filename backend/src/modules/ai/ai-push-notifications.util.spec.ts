@@ -83,6 +83,17 @@ describe('ai-push-notifications.util', () => {
         isEnableNotificationsPrompt('Enable appointment notifications'),
       ).toBe(true);
       expect(
+        isEnableNotificationsPrompt(
+          'Configure notification settings — enable email and WhatsApp, disable SMS',
+        ),
+      ).toBe(false);
+      expect(
+        rescuePushNotificationsIntent(
+          'Configure WhatsApp integration for the salon',
+          'unknown',
+        )?.action,
+      ).toBe('configure_whatsapp_integration');
+      expect(
         isEnableNotificationsPrompt('Enable order status notifications'),
       ).toBe(false);
       expect(
@@ -90,6 +101,14 @@ describe('ai-push-notifications.util', () => {
           'Set appointment reminder preferences',
         ),
       ).toBe(true);
+      expect(
+        isEnableNotificationsPrompt('Turn off appointment reminders'),
+      ).toBe(false);
+      expect(
+        isAppointmentReminderPreferencesPrompt(
+          'Why is the reminder amount in dram wrong?',
+        ),
+      ).toBe(false);
     });
   });
 
@@ -291,7 +310,7 @@ describe('ai-push-notifications.util', () => {
         'new_booking_push_actions',
       ]);
 
-      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(13);
+      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(15);
       expect(isPushNotificationsIntent('test_push')).toBe(true);
       expect(isPushNotificationsIntent('not_real')).toBe(false);
       expect(decomposePushNotificationsCompoundPrompt('')).toEqual([]);

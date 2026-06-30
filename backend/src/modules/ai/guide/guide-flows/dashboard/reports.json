@@ -1,0 +1,19 @@
+{
+  "topicId": "dashboard.operations.pl",
+  "surface": "dashboard",
+  "routes": ["/dashboard/reports"],
+  "titleKey": "guide.operations.plTitle",
+  "summaryKey": "guide.operations.plBody",
+  "navigateTarget": { "path": "/dashboard/reports" },
+  "corpusTopicId": "dashboard.operations.pl",
+  "roles": ["owner", "manager"],
+  "keywords": ["reports", "p&l", "utilization", "revenue"],
+  "steps": [
+    {
+      "titleKey": "guide.flows.common.step1",
+      "bodyKey": "guide.operations.plStep1",
+      "navigate": { "path": "/dashboard/reports" }
+    },
+    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.operations.plStep2" }
+  ]
+}

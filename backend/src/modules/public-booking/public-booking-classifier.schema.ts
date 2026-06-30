@@ -10,6 +10,7 @@ import { PACKAGE_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-package-currency.fix
 import { STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-stripe-checkout-currency.fixtures.js';
 import { TOUR_CAPACITY_CLASSIFIER_RULES } from '../ai/ai-tour-capacity.fixtures.js';
 import { CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations.fixtures.js';
+import { CHECKOUT_RECOMMENDATIONS_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations-multilingual.fixtures.js';
 import { DATA_RIGHTS_CLASSIFIER_RULES } from '../ai/ai-data-rights.fixtures.js';
 import { PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX } from '../ai/ai-clinic-v2-6.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES } from '../ai/ai-consumer-clinic-test-results.fixtures.js';
@@ -20,13 +21,38 @@ import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-budget-servi
 import { FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from '../ai/ai-flexible-availability.fixtures.js';
 import { SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES } from '../ai/ai-service-rank-discovery.fixtures.js';
 import { PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES } from '../ai/ai-intent-disambiguation.fixtures.js';
+import { PUBLIC_BOOKING_HELP_CLASSIFIER_RULES, PUBLIC_APP_GUIDE_CLASSIFIER_RULES } from '../ai/ai-public-booking-guide.util.js';
+import { PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from '../ai/ai-product-guide-empty-state.fixtures.js';
+import { CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES } from '../ai/ai-explain-prepayment.util.js';
+import { CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES } from '../ai/ai-cash-payment-checkout.util.js';
+import { CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES } from '../ai/ai-pay-online-checkout.util.js';
+import { CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES } from '../ai/ai-multi-service-customer-public.util.js';
+import { CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES } from '../ai/ai-promo-code-help-customer-public.util.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES } from '../ai/ai-explain-service-price.util.js';
+import { EXPLAIN_SERVICE_PRICE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-service-price-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES } from '../ai/ai-explain-payment-options-for-service.util.js';
+import { EXPLAIN_PAYMENT_OPTIONS_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-payment-options-for-service-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES } from '../ai/ai-find-soonest-appointment.util.js';
+import { FIND_SOONEST_APPOINTMENT_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-find-soonest-appointment-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_COMPARE_SERVICES_CLASSIFIER_RULES } from '../ai/ai-compare-services.util.js';
+import { COMPARE_SERVICES_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-compare-services-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_FILTER_SERVICES_NO_PREPAYMENT_CLASSIFIER_RULES } from '../ai/ai-filter-services-no-prepayment.util.js';
+import { FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-filter-services-no-prepayment-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES } from '../ai/ai-explain-amount-due-now.util.js';
+import { EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-amount-due-now-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES } from '../ai/ai-explain-guest-checkout-fields.util.js';
+import { EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-guest-checkout-fields-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES } from '../ai/ai-explain-business-hours-and-location.util.js';
+import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-business-hours-and-location-multilingual.fixtures.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES } from '../ai/ai-explain-provider-specialty.util.js';
+import { EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-provider-specialty-multilingual.fixtures.js';
 
 export function buildPublicClassifierSchema(): string {
   return `You are a friendly booking assistant for a customer-facing online appointment page.
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
+  "action": "list_providers" | "list_services" | "check_availability" | "recommend_specialists" | "business_info" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "explain_guest_checkout_fields" | "explain_why_stripe_required" | "explain_checkout_total" | "explain_amount_due_now" | "explain_service_price" | "explain_payment_options_for_service" | "find_soonest_appointment" | "compare_services" | "filter_services_no_prepayment" | "explain_business_hours_and_location" | "explain_provider_specialty" | "choose_payment_method" | "pay_cash_at_visit" | "pay_online" | "book_multi_service" | "check_multi_service_availability" | "add_services_to_cart" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "employeeRole": "string or null — specialist role/title from the Providers list (e.g. cosmetologist, massage specialist) when the user asks for top/best rated by job title",
@@ -47,10 +73,14 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "fallbackAnyProvider": boolean or null,
     "maxPrice": number or null — inclusive catalog display-price ceiling when the user states a budget (under $X, I have $X, etc.),
     "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services (premium/cheapest/popular service, not specialist ratings),
+    "aspect": "named_provider | specialty_match | hours | location | parking | hours_and_location | null — explain_provider_specialty or explain_business_hours_and_location when clear",
+    "providerName": "string or null — named provider for explain_provider_specialty (Tell me about Anna)",
+    "specialtyTopic": "string or null — hair/skin/service topic for explain_provider_specialty (curly hair, balayage)",
     "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color)",
     "customerName": "string or null",
     "customerEmail": "string or null",
-    "customerPhone": "string or null"
+    "customerPhone": "string or null",
+    "topicId": "string or null — optional public guide playbook id (public-booking-professionals, public-booking-services, public-checkout) for explain_app_feature / guide_user_flow / explain_current_screen; bookingStep in session selects playbook when omitted"
   },
   "reasoning": "one short sentence"
 }
@@ -64,13 +94,39 @@ Action rules:
 - list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings). Set serviceTier when they ask for premium tier or standard tier services (entity metadata filter — not serviceRank).
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
-- business_info / booking_help: as named.
+- business_info: hours, location, contact, description; READ only.
+${PUBLIC_BOOKING_HELP_CLASSIFIER_RULES}
+${PUBLIC_APP_GUIDE_CLASSIFIER_RULES}
+${PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
 - explain_checkout_currency: why prices show € / ֏ / ₽ / $ on this booking page; READ only.
 - explain_stripe_checkout_currency: why online Stripe checkout charges in € / ֏ / ₽ / $; when stripeCurrencySupported is false use cash/pay-at-venue; READ only.
 - explain_package_currency: why package or gift-card totals use business default vs legacy bundled service currency; READ only.
 - explain_booking_languages: why the language menu only shows certain locales on this booking page; READ only.
 - explain_booking_date_format: why dates show DD/MM vs MM/DD (or ISO) on this booking page; READ only.
 ${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES}
+${EXPLAIN_SERVICE_PRICE_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES}
+${EXPLAIN_PAYMENT_OPTIONS_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES}
+${FIND_SOONEST_APPOINTMENT_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_COMPARE_SERVICES_CLASSIFIER_RULES}
+${COMPARE_SERVICES_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_FILTER_SERVICES_NO_PREPAYMENT_CLASSIFIER_RULES}
+${FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES}
+${EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES}
+${EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES}
+${EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES}
+${EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_CLASSIFIER_RULES}
 
 Service extraction (critical):
 - "massage specialist" / "best rated massage" / "what kinds of massage" → serviceCategory: "massage" — keyword on service type names, NOT serviceName "massage specialist".
@@ -98,6 +154,7 @@ ${TOUR_BOOKING_CLASSIFIER_RULES}
 ${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
 ${TOUR_CAPACITY_CLASSIFIER_RULES}
 ${CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES}
+${CHECKOUT_RECOMMENDATIONS_MULTILINGUAL_CLASSIFIER_RULES}
 ${DATA_RIGHTS_CLASSIFIER_RULES}
 ${CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES}
 ${CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES}

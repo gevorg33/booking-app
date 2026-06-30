@@ -11,6 +11,7 @@ import {
   ArrayNotEmpty,
   Min,
   Max,
+  ValidateIf,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { DayOfWeek } from '../entities/schedule-template.entity.js';
@@ -224,8 +225,25 @@ export class CreateDirectScheduleDto {
   @IsString()
   employeeId: string;
 
+  /** Single-day mode — omit when using startDate/endDate/applyDays. */
+  @ValidateIf((o: CreateDirectScheduleDto) => !o.startDate && !o.endDate)
   @IsDateString()
-  date: string;
+  date?: string;
+
+  /** Repetitive mode — apply the same periods on selected weekdays in range. */
+  @ValidateIf((o: CreateDirectScheduleDto) => !o.date)
+  @IsDateString()
+  startDate?: string;
+
+  @ValidateIf((o: CreateDirectScheduleDto) => !o.date)
+  @IsDateString()
+  endDate?: string;
+
+  @ValidateIf((o: CreateDirectScheduleDto) => !o.date)
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsNumber({}, { each: true })
+  applyDays?: number[];
 
   @IsArray()
   @ArrayNotEmpty()

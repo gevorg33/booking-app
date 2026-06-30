@@ -610,6 +610,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       price,
       currency,
       categoryId,
+      localizedNames,
+      prepaymentMode,
+      depositAmount,
       userId,
     } = step.params;
     const service = await this.serviceService.create(
@@ -622,6 +625,9 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
         price,
         currency,
         categoryId,
+        localizedNames,
+        ...(prepaymentMode ? { prepaymentMode } : {}),
+        ...(depositAmount != null ? { depositAmount } : {}),
       },
       userId,
     );
@@ -632,6 +638,8 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       durationMinutes: service.durationMinutes,
       price: service.price,
       currency: service.currency,
+      ...(prepaymentMode ? { prepaymentMode } : {}),
+      ...(depositAmount != null ? { depositAmount } : {}),
     };
   }
 

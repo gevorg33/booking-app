@@ -17,7 +17,7 @@ describe('tenant-public-url.util', () => {
         frontendUrl: 'https://example.com',
         rootDomain: 'example.com',
       },
-      expected: 'https://woodwork-decor-d44d9c9c.example.com/',
+      expected: 'https://example.com/book/woodwork-decor-d44d9c9c',
     },
     {
       id: 'prod-services',
@@ -27,16 +27,16 @@ describe('tenant-public-url.util', () => {
         frontendUrl: 'https://example.com',
         rootDomain: 'example.com',
       },
-      expected: 'https://gloss.example.com/services',
+      expected: 'https://example.com/book/gloss/services',
     },
     {
-      id: 'local-subdomain',
+      id: 'local-path',
       input: {
         slug: 'salon',
         frontendUrl: 'http://localhost:3000',
         rootDomain: 'localhost:3000',
       },
-      expected: 'http://salon.localhost:3000/',
+      expected: 'http://localhost:3000/book/salon',
     },
     {
       id: 'manage-query',
@@ -47,16 +47,19 @@ describe('tenant-public-url.util', () => {
         rootDomain: 'example.com',
         query: { bookingId: 'b1', token: 'tok' },
       },
-      expected: 'https://salon.example.com/manage?bookingId=b1&token=tok',
+      expected: 'https://example.com/book/salon/manage?bookingId=b1&token=tok',
     },
     {
       id: 'staging-vercel-root',
       input: {
-        slug: 'woodwork-decor-d44d9c9c',
+        slug: 'gnuni-beauty-salon',
+        pathSuffix: '/manage',
         frontendUrl: 'https://frontend-sand-six-17.vercel.app',
         rootDomain: 'frontend-sand-six-17.vercel.app',
+        query: { bookingId: 'b1', token: 'tok' },
       },
-      expected: 'https://woodwork-decor-d44d9c9c.frontend-sand-six-17.vercel.app/',
+      expected:
+        'https://frontend-sand-six-17.vercel.app/book/gnuni-beauty-salon/manage?bookingId=b1&token=tok',
     },
   ])('buildTenantPublicUrl $id', ({ input, expected }) => {
     expect(buildTenantPublicUrl(input)).toBe(expected);

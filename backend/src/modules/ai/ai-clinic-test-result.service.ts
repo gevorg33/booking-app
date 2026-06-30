@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
+import { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.entity.js';
 import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
+import { ClinicTestCatalogService } from '../clinic-test-results/catalog/clinic-test-catalog.service.js';
 import { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
 import { ClinicTestResultActionService } from '../clinic-test-results/test-result/clinic-test-result-action.service.js';
 import { ClinicTestResultService } from '../clinic-test-results/test-result/clinic-test-result.service.js';
@@ -31,9 +33,12 @@ export class AiClinicTestResultService {
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(ClinicTestResult)
     resultRepo: Repository<ClinicTestResult>,
+    @InjectRepository(ClinicTestOrder)
+    orderRepo: Repository<ClinicTestOrder>,
     clinicTestResultService: ClinicTestResultService,
     clinicTestResultActionService: ClinicTestResultActionService,
     clinicLabAccessService: ClinicLabAccessService,
+    clinicCatalogService: ClinicTestCatalogService,
   ) {
     this.deps = {
       businessRepo,
@@ -43,7 +48,14 @@ export class AiClinicTestResultService {
       clinicTestResultActionService,
       clinicLabAccessService,
     };
-    this.extDeps = { bookingRepo, resultRepo, clinicTestResultService };
+    this.extDeps = {
+      bookingRepo,
+      resultRepo,
+      orderRepo,
+      clinicTestResultService,
+      clinicCatalogService,
+      clinicLabAccessService,
+    };
   }
 
   handleEnterTestResult(
@@ -107,9 +119,16 @@ export class AiClinicTestResultService {
   }
 
   handleConfigureTestReferenceRange(
+    businessId: string,
+    userId: string,
     params: Record<string, unknown> = {},
   ): Promise<CommandResult> {
-    return handleConfigureTestReferenceRangeLogic(params);
+    return handleConfigureTestReferenceRangeLogic(
+      this.extDeps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleListAbnormalResults(

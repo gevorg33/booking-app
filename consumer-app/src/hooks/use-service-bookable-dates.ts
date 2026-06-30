@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  buildDateKeyRange,
+  addDaysToDateKey,
+  buildInclusiveDateKeyRange,
   buildServiceDateEnabled,
-  dayHasBookableSlots,
   isoToDateKey,
-  mapWithConcurrency,
   pickFirstBookableDateKey,
+  SERVICE_BOOKABLE_DATE_MAX_RANGE,
   SERVICE_BOOKABLE_DATE_SCAN_DAYS,
+  splitDateKeyRange,
 } from '../lib/service-bookable-dates.util.js';
-import { fetchServiceSlots } from '../services/public-api.js';
+import { fetchServiceBookableDates } from '../services/public-api.js';
 
 type Params = {
   slug: string | undefined;
@@ -22,7 +23,7 @@ export function useServiceBookableDates({
   slug,
   serviceId,
   enabled,
-  isDayLevelTour,
+  isDayLevelTour: _isDayLevelTour,
   minDateKey,
 }: Params) {
   const bookableDatesRef = useRef<Set<string>>(new Set());
@@ -37,37 +38,55 @@ export function useServiceBookableDates({
   }, []);
 
   const scanDates = useCallback(
-    async (dateKeys: string[]) => {
+    async (fromKey: string, toKey: string) => {
       if (!slug || !serviceId || !enabled) return;
-      const pending = dateKeys.filter((dateKey) => !scannedDatesRef.current.has(dateKey));
+      const pending = buildInclusiveDateKeyRange(fromKey, toKey).filter(
+        (dateKey) => !scannedDatesRef.current.has(dateKey),
+      );
       if (pending.length === 0) return;
+
+      const pendingFrom = pending[0]!;
+      const pendingTo = pending[pending.length - 1]!;
 
       setScanning(true);
       try {
-        await mapWithConcurrency(pending, 4, async (dateKey) => {
-          try {
-            const daySlots = await fetchServiceSlots(slug, serviceId, dateKey);
+        const chunks = splitDateKeyRange(
+          pendingFrom,
+          pendingTo,
+          SERVICE_BOOKABLE_DATE_MAX_RANGE,
+        );
+        for (const chunk of chunks) {
+          const result = await fetchServiceBookableDates(
+            slug,
+            serviceId,
+            chunk.from,
+            chunk.to,
+          );
+          const bookable = new Set(result.dates);
+          for (const dateKey of buildInclusiveDateKeyRange(chunk.from, chunk.to)) {
             scannedDatesRef.current.add(dateKey);
-            if (dayHasBookableSlots(daySlots, isDayLevelTour)) {
+            if (bookable.has(dateKey)) {
               bookableDatesRef.current.add(dateKey);
             }
-          } catch {
-            scannedDatesRef.current.add(dateKey);
           }
-        });
+        }
         setVersion((current) => current + 1);
       } finally {
         setScanning(false);
       }
     },
-    [enabled, isDayLevelTour, serviceId, slug],
+    [enabled, serviceId, slug],
   );
 
   useEffect(() => {
     reset();
     if (!enabled || !slug || !serviceId) return;
     const startDateKey = minDateKey.slice(0, 10);
-    void scanDates(buildDateKeyRange(startDateKey, SERVICE_BOOKABLE_DATE_SCAN_DAYS));
+    const endDateKey = addDaysToDateKey(
+      startDateKey,
+      SERVICE_BOOKABLE_DATE_SCAN_DAYS - 1,
+    );
+    void scanDates(startDateKey, endDateKey);
   }, [enabled, minDateKey, reset, scanDates, serviceId, slug]);
 
   const bookableDates = useMemo(() => new Set(bookableDatesRef.current), [version]);
@@ -95,5 +114,6 @@ export function useServiceBookableDates({
     isDateEnabled,
     firstBookableDateKey,
     isoToDateKey,
+    scanDates,
   };
 }

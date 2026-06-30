@@ -14,6 +14,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { buildConsumerGuidePath } from '../lib/consumer-guide.util.js';
 import type { ConsumerCopy } from '../lib/copy.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import { groupBookingsForAccount } from '../lib/group-package-bookings.js';
@@ -24,6 +25,7 @@ import {
 } from '../lib/customer-auth.js';
 import { fetchMyBookings, fetchMySubscriptions, getPublicCustomerGiftCards } from '../services/public-api.js';
 import { ConsumerGiftCardClaimSection } from '../components/ConsumerGiftCardClaimSection.js';
+import { ConsumerGuideEntryRow } from '../components/ConsumerGuideEntryRow.js';
 import { ConsumerGiftCardsOrdersSection } from '../components/ConsumerGiftCardsOrdersSection.js';
 import { ConsumerGiftCardsRedeemedSection } from '../components/ConsumerGiftCardsRedeemedSection.js';
 import type { PublicGiftCardOrder } from '../lib/gift-card.types.js';
@@ -309,6 +311,10 @@ export default function AccountPage({
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
+        <ConsumerGuideEntryRow
+          copy={copy}
+          onOpen={() => history.push(buildConsumerGuidePath(slug))}
+        />
         {!authed ? (
           <>
             <p>Sign in to see appointments and subscriptions at {profile.name}.</p>

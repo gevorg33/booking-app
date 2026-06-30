@@ -1,11 +1,13 @@
 import {
   IsArray,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ASSISTANT_MODE_VALUES } from '../../ai/ai-assistant-mode.util.js';
 
 class ChatMessageDto {
   @IsString()
@@ -28,6 +30,11 @@ export class ProviderAiCommandDto {
   @IsOptional()
   @IsObject()
   context?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([...ASSISTANT_MODE_VALUES])
+  assistantMode?: 'guide' | 'act';
 }
 
 export class ProviderAiConfirmDto {

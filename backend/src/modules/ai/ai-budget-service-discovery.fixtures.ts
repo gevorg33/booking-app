@@ -4,8 +4,10 @@ import {
   SHARED_BUDGET_FILTER_SCENARIO_IDS,
 } from './ai-service-catalog-rank.fixtures.js';
 
+import { LIST_SERVICES_PAYMENT_FILTER_CLASSIFIER_RULES } from './ai-list-services-payment-filters.util.js';
+
 /** Customer/public classifier rules for budget-constrained service discovery (budget-1.10). */
-export const BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES = `- list_services: READ — browse or filter the public service catalog. When the user states a spending limit, set maxPrice (number, inclusive ceiling in tenant default currency). Triggers: under/below/at most/no more than $X, "I have $X", "what can I book with $X", "options under $X", cheapest/affordable within a budget. Optional serviceName, serviceCategory, employeeName. Sort matches by price ascending in the handler. NOT discover_packages (bundles/deals catalog), NOT apply_gift_card_code (gift card balance), NOT explain_checkout_currency (currency display), and NOT explain_checkout_total (deposit vs service price).
+export const BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES = `- list_services: READ — browse or filter the public service catalog. When the user states a spending limit, set maxPrice (number, inclusive ceiling in tenant default currency). Triggers: under/below/at most/no more than $X, "I have $X", "what can I book with $X", "options under $X", cheapest/affordable within a budget. Optional serviceName, serviceCategory, employeeName. Sort matches by price ascending in the handler. NOT discover_packages (bundles/deals catalog), NOT apply_gift_card_code (gift card balance), NOT explain_checkout_currency (currency display), NOT explain_checkout_total (deposit vs service price), and NOT explain_service_price (single-service listed card price + tax badge).
 - maxTotalPrice + serviceCount: when the user caps a multi-service cart combined total ("two services under $100 total"), set maxTotalPrice (combined ceiling) and serviceCount (default 2). Do NOT set maxPrice for combined-total prompts — per-service ceiling differs from cart total.
 - Session budget override: follow-up turns like "actually I have $30" replace stale session maxPrice even when the prior turn listed options under $50.
 - Budget + promo code: "haircut under $50 with code SAVE10" → list_services with maxPrice + promoCode for checkout; filter catalog first, promo applied at checkout only — NOT promo_code_help.
@@ -32,7 +34,8 @@ export const BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES = `- list_services: READ 
   - "Best rated massage under $100 this week" → recommend_specialists, serviceCategory=massage, maxPrice=100
   - "Does Karo have anything under $40?" → list_services, employeeName=Karo, maxPrice=40
   - "Book a haircut under $50 tomorrow, nearest slot" → compound: list filter + book_appointment/book_nearest_slot, maxPrice=50, bookingFirstAvailable=true
-  - "Facials under €40 please" → list_services, serviceCategory=facial, maxPrice=40`;
+  - "Facials under €40 please" → list_services, serviceCategory=facial, maxPrice=40
+${LIST_SERVICES_PAYMENT_FILTER_CLASSIFIER_RULES}`;
 
 export type BudgetDiscoverySurface = 'public' | 'customer' | 'both';
 
