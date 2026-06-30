@@ -52,6 +52,19 @@ function extractRankCompoundServiceCategory(
 
 function hasRankCompoundBookStepCue(prompt: string): boolean {
   if (isBookNearestSlotPrompt(prompt)) return true;
+
+  // "get … under $X tomorrow nearest slot" — booking compound, not find_soonest read.
+  if (
+    /\b(?:get|book|schedule|reserve)\b/i.test(prompt) &&
+    /\b(?:nearest|soonest|next|earliest)\b/i.test(prompt) &&
+    (/\b(?:slot|appointment|opening|time)\b/i.test(prompt) ||
+      /\b(?:tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+        prompt,
+      ))
+  ) {
+    return true;
+  }
+
   return (
     /\b(?:book|schedule|reserve)\b/i.test(prompt) &&
     (/\bbook\s+it\b/i.test(prompt) ||

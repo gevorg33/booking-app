@@ -951,11 +951,19 @@ User question → normalize → isGuidePrompt? (heuristics)
 
 ---
 
-## ai-cmd-clinic-6-gap — Clinic ext-2.1–2.4 remaining DoD (dashboard)
+## ai-cmd-clinic-6-gap — Clinic ext-2.1–2.4 remaining DoD (dashboard) ✅ DoD-complete — 2026-06
 
-**Context:** **`ai-cmd-ext-2.1`–`2.4`** / **`ai-cmd-clinic-6`** — dashboard ext intents closed under **gap-1**–**4** DoD (**parity-2.4**, **acc-2.4** for ext subset). Gate: **`npm run test:ai-clinic-6-gap`** (390+ tests in **`test:ai-clinic-test-results`** + exit/locale/integration specs). **ai-cmd-ext-gap-7** per-row checklist for all 252 intents remains global — not required to close this epic.
+**Context:** **`ai-cmd-ext-2.1`–`2.4`** / **`ai-cmd-clinic-6`** — dashboard ext intents closed under **gap-1**–**6** DoD (**parity-2.4**, **acc-2.4** for ext subset). Gate: **`npm run test:ai-clinic-6-gap`** (390+ tests in **`test:ai-clinic-test-results`** + exit/locale/integration specs). **ai-cmd-ext-gap-7** per-row checklist for all 252 intents remains global — not required to close this epic.
 
 **Scope:** dashboard only — provider / customer / public out of scope for these four intents.
+
+**Shipped intents (parent rows — resume after this block at `ai-cmd-ext-2.13`):**
+
+- [x] **ai-cmd-ext-2.1** — `upload_patient_result` (M) → `AiClinicTestResultService` / `ai-clinic-test-result-ext.*`
+- [x] **ai-cmd-ext-2.2** — `explain_patient_results` (R) → released-results read + `customerName` / `orderId` scope
+- [x] **ai-cmd-ext-2.3** — `configure_test_reference_range` (M) → catalog UI handoff + range persist when **`vert-clinic-2.1.6`** product ships
+- [x] **ai-cmd-ext-2.4** — `list_abnormal_results` (R) → flagged measurements list + optional customer scope
+- [x] **ai-cmd-clinic-6** — Parent epic — four ext intents + **`enter_test_result`** / **`release_test_result`** base family
 
 **Shipped today (no new work):**
 
@@ -979,6 +987,8 @@ User question → normalize → isGuidePrompt? (heuristics)
 - [x] **ai-cmd-clinic-6-gap-1.3** — **`MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS`** → **`eval/ai-command-eval.cases.ts`** — HY/RU rows with `surface: 'dashboard'`, `locale: 'hy' | 'ru'`, expected `rescuedAction` + `paramsPartial`; refresh baseline (**acc-2.9**)
 - [x] **ai-cmd-clinic-6-gap-1.4** — **`ai-clinic-test-result-ext-locale-parity.spec.ts`** — asserts every EN ext eval id has HY + RU equivalents (pattern: **`ai-provider-*-locale-parity.spec.ts`**)
 - [x] **ai-cmd-clinic-6-gap-1.5** — Unit **`it.each`** over multilingual fixtures in **`ai-clinic-test-result-ext.util.spec.ts`** + **`ai-clinic-test-result-multilingual.util.spec.ts`** extension if shared helpers added
+
+### ai-cmd-clinic-6-gap-2 — Eval tagging + access tier — **acc-2.4** / **acc-2.6**
 
 - [x] **ai-cmd-clinic-6-gap-2.1** — Add `surface: 'dashboard'` to all **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CASES`** (and base **`AI_COMMAND_EVAL_CLINIC_TEST_RESULT_*`** rows if missing)
 - [x] **ai-cmd-clinic-6-gap-2.2** — Add expected access **`tier`** (`M` / `R`) per ext intent in eval cases (cross-ref **`access-control.matrix.ts`**)
@@ -1015,7 +1025,9 @@ User question → normalize → isGuidePrompt? (heuristics)
 | **Integration** | rescue + Nest service paths covered |
 | **parity-2.4** | classifier rules + EN/HY/RU eval tagged `surface: dashboard` + `tier` |
 
-- [x] **ai-cmd-clinic-6-gap** — **`ai-cmd-clinic-6`** DoD-complete for **gap-1**–**4** (gate **`npm run test:ai-clinic-6-gap`**); gap-5/6 product/compound follow-ups also shipped
+- [x] **ai-cmd-clinic-6-gap** — **`ai-cmd-clinic-6`** DoD-complete for **gap-1**–**6** (gate **`npm run test:ai-clinic-6-gap`**); parent **ai-cmd-ext-2.1**–**2.4** shipped
+
+**Resume here →** **`ai-cmd-ext-2.13`** (online payment — done) · **`ai-cmd-ext-2.14+`** (settings/growth — done) · **`ai-cmd-dashboard-6.9.3`** (wire **`create_test_order`** REST — still open) · global **`ai-cmd-ext-gap-7`** per-intent DoD for all 252 registry rows
 
 ---
 

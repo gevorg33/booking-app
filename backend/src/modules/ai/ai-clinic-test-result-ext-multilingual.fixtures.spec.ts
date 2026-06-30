@@ -25,10 +25,10 @@ describe('ai-clinic-test-result-ext-multilingual.fixtures (ai-cmd-clinic-6-gap-1
 
   it('covers at least four HY and four RU prompts per ext intent', () => {
     const counts = assertClinicTestResultExtMultilingualCoverage();
-    expect(counts.upload_patient_result).toEqual({ hy: 4, ru: 4, en: 0 });
-    expect(counts.explain_patient_results).toEqual({ hy: 4, ru: 4, en: 0 });
-    expect(counts.configure_test_reference_range).toEqual({ hy: 4, ru: 4, en: 0 });
-    expect(counts.list_abnormal_results).toEqual({ hy: 4, ru: 4, en: 0 });
+    expect(counts.upload_patient_result).toEqual({ hy: 4, ru: 4, en: 0, translit: 0 });
+    expect(counts.explain_patient_results).toEqual({ hy: 4, ru: 4, en: 0, translit: 0 });
+    expect(counts.configure_test_reference_range).toEqual({ hy: 4, ru: 4, en: 0, translit: 0 });
+    expect(counts.list_abnormal_results).toEqual({ hy: 4, ru: 4, en: 0, translit: 0 });
     expect(MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS).toHaveLength(32);
     expect(
       new Set(

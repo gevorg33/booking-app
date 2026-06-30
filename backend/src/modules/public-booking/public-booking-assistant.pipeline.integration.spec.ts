@@ -1,6 +1,6 @@
 import { BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS } from '../ai/ai-budget-service-discovery.fixtures.js';
 import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.fixtures.js';
-import { CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES } from '../ai/ai-explain-prepayment.util.js';
+import { CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES } from '../ai/ai-explain-payment-options-for-service.util.js';
 import { CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES } from '../ai/ai-multi-service-customer-public.util.js';
 import { CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES } from '../ai/ai-promo-code-help-customer-public.util.js';
 import { CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES, TOUR_CUSTOMER_PUBLIC_PROMPTS } from '../ai/ai-tour-customer-public.util.js';
@@ -66,7 +66,7 @@ describe('public booking assistant pipeline integration (pipe-1.12.4)', () => {
     );
   });
 
-  it('rescues explain_why_stripe_required from unknown for catalog-context pay-online question', async () => {
+  it('rescues explain_payment_options_for_service from unknown for catalog-context pay-online question', async () => {
     const understand = buildPublicUnderstandMock();
     const classify = jest.fn().mockResolvedValue({
       action: 'unknown',
@@ -84,9 +84,9 @@ describe('public booking assistant pipeline integration (pipe-1.12.4)', () => {
       classify,
     });
 
-    expect(result.action).toBe('explain_why_stripe_required');
-    expect(CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES).toContain(
-      'session/catalog serviceId',
+    expect(result.action).toBe('explain_payment_options_for_service');
+    expect(CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES).toContain(
+      'session serviceId/serviceName',
     );
   });
 
