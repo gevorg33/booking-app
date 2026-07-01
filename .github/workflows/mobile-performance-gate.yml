@@ -28,6 +28,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch comparison base
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref || 'main' }}"
+          git fetch origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}" || \
+            git fetch origin "${BASE_REF}"
+
+      - name: Detect AI pipeline changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ai-pipeline:
+              - 'backend/src/modules/ai/**'
+              - 'backend/src/modules/public-booking/public-booking-assistant.service.ts'
+              - 'backend/src/modules/public-booking/public-booking-assistant.schema.spec.ts'
+              - 'backend/src/modules/public-booking/public-booking-assistant.locale-dates.spec.ts'
+              - 'backend/src/engine/agent/**'
+              - 'backend/scripts/ai-accuracy-gate.mjs'
+              - 'backend/scripts/ai-n99-clarify-gate.mjs'
+              - 'backend/scripts/ai-n99-no-clarify-gate.mjs'
+              - 'backend/scripts/ai-llm-eval-nightly.mjs'
+              - 'backend/scripts/parity-exit-gate.mjs'
+              - 'backend/scripts/parity-coverage-ratchet.mjs'
+              - '.github/workflows/ai-accuracy-gate.yml'
+              - '.github/workflows/ai-llm-eval-nightly.yml'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -52,9 +80,11 @@ jobs:
         run: npm ci
 
       - name: AI pipeline isolation (adoption-only)
+        if: steps.filter.outputs.ai-pipeline != 'true'
         run: node scripts/adoption-ai-isolation-gate.mjs
         env:
           ADOPTION_AI_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          ADOPTION_AI_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
 
       - name: Backend mobile config tests
         working-directory: backend

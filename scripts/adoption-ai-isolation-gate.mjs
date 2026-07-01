@@ -3,6 +3,7 @@
 import { spawnSync } from 'node:child_process';
 
 const BASE = process.env.ADOPTION_AI_BASE_REF?.trim() || 'main';
+const BASE_SHA = process.env.ADOPTION_AI_BASE_SHA?.trim() || '';
 
 const PROTECTED_PREFIXES = [
   'backend/src/modules/ai/',
@@ -33,14 +34,21 @@ function git(args) {
 }
 
 function resolveBase() {
-  const refs = [BASE, `origin/${BASE}`];
-  for (const ref of refs) {
+  const candidates = [
+    BASE_SHA,
+    BASE,
+    `origin/${BASE}`,
+    `refs/remotes/origin/${BASE}`,
+  ].filter(Boolean);
+  for (const ref of candidates) {
     const probe = spawnSync('git', ['rev-parse', '--verify', ref], {
       encoding: 'utf8',
     });
     if (probe.status === 0) return ref;
   }
-  console.error(`✗ cannot resolve base ref "${BASE}" (tried ${refs.join(', ')})`);
+  console.error(
+    `✗ cannot resolve base ref "${BASE}" (tried ${candidates.join(', ')})`,
+  );
   process.exit(1);
 }
 
