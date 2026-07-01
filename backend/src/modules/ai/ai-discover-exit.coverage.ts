@@ -61,9 +61,7 @@ import {
   SERVICE_DISCOVERY_PARITY_SCENARIOS,
   SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS,
 } from './ai-service-discovery.fixtures.js';
-import {
-  MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS,
-} from './ai-service-discovery-multilingual.fixtures.js';
+import { MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS } from './ai-service-discovery-multilingual.fixtures.js';
 import { AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CASES } from './ai-service-rank-discovery.eval.util.js';
 import {
   RANK_HANDLER_OUTCOME_SCENARIOS,
@@ -100,15 +98,22 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   for (const id of ids(BUDGET_CART_TOTAL_EXTRACTION_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_PROMO_EXTRACTION_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_RANGE_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(BUDGET_NAMED_SERVICE_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(BUDGET_ANY_PROVIDER_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(BUDGET_PROVIDER_EMPLOYEE_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(BUDGET_SHORT_DURATION_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(BUDGET_LONG_DURATION_EXTRACTION_SCENARIOS)) covered.add(id);
+  for (const id of ids(BUDGET_NAMED_SERVICE_EXTRACTION_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(BUDGET_ANY_PROVIDER_EXTRACTION_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(BUDGET_PROVIDER_EMPLOYEE_EXTRACTION_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(BUDGET_SHORT_DURATION_EXTRACTION_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(BUDGET_LONG_DURATION_EXTRACTION_SCENARIOS))
+    covered.add(id);
   for (const id of ids(BUDGET_VOICE_ASR_EXTRACTION_SCENARIOS)) covered.add(id);
   for (const id of ids(BUDGET_VOICE_SCENARIOS)) covered.add(id);
   for (const id of [
-    ...ids(BUDGET_CURRENCY_EDGE_SCENARIOS.filter((scenario) => !scenario.phase2)),
+    ...ids(
+      BUDGET_CURRENCY_EDGE_SCENARIOS.filter((scenario) => !scenario.phase2),
+    ),
   ]) {
     covered.add(id);
   }
@@ -121,14 +126,19 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
   )) {
     covered.add(id);
   }
-  for (const id of ids(BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS.filter(
-    (scenario) => !scenario.skipMaxPrice && scenario.expectedParams?.maxPrice != null,
-  ))) {
+  for (const id of ids(
+    BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS.filter(
+      (scenario) =>
+        !scenario.skipMaxPrice && scenario.expectedParams?.maxPrice != null,
+    ),
+  )) {
     covered.add(id);
   }
-  for (const id of ids(BUDGET_SERVICE_DISCOVERY_CUSTOMER_PROMPTS.filter(
-    (scenario) => scenario.surface === 'customer',
-  ))) {
+  for (const id of ids(
+    BUDGET_SERVICE_DISCOVERY_CUSTOMER_PROMPTS.filter(
+      (scenario) => scenario.surface === 'customer',
+    ),
+  )) {
     covered.add(id);
   }
   for (const id of ids(
@@ -139,7 +149,8 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
     covered.add(id);
   }
   for (const id of SHARED_BUDGET_FILTER_SCENARIO_IDS) covered.add(id);
-  for (const id of ids(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES)) covered.add(id);
+  for (const id of ids(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES))
+    covered.add(id);
 
   for (const id of ids(SIMILAR_SERVICE_RANK_PROMPTS)) covered.add(id);
   for (const id of ids(
@@ -165,36 +176,54 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
     covered.add(id);
   }
   for (const id of ids(SERVICE_RANK_EXTRACTION_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_RANK_SUBJECTIVE_RESCUE_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(SERVICE_RANK_SUBJECTIVE_RESCUE_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS))
+    covered.add(id);
   for (const id of ids(SERVICE_RANK_PACKAGE_RESCUE_SCENARIOS)) covered.add(id);
   for (const id of ids(SERVICE_RANK_COMPOUND_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_RANK_COMPOUND_NEGATIVE_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_RANK_COMPOUND_NEGATIVE_SCENARIOS))
+    covered.add(id);
   for (const id of ids(RANK_HANDLER_OUTCOME_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_MID_RANGE_HANDLER_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_NAVIGATE_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_SESSION_SCENARIOS)) covered.add(id);
   for (const id of ids(RANK_LIMIT_FROM_PROMPT_SCENARIOS)) covered.add(id);
-  for (const id of ids(AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CASES)) covered.add(id);
+  for (const id of ids(AI_COMMAND_EVAL_SERVICE_RANK_DISCOVERY_CASES))
+    covered.add(id);
 
   for (const id of ids(SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS)) covered.add(id);
   for (const id of ids(AVAILABILITY_WINDOW_PARSE_SCENARIOS)) covered.add(id);
   for (const id of ids(AVAILABILITY_WINDOW_SINGLE_SCENARIOS)) covered.add(id);
-  for (const id of ids(AVAILABILITY_WINDOW_NORMALIZE_SCENARIOS)) covered.add(id);
-  for (const id of ids(AVAILABILITY_WINDOW_ENRICHMENT_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_WINDOW_LABEL_SCENARIOS)) covered.add(id);
+  for (const id of ids(AVAILABILITY_WINDOW_NORMALIZE_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(AVAILABILITY_WINDOW_ENRICHMENT_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_WINDOW_LABEL_SCENARIOS))
+    covered.add(id);
   for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_OVERLAP_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS)) covered.add(id);
-  for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS)) covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_OVERLAP_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_BUDGET_NO_SLOTS_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_NEITHER_WINDOW_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS))
+    covered.add(id);
   for (const id of ids(
     AVAIL_BUDGET_OR_SCENARIOS.filter(
       (scenario) =>
@@ -206,23 +235,31 @@ export function buildDiscoverExitItEachCoveredIds(): Set<string> {
     covered.add(id);
   }
   for (const id of ids(AVAIL_HANDLER_OUTCOME_SCENARIOS)) covered.add(id);
-  for (const id of ids(AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES)) covered.add(id);
-  for (const id of ids(AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES)) covered.add(id);
+  for (const id of ids(AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES))
+    covered.add(id);
+  for (const id of ids(AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES))
+    covered.add(id);
 
   for (const id of ids(FILTER_SERVICES_BY_MAX_PRICE_SCENARIOS)) covered.add(id);
   for (const id of ids(SORT_SERVICES_BY_PRICE_ASC_SCENARIOS)) covered.add(id);
   for (const id of ids(SORT_SERVICES_BY_PRICE_DESC_SCENARIOS)) covered.add(id);
   for (const id of ids(PICK_RANKED_SERVICES_SCENARIOS)) covered.add(id);
-  for (const id of ids(RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS)) covered.add(id);
-  for (const id of ids(APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS)) covered.add(id);
-  for (const id of ids(SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS)) covered.add(id);
+  for (const id of ids(RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS))
+    covered.add(id);
+  for (const id of ids(SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS))
+    covered.add(id);
 
-  for (const id of ids(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS)) covered.add(id);
+  for (const id of ids(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS))
+    covered.add(id);
   for (const id of ids(SERVICE_DISCOVERY_JOURNEY_SCENARIOS)) covered.add(id);
   for (const id of ids(SERVICE_DISCOVERY_PARITY_SCENARIOS)) covered.add(id);
-  for (const id of ids(MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS)) covered.add(id);
+  for (const id of ids(MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS))
+    covered.add(id);
   for (const id of ids(CONSUMER_DISCOVERY_CHIP_FIXTURES)) covered.add(id);
-  for (const id of ids(PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS)) covered.add(id);
+  for (const id of ids(PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS))
+    covered.add(id);
 
   return covered;
 }

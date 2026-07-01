@@ -1,7 +1,6 @@
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
 
 export type CustomerMarketingGrowthDeferredIntent =
-  | 'how_to_download_app'
   | 'switch_to_consumer_app'
   | 'promo_code_help'
   | 'loyalty_points_balance';
@@ -16,7 +15,6 @@ export type MarketingGrowthMultilingualScenario = {
 
 /** Customer-only marketing/growth intents in the deferred acc-2.4 sweep. */
 export const CUSTOMER_MARKETING_GROWTH_DEFERRED_INTENTS = [
-  'how_to_download_app',
   'switch_to_consumer_app',
   'promo_code_help',
   'loyalty_points_balance',
@@ -24,34 +22,12 @@ export const CUSTOMER_MARKETING_GROWTH_DEFERRED_INTENTS = [
 
 /** Classifier guidance for hy/ru customer marketing/growth (acc-2.4). */
 export const MARKETING_GROWTH_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian customer marketing/growth (logged-in consumer app):
-  - how_to_download_app: hy «ինչպես ներբեռնել consumer app-ը»; ru «как скачать приложение для записи». NOT switch_to_consumer_app (already installed).
   - switch_to_consumer_app: hy «բացել consumer app-ը»; ru «перейти в приложение для клиентов». NOT how_to_download_app (install).
   - promo_code_help: hy «ինչպես աշխատում են promo codes»; ru «как работают промокоды». NOT refer_a_friend (referral program).
   - loyalty_points_balance: hy «ցույց տal loyalty points-ը»; ru «показать мои бонусные баллы». NOT loyalty_points_balance dashboard summaries.`;
 
 export const MARKETING_GROWTH_MULTILINGUAL_SCENARIOS: MarketingGrowthMultilingualScenario[] =
   [
-    {
-      id: 'how-to-download-app-en',
-      locale: 'en',
-      prompt: 'How do I download the consumer app',
-      expectedAction: 'how_to_download_app',
-      rescueReason: 'download_app',
-    },
-    {
-      id: 'how-to-download-app-hy',
-      locale: 'hy',
-      prompt: 'Ինչպե՞ս ներբեռնել consumer app-ը',
-      expectedAction: 'how_to_download_app',
-      rescueReason: 'download_app',
-    },
-    {
-      id: 'how-to-download-app-ru',
-      locale: 'ru',
-      prompt: 'Как скачать приложение для записи',
-      expectedAction: 'how_to_download_app',
-      rescueReason: 'download_app',
-    },
     {
       id: 'switch-to-consumer-app-en',
       locale: 'en',

@@ -375,12 +375,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       publicAssistant,
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
@@ -400,12 +398,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       llmAction: 'list_services',
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(result.action).toBe('compound_intent');
     expect(result.success).toBe(true);
@@ -466,12 +462,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       publicAssistant,
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
@@ -494,12 +488,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       llmParams: scenario.expectedParams ?? {},
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(sprintHandlers.handleCheckProvidersForService).toHaveBeenCalled();
     expect(result.action).toBe('check_providers_for_service');

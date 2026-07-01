@@ -37,7 +37,10 @@ export function normalizeDateKey(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
 }
 
-export function normalizeDailyTime(value: string, fallback: string): string | null {
+export function normalizeDailyTime(
+  value: string,
+  fallback: string,
+): string | null {
   return normalizeTime24(value) ?? normalizeTime24(fallback);
 }
 
@@ -94,8 +97,7 @@ export function buildBlockScheduleDtoFromTimeOffRequest(
   });
   if (validationError) return null;
 
-  const placeholder =
-    request.reason?.trim().slice(0, 64) || 'Time off';
+  const placeholder = request.reason?.trim().slice(0, 64) || 'Time off';
 
   if (startDate === endDate) {
     return {

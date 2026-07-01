@@ -14,7 +14,9 @@ const massageService = {
   depositAmount: null,
 } as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],

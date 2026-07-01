@@ -5,6 +5,7 @@ import {
   type GrowthLoopsCustomerAction,
 } from './ai-growth-loops-customer.fixtures.js';
 import { isPromoCodeHelpPrompt } from './ai-marketing-growth.util.js';
+import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 
 export { CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES } from './ai-growth-loops-customer.fixtures.js';
 export {
@@ -14,9 +15,6 @@ export {
   REFER_A_FRIEND_CUSTOMER_PROMPTS,
   SHARE_SALON_LINK_CUSTOMER_PROMPTS,
 } from './ai-growth-loops-customer.fixtures.js';
-
-const SHARE_MY_BOOKING =
-  /\b(share).{0,30}\b(booking|appointment|visit)\b|կիս.{0,20}ամրագր|подел.{0,20}(запис|визит)/i;
 
 const REFER_FRIEND =
   /\b(refer|invite).{0,40}\b(friend|buddy|someone|referral)\b|\breferral (code|link|program|bonus|rewards?)\b|\bhow do i refer\b|\bmy (?:referral|invite) (?:code|link)\b|\b(?:friend|buddy) invite\b|հրավիր.{0,24}(ընկեր|friend)|ինչպես.{0,24}հրավիր|реферал|приглас.{0,24}друг|приглаш.{0,24}друг|бонус.{0,20}приглаш/i;
@@ -41,13 +39,14 @@ function matchGrowthLoopsScenarioPrompt(
 
 export function isReferAFriendPrompt(prompt: string): boolean {
   if (isPromoCodeHelpPrompt(prompt)) return false;
-  if (SHARE_MY_BOOKING.test(prompt) && !REFER_FRIEND.test(prompt)) return false;
+  if (isShareMyBookingPrompt(prompt) && !REFER_FRIEND.test(prompt))
+    return false;
   return REFER_FRIEND.test(prompt);
 }
 
 export function isShareSalonLinkPrompt(prompt: string): boolean {
   if (isReferAFriendPrompt(prompt)) return false;
-  if (SHARE_MY_BOOKING.test(prompt)) return false;
+  if (isShareMyBookingPrompt(prompt)) return false;
   if (
     /\bshare rewards?\b/i.test(prompt) &&
     /\b(points?|when i share)\b/i.test(prompt) &&

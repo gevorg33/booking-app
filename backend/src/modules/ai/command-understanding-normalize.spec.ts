@@ -262,7 +262,9 @@ describe('command-understanding normalize (pipe-1.1.2)', () => {
       });
 
       expect(normalizeSpy).not.toHaveBeenCalled();
-      expect(result.context).toEqual(buildPipelineContext(hyPrompt, promptNorm));
+      expect(result.context).toEqual(
+        buildPipelineContext(hyPrompt, promptNorm),
+      );
       expect(result.normalization).toBe(promptNorm);
     });
   });

@@ -327,7 +327,8 @@ export const TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS: TransferServicesScen
     },
     {
       id: 'move-color-to-maria',
-      prompt: 'Move all Color category services from Gevorg Gasparyan to Maria Lopez',
+      prompt:
+        'Move all Color category services from Gevorg Gasparyan to Maria Lopez',
       expectedAction: 'transfer_employee_services',
       rescueReason: 'transfer_services_between_providers',
       categoryName: 'Color',

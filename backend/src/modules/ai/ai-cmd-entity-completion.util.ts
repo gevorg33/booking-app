@@ -2,6 +2,7 @@ import type {
   ResolvedCommand,
   ValidationIssue,
 } from './command-completion.types.js';
+import { parseApplyLoyaltyAtCheckoutFromPrompt } from './ai-apply-loyalty-at-checkout.util.js';
 import {
   hasRequiredBookingDate,
   hasRequiredBookingStartTime,
@@ -340,6 +341,30 @@ export const AI_CMD_ENTITY_ACTION_RULES: Record<string, EntityRule> = {
             'Gift card code',
             'Provide the gift card code',
             'GC-ABC123',
+          ),
+        ],
+
+  apply_promo_code_checkout: (cmd) =>
+    paramPresent(cmd, 'promoCode') || paramPresent(cmd, 'code')
+      ? []
+      : [
+          issue(
+            'promoCode',
+            'Promo code',
+            'Provide the promo code to apply at checkout',
+            'SAVE10',
+          ),
+        ],
+
+  apply_loyalty_at_checkout: (cmd) =>
+    parseApplyLoyaltyAtCheckoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          issue(
+            'prompt',
+            'Apply loyalty points',
+            'Ask to apply loyalty points at checkout',
+            'Use my points on this booking',
           ),
         ],
 

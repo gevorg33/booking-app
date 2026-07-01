@@ -291,7 +291,8 @@ const AVAILABILITY: ImplicationCorpusScenario[] = [
   {
     id: 'en-curious-room-highlights-implied-availability',
     topIntent: 'availability',
-    prompt: 'Curious which specialists have room for highlights tomorrow evening',
+    prompt:
+      'Curious which specialists have room for highlights tomorrow evening',
     surface: 'dashboard',
     expectedAction: 'check_providers_for_service',
     expectedTopAnchorId: 'en-implied-availability-opening',
@@ -311,7 +312,8 @@ const AVAILABILITY: ImplicationCorpusScenario[] = [
   {
     id: 'en-before-commit-openings-implied-availability',
     topIntent: 'availability',
-    prompt: 'Before I commit, see who has openings for a service Thursday evening',
+    prompt:
+      'Before I commit, see who has openings for a service Thursday evening',
     surface: 'dashboard',
     expectedAction: 'check_providers_for_service',
     expectedTopAnchorId: 'en-implied-availability-opening',
@@ -331,7 +333,8 @@ const AVAILABILITY: ImplicationCorpusScenario[] = [
   {
     id: 'en-anyone-floor-blowouts-implied-availability',
     topIntent: 'availability',
-    prompt: 'Wondering if there is anyone on the floor who can do blowouts tomorrow',
+    prompt:
+      'Wondering if there is anyone on the floor who can do blowouts tomorrow',
     surface: 'dashboard',
     expectedAction: 'check_providers_for_service',
     minScore: 0.65,
@@ -350,7 +353,8 @@ const AVAILABILITY: ImplicationCorpusScenario[] = [
   {
     id: 'en-specialists-room-spa-implied-availability',
     topIntent: 'availability',
-    prompt: 'Looking for whoever can take new clients for a spa package next week',
+    prompt:
+      'Looking for whoever can take new clients for a spa package next week',
     surface: 'dashboard',
     expectedAction: 'check_providers_for_service',
     expectedTopAnchorId: 'en-implied-availability-opening',
@@ -383,14 +387,13 @@ export const BOOKING_IMPLICATION_SCENARIOS = BOOKING;
 export const SCHEDULE_IMPLICATION_SCENARIOS = SCHEDULE;
 export const AVAILABILITY_IMPLICATION_SCENARIOS = AVAILABILITY;
 
-export const AI_IMPLICATION_CORPUS_EN_DASHBOARD_SCENARIOS: ImplicationCorpusScenario[] = [
-  ...BOOKING,
-  ...SCHEDULE,
-  ...AVAILABILITY,
-];
+export const AI_IMPLICATION_CORPUS_EN_DASHBOARD_SCENARIOS: ImplicationCorpusScenario[] =
+  [...BOOKING, ...SCHEDULE, ...AVAILABILITY];
 
 export const AI_IMPLICATION_CORPUS_SURFACE_SCENARIOS: ImplicationCorpusScenario[] =
-  buildImplicationSurfaceParityScenarios(AI_IMPLICATION_CORPUS_EN_DASHBOARD_SCENARIOS);
+  buildImplicationSurfaceParityScenarios(
+    AI_IMPLICATION_CORPUS_EN_DASHBOARD_SCENARIOS,
+  );
 
 const AI_IMPLICATION_CORPUS_EN_SCENARIOS: ImplicationCorpusScenario[] = [
   ...AI_IMPLICATION_CORPUS_EN_DASHBOARD_SCENARIOS,

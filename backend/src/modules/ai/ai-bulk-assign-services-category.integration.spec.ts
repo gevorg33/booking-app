@@ -40,8 +40,10 @@ describe('bulk_assign_services_category AI scenarios', () => {
 
   it('disambiguates bulk assign from single update_service', () => {
     expect(
-      rescueCatalogIntent('Move all hair services under Hair category', 'unknown')
-        ?.action,
+      rescueCatalogIntent(
+        'Move all hair services under Hair category',
+        'unknown',
+      )?.action,
     ).toBe('bulk_assign_services_category');
     expect(
       rescueCatalogIntent(

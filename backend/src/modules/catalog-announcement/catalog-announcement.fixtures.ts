@@ -11,7 +11,8 @@ export const CATALOG_ANNOUNCEMENT_RENDER_SCENARIOS: Array<{
     id: 'package-happy',
     template: {
       subject: 'New package: {{packageName}}',
-      bodyText: 'Hi {{customerName}}, save {{discount}} at {{businessName}}. {{bookUrl}}',
+      bodyText:
+        'Hi {{customerName}}, save {{discount}} at {{businessName}}. {{bookUrl}}',
     },
     context: {
       customerName: 'Anna',
@@ -21,8 +22,7 @@ export const CATALOG_ANNOUNCEMENT_RENDER_SCENARIOS: Array<{
       bookUrl: 'https://book.example/salon',
     },
     expectedSubject: 'New package: Glow package',
-    expectedBody:
-      'Hi Anna, save 15% at Demo Salon. https://book.example/salon',
+    expectedBody: 'Hi Anna, save 15% at Demo Salon. https://book.example/salon',
   },
   {
     id: 'plan-happy',

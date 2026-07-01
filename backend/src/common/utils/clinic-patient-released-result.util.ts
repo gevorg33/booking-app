@@ -51,7 +51,9 @@ export interface PatientReleasedResultSource {
   measurements?: PatientReleasedMeasurementSource[] | null;
 }
 
-const KNOWN_MEASUREMENT_FLAGS = new Set<string>(CLINIC_RESULT_MEASUREMENT_FLAGS);
+const KNOWN_MEASUREMENT_FLAGS = new Set<string>(
+  CLINIC_RESULT_MEASUREMENT_FLAGS,
+);
 
 /** Worst-case flag wins when rolling up analyte rows to the result header. */
 const PATIENT_MEASUREMENT_FLAG_PRIORITY: readonly ClinicResultMeasurementFlag[] =

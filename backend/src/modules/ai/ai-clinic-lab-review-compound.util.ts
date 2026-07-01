@@ -6,9 +6,7 @@ import {
   extractReleaseCustomerNameFromPrompt,
   extractOrderIdFromPrompt,
 } from './ai-clinic-test-result.util.js';
-import {
-  extractVisitCustomerNameFromPrompt,
-} from './ai-clinic-test-order.util.js';
+import { extractVisitCustomerNameFromPrompt } from './ai-clinic-test-order.util.js';
 import {
   isExplainPatientResultsPrompt,
   isListAbnormalResultsPrompt,
@@ -79,11 +77,7 @@ export function isClinicLabReviewCompoundPrompt(prompt: string): boolean {
   const stepFamilies = countLabReviewStepFamilies(text);
   if (stepFamilies < 2) return false;
 
-  return (
-    fullReview ||
-    COMPOUND_MARKERS.test(text) ||
-    /;\s*/.test(text)
-  );
+  return fullReview || COMPOUND_MARKERS.test(text) || /;\s*/.test(text);
 }
 
 export type ClinicLabReviewCompoundStep = {

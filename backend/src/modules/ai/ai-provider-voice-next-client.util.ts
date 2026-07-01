@@ -8,9 +8,11 @@ import { resolveGuideCorpusI18nKey } from './guide/ai-guide-corpus-i18n.util.js'
 import type { AppLocale } from '../../common/i18n/messages.js';
 import { resolveLocale } from '../../common/i18n/messages.js';
 
-export const PROVIDER_VOICE_NEXT_CLIENT_INTENT = 'voice_summarize_next_client' as const;
+export const PROVIDER_VOICE_NEXT_CLIENT_INTENT =
+  'voice_summarize_next_client' as const;
 
-export type ProviderVoiceNextClientIntent = typeof PROVIDER_VOICE_NEXT_CLIENT_INTENT;
+export type ProviderVoiceNextClientIntent =
+  typeof PROVIDER_VOICE_NEXT_CLIENT_INTENT;
 
 const VOICE_NEXT_CLIENT_KEYS = {
   found: 'guide.flows.provider.voiceNextClient.found',
@@ -81,7 +83,10 @@ export function rescueVoiceSummarizeNextClientIntent(
   if (isProviderVoiceNextClientIntent(action)) return action;
 
   for (const scenario of PROVIDER_VOICE_NEXT_CLIENT_RESCUE_SCENARIOS) {
-    if (scenario.fromActions?.length && !scenario.fromActions.includes(action)) {
+    if (
+      scenario.fromActions?.length &&
+      !scenario.fromActions.includes(action)
+    ) {
       continue;
     }
     if (scenario.prompt.test(prompt)) {

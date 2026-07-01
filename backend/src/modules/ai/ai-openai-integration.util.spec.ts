@@ -17,7 +17,9 @@ describe('ai-openai-integration.util', () => {
   );
 
   it.each(
-    CONFIGURE_OPENAI_INTEGRATION_PROMPTS.filter(({ paramsPartial }) => paramsPartial),
+    CONFIGURE_OPENAI_INTEGRATION_PROMPTS.filter(
+      ({ paramsPartial }) => paramsPartial,
+    ),
   )(
     'parses configure openai integration fixture $id',
     ({ prompt, paramsPartial }) => {
@@ -32,10 +34,12 @@ describe('ai-openai-integration.util', () => {
   it.each(CONFIGURE_OPENAI_INTEGRATION_PROMPTS)(
     'rescues unknown action to configure_openai_integration for $id',
     ({ prompt, expectedAction }) => {
-      expect(rescueConfigureOpenaiIntegrationIntent(prompt, 'unknown')).toEqual({
-        action: expectedAction,
-        rescueReason: expectedAction,
-      });
+      expect(rescueConfigureOpenaiIntegrationIntent(prompt, 'unknown')).toEqual(
+        {
+          action: expectedAction,
+          rescueReason: expectedAction,
+        },
+      );
     },
   );
 

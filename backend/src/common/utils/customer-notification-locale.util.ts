@@ -43,9 +43,7 @@ export function assertCustomerPreferredLocale(
 ): AppLocale {
   const normalized = normalizeAppLocale(locale);
   if (!normalized) {
-    throw new BadRequestException(
-      'preferredLocale must be one of: en, hy, ru',
-    );
+    throw new BadRequestException('preferredLocale must be one of: en, hy, ru');
   }
   const enabled = getBusinessEnabledLocales(businessSettings);
   if (!enabled.includes(normalized)) {

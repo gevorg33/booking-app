@@ -179,7 +179,9 @@ export function extractEarnPercentFromPrompt(prompt: string): number | null {
   return null;
 }
 
-export function extractLoyaltyEnabledFromPrompt(prompt: string): boolean | null {
+export function extractLoyaltyEnabledFromPrompt(
+  prompt: string,
+): boolean | null {
   if (
     /\b(?:disable|turn\s+off|deactivate|pause)\b/i.test(prompt) &&
     /\bloyalty\b/i.test(prompt)

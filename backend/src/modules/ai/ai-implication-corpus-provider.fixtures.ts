@@ -202,7 +202,9 @@ const PROVIDER_SCHEDULE: ProviderImplicationRow[] = [
   },
 ];
 
-function toProviderScenario(row: ProviderImplicationRow): ImplicationCorpusScenario {
+function toProviderScenario(
+  row: ProviderImplicationRow,
+): ImplicationCorpusScenario {
   return {
     id: row.id,
     topIntent: row.topIntent,

@@ -112,9 +112,9 @@ describe('semantic steal guard pipeline integration (pipe-1.5.3 / acc-2.8)', () 
             ),
         ),
       ).toBe(false);
-      expect(result.trace.find((t) => t.stage === 'semantic_match')?.detail).toContain(
-        'domain-protected',
-      );
+      expect(
+        result.trace.find((t) => t.stage === 'semantic_match')?.detail,
+      ).toContain('domain-protected');
       expect(isUnderstandTraceOrdered(result.trace)).toBe(true);
       if (scenario.rescueReason) {
         expect(result.trace.find((t) => t.stage === 'rescue')?.action).toBe(

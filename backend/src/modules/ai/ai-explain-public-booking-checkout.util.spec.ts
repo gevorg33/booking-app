@@ -15,7 +15,9 @@ describe('ai-explain-public-booking-checkout.util', () => {
 
   it('does not detect configure cash mutate', () => {
     expect(
-      isExplainPublicBookingCheckoutPrompt('Enable cash payments on public booking'),
+      isExplainPublicBookingCheckoutPrompt(
+        'Enable cash payments on public booking',
+      ),
     ).toBe(false);
   });
 
@@ -34,7 +36,9 @@ describe('ai-explain-public-booking-checkout.util', () => {
 
   it('does not detect checkout total breakdown', () => {
     expect(
-      isExplainPublicBookingCheckoutPrompt('Explain checkout total for Massage'),
+      isExplainPublicBookingCheckoutPrompt(
+        'Explain checkout total for Massage',
+      ),
     ).toBe(false);
   });
 

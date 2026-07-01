@@ -1,6 +1,4 @@
-import {
-  CATALOG_NOTIFY_DASHBOARD_SCENARIOS,
-} from './ai-catalog-notify.fixtures.js';
+import { CATALOG_NOTIFY_DASHBOARD_SCENARIOS } from './ai-catalog-notify.fixtures.js';
 import {
   applyCatalogNotifyPromptHints,
   buildAiDefaultCatalogNotifyTemplate,
@@ -63,7 +61,10 @@ describe('ai-catalog-notify.util (catalog-notify-1.9)', () => {
         {
           catalogAnnouncementTemplates: {
             subscriptionPlan: {
-              en: { subject: 'Saved {{planName}}', bodyText: 'Join {{bookUrl}}' },
+              en: {
+                subject: 'Saved {{planName}}',
+                bodyText: 'Join {{bookUrl}}',
+              },
             },
           },
         },
@@ -78,7 +79,11 @@ describe('ai-catalog-notify.util (catalog-notify-1.9)', () => {
   describe('resolveAiCatalogNotifyPayload', () => {
     it('returns empty payload when notify is off', () => {
       expect(
-        resolveAiCatalogNotifyPayload({}, { enabledLocales: ['en'] }, 'package'),
+        resolveAiCatalogNotifyPayload(
+          {},
+          { enabledLocales: ['en'] },
+          'package',
+        ),
       ).toEqual({});
     });
 

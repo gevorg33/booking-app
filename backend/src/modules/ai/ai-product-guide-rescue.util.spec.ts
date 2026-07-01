@@ -13,9 +13,13 @@ describe('ai-product-guide-rescue.util (ai-guide-1.6.3)', () => {
   it.each(PRODUCT_GUIDE_RESCUE_SCENARIOS.map((row) => [row.id, row] as const))(
     'rescueProductGuideIntent for $id',
     (_id, scenario) => {
-      const result = rescueProductGuideIntent(scenario.prompt, scenario.fromAction, {
-        surface: scenario.surface,
-      });
+      const result = rescueProductGuideIntent(
+        scenario.prompt,
+        scenario.fromAction,
+        {
+          surface: scenario.surface,
+        },
+      );
       expect(result.action).toBe(scenario.expectedAction);
       if (scenario.expectedReason) {
         expect(result.rescueReason).toBe(scenario.expectedReason);
@@ -73,8 +77,9 @@ describe('ai-product-guide-rescue.util (ai-guide-1.6.3)', () => {
         'public',
       ] as CommandSurface[]) {
         expect(
-          rescueProductGuideIntent('How do I use this feature?', intent, { surface })
-            .action,
+          rescueProductGuideIntent('How do I use this feature?', intent, {
+            surface,
+          }).action,
         ).toBe(intent);
       }
     }

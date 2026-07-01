@@ -1,6 +1,9 @@
 /** prov-exp-1.4 — package / subscription / multi-service badges for provider booking detail. */
 
-import { BookingStatus, type Booking } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  type Booking,
+} from '../booking/entities/booking.entity.js';
 import {
   readPackageIdFromMetadata,
   readPackageNameFromMetadata,
@@ -87,7 +90,8 @@ export function buildProviderPackageBadge(
   return {
     packagePurchaseId: booking.packagePurchaseId,
     packageId: readPackageIdFromMetadata(booking.metadata),
-    packageName: readPackageNameFromMetadata(booking.metadata) ?? 'Package visit',
+    packageName:
+      readPackageNameFromMetadata(booking.metadata) ?? 'Package visit',
     serviceIndex,
     serviceTotal,
     visitsRemaining,
@@ -95,7 +99,9 @@ export function buildProviderPackageBadge(
 }
 
 export function buildProviderSubscriptionBadge(
-  subscription: CustomerSubscription & { plan?: { name?: string | null } | null },
+  subscription: CustomerSubscription & {
+    plan?: { name?: string | null } | null;
+  },
 ): ProviderBookingSubscriptionBadge {
   return {
     subscriptionId: subscription.id,

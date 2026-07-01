@@ -40,11 +40,16 @@ function isGuideTelemetryEvent(value: string): value is AiGuideTelemetryEvent {
   return (GUIDE_TELEMETRY_EVENT_NAMES as readonly string[]).includes(value);
 }
 
-function isGuideTelemetrySurface(value: string): value is AiGuideTelemetrySurface {
+function isGuideTelemetrySurface(
+  value: string,
+): value is AiGuideTelemetrySurface {
   return (GUIDE_TELEMETRY_SURFACE_VALUES as readonly string[]).includes(value);
 }
 
-function normalizeOptionalString(value: unknown, maxLen: number): string | undefined {
+function normalizeOptionalString(
+  value: unknown,
+  maxLen: number,
+): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -74,7 +79,10 @@ export function parseGuideTelemetryEventInput(
   const issueCodesRaw = input.issueCodes;
   const issueCodes = Array.isArray(issueCodesRaw)
     ? issueCodesRaw
-        .filter((code): code is string => typeof code === 'string' && code.trim().length > 0)
+        .filter(
+          (code): code is string =>
+            typeof code === 'string' && code.trim().length > 0,
+        )
         .map((code) => code.trim().slice(0, 64))
         .slice(0, 20)
     : undefined;
@@ -176,10 +184,7 @@ export function buildGuideGroundingFailureEvent(
 
 function bumpTopicMetrics(
   bucket: GuideTelemetryTopicMetrics,
-  row: Pick<
-    AiGuideTelemetry,
-    'event' | 'stepIndex' | 'totalSteps'
-  >,
+  row: Pick<AiGuideTelemetry, 'event' | 'stepIndex' | 'totalSteps'>,
 ): void {
   switch (row.event) {
     case 'topic_opened':
@@ -220,7 +225,10 @@ function collectUnansweredReasons(
   if (metrics.groundingFailures > 0) {
     reasons.push('grounding_failure');
   }
-  if (metrics.opened > 0 && completionRate < GUIDE_UNANSWERED_COMPLETION_THRESHOLD) {
+  if (
+    metrics.opened > 0 &&
+    completionRate < GUIDE_UNANSWERED_COMPLETION_THRESHOLD
+  ) {
     reasons.push('low_completion');
   }
   return reasons;
@@ -239,7 +247,11 @@ export function rankUnansweredGuideTopics(
     const completionRate =
       metrics.opened > 0 ? metrics.guideCompletions / metrics.opened : 0;
     const unansweredRate =
-      metrics.opened > 0 ? 1 - completionRate : metrics.groundingFailures > 0 ? 1 : 0;
+      metrics.opened > 0
+        ? 1 - completionRate
+        : metrics.groundingFailures > 0
+          ? 1
+          : 0;
     const reasons = collectUnansweredReasons(topicId, metrics, completionRate);
     if (reasons.length === 0) continue;
 
@@ -284,7 +296,10 @@ export function buildGuideTelemetryAnalyticsSummary(
   const summary = aggregateGuideTelemetryMetrics(rows, periodDays);
   return {
     ...summary,
-    topUnansweredTopics: rankUnansweredGuideTopics(summary.byTopic, topUnansweredLimit),
+    topUnansweredTopics: rankUnansweredGuideTopics(
+      summary.byTopic,
+      topUnansweredLimit,
+    ),
   };
 }
 
@@ -297,7 +312,10 @@ export function aggregateGuideTelemetryMetrics(
 ): GuideTelemetryAnalyticsSummary {
   const byTopic: Record<string, GuideTelemetryTopicMetrics> = {};
   const bySurface = Object.fromEntries(
-    GUIDE_TELEMETRY_SURFACE_VALUES.map((surface) => [surface, emptyTopicMetrics()]),
+    GUIDE_TELEMETRY_SURFACE_VALUES.map((surface) => [
+      surface,
+      emptyTopicMetrics(),
+    ]),
   ) as Record<AiGuideTelemetrySurface, GuideTelemetryTopicMetrics>;
 
   let topicsOpened = 0;
@@ -345,9 +363,11 @@ export function aggregateGuideTelemetryMetrics(
     handoffsToAction,
     groundingFailures,
     guideCompletionRate: topicsOpened > 0 ? guideCompletions / topicsOpened : 0,
-    avgStepsCompletedPerGuide: topicsOpened > 0 ? stepsCompleted / topicsOpened : 0,
+    avgStepsCompletedPerGuide:
+      topicsOpened > 0 ? stepsCompleted / topicsOpened : 0,
     handoffToActionRate: topicsOpened > 0 ? handoffsToAction / topicsOpened : 0,
-    groundingFailureRate: guideAttempts > 0 ? groundingFailures / guideAttempts : 0,
+    groundingFailureRate:
+      guideAttempts > 0 ? groundingFailures / guideAttempts : 0,
     byTopic,
     bySurface,
     topUnansweredTopics: [],

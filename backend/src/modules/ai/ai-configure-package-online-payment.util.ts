@@ -200,11 +200,9 @@ function extractPackageNameFromPrompt(prompt: string): string | undefined {
 }
 
 function extractPackageNamesFromPrompt(prompt: string): string[] | undefined {
-  const listMatch = prompt.match(
-    /\bfor\s+(.+?)\s+packages?\b/i,
-  );
+  const listMatch = prompt.match(/\bfor\s+(.+?)\s+packages?\b/i);
   if (!listMatch) return undefined;
-  const segment = listMatch[1]!.trim();
+  const segment = listMatch[1].trim();
   if (!/\band\b/i.test(segment)) return undefined;
   return segment
     .split(/\s+and\s+/i)
@@ -244,10 +242,13 @@ function resolveDepositPercent(
   servicePayment: ParsedServiceOnlinePaymentConfig | null,
 ): number | null | undefined {
   if (typeof params.depositPercent === 'number') return params.depositPercent;
-  if (servicePayment?.depositPercent != null) return servicePayment.depositPercent;
+  if (servicePayment?.depositPercent != null)
+    return servicePayment.depositPercent;
   const parsed = parseDepositPercent(prompt);
   if (parsed != null) return parsed;
-  const pctBeforeOnline = prompt.match(/\b(\d{1,3})\s*%\s+online\s+prepayment\b/i);
+  const pctBeforeOnline = prompt.match(
+    /\b(\d{1,3})\s*%\s+online\s+prepayment\b/i,
+  );
   if (pctBeforeOnline) return Number.parseInt(pctBeforeOnline[1], 10);
   const anyPct = prompt.match(/\b(\d{1,3})\s*%\b/);
   if (anyPct && /\b(?:prepayment|pre[-\s]?pay|deposit)\b/i.test(prompt)) {
@@ -271,9 +272,12 @@ export function isConfigurePackageOnlinePaymentPrompt(prompt: string): boolean {
   }
 
   const disabling =
-    isDisablingOnlinePayment(text) && (hasPaymentSignal || hasOnlinePaymentVerb(text));
+    isDisablingOnlinePayment(text) &&
+    (hasPaymentSignal || hasOnlinePaymentVerb(text));
   const enabling =
-    !isDisablingOnlinePayment(text) && hasPaymentSignal && hasOnlinePaymentVerb(text);
+    !isDisablingOnlinePayment(text) &&
+    hasPaymentSignal &&
+    hasOnlinePaymentVerb(text);
 
   return disabling || enabling;
 }
@@ -297,7 +301,8 @@ export function parseConfigurePackageOnlinePaymentFromPrompt(
     params.prepaymentMode === 'full' ||
     params.prepaymentMode === 'deposit'
       ? (params.prepaymentMode as PrepaymentMode)
-      : undefined) ?? parseServiceOnlinePaymentConfig(prompt, params)?.prepaymentMode;
+      : undefined) ??
+    parseServiceOnlinePaymentConfig(prompt, params)?.prepaymentMode;
   if (!prepaymentMode) return null;
 
   const servicePayment = parseServiceOnlinePaymentConfig(prompt, params);
@@ -315,7 +320,7 @@ export function parseConfigurePackageOnlinePaymentFromPrompt(
   const depositAmount =
     typeof params.depositAmount === 'number'
       ? params.depositAmount
-      : servicePayment?.depositAmount ?? parseFixedDepositAmount(prompt);
+      : (servicePayment?.depositAmount ?? parseFixedDepositAmount(prompt));
 
   if (
     !allPackages &&
@@ -346,7 +351,8 @@ export function resolveTargetPackages<
     const matched = config.packageNames
       .map((name) => resolvePackageByName(active, name))
       .filter((pkg): pkg is T => !!pkg);
-    if (matched.length) return [...new Map(matched.map((pkg) => [pkg.id, pkg])).values()];
+    if (matched.length)
+      return [...new Map(matched.map((pkg) => [pkg.id, pkg])).values()];
   }
 
   if (config.packageName) {

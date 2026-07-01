@@ -33,7 +33,12 @@ export const PROVIDER_VISIT_STATUS_ELIGIBILITY_SCENARIOS = [
 export const PROVIDER_VISIT_STATUS_INVALID_READ_SCENARIOS = [
   {
     id: 'invalid-kind',
-    metadata: { providerVisitStatus: { kind: 'busy', markedAt: '2026-06-09T09:50:00.000Z' } },
+    metadata: {
+      providerVisitStatus: {
+        kind: 'busy',
+        markedAt: '2026-06-09T09:50:00.000Z',
+      },
+    },
   },
   {
     id: 'missing-marked-at',

@@ -12,7 +12,7 @@ export type ExplainGuestCheckoutFieldsMultilingualScenario = {
 };
 
 export const EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian guest checkout contact fields (customer app + public booking page):
-  - explain_guest_checkout_fields: hy «ինչու է հարկավոր էլ. փոստ», «կարո՞ղ եմ ամրագրել առանց հաշվի», «պետք է՞ և՛ հեռախոս, և՛ էլ. փոստ»; ru «зачем нужен email», «можно ли записаться без аккаунта», «нужны ли и телефон, и email». Guest contact merge — NOT explain_data_rights and NOT booking_help funnel walkthrough.`;
+  - explain_guest_checkout_fields: hy «ինչու է հարկավոր էլ. փոստ», «պետք է՞ և՛ հեռախոս, և՛ էլ. փոստ»; ru «зачем нужен email», «нужны ли и телефон, и email». Guest contact merge — NOT explain_why_sign_in (account benefits) and NOT explain_data_rights and NOT booking_help funnel walkthrough.`;
 
 export const EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS: ExplainGuestCheckoutFieldsMultilingualScenario[] =
   [
@@ -24,15 +24,6 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS: ExplainGuestC
       expectedAction: 'explain_guest_checkout_fields',
       rescueReason: 'guest_checkout_fields',
       paramsPartial: { aspect: 'email' },
-    },
-    {
-      id: 'without-account-hy-customer',
-      locale: 'hy',
-      prompt: 'Կարո՞ղ եմ ամրագրել առանց հաշվի',
-      surface: 'customer',
-      expectedAction: 'explain_guest_checkout_fields',
-      rescueReason: 'guest_checkout_fields',
-      paramsPartial: { aspect: 'guest_vs_account' },
     },
     {
       id: 'email-or-phone-hy-public',
@@ -53,15 +44,6 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS: ExplainGuestC
       paramsPartial: { aspect: 'email' },
     },
     {
-      id: 'without-account-ru-customer',
-      locale: 'ru',
-      prompt: 'Можно ли записаться без аккаунта?',
-      surface: 'customer',
-      expectedAction: 'explain_guest_checkout_fields',
-      rescueReason: 'guest_checkout_fields',
-      paramsPartial: { aspect: 'guest_vs_account' },
-    },
-    {
       id: 'email-or-phone-ru-public',
       locale: 'ru',
       prompt: 'Нужны ли и телефон, и email на checkout?',
@@ -78,14 +60,5 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS: ExplainGuestC
       expectedAction: 'explain_guest_checkout_fields',
       rescueReason: 'guest_checkout_fields',
       paramsPartial: { aspect: 'email' },
-    },
-    {
-      id: 'without-account-ru-public',
-      locale: 'ru',
-      prompt: 'Можно ли оформить запись без регистрации на этой странице?',
-      surface: 'public',
-      expectedAction: 'explain_guest_checkout_fields',
-      rescueReason: 'guest_checkout_fields',
-      paramsPartial: { aspect: 'guest_vs_account' },
     },
   ];

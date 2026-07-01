@@ -47,10 +47,20 @@ export class ProviderTimeOffRequest {
   @Column({ name: 'end_date', type: 'date' })
   endDate: string;
 
-  @Column({ name: 'daily_start_time', type: 'varchar', length: 5, default: '00:00' })
+  @Column({
+    name: 'daily_start_time',
+    type: 'varchar',
+    length: 5,
+    default: '00:00',
+  })
   dailyStartTime: string;
 
-  @Column({ name: 'daily_end_time', type: 'varchar', length: 5, default: '23:59' })
+  @Column({
+    name: 'daily_end_time',
+    type: 'varchar',
+    length: 5,
+    default: '23:59',
+  })
   dailyEndTime: string;
 
   @Column({ type: 'text', nullable: true })

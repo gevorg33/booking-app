@@ -1,5 +1,6 @@
 import { extractBookingIdFromPrompt } from './ai-provider-booking.util.js';
 import { isDiagnoseTourCapacityPrompt } from './ai-tour-capacity.util.js';
+import { isExplainTourMeetingPointPrompt } from './ai-tour-meeting-point.util.js';
 
 export const TOUR_BOOKING_RECORD_INTENTS = [
   'explain_tour_booking_record',
@@ -13,6 +14,7 @@ export type TourBookingRecordAspect =
   | 'dates'
   | 'specialRequirements'
   | 'calendarSpan'
+  | 'confirmationNumber'
   | 'all';
 
 export interface ParsedExplainTourBookingRecord {
@@ -24,14 +26,60 @@ export interface ParsedExplainTourBookingRecord {
 
 function hasDashboardReadCue(prompt: string): boolean {
   return (
-    /\b(what|which|how|why|explain|show|tell|stored|mean)\b/i.test(prompt) ||
+    /\b(what|which|how|why|explain|show|tell|stored|mean|summarize|summary|recap|give)\b/i.test(
+      prompt,
+    ) ||
     /\?\s*$/.test(prompt.trim()) ||
-    /(ինչ|որ|որքան|բացատր|ցույց|ինչու)/i.test(prompt) ||
-    /(какой|какая|какие|сколько|почему|объясни|покажи)/i.test(prompt)
+    /(ինչ|որ|որքան|բացատր|ցույց|ինչու|ամփոփ)/i.test(prompt) ||
+    /(какой|какая|какие|сколько|почему|объясни|покажи|кратко)/i.test(prompt)
+  );
+}
+
+function isTourCatalogBookingPagePrompt(prompt: string): boolean {
+  return (
+    /\b(?:booking\s+page|on\s+this\s+page|when\s+i\s+book|in\s+the\s+app|mobile\s+booking|online\s+booking|in\s+the\s+catalog|on\s+the\s+catalog|per[\-\s]person\s+price|max\s+(?:group|pax)|group\s+(?:size|limit|cap)|how\s+many\s+people\s+can\s+book|charged\s+per\s+person|priced\s+per\s+person|multi[\-\s]day\s+tour)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:страниц(?:е|а)\s+записи|на\s+странице|за\s+человека|максимум\s+в\s+группе)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:գրանցման\s+էջ|մեկ\s+անձի\s+համար)\b/i.test(prompt)
+  );
+}
+
+function isCustomerTourBookingRecordSelfPrompt(prompt: string): boolean {
+  if (isDiagnoseTourCapacityPrompt(prompt)) return false;
+  if (isTourCatalogBookingPagePrompt(prompt)) return false;
+  if (isExplainTourMeetingPointPrompt(prompt)) return false;
+  return (
+    /\b(my|our)\s+(?:tour\s+)?(?:group\s+)?booking\b/i.test(prompt) ||
+    /\b(my|our)\s+.+\s+tour\s+booking\b/i.test(prompt) ||
+    /\b(?:show|details?).+\bmy\s+.+\s+tour\s+booking\b/i.test(prompt) ||
+    /\b(my|our)\s+tour\s+(?:confirmation|reservation)\b/i.test(prompt) ||
+    (/\b(confirmation\s+(?:number|#|code)|confirm(?:ation)?\s+#)\b/i.test(
+      prompt,
+    ) &&
+      /\b(my|our|tour)\b/i.test(prompt)) ||
+    /\bsummarize\s+my\s+(?:group\s+)?(?:tour\s+)?booking\b/i.test(prompt) ||
+    /\bsummarize\b.+\bfor\s+my\s+tour\b/i.test(prompt) ||
+    /\b(?:recap|summary)\s+(?:of\s+)?my\s+(?:group\s+)?(?:tour\s+)?booking\b/i.test(
+      prompt,
+    ) ||
+    /\bhow\s+many\s+people\s+(?:are\s+)?on\s+my\s+tour\b/i.test(prompt) ||
+    /\bwhen\s+does\s+my\s+(?:group\s+)?tour\b/i.test(prompt) ||
+    /\b(?:stored|saved)\s+on\s+my\s+(?:\w+\s+){0,3}(?:tour|trek)\b/i.test(
+      prompt,
+    ) ||
+    /\bspecial\s+requirements\s+saved\s+on\s+my\s+tour\b/i.test(prompt) ||
+    /(իմ\s+(?:խմբային\s+)?ամրագրում|հաստատման\s+համար)/i.test(prompt) ||
+    /(мо(?:ей|ю|его|их)\s+(?:группов(?:ой|ую)|запис)|номер\s+подтвержден)/i.test(
+      prompt,
+    )
   );
 }
 
 function hasTourBookingRecordTopic(prompt: string): boolean {
+  if (isTourCatalogBookingPagePrompt(prompt)) return false;
   return (
     /\b(tour\s+booking\s+record|booking\s+record|tour\s+metadata|tourstartdate|tourenddate|tour\s+start\s+date|tour\s+end\s+date)\b/i.test(
       prompt,
@@ -47,12 +95,28 @@ function hasTourBookingRecordTopic(prompt: string): boolean {
     /\b(span|multiple\s+days|across)\b.{0,50}\b(calendar|provider)\b/i.test(
       prompt,
     ) ||
-    /(pax|տարեթվեր|ամրագրում|հատուկ\s+պահանջ)/i.test(prompt) ||
+    /(pax|տարեթվեր|հատուկ\s+պահանջ|հաստատման\s+համար)/i.test(prompt) ||
     /(pax|бронирован|дат(?:а|ы)\s+начал|дат(?:а|ы)\s+конц|особые\s+требован|несколько\s+дней)/i.test(
       prompt,
     ) ||
     /календар\w*\s+провайдер/i.test(prompt)
   );
+}
+
+const BOOKING_ID_FALSE_POSITIVES = new Set([
+  'record',
+  'confirmation',
+  'details',
+  'reference',
+  'summary',
+  'status',
+  'information',
+  'metadata',
+  'number',
+]);
+
+function isFalsePositiveBookingId(candidate: string): boolean {
+  return BOOKING_ID_FALSE_POSITIVES.has(candidate.toLowerCase());
 }
 
 function extractTourBookingIdFromPrompt(prompt: string): string | undefined {
@@ -65,7 +129,7 @@ function extractTourBookingIdFromPrompt(prompt: string): string | undefined {
   if (explicit?.[1]) return explicit[1];
 
   const standard = extractBookingIdFromPrompt(prompt);
-  if (standard && standard !== 'record') return standard;
+  if (standard && !isFalsePositiveBookingId(standard)) return standard;
 
   const short = prompt.match(
     /\b(?:booking|appointment)\s*#?\s*(bk-[a-z0-9-]+)\b/i,
@@ -121,19 +185,45 @@ function extractCustomerNameFromPrompt(prompt: string): string | null {
 }
 
 function extractServiceNameFromPrompt(prompt: string): string | null {
+  const storedOnMy = prompt.match(
+    /\b(?:stored|saved)\s+on\s+my\s+(.+?)\s+booking\b/i,
+  );
+  if (storedOnMy?.[1]) {
+    const candidate = storedOnMy[1].trim();
+    if (candidate.length >= 2 && !/^(?:tour|group)$/i.test(candidate)) {
+      return candidate;
+    }
+  }
+
+  const possessiveTour = prompt.match(
+    /\b(?:my|our)\s+(.+?)\s+tour\s+booking\b/i,
+  );
+  if (possessiveTour?.[1]) {
+    const candidate = possessiveTour[1].trim();
+    if (
+      candidate.length >= 2 &&
+      !/^(?:tour|group|wine|city|heritage)$/i.test(candidate)
+    ) {
+      return candidate.replace(/\s+booking$/i, '').trim();
+    }
+  }
+
   const patterns = [
     /\bfor\s+(?:the\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek)\s+booking\b/i,
-    /\b([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek)\s+booking\b/i,
     /\bheritage\s+tour\b/i,
     /\bmountain\s+trek\b/i,
     /\bcity\s+tour\b/i,
+    /\bwine\s+country\b/i,
+    /\b([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek)\s+booking\b/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
     const candidate = (match?.[1] ?? match?.[0] ?? '').trim();
     if (
       candidate.length >= 2 &&
-      !/^(explain|show|what|how|why|tell)$/i.test(candidate)
+      !/^(explain|show|what|how|why|tell|my|our|the|this|that|group|tour)$/i.test(
+        candidate,
+      )
     ) {
       return candidate
         .replace(/\s+booking$/i, '')
@@ -162,13 +252,20 @@ function resolveTourBookingRecordAspect(
     /\b(special\s+requirements?|dietary|accessibility\s+needs?|հատուկ\s+պահանջ|особые\s+требован)/i.test(
       prompt,
     );
+  const confirmation =
+    /\bconfirmation(?:\s+(?:number|code)|\s*#)|\bconfirm(?:ation)?\s*#/i.test(
+      prompt,
+    ) || /(հաստատման\s+համար|номер\s+подтвержден)/i.test(prompt);
   const calendar =
     /\b(provider\s+calendar|calendar\s+span|multiple\s+days|span\b|across\s+days)\b/i.test(
       prompt,
     ) || /(несколько\s+дней|календар\w*\s+провайдер)/i.test(prompt);
 
-  const count = [pax, dates, special, calendar].filter(Boolean).length;
+  const count = [pax, dates, special, calendar, confirmation].filter(
+    Boolean,
+  ).length;
   if (count >= 2) return 'all';
+  if (confirmation) return 'confirmationNumber';
   if (pax) return 'paxCount';
   if (dates) return 'dates';
   if (special) return 'specialRequirements';
@@ -219,9 +316,15 @@ function isTourCalendarWeekListLikePrompt(prompt: string): boolean {
 
 export function isExplainTourBookingRecordPrompt(prompt: string): boolean {
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
+  if (isExplainTourMeetingPointPrompt(prompt)) return false;
+  if (isTourCatalogBookingPagePrompt(prompt)) return false;
   if (isTourCalendarWeekListLikePrompt(prompt)) return false;
-  if (isUpcomingTourListPrompt(prompt)) return false;
 
+  if (isCustomerTourBookingRecordSelfPrompt(prompt)) {
+    return true;
+  }
+
+  if (isUpcomingTourListPrompt(prompt)) return false;
   if (isExplainTourServicesLikeList(prompt)) return false;
 
   if (isSingleTourBookingRecordPrompt(prompt)) {
@@ -273,6 +376,7 @@ export function parseExplainTourBookingRecordFromPrompt(
     aspectFromParams === 'dates' ||
     aspectFromParams === 'specialRequirements' ||
     aspectFromParams === 'calendarSpan' ||
+    aspectFromParams === 'confirmationNumber' ||
     aspectFromParams === 'all'
       ? aspectFromParams
       : resolveTourBookingRecordAspect(prompt);

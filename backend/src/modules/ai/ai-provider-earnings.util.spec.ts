@@ -30,9 +30,9 @@ describe('ai-provider-earnings.util', () => {
   it.each(PROVIDER_EARNINGS_PROMPT_SCENARIOS.map((s) => [s.id, s]))(
     'rescues $0 to $1.expectedAction',
     (_id, scenario) => {
-      expect(rescueProviderEarningsIntent(scenario.prompt, 'unknown')?.action).toBe(
-        scenario.expectedAction,
-      );
+      expect(
+        rescueProviderEarningsIntent(scenario.prompt, 'unknown')?.action,
+      ).toBe(scenario.expectedAction);
     },
   );
 
@@ -97,8 +97,11 @@ describe('ai-provider-earnings.util', () => {
       'How much did I make today?',
     );
     expect(summary.providerNet).toBe(60);
-    expect(formatProviderRevenueSummary(summary, (amount, currency) =>
-      `$${amount.toFixed(2)} ${currency}`,
-    )).toContain('$60.00 USD');
+    expect(
+      formatProviderRevenueSummary(
+        summary,
+        (amount, currency) => `$${amount.toFixed(2)} ${currency}`,
+      ),
+    ).toContain('$60.00 USD');
   });
 });

@@ -46,18 +46,14 @@ describe('ai-reschedule-my-booking.util (ai-cmd-customer-4.4.3)', () => {
   });
 
   it('returns ambiguous when multiple bookings match filters', () => {
-    const matched = matchCustomerOwnedBooking(
-      sampleBookings,
-      {},
-      '',
-      'UTC',
-      { allowFirstWhenUnspecified: false },
-    );
+    const matched = matchCustomerOwnedBooking(sampleBookings, {}, '', 'UTC', {
+      allowFirstWhenUnspecified: false,
+    });
     expect(matched.booking).toBeNull();
     expect(matched.ambiguous).toHaveLength(2);
-    expect(buildRescheduleMyBookingAmbiguousSummary(matched.ambiguous)).toContain(
-      'several upcoming appointments',
-    );
+    expect(
+      buildRescheduleMyBookingAmbiguousSummary(matched.ambiguous),
+    ).toContain('several upcoming appointments');
   });
 
   it.each(RESCHEDULE_MY_BOOKING_PROMPTS.map((row) => [row.id, row] as const))(

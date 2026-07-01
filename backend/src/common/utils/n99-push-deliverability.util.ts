@@ -42,15 +42,30 @@ export function classifyFcmDeliveryError(
 ): FcmDeliveryErrorClassification {
   const code = (errorCode ?? 'unknown').trim() || 'unknown';
   if (INVALID_TOKEN_CODES.has(code)) {
-    return { code, action: 'invalidate_token', provider: 'fcm', retryable: false };
+    return {
+      code,
+      action: 'invalidate_token',
+      provider: 'fcm',
+      retryable: false,
+    };
   }
   if (APNS_ERROR_CODES.has(code)) {
-    return { code, action: 'record_failure', provider: 'apns', retryable: false };
+    return {
+      code,
+      action: 'record_failure',
+      provider: 'apns',
+      retryable: false,
+    };
   }
   if (TRANSIENT_ERROR_CODES.has(code)) {
     return { code, action: 'record_failure', provider: 'fcm', retryable: true };
   }
-  return { code, action: 'record_failure', provider: 'unknown', retryable: false };
+  return {
+    code,
+    action: 'record_failure',
+    provider: 'unknown',
+    retryable: false,
+  };
 }
 
 export function shouldInvalidatePushToken(
@@ -116,7 +131,8 @@ export function resolveSilentFailureCandidates(
 
 function toDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

@@ -33,7 +33,11 @@ function buildClinicLabDayCloseCompoundStepParams(
       },
     });
   }
-  if (expectedParams.orderId || expectedParams.measurementCode || expectedParams.value) {
+  if (
+    expectedParams.orderId ||
+    expectedParams.measurementCode ||
+    expectedParams.value
+  ) {
     stepParams.push({
       stepIndex: 1,
       paramsPartial: {

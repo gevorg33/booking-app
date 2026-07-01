@@ -102,9 +102,7 @@ export function readClinicTestTypeIdFromServiceMetadata(
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-export function parseClinicReferenceRangeBound(
-  value: unknown,
-): number | null {
+export function parseClinicReferenceRangeBound(value: unknown): number | null {
   if (value == null) return null;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {

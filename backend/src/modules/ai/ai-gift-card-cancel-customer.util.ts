@@ -97,8 +97,7 @@ export const GIFT_CARD_CANCEL_CUSTOMER_PROMPTS: readonly GiftCardCancelCustomerP
     },
     {
       id: 'cancel-gift-card-order-id-customer',
-      prompt:
-        'Cancel my gift card order 550e8400-e29b-41d4-a716-446655440000',
+      prompt: 'Cancel my gift card order 550e8400-e29b-41d4-a716-446655440000',
       surface: 'customer',
       expectedAction: 'request_gift_card_cancel',
       rescueReason: 'gift_card_cancel',

@@ -28,7 +28,11 @@ export function buildPublicBookingLinks(
   if (!businessSlug?.trim()) return null;
   const slug = businessSlug.trim();
   return {
-    bookingUrl: buildTenantPublicUrl({ slug, frontendUrl: frontendUrl ?? undefined, rootDomain }),
+    bookingUrl: buildTenantPublicUrl({
+      slug,
+      frontendUrl: frontendUrl ?? undefined,
+      rootDomain,
+    }),
     accountUrl: buildTenantPublicUrl({
       slug,
       frontendUrl: frontendUrl ?? undefined,

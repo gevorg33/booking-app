@@ -18,10 +18,7 @@ import {
   COMMAND_TRACE_RECORDER_PIPE_MARKER,
 } from './ai-command-trace-recorder.fixtures.js';
 
-export {
-  COMMAND_TRACE_ID_CONTEXT_KEY,
-  COMMAND_TRACE_RECORDER_PIPE_MARKER,
-};
+export { COMMAND_TRACE_ID_CONTEXT_KEY, COMMAND_TRACE_RECORDER_PIPE_MARKER };
 
 export type CommandTraceStampContext = {
   traceId: string;
@@ -124,7 +121,11 @@ export function finalizeCommandTraceResult(
     ctx.pipelineTrace ??
     (result.details?.pipelineTrace as PipelineTrace[] | undefined);
 
-  if (misroute && pipelineTrace && !pipelineTraceIncludesMisroute(pipelineTrace)) {
+  if (
+    misroute &&
+    pipelineTrace &&
+    !pipelineTraceIncludesMisroute(pipelineTrace)
+  ) {
     pipelineTrace = appendMisrouteTelemetryTrace(pipelineTrace, misroute);
   } else if (misroute && !pipelineTrace) {
     pipelineTrace = appendMisrouteTelemetryTrace([], misroute);
@@ -193,7 +194,8 @@ export function buildGatewayCommandTraceInput(opts: {
     action,
     confidence: metadata.confidence,
     params: metadata.params,
-    routingTier: metadata.routingTier as RecordAiCommandTraceInput['routingTier'],
+    routingTier:
+      metadata.routingTier as RecordAiCommandTraceInput['routingTier'],
     candidateSource: metadata.candidateSource,
     result: opts.result,
     latencyMs: opts.latencyMs,

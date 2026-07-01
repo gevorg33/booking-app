@@ -13,12 +13,7 @@ import {
 describe('confidence-gate.util (pipe-1.3.2)', () => {
   it.each(CONFIDENCE_GATE_SCENARIOS)(
     '$id — shouldEscalateToSemantic=$expectedShouldEscalate',
-    ({
-      action,
-      confidence,
-      expectedShouldEscalate,
-      expectedDecision,
-    }) => {
+    ({ action, confidence, expectedShouldEscalate, expectedDecision }) => {
       expect(shouldEscalateToSemantic(action, confidence)).toBe(
         expectedShouldEscalate,
       );
@@ -52,9 +47,9 @@ describe('confidence-gate.util (pipe-1.3.2)', () => {
         expect(thresholds.low).toBe(aiLow);
         expect(thresholds.high).toBe(sessionHighOverride ?? aiHigh);
 
-        expect(
-          shouldEscalateToSemantic(action, confidence, thresholds),
-        ).toBe(expectedShouldEscalate);
+        expect(shouldEscalateToSemantic(action, confidence, thresholds)).toBe(
+          expectedShouldEscalate,
+        );
       },
     );
 
@@ -64,9 +59,9 @@ describe('confidence-gate.util (pipe-1.3.2)', () => {
         high: 0.85,
       });
 
-      expect(
-        shouldEscalateToSemantic('create_booking', 0.6, thresholds),
-      ).toBe(false);
+      expect(shouldEscalateToSemantic('create_booking', 0.6, thresholds)).toBe(
+        false,
+      );
       expect(
         shouldEscalateToSemantic('create_booking', 0.6, {
           low: DEFAULT_SEMANTIC_ESCALATION_CONFIDENCE,

@@ -75,10 +75,16 @@ describe('fast-intent-heuristics.util (pipe-1.2.1)', () => {
 
   it.each(
     PRODUCT_GUIDE_PROMPT_SCENARIOS.filter((scenario) => scenario.expectedMatch),
-  )('scores guide fast heuristic for $id', ({ prompt, surface, expectedIntent }) => {
-    const candidates = inferProductGuideIntentCandidates(surface ?? 'dashboard', prompt);
-    expect(candidates[0]?.action).toBe(expectedIntent);
-  });
+  )(
+    'scores guide fast heuristic for $id',
+    ({ prompt, surface, expectedIntent }) => {
+      const candidates = inferProductGuideIntentCandidates(
+        surface ?? 'dashboard',
+        prompt,
+      );
+      expect(candidates[0]?.action).toBe(expectedIntent);
+    },
+  );
 
   it('ai-guide-1.0.3 — skips guide heuristics in act mode', () => {
     expect(

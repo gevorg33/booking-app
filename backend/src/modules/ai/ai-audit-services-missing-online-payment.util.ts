@@ -12,9 +12,9 @@ export type ServicesMissingOnlinePaymentReadIntent =
 export function isServicesMissingOnlinePaymentReadIntent(
   action: string,
 ): action is ServicesMissingOnlinePaymentReadIntent {
-  return (SERVICES_MISSING_ONLINE_PAYMENT_READ_INTENTS as readonly string[]).includes(
-    action,
-  );
+  return (
+    SERVICES_MISSING_ONLINE_PAYMENT_READ_INTENTS as readonly string[]
+  ).includes(action);
 }
 
 export const AUDIT_SERVICES_MISSING_ONLINE_PAYMENT_CLASSIFIER_RULES = `- audit_services_missing_online_payment: READ — gap audit listing active catalog services that do NOT accept online payment on public booking (prepaymentMode none). Optional categoryName filter. Triggers: audit/find/list/show/which/what/are any + services + missing|without|don't accept|still don't|no online payment|cash-only. NOT explain_service_online_payment_setup (full prepayment summary or which services require prepayment), NOT configure_service_online_payment (mutate toggle), NOT list_services (catalog browse without payment gap), NOT explain_public_booking_checkout (checkout flow), and NOT configure_package_online_payment (mutate).
@@ -130,7 +130,9 @@ function hasOnlinePaymentGapCue(prompt: string): boolean {
 function hasServicesOnlinePaymentGapSurface(prompt: string): boolean {
   return (
     (/\bservices?\b/i.test(prompt) &&
-      /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(prompt)) ||
+      /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(
+        prompt,
+      )) ||
     (/\bservices?\b/i.test(prompt) && /\bcash[\s-]?only\b/i.test(prompt)) ||
     (/\baudit\b/i.test(prompt) && /\bonline\s+payment\b/i.test(prompt)) ||
     (/\bgap\s+audit\b/i.test(prompt) && /\bonline\s+payment\b/i.test(prompt))

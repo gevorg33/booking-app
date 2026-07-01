@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import {
   buildUpdateNudgeDismissKey,
+  CONSUMER_DISMISS_APP_UPDATE_NUDGE_EVENT,
   dismissUpdateNudge,
   evaluateMobileAppGate,
   shouldShowUpdateNudge,
@@ -97,6 +98,15 @@ export function useMobileAppVersionPolicy(input: {
     dismissUpdateNudge(nudge.dismissKey);
     setNudge(null);
   }, [nudge]);
+
+  useEffect(() => {
+    if (input.surface !== 'consumer_app') return undefined;
+    const handler = () => dismissNudge();
+    window.addEventListener(CONSUMER_DISMISS_APP_UPDATE_NUDGE_EVENT, handler);
+    return () => {
+      window.removeEventListener(CONSUMER_DISMISS_APP_UPDATE_NUDGE_EVENT, handler);
+    };
+  }, [dismissNudge, input.surface]);
 
   return { blocked, nudge, dismissNudge };
 }

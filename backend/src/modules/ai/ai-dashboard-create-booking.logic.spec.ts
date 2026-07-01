@@ -1,6 +1,4 @@
-import {
-  AVAILABILITY_WINDOW_PARSE_SCENARIOS,
-} from './ai-flexible-availability.fixtures.js';
+import { AVAILABILITY_WINDOW_PARSE_SCENARIOS } from './ai-flexible-availability.fixtures.js';
 import {
   DASHBOARD_CREATE_BOOKING_SERVICE_SCENARIOS,
   DASHBOARD_FIRST_AVAILABLE_DAY_SCENARIOS,
@@ -56,7 +54,11 @@ describe('findDashboardFirstAvailableAcrossWindows (ai-cmd-ext-1.4)', () => {
   it('picks earliest slot across OR windows', async () => {
     const pick = await findDashboardFirstAvailableAcrossWindows(
       [
-        { dateKeys: ['2026-06-12'], timeOfDay: 'evening', notBeforeTime: '17:00' },
+        {
+          dateKeys: ['2026-06-12'],
+          timeOfDay: 'evening',
+          notBeforeTime: '17:00',
+        },
         { dateKeys: ['2026-06-14'], timeOfDay: 'morning', notBeforeTime: null },
       ],
       async ({ isoDay, timeOfDay }) => {

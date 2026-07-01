@@ -85,7 +85,10 @@ export function resolveTeamFloorChipStatus(booking: {
   return 'waiting';
 }
 
-export function emptyTeamFloorStatusCounts(): Record<TeamFloorChipStatus, number> {
+export function emptyTeamFloorStatusCounts(): Record<
+  TeamFloorChipStatus,
+  number
+> {
   return {
     waiting: 0,
     in_service: 0,
@@ -128,10 +131,9 @@ export function normalizeTeamFloorEmployeeFilter(
   return trimmed ? trimmed : null;
 }
 
-export function filterTeamFloorBookingsByEmployee<T extends TeamFloorBookingLike>(
-  bookings: T[],
-  employeeId: string | null,
-): T[] {
+export function filterTeamFloorBookingsByEmployee<
+  T extends TeamFloorBookingLike,
+>(bookings: T[], employeeId: string | null): T[] {
   if (!employeeId) return bookings;
   if (employeeId === UNASSIGNED_EMPLOYEE_ID) {
     return bookings.filter((booking) => !booking.employee?.id);

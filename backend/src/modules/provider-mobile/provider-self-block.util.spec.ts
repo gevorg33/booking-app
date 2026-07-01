@@ -15,9 +15,9 @@ describe('provider-self-block.util (prov-exp-7.1)', () => {
   it.each(PROVIDER_SELF_BLOCK_SETTINGS_SCENARIOS.map((s) => [s.id, s]))(
     'reads settings for %s',
     (_id, scenario) => {
-      expect(isProviderSelfBlockEnabled(readProviderSelfBlockSettings(scenario.raw))).toBe(
-        scenario.expectedEnabled,
-      );
+      expect(
+        isProviderSelfBlockEnabled(readProviderSelfBlockSettings(scenario.raw)),
+      ).toBe(scenario.expectedEnabled);
     },
   );
 
@@ -33,7 +33,10 @@ describe('provider-self-block.util (prov-exp-7.1)', () => {
   it.each(PROVIDER_SELF_BLOCK_BUILD_SCENARIOS.map((s) => [s.id, s]))(
     'builds block schedule dto for %s',
     (_id, scenario) => {
-      const dto = buildCreateBlockScheduleDto(scenario.employeeId, scenario.input);
+      const dto = buildCreateBlockScheduleDto(
+        scenario.employeeId,
+        scenario.input,
+      );
       if ('expected' in scenario && scenario.expected === null) {
         expect(dto).toBeNull();
         return;
@@ -82,7 +85,10 @@ describe('provider-self-block.util (prov-exp-7.1)', () => {
       validateProviderSelfBlockWindow('not-a-date', '2026-06-09T13:00:00.000Z'),
     ).toBe('Invalid date or time');
     expect(
-      validateProviderSelfBlockWindow('2020-01-01T12:00:00.000Z', '2020-01-01T13:00:00.000Z'),
+      validateProviderSelfBlockWindow(
+        '2020-01-01T12:00:00.000Z',
+        '2020-01-01T13:00:00.000Z',
+      ),
     ).toBe('Cannot create a block in the past');
   });
 });

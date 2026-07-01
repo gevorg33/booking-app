@@ -62,7 +62,14 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
 
   it.each(PROVIDER_TODAY_TIMELINE_VIEW_SCENARIOS)(
     'buildProviderTodayTimelineView — $id',
-    ({ enabled, bookings, now, expectEmpty, activeBookingId, nextBookingId }) => {
+    ({
+      enabled,
+      bookings,
+      now,
+      expectEmpty,
+      activeBookingId,
+      nextBookingId,
+    }) => {
       const view = buildProviderTodayTimelineView({
         enabled,
         date: '2026-06-09',
@@ -84,7 +91,9 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
   it('providerMobileShowTodayTimeline defaults to enabled', () => {
     expect(providerMobileShowTodayTimeline(undefined)).toBe(true);
     expect(
-      providerMobileShowTodayTimeline({ providerMobile: { showTodayTimeline: false } }),
+      providerMobileShowTodayTimeline({
+        providerMobile: { showTodayTimeline: false },
+      }),
     ).toBe(false);
   });
 

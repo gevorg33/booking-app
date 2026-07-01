@@ -73,7 +73,9 @@ function hasFullConsumerAppGrowthCue(prompt: string): boolean {
     /\b(?:consumer\s+app|customer\s+app|app\s+growth|growth\s+distribution)\b/i.test(
       prompt,
     ) &&
-    (/\b(?:end[\s-]to[\s-]end|from\s+scratch|growth\s+launch)\b/i.test(prompt) ||
+    (/\b(?:end[\s-]to[\s-]end|from\s+scratch|growth\s+launch)\b/i.test(
+      prompt,
+    ) ||
       /\bgrowth\b/i.test(prompt))
   );
 }
@@ -97,11 +99,7 @@ export function isLaunchConsumerAppGrowthCompoundPrompt(
   if (fullLaunch) return true;
   if (stepFamilies < 3) return false;
 
-  return (
-    stepFamilies >= 3 ||
-    COMPOUND_MARKERS.test(text) ||
-    /;\s*/.test(text)
-  );
+  return stepFamilies >= 3 || COMPOUND_MARKERS.test(text) || /;\s*/.test(text);
 }
 
 export type LaunchConsumerAppGrowthStep = {

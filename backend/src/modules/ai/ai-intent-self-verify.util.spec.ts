@@ -46,21 +46,24 @@ describe('ai-intent-self-verify.util (pipe-1.6.1 / pipe-1.6.3)', () => {
     },
   );
 
-  it.each(SELF_VERIFY_SCENARIOS)('verifyIntentMatchesPrompt $id', (scenario) => {
-    const result = verifyIntentMatchesPrompt(scenario.prompt, {
-      action: scenario.action,
-      params: {},
-    });
-    expect(result.passed).toBe(scenario.expectPassed);
-    if (!scenario.expectPassed) {
-      expect(result.ruleId).toBe(scenario.expectedRuleId);
-      if (scenario.expectedCorrectedAction !== undefined) {
-        expect(result.correctedAction).toBe(scenario.expectedCorrectedAction);
-      } else {
-        expect(result.correctedAction).toBeUndefined();
+  it.each(SELF_VERIFY_SCENARIOS)(
+    'verifyIntentMatchesPrompt $id',
+    (scenario) => {
+      const result = verifyIntentMatchesPrompt(scenario.prompt, {
+        action: scenario.action,
+        params: {},
+      });
+      expect(result.passed).toBe(scenario.expectPassed);
+      if (!scenario.expectPassed) {
+        expect(result.ruleId).toBe(scenario.expectedRuleId);
+        if (scenario.expectedCorrectedAction !== undefined) {
+          expect(result.correctedAction).toBe(scenario.expectedCorrectedAction);
+        } else {
+          expect(result.correctedAction).toBeUndefined();
+        }
       }
-    }
-  });
+    },
+  );
 
   it.each(SELF_VERIFY_BOOKING_VS_CLEAR_SCENARIOS)(
     'checkBookingVsClearMismatch $id',
@@ -80,7 +83,10 @@ describe('ai-intent-self-verify.util (pipe-1.6.1 / pipe-1.6.3)', () => {
   it.each(SELF_VERIFY_SCHEDULE_VOCAB_SCENARIOS)(
     'checkScheduleVocabMismatch $id',
     (scenario) => {
-      const result = checkScheduleVocabMismatch(scenario.prompt, scenario.action);
+      const result = checkScheduleVocabMismatch(
+        scenario.prompt,
+        scenario.action,
+      );
       expect(result.passed).toBe(scenario.expectPassed);
       if (!scenario.expectPassed) {
         expect(result.ruleId).toBe('schedule_vocab_mismatch');
@@ -120,8 +126,10 @@ describe('ai-intent-self-verify.util (pipe-1.6.1 / pipe-1.6.3)', () => {
       ).correctedAction,
     ).toBe('hide_appointments_from_calendar');
     expect(
-      checkBookingVsClearMismatch('Clear Karo schedule Friday', 'create_booking')
-        .correctedAction,
+      checkBookingVsClearMismatch(
+        'Clear Karo schedule Friday',
+        'create_booking',
+      ).correctedAction,
     ).toBe('clear_schedule');
   });
 
@@ -135,10 +143,13 @@ describe('ai-intent-self-verify.util (pipe-1.6.1 / pipe-1.6.3)', () => {
   });
 
   it('verifyIntentMatchesPrompt runs booking rule before schedule rule', () => {
-    const result = verifyIntentMatchesPrompt('Clear Gevorg schedule for tomorrow', {
-      action: 'create_booking',
-      params: {},
-    });
+    const result = verifyIntentMatchesPrompt(
+      'Clear Gevorg schedule for tomorrow',
+      {
+        action: 'create_booking',
+        params: {},
+      },
+    );
     expect(result.ruleId).toBe('booking_vs_clear_mismatch');
   });
 
@@ -166,6 +177,8 @@ describe('ai-intent-self-verify.util (pipe-1.6.1 / pipe-1.6.3)', () => {
         confidence: 0.7,
       },
     );
-    expect(intent.reasoning).toContain('Self-verify corrected to clear_schedule');
+    expect(intent.reasoning).toContain(
+      'Self-verify corrected to clear_schedule',
+    );
   });
 });

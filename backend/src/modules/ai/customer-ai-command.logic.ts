@@ -19,10 +19,23 @@ import type { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.
 import type { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import type { AiGuestCheckoutFieldsService } from './ai-explain-guest-checkout-fields.service.js';
 import type { AiResumePendingPaymentService } from './ai-resume-pending-payment.service.js';
+import type { AiDiagnoseStripeCheckoutFailureService } from './ai-diagnose-stripe-checkout-failure.service.js';
+import type { AiPayAtVenueFallbackService } from './ai-pay-at-venue-fallback.service.js';
+import type { AiResumeBookingDraftService } from './ai-resume-booking-draft.service.js';
+import type { AiExplainSlotNoLongerAvailableService } from './ai-explain-slot-no-longer-available.service.js';
+import type { AiExplainMultiServicePaymentReturnService } from './ai-explain-multi-service-payment-return.service.js';
+import type { AiRetryFailedNetworkActionService } from './ai-retry-failed-network-action.service.js';
+import type { AiExplainVoiceInputService } from './ai-explain-voice-input.service.js';
+import type { AiSpeakAssistantReplyService } from './ai-speak-assistant-reply.service.js';
+import type { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
+import type { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
 import type { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
-import { mergeCustomerCompoundContext, isPublicOnlyAssistantAction } from './customer-ai-command.util.js';
+import {
+  mergeCustomerCompoundContext,
+  isPublicOnlyAssistantAction,
+} from './customer-ai-command.util.js';
 import type { CheckProvidersHandoff } from './ai-check-book-handoff.util.js';
 import type { ProviderAvailabilityRow } from './ai-provider-availability.util.js';
 import type { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-location.service.js';
@@ -54,6 +67,16 @@ export interface CustomerAiCommandLogicDeps {
   clinicBooking: AiClinicBookingService;
   guestCheckoutFields: AiGuestCheckoutFieldsService;
   resumePendingPayment: AiResumePendingPaymentService;
+  diagnoseStripeCheckoutFailure: AiDiagnoseStripeCheckoutFailureService;
+  payAtVenueFallback: AiPayAtVenueFallbackService;
+  resumeBookingDraft: AiResumeBookingDraftService;
+  explainSlotNoLongerAvailable: AiExplainSlotNoLongerAvailableService;
+  explainMultiServicePaymentReturn: AiExplainMultiServicePaymentReturnService;
+  retryFailedNetworkAction: AiRetryFailedNetworkActionService;
+  explainVoiceInput: AiExplainVoiceInputService;
+  speakAssistantReply: AiSpeakAssistantReplyService;
+  giveAiFeedback: AiGiveAiFeedbackService;
+  explainRtlLayout: AiExplainRtlLayoutService;
   consumerAdoption: AiConsumerAdoptionService;
   runPublicAssistantStep?: (
     businessId: string,
@@ -129,8 +152,7 @@ function withCustomerSession(
       params.bookingFirstAvailable ?? session.bookingFirstAvailable,
     timeFrom: params.timeFrom ?? session.timeFrom,
     serviceId:
-      params.serviceId ??
-      (params.serviceName ? undefined : session.serviceId),
+      params.serviceId ?? (params.serviceName ? undefined : session.serviceId),
     employeeId: params.employeeId ?? session.employeeId,
     maxPrice: params.maxPrice ?? session.maxPrice,
     serviceRank:
@@ -174,6 +196,20 @@ export async function dispatchCustomerIntent(
   }
 
   if (isAiBusinessHoursLocationIntentForSurface(action, 'customer')) {
+    if (action === 'get_directions_to_salon') {
+      return deps.businessHoursLocation.handleGetDirectionsToSalon(
+        businessId,
+        p,
+        prompt,
+      );
+    }
+    if (action === 'explain_salon_profile') {
+      return deps.businessHoursLocation.handleExplainSalonProfile(
+        businessId,
+        p,
+        prompt,
+      );
+    }
     return deps.businessHoursLocation.handleExplainBusinessHoursAndLocation(
       businessId,
       p,
@@ -182,6 +218,34 @@ export async function dispatchCustomerIntent(
   }
 
   if (isAiProviderSpecialtyIntentForSurface(action, 'customer')) {
+    if (action === 'explain_any_provider_option') {
+      return deps.providerSpecialty.handleExplainAnyProviderOption(
+        businessId,
+        p,
+        prompt,
+      );
+    }
+    if (action === 'pick_provider_for_service') {
+      return deps.providerSpecialty.handlePickProviderForService(
+        businessId,
+        p,
+        prompt,
+      );
+    }
+    if (action === 'switch_provider_same_time') {
+      return deps.providerSpecialty.handleSwitchProviderSameTime(
+        businessId,
+        p,
+        prompt,
+      );
+    }
+    if (action === 'explain_professional_profile') {
+      return deps.providerSpecialty.handleExplainProfessionalProfile(
+        businessId,
+        p,
+        prompt,
+      );
+    }
     return deps.providerSpecialty.handleExplainProviderSpecialty(
       businessId,
       p,
@@ -192,16 +256,34 @@ export async function dispatchCustomerIntent(
   switch (action) {
     case 'my_profile':
       return deps.customerCrm.handleMyProfile(businessId, p);
+    case 'update_my_profile':
+      return deps.customerCrm.handleUpdateMyProfile(businessId, p, prompt);
     case 'my_appointments':
       return deps.customerCrm.handleMyAppointments(businessId, p);
     case 'my_subscriptions':
       return deps.customerCrm.handleMySubscriptions(businessId, p);
+    case 'explain_my_subscription':
+      return deps.customerCrm.handleExplainMySubscription(
+        businessId,
+        p,
+        prompt,
+      );
     case 'subscription_usage':
       return deps.customerCrm.handleSubscriptionUsage(businessId, p);
     case 'my_gift_cards':
       return deps.customerCrm.handleMyGiftCards(businessId, p);
     case 'gift_card_balance':
       return deps.customerCrm.handleGiftCardBalance(businessId, p);
+    case 'claim_gift_card_balance':
+      return deps.customerCrm.handleClaimGiftCardBalance(
+        businessId,
+        {
+          ...p,
+          sessionCustomerId:
+            (p.sessionCustomerId as string | undefined) ?? session.customerId,
+        },
+        prompt,
+      );
     case 'gift_card_redemption_history':
       return deps.customerCrm.handleGiftCardRedemptionHistory(businessId, p);
     case 'request_gift_card_cancel':
@@ -211,9 +293,9 @@ export async function dispatchCustomerIntent(
     case 'track_physical_gift_card_order':
       return deps.customerCrm.handleTrackPhysicalGiftCardOrder(businessId, p);
     case 'privacy_export':
-      return deps.customerCrm.handlePrivacyExport(businessId, p);
+      return deps.customerCrm.handlePrivacyExport(businessId, p, prompt);
     case 'privacy_delete':
-      return deps.customerCrm.handlePrivacyDelete(businessId, p);
+      return deps.customerCrm.handlePrivacyDelete(businessId, p, prompt);
     case 'discover_packages':
       return deps.customerCrm.handleDiscoverPackages(businessId);
     case 'discover_subscription_plans':
@@ -255,6 +337,18 @@ export async function dispatchCustomerIntent(
       return deps.tourService.handleExplainTourDaySlots(businessId, p, prompt);
     case 'diagnose_tour_capacity':
       return deps.tourService.handleDiagnoseTourCapacity(businessId, p, prompt);
+    case 'explain_tour_booking_record':
+      return deps.tourService.handleExplainTourBookingRecord(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_tour_meeting_point':
+      return deps.tourService.handleExplainTourMeetingPoint(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_checkout_recommendations':
       return deps.recommendationProduct.handleExplainCheckoutRecommendations(
         businessId,
@@ -267,13 +361,28 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'dismiss_recommendations':
+      return deps.recommendationProduct.handleDismissRecommendations(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_my_notifications':
     case 'manage_notification_preferences':
+    case 'enable_push_notifications':
+    case 'explain_push_permission':
+    case 'explain_offline_mode':
+    case 'explain_app_update_required':
+    case 'explain_analytics_consent':
+    case 'explain_home_screen_widget':
+    case 'explain_patient_alert':
+    case 'explain_share_reward':
     case 'refer_a_friend':
     case 'share_salon_link':
     case 'share_my_booking':
     case 'rebook_last_appointment':
     case 'find_my_saved_salons':
+    case 'switch_salon_tenant':
       return (
         (await deps.consumerAdoption.handleIntent(
           businessId,
@@ -296,7 +405,7 @@ export async function dispatchCustomerIntent(
     case 'explain_checkout_currency':
       return deps.businessCurrency.handleExplainCheckoutCurrency(businessId);
     case 'explain_checkout_tax':
-      return deps.businessTax.handleExplainCheckoutTax(businessId);
+      return deps.businessTax.handleExplainCheckoutTax(businessId, p, prompt);
     case 'explain_data_rights':
       return deps.businessCompliance.handleExplainDataRights(
         businessId,
@@ -315,6 +424,30 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'track_lab_order_status':
+      return deps.consumerClinicTestResults.handleTrackLabOrderStatus(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'list_my_documents':
+      return deps.consumerClinicTestResults.handleListMyDocuments(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_abnormal_result_flag':
+      return deps.consumerClinicTestResults.handleExplainAbnormalResultFlag(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'notify_when_results_ready':
+      return deps.consumerClinicTestResults.handleNotifyWhenResultsReady(
+        businessId,
+        p,
+        prompt,
+      );
     case 'list_my_lab_booking_requests':
       return deps.clinicLabBooking.handleListMyLabBookingRequests(
         businessId,
@@ -327,8 +460,34 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'book_lab_from_order':
+      return deps.clinicLabBooking.handleBookLabFromOrder(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_clinic_booking':
       return deps.clinicBooking.handleExplainClinicBooking(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_lab_prep':
+      return deps.clinicBooking.handleExplainLabPrep(businessId, p, prompt);
+    case 'explain_clinic_booking_fields':
+      return deps.clinicBooking.handleExplainClinicBookingFields(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_public_intake_form':
+      return deps.clinicBooking.handleExplainPublicIntakeForm(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'complete_intake_and_book':
+      return deps.clinicBooking.handleCompleteIntakeAndBook(
         businessId,
         p,
         prompt,
@@ -339,8 +498,85 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'explain_why_sign_in':
+      return deps.guestCheckoutFields.handleExplainWhySignIn(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'fix_checkout_validation_error':
+      return deps.guestCheckoutFields.handleFixCheckoutValidationError(
+        businessId,
+        p,
+        prompt,
+      );
     case 'resume_pending_payment':
       return deps.resumePendingPayment.handleResumePendingPayment(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'diagnose_stripe_checkout_failure':
+      return deps.diagnoseStripeCheckoutFailure.handleDiagnoseStripeCheckoutFailure(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'pay_at_venue_fallback':
+      return deps.payAtVenueFallback.handlePayAtVenueFallback(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'resume_booking_draft':
+      return deps.resumeBookingDraft.handleResumeBookingDraft(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_slot_no_longer_available':
+      return deps.explainSlotNoLongerAvailable.handleExplainSlotNoLongerAvailable(
+        businessId,
+        p,
+        prompt,
+        deps.runPublicAssistantStep
+          ? async (availParams) =>
+              deps.runPublicAssistantStep!(
+                businessId,
+                'check_availability',
+                availParams,
+                session,
+              )
+          : undefined,
+      );
+    case 'explain_multi_service_payment_return':
+      return deps.explainMultiServicePaymentReturn.handleExplainMultiServicePaymentReturn(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'retry_failed_network_action':
+      return deps.retryFailedNetworkAction.handleRetryFailedNetworkAction(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_voice_input':
+      return deps.explainVoiceInput.handleExplainVoiceInput(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'speak_assistant_reply':
+      return deps.speakAssistantReply.handleSpeakAssistantReply(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'give_ai_feedback':
+      return deps.giveAiFeedback.handleGiveAiFeedback(businessId, p, prompt);
+    case 'explain_rtl_layout':
+      return deps.explainRtlLayout.handleExplainRtlLayout(
         businessId,
         p,
         prompt,
@@ -381,8 +617,30 @@ export async function dispatchCustomerIntent(
       return deps.marketingGrowth.handleSwitchToConsumerApp(businessId);
     case 'promo_code_help':
       return deps.marketingGrowth.handlePromoCodeHelp(businessId, p, prompt);
+    case 'apply_promo_code_checkout':
+      return deps.marketingGrowth.handleApplyPromoCodeCheckout(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'apply_loyalty_at_checkout':
+      return deps.marketingGrowth.handleApplyLoyaltyAtCheckout(
+        businessId,
+        {
+          ...p,
+          sessionCustomerId:
+            (p.sessionCustomerId as string | undefined) ?? session.customerId,
+        },
+        prompt,
+      );
     case 'loyalty_points_balance':
       return deps.marketingGrowth.handleLoyaltyPointsBalance(businessId, p);
+    case 'explain_loyalty_points':
+      return deps.marketingGrowth.handleExplainLoyaltyPoints(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_last_push':
       return deps.pushNotifications.handleExplainLastPush(p);
     case 'open_booking_from_push':
@@ -432,7 +690,11 @@ export async function dispatchCustomerIntent(
     case 'use_subscription_credit':
       return deps.selfServiceBooking.handleUseSubscriptionCredit(businessId, p);
     case 'cancel_my_booking':
-      return deps.selfServiceBooking.handleCancelMyBooking(businessId, p, prompt);
+      return deps.selfServiceBooking.handleCancelMyBooking(
+        businessId,
+        p,
+        prompt,
+      );
     case 'reschedule_my_booking':
       return deps.selfServiceBooking.handleRescheduleMyBooking(
         businessId,
@@ -443,14 +705,46 @@ export async function dispatchCustomerIntent(
       return deps.selfServiceBooking.handleCancelPackageVisitSelf(
         businessId,
         p,
+        prompt,
       );
     case 'reschedule_package_visit_self':
       return deps.selfServiceBooking.handleReschedulePackageVisitSelf(
         businessId,
         p,
+        prompt,
       );
     case 'list_my_appointments':
       return deps.selfServiceBooking.handleListMyAppointments(businessId, p);
+    case 'list_my_upcoming_appointments':
+      return deps.selfServiceBooking.handleListMyUpcomingAppointments(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'confirm_my_booking_details':
+      return deps.selfServiceBooking.handleConfirmMyBookingDetails(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'add_booking_to_calendar':
+      return deps.selfServiceBooking.handleAddBookingToCalendar(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_preparation_notes':
+      return deps.selfServiceBooking.handleExplainPreparationNotes(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'book_another_service':
+      return deps.selfServiceBooking.handleBookAnotherService(
+        businessId,
+        p,
+        prompt,
+      );
     case 'list_my_package_visits':
       return deps.selfServiceBooking.handleListMyPackageVisits(
         businessId,
@@ -458,9 +752,85 @@ export async function dispatchCustomerIntent(
         prompt,
       );
     case 'get_manage_link':
-      return deps.selfServiceBooking.handleGetManageLink(businessId, p);
+      return deps.selfServiceBooking.handleGetManageLink(businessId, p, prompt);
+    case 'recover_lost_manage_link':
+      return deps.selfServiceBooking.handleRecoverLostManageLink(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'sign_in_to_manage_booking':
+      return deps.selfServiceBooking.handleSignInToManageBooking(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_manage_booking_page':
+      return deps.selfServiceBooking.handleExplainManageBookingPage(
+        businessId,
+        {
+          ...p,
+          sessionCustomerId:
+            (p.sessionCustomerId as string | undefined) ?? session.customerId,
+        },
+        prompt,
+      );
+    case 'notify_running_late':
+      return deps.selfServiceBooking.handleNotifyRunningLate(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'leave_visit_review':
+      return deps.selfServiceBooking.handleLeaveVisitReview(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'join_waitlist':
+      return deps.selfServiceBooking.handleJoinWaitlist(businessId, p, prompt);
+    case 'check_waitlist_status':
+      return deps.selfServiceBooking.handleCheckWaitlistStatus(
+        businessId,
+        p,
+        prompt,
+      );
     case 'explain_cancel_policy':
-      return deps.selfServiceBooking.handleExplainCancelPolicy(businessId, p);
+      return deps.selfServiceBooking.handleExplainCancelPolicy(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_deposit_forfeiture':
+      return deps.selfServiceBooking.handleExplainDepositForfeiture(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_package_visit_rules':
+      return deps.selfServiceBooking.handleExplainPackageVisitRules(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_post_visit_review_prompt':
+      return deps.selfServiceBooking.handleExplainPostVisitReviewPrompt(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'report_booking_problem':
+      return deps.selfServiceBooking.handleReportBookingProblem(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'sign_in_after_booking':
+      return deps.selfServiceBooking.handleSignInAfterBooking(
+        businessId,
+        p,
+        prompt,
+      );
     case 'book_with_cash':
       return deps.selfServiceBooking.handleBookWithCash(businessId, p);
     case 'book_with_gift_card':
@@ -476,6 +846,24 @@ export async function dispatchCustomerIntent(
       return deps.selfServiceBooking.handleRemoveServiceFromCart(businessId, p);
     case 'show_cart_total_duration':
       return deps.selfServiceBooking.handleShowCartTotalDuration(businessId, p);
+    case 'explain_multi_service_cart':
+      return deps.selfServiceBooking.handleExplainMultiServiceCart(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_package_savings':
+      return deps.selfServiceBooking.handleExplainPackageSavings(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'explain_subscription_vs_one_time':
+      return deps.selfServiceBooking.handleExplainSubscriptionVsOneTime(
+        businessId,
+        p,
+        prompt,
+      );
     default:
       return {
         success: false,

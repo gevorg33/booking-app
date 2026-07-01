@@ -34,6 +34,5 @@ export const GUIDE_TOPIC_ZENDESK_ARTICLE_IDS: Readonly<Record<string, string>> =
   );
 
 /** Every top-20 flow topic should be mappable (Zendesk id optional). */
-export const GUIDE_TOP_FLOW_TOPIC_IDS: readonly string[] = TOP_APP_GUIDE_FLOWS.map(
-  (flow) => flow.topicId,
-);
+export const GUIDE_TOP_FLOW_TOPIC_IDS: readonly string[] =
+  TOP_APP_GUIDE_FLOWS.map((flow) => flow.topicId);

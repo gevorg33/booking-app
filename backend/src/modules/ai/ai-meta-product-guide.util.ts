@@ -1,5 +1,8 @@
 import type { AppGuideIntent } from './ai-product-guide.util.js';
-import type { CommandResult, GuideResponse } from './command-completion.types.js';
+import type {
+  CommandResult,
+  GuideResponse,
+} from './command-completion.types.js';
 import type { AiProductGuideService } from './ai-product-guide.service.js';
 import {
   buildGuideResponseForMultiTurnStep,
@@ -55,7 +58,9 @@ export function isProviderMetaGuideIntent(
   return (PROVIDER_META_GUIDE_INTENTS as readonly string[]).includes(action);
 }
 
-export function resolveMetaGuideAppIntent(intent: MetaProductGuideIntent): AppGuideIntent {
+export function resolveMetaGuideAppIntent(
+  intent: MetaProductGuideIntent,
+): AppGuideIntent {
   return META_GUIDE_APP_INTENT_BY_INTENT[intent];
 }
 
@@ -104,7 +109,8 @@ export function resolveMetaGuideStepIndex(
 ): number | undefined {
   if (intent !== 'explain_ai_suggestions') return undefined;
   const raw = params.guideStepIndex ?? params.stepIndex;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.floor(raw));
+  if (typeof raw === 'number' && Number.isFinite(raw))
+    return Math.max(0, Math.floor(raw));
   if (typeof raw === 'string' && raw.trim()) {
     const parsed = Number.parseInt(raw, 10);
     if (Number.isFinite(parsed)) return Math.max(0, parsed);
@@ -156,7 +162,10 @@ export function positionMetaGuideAtStep(
     ...createInitialGuideMultiTurnSession(topicId),
     guideStepIndex: stepIndex,
   };
-  const positionedGuide = buildGuideResponseForMultiTurnStep(result.guide, session);
+  const positionedGuide = buildGuideResponseForMultiTurnStep(
+    result.guide,
+    session,
+  );
   const nextResult: CommandResult = {
     ...result,
     guide: positionedGuide,
@@ -167,7 +176,11 @@ export function positionMetaGuideAtStep(
       suggestionStepIndex: stepIndex,
     },
   };
-  return attachGuideMultiTurnSessionToResult(nextResult, session, sessionContext);
+  return attachGuideMultiTurnSessionToResult(
+    nextResult,
+    session,
+    sessionContext,
+  );
 }
 
 export function buildMetaGuideCommandResult(
@@ -194,7 +207,11 @@ export function rewriteMetaGuideCommandResult(
   result: CommandResult,
 ): CommandResult {
   if (!result.guide) return { ...result, action: metaIntent };
-  return buildMetaGuideCommandResult(metaIntent, result.guide, result.details ?? {});
+  return buildMetaGuideCommandResult(
+    metaIntent,
+    result.guide,
+    result.details ?? {},
+  );
 }
 
 /** ai-guide-1.8.7 — meta guide intents → AiProductGuideService playbooks. */
@@ -253,7 +270,9 @@ export async function runMetaProductGuideIntent(input: {
     appIntent === 'explain_app_feature'
       ? input.productGuide.handleExplainAppFeatureAsync.bind(input.productGuide)
       : appIntent === 'explain_current_screen'
-        ? input.productGuide.handleExplainCurrentScreenAsync.bind(input.productGuide)
+        ? input.productGuide.handleExplainCurrentScreenAsync.bind(
+            input.productGuide,
+          )
         : input.productGuide.handleGuideUserFlowAsync.bind(input.productGuide);
 
   const raw = await handler(

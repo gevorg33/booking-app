@@ -76,7 +76,8 @@ export function impliesAnyProviderBookingFromSemantic(
   surfaces: readonly CommandSurface[] = DEFAULT_ANY_PROVIDER_BOOKING_SURFACES,
 ): boolean {
   return surfaces.some(
-    (surface) => resolveAnyProviderBookingSemanticHints(prompt, surface) != null,
+    (surface) =>
+      resolveAnyProviderBookingSemanticHints(prompt, surface) != null,
   );
 }
 

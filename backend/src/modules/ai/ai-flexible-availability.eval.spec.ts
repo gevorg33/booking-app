@@ -63,9 +63,9 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
         (entry) => entry.surface === 'customer',
       ),
     ).toBe(true);
-    expect(AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES.length).toBeGreaterThanOrEqual(
-      16,
-    );
+    expect(
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CASES.length,
+    ).toBeGreaterThanOrEqual(16);
     expect(
       AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.length,
     ).toBeGreaterThanOrEqual(8);
@@ -88,9 +88,10 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
     const publicIds = AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
       (entry) => entry.id.replace('avail-public-', ''),
     ).filter((id) => bothSurfaceIds.has(id));
-    const customerIds = AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
-      (entry) => entry.id.replace('avail-customer-', ''),
-    ).filter((id) => bothSurfaceIds.has(id));
+    const customerIds =
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) =>
+        entry.id.replace('avail-customer-', ''),
+      ).filter((id) => bothSurfaceIds.has(id));
     expect(publicIds.sort()).toEqual(customerIds.sort());
   });
 
@@ -107,9 +108,9 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
     const scenario = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find(
       (entry) => entry.id === 'avail-or-tomorrow-friday-en',
     )!;
-    expect(
-      mapFlexibleAvailabilityActionForSurface(scenario, 'customer'),
-    ).toBe('check_providers_for_service');
+    expect(mapFlexibleAvailabilityActionForSurface(scenario, 'customer')).toBe(
+      'check_providers_for_service',
+    );
     expect(mapFlexibleAvailabilityActionForSurface(scenario, 'public')).toBe(
       'check_availability',
     );
@@ -126,10 +127,14 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
       flexibleAvailabilityScenarioEligibleForEval(scenario, 'customer'),
     ).toBe(true);
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-public-avail-voice-asap-or-en');
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-customer-avail-voice-asap-or-en');
   });
 
@@ -144,10 +149,14 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
       flexibleAvailabilityScenarioEligibleForEval(scenario, 'customer'),
     ).toBe(true);
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-public-avail-or-any-provider-en');
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-customer-avail-or-any-provider-en');
   });
 
@@ -162,10 +171,14 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
       flexibleAvailabilityScenarioEligibleForEval(scenario, 'customer'),
     ).toBe(true);
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-public-avail-or-named-fallback-en');
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-customer-avail-or-named-fallback-en');
   });
 
@@ -180,14 +193,18 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
       flexibleAvailabilityScenarioEligibleForEval(scenario, 'customer'),
     ).toBe(true);
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-public-avail-imperative-en');
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
+        (entry) => entry.id,
+      ),
     ).toContain('avail-customer-avail-imperative-en');
   });
 
-  it('maps section J consumer chip to customer-only eval row', () => {
+  it('maps section J consumer chip to dedicated find_evening_weekend_slots eval', () => {
     const scenario = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find(
       (entry) => entry.id === 'avail-voice-chip-en',
     )!;
@@ -199,12 +216,16 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
     ).toBe(false);
     expect(
       flexibleAvailabilityScenarioEligibleForEval(scenario, 'customer'),
-    ).toBe(true);
+    ).toBe(false);
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map((entry) => entry.id),
-    ).toContain('avail-customer-avail-voice-chip-en');
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_CUSTOMER_CASES.map(
+        (entry) => entry.id,
+      ),
+    ).not.toContain('avail-customer-avail-voice-chip-en');
     expect(
-      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map((entry) => entry.id),
+      AI_COMMAND_EVAL_FLEXIBLE_AVAILABILITY_PUBLIC_CASES.map(
+        (entry) => entry.id,
+      ),
     ).not.toContain('avail-public-avail-voice-chip-en');
   });
 
@@ -220,7 +241,9 @@ describe('ai flexible availability eval cases (avail-1.11)', () => {
       'check_availability',
       'book_appointment',
     ]);
-    expect(evalCase.expect.compoundStepParams?.[0]?.paramsPartial).toMatchObject({
+    expect(
+      evalCase.expect.compoundStepParams?.[0]?.paramsPartial,
+    ).toMatchObject({
       maxPrice: 50,
       serviceCategory: 'haircut',
     });

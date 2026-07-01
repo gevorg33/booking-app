@@ -121,9 +121,9 @@ function buildProviderEarningsMultilingualScenarios(): ProviderEarningsMultiling
 }
 
 export const PROVIDER_EARNINGS_EN_SCENARIO_IDS: string[] =
-  PROVIDER_EARNINGS_PROMPT_SCENARIOS.filter((row) => row.id.endsWith('-en')).map(
-    (row) => row.id,
-  );
+  PROVIDER_EARNINGS_PROMPT_SCENARIOS.filter((row) =>
+    row.id.endsWith('-en'),
+  ).map((row) => row.id);
 
 export const PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS: ProviderEarningsMultilingualScenario[] =
   buildProviderEarningsMultilingualScenarios();

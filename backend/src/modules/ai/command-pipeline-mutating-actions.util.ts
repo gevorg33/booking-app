@@ -190,7 +190,5 @@ export function shouldBlockLowConfidencePipelineMutate(
   confidence: number,
   lowThreshold: number,
 ): boolean {
-  return (
-    isDashboardPipelineMutatingAction(action) && confidence < lowThreshold
-  );
+  return isDashboardPipelineMutatingAction(action) && confidence < lowThreshold;
 }

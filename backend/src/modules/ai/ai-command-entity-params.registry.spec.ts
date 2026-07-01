@@ -85,12 +85,12 @@ describe('ai-command-entity-params.registry', () => {
     );
 
     it('maps upload and explain to orderId; configure to measurement + range', () => {
-      expect(getRequiredClinicTestResultExtParams('upload_patient_result')).toEqual(
-        ['orderId'],
-      );
-      expect(getRequiredClinicTestResultExtParams('explain_patient_results')).toEqual(
-        [],
-      );
+      expect(
+        getRequiredClinicTestResultExtParams('upload_patient_result'),
+      ).toEqual(['orderId']);
+      expect(
+        getRequiredClinicTestResultExtParams('explain_patient_results'),
+      ).toEqual([]);
       expect(
         getClinicTestResultExtIntentParamSpec('explain_patient_results')
           ?.requireAnyOf,
@@ -98,9 +98,9 @@ describe('ai-command-entity-params.registry', () => {
       expect(
         getRequiredClinicTestResultExtParams('configure_test_reference_range'),
       ).toEqual(['measurementCode', 'normalLow', 'normalHigh']);
-      expect(getOptionalClinicTestResultExtParams('list_abnormal_results')).toEqual(
-        ['customerName', 'limit'],
-      );
+      expect(
+        getOptionalClinicTestResultExtParams('list_abnormal_results'),
+      ).toEqual(['customerName', 'limit']);
       expect(listClinicTestResultExtIntentsForParam('orderId')).toEqual([
         'upload_patient_result',
         'explain_patient_results',

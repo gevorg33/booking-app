@@ -67,9 +67,7 @@ export function buildCustomerUnderstandInput(
 }
 
 @Injectable()
-export class CustomerCommandUnderstandingAdapter
-  implements CommandUnderstandingSurfaceAdapter<CustomerUnderstandDeps>
-{
+export class CustomerCommandUnderstandingAdapter implements CommandUnderstandingSurfaceAdapter<CustomerUnderstandDeps> {
   readonly surface = CUSTOMER_COMMAND_UNDERSTANDING_SURFACE;
 
   constructor(

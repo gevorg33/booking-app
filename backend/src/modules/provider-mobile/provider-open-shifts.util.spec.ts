@@ -21,18 +21,20 @@ describe('provider-open-shifts.util (prov-exp-7.3)', () => {
   it.each(PROVIDER_OPEN_SHIFTS_SETTINGS_SCENARIOS)(
     'reads settings $id',
     (scenario) => {
-      expect(isProviderOpenShiftsEnabled(readProviderOpenShiftsSettings(scenario.raw))).toBe(
-        scenario.expectedEnabled,
-      );
+      expect(
+        isProviderOpenShiftsEnabled(
+          readProviderOpenShiftsSettings(scenario.raw),
+        ),
+      ).toBe(scenario.expectedEnabled);
     },
   );
 
   it.each(PROVIDER_OPEN_SHIFTS_GAP_DURATION_SCENARIOS)(
     'computes gap duration $id',
     (scenario) => {
-      expect(
-        gapDurationMinutes(scenario.startTime, scenario.endTime),
-      ).toBe(scenario.expectedMinutes);
+      expect(gapDurationMinutes(scenario.startTime, scenario.endTime)).toBe(
+        scenario.expectedMinutes,
+      );
     },
   );
 
@@ -44,12 +46,18 @@ describe('provider-open-shifts.util (prov-exp-7.3)', () => {
   );
 
   it('builds fill-gap AI prompt', () => {
-    expect(buildFillGapAiPrompt('2026-06-09', { startTime: '14:00', endTime: '15:30' })).toContain(
-      '2026-06-09',
-    );
-    expect(buildFillGapAiPrompt('2026-06-09', { startTime: '14:00', endTime: '15:30' })).toContain(
-      '14:00',
-    );
+    expect(
+      buildFillGapAiPrompt('2026-06-09', {
+        startTime: '14:00',
+        endTime: '15:30',
+      }),
+    ).toContain('2026-06-09');
+    expect(
+      buildFillGapAiPrompt('2026-06-09', {
+        startTime: '14:00',
+        endTime: '15:30',
+      }),
+    ).toContain('14:00');
   });
 
   it('extracts gap window from prompt', () => {
@@ -78,7 +86,9 @@ describe('provider-open-shifts.util (prov-exp-7.3)', () => {
         endTime: new Date('2026-06-09T11:00:00.000Z'),
       },
     ]);
-    expect(gaps.some((gap) => gap.startTime === '09:00' && gap.endTime === '10:00')).toBe(true);
+    expect(
+      gaps.some((gap) => gap.startTime === '09:00' && gap.endTime === '10:00'),
+    ).toBe(true);
     expect(gaps.some((gap) => gap.startTime === '11:00')).toBe(true);
   });
 

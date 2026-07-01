@@ -23,7 +23,9 @@ function resolveSnapshotPath(): string {
   for (const path of candidates) {
     if (existsSync(path)) return path;
   }
-  throw new Error(`missing guide corpus i18n snapshot: ${candidates.join(' or ')}`);
+  throw new Error(
+    `missing guide corpus i18n snapshot: ${candidates.join(' or ')}`,
+  );
 }
 
 function loadGuideCorpusI18nSnapshot(): GuideCorpusI18nSnapshot {

@@ -14,7 +14,9 @@ describe('ai-provider-team-whos-next.util (prov-exp-4.3)', () => {
   it.each(SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS)(
     'maps fixture prompt $id to team_whos_next',
     (scenario) => {
-      expect(rescueProviderTeamWhosNextIntent(scenario.prompt, 'unknown')).toEqual({
+      expect(
+        rescueProviderTeamWhosNextIntent(scenario.prompt, 'unknown'),
+      ).toEqual({
         action: 'team_whos_next',
         rescueReason: 'team_whos_next',
       });

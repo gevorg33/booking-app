@@ -20,9 +20,7 @@ describe('ai-structural-extractors boundary (pipe-1.13.3 / acc-3.14)', () => {
     );
     expect(content).toContain(STRUCTURAL_EXTRACTORS_PIPE_MARKER);
     for (const symbol of STRUCTURAL_EXTRACTORS_FORBIDDEN_PARAPHRASE_SYMBOLS) {
-      expect(content).not.toMatch(
-        new RegExp(`export function ${symbol}\\b`),
-      );
+      expect(content).not.toMatch(new RegExp(`export function ${symbol}\\b`));
     }
   });
 

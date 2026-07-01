@@ -60,12 +60,14 @@ export function computeLocaleActivationSpread(
 ): number {
   const rates = ADOPTION_EXIT_PRIMARY_LOCALES.map((locale) => byLocale[locale])
     .filter((row) => row && row.installs >= minInstalls)
-    .map((row) => row!.activationRate);
+    .map((row) => row.activationRate);
   if (rates.length < 2) return 0;
   return Math.max(...rates) - Math.min(...rates);
 }
 
-export function buildAdoptionExitGate(input: AdoptionExitGateInput): AdoptionExitGateResult {
+export function buildAdoptionExitGate(
+  input: AdoptionExitGateInput,
+): AdoptionExitGateResult {
   const criteria: AdoptionExitGateCriterion[] = [
     {
       id: 'activation',

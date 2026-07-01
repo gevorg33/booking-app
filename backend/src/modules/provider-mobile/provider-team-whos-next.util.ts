@@ -109,11 +109,9 @@ export function isBookingInTeamWhosNextWindow(
   );
 }
 
-export function filterBookingsInTeamWhosNextWindow<T extends TeamWhosNextBookingLike>(
-  bookings: T[],
-  timeZone: string,
-  now: Date = new Date(),
-): T[] {
+export function filterBookingsInTeamWhosNextWindow<
+  T extends TeamWhosNextBookingLike,
+>(bookings: T[], timeZone: string, now: Date = new Date()): T[] {
   return bookings.filter((booking) =>
     isBookingInTeamWhosNextWindow(booking, timeZone, now),
   );
@@ -234,17 +232,13 @@ export function isTeamWhosNextPrompt(prompt: string): boolean {
     return true;
   }
   if (/[\u0530-\u058F]/.test(prompt)) {
-    return (
-      /(թիմ.*(հաջորդ|next)|next.*2.*(ժամ|hour).*թիմ|հաջորդ.*2.*ժամ.*թիմ|(բոլոր.*provider|provider.*բոլոր).*(հաջորդ|next)|(հաջորդ|next).*(բոլոր.*provider|provider.*բոլոր))/i.test(
-        prompt,
-      )
+    return /(թիմ.*(հաջորդ|next)|next.*2.*(ժամ|hour).*թիմ|հաջորդ.*2.*ժամ.*թիմ|(բոլոր.*provider|provider.*բոլոր).*(հաջորդ|next)|(հաջորդ|next).*(բոլոր.*provider|provider.*բոլոր))/i.test(
+      prompt,
     );
   }
   if (/[\u0400-\u04FF]/.test(prompt)) {
-    return (
-      /(команд.*(следующ|next)|следующ.*(команд|2.*час)|всех\s+провайдер.*(следующ|next)|следующ.*всех\s+провайдер)/i.test(
-        prompt,
-      )
+    return /(команд.*(следующ|next)|следующ.*(команд|2.*час)|всех\s+провайдер.*(следующ|next)|следующ.*всех\s+провайдер)/i.test(
+      prompt,
     );
   }
   return false;

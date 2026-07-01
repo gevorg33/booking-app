@@ -42,18 +42,26 @@ export function buildGuideSupportSnapshot(
   return {
     surface: context.surface,
     locale: sanitizeLocale(context.locale),
-    ...(sanitizeRoute(context.route) ? { route: sanitizeRoute(context.route) } : {}),
-    ...(sanitizeTopicId(context.topicId) ? { topicId: sanitizeTopicId(context.topicId) } : {}),
+    ...(sanitizeRoute(context.route)
+      ? { route: sanitizeRoute(context.route) }
+      : {}),
+    ...(sanitizeTopicId(context.topicId)
+      ? { topicId: sanitizeTopicId(context.topicId) }
+      : {}),
   };
 }
 
-export function buildGuideSupportTicketSubject(snapshot: GuideSupportSnapshot): string {
+export function buildGuideSupportTicketSubject(
+  snapshot: GuideSupportSnapshot,
+): string {
   const topic = snapshot.topicId ? ` — ${snapshot.topicId}` : '';
   return `Product guide help${topic} (${snapshot.surface})`;
 }
 
 /** Ticket body with structured snapshot only — no user prompt or PII (ai-guide-1.7.2). */
-export function formatGuideSupportTicketBody(snapshot: GuideSupportSnapshot): string {
+export function formatGuideSupportTicketBody(
+  snapshot: GuideSupportSnapshot,
+): string {
   const lines = [
     'Product guide support handoff (no PII)',
     '',
@@ -100,7 +108,9 @@ export function buildGuideSupportHandoff(
 }
 
 /** Parse params.guideSnapshot from create_support_ticket — rejects unknown/PII keys. */
-export function parseGuideSupportSnapshot(value: unknown): GuideSupportSnapshot | null {
+export function parseGuideSupportSnapshot(
+  value: unknown,
+): GuideSupportSnapshot | null {
   if (!value || typeof value !== 'object') return null;
   const row = value as Record<string, unknown>;
   for (const key of GUIDE_SUPPORT_SNAPSHOT_PII_KEYS) {

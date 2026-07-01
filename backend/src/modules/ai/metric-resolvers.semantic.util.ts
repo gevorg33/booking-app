@@ -18,9 +18,7 @@ export { METRIC_RESOLVERS_SEMANTIC_PIPE_MARKER };
 
 const BOOKING_METRIC_LANGUAGE: Partial<
   Record<
-    NonNullable<
-      ReturnType<typeof resolveBookingMetricFromSemantic>
-    >,
+    NonNullable<ReturnType<typeof resolveBookingMetricFromSemantic>>,
     RegExp
   >
 > = {
@@ -111,7 +109,7 @@ export function resolveMetricSemanticParamHints(
     !match &&
     ranked[0] &&
     ranked[0].score >= SEMANTIC_CONCEPT_THRESHOLD &&
-    METRIC_PARAM_KEYS.some((key) => ranked[0]!.anchor.paramHints?.[key] != null)
+    METRIC_PARAM_KEYS.some((key) => ranked[0].anchor.paramHints?.[key] != null)
   ) {
     match = buildSemanticMatchFromAnchor(ranked[0].anchor, ranked[0].score);
   }
@@ -157,7 +155,10 @@ export function resolveBookingMetricFromSemantic(
   | 'completed'
   | 'overview'
   | null {
-  const metric = resolveMetricSemanticParamHints(prompt, surface)?.bookingMetric;
+  const metric = resolveMetricSemanticParamHints(
+    prompt,
+    surface,
+  )?.bookingMetric;
   const allowed = [
     'count',
     'revenue',
@@ -196,7 +197,10 @@ export function resolveServiceMetricFromSemantic(
   prompt: string,
   surface: CommandSurface = 'dashboard',
 ): ServiceInsightMetric | null {
-  const metric = resolveMetricSemanticParamHints(prompt, surface)?.serviceMetric;
+  const metric = resolveMetricSemanticParamHints(
+    prompt,
+    surface,
+  )?.serviceMetric;
   const allowed: ServiceInsightMetric[] = [
     'most_booked',
     'top_revenue',
@@ -212,7 +216,10 @@ export function resolveCustomerMetricFromSemantic(
   prompt: string,
   surface: CommandSurface = 'dashboard',
 ): CustomerInsightMetric | null {
-  const metric = resolveMetricSemanticParamHints(prompt, surface)?.customerMetric;
+  const metric = resolveMetricSemanticParamHints(
+    prompt,
+    surface,
+  )?.customerMetric;
   const allowed: CustomerInsightMetric[] = [
     'most_no_shows',
     'most_bookings',
@@ -232,15 +239,11 @@ export function resolveCustomerMetricFromSemantic(
 export function resolveAppointmentMetricFromSemantic(
   prompt: string,
   surface: CommandSurface = 'dashboard',
-):
-  | 'most_expensive'
-  | 'longest'
-  | 'shortest'
-  | 'earliest'
-  | 'latest'
-  | null {
-  const metric = resolveMetricSemanticParamHints(prompt, surface)
-    ?.appointmentMetric;
+): 'most_expensive' | 'longest' | 'shortest' | 'earliest' | 'latest' | null {
+  const metric = resolveMetricSemanticParamHints(
+    prompt,
+    surface,
+  )?.appointmentMetric;
   const allowed = [
     'most_expensive',
     'longest',

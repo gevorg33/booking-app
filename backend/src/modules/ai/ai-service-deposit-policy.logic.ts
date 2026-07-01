@@ -1,4 +1,7 @@
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import type { UpdateServiceDto } from '../service/dto/create-service.dto.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { PaymentsLogicDeps } from './ai-payments.logic.js';
@@ -66,7 +69,12 @@ export async function handleConfigureServiceDepositPolicyLogic(
       'Specify deposit policy scope and amount (e.g. "Set 30% deposit on premium tier services").',
       {
         clarify: true,
-        missing: ['depositPercent', 'depositAmount', 'serviceTier', 'featuredOnly'],
+        missing: [
+          'depositPercent',
+          'depositAmount',
+          'serviceTier',
+          'featuredOnly',
+        ],
       },
     );
   }
@@ -117,7 +125,10 @@ export async function handleConfigureServiceDepositPolicyLogic(
 
   try {
     for (const service of targets) {
-      const depositAmount = computeDepositPolicyAmount(Number(service.price), config);
+      const depositAmount = computeDepositPolicyAmount(
+        Number(service.price),
+        config,
+      );
       const updateDto: UpdateServiceDto = {
         prepaymentMode: PrepaymentMode.DEPOSIT,
       };

@@ -63,7 +63,9 @@ describe('ai-budget-service-discovery.fixtures (budget-1.10)', () => {
   it('ships classifier rules with maxPrice semantics', () => {
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('maxPrice');
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('minPrice');
-    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('discover_packages');
+    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain(
+      'discover_packages',
+    );
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('gift card');
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('her cut');
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain(
@@ -116,7 +118,9 @@ describe('ai-budget-service-discovery.fixtures sections I–L (budget-1.12)', ()
   });
 
   it('ships section J currency edge scenarios', () => {
-    expect(BUDGET_CURRENCY_EDGE_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      BUDGET_CURRENCY_EDGE_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'budget-range-en',
       'budget-round-number-en',
       'budget-tenant-amd-en',
@@ -127,7 +131,9 @@ describe('ai-budget-service-discovery.fixtures sections I–L (budget-1.12)', ()
   });
 
   it('ships section K provider/named service scenarios', () => {
-    expect(BUDGET_PROVIDER_NAMED_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      BUDGET_PROVIDER_NAMED_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'budget-named-service-en',
       'budget-any-provider-en',
       'budget-provider-no-match-en',
@@ -162,7 +168,9 @@ describe('ai-budget-service-discovery.fixtures sections I–L (budget-1.12)', ()
     },
   );
 
-  it.each(BUDGET_CURRENCY_EDGE_SCENARIOS.filter((scenario) => !scenario.phase2))(
+  it.each(
+    BUDGET_CURRENCY_EDGE_SCENARIOS.filter((scenario) => !scenario.phase2),
+  )(
     'currency edge scenario $id extracts maxPrice',
     ({ prompt, expectedParams }) => {
       expect(extractMaxPriceFromBudgetPrompt(prompt)).toBe(
@@ -185,13 +193,8 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     'resolveBudgetMisrouteAction customer $id',
     ({ prompt, expectedAction }) => {
       const misroute = resolveBudgetMisrouteAction(prompt);
-      if (
-        expectedAction === 'explain_checkout_currency' &&
-        misroute == null
-      ) {
-        expect(
-          rescueCheckoutCurrencyIntent(prompt, 'list_services'),
-        ).toEqual({
+      if (expectedAction === 'explain_checkout_currency' && misroute == null) {
+        expect(rescueCheckoutCurrencyIntent(prompt, 'list_services')).toEqual({
           action: 'explain_checkout_currency',
           rescueReason: 'explain_checkout_currency',
         });
@@ -204,19 +207,16 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     },
   );
 
-  it.each(BUDGET_DISAMBIGUATION_SCENARIOS.filter(
-    (scenario) => scenario.surface !== 'customer',
-  ))(
+  it.each(
+    BUDGET_DISAMBIGUATION_SCENARIOS.filter(
+      (scenario) => scenario.surface !== 'customer',
+    ),
+  )(
     'resolveBudgetMisrouteActionForSurface public $id',
     ({ prompt, expectedAction, id }) => {
       const misroute = resolveBudgetMisrouteAction(prompt);
-      if (
-        expectedAction === 'explain_checkout_currency' &&
-        misroute == null
-      ) {
-        expect(
-          rescueCheckoutCurrencyIntent(prompt, 'list_services'),
-        ).toEqual({
+      if (expectedAction === 'explain_checkout_currency' && misroute == null) {
+        expect(rescueCheckoutCurrencyIntent(prompt, 'list_services')).toEqual({
           action: 'explain_checkout_currency',
           rescueReason: 'explain_checkout_currency',
         });
@@ -239,13 +239,8 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     'resolveBudgetMisrouteActionForSurface dashboard $id',
     ({ prompt, expectedAction }) => {
       const misroute = resolveBudgetMisrouteAction(prompt);
-      if (
-        expectedAction === 'explain_checkout_currency' &&
-        misroute == null
-      ) {
-        expect(
-          rescueCheckoutCurrencyIntent(prompt, 'list_services'),
-        ).toEqual({
+      if (expectedAction === 'explain_checkout_currency' && misroute == null) {
+        expect(rescueCheckoutCurrencyIntent(prompt, 'list_services')).toEqual({
           action: 'explain_checkout_currency',
           rescueReason: 'explain_checkout_currency',
         });
@@ -358,12 +353,14 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     },
   );
 
-  it.each(BUDGET_HANDLER_OUTCOME_SCENARIOS.filter(
-    (scenario) =>
-      scenario.expectedNavigateServiceId !== undefined &&
-      !scenario.serviceName &&
-      scenario.minDurationMinutes == null,
-  ))(
+  it.each(
+    BUDGET_HANDLER_OUTCOME_SCENARIOS.filter(
+      (scenario) =>
+        scenario.expectedNavigateServiceId !== undefined &&
+        !scenario.serviceName &&
+        scenario.minDurationMinutes == null,
+    ),
+  )(
     'resolveBudgetNavigateServiceId $id',
     ({ services, maxPrice, serviceCategory, expectedNavigateServiceId }) => {
       const matches = applyBudgetDiscoveryToCatalog(services, {
@@ -485,13 +482,8 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     'rescueBudgetServiceDiscoveryIntent customer $id',
     ({ prompt, expectedAction }) => {
       const misroute = resolveBudgetMisrouteAction(prompt);
-      if (
-        expectedAction === 'explain_checkout_currency' &&
-        misroute == null
-      ) {
-        expect(
-          rescueCheckoutCurrencyIntent(prompt, 'list_services'),
-        ).toEqual({
+      if (expectedAction === 'explain_checkout_currency' && misroute == null) {
+        expect(rescueCheckoutCurrencyIntent(prompt, 'list_services')).toEqual({
           action: 'explain_checkout_currency',
           rescueReason: 'explain_checkout_currency',
         });
@@ -506,16 +498,15 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     },
   );
 
-  it.each(BUDGET_DISAMBIGUATION_SCENARIOS.filter(
-    (scenario) => scenario.surface !== 'customer',
-  ))(
+  it.each(
+    BUDGET_DISAMBIGUATION_SCENARIOS.filter(
+      (scenario) => scenario.surface !== 'customer',
+    ),
+  )(
     'rescueBudgetServiceDiscoveryIntent public $id',
     ({ prompt, expectedAction }) => {
       const misroute = resolveBudgetMisrouteAction(prompt);
-      if (
-        expectedAction === 'explain_checkout_currency' &&
-        misroute == null
-      ) {
+      if (expectedAction === 'explain_checkout_currency' && misroute == null) {
         expect(rescueCheckoutCurrencyIntent(prompt, 'list_services')).toEqual({
           action: 'explain_checkout_currency',
           rescueReason: 'explain_checkout_currency',
@@ -592,9 +583,9 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
   });
 
   it('budgetScenarioAppliesToSurface respects both/public/customer tags', () => {
-    expect(
-      budgetScenarioAppliesToSurface({ surface: 'both' }, 'public'),
-    ).toBe(true);
+    expect(budgetScenarioAppliesToSurface({ surface: 'both' }, 'public')).toBe(
+      true,
+    );
     expect(
       budgetScenarioAppliesToSurface({ surface: 'customer' }, 'public'),
     ).toBe(false);
@@ -617,12 +608,17 @@ describe('budget negative routing for accuracy eval (acc-2)', () => {
     'Mark City Tour as a tour with max 12 people',
   ];
 
-  it.each(blockedPrompts)('does not budget-rescue administrative prompt %p', (prompt) => {
-    expect(isBudgetAdministrativeOrExplainContext(prompt)).toBe(true);
-    expect(extractMaxPriceFromBudgetPrompt(prompt)).toBeNull();
-    expect(rescueBudgetServiceDiscoveryIntent(prompt, 'unknown')).toBeNull();
-    expect(rescueBudgetServiceDiscoveryIntent(prompt, 'list_services')).toBeNull();
-  });
+  it.each(blockedPrompts)(
+    'does not budget-rescue administrative prompt %p',
+    (prompt) => {
+      expect(isBudgetAdministrativeOrExplainContext(prompt)).toBe(true);
+      expect(extractMaxPriceFromBudgetPrompt(prompt)).toBeNull();
+      expect(rescueBudgetServiceDiscoveryIntent(prompt, 'unknown')).toBeNull();
+      expect(
+        rescueBudgetServiceDiscoveryIntent(prompt, 'list_services'),
+      ).toBeNull();
+    },
+  );
 
   it('does not treat provider availability "free" as budget maxPrice', () => {
     const prompt =
@@ -632,7 +628,12 @@ describe('budget negative routing for accuracy eval (acc-2)', () => {
   });
 
   it('still rescues genuine budget discovery prompts', () => {
-    expect(rescueBudgetServiceDiscoveryIntent('What can I book with $30?', 'unknown')).toEqual({
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        'What can I book with $30?',
+        'unknown',
+      ),
+    ).toEqual({
       action: 'list_services',
       rescueReason: 'budget_list_services',
     });
@@ -686,7 +687,10 @@ describe('budget negative routing for accuracy eval (acc-2)', () => {
     )!;
     expect(extractMaxPriceFromBudgetPrompt(scenario.prompt)).toBe(30);
     expect(
-      enrichBudgetFromPrompt({ maxPrice: 50, serviceCategory: 'haircut' }, scenario.prompt),
+      enrichBudgetFromPrompt(
+        { maxPrice: 50, serviceCategory: 'haircut' },
+        scenario.prompt,
+      ),
     ).toMatchObject({ maxPrice: 30, serviceCategory: 'haircut' });
   });
 
@@ -789,9 +793,7 @@ describe('budget negative routing for accuracy eval (acc-2)', () => {
         maxPrice,
         allProviders,
       });
-      expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'unknown'),
-      ).toEqual({
+      expect(rescueBudgetServiceDiscoveryIntent(prompt, 'unknown')).toEqual({
         action: 'list_services',
         rescueReason: 'budget_list_services',
       });

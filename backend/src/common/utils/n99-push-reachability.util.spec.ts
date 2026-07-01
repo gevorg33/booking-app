@@ -59,7 +59,9 @@ describe('n99-push-reachability.util (n99-4)', () => {
   });
 
   it('computes deliverability from token aggregates', () => {
-    const metric = computePushDeliverabilityRate(N99_PUSH_DELIVERABILITY_TOKEN_SNAPSHOT);
+    const metric = computePushDeliverabilityRate(
+      N99_PUSH_DELIVERABILITY_TOKEN_SNAPSHOT,
+    );
     expect(metric.deliverabilityRate).toBeCloseTo(0.99, 5);
     expect(meetsPushDeliverabilityTarget(metric.deliverabilityRate)).toBe(true);
   });
@@ -74,6 +76,8 @@ describe('n99-push-reachability.util (n99-4)', () => {
     expect(dashboard.byPlatform.android.openedUsers).toBe(1);
     expect(dashboard.byLocale).toHaveLength(3);
     expect(typeof dashboard.weeklyReachabilityAlert.triggered).toBe('boolean');
-    expect(meetsPushReachabilityTarget(dashboard.reachability.reachabilityRate)).toBe(false);
+    expect(
+      meetsPushReachabilityTarget(dashboard.reachability.reachabilityRate),
+    ).toBe(false);
   });
 });

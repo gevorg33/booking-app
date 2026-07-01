@@ -1,5 +1,8 @@
 import type { GuideFlowSurface } from './guide-flow.types.js';
-import { matchGuideFlowRoute, mergeGuideFlowPlaybooks } from './guide-flow.merge.util.js';
+import {
+  matchGuideFlowRoute,
+  mergeGuideFlowPlaybooks,
+} from './guide-flow.merge.util.js';
 
 /** App.tsx routes intentionally excluded from mobile guide primary coverage (ai-guide-1.9.13). */
 export const CONSUMER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS: readonly RegExp[] = [
@@ -111,7 +114,9 @@ export const GUIDE_FLOW_SURFACE_NAV_ROUTES: Readonly<
   public: ['/book', '/book/professionals', '/book/services', '/book/checkout'],
 };
 
-export function resolveGuideFlowRoutePrimaryTopic(route?: string): string | undefined {
+export function resolveGuideFlowRoutePrimaryTopic(
+  route?: string,
+): string | undefined {
   if (!route) return undefined;
   if (GUIDE_FLOW_ROUTE_PRIMARY_TOPIC[route]) {
     return GUIDE_FLOW_ROUTE_PRIMARY_TOPIC[route];
@@ -126,11 +131,15 @@ export function resolveGuideFlowRoutePrimaryTopic(route?: string): string | unde
 }
 
 export function assertGuideFlowRouteCoverage(): void {
-  for (const [surface, routes] of Object.entries(GUIDE_FLOW_SURFACE_NAV_ROUTES)) {
+  for (const [surface, routes] of Object.entries(
+    GUIDE_FLOW_SURFACE_NAV_ROUTES,
+  )) {
     for (const route of routes) {
       const topicId = resolveGuideFlowRoutePrimaryTopic(route);
       if (!topicId) {
-        throw new Error(`Missing guide-flow route primary for ${surface}:${route}`);
+        throw new Error(
+          `Missing guide-flow route primary for ${surface}:${route}`,
+        );
       }
       const playbooks = mergeGuideFlowPlaybooks({
         surface: surface as GuideFlowSurface,

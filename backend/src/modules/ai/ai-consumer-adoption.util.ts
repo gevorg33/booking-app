@@ -1,50 +1,76 @@
-import {
-  CONSUMER_ADOPTION_PROMPT_SCENARIOS,
-  CONSUMER_ADOPTION_CLASSIFIER_RULES,
-} from './ai-consumer-adoption.fixtures.js';
+import { CONSUMER_ADOPTION_CLASSIFIER_RULES } from './ai-consumer-adoption.fixtures.js';
+import { rescueFindMySavedSalonsIntent } from './ai-find-my-saved-salons.util.js';
+import { rescueSwitchSalonTenantIntent } from './ai-switch-salon-tenant.util.js';
 import { isConfigureNotificationSettingsPrompt } from './ai-notification-settings.util.js';
 import { isConfigureWhatsappIntegrationPrompt } from './ai-whatsapp-integration.util.js';
 import { isConfigureProviderPushDateFormatPrompt } from './ai-provider-date-format.util.js';
-import { isRescheduleMyBookingPrompt } from './ai-self-service-booking.util.js';
+import { rescueRebookLastAppointmentIntent } from './ai-rebook-last-appointment.util.js';
+import { rescueRebookAndPayCompoundIntent } from './ai-rebook-and-pay-compound.util.js';
+import { rescueSubscriptionFirstVisitCompoundIntent } from './ai-subscription-first-visit-compound.util.js';
+import { rescueResultsThenRebookCompoundIntent } from './ai-results-then-rebook-compound.util.js';
 import {
   isExplainMyNotificationsPrompt,
   rescueExplainMyNotificationsIntent,
 } from './ai-explain-my-notifications.util.js';
 import {
-  rescueGrowthLoopsCustomerIntent,
-} from './ai-growth-loops-customer.util.js';
+  isManageNotificationPreferencesPrompt,
+  rescueManageNotificationPreferencesIntent,
+} from './ai-manage-notification-preferences.util.js';
+import { rescueShareMyBookingIntent } from './ai-share-my-booking.util.js';
+import { rescueExplainShareRewardIntent } from './ai-explain-share-reward.util.js';
+import { rescueGrowthLoopsCustomerIntent } from './ai-growth-loops-customer.util.js';
+import {
+  rescueCustomerEnablePushNotificationsIntent,
+  isCustomerEnablePushNotificationsPrompt,
+} from './ai-customer-enable-push-notifications.util.js';
+import {
+  rescueExplainPushPermissionIntent,
+  isExplainPushPermissionPrompt,
+} from './ai-explain-push-permission.util.js';
+import {
+  rescueExplainOfflineModeIntent,
+  isExplainOfflineModePrompt,
+} from './ai-explain-offline-mode.util.js';
+import {
+  rescueExplainAppUpdateRequiredIntent,
+  isExplainAppUpdateRequiredPrompt,
+} from './ai-explain-app-update-required.util.js';
+import {
+  rescueExplainAnalyticsConsentIntent,
+  isExplainAnalyticsConsentPrompt,
+} from './ai-explain-analytics-consent.util.js';
+import {
+  rescueExplainHomeScreenWidgetIntent,
+  isExplainHomeScreenWidgetPrompt,
+} from './ai-explain-home-screen-widget.util.js';
+import {
+  rescueExplainPatientAlertIntent,
+  isExplainPatientAlertPrompt,
+} from './ai-explain-patient-alert.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
   'manage_notification_preferences',
+  'enable_push_notifications',
+  'explain_push_permission',
+  'explain_offline_mode',
+  'explain_app_update_required',
+  'explain_analytics_consent',
+  'explain_home_screen_widget',
+  'explain_patient_alert',
+  'explain_share_reward',
   'refer_a_friend',
   'share_salon_link',
   'share_my_booking',
   'rebook_last_appointment',
   'find_my_saved_salons',
+  'switch_salon_tenant',
+  'compound_intent',
 ] as const;
 
 export type ConsumerAdoptionIntent = (typeof CONSUMER_ADOPTION_INTENTS)[number];
 
 const EXPLAIN_NOTIFICATIONS = isExplainMyNotificationsPrompt;
-const MANAGE_NOTIFICATIONS =
-  /\b(turn|switch|disable|stop|manage|change|update|set)\b.{0,30}\b(notifications?|reminders?|push|sms|whatsapp|alerts?)\b|անջատ.{0,20}(ծանուց|հիշեց)|միաց.{0,20}ծանուց|отключ.{0,30}(напоминан|уведом)|выключ.{0,30}(напоминан|уведом)/i;
-const SHARE_BOOKING =
-  /\b(share).{0,30}\b(booking|appointment|visit)\b|կիս.{0,20}ամրագր|подел.{0,20}(запис|визит)/i;
-const REBOOK_LAST =
-  /\b(rebook(?:\s+my)?\s+last|book again|repeat(?:\s+my)?\s+last|same as last|last appointment|book my last)\b|повторн.{0,20}запис|վերամրագր|նույն.{0,20}(այց|visit)/i;
-const SAVED_SALONS =
-  /\b(saved|recent|visited|pinned).{0,20}\b(salons?|places?|businesses?|tenants?)\b|\bmy salons\b|сохран.{0,20}салон|мои.{0,10}салон|показать.{0,20}салон/i;
-
-function matchAdoptionScenarioPrompt(prompt: string): ConsumerAdoptionIntent | null {
-  const normalized = prompt.trim().toLowerCase();
-  for (const scenario of CONSUMER_ADOPTION_PROMPT_SCENARIOS) {
-    if (scenario.prompt.trim().toLowerCase() === normalized) {
-      return scenario.expectedAction;
-    }
-  }
-  return null;
-}
 
 export function isConsumerAdoptionIntent(
   action: string,
@@ -58,10 +84,6 @@ export function rescueConsumerAdoptionIntent(
 ): { action: ConsumerAdoptionIntent; rescueReason: string } | null {
   const text = prompt.trim();
   if (!text) return null;
-
-  if (isConsumerAdoptionIntent(action)) {
-    return { action, rescueReason: action };
-  }
 
   if (isConfigureProviderPushDateFormatPrompt(text)) {
     return null;
@@ -83,7 +105,10 @@ export function rescueConsumerAdoptionIntent(
     return null;
   }
 
-  if (/\benable notifications\b/i.test(text) && !/\bappointment reminders?\b/i.test(text)) {
+  if (
+    /\benable notifications\b/i.test(text) &&
+    !/\bappointment reminders?\b/i.test(text)
+  ) {
     return null;
   }
 
@@ -108,21 +133,105 @@ export function rescueConsumerAdoptionIntent(
     return null;
   }
 
-  const scenarioAction = matchAdoptionScenarioPrompt(text);
-  if (scenarioAction) {
-    return { action: scenarioAction, rescueReason: scenarioAction };
-  }
-
   const explainNotifications = rescueExplainMyNotificationsIntent(text, action);
   if (explainNotifications) return explainNotifications;
 
-  if (EXPLAIN_NOTIFICATIONS(text) && !MANAGE_NOTIFICATIONS.test(text) && !/\bcurrency\b/i.test(text)) {
+  const enablePush = rescueCustomerEnablePushNotificationsIntent(text, action);
+  if (enablePush) return enablePush;
+
+  const explainPushPermission = rescueExplainPushPermissionIntent(text, action);
+  if (explainPushPermission) return explainPushPermission;
+
+  const explainOfflineMode = rescueExplainOfflineModeIntent(text, action);
+  if (explainOfflineMode) return explainOfflineMode;
+
+  const explainAppUpdate = rescueExplainAppUpdateRequiredIntent(text, action);
+  if (explainAppUpdate) return explainAppUpdate;
+
+  const explainAnalyticsConsent = rescueExplainAnalyticsConsentIntent(
+    text,
+    action,
+  );
+  if (explainAnalyticsConsent) return explainAnalyticsConsent;
+
+  const explainPatientAlert = rescueExplainPatientAlertIntent(text, action);
+  if (explainPatientAlert) return explainPatientAlert;
+
+  const explainHomeScreenWidget = rescueExplainHomeScreenWidgetIntent(
+    text,
+    action,
+  );
+  if (explainHomeScreenWidget) return explainHomeScreenWidget;
+
+  const managePreferences = rescueManageNotificationPreferencesIntent(
+    text,
+    action,
+  );
+  if (managePreferences) return managePreferences;
+
+  const explainShareReward = rescueExplainShareRewardIntent(text, action);
+  if (explainShareReward) return explainShareReward;
+
+  const switchSalonSteal = rescueSwitchSalonTenantIntent(text, action);
+  if (switchSalonSteal) return switchSalonSteal;
+
+  if (isConsumerAdoptionIntent(action)) {
+    return { action, rescueReason: action };
+  }
+
+  if (
+    EXPLAIN_NOTIFICATIONS(text) &&
+    !isManageNotificationPreferencesPrompt(text) &&
+    !/\bcurrency\b/i.test(text)
+  ) {
     return {
       action: 'explain_my_notifications',
       rescueReason: 'explain_my_notifications',
     };
   }
-  if (MANAGE_NOTIFICATIONS.test(text)) {
+  if (isCustomerEnablePushNotificationsPrompt(text)) {
+    return {
+      action: 'enable_push_notifications',
+      rescueReason: 'customer_enable_push',
+    };
+  }
+  if (isExplainPushPermissionPrompt(text)) {
+    return {
+      action: 'explain_push_permission',
+      rescueReason: 'push_permission',
+    };
+  }
+  if (isExplainOfflineModePrompt(text)) {
+    return {
+      action: 'explain_offline_mode',
+      rescueReason: 'consumer_offline',
+    };
+  }
+  if (isExplainAppUpdateRequiredPrompt(text)) {
+    return {
+      action: 'explain_app_update_required',
+      rescueReason: 'app_update_gate',
+    };
+  }
+  if (isExplainAnalyticsConsentPrompt(text)) {
+    return {
+      action: 'explain_analytics_consent',
+      rescueReason: 'analytics_consent',
+    };
+  }
+  if (isExplainPatientAlertPrompt(text)) {
+    return {
+      action: 'explain_patient_alert',
+      rescueReason: 'patient_alert',
+    };
+  }
+  if (isExplainHomeScreenWidgetPrompt(text)) {
+    return {
+      action: 'explain_home_screen_widget',
+      rescueReason: 'home_screen_widget',
+    };
+  }
+  if (isManageNotificationPreferencesPrompt(text)) {
     return {
       action: 'manage_notification_preferences',
       rescueReason: 'manage_notification_preferences',
@@ -132,31 +241,46 @@ export function rescueConsumerAdoptionIntent(
   const growthLoops = rescueGrowthLoopsCustomerIntent(text, action);
   if (growthLoops) return growthLoops;
 
-  if (SHARE_BOOKING.test(text)) {
-    return { action: 'share_my_booking', rescueReason: 'share_my_booking' };
-  }
-  if (REBOOK_LAST.test(text)) {
-    if (
-      isRescheduleMyBookingPrompt(text) &&
-      !/\b(rebook(?:\s+my)?\s+last|book again|repeat(?:\s+my)?\s+last|same as last|book my last|повторн.{0,20}запис|վeramragr.{0,20}(verjin|last)|նույն.{0,20}(amr|visit))/i.test(
-        text,
-      )
-    ) {
-      return null;
-    }
+  const shareBooking = rescueShareMyBookingIntent(text, action);
+  if (shareBooking) return shareBooking;
+
+  const subscriptionFirstVisit = rescueSubscriptionFirstVisitCompoundIntent(
+    text,
+    action,
+  );
+  if (subscriptionFirstVisit) {
     return {
-      action: 'rebook_last_appointment',
-      rescueReason: 'rebook_last_appointment',
+      action: subscriptionFirstVisit.action,
+      rescueReason: subscriptionFirstVisit.rescueReason,
     };
   }
-  if (SAVED_SALONS.test(text)) {
+
+  const resultsThenRebook = rescueResultsThenRebookCompoundIntent(text, action);
+  if (resultsThenRebook) {
     return {
-      action: 'find_my_saved_salons',
-      rescueReason: 'find_my_saved_salons',
+      action: resultsThenRebook.action,
+      rescueReason: resultsThenRebook.rescueReason,
     };
   }
+
+  const rebookAndPay = rescueRebookAndPayCompoundIntent(text, action);
+  if (rebookAndPay) {
+    return {
+      action: rebookAndPay.action,
+      rescueReason: rebookAndPay.rescueReason,
+    };
+  }
+
+  const rebookLast = rescueRebookLastAppointmentIntent(text, action);
+  if (rebookLast) return rebookLast;
+
+  const switchSalon = rescueSwitchSalonTenantIntent(text, action);
+  if (switchSalon) return switchSalon;
+
+  const savedSalons = rescueFindMySavedSalonsIntent(text, action);
+  if (savedSalons) return savedSalons;
 
   return null;
 }
 
-export { CONSUMER_ADOPTION_CLASSIFIER_RULES, CONSUMER_ADOPTION_PROMPT_SCENARIOS };
+export { CONSUMER_ADOPTION_CLASSIFIER_RULES };

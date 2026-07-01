@@ -58,6 +58,7 @@ import {
   summarizePrivacyRetentionChange,
 } from './ai-business-compliance.util.js';
 import {
+  buildExplainDataRightsNavigate,
   parseExplainDataRightsFromPrompt,
   type DataRightsAspect,
 } from './ai-data-rights.util.js';
@@ -597,6 +598,9 @@ export async function handleExplainDataRightsLogic(
     aspect: parsed.aspect,
     publicPrivacy,
     privacyPolicyVersion: publicPrivacy.privacyPolicyVersion,
+    ...(buildExplainDataRightsNavigate(parsed.aspect)
+      ? { navigate: buildExplainDataRightsNavigate(parsed.aspect) }
+      : {}),
   });
 }
 

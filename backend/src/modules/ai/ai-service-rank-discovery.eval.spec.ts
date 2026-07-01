@@ -184,10 +184,7 @@ describe('ai service rank discovery eval cases (rank-1.11)', () => {
     const scenario = SIMILAR_SERVICE_RANK_PROMPTS.find(
       (entry) => entry.id === 'rank-not-specialist-en',
     )!;
-    const evalCase = serviceRankDiscoveryScenarioToEvalCase(
-      scenario,
-      'public',
-    );
+    const evalCase = serviceRankDiscoveryScenarioToEvalCase(scenario, 'public');
     expect(evalCase.expect.rescuedAction).toBe('list_services');
     expect(evalCase.expect.rescueReason).toBe('rank_recommend_specialists');
     expect(evalCase.expect.paramsPartial?.serviceRank).toBe('highest_price');

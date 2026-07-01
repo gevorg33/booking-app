@@ -1,4 +1,7 @@
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import {
   formatInclusiveTaxBadge,
   readBusinessTaxSettings,
@@ -250,12 +253,14 @@ function isBudgetConstrainedListPrompt(prompt: string): boolean {
   );
 }
 
-export function extractServiceNameForPricePrompt(prompt: string): string | null {
+export function extractServiceNameForPricePrompt(
+  prompt: string,
+): string | null {
   const howMuchDoesCost = prompt.match(
     /\bhow\s+much\s+does\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)\s+cost\b/i,
   );
   if (howMuchDoesCost) {
-    const name = cleanExtractedServiceName(howMuchDoesCost[1]!);
+    const name = cleanExtractedServiceName(howMuchDoesCost[1]);
     if (name) return name;
   }
 
@@ -263,7 +268,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\bhow\s+much\s+(?:is|are)\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s+on\b|\s*\?|$)/i,
   );
   if (howMuch) {
-    const name = cleanExtractedServiceName(howMuch[1]!);
+    const name = cleanExtractedServiceName(howMuch[1]);
     if (name && !/^(it|this|that|there)$/i.test(name)) return name;
   }
 
@@ -271,7 +276,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\b(?:what(?:'s| is)|whats)\s+(?:the\s+)?(?:listed\s+)?price\s+(?:of|for)\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (priceOf) {
-    const name = cleanExtractedServiceName(priceOf[1]!);
+    const name = cleanExtractedServiceName(priceOf[1]);
     if (name) return name;
   }
 
@@ -279,7 +284,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\b(?:cost|charge|fee)\s+(?:of|for)\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (costFor) {
-    const name = cleanExtractedServiceName(costFor[1]!);
+    const name = cleanExtractedServiceName(costFor[1]);
     if (name) return name;
   }
 
@@ -287,7 +292,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\bprice\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (priceFor) {
-    const name = cleanExtractedServiceName(priceFor[1]!);
+    const name = cleanExtractedServiceName(priceFor[1]);
     if (name) return name;
   }
 
@@ -295,7 +300,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\bwhat\s+does\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)\s+cost\b/i,
   );
   if (whatDoesCost) {
-    const name = cleanExtractedServiceName(whatDoesCost[1]!);
+    const name = cleanExtractedServiceName(whatDoesCost[1]);
     if (name) return name;
   }
 
@@ -304,7 +309,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
       /\bis\s+(?:the\s+)?([a-z][\w\s'-]{2,50}?)\s+\$\d/i,
     );
     if (listedDollar) {
-      const name = cleanExtractedServiceName(listedDollar[1]!);
+      const name = cleanExtractedServiceName(listedDollar[1]);
       if (name) return name;
     }
   }
@@ -313,7 +318,7 @@ export function extractServiceNameForPricePrompt(prompt: string): string | null 
     /\bis\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)\s+included\b/i,
   );
   if (included) {
-    const name = cleanExtractedServiceName(included[1]!);
+    const name = cleanExtractedServiceName(included[1]);
     if (name) return name;
   }
 
@@ -376,7 +381,8 @@ export function isExplainServicePricePrompt(prompt: string): boolean {
   }
 
   if (/\bhow\s+much\s+(?:is|are|does|do)\b/i.test(prompt)) {
-    if (/\b(?:today|now|due|checkout|pay|deposit)\b/i.test(prompt)) return false;
+    if (/\b(?:today|now|due|checkout|pay|deposit)\b/i.test(prompt))
+      return false;
     return true;
   }
   if (/\b(?:cost|charge|fee)\s+(?:of|for)\b/i.test(prompt)) return true;
@@ -420,7 +426,13 @@ export type ServicePriceExplainCopy = {
 export function buildServicePriceExplainCopy(
   service: Pick<
     Service,
-    'id' | 'name' | 'price' | 'currency' | 'durationMinutes' | 'prepaymentMode' | 'depositAmount'
+    | 'id'
+    | 'name'
+    | 'price'
+    | 'currency'
+    | 'durationMinutes'
+    | 'prepaymentMode'
+    | 'depositAmount'
   >,
   businessSettings: Record<string, unknown> | undefined,
   options: { prompt?: string } = {},

@@ -32,11 +32,13 @@ function enrichUnansweredGuideTopics(
     if (row.topicId === 'unknown') {
       return row;
     }
-    const corpus = getGuideCorpusTopic(row.topicId as GuideCorpusTopicId);
+    const corpus = getGuideCorpusTopic(row.topicId);
     if (!corpus) {
       return row;
     }
-    const titleKey = corpus.content.find((entry) => entry.kind === 'title')?.i18nKey;
+    const titleKey = corpus.content.find(
+      (entry) => entry.kind === 'title',
+    )?.i18nKey;
     return {
       ...row,
       anchor: corpus.anchor,
@@ -161,7 +163,9 @@ export class GuideTelemetryService {
     const summary = buildGuideTelemetryAnalyticsSummary(rows, clampedDays);
     return {
       ...summary,
-      topUnansweredTopics: enrichUnansweredGuideTopics(summary.topUnansweredTopics),
+      topUnansweredTopics: enrichUnansweredGuideTopics(
+        summary.topUnansweredTopics,
+      ),
     };
   }
 }

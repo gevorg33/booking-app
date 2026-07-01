@@ -70,9 +70,7 @@ export function buildPublicUnderstandInput(
 }
 
 @Injectable()
-export class PublicCommandUnderstandingAdapter
-  implements CommandUnderstandingSurfaceAdapter<PublicUnderstandDeps>
-{
+export class PublicCommandUnderstandingAdapter implements CommandUnderstandingSurfaceAdapter<PublicUnderstandDeps> {
   readonly surface = PUBLIC_COMMAND_UNDERSTANDING_SURFACE;
 
   constructor(

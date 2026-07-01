@@ -38,7 +38,9 @@ describe('ai-clinic-lab-review-compound.util (ai-cmd-clinic-6-gap-6.1)', () => {
   it.each(CLINIC_LAB_REVIEW_RESCUE_SCENARIOS)(
     'rescues misclassified compound $id',
     ({ prompt, misclassifiedAction }) => {
-      expect(rescueClinicLabReviewCompoundIntent(prompt, misclassifiedAction!)).toEqual({
+      expect(
+        rescueClinicLabReviewCompoundIntent(prompt, misclassifiedAction),
+      ).toEqual({
         action: 'compound_intent',
         rescueReason: 'clinic_lab_review_compound',
       });

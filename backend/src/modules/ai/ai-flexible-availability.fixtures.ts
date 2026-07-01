@@ -180,8 +180,18 @@ export const AVAILABILITY_WINDOW_PARSE_SCENARIOS: AvailabilityWindowParseScenari
       id: 'avail-lunch-or-en',
       prompt: 'Manicure tomorrow lunch or Friday lunch',
       expectedWindows: [
-        { date: 'tomorrow', timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
-        { weekdays: ['friday'], timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
+        {
+          date: 'tomorrow',
+          timeOfDay: 'afternoon',
+          timeFrom: '12:00',
+          timeTo: '14:00',
+        },
+        {
+          weekdays: ['friday'],
+          timeOfDay: 'afternoon',
+          timeFrom: '12:00',
+          timeTo: '14:00',
+        },
       ],
     },
     {
@@ -293,9 +303,7 @@ export const AVAILABILITY_WINDOW_NORMALIZE_SCENARIOS: AvailabilityWindowNormaliz
     {
       id: 'avail-legacy-weekday-timeofday',
       params: { weekdays: ['friday'], timeOfDay: 'afternoon' },
-      expectedWindows: [
-        { weekdays: ['friday'], timeOfDay: 'afternoon' },
-      ],
+      expectedWindows: [{ weekdays: ['friday'], timeOfDay: 'afternoon' }],
     },
     {
       id: 'avail-legacy-and-weekdays',
@@ -443,7 +451,11 @@ export const AVAILABILITY_WINDOW_ENRICHMENT_SCENARIOS: AvailabilityWindowEnrichm
         serviceCategory: 'massage',
         availabilityWindows: [
           { employeeName: 'Karo', date: 'tomorrow', timeOfDay: 'evening' },
-          { employeeName: 'Mary', weekdays: ['friday'], timeOfDay: 'afternoon' },
+          {
+            employeeName: 'Mary',
+            weekdays: ['friday'],
+            timeOfDay: 'afternoon',
+          },
         ],
       },
     },
@@ -478,8 +490,18 @@ export const AVAILABILITY_WINDOW_ENRICHMENT_SCENARIOS: AvailabilityWindowEnrichm
       expectedParams: {
         serviceCategory: 'manicure',
         availabilityWindows: [
-          { date: 'tomorrow', timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
-          { weekdays: ['friday'], timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
+          {
+            date: 'tomorrow',
+            timeOfDay: 'afternoon',
+            timeFrom: '12:00',
+            timeTo: '14:00',
+          },
+          {
+            weekdays: ['friday'],
+            timeOfDay: 'afternoon',
+            timeFrom: '12:00',
+            timeTo: '14:00',
+          },
         ],
       },
     },
@@ -609,9 +631,18 @@ export const FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS: FlexibleAvailabilityC
     {
       id: 'avail-filter-evening-en',
       slots: [
-        { startTime: '2026-06-10T09:00:00.000Z', endTime: '2026-06-10T09:30:00.000Z' },
-        { startTime: '2026-06-10T17:00:00.000Z', endTime: '2026-06-10T17:30:00.000Z' },
-        { startTime: '2026-06-10T18:00:00.000Z', endTime: '2026-06-10T18:30:00.000Z' },
+        {
+          startTime: '2026-06-10T09:00:00.000Z',
+          endTime: '2026-06-10T09:30:00.000Z',
+        },
+        {
+          startTime: '2026-06-10T17:00:00.000Z',
+          endTime: '2026-06-10T17:30:00.000Z',
+        },
+        {
+          startTime: '2026-06-10T18:00:00.000Z',
+          endTime: '2026-06-10T18:30:00.000Z',
+        },
       ],
       timeOfDay: 'evening',
       expectedTimes: ['17:00', '18:00'],
@@ -619,9 +650,18 @@ export const FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS: FlexibleAvailabilityC
     {
       id: 'avail-filter-afternoon-en',
       slots: [
-        { startTime: '2026-06-13T12:00:00.000Z', endTime: '2026-06-13T12:30:00.000Z' },
-        { startTime: '2026-06-13T14:00:00.000Z', endTime: '2026-06-13T14:30:00.000Z' },
-        { startTime: '2026-06-13T17:30:00.000Z', endTime: '2026-06-13T18:00:00.000Z' },
+        {
+          startTime: '2026-06-13T12:00:00.000Z',
+          endTime: '2026-06-13T12:30:00.000Z',
+        },
+        {
+          startTime: '2026-06-13T14:00:00.000Z',
+          endTime: '2026-06-13T14:30:00.000Z',
+        },
+        {
+          startTime: '2026-06-13T17:30:00.000Z',
+          endTime: '2026-06-13T18:00:00.000Z',
+        },
       ],
       timeOfDay: 'afternoon',
       expectedTimes: ['12:00', '14:00'],
@@ -629,7 +669,10 @@ export const FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS: FlexibleAvailabilityC
     {
       id: 'avail-filter-none-without-timeofday',
       slots: [
-        { startTime: '2026-06-10T17:00:00.000Z', endTime: '2026-06-10T17:30:00.000Z' },
+        {
+          startTime: '2026-06-10T17:00:00.000Z',
+          endTime: '2026-06-10T17:30:00.000Z',
+        },
       ],
       timeOfDay: null,
       expectedTimes: ['17:00'],
@@ -846,7 +889,9 @@ export const FLEXIBLE_AVAILABILITY_BUDGET_SCENARIOS: FlexibleAvailabilityBudgetS
     },
     {
       id: 'avail-budget-blocks-all-en',
-      catalog: [{ id: 'h1', name: 'Haircut basic', price: 35, durationMinutes: 30 }],
+      catalog: [
+        { id: 'h1', name: 'Haircut basic', price: 35, durationMinutes: 30 },
+      ],
       maxPrice: 50,
       expectedServiceIds: ['h1'],
       expectNoMatch: false,
@@ -1055,7 +1100,11 @@ export const FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS: FlexibleAvailabilit
     },
   ];
 
-export type FlexibleAvailabilitySurface = 'public' | 'customer' | 'both' | 'dashboard';
+export type FlexibleAvailabilitySurface =
+  | 'public'
+  | 'customer'
+  | 'both'
+  | 'dashboard';
 
 export type FlexibleAvailabilityPromptFixture = {
   id: string;
@@ -1131,8 +1180,18 @@ const AVAIL_WIN_AFTER_WORK_OR: AvailabilityWindow[] = [
 ];
 
 const AVAIL_WIN_LUNCH_OR: AvailabilityWindow[] = [
-  { date: 'tomorrow', timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
-  { weekdays: ['friday'], timeOfDay: 'afternoon', timeFrom: '12:00', timeTo: '14:00' },
+  {
+    date: 'tomorrow',
+    timeOfDay: 'afternoon',
+    timeFrom: '12:00',
+    timeTo: '14:00',
+  },
+  {
+    weekdays: ['friday'],
+    timeOfDay: 'afternoon',
+    timeFrom: '12:00',
+    timeTo: '14:00',
+  },
 ];
 
 const AVAIL_WIN_VOICE_SHORT_OR: AvailabilityWindow[] = [
@@ -1400,10 +1459,7 @@ export const SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS: FlexibleAvailabilityPromptFi
         serviceCategory: 'facial',
         serviceRank: 'highest_price',
         maxPrice: 100,
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['saturday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['saturday'] }],
       },
     },
     // F — Multilingual
@@ -1469,10 +1525,7 @@ export const SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS: FlexibleAvailabilityPromptFi
       customerExpectedAction: 'check_providers_for_service',
       expectedParams: {
         serviceCategory: 'massage',
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['friday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['friday'] }],
         allProviders: true,
       },
     },
@@ -1777,37 +1830,40 @@ export const SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS: FlexibleAvailabilityPromptFi
     },
   ];
 
-export const AVAIL_SECTION_A_OR_SCENARIOS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) =>
+export const AVAIL_SECTION_A_OR_SCENARIOS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter((scenario) =>
     [
       'avail-or-tomorrow-friday-en',
       'avail-either-morning-en',
       'avail-or-book-en',
       'avail-three-way-or-en',
     ].includes(scenario.id),
-);
+  );
 
-export const AVAIL_OR_WINDOW_SCENARIOS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) =>
-    scenario.expectedParams?.availabilityWindows &&
-    !scenario.handlerOutcome &&
-    !scenario.phase2,
-);
+export const AVAIL_OR_WINDOW_SCENARIOS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) =>
+      scenario.expectedParams?.availabilityWindows &&
+      !scenario.handlerOutcome &&
+      !scenario.phase2,
+  );
 
-export const AVAIL_BUDGET_OR_SCENARIOS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) =>
-    scenario.expectedParams?.maxPrice != null &&
-    scenario.expectedParams?.availabilityWindows &&
-    !scenario.phase2,
-);
+export const AVAIL_BUDGET_OR_SCENARIOS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) =>
+      scenario.expectedParams?.maxPrice != null &&
+      scenario.expectedParams?.availabilityWindows &&
+      !scenario.phase2,
+  );
 
-export const AVAIL_SINGLE_WINDOW_SCENARIOS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) =>
-    !scenario.expectedParams?.availabilityWindows &&
-    !scenario.handlerOutcome &&
-    !scenario.phase2 &&
-    scenario.expectedAction === 'check_availability',
-);
+export const AVAIL_SINGLE_WINDOW_SCENARIOS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) =>
+      !scenario.expectedParams?.availabilityWindows &&
+      !scenario.handlerOutcome &&
+      !scenario.phase2 &&
+      scenario.expectedAction === 'check_availability',
+  );
 
 export const AVAIL_HANDLER_OUTCOME_SCENARIOS =
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
@@ -1823,7 +1879,9 @@ export const AVAIL_COMPOUND_PROMPT_SCENARIOS =
 
 export const AVAIL_MULTILINGUAL_SCENARIOS =
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter((scenario) =>
-    ['avail-or-hy', 'avail-or-ru', 'avail-or-translit-en'].includes(scenario.id),
+    ['avail-or-hy', 'avail-or-ru', 'avail-or-translit-en'].includes(
+      scenario.id,
+    ),
   );
 
 export const AVAIL_DISAMBIGUATION_SCENARIOS =
@@ -1844,8 +1902,8 @@ export const AVAIL_SECTION_H_SPECIFIC_PROVIDER_SCENARIOS =
   );
 
 export const AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS =
-  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter((scenario) =>
-    scenario.id === 'avail-dashboard-parity-en',
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) => scenario.id === 'avail-dashboard-parity-en',
   );
 
 export const AVAIL_SECTION_I_TIME_VARIANT_SCENARIOS =
@@ -1953,14 +2011,16 @@ export const AVAIL_SECTION_M_NO_SLOT_SCENARIOS =
     ].includes(scenario.id),
   );
 
-export const AVAIL_PUBLIC_PROMPTS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) => scenario.surface === 'public' || scenario.surface === 'both',
-);
+export const AVAIL_PUBLIC_PROMPTS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) => scenario.surface === 'public' || scenario.surface === 'both',
+  );
 
-export const AVAIL_CUSTOMER_PROMPTS = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
-  (scenario) =>
-    scenario.surface === 'customer' || scenario.surface === 'both',
-);
+export const AVAIL_CUSTOMER_PROMPTS =
+  SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.filter(
+    (scenario) =>
+      scenario.surface === 'customer' || scenario.surface === 'both',
+  );
 
 /** Public check_availability handler pipeline golden rows (avail-1.5 / discover-exit-2). */
 export type PublicAvailHandlerIntegrationScenario = {
@@ -2055,7 +2115,11 @@ export const PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS: PublicAvailHandlerInteg
           },
         ],
       },
-      expectedSummaryContains: ['Tomorrow evening', '17:00', 'Friday afternoon'],
+      expectedSummaryContains: [
+        'Tomorrow evening',
+        '17:00',
+        'Friday afternoon',
+      ],
       expectedEmptyWindowLabels: ['Friday afternoon'],
     },
     {
@@ -2077,7 +2141,11 @@ export const PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS: PublicAvailHandlerInteg
           },
         ],
       },
-      expectedSummaryContains: ['Friday afternoon', '13:00', 'Tomorrow evening'],
+      expectedSummaryContains: [
+        'Friday afternoon',
+        '13:00',
+        'Tomorrow evening',
+      ],
       expectedEmptyWindowLabels: ['Tomorrow evening'],
     },
     {
@@ -2098,9 +2166,7 @@ export const PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS: PublicAvailHandlerInteg
         'No open slots for Tomorrow evening.',
         'No open slots for Friday afternoon.',
       ],
-      expectedSummaryNotContains: [
-        'Try another day or specialist',
-      ],
+      expectedSummaryNotContains: ['Try another day or specialist'],
     },
     {
       id: 'avail-partial-one-window-en',
@@ -2121,7 +2187,11 @@ export const PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS: PublicAvailHandlerInteg
           },
         ],
       },
-      expectedSummaryContains: ['Saturday afternoon', '14:00', 'Tomorrow evening'],
+      expectedSummaryContains: [
+        'Saturday afternoon',
+        '14:00',
+        'Tomorrow evening',
+      ],
       expectedEmptyWindowLabels: ['Tomorrow evening'],
     },
     {
@@ -2215,12 +2285,18 @@ export const AVAIL_DOMAIN_FIXTURE_IDS = [
     ...AVAILABILITY_WINDOW_SINGLE_SCENARIOS.map((scenario) => scenario.id),
     ...AVAILABILITY_WINDOW_NORMALIZE_SCENARIOS.map((scenario) => scenario.id),
     ...AVAILABILITY_WINDOW_ENRICHMENT_SCENARIOS.map((scenario) => scenario.id),
-    ...FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS.map((scenario) => scenario.id),
-    ...FLEXIBLE_AVAILABILITY_WINDOW_LABEL_SCENARIOS.map((scenario) => scenario.id),
+    ...FLEXIBLE_AVAILABILITY_CHECK_FILTER_SCENARIOS.map(
+      (scenario) => scenario.id,
+    ),
+    ...FLEXIBLE_AVAILABILITY_WINDOW_LABEL_SCENARIOS.map(
+      (scenario) => scenario.id,
+    ),
     ...FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS.map(
       (scenario) => scenario.id,
     ),
-    ...FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS.map((scenario) => scenario.id),
+    ...FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS.map(
+      (scenario) => scenario.id,
+    ),
     ...FLEXIBLE_AVAILABILITY_BUDGET_SCENARIOS.map((scenario) => scenario.id),
     ...FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.map((scenario) => scenario.id),
     ...FLEXIBLE_AVAILABILITY_OVERLAP_SCENARIOS.map((scenario) => scenario.id),
@@ -2236,6 +2312,8 @@ export const AVAIL_DOMAIN_FIXTURE_IDS = [
     ...FLEXIBLE_AVAILABILITY_PARTIAL_WINDOW_SCENARIOS.map(
       (scenario) => scenario.id,
     ),
-    ...PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS.map((scenario) => scenario.id),
+    ...PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS.map(
+      (scenario) => scenario.id,
+    ),
   ]),
 ];

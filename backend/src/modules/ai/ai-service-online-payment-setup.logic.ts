@@ -39,7 +39,9 @@ function resolveByName<T extends { name: string }>(
   return rows.find((row) => row.name.toLowerCase() === needle);
 }
 
-function buildStripeConnectLine(settings: Record<string, unknown> | undefined): {
+function buildStripeConnectLine(
+  settings: Record<string, unknown> | undefined,
+): {
   line: string;
   connected: boolean;
   connectAccountId?: string;
@@ -158,7 +160,10 @@ export async function handleExplainServiceOnlinePaymentSetupLogic(
   });
 
   if (parsed.serviceName || parsed.categoryName) {
-    const filtered = filterServicesForOnlinePaymentSetupExplain(catalog, parsed);
+    const filtered = filterServicesForOnlinePaymentSetupExplain(
+      catalog,
+      parsed,
+    );
     if (!filtered.length) {
       return failure(
         'explain_service_online_payment_setup',
@@ -171,7 +176,7 @@ export async function handleExplainServiceOnlinePaymentSetupLogic(
     }
 
     const filterLabel = parsed.serviceName
-      ? resolveByName(catalog, parsed.serviceName)?.name ?? parsed.serviceName
+      ? (resolveByName(catalog, parsed.serviceName)?.name ?? parsed.serviceName)
       : parsed.categoryName;
 
     const summary = [

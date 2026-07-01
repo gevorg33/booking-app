@@ -13,13 +13,19 @@ describe('ProviderMobileService booking customer context (prov-exp-1.1)', () => 
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
   const clinicTestResultService = { listResultQueue: jest.fn() };
   const customerRepo = { createQueryBuilder: jest.fn(), findOne: jest.fn() };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = { getProfileForCustomer: jest.fn() };
   const patientClinicalProfileAccessService = {
     assertCustomerClinicalProfileAccess: jest.fn(),
@@ -227,7 +233,13 @@ describe('ProviderMobileService booking customer context (prov-exp-1.1)', () => 
         referredByCustomerName: 'Alice Friend',
         referralCodeUsed: 'FRIEND10',
       },
-      badges: [{ id: 'referred_by', tone: 'secondary', referredByCustomerName: 'Alice Friend' }],
+      badges: [
+        {
+          id: 'referred_by',
+          tone: 'secondary',
+          referredByCustomerName: 'Alice Friend',
+        },
+      ],
     });
     expect(context.lastCompletedVisitAt).toBe('2026-04-01T10:00:00.000Z');
     expect(context.recentCompletedVisits).toEqual([

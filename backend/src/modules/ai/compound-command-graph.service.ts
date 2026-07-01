@@ -11,7 +11,10 @@ import {
 } from './ai-orchestration.helpers.js';
 import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
-import type { CommandResult, PipelineTrace } from './command-completion.types.js';
+import type {
+  CommandResult,
+  PipelineTrace,
+} from './command-completion.types.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';

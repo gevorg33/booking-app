@@ -30,10 +30,7 @@ export const CUSTOMER_INTENT_PROMOTION_QUEUE: readonly CustomerIntentPromotionGr
       tier: 'P0',
       shipped: true,
       surfaces: 'customer',
-      intents: [
-        'cancel_my_booking',
-        'reschedule_my_booking',
-      ],
+      intents: ['cancel_my_booking', 'reschedule_my_booking'],
       todoRef: 'ai-cmd-customer-4.4.2 / 4.4.3',
     },
     {
@@ -91,6 +88,8 @@ export const CUSTOMER_INTENT_PROMOTION_QUEUE: readonly CustomerIntentPromotionGr
         'explain_tour_booking',
         'explain_tour_day_slots',
         'diagnose_tour_capacity',
+        'explain_tour_booking_record',
+        'explain_tour_meeting_point',
         'explain_checkout_recommendations',
       ],
       todoRef: 'ai-cmd-customer-4.0 P3',
@@ -187,8 +186,7 @@ export function auditCustomerIntentPromotionQueue(
       coverageBucket: bucket,
       hasEval,
       hasFixture,
-      readyForRequiredPromotion:
-        bucket === 'deferred' && hasEval && hasFixture,
+      readyForRequiredPromotion: bucket === 'deferred' && hasEval && hasFixture,
       todoRef: meta.todoRef,
     };
   });
@@ -213,8 +211,9 @@ export function listDeferredCustomerIntentPromotionBacklog(): string[] {
 
 /** P0 intents that must lead the promotion backlog (ai-cmd-customer-4.0.1). */
 export function listP0CustomerIntentPromotionIntents(): string[] {
-  return CUSTOMER_INTENT_PROMOTION_QUEUE.filter((group) => group.tier === 'P0')
-    .flatMap((group) => group.intents);
+  return CUSTOMER_INTENT_PROMOTION_QUEUE.filter(
+    (group) => group.tier === 'P0',
+  ).flatMap((group) => group.intents);
 }
 
 export function prioritizeDeferredCustomerIntents(
@@ -245,12 +244,10 @@ export function assertPromotionQueuePrioritizesP0(
   const firstPromotionIndex = orderedDeferred.findIndex((intent) =>
     getCustomerIntentPromotionTier(intent),
   );
-  const firstNonP0PromotionIndex = orderedDeferred.findIndex(
-    (intent) => {
-      const tier = getCustomerIntentPromotionTier(intent);
-      return tier != null && tier !== 'P0';
-    },
-  );
+  const firstNonP0PromotionIndex = orderedDeferred.findIndex((intent) => {
+    const tier = getCustomerIntentPromotionTier(intent);
+    return tier != null && tier !== 'P0';
+  });
 
   for (const intent of listP0CustomerIntentPromotionIntents()) {
     if (!CUSTOMER_INTENT_COVERAGE_DEFERRED.has(intent)) continue;
@@ -288,8 +285,9 @@ export function summarizeCustomerIntentPromotionAudit(
     total: rows.length,
     deferred: rows.filter((row) => row.coverageBucket === 'deferred').length,
     required: rows.filter((row) => row.coverageBucket === 'required').length,
-    readyForRequiredPromotion: rows.filter((row) => row.readyForRequiredPromotion)
-      .length,
+    readyForRequiredPromotion: rows.filter(
+      (row) => row.readyForRequiredPromotion,
+    ).length,
     p0Deferred: rows.filter(
       (row) => row.coverageBucket === 'deferred' && p0.has(row.intent),
     ).length,

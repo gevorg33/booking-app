@@ -381,7 +381,10 @@ describe('ai-integrations.util', () => {
           ?.action,
       ).toBe('toggle_webhook');
       expect(
-        rescueIntegrationsIntent('Disable the booking webhook', 'toggle_webhook'),
+        rescueIntegrationsIntent(
+          'Disable the booking webhook',
+          'toggle_webhook',
+        ),
       ).toBeNull();
     });
 

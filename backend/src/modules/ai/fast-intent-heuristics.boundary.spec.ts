@@ -27,9 +27,9 @@ describe('fast-intent-heuristics boundary gate (pipe-1.2.3 / acc-3.14)', () => {
   it('allowlist covers current fast-heuristics delegation imports', () => {
     for (const rel of FAST_HEURISTIC_BOUNDARY_RELATIVE_FILES) {
       const content = readFileSync(path.join(MODULE_DIR, rel), 'utf8');
-      const imports = [
-        ...content.matchAll(/from\s+['"](\.\/[^'"]+)['"]/g),
-      ].map((match) => path.basename((match[1] ?? '').replace(/\.js$/, '')));
+      const imports = [...content.matchAll(/from\s+['"](\.\/[^'"]+)['"]/g)].map(
+        (match) => path.basename((match[1] ?? '').replace(/\.js$/, '')),
+      );
       for (const mod of imports) {
         expect(FAST_HEURISTIC_ALLOWED_IMPORT_MODULES).toContain(mod);
       }

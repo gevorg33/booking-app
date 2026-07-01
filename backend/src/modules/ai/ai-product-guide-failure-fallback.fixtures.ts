@@ -10,7 +10,8 @@ export const POST_FAILURE_GUIDE_FALLBACK_SCENARIOS = [
     result: {
       success: false,
       action: 'unknown',
-      summary: "I didn't fully understand that command. Which of these did you mean?",
+      summary:
+        "I didn't fully understand that command. Which of these did you mean?",
       details: {
         needsClarification: true,
         pipelineStage: 'unknown_intent_clarify',

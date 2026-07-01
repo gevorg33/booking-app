@@ -23,9 +23,7 @@ describe('public-consumer-notification-preferences.util', () => {
       pushOffers: false,
     });
     expect(next.reminderHoursBefore).toBe(24);
-    expect(
-      mapPublicConsumerNotificationPreferences(next as Record<string, unknown>),
-    ).toMatchObject({
+    expect(mapPublicConsumerNotificationPreferences(next)).toMatchObject({
       pushReminders: true,
       pushOffers: false,
       pushNews: true,

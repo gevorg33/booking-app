@@ -15,6 +15,10 @@ import {
   parseExplainResultStatusFromPrompt,
 } from './ai-consumer-clinic-test-results.util.js';
 import {
+  isNotifyWhenResultsReadyPrompt,
+  parseNotifyWhenResultsReadyFromPrompt,
+} from './ai-notify-when-results-ready.util.js';
+import {
   isNotifyPatientResultReadyPrompt,
   parsePatientResultReadyParams,
 } from './ai-notification-date-format.util.js';
@@ -68,7 +72,10 @@ const CONSUMER_BOOK_ACTIONS = new Set([
   'book_nearest_slot',
   'book_appointment',
 ]);
-const CONSUMER_FOLLOWUP_ACTIONS = new Set(['explain_result_status']);
+const CONSUMER_FOLLOWUP_ACTIONS = new Set([
+  'explain_result_status',
+  'notify_when_results_ready',
+]);
 
 export type ClinicCompoundStep = {
   action: string;
@@ -208,6 +215,21 @@ function buildDashboardNotifyParams(segment: string): Record<string, unknown> {
   );
 }
 
+function buildConsumerNotifyWhenReadyParams(
+  segment: string,
+): Record<string, unknown> {
+  const params = enrichParamsWithSharedEntities({}, segment);
+  const parsed = parseNotifyWhenResultsReadyFromPrompt(segment, params);
+  if (parsed?.testName) params.testName = parsed.testName;
+  if (parsed?.channel) params.channel = parsed.channel;
+  if (parsed?.aspect) params.aspect = parsed.aspect;
+  if (!params.testName) {
+    const testName = extractTestNameFromResultsPrompt(segment);
+    if (testName) params.testName = testName;
+  }
+  return params;
+}
+
 function buildConsumerFollowUpParams(segment: string): Record<string, unknown> {
   const params = enrichParamsWithSharedEntities({}, segment);
   const parsed = parseExplainResultStatusFromPrompt(segment, params);
@@ -261,6 +283,13 @@ export function classifyClinicCompoundSegment(
 
   if (surface === 'customer' || surface === 'public') {
     if (isClinicResultFollowUpSegment(text, surface)) {
+      if (surface === 'customer' && isNotifyWhenResultsReadyPrompt(text)) {
+        return {
+          action: 'notify_when_results_ready',
+          params: buildConsumerNotifyWhenReadyParams(text),
+          segment: text,
+        };
+      }
       return {
         action: 'explain_result_status',
         params: buildConsumerFollowUpParams(text),

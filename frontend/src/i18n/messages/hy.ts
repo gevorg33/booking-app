@@ -3848,6 +3848,8 @@ const hy: MessageTree = {
         specimen: 'Նմուշ',
         measurement: 'Դրոշ',
         unnamedResult: 'Լաբորատոր արդյունք',
+        uploadHandoff:
+          'Կցեք արդյունքի ֆայլը {orderId} պատվերի համար այստեղ։ Արժեքները ձեռքով մուտքագրելու համար օգտագործեք AI հրամանների տողը (enter_test_result)։',
       },
       ordersTab: {
         title: 'Լաբորատոր պատվերներ',
@@ -4380,6 +4382,66 @@ fallbackProvider: 'մասնագետ',
 fallbackService: 'ծառայություն',
 fallbackServiceCategory: 'մեր ծառայությունները',
 exampleLocation: 'Որտե՞ղ եք գտնվում',
+assistantPageSuggestionsTitle: 'Այս էջի համար',
+assistantStarterChipsTitle: 'Հարցեք օգնականին',
+pageSuggestions: {
+  book: {
+    amountDue: 'Որքա՞ն եմ վճարում այսօր',
+    payCash: 'Վճարել կանխիկ այցի ժամանակ',
+    whyEmail: 'Ինչու՞ է հարկավոր էլ. փոստ',
+  },
+  serviceList: {
+    servicePrice: 'Որքա՞ն արժե {service}-ը',
+    payOnlineOrCash: 'Պետք է՞ {service}-ի համար վճարել առցանց',
+    noPrepayment: 'Ինչ կարող եմ ամրագրել առանց առցանց վճարման',
+  },
+  manage: {
+    cancel: 'Չեղարկել այս ամրագրումը',
+    reschedule: 'Տեղափոխել հաջորդ շաբաթ',
+    sendLink: 'Ուղարկել կառավարման հղում',
+  },
+  manageGuest: {
+    signIn: 'Մուտք գործել կառավարելու համար',
+    resendLink: 'Կրկին ուղարկել կառավարման հղում',
+  },
+  account: {
+    nextAppointment: 'Իմ հաջորդ ամրագրումը',
+    turnOffReminders: 'Անջատել հիշեցումները',
+    rebookLast: 'Կրկին ամրագրել վերջին այցը',
+  },
+  home: {
+    cheapestService: 'Որն է ամենաէժան ծառայությունը',
+    whoFreeTomorrow: 'Ով է ազատ վաղը',
+  },
+  multiPicker: {
+    duration: 'Որքա՞ն կտևի',
+    afternoonSlot: 'Գտնել ցերեկյան ժամ բոլոր ծառայությունների համար',
+  },
+  giftCard: {
+    applyPromo: 'Կիրառել պրոմո կոդ',
+    explainTax: 'Բացատրել ընդամենը հարկով',
+  },
+  multiCheckout: {
+    useSubscription: 'Օգտագործել իմ բաժանորդագրությունը',
+    zeroTotal: 'Ինչու՞ է ընդամենը $0',
+  },
+  package: {
+    visitCount: 'Քանի այց է այս փաթեթում',
+    bookFirstVisit: 'Ամրագրել առաջին այցը հիմա',
+  },
+  lab: {
+    bookDraw: 'Ամրագրել իմ լաբորատոր նմուշը',
+    whyCollection: 'Ինչու՞ է պետք հավաքում',
+  },
+  results: {
+    releasedMeaning: 'Ինչ է նշանակում released',
+    cbcPending: 'Ինչու՞ է CBC-ն դեռ pending',
+  },
+  welcome: {
+    savedSalons: 'Գտնել պահպանված salon-ները',
+    getApp: 'Ինչպե՞ս ստանալ հավելվածը',
+  },
+},
 signIn: 'Մուտք գործել',
 signInWithGoogle: 'Մուտք գործել Google-ով',
 signingIn: 'Մուտք է կատարվում…',

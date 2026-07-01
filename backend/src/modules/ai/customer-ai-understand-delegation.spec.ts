@@ -43,9 +43,7 @@ describe('CustomerAiCommandService understand delegation (pipe-1.12.3)', () => {
       'applyBudgetAndRankServiceDiscoveryRescue',
     );
     expect(CUSTOMER_AI_COMMAND_SOURCE).not.toContain('private rescueIntent(');
-    expect(CUSTOMER_AI_COMMAND_SOURCE).not.toContain(
-      'rescueCheckoutTaxIntent',
-    );
+    expect(CUSTOMER_AI_COMMAND_SOURCE).not.toContain('rescueCheckoutTaxIntent');
     expect(CUSTOMER_AI_COMMAND_SOURCE).not.toContain('rescuePaymentsIntent');
   });
 

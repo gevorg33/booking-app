@@ -46,7 +46,9 @@ export function catalogNotifyDashboardToRescueScenario(
 }
 
 export const CATALOG_NOTIFY_RESCUE_SCENARIOS: AiCmdRescueScenario[] =
-  CATALOG_NOTIFY_DASHBOARD_SCENARIOS.map(catalogNotifyDashboardToRescueScenario);
+  CATALOG_NOTIFY_DASHBOARD_SCENARIOS.map(
+    catalogNotifyDashboardToRescueScenario,
+  );
 
 /** Per-domain NL rescue scenarios (ai-cmd-t2 / ai-cmd-t3). */
 export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [

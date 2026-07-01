@@ -1,5 +1,8 @@
 import type { AppGuideIntent } from './ai-product-guide.util.js';
-import type { CommandResult, GuideResponse } from './command-completion.types.js';
+import type {
+  CommandResult,
+  GuideResponse,
+} from './command-completion.types.js';
 import {
   PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS,
   type ProviderProductGuideRescueScenario,
@@ -94,7 +97,8 @@ export function buildProviderGuideCommandResult(
     action: providerIntent,
     summary: guide.summary,
     details: {
-      topicId: guide.topicId ?? resolveProviderProductGuideTopicId(providerIntent),
+      topicId:
+        guide.topicId ?? resolveProviderProductGuideTopicId(providerIntent),
       stepCount: guide.steps.length,
       guideIntent: resolveProviderProductGuideAppIntent(providerIntent),
     },

@@ -18,7 +18,10 @@ describe('ai-explain-integration-health.util', () => {
     for (const fixture of EXPLAIN_INTEGRATION_HEALTH_PROMPTS) {
       if (!fixture.paramsPartial?.integrationFocus) continue;
       expect(
-        parseIntegrationHealthFocusFromPrompt(fixture.prompt, fixture.paramsPartial),
+        parseIntegrationHealthFocusFromPrompt(
+          fixture.prompt,
+          fixture.paramsPartial,
+        ),
       ).toBe(fixture.paramsPartial.integrationFocus);
     }
   });
@@ -27,9 +30,9 @@ describe('ai-explain-integration-health.util', () => {
     expect(
       isExplainIntegrationHealthPrompt('List integration health status'),
     ).toBe(false);
-    expect(isListIntegrationHealthPrompt('List integration health status')).toBe(
-      true,
-    );
+    expect(
+      isListIntegrationHealthPrompt('List integration health status'),
+    ).toBe(true);
   });
 
   it('does not detect configure whatsapp mutate', () => {

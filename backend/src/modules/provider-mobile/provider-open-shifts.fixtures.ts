@@ -31,7 +31,8 @@ export const PROVIDER_OPEN_SHIFTS_GAP_DURATION_SCENARIOS = [
 export const PROVIDER_OPEN_SHIFTS_FILL_PROMPT_SCENARIOS = [
   {
     id: 'fill-this-gap',
-    prompt: 'Fill this gap on 2026-06-09 from 14:00 to 15:30 — suggest waitlist customers',
+    prompt:
+      'Fill this gap on 2026-06-09 from 14:00 to 15:30 — suggest waitlist customers',
     expectedMatch: true,
   },
   {
@@ -46,7 +47,8 @@ export const PROVIDER_OPEN_SHIFTS_CLASSIFIER_RULES = `- suggest_waitlist_for_gap
 export const SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS = [
   {
     id: 'fill-gap-waitlist',
-    prompt: 'Fill this gap on 09/06/2026 from 14:00 to 15:30 — suggest waitlist customers',
+    prompt:
+      'Fill this gap on 09/06/2026 from 14:00 to 15:30 — suggest waitlist customers',
     surface: 'provider' as const,
     expectedAction: 'suggest_waitlist_for_gap',
   },

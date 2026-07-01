@@ -212,9 +212,7 @@ import {
   readProviderOpenShiftsSettings,
 } from './provider-open-shifts.util.js';
 import { resolveAvailabilityDayBounds } from './provider-ai-sprint19.util.js';
-import type {
-  CreateProviderTimeOffRequestDto,
-} from './dto/provider-mobile.dto.js';
+import type { CreateProviderTimeOffRequestDto } from './dto/provider-mobile.dto.js';
 
 const TERMINAL_BOOKING_STATUSES = [
   BookingStatus.COMPLETED,
@@ -277,7 +275,8 @@ export class ProviderMobileService {
     const notificationSettings = mergeBusinessNotificationSettings(
       settings?.notifications as Record<string, unknown> | undefined,
     );
-    const providerStatus = this.notificationsService.getProviderStatus(settings);
+    const providerStatus =
+      this.notificationsService.getProviderStatus(settings);
 
     return {
       membershipRole: access.membershipRole,
@@ -342,7 +341,8 @@ export class ProviderMobileService {
     const notificationSettings = mergeBusinessNotificationSettings(
       settings?.notifications as Record<string, unknown> | undefined,
     );
-    const providerStatus = this.notificationsService.getProviderStatus(settings);
+    const providerStatus =
+      this.notificationsService.getProviderStatus(settings);
     return buildProviderCustomerContactView({
       customerPhone,
       whatsappEnabledSetting: notificationSettings.whatsappEnabled,
@@ -352,9 +352,8 @@ export class ProviderMobileService {
 
   async listProviderRetailProducts(businessId: string, userId: string) {
     await this.resolveMobileAccess(businessId, userId);
-    const enabled = await this.retailPosService.hasConfiguredRetailProducts(
-      businessId,
-    );
+    const enabled =
+      await this.retailPosService.hasConfiguredRetailProducts(businessId);
     if (!enabled) {
       throw new ForbiddenException(
         'Retail POS is not enabled. Add products with a retail price in Operations → Inventory.',
@@ -371,11 +370,12 @@ export class ProviderMobileService {
     bookingId: string,
   ) {
     await this.getAccessibleBooking(businessId, userId, bookingId, 'read');
-    const enabled = await this.retailPosService.hasConfiguredRetailProducts(
-      businessId,
-    );
+    const enabled =
+      await this.retailPosService.hasConfiguredRetailProducts(businessId);
     if (!enabled) {
-      throw new ForbiddenException('Retail POS is not enabled for this business');
+      throw new ForbiddenException(
+        'Retail POS is not enabled for this business',
+      );
     }
     return this.retailPosService.getBookingRetailSales(businessId, bookingId);
   }
@@ -391,11 +391,12 @@ export class ProviderMobileService {
       userId,
       bookingId,
     );
-    const enabled = await this.retailPosService.hasConfiguredRetailProducts(
-      businessId,
-    );
+    const enabled =
+      await this.retailPosService.hasConfiguredRetailProducts(businessId);
     if (!enabled) {
-      throw new ForbiddenException('Retail POS is not enabled for this business');
+      throw new ForbiddenException(
+        'Retail POS is not enabled for this business',
+      );
     }
     const blockedReason = buildProviderRetailCartBlockedReason(booking.status);
     if (blockedReason) {
@@ -814,7 +815,9 @@ export class ProviderMobileService {
   ): Promise<TeamFloorTodayView> {
     const access = await this.resolveMobileAccess(businessId, userId);
     if (access.viewMode !== 'team') {
-      throw new ForbiddenException('Team floor view is only available to managers');
+      throw new ForbiddenException(
+        'Team floor view is only available to managers',
+      );
     }
 
     const today = new Date();
@@ -849,7 +852,10 @@ export class ProviderMobileService {
       throw new BadRequestException('Unknown provider filter');
     }
 
-    const filtered = filterTeamFloorBookingsByEmployee(bookings, filterEmployeeId);
+    const filtered = filterTeamFloorBookingsByEmployee(
+      bookings,
+      filterEmployeeId,
+    );
 
     const columns = buildTeamFloorColumns(filtered, (booking) => ({
       ...this.toBookingSummary(booking),
@@ -957,8 +963,7 @@ export class ProviderMobileService {
     if (trimmedMonth && !normalizedMonth) {
       throw new BadRequestException('Invalid month. Use YYYY-MM.');
     }
-    const monthKey =
-      normalizedMonth ?? new Date().toISOString().slice(0, 7);
+    const monthKey = normalizedMonth ?? new Date().toISOString().slice(0, 7);
     const { from, to } = resolveCalendarMonthBounds(monthKey);
     const { start, end } = isoDateRangeToUtcBounds({ start: from, end: to });
 
@@ -1187,9 +1192,7 @@ export class ProviderMobileService {
         startTime: booking.startTime,
         endTime: booking.endTime,
         status: booking.status,
-        customer: booking.customer
-          ? { name: booking.customer.name }
-          : null,
+        customer: booking.customer ? { name: booking.customer.name } : null,
       })),
       timeZone: wallClockTz,
     });
@@ -1214,11 +1217,7 @@ export class ProviderMobileService {
     };
   }
 
-  async getBookingsByDate(
-    businessId: string,
-    userId: string,
-    dateKey: string,
-  ) {
+  async getBookingsByDate(businessId: string, userId: string, dateKey: string) {
     const access = await this.resolveMobileAccess(businessId, userId);
     const { start, end } = this.parseDateKeyBounds(dateKey);
 
@@ -1252,7 +1251,9 @@ export class ProviderMobileService {
     const business = await this.businessService.findOne(businessId);
     const settings = business?.settings as Record<string, unknown> | undefined;
 
-    if (!isProviderOpenShiftsEnabled(readProviderOpenShiftsSettings(settings))) {
+    if (
+      !isProviderOpenShiftsEnabled(readProviderOpenShiftsSettings(settings))
+    ) {
       throw new ForbiddenException(
         'Open shifts are not enabled. Ask your manager to turn this on in Settings.',
       );
@@ -1324,7 +1325,9 @@ export class ProviderMobileService {
       throw new ForbiddenException('No linked provider profile');
     }
     if (access.employee.userId !== userId) {
-      throw new ForbiddenException('You can only edit your own provider profile');
+      throw new ForbiddenException(
+        'You can only edit your own provider profile',
+      );
     }
 
     const employee = await this.employeeRepo.findOne({
@@ -1431,11 +1434,7 @@ export class ProviderMobileService {
     };
   }
 
-  async checkInBooking(
-    businessId: string,
-    userId: string,
-    bookingId: string,
-  ) {
+  async checkInBooking(businessId: string, userId: string, bookingId: string) {
     const booking = await this.getAccessibleBooking(
       businessId,
       userId,
@@ -1452,11 +1451,7 @@ export class ProviderMobileService {
     booking.checkedInAt = checkedInAt;
     const saved = await this.bookingRepo.save(booking);
 
-    await this.maybeNotifyReceptionOnCheckIn(
-      businessId,
-      userId,
-      saved,
-    );
+    await this.maybeNotifyReceptionOnCheckIn(businessId, userId, saved);
 
     return {
       bookingId: saved.id,
@@ -1559,14 +1554,15 @@ export class ProviderMobileService {
     const settings = (business?.settings ?? {}) as Record<string, unknown>;
     let notifications: { smsSent: boolean; pushSent: boolean } | null = null;
     if (providerMobileNotifyCustomerOnVisitStatus(settings)) {
-      notifications = await this.notificationsService.sendProviderVisitStatusToCustomer(
-        saved.id,
-        {
-          kind,
-          minutesLate: snapshot.minutesLate,
-          providerName: saved.employee?.name ?? 'Provider',
-        },
-      );
+      notifications =
+        await this.notificationsService.sendProviderVisitStatusToCustomer(
+          saved.id,
+          {
+            kind,
+            minutesLate: snapshot.minutesLate,
+            providerName: saved.employee?.name ?? 'Provider',
+          },
+        );
     }
 
     return {
@@ -1841,7 +1837,9 @@ export class ProviderMobileService {
       booking,
     );
     if (!eligibility.allowed) {
-      throw new ForbiddenException(eligibility.reason ?? 'Reassign not allowed');
+      throw new ForbiddenException(
+        eligibility.reason ?? 'Reassign not allowed',
+      );
     }
 
     if (dto.employeeId === booking.employeeId) {
@@ -1927,44 +1925,49 @@ export class ProviderMobileService {
       customerId,
     );
 
-    const [earnRedeem, completedVisitCount, noShowCount, lastCompleted, recentCompleted] =
-      await Promise.all([
-        this.loyaltyService.getLastEarnRedeemTransactions(loyaltyAccount.id),
-        this.bookingRepo.count({
-          where: {
-            businessId,
-            customerId,
-            status: BookingStatus.COMPLETED,
-          },
-        }),
-        this.bookingRepo.count({
-          where: {
-            businessId,
-            customerId,
-            status: BookingStatus.NO_SHOW,
-          },
-        }),
-        this.bookingRepo.findOne({
-          where: {
-            businessId,
-            customerId,
-            status: BookingStatus.COMPLETED,
-          },
-          order: { endTime: 'DESC' },
-          select: { endTime: true },
-        }),
-        this.bookingRepo.find({
-          where: {
-            businessId,
-            customerId,
-            status: BookingStatus.COMPLETED,
-            id: Not(bookingId),
-          },
-          relations: { service: true, employee: true },
-          order: { endTime: 'DESC' },
-          take: PROVIDER_RECENT_VISIT_LIMIT,
-        }),
-      ]);
+    const [
+      earnRedeem,
+      completedVisitCount,
+      noShowCount,
+      lastCompleted,
+      recentCompleted,
+    ] = await Promise.all([
+      this.loyaltyService.getLastEarnRedeemTransactions(loyaltyAccount.id),
+      this.bookingRepo.count({
+        where: {
+          businessId,
+          customerId,
+          status: BookingStatus.COMPLETED,
+        },
+      }),
+      this.bookingRepo.count({
+        where: {
+          businessId,
+          customerId,
+          status: BookingStatus.NO_SHOW,
+        },
+      }),
+      this.bookingRepo.findOne({
+        where: {
+          businessId,
+          customerId,
+          status: BookingStatus.COMPLETED,
+        },
+        order: { endTime: 'DESC' },
+        select: { endTime: true },
+      }),
+      this.bookingRepo.find({
+        where: {
+          businessId,
+          customerId,
+          status: BookingStatus.COMPLETED,
+          id: Not(bookingId),
+        },
+        relations: { service: true, employee: true },
+        order: { endTime: 'DESC' },
+        take: PROVIDER_RECENT_VISIT_LIMIT,
+      }),
+    ]);
 
     const loyaltySummary = this.loyaltyService.getPublicSummary(
       loyaltyAccount,
@@ -1992,7 +1995,8 @@ export class ProviderMobileService {
       lastCompletedVisitAt: lastCompleted?.endTime ?? null,
       noShowCount,
       referrer,
-      recentCompletedVisits: buildProviderRecentCompletedVisits(recentCompleted),
+      recentCompletedVisits:
+        buildProviderRecentCompletedVisits(recentCompleted),
       inactiveDaysThreshold: mergeMarketingAutomationSettings(
         (business?.settings as Record<string, unknown> | undefined)
           ?.marketingAutomation as Record<string, unknown> | undefined,
@@ -2388,7 +2392,9 @@ Write a cancellation note the provider can save.`,
   }
 
   private async buildBookingCheckoutContext(booking: Booking) {
-    const subscriptionId = readSubscriptionIdFromBookingMetadata(booking.metadata);
+    const subscriptionId = readSubscriptionIdFromBookingMetadata(
+      booking.metadata,
+    );
 
     const [packageSiblings, subscription, multiGroup, multiSiblings] =
       await Promise.all([

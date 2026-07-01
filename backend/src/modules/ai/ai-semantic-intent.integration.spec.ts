@@ -5,7 +5,10 @@ import { AiSettingsService } from './ai-settings.service.js';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { SEMANTIC_PARAPHRASE_SCENARIOS } from './ai-semantic-intent.fixtures.js';
-import { clearIntentAnchorBankCache, getIntentAnchorBank } from './intent-anchor.bank.js';
+import {
+  clearIntentAnchorBankCache,
+  getIntentAnchorBank,
+} from './intent-anchor.bank.js';
 
 describe('AiSemanticIntentService (integration)', () => {
   let service: AiSemanticIntentService;
@@ -21,7 +24,11 @@ describe('AiSemanticIntentService (integration)', () => {
         AiPromptNormalizationService,
         {
           provide: AiSettingsService,
-          useValue: { getSettings: jest.fn().mockResolvedValue({ rag: { enabled: false, documents: [] } }) },
+          useValue: {
+            getSettings: jest
+              .fn()
+              .mockResolvedValue({ rag: { enabled: false, documents: [] } }),
+          },
         },
         {
           provide: OpenAiGatewayService,

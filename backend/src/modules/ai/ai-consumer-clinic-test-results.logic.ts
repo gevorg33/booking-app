@@ -18,7 +18,7 @@ export interface ConsumerClinicTestResultsLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne'>;
   clinicTestResultsService: Pick<
     ClinicTestResultsService,
-    'listReleasedResultsForCustomer'
+    'listReleasedResultsForCustomer' | 'listCustomerResultsForTracking'
   >;
 }
 

@@ -67,8 +67,7 @@ export const CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS: ConfigureWhatsappIntegratio
     },
     {
       id: 'confirmation-template',
-      prompt:
-        'Set WhatsApp confirmation template to appointment_confirmation',
+      prompt: 'Set WhatsApp confirmation template to appointment_confirmation',
       surface: 'dashboard',
       expectedAction: CONFIGURE_WHATSAPP_INTEGRATION_INTENT,
       paramsPartial: { templateConfirmation: 'appointment_confirmation' },
@@ -350,7 +349,9 @@ export function parseConfigureWhatsappIntegrationFromPrompt(
     'fallbackLanguage',
     'fallbackBodyParams',
   ] as const;
-  const hasExplicitParams = explicitKeys.some((key) => params[key] !== undefined);
+  const hasExplicitParams = explicitKeys.some(
+    (key) => params[key] !== undefined,
+  );
 
   if (
     !isConfigureWhatsappIntegrationPrompt(prompt) &&

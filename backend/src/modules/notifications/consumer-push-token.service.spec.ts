@@ -42,7 +42,11 @@ describe('ConsumerPushTokenService', () => {
       analyticsAnonId: null,
       tokenRefreshedAt: null,
     });
-    expect(result).toEqual({ registered: true, platform: 'android', refreshed: false });
+    expect(result).toEqual({
+      registered: true,
+      platform: 'android',
+      refreshed: false,
+    });
   });
 
   it('marks token refresh when FCM token changes', async () => {
@@ -81,7 +85,9 @@ describe('ConsumerPushTokenService', () => {
 
   it('reports native push registration status across platforms', async () => {
     tokenRepo.count.mockResolvedValue(2);
-    await expect(service.getNativePushStatus('cust-1', 'biz-1')).resolves.toEqual({
+    await expect(
+      service.getNativePushStatus('cust-1', 'biz-1'),
+    ).resolves.toEqual({
       registered: true,
       platform: null,
     });
@@ -95,7 +101,9 @@ describe('ConsumerPushTokenService', () => {
 
   it('reports unregistered status when no tokens exist', async () => {
     tokenRepo.count.mockResolvedValue(0);
-    await expect(service.getNativePushStatus('cust-1', 'biz-1', 'android')).resolves.toEqual({
+    await expect(
+      service.getNativePushStatus('cust-1', 'biz-1', 'android'),
+    ).resolves.toEqual({
       registered: false,
       platform: 'android',
     });
@@ -103,9 +111,9 @@ describe('ConsumerPushTokenService', () => {
 
   it('lists tokens for a customer within a tenant', async () => {
     tokenRepo.find.mockResolvedValueOnce([{ id: 'tok-1' }]);
-    await expect(service.listTokensForCustomer('cust-1', 'biz-1')).resolves.toEqual([
-      { id: 'tok-1' },
-    ]);
+    await expect(
+      service.listTokensForCustomer('cust-1', 'biz-1'),
+    ).resolves.toEqual([{ id: 'tok-1' }]);
   });
 
   it('deletes invalid tokens by id', async () => {

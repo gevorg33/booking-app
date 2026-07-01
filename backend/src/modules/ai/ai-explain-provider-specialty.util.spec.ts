@@ -76,9 +76,7 @@ describe('ai-explain-provider-specialty.util (ai-cmd-customer-4.1.6)', () => {
       ),
     ).toBe(false);
     expect(
-      isExplainProviderSpecialtyPrompt(
-        'who is the best specialist for brows',
-      ),
+      isExplainProviderSpecialtyPrompt('who is the best specialist for brows'),
     ).toBe(false);
   });
 
@@ -91,10 +89,8 @@ describe('ai-explain-provider-specialty.util (ai-cmd-customer-4.1.6)', () => {
     });
     expect(score).toBeGreaterThan(0);
     expect(
-      resolveEmployeeByName(
-        [{ name: 'Anna Smith' }, { name: 'Maria' }],
-        'Anna',
-      )?.name,
+      resolveEmployeeByName([{ name: 'Anna Smith' }, { name: 'Maria' }], 'Anna')
+        ?.name,
     ).toBe('Anna Smith');
   });
 
@@ -105,8 +101,9 @@ describe('ai-explain-provider-specialty.util (ai-cmd-customer-4.1.6)', () => {
       ).length,
     ).toBeGreaterThanOrEqual(10);
     expect(
-      EXPLAIN_PROVIDER_SPECIALTY_PROMPTS.filter((row) => row.surface === 'public')
-        .length,
+      EXPLAIN_PROVIDER_SPECIALTY_PROMPTS.filter(
+        (row) => row.surface === 'public',
+      ).length,
     ).toBeGreaterThanOrEqual(10);
     expect(AI_COMMAND_EVAL_EXPLAIN_PROVIDER_SPECIALTY_CASES.length).toBe(
       EXPLAIN_PROVIDER_SPECIALTY_PROMPTS.length +

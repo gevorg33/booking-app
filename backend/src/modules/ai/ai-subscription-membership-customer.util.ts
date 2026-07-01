@@ -2,16 +2,20 @@ import {
   applyRelativeDateFromPrompt,
   toIsoDay,
 } from '../../common/utils/date-format.util.js';
-import { rescueCustomerCrmIntent, isMySubscriptionsPrompt } from './ai-customer-crm.util.js';
+import {
+  rescueCustomerCrmIntent,
+  isMySubscriptionsPrompt,
+} from './ai-customer-crm.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import {
   extractPlanNameFromPrompt,
   isUseSubscriptionCreditPrompt,
   rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
+import { rescueSubscriptionFirstVisitCompoundIntent } from './ai-subscription-first-visit-compound.util.js';
 
-export const CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES = `- use_subscription_credit: MUTATE — apply an active membership/subscription visit credit when booking or at checkout (logged-in customer). Triggers: use|apply|redeem + subscription|membership|credit|visit; book|pay with my subscription/membership/plan; use my membership for today's massage. Sets useSubscriptionId in session and paymentMethod subscription_credit. Requires serviceName + date when booking a visit. NOT my_subscriptions (list plans), NOT subscription_usage (visits remaining read), NOT select_subscription_plan (pick a new plan), NOT discover_subscription_plans (browse catalog).
-- my_subscriptions: READ — list the signed-in customer's active membership/subscription plans on their account. Triggers: show|list|view my subscriptions/memberships/plans; what memberships do I have; do I have a membership. Navigates to account subscriptions tab. NOT subscription_usage (visits left on a plan), NOT use_subscription_credit (apply credit), NOT discover_subscription_plans (salon catalog).`;
+export const CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES = `- use_subscription_credit: MUTATE — apply an active membership/subscription visit credit when booking or at checkout (logged-in customer). Triggers: use|apply|redeem + subscription|membership|credit|visit without a named service visit booking. Sets useSubscriptionId in session and paymentMethod subscription_credit. NOT subscription_first_visit (explain plan + book named visit with credit); NOT my_subscriptions (list plans), NOT subscription_usage (visits remaining read), NOT select_subscription_plan (pick a new plan), NOT discover_subscription_plans (browse catalog), NOT explain_subscription_vs_one_time (compare checkout options).
+- my_subscriptions: READ — list the signed-in customer's active membership/subscription plans on their account. Triggers: show|list|view my subscriptions/memberships/plans; what memberships do I have; do I have a membership. Navigates to account subscriptions tab. NOT explain_my_subscription (visits/expiry/plan explain), NOT subscription_usage (raw usage ledger), NOT use_subscription_credit (apply credit), NOT discover_subscription_plans (salon catalog), NOT explain_subscription_vs_one_time (checkout compare).`;
 
 export type SubscriptionMembershipCustomerPromptFixture = {
   id: string;
@@ -33,26 +37,10 @@ export const USE_SUBSCRIPTION_CREDIT_PROMPTS: readonly SubscriptionMembershipCus
       rescueReason: 'subscription_credit',
     },
     {
-      id: 'use-my-membership-massage-customer',
-      prompt: "Use my membership for today's massage",
-      surface: 'customer',
-      expectedAction: 'use_subscription_credit',
-      serviceName: 'massage',
-      rescueReason: 'subscription_credit',
-    },
-    {
       id: 'apply-membership-visit-customer',
       prompt: 'Apply my membership visit',
       surface: 'customer',
       expectedAction: 'use_subscription_credit',
-      rescueReason: 'subscription_credit',
-    },
-    {
-      id: 'redeem-membership-credit-customer',
-      prompt: 'Redeem a membership visit for facial',
-      surface: 'customer',
-      expectedAction: 'use_subscription_credit',
-      serviceName: 'facial',
       rescueReason: 'subscription_credit',
     },
     {
@@ -67,14 +55,6 @@ export const USE_SUBSCRIPTION_CREDIT_PROMPTS: readonly SubscriptionMembershipCus
       prompt: 'Pay with membership credit',
       surface: 'customer',
       expectedAction: 'use_subscription_credit',
-      rescueReason: 'subscription_credit',
-    },
-    {
-      id: 'use-plan-credit-massage-customer',
-      prompt: 'Use my plan credit for massage tomorrow',
-      surface: 'customer',
-      expectedAction: 'use_subscription_credit',
-      serviceName: 'massage',
       rescueReason: 'subscription_credit',
     },
     {
@@ -99,16 +79,36 @@ export const USE_SUBSCRIPTION_CREDIT_PROMPTS: readonly SubscriptionMembershipCus
       rescueReason: 'subscription_credit',
     },
     {
-      id: 'pay-with-my-plan-customer',
-      prompt: 'Pay with my plan for haircut',
+      id: 'redeem-subscription-visit-customer',
+      prompt: 'Redeem subscription visit at checkout',
       surface: 'customer',
       expectedAction: 'use_subscription_credit',
-      serviceName: 'haircut',
       rescueReason: 'subscription_credit',
     },
     {
-      id: 'redeem-subscription-visit-customer',
-      prompt: 'Redeem subscription visit at checkout',
+      id: 'apply-membership-credit-checkout-customer',
+      prompt: 'Apply membership credit at checkout',
+      surface: 'customer',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'use-plan-credit-checkout-customer',
+      prompt: 'Use my plan credit at checkout',
+      surface: 'customer',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'redeem-membership-at-visit-customer',
+      prompt: 'Redeem my membership at this visit',
+      surface: 'customer',
+      expectedAction: 'use_subscription_credit',
+      rescueReason: 'subscription_credit',
+    },
+    {
+      id: 'pay-with-my-subscription-customer',
+      prompt: 'Pay with my subscription',
       surface: 'customer',
       expectedAction: 'use_subscription_credit',
       rescueReason: 'subscription_credit',
@@ -215,9 +215,12 @@ export function rescueMembershipCustomerIntent(
   prompt: string,
   action: string,
 ): {
-  action: 'use_subscription_credit' | 'my_subscriptions';
+  action: 'use_subscription_credit' | 'my_subscriptions' | 'compound_intent';
   rescueReason: string;
 } | null {
+  const compound = rescueSubscriptionFirstVisitCompoundIntent(prompt, action);
+  if (compound) return compound;
+
   const selfService = rescueSelfServiceBookingIntent(prompt, action);
   if (
     selfService &&
@@ -241,7 +244,10 @@ export function rescueMembershipCustomerIntent(
 
 export function detectMembershipCustomerAction(
   prompt: string,
-): SubscriptionMembershipCustomerPromptFixture['expectedAction'] | null {
+):
+  | SubscriptionMembershipCustomerPromptFixture['expectedAction']
+  | 'compound_intent'
+  | null {
   return rescueMembershipCustomerIntent(prompt, 'unknown')?.action ?? null;
 }
 
@@ -274,7 +280,4 @@ export function enrichUseSubscriptionCreditParamsFromPrompt(
   }
   return next;
 }
-export {
-  isUseSubscriptionCreditPrompt,
-  isMySubscriptionsPrompt,
-};
+export { isUseSubscriptionCreditPrompt, isMySubscriptionsPrompt };

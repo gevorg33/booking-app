@@ -43,7 +43,9 @@ function normalizeLastActionForSemantic(lastAction: string): string {
 }
 
 /** Anchor actions that have at least one phrase for the given surface. */
-export function resolveSurfaceSemanticActions(surface: CommandSurface): string[] {
+export function resolveSurfaceSemanticActions(
+  surface: CommandSurface,
+): string[] {
   const actions = new Set<string>();
   for (const anchor of getIntentAnchorBank()) {
     if (!anchor.surfaces.includes(surface)) continue;

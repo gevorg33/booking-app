@@ -6,7 +6,10 @@ import {
   type PlanFeatureFlag,
   type PlanTierId,
 } from '../billing/plan-limits.js';
-import type { CommandResult, GuideResponse } from './command-completion.types.js';
+import type {
+  CommandResult,
+  GuideResponse,
+} from './command-completion.types.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
 import {
   buildGuideFlowListContext,
@@ -25,11 +28,17 @@ import {
   resolveGuideFlowPlanTier,
 } from './guide/guide-flow.merge.util.js';
 import { resolveGuideFlowRoutePrimaryTopic } from './guide/guide-flow.routes.manifest.js';
-import type { GuideFlowListContext, GuideFlowPlaybookDef } from './guide/guide-flow.types.js';
+import type {
+  GuideFlowListContext,
+  GuideFlowPlaybookDef,
+} from './guide/guide-flow.types.js';
 import type { ProductGuideLogicInput } from './ai-product-guide.logic.js';
 import { resolveGuideFlowSurfaceFromRoute } from './guide/guide-flow.merge.util.js';
 import type { ProductGuideRetrieveQuery } from './ai-product-guide-ranking.util.js';
-import { buildGuideCommandResult, type AppGuideIntent } from './ai-product-guide.util.js';
+import {
+  buildGuideCommandResult,
+  type AppGuideIntent,
+} from './ai-product-guide.util.js';
 
 export const GUIDE_PLAN_GATE_PIPE_MARKER = 'ai-guide-1.8.4';
 
@@ -46,12 +55,18 @@ export interface GuidePlaybookGateDetails {
   featureLabel: string;
 }
 
-function readTopicIdParam(params?: Record<string, unknown>): string | undefined {
+function readTopicIdParam(
+  params?: Record<string, unknown>,
+): string | undefined {
   const topicId = params?.topicId;
-  return typeof topicId === 'string' && topicId.trim() ? topicId.trim() : undefined;
+  return typeof topicId === 'string' && topicId.trim()
+    ? topicId.trim()
+    : undefined;
 }
 
-function readPlanTierId(session?: { context?: Record<string, unknown> }): PlanTierId {
+function readPlanTierId(session?: {
+  context?: Record<string, unknown>;
+}): PlanTierId {
   const raw = session?.context?._planTierId ?? session?.context?.planTierId;
   if (raw === 'starter' || raw === 'business' || raw === 'solo') return raw;
   return 'solo';
@@ -102,7 +117,9 @@ function resolveUpgradePlanId(requiredPlan?: PlanTierId): string {
   return UPGRADE_PLAN_ID;
 }
 
-function resolveRequiredPlanForModule(playbook: GuideFlowPlaybookDef): PlanTierId | undefined {
+function resolveRequiredPlanForModule(
+  playbook: GuideFlowPlaybookDef,
+): PlanTierId | undefined {
   if (playbook.requiresPlan) return playbook.requiresPlan;
   for (const moduleId of playbook.requiresModule ?? []) {
     const tiers: PlanTierId[] = ['solo', 'starter', 'business'];
@@ -129,7 +146,10 @@ export function describeGuidePlaybookGate(
   const featureLabel = resolved.title.trim();
   const currentPlanName = getLimitsForTier(currentPlanTierId).tierName;
 
-  if (!isGuideFlowPlaybookPlanAllowed(playbook, currentPlanTierId) && playbook.requiresPlan) {
+  if (
+    !isGuideFlowPlaybookPlanAllowed(playbook, currentPlanTierId) &&
+    playbook.requiresPlan
+  ) {
     const requiredPlan = playbook.requiresPlan;
     const requiredPlanName = getLimitsForTier(requiredPlan).tierName;
     return {
@@ -185,7 +205,9 @@ export function describeGuidePlaybookGate(
       reason: 'module',
       currentPlanTierId,
       requiredModule: settingsBlockedModule,
-      upgradePlanId: resolveUpgradePlanId(resolveRequiredPlanForModule(playbook)),
+      upgradePlanId: resolveUpgradePlanId(
+        resolveRequiredPlanForModule(playbook),
+      ),
       featureLabel,
       summary:
         locale === 'hy'
@@ -302,8 +324,9 @@ function collectGateCandidateTopicIds(
   const query = buildProductGuideQueryFromInput(input);
   const messages = getFrontendGuideCorpusMessages(locale);
   const activeVerticals = resolveActiveGuideVerticalOverlays(ctx);
-  const roleVisiblePlaybooks = listAllGuideFlowPlaybookDefs().filter((playbook) =>
-    isGuideFlowPlaybookRoleVerticalVisible(playbook, ctx, activeVerticals),
+  const roleVisiblePlaybooks = listAllGuideFlowPlaybookDefs().filter(
+    (playbook) =>
+      isGuideFlowPlaybookRoleVerticalVisible(playbook, ctx, activeVerticals),
   );
   const ranked = rankGuideFlowPlaybookDefs(
     roleVisiblePlaybooks,
@@ -330,12 +353,19 @@ export function tryResolvePlanGatedGuideResult(
   for (const topicId of collectGateCandidateTopicIds(input, ctx, locale)) {
     const playbook = findGuideFlowPlaybookByTopicId(topicId);
     if (!playbook) continue;
-    if (!isGuideFlowPlaybookRoleVerticalVisible(playbook, ctx, activeVerticals)) continue;
+    if (!isGuideFlowPlaybookRoleVerticalVisible(playbook, ctx, activeVerticals))
+      continue;
     if (isGuideFlowPlaybookEntitlementAllowed(playbook, ctx)) continue;
 
     const gate = describeGuidePlaybookGate(playbook, ctx, locale, messages);
     if (gate.allowed) continue;
-    return buildPlanGatedGuideCommandResult(intent, playbook, gate, input, locale);
+    return buildPlanGatedGuideCommandResult(
+      intent,
+      playbook,
+      gate,
+      input,
+      locale,
+    );
   }
 
   return null;

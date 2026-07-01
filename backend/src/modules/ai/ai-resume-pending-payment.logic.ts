@@ -44,10 +44,12 @@ function resolvePendingContext(
   const fromParams = parsePendingCheckoutPaymentFromParams(params);
   if (!draft) return fromParams;
 
-  const payload = (draft.payload ?? {}) as Record<string, unknown>;
+  const payload = draft.payload ?? {};
   const sessionId = fromParams?.sessionId ?? draft.stripeSessionId ?? undefined;
-  const serviceId = fromParams?.serviceId ?? readPayloadField(payload, 'serviceId');
-  const startTime = fromParams?.startTime ?? readPayloadField(payload, 'startTime');
+  const serviceId =
+    fromParams?.serviceId ?? readPayloadField(payload, 'serviceId');
+  const startTime =
+    fromParams?.startTime ?? readPayloadField(payload, 'startTime');
   const employeeId =
     fromParams?.employeeId ?? readPayloadField(payload, 'employeeId');
 

@@ -28,12 +28,12 @@ describe('Sprint 29 — public booking package locale integration', () => {
   };
 
   const service = createPublicBookingServiceHarness({
-    businessService: { findBySlug: jest.fn(async () => business) } as never,
-    packagesService: packagesService as never,
+    businessService: { findBySlug: jest.fn(async () => business) },
+    packagesService: packagesService,
     configService: config as unknown as ConfigService,
-    serviceRepo: { findOne: jest.fn(), find: jest.fn() } as never,
-    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
-    schedulingPeriodRepo: { find: jest.fn() } as never,
+    serviceRepo: { findOne: jest.fn(), find: jest.fn() },
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
   });
 
   beforeEach(() => {

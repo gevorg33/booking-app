@@ -6,10 +6,13 @@ import { isAiPaymentsServiceIntentForSurface } from './ai-payments-dispatch.util
 
 describe('customer-ai-command explain_payment_options_for_service integration (ai-cmd-customer-4.1.2)', () => {
   it.each(
-    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues explain_payment_options_for_service for $id', (_id, row) => {
     expect(
-      rescueExplainPaymentOptionsForServiceIntent(row.prompt, 'unknown')?.action,
+      rescueExplainPaymentOptionsForServiceIntent(row.prompt, 'unknown')
+        ?.action,
     ).toBe('explain_payment_options_for_service');
     expect(rescuePaymentsIntent(row.prompt, 'unknown')?.action).toBe(
       'explain_payment_options_for_service',

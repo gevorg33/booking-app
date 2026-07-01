@@ -1,6 +1,9 @@
 /** prov-exp-2.1 — personal stats for provider mobile profile insights. */
 
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { resolveBookingPaidGrossAmount } from '../../common/utils/booking-receipt-tax.util.js';
 import { resolveBookingTipAmount } from '../../common/utils/booking-tip.util.js';
@@ -74,7 +77,15 @@ function parseIsoDateKey(dateKey: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey.trim());
   if (!match) throw new Error(`Invalid date key: ${dateKey}`);
   return new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0),
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      12,
+      0,
+      0,
+      0,
+    ),
   );
 }
 
@@ -95,8 +106,12 @@ export function resolveProviderMyStatsPeriodRange(
 ): { from: string; to: string } {
   const today = parseIsoDateKey(todayKey);
   if (period === 'month') {
-    const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 12));
-    const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0, 12));
+    const start = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 12),
+    );
+    const end = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0, 12),
+    );
     return { from: formatIsoDateKey(start), to: formatIsoDateKey(end) };
   }
 
@@ -107,7 +122,10 @@ export function resolveProviderMyStatsPeriodRange(
   return { from: formatIsoDateKey(start), to: formatIsoDateKey(end) };
 }
 
-export function countDaysInclusive(range: { from: string; to: string }): number {
+export function countDaysInclusive(range: {
+  from: string;
+  to: string;
+}): number {
   const start = parseIsoDateKey(range.from);
   const end = parseIsoDateKey(range.to);
   const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
@@ -157,8 +175,9 @@ export function computeProviderUtilizationPercent(
 export function countCompletedBookings(
   bookings: ProviderMyStatsBookingLike[],
 ): number {
-  return bookings.filter((booking) => booking.status === BookingStatus.COMPLETED)
-    .length;
+  return bookings.filter(
+    (booking) => booking.status === BookingStatus.COMPLETED,
+  ).length;
 }
 
 function isCompletedPaidBooking(booking: ProviderMyStatsBookingLike): boolean {
@@ -220,8 +239,12 @@ export function buildProviderMyStatsView(input: {
   reviews: ProviderMyStatsReviewLike[];
   tipsEnabled?: boolean;
 }): ProviderMyStatsView {
-  const bookedMinutes = Math.round(sumBookedMinutesFromBookings(input.bookings));
-  const scheduledFromPeriods = sumBookableSchedulingPeriodMinutes(input.periods);
+  const bookedMinutes = Math.round(
+    sumBookedMinutesFromBookings(input.bookings),
+  );
+  const scheduledFromPeriods = sumBookableSchedulingPeriodMinutes(
+    input.periods,
+  );
   const scheduledMinutes = Math.round(
     scheduledFromPeriods > 0
       ? scheduledFromPeriods

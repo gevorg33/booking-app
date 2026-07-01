@@ -15,7 +15,10 @@ export function isTransferServicesBetweenProvidersPrompt(
   prompt: string,
 ): boolean {
   if (isCapacityRebalancePrompt(prompt)) return false;
-  if (/\b(slot|appointment|booking)s?\b/i.test(prompt) && /\bmove\s+\d+/i.test(prompt)) {
+  if (
+    /\b(slot|appointment|booking)s?\b/i.test(prompt) &&
+    /\bmove\s+\d+/i.test(prompt)
+  ) {
     return false;
   }
   const hasTransferVerb = /\b(move|transfer|reassign)\b/i.test(prompt);
@@ -489,10 +492,8 @@ export function resolveUnassignEmployeeServicesInput(
         : null,
       categoryName:
         typeof params.categoryName === 'string' ? params.categoryName : null,
-      unassignAllServices:
-        params.unassignAllServices === true ? true : null,
-      unassignFromCategory:
-        params.unassignFromCategory === true ? true : null,
+      unassignAllServices: params.unassignAllServices === true ? true : null,
+      unassignFromCategory: params.unassignFromCategory === true ? true : null,
     },
     categories,
   );
@@ -599,10 +600,8 @@ export function resolveTransferEmployeeServicesInput(
         : null,
       categoryName:
         typeof params.categoryName === 'string' ? params.categoryName : null,
-      unassignAllServices:
-        params.unassignAllServices === true ? true : null,
-      transferFromCategory:
-        params.transferFromCategory === true ? true : null,
+      unassignAllServices: params.unassignAllServices === true ? true : null,
+      transferFromCategory: params.transferFromCategory === true ? true : null,
     },
     categories,
   );

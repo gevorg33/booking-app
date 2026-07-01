@@ -166,11 +166,7 @@ describe('provider-staff-message-templates.util (prov-exp-6.2)', () => {
       body: 'Sorry',
       enabled: false,
     });
-    expect(
-      buildCustomerSmsLinkWithBody('   ', 'Hello'),
-    ).toBeNull();
-    expect(
-      buildCustomerWhatsAppLinkWithBody('abc', 'Hello'),
-    ).toBeNull();
+    expect(buildCustomerSmsLinkWithBody('   ', 'Hello')).toBeNull();
+    expect(buildCustomerWhatsAppLinkWithBody('abc', 'Hello')).toBeNull();
   });
 });

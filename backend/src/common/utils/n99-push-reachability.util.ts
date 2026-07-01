@@ -65,7 +65,11 @@ export interface PushReachabilityDashboardExport {
   deliverability: PushDeliverabilityMetricExport;
   byPlatform: Record<
     'ios' | 'android',
-    { reachabilityRate: number | null; explicitOptInRate: number | null; openedUsers: number }
+    {
+      reachabilityRate: number | null;
+      explicitOptInRate: number | null;
+      openedUsers: number;
+    }
   >;
   byLocale: PushReachabilityLocaleMetric[];
   weeklyReachabilityAlert: PushReachabilityAlertExport;
@@ -97,10 +101,14 @@ function uniqueAnonIds(rows: AppEventAnalyticsRow[]): string[] {
 export function isPushReachablePermissionState(
   state: string | null | undefined,
 ): state is N99PushPermissionState {
-  return Boolean(state && N99_PUSH_REACHABLE_STATES.has(state as N99PushPermissionState));
+  return Boolean(
+    state && N99_PUSH_REACHABLE_STATES.has(state as N99PushPermissionState),
+  );
 }
 
-function readPermissionState(row: AppEventAnalyticsRow): N99PushPermissionState | null {
+function readPermissionState(
+  row: AppEventAnalyticsRow,
+): N99PushPermissionState | null {
   const raw = row.props?.pushPermissionState;
   if (typeof raw !== 'string') return null;
   return N99_PUSH_PERMISSION_STATES.includes(raw as N99PushPermissionState)
@@ -118,13 +126,17 @@ export function isExplicitOptInGrantRow(row: AppEventAnalyticsRow): boolean {
   );
 }
 
-export function resolveExplicitOptInEligibleAnonIds(rows: AppEventAnalyticsRow[]): string[] {
+export function resolveExplicitOptInEligibleAnonIds(
+  rows: AppEventAnalyticsRow[],
+): string[] {
   return uniqueAnonIds(
     rows.filter((row) => EXPLICIT_OPT_IN_ELIGIBILITY_EVENTS.has(row.event)),
   );
 }
 
-export function resolveExplicitOptInGrantAnonIds(rows: AppEventAnalyticsRow[]): string[] {
+export function resolveExplicitOptInGrantAnonIds(
+  rows: AppEventAnalyticsRow[],
+): string[] {
   const eligible = resolveExplicitOptInEligibleAnonIds(rows);
   return eligible.filter((anonId) =>
     rows.some((row) => row.anonId === anonId && isExplicitOptInGrantRow(row)),
@@ -145,7 +157,9 @@ export function resolveAnonPushReachability(
 export function computePushReachabilityRate(
   rows: AppEventAnalyticsRow[],
 ): PushReachabilityMetricExport {
-  const openedUsers = uniqueAnonIds(rows.filter((row) => row.event === 'app_opened'));
+  const openedUsers = uniqueAnonIds(
+    rows.filter((row) => row.event === 'app_opened'),
+  );
   let reachableUsers = 0;
   for (const anonId of openedUsers) {
     if (resolveAnonPushReachability(rows, anonId)) reachableUsers += 1;
@@ -172,7 +186,9 @@ export function computeExplicitPushOptInRate(
     eligibleUsers: eligibleUsers.length,
     explicitOptInUsers,
     explicitOptInRate:
-      eligibleUsers.length === 0 ? null : explicitOptInUsers / eligibleUsers.length,
+      eligibleUsers.length === 0
+        ? null
+        : explicitOptInUsers / eligibleUsers.length,
     target: N99_PUSH_EXPLICIT_OPT_IN_TARGET,
   };
 }
@@ -183,7 +199,8 @@ export function computePushDeliverabilityRate(
   const deliverySuccesses = Math.max(0, aggregate.deliverySuccessCount);
   const deliveryFailures = Math.max(0, aggregate.deliveryFailureCount);
   const silentFailures = Math.max(0, aggregate.silentFailureCount ?? 0);
-  const deliveryAttempts = deliverySuccesses + deliveryFailures + silentFailures;
+  const deliveryAttempts =
+    deliverySuccesses + deliveryFailures + silentFailures;
   return {
     deliveryAttempts,
     deliverySuccesses,
@@ -200,12 +217,17 @@ function filterRowsByPlatform(
   return rows.filter((row) => row.platform === platform);
 }
 
-function computePlatformPushMetrics(rows: AppEventAnalyticsRow[], platform: 'ios' | 'android') {
+function computePlatformPushMetrics(
+  rows: AppEventAnalyticsRow[],
+  platform: 'ios' | 'android',
+) {
   const filtered = filterRowsByPlatform(rows, platform);
   return {
     reachabilityRate: computePushReachabilityRate(filtered).reachabilityRate,
     explicitOptInRate: computeExplicitPushOptInRate(filtered).explicitOptInRate,
-    openedUsers: uniqueAnonIds(filtered.filter((row) => row.event === 'app_opened')).length,
+    openedUsers: uniqueAnonIds(
+      filtered.filter((row) => row.event === 'app_opened'),
+    ).length,
   };
 }
 
@@ -218,8 +240,11 @@ export function buildPushReachabilityLocaleMetrics(
     return {
       locale,
       reachabilityRate: computePushReachabilityRate(filtered).reachabilityRate,
-      explicitOptInRate: computeExplicitPushOptInRate(filtered).explicitOptInRate,
-      openedUsers: uniqueAnonIds(filtered.filter((row) => row.event === 'app_opened')).length,
+      explicitOptInRate:
+        computeExplicitPushOptInRate(filtered).explicitOptInRate,
+      openedUsers: uniqueAnonIds(
+        filtered.filter((row) => row.event === 'app_opened'),
+      ).length,
     };
   });
 }
@@ -229,7 +254,9 @@ function computeReachabilityRateForWindow(
   start: Date,
   end: Date,
 ): number {
-  const windowRows = rows.filter((row) => row.createdAt >= start && row.createdAt < end);
+  const windowRows = rows.filter(
+    (row) => row.createdAt >= start && row.createdAt < end,
+  );
   const metric = computePushReachabilityRate(windowRows);
   return metric.reachabilityRate ?? 0;
 }
@@ -246,7 +273,9 @@ function computeExplicitOptInRateForWindow(
   start: Date,
   end: Date,
 ): number {
-  const windowRows = rows.filter((row) => row.createdAt >= start && row.createdAt < end);
+  const windowRows = rows.filter(
+    (row) => row.createdAt >= start && row.createdAt < end,
+  );
   return computeExplicitPushOptInRate(windowRows).explicitOptInRate ?? 0;
 }
 

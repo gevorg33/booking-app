@@ -2,7 +2,10 @@ import {
   isClinicServiceType,
   type ClinicServiceType,
 } from '../../common/utils/clinic-service.util.js';
-import { isCreateTestOrderPrompt, isListTestOrdersPrompt } from './ai-clinic-test-order.util.js';
+import {
+  isCreateTestOrderPrompt,
+  isListTestOrdersPrompt,
+} from './ai-clinic-test-order.util.js';
 import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
 
 export const CLINIC_SERVICE_INTENTS = [
@@ -249,7 +252,9 @@ export function isExplainClinicServicesPrompt(prompt: string): boolean {
   return true;
 }
 
-function normalizeServiceType(value: string | undefined): ClinicServiceType | undefined {
+function normalizeServiceType(
+  value: string | undefined,
+): ClinicServiceType | undefined {
   if (!value) return undefined;
   const key = value.trim().toLowerCase().replace(/\s+/g, ' ');
   const mapped = SERVICE_TYPE_ALIASES[key];
@@ -275,7 +280,10 @@ function extractServiceType(prompt: string): ClinicServiceType | undefined {
     const serviceType = normalizeServiceType(match?.[1]);
     if (serviceType) return serviceType;
   }
-  if (/\blab\s+test\b/i.test(prompt) && isConfigureClinicServicePromptCore(prompt)) {
+  if (
+    /\blab\s+test\b/i.test(prompt) &&
+    isConfigureClinicServicePromptCore(prompt)
+  ) {
     return 'lab_test';
   }
   if (
@@ -284,10 +292,16 @@ function extractServiceType(prompt: string): ClinicServiceType | undefined {
   ) {
     return 'lab_test';
   }
-  if (/\bconsultation\b/i.test(prompt) && isConfigureClinicServicePromptCore(prompt)) {
+  if (
+    /\bconsultation\b/i.test(prompt) &&
+    isConfigureClinicServicePromptCore(prompt)
+  ) {
     return 'consultation';
   }
-  if (/\bprocedure\b/i.test(prompt) && isConfigureClinicServicePromptCore(prompt)) {
+  if (
+    /\bprocedure\b/i.test(prompt) &&
+    isConfigureClinicServicePromptCore(prompt)
+  ) {
     return 'procedure';
   }
   if (

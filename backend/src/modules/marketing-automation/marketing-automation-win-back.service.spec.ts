@@ -22,7 +22,9 @@ describe('MarketingAutomationService win-back (adopt-4.5)', () => {
     get: jest.fn().mockReturnValue('http://localhost:3000'),
   };
   const consumerPushDispatch = {
-    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 1 }),
+    sendTransactionalPush: jest
+      .fn()
+      .mockResolvedValue({ ok: true, sentCount: 1 }),
   };
   const loyaltyService = {
     adjust: jest.fn().mockResolvedValue({ pointsBalance: 10 }),

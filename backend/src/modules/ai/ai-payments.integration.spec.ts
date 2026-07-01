@@ -178,7 +178,10 @@ describe('Sprint 30 payments AI scenarios', () => {
           provide: ServiceSubscriptionsService,
           useValue: subscriptionsService,
         },
-        { provide: ServiceService, useValue: { update: jest.fn(async (id, dto) => ({ id, ...dto })) } },
+        {
+          provide: ServiceService,
+          useValue: { update: jest.fn(async (id, dto) => ({ id, ...dto })) },
+        },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Booking), useValue: bookingRepo },
@@ -206,8 +209,7 @@ describe('Sprint 30 payments AI scenarios', () => {
       ).toBe('configure_service_online_payment');
       expect(
         rescue.rescue({
-          prompt:
-            'Decline online payment on public booking for all services',
+          prompt: 'Decline online payment on public booking for all services',
           action: 'unknown',
           params: {},
         })?.action,

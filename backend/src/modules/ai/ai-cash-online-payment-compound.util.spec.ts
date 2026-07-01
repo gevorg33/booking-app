@@ -20,13 +20,15 @@ import {
   rescueCashAndOnlinePaymentCompoundIntent,
 } from './ai-cash-online-payment-compound.util.js';
 
-const CASH_AND_ONLINE_ONLY_PROMPTS = CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
-  (row) => row.compoundRecipeId === 'cash_and_online_payment',
-);
+const CASH_AND_ONLINE_ONLY_PROMPTS =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (row) => row.compoundRecipeId === 'cash_and_online_payment',
+  );
 
-const CASH_AND_DECLINE_CATEGORY_PROMPTS = CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
-  (row) => row.compoundRecipeId === 'decline_online_payment_category',
-);
+const CASH_AND_DECLINE_CATEGORY_PROMPTS =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (row) => row.compoundRecipeId === 'decline_online_payment_category',
+  );
 
 describe('ai-cash-online-payment-compound.util (ai-cmd-ext-5.6)', () => {
   it.each(CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS)(
@@ -46,7 +48,8 @@ describe('ai-cash-online-payment-compound.util (ai-cmd-ext-5.6)', () => {
   it.each(CASH_AND_ONLINE_ONLY_PROMPTS)(
     'decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt $id',
     ({ prompt, orderedActions, paramChecks }) => {
-      const steps = decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt(prompt);
+      const steps =
+        decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
       paramChecks?.forEach((check) => {
         expect(steps[check.stepIndex].params[check.key]).toBe(check.value);
@@ -78,10 +81,7 @@ describe('ai-cash-online-payment-compound.util (ai-cmd-ext-5.6)', () => {
     'rescueCashAndOnlinePaymentCompoundIntent $id',
     ({ prompt, misclassifiedAction }) => {
       expect(
-        rescueCashAndOnlinePaymentCompoundIntent(
-          prompt,
-          misclassifiedAction!,
-        ),
+        rescueCashAndOnlinePaymentCompoundIntent(prompt, misclassifiedAction!),
       ).toEqual({
         action: 'compound_intent',
         rescueReason: 'cash_and_online_payment_compound',
@@ -97,8 +97,7 @@ describe('ai-cash-online-payment-compound.util (ai-cmd-ext-5.6)', () => {
   );
 
   it('detects cash and online payment mutate cues', () => {
-    const prompt =
-      'Enable cash and decline online payment for all services';
+    const prompt = 'Enable cash and decline online payment for all services';
     expect(hasCashMutateCue(prompt)).toBe(true);
     expect(hasOnlinePaymentMutateCue(prompt)).toBe(true);
   });

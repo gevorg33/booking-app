@@ -17,7 +17,9 @@ describe('AiConfigureServicesPaymentMatrixCompound integration (ai-cmd-ext-4.6)'
     'decomposeDeterministicForSurface $id',
     ({ prompt, orderedActions }) => {
       const result = decomposeDeterministicForSurface('dashboard', prompt);
-      expect(result?.recipeId).toBe(CONFIGURE_SERVICES_PAYMENT_MATRIX_RECIPE_ID);
+      expect(result?.recipeId).toBe(
+        CONFIGURE_SERVICES_PAYMENT_MATRIX_RECIPE_ID,
+      );
       expect(result?.source).toBe('golden');
       expect(result?.steps.map((step) => step.action)).toEqual([
         ...orderedActions,

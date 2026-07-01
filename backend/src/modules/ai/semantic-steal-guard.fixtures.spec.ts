@@ -10,15 +10,15 @@ describe('semantic-steal-guard.fixtures (pipe-1.5.3)', () => {
   });
 
   it('ships regression corpus for tour, provider stats, and recommendation', () => {
-    expect(SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.tour_calendar.length).toBeGreaterThanOrEqual(
-      10,
-    );
-    expect(SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.provider_stats.length).toBeGreaterThanOrEqual(
-      10,
-    );
-    expect(SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.recommendation.length).toBeGreaterThanOrEqual(
-      10,
-    );
+    expect(
+      SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.tour_calendar.length,
+    ).toBeGreaterThanOrEqual(10);
+    expect(
+      SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.provider_stats.length,
+    ).toBeGreaterThanOrEqual(10);
+    expect(
+      SEMANTIC_STEAL_GUARD_SCENARIOS_BY_DOMAIN.recommendation.length,
+    ).toBeGreaterThanOrEqual(10);
     expect(SEMANTIC_STEAL_GUARD_SCENARIOS.length).toBeGreaterThanOrEqual(30);
   });
 

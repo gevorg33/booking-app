@@ -9,6 +9,7 @@ import type {
 import type { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
+  appendBookingFirstAvailableToLabBookUrl,
   assertClinicLabBookingBusinessType,
   formatBookLabCollectionSummary,
   formatLabBookingRequestsSummary,
@@ -470,15 +471,24 @@ export async function handleBookLabCollectionLogic(
   }
 
   const primary = requests[0] ?? null;
+  const bookingFirstAvailable = params.bookingFirstAvailable === true;
+  const bookUrl = primary?.bookUrl
+    ? appendBookingFirstAvailableToLabBookUrl(
+        primary.bookUrl,
+        bookingFirstAvailable,
+      )
+    : null;
+
   return success(
     'book_lab_collection',
-    formatBookLabCollectionSummary(requests),
+    formatBookLabCollectionSummary(requests, { bookingFirstAvailable }),
     {
       customerId,
       count: requests.length,
       requests,
-      bookUrl: primary?.bookUrl ?? null,
+      bookUrl,
       orderId: primary?.orderId ?? null,
+      bookingFirstAvailable,
     },
   );
 }

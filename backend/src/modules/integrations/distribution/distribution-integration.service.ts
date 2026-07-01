@@ -61,7 +61,11 @@ export class DistributionIntegrationService {
   }
 
   buildMessagingLinks(business: Business): MessagingDeepLinks {
-    return buildMessagingLinksForBusiness(business, this.frontendUrl(), this.rootDomain());
+    return buildMessagingLinksForBusiness(
+      business,
+      this.frontendUrl(),
+      this.rootDomain(),
+    );
   }
 
   async getPublicSettings(

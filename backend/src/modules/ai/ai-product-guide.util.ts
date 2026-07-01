@@ -25,7 +25,11 @@ import { isGrowthLoopsCustomerPrompt } from './ai-growth-loops-customer.util.js'
  * Routing rule: navigation/how-to without explicit mutate targets → **guide**; domain why/what-meaning → **domain_explain**; imperative mutate/read ops → **action**.
  * Domain `explain_*` intents must not be repurposed for UI navigation (see **ai-guide-1.8.1**).
  */
-export type ProductGuideIntentBucket = 'guide' | 'domain_explain' | 'action' | 'unknown';
+export type ProductGuideIntentBucket =
+  | 'guide'
+  | 'domain_explain'
+  | 'action'
+  | 'unknown';
 
 /** Unified app-guide intents (ai-guide-1.2.2). */
 export const APP_GUIDE_INTENTS = [
@@ -39,7 +43,8 @@ export type AppGuideIntent = (typeof APP_GUIDE_INTENTS)[number];
 /** Existing read-only intents that behave like app guides on specific surfaces. */
 export const APP_GUIDE_SURROGATE_INTENTS = ['booking_help'] as const;
 
-export type AppGuideSurrogateIntent = (typeof APP_GUIDE_SURROGATE_INTENTS)[number];
+export type AppGuideSurrogateIntent =
+  (typeof APP_GUIDE_SURROGATE_INTENTS)[number];
 
 /** Representative domain explain intents — any other `explain_*` id is still domain_explain. */
 export const DOMAIN_EXPLAIN_INTENT_SAMPLES = [
@@ -51,6 +56,9 @@ export const DOMAIN_EXPLAIN_INTENT_SAMPLES = [
   'explain_checkout_tax',
   'explain_checkout_total',
   'explain_clinic_booking',
+  'explain_lab_prep',
+  'explain_clinic_booking_fields',
+  'explain_public_intake_form',
   'explain_clinic_services',
   'explain_compliance_status',
   'explain_consumer_checkout_success',
@@ -151,8 +159,7 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
         /\b(where|how\s+(?:do|can|to))\b.+\b(mark\s+paid|paid|payment\s+status)\b|(?:где\s+отметить.+(?:оплат|paid))/iu,
       preferredIntent: 'guide_user_flow',
       rescueReason: 'product_guide_navigation',
-      rationale:
-        'Locate mark-paid UI → guide; "mark Sofia paid" → mark_paid.',
+      rationale: 'Locate mark-paid UI → guide; "mark Sofia paid" → mark_paid.',
     },
     {
       id: 'screen-vs-unknown',
@@ -161,7 +168,8 @@ export const PRODUCT_GUIDE_DISAMBIGUATION_TABLE: readonly ProductGuideDisambigua
         /\b(this\s+page|this\s+screen|what\s+am\s+i\s+looking\s+at|explain\s+what\s+i\s+(?:see|am\s+looking\s+at)|here\s+on\s+this)\b|(?:на\s+этой\s+странице|что\s+я\s+могу\s+сделать)/iu,
       preferredIntent: 'explain_current_screen',
       rescueReason: 'product_guide_screen',
-      rationale: 'Screen semantics with route context → explain_current_screen.',
+      rationale:
+        'Screen semantics with route context → explain_current_screen.',
     },
   ] as const;
 
@@ -263,16 +271,16 @@ function detectProductGuidePromptCue(prompt: string): ProductGuidePromptCue {
 }
 
 /** Map a guide-classified prompt to the app-guide intent id (ai-guide-1.2.2). */
-export function inferProductGuideIntentFromPrompt(prompt: string): AppGuideIntent {
+export function inferProductGuideIntentFromPrompt(
+  prompt: string,
+): AppGuideIntent {
   if (hasProductGuideScreenCue(prompt)) {
     return 'explain_current_screen';
   }
   if (/\bwalk\s+me\s+through|step\s+by\s+step|setup\s+flow\b/i.test(prompt)) {
     return 'guide_user_flow';
   }
-  if (
-    isGuideUiFeatureMeaningPrompt(prompt)
-  ) {
+  if (isGuideUiFeatureMeaningPrompt(prompt)) {
     return 'explain_app_feature';
   }
   return 'guide_user_flow';
@@ -376,7 +384,9 @@ export function isDomainExplainIntent(action: string): boolean {
   return !(APP_GUIDE_INTENTS as readonly string[]).includes(action);
 }
 
-export function getProductGuideIntentBucket(action: string): ProductGuideIntentBucket {
+export function getProductGuideIntentBucket(
+  action: string,
+): ProductGuideIntentBucket {
   if (
     isAppGuideIntent(action) ||
     isAppGuideSurrogateIntent(action) ||
@@ -423,18 +433,24 @@ export function hasExplicitMutateCue(prompt: string): boolean {
 
 function isImperativeMutatePrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
-  if (/^(please\s+)?(enable|disable|create|add|invite|book|schedule|cancel|reschedule|mark|delete|remove|set|keep|configure|assign|send|approve|deny|upload|release|notify|offer|accept|sign|report)\b/i.test(trimmed)) {
+  if (
+    /^(please\s+)?(enable|disable|create|add|invite|book|schedule|cancel|reschedule|mark|delete|remove|set|keep|configure|assign|send|approve|deny|upload|release|notify|offer|accept|sign|report)\b/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
-  return /\b(turn\s+on|turn\s+off)\b/i.test(trimmed) && !/^(where|how)\b/i.test(trimmed);
+  return (
+    /\b(turn\s+on|turn\s+off)\b/i.test(trimmed) &&
+    !/^(where|how)\b/i.test(trimmed)
+  );
 }
 
 function hasConcreteMutateTarget(prompt: string): boolean {
   return (
     /\b(for|named|called|tomorrow|today|at\s+\d|@\d|\d{1,2}(?::\d{2})?\s*(?:am|pm)|next\s+(?:week|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i.test(
       prompt,
-    ) ||
-    /\b[A-Z][a-z]{2,}\b/.test(prompt)
+    ) || /\b[A-Z][a-z]{2,}\b/.test(prompt)
   );
 }
 
@@ -474,10 +490,7 @@ export function classifyPromptIntentBucket(
     return 'guide';
   }
 
-  if (
-    isGuideUiFeatureMeaningPrompt(trimmed) &&
-    isQuestionShaped(trimmed)
-  ) {
+  if (isGuideUiFeatureMeaningPrompt(trimmed) && isQuestionShaped(trimmed)) {
     return 'guide';
   }
 
@@ -489,7 +502,10 @@ export function classifyPromptIntentBucket(
     return 'domain_explain';
   }
 
-  if (hasProductGuideScreenCue(trimmed) || isNavigationQuestionPrompt(trimmed)) {
+  if (
+    hasProductGuideScreenCue(trimmed) ||
+    isNavigationQuestionPrompt(trimmed)
+  ) {
     return 'guide';
   }
 
@@ -530,17 +546,17 @@ export function resolveProductGuideDisambiguation(
     return null;
   }
 
-  if (
-    hasDomainExplainTopicCue(prompt) &&
-    !isNavigationQuestionPrompt(prompt)
-  ) {
+  if (hasDomainExplainTopicCue(prompt) && !isNavigationQuestionPrompt(prompt)) {
     return null;
   }
 
   for (const row of PRODUCT_GUIDE_DISAMBIGUATION_TABLE) {
     if (!rowMatchesMisclassifiedAction(row, classifiedAction)) continue;
     if (!row.promptCue.test(prompt)) continue;
-    if (!isQuestionShaped(prompt) && row.preferredIntent !== 'explain_current_screen') {
+    if (
+      !isQuestionShaped(prompt) &&
+      row.preferredIntent !== 'explain_current_screen'
+    ) {
       continue;
     }
     return {
@@ -620,7 +636,9 @@ const PRODUCT_GUIDE_BULK_MUTATE_SET = new Set<string>(
   PRODUCT_GUIDE_BULK_MUTATE_ACTIONS,
 );
 
-export function isBulkMutateIntent(action: string): action is ProductGuideBulkMutateAction {
+export function isBulkMutateIntent(
+  action: string,
+): action is ProductGuideBulkMutateAction {
   return PRODUCT_GUIDE_BULK_MUTATE_SET.has(action);
 }
 

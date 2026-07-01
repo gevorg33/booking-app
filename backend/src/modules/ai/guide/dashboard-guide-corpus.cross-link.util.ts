@@ -1,4 +1,7 @@
-import type { GuideCorpusTopic, GuideCorpusTopicId } from './ai-guide-corpus.types.js';
+import type {
+  GuideCorpusTopic,
+  GuideCorpusTopicId,
+} from './ai-guide-corpus.types.js';
 import { DASHBOARD_GUIDE_CORPUS_TOPICS } from './dashboard-guide-corpus.manifest.js';
 
 /** Slim anchor ↔ topicId ↔ title key row for /dashboard/guide cross-links (ai-guide-1.3.4). */
@@ -8,10 +11,14 @@ export interface GuideCorpusCrossLinkEntry {
   titleKey: string;
 }
 
-export function resolveGuideCorpusTitleI18nKey(topic: GuideCorpusTopic): string {
+export function resolveGuideCorpusTitleI18nKey(
+  topic: GuideCorpusTopic,
+): string {
   const title = topic.content.find((entry) => entry.kind === 'title');
   if (!title?.i18nKey) {
-    throw new Error(`Guide corpus topic ${topic.topicId} is missing a title i18n key`);
+    throw new Error(
+      `Guide corpus topic ${topic.topicId} is missing a title i18n key`,
+    );
   }
   return title.i18nKey;
 }

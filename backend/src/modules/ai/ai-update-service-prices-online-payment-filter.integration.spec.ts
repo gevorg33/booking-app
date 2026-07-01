@@ -56,35 +56,37 @@ describe('ai-update-service-prices-online-payment-filter integration', () => {
     },
   );
 
-  it.each(UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
-    (row) => row.paramsPartial?.onlyWithOnlinePayment,
-  ).slice(0, 4))(
-    'builds scoped price plan for $id',
-    ({ prompt, paramsPartial }) => {
-      const plan = prepareUpdateServicePricesPlanLogic(
-        deps,
-        'biz-1',
-        prompt,
-        {},
-        services,
-        'u1',
-      );
-      expect(plan?.intent).toBe('update_service_prices');
-      const stepIds = (plan?.steps as Array<{ params: { serviceId: string } }>).map(
-        (step) => step.params.serviceId,
-      );
-      expect(stepIds).not.toContain('cash');
-      expect(stepIds.length).toBeGreaterThan(0);
-      if (paramsPartial?.percentChange != null) {
-        const firstStep = (plan?.steps as Array<{ params: { price: number } }>)[0];
-        const service = services.find((s) => stepIds[0] === s.id)!;
-        const expected =
-          Math.round(service.price * (1 + paramsPartial.percentChange / 100) * 100) /
-          100;
-        expect(firstStep.params.price).toBe(expected);
-      }
-    },
-  );
+  it.each(
+    UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
+      (row) => row.paramsPartial?.onlyWithOnlinePayment,
+    ).slice(0, 4),
+  )('builds scoped price plan for $id', ({ prompt, paramsPartial }) => {
+    const plan = prepareUpdateServicePricesPlanLogic(
+      deps,
+      'biz-1',
+      prompt,
+      {},
+      services,
+      'u1',
+    );
+    expect(plan?.intent).toBe('update_service_prices');
+    const stepIds = (
+      plan?.steps as Array<{ params: { serviceId: string } }>
+    ).map((step) => step.params.serviceId);
+    expect(stepIds).not.toContain('cash');
+    expect(stepIds.length).toBeGreaterThan(0);
+    if (paramsPartial?.percentChange != null) {
+      const firstStep = (
+        plan?.steps as Array<{ params: { price: number } }>
+      )[0];
+      const service = services.find((s) => stepIds[0] === s.id)!;
+      const expected =
+        Math.round(
+          service.price * (1 + paramsPartial.percentChange / 100) * 100,
+        ) / 100;
+      expect(firstStep.params.price).toBe(expected);
+    }
+  });
 
   it('applies category and online-payment filters together', () => {
     const plan = prepareUpdateServicePricesPlanLogic(
@@ -94,9 +96,9 @@ describe('ai-update-service-prices-online-payment-filter integration', () => {
       {},
       services,
     );
-    const stepIds = (plan?.steps as Array<{ params: { serviceId: string } }>).map(
-      (step) => step.params.serviceId,
-    );
+    const stepIds = (
+      plan?.steps as Array<{ params: { serviceId: string } }>
+    ).map((step) => step.params.serviceId);
     expect(stepIds).toEqual(['online-deposit']);
   });
 

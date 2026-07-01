@@ -35,7 +35,13 @@ function buildUnderstandResult(
         reasoning: 'classify',
       },
     ],
-    trace: [{ stage: 'classify', action: 'create_booking', at: '2026-01-01T00:00:00.000Z' }],
+    trace: [
+      {
+        stage: 'classify',
+        action: 'create_booking',
+        at: '2026-01-01T00:00:00.000Z',
+      },
+    ],
     gate,
     context: pipelineContextFromNormalization(normalization),
     normalization,

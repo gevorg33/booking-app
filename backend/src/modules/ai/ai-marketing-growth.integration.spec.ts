@@ -144,7 +144,10 @@ describe('Sprint 34 marketing/growth AI scenarios', () => {
         { provide: LoyaltyService, useValue: loyaltyService },
         { provide: PromoCodesService, useValue: promoCodesService },
         { provide: StripeService, useValue: stripeService },
-        { provide: StripeIntegrationService, useValue: stripeIntegrationService },
+        {
+          provide: StripeIntegrationService,
+          useValue: stripeIntegrationService,
+        },
         { provide: ConfigService, useValue: configService },
         {
           provide: TenantAppInstallService,
@@ -156,13 +159,15 @@ describe('Sprint 34 marketing/growth AI scenarios', () => {
               customSchemeUrl: `optischedule://book/${business.slug}`,
               generatedAt: '2026-06-01T00:00:00.000Z',
             })),
-            regenerateForBusiness: jest.fn(async (business: { slug: string }) => ({
-              slug: business.slug,
-              landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
-              qrDataUrl: 'data:image/png;base64,regenerated',
-              customSchemeUrl: `optischedule://book/${business.slug}`,
-              generatedAt: '2026-06-02T00:00:00.000Z',
-            })),
+            regenerateForBusiness: jest.fn(
+              async (business: { slug: string }) => ({
+                slug: business.slug,
+                landingUrl: `https://app.test/get-app/${business.slug}?src=qr&utm_campaign=venue_qr`,
+                qrDataUrl: 'data:image/png;base64,regenerated',
+                customSchemeUrl: `optischedule://book/${business.slug}`,
+                generatedAt: '2026-06-02T00:00:00.000Z',
+              }),
+            ),
           },
         },
         {

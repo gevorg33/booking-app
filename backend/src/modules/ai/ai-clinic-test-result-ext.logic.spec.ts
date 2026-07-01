@@ -242,13 +242,9 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
     expect(guided.summary).toContain('WBC');
     expect(guided.summary).toContain('4');
     expect(guided.summary).toContain('11');
-    expect(deps.clinicCatalogService.updateReferenceRangeByCode).toHaveBeenCalledWith(
-      'biz-1',
-      'WBC',
-      '4',
-      '11',
-      'owner',
-    );
+    expect(
+      deps.clinicCatalogService.updateReferenceRangeByCode,
+    ).toHaveBeenCalledWith('biz-1', 'WBC', '4', '11', 'owner');
   });
 
   it('configure reference range requires bounds when measurement code is present', async () => {
@@ -322,11 +318,9 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
   });
 
   it('lists abnormal results scoped to customer when provided', async () => {
-    const result = await handleListAbnormalResultsLogic(
-      deps,
-      'biz-1',
-      { customerName: 'Maria' },
-    );
+    const result = await handleListAbnormalResultsLogic(deps, 'biz-1', {
+      customerName: 'Maria',
+    });
     expect(result.success).toBe(true);
     expect(bookingRepo.find).toHaveBeenCalled();
   });

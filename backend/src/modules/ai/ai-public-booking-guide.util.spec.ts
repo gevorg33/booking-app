@@ -34,14 +34,18 @@ describe('ai-public-booking-guide.util (ai-guide-1.5.1 / 1.5.3)', () => {
     'rescuePublicBookingHelpIntent for $id',
     ({ samplePrompt, fromActions }) => {
       const source = fromActions?.[0] ?? 'unknown';
-      expect(rescuePublicBookingHelpIntent(samplePrompt, source)).toBe('booking_help');
+      expect(rescuePublicBookingHelpIntent(samplePrompt, source)).toBe(
+        'booking_help',
+      );
     },
   );
 
   it.each(PUBLIC_BOOKING_GUIDE_CLASSIFIER_SCENARIOS)(
     'classifier scenario $id rescues from unknown',
     ({ prompt }) => {
-      expect(rescuePublicBookingHelpIntent(prompt, 'unknown')).toBe('booking_help');
+      expect(rescuePublicBookingHelpIntent(prompt, 'unknown')).toBe(
+        'booking_help',
+      );
     },
   );
 
@@ -53,7 +57,10 @@ describe('ai-public-booking-guide.util (ai-guide-1.5.1 / 1.5.3)', () => {
 
   it('does not rescue unrelated availability prompts without booking funnel phrasing', () => {
     expect(
-      rescuePublicBookingHelpIntent('Who is free tomorrow at 3pm?', 'check_availability'),
+      rescuePublicBookingHelpIntent(
+        'Who is free tomorrow at 3pm?',
+        'check_availability',
+      ),
     ).toBe('check_availability');
   });
 
@@ -112,10 +119,14 @@ describe('ai-public-booking-guide.util (ai-guide-1.5.1 / 1.5.3)', () => {
 
   it('resolvePublicBookingGuideNavigate maps funnel routes', () => {
     expect(
-      resolvePublicBookingGuideNavigate(PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout),
+      resolvePublicBookingGuideNavigate(
+        PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout,
+      ),
     ).toEqual({ path: 'checkout' });
     expect(
-      resolvePublicBookingGuideNavigate(PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview),
+      resolvePublicBookingGuideNavigate(
+        PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview,
+      ),
     ).toEqual({ path: 'professionals' });
   });
 
@@ -160,7 +171,11 @@ describe('ai-public-booking-guide integration (ai-guide-1.5.1 / 1.5.3)', () => {
     isAvailableForBusiness: jest.fn(async () => false),
     embedText: jest.fn(async () => null),
   };
-  const guide = new AiProductGuideService(llm as any, openAi as any, createMockGuideTelemetryService());
+  const guide = new AiProductGuideService(
+    llm as any,
+    openAi as any,
+    createMockGuideTelemetryService(),
+  );
 
   it.each([
     {

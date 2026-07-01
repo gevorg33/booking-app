@@ -117,6 +117,13 @@ export function isOpenBookingFromPushPrompt(prompt: string): boolean {
 }
 
 export function isOfflineQueueStatusPrompt(prompt: string): boolean {
+  if (
+    /\b(why.{0,30}offline|my\s+booking|consumer\s+app|saved\s+salon|waiting\s+to\s+sync|will.{0,20}sync)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(offline\s+queue(?:\s+status)?|queued\s+actions?|pending\s+sync|what(?:'s|\s+is)\s+queued)\b/i.test(
       prompt,
@@ -128,6 +135,12 @@ export function isOfflineQueueStatusPrompt(prompt: string): boolean {
 }
 
 export function isRetryOfflineActionPrompt(prompt: string): boolean {
+  if (
+    /\b(will.{0,30}sync|my\s+booking|consumer\s+app)\b/i.test(prompt) &&
+    !/\b(retry|replay|resync|flush)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(retry|replay|resync|sync|flush)\b/i.test(prompt) &&
     /\b(offline|queued|queue|pending\s+actions?)\b/i.test(prompt)

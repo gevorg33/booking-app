@@ -71,9 +71,9 @@ describe('ai-checkout-recommendations.util (ai-cmd-rec-5)', () => {
         rescueExplainCheckoutRecommendationsIntent(prompt, 'unknown')?.action,
       ).toBe(expectedAction);
       if (paramsPartial?.aspect) {
-        expect(parseExplainCheckoutRecommendationsFromPrompt(prompt)?.aspect).toBe(
-          paramsPartial.aspect,
-        );
+        expect(
+          parseExplainCheckoutRecommendationsFromPrompt(prompt)?.aspect,
+        ).toBe(paramsPartial.aspect);
       }
     },
   );

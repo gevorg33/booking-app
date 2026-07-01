@@ -61,17 +61,18 @@ function buildDeps(
       find: jest.fn(async () => services),
     } as unknown as ProviderSpecialtyLogicDeps['serviceRepo'],
     reviewsService: {
-      getPublicReviewsByEmployees: jest.fn(async () =>
-        new Map([
-          [
-            'emp-anna',
-            { averageRating: 4.9, reviewCount: 42, recentReviews: [] },
-          ],
-          [
-            'emp-maria',
-            { averageRating: 4.7, reviewCount: 18, recentReviews: [] },
-          ],
-        ]),
+      getPublicReviewsByEmployees: jest.fn(
+        async () =>
+          new Map([
+            [
+              'emp-anna',
+              { averageRating: 4.9, reviewCount: 42, recentReviews: [] },
+            ],
+            [
+              'emp-maria',
+              { averageRating: 4.7, reviewCount: 18, recentReviews: [] },
+            ],
+          ]),
       ),
     },
     ...overrides,
@@ -126,9 +127,9 @@ describe('ai-explain-provider-specialty.logic (ai-cmd-customer-4.1.6)', () => {
     expect(result.action).toBe('explain_provider_specialty');
     expect(result.summary).toContain('Anna Smith');
     expect(result.summary).toContain('Curly hair');
-    expect((result.details as { navigate?: { path: string } }).navigate?.path).toBe(
-      'professionals',
-    );
+    expect(
+      (result.details as { navigate?: { path: string } }).navigate?.path,
+    ).toBe('professionals');
   });
 
   it('matches providers for a specialty topic', async () => {

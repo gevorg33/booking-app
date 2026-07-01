@@ -51,7 +51,9 @@ describe('AppEventController integration (adopt-1.3)', () => {
   it('surfaces consent failures from the sink service', async () => {
     appEventService.ingestEvents = jest
       .fn()
-      .mockRejectedValue(new BadRequestException('Analytics consent is required'));
+      .mockRejectedValue(
+        new BadRequestException('Analytics consent is required'),
+      );
 
     await expect(
       controller.ingest({
@@ -72,7 +74,9 @@ describe('AppEventController integration (adopt-1.3)', () => {
   it('surfaces rate-limit failures from the sink service', async () => {
     appEventService.ingestEvents = jest
       .fn()
-      .mockRejectedValue(new HttpException('App event rate limit exceeded', 429));
+      .mockRejectedValue(
+        new HttpException('App event rate limit exceeded', 429),
+      );
 
     await expect(
       controller.ingest({

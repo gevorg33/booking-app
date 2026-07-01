@@ -25,9 +25,9 @@ describe('ai-openai-integration integration (ai-cmd-ext-2.21)', () => {
 
   it('utility rescue matches intent rescue', () => {
     const prompt = 'Configure OpenAI integration for the salon';
-    expect(rescueConfigureOpenaiIntegrationIntent(prompt, 'unknown')?.action).toBe(
-      'configure_openai_integration',
-    );
+    expect(
+      rescueConfigureOpenaiIntegrationIntent(prompt, 'unknown')?.action,
+    ).toBe('configure_openai_integration');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('configure_openai_integration');

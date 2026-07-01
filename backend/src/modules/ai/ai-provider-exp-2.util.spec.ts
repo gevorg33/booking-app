@@ -49,32 +49,34 @@ describe('ai-provider-exp-2.util', () => {
   it.each(PROVIDER_EXP_2_PROMPT_SCENARIOS.map((s) => [s.id, s]))(
     'rescues $0 to $1.expectedAction',
     (_id, scenario) => {
-      expect(
-        rescueProviderExp2Intent(scenario.prompt, 'unknown')?.action,
-      ).toBe(scenario.expectedAction);
+      expect(rescueProviderExp2Intent(scenario.prompt, 'unknown')?.action).toBe(
+        scenario.expectedAction,
+      );
     },
   );
 
   it('infers month period and team scope from prompt', () => {
-    expect(
-      inferMyStatsPeriodFromPrompt('How am I doing this month?', {}),
-    ).toBe('month');
+    expect(inferMyStatsPeriodFromPrompt('How am I doing this month?', {})).toBe(
+      'month',
+    );
     expect(inferMyStatsScopeFromPrompt('Team stats for the week', {})).toBe(
       'team',
     );
     expect(inferMyStatsPeriodFromPrompt('stats', { period: 'month' })).toBe(
       'month',
     );
-    expect(inferMyStatsScopeFromPrompt('stats', { scope: 'team' })).toBe('team');
+    expect(inferMyStatsScopeFromPrompt('stats', { scope: 'team' })).toBe(
+      'team',
+    );
   });
 
   it('extracts running late minutes from prompt and params', () => {
     expect(
       extractRunningLateMinutesFromPrompt("I'm running 10 minutes late", {}),
     ).toBe(10);
-    expect(extractRunningLateMinutesFromPrompt('late', { minutesLate: 15 })).toBe(
-      15,
-    );
+    expect(
+      extractRunningLateMinutesFromPrompt('late', { minutesLate: 15 }),
+    ).toBe(15);
   });
 
   it('formats my stats summary with tips and reviews', () => {
@@ -151,21 +153,26 @@ describe('ai-provider-exp-2.util', () => {
   });
 
   it('extracts customer names from check-in and running late prompts', () => {
+    expect(extractBookingActionCustomerName('Check in Jane Doe', {})).toBe(
+      'Jane Doe',
+    );
+    expect(extractBookingActionCustomerName('Mark Sam checked in', {})).toBe(
+      'Sam',
+    );
     expect(
-      extractBookingActionCustomerName('Check in Jane Doe', {}),
-    ).toBe('Jane Doe');
-    expect(
-      extractBookingActionCustomerName('Mark Sam checked in', {}),
-    ).toBe('Sam');
-    expect(
-      extractBookingActionCustomerName("I'm running 10 minutes late for Jane", {}),
+      extractBookingActionCustomerName(
+        "I'm running 10 minutes late for Jane",
+        {},
+      ),
     ).toBe('Jane');
   });
 
   it('rescues summarize_utilization misroute to my_stats', () => {
     expect(
-      rescueProviderExp2Intent('Show my stats this week', 'summarize_utilization')
-        ?.action,
+      rescueProviderExp2Intent(
+        'Show my stats this week',
+        'summarize_utilization',
+      )?.action,
     ).toBe('my_stats');
   });
 
@@ -179,12 +186,12 @@ describe('ai-provider-exp-2.util', () => {
   });
 
   it('reads numeric minutesLate param when already a number', () => {
-    expect(extractRunningLateMinutesFromPrompt('late', { minutesLate: 12 })).toBe(
-      12,
-    );
-    expect(extractRunningLateMinutesFromPrompt('late', { minutesLate: '8' })).toBe(
-      8,
-    );
+    expect(
+      extractRunningLateMinutesFromPrompt('late', { minutesLate: 12 }),
+    ).toBe(12);
+    expect(
+      extractRunningLateMinutesFromPrompt('late', { minutesLate: '8' }),
+    ).toBe(8);
   });
 
   it('returns null when prompt does not match exp-2 intents', () => {

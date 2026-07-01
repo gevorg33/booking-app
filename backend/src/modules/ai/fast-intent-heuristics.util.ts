@@ -70,7 +70,10 @@ export function inferProductGuideIntentCandidates(
   if (assistantMode === 'act') return [];
 
   if (assistantMode === 'guide') {
-    const match = resolveProductGuidePromptMatch(prompt, { surface, assistantMode });
+    const match = resolveProductGuidePromptMatch(prompt, {
+      surface,
+      assistantMode,
+    });
     const action = match.intent ?? inferProductGuideIntentFromPrompt(prompt);
     return [
       {

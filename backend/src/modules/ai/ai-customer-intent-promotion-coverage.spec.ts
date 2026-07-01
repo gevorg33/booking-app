@@ -23,21 +23,18 @@ describe('ai-customer-intent-promotion-coverage.util (ai-cmd-customer-4.0.2)', (
 
   it.each(
     auditCustomerIntentPromotionFixtures().map((row) => [row.intent, row]),
-  )(
-    '%s meets EN + HY/RU fixture minimums',
-    (_intent, row) => {
-      expect(row.enCount).toBeGreaterThanOrEqual(
-        CUSTOMER_INTENT_PROMOTION_MIN_EN_FIXTURES,
-      );
-      expect(row.hyCount).toBeGreaterThanOrEqual(
-        CUSTOMER_INTENT_PROMOTION_MIN_HY_FIXTURES,
-      );
-      expect(row.ruCount).toBeGreaterThanOrEqual(
-        CUSTOMER_INTENT_PROMOTION_MIN_RU_FIXTURES,
-      );
-      expect(row.evalIdPrefixes.length).toBeGreaterThan(0);
-    },
-  );
+  )('%s meets EN + HY/RU fixture minimums', (_intent, row) => {
+    expect(row.enCount).toBeGreaterThanOrEqual(
+      CUSTOMER_INTENT_PROMOTION_MIN_EN_FIXTURES,
+    );
+    expect(row.hyCount).toBeGreaterThanOrEqual(
+      CUSTOMER_INTENT_PROMOTION_MIN_HY_FIXTURES,
+    );
+    expect(row.ruCount).toBeGreaterThanOrEqual(
+      CUSTOMER_INTENT_PROMOTION_MIN_RU_FIXTURES,
+    );
+    expect(row.evalIdPrefixes.length).toBeGreaterThan(0);
+  });
 
   it('reports no promotion fixture gaps', () => {
     expect(listCustomerIntentPromotionFixtureGaps()).toEqual([]);

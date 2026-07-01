@@ -85,7 +85,9 @@ export function buildCreateBlockScheduleDto(
   const validationError = validateProviderSelfBlockWindow(startTime, endTime);
   if (validationError) return null;
 
-  const placeholder = input.placeholder?.trim().slice(0, PROVIDER_SELF_BLOCK_PLACEHOLDER_MAX);
+  const placeholder = input.placeholder
+    ?.trim()
+    .slice(0, PROVIDER_SELF_BLOCK_PLACEHOLDER_MAX);
 
   return {
     employeeId,

@@ -189,7 +189,9 @@ export function extractCategoryPaymentRowsFromPrompt(
   }
 
   const segments = prompt
-    .split(/\s*;\s*|\s+and\s+then\s+|\s+and\s+(?=(?:for|require|accept|enable)\b)/i)
+    .split(
+      /\s*;\s*|\s+and\s+then\s+|\s+and\s+(?=(?:for|require|accept|enable)\b)/i,
+    )
     .map((segment) => segment.trim())
     .filter(Boolean);
 
@@ -197,7 +199,9 @@ export function extractCategoryPaymentRowsFromPrompt(
   for (const segment of segments) {
     const segmentIndex = prompt.indexOf(segment, segmentOffset);
     segmentOffset =
-      segmentIndex >= 0 ? segmentIndex + segment.length : segmentOffset + segment.length;
+      segmentIndex >= 0
+        ? segmentIndex + segment.length
+        : segmentOffset + segment.length;
     const parsed = parsePrepaymentFromClause(segment);
     if (!parsed) continue;
     const config = parseServiceOnlinePaymentConfig(segment, {});
@@ -269,7 +273,11 @@ export function isConfigureServicesPaymentMatrixCompoundPrompt(
   const text = prompt.trim();
   if (text.length < 36) return false;
   if (isSetupSalonCheckoutCompoundPrompt(text)) return false;
-  if (/\b(?:stripe|online\s+booking|booking\s+page|booking\s+website)\b/i.test(text)) {
+  if (
+    /\b(?:stripe|online\s+booking|booking\s+page|booking\s+website)\b/i.test(
+      text,
+    )
+  ) {
     return false;
   }
 
@@ -285,7 +293,9 @@ export function isConfigureServicesPaymentMatrixCompoundPrompt(
 
   const hasPrice = hasPaymentMatrixPriceStep(text);
   const stepFamilies =
-    categoryRows.length + (hasPrice ? 1 : 0) + (CASH_STEP_CUE.test(text) ? 1 : 0);
+    categoryRows.length +
+    (hasPrice ? 1 : 0) +
+    (CASH_STEP_CUE.test(text) ? 1 : 0);
 
   if (stepFamilies < 3 && categoryRows.length < 2) return false;
 

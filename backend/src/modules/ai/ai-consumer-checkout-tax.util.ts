@@ -124,7 +124,8 @@ export function parseExplainConsumerCheckoutTaxAspect(
 export function parseExplainConsumerCheckoutTaxFromPrompt(
   prompt: string,
 ): ParsedExplainConsumerCheckoutTax | null {
-  const multilingualScenario = matchConsumerCheckoutTaxMultilingualScenario(prompt);
+  const multilingualScenario =
+    matchConsumerCheckoutTaxMultilingualScenario(prompt);
   if (multilingualScenario) {
     return { aspect: multilingualScenario.aspect };
   }

@@ -68,7 +68,8 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       })),
     };
 
-    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } =
+      createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as any,
       { executeCommand: jest.fn() } as any,
@@ -153,21 +154,43 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
     });
 
     const context = providerCommands.executeCommand.mock.calls[0][4];
-    expect(context).toEqual(expect.objectContaining({ assistantMode: 'guide' }));
+    expect(context).toEqual(
+      expect.objectContaining({ assistantMode: 'guide' }),
+    );
   });
 
   it('ai-guide-1.0.3 — resolves assistantMode for customer/public surface', async () => {
-    const customerCommands = { executeCommand: jest.fn(async () => dashboardResult) };
-    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const customerCommands = {
+      executeCommand: jest.fn(async () => dashboardResult),
+    };
+    const { aiSettings, platform, commandTrace } =
+      createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       { executeCommand: jest.fn() } as any,
       customerCommands as any,
       { executeCommand: jest.fn() } as any,
-      { buildMemoryContextBlock: jest.fn(async () => ''), getEntityMemory: jest.fn(async () => ({ aliases: {} })), learnFromCommand: jest.fn() } as any,
-      { prepareHistoryForClassifier: jest.fn(async () => ({ history: [], summaryBlock: '' })) } as any,
+      {
+        buildMemoryContextBlock: jest.fn(async () => ''),
+        getEntityMemory: jest.fn(async () => ({ aliases: {} })),
+        learnFromCommand: jest.fn(),
+      } as any,
+      {
+        prepareHistoryForClassifier: jest.fn(async () => ({
+          history: [],
+          summaryBlock: '',
+        })),
+      } as any,
       { buildRagContextBlock: jest.fn(async () => '') } as any,
       { preflightBlock: jest.fn(() => null) } as any,
-      { assertCanRunDashboardAiCommand: jest.fn(), getEntitlements: jest.fn(async () => ({ tierId: 'starter', usage: {}, atLimit: {}, aiUsageWarning: false })) } as any,
+      {
+        assertCanRunDashboardAiCommand: jest.fn(),
+        getEntitlements: jest.fn(async () => ({
+          tierId: 'starter',
+          usage: {},
+          atLimit: {},
+          aiUsageWarning: false,
+        })),
+      } as any,
       aiSettings as any,
       platform as any,
       commandTrace as any,

@@ -19,7 +19,9 @@ describe('ai-checkout-defaults.util', () => {
       const parsed = parseConfigureCheckoutDefaultsFromPrompt(prompt, {});
       expect(parsed).not.toBeNull();
       if (paramsPartial?.acceptCashPayments !== undefined) {
-        expect(parsed?.acceptCashPayments).toBe(paramsPartial.acceptCashPayments);
+        expect(parsed?.acceptCashPayments).toBe(
+          paramsPartial.acceptCashPayments,
+        );
       }
       if (paramsPartial?.defaultServicePrepaymentMode) {
         expect(parsed?.defaultServicePrepaymentMode).toBe(

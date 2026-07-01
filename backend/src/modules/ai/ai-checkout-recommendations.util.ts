@@ -55,9 +55,7 @@ export function hasCheckoutSuccessVisitorContext(prompt: string): boolean {
     /\bafter\s+(?:i\s+)?(?:confirm|booked)\b/i.test(prompt) ||
     /\bon\s+checkout\s+success\b/i.test(prompt) ||
     /\bafter\s+booking\s+in\s+the\s+app\b/i.test(prompt) ||
-    /(?:запис|бронир|подтвержден|после\s+оплаты|забронирован)/i.test(
-      prompt,
-    ) ||
+    /(?:запис|бронир|подтвержден|после\s+оплаты|забронирован)/i.test(prompt) ||
     /(?:success screen|checkout success|հաստատման\s+էկրան|ամրագրումից\s+հետո|ամրագրած)/i.test(
       prompt,
     ) ||

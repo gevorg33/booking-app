@@ -1,6 +1,7 @@
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
 
-export type CheckoutRecommendationsEvalAction = 'explain_checkout_recommendations';
+export type CheckoutRecommendationsEvalAction =
+  'explain_checkout_recommendations';
 
 export interface CheckoutRecommendationsEvalScenario {
   id: string;
@@ -74,7 +75,8 @@ export const MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS: CheckoutRecom
       id: 'hy-customer-from-service',
       locale: 'hy',
       surface: 'customer',
-      prompt: 'Արդյո՞ք այս առաջարկությունները գալիս են իմ ամրագրած ծառայությունից',
+      prompt:
+        'Արդյո՞ք այս առաջարկությունները գալիս են իմ ամրագրած ծառայությունից',
       expectedAction: 'explain_checkout_recommendations',
       rescueReason: 'explain_checkout_recommendations',
       paramsPartial: { aspect: 'whyShown' },
@@ -135,7 +137,8 @@ export const MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS: CheckoutRecom
       id: 'ru-customer-from-service',
       locale: 'ru',
       surface: 'customer',
-      prompt: 'Эти рекомендации из моей забронированной услуги на success screen',
+      prompt:
+        'Эти рекомендации из моей забронированной услуги на success screen',
       expectedAction: 'explain_checkout_recommendations',
       rescueReason: 'explain_checkout_recommendations',
       paramsPartial: { aspect: 'whyShown' },

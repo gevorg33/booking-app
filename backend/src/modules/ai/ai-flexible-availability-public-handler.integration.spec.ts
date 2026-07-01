@@ -48,8 +48,7 @@ function runPublicAvailabilityHandlerPipeline(input: {
       const providersForDay: PublicAvailabilityDayReport['providers'] = [];
 
       for (const employee of input.employees) {
-        const rawSlots =
-          input.slotsByKey[`${employee.id}:${dateKey}`] ?? [];
+        const rawSlots = input.slotsByKey[`${employee.id}:${dateKey}`] ?? [];
         const slots = filterPublicProviderSlotsByTimeOfDay(
           rawSlots,
           window.timeOfDay,
@@ -63,10 +62,10 @@ function runPublicAvailabilityHandlerPipeline(input: {
           slots,
         });
 
-        if (!bestNavigate || slots[0]!.startTime < bestNavigate.startTime) {
+        if (!bestNavigate || slots[0].startTime < bestNavigate.startTime) {
           bestNavigate = {
             employeeId: employee.id,
-            startTime: slots[0]!.startTime,
+            startTime: slots[0].startTime,
           };
         }
       }
@@ -145,12 +144,16 @@ describe('public handleCheckAvailability pipeline (avail-1.5 / discover-exit-2)'
 
       for (const label of expectedEmptyWindowLabels) {
         expect(result.summary).toContain(`No open slots for ${label}.`);
-        const report = result.windowReports.find((entry) => entry.label === label);
+        const report = result.windowReports.find(
+          (entry) => entry.label === label,
+        );
         expect(report?.dayReports).toEqual([]);
       }
 
       if (expectedBestNavigateStartTime) {
-        expect(result.bestNavigate?.startTime).toBe(expectedBestNavigateStartTime);
+        expect(result.bestNavigate?.startTime).toBe(
+          expectedBestNavigateStartTime,
+        );
       }
     },
   );
@@ -200,13 +203,15 @@ describe('public handleCheckAvailability pipeline (avail-1.5 / discover-exit-2)'
       );
 
       expect(windows.length).toBeGreaterThanOrEqual(2);
-      expect(
-        windows.some((window) => window.timeOfDay === 'evening'),
-      ).toBe(true);
-      expect(
-        windows.some((window) => window.timeOfDay === 'afternoon'),
-      ).toBe(true);
-      expect(shouldGroupPublicAvailabilityByWindow(windows, enriched)).toBe(true);
+      expect(windows.some((window) => window.timeOfDay === 'evening')).toBe(
+        true,
+      );
+      expect(windows.some((window) => window.timeOfDay === 'afternoon')).toBe(
+        true,
+      );
+      expect(shouldGroupPublicAvailabilityByWindow(windows, enriched)).toBe(
+        true,
+      );
     },
   );
 });

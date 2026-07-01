@@ -233,7 +233,9 @@ export class ServiceService {
       taxRatePercent?: number | null;
       diagnosticCode?: ClinicDiagnosticCodeLinkView | null;
       isFeatured?: boolean;
-      serviceTier?: ReturnType<typeof extractServiceRankMetadata>['serviceTier'];
+      serviceTier?: ReturnType<
+        typeof extractServiceRankMetadata
+      >['serviceTier'];
     }
   > {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
@@ -299,7 +301,9 @@ export class ServiceService {
     const paymentDefaults = resolvePublicPaymentSettings(businessSettings);
     const prepaymentMode =
       dto.prepaymentMode ??
-      (paymentDefaults.defaultServicePrepaymentMode as PrepaymentMode | undefined) ??
+      (paymentDefaults.defaultServicePrepaymentMode as
+        | PrepaymentMode
+        | undefined) ??
       PrepaymentMode.NONE;
     await this.assertOnlinePaymentAllowed(businessId, prepaymentMode);
     const defaultCurrency = getBusinessDefaultCurrency(businessSettings);

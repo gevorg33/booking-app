@@ -153,9 +153,7 @@ export function listImplicationSurfaceParityGaps(
     isImplicationSurfaceExpansionSeed,
   ),
 ): ImplicationSurfaceParityGap[] {
-  const present = new Set(
-    scenarios.map((row) => `${row.surface}:${row.id}`),
-  );
+  const present = new Set(scenarios.map((row) => `${row.surface}:${row.id}`));
   const gaps: ImplicationSurfaceParityGap[] = [];
 
   for (const seed of seeds.filter(isImplicationSurfaceExpansionSeed)) {

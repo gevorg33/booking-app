@@ -37,7 +37,9 @@ describe('ai-configure-package-online-payment.util', () => {
       ),
     ).toBe(false);
     expect(
-      isConfigurePackageOnlinePaymentPrompt('Update Glow package discount to 20%'),
+      isConfigurePackageOnlinePaymentPrompt(
+        'Update Glow package discount to 20%',
+      ),
     ).toBe(false);
   });
 

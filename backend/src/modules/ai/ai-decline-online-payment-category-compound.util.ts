@@ -2,7 +2,10 @@ import {
   enrichParamsWithSharedEntities,
   propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
-import { parseCashPaymentsToggle, hasCashMutateCue } from './ai-payments.util.js';
+import {
+  parseCashPaymentsToggle,
+  hasCashMutateCue,
+} from './ai-payments.util.js';
 import {
   extractCategoryPaymentRowsFromPrompt,
   isConfigureServicesPaymentMatrixCompoundPrompt,
@@ -144,7 +147,9 @@ export function extractDeclineAcceptCategoryRowsFromPrompt(
   for (const segment of segments) {
     const segmentIndex = prompt.indexOf(segment, segmentOffset);
     segmentOffset =
-      segmentIndex >= 0 ? segmentIndex + segment.length : segmentOffset + segment.length;
+      segmentIndex >= 0
+        ? segmentIndex + segment.length
+        : segmentOffset + segment.length;
 
     const config = parseServiceOnlinePaymentConfig(segment, {});
     if (config && !config.allServices) {
@@ -198,7 +203,11 @@ export function isDeclineOnlinePaymentCategoryCompoundPrompt(
   if (text.length < 36) return false;
   if (isSetupSalonCheckoutCompoundPrompt(text)) return false;
   if (isConfigureServicesPaymentMatrixCompoundPrompt(text)) return false;
-  if (/\b(?:stripe|online\s+booking|booking\s+page|booking\s+website)\b/i.test(text)) {
+  if (
+    /\b(?:stripe|online\s+booking|booking\s+page|booking\s+website)\b/i.test(
+      text,
+    )
+  ) {
     return false;
   }
 
@@ -241,7 +250,9 @@ export function decomposeDeclineOnlinePaymentCategoryCompoundPrompt(
       ...base,
       categoryName: row.categoryName,
       prepaymentMode: row.prepaymentMode,
-      ...(row.depositPercent != null ? { depositPercent: row.depositPercent } : {}),
+      ...(row.depositPercent != null
+        ? { depositPercent: row.depositPercent }
+        : {}),
     },
     segment: trimmed,
   }));

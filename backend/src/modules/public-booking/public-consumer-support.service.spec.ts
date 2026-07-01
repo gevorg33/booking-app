@@ -24,7 +24,10 @@ describe('PublicConsumerSupportService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessService.findBySlug.mockResolvedValue({ id: 'biz-1', name: 'Glow Nails' });
+    businessService.findBySlug.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Glow Nails',
+    });
     customerRepo.findOne.mockResolvedValue({
       id: 'cust-1',
       name: 'Alex',
@@ -43,10 +46,14 @@ describe('PublicConsumerSupportService', () => {
   });
 
   it('creates a Zendesk ticket for post-booking unhappy feedback', async () => {
-    const result = await service.createPostBookingSupportTicket('glow-nails', 'cust-1', {
-      bookingId: 'bk-1',
-      message: 'Wrong time shown in confirmation',
-    });
+    const result = await service.createPostBookingSupportTicket(
+      'glow-nails',
+      'cust-1',
+      {
+        bookingId: 'bk-1',
+        message: 'Wrong time shown in confirmation',
+      },
+    );
 
     expect(result.ticketId).toBe(99);
     expect(zendeskIntegrationService.createSupportTicket).toHaveBeenCalledWith(

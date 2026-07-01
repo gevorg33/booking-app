@@ -71,9 +71,7 @@ export function buildProviderUnderstandInput(
 }
 
 @Injectable()
-export class ProviderCommandUnderstandingAdapter
-  implements CommandUnderstandingSurfaceAdapter<ProviderUnderstandDeps>
-{
+export class ProviderCommandUnderstandingAdapter implements CommandUnderstandingSurfaceAdapter<ProviderUnderstandDeps> {
   readonly surface = PROVIDER_COMMAND_UNDERSTANDING_SURFACE;
 
   constructor(

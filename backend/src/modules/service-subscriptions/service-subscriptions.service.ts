@@ -185,7 +185,8 @@ export class ServiceSubscriptionsService {
       where: { id: planId, businessId },
     });
     if (!plan) throw new NotFoundException('Subscription plan not found');
-    if (payload.serviceId) await this.assertService(businessId, payload.serviceId);
+    if (payload.serviceId)
+      await this.assertService(businessId, payload.serviceId);
     Object.assign(plan, {
       ...payload,
       name: payload.name?.trim() ?? plan.name,

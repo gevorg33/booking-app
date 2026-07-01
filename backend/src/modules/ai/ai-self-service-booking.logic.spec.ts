@@ -3,7 +3,6 @@ import {
   handleBookMultiServiceLogic,
   handleBookPackageLogic,
   handleBookWithCashLogic,
-  handleBookWithGiftCardLogic,
   handleCancelMyBookingLogic,
   handleCancelPackageVisitSelfLogic,
   handleChangeProviderOnRescheduleLogic,
@@ -23,6 +22,7 @@ import {
   mergeCustomerBookingCompoundContext,
   type SelfServiceBookingLogicDeps,
 } from './ai-self-service-booking.logic.js';
+import { handleBookWithGiftCardLogic } from './ai-book-with-gift-card.logic.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 function buildDeps(
@@ -78,6 +78,12 @@ function buildDeps(
       suggestPackageLineSlots: jest.fn(async () => ({
         lines: [{ serviceId: 'svc-1' }],
       })),
+      suggestPackageBlock: jest.fn(async () => ({
+        startTime: '2026-06-10T10:00:00.000Z',
+        dateKey: '2026-06-10',
+        employeeId: 'emp-1',
+        employeeName: 'Maria',
+      })),
       suggestMultiServiceBlock: jest.fn(async () => ({
         startTime: '2026-06-03T11:00:00Z',
         employeeName: 'Maria',
@@ -105,10 +111,12 @@ function buildDeps(
         bookings: [
           {
             id: 'book-1',
-            startTime: '2026-06-10T10:00:00Z',
+            startTime: '2026-08-10T10:00:00Z',
             status: BookingStatus.CONFIRMED,
             serviceName: 'Massage',
             employeeName: 'Maria',
+            packagePurchaseId: 'purchase-1',
+            packageName: 'Spa Day',
             canCancel: true,
             canReschedule: true,
           },
@@ -180,6 +188,12 @@ describe('ai-self-service-booking.logic', () => {
       path: 'packages',
       query: { packageId: 'pkg-1' },
     });
+    const nearest = await handleBookPackageLogic(deps, 'biz-1', {
+      packageName: 'Spa Day',
+      bookingFirstAvailable: true,
+    });
+    expect(nearest.success).toBe(true);
+    expect(nearest.details?.blockStartTime).toBe('2026-06-10T10:00:00.000Z');
     expect(
       (
         await handleBookPackageLogic(deps, 'biz-1', {
@@ -499,7 +513,9 @@ describe('ai-self-service-booking.logic', () => {
       { sessionCustomerId: 'cust-1' },
     );
     expect(rescheduleAmbiguous.success).toBe(false);
-    expect(rescheduleAmbiguous.summary).toContain('several upcoming appointments');
+    expect(rescheduleAmbiguous.summary).toContain(
+      'several upcoming appointments',
+    );
     (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
     expect(
       (
@@ -535,20 +551,32 @@ describe('ai-self-service-booking.logic', () => {
     expect(
       (await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {})).success,
     ).toBe(false);
-    (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
+    (
+      deps.publicCustomerAuthService.listBookings as jest.Mock
+    ).mockResolvedValueOnce({ bookings: [] });
     expect(
       (
-        await handleCancelPackageVisitSelfLogic(deps, 'biz-1', {
-          sessionCustomerId: 'cust-1',
-        })
+        await handleCancelPackageVisitSelfLogic(
+          deps,
+          'biz-1',
+          {
+            sessionCustomerId: 'cust-1',
+          },
+          'Cancel my package visit',
+        )
       ).success,
     ).toBe(false);
     expect(
       (
-        await handleCancelPackageVisitSelfLogic(deps, 'biz-1', {
-          sessionCustomerId: 'cust-1',
-          bookingId: 'book-1',
-        })
+        await handleCancelPackageVisitSelfLogic(
+          deps,
+          'biz-1',
+          {
+            sessionCustomerId: 'cust-1',
+            bookingId: 'book-1',
+          },
+          'Cancel my package visit',
+        )
       ).success,
     ).toBe(true);
     (
@@ -556,26 +584,27 @@ describe('ai-self-service-booking.logic', () => {
     ).mockRejectedValueOnce(new Error('no'));
     expect(
       (
-        await handleCancelPackageVisitSelfLogic(deps, 'biz-1', {
-          sessionCustomerId: 'cust-1',
-          bookingId: 'book-1',
-        })
+        await handleCancelPackageVisitSelfLogic(
+          deps,
+          'biz-1',
+          {
+            sessionCustomerId: 'cust-1',
+            bookingId: 'book-1',
+          },
+          'Cancel my package visit',
+        )
       ).success,
     ).toBe(false);
 
     (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
     expect(
       (
-        await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {
-          sessionCustomerId: 'cust-1',
-        })
-      ).success,
-    ).toBe(false);
-    expect(
-      (
-        await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {
-          sessionCustomerId: 'cust-1',
-        })
+        await handleReschedulePackageVisitSelfLogic(
+          deps,
+          'biz-1',
+          { sessionCustomerId: 'cust-1' },
+          'Reschedule my package visit',
+        )
       ).success,
     ).toBe(true);
     expect(
@@ -583,7 +612,6 @@ describe('ai-self-service-booking.logic', () => {
         await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {
           sessionCustomerId: 'cust-1',
           bookingId: 'book-1',
-          blockStartTime: '2026-06-11T10:00:00Z',
         })
       ).success,
     ).toBe(true);
@@ -595,7 +623,12 @@ describe('ai-self-service-booking.logic', () => {
         await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {
           sessionCustomerId: 'cust-1',
           bookingId: 'book-1',
-          blockStartTime: '2026-06-11T10:00:00Z',
+          lines: [
+            {
+              bookingId: 'book-1',
+              startTime: '2026-06-11T10:00:00Z',
+            },
+          ],
         })
       ).success,
     ).toBe(false);
@@ -746,7 +779,7 @@ describe('ai-self-service-booking.logic', () => {
           bookingId: 'book-1',
           lines: [
             {
-              serviceId: 'svc-1',
+              bookingId: 'book-1',
               startTime: '2026-06-11T10:00:00Z',
               employeeId: 'emp-1',
             },
@@ -1008,7 +1041,12 @@ describe('ai-self-service-booking.logic', () => {
           await handleReschedulePackageVisitSelfLogic(deps, 'biz-1', {
             sessionCustomerId: 'cust-1',
             bookingId: 'book-1',
-            blockStartTime: '2026-06-11T10:00:00Z',
+            lines: [
+              {
+                bookingId: 'book-1',
+                startTime: '2026-06-11T10:00:00Z',
+              },
+            ],
           })
         ).summary,
       ).toBe('Could not reschedule package visit.');
@@ -1077,7 +1115,7 @@ describe('ai-self-service-booking.logic', () => {
           businessId: 'biz-1',
           customerId: 'cust-1',
           status: BookingStatus.CONFIRMED,
-          startTime: new Date(),
+          startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           service: null,
           employee: { name: 'Maria' },
         },
@@ -1095,7 +1133,7 @@ describe('ai-self-service-booking.logic', () => {
         businessId: 'biz-1',
         customerId: 'cust-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date(),
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         service: null,
         employee: { name: 'Maria' },
       });

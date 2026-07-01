@@ -1,4 +1,7 @@
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import { isListServicesPaymentFilterPrompt } from './ai-list-services-payment-filters.util.js';
 import {
   isDoIPayOnlineForServicePrompt,
@@ -19,9 +22,9 @@ export type ServiceOnlinePaymentSetupReadIntent =
 export function isServiceOnlinePaymentSetupReadIntent(
   action: string,
 ): action is ServiceOnlinePaymentSetupReadIntent {
-  return (SERVICE_ONLINE_PAYMENT_SETUP_READ_INTENTS as readonly string[]).includes(
-    action,
-  );
+  return (
+    SERVICE_ONLINE_PAYMENT_SETUP_READ_INTENTS as readonly string[]
+  ).includes(action);
 }
 
 export const SERVICE_ONLINE_PAYMENT_SETUP_CLASSIFIER_RULES = `- explain_service_online_payment_setup: READ — summarize per-service online payment on public booking (prepaymentMode none|full|deposit), Stripe Connect status, and whether cash at venue is still allowed. Triggers: explain/show/describe/what/which/summarize + online payment setup|prepayment mode|Stripe Connect|which services require prepayment|cash still allowed. Optional serviceName or categoryName filter. NOT configure_service_online_payment (mutate toggle), NOT explain_public_booking_checkout (holistic checkout cash/online/gift-card flow), NOT list_services (catalog browse without payment context), NOT explain_why_stripe_required (customer checkout), NOT audit_services_missing_online_payment (gap audit only), and NOT configure_cash_payments (mutate).
@@ -231,7 +234,9 @@ export function isExplainServiceOnlinePaymentSetupPrompt(
     /\b(accept|enable|decline(?:\s+to)?|disable|turn\s+(?:on|off)|require|configure|set\s+up|stop|reject|refuse)\b/i.test(
       text,
     ) &&
-    !/\b(explain|show|describe|what|which|summarize|status|is|are)\b/i.test(text)
+    !/\b(explain|show|describe|what|which|summarize|status|is|are)\b/i.test(
+      text,
+    )
   ) {
     return false;
   }
@@ -281,10 +286,7 @@ export function filterServicesForOnlinePaymentSetupExplain<
     isActive?: boolean;
     category?: { name: string } | null;
   },
->(
-  catalog: T[],
-  parsed: ParsedExplainServiceOnlinePaymentSetup,
-): T[] {
+>(catalog: T[], parsed: ParsedExplainServiceOnlinePaymentSetup): T[] {
   const active = catalog.filter((service) => service.isActive !== false);
 
   if (parsed.serviceName) {

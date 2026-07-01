@@ -79,17 +79,17 @@ describe('ai-waitlist-dashboard.util (ai-cmd-ext-2.11–2.12)', () => {
   it('detects HY/RU waitlist prompts and helpers', () => {
     expect(isListWaitlistEntriesPrompt('Ով է waitlist-ում')).toBe(true);
     expect(isListWaitlistEntriesPrompt('Кто в waitlist')).toBe(true);
-    expect(isOfferWaitlistSlotPrompt('Առաջարկիր Friday 2pm gap waitlist-ին')).toBe(
-      true,
-    );
+    expect(
+      isOfferWaitlistSlotPrompt('Առաջարկիր Friday 2pm gap waitlist-ին'),
+    ).toBe(true);
     expect(isOfferWaitlistSlotPrompt('Предложи Friday 2pm gap waitlist')).toBe(
       true,
     );
     expect(extractWaitlistOfferDate('Offer tomorrow at 2pm')).toBe('tomorrow');
     expect(extractWaitlistOfferDate('Offer today at 2pm')).toBe('today');
-    expect(extractWaitlistOfferEmployeeName("Notify about Maria's cancelled slot")).toBe(
-      'Maria',
-    );
+    expect(
+      extractWaitlistOfferEmployeeName("Notify about Maria's cancelled slot"),
+    ).toBe('Maria');
     expect(isWaitlistDashboardIntent('list_waitlist_entries')).toBe(true);
     expect(
       enrichWaitlistDashboardRescueParams('list_waitlist_entries', {}, 'list'),

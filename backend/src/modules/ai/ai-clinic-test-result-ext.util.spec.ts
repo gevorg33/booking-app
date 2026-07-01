@@ -65,21 +65,21 @@ describe('ai-clinic-test-result-ext.util (ai-cmd-ext-2.1–2.4)', () => {
   it.each(CLINIC_TEST_RESULT_EXT_RESCUE_SCENARIOS)(
     'rescues ext intent for $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(rescueClinicTestResultExtIntent(prompt, misclassifiedAction)?.action).toBe(
-        expectedAction,
-      );
-      expect(rescueClinicTestResultIntent(prompt, misclassifiedAction)?.action).toBe(
-        expectedAction,
-      );
+      expect(
+        rescueClinicTestResultExtIntent(prompt, misclassifiedAction)?.action,
+      ).toBe(expectedAction);
+      expect(
+        rescueClinicTestResultIntent(prompt, misclassifiedAction)?.action,
+      ).toBe(expectedAction);
     },
   );
 
   it('does not treat manual entry as upload', () => {
     const prompt = 'Enter WBC 12.5 for order abc123';
     expect(isUploadPatientResultPrompt(prompt)).toBe(false);
-    expect(rescueClinicTestResultIntent(prompt, 'list_test_orders')?.action).toBe(
-      'enter_test_result',
-    );
+    expect(
+      rescueClinicTestResultIntent(prompt, 'list_test_orders')?.action,
+    ).toBe('enter_test_result');
   });
 
   it('does not treat chart explain as patient results explain', () => {
@@ -89,9 +89,9 @@ describe('ai-clinic-test-result-ext.util (ai-cmd-ext-2.1–2.4)', () => {
   });
 
   it('does not treat order queue as abnormal list', () => {
-    expect(isListAbnormalResultsPrompt('List test orders awaiting results')).toBe(
-      false,
-    );
+    expect(
+      isListAbnormalResultsPrompt('List test orders awaiting results'),
+    ).toBe(false);
   });
 
   it('returns null when ext action already matches', () => {
@@ -129,7 +129,9 @@ describe('ai-clinic-test-result-ext.util (ai-cmd-ext-2.1–2.4)', () => {
   });
 
   it('returns null for unrelated clinic prompts', () => {
-    expect(rescueClinicTestResultExtIntent('List employees', 'unknown')).toBeNull();
+    expect(
+      rescueClinicTestResultExtIntent('List employees', 'unknown'),
+    ).toBeNull();
   });
 });
 
@@ -140,7 +142,9 @@ describe('detectClinicTestResultExtIntentFromPrompt (ai-cmd-clinic-6-gap-2.3)', 
       action: 'upload_patient_result',
       params: { orderId: 'abc123' },
     });
-    expect(rescueClinicTestResultExtIntent(prompt, 'upload_patient_result')).toBeNull();
+    expect(
+      rescueClinicTestResultExtIntent(prompt, 'upload_patient_result'),
+    ).toBeNull();
   });
 });
 

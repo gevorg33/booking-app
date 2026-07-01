@@ -25,8 +25,10 @@ function createAnalyticsHarness() {
   };
 
   const publicBookingService = createPublicBookingServiceHarness({
-    businessService: { findBySlug: jest.fn().mockResolvedValue(business) } as any,
-    productRecommendationService: productRecommendationService as any,
+    businessService: {
+      findBySlug: jest.fn().mockResolvedValue(business),
+    },
+    productRecommendationService: productRecommendationService,
     configService: {
       get: jest.fn((key: string) =>
         key === 'PUBLIC_API_URL' ? 'https://app.test' : undefined,

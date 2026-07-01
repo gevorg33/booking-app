@@ -13,6 +13,7 @@ export type NotificationKind =
   | 'provider_ready_now'
   | 'business_booking_cancelled'
   | 'business_booking_rescheduled'
+  | 'business_customer_running_late'
   | `reminder_${number}h`;
 
 export interface BusinessNotificationSettings {

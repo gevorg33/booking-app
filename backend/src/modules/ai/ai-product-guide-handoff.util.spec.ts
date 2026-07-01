@@ -45,7 +45,10 @@ describe('ai-product-guide-handoff.util (ai-guide-1.2.5)', () => {
   });
 
   it('readGuideHandoffDispatch reads session context', () => {
-    const handoff = { action: 'create_employee', params: { prompt: 'Add stylist' } };
+    const handoff = {
+      action: 'create_employee',
+      params: { prompt: 'Add stylist' },
+    };
     expect(
       readGuideHandoffDispatch({
         context: { [GUIDE_HANDOFF_CONTEXT_KEY]: handoff },
@@ -86,10 +89,12 @@ describe('ai-product-guide-handoff.util (ai-guide-1.2.5)', () => {
         { prompt, intent: 'guide_user_flow' },
       );
 
-      expect(guide.relatedActions?.some((row) => row.action === expectedAction)).toBe(
-        true,
+      expect(
+        guide.relatedActions?.some((row) => row.action === expectedAction),
+      ).toBe(true);
+      const handoff = guide.relatedActions?.find(
+        (row) => row.action === expectedAction,
       );
-      const handoff = guide.relatedActions?.find((row) => row.action === expectedAction);
       expect(handoff?.prompt?.length).toBeGreaterThan(0);
     },
   );

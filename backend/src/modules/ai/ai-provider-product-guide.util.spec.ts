@@ -14,7 +14,9 @@ describe('ai-provider-product-guide.util (ai-guide-1.4.1)', () => {
     'rescueProviderProductGuideIntent for $id',
     ({ samplePrompt, intent, fromActions }) => {
       const source = fromActions?.[0] ?? 'unknown';
-      expect(rescueProviderProductGuideIntent(samplePrompt, source)).toBe(intent);
+      expect(rescueProviderProductGuideIntent(samplePrompt, source)).toBe(
+        intent,
+      );
     },
   );
 
@@ -32,19 +34,13 @@ describe('ai-provider-product-guide.util (ai-guide-1.4.1)', () => {
 
   it('does not rescue operational show_appointments prompts', () => {
     expect(
-      rescueProviderProductGuideIntent(
-        "Show my appointments today",
-        'unknown',
-      ),
+      rescueProviderProductGuideIntent('Show my appointments today', 'unknown'),
     ).toBe('unknown');
   });
 
   it('preserves already-classified provider guide intents', () => {
     expect(
-      rescueProviderProductGuideIntent(
-        'anything',
-        'explain_staff_invite',
-      ),
+      rescueProviderProductGuideIntent('anything', 'explain_staff_invite'),
     ).toBe('explain_staff_invite');
   });
 });

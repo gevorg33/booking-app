@@ -390,8 +390,7 @@ export function buildApplyScheduleProposalSteps(
 
   const range = resolveDateRange(
     {
-      dateFrom:
-        typeof input.dateFrom === 'string' ? input.dateFrom : undefined,
+      dateFrom: typeof input.dateFrom === 'string' ? input.dateFrom : undefined,
       dateTo: typeof input.dateTo === 'string' ? input.dateTo : undefined,
       date: typeof input.date === 'string' ? input.date : undefined,
       _timeZone: ctx.timeZone,

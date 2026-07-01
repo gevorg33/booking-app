@@ -82,13 +82,22 @@ export function buildProviderCheckInEligibility(
     return { allowed: false, reason: 'Visit already completed' };
   }
   if (booking.status === BookingStatus.CANCELLED) {
-    return { allowed: false, reason: 'Cancelled appointments cannot be checked in' };
+    return {
+      allowed: false,
+      reason: 'Cancelled appointments cannot be checked in',
+    };
   }
   if (booking.status === BookingStatus.NO_SHOW) {
-    return { allowed: false, reason: 'No-show appointments cannot be checked in' };
+    return {
+      allowed: false,
+      reason: 'No-show appointments cannot be checked in',
+    };
   }
   if (!CHECK_IN_ALLOWED_STATUSES.has(booking.status)) {
-    return { allowed: false, reason: 'Check-in is not available for this visit' };
+    return {
+      allowed: false,
+      reason: 'Check-in is not available for this visit',
+    };
   }
   if (parseCheckedInAt(booking.checkedInAt)) {
     return { allowed: false, reason: 'Client is already checked in' };

@@ -13,7 +13,11 @@ export const SEMANTIC_PARAPHRASE_CORPUS_PIPE_MARKER = 'acc-3.16';
 
 export const MIN_PARAPHRASES_PER_SEMANTIC_INTENT = 5;
 
-export const REQUIRED_PARAPHRASE_LOCALES = ['en', 'hy', 'ru'] as const satisfies readonly AiEvalLocale[];
+export const REQUIRED_PARAPHRASE_LOCALES = [
+  'en',
+  'hy',
+  'ru',
+] as const satisfies readonly AiEvalLocale[];
 
 export type SemanticParaphraseCorpusRow = {
   id: string;
@@ -106,8 +110,7 @@ export function summarizeSemanticParaphraseCoverage(
     if (!CORE_SEMANTIC_INTENT_ACTIONS.includes(row.expectedAction as never)) {
       continue;
     }
-    const keys =
-      distinctByAction.get(row.expectedAction) ?? new Set<string>();
+    const keys = distinctByAction.get(row.expectedAction) ?? new Set<string>();
     keys.add(normalizeParaphraseLexicalKey(row.prompt));
     distinctByAction.set(row.expectedAction, keys);
 

@@ -69,17 +69,13 @@ export function isListMyTimeOffRequestsPrompt(prompt: string): boolean {
     return true;
   }
   if (containsArmenianScript(prompt)) {
-    return (
-      /(հաստատ|vacation|pto|time\s*off).*(request|status)|pending.*pto|time\s*off.*request/i.test(
-        prompt,
-      )
+    return /(հաստատ|vacation|pto|time\s*off).*(request|status)|pending.*pto|time\s*off.*request/i.test(
+      prompt,
     );
   }
   if (containsCyrillicScript(prompt)) {
-    return (
-      /(одобр|отпуск|pto|time\s*off).*(запрос|статус|request)|pending.*pto|статус.*time\s*off/i.test(
-        prompt,
-      )
+    return /(одобр|отпуск|pto|time\s*off).*(запрос|статус|request)|pending.*pto|статус.*time\s*off/i.test(
+      prompt,
     );
   }
   return false;
@@ -118,7 +114,9 @@ export function rescueDashboardTimeOffIntent(
 ): { action: string; rescueReason: string } | null {
   if (
     action !== 'unknown' &&
-    DASHBOARD_TIME_OFF_INTENTS.includes(action as (typeof DASHBOARD_TIME_OFF_INTENTS)[number])
+    DASHBOARD_TIME_OFF_INTENTS.includes(
+      action as (typeof DASHBOARD_TIME_OFF_INTENTS)[number],
+    )
   ) {
     return null;
   }
@@ -176,7 +174,9 @@ export function rescueProviderTimeOffIntent(
 ): { action: string; rescueReason: string } | null {
   if (
     action !== 'unknown' &&
-    PROVIDER_TIME_OFF_INTENTS.includes(action as (typeof PROVIDER_TIME_OFF_INTENTS)[number])
+    PROVIDER_TIME_OFF_INTENTS.includes(
+      action as (typeof PROVIDER_TIME_OFF_INTENTS)[number],
+    )
   ) {
     return null;
   }

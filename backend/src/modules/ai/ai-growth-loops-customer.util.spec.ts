@@ -18,33 +18,44 @@ import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
 describe('ai-growth-loops-customer.util (ai-cmd-customer-4.0 P3)', () => {
   it('exports classifier rules for growth loops', () => {
     expect(CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES).toContain('refer_a_friend');
-    expect(CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES).toContain('share_salon_link');
+    expect(CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES).toContain(
+      'share_salon_link',
+    );
   });
 
-  it.each(
-    GROWTH_LOOPS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
-  )('detects growth loops prompt $id', (_id, row) => {
-    expect(detectGrowthLoopsCustomerAction(row.prompt)).toBe(row.expectedAction);
-    expect(isGrowthLoopsCustomerPrompt(row.prompt)).toBe(true);
-  });
+  it.each(GROWTH_LOOPS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const))(
+    'detects growth loops prompt $id',
+    (_id, row) => {
+      expect(detectGrowthLoopsCustomerAction(row.prompt)).toBe(
+        row.expectedAction,
+      );
+      expect(isGrowthLoopsCustomerPrompt(row.prompt)).toBe(true);
+    },
+  );
 
   it.each(
-    MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS.map((row) => [row.id, row] as const),
+    MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues multilingual growth loops scenario $id', (_id, row) => {
-    expect(detectGrowthLoopsCustomerAction(row.prompt)).toBe(row.expectedAction);
+    expect(detectGrowthLoopsCustomerAction(row.prompt)).toBe(
+      row.expectedAction,
+    );
   });
 
-  it.each(
-    GROWTH_LOOPS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
-  )('rescues growth loops prompt $id from unknown', (_id, row) => {
-    const rescued = rescueGrowthLoopsCustomerIntent(row.prompt, 'unknown');
-    expect(rescued?.action).toBe(row.expectedAction);
-    expect(rescued?.rescueReason).toBe(row.rescueReason);
-  });
+  it.each(GROWTH_LOOPS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const))(
+    'rescues growth loops prompt $id from unknown',
+    (_id, row) => {
+      const rescued = rescueGrowthLoopsCustomerIntent(row.prompt, 'unknown');
+      expect(rescued?.action).toBe(row.expectedAction);
+      expect(rescued?.rescueReason).toBe(row.rescueReason);
+    },
+  );
 
   it('routes through consumer adoption rescue for refer and share salon', () => {
     expect(
-      rescueConsumerAdoptionIntent('How do I refer a friend?', 'unknown')?.action,
+      rescueConsumerAdoptionIntent('How do I refer a friend?', 'unknown')
+        ?.action,
     ).toBe('refer_a_friend');
     expect(
       rescueConsumerAdoptionIntent('Share this salon link', 'unknown')?.action,
@@ -56,8 +67,10 @@ describe('ai-growth-loops-customer.util (ai-cmd-customer-4.0 P3)', () => {
       detectGrowthLoopsCustomerAction('How do promo codes work at checkout?'),
     ).toBeNull();
     expect(
-      rescueMarketingGrowthIntent('How do promo codes work at checkout?', 'unknown')
-        ?.action,
+      rescueMarketingGrowthIntent(
+        'How do promo codes work at checkout?',
+        'unknown',
+      )?.action,
     ).toBe('promo_code_help');
     expect(detectGrowthLoopsCustomerAction('Share my booking')).toBeNull();
     expect(isReferAFriendPrompt('Share my referral link')).toBe(true);

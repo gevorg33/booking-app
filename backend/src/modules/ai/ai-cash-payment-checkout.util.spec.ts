@@ -58,7 +58,9 @@ describe('ai-cash-payment-checkout.util (ai-cmd-ext-7.3)', () => {
       service: null,
     });
     expect(copy.summary).toContain('cash at venue is not enabled');
-    expect(copy.options.find((option) => option.method === 'cash')).toBeUndefined();
+    expect(
+      copy.options.find((option) => option.method === 'cash'),
+    ).toBeUndefined();
   });
 
   it('builds deposit-aware pay-cash copy', () => {

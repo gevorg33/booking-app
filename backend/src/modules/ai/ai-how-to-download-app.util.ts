@@ -1,113 +1,36 @@
 import type { TenantAppInstallView } from '../../common/utils/tenant-app-install-settings.util.js';
+import {
+  HOW_TO_DOWNLOAD_APP_PROMPTS,
+  type HowToDownloadAppPromptFixture,
+} from './ai-how-to-download-app.fixtures.js';
+import { HOW_TO_DOWNLOAD_APP_MULTILINGUAL_SCENARIOS } from './ai-how-to-download-app-multilingual.fixtures.js';
 import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
-
-export const CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES = `- how_to_download_app: READ — customer/consumer app or public booking: explain how to install the consumer app on their phone using the same per-tenant /get-app/[slug] landing link as the salon Growth QR (explain_tenant_app_install). Triggers: how/where to download/get/install the app, App Store, Google Play, install on my phone. Returns landingUrl, store links when configured, and deep-link scheme. NOT explain_tenant_app_install (dashboard owner QR setup), NOT switch_to_consumer_app (already installed — open app), NOT regenerate_tenant_app_install_qr (mutate).`;
-
-export type HowToDownloadAppPromptFixture = {
-  id: string;
-  prompt: string;
-  surface: 'customer' | 'public';
-  expectedAction: 'how_to_download_app';
-};
-
-export const HOW_TO_DOWNLOAD_APP_PROMPTS: readonly HowToDownloadAppPromptFixture[] =
-  [
-    {
-      id: 'how-download-app-customer',
-      prompt: 'How do I download the app on my phone?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'get-the-app-customer',
-      prompt: 'Get the consumer app',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'install-on-phone-customer',
-      prompt: 'Install the booking app on my iPhone',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'where-download-customer',
-      prompt: 'Where can I download the mobile app?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'app-store-link-customer',
-      prompt: 'Is there an App Store link for this salon app?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'google-play-customer',
-      prompt: 'How do I get the app on Google Play?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'scan-qr-customer',
-      prompt: 'How do I install from the salon QR code?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'get-app-page-customer',
-      prompt: 'Where is the install page for the consumer app?',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'download-consumer-app-customer',
-      prompt: 'Download the consumer booking app',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'install-android-customer',
-      prompt: 'Install the Android booking app',
-      surface: 'customer',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'how-get-app-public',
-      prompt: 'How do I get the app?',
-      surface: 'public',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'install-phone-public',
-      prompt: 'Install on my phone',
-      surface: 'public',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'download-booking-app-public',
-      prompt: 'Download the booking app',
-      surface: 'public',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'where-app-store-public',
-      prompt: 'Where is the app store link?',
-      surface: 'public',
-      expectedAction: 'how_to_download_app',
-    },
-    {
-      id: 'get-mobile-app-public',
-      prompt: 'How to get the mobile app for this salon',
-      surface: 'public',
-      expectedAction: 'how_to_download_app',
-    },
-  ];
 
 const SWITCH_TO_CONSUMER_APP =
   /\b(open|switch|launch|use|go\s+to|take\s+me\s+to)\b.{0,30}\b(consumer\s+app|booking\s+app|the\s+app)\b/i;
 
+function matchHowToDownloadAppScenario(
+  prompt: string,
+): HowToDownloadAppPromptFixture | null {
+  const trimmed = prompt.trim();
+  const normalized = trimmed.toLowerCase();
+  for (const scenario of HOW_TO_DOWNLOAD_APP_PROMPTS) {
+    const candidate = scenario.prompt.trim();
+    if (candidate === trimmed || candidate.toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  for (const scenario of HOW_TO_DOWNLOAD_APP_MULTILINGUAL_SCENARIOS) {
+    const candidate = scenario.prompt.trim();
+    if (candidate === trimmed || candidate.toLowerCase() === normalized) {
+      return scenario;
+    }
+  }
+  return null;
+}
+
 export function isHowToDownloadAppPrompt(prompt: string): boolean {
+  if (matchHowToDownloadAppScenario(prompt)) return true;
   if (isExplainTenantAppInstallPrompt(prompt)) return false;
   if (SWITCH_TO_CONSUMER_APP.test(prompt)) return false;
   if (

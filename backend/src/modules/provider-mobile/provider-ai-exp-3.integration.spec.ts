@@ -18,6 +18,8 @@ describe('Provider AI exp-3 intents (prov-exp-5.3)', () => {
   });
 
   it('does not classify generic block schedule as block_my_time', () => {
-    expect(rescueProviderExp3Intent('Block Maria lunch tomorrow', 'unknown')).toBeNull();
+    expect(
+      rescueProviderExp3Intent('Block Maria lunch tomorrow', 'unknown'),
+    ).toBeNull();
   });
 });

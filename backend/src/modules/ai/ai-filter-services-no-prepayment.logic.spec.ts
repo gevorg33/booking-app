@@ -44,7 +44,9 @@ const services = [
   },
 ] as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],

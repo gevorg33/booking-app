@@ -69,7 +69,14 @@ describe('provider-calendar-month.util (prov-exp-10.2)', () => {
 
   it.each(PROVIDER_CALENDAR_MONTH_BAND_SCENARIOS)(
     'buildProviderCalendarMonthDaySummary — $id',
-    ({ dateKey, bookings, periods, employeeCount, expectedBand, expectedCount }) => {
+    ({
+      dateKey,
+      bookings,
+      periods,
+      employeeCount,
+      expectedBand,
+      expectedCount,
+    }) => {
       const normalizedPeriods = periods.map((period) => ({
         ...period,
         type:
@@ -97,8 +104,12 @@ describe('provider-calendar-month.util (prov-exp-10.2)', () => {
       employeeCount: PROVIDER_CALENDAR_MONTH_VIEW_SCENARIO.employeeCount,
     });
 
-    expect(view.days).toHaveLength(PROVIDER_CALENDAR_MONTH_VIEW_SCENARIO.expectedDays);
-    expect(view.days.find((day) => day.date === '2026-06-09')?.bookingCount).toBe(1);
+    expect(view.days).toHaveLength(
+      PROVIDER_CALENDAR_MONTH_VIEW_SCENARIO.expectedDays,
+    );
+    expect(
+      view.days.find((day) => day.date === '2026-06-09')?.bookingCount,
+    ).toBe(1);
   });
 
   it('leaves scheduled minutes at zero when no employees are in scope', () => {
@@ -136,6 +147,8 @@ describe('provider-calendar-month.util (prov-exp-10.2)', () => {
 
     expect(summary.bookingCount).toBe(0);
     expect(summary.utilizationBand).toBe('empty');
-    expect(summary.scheduledMinutes).toBe(PROVIDER_CALENDAR_DEFAULT_DAY_MINUTES);
+    expect(summary.scheduledMinutes).toBe(
+      PROVIDER_CALENDAR_DEFAULT_DAY_MINUTES,
+    );
   });
 });

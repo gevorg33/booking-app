@@ -5,7 +5,10 @@ import type { ResolvedGuideCorpusTopic } from './guide/ai-guide-corpus.util.js';
 import type { GuideCorpusTopicId } from './guide/ai-guide-corpus.types.js';
 import { enrichGuideResponseVoiceSummaries } from './ai-product-guide-voice.util.js';
 
-function parseDashboardGuideNavigateUrl(url: string): { path: string; hash?: string } {
+function parseDashboardGuideNavigateUrl(url: string): {
+  path: string;
+  hash?: string;
+} {
   const hashIndex = url.indexOf('#');
   if (hashIndex === -1) return { path: url };
   return {
@@ -69,7 +72,7 @@ export function buildGuideResponseFromCorpus(
     topicId: resolved.topicId,
     summary,
     steps,
-    navigate: resolveTopicNavigateTarget(topic, resolved.topicId as GuideCorpusTopicId),
+    navigate: resolveTopicNavigateTarget(topic, resolved.topicId),
     sources: [
       {
         topicId: resolved.topicId,

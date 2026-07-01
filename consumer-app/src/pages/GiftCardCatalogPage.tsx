@@ -11,7 +11,7 @@ import {
   IonToolbar,
 } from '@ionic/react';
 import { useEffect, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
@@ -25,12 +25,18 @@ import {
   resolveGiftCardAvailableTypes,
   sumSelectedGiftCardServices,
 } from '../lib/gift-card-catalog.util.js';
+import { parseGiftCardAssistantPrefill } from '../lib/consumer-gift-card-assistant-prefill.util.js';
 import { giftCardTypeDescription, giftCardTypeLabel } from '../lib/gift-card-copy.util.js';
 import type { PublicGiftCardType } from '../lib/gift-card.types.js';
 import { fetchPublicServices, getPublicGiftCardCatalog } from '../services/public-api.js';
 
 export default function GiftCardCatalogPage() {
   const history = useHistory();
+  const location = useLocation();
+  const assistantPrefill = useMemo(
+    () => parseGiftCardAssistantPrefill(new URLSearchParams(location.search)),
+    [location.search],
+  );
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
 
@@ -53,7 +59,7 @@ export default function GiftCardCatalogPage() {
   );
 
   const [cardType, setCardType] = useState<PublicGiftCardType>(() => availableTypes[0] ?? 'monetary');
-  const [amount, setAmount] = useState(() => String(settings?.presetAmounts[0] ?? 50));
+  const [amount, setAmount] = useState(() => assistantPrefill.amount ?? String(settings?.presetAmounts[0] ?? 50));
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [bundleId, setBundleId] = useState('');
   const [packageId, setPackageId] = useState('');
@@ -116,6 +122,16 @@ export default function GiftCardCatalogPage() {
       packageId,
       subscriptionPlanId,
     });
+    if (assistantPrefill.buyAsGift) params.set('buyAsGift', '1');
+    if (assistantPrefill.recipientName) {
+      params.set('recipientName', assistantPrefill.recipientName);
+    }
+    if (assistantPrefill.recipientEmail) {
+      params.set('recipientEmail', assistantPrefill.recipientEmail);
+    }
+    if (assistantPrefill.deliveryMethod) {
+      params.set('deliveryMethod', assistantPrefill.deliveryMethod);
+    }
     history.push(`${buildSalonPath(slug, '/gift-cards/checkout')}?${params.toString()}`);
   };
 

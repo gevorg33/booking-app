@@ -96,7 +96,10 @@ export class ConsumerPushDispatchService {
           );
           await this.consumerPushTokens.deleteTokenById(entry.id);
         } else {
-          await this.consumerPushTokens.recordDeliveryFailure(entry.id, classification.code);
+          await this.consumerPushTokens.recordDeliveryFailure(
+            entry.id,
+            classification.code,
+          );
           const errMessage = err instanceof Error ? err.message : String(err);
           this.logger.warn(
             `Consumer FCM push failed for token ${entry.id} (${classification.provider}/${classification.code}): ${errMessage}`,
@@ -119,7 +122,10 @@ export class ConsumerPushDispatchService {
 
   /** @deprecated Use sendTransactionalPush — kept for clinic call sites. */
   async sendResultReady(
-    payload: Extract<ConsumerTransactionalPushPayload, { pushType: 'result_ready' }>,
+    payload: Extract<
+      ConsumerTransactionalPushPayload,
+      { pushType: 'result_ready' }
+    >,
   ): Promise<ConsumerPushDispatchResult> {
     return this.sendTransactionalPush(payload);
   }

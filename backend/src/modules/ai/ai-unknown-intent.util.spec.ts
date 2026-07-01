@@ -49,27 +49,28 @@ describe('ai-unknown-intent.util (pipe-1.6.2)', () => {
     },
   );
 
-  it.each(
-    SELF_VERIFY_CLARIFY_SCENARIOS.filter((row) => row.expectClarify),
-  )('buildTargetedClarifyFromSelfVerifyFailure $id', (scenario) => {
-    const result = verifyIntentMatchesPrompt(scenario.prompt, {
-      action: scenario.action,
-      params: {},
-    });
-    const payload = buildTargetedClarifyFromSelfVerifyFailure(
-      { action: scenario.action, confidence: scenario.confidence },
-      result,
-      'dashboard',
-    );
-    expect(payload.clarifyFields).toEqual(scenario.expectedClarifyFields);
-    expect(payload.summary.length).toBeGreaterThan(20);
-    expect(payload.suggestions.length).toBeGreaterThanOrEqual(
-      scenario.expectedSuggestionsMin ?? 2,
-    );
-    expect(payload.loweredConfidence).toBeLessThan(
-      SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD,
-    );
-  });
+  it.each(SELF_VERIFY_CLARIFY_SCENARIOS.filter((row) => row.expectClarify))(
+    'buildTargetedClarifyFromSelfVerifyFailure $id',
+    (scenario) => {
+      const result = verifyIntentMatchesPrompt(scenario.prompt, {
+        action: scenario.action,
+        params: {},
+      });
+      const payload = buildTargetedClarifyFromSelfVerifyFailure(
+        { action: scenario.action, confidence: scenario.confidence },
+        result,
+        'dashboard',
+      );
+      expect(payload.clarifyFields).toEqual(scenario.expectedClarifyFields);
+      expect(payload.summary.length).toBeGreaterThan(20);
+      expect(payload.suggestions.length).toBeGreaterThanOrEqual(
+        scenario.expectedSuggestionsMin ?? 2,
+      );
+      expect(payload.loweredConfidence).toBeLessThan(
+        SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD,
+      );
+    },
+  );
 
   it('resolveSelfVerifyStageOutcome emits clarify for uncorrectable low-confidence fail', () => {
     const outcome = resolveSelfVerifyStageOutcome(

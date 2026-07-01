@@ -19,6 +19,8 @@ export const CUSTOMER_INTENT_PROMOTION_INTENT_LIST = [
   'explain_tour_booking',
   'explain_tour_day_slots',
   'diagnose_tour_capacity',
+  'explain_tour_booking_record',
+  'explain_tour_meeting_point',
   'explain_checkout_recommendations',
   'refer_a_friend',
   'share_salon_link',

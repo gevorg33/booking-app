@@ -54,27 +54,30 @@ describe('ai-intent-structural-enrich-skip.util (pipe-1.7.3)', () => {
     ).toBe(false);
   });
 
-  it.each(STRUCTURAL_ENRICH_SKIP_SCENARIOS.filter((s) => s.expectSkipStructuralEnrich))(
-    'resolveSelfVerifyStageOutcome skips enrich path $id',
-    (scenario) => {
-      const outcome = resolveSelfVerifyStageOutcome(
-        scenario.prompt,
-        {
-          action: scenario.classifyAction,
-          params: scenario.classifyParams ?? {},
-          reasoning: 'classify',
-          confidence: scenario.classifyConfidence,
-        },
-        'dashboard',
-      );
-      expect(outcome.result.passed).toBe(false);
-      expect(shouldSkipStructuralEnrichAfterSelfVerify(outcome)).toBe(true);
-      expect(assertStructuralEnrichSkipped(outcome.clarify)).toBe(true);
-    },
-  );
+  it.each(
+    STRUCTURAL_ENRICH_SKIP_SCENARIOS.filter(
+      (s) => s.expectSkipStructuralEnrich,
+    ),
+  )('resolveSelfVerifyStageOutcome skips enrich path $id', (scenario) => {
+    const outcome = resolveSelfVerifyStageOutcome(
+      scenario.prompt,
+      {
+        action: scenario.classifyAction,
+        params: scenario.classifyParams ?? {},
+        reasoning: 'classify',
+        confidence: scenario.classifyConfidence,
+      },
+      'dashboard',
+    );
+    expect(outcome.result.passed).toBe(false);
+    expect(shouldSkipStructuralEnrichAfterSelfVerify(outcome)).toBe(true);
+    expect(assertStructuralEnrichSkipped(outcome.clarify)).toBe(true);
+  });
 
   it.each(
-    STRUCTURAL_ENRICH_SKIP_SCENARIOS.filter((s) => !s.expectSkipStructuralEnrich),
+    STRUCTURAL_ENRICH_SKIP_SCENARIOS.filter(
+      (s) => !s.expectSkipStructuralEnrich,
+    ),
   )('resolveSelfVerifyStageOutcome continues to enrich $id', (scenario) => {
     const outcome = resolveSelfVerifyStageOutcome(
       scenario.prompt,

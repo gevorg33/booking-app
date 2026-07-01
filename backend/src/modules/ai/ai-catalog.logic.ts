@@ -290,11 +290,7 @@ export async function handleUpdateServiceLogic(
     return failure('update_service', `Service "${serviceName}" not found.`);
   }
 
-  const category = await resolveCategoryByName(
-    deps,
-    businessId,
-    categoryName,
-  );
+  const category = await resolveCategoryByName(deps, businessId, categoryName);
   if (!category) {
     return failure(
       'update_service',
@@ -455,12 +451,7 @@ export async function handleCreatePackageLogic(
     discountValue: discount.discountValue,
     expiresAt: params.expiresAt ?? null,
     items: matched.map((s) => ({ serviceId: s.id, quantity: 1 })),
-    ...(await resolveCatalogNotifyFields(
-      deps,
-      businessId,
-      params,
-      'package',
-    )),
+    ...(await resolveCatalogNotifyFields(deps, businessId, params, 'package')),
   });
 
   return success(
@@ -511,21 +502,18 @@ export async function handleUpdatePackageLogic(
       params.discountValue != null ? Number(params.discountValue) : undefined,
     discountType: params.discountType,
     expiresAt: params.expiresAt,
-    ...(await resolveCatalogNotifyFields(
-      deps,
-      businessId,
-      params,
-      'package',
-    )),
+    ...(await resolveCatalogNotifyFields(deps, businessId, params, 'package')),
   });
 
   return success(
     'update_package',
     `Updated package "${updated.name}".${
       params.notifyCustomers ? ' Customer announcement queued.' : ''
-    }`, {
-    packageId: updated.id,
-  });
+    }`,
+    {
+      packageId: updated.id,
+    },
+  );
 }
 
 export async function handleDeactivatePackageLogic(

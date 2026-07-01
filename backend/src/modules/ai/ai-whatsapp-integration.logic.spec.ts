@@ -3,11 +3,13 @@ import * as whatsappIntegrationUtil from './ai-whatsapp-integration.util.js';
 
 describe('ai-whatsapp-integration.logic', () => {
   it('updates whatsapp integration settings', async () => {
-    const updateSettings = jest.fn(async (_businessId: string, patch: object) => ({
-      configured: true,
-      usingPlatformDefault: patch,
-      source: 'business',
-    }));
+    const updateSettings = jest.fn(
+      async (_businessId: string, patch: object) => ({
+        configured: true,
+        usingPlatformDefault: patch,
+        source: 'business',
+      }),
+    );
 
     const result = await handleConfigureWhatsappIntegrationLogic(
       { whatsappIntegrationService: { updateSettings } as any },
@@ -92,7 +94,9 @@ describe('ai-whatsapp-integration.logic', () => {
   });
 
   it('updates from params prompt fallback', async () => {
-    const updateSettings = jest.fn(async (_businessId: string, patch: object) => patch);
+    const updateSettings = jest.fn(
+      async (_businessId: string, patch: object) => patch,
+    );
     const result = await handleConfigureWhatsappIntegrationLogic(
       { whatsappIntegrationService: { updateSettings } as any },
       'biz-1',

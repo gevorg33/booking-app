@@ -218,6 +218,12 @@ describe('ai-customer-crm.util', () => {
         rescueCustomerCrmIntent('Show my profile', 'unknown')?.action,
       ).toBe('my_profile');
       expect(
+        rescueCustomerCrmIntent('Change my phone number', 'unknown')?.action,
+      ).toBe('update_my_profile');
+      expect(
+        rescueCustomerCrmIntent('Change my phone number', 'my_profile')?.action,
+      ).toBe('update_my_profile');
+      expect(
         rescueCustomerCrmIntent('Show my appointments', 'unknown')?.action,
       ).toBe('my_appointments');
       expect(

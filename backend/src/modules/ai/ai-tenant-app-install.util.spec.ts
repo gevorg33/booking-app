@@ -20,15 +20,19 @@ describe('ai-tenant-app-install.util', () => {
   );
 
   it('does not classify customer self-download prompts', () => {
-    expect(isExplainTenantAppInstallPrompt('How do I download the app on my phone')).toBe(
-      false,
-    );
-    expect(isExplainTenantAppInstallPrompt('Get the app on my iPhone')).toBe(false);
-    expect(isExplainTenantAppInstallPrompt('How do I get the tenant app install QR')).toBe(
+    expect(
+      isExplainTenantAppInstallPrompt('How do I download the app on my phone'),
+    ).toBe(false);
+    expect(isExplainTenantAppInstallPrompt('Get the app on my iPhone')).toBe(
       false,
     );
     expect(
-      isExplainTenantAppInstallPrompt('What is the app install link on my phone'),
+      isExplainTenantAppInstallPrompt('How do I get the tenant app install QR'),
+    ).toBe(false);
+    expect(
+      isExplainTenantAppInstallPrompt(
+        'What is the app install link on my phone',
+      ),
     ).toBe(false);
   });
 
@@ -49,7 +53,9 @@ describe('ai-tenant-app-install.util', () => {
   it.each(REGENERATE_TENANT_APP_INSTALL_QR_PROMPTS)(
     'rescues unknown action to regenerate_tenant_app_install_qr for $id',
     ({ prompt }) => {
-      expect(rescueRegenerateTenantAppInstallQrIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueRegenerateTenantAppInstallQrIntent(prompt, 'unknown'),
+      ).toEqual({
         action: REGENERATE_TENANT_APP_INSTALL_QR_INTENT,
         rescueReason: 'tenant_app_install_regenerate',
       });
@@ -89,7 +95,9 @@ describe('ai-tenant-app-install.util', () => {
       true,
     );
     expect(isExplainTenantAppInstallPrompt('')).toBe(false);
-    expect(isExplainTenantAppInstallPrompt('Book a haircut tomorrow')).toBe(false);
+    expect(isExplainTenantAppInstallPrompt('Book a haircut tomorrow')).toBe(
+      false,
+    );
   });
 
   it('matches integrations growth tab phrasing', () => {
@@ -104,7 +112,8 @@ describe('ai-tenant-app-install.util', () => {
     const guidance = buildExplainTenantAppInstallGuidance({
       view: {
         slug: 'salon-demo',
-        landingUrl: 'https://app.test/get-app/salon-demo?src=qr&utm_campaign=venue_qr',
+        landingUrl:
+          'https://app.test/get-app/salon-demo?src=qr&utm_campaign=venue_qr',
         qrDataUrl: 'data:image/png;base64,abc',
         customSchemeUrl: 'optischedule://book/salon-demo',
         generatedAt: '2026-06-01T00:00:00.000Z',
@@ -120,7 +129,8 @@ describe('ai-tenant-app-install.util', () => {
     const result = buildRegenerateTenantAppInstallSummary({
       view: {
         slug: 'salon-demo',
-        landingUrl: 'https://app.test/get-app/salon-demo?src=qr&utm_campaign=venue_qr',
+        landingUrl:
+          'https://app.test/get-app/salon-demo?src=qr&utm_campaign=venue_qr',
         qrDataUrl: 'data:image/png;base64,abc',
         customSchemeUrl: 'optischedule://book/salon-demo',
         generatedAt: '2026-06-01T00:00:00.000Z',

@@ -29,7 +29,9 @@ describe('ai-bulk-assign-services-category.util', () => {
       ),
     ).toBe(false);
     expect(
-      isBulkAssignServicesCategoryPrompt('Move all hair services under Hair category'),
+      isBulkAssignServicesCategoryPrompt(
+        'Move all hair services under Hair category',
+      ),
     ).toBe(true);
   });
 

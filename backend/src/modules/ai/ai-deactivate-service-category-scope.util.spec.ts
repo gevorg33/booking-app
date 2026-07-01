@@ -75,10 +75,8 @@ describe('ai-deactivate-service-category-scope.util', () => {
     'rescues misclassified $id → deactivate_service',
     ({ prompt, misclassifiedAction, expectedAction }) => {
       expect(
-        rescueDeactivateServiceCategoryScopeIntent(
-          prompt,
-          misclassifiedAction!,
-        )?.action,
+        rescueDeactivateServiceCategoryScopeIntent(prompt, misclassifiedAction!)
+          ?.action,
       ).toBe(expectedAction);
     },
   );
@@ -99,7 +97,10 @@ describe('ai-deactivate-service-category-scope.util', () => {
   });
 
   it('resolves active services in category only', () => {
-    const matched = resolveServicesForDeactivateCategoryScope(catalog, 'dental');
+    const matched = resolveServicesForDeactivateCategoryScope(
+      catalog,
+      'dental',
+    );
     expect(matched.map((service) => service.id)).toEqual(['2', '3']);
   });
 

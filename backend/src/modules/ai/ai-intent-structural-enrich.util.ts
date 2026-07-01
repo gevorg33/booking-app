@@ -50,7 +50,10 @@ function enrichEmployeesFromPrompt(
 ): boolean {
   let touched = false;
 
-  if (isScheduleOpsAction(action) || STRUCTURAL_DATE_RANGE_ACTIONS.has(action)) {
+  if (
+    isScheduleOpsAction(action) ||
+    STRUCTURAL_DATE_RANGE_ACTIONS.has(action)
+  ) {
     const before = JSON.stringify({
       employeeName: params.employeeName,
       employeeNames: params.employeeNames,
@@ -65,14 +68,15 @@ function enrichEmployeesFromPrompt(
     if (before !== after) touched = true;
   }
 
-  if (params.allProviders || (params.employeeNames as string[] | undefined)?.length) {
+  if (
+    params.allProviders ||
+    (params.employeeNames as string[] | undefined)?.length
+  ) {
     return touched;
   }
 
   const mentionsMultiple =
-    /\bboth\b/i.test(prompt) ||
-    /\band\b/i.test(prompt) ||
-    /[,/]/.test(prompt);
+    /\bboth\b/i.test(prompt) || /\band\b/i.test(prompt) || /[,/]/.test(prompt);
 
   if (!mentionsMultiple) return touched;
 
@@ -155,7 +159,10 @@ export function applyStructuralIntentEnrichment(
   }
 
   if (intent.action === 'create_direct_schedule') {
-    const workTime = applyDefaultWorkTimeSchedulePeriods(params, context.prompt);
+    const workTime = applyDefaultWorkTimeSchedulePeriods(
+      params,
+      context.prompt,
+    );
     params.periods = workTime.periods;
     hints.periods = true;
     hints.workTimeDefault = workTime.appliedDefault;
@@ -181,5 +188,7 @@ export function applyStructuralIntentEnrichment(
 export function readStructuralEnrichHints(
   params: Record<string, unknown>,
 ): StructuralEnrichTraceHints | undefined {
-  return params._structuralEnrichHints as StructuralEnrichTraceHints | undefined;
+  return params._structuralEnrichHints as
+    | StructuralEnrichTraceHints
+    | undefined;
 }

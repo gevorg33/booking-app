@@ -9,7 +9,8 @@ export function isAiProviderSpecialtyIntentForSurface(
   surface: CommandSurface,
 ): boolean {
   return (
-    resolveHandlerForSurface(intentId, surface) === AI_PROVIDER_SPECIALTY_HANDLER
+    resolveHandlerForSurface(intentId, surface) ===
+    AI_PROVIDER_SPECIALTY_HANDLER
   );
 }
 

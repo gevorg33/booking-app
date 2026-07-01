@@ -64,10 +64,9 @@ describe('service-booking-popularity.util (rank-1.9)', () => {
       'booking.serviceId IN (:...serviceIds)',
       { serviceIds: ['svc-popular', 'svc-quiet'] },
     );
-    expect(qb.andWhere).toHaveBeenCalledWith(
-      'booking.status != :cancelled',
-      { cancelled: BookingStatus.CANCELLED },
-    );
+    expect(qb.andWhere).toHaveBeenCalledWith('booking.status != :cancelled', {
+      cancelled: BookingStatus.CANCELLED,
+    });
     expect(counts.get('svc-popular')).toBe(42);
     expect(counts.get('svc-quiet')).toBe(1);
   });

@@ -1,7 +1,5 @@
 import { listProviderOnboardingLocaleParityGaps } from './ai-provider-onboarding-compound-locale-parity.util.js';
-import {
-  PROVIDER_ONBOARDING_EN_SCENARIO_IDS,
-} from './ai-provider-onboarding-compound.fixtures.js';
+import { PROVIDER_ONBOARDING_EN_SCENARIO_IDS } from './ai-provider-onboarding-compound.fixtures.js';
 import { PROVIDER_ONBOARDING_MULTILINGUAL_SCENARIOS } from './ai-provider-onboarding-compound-multilingual.fixtures.js';
 import {
   AI_COMMAND_EVAL_DETERMINISTIC_CASES,

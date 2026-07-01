@@ -388,7 +388,9 @@ export const META_PRODUCT_GUIDE_INTENT_SET = new Set<string>(
 export const PROVIDER_META_GUIDE_INTENT_SET = new Set<string>(
   PROVIDER_META_GUIDE_INTENTS,
 );
-export const EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(EMPTY_STATE_GUIDE_INTENTS);
+export const EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
+  EMPTY_STATE_GUIDE_INTENTS,
+);
 export const DASHBOARD_EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
   DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
 );
@@ -399,21 +401,29 @@ export const CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENT_SET = new Set<string>(
   CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
 );
 
-export type ProductGuideSurface = 'dashboard' | 'provider' | 'customer' | 'public';
+export type ProductGuideSurface =
+  | 'dashboard'
+  | 'provider'
+  | 'customer'
+  | 'public';
 
 export function isAppGuideIntentOnSurface(
   action: string,
   surface: ProductGuideSurface,
 ): boolean {
   if (!APP_GUIDE_INTENT_SET.has(action)) return false;
-  return surface === 'dashboard' || surface === 'customer' || surface === 'public';
+  return (
+    surface === 'dashboard' || surface === 'customer' || surface === 'public'
+  );
 }
 
 export function isProviderProductGuideIntentOnSurface(
   action: string,
   surface: ProductGuideSurface,
 ): boolean {
-  return surface === 'provider' && PROVIDER_PRODUCT_GUIDE_INTENT_SET.has(action);
+  return (
+    surface === 'provider' && PROVIDER_PRODUCT_GUIDE_INTENT_SET.has(action)
+  );
 }
 
 export function isMetaProductGuideIntentOnSurface(

@@ -8,9 +8,7 @@ const AI_COMMAND_SOURCE = readFileSync(
 
 describe('dashboard create_booking OR + budget/rank wiring (ai-cmd-ext-1.4)', () => {
   it('enriches discovery params on dashboard classify', () => {
-    expect(AI_COMMAND_SOURCE).toContain(
-      'enrichDiscoveryParamsFromPrompt(',
-    );
+    expect(AI_COMMAND_SOURCE).toContain('enrichDiscoveryParamsFromPrompt(');
   });
 
   it('resolves budget/rank service before booking', () => {
@@ -43,6 +41,8 @@ describe('dashboard create_booking OR + budget/rank wiring (ai-cmd-ext-1.4)', ()
 describe('dashboard lookup_service_assignment budget/rank (ai-cmd-ext-1.5)', () => {
   it('resolves filtered service for team-wide lookup', () => {
     expect(AI_COMMAND_SOURCE).toContain('resolveLookupAssignmentService');
-    expect(AI_COMMAND_SOURCE).toContain('enrichDashboardLookupAssignmentParams');
+    expect(AI_COMMAND_SOURCE).toContain(
+      'enrichDashboardLookupAssignmentParams',
+    );
   });
 });

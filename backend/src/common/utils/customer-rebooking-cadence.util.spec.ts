@@ -49,9 +49,9 @@ describe('customer-rebooking-cadence.util', () => {
   );
 
   it('reads learned cadence from customer metadata', () => {
-    expect(readCustomerLearnedCadenceDays(buildLearnedCadenceMetadataUpdate(28))).toBe(
-      28,
-    );
+    expect(
+      readCustomerLearnedCadenceDays(buildLearnedCadenceMetadataUpdate(28)),
+    ).toBe(28);
   });
 
   it('reads per-service learned cadence before flat fallback', () => {
@@ -60,7 +60,11 @@ describe('customer-rebooking-cadence.util', () => {
       'svc-color',
       63,
     );
-    expect(readCustomerServiceLearnedCadenceDays(metadata, 'svc-color')).toBe(63);
-    expect(readCustomerServiceLearnedCadenceDays(metadata, 'svc-other')).toBe(45);
+    expect(readCustomerServiceLearnedCadenceDays(metadata, 'svc-color')).toBe(
+      63,
+    );
+    expect(readCustomerServiceLearnedCadenceDays(metadata, 'svc-other')).toBe(
+      45,
+    );
   });
 });

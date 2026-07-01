@@ -200,7 +200,7 @@ describe('resolvePublicAvailabilityDateKeys', () => {
     expect(windows[0]?.dateKeys).toHaveLength(1);
     expect(windows[1]?.timeOfDay).toBe('afternoon');
     expect(windows[1]?.dateKeys.length).toBeGreaterThan(0);
-    for (const dateKey of windows[1]!.dateKeys) {
+    for (const dateKey of windows[1].dateKeys) {
       expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(5);
     }
     if (windows[0]?.dateKeys[0] === windows[1]?.dateKeys[0]) {
@@ -286,8 +286,10 @@ describe('resolvePublicAvailabilityDateKeys', () => {
 
     expect(windows).toHaveLength(1);
     expect(windows[0]?.timeOfDay).toBe('afternoon');
-    for (const dateKey of windows[0]!.dateKeys) {
-      expect([1, 5]).toContain(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay());
+    for (const dateKey of windows[0].dateKeys) {
+      expect([1, 5]).toContain(
+        new Date(`${dateKey}T12:00:00.000Z`).getUTCDay(),
+      );
     }
   });
 });
@@ -447,7 +449,9 @@ describe('findServiceByExactName', () => {
 
   it('matches only exact names for create-service dedup', () => {
     expect(findServiceByExactName(catalog, "Men's Haircut")?.id).toBe('1');
-    expect(findServiceByExactName(catalog, "Men's haircut with head wash")).toBeUndefined();
+    expect(
+      findServiceByExactName(catalog, "Men's haircut with head wash"),
+    ).toBeUndefined();
   });
 
   it('still allows fuzzy lookup via fuzzyMatchServiceByName', () => {

@@ -22,7 +22,9 @@ export function providerExp3MultilingualScenarioToEvalCase(
       rescuedAction: scenario.expectedAction,
       rescueReason: scenario.rescueReason,
       needsMultilingual: true,
-      ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+      ...(scenario.paramsPartial
+        ? { paramsPartial: scenario.paramsPartial }
+        : {}),
     },
   };
 }
@@ -34,7 +36,10 @@ export const AI_COMMAND_EVAL_PROVIDER_EXP_3_MULTILINGUAL_CASES: AiCommandEvalCas
 
 export function listProviderExp3EvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly Pick<ProviderExp3MultilingualScenario, 'id'>[] = PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    ProviderExp3MultilingualScenario,
+    'id'
+  >[] = PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   return scenarios

@@ -18,15 +18,12 @@ describe('ai-clinic-test-result-ext.eval.util', () => {
     ['configure_test_reference_range', 'M'],
     ['explain_patient_results', 'R'],
     ['list_abnormal_results', 'R'],
-  ] as const)(
-    'maps %s to access tier %s',
-    (action, accessTier) => {
-      expect(resolveClinicTestResultExtAccessTier(action)).toBe(accessTier);
-      expect(
-        assertClinicTestResultExtAccessTierMatchesMatrix(action, accessTier),
-      ).toEqual([]);
-    },
-  );
+  ] as const)('maps %s to access tier %s', (action, accessTier) => {
+    expect(resolveClinicTestResultExtAccessTier(action)).toBe(accessTier);
+    expect(
+      assertClinicTestResultExtAccessTierMatchesMatrix(action, accessTier),
+    ).toEqual([]);
+  });
 
   it('cross-refs access-control.matrix deny/allow lists for ext intents', () => {
     for (const action of CLINIC_TEST_RESULT_EXT_INTENTS) {

@@ -27,9 +27,7 @@ export function isServiceCatalogBrowsePrompt(prompt: string): boolean {
 
   if (!recommendsCatalog && !wantsItem && !asksCatalog) return false;
 
-  if (
-    /\b(?:who\s+is\s+free|availability|available\s+slots?)\b/i.test(prompt)
-  ) {
+  if (/\b(?:who\s+is\s+free|availability|available\s+slots?)\b/i.test(prompt)) {
     return false;
   }
 

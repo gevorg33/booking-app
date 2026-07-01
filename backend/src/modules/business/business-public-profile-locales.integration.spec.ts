@@ -37,10 +37,10 @@ describe('Business public profile locales integration', () => {
   };
 
   const publicBookingService = createPublicBookingServiceHarness({
-    businessService: publicBusinessService as any,
+    businessService: publicBusinessService,
     stripeIntegrationService: stripeIntegrationService as any,
-    subscriptionsService: subscriptionsService as any,
-    multiServiceBookingsService: multiServiceBookingsService as any,
+    subscriptionsService: subscriptionsService,
+    multiServiceBookingsService: multiServiceBookingsService,
     configService: {
       get: jest.fn((key: string) => {
         if (key === 'PUBLIC_API_URL') return 'http://127.0.0.1:3001';

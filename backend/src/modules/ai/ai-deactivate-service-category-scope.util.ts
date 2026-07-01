@@ -100,10 +100,7 @@ export function parseDeactivateServiceCategoryScopeFromPrompt(
     typeof params.categoryName === 'string' ||
     typeof params.serviceName === 'string';
 
-  if (
-    !isDeactivateCatalogServicePrompt(prompt) &&
-    !hasExplicitParams
-  ) {
+  if (!isDeactivateCatalogServicePrompt(prompt) && !hasExplicitParams) {
     return null;
   }
 

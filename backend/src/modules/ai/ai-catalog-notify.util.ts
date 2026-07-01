@@ -45,42 +45,45 @@ export function isCatalogNotifyCustomersPrompt(prompt: string): boolean {
   );
 }
 
-const PACKAGE_DEFAULTS: Record<AppLocale, { subject: string; bodyText: string }> =
-  {
-    en: {
-      subject: 'New package: {{packageName}}',
-      bodyText:
-        'Hi {{customerName}}, we just launched {{packageName}} — save {{discount}} at {{businessName}}. Book here: {{bookUrl}}',
-    },
-    hy: {
-      subject: 'Նոր փաթեթ՝ {{packageName}}',
-      bodyText:
-        'Բարև {{customerName}}, {{packageName}} փաթեթը {{discount}} զեղչով է {{businessName}}-ում։ Պատվիրել՝ {{bookUrl}}',
-    },
-    ru: {
-      subject: 'Новый пакет: {{packageName}}',
-      bodyText:
-        'Здравствуйте, {{customerName}}! Мы запустили {{packageName}} — скидка {{discount}} в {{businessName}}. Запись: {{bookUrl}}',
-    },
-  };
-
-const PLAN_DEFAULTS: Record<AppLocale, { subject: string; bodyText: string }> = {
+const PACKAGE_DEFAULTS: Record<
+  AppLocale,
+  { subject: string; bodyText: string }
+> = {
   en: {
-    subject: 'New membership: {{planName}}',
+    subject: 'New package: {{packageName}}',
     bodyText:
-      'Hi {{customerName}}, {{planName}} is now available — {{discount}} at {{businessName}}. Join here: {{bookUrl}}',
+      'Hi {{customerName}}, we just launched {{packageName}} — save {{discount}} at {{businessName}}. Book here: {{bookUrl}}',
   },
   hy: {
-    subject: 'Նոր անդամակցություն՝ {{planName}}',
+    subject: 'Նոր փաթեթ՝ {{packageName}}',
     bodyText:
-      'Բարև {{customerName}}, {{planName}} պլանը հասանելի է {{businessName}}-ում — {{discount}}։ Մանրամասներ՝ {{bookUrl}}',
+      'Բարև {{customerName}}, {{packageName}} փաթեթը {{discount}} զեղչով է {{businessName}}-ում։ Պատվիրել՝ {{bookUrl}}',
   },
   ru: {
-    subject: 'Новый абонемент: {{planName}}',
+    subject: 'Новый пакет: {{packageName}}',
     bodyText:
-      'Здравствуйте, {{customerName}}! Доступен план {{planName}} — {{discount}} в {{businessName}}. Подробнее: {{bookUrl}}',
+      'Здравствуйте, {{customerName}}! Мы запустили {{packageName}} — скидка {{discount}} в {{businessName}}. Запись: {{bookUrl}}',
   },
 };
+
+const PLAN_DEFAULTS: Record<AppLocale, { subject: string; bodyText: string }> =
+  {
+    en: {
+      subject: 'New membership: {{planName}}',
+      bodyText:
+        'Hi {{customerName}}, {{planName}} is now available — {{discount}} at {{businessName}}. Join here: {{bookUrl}}',
+    },
+    hy: {
+      subject: 'Նոր անդամակցություն՝ {{planName}}',
+      bodyText:
+        'Բարև {{customerName}}, {{planName}} պլանը հասանելի է {{businessName}}-ում — {{discount}}։ Մանրամասներ՝ {{bookUrl}}',
+    },
+    ru: {
+      subject: 'Новый абонемент: {{planName}}',
+      bodyText:
+        'Здравствуйте, {{customerName}}! Доступен план {{planName}} — {{discount}} в {{businessName}}. Подробнее: {{bookUrl}}',
+    },
+  };
 
 function catalogNotifyTemplateIsComplete(
   template: unknown,
@@ -100,8 +103,7 @@ export function buildAiDefaultCatalogNotifyTemplate(
   businessSettings?: Record<string, unknown>,
 ): CatalogNotifyTemplateMap {
   const saved = readCatalogAnnouncementDefaults(businessSettings);
-  const savedMap =
-    kind === 'package' ? saved.package : saved.subscriptionPlan;
+  const savedMap = kind === 'package' ? saved.package : saved.subscriptionPlan;
   const builtIn = kind === 'package' ? PACKAGE_DEFAULTS : PLAN_DEFAULTS;
   const result: CatalogNotifyTemplateMap = {};
   for (const locale of enabledLocales) {
@@ -122,7 +124,10 @@ export function resolveAiCatalogNotifyPayload(
   params: Record<string, unknown>,
   businessSettings: Record<string, unknown> | undefined,
   kind: 'package' | 'subscription_plan',
-): { notifyCustomers?: boolean; notificationTemplate?: CatalogNotifyTemplateMap } {
+): {
+  notifyCustomers?: boolean;
+  notificationTemplate?: CatalogNotifyTemplateMap;
+} {
   if (params.notifyCustomers !== true) {
     return {};
   }
@@ -131,8 +136,12 @@ export function resolveAiCatalogNotifyPayload(
     params.notificationTemplate,
     enabledLocales,
   )
-    ? (params.notificationTemplate as CatalogNotifyTemplateMap)
-    : buildAiDefaultCatalogNotifyTemplate(kind, enabledLocales, businessSettings);
+    ? params.notificationTemplate
+    : buildAiDefaultCatalogNotifyTemplate(
+        kind,
+        enabledLocales,
+        businessSettings,
+      );
   return {
     notifyCustomers: true,
     notificationTemplate: template,

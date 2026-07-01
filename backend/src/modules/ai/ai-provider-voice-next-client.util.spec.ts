@@ -36,7 +36,7 @@ describe('ai-provider-voice-next-client.util (ai-guide-1.4.4 / 5.24.5)', () => {
   it('does not override unrelated show_appointments prompts', () => {
     expect(
       rescueVoiceSummarizeNextClientIntent(
-        "Show my appointments today",
+        'Show my appointments today',
         'show_appointments',
       ),
     ).toBe('show_appointments');

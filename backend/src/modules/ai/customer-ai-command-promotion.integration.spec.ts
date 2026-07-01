@@ -57,6 +57,10 @@ const PROMOTION_RESCUE_BY_INTENT: Record<string, PromotionRescueFn> = {
     rescueTourCustomerPublicIntent(prompt, action),
   diagnose_tour_capacity: (prompt, action) =>
     rescueTourCustomerPublicIntent(prompt, action),
+  explain_tour_booking_record: (prompt, action) =>
+    rescueTourCustomerPublicIntent(prompt, action),
+  explain_tour_meeting_point: (prompt, action) =>
+    rescueTourCustomerPublicIntent(prompt, action),
   explain_checkout_recommendations: (prompt, action) =>
     rescueCheckoutRecommendationsCustomerPublicIntent(prompt, action),
   refer_a_friend: (prompt, action) =>
@@ -66,12 +70,11 @@ const PROMOTION_RESCUE_BY_INTENT: Record<string, PromotionRescueFn> = {
 };
 
 describe('customer-ai-command promotion integration (ai-cmd-customer-4.0.2)', () => {
-  it.each(CUSTOMER_INTENT_PROMOTION_INTEGRATION_ROWS.map((row) => [row.id, row]))(
-    'rescues promoted intent $0',
-    (_id, row) => {
-      const rescue = PROMOTION_RESCUE_BY_INTENT[row.intent];
-      expect(rescue).toBeDefined();
-      expect(rescue!(row.prompt, 'unknown')?.action).toBe(row.intent);
-    },
-  );
+  it.each(
+    CUSTOMER_INTENT_PROMOTION_INTEGRATION_ROWS.map((row) => [row.id, row]),
+  )('rescues promoted intent $0', (_id, row) => {
+    const rescue = PROMOTION_RESCUE_BY_INTENT[row.intent];
+    expect(rescue).toBeDefined();
+    expect(rescue(row.prompt, 'unknown')?.action).toBe(row.intent);
+  });
 });

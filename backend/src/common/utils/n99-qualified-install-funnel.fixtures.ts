@@ -16,15 +16,17 @@ export const N99_QUALIFIED_FUNNEL_FIX_SUGGESTIONS: Record<
     'Review deferred deep-link restore and salon landing (deep-link, useFirstRunLanding).',
   booking_started:
     'Fire started_booking when BookPage mounts; reduce taps to enter booking.',
-  slot_step:
-    'Review nearest-slot preselection and slot picker UX on BookPage.',
+  slot_step: 'Review nearest-slot preselection and slot picker UX on BookPage.',
   confirm_step:
     'Instrument confirm step on slot ready; keep payment-optional fallback (n99-3.3).',
   booking_completed:
     'Review checkout errors, pay-at-venue fallback, and booking confirmation flow.',
 };
 
-function row(input: Partial<AppEventAnalyticsRow> & Pick<AppEventAnalyticsRow, 'anonId' | 'event' | 'createdAt'>): AppEventAnalyticsRow {
+function row(
+  input: Partial<AppEventAnalyticsRow> &
+    Pick<AppEventAnalyticsRow, 'anonId' | 'event' | 'createdAt'>,
+): AppEventAnalyticsRow {
   return {
     platform: 'ios',
     appSurface: 'consumer_app',
@@ -36,7 +38,9 @@ function row(input: Partial<AppEventAnalyticsRow> & Pick<AppEventAnalyticsRow, '
 }
 
 /** Full qualified-install path — all step drops ≤ 1%. */
-export function buildN99QualifiedFunnelHealthyRows(anonId = 'anon-healthy'): AppEventAnalyticsRow[] {
+export function buildN99QualifiedFunnelHealthyRows(
+  anonId = 'anon-healthy',
+): AppEventAnalyticsRow[] {
   const base = '2026-06-08T10:00:00.000Z';
   return [
     row({
@@ -46,8 +50,16 @@ export function buildN99QualifiedFunnelHealthyRows(anonId = 'anon-healthy'): App
       tenantSlug: 'salon-a',
       props: { intentQualified: true, serviceId: 'svc-1' },
     }),
-    row({ anonId, event: 'app_opened', createdAt: new Date('2026-06-08T10:01:00.000Z') }),
-    row({ anonId, event: 'viewed_salon', createdAt: new Date('2026-06-08T10:02:00.000Z') }),
+    row({
+      anonId,
+      event: 'app_opened',
+      createdAt: new Date('2026-06-08T10:01:00.000Z'),
+    }),
+    row({
+      anonId,
+      event: 'viewed_salon',
+      createdAt: new Date('2026-06-08T10:02:00.000Z'),
+    }),
     row({
       anonId,
       event: 'started_booking',
@@ -85,8 +97,16 @@ export function buildN99QualifiedFunnelConfirmDeadEndRows(): AppEventAnalyticsRo
       createdAt: new Date('2026-06-08T11:00:00.000Z'),
       props: { intentQualified: true, serviceId: 'svc-1' },
     }),
-    row({ anonId: 'anon-stuck-confirm', event: 'app_opened', createdAt: new Date('2026-06-08T11:01:00.000Z') }),
-    row({ anonId: 'anon-stuck-confirm', event: 'viewed_salon', createdAt: new Date('2026-06-08T11:02:00.000Z') }),
+    row({
+      anonId: 'anon-stuck-confirm',
+      event: 'app_opened',
+      createdAt: new Date('2026-06-08T11:01:00.000Z'),
+    }),
+    row({
+      anonId: 'anon-stuck-confirm',
+      event: 'viewed_salon',
+      createdAt: new Date('2026-06-08T11:02:00.000Z'),
+    }),
     row({
       anonId: 'anon-stuck-confirm',
       event: 'started_booking',

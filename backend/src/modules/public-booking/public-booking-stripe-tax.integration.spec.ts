@@ -132,16 +132,16 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
   };
 
   const publicBookingService = createPublicBookingServiceHarness({
-    businessService: businessService as never,
-    bookingService: bookingService as never,
-    customerService: customerService as never,
+    businessService: businessService,
+    bookingService: bookingService,
+    customerService: customerService,
     stripeIntegrationService: {
       isConnectReady: jest.fn().mockReturnValue(true),
     } as never,
-    bookingPaymentService: bookingPaymentService as never,
+    bookingPaymentService: bookingPaymentService,
     checkoutPricingService: {
       applyRedemptions: jest.fn().mockResolvedValue(undefined),
-    } as never,
+    },
     packagesService: {
       assertPackageBookable: jest.fn(async () => ({
         id: 'pkg-1',
@@ -154,7 +154,7 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
         pricing: { packagePrice: 200 },
       })),
       createPackagePurchase: jest.fn(async () => ({ id: 'purchase-1' })),
-    } as never,
+    },
     multiServiceBookingsService: {
       resolveSettingsFromBusiness: jest.fn(() => ({
         turnoverBufferMinutes: 5,
@@ -178,16 +178,16 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
           currency: 'USD',
         },
       ]),
-    } as never,
+    },
     notificationsService: {
       sendMultiAppointmentConfirmation: jest.fn(),
-    } as never,
+    },
     configService: {
       get: jest.fn(() => 'https://app.test'),
     } as unknown as ConfigService,
-    serviceRepo: serviceRepo as never,
-    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as never,
-    schedulingPeriodRepo: { find: jest.fn() } as never,
+    serviceRepo: serviceRepo,
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
     bookingRepo: {
       findOne: jest.fn(
         async ({ where }: { where: { id: string } }) =>
@@ -197,7 +197,7 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
         storedBookings.set(String(booking.id), booking);
         return booking;
       }),
-    } as never,
+    },
   });
 
   beforeEach(() => {

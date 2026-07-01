@@ -13,7 +13,10 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
@@ -196,7 +199,10 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
       notificationsService.sendProviderVisitStatusToCustomer,
     ).toHaveBeenCalledWith(
       'bk-1',
-      expect.objectContaining({ kind: 'ready_now', providerName: 'Alex Provider' }),
+      expect.objectContaining({
+        kind: 'ready_now',
+        providerName: 'Alex Provider',
+      }),
     );
   });
 

@@ -1,6 +1,4 @@
-import {
-  PROVIDER_ONBOARDING_COMPOUND_PROMPTS,
-} from './ai-provider-onboarding-compound.fixtures.js';
+import { PROVIDER_ONBOARDING_COMPOUND_PROMPTS } from './ai-provider-onboarding-compound.fixtures.js';
 import { PROVIDER_ONBOARDING_MULTILINGUAL_SCENARIOS } from './ai-provider-onboarding-compound-multilingual.fixtures.js';
 import {
   buildProviderOnboardingCompoundParams,
@@ -25,13 +23,17 @@ describe('ai-provider-onboarding-compound.util (ai-cmd-ext-4.1)', () => {
     ({ prompt, orderedActions, expectedParams }) => {
       const steps = decomposeProviderOnboardingCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
-      expect(steps).toHaveLength(PROVIDER_ONBOARDING_COMPOUND_STEP_ACTIONS.length);
+      expect(steps).toHaveLength(
+        PROVIDER_ONBOARDING_COMPOUND_STEP_ACTIONS.length,
+      );
       if (expectedParams?.employeeName) {
         expect(steps[0].params.employeeName).toBe(expectedParams.employeeName);
         expect(steps[1].params.employeeName).toBe(expectedParams.employeeName);
       }
       if (expectedParams?.serviceNames) {
-        expect(steps[1].params.serviceNames).toEqual(expectedParams.serviceNames);
+        expect(steps[1].params.serviceNames).toEqual(
+          expectedParams.serviceNames,
+        );
       }
       if (expectedParams?.templateName) {
         expect(steps[2].params.templateName).toBe(expectedParams.templateName);
@@ -54,9 +56,9 @@ describe('ai-provider-onboarding-compound.util (ai-cmd-ext-4.1)', () => {
     expect(isProviderOnboardingCompoundPrompt('Create employee Anna')).toBe(
       false,
     );
-    expect(decomposeProviderOnboardingCompoundPrompt('Create employee Anna')).toEqual(
-      [],
-    );
+    expect(
+      decomposeProviderOnboardingCompoundPrompt('Create employee Anna'),
+    ).toEqual([]);
   });
 
   it('extractAssignServiceNamesFromPrompt and template helpers', () => {
@@ -66,12 +68,12 @@ describe('ai-provider-onboarding-compound.util (ai-cmd-ext-4.1)', () => {
       ),
     ).toEqual(['haircut', 'color']);
     expect(
-      extractAssignServiceNamesFromPrompt('onboard provider with waxing skills'),
+      extractAssignServiceNamesFromPrompt(
+        'onboard provider with waxing skills',
+      ),
     ).toEqual(['waxing']);
     expect(
-      extractOnboardingTemplateName(
-        'set up first week from weekday template',
-      ),
+      extractOnboardingTemplateName('set up first week from weekday template'),
     ).toBe('weekday');
     expect(extractOnboardingTemplateName('apply weekend template')).toBe(
       'weekend',

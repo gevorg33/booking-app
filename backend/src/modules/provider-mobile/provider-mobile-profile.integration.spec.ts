@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ProviderMobileService } from './provider-mobile.service.js';
 
 describe('ProviderMobileService profile, calendar, and reviews', () => {
@@ -15,13 +12,19 @@ describe('ProviderMobileService profile, calendar, and reviews', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
   const clinicTestResultService = { listResultQueue: jest.fn() };
   const customerRepo = { createQueryBuilder: jest.fn(), findOne: jest.fn() };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = { getProfileForCustomer: jest.fn() };
   const patientClinicalProfileAccessService = {
     assertCustomerClinicalProfileAccess: jest.fn(),
@@ -104,7 +107,10 @@ describe('ProviderMobileService profile, calendar, and reviews', () => {
     userId: 'user-1',
     businessId: 'biz-1',
     isActive: true,
-    metadata: { title: 'Senior stylist', avatarUrl: 'https://cdn.test/alex.jpg' },
+    metadata: {
+      title: 'Senior stylist',
+      avatarUrl: 'https://cdn.test/alex.jpg',
+    },
   };
 
   beforeEach(() => {
@@ -131,9 +137,9 @@ describe('ProviderMobileService profile, calendar, and reviews', () => {
     businessService.ensureMember.mockResolvedValue({ role: 'manager' });
     employeeRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.getProviderProfile('biz-1', 'user-1')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getProviderProfile('biz-1', 'user-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('updates title and avatar for the linked provider only', async () => {
@@ -172,14 +178,24 @@ describe('ProviderMobileService profile, calendar, and reviews', () => {
         updatedAt: new Date('2026-06-09T10:00:00.000Z'),
         status: 'confirmed',
         notes: null,
-        service: { id: 'svc-1', name: 'Cut', price: 40, durationMinutes: 60, currency: null },
+        service: {
+          id: 'svc-1',
+          name: 'Cut',
+          price: 40,
+          durationMinutes: 60,
+          currency: null,
+        },
         customer: { id: 'cust-1', name: 'Sam' },
         employee: { id: 'emp-1', name: 'Alex Provider' },
         metadata: {},
       },
     ]);
 
-    const result = await service.getBookingsByDate('biz-1', 'user-1', '2026-06-09');
+    const result = await service.getBookingsByDate(
+      'biz-1',
+      'user-1',
+      '2026-06-09',
+    );
 
     expect(result.date).toBe('2026-06-09');
     expect(result.bookings).toHaveLength(1);

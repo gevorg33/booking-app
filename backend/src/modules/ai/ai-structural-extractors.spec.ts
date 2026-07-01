@@ -125,7 +125,11 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       expect(
         enrichPublicAssistantParamsFromPrompt(
           'give me available slots tomorrow afternoon for hairstyle',
-          { serviceName: 'haircut', date: '10/06/2026', timeOfDay: 'afternoon' },
+          {
+            serviceName: 'haircut',
+            date: '10/06/2026',
+            timeOfDay: 'afternoon',
+          },
           salonServices,
           'check_availability',
         ),
@@ -327,11 +331,15 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       'Move Jujos appointment on June 10 2027 from 16-17 to june 11 2027 nearest free time';
 
     it('parses destination date without nearest-free suffix', () => {
-      expect(extractRescheduleTargetDate(futurePrompt, 'UTC')).toBe('11/06/2027');
+      expect(extractRescheduleTargetDate(futurePrompt, 'UTC')).toBe(
+        '11/06/2027',
+      );
     });
 
     it('parses source date and time window', () => {
-      expect(extractRescheduleSourceDate(futurePrompt, 'UTC')).toBe('10/06/2027');
+      expect(extractRescheduleSourceDate(futurePrompt, 'UTC')).toBe(
+        '10/06/2027',
+      );
       expect(extractRescheduleSourceTime(futurePrompt)).toBe('16:00');
     });
 

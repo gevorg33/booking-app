@@ -261,8 +261,10 @@ describe('ai-schedule-resources.util', () => {
           ?.action,
       ).toBe('list_scheduling_resources');
       expect(
-        rescueScheduleResourceIntent('Explain multi-service booking settings', 'unknown')
-          ?.action,
+        rescueScheduleResourceIntent(
+          'Explain multi-service booking settings',
+          'unknown',
+        )?.action,
       ).toBe('explain_multi_service_settings');
     });
 

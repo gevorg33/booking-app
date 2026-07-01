@@ -11,7 +11,7 @@ import type { BuildPublicClassifierContextOpts } from './command-understanding-a
 export function buildPublicClassifierContext(
   opts: BuildPublicClassifierContextOpts,
 ): string {
-  const locale = resolveLocale(opts.locale, 'en') as AppLocale;
+  const locale = resolveLocale(opts.locale, 'en');
   const schemaHeader = opts.narrowShortlist?.length
     ? buildNarrowClassifierSchema('public', opts.narrowShortlist)
     : buildPublicClassifierSchema();

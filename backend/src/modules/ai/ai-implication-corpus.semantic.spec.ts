@@ -10,7 +10,9 @@ import { resolveSemanticAllowedActions } from './semantic-allowed-actions.util.j
 
 describe('ai-implication-corpus semantic action coverage (pipe-1.11.1)', () => {
   it.each(
-    AI_IMPLICATION_CORPUS_SCENARIOS.filter((scenario) => scenario.surface !== 'provider'),
+    AI_IMPLICATION_CORPUS_SCENARIOS.filter(
+      (scenario) => scenario.surface !== 'provider',
+    ),
   )(
     '$id resolves to $expectedAction on $surface',
     ({ prompt, surface, expectedAction, mustNotMatch }) => {
@@ -28,7 +30,9 @@ describe('ai-implication-corpus semantic action coverage (pipe-1.11.1)', () => {
       const top = ranked[0];
       const resolvedAction =
         match?.action ??
-        (top && top.score >= SEMANTIC_CONCEPT_THRESHOLD ? top.anchor.action : undefined);
+        (top && top.score >= SEMANTIC_CONCEPT_THRESHOLD
+          ? top.anchor.action
+          : undefined);
 
       expect(resolvedAction).toBe(expectedAction);
       if (mustNotMatch?.length && top) {

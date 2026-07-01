@@ -78,12 +78,12 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
     it.each(CATALOG_ANNOUNCEMENT_RENDER_SCENARIOS)(
       '$id',
       ({ template, context, expectedSubject, expectedBody }) => {
-        expect(renderCatalogAnnouncementTemplate(template.subject, context)).toBe(
-          expectedSubject,
-        );
-        expect(renderCatalogAnnouncementTemplate(template.bodyText, context)).toBe(
-          expectedBody,
-        );
+        expect(
+          renderCatalogAnnouncementTemplate(template.subject, context),
+        ).toBe(expectedSubject);
+        expect(
+          renderCatalogAnnouncementTemplate(template.bodyText, context),
+        ).toBe(expectedBody);
       },
     );
 
@@ -111,7 +111,10 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
         {
           catalogAnnouncementTemplates: {
             package: {
-              en: { subject: 'Default {{packageName}}', bodyText: 'Book {{bookUrl}}' },
+              en: {
+                subject: 'Default {{packageName}}',
+                bodyText: 'Book {{bookUrl}}',
+              },
             },
           },
         },
@@ -174,9 +177,9 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
   describe('readCatalogAnnouncementDefaults', () => {
     it('returns empty object for invalid settings', () => {
       expect(readCatalogAnnouncementDefaults(undefined)).toEqual({});
-      expect(readCatalogAnnouncementDefaults({ catalogAnnouncementTemplates: null })).toEqual(
-        {},
-      );
+      expect(
+        readCatalogAnnouncementDefaults({ catalogAnnouncementTemplates: null }),
+      ).toEqual({});
     });
 
     it('sanitizes invalid locale entries', () => {
@@ -213,9 +216,9 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
 
   describe('formatCatalogDiscountLabel', () => {
     it('formats percent and fixed discounts', () => {
-      expect(formatCatalogDiscountLabel('percent', 15, { currency: 'USD' })).toBe(
-        '15%',
-      );
+      expect(
+        formatCatalogDiscountLabel('percent', 15, { currency: 'USD' }),
+      ).toBe('15%');
       expect(
         formatCatalogDiscountLabel('fixed', 20, { currency: 'USD' }),
       ).toContain('20');
@@ -226,7 +229,10 @@ describe('catalog-announcement.util (catalog-notify-1.6–1.8)', () => {
     const customer = {
       isActive: true,
       email: 'a@example.com',
-      metadata: { gdpr: { marketingOptIn: true }, notifications: { pushNews: true } },
+      metadata: {
+        gdpr: { marketingOptIn: true },
+        notifications: { pushNews: true },
+      },
     };
 
     it('allows email and push when opted in', () => {

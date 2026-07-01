@@ -69,8 +69,7 @@ export interface N99QualifiedActivationExitGateCriterion {
   detail?: string;
 }
 
-export interface N99QualifiedActivationExitGateResult
-  extends N99QualifiedActivationExitGateInput {
+export interface N99QualifiedActivationExitGateResult extends N99QualifiedActivationExitGateInput {
   periodDays: number;
   target: number;
   floor: number;
@@ -103,7 +102,9 @@ function installRowForUser(
   anonId: string,
 ): AppEventAnalyticsRow | null {
   return (
-    rows.find((row) => row.anonId === anonId && row.event === 'app_installed') ?? null
+    rows.find(
+      (row) => row.anonId === anonId && row.event === 'app_installed',
+    ) ?? null
   );
 }
 
@@ -248,7 +249,8 @@ export function buildN99QualifiedActivationCohortExport(
       locale,
       qualified,
       cold: computeColdActivationMetrics(localeRows, windowDays),
-      sufficientSample: qualified.installedCount >= N99_QUALIFIED_MIN_PER_LOCALE,
+      sufficientSample:
+        qualified.installedCount >= N99_QUALIFIED_MIN_PER_LOCALE,
     };
   });
 
@@ -273,7 +275,9 @@ export function buildN99QualifiedActivationExitGate(
       value: input.qualifiedActivationRate,
       target: N99_QUALIFIED_ACTIVATION_EVAL_FLOOR,
       comparator: 'gte',
-      met: input.qualifiedActivationRate + 1e-9 >= N99_QUALIFIED_ACTIVATION_EVAL_FLOOR,
+      met:
+        input.qualifiedActivationRate + 1e-9 >=
+        N99_QUALIFIED_ACTIVATION_EVAL_FLOOR,
       unit: 'percent',
       detail: `target ${(N99_QUALIFIED_ACTIVATION_TARGET * 100).toFixed(0)}%`,
     },

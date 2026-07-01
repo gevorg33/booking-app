@@ -72,7 +72,9 @@ function describeWhatsAppHealth(input: {
   if (input.usingPlatformDefault) {
     return 'WhatsApp: connected via platform default.';
   }
-  const phone = input.phoneNumberId ? ` (phone number ID ${input.phoneNumberId})` : '';
+  const phone = input.phoneNumberId
+    ? ` (phone number ID ${input.phoneNumberId})`
+    : '';
   return `WhatsApp: connected with salon credentials${phone}.`;
 }
 
@@ -103,23 +105,31 @@ export async function loadIntegrationHealthSnapshot(
   deps: IntegrationHealthSnapshotDeps,
   businessId: string,
 ): Promise<IntegrationHealthSnapshot> {
-  const [webhooks, apiKeys, zendesk, zapier, accounting, openAi, whatsapp, business] =
-    await Promise.all([
-      deps.webhooksService.listSubscriptions(businessId),
-      deps.apiKeyService.listKeys(businessId),
-      deps.zendeskIntegrationService.getPublicSettings(businessId),
-      deps.zapierIntegrationService.getPublicSettings(businessId),
-      deps.accountingIntegrationService.getPublicSettings(businessId),
-      deps.openAiIntegrationService.getPublicSettings(businessId),
-      deps.whatsappIntegrationService
-        ? deps.whatsappIntegrationService.getPublicSettings(businessId)
-        : Promise.resolve({
-            configured: false,
-            usingPlatformDefault: false,
-            phoneNumberId: undefined,
-          }),
-      deps.businessRepo.findOne({ where: { id: businessId } }),
-    ]);
+  const [
+    webhooks,
+    apiKeys,
+    zendesk,
+    zapier,
+    accounting,
+    openAi,
+    whatsapp,
+    business,
+  ] = await Promise.all([
+    deps.webhooksService.listSubscriptions(businessId),
+    deps.apiKeyService.listKeys(businessId),
+    deps.zendeskIntegrationService.getPublicSettings(businessId),
+    deps.zapierIntegrationService.getPublicSettings(businessId),
+    deps.accountingIntegrationService.getPublicSettings(businessId),
+    deps.openAiIntegrationService.getPublicSettings(businessId),
+    deps.whatsappIntegrationService
+      ? deps.whatsappIntegrationService.getPublicSettings(businessId)
+      : Promise.resolve({
+          configured: false,
+          usingPlatformDefault: false,
+          phoneNumberId: undefined,
+        }),
+    deps.businessRepo.findOne({ where: { id: businessId } }),
+  ]);
 
   const stripe = getBusinessStripeIntegration(business?.settings ?? {});
   const stripeConnected = Boolean(stripe.connectAccountId);
@@ -247,9 +257,10 @@ export function buildFocusedIntegrationHealthSummary(
   }
 }
 
-export function integrationHealthNavigatePath(
-  focus?: IntegrationHealthFocus,
-): { path: string; label: string } {
+export function integrationHealthNavigatePath(focus?: IntegrationHealthFocus): {
+  path: string;
+  label: string;
+} {
   switch (focus) {
     case 'whatsapp':
       return { path: '/dashboard/settings', label: 'Open WhatsApp settings' };

@@ -41,7 +41,12 @@ export async function handleConfigureNotificationSettingsLogic(
       'Specify notification settings to update (e.g. "Configure notification settings — enable email and WhatsApp, disable SMS").',
       {
         clarify: true,
-        missing: ['emailEnabled', 'smsEnabled', 'whatsappEnabled', 'reminder24hEmail'],
+        missing: [
+          'emailEnabled',
+          'smsEnabled',
+          'whatsappEnabled',
+          'reminder24hEmail',
+        ],
       },
     );
   }

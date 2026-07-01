@@ -28,12 +28,16 @@ function success(
   return { success: true, action, summary, details };
 }
 
-function hasMetadataChanges(parsed: ParsedConfigureServiceFeatured | null): boolean {
+function hasMetadataChanges(
+  parsed: ParsedConfigureServiceFeatured | null,
+): boolean {
   if (!parsed) return false;
   return parsed.isFeatured != null || parsed.serviceTier != null;
 }
 
-function describeMetadataChanges(parsed: ParsedConfigureServiceFeatured): string {
+function describeMetadataChanges(
+  parsed: ParsedConfigureServiceFeatured,
+): string {
   const parts: string[] = [];
   if (parsed.isFeatured === true) parts.push('featured');
   if (parsed.isFeatured === false) parts.push('not featured');
@@ -112,7 +116,9 @@ export async function handleConfigureServiceFeaturedLogic(
   }
 
   const changeLabel = describeMetadataChanges(parsed);
-  const names = updatedServices.map((service) => `"${service.name}"`).join(', ');
+  const names = updatedServices
+    .map((service) => `"${service.name}"`)
+    .join(', ');
   const summary =
     updatedServices.length === 1
       ? `Updated ${names} — ${changeLabel}.`

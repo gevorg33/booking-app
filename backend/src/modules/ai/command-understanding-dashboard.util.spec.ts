@@ -68,9 +68,10 @@ describe('command-understanding-dashboard.util (pipe-1.3.1)', () => {
 
     const route = await resolveRoute();
 
-    expect(router.routeDeterministic).toHaveBeenCalledWith('Show appointments today', [
-      { id: 'e1', name: 'Anna' },
-    ]);
+    expect(router.routeDeterministic).toHaveBeenCalledWith(
+      'Show appointments today',
+      [{ id: 'e1', name: 'Anna' }],
+    );
     expect(intelligence.routeComplexity).not.toHaveBeenCalled();
     expect(route).toEqual(deterministic);
   });

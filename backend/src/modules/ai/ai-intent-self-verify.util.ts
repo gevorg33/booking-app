@@ -82,9 +82,7 @@ export function hasBookingAppointmentVocabulary(prompt: string): boolean {
     (/\bappointment\b/i.test(lower) && !/\bhide\b/i.test(lower)) ||
     (/\bschedule\b/i.test(lower) &&
       /\b(?:for|with)\b/i.test(lower) &&
-      /\b(?:client|customer|haircut|massage|trim|facial|lashes)\b/i.test(
-        lower,
-      ))
+      /\b(?:client|customer|haircut|massage|trim|facial|lashes)\b/i.test(lower))
   );
 }
 
@@ -115,7 +113,10 @@ export function checkBookingVsClearMismatch(
     );
   }
 
-  if (BOOKING_SELF_VERIFY_ACTIONS.has(action) && isClearSchedulePrompt(prompt)) {
+  if (
+    BOOKING_SELF_VERIFY_ACTIONS.has(action) &&
+    isClearSchedulePrompt(prompt)
+  ) {
     return fail(
       'booking_vs_clear_mismatch',
       'clear_schedule_vocab',
@@ -138,9 +139,7 @@ export function checkBookingVsClearMismatch(
   return { passed: true };
 }
 
-function resolveScheduleVocabCorrection(
-  prompt: string,
-): string | undefined {
+function resolveScheduleVocabCorrection(prompt: string): string | undefined {
   if (isScheduleTemplateCreationPrompt(prompt)) {
     return SCHEDULE_TEMPLATE_ACTION;
   }
@@ -176,10 +175,7 @@ export function checkScheduleVocabMismatch(
         corrected,
       );
     }
-    return fail(
-      'schedule_vocab_mismatch',
-      'ambiguous_schedule_intent',
-    );
+    return fail('schedule_vocab_mismatch', 'ambiguous_schedule_intent');
   }
 
   if (

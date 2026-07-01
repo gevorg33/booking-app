@@ -114,6 +114,10 @@ import {
   saveBookingDraft,
 } from '../lib/booking-draft.util.js';
 import {
+  shouldResetBookPageSuccessState,
+  stripFreshBookQueryParam,
+} from '../lib/book-another-service.util.js';
+import {
   buildBookingAbandonmentProps,
 } from '../lib/activation-instrumentation.util.js';
 import {
@@ -936,6 +940,36 @@ export default function BookPage() {
     [serviceId, resumePrefill.date, resumePrefill.slot, resumePrefill.employeeId],
   );
   const prevUrlBookingKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!shouldResetBookPageSuccessState(location.search)) return;
+
+    setBookingSuccess(null);
+    setAwaitingPaymentReturn(false);
+    setCheckoutFailed(false);
+    setMessage('');
+    setSubmitting(false);
+    bookingCompletedRef.current = false;
+    guestBookingRef.current = false;
+    setPostBookingSignInDismissed(false);
+    setPostBookingSignedIn(false);
+    setPreConfirmSignInDismissed(false);
+    setPreConfirmSignedIn(false);
+    setSharingBooking(false);
+    setShowPushPriming(false);
+    setShowProvisionalUpgrade(false);
+    startedBookingTrackedRef.current = false;
+    confirmStepTrackedRef.current = false;
+    clearBookingDraft();
+
+    const strippedSearch = stripFreshBookQueryParam(location.search);
+    if (strippedSearch !== location.search) {
+      history.replace({
+        pathname: location.pathname,
+        search: strippedSearch,
+      });
+    }
+  }, [history, location.pathname, location.search]);
 
   useEffect(() => {
     const previousKey = prevUrlBookingKeyRef.current;

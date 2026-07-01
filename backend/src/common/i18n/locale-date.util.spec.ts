@@ -72,9 +72,9 @@ describe('locale-date.util formatters', () => {
     expect(
       formatNearestSlotStartTimeLabel('2026-06-13T09:00:00.000Z', 'en'),
     ).toBe('June 13 at 09:00');
-    expect(
-      formatNearestSlotStartTimeLabel('2026-06-06T18:00:00Z', 'en'),
-    ).toBe('June 6 at 18:00');
+    expect(formatNearestSlotStartTimeLabel('2026-06-06T18:00:00Z', 'en')).toBe(
+      'June 6 at 18:00',
+    );
     expect(
       formatNearestSlotStartTimeLabel('2026-06-13T09:00:00.000Z', 'ru'),
     ).toMatch(/13 .* в 09:00/);

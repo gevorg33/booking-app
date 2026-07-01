@@ -1,9 +1,6 @@
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import type { Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -43,8 +40,7 @@ async function resolveBookingIdForClientIntent(
   prompt?: string,
   context?: Record<string, unknown>,
 ): Promise<
-  | { bookingId: string; customerName: string }
-  | { error: CommandResult }
+  { bookingId: string; customerName: string } | { error: CommandResult }
 > {
   const explicitBookingId =
     (typeof params.bookingId === 'string' && params.bookingId.trim()) ||

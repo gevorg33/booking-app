@@ -40,6 +40,8 @@ describe('startup-tti-regression.util (adopt-5.7)', () => {
     const alert = buildWeeklyStartupTtiRegressionAlert(rows, now);
     expect(alert.thresholdPoints).toBe(STARTUP_TTI_WEEKLY_REGRESSION_DELTA);
     expect(alert.triggered).toBe(true);
-    expect(alert.deltaPoints).toBeGreaterThan(STARTUP_TTI_WEEKLY_REGRESSION_DELTA);
+    expect(alert.deltaPoints).toBeGreaterThan(
+      STARTUP_TTI_WEEKLY_REGRESSION_DELTA,
+    );
   });
 });

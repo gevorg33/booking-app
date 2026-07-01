@@ -36,8 +36,12 @@ describe('ServicePackagesService', () => {
   };
 
   const catalogAnnouncement = {
-    announcePackage: jest.fn().mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
-    announceSubscriptionPlan: jest.fn().mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
+    announcePackage: jest
+      .fn()
+      .mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
+    announceSubscriptionPlan: jest
+      .fn()
+      .mockResolvedValue({ emailed: 0, pushed: 0, skipped: 0, failed: 0 }),
   };
 
   const service = new ServicePackagesService(

@@ -44,6 +44,7 @@ import { ShareRewardsModule } from '../share-rewards/share-reward.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { StripeIntegrationModule } from '../billing/stripe-integration.module.js';
 import { PublicConsumerSupportService } from './public-consumer-support.service.js';
+import { PublicCustomerWaitlistService } from './public-customer-waitlist.service.js';
 
 @Module({
   imports: [
@@ -102,12 +103,15 @@ import { PublicConsumerSupportService } from './public-consumer-support.service.
     OptionalPublicCustomerAuthGuard,
     PublicPreVisitIntakeService,
     PublicConsumerSupportService,
+    PublicCustomerWaitlistService,
   ],
   exports: [
     PublicBookingService,
     PublicBookingAssistantService,
     PublicCustomerAuthService,
     PublicCustomerBookingService,
+    PublicCustomerWaitlistService,
+    PublicConsumerSupportService,
   ],
 })
 export class PublicBookingModule {}

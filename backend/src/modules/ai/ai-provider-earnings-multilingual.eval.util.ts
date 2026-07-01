@@ -33,7 +33,10 @@ export const AI_COMMAND_EVAL_PROVIDER_EARNINGS_MULTILINGUAL_CASES: AiCommandEval
 
 export function listProviderEarningsEvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly Pick<ProviderEarningsMultilingualScenario, 'id'>[] = PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    ProviderEarningsMultilingualScenario,
+    'id'
+  >[] = PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   return scenarios

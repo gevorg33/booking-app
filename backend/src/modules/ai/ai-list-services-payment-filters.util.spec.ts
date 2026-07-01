@@ -54,7 +54,9 @@ describe('ai-list-services-payment-filters.util (ai-cmd-ext-5.1)', () => {
   it.each(LIST_SERVICES_PAYMENT_FILTER_RESCUE_SCENARIOS)(
     'rescues misclassified $misclassifiedAction to list_services for $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(rescueListServicesPaymentFilterIntent(prompt, misclassifiedAction)).toEqual({
+      expect(
+        rescueListServicesPaymentFilterIntent(prompt, misclassifiedAction),
+      ).toEqual({
         action: expectedAction,
         rescueReason: 'list_services_payment_filter',
       });
@@ -89,7 +91,9 @@ describe('ai-list-services-payment-filters.util (ai-cmd-ext-5.1)', () => {
 
   it('does not steal no-prepayment customer/public browse prompts', () => {
     expect(
-      isListServicesPaymentFilterPrompt('What can I book without paying online?'),
+      isListServicesPaymentFilterPrompt(
+        'What can I book without paying online?',
+      ),
     ).toBe(false);
     expect(
       isListServicesPaymentFilterPrompt(
@@ -124,7 +128,9 @@ describe('ai-list-services-payment-filters.util (ai-cmd-ext-5.1)', () => {
 
   it('filters catalog by prepaymentMode deposit', () => {
     const filter = { prepaymentMode: 'deposit' as const };
-    expect(matchesListServicesPaymentFilter(MOCK_CATALOG[2]!, filter)).toBe(true);
+    expect(matchesListServicesPaymentFilter(MOCK_CATALOG[2], filter)).toBe(
+      true,
+    );
     expect(
       filterServicesByListServicesPaymentPolicy(MOCK_CATALOG, filter).map(
         (row) => row.id,
@@ -133,12 +139,12 @@ describe('ai-list-services-payment-filters.util (ai-cmd-ext-5.1)', () => {
   });
 
   it('builds payment filter headers', () => {
-    expect(buildListServicesPaymentFilterHeader({ prepaymentMode: 'none' })).toBe(
-      'Services without online payment',
-    );
-    expect(buildListServicesPaymentFilterHeader({ onlinePaymentEnabled: true })).toBe(
-      'Services with online payment',
-    );
+    expect(
+      buildListServicesPaymentFilterHeader({ prepaymentMode: 'none' }),
+    ).toBe('Services without online payment');
+    expect(
+      buildListServicesPaymentFilterHeader({ onlinePaymentEnabled: true }),
+    ).toBe('Services with online payment');
   });
 
   it('enriches list_services params from prompt', () => {
@@ -149,7 +155,10 @@ describe('ai-list-services-payment-filters.util (ai-cmd-ext-5.1)', () => {
       ),
     ).toEqual({ prepaymentMode: 'full' });
     expect(
-      enrichListServicesParamsFromPrompt('List services with full prepayment', {}),
+      enrichListServicesParamsFromPrompt(
+        'List services with full prepayment',
+        {},
+      ),
     ).toEqual({ prepaymentMode: 'full' });
   });
 });

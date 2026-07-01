@@ -168,7 +168,7 @@ export const CHECK_MULTI_SERVICE_AVAILABILITY_PROMPTS: readonly MultiServiceCust
     },
     {
       id: 'massage-facial-same-afternoon-customer',
-      prompt: 'Massage and facial same afternoon — find a time',
+      prompt: 'When can I get massage and facial together this afternoon?',
       surface: 'customer',
       expectedAction: 'check_multi_service_availability',
       serviceNames: ['massage', 'facial'],
@@ -222,7 +222,7 @@ export const CHECK_MULTI_SERVICE_AVAILABILITY_PROMPTS: readonly MultiServiceCust
     },
     {
       id: 'massage-facial-same-afternoon-public',
-      prompt: 'Massage and facial same afternoon — find a time',
+      prompt: 'When can I get massage and facial together this afternoon?',
       surface: 'public',
       expectedAction: 'check_multi_service_availability',
       serviceNames: ['massage', 'facial'],
@@ -307,7 +307,8 @@ export const MULTI_SERVICE_COMPOUND_PROMPTS: readonly MultiServiceCompoundPrompt
   [
     {
       id: 'add-then-check-customer',
-      prompt: 'Add massage and facial to cart and check multi-service availability',
+      prompt:
+        'Add massage and facial to cart and check multi-service availability',
       surface: 'customer',
       orderedActions: [
         'add_services_to_cart',
@@ -388,5 +389,7 @@ export function rescueMultiServiceCustomerPublicIntent(
 export function detectMultiServiceCustomerPublicAction(
   prompt: string,
 ): MultiServiceCustomerPublicPromptFixture['expectedAction'] | null {
-  return rescueMultiServiceCustomerPublicIntent(prompt, 'unknown')?.action ?? null;
+  return (
+    rescueMultiServiceCustomerPublicIntent(prompt, 'unknown')?.action ?? null
+  );
 }

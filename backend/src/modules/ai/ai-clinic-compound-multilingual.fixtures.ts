@@ -164,7 +164,7 @@ export const CLINIC_COMPOUND_MULTILINGUAL_TRANSLATIONS: Record<
 
 export const CLINIC_COMPOUND_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian clinic lab compounds (book/order + result notify):
   - dashboard hy/ru: "պատվիր lipid panel … և տեղեկացրիր" / "закажи CBC … и уведоми" → compound: create_test_order then notify_patient_result_ready
-  - customer hy/ru: "ամրագրիր lipid panel և տեղեկացրիր ինձ" / "забронируй CBC и уведоми меня" → compound: book_nearest_slot then explain_result_status (patient FAQ — NOT notify_patient_result_ready)
+  - customer hy/ru: "ամրագրիր lipid panel և տեղեկացրիր ինձ" / "забронируй CBC и уведоми меня" → compound: book_nearest_slot then notify_when_results_ready (patient alert FAQ — NOT notify_patient_result_ready)
   - public hy/ru: "ամրագրիր CBC և բացատրիր արդյունքները" / "забронируй lipid panel и скажи когда результаты готовы" → compound: book_appointment then explain_result_status
   - Split on և/հետո/ապա/նաև/; and и/затем/потом/а также/; — NOT single intent when both lab book/order and result-ready follow-up appear.`;
 

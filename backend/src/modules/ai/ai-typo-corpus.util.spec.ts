@@ -4,7 +4,10 @@ import {
   lowercasePrompt,
   stripPromptPunctuation,
 } from './ai-typo-corpus.util.js';
-import { TYPO_CORPUS_ENTRIES, TYPO_CORPUS_SEEDS } from './ai-typo-corpus.fixtures.js';
+import {
+  TYPO_CORPUS_ENTRIES,
+  TYPO_CORPUS_SEEDS,
+} from './ai-typo-corpus.fixtures.js';
 import {
   isExplainConsumerCheckoutTaxPrompt,
   parseExplainConsumerCheckoutTaxFromPrompt,
@@ -37,13 +40,17 @@ describe('ai-typo-corpus.util (acc-2.5)', () => {
   });
 
   it('keeps consumer checkout tax rescue working for whitespace variants', () => {
-    const seed = TYPO_CORPUS_SEEDS.find((row) => row.id === 'checkout-tax-line');
+    const seed = TYPO_CORPUS_SEEDS.find(
+      (row) => row.id === 'checkout-tax-line',
+    );
     expect(seed).toBeDefined();
     for (const variant of generateTypoVariants(seed!.prompt)) {
       expect(isExplainConsumerCheckoutTaxPrompt(variant.prompt)).toBe(true);
-      expect(parseExplainConsumerCheckoutTaxFromPrompt(variant.prompt)).toEqual({
-        aspect: 'checkout',
-      });
+      expect(parseExplainConsumerCheckoutTaxFromPrompt(variant.prompt)).toEqual(
+        {
+          aspect: 'checkout',
+        },
+      );
     }
   });
 });

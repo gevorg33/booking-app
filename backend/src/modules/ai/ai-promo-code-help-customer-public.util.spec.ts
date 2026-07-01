@@ -31,7 +31,10 @@ describe('ai-promo-code-help-customer-public.util (ai-cmd-customer-4.0 P1)', () 
   it.each(PROMO_CODE_HELP_PROMPTS.map((row) => [row.id, row] as const))(
     'rescues promo-code-help prompt $id from unknown',
     (_id, row) => {
-      const rescued = rescuePromoCodeHelpCustomerPublicIntent(row.prompt, 'unknown');
+      const rescued = rescuePromoCodeHelpCustomerPublicIntent(
+        row.prompt,
+        'unknown',
+      );
       expect(rescued?.action).toBe(row.expectedAction);
       expect(rescued?.rescueReason).toBe(row.rescueReason);
       expect(rescueMarketingGrowthIntent(row.prompt, 'unknown')?.action).toBe(
@@ -66,7 +69,8 @@ describe('ai-promo-code-help-customer-public.util (ai-cmd-customer-4.0 P1)', () 
 
   it('maps promo-code-help fixtures to passing eval golden cases', () => {
     expect(
-      PROMO_CODE_HELP_PROMPTS.filter((row) => row.surface === 'customer').length,
+      PROMO_CODE_HELP_PROMPTS.filter((row) => row.surface === 'customer')
+        .length,
     ).toBeGreaterThanOrEqual(10);
     expect(
       PROMO_CODE_HELP_PROMPTS.filter((row) => row.surface === 'public').length,

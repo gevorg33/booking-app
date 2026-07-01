@@ -119,7 +119,8 @@ describe('ai-schedule-ops-hints.util', () => {
           reasoning: 'test',
         },
         {
-          prompt: 'Clear Gevorg and Mary schedule from 02/06/2026 to 08/06/2026',
+          prompt:
+            'Clear Gevorg and Mary schedule from 02/06/2026 to 08/06/2026',
           employees,
           timeZone: 'UTC',
         },

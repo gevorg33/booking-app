@@ -44,7 +44,10 @@ import {
   shouldRateLimitAppEvents,
   type RateLimitState,
 } from './app-adoption-analytics.util.js';
-import { APP_EVENT_RATE_LIMIT_MAX, APP_EVENT_RATE_LIMIT_WINDOW_MS } from './app-adoption-analytics.fixtures.js';
+import {
+  APP_EVENT_RATE_LIMIT_MAX,
+  APP_EVENT_RATE_LIMIT_WINDOW_MS,
+} from './app-adoption-analytics.fixtures.js';
 import type { AppEventAnalyticsRow } from './app-adoption-analytics.util.js';
 
 function toRows(
@@ -66,12 +69,14 @@ describe('app-adoption-analytics.util', () => {
   it('resolves known adoption events', () => {
     expect(resolveAppAdoptionEvent('app_opened')).toBe('app_opened');
     expect(resolveAppAdoptionEvent('unknown')).toBeNull();
-    expect(buildAppEventRecordPayload('biz', {
-      event: 'bad',
-      anonId: 'a',
-      platform: 'ios',
-      appSurface: 'consumer_app',
-    })).toBeNull();
+    expect(
+      buildAppEventRecordPayload('biz', {
+        event: 'bad',
+        anonId: 'a',
+        platform: 'ios',
+        appSurface: 'consumer_app',
+      }),
+    ).toBeNull();
   });
 
   it('validates platform, surface, and prop redaction edge cases', () => {
@@ -116,7 +121,11 @@ describe('app-adoption-analytics.util', () => {
         contactChannel: 'whatsapp',
         messageBody: 'secret text',
       }),
-    ).toEqual({ bookingId: 'uuid-1', pushOptIn: true, contactChannel: 'whatsapp' });
+    ).toEqual({
+      bookingId: 'uuid-1',
+      pushOptIn: true,
+      contactChannel: 'whatsapp',
+    });
     expect(
       buildAppEventRecordPayload('biz-1', {
         event: 'staff_contacted_customer',
@@ -164,17 +173,23 @@ describe('app-adoption-analytics.util', () => {
   });
 
   it('computes strict funnel conversion for fixture matrix', () => {
-    const funnel = buildAdoptionFunnel(toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS));
+    const funnel = buildAdoptionFunnel(
+      toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS),
+    );
     expect(funnel.steps[0]?.count).toBe(3);
     expect(funnel.steps[1]?.count).toBe(3);
     expect(funnel.steps[2]?.count).toBe(2);
     expect(funnel.steps[3]?.count).toBe(2);
     expect(funnel.steps[4]?.count).toBe(1);
-    expect(funnel.breakdowns.some((b) => b.dimension === 'platform')).toBe(true);
+    expect(funnel.breakdowns.some((b) => b.dimension === 'platform')).toBe(
+      true,
+    );
   });
 
   it('computes per-step conversion and drop-off on aggregate funnel (adopt-1.4)', () => {
-    const funnel = buildAdoptionFunnel(toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS));
+    const funnel = buildAdoptionFunnel(
+      toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS),
+    );
     const signIn = funnel.steps[2];
     const rebook = funnel.steps[4];
 
@@ -187,17 +202,22 @@ describe('app-adoption-analytics.util', () => {
   it.each(APP_ADOPTION_FUNNEL_ATTRIBUTION_EXPECTATIONS)(
     'attributes drop-off for scenario $id (adopt-1.4)',
     (scenario) => {
-      const funnel = buildAdoptionFunnel(toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS));
+      const funnel = buildAdoptionFunnel(
+        toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS),
+      );
       const steps =
         scenario.dimension === 'aggregate'
           ? funnel.steps
           : funnel.breakdowns.find(
               (entry) =>
-                entry.dimension === scenario.dimension && entry.value === scenario.value,
+                entry.dimension === scenario.dimension &&
+                entry.value === scenario.value,
             )?.steps;
 
       expect(steps).toBeDefined();
-      expect(steps?.map((step) => step.count)).toEqual([...scenario.stepCounts]);
+      expect(steps?.map((step) => step.count)).toEqual([
+        ...scenario.stepCounts,
+      ]);
 
       if (scenario.signInConversion != null) {
         expect(steps?.[2]?.conversionFromPrevious).toBeCloseTo(
@@ -206,7 +226,10 @@ describe('app-adoption-analytics.util', () => {
         );
       }
       if (scenario.signInDropOff != null) {
-        expect(steps?.[2]?.dropOffFromPrevious).toBeCloseTo(scenario.signInDropOff, 5);
+        expect(steps?.[2]?.dropOffFromPrevious).toBeCloseTo(
+          scenario.signInDropOff,
+          5,
+        );
       }
       if (scenario.rebookConversion != null) {
         expect(steps?.[4]?.conversionFromPrevious).toBeCloseTo(
@@ -215,27 +238,44 @@ describe('app-adoption-analytics.util', () => {
         );
       }
       if (scenario.rebookDropOff != null) {
-        expect(steps?.[4]?.dropOffFromPrevious).toBeCloseTo(scenario.rebookDropOff, 5);
+        expect(steps?.[4]?.dropOffFromPrevious).toBeCloseTo(
+          scenario.rebookDropOff,
+          5,
+        );
       }
     },
   );
 
   it('includes platform, locale, and tenant breakdown dimensions (adopt-1.4)', () => {
-    const funnel = buildAdoptionFunnel(toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS));
-    expect(funnel.breakdowns.some((b) => b.dimension === 'platform')).toBe(true);
+    const funnel = buildAdoptionFunnel(
+      toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS),
+    );
+    expect(funnel.breakdowns.some((b) => b.dimension === 'platform')).toBe(
+      true,
+    );
     expect(funnel.breakdowns.some((b) => b.dimension === 'locale')).toBe(true);
-    expect(funnel.breakdowns.some((b) => b.dimension === 'tenantSlug')).toBe(true);
+    expect(funnel.breakdowns.some((b) => b.dimension === 'tenantSlug')).toBe(
+      true,
+    );
   });
 
   it('computes activation within 7-day window (adopt-1.6)', () => {
-    const activation = computeActivationMetrics(toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS));
-    expect(activation.installedCount).toBe(APP_ADOPTION_ACTIVATION_EXPECTED.installedCount);
-    expect(activation.activatedCount).toBe(APP_ADOPTION_ACTIVATION_EXPECTED.activatedCount);
+    const activation = computeActivationMetrics(
+      toRows(APP_ADOPTION_FUNNEL_FIXTURE_ROWS),
+    );
+    expect(activation.installedCount).toBe(
+      APP_ADOPTION_ACTIVATION_EXPECTED.installedCount,
+    );
+    expect(activation.activatedCount).toBe(
+      APP_ADOPTION_ACTIVATION_EXPECTED.activatedCount,
+    );
     expect(activation.activationRate).toBeCloseTo(
       APP_ADOPTION_ACTIVATION_EXPECTED.activationRate,
       5,
     );
-    expect(activation.windowDays).toBe(APP_ADOPTION_ACTIVATION_EXPECTED.windowDays);
+    expect(activation.windowDays).toBe(
+      APP_ADOPTION_ACTIVATION_EXPECTED.windowDays,
+    );
   });
 
   it.each(APP_ADOPTION_ACTIVATION_SCENARIOS)(
@@ -285,7 +325,7 @@ describe('app-adoption-analytics.util', () => {
     expect(isActivatedUser(rows, 'anon-partial')).toBe(false);
 
     rows[2] = {
-      ...rows[2]!,
+      ...rows[2],
       createdAt: new Date('2026-06-07T10:00:00.000Z'),
     };
     expect(isActivatedUser(rows, 'anon-partial')).toBe(true);
@@ -307,11 +347,24 @@ describe('app-adoption-analytics.util', () => {
   });
 
   it('computes retention and resurrection cohorts (adopt-1.5)', () => {
-    const retention = buildRetentionCohorts(toRows(APP_ADOPTION_RETENTION_FIXTURE_ROWS));
-    expect(retention.cohortSize).toBe(APP_ADOPTION_RETENTION_EXPECTED.cohortSize);
-    expect(retention.d1ReturnRate).toBeCloseTo(APP_ADOPTION_RETENTION_EXPECTED.d1ReturnRate, 5);
-    expect(retention.d7ReturnRate).toBeCloseTo(APP_ADOPTION_RETENTION_EXPECTED.d7ReturnRate, 5);
-    expect(retention.d30ReturnRate).toBeCloseTo(APP_ADOPTION_RETENTION_EXPECTED.d30ReturnRate, 5);
+    const retention = buildRetentionCohorts(
+      toRows(APP_ADOPTION_RETENTION_FIXTURE_ROWS),
+    );
+    expect(retention.cohortSize).toBe(
+      APP_ADOPTION_RETENTION_EXPECTED.cohortSize,
+    );
+    expect(retention.d1ReturnRate).toBeCloseTo(
+      APP_ADOPTION_RETENTION_EXPECTED.d1ReturnRate,
+      5,
+    );
+    expect(retention.d7ReturnRate).toBeCloseTo(
+      APP_ADOPTION_RETENTION_EXPECTED.d7ReturnRate,
+      5,
+    );
+    expect(retention.d30ReturnRate).toBeCloseTo(
+      APP_ADOPTION_RETENTION_EXPECTED.d30ReturnRate,
+      5,
+    );
     expect(retention.rebookWithin30DaysRate).toBeCloseTo(
       APP_ADOPTION_RETENTION_EXPECTED.rebookWithin30DaysRate,
       5,
@@ -415,8 +468,13 @@ describe('app-adoption-analytics.util', () => {
   });
 
   it('computes headline metrics from optional props (adopt-1.7)', () => {
-    const headlines = computeAdoptionHeadlineMetrics(toRows(APP_ADOPTION_HEADLINE_FIXTURE_ROWS));
-    expect(headlines.pushOptInRate).toBeCloseTo(APP_ADOPTION_HEADLINE_EXPECTED.pushOptInRate, 5);
+    const headlines = computeAdoptionHeadlineMetrics(
+      toRows(APP_ADOPTION_HEADLINE_FIXTURE_ROWS),
+    );
+    expect(headlines.pushOptInRate).toBeCloseTo(
+      APP_ADOPTION_HEADLINE_EXPECTED.pushOptInRate,
+      5,
+    );
     expect(headlines.crashFreeSessionRate).toBeCloseTo(
       APP_ADOPTION_HEADLINE_EXPECTED.crashFreeSessionRate,
       5,
@@ -439,7 +497,12 @@ describe('app-adoption-analytics.util', () => {
           appSurface: 'consumer_app',
           locale: 'en',
           createdAt: '2026-06-01T12:00:00.000Z',
-          props: { startupMs: 1200, crashFree: true, lowEndAndroid: true, ttiBudgetMs: 4500 },
+          props: {
+            startupMs: 1200,
+            crashFree: true,
+            lowEndAndroid: true,
+            ttiBudgetMs: 4500,
+          },
         },
         {
           id: 'tti-slow',
@@ -449,33 +512,42 @@ describe('app-adoption-analytics.util', () => {
           appSurface: 'consumer_app',
           locale: 'en',
           createdAt: '2026-06-01T12:01:00.000Z',
-          props: { startupMs: 5200, crashFree: false, lowEndAndroid: true, ttiBudgetMs: 4500 },
+          props: {
+            startupMs: 5200,
+            crashFree: false,
+            lowEndAndroid: true,
+            ttiBudgetMs: 4500,
+          },
         },
       ]),
     );
     expect(rate).toBeCloseTo(0.5, 5);
-    expect(computeAdoptionHeadlineMetrics(toRows([
-      {
-        id: 'tti-ok',
-        anonId: 'anon-a',
-        event: 'app_interactive',
-        platform: 'android',
-        appSurface: 'consumer_app',
-        locale: 'en',
-        createdAt: '2026-06-01T12:00:00.000Z',
-        props: { startupMs: 1200, crashFree: true },
-      },
-      {
-        id: 'tti-slow',
-        anonId: 'anon-b',
-        event: 'app_interactive',
-        platform: 'android',
-        appSurface: 'consumer_app',
-        locale: 'en',
-        createdAt: '2026-06-01T12:01:00.000Z',
-        props: { startupMs: 5200, crashFree: false },
-      },
-    ])).startupTtiSloMet).toBe(false);
+    expect(
+      computeAdoptionHeadlineMetrics(
+        toRows([
+          {
+            id: 'tti-ok',
+            anonId: 'anon-a',
+            event: 'app_interactive',
+            platform: 'android',
+            appSurface: 'consumer_app',
+            locale: 'en',
+            createdAt: '2026-06-01T12:00:00.000Z',
+            props: { startupMs: 1200, crashFree: true },
+          },
+          {
+            id: 'tti-slow',
+            anonId: 'anon-b',
+            event: 'app_interactive',
+            platform: 'android',
+            appSurface: 'consumer_app',
+            locale: 'en',
+            createdAt: '2026-06-01T12:01:00.000Z',
+            props: { startupMs: 5200, crashFree: false },
+          },
+        ]),
+      ).startupTtiSloMet,
+    ).toBe(false);
   });
 
   it('computes push opt-in rate from priming funnel (adopt-3.5)', () => {
@@ -503,8 +575,12 @@ describe('app-adoption-analytics.util', () => {
     expect(abandonment.recoveryRate).toBe(1);
 
     const variants = computeOnboardingVariantActivation(rows);
-    expect(variants.find((entry) => entry.variant === 'guided')?.activationRate).toBe(1);
-    expect(variants.find((entry) => entry.variant === 'control')?.completedCount).toBe(0);
+    expect(
+      variants.find((entry) => entry.variant === 'guided')?.activationRate,
+    ).toBe(1);
+    expect(
+      variants.find((entry) => entry.variant === 'control')?.completedCount,
+    ).toBe(0);
   });
 
   it('computes push opt-in per user even with repeated opens (adopt-1.7)', () => {
@@ -545,7 +621,10 @@ describe('app-adoption-analytics.util', () => {
   });
 
   it('does not trigger weekly alert when activation is stable (adopt-1.7)', () => {
-    const alert = buildWeeklyActivationAlert([], new Date('2026-06-15T10:00:00.000Z'));
+    const alert = buildWeeklyActivationAlert(
+      [],
+      new Date('2026-06-15T10:00:00.000Z'),
+    );
     expect(alert.triggered).toBe(false);
     expect(alert.deltaPoints).toBe(0);
   });
@@ -593,7 +672,10 @@ describe('app-adoption-analytics.util', () => {
         props: null,
       },
     ];
-    const alert = buildWeeklyActivationAlert(rows, new Date('2026-06-15T10:00:00.000Z'));
+    const alert = buildWeeklyActivationAlert(
+      rows,
+      new Date('2026-06-15T10:00:00.000Z'),
+    );
     expect(alert.previousWeekRate).toBeGreaterThan(alert.currentWeekRate);
     expect(typeof alert.triggered).toBe('boolean');
   });
@@ -610,7 +692,10 @@ describe('app-adoption-analytics.util', () => {
 
   it('resets rate limit window after expiry', () => {
     const first = shouldRateLimitAppEvents(undefined, 0);
-    const afterWindow = shouldRateLimitAppEvents(first.next, APP_EVENT_RATE_LIMIT_WINDOW_MS + 1);
+    const afterWindow = shouldRateLimitAppEvents(
+      first.next,
+      APP_EVENT_RATE_LIMIT_WINDOW_MS + 1,
+    );
     expect(afterWindow.limited).toBe(false);
     expect(afterWindow.next.count).toBe(1);
   });
@@ -642,9 +727,13 @@ describe('app-adoption-analytics.util', () => {
     expect(dashboard.headlines.pushOptInRate).not.toBeNull();
     expect(dashboard.headlines.crashFreeSessionRate).not.toBeNull();
     expect(dashboard.headlines.referralKFactor).not.toBeNull();
-    expect(dashboard.weeklyActivationAlert.thresholdPoints).toBe(ACTIVATION_WEEKLY_ALERT_DELTA);
+    expect(dashboard.weeklyActivationAlert.thresholdPoints).toBe(
+      ACTIVATION_WEEKLY_ALERT_DELTA,
+    );
     expect(typeof dashboard.weeklyActivationAlert.triggered).toBe('boolean');
-    expect(dashboard.weeklyStartupTtiRegressionAlert.thresholdPoints).toBe(0.03);
+    expect(dashboard.weeklyStartupTtiRegressionAlert.thresholdPoints).toBe(
+      0.03,
+    );
     expect(dashboard.exitGate.periodDays).toBe(ADOPTION_EXIT_PERIOD_DAYS);
     expect(dashboard.exitGate.criteria).toHaveLength(7);
   });
@@ -668,7 +757,8 @@ describe('app-adoption-analytics.util', () => {
     expect(dashboard.activationPathAb.dimensions).toHaveLength(3);
     const preConfirm = dashboard.activationPathAb.scores.find(
       (entry) =>
-        entry.dimension === 'signInPlacement' && entry.variant === 'pre_confirm',
+        entry.dimension === 'signInPlacement' &&
+        entry.variant === 'pre_confirm',
     );
     expect(preConfirm?.qualifiedActivationRate).toBe(1);
   });
@@ -682,10 +772,9 @@ describe('app-adoption-analytics.util', () => {
     );
     expect(dashboard.pushReachability.reachability.reachableUsers).toBe(2);
     expect(dashboard.pushReachability.explicitOptIn.explicitOptInUsers).toBe(2);
-    expect(dashboard.pushReachability.deliverability.deliverabilityRate).toBeCloseTo(
-      0.99,
-      5,
-    );
+    expect(
+      dashboard.pushReachability.deliverability.deliverabilityRate,
+    ).toBeCloseTo(0.99, 5);
   });
 
   it('buildAdoptionExitGateFromRows enforces locale activation parity (adopt-6.8)', () => {

@@ -193,7 +193,7 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
       id: 'test_param_key_only',
       surface: 'customer',
       prompt: 'Book spa day package and apply promo code WELCOME',
-      orderedActions: ['book_package', 'promo_code_help'],
+      orderedActions: ['book_package', 'apply_promo_code_checkout'],
       paramChecks: [{ stepIndex: 0, key: 'packageId' }],
     });
     expect(evalCase.expect.compoundStepParams).toEqual([
@@ -244,9 +244,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps clinic ext compound eval cases with compoundSteps (parity-3.2)', () => {
-    expect(AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES.length).toBeGreaterThanOrEqual(
-      40,
-    );
+    expect(
+      AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES.length,
+    ).toBeGreaterThanOrEqual(40);
     for (const evalCase of AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES) {
       expect(evalCase.expect.compoundSteps?.length).toBeGreaterThanOrEqual(2);
       expect(CLINIC_EXT_COMPOUND_RECIPE_IDS).toContain(
@@ -259,7 +259,8 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
       'explain_patient_results',
     ]);
     expect(
-      AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES[0].expect.compoundSteps,
+      AI_COMMAND_EVAL_CLINIC_LAB_REVIEW_MULTILINGUAL_CASES[0].expect
+        .compoundSteps,
     ).toEqual(['list_abnormal_results', 'explain_patient_results']);
   });
 
@@ -707,7 +708,7 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every explain checkout tax eval case (ai-cmd-tax-5)', () => {
-    expect(AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_TAX_CASES.length).toBe(10);
+    expect(AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_TAX_CASES.length).toBe(22);
     for (const evalCase of AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_TAX_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
@@ -928,9 +929,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes classifier-without-rescue golden rows for top EN/HY/RU prompts (ai-cmd-clinic-6-gap-2.3)', () => {
-    expect(AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES).toHaveLength(
-      12,
-    );
+    expect(
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES,
+    ).toHaveLength(12);
     for (const evalCase of AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_CLASSIFIER_CASES) {
       expect(evalCase.surface).toBe('dashboard');
       expect(evalCase.expect.action).toBeTruthy();
@@ -1148,9 +1149,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every provider client context eval case (prov-exp-1.6)', () => {
-    expect(AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES.length).toBeGreaterThanOrEqual(
-      30,
-    );
+    expect(
+      AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES.length,
+    ).toBeGreaterThanOrEqual(30);
     for (const evalCase of AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES) {
       expect(evalCase.surface).toBe('provider');
       const result = evaluateDeterministicEvalCase(evalCase);

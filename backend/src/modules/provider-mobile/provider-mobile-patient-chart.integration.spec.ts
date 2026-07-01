@@ -31,7 +31,10 @@ function buildService(
     ...overrides.businessService,
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = {
@@ -47,7 +50,10 @@ function buildService(
     findOne: jest.fn(),
     ...overrides.customerRepo,
   };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = {
     getProfileForCustomer: jest.fn(),
     ...overrides.patientClinicalProfilesService,

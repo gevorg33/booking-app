@@ -24,7 +24,9 @@ describe('ai-list-my-package-visits-customer.util (ai-cmd-customer-4.0 P2)', () 
   });
 
   it.each(
-    LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
+    LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects list package visits prompt $id', (_id, row) => {
     expect(isListMyPackageVisitsCustomerPrompt(row.prompt)).toBe(true);
     expect(detectListMyPackageVisitsCustomerAction(row.prompt)).toBe(
@@ -33,7 +35,9 @@ describe('ai-list-my-package-visits-customer.util (ai-cmd-customer-4.0 P2)', () 
   });
 
   it.each(
-    LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
+    LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues list package visits prompt $id from unknown', (_id, row) => {
     const rescued = rescueListMyPackageVisitsCustomerIntent(
       row.prompt,
@@ -86,9 +90,9 @@ describe('ai-list-my-package-visits-customer.util (ai-cmd-customer-4.0 P2)', () 
 
   it('does not steal appointments list, package cancel, or provider calendar prompts', () => {
     expect(isListMyAppointmentsPrompt('List my appointments')).toBe(true);
-    expect(
-      isListMyPackageVisitsCustomerPrompt('List my appointments'),
-    ).toBe(false);
+    expect(isListMyPackageVisitsCustomerPrompt('List my appointments')).toBe(
+      false,
+    );
 
     expect(isCancelPackageVisitSelfPrompt('Cancel my package visit')).toBe(
       true,
@@ -97,9 +101,9 @@ describe('ai-list-my-package-visits-customer.util (ai-cmd-customer-4.0 P2)', () 
       detectListMyPackageVisitsCustomerAction('Cancel my package visit'),
     ).toBeNull();
 
-    expect(isListMyPackageVisitsPrompt('List my package visits this week')).toBe(
-      true,
-    );
+    expect(
+      isListMyPackageVisitsPrompt('List my package visits this week'),
+    ).toBe(true);
     expect(
       rescueListMyPackageVisitsCustomerIntent(
         'List package visits this week',
@@ -114,9 +118,9 @@ describe('ai-list-my-package-visits-customer.util (ai-cmd-customer-4.0 P2)', () 
     ).map((row) => row.id);
     expect(failures).toEqual([]);
 
-    expect(LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.length).toBeGreaterThanOrEqual(
-      10,
-    );
+    expect(
+      LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.length,
+    ).toBeGreaterThanOrEqual(10);
     expect(AI_COMMAND_EVAL_LIST_MY_PACKAGE_VISITS_CUSTOMER_CASES.length).toBe(
       LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS.length,
     );

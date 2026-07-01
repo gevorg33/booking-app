@@ -62,15 +62,19 @@ describe('ai-product-guide-session.util (ai-guide-1.4.2)', () => {
 
   it('maps customer account route from tab context', () => {
     expect(
-      resolveProductGuideSessionContext({ context: { tab: 'account' } }, 'customer')
-        .route,
+      resolveProductGuideSessionContext(
+        { context: { tab: 'account' } },
+        'customer',
+      ).route,
     ).toBe('/s/account');
   });
 
   it('maps customer packages route from tab and screen context (ai-guide-1.5.2)', () => {
     expect(
-      resolveProductGuideSessionContext({ context: { tab: 'packages' } }, 'customer')
-        .route,
+      resolveProductGuideSessionContext(
+        { context: { tab: 'packages' } },
+        'customer',
+      ).route,
     ).toBe('/s/packages');
     expect(
       resolveProductGuideSessionContext(

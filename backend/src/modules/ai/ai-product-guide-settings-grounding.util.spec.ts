@@ -51,7 +51,10 @@ describe('ai-product-guide-settings-grounding.util (ai-guide-1.2.4)', () => {
 
   it('extracts settings paths from resolved corpus topics when present', () => {
     const messages = getFrontendGuideCorpusMessages('en');
-    const resolved = resolveGuideCorpusTopic('dashboard.ai.getting-started', messages);
+    const resolved = resolveGuideCorpusTopic(
+      'dashboard.ai.getting-started',
+      messages,
+    );
     expect(resolved).toBeTruthy();
     expect(GUIDE_GROUNDED_SETTINGS_PATHS.size).toBeGreaterThan(10);
   });

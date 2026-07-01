@@ -151,7 +151,8 @@ export const DIAGNOSE_TOUR_CAPACITY_PROMPTS = [
   },
   {
     id: 'not-enough-seats-friday-customer',
-    prompt: 'Not enough seats for Mountain Trek on 15/08/2026 when I try to book',
+    prompt:
+      'Not enough seats for Mountain Trek on 15/08/2026 when I try to book',
     serviceName: 'Mountain Trek',
     date: '2026-08-15',
     aspect: 'insufficientSpots' as const,

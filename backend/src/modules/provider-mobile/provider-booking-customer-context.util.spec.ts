@@ -71,7 +71,13 @@ describe('provider-booking-customer-context.util (prov-exp-1.1)', () => {
         referredByCustomerName: 'Alice Friend',
         referralCodeUsed: 'FRIEND10',
       },
-      badges: [{ id: 'referred_by', tone: 'secondary', referredByCustomerName: 'Alice Friend' }],
+      badges: [
+        {
+          id: 'referred_by',
+          tone: 'secondary',
+          referredByCustomerName: 'Alice Friend',
+        },
+      ],
       recentCompletedVisits: [],
     });
   });

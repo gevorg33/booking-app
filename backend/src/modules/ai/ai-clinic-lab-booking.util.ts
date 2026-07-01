@@ -13,6 +13,10 @@ import {
 } from './ai-clinic-test-order.util.js';
 import { extractCustomerNameFromPrompt } from './ai-retail-finance.util.js';
 import {
+  BOOK_LAB_FROM_ORDER_BLOCK,
+  rescueBookLabFromOrderIntent,
+} from './ai-book-lab-from-order.util.js';
+import {
   AWAITING_PATIENT_BOOKING_LIST_PROMPTS,
   BOOK_LAB_COLLECTION_PROMPTS,
   LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
@@ -35,8 +39,13 @@ export const CONSUMER_CLINIC_LAB_BOOKING_READ_INTENTS = [
   'book_lab_collection',
 ] as const;
 
+export const CONSUMER_CLINIC_LAB_BOOKING_MUTATE_INTENTS = [
+  'book_lab_from_order',
+] as const;
+
 export const CONSUMER_CLINIC_LAB_BOOKING_INTENTS = [
   ...CONSUMER_CLINIC_LAB_BOOKING_READ_INTENTS,
+  ...CONSUMER_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
 ] as const;
 
 export const PROVIDER_CLINIC_LAB_BOOKING_READ_INTENTS = [
@@ -150,6 +159,11 @@ const LIST_LAB_BOOKING_STATUS_CONTEXT = new RegExp(
 
 const BOOK_ACTION_VERB = new RegExp(
   String.raw`\b(book|schedule|to\s+book|need\s+to|waiting)\b|ամրագր|գրանց|պետք\s*է|սպասում\s+ամրագր|забронир|запис|нужно|жду\s+ли`,
+  'iu',
+);
+
+const LAB_COLLECTION_NEAREST_BLOCK = new RegExp(
+  String.raw`\b(?:book|schedule|reserve)\b.*\b(?:lab\s+(?:collection|draw|visit|blood\s+draw)|blood\s+draw|lab\s+draw)\b.*\b(?:earliest|soonest|nearest|first\s+available|asap|next\s+available)\b|\b(?:earliest|soonest|nearest|first\s+available|asap|next\s+available)\b.*\b(?:lab\s+(?:collection|draw|visit|blood\s+draw)|blood\s+draw|lab\s+draw)\b|\b(?:lab\s+draw|blood\s+draw)\s+(?:earliest|soonest|nearest|first\s+available)\s+slot\b|(?:ամրագրիր|գրանցիր).{0,30}(?:լաբ|արյան).{0,30}(?:ամենամոտ|ամենաառաջին)|(?:забронируй|запиши).{0,30}(?:лаб|забор|кров).{0,30}(?:ближайш|раньше|скорее)`,
   'iu',
 );
 
@@ -376,6 +390,8 @@ function extractLabBookingPatientNameFromPrompt(prompt: string): string | null {
 }
 
 export function isListMyLabBookingRequestsPrompt(prompt: string): boolean {
+  if (BOOK_LAB_FROM_ORDER_BLOCK.test(prompt)) return false;
+  if (LAB_COLLECTION_NEAREST_BLOCK.test(prompt)) return false;
   if (isPushLabBookingToPatientPrompt(prompt)) return false;
   if (isStaffBookLabCollectionPrompt(prompt)) return false;
   if (isAwaitingPatientBookingListPrompt(prompt)) return false;
@@ -411,6 +427,8 @@ export function isListMyLabBookingRequestsPrompt(prompt: string): boolean {
 }
 
 export function isBookLabCollectionPrompt(prompt: string): boolean {
+  if (BOOK_LAB_FROM_ORDER_BLOCK.test(prompt)) return false;
+  if (LAB_COLLECTION_NEAREST_BLOCK.test(prompt)) return false;
   if (isListMyLabBookingRequestsPrompt(prompt)) return false;
   if (isStaffBookLabCollectionPrompt(prompt)) return false;
   if (
@@ -678,11 +696,20 @@ export function parseStaffBookLabCollectionFromPrompt(
   };
 }
 
+export function isLabCollectionNearestCompoundPrompt(prompt: string): boolean {
+  return LAB_COLLECTION_NEAREST_BLOCK.test(prompt);
+}
+
 export function parseListMyLabBookingRequestsFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedListMyLabBookingRequestsRequest | null {
-  if (!isListMyLabBookingRequestsPrompt(prompt)) return null;
+  if (
+    !isListMyLabBookingRequestsPrompt(prompt) &&
+    !isLabCollectionNearestCompoundPrompt(prompt)
+  ) {
+    return null;
+  }
   const orderId =
     typeof params.orderId === 'string' && params.orderId.trim()
       ? params.orderId.trim()
@@ -694,7 +721,17 @@ export function parseBookLabCollectionFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedBookLabCollectionRequest | null {
-  if (!isBookLabCollectionPrompt(prompt)) return null;
+  if (
+    !isBookLabCollectionPrompt(prompt) &&
+    !isLabCollectionNearestCompoundPrompt(prompt) &&
+    !(
+      params.bookingFirstAvailable === true &&
+      (typeof params.orderId === 'string' ||
+        typeof params.testName === 'string')
+    )
+  ) {
+    return null;
+  }
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
       ? params.orderId.trim()
@@ -768,15 +805,37 @@ export function formatLabBookingRequestsSummary(
 
 export function formatBookLabCollectionSummary(
   requests: ClinicLabBookingRequestView[],
+  options?: { bookingFirstAvailable?: boolean },
 ): string {
   if (requests.length === 0) {
     return 'No open lab collection booking requests were found on your account.';
   }
   if (requests.length === 1) {
     const request = requests[0];
+    if (options?.bookingFirstAvailable) {
+      return `Book the earliest available lab collection slot for ${request.displayNames ?? 'ordered tests'} (${request.collectionServiceName}). Continue to choose the soonest opening.`;
+    }
     return `Open your lab collection booking for ${request.displayNames ?? 'ordered tests'} (${request.collectionServiceName}). Use the book link to choose a time.`;
   }
+  if (options?.bookingFirstAvailable) {
+    return `You have ${requests.length} lab collections to book. Open one from your Lab to book list — the earliest available slot will be selected when you continue.`;
+  }
   return `You have ${requests.length} lab collections to book. Pick one from your Lab to book list and use its booking link.`;
+}
+
+export function appendBookingFirstAvailableToLabBookUrl(
+  bookUrl: string,
+  bookingFirstAvailable: boolean,
+): string {
+  if (!bookingFirstAvailable) return bookUrl;
+  try {
+    const url = new URL(bookUrl);
+    url.searchParams.set('bookingFirstAvailable', '1');
+    return url.toString();
+  } catch {
+    const separator = bookUrl.includes('?') ? '&' : '?';
+    return `${bookUrl}${separator}bookingFirstAvailable=1`;
+  }
 }
 
 export function formatPendingPatientLabRequestsSummary(
@@ -839,6 +898,13 @@ export function rescueConsumerClinicLabBookingIntent(
   prompt: string,
   action: string,
 ): { action: ConsumerClinicLabBookingIntent; rescueReason: string } | null {
+  if (isLabCollectionNearestCompoundPrompt(prompt)) {
+    return null;
+  }
+
+  const bookFromOrder = rescueBookLabFromOrderIntent(prompt, action);
+  if (bookFromOrder) return bookFromOrder;
+
   if (
     isPushLabBookingToPatientPrompt(prompt) ||
     isStaffBookLabCollectionPrompt(prompt) ||
@@ -847,6 +913,7 @@ export function rescueConsumerClinicLabBookingIntent(
   ) {
     return null;
   }
+
   if (
     (CONSUMER_CLINIC_LAB_BOOKING_INTENTS as readonly string[]).includes(action)
   ) {

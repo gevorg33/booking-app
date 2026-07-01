@@ -2,9 +2,7 @@ import {
   SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS,
   SETUP_SALON_CHECKOUT_RESCUE_SCENARIOS,
 } from './ai-setup-salon-checkout-compound.fixtures.js';
-import {
-  AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_COMPOUND_CASES,
-} from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_SETUP_SALON_CHECKOUT_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import {
   buildSetupSalonCheckoutCompoundParams,
@@ -27,7 +25,9 @@ describe('ai-setup-salon-checkout-compound.util (ai-cmd-ext-4.5)', () => {
     ({ prompt, orderedActions, expectedParams }) => {
       const steps = decomposeSetupSalonCheckoutCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
-      expect(steps).toHaveLength(SETUP_SALON_CHECKOUT_COMPOUND_STEP_ACTIONS.length);
+      expect(steps).toHaveLength(
+        SETUP_SALON_CHECKOUT_COMPOUND_STEP_ACTIONS.length,
+      );
       if (expectedParams?.startOnboarding === false) {
         expect(steps[0].params.startOnboarding).toBe(false);
         expect(steps[0].params._forceConfigureStripeConnect).toBe(true);
@@ -52,7 +52,7 @@ describe('ai-setup-salon-checkout-compound.util (ai-cmd-ext-4.5)', () => {
     'rescueSetupSalonCheckoutCompoundIntent $id',
     ({ prompt, misclassifiedAction }) => {
       expect(
-        rescueSetupSalonCheckoutCompoundIntent(prompt, misclassifiedAction!),
+        rescueSetupSalonCheckoutCompoundIntent(prompt, misclassifiedAction),
       ).toEqual({
         action: 'compound_intent',
         rescueReason: 'setup_salon_checkout_compound',

@@ -68,6 +68,14 @@ export function isUpdateNudgeDismissed(key: string): boolean {
   return sessionStorage.getItem(key) === '1';
 }
 
+export const CONSUMER_DISMISS_APP_UPDATE_NUDGE_EVENT =
+  'consumer:dismiss-app-update-nudge';
+
+export function dispatchDismissConsumerAppUpdateNudge(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(CONSUMER_DISMISS_APP_UPDATE_NUDGE_EVENT));
+}
+
 export function dismissUpdateNudge(key: string): void {
   if (typeof sessionStorage === 'undefined') return;
   sessionStorage.setItem(key, '1');

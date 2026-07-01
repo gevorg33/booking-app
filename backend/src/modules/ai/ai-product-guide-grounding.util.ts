@@ -49,7 +49,9 @@ const GROUNDED_ROUTE_PREFIXES = [
   '/dashboard/operations',
 ].sort((a, b) => b.length - a.length);
 
-const GROUNDED_GUIDE_ANCHORS = new Set(Object.keys(GUIDE_CORPUS_ANCHOR_TO_TOPIC_ID));
+const GROUNDED_GUIDE_ANCHORS = new Set(
+  Object.keys(GUIDE_CORPUS_ANCHOR_TO_TOPIC_ID),
+);
 
 /** Public booking web + consumer assistant use slug-relative segments (not /book/...). */
 const PUBLIC_BOOKING_RELATIVE_NAV_SEGMENTS = new Set([
@@ -95,7 +97,10 @@ function pushIssue(
   issues: GuideGroundingIssue[],
   issue: GuideGroundingIssue,
 ): void {
-  if (issues.some((row) => row.code === issue.code && row.value === issue.value)) return;
+  if (
+    issues.some((row) => row.code === issue.code && row.value === issue.value)
+  )
+    return;
   issues.push(issue);
 }
 
@@ -107,7 +112,9 @@ function verifyGuideNavigateTarget(
   if (!target?.path) return;
   const hashIndex = target.path.indexOf('#');
   const path = hashIndex === -1 ? target.path : target.path.slice(0, hashIndex);
-  const hash = target.hash ?? (hashIndex === -1 ? undefined : target.path.slice(hashIndex + 1));
+  const hash =
+    target.hash ??
+    (hashIndex === -1 ? undefined : target.path.slice(hashIndex + 1));
   if (!isGroundedGuideRoute(path)) {
     pushIssue(issues, {
       code: 'unknown_route',
@@ -115,7 +122,11 @@ function verifyGuideNavigateTarget(
       value: path,
     });
   }
-  if (path === '/dashboard/guide' && hash && !GROUNDED_GUIDE_ANCHORS.has(hash.replace(/^#/, ''))) {
+  if (
+    path === '/dashboard/guide' &&
+    hash &&
+    !GROUNDED_GUIDE_ANCHORS.has(hash.replace(/^#/, ''))
+  ) {
     pushIssue(issues, {
       code: 'unknown_route',
       message: `${label} cites unknown guide anchor`,
@@ -124,7 +135,10 @@ function verifyGuideNavigateTarget(
   }
 }
 
-function collectIntentCitationIssues(text: string, issues: GuideGroundingIssue[]): void {
+function collectIntentCitationIssues(
+  text: string,
+  issues: GuideGroundingIssue[],
+): void {
   for (const match of text.matchAll(INTENT_CITATION_PATTERN)) {
     const token = match[1];
     if (!INTENT_CITATION_PREFIX.test(token)) continue;

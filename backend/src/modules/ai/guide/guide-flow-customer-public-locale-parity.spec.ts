@@ -1,7 +1,5 @@
 import { resolveGuideCorpusI18nKey } from './ai-guide-corpus-i18n.util.js';
-import {
-  TOP_CUSTOMER_PUBLIC_GUIDE_FLOWS,
-} from './guide-flow-customer-public-i18n.fixtures.js';
+import { TOP_CUSTOMER_PUBLIC_GUIDE_FLOWS } from './guide-flow-customer-public-i18n.fixtures.js';
 import {
   customerPublicGuideFlowKeys,
   guideFlowLocaleHasScript,

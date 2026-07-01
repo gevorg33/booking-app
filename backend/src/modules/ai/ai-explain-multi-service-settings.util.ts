@@ -134,7 +134,10 @@ export function isExplainMultiServiceSettingsPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isConfigureMultiServiceSettingsPrompt(text)) return false;
   if (isConfigureMultiServiceSchedulingModeMutate(text)) return false;
-  if (/\b(block|prevent|incompatible|cannot)\b/i.test(text) && /\btogether\b/i.test(text)) {
+  if (
+    /\b(block|prevent|incompatible|cannot)\b/i.test(text) &&
+    /\btogether\b/i.test(text)
+  ) {
     return false;
   }
   if (!hasExplainReadCue(text)) return false;

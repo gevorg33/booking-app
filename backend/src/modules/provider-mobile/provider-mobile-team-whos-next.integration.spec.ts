@@ -175,8 +175,8 @@ describe('ProviderMobileService team whos next (prov-exp-4.3)', () => {
       userId: 'user-1',
     });
 
-    await expect(service.getTeamWhosNext('biz-1', 'user-1')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getTeamWhosNext('biz-1', 'user-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

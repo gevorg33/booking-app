@@ -32,8 +32,10 @@ export class AiProductGuideService {
 
   private buildTelemetryRecorder(): ProductGuideTelemetryRecorder {
     return {
-      recordTopicOpened: (input) => this.guideTelemetry.recordTopicOpened(input),
-      recordGroundingFailure: (input) => this.guideTelemetry.recordGroundingFailure(input),
+      recordTopicOpened: (input) =>
+        this.guideTelemetry.recordTopicOpened(input),
+      recordGroundingFailure: (input) =>
+        this.guideTelemetry.recordGroundingFailure(input),
     };
   }
 
@@ -47,7 +49,12 @@ export class AiProductGuideService {
   }
 
   private buildDeps(businessId: string, userId?: string) {
-    return buildProductGuideLogicDeps(businessId, this.llm, this.openAi, userId);
+    return buildProductGuideLogicDeps(
+      businessId,
+      this.llm,
+      this.openAi,
+      userId,
+    );
   }
 
   retrieveRankedTopics(query: ProductGuideRetrieveQuery) {
@@ -87,7 +94,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): CommandResult {
     return handleExplainAppFeatureLogic({
       businessId,
@@ -101,7 +111,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): Promise<CommandResult> {
     return handleExplainAppFeatureLogicAsync(
       {
@@ -118,7 +131,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): CommandResult {
     return handleGuideUserFlowLogic({
       businessId,
@@ -132,7 +148,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): Promise<CommandResult> {
     return handleGuideUserFlowLogicAsync(
       {
@@ -149,7 +168,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): CommandResult {
     return handleExplainCurrentScreenLogic({
       businessId,
@@ -163,7 +185,10 @@ export class AiProductGuideService {
     businessId: string,
     params: Record<string, unknown> = {},
     prompt = '',
-    context: Omit<ProductGuideLogicInput, 'businessId' | 'params' | 'prompt'> = {},
+    context: Omit<
+      ProductGuideLogicInput,
+      'businessId' | 'params' | 'prompt'
+    > = {},
   ): Promise<CommandResult> {
     return handleExplainCurrentScreenLogicAsync(
       {

@@ -93,7 +93,10 @@ export function enrichDiscoveryParamsFromPrompt(
   }
   let enriched = enrichAvailabilityWindowsFromPrompt(next, prompt);
   if (prompt) {
-    enriched = enrichFlexibleAvailabilitySameProviderFromPrompt(prompt, enriched);
+    enriched = enrichFlexibleAvailabilitySameProviderFromPrompt(
+      prompt,
+      enriched,
+    );
   }
   if (
     prompt?.trim() &&

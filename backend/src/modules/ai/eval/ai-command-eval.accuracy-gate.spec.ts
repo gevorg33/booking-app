@@ -1,6 +1,4 @@
-import {
-  runAiAccuracyGate,
-} from './ai-command-eval.report.js';
+import { runAiAccuracyGate } from './ai-command-eval.report.js';
 import { AI_COMMAND_EVAL_DETERMINISTIC_CASES } from './ai-command-eval.cases.js';
 
 describe('AI accuracy gate (acc-2.8)', () => {

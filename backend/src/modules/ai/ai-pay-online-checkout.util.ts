@@ -210,7 +210,7 @@ export function buildPayOnlineCheckoutNavigate(
     return {
       path: 'checkout',
       query: {
-        serviceId: serviceIds[0]!,
+        serviceId: serviceIds[0],
         startTime,
         employeeId,
         payment: 'online',
@@ -222,7 +222,7 @@ export function buildPayOnlineCheckoutNavigate(
     return {
       path: 'checkout',
       query: {
-        serviceId: serviceIds[0]!,
+        serviceId: serviceIds[0],
         payment: 'online',
       },
     };
@@ -298,7 +298,9 @@ export function isExplicitPayOnlinePrompt(prompt: string): boolean {
   if (isExplainWhyPrepaymentPrompt(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isAskPaymentOptionsPrompt(prompt)) return false;
-  if (/\b(why|explain|how much|what|which|can i|could i|do you)\b/i.test(prompt)) {
+  if (
+    /\b(why|explain|how much|what|which|can i|could i|do you)\b/i.test(prompt)
+  ) {
     if (/\b(pay\s+online|card|stripe)\b/i.test(prompt)) return false;
   }
 

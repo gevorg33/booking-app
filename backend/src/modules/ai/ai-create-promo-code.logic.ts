@@ -50,7 +50,11 @@ export async function handleCreatePromoCodeLogic(
     return failure(
       'create_promo_code',
       'Ask to create a promo code (e.g. "Create promo code SAVE10 for 20% off").',
-      { clarify: true, missing: ['code', 'discountType', 'discountValue'], navigate: NAVIGATE },
+      {
+        clarify: true,
+        missing: ['code', 'discountType', 'discountValue'],
+        navigate: NAVIGATE,
+      },
     );
   }
 
@@ -112,9 +116,7 @@ export async function handleCreatePromoCodeLogic(
           discountType: promo.discountType,
           discountValue: Number(promo.discountValue),
           minOrderAmount:
-            promo.minOrderAmount != null
-              ? Number(promo.minOrderAmount)
-              : null,
+            promo.minOrderAmount != null ? Number(promo.minOrderAmount) : null,
           maxUses: promo.maxUses,
           expiresAt: promo.expiresAt,
           description: promo.description,

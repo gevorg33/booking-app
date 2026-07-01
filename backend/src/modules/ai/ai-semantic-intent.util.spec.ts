@@ -43,7 +43,9 @@ describe('ai-semantic-intent.util', () => {
     const tokens = new Set(
       tokenizeForSemantic('whoever has a gap soonest for massage tomorrow'),
     );
-    const anchor = MANUAL_INTENT_ANCHOR_BANK.find((a) => a.id === 'en-book-gap-soonest');
+    const anchor = MANUAL_INTENT_ANCHOR_BANK.find(
+      (a) => a.id === 'en-book-gap-soonest',
+    );
     expect(scoreConceptCoverage(tokens, anchor?.conceptGroups)).toBeGreaterThan(
       0.65,
     );
@@ -112,11 +114,15 @@ describe('ai-semantic-intent.util', () => {
   it('rejects ambiguous top-2 intents within margin', () => {
     const ranked = [
       {
-        anchor: MANUAL_INTENT_ANCHOR_BANK.find((a) => a.id === 'en-book-first-available')!,
+        anchor: MANUAL_INTENT_ANCHOR_BANK.find(
+          (a) => a.id === 'en-book-first-available',
+        )!,
         score: 0.7,
       },
       {
-        anchor: MANUAL_INTENT_ANCHOR_BANK.find((a) => a.id === 'en-check-who-free')!,
+        anchor: MANUAL_INTENT_ANCHOR_BANK.find(
+          (a) => a.id === 'en-check-who-free',
+        )!,
         score: 0.68,
       },
     ];
@@ -125,21 +131,20 @@ describe('ai-semantic-intent.util', () => {
     ).toBeNull();
   });
 
-  it.each(SEMANTIC_PARAPHRASE_SCENARIOS.filter((s) => s.classifyAction === 'unknown'))(
-    'resolves paraphrase scenario $id',
-    (scenario) => {
-      const match = resolveSemanticMatch(
-        rankAnchorsDeterministic(scenario.prompt, getIntentAnchorBank()),
-        { threshold: SEMANTIC_CONCEPT_THRESHOLD },
-      );
-      expect(match?.action).toBe(scenario.expectedAction);
-      if (scenario.expectedParamHints) {
-        for (const [key, value] of Object.entries(scenario.expectedParamHints)) {
-          expect(match?.paramHints[key]).toBe(value);
-        }
+  it.each(
+    SEMANTIC_PARAPHRASE_SCENARIOS.filter((s) => s.classifyAction === 'unknown'),
+  )('resolves paraphrase scenario $id', (scenario) => {
+    const match = resolveSemanticMatch(
+      rankAnchorsDeterministic(scenario.prompt, getIntentAnchorBank()),
+      { threshold: SEMANTIC_CONCEPT_THRESHOLD },
+    );
+    expect(match?.action).toBe(scenario.expectedAction);
+    if (scenario.expectedParamHints) {
+      for (const [key, value] of Object.entries(scenario.expectedParamHints)) {
+        expect(match?.paramHints[key]).toBe(value);
       }
-    },
-  );
+    }
+  });
 
   it.each(SEMANTIC_PARAPHRASE_SCENARIOS.filter((s) => s.classifyConfidence))(
     'confidence gate for scenario $id',
@@ -184,7 +189,9 @@ describe('ai-semantic-intent.util', () => {
   });
 
   it('scores anchor deterministically above threshold for nearest-slot phrasing', () => {
-    const anchor = MANUAL_INTENT_ANCHOR_BANK.find((a) => a.id === 'en-book-nearest-slot')!;
+    const anchor = MANUAL_INTENT_ANCHOR_BANK.find(
+      (a) => a.id === 'en-book-nearest-slot',
+    )!;
     expect(
       scoreAnchorDeterministic('grab the next open slot for a haircut', anchor),
     ).toBeGreaterThan(SEMANTIC_CONCEPT_THRESHOLD);

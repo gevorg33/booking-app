@@ -1,12 +1,18 @@
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
-import { formatDateDisplay, formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+} from '../../common/utils/date-format.util.js';
 import {
   addDaysToDateKey,
   getDateKeyInTimezone,
 } from '../../common/utils/timezone.util.js';
-import { formatWeekdayShortByDayIndex, intlLocaleTag } from '../../common/i18n/locale-date.util.js';
+import {
+  formatWeekdayShortByDayIndex,
+  intlLocaleTag,
+} from '../../common/i18n/locale-date.util.js';
 import { t, type AppLocale } from '../../common/i18n/messages.js';
 import {
   filterSlotsByTimeOfDay,
@@ -102,8 +108,7 @@ export function buildPublicAvailabilityWindowLabel(
   timeZone: string,
   todayDateKey?: string,
 ): string {
-  const todayKey =
-    todayDateKey ?? getDateKeyInTimezone(new Date(), timeZone);
+  const todayKey = todayDateKey ?? getDateKeyInTimezone(new Date(), timeZone);
   const tomorrowKey = addDaysToDateKey(todayKey, 1, timeZone);
   const timeOfDayLabel = window.timeOfDay
     ? formatPublicTimeOfDayLabel(window.timeOfDay, locale)
@@ -131,10 +136,16 @@ export function buildPublicAvailabilityWindowLabel(
   }
 
   const weekdayIndexes = [
-    ...new Set(window.dateKeys.map((dateKey) => dayjs.tz(dateKey, timeZone).day())),
+    ...new Set(
+      window.dateKeys.map((dateKey) => dayjs.tz(dateKey, timeZone).day()),
+    ),
   ];
   if (weekdayIndexes.length === 1) {
-    const weekday = formatWeekdayLongFromDateKey(firstDateKey, timeZone, locale);
+    const weekday = formatWeekdayLongFromDateKey(
+      firstDateKey,
+      timeZone,
+      locale,
+    );
     return timeOfDayLabel
       ? t(locale, 'assistant.availabilityWindowWeekday', {
           weekday,
@@ -145,7 +156,10 @@ export function buildPublicAvailabilityWindowLabel(
 
   const date = formatDateDisplay(firstDateKey, locale);
   return timeOfDayLabel
-    ? t(locale, 'assistant.availabilityWindowDate', { date, timeOfDay: timeOfDayLabel })
+    ? t(locale, 'assistant.availabilityWindowDate', {
+        date,
+        timeOfDay: timeOfDayLabel,
+      })
     : date;
 }
 
@@ -163,9 +177,10 @@ export function mergePublicProviderSlotTimes(input: {
   );
   if (existing) {
     existing.times = [...new Set([...existing.times, ...times])].sort();
-    const earliest = input.slots.reduce((min, slot) =>
-      slot.startTime < min ? slot.startTime : min,
-    input.slots[0]!.startTime);
+    const earliest = input.slots.reduce(
+      (min, slot) => (slot.startTime < min ? slot.startTime : min),
+      input.slots[0].startTime,
+    );
     if (earliest < existing.firstSlot) {
       existing.firstSlot = earliest;
     }
@@ -176,7 +191,7 @@ export function mergePublicProviderSlotTimes(input: {
     employeeId: input.employeeId,
     employeeName: input.employeeName,
     times,
-    firstSlot: input.slots[0]!.startTime,
+    firstSlot: input.slots[0].startTime,
   });
   return input.providers;
 }
@@ -222,7 +237,10 @@ function resolveAvailabilityBudgetMax(maxPrice: unknown): number | null {
 /** Budget intersection before slot scan — same ceiling semantics as list_services (avail-1.7 / budget-1.4). */
 export function applyBudgetFilterForAvailabilityCheck<
   T extends BudgetCatalogService,
->(matchedServices: readonly T[], maxPrice: unknown): {
+>(
+  matchedServices: readonly T[],
+  maxPrice: unknown,
+): {
   services: T[];
   noMatchSummary: string | null;
   budgetMax: number | null;

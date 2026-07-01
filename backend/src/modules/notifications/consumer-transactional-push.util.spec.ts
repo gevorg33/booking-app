@@ -104,7 +104,7 @@ describe('consumer-transactional-push.util', () => {
       locale: 'en',
     });
     const { foregroundHint: _hint, bookingId: _bookingId, ...rest } = payload;
-    const data = toConsumerPushDataFields(rest as typeof payload);
+    const data = toConsumerPushDataFields(rest);
 
     expect(data).not.toHaveProperty('bookingId');
     expect(data).not.toHaveProperty('foregroundHint');
@@ -281,7 +281,9 @@ describe('consumer-transactional-push.util', () => {
       locale: 'en',
     });
 
-    expect(toConsumerPushDataFields(payload).reminderMinutesBefore).toBe('1440');
+    expect(toConsumerPushDataFields(payload).reminderMinutesBefore).toBe(
+      '1440',
+    );
   });
 
   it('builds rescheduled and cancelled salon push payloads', () => {
@@ -309,7 +311,9 @@ describe('consumer-transactional-push.util', () => {
     expect(rescheduled.pushType).toBe('booking_rescheduled');
     expect(cancelled.pushType).toBe('booking_cancelled');
     expect(cancelled.title).toBe(
-      t('en', 'email.bookingCancelledPushTitle', { businessName: 'Glow Nails' }),
+      t('en', 'email.bookingCancelledPushTitle', {
+        businessName: 'Glow Nails',
+      }),
     );
   });
 

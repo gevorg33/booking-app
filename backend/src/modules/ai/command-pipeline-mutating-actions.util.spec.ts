@@ -16,9 +16,9 @@ describe('command-pipeline-mutating-actions.util (pipe-1.9.1)', () => {
   });
 
   it('includes create_direct_schedule in dashboard mutating actions', () => {
-    expect(DASHBOARD_PIPELINE_MUTATING_ACTIONS.has('create_direct_schedule')).toBe(
-      true,
-    );
+    expect(
+      DASHBOARD_PIPELINE_MUTATING_ACTIONS.has('create_direct_schedule'),
+    ).toBe(true);
     expect(isDashboardPipelineMutatingAction('create_direct_schedule')).toBe(
       true,
     );

@@ -168,14 +168,13 @@ export function serializePublicAssistantDiscoverySessionFields(
       params.chosenAvailabilityWindowIndex != null
         ? String(params.chosenAvailabilityWindowIndex)
         : null,
-    rankedServiceIds:
-      serializeRankedServiceIds(
-        Array.isArray(params.rankedServiceIds)
-          ? params.rankedServiceIds.filter(
-              (entry): entry is string => typeof entry === 'string',
-            )
-          : [],
-      ),
+    rankedServiceIds: serializeRankedServiceIds(
+      Array.isArray(params.rankedServiceIds)
+        ? params.rankedServiceIds.filter(
+            (entry): entry is string => typeof entry === 'string',
+          )
+        : [],
+    ),
   };
   return out;
 }

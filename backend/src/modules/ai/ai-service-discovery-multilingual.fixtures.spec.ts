@@ -11,7 +11,9 @@ import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js
 
 describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
   it('ships classifier rules for budget, rank, and OR availability', () => {
-    expect(SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES).toContain('maxPrice');
+    expect(SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES).toContain(
+      'maxPrice',
+    );
     expect(SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES).toContain(
       'availabilityWindows',
     );
@@ -29,7 +31,9 @@ describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
   it.each(MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS)(
     'sourceFixtureId $sourceFixtureId resolves for $id',
     ({ sourceFixtureId, relatedFixtureIds = [] }) => {
-      expect(lookupServiceDiscoverySourceFixture(sourceFixtureId)).toBeDefined();
+      expect(
+        lookupServiceDiscoverySourceFixture(sourceFixtureId),
+      ).toBeDefined();
       for (const relatedId of relatedFixtureIds) {
         expect(lookupServiceDiscoverySourceFixture(relatedId)).toBeDefined();
       }
@@ -37,7 +41,9 @@ describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
   );
 
   it('ships cross-sprint section I discover rows', () => {
-    expect(DISCOVER_CROSS_SPRINT_MULTILINGUAL_SCENARIOS.map((row) => row.id)).toEqual([
+    expect(
+      DISCOVER_CROSS_SPRINT_MULTILINGUAL_SCENARIOS.map((row) => row.id),
+    ).toEqual([
       'discover-hy-budget-or-en',
       'discover-ru-premium-en',
       'discover-hy-cheapest-en',
@@ -48,15 +54,15 @@ describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
   it('ships at least four HY and four RU rows per budget, rank, and availability domain', () => {
     for (const domain of ['budget', 'rank', 'availability'] as const) {
       const rows = serviceDiscoveryMultilingualByDomain(domain);
-      expect(rows.filter((row) => row.locale === 'hy').length).toBeGreaterThanOrEqual(
-        4,
-      );
-      expect(rows.filter((row) => row.locale === 'ru').length).toBeGreaterThanOrEqual(
-        4,
-      );
-      expect(rows.filter((row) => row.locale === 'translit').length).toBeGreaterThanOrEqual(
-        1,
-      );
+      expect(
+        rows.filter((row) => row.locale === 'hy').length,
+      ).toBeGreaterThanOrEqual(4);
+      expect(
+        rows.filter((row) => row.locale === 'ru').length,
+      ).toBeGreaterThanOrEqual(4);
+      expect(
+        rows.filter((row) => row.locale === 'translit').length,
+      ).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -116,21 +122,26 @@ describe('ai-service-discovery-multilingual.fixtures (discover-1.5)', () => {
         'discover-ml-avail-translit-or',
       ].includes(row.id),
     ),
-  )('enrichment extracts discovery params for $id', ({ prompt, expectedParams }) => {
-    const enriched = enrichDiscoveryParamsFromPrompt({}, prompt);
-    if (expectedParams?.maxPrice != null) {
-      expect(enriched.maxPrice).toBe(expectedParams.maxPrice);
-    }
-    if (expectedParams?.serviceRank != null) {
-      expect(enriched.serviceRank).toBe(expectedParams.serviceRank);
-    }
-  });
+  )(
+    'enrichment extracts discovery params for $id',
+    ({ prompt, expectedParams }) => {
+      const enriched = enrichDiscoveryParamsFromPrompt({}, prompt);
+      if (expectedParams?.maxPrice != null) {
+        expect(enriched.maxPrice).toBe(expectedParams.maxPrice);
+      }
+      if (expectedParams?.serviceRank != null) {
+        expect(enriched.serviceRank).toBe(expectedParams.serviceRank);
+      }
+    },
+  );
 
   it('mirror rows reuse canonical source prompts when present', () => {
     const mirrored = MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS.find(
       (row) => row.id === 'discover-ml-budget-hy-dram',
     )!;
-    const source = lookupServiceDiscoverySourceFixture(mirrored.sourceFixtureId);
+    const source = lookupServiceDiscoverySourceFixture(
+      mirrored.sourceFixtureId,
+    );
     expect(mirrored.prompt).toBe(source?.prompt);
   });
 });

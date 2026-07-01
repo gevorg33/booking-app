@@ -8,6 +8,7 @@ import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js
 import { isListTourCalendarWeekPrompt } from './ai-tour-calendar-week.util.js';
 import { isListUpcomingTourDeparturesPrompt } from './ai-upcoming-tour-departures.util.js';
 import { isDiagnoseTourCapacityPrompt } from './ai-tour-capacity.util.js';
+import { isExplainTourMeetingPointPrompt } from './ai-tour-meeting-point.util.js';
 
 export const TOUR_SERVICE_INTENTS = [
   'configure_tour_service',
@@ -179,6 +180,7 @@ function isConfigureTourServicePromptCore(prompt: string): boolean {
 
 export function isExplainTourServicesPrompt(prompt: string): boolean {
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
+  if (isExplainTourMeetingPointPrompt(prompt)) return false;
   if (isExplainPackageDisplayNamePrompt(prompt)) return false;
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;

@@ -9,7 +9,9 @@ export type CashAndOnlinePaymentCompoundFixture = {
     key: string;
     value: unknown;
   }>;
-  compoundRecipeId: 'cash_and_online_payment' | 'decline_online_payment_category';
+  compoundRecipeId:
+    | 'cash_and_online_payment'
+    | 'decline_online_payment_category';
   misclassifiedAction?: string;
 };
 

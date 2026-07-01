@@ -63,9 +63,7 @@ export function isDashboardTotalEarningsPromptHyRu(prompt: string): boolean {
   if (isMyStatsPrompt(prompt)) return false;
 
   if (containsArmenianScript(prompt)) {
-    return /(ընդհանուր\s+եկամուտ|օրվա\s+եկամուտ|ամսվա\s+եկամուտ)/i.test(
-      prompt,
-    );
+    return /(ընդհանուր\s+եկամուտ|օրվա\s+եկամուտ|ամսվա\s+եկամուտ)/i.test(prompt);
   }
 
   if (containsCyrillicScript(prompt)) {

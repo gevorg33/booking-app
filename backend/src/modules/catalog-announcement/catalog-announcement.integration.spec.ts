@@ -53,7 +53,9 @@ describe('CatalogAnnouncementService (catalog-notify-1.7)', () => {
     send: jest.fn().mockResolvedValue({ ok: true }),
   };
   const consumerPushDispatch = {
-    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 1 }),
+    sendTransactionalPush: jest
+      .fn()
+      .mockResolvedValue({ ok: true, sentCount: 1 }),
   };
   const configService = {
     get: jest.fn().mockReturnValue('https://book.example'),
@@ -218,7 +220,12 @@ describe('CatalogAnnouncementService (catalog-notify-1.7)', () => {
     await expect(
       service.announcePackage(
         'missing-biz',
-        { id: 'pkg-1', name: 'Glow', discountType: 'percent', discountValue: 10 } as any,
+        {
+          id: 'pkg-1',
+          name: 'Glow',
+          discountType: 'percent',
+          discountValue: 10,
+        } as any,
         {
           notifyCustomers: true,
           notificationTemplate: {

@@ -18,8 +18,10 @@ const GUIDE_FLOW_SURFACES: GuideFlowSurface[] = [
 
 const OVERLAY_IDS: GuideVerticalOverlayId[] = ['clinic', 'tour', 'retail'];
 
-let cachedBasePlaybooks: Map<GuideFlowSurface, GuideFlowPlaybookDef[]> | null = null;
-let cachedOverlays: Map<GuideVerticalOverlayId, GuideFlowOverlayBundle> | null = null;
+let cachedBasePlaybooks: Map<GuideFlowSurface, GuideFlowPlaybookDef[]> | null =
+  null;
+let cachedOverlays: Map<GuideVerticalOverlayId, GuideFlowOverlayBundle> | null =
+  null;
 
 function resolveGuideFlowsRoot(): string {
   const candidates = [
@@ -36,7 +38,10 @@ function readJsonFile<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
 }
 
-function assertPlaybookShape(raw: GuideFlowPlaybookDef, source: string): GuideFlowPlaybookDef {
+function assertPlaybookShape(
+  raw: GuideFlowPlaybookDef,
+  source: string,
+): GuideFlowPlaybookDef {
   if (!raw.topicId?.trim()) {
     throw new Error(`guide-flow playbook missing topicId: ${source}`);
   }
@@ -60,7 +65,10 @@ function assertPlaybookShape(raw: GuideFlowPlaybookDef, source: string): GuideFl
   return raw;
 }
 
-function loadSurfacePlaybooks(root: string, surface: GuideFlowSurface): GuideFlowPlaybookDef[] {
+function loadSurfacePlaybooks(
+  root: string,
+  surface: GuideFlowSurface,
+): GuideFlowPlaybookDef[] {
   const dir = join(root, surface);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
@@ -68,11 +76,16 @@ function loadSurfacePlaybooks(root: string, surface: GuideFlowSurface): GuideFlo
     .sort()
     .map((name) => {
       const path = join(dir, name);
-      return assertPlaybookShape(readJsonFile<GuideFlowPlaybookDef>(path), path);
+      return assertPlaybookShape(
+        readJsonFile<GuideFlowPlaybookDef>(path),
+        path,
+      );
     });
 }
 
-function loadOverlayBundles(root: string): Map<GuideVerticalOverlayId, GuideFlowOverlayBundle> {
+function loadOverlayBundles(
+  root: string,
+): Map<GuideVerticalOverlayId, GuideFlowOverlayBundle> {
   const overlaysDir = join(root, 'overlays');
   const map = new Map<GuideVerticalOverlayId, GuideFlowOverlayBundle>();
   if (!existsSync(overlaysDir)) return map;
@@ -82,17 +95,16 @@ function loadOverlayBundles(root: string): Map<GuideVerticalOverlayId, GuideFlow
     if (!existsSync(path)) continue;
     const raw = readJsonFile<GuideFlowOverlayBundle>(path);
     if (raw.id !== id) {
-      throw new Error(`overlay id mismatch in ${path}: expected ${id}, got ${raw.id}`);
+      throw new Error(
+        `overlay id mismatch in ${path}: expected ${id}, got ${raw.id}`,
+      );
     }
-    map.set(
+    map.set(id, {
       id,
-      {
-        id,
-        playbooks: (raw.playbooks ?? []).map((playbook) =>
-          assertPlaybookShape(playbook, path),
-        ),
-      },
-    );
+      playbooks: (raw.playbooks ?? []).map((playbook) =>
+        assertPlaybookShape(playbook, path),
+      ),
+    });
   }
   return map;
 }

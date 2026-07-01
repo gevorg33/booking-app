@@ -11,14 +11,26 @@ export const N99_ACTIVATION_PATH_AB_DIMENSIONS = [
 export type N99ActivationPathAbDimension =
   (typeof N99_ACTIVATION_PATH_AB_DIMENSIONS)[number];
 
-export const N99_SIGN_IN_PLACEMENT_VARIANTS = ['post_booking', 'pre_confirm'] as const;
-export type N99SignInPlacementVariant = (typeof N99_SIGN_IN_PLACEMENT_VARIANTS)[number];
+export const N99_SIGN_IN_PLACEMENT_VARIANTS = [
+  'post_booking',
+  'pre_confirm',
+] as const;
+export type N99SignInPlacementVariant =
+  (typeof N99_SIGN_IN_PLACEMENT_VARIANTS)[number];
 
-export const N99_SLOT_PRESELECTION_VARIANTS = ['nearest_auto', 'manual_pick'] as const;
-export type N99SlotPreselectionVariant = (typeof N99_SLOT_PRESELECTION_VARIANTS)[number];
+export const N99_SLOT_PRESELECTION_VARIANTS = [
+  'nearest_auto',
+  'manual_pick',
+] as const;
+export type N99SlotPreselectionVariant =
+  (typeof N99_SLOT_PRESELECTION_VARIANTS)[number];
 
-export const N99_PAYMENT_TIMING_VARIANTS = ['pay_at_venue_default', 'online_first'] as const;
-export type N99PaymentTimingVariant = (typeof N99_PAYMENT_TIMING_VARIANTS)[number];
+export const N99_PAYMENT_TIMING_VARIANTS = [
+  'pay_at_venue_default',
+  'online_first',
+] as const;
+export type N99PaymentTimingVariant =
+  (typeof N99_PAYMENT_TIMING_VARIANTS)[number];
 
 export type N99ActivationPathVariants = {
   signInPlacement: N99SignInPlacementVariant;
@@ -26,11 +38,12 @@ export type N99ActivationPathVariants = {
   paymentTiming: N99PaymentTimingVariant;
 };
 
-export const N99_ACTIVATION_PATH_AB_DEFAULT_PROMOTED: N99ActivationPathVariants = {
-  signInPlacement: 'post_booking',
-  slotPreselection: 'nearest_auto',
-  paymentTiming: 'pay_at_venue_default',
-};
+export const N99_ACTIVATION_PATH_AB_DEFAULT_PROMOTED: N99ActivationPathVariants =
+  {
+    signInPlacement: 'post_booking',
+    slotPreselection: 'nearest_auto',
+    paymentTiming: 'pay_at_venue_default',
+  };
 
 export const N99_ACTIVATION_PATH_AB_VARIANTS_BY_DIMENSION: Record<
   N99ActivationPathAbDimension,

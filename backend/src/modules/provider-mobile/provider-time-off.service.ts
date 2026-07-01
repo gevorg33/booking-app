@@ -41,7 +41,9 @@ export class ProviderTimeOffService {
     );
   }
 
-  private assertFeatureEnabled(settings: ReturnType<typeof readProviderTimeOffSettings>) {
+  private assertFeatureEnabled(
+    settings: ReturnType<typeof readProviderTimeOffSettings>,
+  ) {
     if (!isProviderTimeOffEnabled(settings)) {
       throw new ForbiddenException(
         'Time-off requests are not enabled. Ask your manager to turn this on in Settings.',
@@ -63,7 +65,8 @@ export class ProviderTimeOffService {
       throw new BadRequestException(validationError);
     }
 
-    const reason = input.reason?.trim().slice(0, PROVIDER_TIME_OFF_REASON_MAX) || null;
+    const reason =
+      input.reason?.trim().slice(0, PROVIDER_TIME_OFF_REASON_MAX) || null;
     const request = this.requestRepo.create({
       businessId,
       employeeId,
@@ -80,11 +83,7 @@ export class ProviderTimeOffService {
     return mapProviderTimeOffRequestView(saved);
   }
 
-  async listForEmployee(
-    businessId: string,
-    employeeId: string,
-    limit = 20,
-  ) {
+  async listForEmployee(businessId: string, employeeId: string, limit = 20) {
     const rows = await this.requestRepo.find({
       where: { businessId, employeeId },
       relations: { employee: true },
@@ -94,11 +93,7 @@ export class ProviderTimeOffService {
     return rows.map(mapProviderTimeOffRequestView);
   }
 
-  async listForBusiness(
-    businessId: string,
-    status?: string,
-    limit = 50,
-  ) {
+  async listForBusiness(businessId: string, status?: string, limit = 50) {
     const where: Record<string, unknown> = { businessId };
     if (status?.trim()) {
       where.status = status.trim();
@@ -124,10 +119,16 @@ export class ProviderTimeOffService {
     return request;
   }
 
-  async cancelRequest(businessId: string, employeeId: string, requestId: string) {
+  async cancelRequest(
+    businessId: string,
+    employeeId: string,
+    requestId: string,
+  ) {
     const request = await this.getRequestOrThrow(businessId, requestId);
     if (request.employeeId !== employeeId) {
-      throw new ForbiddenException('You can only cancel your own time-off requests');
+      throw new ForbiddenException(
+        'You can only cancel your own time-off requests',
+      );
     }
     if (request.status !== 'pending') {
       throw new BadRequestException('Only pending requests can be cancelled');
@@ -157,7 +158,9 @@ export class ProviderTimeOffService {
       request,
     );
     if (!blockDto) {
-      throw new BadRequestException('Could not build schedule block for this request');
+      throw new BadRequestException(
+        'Could not build schedule block for this request',
+      );
     }
 
     const block = await this.blockScheduleService.create(
@@ -200,7 +203,10 @@ export class ProviderTimeOffService {
   }
 
   async assertManagerAccess(businessId: string, userId: string) {
-    const membership = await this.businessService.ensureMember(businessId, userId);
+    const membership = await this.businessService.ensureMember(
+      businessId,
+      userId,
+    );
     if (!isMobileManagerRole(membership.role)) {
       throw new ForbiddenException('Manager access required');
     }

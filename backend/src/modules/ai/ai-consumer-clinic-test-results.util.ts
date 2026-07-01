@@ -11,6 +11,13 @@ import {
   LIST_MY_TEST_RESULTS_PROMPTS,
 } from './ai-consumer-clinic-test-results.fixtures.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS } from './ai-consumer-clinic-test-results-deferred-multilingual.fixtures.js';
+import { LIST_MY_DOCUMENTS_BLOCK } from './ai-list-my-documents.fixtures.js';
+import { EXPLAIN_ABNORMAL_RESULT_FLAG_BLOCK } from './ai-explain-abnormal-result-flag.fixtures.js';
+import {
+  hasResultsThenRebookFollowUpCue,
+  hasResultsThenRebookResultsCue,
+} from './ai-results-then-rebook-cue.util.js';
+import { rescueResultsThenRebookCompoundIntent } from './ai-results-then-rebook-compound.util.js';
 
 export const CONSUMER_CLINIC_TEST_RESULTS_READ_INTENTS = [
   'list_my_test_results',
@@ -120,13 +127,20 @@ const LIST_MY_GUARD = new RegExp(
   'iu',
 );
 
+const TRACK_LAB_ORDER_STATUS_BLOCK = new RegExp(
+  String.raw`\b(?:are|is)\s+(?:my|the|any(?:\s+of)?\s+my)\s+(?:results?|lab\s+(?:tests?|work|orders?))(?:\s+ready|\s+(?:done|available|back|in))|track\s+(?:my\s+)?(?:lab|order|results?)|(?:lab|test)\s+order\s+status|where\s+is\s+my\s+(?:lab|blood|test|CBC|lipid)|(?:has|have)\s+my\s+(?:lab|blood|test).*(?:come\s+back|back|ready|done)|check\s+if\s+my\s+(?:test\s+)?results?\s+(?:are\s+)?ready|(?:готов|готовы)\s+ли\s+(?:мои\s+)?(?:результат|анализ)|պատրա[՞]?\s+են\s+(?:իմ\s+)?(?:արդյունք|լաբ)|հետևիր\s+իմ\s+լաբ|որտեղ\s+ե(?:մ|ս)\s+իմ\s+(?:արյան|լաբ)|отслед(?:ить|и)\s+(?:мой\s+)?(?:лаб|заказ)|где\s+(?:мой|моя)\s+(?:анализ|кров)`,
+  'iu',
+);
+
 function normalizeConsumerClinicPromptForExactMatch(prompt: string): string {
   return prompt.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function matchConsumerClinicTestResultsDeferredMultilingualScenario(
   prompt: string,
-): (typeof CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS)[number] | null {
+):
+  | (typeof CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS)[number]
+  | null {
   const normalized = normalizeConsumerClinicPromptForExactMatch(prompt);
   for (const scenario of CONSUMER_CLINIC_TEST_RESULTS_DEFERRED_MULTILINGUAL_SCENARIOS) {
     if (
@@ -181,9 +195,11 @@ export function isListMyTestResultsPrompt(prompt: string): boolean {
   }
 
   if (STAFF_RESULT_NOTIFY_BLOCK.test(prompt)) return false;
+  if (LIST_MY_DOCUMENTS_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_LIST_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_COLLECTION_BLOCK.test(prompt)) return false;
   if (LAB_ORDER_BLOCK.test(prompt)) return false;
+  if (TRACK_LAB_ORDER_STATUS_BLOCK.test(prompt)) return false;
   if (
     ORDER_MUTATE_CONTEXT.test(prompt) &&
     /(?:թեստ|պատվեր|заказ|анализ|լաբորատոր)/iu.test(prompt) &&
@@ -308,6 +324,14 @@ export function isListMyTestResultsPrompt(prompt: string): boolean {
 }
 
 export function isExplainResultStatusPrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (
+    hasResultsThenRebookResultsCue(text) &&
+    hasResultsThenRebookFollowUpCue(text)
+  ) {
+    return false;
+  }
+
   const deferredMatch =
     matchConsumerClinicTestResultsDeferredMultilingualScenario(prompt);
   if (deferredMatch?.expectedAction === 'list_my_test_results') {
@@ -319,9 +343,11 @@ export function isExplainResultStatusPrompt(prompt: string): boolean {
 
   if (NON_LAB_RESULT_CONSUMER_TOPIC_BLOCK.test(prompt)) return false;
   if (STAFF_RESULT_NOTIFY_BLOCK.test(prompt)) return false;
+  if (EXPLAIN_ABNORMAL_RESULT_FLAG_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_LIST_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_COLLECTION_BLOCK.test(prompt)) return false;
   if (LAB_ORDER_BLOCK.test(prompt)) return false;
+  if (TRACK_LAB_ORDER_STATUS_BLOCK.test(prompt)) return false;
   if (
     ORDER_MUTATE_CONTEXT.test(prompt) &&
     /(?:թեստ|պատվեր|заказ|անալիզ|լաբորատոր)/iu.test(prompt) &&
@@ -588,7 +614,8 @@ export function parseExplainResultStatusFromPrompt(
     return { status, testName };
   }
 
-  if (!isExplainResultStatusPrompt(prompt)) return null;
+  const fromCompound = params.resultsThenRebook === true;
+  if (!isExplainResultStatusPrompt(prompt) && !fromCompound) return null;
 
   const statusFromParams =
     typeof params.status === 'string' && isClinicTestResultStatus(params.status)
@@ -612,12 +639,21 @@ export function parseExplainResultStatusFromPrompt(
 export function rescueConsumerClinicTestResultsIntent(
   prompt: string,
   action: string,
-): { action: ConsumerClinicTestResultsIntent; rescueReason: string } | null {
+): {
+  action: ConsumerClinicTestResultsIntent | 'compound_intent';
+  rescueReason: string;
+} | null {
   if (
-    (CONSUMER_CLINIC_TEST_RESULTS_INTENTS as readonly string[]).includes(action)
+    (CONSUMER_CLINIC_TEST_RESULTS_INTENTS as readonly string[]).includes(
+      action,
+    ) ||
+    action === 'compound_intent'
   ) {
     return null;
   }
+
+  const compound = rescueResultsThenRebookCompoundIntent(prompt, action);
+  if (compound) return compound;
 
   if (parseListMyTestResultsFromPrompt(prompt)) {
     return {

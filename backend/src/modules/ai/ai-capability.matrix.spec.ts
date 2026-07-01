@@ -187,7 +187,9 @@ describe('ai-capability.matrix (Sprint 15)', () => {
 
   it('documents public delegation vs customer-native intents (ai-cmd-customer-0.1)', () => {
     expect(validateCustomerPublicDelegatedIntents()).toEqual([]);
-    expect(validateCustomerPublicDelegatedIntents(['not_a_delegated_action'])).toEqual([
+    expect(
+      validateCustomerPublicDelegatedIntents(['not_a_delegated_action']),
+    ).toEqual([
       'not_a_delegated_action missing from PUBLIC_INTENTS',
       'not_a_delegated_action missing from customer surface union',
     ]);
@@ -246,9 +248,9 @@ describe('ai-capability.matrix (Sprint 15)', () => {
   describe('clinic test-result ext capability rows (ai-cmd-clinic-6-gap-4.1)', () => {
     it('documents four dashboard-only ext intents with tier, mutating, sprint 54', () => {
       expect(CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS).toHaveLength(4);
-      expect(CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS.map((row) => row.id)).toEqual(
-        [...CLINIC_TEST_RESULT_EXT_INTENTS],
-      );
+      expect(
+        CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS.map((row) => row.id),
+      ).toEqual([...CLINIC_TEST_RESULT_EXT_INTENTS]);
       for (const row of CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS) {
         expect(row.surfaces).toEqual(['dashboard']);
         expect(row.sprint).toBe('54');
@@ -309,13 +311,13 @@ describe('ai-capability.matrix (Sprint 15)', () => {
         validateClinicTestResultExtCapabilityRows(COMMAND_REGISTRY_BY_ID, [
           mismatchedRow,
         ]),
-      ).toContain(
-        'capability rows: create_booking tier M !== resolved none',
-      );
+      ).toContain('capability rows: create_booking tier M !== resolved none');
     });
 
     it('defaults customer native/delegated helpers to client tier', () => {
-      expect(getCustomerNativeIntents()).toEqual(getCustomerNativeIntents('client'));
+      expect(getCustomerNativeIntents()).toEqual(
+        getCustomerNativeIntents('client'),
+      );
       expect(getPublicDelegatedCustomerIntents()).toEqual(
         getPublicDelegatedCustomerIntents('client'),
       );
@@ -364,10 +366,9 @@ describe('ai-capability.matrix (Sprint 15)', () => {
       expect(CLINIC_TEST_RESULT_CAPABILITY_ROWS.map((row) => row.id)).toEqual([
         ...CLINIC_TEST_RESULT_INTENTS,
       ]);
-      expect(CLINIC_TEST_RESULT_CORE_CAPABILITY_ROWS.map((row) => row.id)).toEqual([
-        'enter_test_result',
-        'release_test_result',
-      ]);
+      expect(
+        CLINIC_TEST_RESULT_CORE_CAPABILITY_ROWS.map((row) => row.id),
+      ).toEqual(['enter_test_result', 'release_test_result']);
       expect(CLINIC_TEST_RESULT_CAPABILITY_VALIDATION_ERRORS).toEqual([]);
       expect(
         validateClinicTestResultCapabilityRows(COMMAND_REGISTRY_BY_ID),
@@ -409,9 +410,11 @@ describe('ai-capability.matrix (Sprint 15)', () => {
         apiModule: 'ai-command',
       });
       expect(
-        validateClinicTestResultCapabilityRows(brokenRegistry, [enterRow], [
-          'enter_test_result',
-        ]),
+        validateClinicTestResultCapabilityRows(
+          brokenRegistry,
+          [enterRow],
+          ['enter_test_result'],
+        ),
       ).toEqual(
         expect.arrayContaining([
           'registry: enter_test_result handler must be AiClinicTestResultService',
@@ -458,9 +461,9 @@ describe('ai-capability.matrix (Sprint 15)', () => {
       'row $id aligns with dashboard allow-list and mutating set',
       (row) => {
         expect(getServiceOnlinePaymentCapabilityRow(row.id)).toEqual(row);
-        expect(getServiceOnlinePaymentCapabilityRow('not_a_payment_intent')).toBe(
-          undefined,
-        );
+        expect(
+          getServiceOnlinePaymentCapabilityRow('not_a_payment_intent'),
+        ).toBe(undefined);
         expect(isMutatingIntent('dashboard', row.id)).toBe(row.mutating);
         expect(isIntentAllowed('dashboard', 'staff', row.id)).toBe(true);
         expect(isIntentAllowed('dashboard', 'owner', row.id)).toBe(true);
@@ -482,7 +485,9 @@ describe('ai-capability.matrix (Sprint 15)', () => {
 
     it('reports handler and sprint drift for service online payment row', () => {
       const row = SERVICE_ONLINE_PAYMENT_CAPABILITY_ROWS[0];
-      const registry = COMMAND_REGISTRY_BY_ID.get(SERVICE_ONLINE_PAYMENT_INTENT)!;
+      const registry = COMMAND_REGISTRY_BY_ID.get(
+        SERVICE_ONLINE_PAYMENT_INTENT,
+      )!;
       const brokenRegistry = new Map(COMMAND_REGISTRY_BY_ID);
       brokenRegistry.set(SERVICE_ONLINE_PAYMENT_INTENT, {
         ...registry,

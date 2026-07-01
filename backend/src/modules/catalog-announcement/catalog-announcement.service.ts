@@ -127,8 +127,7 @@ export class CatalogAnnouncementService {
         businessName: input.business.name,
         bookUrl: input.bookUrl,
         discount: input.discount,
-        packageName:
-          input.kind === 'package' ? input.catalogName : undefined,
+        packageName: input.kind === 'package' ? input.catalogName : undefined,
         planName:
           input.kind === 'subscription_plan' ? input.catalogName : undefined,
       });
@@ -149,7 +148,7 @@ export class CatalogAnnouncementService {
           input.business.id,
           customer,
           locale,
-          customer.email!.trim(),
+          customer.email.trim(),
           subject,
           bodyText,
         );
@@ -226,7 +225,8 @@ export class CatalogAnnouncementService {
       title,
       body,
     });
-    const result = await this.consumerPushDispatch.sendTransactionalPush(payload);
+    const result =
+      await this.consumerPushDispatch.sendTransactionalPush(payload);
     await this.logRepo.save(
       this.logRepo.create({
         businessId,

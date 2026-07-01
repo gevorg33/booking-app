@@ -51,9 +51,9 @@ describe('ai-customer-product-guide.util (ai-guide-1.5.2)', () => {
   );
 
   it('preserves already-classified guide intents', () => {
-    expect(rescueCustomerAppGuideIntent('anything', 'explain_app_feature')).toBe(
-      'explain_app_feature',
-    );
+    expect(
+      rescueCustomerAppGuideIntent('anything', 'explain_app_feature'),
+    ).toBe('explain_app_feature');
     expect(rescueCustomerAppGuideIntent('anything', 'guide_user_flow')).toBe(
       'guide_user_flow',
     );
@@ -79,7 +79,10 @@ describe('ai-customer-product-guide.util (ai-guide-1.5.2)', () => {
       enrichCustomerGuideTopicFromPrompt('How do I update my profile?', '/s'),
     ).toBe('consumer-account');
     expect(
-      enrichCustomerGuideTopicFromPrompt('What is on the Home tab?', '/s/account'),
+      enrichCustomerGuideTopicFromPrompt(
+        'What is on the Home tab?',
+        '/s/account',
+      ),
     ).toBe('consumer-account');
   });
 
@@ -94,13 +97,19 @@ describe('ai-customer-product-guide.util (ai-guide-1.5.2)', () => {
   });
 
   it('resolveCustomerGuideNavigate maps consumer routes', () => {
-    expect(resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.account)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.account),
+    ).toEqual({
       path: 'account',
     });
-    expect(resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.packages)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.packages),
+    ).toEqual({
       path: 'packages',
     });
-    expect(resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.tabs)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CUSTOMER_APP_GUIDE_ROUTES.tabs),
+    ).toEqual({
       path: 'home',
     });
   });
@@ -129,9 +138,9 @@ describe('ai-customer-activation-guide.util (ai-guide-1.5.4)', () => {
           merged.activationStep as never,
         ),
       ).toBe(topicId);
-      expect(resolveConsumerActivationTopicFromStep(merged.activationStep as never)).toBe(
-        topicId,
-      );
+      expect(
+        resolveConsumerActivationTopicFromStep(merged.activationStep as never),
+      ).toBe(topicId);
     },
   );
 
@@ -154,7 +163,10 @@ describe('ai-customer-activation-guide.util (ai-guide-1.5.4)', () => {
 
   it('enrichCustomerGuideTopicFromPrompt maps first-booking prompts', () => {
     expect(
-      enrichCustomerGuideTopicFromPrompt('How do I book my first appointment?', '/s'),
+      enrichCustomerGuideTopicFromPrompt(
+        'How do I book my first appointment?',
+        '/s',
+      ),
     ).toBe('consumer-getting-started');
     expect(
       enrichCustomerGuideTopicFromPrompt(
@@ -167,13 +179,19 @@ describe('ai-customer-activation-guide.util (ai-guide-1.5.4)', () => {
   });
 
   it('resolveCustomerGuideNavigate maps activation routes', () => {
-    expect(resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.salon)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.salon),
+    ).toEqual({
       path: 'home',
     });
-    expect(resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.service)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.service),
+    ).toEqual({
       path: 'services',
     });
-    expect(resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.confirm)).toEqual({
+    expect(
+      resolveCustomerGuideNavigate(CONSUMER_ACTIVATION_GUIDE_ROUTES.confirm),
+    ).toEqual({
       path: 'checkout',
     });
   });
@@ -188,7 +206,11 @@ describe('ai-customer-product-guide integration (ai-guide-1.5.2)', () => {
     isAvailableForBusiness: jest.fn(async () => false),
     embedText: jest.fn(async () => null),
   };
-  const guide = new AiProductGuideService(llm as any, openAi as any, createMockGuideTelemetryService());
+  const guide = new AiProductGuideService(
+    llm as any,
+    openAi as any,
+    createMockGuideTelemetryService(),
+  );
 
   it.each([
     {
@@ -239,7 +261,15 @@ describe('ai-customer-product-guide integration (ai-guide-1.5.2)', () => {
     },
   ])(
     'returns step-aware guide for $id',
-    async ({ route, topicId, navigate, prompt, intent, activationStep, sessionEntitlements }) => {
+    async ({
+      route,
+      topicId,
+      navigate,
+      prompt,
+      intent,
+      activationStep,
+      sessionEntitlements,
+    }) => {
       const mergedContext = mergeCustomerActivationGuideContext({
         route,
         ...(activationStep ? { activationStep } : {}),
@@ -270,9 +300,9 @@ describe('ai-customer-product-guide integration (ai-guide-1.5.2)', () => {
       expect(result.success).toBe(true);
       expect(result.guide?.topicId).toBe(topicId);
       expect(result.guide?.steps.length).toBeGreaterThan(0);
-      expect(result.guide?.navigate ?? resolveCustomerGuideNavigate(route)).toEqual(
-        navigate,
-      );
+      expect(
+        result.guide?.navigate ?? resolveCustomerGuideNavigate(route),
+      ).toEqual(navigate);
     },
   );
 });

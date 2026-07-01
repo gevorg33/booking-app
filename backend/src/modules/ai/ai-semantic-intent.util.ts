@@ -64,9 +64,7 @@ export function tokenizeForSemantic(text: string): string[] {
   return tokenizeForRag(text);
 }
 
-export function toTokenFrequencyVector(
-  tokens: string[],
-): Map<string, number> {
+export function toTokenFrequencyVector(tokens: string[]): Map<string, number> {
   const vec = new Map<string, number>();
   for (const token of tokens) {
     vec.set(token, (vec.get(token) ?? 0) + 1);
@@ -192,10 +190,7 @@ export function scoreAnchorDeterministic(
   const promptTokens = new Set(tokenizeForSemantic(prompt));
   const tokenCosine = scoreTokenCosineBetweenPhrases(prompt, anchor.phrase);
 
-  const conceptScore = scoreConceptCoverage(
-    promptTokens,
-    anchor.conceptGroups,
-  );
+  const conceptScore = scoreConceptCoverage(promptTokens, anchor.conceptGroups);
   if (!anchor.conceptGroups?.length) {
     // Eval-harvested paraphrases: phrase similarity when no concept groups wired.
     const phraseScore = applyIntentPolarity(promptTokens, anchor, tokenCosine);
@@ -265,12 +260,7 @@ export function rankAnchorsEmbedding(
       if (!embedding) return { anchor, score: 0 };
       return {
         anchor,
-        score: scoreAnchorEmbedding(
-          promptEmbedding,
-          embedding,
-          prompt,
-          anchor,
-        ),
+        score: scoreAnchorEmbedding(promptEmbedding, embedding, prompt, anchor),
       };
     })
     .filter((entry) => entry.score > 0)

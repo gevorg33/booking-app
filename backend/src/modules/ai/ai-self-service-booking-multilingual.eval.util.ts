@@ -35,11 +35,16 @@ export const AI_COMMAND_EVAL_SELF_SERVICE_BOOKING_MULTILINGUAL_CASES: AiCommandE
   );
 
 export function listSelfServiceBookingLocaleParityGaps(
-  scenarios: readonly Pick<SelfServiceBookingMultilingualScenario, 'id'>[] = SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    SelfServiceBookingMultilingualScenario,
+    'id'
+  >[] = SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS,
 ): Array<{ enScenarioId: string; missingLocales: Array<'hy' | 'ru'> }> {
   const byId = new Map(scenarios.map((row) => [row.id, row]));
-  const gaps: Array<{ enScenarioId: string; missingLocales: Array<'hy' | 'ru'> }> =
-    [];
+  const gaps: Array<{
+    enScenarioId: string;
+    missingLocales: Array<'hy' | 'ru'>;
+  }> = [];
 
   for (const row of scenarios) {
     if (!row.id.endsWith('-en')) continue;
@@ -56,7 +61,10 @@ export function listSelfServiceBookingLocaleParityGaps(
 
 export function listSelfServiceBookingEvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly Pick<SelfServiceBookingMultilingualScenario, 'id'>[] = SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    SelfServiceBookingMultilingualScenario,
+    'id'
+  >[] = SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   return scenarios

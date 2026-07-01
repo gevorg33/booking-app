@@ -17,7 +17,12 @@ export const CUSTOMER_APP_GUIDE_ROUTES = {
 export type CustomerAppGuideRoute =
   (typeof CUSTOMER_APP_GUIDE_ROUTES)[keyof typeof CUSTOMER_APP_GUIDE_ROUTES];
 
-export type ConsumerActivationStep = 'welcome' | 'salon' | 'service' | 'slot' | 'confirm';
+export type ConsumerActivationStep =
+  | 'welcome'
+  | 'salon'
+  | 'service'
+  | 'slot'
+  | 'confirm';
 
 export const CONSUMER_ACTIVATION_GUIDE_ROUTES = {
   welcome: '/consumer/welcome',
@@ -48,12 +53,17 @@ function readString(value: unknown): string | undefined {
 }
 
 /** Parse consumer app pathname into canonical guide-flow route (ai-guide-1.5.2). */
-export function parseCustomerPathToGuideRoute(pathname: string): CustomerAppGuideRoute | undefined {
+export function parseCustomerPathToGuideRoute(
+  pathname: string,
+): CustomerAppGuideRoute | undefined {
   const lower = pathname.toLowerCase();
   if (/\/account(\/|$|\?)/.test(lower) || /\/profile(\/|$|\?)/.test(lower)) {
     return CUSTOMER_APP_GUIDE_ROUTES.account;
   }
-  if (/\/packages(\/|$|\?)/.test(lower) || /\/gift-cards(\/|$|\?)/.test(lower)) {
+  if (
+    /\/packages(\/|$|\?)/.test(lower) ||
+    /\/gift-cards(\/|$|\?)/.test(lower)
+  ) {
     return CUSTOMER_APP_GUIDE_ROUTES.packages;
   }
   if (/\/book(\/|$|\?)/.test(lower) || /\/services(\/|$|\?)/.test(lower)) {
@@ -83,9 +93,12 @@ export function deriveConsumerActivationStepFromPath(
   return undefined;
 }
 
-function readActivationStep(context?: Record<string, unknown>): ConsumerActivationStep | undefined {
+function readActivationStep(
+  context?: Record<string, unknown>,
+): ConsumerActivationStep | undefined {
   const raw =
-    readString(context?.activationStep) ?? readString(context?.guidedBookingStep);
+    readString(context?.activationStep) ??
+    readString(context?.guidedBookingStep);
   if (
     raw === 'welcome' ||
     raw === 'salon' ||
@@ -166,7 +179,10 @@ export function mapCustomerMobileGuideRoute(
 ): CustomerAppGuideRoute {
   const explicitRoute = readString(context?.route);
   if (explicitRoute) {
-    if (explicitRoute.startsWith('/s/account') || explicitRoute.startsWith('/consumer/account')) {
+    if (
+      explicitRoute.startsWith('/s/account') ||
+      explicitRoute.startsWith('/consumer/account')
+    ) {
       return CUSTOMER_APP_GUIDE_ROUTES.account;
     }
     if (
@@ -175,14 +191,18 @@ export function mapCustomerMobileGuideRoute(
     ) {
       return CUSTOMER_APP_GUIDE_ROUTES.packages;
     }
-    if (explicitRoute.startsWith('/s/book') || explicitRoute.startsWith('/consumer/book')) {
+    if (
+      explicitRoute.startsWith('/s/book') ||
+      explicitRoute.startsWith('/consumer/book')
+    ) {
       return CUSTOMER_APP_GUIDE_ROUTES.booking;
     }
     return CUSTOMER_APP_GUIDE_ROUTES.tabs;
   }
 
   const tab = readString(context?.tab) ?? readString(context?.mobileRoute);
-  if (tab === 'account' || tab === 'profile') return CUSTOMER_APP_GUIDE_ROUTES.account;
+  if (tab === 'account' || tab === 'profile')
+    return CUSTOMER_APP_GUIDE_ROUTES.account;
   if (tab === 'packages' || tab === 'gift-cards' || tab === 'subscriptions') {
     return CUSTOMER_APP_GUIDE_ROUTES.packages;
   }
@@ -215,7 +235,10 @@ function matchesCustomerGuideRescueScenario(
 }
 
 /** Deterministic rescue for consumer app guide prompts (ai-guide-1.5.2). */
-export function rescueCustomerAppGuideIntent(prompt: string, action: string): string {
+export function rescueCustomerAppGuideIntent(
+  prompt: string,
+  action: string,
+): string {
   if (isAppGuideIntent(action)) return action;
 
   for (const scenario of CUSTOMER_APP_GUIDE_RESCUE_SCENARIOS) {
@@ -257,7 +280,11 @@ export function enrichCustomerGuideTopicFromPrompt(
     if (/\b(service|treatment)\b/i.test(lower)) {
       return CONSUMER_ACTIVATION_TOPIC_BY_STEP.service;
     }
-    if (/\b(salon|business|clinic|pick\s+(?:a\s+)?(?:salon|business))\b/i.test(lower)) {
+    if (
+      /\b(salon|business|clinic|pick\s+(?:a\s+)?(?:salon|business))\b/i.test(
+        lower,
+      )
+    ) {
       return CONSUMER_ACTIVATION_TOPIC_BY_STEP.salon;
     }
     return 'consumer-getting-started';
@@ -271,16 +298,26 @@ export function enrichCustomerGuideTopicFromPrompt(
     return primary;
   }
 
-  if (/\b(gift\s+card|gift\s+cards?|subscription|subscriptions?|package?s?)\b/i.test(lower)) {
+  if (
+    /\b(gift\s+card|gift\s+cards?|subscription|subscriptions?|package?s?)\b/i.test(
+      lower,
+    )
+  ) {
     return 'consumer-packages-gift-cards';
   }
   if (/(?:как\s+купить.+(?:пакет|package)|пакет\s+услуг)/iu.test(prompt)) {
     return 'consumer-packages-gift-cards';
   }
-  if (/\b(profile|account|sign\s+in|notification|my\s+bookings?)\b/i.test(lower)) {
+  if (
+    /\b(profile|account|sign\s+in|notification|my\s+bookings?)\b/i.test(lower)
+  ) {
     return 'consumer-account';
   }
-  if (/\b(tab|home\s+tab|services\s+tab|account\s+tab|bottom\s+nav)\b/i.test(lower)) {
+  if (
+    /\b(tab|home\s+tab|services\s+tab|account\s+tab|bottom\s+nav)\b/i.test(
+      lower,
+    )
+  ) {
     return 'consumer-tabs';
   }
 
@@ -308,17 +345,24 @@ export function resolveCustomerGuideIntent(
   const primary = resolveGuideFlowRoutePrimaryTopic(route);
   if (primary === 'consumer-account') {
     if (/\b(profile|account|sign\s+in|notification)\b/i.test(lower)) {
-      return intent === 'guide_user_flow' ? 'guide_user_flow' : 'explain_app_feature';
+      return intent === 'guide_user_flow'
+        ? 'guide_user_flow'
+        : 'explain_app_feature';
     }
   }
 
   if (primary === 'consumer-packages-gift-cards') {
     if (/\b(gift\s+card|subscription|package)\b/i.test(lower)) {
-      return intent === 'guide_user_flow' ? 'guide_user_flow' : 'explain_app_feature';
+      return intent === 'guide_user_flow'
+        ? 'guide_user_flow'
+        : 'explain_app_feature';
     }
   }
 
-  if (primary === 'consumer-tabs' && /\b(tab|home|services\s+tab|account\s+tab)\b/i.test(lower)) {
+  if (
+    primary === 'consumer-tabs' &&
+    /\b(tab|home|services\s+tab|account\s+tab)\b/i.test(lower)
+  ) {
     return 'explain_app_feature';
   }
 
@@ -330,7 +374,11 @@ export function resolveCustomerGuideIntent(
     ) {
       return 'explain_current_screen';
     }
-    if (/\b(what(?:'s|\s+is)\s+next|next\s+step|what\s+do\s+i\s+do\s+now)\b/i.test(lower)) {
+    if (
+      /\b(what(?:'s|\s+is)\s+next|next\s+step|what\s+do\s+i\s+do\s+now)\b/i.test(
+        lower,
+      )
+    ) {
       return 'guide_user_flow';
     }
   }
@@ -338,7 +386,9 @@ export function resolveCustomerGuideIntent(
   return intent;
 }
 
-export function resolveCustomerGuideNavigate(route?: string): GuideNavigateTarget | undefined {
+export function resolveCustomerGuideNavigate(
+  route?: string,
+): GuideNavigateTarget | undefined {
   switch (route) {
     case CONSUMER_ACTIVATION_GUIDE_ROUTES.salon:
       return { path: 'home' };

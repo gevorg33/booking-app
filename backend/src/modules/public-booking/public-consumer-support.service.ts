@@ -56,17 +56,14 @@ export class PublicConsumerSupportService {
       dto.message?.trim() ||
       'Customer tapped "Could be better" on the post-booking satisfaction prompt in the mobile app.';
 
-    return this.zendeskIntegrationService.createSupportTicket(
-      business.id,
-      {
-        subject: `Post-booking app feedback — ${business.name}`,
-        body: message,
-        customerId: customer.id,
-        bookingId: booking.id,
-        requesterEmail: customer.email,
-        requesterName: customer.name,
-        tags: ['optischedule', 'consumer-app', 'post-booking-feedback'],
-      },
-    );
+    return this.zendeskIntegrationService.createSupportTicket(business.id, {
+      subject: `Post-booking app feedback — ${business.name}`,
+      body: message,
+      customerId: customer.id,
+      bookingId: booking.id,
+      requesterEmail: customer.email,
+      requesterName: customer.name,
+      tags: ['optischedule', 'consumer-app', 'post-booking-feedback'],
+    });
   }
 }

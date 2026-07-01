@@ -10,12 +10,19 @@ import {
 describe('provider-booking-customer-loyalty.util (prov-exp-9.2)', () => {
   it.each(PROVIDER_CUSTOMER_LOYALTY_QUICK_VIEW_SCENARIOS)(
     'buildProviderBookingCustomerLoyaltyQuickView — $id',
-    ({ input, expectLastEarnPoints, expectLastRedeemPoints, staffCanAdjust }) => {
+    ({
+      input,
+      expectLastEarnPoints,
+      expectLastRedeemPoints,
+      staffCanAdjust,
+    }) => {
       const view = buildProviderBookingCustomerLoyaltyQuickView(input);
       expect(view.lastEarn?.points ?? null).toBe(expectLastEarnPoints);
       expect(view.lastRedeem?.points ?? null).toBe(expectLastRedeemPoints);
       expect(view.staffCanAdjust).toBe(staffCanAdjust);
-      expect(view.staffCanAdjust).toBe(PROVIDER_LOYALTY_QUICK_VIEW_STAFF_CAN_ADJUST);
+      expect(view.staffCanAdjust).toBe(
+        PROVIDER_LOYALTY_QUICK_VIEW_STAFF_CAN_ADJUST,
+      );
     },
   );
 

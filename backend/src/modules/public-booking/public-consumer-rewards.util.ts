@@ -83,9 +83,7 @@ export function toPublicPromotionView(
     code: promo.code.trim().toUpperCase(),
     description: promo.description?.trim() || null,
     discountLabel: formatPublicPromoDiscountLabel(promo, currency),
-    expiresAt: promo.expiresAt
-      ? new Date(promo.expiresAt).toISOString()
-      : null,
+    expiresAt: promo.expiresAt ? new Date(promo.expiresAt).toISOString() : null,
     minOrderAmount:
       promo.minOrderAmount != null ? Number(promo.minOrderAmount) : null,
   };

@@ -78,7 +78,9 @@ export class PublicCustomerAuthService {
     preferredLocale?: string,
   ): Promise<PublicCustomerAuthResponse> {
     if (!this.firebase.isReady) {
-      throw new BadRequestException('Phone sign-in is not configured on the server');
+      throw new BadRequestException(
+        'Phone sign-in is not configured on the server',
+      );
     }
 
     let decoded;
@@ -90,14 +92,19 @@ export class PublicCustomerAuthService {
 
     const phone = String(decoded.phone_number ?? '').trim();
     if (!phone) {
-      throw new UnauthorizedException('Phone sign-in token has no phone number');
+      throw new UnauthorizedException(
+        'Phone sign-in token has no phone number',
+      );
     }
 
     const business = await this.resolveBusiness(slug);
     const email = decoded.email?.trim().toLowerCase() ?? null;
     const name =
       decoded.name?.trim() ||
-      [decoded.given_name, decoded.family_name].filter(Boolean).join(' ').trim() ||
+      [decoded.given_name, decoded.family_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim() ||
       phone;
 
     let customer = await this.customerRepo
@@ -110,7 +117,9 @@ export class PublicCustomerAuthService {
     if (!customer && email) {
       customer = await this.customerRepo
         .createQueryBuilder('customer')
-        .where('customer.business_id = :businessId', { businessId: business.id })
+        .where('customer.business_id = :businessId', {
+          businessId: business.id,
+        })
         .andWhere('customer.isActive = :isActive', { isActive: true })
         .andWhere('LOWER(customer.email) = :email', { email })
         .getOne();
@@ -183,7 +192,10 @@ export class PublicCustomerAuthService {
       business.id,
       this.resolveCustomerJwtEmail(customer, phone),
     );
-    customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+    customer = await this.linkAnalyticsAnonForCustomer(
+      customer,
+      analyticsAnonId,
+    );
     customer = await this.syncPreferredLocaleForCustomer(
       customer,
       business,
@@ -306,7 +318,10 @@ export class PublicCustomerAuthService {
     );
 
     const token = this.signToken(customer, business.id, email);
-    customer = await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
+    customer = await this.linkAnalyticsAnonForCustomer(
+      customer,
+      analyticsAnonId,
+    );
     customer = await this.syncPreferredLocaleForCustomer(
       customer,
       business,
@@ -321,8 +336,12 @@ export class PublicCustomerAuthService {
   ): Promise<Customer> {
     const anon = analyticsAnonId?.trim();
     if (!anon) return customer;
-    if (readCustomerAnalyticsAnonId(customer.metadata) === anon) return customer;
-    customer.metadata = mergeCustomerAnalyticsAnonMetadata(customer.metadata, anon);
+    if (readCustomerAnalyticsAnonId(customer.metadata) === anon)
+      return customer;
+    customer.metadata = mergeCustomerAnalyticsAnonMetadata(
+      customer.metadata,
+      anon,
+    );
     return this.customerRepo.save(customer);
   }
 
@@ -338,7 +357,10 @@ export class PublicCustomerAuthService {
     await this.linkAnalyticsAnonForCustomer(customer, analyticsAnonId);
   }
 
-  private resolveCustomerJwtEmail(customer: Customer, phone?: string | null): string {
+  private resolveCustomerJwtEmail(
+    customer: Customer,
+    phone?: string | null,
+  ): string {
     const email = customer.email?.trim().toLowerCase();
     if (email) return email;
     const digits = String(phone ?? customer.phone ?? '').replace(/\D/g, '');
@@ -371,7 +393,9 @@ export class PublicCustomerAuthService {
         email: normalizedEmail,
       });
     } else {
-      duplicateQuery.andWhere('customer.phone = :phone', { phone: normalizedPhone });
+      duplicateQuery.andWhere('customer.phone = :phone', {
+        phone: normalizedPhone,
+      });
     }
 
     const duplicates = await duplicateQuery.getMany();
@@ -386,7 +410,10 @@ export class PublicCustomerAuthService {
       .andWhere('customer_id IN (:...duplicateIds)', { duplicateIds })
       .execute();
 
-    await this.customerRepo.update({ id: In(duplicateIds) }, { isActive: false });
+    await this.customerRepo.update(
+      { id: In(duplicateIds) },
+      { isActive: false },
+    );
     return duplicateIds.length;
   }
 
@@ -417,7 +444,9 @@ export class PublicCustomerAuthService {
     input: UpdatePublicConsumerNotificationPreferencesInput,
   ) {
     if (!hasNotificationPreferenceUpdate(input)) {
-      throw new BadRequestException('No notification preference fields provided');
+      throw new BadRequestException(
+        'No notification preference fields provided',
+      );
     }
     const business = await this.resolveBusiness(slug);
     const customer = await this.getCustomerById(business.id, customerId);
@@ -449,7 +478,10 @@ export class PublicCustomerAuthService {
     if (readCustomerPreferredLocale(customer.metadata) === normalized) {
       return this.mapCustomerPreferredLocaleView(customer, business.settings);
     }
-    customer.metadata = applyCustomerPreferredLocale(customer.metadata, normalized);
+    customer.metadata = applyCustomerPreferredLocale(
+      customer.metadata,
+      normalized,
+    );
     await this.customerRepo.save(customer);
     return this.mapCustomerPreferredLocaleView(customer, business.settings);
   }
@@ -482,7 +514,10 @@ export class PublicCustomerAuthService {
     if (readCustomerPreferredLocale(customer.metadata) === normalized) {
       return customer;
     }
-    customer.metadata = applyCustomerPreferredLocale(customer.metadata, normalized);
+    customer.metadata = applyCustomerPreferredLocale(
+      customer.metadata,
+      normalized,
+    );
     return this.customerRepo.save(customer);
   }
 

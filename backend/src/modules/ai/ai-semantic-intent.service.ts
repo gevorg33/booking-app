@@ -45,7 +45,11 @@ export class AiSemanticIntentService implements OnModuleInit {
     userId: string | undefined,
     anchors: IntentAnchor[] = getIntentAnchorBank(),
   ): Promise<void> {
-    if (shouldUseDeterministicSemanticFallback(await this.hasEmbeddingApi(businessId))) {
+    if (
+      shouldUseDeterministicSemanticFallback(
+        await this.hasEmbeddingApi(businessId),
+      )
+    ) {
       return;
     }
     if (this.rag.semanticAnchorEmbeddedCount() >= anchors.length) return;
@@ -54,7 +58,11 @@ export class AiSemanticIntentService implements OnModuleInit {
       return;
     }
 
-    this.embeddingWarmup = this.warmAnchorEmbeddings(businessId, userId, anchors);
+    this.embeddingWarmup = this.warmAnchorEmbeddings(
+      businessId,
+      userId,
+      anchors,
+    );
     try {
       await this.embeddingWarmup;
     } finally {
@@ -204,7 +212,9 @@ export class AiSemanticIntentService implements OnModuleInit {
       anchors,
       anchorEmbeddings,
     );
-    return resolveSemanticMatch(ranked, { threshold: SEMANTIC_MATCH_THRESHOLD });
+    return resolveSemanticMatch(ranked, {
+      threshold: SEMANTIC_MATCH_THRESHOLD,
+    });
   }
 
   private async resolveMatchPrompt(

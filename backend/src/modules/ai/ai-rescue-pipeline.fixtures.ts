@@ -88,8 +88,7 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     'Who is available tomorrow evening for massage and book the nearest slot',
   public_budget_check_then_book:
     "Who's free for a facial under $60 tomorrow evening, book the soonest",
-  public_budget_book_nearest:
-    'Book a haircut under $50 tomorrow, nearest slot',
+  public_budget_book_nearest: 'Book a haircut under $50 tomorrow, nearest slot',
   customer_budget_check_then_book:
     "Who's free for a facial under $60 tomorrow evening, book the soonest",
   customer_budget_book_nearest:
@@ -106,6 +105,12 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
   dashboard_multi_service_cart_checkout:
     ALL_MULTI_SERVICE_CHECKOUT_PROMPTS[0].prompt,
   customer_gift_card_checkout_compound: GIFT_CARD_CHECKOUT_PROMPTS[0].prompt,
+  customer_gift_card_checkout:
+    'Use gift card GCM-ABCD1234 and book nearest haircut',
+  customer_multi_service_day: 'Massage and facial same afternoon — find a time',
+  customer_guest_pay_cash_manage:
+    'Book as guest, pay at visit, email manage link',
+  customer_guest_book_and_manage: 'Book as guest and email me the manage link',
   customer_physical_gift_card_handoff:
     'Buy physical gift card $100 and track my order',
   dashboard_clinic_order_notify:
@@ -122,12 +127,22 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
       (row) => row.id === 'avail-list-budget-then-or-en',
     )!.prompt,
+  customer_discover_book_and_pay:
+    'Book cheapest massage under $60 tomorrow and pay online',
+  customer_rebook_and_pay: 'Rebook my last visit and pay with card',
+  customer_cancel_package_rebook_single:
+    'Skip package visit 2 and book a trim instead',
+  customer_cancel_and_rebook: 'Cancel Friday and book the next available slot',
+  public_discover_book_and_pay:
+    'Book cheapest massage under $60 tomorrow and pay online',
   dashboard_budget_discover_and_book:
     BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
   dashboard_rank_discover_and_book:
     RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
-  dashboard_onboard_new_provider: PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
-  dashboard_setup_salon_checkout: SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS[0].prompt,
+  dashboard_onboard_new_provider:
+    PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
+  dashboard_setup_salon_checkout:
+    SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS[0].prompt,
   dashboard_configure_services_payment_matrix:
     CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS[0].prompt,
   dashboard_decline_online_payment_category:
@@ -138,7 +153,8 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS[0].prompt,
   dashboard_launch_consumer_app_growth:
     LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS[0].prompt,
-  dashboard_clinic_lab_day_close: CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
+  dashboard_clinic_lab_day_close:
+    CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
   dashboard_clinic_lab_review: CLINIC_LAB_REVIEW_COMPOUND_PROMPTS[0].prompt,
 };
 

@@ -100,7 +100,12 @@ describe('ProviderTimeOffService (prov-exp-7.2)', () => {
   });
 
   it('denies pending request without creating block', async () => {
-    const result = await service.denyRequest('biz-1', 'mgr-1', 'req-1', 'Busy week');
+    const result = await service.denyRequest(
+      'biz-1',
+      'mgr-1',
+      'req-1',
+      'Busy week',
+    );
 
     expect(blockScheduleService.create).not.toHaveBeenCalled();
     expect(result.status).toBe('denied');

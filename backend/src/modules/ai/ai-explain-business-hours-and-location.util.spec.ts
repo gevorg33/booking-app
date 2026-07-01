@@ -21,7 +21,9 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
   });
 
   it.each(
-    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects hours/location prompt $id', (_id, row) => {
     expect(isExplainBusinessHoursAndLocationPrompt(row.prompt)).toBe(true);
     expect(detectExplainBusinessHoursAndLocationAction(row.prompt)).toBe(
@@ -36,12 +38,15 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
   )('detects multilingual hours/location prompt $id', (_id, row) => {
     expect(isExplainBusinessHoursAndLocationPrompt(row.prompt)).toBe(true);
     expect(
-      rescueExplainBusinessHoursAndLocationIntent(row.prompt, 'unknown')?.action,
+      rescueExplainBusinessHoursAndLocationIntent(row.prompt, 'unknown')
+        ?.action,
     ).toBe('explain_business_hours_and_location');
   });
 
   it.each(
-    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues hours/location prompt $id from unknown', (_id, row) => {
     const rescued = rescueExplainBusinessHoursAndLocationIntent(
       row.prompt,
@@ -69,6 +74,18 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
     ).toBe(true);
   });
 
+  it('does not steal navigation or visit parking prompts', () => {
+    expect(
+      isExplainBusinessHoursAndLocationPrompt('How do I get to the salon?'),
+    ).toBe(false);
+    expect(
+      isExplainBusinessHoursAndLocationPrompt('Where can I park nearby?'),
+    ).toBe(false);
+    expect(
+      isExplainBusinessHoursAndLocationPrompt('Directions to the salon'),
+    ).toBe(false);
+  });
+
   it('maps fixtures to passing eval golden cases', () => {
     expect(
       EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.filter(
@@ -80,7 +97,9 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
         (row) => row.surface === 'public',
       ).length,
     ).toBeGreaterThanOrEqual(10);
-    expect(AI_COMMAND_EVAL_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CASES.length).toBe(
+    expect(
+      AI_COMMAND_EVAL_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CASES.length,
+    ).toBe(
       EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.length +
         EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_SCENARIOS.length,
     );

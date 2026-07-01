@@ -78,7 +78,7 @@ export function resolveNativeGuideNavigateTarget(
 ): GuideNavigateTarget {
   if (surface === 'dashboard') {
     if (topicId) {
-      return { path: buildDashboardGuideTopicUrl(topicId as never) };
+      return { path: buildDashboardGuideTopicUrl(topicId) };
     }
     return { path: '/dashboard/guide' };
   }
@@ -181,7 +181,9 @@ function wrapAiUnavailableGuideResult(
           },
         ],
         navigate,
-        sources: [{ topicId: topicId ?? 'guide.offline-fallback', kind: 'static' }],
+        sources: [
+          { topicId: topicId ?? 'guide.offline-fallback', kind: 'static' },
+        ],
       },
       details: {
         ...result.details,
@@ -196,16 +198,17 @@ function wrapAiUnavailableGuideResult(
 
   const navigate =
     result.guide.navigate ??
-    resolveNativeGuideNavigateTarget(input.surface, result.guide.topicId ?? topicId);
+    resolveNativeGuideNavigateTarget(
+      input.surface,
+      result.guide.topicId ?? topicId,
+    );
   let guide: GuideResponse = {
     ...result.guide,
     summary: `${banner} ${result.guide.summary}`.trim(),
     voiceSummary: result.guide.voiceSummary ?? result.guide.summary,
     navigate,
     steps: result.guide.steps.map((step, index) =>
-      index === 0 && !step.navigate
-        ? { ...step, navigate }
-        : step,
+      index === 0 && !step.navigate ? { ...step, navigate } : step,
     ),
   };
   if (input.surface === 'provider') {
@@ -237,7 +240,9 @@ export function shouldOfferAiUnavailableGuideFallback(
   const assistantMode = readAssistantModeFromContext(session?.context);
   if (shouldForceProductGuideRouting(assistantMode)) return true;
   if (isProductGuidePrompt(prompt, { surface })) return true;
-  if (resolveProductGuidePromptMatch(prompt, { surface, assistantMode }).matched) {
+  if (
+    resolveProductGuidePromptMatch(prompt, { surface, assistantMode }).matched
+  ) {
     return true;
   }
   return !!matchesMetaGuidePromptForSurface(prompt, surface);
@@ -246,7 +251,13 @@ export function shouldOfferAiUnavailableGuideFallback(
 export async function runAiUnavailableStaticGuideFallback(
   input: AiUnavailableGuideFallbackInput,
 ): Promise<CommandResult | null> {
-  if (!shouldOfferAiUnavailableGuideFallback(input.prompt, input.surface, input.session)) {
+  if (
+    !shouldOfferAiUnavailableGuideFallback(
+      input.prompt,
+      input.surface,
+      input.session,
+    )
+  ) {
     return null;
   }
 
@@ -259,7 +270,8 @@ export async function runAiUnavailableStaticGuideFallback(
     surface: input.surface,
     assistantMode,
   });
-  const intent = guideMatch.intent ?? inferProductGuideIntentFromPrompt(input.prompt);
+  const intent =
+    guideMatch.intent ?? inferProductGuideIntentFromPrompt(input.prompt);
   const topicId = resolveGuideTopicId(input, sessionContext, intent);
   const metaGuideScenario = matchesMetaGuidePromptForSurface(
     input.prompt,
@@ -299,11 +311,20 @@ export async function runAiUnavailableStaticGuideFallback(
       });
 
   if (guideResult.success && guideResult.guide) {
-    return wrapAiUnavailableGuideResult(guideResult, input, sessionContext, topicId);
+    return wrapAiUnavailableGuideResult(
+      guideResult,
+      input,
+      sessionContext,
+      topicId,
+    );
   }
 
   const snippet = resolvePostFailureGuideSnippet(
-    buildPostFailureGuideFallbackInput(input.session, input.surface, input.locale),
+    buildPostFailureGuideFallbackInput(
+      input.session,
+      input.surface,
+      input.locale,
+    ),
   );
   if (snippet) {
     return wrapAiUnavailableGuideResult(
@@ -367,7 +388,11 @@ export function buildAiUnavailableErrorWithGuideLink(input: {
       steps: [
         {
           title:
-            locale === 'hy' ? 'Բացեք Help & guide' : locale === 'ru' ? 'Справка' : 'Open Help & guide',
+            locale === 'hy'
+              ? 'Բացեք Help & guide'
+              : locale === 'ru'
+                ? 'Справка'
+                : 'Open Help & guide',
           body:
             locale === 'hy'
               ? 'Օգտագործեք static guide էcranը՝ առանց AI-ի։'

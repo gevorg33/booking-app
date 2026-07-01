@@ -8,9 +8,7 @@ describe('MobileAppConfigController (adopt-5.5)', () => {
     }).compile();
     const controller = moduleRef.get(MobileAppConfigController);
 
-    expect(
-      controller.getConfig('consumer_app', 'ios', '1.0.0'),
-    ).toMatchObject({
+    expect(controller.getConfig('consumer_app', 'ios', '1.0.0')).toMatchObject({
       minSupportedVersion: expect.any(String),
       killSwitch: expect.any(Boolean),
       updateRequired: expect.any(Boolean),

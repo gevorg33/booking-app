@@ -24,10 +24,20 @@ export class ConsumerNativePushToken {
   @Column({ type: 'varchar', length: 16 })
   platform: 'ios' | 'android';
 
-  @Column({ name: 'permission_state', type: 'varchar', length: 24, default: 'full' })
+  @Column({
+    name: 'permission_state',
+    type: 'varchar',
+    length: 24,
+    default: 'full',
+  })
   permissionState: 'full' | 'provisional' | 'default_on';
 
-  @Column({ name: 'analytics_anon_id', type: 'varchar', length: 64, nullable: true })
+  @Column({
+    name: 'analytics_anon_id',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
   analyticsAnonId: string | null;
 
   @Column({ name: 'delivery_success_count', type: 'int', default: 0 })
@@ -39,7 +49,12 @@ export class ConsumerNativePushToken {
   @Column({ name: 'last_delivered_at', type: 'timestamptz', nullable: true })
   lastDeliveredAt: Date | null;
 
-  @Column({ name: 'last_delivery_error', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'last_delivery_error',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   lastDeliveryError: string | null;
 
   @Column({ name: 'last_fcm_accepted_at', type: 'timestamptz', nullable: true })
@@ -48,7 +63,12 @@ export class ConsumerNativePushToken {
   @Column({ name: 'last_delivery_ack_at', type: 'timestamptz', nullable: true })
   lastDeliveryAckAt: Date | null;
 
-  @Column({ name: 'last_fcm_message_id', type: 'varchar', length: 128, nullable: true })
+  @Column({
+    name: 'last_fcm_message_id',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
   lastFcmMessageId: string | null;
 
   @Column({ name: 'silent_failure_count', type: 'int', default: 0 })
@@ -57,7 +77,11 @@ export class ConsumerNativePushToken {
   @Column({ name: 'token_refreshed_at', type: 'timestamptz', nullable: true })
   tokenRefreshedAt: Date | null;
 
-  @Column({ name: 'last_silent_failure_at', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'last_silent_failure_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
   lastSilentFailureAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })

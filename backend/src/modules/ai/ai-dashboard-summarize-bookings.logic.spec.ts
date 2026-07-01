@@ -106,18 +106,25 @@ describe('ai-dashboard-summarize-bookings.logic (ai-cmd-ext-1.6)', () => {
     expect(isDashboardSummarizeBookingsPrompt('Client overview for Jane')).toBe(
       false,
     );
-    expect(rescueSummarizeBookingsIntent('Client overview for Jane', 'unknown')).toBeNull();
+    expect(
+      rescueSummarizeBookingsIntent('Client overview for Jane', 'unknown'),
+    ).toBeNull();
   });
 
   it('skips rescue when action is already summarize_bookings', () => {
     expect(
-      rescueSummarizeBookingsIntent('How much did we earn today?', 'summarize_bookings'),
+      rescueSummarizeBookingsIntent(
+        'How much did we earn today?',
+        'summarize_bookings',
+      ),
     ).toBeNull();
   });
 
   it('detects booking overview with explicit date range', () => {
     expect(
-      isDashboardSummarizeBookingsPrompt('Appointments overview 01/05/2026 to 31/05/2026'),
+      isDashboardSummarizeBookingsPrompt(
+        'Appointments overview 01/05/2026 to 31/05/2026',
+      ),
     ).toBe(true);
   });
 

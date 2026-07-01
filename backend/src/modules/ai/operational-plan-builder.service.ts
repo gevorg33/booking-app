@@ -425,10 +425,9 @@ export class OperationalPlanBuilderService {
     params: ResolvedAssignServicesParams & { removedServiceNames?: string[] },
   ): AgentPlan {
     const stepId = crypto.randomUUID();
-    const removed =
-      params.removedServiceNames?.length
-        ? params.removedServiceNames
-        : params.serviceNames;
+    const removed = params.removedServiceNames?.length
+      ? params.removedServiceNames
+      : params.serviceNames;
     const steps: AgentPlanStep[] = [
       {
         id: stepId,

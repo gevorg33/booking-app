@@ -80,7 +80,7 @@ describe('ai-explain-multi-service-settings.logic', () => {
 
   it('returns failure when business is not found', async () => {
     const result = await handleExplainMultiServiceSettingsLogic(
-      { businessRepo: { findOne: jest.fn(async () => null) } } as any,
+      { businessRepo: { findOne: jest.fn(async () => null) } },
       'biz-1',
       {},
       'Explain multi-service booking settings',

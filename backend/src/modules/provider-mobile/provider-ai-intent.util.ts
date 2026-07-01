@@ -53,7 +53,11 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'fill_unused_slots';
   }
-  if (/fill\s+(?:this\s+)?gap|suggest\s+waitlist.*gap|waitlist.*fill.*gap/.test(lower)) {
+  if (
+    /fill\s+(?:this\s+)?gap|suggest\s+waitlist.*gap|waitlist.*fill.*gap/.test(
+      lower,
+    )
+  ) {
     return 'suggest_waitlist_for_gap';
   }
   if (

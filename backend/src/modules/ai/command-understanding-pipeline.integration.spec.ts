@@ -50,13 +50,17 @@ describe('CommandUnderstandingPipelineService (integration pipe-1.0.5)', () => {
   };
 
   function traceStages(
-    result: Awaited<ReturnType<CommandUnderstandingPipelineService['understand']>>,
+    result: Awaited<
+      ReturnType<CommandUnderstandingPipelineService['understand']>
+    >,
   ) {
     return result.trace.map((entry) => entry.stage);
   }
 
   function assertOrderedUnderstandStages(
-    result: Awaited<ReturnType<CommandUnderstandingPipelineService['understand']>>,
+    result: Awaited<
+      ReturnType<CommandUnderstandingPipelineService['understand']>
+    >,
   ) {
     expect(traceStages(result)).toEqual([...PIPELINE_UNDERSTAND_STAGE_ORDER]);
     expect(isUnderstandTraceOrdered(result.trace)).toBe(true);
@@ -194,12 +198,14 @@ describe('CommandUnderstandingPipelineService (integration pipe-1.0.5)', () => {
 
       assertOrderedUnderstandStages(result);
       expect(classifyMock).toHaveBeenCalled();
-      expect(result.trace.find((t) => t.stage === 'semantic_match')?.action).toBe(
-        scenario.expectedAction,
-      );
+      expect(
+        result.trace.find((t) => t.stage === 'semantic_match')?.action,
+      ).toBe(scenario.expectedAction);
       expect(result.action).toBe(scenario.expectedAction);
       if (scenario.expectedParamHints) {
-        for (const [key, value] of Object.entries(scenario.expectedParamHints)) {
+        for (const [key, value] of Object.entries(
+          scenario.expectedParamHints,
+        )) {
           expect(result.params[key]).toBe(value);
         }
       }
@@ -226,7 +232,9 @@ describe('CommandUnderstandingPipelineService (integration pipe-1.0.5)', () => {
       assertOrderedUnderstandStages(result);
       expect(classifyMock).toHaveBeenCalled();
       expect(
-        result.candidates.some((candidate) => candidate.source === 'semantic_match'),
+        result.candidates.some(
+          (candidate) => candidate.source === 'semantic_match',
+        ),
       ).toBe(true);
     },
   );

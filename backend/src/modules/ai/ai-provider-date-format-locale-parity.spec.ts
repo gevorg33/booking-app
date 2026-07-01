@@ -79,12 +79,14 @@ describe('ai provider date-format locale parity (acc-2.4)', () => {
   );
 
   it('tags HY/RU provider date-format eval rows with provider surface and locale', () => {
-    const hyCases = AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'ru',
+      );
 
     expect(hyCases.length).toBe(8);
     expect(ruCases.length).toBe(8);
@@ -96,8 +98,8 @@ describe('ai provider date-format locale parity (acc-2.4)', () => {
       ),
     ).toBe(true);
     expect(AI_COMMAND_EVAL_EXPLAIN_PROVIDER_DATE_DISPLAY_CASES.length).toBe(6);
-    expect(AI_COMMAND_EVAL_CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_CASES.length).toBe(
-      6,
-    );
+    expect(
+      AI_COMMAND_EVAL_CONFIGURE_PROVIDER_PUSH_DATE_FORMAT_CASES.length,
+    ).toBe(6);
   });
 });

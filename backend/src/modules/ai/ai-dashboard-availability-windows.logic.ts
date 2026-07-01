@@ -2,7 +2,10 @@
 
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { getDateKeyInTimezone } from '../../common/utils/timezone.util.js';
-import { formatTimeOfDayLabel, type TimeOfDayWindow } from './ai-operations.util.js';
+import {
+  formatTimeOfDayLabel,
+  type TimeOfDayWindow,
+} from './ai-operations.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
   resolvePublicAvailabilityWindows,
@@ -78,7 +81,7 @@ export function buildSingleWindowCheckParams(
     availabilityWindows: undefined,
   };
   if (dateKey) next.date = dateKey;
-  if (window.timeOfDay) next.timeOfDay = window.timeOfDay as TimeOfDayWindow;
+  if (window.timeOfDay) next.timeOfDay = window.timeOfDay;
   return next;
 }
 

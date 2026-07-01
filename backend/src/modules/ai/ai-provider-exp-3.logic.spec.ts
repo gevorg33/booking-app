@@ -137,12 +137,9 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
       customer: { name: 'Jane', phone: '+15551234567' },
     });
 
-    const result = await handleSendClientMessageLogic(
-      deps,
-      'biz-1',
-      'user-1',
-      { bookingId: 'b-1' },
-    );
+    const result = await handleSendClientMessageLogic(deps, 'biz-1', 'user-1', {
+      bookingId: 'b-1',
+    });
 
     expect(result.success).toBe(false);
   });
@@ -284,12 +281,10 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
       customer: { name: 'Jane', phone: '+15551234567' },
     });
 
-    const result = await handleSendClientMessageLogic(
-      deps,
-      'biz-1',
-      'user-1',
-      { bookingId: 'b-1', channel: 'whatsapp' },
-    );
+    const result = await handleSendClientMessageLogic(deps, 'biz-1', 'user-1', {
+      bookingId: 'b-1',
+      channel: 'whatsapp',
+    });
 
     expect(result.success).toBe(false);
   });
@@ -332,12 +327,10 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
       customer: { name: 'Jane', phone: '+15551234567' },
     });
 
-    const result = await handleSendClientMessageLogic(
-      deps,
-      'biz-1',
-      'user-1',
-      { bookingId: 'b-1', templateLabel: 'Running late custom' },
-    );
+    const result = await handleSendClientMessageLogic(deps, 'biz-1', 'user-1', {
+      bookingId: 'b-1',
+      templateLabel: 'Running late custom',
+    });
 
     expect(result.success).toBe(true);
     expect(result.details.templateId).toBe('custom-late');
@@ -384,12 +377,9 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
       customer: { name: 'Jane', phone: '+15551234567' },
     });
 
-    const result = await handleSendClientMessageLogic(
-      deps,
-      'biz-1',
-      'user-1',
-      { bookingId: 'b-1' },
-    );
+    const result = await handleSendClientMessageLogic(deps, 'biz-1', 'user-1', {
+      bookingId: 'b-1',
+    });
 
     expect(result.success).toBe(false);
   });

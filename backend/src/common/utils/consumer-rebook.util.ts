@@ -16,7 +16,9 @@ export function deriveConsumerRebookQueryParams(input: {
   employeeId?: string | null;
 }): ConsumerRebookQueryParams {
   const startTime =
-    input.startTime instanceof Date ? input.startTime.toISOString() : input.startTime;
+    input.startTime instanceof Date
+      ? input.startTime.toISOString()
+      : input.startTime;
   return {
     date: startTime.slice(0, 10),
     slot: startTime,
@@ -67,6 +69,7 @@ export function buildConsumerRebookAccountPath(input: {
     rebook: query.rebook,
   });
   if (query.employeeId) params.set('employeeId', query.employeeId);
-  if (query.rebookBookingId) params.set('rebookBookingId', query.rebookBookingId);
+  if (query.rebookBookingId)
+    params.set('rebookBookingId', query.rebookBookingId);
   return `/s/${input.slug.trim()}/book/${input.serviceId.trim()}?${params.toString()}`;
 }

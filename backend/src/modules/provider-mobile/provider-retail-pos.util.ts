@@ -76,7 +76,7 @@ export function resolveQuickAddRetailProduct<T extends RetailProductSearchable>(
     return { status: 'ambiguous', matchCount: matches.length };
   }
 
-  const product = matches[0]!;
+  const product = matches[0];
   if (product.quantityOnHand <= 0) {
     return { status: 'out_of_stock', product };
   }

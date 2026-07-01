@@ -138,10 +138,8 @@ export class ClinicTestCatalogService {
       abbreviation: entity.abbreviation ?? null,
       description: entity.description ?? null,
       unit: entity.unit ?? null,
-      normalLow:
-        entity.normalLow == null ? null : Number(entity.normalLow),
-      normalHigh:
-        entity.normalHigh == null ? null : Number(entity.normalHigh),
+      normalLow: entity.normalLow == null ? null : Number(entity.normalLow),
+      normalHigh: entity.normalHigh == null ? null : Number(entity.normalHigh),
       price: Number(entity.price),
       requiresFasting: entity.requiresFasting,
       preparationNotes: entity.preparationNotes ?? null,
@@ -332,7 +330,10 @@ export class ClinicTestCatalogService {
         ? null
         : parseClinicReferenceRangeBound(dto.normalHigh);
     if (hasRangeInput) {
-      const rangeError = assertClinicReferenceRangeBounds(normalLow, normalHigh);
+      const rangeError = assertClinicReferenceRangeBounds(
+        normalLow,
+        normalHigh,
+      );
       if (rangeError) {
         throw new BadRequestException(rangeError);
       }

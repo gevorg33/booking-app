@@ -25,7 +25,10 @@ export class AnalyticsController {
     @CurrentUser() user: { id: string },
   ) {
     await this.businessService.ensureMember(businessId, user.id);
-    return this.appEventService.getAdoptionDashboard(businessId, query.days ?? 30);
+    return this.appEventService.getAdoptionDashboard(
+      businessId,
+      query.days ?? 30,
+    );
   }
 
   @Get('staff')

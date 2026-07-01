@@ -51,7 +51,9 @@ export function parseListServicesPaymentFilterFromPrompt(
   params: Record<string, unknown> = {},
 ): ParsedListServicesPaymentFilter | null {
   const fromParams: ParsedListServicesPaymentFilter = {};
-  const prepaymentFromParams = normalizePrepaymentModeParam(params.prepaymentMode);
+  const prepaymentFromParams = normalizePrepaymentModeParam(
+    params.prepaymentMode,
+  );
   if (prepaymentFromParams) fromParams.prepaymentMode = prepaymentFromParams;
   if (typeof params.onlinePaymentEnabled === 'boolean') {
     fromParams.onlinePaymentEnabled = params.onlinePaymentEnabled;
@@ -193,14 +195,18 @@ export function matchesListServicesPaymentFilter<
     if (typeof service.onlinePaymentEnabled === 'boolean') {
       return service.onlinePaymentEnabled;
     }
-    return (service.prepaymentMode ?? PrepaymentMode.NONE) !== PrepaymentMode.NONE;
+    return (
+      (service.prepaymentMode ?? PrepaymentMode.NONE) !== PrepaymentMode.NONE
+    );
   }
 
   if (filter.onlinePaymentEnabled === false) {
     if (typeof service.onlinePaymentEnabled === 'boolean') {
       return !service.onlinePaymentEnabled;
     }
-    return (service.prepaymentMode ?? PrepaymentMode.NONE) === PrepaymentMode.NONE;
+    return (
+      (service.prepaymentMode ?? PrepaymentMode.NONE) === PrepaymentMode.NONE
+    );
   }
 
   return true;

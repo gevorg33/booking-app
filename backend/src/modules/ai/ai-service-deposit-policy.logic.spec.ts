@@ -22,12 +22,14 @@ describe('ai-service-deposit-policy.logic', () => {
       },
     ] as any[];
 
-    const update = jest.fn(async (id: string, dto: Record<string, unknown>) => ({
-      id,
-      name: services.find((s) => s.id === id)!.name,
-      prepaymentMode: dto.prepaymentMode,
-      depositAmount: dto.depositAmount ?? null,
-    }));
+    const update = jest.fn(
+      async (id: string, dto: Record<string, unknown>) => ({
+        id,
+        name: services.find((s) => s.id === id)!.name,
+        prepaymentMode: dto.prepaymentMode,
+        depositAmount: dto.depositAmount ?? null,
+      }),
+    );
 
     const result = await handleConfigureServiceDepositPolicyLogic(
       {

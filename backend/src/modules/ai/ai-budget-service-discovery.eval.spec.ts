@@ -53,18 +53,18 @@ describe('ai budget service discovery eval cases (budget-1.11)', () => {
         (entry) => entry.surface === 'dashboard',
       ),
     ).toBe(true);
-    expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES.length).toBeGreaterThan(
-      80,
-    );
+    expect(
+      AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES.length,
+    ).toBeGreaterThan(80);
     expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_PUBLIC_CASES.length).toBe(
       37,
     );
     expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CUSTOMER_CASES.length).toBe(
       44,
     );
-    expect(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_DASHBOARD_CASES.length).toBe(
-      34,
-    );
+    expect(
+      AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_DASHBOARD_CASES.length,
+    ).toBe(34);
   });
 
   it.each(AI_COMMAND_EVAL_BUDGET_SERVICE_DISCOVERY_CASES)(

@@ -17,9 +17,9 @@ describe('public-booking-assistant-session.util (ai-cmd-customer-gap-4)', () => 
       ),
     ).toEqual(windows);
     expect(parsePublicAssistantSessionValue('maxPrice', '50')).toBe(50);
-    expect(parsePublicAssistantSessionValue('serviceRank', 'lowest_price')).toBe(
-      'lowest_price',
-    );
+    expect(
+      parsePublicAssistantSessionValue('serviceRank', 'lowest_price'),
+    ).toBe('lowest_price');
   });
 
   it('merges serviceRank and availabilityWindows from session on follow-up turn', () => {

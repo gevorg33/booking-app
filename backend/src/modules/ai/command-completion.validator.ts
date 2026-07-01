@@ -42,6 +42,8 @@ import {
   parseViewPhiAccessAuditFromPrompt,
 } from './ai-business-compliance.util.js';
 import { parseExplainDataRightsFromPrompt } from './ai-data-rights.util.js';
+import { isPrivacyExportCustomerPrompt } from './ai-privacy-export.util.js';
+import { isPrivacyDeleteCustomerPrompt } from './ai-privacy-delete.util.js';
 import {
   parseConfigureRecommendationProductFromPrompt,
   parseLinkRecommendedProductsFromPrompt,
@@ -59,13 +61,70 @@ import { parseBusinessDateFormatFromPrompt } from './ai-business-date-format.uti
 import { parsePackageLocalizedNamesFromPrompt } from './ai-package-localized-names.util.js';
 import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
 import { parseExplainTourBookingFromPrompt } from './ai-tour-booking.util.js';
+import { parseExplainTourMeetingPointFromPrompt } from './ai-tour-meeting-point.util.js';
+import { parseExplainAnyProviderOptionFromPrompt } from './ai-explain-any-provider-option.util.js';
+import { parsePickProviderForServiceFromPrompt } from './ai-pick-provider-for-service.util.js';
+import { parseSwitchProviderSameTimeFromPrompt } from './ai-switch-provider-same-time.util.js';
+import { parseExplainProfessionalProfileFromPrompt } from './ai-explain-professional-profile.util.js';
+import { parseExplainProviderAvailabilityFromPrompt } from './ai-explain-provider-availability.util.js';
 import { parseExplainClinicBookingFromPrompt } from './ai-clinic-booking.util.js';
+import { parseExplainLabPrepFromPrompt } from './ai-explain-lab-prep.util.js';
+import { parseExplainClinicBookingFieldsFromPrompt } from './ai-explain-clinic-booking-fields.util.js';
+import { parseExplainPublicIntakeFormFromPrompt } from './ai-explain-public-intake-form.util.js';
 import { parseExplainGuestCheckoutFieldsFromPrompt } from './ai-explain-guest-checkout-fields.util.js';
+import { parseExplainWhySignInFromPrompt } from './ai-explain-why-sign-in.util.js';
+import { parseSignInToManageBookingFromPrompt } from './ai-sign-in-to-manage-booking.util.js';
+import { parseExplainManageBookingPageFromPrompt } from './ai-explain-manage-booking-page.util.js';
+import { parseFixCheckoutValidationErrorFromPrompt } from './ai-fix-checkout-validation-error.util.js';
+import { parseConfirmMyBookingDetailsFromPrompt } from './ai-confirm-my-booking-details.util.js';
+import { parseAddBookingToCalendarFromPrompt } from './ai-add-booking-to-calendar.util.js';
+import { parseGetDirectionsToSalonFromPrompt } from './ai-get-directions-to-salon.util.js';
+import { parseExplainPreparationNotesFromPrompt } from './ai-explain-preparation-notes.util.js';
+import { parseBookAnotherServiceFromPrompt } from './ai-book-another-service.util.js';
+import { parseShareMyBookingFromPrompt } from './ai-share-my-booking.util.js';
+import { parseListMyUpcomingAppointmentsFromPrompt } from './ai-list-my-upcoming-appointments.util.js';
+import { parseExplainCancelPolicyFromPrompt } from './ai-explain-cancel-policy.util.js';
+import { parseExplainDepositForfeitureFromPrompt } from './ai-explain-deposit-forfeiture.util.js';
+import { parseExplainPackageVisitRulesFromPrompt } from './ai-explain-package-visit-rules.util.js';
+import { parseExplainLoyaltyPointsFromPrompt } from './ai-explain-loyalty-points.util.js';
+import { parseExplainMySubscriptionFromPrompt } from './ai-explain-my-subscription.util.js';
+import { parseGetManageLinkFromPrompt } from './ai-get-manage-link.util.js';
+import { parseRecoverLostManageLinkFromPrompt } from './ai-recover-lost-manage-link.util.js';
+import { parseFindMySavedSalonsFromPrompt } from './ai-find-my-saved-salons.util.js';
+import { parseSwitchSalonTenantFromPrompt } from './ai-switch-salon-tenant.util.js';
+import { parseNotifyRunningLateFromPrompt } from './ai-notify-running-late.util.js';
+import { parseLeaveVisitReviewFromPrompt } from './ai-leave-visit-review.util.js';
+import { parseExplainPostVisitReviewPromptFromPrompt } from './ai-explain-post-visit-review-prompt.util.js';
+import { parseExplainShareRewardFromPrompt } from './ai-explain-share-reward.util.js';
+import { parseSignInAfterBookingFromPrompt } from './ai-sign-in-after-booking.util.js';
+import { parseReportBookingProblemFromPrompt } from './ai-report-booking-problem.util.js';
+import {
+  parseCheckWaitlistStatusFromPrompt,
+  parseJoinWaitlistFromPrompt,
+} from './ai-customer-waitlist.util.js';
+import { parseRebookLastAppointmentFromPrompt } from './ai-rebook-last-appointment.util.js';
+import { parseApplyPromoCodeCheckoutFromPrompt } from './ai-apply-promo-code-checkout.util.js';
+import { parseApplyLoyaltyAtCheckoutFromPrompt } from './ai-apply-loyalty-at-checkout.util.js';
+import { parseClaimGiftCardBalanceFromPrompt } from './ai-claim-gift-card-balance.util.js';
 import { parseResumePendingPaymentFromPrompt } from './ai-resume-pending-payment.util.js';
+import { parseConsumerDiagnoseStripeCheckoutFailureFromPrompt } from './ai-diagnose-stripe-checkout-failure.util.js';
+import { parsePayAtVenueFallbackFromPrompt } from './ai-pay-at-venue-fallback.util.js';
+import { parseResumeBookingDraftFromPrompt } from './ai-resume-booking-draft.util.js';
+import { parseExplainSlotNoLongerAvailableFromPrompt } from './ai-explain-slot-no-longer-available.util.js';
+import { parseExplainMultiServicePaymentReturnFromPrompt } from './ai-explain-multi-service-payment-return.util.js';
+import { parseRetryFailedNetworkActionFromPrompt } from './ai-retry-failed-network-action.util.js';
+import { parseExplainVoiceInputFromPrompt } from './ai-explain-voice-input.util.js';
+import { parseSpeakAssistantReplyFromPrompt } from './ai-speak-assistant-reply.util.js';
+import { parseGiveAiFeedbackFromPrompt } from './ai-give-ai-feedback.util.js';
+import { parseExplainRtlLayoutFromPrompt } from './ai-explain-rtl-layout.util.js';
+import { isDiagnoseStripeCheckoutFailurePrompt } from './ai-stripe-checkout-failure.util.js';
 import { parseExplainTourDaySlotsFromPrompt } from './ai-tour-day-slots.util.js';
 import { parseExplainCheckoutRecommendationsFromPrompt } from './ai-checkout-recommendations.util.js';
+import { parseDismissRecommendationsFromPrompt } from './ai-dismiss-recommendations.util.js';
+import { parseBuyGiftCardForSomeoneFromPrompt } from './ai-buy-gift-card-for-someone.util.js';
 import { parseExplainConsumerCheckoutSuccessFromPrompt } from './ai-consumer-checkout-success.util.js';
 import { parseExplainConsumerCheckoutTaxFromPrompt } from './ai-consumer-checkout-tax.util.js';
+import { parseExplainCheckoutTaxFromPrompt } from './ai-checkout-tax.util.js';
 import { parseExplainRecommendationAnalyticsFromPrompt } from './ai-recommendation-analytics.util.js';
 import { parseSummarizeRecommendationPerformanceFromPrompt } from './ai-recommendation-performance.util.js';
 import { parseExplainTourBookingRecordFromPrompt } from './ai-tour-booking-record.util.js';
@@ -139,7 +198,9 @@ function buildMetaGuideValidationIssues(
   action: MetaProductGuideIntent,
   cmd: ResolvedCommand,
 ): ValidationIssue[] {
-  if (parseMetaProductGuideIntentFromPrompt(action, cmd.prompt ?? '', cmd.params)) {
+  if (
+    parseMetaProductGuideIntentFromPrompt(action, cmd.prompt ?? '', cmd.params)
+  ) {
     return [];
   }
   if (action === 'explain_ai_settings') {
@@ -1141,8 +1202,7 @@ const ACTION_RULES: Record<string, Rule> = {
         {
           field: 'usePlatformDefault',
           label: 'OpenAI integration',
-          message:
-            'Specify platform default or tenant OpenAI API key (sk-…)',
+          message: 'Specify platform default or tenant OpenAI API key (sk-…)',
           example: 'Configure OpenAI integration for the salon',
         },
       ];
@@ -1587,6 +1647,30 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  privacy_export: (cmd) =>
+    isPrivacyExportCustomerPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: '_prompt',
+            label: 'Privacy export',
+            message: 'Ask to export or download your personal data',
+            example: 'Export my personal data',
+          },
+        ],
+
+  privacy_delete: (cmd) =>
+    isPrivacyDeleteCustomerPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: '_prompt',
+            label: 'Privacy delete',
+            message: 'Ask to delete or erase your account data',
+            example: 'Delete my account',
+          },
+        ],
+
   set_service_tax_rate: (cmd) =>
     parseSetServiceTaxRateFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1889,6 +1973,81 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  explain_tour_meeting_point: (cmd) =>
+    parseExplainTourMeetingPointFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Tour meeting point',
+            message:
+              'Ask about a tour meeting point or arrival time (e.g. "Where do we meet for my tour?")',
+            example: 'Where do we meet for my tour?',
+          },
+        ],
+
+  explain_any_provider_option: (cmd) =>
+    parseExplainAnyProviderOptionFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Any provider option',
+            message:
+              'Ask what Any stylist means or whether someone will be assigned',
+            example: 'What does Any stylist mean?',
+          },
+        ],
+
+  pick_provider_for_service: (cmd) =>
+    parsePickProviderForServiceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Pick provider',
+            message:
+              'Name a stylist to book with or ask to use your usual stylist',
+            example: 'Book with Anna for color',
+          },
+        ],
+
+  switch_provider_same_time: (cmd) =>
+    parseSwitchProviderSameTimeFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Switch provider same time',
+            message: 'Ask to keep the same time but switch stylist',
+            example: 'Keep 3pm but different stylist',
+          },
+        ],
+
+  explain_professional_profile: (cmd) =>
+    parseExplainProfessionalProfileFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Professional profile',
+            message: 'Ask to show a stylist profile or browse the team',
+            example: "Show me Anna's services",
+          },
+        ],
+
+  explain_provider_availability: (cmd) =>
+    parseExplainProviderAvailabilityFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Provider availability',
+            message: 'Ask if a stylist is working on a day or who has openings',
+            example: 'Is Marco working Saturday?',
+          },
+        ],
+
   explain_clinic_booking: (cmd) =>
     parseExplainClinicBookingFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1899,6 +2058,44 @@ const ACTION_RULES: Record<string, Rule> = {
             message:
               'Ask about symptoms, referral notes, lab prep/fasting, or pre-visit intake on checkout',
             example: 'What should I put in the symptoms field on checkout?',
+          },
+        ],
+
+  explain_lab_prep: (cmd) =>
+    parseExplainLabPrepFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'serviceName',
+            label: 'Lab test',
+            message:
+              'Ask whether a lab test requires fasting or what preparation applies',
+            example: 'Do I need to fast for blood work?',
+          },
+        ],
+
+  explain_clinic_booking_fields: (cmd) =>
+    parseExplainClinicBookingFieldsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Clinic booking field',
+            message: 'Ask why a clinic booking or intake field is collected',
+            example: 'Why do you ask for my ID?',
+          },
+        ],
+
+  explain_public_intake_form: (cmd) =>
+    parseExplainPublicIntakeFormFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Pre-visit intake questionnaire',
+            message:
+              'Ask about the optional pre-visit health questionnaire before lab booking',
+            example: 'Why these health questions?',
           },
         ],
 
@@ -1915,6 +2112,379 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  explain_why_sign_in: (cmd) =>
+    parseExplainWhySignInFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Sign-in benefits',
+            message:
+              'Ask whether you need an account, what signing in gives you, or how guest checkout compares',
+            example: "What's the benefit of signing in?",
+          },
+        ],
+
+  sign_in_to_manage_booking: (cmd) =>
+    parseSignInToManageBookingFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Manage-page sign-in',
+            message:
+              'Ask why the manage page wants you to sign in or how to manage after an invalid link',
+            example: 'Sign in to change my appointment',
+          },
+        ],
+
+  explain_manage_booking_page: (cmd) =>
+    parseExplainManageBookingPageFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Manage booking page',
+            message:
+              'Ask what you can do on the manage page or why a manage link is invalid',
+            example: 'What can I do on this manage page?',
+          },
+        ],
+
+  recover_lost_manage_link: (cmd) =>
+    parseRecoverLostManageLinkFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Recover manage link',
+            message:
+              'Say you lost your confirmation email or give the email or phone used when booking',
+            example: 'I lost my booking confirmation email',
+          },
+        ],
+
+  find_my_saved_salons: (cmd) =>
+    parseFindMySavedSalonsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Saved salons',
+            message: 'Ask to show your saved or recently visited salons',
+            example: 'Show my saved salons',
+          },
+        ],
+
+  switch_salon_tenant: (cmd) =>
+    parseSwitchSalonTenantFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'salonName',
+            label: 'Switch salon',
+            message: 'Name the salon you want to switch to',
+            example: 'Go back to Glow Nails',
+          },
+        ],
+
+  fix_checkout_validation_error: (cmd) =>
+    parseFixCheckoutValidationErrorFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Checkout validation error',
+            message:
+              'Describe the checkout validation error you see (e.g. email filled but still required)',
+            example:
+              'It says enter email but I already filled it in at checkout',
+          },
+        ],
+
+  confirm_my_booking_details: (cmd) =>
+    parseConfirmMyBookingDetailsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Booking details',
+            message:
+              'Ask about your appointment time, service, provider, or booking summary',
+            example: 'What time is my appointment?',
+          },
+        ],
+
+  add_booking_to_calendar: (cmd) =>
+    parseAddBookingToCalendarFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'format',
+            label: 'Calendar format',
+            message:
+              'Ask to add your booking to calendar or download an ICS file',
+            example: 'Add to my calendar',
+          },
+        ],
+
+  get_directions_to_salon: (cmd) =>
+    parseGetDirectionsToSalonFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Salon directions',
+            message:
+              'Ask for directions to the salon or where to park for your visit',
+            example: 'Directions to the salon',
+          },
+        ],
+
+  explain_preparation_notes: (cmd) =>
+    parseExplainPreparationNotesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'aspect',
+            label: 'Visit preparation',
+            message:
+              'Ask about fasting, what to bring, or meeting point for your appointment',
+            example: 'Do I need to fast?',
+          },
+        ],
+
+  book_another_service: (cmd) =>
+    parseBookAnotherServiceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Book another service',
+            message: 'Ask to start a fresh booking flow after checkout success',
+            example: 'Book another service same day',
+          },
+        ],
+
+  share_my_booking: (cmd) =>
+    parseShareMyBookingFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Share my booking',
+            message:
+              'Ask to share your appointment with someone using the native share sheet',
+            example: 'Share my appointment with my partner',
+          },
+        ],
+
+  get_manage_link: (cmd) =>
+    parseGetManageLinkFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Manage link',
+            message:
+              'Ask for your booking manage link or resend it using your email or phone',
+            example: 'Resend manage link to john@example.com',
+          },
+        ],
+
+  notify_running_late: (cmd) =>
+    parseNotifyRunningLateFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Running late',
+            message:
+              'Say you are running late for your appointment and how many minutes',
+            example: "I'm 15 minutes late for my appointment",
+          },
+        ],
+
+  leave_visit_review: (cmd) =>
+    parseLeaveVisitReviewFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Visit review',
+            message:
+              'Ask to rate or review a completed visit (optionally with stars)',
+            example: 'Rate my last visit',
+          },
+        ],
+
+  explain_post_visit_review_prompt: (cmd) =>
+    parseExplainPostVisitReviewPromptFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Review popup',
+            message:
+              'Ask about the post-visit review popup (why it shows or how to skip)',
+            example: 'Why am I seeing a review popup?',
+          },
+        ],
+
+  explain_share_reward: (cmd) =>
+    parseExplainShareRewardFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Share rewards',
+            message:
+              'Ask how share rewards work (points or perks for sharing a booking or salon link)',
+            example: 'Do I get points for sharing?',
+          },
+        ],
+
+  sign_in_after_booking: (cmd) =>
+    parseSignInAfterBookingFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Post-booking sign-in',
+            message:
+              'Ask about saving a guest booking to your account after checkout',
+            example: 'Save this booking to my account',
+          },
+        ],
+
+  report_booking_problem: (cmd) =>
+    parseReportBookingProblemFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Booking problem',
+            message:
+              'Describe the problem with your booking or visit (billing or service issue)',
+            example: 'Something went wrong with my visit',
+          },
+        ],
+
+  join_waitlist: (cmd) =>
+    parseJoinWaitlistFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Join waitlist',
+            message:
+              'Ask to join the waitlist and say what service or day you want alerts for',
+            example: 'Notify me if something opens Friday',
+          },
+        ],
+
+  check_waitlist_status: (cmd) =>
+    parseCheckWaitlistStatusFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Waitlist status',
+            message: 'Ask whether you are on the waitlist',
+            example: 'Am I on the waitlist?',
+          },
+        ],
+
+  rebook_last_appointment: (cmd) =>
+    parseRebookLastAppointmentFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Rebook last visit',
+            message: 'Ask to rebook or repeat your last completed visit',
+            example: 'Book the same as last time',
+          },
+        ],
+
+  explain_cancel_policy: (cmd) =>
+    parseExplainCancelPolicyFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Cancellation policy',
+            message:
+              'Ask about cancellation rules, notice window, or reschedule policy',
+            example: 'Explain the cancellation policy',
+          },
+        ],
+
+  explain_deposit_forfeiture: (cmd) =>
+    parseExplainDepositForfeitureFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Deposit forfeiture',
+            message:
+              'Ask whether a deposit or prepayment is forfeited or refundable when cancelling',
+            example: 'Do I lose my deposit if I cancel?',
+          },
+        ],
+
+  explain_package_visit_rules: (cmd) =>
+    parseExplainPackageVisitRulesFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Package visit rules',
+            message:
+              'Ask how package visit bundles work — cancel one visit, expiry, or terms',
+            example: 'Can I cancel one visit and keep the package?',
+          },
+        ],
+
+  explain_loyalty_points: (cmd) =>
+    parseExplainLoyaltyPointsFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Loyalty points',
+            message:
+              'Ask how loyalty points are earned, what they are worth, or how the program works',
+            example: 'How do I earn points?',
+          },
+        ],
+
+  explain_my_subscription: (cmd) =>
+    parseExplainMySubscriptionFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'My subscription',
+            message:
+              'Ask about visits left, expiry, or how your membership plan works',
+            example: 'How many visits left on my plan?',
+          },
+        ],
+
+  list_my_upcoming_appointments: (cmd) =>
+    parseListMyUpcomingAppointmentsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Upcoming appointments',
+            message:
+              'Ask about your next appointment or upcoming visits this week',
+            example: "What's my next appointment?",
+          },
+        ],
+
   resume_pending_payment: (cmd) =>
     parseResumePendingPaymentFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1925,6 +2495,178 @@ const ACTION_RULES: Record<string, Rule> = {
             message:
               'Ask to restore an in-progress checkout after closing the app mid-payment',
             example: 'Continue my payment',
+          },
+        ],
+
+  diagnose_stripe_checkout_failure: (cmd) =>
+    parseConsumerDiagnoseStripeCheckoutFailureFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    ) || isDiagnoseStripeCheckoutFailurePrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Checkout payment failure',
+            message:
+              'Describe a failed or declined online checkout payment and ask what to do next',
+            example: 'Payment failed — what now?',
+          },
+        ],
+
+  pay_at_venue_fallback: (cmd) =>
+    parsePayAtVenueFallbackFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Pay at venue fallback',
+            message: 'Ask to skip online payment and pay at the salon instead',
+            example: 'Pay at salon instead',
+          },
+        ],
+
+  resume_booking_draft: (cmd) =>
+    parseResumeBookingDraftFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Resume booking draft',
+            message:
+              'Ask to continue an unfinished booking saved on this device',
+            example: 'Continue where I left off',
+          },
+        ],
+
+  explain_slot_no_longer_available: (cmd) =>
+    parseExplainSlotNoLongerAvailableFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Explain slot no longer available',
+            message:
+              'Describe the slot that disappeared at checkout (e.g. "That time disappeared")',
+            example: 'Someone took my slot',
+          },
+        ],
+
+  explain_multi_service_payment_return: (cmd) =>
+    parseExplainMultiServicePaymentReturnFromPrompt(
+      cmd.prompt ?? '',
+      cmd.params,
+    )
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Explain multi-service payment return',
+            message:
+              'Ask about confirming a multi-service visit after Stripe checkout',
+            example: 'I paid but booking not confirmed',
+          },
+        ],
+
+  retry_failed_network_action: (cmd) =>
+    parseRetryFailedNetworkActionFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Retry failed network action',
+            message:
+              'Ask to retry after a network error (e.g. "Booking didn\'t save — retry?")',
+            example: 'Sync failed',
+          },
+        ],
+
+  explain_voice_input: (cmd) =>
+    parseExplainVoiceInputFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Explain voice input',
+            message:
+              'Ask about using the assistant microphone or fixing voice errors',
+            example: 'How do I use voice?',
+          },
+        ],
+
+  speak_assistant_reply: (cmd) =>
+    parseSpeakAssistantReplyFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Speak assistant reply',
+            message:
+              'Ask to hear the last assistant answer aloud (e.g. "Read that aloud")',
+            example: 'Read that aloud',
+          },
+        ],
+
+  give_ai_feedback: (cmd) =>
+    parseGiveAiFeedbackFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Give AI feedback',
+            message:
+              'Say whether the last answer was helpful or what was wrong',
+            example: 'That was wrong',
+          },
+        ],
+
+  explain_rtl_layout: (cmd) =>
+    parseExplainRtlLayoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Explain RTL layout',
+            message:
+              'Ask about reading direction or why text appears on the right',
+            example: 'Why is text on the right?',
+          },
+        ],
+
+  apply_promo_code_checkout: (cmd) =>
+    parseApplyPromoCodeCheckoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'promoCode',
+            label: 'Promo code',
+            message: 'Name the promo code to apply at checkout',
+            example: 'Apply code SAVE10 at checkout',
+          },
+        ],
+
+  apply_loyalty_at_checkout: (cmd) =>
+    parseApplyLoyaltyAtCheckoutFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Apply loyalty points',
+            message:
+              'Ask to apply loyalty or reward points to the current checkout',
+            example: 'Use my points on this booking',
+          },
+        ],
+
+  claim_gift_card_balance: (cmd) =>
+    parseClaimGiftCardBalanceFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Claim gift card',
+            message: 'Ask to redeem or add a gift card code to your account',
+            example: 'Add gift card to account',
           },
         ],
 
@@ -1955,6 +2697,32 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
+  dismiss_recommendations: (cmd) =>
+    parseDismissRecommendationsFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Dismiss recommendations',
+            message:
+              'Ask to hide You might also like or product cards on the booking success screen',
+            example: 'Hide You might also like',
+          },
+        ],
+
+  buy_gift_card_for_someone: (cmd) =>
+    parseBuyGiftCardForSomeoneFromPrompt(cmd.prompt ?? '', cmd.params)
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Gift card for someone',
+            message:
+              'Ask to buy or email a gift card for someone else, e.g. for my mom or as a gift',
+            example: 'Buy a $100 gift card for my mom',
+          },
+        ],
+
   explain_consumer_checkout_success: (cmd) =>
     parseExplainConsumerCheckoutSuccessFromPrompt(cmd.prompt ?? '', cmd.params)
       ? []
@@ -1979,6 +2747,19 @@ const ACTION_RULES: Record<string, Rule> = {
             message:
               'Ask about tax display in the consumer app: incl. badge on services, checkout tax lines, or confirmation breakdown',
             example: 'What does incl. VAT mean on services in the salon app?',
+          },
+        ],
+
+  explain_checkout_tax: (cmd) =>
+    parseExplainCheckoutTaxFromPrompt(cmd.prompt ?? '')
+      ? []
+      : [
+          {
+            field: 'prompt',
+            label: 'Checkout tax',
+            message:
+              'Ask about tax display on the public booking page: incl. badge on service cards, checkout tax lines, or confirmation breakdown',
+            example: 'What does incl. VAT mean on the service cards?',
           },
         ],
 
@@ -2026,7 +2807,8 @@ const ACTION_RULES: Record<string, Rule> = {
 
   explain_app_feature: (cmd) =>
     buildAppGuideValidationIssues('explain_app_feature', cmd),
-  guide_user_flow: (cmd) => buildAppGuideValidationIssues('guide_user_flow', cmd),
+  guide_user_flow: (cmd) =>
+    buildAppGuideValidationIssues('guide_user_flow', cmd),
   explain_current_screen: (cmd) =>
     buildAppGuideValidationIssues('explain_current_screen', cmd),
   explain_ai_settings: (cmd) =>
@@ -2086,11 +2868,7 @@ export function validateEntityResolution(
     params.employeeName &&
     !params.allProviders &&
     (entities.employees?.length ?? 0) === 0 &&
-    !(
-      cmd.action === 'mark_paid' &&
-      params.date &&
-      params.timeSlot
-    )
+    !(cmd.action === 'mark_paid' && params.date && params.timeSlot)
   ) {
     issues.push({
       field: 'employeeName',

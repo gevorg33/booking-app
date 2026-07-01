@@ -19,32 +19,38 @@ describe('ai-resume-pending-payment.util', () => {
     );
   });
 
-  it.each(
-    RESUME_PENDING_PAYMENT_PROMPTS.map((row) => [row.id, row] as const),
-  )('detects resume pending payment prompt for $id', (_id, row) => {
-    expect(isResumePendingPaymentPrompt(row.prompt)).toBe(true);
-    expect(parseResumePendingPaymentFromPrompt(row.prompt)).toEqual({
-      pending: null,
-    });
-    expect(rescueResumePendingPaymentIntent(row.prompt, 'unknown')).toEqual({
-      action: 'resume_pending_payment',
-      rescueReason: 'resume_pending_payment',
-    });
-  });
+  it.each(RESUME_PENDING_PAYMENT_PROMPTS.map((row) => [row.id, row] as const))(
+    'detects resume pending payment prompt for $id',
+    (_id, row) => {
+      expect(isResumePendingPaymentPrompt(row.prompt)).toBe(true);
+      expect(parseResumePendingPaymentFromPrompt(row.prompt)).toEqual({
+        pending: null,
+      });
+      expect(rescueResumePendingPaymentIntent(row.prompt, 'unknown')).toEqual({
+        action: 'resume_pending_payment',
+        rescueReason: 'resume_pending_payment',
+      });
+    },
+  );
 
   it.each(
     RESUME_PENDING_PAYMENT_MULTILINGUAL_SCENARIOS.map(
       (row) => [row.id, row] as const,
     ),
-  )('detects multilingual resume pending payment prompt for $id', (_id, row) => {
-    expect(isResumePendingPaymentPrompt(row.prompt)).toBe(true);
-    expect(rescueResumePendingPaymentIntent(row.prompt, 'unknown')?.action).toBe(
-      'resume_pending_payment',
-    );
-  });
+  )(
+    'detects multilingual resume pending payment prompt for $id',
+    (_id, row) => {
+      expect(isResumePendingPaymentPrompt(row.prompt)).toBe(true);
+      expect(
+        rescueResumePendingPaymentIntent(row.prompt, 'unknown')?.action,
+      ).toBe('resume_pending_payment');
+    },
+  );
 
   it.each(
-    RESUME_PENDING_PAYMENT_RESCUE_SCENARIOS.map((row) => [row.id, row] as const),
+    RESUME_PENDING_PAYMENT_RESCUE_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues $id from misclassified action', (_id, row) => {
     expect(
       rescueResumePendingPaymentIntent(row.prompt, row.misclassifiedAction),
@@ -118,7 +124,10 @@ describe('ai-resume-pending-payment.util', () => {
 
   it('returns null rescue when already classified correctly', () => {
     expect(
-      rescueResumePendingPaymentIntent('Continue my payment', 'resume_pending_payment'),
+      rescueResumePendingPaymentIntent(
+        'Continue my payment',
+        'resume_pending_payment',
+      ),
     ).toBeNull();
   });
 });

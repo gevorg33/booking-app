@@ -28,7 +28,9 @@ describe('MarketingAutomationService activation concierge (n99-3.5)', () => {
     get: jest.fn().mockReturnValue('http://localhost:3000'),
   };
   const consumerPushDispatch = {
-    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 1 }),
+    sendTransactionalPush: jest
+      .fn()
+      .mockResolvedValue({ ok: true, sentCount: 1 }),
   };
   const loyaltyService = {
     adjust: jest.fn().mockResolvedValue({ pointsBalance: 0 }),
@@ -119,10 +121,13 @@ describe('MarketingAutomationService activation concierge (n99-3.5)', () => {
   });
 
   it('finds qualified unactivated installs due for 24h concierge', async () => {
-    const candidates = await service.findActivationConciergeCandidates('biz-1', {
-      ...DEFAULT_MARKETING_AUTOMATION_SETTINGS,
-      activationConciergeEnabled: true,
-    });
+    const candidates = await service.findActivationConciergeCandidates(
+      'biz-1',
+      {
+        ...DEFAULT_MARKETING_AUTOMATION_SETTINGS,
+        activationConciergeEnabled: true,
+      },
+    );
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).toMatchObject({
@@ -185,16 +190,23 @@ describe('MarketingAutomationService activation concierge (n99-3.5)', () => {
       },
     });
 
-    await expect(service.processBusinessActivationConcierge('biz-1')).resolves.toBe(0);
+    await expect(
+      service.processBusinessActivationConcierge('biz-1'),
+    ).resolves.toBe(0);
   });
 
   it('processes all active businesses for activation concierge', async () => {
-    businessRepo.find.mockResolvedValue([business, { ...business, id: 'biz-2' }]);
+    businessRepo.find.mockResolvedValue([
+      business,
+      { ...business, id: 'biz-2' },
+    ]);
     jest
       .spyOn(service, 'processBusinessActivationConcierge')
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(0);
 
-    await expect(service.processAllActivationConciergeNudges()).resolves.toBe(1);
+    await expect(service.processAllActivationConciergeNudges()).resolves.toBe(
+      1,
+    );
   });
 });

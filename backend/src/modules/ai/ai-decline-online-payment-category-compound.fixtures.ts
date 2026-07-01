@@ -23,7 +23,11 @@ export const DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS = [
     ] as const,
     categorySteps: [
       { categoryName: 'dental', prepaymentMode: 'none' },
-      { categoryName: 'massage', prepaymentMode: 'deposit', depositPercent: 50 },
+      {
+        categoryName: 'massage',
+        prepaymentMode: 'deposit',
+        depositPercent: 50,
+      },
     ],
     misclassifiedAction: 'configure_service_online_payment',
   },
@@ -51,7 +55,11 @@ export const DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS = [
     ] as const,
     categorySteps: [
       { categoryName: 'waxing', prepaymentMode: 'none' },
-      { categoryName: 'massage', prepaymentMode: 'deposit', depositPercent: 50 },
+      {
+        categoryName: 'massage',
+        prepaymentMode: 'deposit',
+        depositPercent: 50,
+      },
     ],
     misclassifiedAction: 'configure_cash_payments',
   },
@@ -117,7 +125,11 @@ export const DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS = [
     ] as const,
     categorySteps: [
       { categoryName: 'facial', prepaymentMode: 'none' },
-      { categoryName: 'massage', prepaymentMode: 'deposit', depositPercent: 50 },
+      {
+        categoryName: 'massage',
+        prepaymentMode: 'deposit',
+        depositPercent: 50,
+      },
     ],
   },
   {
@@ -169,5 +181,7 @@ export const DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_SCENARIOS =
     (scenario) =>
       'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
   ) as Array<
-    DeclineOnlinePaymentCategoryCompoundFixture & { misclassifiedAction: string }
+    DeclineOnlinePaymentCategoryCompoundFixture & {
+      misclassifiedAction: string;
+    }
   >;

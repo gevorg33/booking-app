@@ -19,12 +19,25 @@ import {
   decomposeCrmCompoundPrompt,
   type CrmCompoundStep,
 } from './ai-customer-crm.util.js';
+import { handleExplainMySubscriptionLogic } from './ai-explain-my-subscription.logic.js';
+import {
+  handlePrivacyExportLogic as handlePrivacyExportLogicImpl,
+  type PrivacyExportLogicDeps,
+} from './ai-privacy-export.logic.js';
+import {
+  handlePrivacyDeleteLogic as handlePrivacyDeleteLogicImpl,
+  type PrivacyDeleteLogicDeps,
+} from './ai-privacy-delete.logic.js';
+import type { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
+import { handleClaimGiftCardBalanceLogic as handleClaimGiftCardBalanceLogicImpl } from './ai-claim-gift-card-balance.logic.js';
 
-export interface CustomerCrmLogicDeps {
+export interface CustomerCrmLogicDeps
+  extends PrivacyExportLogicDeps, PrivacyDeleteLogicDeps {
   customerService: CustomerService;
   customerPrivacyService: CustomerPrivacyService;
   subscriptionsService: ServiceSubscriptionsService;
   giftCardOrderService: GiftCardOrderService;
+  giftCardClaimService: Pick<GiftCardClaimService, 'claimByCode'>;
   packagesService: ServicePackagesService;
   zendeskService: ZendeskIntegrationService;
   bookingRepo: Repository<Booking>;
@@ -871,38 +884,30 @@ export async function handleTrackPhysicalGiftCardOrderLogic(
 }
 
 export async function handlePrivacyExportLogic(
-  deps: CustomerCrmLogicDeps,
+  deps: PrivacyExportLogicDeps,
   businessId: string,
-  params: Record<string, any>,
+  params: Record<string, unknown> = {},
+  prompt = '',
 ): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId)
-    return failure('privacy_export', 'Sign in to export your data.', {
-      clarify: true,
-    });
-  const data = await deps.customerPrivacyService.exportCustomerData(
-    businessId,
-    customerId,
-  );
-  return success('privacy_export', 'Your data export is ready.', {
-    export: data,
-  });
+  return handlePrivacyExportLogicImpl(deps, businessId, params, prompt);
 }
 
 export async function handlePrivacyDeleteLogic(
+  deps: PrivacyDeleteLogicDeps,
+  businessId: string,
+  params: Record<string, unknown> = {},
+  prompt = '',
+): Promise<CommandResult> {
+  return handlePrivacyDeleteLogicImpl(deps, businessId, params, prompt);
+}
+
+export async function handleClaimGiftCardBalanceLogic(
   deps: CustomerCrmLogicDeps,
   businessId: string,
-  params: Record<string, any>,
+  params: Record<string, unknown> = {},
+  prompt = '',
 ): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId)
-    return failure('privacy_delete', 'Sign in to delete your data.', {
-      clarify: true,
-    });
-  await deps.customerPrivacyService.deleteCustomerData(businessId, customerId);
-  return success('privacy_delete', 'Your account data has been anonymized.', {
-    deleted: true,
-  });
+  return handleClaimGiftCardBalanceLogicImpl(deps, businessId, params, prompt);
 }
 
 export async function handleDiscoverPackagesLogic(
@@ -1068,6 +1073,14 @@ export async function handleCrmCompoundLogic(
         break;
       case 'my_subscriptions':
         result = await handleMySubscriptionsLogic(deps, businessId, stepParams);
+        break;
+      case 'explain_my_subscription':
+        result = await handleExplainMySubscriptionLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
         break;
       case 'my_gift_cards':
         result = await handleMyGiftCardsLogic(deps, businessId, stepParams);

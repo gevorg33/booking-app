@@ -34,9 +34,10 @@ const DASHBOARD_COMPOUND_RULES = `Rules:
 const CUSTOMER_COMPOUND_RULES = `Rules:
 - Preserve order of operations for logged-in customer self-service.
 - ${buildSharedEntityParamsPromptBlock()}
-- book_package + promo_code_help: book package then apply/validate promo code (promoCode param when mentioned).
+- book_package + apply_promo_code_checkout: book package then apply promo code to checkout session (promoCode param when mentioned).
 - book_package + book_with_cash / book_with_gift_card: checkout payment preference after booking.
 - check_package_availability + book_package: availability check then book.
+- discover_packages + book_package: browse packages then book with bookingFirstAvailable=true (earliest/nearest slot).
 - list_my_appointments + get_manage_link: list visits then share manage link.
 - Max 4 sub-intents.`;
 

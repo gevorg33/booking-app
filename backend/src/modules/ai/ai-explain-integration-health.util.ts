@@ -16,7 +16,9 @@ export type IntegrationHealthReadIntent =
 export function isIntegrationHealthReadIntent(
   action: string,
 ): action is IntegrationHealthReadIntent {
-  return (INTEGRATION_HEALTH_READ_INTENTS as readonly string[]).includes(action);
+  return (INTEGRATION_HEALTH_READ_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 export const EXPLAIN_INTEGRATION_HEALTH_CLASSIFIER_RULES = `- explain_integration_health: READ — answer whether a specific integration is connected/configured/enabled (WhatsApp, OpenAI, Stripe Connect, Zendesk, Zapier, webhooks, API keys, accounting export) or summarize overall integration health. Uses live settings from Integrations and Settings. Triggers: is/are + connected|configured|enabled|set up + integration name; explain/describe/which + integration health|integrations connected. Optional integrationFocus param (whatsapp|openai|stripe|zendesk|zapier|webhooks|apiKeys|accounting). NOT list_integration_health (bulk "list integration health status"), NOT configure_whatsapp_integration|configure_openai_integration|configure_zendesk|configure_zapier (mutate), NOT list_webhooks|list_zapier_triggers (inventory lists), and NOT explain_tenant_app_install (consumer app QR).
@@ -177,7 +179,9 @@ export function parseIntegrationHealthFocusFromPrompt(
         'accounting',
       ].includes(normalized)
     ) {
-      return normalized === 'apikeys' ? 'apiKeys' : (normalized as IntegrationHealthFocus);
+      return normalized === 'apikeys'
+        ? 'apiKeys'
+        : (normalized as IntegrationHealthFocus);
     }
   }
 
@@ -219,7 +223,10 @@ export function isExplainIntegrationHealthPrompt(prompt: string): boolean {
 
   if (!hasExplainReadCue(text)) return false;
   if (!hasIntegrationHealthSurface(text)) return false;
-  if (!hasConnectedConfiguredCue(text) && !/\bintegration\s+health\b/i.test(text)) {
+  if (
+    !hasConnectedConfiguredCue(text) &&
+    !/\bintegration\s+health\b/i.test(text)
+  ) {
     return false;
   }
 
@@ -231,7 +238,10 @@ export function parseExplainIntegrationHealthFromPrompt(
   params: Record<string, unknown> = {},
 ): { integrationFocus?: IntegrationHealthFocus } | null {
   if (!isExplainIntegrationHealthPrompt(prompt)) return null;
-  const integrationFocus = parseIntegrationHealthFocusFromPrompt(prompt, params);
+  const integrationFocus = parseIntegrationHealthFocusFromPrompt(
+    prompt,
+    params,
+  );
   return integrationFocus ? { integrationFocus } : {};
 }
 

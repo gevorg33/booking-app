@@ -39,9 +39,9 @@ describe('ai-flexible-availability-compound.util (avail-1.8)', () => {
     expect(
       isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(fixture.prompt),
     ).toBe(true);
-    expect(
-      isFlexibleAvailabilityBudgetBookCompoundPrompt(fixture.prompt),
-    ).toBe(false);
+    expect(isFlexibleAvailabilityBudgetBookCompoundPrompt(fixture.prompt)).toBe(
+      false,
+    );
   });
 
   it('detects OR + inline under budget for check-then-book compound', () => {
@@ -125,32 +125,37 @@ describe('ai-flexible-availability-compound.util (avail-1.8)', () => {
     ]);
   });
 
-  it.each(FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.filter((row) =>
-    row.id === 'avail-list-budget-then-or-en',
-  ))('decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt $id', ({
-    id,
-    prompt,
-    maxPrice,
-    serviceCategory,
-    publicCompoundSteps,
-    expectedAvailabilityWindows,
-  }) => {
-    expect(isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt)).toBe(
-      true,
-    );
-    const steps = decomposeFlexibleAvailabilityBudgetCompoundPrompt(
+  it.each(
+    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.filter(
+      (row) => row.id === 'avail-list-budget-then-or-en',
+    ),
+  )(
+    'decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt $id',
+    ({
+      id,
       prompt,
-      'public',
-    );
-    expect(steps.map((step) => step.action)).toEqual(publicCompoundSteps);
-    expect(steps[0]?.params.maxPrice).toBe(maxPrice);
-    expect(steps[0]?.params.serviceCategory).toBe(serviceCategory);
-    expect(steps[0]?.params.availabilityWindows).toBeUndefined();
-    expect(steps[1]?.params.availabilityWindows).toEqual(
+      maxPrice,
+      serviceCategory,
+      publicCompoundSteps,
       expectedAvailabilityWindows,
-    );
-    expect(steps[1]?.params.bookingFirstAvailable).toBeUndefined();
-  });
+    }) => {
+      expect(isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt)).toBe(
+        true,
+      );
+      const steps = decomposeFlexibleAvailabilityBudgetCompoundPrompt(
+        prompt,
+        'public',
+      );
+      expect(steps.map((step) => step.action)).toEqual(publicCompoundSteps);
+      expect(steps[0]?.params.maxPrice).toBe(maxPrice);
+      expect(steps[0]?.params.serviceCategory).toBe(serviceCategory);
+      expect(steps[0]?.params.availabilityWindows).toBeUndefined();
+      expect(steps[1]?.params.availabilityWindows).toEqual(
+        expectedAvailabilityWindows,
+      );
+      expect(steps[1]?.params.bookingFirstAvailable).toBeUndefined();
+    },
+  );
 
   it('avail-list-budget-then-or-en routes through deterministic decomposition', () => {
     const prompt =
@@ -176,9 +181,7 @@ describe('ai-flexible-availability-compound.util (avail-1.8)', () => {
       'public',
     );
     expect(params.maxPrice).toBe(50);
-    expect(params.availabilityWindows).toEqual(
-      canonical!.expectedWindows,
-    );
+    expect(params.availabilityWindows).toEqual(canonical!.expectedWindows);
     expect(params.serviceCategory).toBe('haircut');
   });
 });

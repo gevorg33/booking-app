@@ -96,7 +96,10 @@ describe('provider-exp-ai-parity (prov-exp-11)', () => {
           taskId: 'prov-exp-test',
           screen: 'Test',
           uiAction: 'Bad',
-          coverage: { kind: 'provider-ai', intents: ['not_a_real_provider_intent'] },
+          coverage: {
+            kind: 'provider-ai',
+            intents: ['not_a_real_provider_intent'],
+          },
         },
       ]),
     ).toThrow(/parity violations/);

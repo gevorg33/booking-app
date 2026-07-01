@@ -44,7 +44,9 @@ export function filterImplicationCorpusByIntent(
 export function findCorpusPromptsWithEntityNames(
   scenarios: readonly ImplicationCorpusScenario[],
 ): ImplicationCorpusScenario[] {
-  return scenarios.filter((scenario) => !isGenericSemanticAnchorPrompt(scenario.prompt));
+  return scenarios.filter(
+    (scenario) => !isGenericSemanticAnchorPrompt(scenario.prompt),
+  );
 }
 
 export function listImplicationCorpusIds(

@@ -33,7 +33,9 @@ describe('ai-provider-time-off.util (prov-exp-7.2)', () => {
       rescueProviderTimeOffIntent('Request next Friday off', 'unknown')?.action,
     ).toBe('request_time_off');
     expect(isRequestTimeOffPrompt('Request next Friday off')).toBe(true);
-    expect(isListMyTimeOffRequestsPrompt('Request next Friday off')).toBe(false);
+    expect(isListMyTimeOffRequestsPrompt('Request next Friday off')).toBe(
+      false,
+    );
   });
 
   it('returns null when action already classified', () => {

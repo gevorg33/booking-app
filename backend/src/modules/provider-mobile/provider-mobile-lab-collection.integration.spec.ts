@@ -13,7 +13,10 @@ describe('ProviderMobileService lab collection queue', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = {
     getBookingRetailSales: jest.fn(),
     hasConfiguredRetailProducts: jest.fn(async () => false),

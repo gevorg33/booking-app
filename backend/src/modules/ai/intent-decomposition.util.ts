@@ -112,6 +112,107 @@ import {
   isLaunchConsumerAppGrowthCompoundPrompt,
   LAUNCH_CONSUMER_APP_GROWTH_RECIPE_ID,
 } from './ai-launch-consumer-app-growth-compound.util.js';
+import {
+  decomposeCustomerBookPackageWithNearestSlotCompoundPrompt,
+  decomposePublicBookPackageWithNearestSlotCompoundPrompt,
+  isBookPackageWithNearestSlotCompoundPrompt,
+  BOOK_PACKAGE_WITH_NEAREST_SLOT_RECIPE_ID,
+} from './ai-book-package-with-nearest-slot.util.js';
+import {
+  decomposeCustomerBookLabCollectionNearestCompoundPrompt,
+  decomposePublicBookLabCollectionNearestCompoundPrompt,
+  isBookLabCollectionNearestCompoundPrompt,
+  BOOK_LAB_COLLECTION_NEAREST_RECIPE_ID,
+} from './ai-book-lab-collection-nearest.util.js';
+import {
+  decomposeCustomerCompleteIntakeAndBookCompoundPrompt,
+  decomposePublicCompleteIntakeAndBookCompoundPrompt,
+  isCompleteIntakeAndBookCompoundPrompt,
+  COMPLETE_INTAKE_AND_BOOK_RECIPE_ID,
+  PUBLIC_COMPLETE_INTAKE_AND_BOOK_RECIPE_ID,
+} from './ai-complete-intake-and-book.util.js';
+import {
+  decomposeCustomerIntakeLabBookPayCompoundPrompt,
+  decomposePublicIntakeLabBookPayCompoundPrompt,
+  isIntakeLabBookPayCompoundPrompt,
+  INTAKE_LAB_BOOK_PAY_RECIPE_ID,
+  PUBLIC_INTAKE_LAB_BOOK_PAY_RECIPE_ID,
+} from './ai-intake-lab-book-pay-compound.util.js';
+import {
+  decomposeCustomerBookTourNearestDepartureCompoundPrompt,
+  decomposePublicBookTourNearestDepartureCompoundPrompt,
+  isBookTourNearestDepartureCompoundPrompt,
+  BOOK_TOUR_NEAREST_DEPARTURE_RECIPE_ID,
+  PUBLIC_BOOK_TOUR_NEAREST_DEPARTURE_RECIPE_ID,
+} from './ai-book-tour-nearest-departure.util.js';
+import {
+  decomposeCustomerTourGroupCheckoutCompoundPrompt,
+  decomposePublicTourGroupCheckoutCompoundPrompt,
+  isTourGroupCheckoutCompoundPrompt,
+  TOUR_GROUP_CHECKOUT_RECIPE_ID,
+  PUBLIC_TOUR_GROUP_CHECKOUT_RECIPE_ID,
+} from './ai-tour-group-checkout-compound.util.js';
+import {
+  decomposeBookWithGiftCardCompoundPrompt,
+  isBookWithGiftCardCompoundPrompt,
+} from './ai-book-with-gift-card.util.js';
+import {
+  decomposeCustomerDiscoverBookAndPayCompoundPrompt,
+  decomposePublicDiscoverBookAndPayCompoundPrompt,
+  isDiscoverBookAndPayCompoundPrompt,
+  DISCOVER_BOOK_AND_PAY_RECIPE_ID,
+  PUBLIC_DISCOVER_BOOK_AND_PAY_RECIPE_ID,
+} from './ai-discover-book-and-pay-compound.util.js';
+import {
+  decomposeRebookAndPayCompoundPrompt,
+  isRebookAndPayCompoundPrompt,
+  REBOOK_AND_PAY_RECIPE_ID,
+} from './ai-rebook-and-pay-compound.util.js';
+import {
+  decomposeSubscriptionFirstVisitCompoundPrompt,
+  isSubscriptionFirstVisitCompoundPrompt,
+  SUBSCRIPTION_FIRST_VISIT_RECIPE_ID,
+} from './ai-subscription-first-visit-compound.util.js';
+import {
+  decomposeResultsThenRebookCompoundPrompt,
+  isResultsThenRebookCompoundPrompt,
+  RESULTS_THEN_REBOOK_RECIPE_ID,
+} from './ai-results-then-rebook-compound.util.js';
+import {
+  decomposeCancelAndRebookCompoundPrompt,
+  isCancelAndRebookCompoundPrompt,
+  CANCEL_AND_REBOOK_RECIPE_ID,
+} from './ai-cancel-and-rebook-compound.util.js';
+import {
+  decomposeCancelPackageRebookSingleCompoundPrompt,
+  isCancelPackageRebookSingleCompoundPrompt,
+  CANCEL_PACKAGE_REBOOK_SINGLE_RECIPE_ID,
+} from './ai-cancel-package-rebook-single-compound.util.js';
+import {
+  decomposeGiftCardCheckoutCompoundPrompt,
+  isGiftCardCheckoutCompoundPrompt,
+  GIFT_CARD_CHECKOUT_RECIPE_ID,
+} from './ai-gift-card-checkout-compound.util.js';
+import {
+  decomposeMultiServiceDayCompoundPrompt,
+  isMultiServiceDayCompoundPrompt,
+  MULTI_SERVICE_DAY_RECIPE_ID,
+} from './ai-multi-service-day-compound.util.js';
+import {
+  decomposeProviderSameDayMultiCompoundPrompt,
+  isProviderSameDayMultiCompoundPrompt,
+  PROVIDER_SAME_DAY_MULTI_RECIPE_ID,
+} from './ai-provider-same-day-multi-compound.util.js';
+import {
+  decomposeGuestBookAndManageCompoundPrompt,
+  isGuestBookAndManageCompoundPrompt,
+  GUEST_BOOK_AND_MANAGE_RECIPE_ID,
+} from './ai-guest-book-and-manage-compound.util.js';
+import {
+  decomposeGuestPayCashManageCompoundPrompt,
+  isGuestPayCashManageCompoundPrompt,
+  GUEST_PAY_CASH_MANAGE_RECIPE_ID,
+} from './ai-guest-pay-cash-manage-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -168,7 +269,118 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeClinicLabReviewCompoundPrompt,
   decomposeBudgetDiscoverAndBookCompoundPrompt,
   decomposeRankDiscoverAndBookCompoundPrompt,
+  decomposeCustomerBookPackageWithNearestSlotCompoundPrompt,
+  decomposePublicBookPackageWithNearestSlotCompoundPrompt,
+  decomposeCustomerBookLabCollectionNearestCompoundPrompt,
+  decomposePublicBookLabCollectionNearestCompoundPrompt,
+  decomposeCustomerCompleteIntakeAndBookCompoundPrompt,
+  decomposePublicCompleteIntakeAndBookCompoundPrompt,
+  decomposeCustomerBookTourNearestDepartureCompoundPrompt,
+  decomposePublicBookTourNearestDepartureCompoundPrompt,
+  decomposeCustomerDiscoverBookAndPayCompoundPrompt,
+  decomposePublicDiscoverBookAndPayCompoundPrompt,
+  decomposeRebookAndPayCompoundPrompt,
+  decomposeCancelAndRebookCompoundPrompt,
+  decomposeGiftCardCheckoutCompoundPrompt,
+  decomposeMultiServiceDayCompoundPrompt,
+  decomposeGuestBookAndManageCompoundPrompt,
 };
+
+function buildBookPackageWithNearestSlotGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicBookPackageWithNearestSlotCompoundPrompt(prompt)
+      : decomposeCustomerBookPackageWithNearestSlotCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Book package with nearest slot compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildBookLabCollectionNearestGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicBookLabCollectionNearestCompoundPrompt(prompt)
+      : decomposeCustomerBookLabCollectionNearestCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Book lab collection nearest compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildCompleteIntakeAndBookGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicCompleteIntakeAndBookCompoundPrompt(prompt)
+      : decomposeCustomerCompleteIntakeAndBookCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Complete intake and book compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildIntakeLabBookPayGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicIntakeLabBookPayCompoundPrompt(prompt)
+      : decomposeCustomerIntakeLabBookPayCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Intake lab book pay compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildBookTourNearestDepartureGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicBookTourNearestDepartureCompoundPrompt(prompt)
+      : decomposeCustomerBookTourNearestDepartureCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Book tour nearest departure compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildTourGroupCheckoutGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicTourGroupCheckoutCompoundPrompt(prompt)
+      : decomposeCustomerTourGroupCheckoutCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Tour group checkout compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
 
 function buildCheckAndBookGoldenSteps(prompt: string): DecomposedIntentStep[] {
   const raw = decomposePaymentsCompoundPrompt(prompt);
@@ -203,6 +415,140 @@ function decomposeBudgetServiceDiscoveryCompoundPrompt(
     : decomposeCustomerBudgetServiceDiscoveryCompoundPrompt(prompt);
 }
 
+function buildMultiServiceDayGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeMultiServiceDayCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Multi-service day compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildProviderSameDayMultiGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeProviderSameDayMultiCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Provider same day multi compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildGiftCardCheckoutGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeGiftCardCheckoutCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Gift card checkout compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildCancelPackageRebookSingleGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeCancelPackageRebookSingleCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Cancel package rebook single compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildCancelAndRebookGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeCancelAndRebookCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Cancel and rebook compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildGuestBookAndManageGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeGuestBookAndManageCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Guest book and manage compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildGuestPayCashManageGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeGuestPayCashManageCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Guest pay cash manage compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildRebookAndPayGoldenSteps(prompt: string): DecomposedIntentStep[] {
+  const raw = decomposeRebookAndPayCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Rebook and pay compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildSubscriptionFirstVisitGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeSubscriptionFirstVisitCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Subscription first visit compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildResultsThenRebookGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeResultsThenRebookCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Results then rebook compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildDiscoverBookAndPayGoldenSteps(
+  prompt: string,
+  surface: Extract<CommandSurface, 'public' | 'customer'>,
+): DecomposedIntentStep[] {
+  const raw =
+    surface === 'public'
+      ? decomposePublicDiscoverBookAndPayCompoundPrompt(prompt)
+      : decomposeCustomerDiscoverBookAndPayCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Discover book and pay compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
 function buildRankCompoundGoldenSteps(
   prompt: string,
   surface: Extract<CommandSurface, 'public' | 'customer'>,
@@ -229,7 +575,10 @@ function buildFlexibleAvailabilityBudgetCompoundGoldenSteps(
   prompt: string,
   surface: Extract<CommandSurface, 'public' | 'customer'>,
 ): DecomposedIntentStep[] {
-  const raw = decomposeFlexibleAvailabilityBudgetCompoundPrompt(prompt, surface);
+  const raw = decomposeFlexibleAvailabilityBudgetCompoundPrompt(
+    prompt,
+    surface,
+  );
   return raw.map((step) => ({
     action: step.action,
     params: step.params,
@@ -272,6 +621,57 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     matches: (prompt) => isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt),
     buildSteps: (prompt) =>
       buildFlexibleAvailabilityBudgetCompoundGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'customer_cancel_package_rebook_single',
+    surface: 'customer',
+    recipeId: CANCEL_PACKAGE_REBOOK_SINGLE_RECIPE_ID,
+    matches: (prompt) => isCancelPackageRebookSingleCompoundPrompt(prompt),
+    buildSteps: buildCancelPackageRebookSingleGoldenSteps,
+  },
+  {
+    id: 'customer_cancel_and_rebook',
+    surface: 'customer',
+    recipeId: CANCEL_AND_REBOOK_RECIPE_ID,
+    matches: (prompt) => isCancelAndRebookCompoundPrompt(prompt),
+    buildSteps: buildCancelAndRebookGoldenSteps,
+  },
+  {
+    id: 'customer_subscription_first_visit',
+    surface: 'customer',
+    recipeId: SUBSCRIPTION_FIRST_VISIT_RECIPE_ID,
+    matches: (prompt) => isSubscriptionFirstVisitCompoundPrompt(prompt),
+    buildSteps: buildSubscriptionFirstVisitGoldenSteps,
+  },
+  {
+    id: 'customer_results_then_rebook',
+    surface: 'customer',
+    recipeId: RESULTS_THEN_REBOOK_RECIPE_ID,
+    matches: (prompt) => isResultsThenRebookCompoundPrompt(prompt),
+    buildSteps: buildResultsThenRebookGoldenSteps,
+  },
+  {
+    id: 'customer_rebook_and_pay',
+    surface: 'customer',
+    recipeId: REBOOK_AND_PAY_RECIPE_ID,
+    matches: (prompt) => isRebookAndPayCompoundPrompt(prompt),
+    buildSteps: buildRebookAndPayGoldenSteps,
+  },
+  {
+    id: 'customer_discover_book_and_pay',
+    surface: 'customer',
+    recipeId: DISCOVER_BOOK_AND_PAY_RECIPE_ID,
+    matches: (prompt) => isDiscoverBookAndPayCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildDiscoverBookAndPayGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_discover_book_and_pay',
+    surface: 'public',
+    recipeId: PUBLIC_DISCOVER_BOOK_AND_PAY_RECIPE_ID,
+    matches: (prompt) => isDiscoverBookAndPayCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildDiscoverBookAndPayGoldenSteps(prompt, 'public'),
   },
   {
     id: 'public_rank_book_nearest',
@@ -380,7 +780,8 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     matches: (prompt) =>
       isCheckProvidersForServicePrompt(prompt) &&
       isBookNearestSlotPrompt(prompt) &&
-      !isBudgetServiceDiscoveryCompoundPrompt(prompt),
+      !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
+      !isDiscoverBookAndPayCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {
@@ -404,12 +805,121 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
           segment: prompt,
         },
         {
-          action: 'promo_code_help',
+          action: 'apply_promo_code_checkout',
           params,
           reasoning: 'Apply or validate the promo code at checkout',
           segment: prompt,
         },
       ];
+    },
+  },
+  {
+    id: 'customer_book_package_with_nearest_slot',
+    surface: 'customer',
+    recipeId: BOOK_PACKAGE_WITH_NEAREST_SLOT_RECIPE_ID,
+    matches: (prompt) => isBookPackageWithNearestSlotCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookPackageWithNearestSlotGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_book_package_with_nearest_slot',
+    surface: 'public',
+    recipeId: 'public_book_package_with_nearest_slot',
+    matches: (prompt) => isBookPackageWithNearestSlotCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookPackageWithNearestSlotGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_intake_lab_book_pay',
+    surface: 'customer',
+    recipeId: INTAKE_LAB_BOOK_PAY_RECIPE_ID,
+    matches: (prompt) => isIntakeLabBookPayCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildIntakeLabBookPayGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_intake_lab_book_pay',
+    surface: 'public',
+    recipeId: PUBLIC_INTAKE_LAB_BOOK_PAY_RECIPE_ID,
+    matches: (prompt) => isIntakeLabBookPayCompoundPrompt(prompt),
+    buildSteps: (prompt) => buildIntakeLabBookPayGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_book_lab_collection_nearest',
+    surface: 'customer',
+    recipeId: BOOK_LAB_COLLECTION_NEAREST_RECIPE_ID,
+    matches: (prompt) => isBookLabCollectionNearestCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookLabCollectionNearestGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_book_lab_collection_nearest',
+    surface: 'public',
+    recipeId: 'public_book_lab_collection_nearest',
+    matches: (prompt) => isBookLabCollectionNearestCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookLabCollectionNearestGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_complete_intake_and_book',
+    surface: 'customer',
+    recipeId: COMPLETE_INTAKE_AND_BOOK_RECIPE_ID,
+    matches: (prompt) => isCompleteIntakeAndBookCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildCompleteIntakeAndBookGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_complete_intake_and_book',
+    surface: 'public',
+    recipeId: PUBLIC_COMPLETE_INTAKE_AND_BOOK_RECIPE_ID,
+    matches: (prompt) => isCompleteIntakeAndBookCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildCompleteIntakeAndBookGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_tour_group_checkout',
+    surface: 'customer',
+    recipeId: TOUR_GROUP_CHECKOUT_RECIPE_ID,
+    matches: (prompt) => isTourGroupCheckoutCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildTourGroupCheckoutGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_tour_group_checkout',
+    surface: 'public',
+    recipeId: PUBLIC_TOUR_GROUP_CHECKOUT_RECIPE_ID,
+    matches: (prompt) => isTourGroupCheckoutCompoundPrompt(prompt),
+    buildSteps: (prompt) => buildTourGroupCheckoutGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_book_tour_nearest_departure',
+    surface: 'customer',
+    recipeId: BOOK_TOUR_NEAREST_DEPARTURE_RECIPE_ID,
+    matches: (prompt) => isBookTourNearestDepartureCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookTourNearestDepartureGoldenSteps(prompt, 'customer'),
+  },
+  {
+    id: 'public_book_tour_nearest_departure',
+    surface: 'public',
+    recipeId: PUBLIC_BOOK_TOUR_NEAREST_DEPARTURE_RECIPE_ID,
+    matches: (prompt) => isBookTourNearestDepartureCompoundPrompt(prompt),
+    buildSteps: (prompt) =>
+      buildBookTourNearestDepartureGoldenSteps(prompt, 'public'),
+  },
+  {
+    id: 'customer_book_with_gift_card_compound',
+    surface: 'customer',
+    recipeId: 'customer_self_service_compound',
+    matches: (prompt) => isBookWithGiftCardCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposeBookWithGiftCardCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Gift card booking compound: ${step.action}`,
+        segment: step.segment,
+      }));
     },
   },
   {
@@ -484,6 +994,41 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
         segment: step.segment,
       }));
     },
+  },
+  {
+    id: 'customer_provider_same_day_multi',
+    surface: 'customer',
+    recipeId: PROVIDER_SAME_DAY_MULTI_RECIPE_ID,
+    matches: (prompt) => isProviderSameDayMultiCompoundPrompt(prompt),
+    buildSteps: buildProviderSameDayMultiGoldenSteps,
+  },
+  {
+    id: 'customer_multi_service_day',
+    surface: 'customer',
+    recipeId: MULTI_SERVICE_DAY_RECIPE_ID,
+    matches: (prompt) => isMultiServiceDayCompoundPrompt(prompt),
+    buildSteps: buildMultiServiceDayGoldenSteps,
+  },
+  {
+    id: 'customer_guest_pay_cash_manage',
+    surface: 'customer',
+    recipeId: GUEST_PAY_CASH_MANAGE_RECIPE_ID,
+    matches: (prompt) => isGuestPayCashManageCompoundPrompt(prompt),
+    buildSteps: buildGuestPayCashManageGoldenSteps,
+  },
+  {
+    id: 'customer_guest_book_and_manage',
+    surface: 'customer',
+    recipeId: GUEST_BOOK_AND_MANAGE_RECIPE_ID,
+    matches: (prompt) => isGuestBookAndManageCompoundPrompt(prompt),
+    buildSteps: buildGuestBookAndManageGoldenSteps,
+  },
+  {
+    id: 'customer_gift_card_checkout',
+    surface: 'customer',
+    recipeId: GIFT_CARD_CHECKOUT_RECIPE_ID,
+    matches: (prompt) => isGiftCardCheckoutCompoundPrompt(prompt),
+    buildSteps: buildGiftCardCheckoutGoldenSteps,
   },
   {
     id: 'customer_gift_card_checkout_compound',
@@ -734,6 +1279,17 @@ export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
 export function isCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 12) return false;
+  if (isGuestPayCashManageCompoundPrompt(trimmed)) return true;
+  if (isGuestBookAndManageCompoundPrompt(trimmed)) return true;
+  if (isMultiServiceDayCompoundPrompt(trimmed)) return true;
+  if (isProviderSameDayMultiCompoundPrompt(trimmed)) return true;
+  if (isGiftCardCheckoutCompoundPrompt(trimmed)) return true;
+  if (isCancelPackageRebookSingleCompoundPrompt(trimmed)) return true;
+  if (isCancelAndRebookCompoundPrompt(trimmed)) return true;
+  if (isSubscriptionFirstVisitCompoundPrompt(trimmed)) return true;
+  if (isResultsThenRebookCompoundPrompt(trimmed)) return true;
+  if (isRebookAndPayCompoundPrompt(trimmed)) return true;
+  if (isDiscoverBookAndPayCompoundPrompt(trimmed)) return true;
   if (isBudgetServiceDiscoveryCompoundPrompt(trimmed)) return true;
   if (isServiceRankDiscoveryCompoundPrompt(trimmed)) return true;
   if (isProviderOnboardingCompoundPrompt(trimmed)) return true;
@@ -746,6 +1302,13 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (isClinicLabDayCloseCompoundPrompt(trimmed)) return true;
   if (isBudgetDiscoverAndBookCompoundPrompt(trimmed)) return true;
   if (isRankDiscoverAndBookCompoundPrompt(trimmed)) return true;
+  if (isBookPackageWithNearestSlotCompoundPrompt(trimmed)) return true;
+  if (isBookLabCollectionNearestCompoundPrompt(trimmed)) return true;
+  if (isIntakeLabBookPayCompoundPrompt(trimmed)) return true;
+  if (isCompleteIntakeAndBookCompoundPrompt(trimmed)) return true;
+  if (isBookTourNearestDepartureCompoundPrompt(trimmed)) return true;
+  if (isTourGroupCheckoutCompoundPrompt(trimmed)) return true;
+  if (isBookWithGiftCardCompoundPrompt(trimmed)) return true;
   return COMPOUND_PROMPT_MARKERS.test(trimmed);
 }
 
@@ -777,7 +1340,7 @@ export function buildCustomerPromoHelpStep(text: string): DecomposedIntentStep {
   const promoCode = extractPromoCodeFromPrompt(text);
   if (promoCode) params.promoCode = promoCode;
   return {
-    action: 'promo_code_help',
+    action: 'apply_promo_code_checkout',
     params,
     reasoning: 'Apply promo code at checkout',
     segment: text,

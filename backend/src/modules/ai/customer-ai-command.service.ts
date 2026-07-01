@@ -33,9 +33,15 @@ import { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-
 import { AiProviderSpecialtyService } from './ai-explain-provider-specialty.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
+import { rescueBudgetServiceDiscoveryIntent } from './ai-budget-service-discovery.util.js';
 import {
-  rescueBudgetServiceDiscoveryIntent,
-} from './ai-budget-service-discovery.util.js';
+  parseFindServicesUnderBudgetFromPrompt,
+  rescueFindServicesUnderBudgetIntent,
+} from './ai-find-services-under-budget.util.js';
+import {
+  parseFindEveningWeekendSlotsFromPrompt,
+  rescueFindEveningWeekendSlotsIntent,
+} from './ai-find-evening-weekend-slots.util.js';
 import { isIntentAllowed } from './ai-capability.matrix.js';
 import {
   appendPostFailureGuideFallback,
@@ -46,8 +52,14 @@ import {
   runAiUnavailableStaticGuideFallback,
 } from './ai-product-guide-ai-unavailable.util.js';
 import type { CommandResult } from './command-completion.types.js';
-import { isCompoundPrompt, decomposeDeterministicForSurface } from './intent-decomposition.util.js';
-import { rescueServiceRankFromRecommendSpecialistsIntent, rescueServiceRankDiscoveryIntent } from './ai-service-rank-discovery.util.js';
+import {
+  isCompoundPrompt,
+  decomposeDeterministicForSurface,
+} from './intent-decomposition.util.js';
+import {
+  rescueServiceRankFromRecommendSpecialistsIntent,
+  rescueServiceRankDiscoveryIntent,
+} from './ai-service-rank-discovery.util.js';
 import { rescueServiceCatalogBrowseIntent } from './ai-service-catalog-browse.util.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
@@ -56,12 +68,23 @@ import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import { AiGuestCheckoutFieldsService } from './ai-explain-guest-checkout-fields.service.js';
 import { AiResumePendingPaymentService } from './ai-resume-pending-payment.service.js';
+import { AiDiagnoseStripeCheckoutFailureService } from './ai-diagnose-stripe-checkout-failure.service.js';
+import { AiPayAtVenueFallbackService } from './ai-pay-at-venue-fallback.service.js';
+import { AiResumeBookingDraftService } from './ai-resume-booking-draft.service.js';
+import { AiExplainSlotNoLongerAvailableService } from './ai-explain-slot-no-longer-available.service.js';
+import { AiExplainMultiServicePaymentReturnService } from './ai-explain-multi-service-payment-return.service.js';
+import { AiRetryFailedNetworkActionService } from './ai-retry-failed-network-action.service.js';
+import { AiExplainVoiceInputService } from './ai-explain-voice-input.service.js';
+import { AiSpeakAssistantReplyService } from './ai-speak-assistant-reply.service.js';
+import { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
+import { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
-import {
-  enrichDiscoveryParamsFromPrompt,
-} from './ai-service-discovery-enrichment.util.js';
+import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
-import { mergePublicAssistantSessionParams, parsePublicAssistantSessionValue } from '../public-booking/public-booking-assistant-session.util.js';
+import {
+  mergePublicAssistantSessionParams,
+  parsePublicAssistantSessionValue,
+} from '../public-booking/public-booking-assistant-session.util.js';
 import {
   applyPromptMentionedServiceOverrideToParams,
   enrichBookingTimeHintsFromPrompt,
@@ -148,6 +171,16 @@ export class CustomerAiCommandService {
     private readonly clinicBooking: AiClinicBookingService,
     private readonly guestCheckoutFields: AiGuestCheckoutFieldsService,
     private readonly resumePendingPayment: AiResumePendingPaymentService,
+    private readonly diagnoseStripeCheckoutFailure: AiDiagnoseStripeCheckoutFailureService,
+    private readonly payAtVenueFallback: AiPayAtVenueFallbackService,
+    private readonly resumeBookingDraft: AiResumeBookingDraftService,
+    private readonly explainSlotNoLongerAvailable: AiExplainSlotNoLongerAvailableService,
+    private readonly explainMultiServicePaymentReturn: AiExplainMultiServicePaymentReturnService,
+    private readonly retryFailedNetworkAction: AiRetryFailedNetworkActionService,
+    private readonly explainVoiceInput: AiExplainVoiceInputService,
+    private readonly speakAssistantReply: AiSpeakAssistantReplyService,
+    private readonly giveAiFeedback: AiGiveAiFeedbackService,
+    private readonly explainRtlLayout: AiExplainRtlLayoutService,
     private readonly consumerAdoption: AiConsumerAdoptionService,
     @Inject(forwardRef(() => PublicBookingAssistantService))
     private readonly publicAssistant: PublicBookingAssistantService,
@@ -177,6 +210,16 @@ export class CustomerAiCommandService {
       clinicBooking: this.clinicBooking,
       guestCheckoutFields: this.guestCheckoutFields,
       resumePendingPayment: this.resumePendingPayment,
+      diagnoseStripeCheckoutFailure: this.diagnoseStripeCheckoutFailure,
+      payAtVenueFallback: this.payAtVenueFallback,
+      resumeBookingDraft: this.resumeBookingDraft,
+      explainSlotNoLongerAvailable: this.explainSlotNoLongerAvailable,
+      explainMultiServicePaymentReturn: this.explainMultiServicePaymentReturn,
+      retryFailedNetworkAction: this.retryFailedNetworkAction,
+      explainVoiceInput: this.explainVoiceInput,
+      speakAssistantReply: this.speakAssistantReply,
+      giveAiFeedback: this.giveAiFeedback,
+      explainRtlLayout: this.explainRtlLayout,
       consumerAdoption: this.consumerAdoption,
       runPublicAssistantStep: async (businessId, action, params, session) => {
         void businessId;
@@ -221,7 +264,8 @@ export class CustomerAiCommandService {
         surface: 'customer',
         reason: 'openai_not_configured',
         route: mapCustomerMobileGuideRoute(context),
-        locale: typeof context?.locale === 'string' ? context.locale : undefined,
+        locale:
+          typeof context?.locale === 'string' ? context.locale : undefined,
       });
     }
 
@@ -240,7 +284,7 @@ export class CustomerAiCommandService {
       return this.dispatchCustomerAppGuideIntent(
         businessId,
         prompt,
-        guideMatch.intent as AppGuideIntent,
+        guideMatch.intent,
         context,
       );
     }
@@ -307,7 +351,7 @@ export class CustomerAiCommandService {
       return this.withPostFailureGuideFallback(clarify, context);
     }
 
-    let parsed = pipelineResultToClassifiedIntent(understood);
+    const parsed = pipelineResultToClassifiedIntent(understood);
     const classifierCandidate = findClassifierCandidate(understood);
     const classifierAction = classifierCandidate?.action ?? parsed.action;
     let rescueReason: string | undefined = pipelineRescueReason(understood);
@@ -339,12 +383,22 @@ export class CustomerAiCommandService {
     let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
     params = applyPromptMentionedServiceOverrideToParams(prompt, params);
     params = mergePublicAssistantSessionParams(params, context, action);
+    if (history?.length && action === 'speak_assistant_reply') {
+      params = { ...params, conversationHistory: history };
+    }
+    if (history?.length && action === 'give_ai_feedback') {
+      params = { ...params, conversationHistory: history };
+    }
     if (
       action === 'book_nearest_slot' ||
       action === 'check_providers_for_service' ||
       action === 'create_booking'
     ) {
-      enrichBookingTimeHintsFromPrompt(action, params as Record<string, any>, prompt);
+      enrichBookingTimeHintsFromPrompt(
+        action,
+        params as Record<string, any>,
+        prompt,
+      );
     }
 
     recordMisrouteTelemetry(this.aiEvents, businessId, {
@@ -390,7 +444,7 @@ export class CustomerAiCommandService {
       return this.dispatchCustomerAppGuideIntent(
         businessId,
         prompt,
-        action as AppGuideIntent,
+        action,
         context,
         params,
       );
@@ -646,6 +700,28 @@ export class CustomerAiCommandService {
     rescueReason: string;
     params?: Record<string, unknown>;
   } | null {
+    const eveningWeekendChipRescue = rescueFindEveningWeekendSlotsIntent(
+      prompt,
+      action,
+    );
+    if (eveningWeekendChipRescue) {
+      return {
+        ...eveningWeekendChipRescue,
+        params: parseFindEveningWeekendSlotsFromPrompt(prompt) ?? {},
+      };
+    }
+
+    const budgetChipRescue = rescueFindServicesUnderBudgetIntent(
+      prompt,
+      action,
+    );
+    if (budgetChipRescue) {
+      return {
+        ...budgetChipRescue,
+        params: parseFindServicesUnderBudgetFromPrompt(prompt) ?? {},
+      };
+    }
+
     const rankDiscoveryRescue = rescueServiceRankDiscoveryIntent(
       prompt,
       action,
@@ -653,7 +729,10 @@ export class CustomerAiCommandService {
     );
     if (rankDiscoveryRescue) return rankDiscoveryRescue;
 
-    const catalogBrowseRescue = rescueServiceCatalogBrowseIntent(prompt, action);
+    const catalogBrowseRescue = rescueServiceCatalogBrowseIntent(
+      prompt,
+      action,
+    );
     const resolvedBrowseAction = catalogBrowseRescue?.action ?? action;
     const budgetRescue = rescueBudgetServiceDiscoveryIntent(
       prompt,
@@ -791,7 +870,8 @@ export class CustomerAiCommandService {
         intent: resolvedIntent,
         surface: 'customer',
         locale:
-          typeof mergedContext?.locale === 'string' && mergedContext.locale.trim()
+          typeof mergedContext?.locale === 'string' &&
+          mergedContext.locale.trim()
             ? mergedContext.locale.trim()
             : undefined,
         params: guideParams,
@@ -828,7 +908,10 @@ export class CustomerAiCommandService {
     context?: Record<string, unknown>,
     params: Record<string, unknown> = {},
   ): Promise<CommandResult> {
-    if (!isEmptyStateGuideIntent(intent) || intent === 'explain_visibility_block') {
+    if (
+      !isEmptyStateGuideIntent(intent) ||
+      intent === 'explain_visibility_block'
+    ) {
       return {
         success: false,
         action: intent,

@@ -44,7 +44,8 @@ function buildNamedProviderSummary(match: ProviderSpecialtyMatch): string {
   const parts = [match.name];
   if (match.role) parts.push(`— ${match.role}`);
   if (match.specialty) parts.push(`Specialty: ${match.specialty}.`);
-  else if (match.bio) parts.push(match.bio.endsWith('.') ? match.bio : `${match.bio}.`);
+  else if (match.bio)
+    parts.push(match.bio.endsWith('.') ? match.bio : `${match.bio}.`);
   if (match.serviceNames.length > 0) {
     parts.push(`Services: ${match.serviceNames.join(', ')}.`);
   }
@@ -121,7 +122,9 @@ export async function handleExplainProviderSpecialtyLogic(
     }),
   ]);
 
-  const servicesById = new Map(services.map((service) => [service.id, service]));
+  const servicesById = new Map(
+    services.map((service) => [service.id, service]),
+  );
   const reviewSummaries = await deps.reviewsService.getPublicReviewsByEmployees(
     businessId,
     employees.map((employee) => employee.id),
@@ -226,7 +229,8 @@ export async function handleExplainProviderSpecialtyLogic(
     .filter((entry) => entry.score > 0)
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
-      const leftRating = reviewSummaries.get(left.employee.id)?.averageRating ?? -1;
+      const leftRating =
+        reviewSummaries.get(left.employee.id)?.averageRating ?? -1;
       const rightRating =
         reviewSummaries.get(right.employee.id)?.averageRating ?? -1;
       if (rightRating !== leftRating) return rightRating - leftRating;

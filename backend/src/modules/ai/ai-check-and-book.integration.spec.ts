@@ -237,7 +237,7 @@ describe('ai check-and-book integration', () => {
       dateKey: '2026-06-06',
     })),
   };
-  attachNearestAcrossWindowsMock(publicBookingService as any);
+  attachNearestAcrossWindowsMock(publicBookingService);
   const businessRepo = {
     findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
   };

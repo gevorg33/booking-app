@@ -94,6 +94,12 @@ function buildDeps(
       submitCancelRequest: jest.fn(async () => ({ requestId: 'cancel-1' })),
       getCustomerOrder: jest.fn(),
     } as any,
+    giftCardClaimService: {
+      claimByCode: jest.fn(async () => ({
+        giftCardId: 'gc-1',
+        cardType: 'package',
+      })),
+    },
     packagesService: {
       listPackages: jest.fn(async () => [{ id: 'pkg-1', name: 'Spa Day' }]),
     } as any,
@@ -733,7 +739,10 @@ describe('ai-customer-crm.logic', () => {
 
   describe('discovery handlers', () => {
     it('discovers packages, plans, and gift card products', async () => {
-      const discovered = await handleDiscoverPackagesLogic(buildDeps(), 'biz-1');
+      const discovered = await handleDiscoverPackagesLogic(
+        buildDeps(),
+        'biz-1',
+      );
       expect(discovered.success).toBe(true);
       expect(discovered.details?.navigate).toEqual({
         path: 'packages',

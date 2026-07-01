@@ -2,7 +2,9 @@
 export const CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES = `- book_package: MUTATE — customer self-service package purchase (browse → schedule block → checkout). Triggers: book|buy|purchase|order|get|reserve|schedule + package|bundle|spa day|deal (for me / my account). Requires packageName or packageId when a specific package is named. NOT create_package (dashboard catalog CRUD) or create_package_booking (staff books for a named customer).
 - discover_packages: READ — list available service packages on the public catalog. Triggers: what packages|bundles|deals do you have, show packages, browse packages. NOT list_packages (dashboard admin catalog).
 - check_package_availability: READ — earliest same-day block for a named package. Triggers: is {package} available, when can I book {package}, package availability. Requires packageName or packageId.
-- Package + promo compounds: book_package then promo_code_help when user mentions a promo/discount code with the package.
+- explain_package_savings: READ — compare package/bundle price vs booking included services separately. Triggers: is the bundle cheaper than separate, package savings, worth buying package vs individually. Requires packageName when named.
+- book_package_with_nearest_slot (compound): discover_packages → book_package with bookingFirstAvailable=true when user wants earliest/nearest/soonest package slot. Example: "Book the spa package earliest available".
+- Package + promo compounds: book_package then apply_promo_code_checkout when user mentions a promo/discount code with the package.
 - Examples:
   - "buy the spa day package" → book_package, packageName=spa day
   - "purchase deluxe bundle for me" → book_package, packageName=deluxe bundle

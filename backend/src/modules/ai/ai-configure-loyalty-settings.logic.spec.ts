@@ -7,7 +7,13 @@ describe('ai-configure-loyalty-settings.logic', () => {
   };
 
   const businessRepo = {
-    findOne: jest.fn(async () => ({ ...business, settings: { ...business.settings, loyalty: { ...business.settings.loyalty } } })),
+    findOne: jest.fn(async () => ({
+      ...business,
+      settings: {
+        ...business.settings,
+        loyalty: { ...business.settings.loyalty },
+      },
+    })),
     save: jest.fn(async (row: typeof business) => row),
   };
 

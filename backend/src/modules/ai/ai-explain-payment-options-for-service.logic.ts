@@ -112,9 +112,10 @@ export async function handleExplainPaymentOptionsForServiceLogic(
   });
   const prepaymentPolicy = describeServicePrepaymentPolicy(service);
   const depositDueNow = resolveServicePrepaymentDueAmount(service);
-  const summary = [copy.summary, `Prepayment policy: ${prepaymentPolicy}.`].join(
-    ' ',
-  );
+  const summary = [
+    copy.summary,
+    `Prepayment policy: ${prepaymentPolicy}.`,
+  ].join(' ');
 
   return {
     success: true,

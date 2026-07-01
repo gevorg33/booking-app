@@ -55,7 +55,9 @@ export function resolveGuideTopicHelpArticle(
 }
 
 /** Attach optional helpArticle metadata to a guide response (ai-guide-1.7.1). */
-export function enrichGuideResponseHelpArticles(guide: GuideResponse): GuideResponse {
+export function enrichGuideResponseHelpArticles(
+  guide: GuideResponse,
+): GuideResponse {
   const helpArticle = resolveGuideTopicHelpArticle(guide.topicId);
   if (!helpArticle) return guide;
   if (

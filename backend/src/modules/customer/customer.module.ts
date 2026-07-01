@@ -10,7 +10,15 @@ import { CustomerRebookingCadenceService } from './customer-rebooking-cadence.se
 @Module({
   imports: [TypeOrmModule.forFeature([Customer, Booking])],
   controllers: [CustomerController],
-  providers: [CustomerService, CustomerPrivacyService, CustomerRebookingCadenceService],
-  exports: [CustomerService, CustomerPrivacyService, CustomerRebookingCadenceService],
+  providers: [
+    CustomerService,
+    CustomerPrivacyService,
+    CustomerRebookingCadenceService,
+  ],
+  exports: [
+    CustomerService,
+    CustomerPrivacyService,
+    CustomerRebookingCadenceService,
+  ],
 })
 export class CustomerModule {}

@@ -3,13 +3,9 @@ import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
 import { t, type AppLocale } from '../../common/i18n/messages.js';
 import { intlLocaleTag } from '../../common/i18n/locale-date.util.js';
-import {
-  addDaysToDateKey,
-} from '../../common/utils/timezone.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import type { ResolvedPublicAvailabilityWindow } from './ai-orchestration.helpers.js';
-import {
-  buildPublicAvailabilityWindowLabel,
-} from './ai-flexible-availability-check.logic.js';
+import { buildPublicAvailabilityWindowLabel } from './ai-flexible-availability-check.logic.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -46,7 +42,10 @@ function sameAvailabilityTimeFilter(
   );
 }
 
-function dateKeysIntersect(a: readonly string[], b: readonly string[]): boolean {
+function dateKeysIntersect(
+  a: readonly string[],
+  b: readonly string[],
+): boolean {
   const setB = new Set(b);
   return a.some((key) => setB.has(key));
 }
@@ -133,7 +132,7 @@ export function detectAvailabilityWindowOverlap(
     sharedDateKeys,
     tomorrowIsSharedWeekday,
     sharedWeekdayLabel: hasOverlap
-      ? formatWeekdayLongFromDateKey(sharedDateKeys[0]!, timeZone, 'en')
+      ? formatWeekdayLongFromDateKey(sharedDateKeys[0], timeZone, 'en')
       : null,
     distinctTimeWindowsOnSharedDay,
   };

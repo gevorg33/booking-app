@@ -31,14 +31,17 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
   it('does not treat dashboard booking overview as summarize_client', () => {
     expect(isSummarizeClientPrompt('Booking overview for today')).toBe(false);
     expect(
-      rescueProviderClientContextIntent('Booking overview for today', 'unknown'),
+      rescueProviderClientContextIntent(
+        'Booking overview for today',
+        'unknown',
+      ),
     ).toBeNull();
   });
 
   it('extracts note body and customer name from natural language', () => {
-    expect(extractClientNoteBodyFromPrompt('Add staff note: allergic to latex')).toBe(
-      'allergic to latex',
-    );
+    expect(
+      extractClientNoteBodyFromPrompt('Add staff note: allergic to latex'),
+    ).toBe('allergic to latex');
     expect(
       extractClientNoteBodyFromPrompt(
         'Add a note for this client — wants extra toner',
@@ -130,17 +133,15 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
   });
 
   it('resolves note body from params before prompt', () => {
-    expect(
-      resolveClientNoteBody({ clientNote: 'VIP client' }, 'ignored'),
-    ).toBe('VIP client');
+    expect(resolveClientNoteBody({ clientNote: 'VIP client' }, 'ignored')).toBe(
+      'VIP client',
+    );
   });
 
   it('rescues misclassified list_bookings to show_client_history', () => {
     expect(
-      rescueProviderClientContextIntent(
-        'Past visits for Jane',
-        'list_bookings',
-      )?.action,
+      rescueProviderClientContextIntent('Past visits for Jane', 'list_bookings')
+        ?.action,
     ).toBe('show_client_history');
   });
 });

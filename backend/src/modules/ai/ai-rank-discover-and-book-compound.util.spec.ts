@@ -57,7 +57,7 @@ describe('ai-rank-discover-and-book-compound.util (ai-cmd-ext-4.4)', () => {
     'rescueRankDiscoverAndBookCompoundIntent $id',
     ({ prompt, misclassifiedAction }) => {
       expect(
-        rescueRankDiscoverAndBookCompoundIntent(prompt, misclassifiedAction!),
+        rescueRankDiscoverAndBookCompoundIntent(prompt, misclassifiedAction),
       ).toEqual({
         action: 'compound_intent',
         rescueReason: 'rank_discover_and_book_compound',
@@ -79,7 +79,7 @@ describe('ai-rank-discover-and-book-compound.util (ai-cmd-ext-4.4)', () => {
   it('does not treat budget-only discover as rank discover-and-book compound', () => {
     expect(
       isRankDiscoverAndBookCompoundPrompt(
-        "Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment",
+        'Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment',
       ),
     ).toBe(false);
   });
@@ -87,7 +87,7 @@ describe('ai-rank-discover-and-book-compound.util (ai-cmd-ext-4.4)', () => {
   it('does not treat check+book without rank as discover-and-book compound', () => {
     expect(
       isRankDiscoverAndBookCompoundPrompt(
-        "check who is free tomorrow evening for lashes, book the nearest slot",
+        'check who is free tomorrow evening for lashes, book the nearest slot',
       ),
     ).toBe(false);
   });

@@ -3918,6 +3918,66 @@ const en: MessageTree = {
     exampleGuideCheckout: 'Walk me through checkout and payment',
     exampleGuideServices: 'How do I pick a service and provider?',
     exampleGuideLocation: 'Where do I find your address and hours?',
+    assistantPageSuggestionsTitle: 'For this page',
+    assistantStarterChipsTitle: 'Ask the assistant',
+    pageSuggestions: {
+      book: {
+        amountDue: 'How much do I pay today?',
+        payCash: 'Pay cash at visit',
+        whyEmail: 'Why do you need my email?',
+      },
+      serviceList: {
+        servicePrice: 'How much is {service}?',
+        payOnlineOrCash: 'Do I pay online for {service}?',
+        noPrepayment: 'What can I book without paying online?',
+      },
+      manage: {
+        cancel: 'Cancel this appointment',
+        reschedule: 'Reschedule to next week',
+        sendLink: 'Send manage link',
+      },
+      manageGuest: {
+        signIn: 'Sign in to manage',
+        resendLink: 'Resend manage link',
+      },
+      account: {
+        nextAppointment: 'My next appointment',
+        turnOffReminders: 'Turn off reminders',
+        rebookLast: 'Rebook last visit',
+      },
+      home: {
+        cheapestService: "What's the cheapest service?",
+        whoFreeTomorrow: "Who's free tomorrow?",
+      },
+      multiPicker: {
+        duration: 'How long will this take?',
+        afternoonSlot: 'Find afternoon slot for all services',
+      },
+      giftCard: {
+        applyPromo: 'Apply promo code',
+        explainTax: 'Explain total with tax',
+      },
+      multiCheckout: {
+        useSubscription: 'Use my subscription',
+        zeroTotal: 'Why is total $0?',
+      },
+      package: {
+        visitCount: 'How many visits in this package?',
+        bookFirstVisit: 'Book first visit now',
+      },
+      lab: {
+        bookDraw: 'Book my lab draw',
+        whyCollection: 'Why do I need collection?',
+      },
+      results: {
+        releasedMeaning: 'What does released mean?',
+        cbcPending: 'Why is CBC still pending?',
+      },
+      welcome: {
+        savedSalons: 'Find my saved salons',
+        getApp: 'How do I get the app?',
+      },
+    },
     signIn: 'Sign in',
     signInWithGoogle: 'Sign in with Google',
     signingIn: 'Signing in…',

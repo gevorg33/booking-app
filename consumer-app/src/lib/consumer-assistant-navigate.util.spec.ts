@@ -33,7 +33,23 @@ describe('buildConsumerAssistantHref', () => {
         },
       }),
     ).toBe(
-      '/s/glow-nails/book/svc-1?slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&session_id=cs_test_resume',
+      '/s/glow-nails/book/svc-1?slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&session_id=cs_test_resume&resumePayment=1',
+    );
+  });
+
+  it('maps resume booking draft checkout with resume flag', () => {
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'checkout',
+        query: {
+          serviceId: 'svc-1',
+          date: '2026-06-10',
+          slot: '2026-06-10T14:00:00.000Z',
+          resume: '1',
+        },
+      }),
+    ).toBe(
+      '/s/glow-nails/book/svc-1?slot=2026-06-10T14%3A00%3A00.000Z&date=2026-06-10&resume=1',
     );
   });
 
@@ -69,6 +85,15 @@ describe('buildConsumerAssistantHref', () => {
         query: {},
       }),
     ).toBe('/s/glow-nails/professionals');
+  });
+
+  it('maps provider profile navigate to provider profile page', () => {
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'provider_profile',
+        query: { employeeId: 'emp-anna' },
+      }),
+    ).toBe('/s/glow-nails/providers/emp-anna');
   });
 
   it('maps professionals navigate with slot to professional services', () => {
@@ -155,6 +180,36 @@ describe('buildConsumerAssistantHref', () => {
     ).toBe('/s/glow-nails/guide?topicId=consumer-getting-started');
   });
 
+  it('maps fresh book another service checkout params', () => {
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'checkout',
+        query: {
+          serviceId: 'svc-1',
+          freshBook: '1',
+          date: '2026-07-15',
+        },
+      }),
+    ).toBe(
+      '/s/glow-nails/book/svc-1?freshBook=1&date=2026-07-15',
+    );
+  });
+
+  it('maps salon tenant switch paths', () => {
+    expect(
+      buildConsumerAssistantHref('demo-salon', {
+        path: 'salon',
+        query: { slug: 'glow-nails' },
+      }),
+    ).toBe('/s/glow-nails/home');
+    expect(
+      buildConsumerAssistantHref('demo-salon', {
+        path: 'tenant_switch',
+        query: {},
+      }),
+    ).toBe('/s/demo-salon/home');
+  });
+
   it('maps account and rebook checkout paths', () => {
     expect(
       buildConsumerAssistantHref('glow-nails', {
@@ -168,6 +223,12 @@ describe('buildConsumerAssistantHref', () => {
         query: { section: 'privacy' },
       }),
     ).toBe('/s/glow-nails/account?section=privacy');
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'account',
+        query: { section: 'privacy', privacyAction: 'export' },
+      }),
+    ).toBe('/s/glow-nails/account?section=privacy&privacyAction=export');
     expect(
       buildConsumerAssistantHref('glow-nails', {
         path: 'profile',
@@ -188,9 +249,10 @@ describe('buildConsumerAssistantHref', () => {
           startTime: '2026-06-09T14:00:00.000Z',
           rebook: '1',
           rebookBookingId: 'b1',
+          rebookSource: 'account',
         },
       }),
-    ).toContain('rebook=1');
+    ).toContain('rebookSource=account');
   });
 });
 

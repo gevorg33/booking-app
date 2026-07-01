@@ -38,7 +38,9 @@ describe('guide-support-handoff.util (ai-guide-1.7.2)', () => {
       expect(handoff.label).toBe('Still stuck?');
       expect(handoff.snapshot).toEqual(expectedSnapshotForScenario(scenario));
       expect(handoff.ticket.tags).toContain('product-guide');
-      expect(handoff.ticket.tags).toContain(`guide-${scenario.context.surface}`);
+      expect(handoff.ticket.tags).toContain(
+        `guide-${scenario.context.surface}`,
+      );
     },
   );
 
@@ -77,11 +79,15 @@ describe('guide-support-handoff.util (ai-guide-1.7.2)', () => {
       locale: 'en',
     });
     expect(enriched.supportHandoff?.snapshot.topicId).toBe('public-checkout');
-    expect(enriched.supportHandoff?.ticket.body).toContain('Route: /book/checkout');
-    expect(enrichGuideResponseSupportHandoff(enriched, {
-      surface: 'public',
-      route: '/book/checkout',
-      locale: 'en',
-    })).toBe(enriched);
+    expect(enriched.supportHandoff?.ticket.body).toContain(
+      'Route: /book/checkout',
+    );
+    expect(
+      enrichGuideResponseSupportHandoff(enriched, {
+        surface: 'public',
+        route: '/book/checkout',
+        locale: 'en',
+      }),
+    ).toBe(enriched);
   });
 });

@@ -41,7 +41,9 @@ const services = [
   },
 ] as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],
@@ -77,12 +79,9 @@ function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDep
 
 describe('ai-compare-services.logic (ai-cmd-customer-4.1.4)', () => {
   it('buildCompareServicesSummary compares price and duration', () => {
-    const result = buildCompareServicesSummary(
-      [services[0], services[1]],
-      {
-        tax: { enabled: true, name: 'VAT', rate: 20, model: 'inclusive' },
-      },
-    );
+    const result = buildCompareServicesSummary([services[0], services[1]], {
+      tax: { enabled: true, name: 'VAT', rate: 20, model: 'inclusive' },
+    });
     expect(result.summary).toContain('Haircut');
     expect(result.summary).toContain('Blowdry');
     expect(result.verdict).toContain('cheaper');
@@ -112,9 +111,9 @@ describe('ai-compare-services.logic (ai-cmd-customer-4.1.4)', () => {
     expect(result.action).toBe('compare_services');
     expect(result.summary).toContain('Haircut');
     expect(result.summary).toContain('Blowdry');
-    expect((result.details as { navigate?: { path: string } }).navigate?.path).toBe(
-      'services',
-    );
+    expect(
+      (result.details as { navigate?: { path: string } }).navigate?.path,
+    ).toBe('services');
   });
 
   it('reports missing catalog matches', async () => {

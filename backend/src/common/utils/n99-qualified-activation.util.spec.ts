@@ -45,7 +45,9 @@ describe('n99-qualified-activation.util (n99-3)', () => {
   it.each(N99_QUALIFIED_INSTALL_SCENARIOS)(
     '$id intent-qualified install detection',
     (scenario) => {
-      expect(isIntentQualifiedInstall(scenario.install)).toBe(scenario.expectQualified);
+      expect(isIntentQualifiedInstall(scenario.install)).toBe(
+        scenario.expectQualified,
+      );
       expect(isColdInstall(scenario.install)).toBe(!scenario.expectQualified);
     },
   );
@@ -81,7 +83,9 @@ describe('n99-qualified-activation.util (n99-3)', () => {
     expect(cohort.cold.activationRate).toBeCloseTo(0.2, 5);
     expect(cohort.byLocale).toHaveLength(3);
     expect(cohort.localeSpread).toBeLessThanOrEqual(0.03);
-    expect(cohort.byLocale.every((entry) => entry.locale.length === 2)).toBe(true);
+    expect(cohort.byLocale.every((entry) => entry.locale.length === 2)).toBe(
+      true,
+    );
   });
 
   it.each(N99_LOCALE_COHORT_SCENARIOS)(
@@ -97,27 +101,25 @@ describe('n99-qualified-activation.util (n99-3)', () => {
     },
   );
 
-  it.each(N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS.filter((entry) => entry.rows))(
-    '$id exit gate from fixture rows',
-    (scenario) => {
-      const gate = buildN99QualifiedActivationExitGateFromRows(
-        toRows(scenario.rows!),
-      );
-      expect(gate.met).toBe(scenario.expectMet);
-      if ('expectRate' in scenario && scenario.expectRate != null) {
-        expect(gate.qualifiedActivationRate).toBeCloseTo(scenario.expectRate, 5);
-      }
-      if (scenario.expectMet) {
-        expect(() => assertN99QualifiedActivationExitGate(gate)).not.toThrow();
-      }
-    },
-  );
+  it.each(
+    N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS.filter((entry) => entry.rows),
+  )('$id exit gate from fixture rows', (scenario) => {
+    const gate = buildN99QualifiedActivationExitGateFromRows(
+      toRows(scenario.rows),
+    );
+    expect(gate.met).toBe(scenario.expectMet);
+    if ('expectRate' in scenario && scenario.expectRate != null) {
+      expect(gate.qualifiedActivationRate).toBeCloseTo(scenario.expectRate, 5);
+    }
+    if (scenario.expectMet) {
+      expect(() => assertN99QualifiedActivationExitGate(gate)).not.toThrow();
+    }
+  });
 
-  it.each(N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS.filter((entry) => entry.input))(
-    '$id exit gate synthetic input',
-    (scenario) => {
-      const gate = buildN99QualifiedActivationExitGate(scenario.input!);
-      expect(gate.met).toBe(scenario.expectMet);
-    },
-  );
+  it.each(
+    N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS.filter((entry) => entry.input),
+  )('$id exit gate synthetic input', (scenario) => {
+    const gate = buildN99QualifiedActivationExitGate(scenario.input);
+    expect(gate.met).toBe(scenario.expectMet);
+  });
 });

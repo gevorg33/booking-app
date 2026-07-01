@@ -12,9 +12,13 @@ import {
 
 describe('n99-qualified-install-funnel.util (n99-3.6)', () => {
   it('builds strict qualified-install funnel steps', () => {
-    const funnel = buildQualifiedInstallFunnel(buildN99QualifiedFunnelHealthyRows());
+    const funnel = buildQualifiedInstallFunnel(
+      buildN99QualifiedFunnelHealthyRows(),
+    );
     expect(funnel.cohortSize).toBe(1);
-    expect(funnel.steps.map((step) => step.count)).toEqual([1, 1, 1, 1, 1, 1, 1]);
+    expect(funnel.steps.map((step) => step.count)).toEqual([
+      1, 1, 1, 1, 1, 1, 1,
+    ]);
     expect(funnel.steps[1]?.dropOffFromPrevious).toBe(0);
   });
 
@@ -33,11 +37,15 @@ describe('n99-qualified-install-funnel.util (n99-3.6)', () => {
     const audit = auditQualifiedInstallDeadEnds(
       N99_QUALIFIED_FUNNEL_AUDIT_SCENARIOS[1].rows,
     );
-    expect(() => assertN99QualifiedInstallDeadEndAudit(audit)).toThrow(/Confirm step/);
+    expect(() => assertN99QualifiedInstallDeadEndAudit(audit)).toThrow(
+      /Confirm step/,
+    );
   });
 
   it('formats audit summary', () => {
-    const audit = auditQualifiedInstallDeadEnds(buildN99QualifiedFunnelHealthyRows());
+    const audit = auditQualifiedInstallDeadEnds(
+      buildN99QualifiedFunnelHealthyRows(),
+    );
     expect(formatN99QualifiedInstallDeadEndAudit(audit)).toContain('PASS');
   });
 });

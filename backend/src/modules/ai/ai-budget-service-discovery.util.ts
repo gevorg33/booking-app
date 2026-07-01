@@ -62,8 +62,7 @@ const BUDGET_VOICE_ASR_SERVICE_ALIASES: readonly {
   { pattern: /\bfor\s+a\s+trim\b/i, category: 'haircut' },
 ];
 
-const BUDGET_BUCKS_PATTERN =
-  /\b([\d,]+(?:\.\d{1,2})?)\s+bucks?\b/i;
+const BUDGET_BUCKS_PATTERN = /\b([\d,]+(?:\.\d{1,2})?)\s+bucks?\b/i;
 
 const BUDGET_WORD_AMOUNT_PATTERN =
   /\b(?:have|under|below|max|about)\s+([a-z]+(?:\s+[a-z]+)?)\s+(?:dollars?|bucks?)\b/i;
@@ -72,11 +71,9 @@ const BUDGET_WORD_BUCKS_PATTERN = /\b([a-z]+)\s+bucks?\b/i;
 
 const PLAIN_DOLLARS_PATTERN = /\b(\d+(?:\.\d{1,2})?)\s+dollars?\b/i;
 
-const ABOUT_DOLLARS_PATTERN =
-  /\babout\s+(\d+(?:\.\d{1,2})?)\s+dollars?\b/i;
+const ABOUT_DOLLARS_PATTERN = /\babout\s+(\d+(?:\.\d{1,2})?)\s+dollars?\b/i;
 
-const BUDGET_WORD_CEILING_PATTERN =
-  /\b(?:under|below|max)\s+([a-z]+)\b/i;
+const BUDGET_WORD_CEILING_PATTERN = /\b(?:under|below|max)\s+([a-z]+)\b/i;
 
 const DOLLAR_WITH_COMMAS_PATTERN = /\$\s*([\d,]+(?:\.\d{1,2})?)/;
 
@@ -103,7 +100,9 @@ export function resolveBudgetCompoundSteps(
     : scenario.customerCompoundSteps;
 }
 
-export function isBudgetAdministrativeOrExplainContext(prompt: string): boolean {
+export function isBudgetAdministrativeOrExplainContext(
+  prompt: string,
+): boolean {
   if (
     isConfigureGiftCardProductsPrompt(prompt) ||
     isCreateGiftCardBundlePrompt(prompt) ||
@@ -170,7 +169,11 @@ export function isBudgetGiftCardMisroute(prompt: string): boolean {
   if (isBuyGiftCardPhysicalPrompt(prompt) || isBuyGiftCardPrompt(prompt)) {
     return false;
   }
-  if (/\b(?:balance|check balance|gift card balance|track my|track the|track physical)\b/i.test(prompt)) {
+  if (
+    /\b(?:balance|check balance|gift card balance|track my|track the|track physical)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   if (
@@ -181,7 +184,12 @@ export function isBudgetGiftCardMisroute(prompt: string): boolean {
     return true;
   }
   if (/\b(?:buy|purchase)\b/i.test(prompt)) return true;
-  if (/\border\b/i.test(prompt) && /\b(?:buy|purchase|order)\s+(?:a\s+)?(?:physical\s+)?gift\s+card\b/i.test(prompt)) {
+  if (
+    /\border\b/i.test(prompt) &&
+    /\b(?:buy|purchase|order)\s+(?:a\s+)?(?:physical\s+)?gift\s+card\b/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
   if (
@@ -206,7 +214,9 @@ export function isBudgetPackageDiscoveryPrompt(prompt: string): boolean {
     return false;
   }
   if (
-    /\b(?:add|set|update|clear|remove|delete|configure|create)\b/i.test(prompt) &&
+    /\b(?:add|set|update|clear|remove|delete|configure|create)\b/i.test(
+      prompt,
+    ) &&
     /\b(?:name|translation|display|localized)\b/i.test(prompt)
   ) {
     return false;
@@ -255,7 +265,7 @@ export function extractMinPriceFromBudgetPrompt(prompt: string): number | null {
   if (!isBudgetPriceRangePrompt(prompt)) return null;
   const between = prompt.match(BUDGET_BETWEEN_PATTERN);
   if (!between) return null;
-  return parseNumericToken(between[1]!);
+  return parseNumericToken(between[1]);
 }
 
 /** "Any stylist for a cut under $45?" — team-wide provider scope + budget list (budget-any-provider-en). */
@@ -270,14 +280,16 @@ export function isBudgetAnyProviderListPrompt(prompt: string): boolean {
 }
 
 /** "Is Swedish massage under $90?" — explicit catalog service name + budget (budget-named-service-en). */
-export function extractBudgetNamedServiceFromPrompt(prompt: string): string | null {
+export function extractBudgetNamedServiceFromPrompt(
+  prompt: string,
+): string | null {
   if (!shouldExtractBudgetMaxPrice(prompt)) return null;
 
   const questionNamed = prompt.match(
     /\b(?:is|are|do you have|does)\s+(?:the\s+)?([a-z][\w\s'-]{2,50}?)\s+(?:under|below|less than|at most|within)\b/i,
   );
   if (questionNamed) {
-    const name = questionNamed[1]!.trim().replace(/[?.!]+$/, '');
+    const name = questionNamed[1].trim().replace(/[?.!]+$/, '');
     if (name && !/^(there|it|this|that|anything|something)$/i.test(name)) {
       return name;
     }
@@ -315,19 +327,21 @@ export function enrichBudgetNamedServiceFromPrompt(
 }
 
 /** "Karo — anything under $30?" / "Does Karo have anything under $40?" (budget-provider-no-match-en). */
-export function extractBudgetEmployeeNameFromPrompt(prompt: string): string | null {
+export function extractBudgetEmployeeNameFromPrompt(
+  prompt: string,
+): string | null {
   if (!shouldExtractBudgetMaxPrice(prompt)) return null;
   if (isBudgetAnyProviderListPrompt(prompt)) return null;
 
   const dashLead = prompt.match(
     /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[—–-]\s*(?:anything|something|what)\b/i,
   );
-  if (dashLead) return dashLead[1]!.trim();
+  if (dashLead) return dashLead[1].trim();
 
   const doesHave = prompt.match(
     /\b(?:does|do)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+have(?:\s+anything)?\s+under\b/i,
   );
-  if (doesHave) return doesHave[1]!.trim();
+  if (doesHave) return doesHave[1].trim();
 
   return null;
 }
@@ -365,7 +379,7 @@ export function extractBudgetQuickServiceCategoryFromPrompt(
   );
   if (!match) return null;
 
-  const category = match[1]!.trim().replace(/[?.!]+$/, '');
+  const category = match[1].trim().replace(/[?.!]+$/, '');
   return category.length >= 3 ? category : null;
 }
 
@@ -378,7 +392,7 @@ export function extractBudgetMinDurationMinutesFromPrompt(
   const match = prompt.match(/\b(\d{2,3})\s*[-\s]?minute(?:s)?\b/i);
   if (!match) return null;
 
-  const minutes = Number.parseInt(match[1]!, 10);
+  const minutes = Number.parseInt(match[1], 10);
   return Number.isFinite(minutes) && minutes >= 15 ? minutes : null;
 }
 
@@ -396,7 +410,7 @@ export function extractBudgetLongServiceCategoryFromPrompt(
   );
   if (!match) return null;
 
-  const category = match[1]!.trim().replace(/[?.!]+$/, '');
+  const category = match[1].trim().replace(/[?.!]+$/, '');
   return category.length >= 3 ? category : null;
 }
 
@@ -414,7 +428,8 @@ export function enrichBudgetDurationPreferenceFromPrompt(
     };
     delete next.preferShortDuration;
     if (!params.serviceCategory) {
-      const serviceCategory = extractBudgetLongServiceCategoryFromPrompt(prompt);
+      const serviceCategory =
+        extractBudgetLongServiceCategoryFromPrompt(prompt);
       if (serviceCategory) {
         next.serviceCategory = serviceCategory;
         delete next.serviceName;
@@ -426,7 +441,10 @@ export function enrichBudgetDurationPreferenceFromPrompt(
   if (params.preferShortDuration === true) return params;
   if (!isBudgetShortServicePrompt(prompt)) return params;
 
-  const next: Record<string, unknown> = { ...params, preferShortDuration: true };
+  const next: Record<string, unknown> = {
+    ...params,
+    preferShortDuration: true,
+  };
   if (!params.serviceCategory) {
     const serviceCategory = extractBudgetQuickServiceCategoryFromPrompt(prompt);
     if (serviceCategory) {
@@ -514,7 +532,9 @@ export function isBudgetWithPromoPrompt(prompt: string): boolean {
 }
 
 /** Promo code carried to checkout after budget list_services (budget-1.14). */
-export function extractBudgetPromoCodeFromPrompt(prompt: string): string | null {
+export function extractBudgetPromoCodeFromPrompt(
+  prompt: string,
+): string | null {
   if (!isBudgetWithPromoPrompt(prompt)) return null;
 
   const patterns = [
@@ -543,7 +563,9 @@ export function isBudgetCartTotalPrompt(prompt: string): boolean {
 }
 
 /** Combined cart ceiling for multi-service discovery (budget-1.13). */
-export function extractMaxTotalPriceFromBudgetPrompt(prompt: string): number | null {
+export function extractMaxTotalPriceFromBudgetPrompt(
+  prompt: string,
+): number | null {
   if (!isBudgetCartTotalPrompt(prompt)) return null;
 
   const patterns = [
@@ -569,13 +591,13 @@ export function extractBudgetCartServiceCountFromPrompt(
 
   const digit = prompt.match(/\b(\d+)\s+services?\b/i);
   if (digit) {
-    const value = Number.parseInt(digit[1]!, 10);
+    const value = Number.parseInt(digit[1], 10);
     return Number.isFinite(value) && value >= 2 ? value : null;
   }
 
   const word = prompt.match(/\b(two|three|four|five)\s+services?\b/i);
   if (word) {
-    const mapped = WORD_NUMBER_MAP[word[1]!.toLowerCase()];
+    const mapped = WORD_NUMBER_MAP[word[1].toLowerCase()];
     return mapped != null && mapped >= 2 ? mapped : null;
   }
 
@@ -605,7 +627,11 @@ function parseWordAmount(raw: string): number | null {
   if (tokens.length === 1 && tokens[0] in WORD_NUMBER_MAP) {
     return WORD_NUMBER_MAP[tokens[0]];
   }
-  if (tokens.length === 2 && tokens[1] === 'dollars' && tokens[0] in WORD_NUMBER_MAP) {
+  if (
+    tokens.length === 2 &&
+    tokens[1] === 'dollars' &&
+    tokens[0] in WORD_NUMBER_MAP
+  ) {
     return WORD_NUMBER_MAP[tokens[0]];
   }
   return null;
@@ -649,7 +675,7 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
     /(?:у\s+меня|u\s+menya)\s+(\d[\d,]*)\s*(?:долларов|dollarov)/iu,
   );
   if (ruHaveDollars) {
-    const value = parseNumericToken(ruHaveDollars[1]!);
+    const value = parseNumericToken(ruHaveDollars[1]);
     if (value != null) return value;
   }
 
@@ -657,13 +683,13 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
     /(?:до|do)\s+(\d[\d,]*)\s*(?:долларов|dollarov)/iu,
   );
   if (ruCeilingDollars) {
-    const value = parseNumericToken(ruCeilingDollars[1]!);
+    const value = parseNumericToken(ruCeilingDollars[1]);
     if (value != null) return value;
   }
 
   const foreignDollars = prompt.match(/(\d[\d,]*)\s*долларов/iu);
   if (foreignDollars) {
-    const value = parseNumericToken(foreignDollars[1]!);
+    const value = parseNumericToken(foreignDollars[1]);
     if (value != null) return value;
   }
 
@@ -737,10 +763,7 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
   }
 
   const generic = prompt.match(GENERIC_INTEGER_PATTERN);
-  if (
-    generic &&
-    /\b(?:dram|rub|ruble|рубл|руб|դրամ)\b/i.test(prompt)
-  ) {
+  if (generic && /\b(?:dram|rub|ruble|рубл|руб|դրամ)\b/i.test(prompt)) {
     const value = parseNumericToken(generic[1]);
     if (value != null) return value;
   }
@@ -754,7 +777,8 @@ export function resolveBudgetMisrouteAction(prompt: string): string | null {
   if (isBudgetGiftCardMisroute(prompt)) return 'apply_gift_card_code';
   if (isBudgetPackageDiscoveryPrompt(prompt)) return 'discover_packages';
   if (isBudgetDepositQuestion(prompt)) return 'explain_checkout_currency';
-  if (isBudgetSubscriptionBalancePrompt(prompt)) return 'discover_subscription_plans';
+  if (isBudgetSubscriptionBalancePrompt(prompt))
+    return 'discover_subscription_plans';
   return null;
 }
 
@@ -887,7 +911,9 @@ export function resolveBudgetMinPrice(minPrice: unknown): number | null {
 }
 
 /** Apply inclusive min/max price after category/name filters; ascending sort when budget is active. */
-export function applyBudgetFilterToMatchedServices<T extends BudgetCatalogService>(
+export function applyBudgetFilterToMatchedServices<
+  T extends BudgetCatalogService,
+>(
   services: readonly T[],
   maxPrice: unknown,
   minPrice?: unknown,
@@ -980,7 +1006,9 @@ function resolveServiceCatalogPriceSafe(
 
 /** rank-1.5 — keep list_services when prompt ranks catalog items, not providers. */
 function isServiceCatalogRankBudgetPrompt(prompt: string): boolean {
-  if (/\b(?:specialist|stylist|therapist|provider|employee)s?\b/i.test(prompt)) {
+  if (
+    /\b(?:specialist|stylist|therapist|provider|employee)s?\b/i.test(prompt)
+  ) {
     if (/\b(?:best|rated|top|highest|recommended|suggested)\b/i.test(prompt)) {
       return false;
     }

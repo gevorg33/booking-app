@@ -40,7 +40,8 @@ function success(
 }
 
 function readBusinessType(settings: unknown): string | null {
-  const businessType = (settings as { businessType?: unknown } | null)?.businessType;
+  const businessType = (settings as { businessType?: unknown } | null)
+    ?.businessType;
   return typeof businessType === 'string' ? businessType : null;
 }
 
@@ -126,7 +127,11 @@ function buildAspectSummary(
     });
   }
 
-  if (parsed.aspect === 'preVisitIntake' && service && isClinicLabTestService(service.metadata)) {
+  if (
+    parsed.aspect === 'preVisitIntake' &&
+    service &&
+    isClinicLabTestService(service.metadata)
+  ) {
     if (service.offersPreVisitIntake) {
       return `"${service.name}" includes a signed-in pre-visit intake questionnaire before checkout. Complete it to help the clinic prepare for your lab visit.`;
     }
@@ -172,7 +177,9 @@ export async function handleExplainClinicBookingLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_clinic_booking', 'Business not found.');
   }
@@ -241,7 +248,8 @@ export async function handleExplainClinicBookingLogic(
       ? clinicServiceAcceptsPatientNotes(resolvedService.metadata)
       : null,
     requiresFasting: resolvedService
-      ? extractClinicMetadata(resolvedService.metadata)?.requiresFasting ?? false
+      ? (extractClinicMetadata(resolvedService.metadata)?.requiresFasting ??
+        false)
       : null,
     preparationNotes:
       resolvedService &&

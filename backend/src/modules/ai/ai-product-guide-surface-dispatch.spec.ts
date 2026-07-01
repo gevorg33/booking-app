@@ -5,16 +5,12 @@ import {
   isAppGuideIntent,
   resolveProductGuideSessionContext,
 } from './ai-product-guide.util.js';
-import {
-  CUSTOMER_APP_GUIDE_CLASSIFIER_SCENARIOS,
-} from './ai-customer-product-guide.fixtures.js';
+import { CUSTOMER_APP_GUIDE_CLASSIFIER_SCENARIOS } from './ai-customer-product-guide.fixtures.js';
 import {
   PROVIDER_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS,
   PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS,
 } from './ai-provider-product-guide.fixtures.js';
-import {
-  PROVIDER_PRODUCT_GUIDE_INTENTS,
-} from './ai-provider-product-guide.util.js';
+import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
 import { buildCustomerClassifierSchema } from './customer-ai-command.util.js';
 import { CUSTOMER_APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 import { buildPublicClassifierSchema } from '../public-booking/public-booking-classifier.schema.js';
@@ -50,23 +46,39 @@ describe('ai-product-guide surface dispatch (ai-guide-1.8.6)', () => {
         );
         expect(PROVIDER_SERVICE_SOURCE).toContain(`case '${intent}':`);
       }
-      expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderProductGuideIntent');
-      expect(PROVIDER_SERVICE_SOURCE).toContain('runProviderProductGuideIntent');
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'dispatchProviderProductGuideIntent',
+      );
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'runProviderProductGuideIntent',
+      );
     });
 
     it('routes rescued and classified app guide intents through provider dispatch', () => {
-      expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderAppGuideIntent');
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'dispatchProviderAppGuideIntent',
+      );
       expect(PROVIDER_SERVICE_SOURCE).toContain('runSurfaceProductGuideIntent');
-      expect(PROVIDER_SERVICE_SOURCE).toContain('isAppGuideIntent(rescuedProviderGuide.action)');
-      expect(PROVIDER_SERVICE_SOURCE).toContain('isAppGuideIntent(parsed.action)');
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'isAppGuideIntent(rescuedProviderGuide.action)',
+      );
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'isAppGuideIntent(parsed.action)',
+      );
       expect(PROVIDER_SERVICE_SOURCE).toContain('rescueProductGuideIntent');
       expect(PROVIDER_SERVICE_SOURCE).toContain('enrichGuideTopicFromPrompt');
-      expect(PROVIDER_SERVICE_SOURCE).toContain('resolveProductGuideSessionContext');
+      expect(PROVIDER_SERVICE_SOURCE).toContain(
+        'resolveProductGuideSessionContext',
+      );
     });
 
     it('covers provider guide classifier and rescue scenarios', () => {
-      expect(PROVIDER_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length).toBeGreaterThanOrEqual(6);
-      expect(PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS.length).toBeGreaterThanOrEqual(6);
+      expect(
+        PROVIDER_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length,
+      ).toBeGreaterThanOrEqual(6);
+      expect(
+        PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS.length,
+      ).toBeGreaterThanOrEqual(6);
       for (const intent of PROVIDER_PRODUCT_GUIDE_INTENTS) {
         expect(
           PROVIDER_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.some(
@@ -97,12 +109,16 @@ describe('ai-product-guide surface dispatch (ai-guide-1.8.6)', () => {
           'AiProductGuideService',
         );
       }
-      expect(CUSTOMER_SERVICE_SOURCE).toContain('dispatchCustomerAppGuideIntent');
+      expect(CUSTOMER_SERVICE_SOURCE).toContain(
+        'dispatchCustomerAppGuideIntent',
+      );
       expect(CUSTOMER_SERVICE_SOURCE).toContain('isAppGuideIntent(action)');
       expect(CUSTOMER_SERVICE_SOURCE).toContain('runSurfaceProductGuideIntent');
       expect(CUSTOMER_SERVICE_SOURCE).toContain('rescueProductGuideIntent');
       expect(CUSTOMER_SERVICE_SOURCE).toContain('enrichGuideTopicFromPrompt');
-      expect(CUSTOMER_SERVICE_SOURCE).toContain('mergeCustomerActivationGuideContext');
+      expect(CUSTOMER_SERVICE_SOURCE).toContain(
+        'mergeCustomerActivationGuideContext',
+      );
       expect(CUSTOMER_SERVICE_SOURCE).toContain('resolveCustomerGuideIntent');
     });
 
@@ -152,17 +168,27 @@ describe('ai-product-guide surface dispatch (ai-guide-1.8.6)', () => {
       );
       expect(PUBLIC_ASSISTANT_SOURCE).toContain('dispatchPublicAppGuideIntent');
       expect(PUBLIC_ASSISTANT_SOURCE).toContain("case 'booking_help':");
-      expect(PUBLIC_ASSISTANT_SOURCE).toContain('isAppGuideIntent(parsed.action)');
+      expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+        'isAppGuideIntent(parsed.action)',
+      );
       expect(PUBLIC_ASSISTANT_SOURCE).toContain('handleBookingHelp');
-      expect(PUBLIC_ASSISTANT_SOURCE).toContain('rewriteBookingHelpGuideResult');
-      expect(PUBLIC_ASSISTANT_SOURCE).toContain('resolvePublicBookingGuideIntent');
-      expect(PUBLIC_ASSISTANT_SOURCE).toContain('mergePublicBookingGuideContext');
+      expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+        'rewriteBookingHelpGuideResult',
+      );
+      expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+        'resolvePublicBookingGuideIntent',
+      );
+      expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+        'mergePublicBookingGuideContext',
+      );
       expect(PUBLIC_ASSISTANT_SOURCE).toContain('rescueProductGuideIntent');
       expect(PUBLIC_ASSISTANT_SOURCE).toContain('enrichGuideTopicFromPrompt');
     });
 
     it('covers dashboard guide classifier scenarios reused for public misroute guard', () => {
-      expect(PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length).toBeGreaterThanOrEqual(10);
+      expect(PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length).toBeGreaterThanOrEqual(
+        10,
+      );
     });
 
     it('resolves public guide session context with booking step', () => {

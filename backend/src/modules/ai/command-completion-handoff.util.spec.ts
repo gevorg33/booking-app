@@ -12,7 +12,9 @@ import type { BusinessCatalog } from './command-completion.types.js';
 const pipeline = new CommandCompletionPipelineService();
 
 const catalog: BusinessCatalog = {
-  employees: [{ id: 'e1', name: 'Gevorg Gasparyan' } as BusinessCatalog['employees'][0]],
+  employees: [
+    { id: 'e1', name: 'Gevorg Gasparyan' } as BusinessCatalog['employees'][0],
+  ],
   services: [{ id: 's1', name: 'Haircut' } as BusinessCatalog['services'][0]],
   customers: [],
   templates: [],

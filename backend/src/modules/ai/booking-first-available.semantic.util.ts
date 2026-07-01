@@ -87,7 +87,8 @@ export function impliesBookingFirstAvailableFromSemantic(
   surfaces: readonly CommandSurface[] = DEFAULT_BOOKING_FIRST_AVAILABLE_SURFACES,
 ): boolean {
   return surfaces.some(
-    (surface) => resolveBookingFirstAvailableSemanticHints(prompt, surface) != null,
+    (surface) =>
+      resolveBookingFirstAvailableSemanticHints(prompt, surface) != null,
   );
 }
 

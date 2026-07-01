@@ -21,9 +21,7 @@ import {
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
-import {
-  enrichListServicesPaymentFilterParamsFromPrompt,
-} from './ai-list-services-payment-filters.util.js';
+import { enrichListServicesPaymentFilterParamsFromPrompt } from './ai-list-services-payment-filters.util.js';
 import {
   normalizeAvailabilityWindows,
   type AvailabilityWindow,
@@ -633,9 +631,7 @@ function matchServicesByCatalogCategoryName<T extends CatalogServiceRow>(
  * not a requirement for a ServiceCategory entity named "Massage".
  * Falls back to exact catalog category name only when no service name matches exist.
  */
-export function resolveServicesFromCatalogParams<
-  T extends CatalogServiceRow,
->(
+export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
   catalog: T[],
   params: {
     serviceCategory?: string | null;
@@ -701,6 +697,7 @@ export function enrichListServicesParamsFromPrompt(
     serviceNames?: string[] | null;
     prepaymentMode?: string | null;
     onlinePaymentEnabled?: boolean;
+    maxPrice?: number;
   },
 ): {
   serviceCategory?: string | null;
@@ -708,6 +705,7 @@ export function enrichListServicesParamsFromPrompt(
   serviceNames?: string[] | null;
   prepaymentMode?: string | null;
   onlinePaymentEnabled?: boolean;
+  maxPrice?: number;
 } {
   const withPayment = enrichListServicesPaymentFilterParamsFromPrompt(
     params,
@@ -1732,12 +1730,7 @@ export function resolveDateKeysForAvailabilityWindow(
     return dropPast([toIsoDay(window.date, tz)]);
   }
 
-  if (
-    window.timeOfDay ||
-    window.timeFrom ||
-    window.timeTo ||
-    window.timeSlot
-  ) {
+  if (window.timeOfDay || window.timeFrom || window.timeTo || window.timeSlot) {
     const result: string[] = [];
     for (let offset = 0; offset < scanDays; offset++) {
       result.push(addDaysToDateKey(todayKey, offset, tz));
@@ -1827,8 +1820,9 @@ export function resolvePublicAvailabilityWindows(
 ): ResolvedPublicAvailabilityWindow[] {
   const scanDays = options.defaultScanDays ?? PUBLIC_AVAILABILITY_SCAN_DAYS;
   const referenceTodayDateKey = options.referenceTodayDateKey;
-  const hasExplicitWindows = Array.isArray(params.availabilityWindows)
-    && params.availabilityWindows.length > 0;
+  const hasExplicitWindows =
+    Array.isArray(params.availabilityWindows) &&
+    params.availabilityWindows.length > 0;
   const normalizedWindows = normalizeAvailabilityWindows(params);
 
   if (hasExplicitWindows && normalizedWindows.length > 0) {
@@ -1853,7 +1847,7 @@ export function resolvePublicAvailabilityWindows(
       normalizedWindows[0]?.date ||
       normalizedWindows[0]?.timeOfDay)
   ) {
-    const window = normalizedWindows[0]!;
+    const window = normalizedWindows[0];
     const dateKeys = resolveDateKeysForAvailabilityWindow(
       window,
       timeZone,
@@ -1893,9 +1887,12 @@ export function resolvePublicAvailabilityDateKeys(
 ): string[] {
   return [
     ...new Set(
-      resolvePublicAvailabilityWindows(params, prompt, timeZone, options).flatMap(
-        (window) => window.dateKeys,
-      ),
+      resolvePublicAvailabilityWindows(
+        params,
+        prompt,
+        timeZone,
+        options,
+      ).flatMap((window) => window.dateKeys),
     ),
   ];
 }

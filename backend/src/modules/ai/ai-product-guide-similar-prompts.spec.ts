@@ -4,7 +4,12 @@ import {
   TOP_APP_GUIDE_FLOWS,
 } from './ai-product-guide.fixtures.js';
 
-const SURFACES: CommandSurface[] = ['dashboard', 'provider', 'customer', 'public'];
+const SURFACES: CommandSurface[] = [
+  'dashboard',
+  'provider',
+  'customer',
+  'public',
+];
 
 /** Loose NL shape check — corpus is classifier/eval fodder, not pipe-1.2-only phrasing. */
 const APP_GUIDE_CORPUS_SIGNAL =
@@ -12,7 +17,8 @@ const APP_GUIDE_CORPUS_SIGNAL =
 
 function promptsForFlow(surface: CommandSurface, flowId: string) {
   return SIMILAR_APP_GUIDE_PROMPTS.filter(
-    (row) => row.surface === surface && row.id.startsWith(`${surface}-${flowId}-v`),
+    (row) =>
+      row.surface === surface && row.id.startsWith(`${surface}-${flowId}-v`),
   );
 }
 
@@ -62,10 +68,14 @@ describe('SIMILAR_APP_GUIDE_PROMPTS (ai-guide-1.6.2)', () => {
 
   it('covers customer/public top-20 topicIds from guide-flow-customer-public corpus', () => {
     const customerTopics = new Set(
-      TOP_APP_GUIDE_FLOWS.filter((f) => f.surface === 'customer').map((f) => f.topicId),
+      TOP_APP_GUIDE_FLOWS.filter((f) => f.surface === 'customer').map(
+        (f) => f.topicId,
+      ),
     );
     const publicTopics = new Set(
-      TOP_APP_GUIDE_FLOWS.filter((f) => f.surface === 'public').map((f) => f.topicId),
+      TOP_APP_GUIDE_FLOWS.filter((f) => f.surface === 'public').map(
+        (f) => f.topicId,
+      ),
     );
     expect(customerTopics.has('consumer-getting-started')).toBe(true);
     expect(customerTopics.has('consumer-activation-welcome')).toBe(true);

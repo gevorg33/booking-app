@@ -17,17 +17,27 @@ describe('marketing-win-back.util', () => {
   );
 
   it('clamps loyalty bonus points to configured bounds', () => {
-    expect(resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 0 })).toBe(0);
-    expect(resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 5.4 })).toBe(5);
-    expect(resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 999 })).toBe(500);
+    expect(
+      resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 0 }),
+    ).toBe(0);
+    expect(
+      resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 5.4 }),
+    ).toBe(5);
+    expect(
+      resolveWinBackLoyaltyBonusPoints({ reEngagementLoyaltyBonusPoints: 999 }),
+    ).toBe(500);
   });
 
   it('detects configured loyalty incentive', () => {
     expect(
-      isWinBackLoyaltyIncentiveConfigured({ reEngagementLoyaltyBonusPoints: 10 }),
+      isWinBackLoyaltyIncentiveConfigured({
+        reEngagementLoyaltyBonusPoints: 10,
+      }),
     ).toBe(true);
     expect(
-      isWinBackLoyaltyIncentiveConfigured({ reEngagementLoyaltyBonusPoints: null }),
+      isWinBackLoyaltyIncentiveConfigured({
+        reEngagementLoyaltyBonusPoints: null,
+      }),
     ).toBe(false);
   });
 

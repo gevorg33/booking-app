@@ -123,7 +123,9 @@ function enrichDashboardGuideTopicFromPrompt(
   if (/\b(calendar|appointment\s+view|day\s+view)\b/i.test(lower)) {
     return 'dashboard.core.calendar';
   }
-  if (/\b(staff|employee|stylist|team\s+member|invite\s+staff)\b/i.test(lower)) {
+  if (
+    /\b(staff|employee|stylist|team\s+member|invite\s+staff)\b/i.test(lower)
+  ) {
     return 'dashboard.core.employees';
   }
   if (/\b(inventory|stock|retail\s+product)\b/i.test(lower)) {
@@ -163,7 +165,9 @@ function enrichProviderGuideTopicFromPrompt(
   if (primary?.startsWith('provider-')) return primary;
 
   const lower = prompt.toLowerCase();
-  if (/\b(invite|accept\s+invite|join\s+(?:the\s+)?(?:salon|team))\b/i.test(lower)) {
+  if (
+    /\b(invite|accept\s+invite|join\s+(?:the\s+)?(?:salon|team))\b/i.test(lower)
+  ) {
     return 'provider-staff-invite';
   }
   if (/\b(today\s+vs\s+calendar|today\s+tab|calendar\s+tab)\b/i.test(lower)) {
@@ -172,7 +176,9 @@ function enrichProviderGuideTopicFromPrompt(
   if (/(?:вкладка\s+today|что\s+показывает\s+вкладка)/iu.test(prompt)) {
     return 'provider-today-calendar';
   }
-  if (/\b(team\s+view|everyone(?:'s|\s+else(?:'s)?)?\s+bookings?)\b/i.test(lower)) {
+  if (
+    /\b(team\s+view|everyone(?:'s|\s+else(?:'s)?)?\s+bookings?)\b/i.test(lower)
+  ) {
     return 'provider-view-scope';
   }
   if (/\b(swipe\s+to\s+confirm|confirm\s+swipe)\b/i.test(lower)) {

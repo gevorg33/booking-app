@@ -98,7 +98,8 @@ describe('registry NL fixture coverage report (ai-cmd-ext-6.4 / ai-cmd-ext-gap-5
     expect(gaps.length).toBeGreaterThan(0);
     expect(
       gaps.every(
-        (gap) => gap.count < MIN_REGISTRY_NL_PROMPTS_PER_INTENT && gap.deficit > 0,
+        (gap) =>
+          gap.count < MIN_REGISTRY_NL_PROMPTS_PER_INTENT && gap.deficit > 0,
       ),
     ).toBe(true);
   });
@@ -109,7 +110,6 @@ describe('registry NL fixture coverage report (ai-cmd-ext-6.4 / ai-cmd-ext-gap-5
     );
     const formatted = formatRegistryNlFixtureCoverageReport(report);
 
-    // eslint-disable-next-line no-console -- intentional automation report output
     console.log(`\n${formatted}\n`);
 
     expect(formatted).toContain('Registry NL fixture coverage');

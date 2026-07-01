@@ -404,6 +404,9 @@ export const AI_PAGE_SUGGESTIONS: Record<string, string[]> = {
   ],
 };
 
+/** Consumer + public booking page chips (ai-cmd-customer-4.9.1) — English defaults; localized via `public.pageSuggestions.*`. */
+export { CONSUMER_AI_PAGE_SUGGESTIONS_EN as CONSUMER_AI_PAGE_SUGGESTIONS } from '@/lib/consumer-page-suggestions.types';
+
 export type AiPageSuggestionGroup = {
   id: string;
   label: string;

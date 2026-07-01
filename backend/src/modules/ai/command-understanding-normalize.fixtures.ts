@@ -77,7 +77,8 @@ export const PROMPT_NORMALIZE_PASSTHROUGH_SCENARIOS: PromptNormalizePassthroughS
     },
     {
       id: 'translit-passthrough-compound',
-      prompt: 'pokazhi vse zapisi Gevorg na vagh@ i otmeni vse mezhdu 16:30-17:30',
+      prompt:
+        'pokazhi vse zapisi Gevorg na vagh@ i otmeni vse mezhdu 16:30-17:30',
       businessId: 'biz-norm-translit',
       expectedMethod: 'multilingual',
       expectedNormalized:
@@ -87,23 +88,25 @@ export const PROMPT_NORMALIZE_PASSTHROUGH_SCENARIOS: PromptNormalizePassthroughS
     },
   ];
 
-export const PROMPT_NORMALIZE_EMPTY_SCENARIOS: PromptNormalizeEmptyScenario[] = [
-  { id: 'empty-string', prompt: '', businessId: 'biz-norm-empty' },
-  { id: 'empty-whitespace', prompt: '   ', businessId: 'biz-norm-empty' },
-  { id: 'empty-newlines', prompt: '\n\t  \n', businessId: 'biz-norm-empty' },
-];
+export const PROMPT_NORMALIZE_EMPTY_SCENARIOS: PromptNormalizeEmptyScenario[] =
+  [
+    { id: 'empty-string', prompt: '', businessId: 'biz-norm-empty' },
+    { id: 'empty-whitespace', prompt: '   ', businessId: 'biz-norm-empty' },
+    { id: 'empty-newlines', prompt: '\n\t  \n', businessId: 'biz-norm-empty' },
+  ];
 
-export const PROMPT_NORMALIZE_CACHE_SCENARIOS: PromptNormalizeCacheScenario[] = [
-  {
-    id: 'hy-cache-hit',
-    prompt: 'Ցույց տուր Գևորգի ամրագրումները վաղը',
-    businessId: 'biz-norm-cache-hy',
-    language: 'hy',
-  },
-  {
-    id: 'ru-cache-hit',
-    prompt: 'Запиши на массаж завтра в 10:00',
-    businessId: 'biz-norm-cache-ru',
-    language: 'ru',
-  },
-];
+export const PROMPT_NORMALIZE_CACHE_SCENARIOS: PromptNormalizeCacheScenario[] =
+  [
+    {
+      id: 'hy-cache-hit',
+      prompt: 'Ցույց տուր Գևորգի ամրագրումները վաղը',
+      businessId: 'biz-norm-cache-hy',
+      language: 'hy',
+    },
+    {
+      id: 'ru-cache-hit',
+      prompt: 'Запиши на массаж завтра в 10:00',
+      businessId: 'biz-norm-cache-ru',
+      language: 'ru',
+    },
+  ];

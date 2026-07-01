@@ -16,10 +16,13 @@ export function interpolateVoiceTemplate(
   template: string,
   values: Record<string, string | undefined>,
 ): string {
-  return template.replace(/\{(\w+)\}/g, (_match, key: string) => {
-    const value = values[key]?.trim();
-    return value || '';
-  }).replace(/\s{2,}/g, ' ').trim();
+  return template
+    .replace(/\{(\w+)\}/g, (_match, key: string) => {
+      const value = values[key]?.trim();
+      return value || '';
+    })
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export function resolveGuideStepVoiceSummary(step: GuideStep): string {

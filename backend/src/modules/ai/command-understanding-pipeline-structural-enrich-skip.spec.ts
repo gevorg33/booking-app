@@ -37,7 +37,8 @@ describe('CommandUnderstandingPipelineService structural enrich skip (pipe-1.7.3
         {
           provide: IntentDecompositionService,
           useValue: {
-            isCompoundPrompt: (prompt: string) => /\band then\b|;\s*/i.test(prompt),
+            isCompoundPrompt: (prompt: string) =>
+              /\band then\b|;\s*/i.test(prompt),
           },
         },
         {
@@ -80,7 +81,9 @@ describe('CommandUnderstandingPipelineService structural enrich skip (pipe-1.7.3
       expect(structuralTrace).toBeDefined();
 
       if (scenario.expectSkipStructuralEnrich) {
-        expect(structuralTrace?.detail).toBe(STRUCTURAL_ENRICH_SKIP_TRACE_DETAIL);
+        expect(structuralTrace?.detail).toBe(
+          STRUCTURAL_ENRICH_SKIP_TRACE_DETAIL,
+        );
         expect(result.clarifyFields?.length).toBeGreaterThan(0);
         if (scenario.expectNoStructuralHints) {
           expect(readStructuralEnrichHints(result.params)).toBeUndefined();
@@ -88,7 +91,9 @@ describe('CommandUnderstandingPipelineService structural enrich skip (pipe-1.7.3
           expect(result.params.dateFrom).toBeUndefined();
         }
       } else {
-        expect(structuralTrace?.detail).not.toContain('skipped; self_verify clarify');
+        expect(structuralTrace?.detail).not.toContain(
+          'skipped; self_verify clarify',
+        );
         if (scenario.expectStructuralDetailContains) {
           expect(structuralTrace?.detail).toContain(
             scenario.expectStructuralDetailContains,

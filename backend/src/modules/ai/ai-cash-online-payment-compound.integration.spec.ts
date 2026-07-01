@@ -1,6 +1,4 @@
-import {
-  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS,
-} from './ai-cash-online-payment-compound.fixtures.js';
+import { CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS } from './ai-cash-online-payment-compound.fixtures.js';
 import {
   decomposeDeterministicForSurface,
   GOLDEN_COMPOUND_PATTERNS,
@@ -8,13 +6,15 @@ import {
 import { CASH_AND_ONLINE_PAYMENT_COMPOUND_RECIPE_ID } from './ai-cash-online-payment-compound.util.js';
 import { DECLINE_ONLINE_PAYMENT_CATEGORY_RECIPE_ID } from './ai-decline-online-payment-category-compound.util.js';
 
-const CASH_AND_ONLINE_ONLY_PROMPTS = CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
-  (row) => row.compoundRecipeId === 'cash_and_online_payment',
-);
+const CASH_AND_ONLINE_ONLY_PROMPTS =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (row) => row.compoundRecipeId === 'cash_and_online_payment',
+  );
 
-const CASH_AND_DECLINE_CATEGORY_PROMPTS = CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
-  (row) => row.compoundRecipeId === 'decline_online_payment_category',
-);
+const CASH_AND_DECLINE_CATEGORY_PROMPTS =
+  CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS.filter(
+    (row) => row.compoundRecipeId === 'decline_online_payment_category',
+  );
 
 describe('AiCashAndOnlinePaymentCompound integration (ai-cmd-ext-5.6)', () => {
   it('registers dashboard_cash_and_online_payment golden pattern', () => {

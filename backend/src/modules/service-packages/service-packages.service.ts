@@ -168,7 +168,10 @@ export class ServicePackagesService {
     if (payload.items) {
       await this.validateItems(businessId, payload.items);
     }
-    if (payload.discountType !== undefined || payload.discountValue !== undefined) {
+    if (
+      payload.discountType !== undefined ||
+      payload.discountValue !== undefined
+    ) {
       this.validateDiscount(
         (payload.discountType ?? pkg.discountType) as DiscountType,
         payload.discountValue ?? Number(pkg.discountValue),

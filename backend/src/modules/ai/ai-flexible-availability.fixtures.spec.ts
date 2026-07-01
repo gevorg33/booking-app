@@ -59,7 +59,9 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
     expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain(
       'tomorrow eve or fri afternoon',
     );
-    expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain('session follow-ups');
+    expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain(
+      'session follow-ups',
+    );
   });
 
   it('maps parse golden prompts into classifier rules', () => {
@@ -92,12 +94,14 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   );
 
   it('ships section A OR window scenarios', () => {
-    expect(AVAIL_SECTION_A_OR_SCENARIOS.map((scenario) => scenario.id)).toEqual([
-      'avail-or-tomorrow-friday-en',
-      'avail-either-morning-en',
-      'avail-or-book-en',
-      'avail-three-way-or-en',
-    ]);
+    expect(AVAIL_SECTION_A_OR_SCENARIOS.map((scenario) => scenario.id)).toEqual(
+      [
+        'avail-or-tomorrow-friday-en',
+        'avail-either-morning-en',
+        'avail-or-book-en',
+        'avail-three-way-or-en',
+      ],
+    );
   });
 
   it('ships OR window classifier scenarios beyond section A', () => {
@@ -128,22 +132,21 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section E compound scenarios', () => {
-    expect(AVAIL_COMPOUND_PROMPT_SCENARIOS.map((scenario) => scenario.id)).toEqual([
-      'avail-check-then-book-or-en',
-      'avail-list-budget-then-or-en',
-    ]);
+    expect(
+      AVAIL_COMPOUND_PROMPT_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-check-then-book-or-en', 'avail-list-budget-then-or-en']);
   });
 
   it('ships section F multilingual scenarios', () => {
-    expect(AVAIL_MULTILINGUAL_SCENARIOS.map((scenario) => scenario.id)).toEqual([
-      'avail-or-hy',
-      'avail-or-ru',
-      'avail-or-translit-en',
-    ]);
+    expect(AVAIL_MULTILINGUAL_SCENARIOS.map((scenario) => scenario.id)).toEqual(
+      ['avail-or-hy', 'avail-or-ru', 'avail-or-translit-en'],
+    );
   });
 
   it('ships section G disambiguation scenarios', () => {
-    expect(AVAIL_DISAMBIGUATION_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_DISAMBIGUATION_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-no-or-and-en',
       'avail-not-single-timeofday-en',
       'avail-not-gift-card-en',
@@ -153,7 +156,9 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
 
   it('ships section H specific-time and per-window provider scenarios (avail-1.12)', () => {
     expect(
-      AVAIL_SECTION_H_SPECIFIC_PROVIDER_SCENARIOS.map((scenario) => scenario.id),
+      AVAIL_SECTION_H_SPECIFIC_PROVIDER_SCENARIOS.map(
+        (scenario) => scenario.id,
+      ),
     ).toEqual(['avail-or-specific-times-en', 'avail-or-with-provider-en']);
     expect(
       AVAIL_SECTION_H_SPECIFIC_PROVIDER_SCENARIOS.every(
@@ -169,11 +174,15 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
     expect(AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS[0]?.surface).toBe(
       'dashboard',
     );
-    expect(AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS[0]?.phase2).toBeUndefined();
+    expect(
+      AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS[0]?.phase2,
+    ).toBeUndefined();
   });
 
   it('ships section I time variant scenarios (avail-1.12)', () => {
-    expect(AVAIL_SECTION_I_TIME_VARIANT_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_SECTION_I_TIME_VARIANT_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-tonight-or-tomorrow-en',
       'avail-this-weekend-or-en',
       'avail-next-week-or-en',
@@ -194,7 +203,9 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section J voice/mobile scenarios (avail-1.12)', () => {
-    expect(AVAIL_SECTION_J_VOICE_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_SECTION_J_VOICE_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-voice-short-en',
       'avail-voice-asap-or-en',
       'avail-voice-chip-en',
@@ -212,20 +223,24 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section J imperative OR scenario without phase2', () => {
-    expect(AVAIL_SECTION_J_IMPERATIVE_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-imperative-en'],
-    );
     expect(
-      AVAIL_SECTION_J_IMPERATIVE_SCENARIOS.every((scenario) => !scenario.phase2),
+      AVAIL_SECTION_J_IMPERATIVE_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-imperative-en']);
+    expect(
+      AVAIL_SECTION_J_IMPERATIVE_SCENARIOS.every(
+        (scenario) => !scenario.phase2,
+      ),
     ).toBe(true);
   });
 
   it('ships section K add-window session scenario without phase2', () => {
-    expect(AVAIL_SECTION_K_ADD_WINDOW_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-session-add-window-en'],
-    );
     expect(
-      AVAIL_SECTION_K_ADD_WINDOW_SCENARIOS.every((scenario) => !scenario.phase2),
+      AVAIL_SECTION_K_ADD_WINDOW_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-session-add-window-en']);
+    expect(
+      AVAIL_SECTION_K_ADD_WINDOW_SCENARIOS.every(
+        (scenario) => !scenario.phase2,
+      ),
     ).toBe(true);
     expect(AVAIL_SECTION_K_ADD_WINDOW_SCENARIOS[0]?.sessionTurns).toEqual([
       'I want a haircut tomorrow evening',
@@ -234,21 +249,24 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section K drop-window and after-budget session scenarios without phase2', () => {
-    expect(AVAIL_SECTION_K_DROP_WINDOW_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-session-drop-window-en'],
-    );
+    expect(
+      AVAIL_SECTION_K_DROP_WINDOW_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-session-drop-window-en']);
     expect(
       AVAIL_SECTION_K_AFTER_BUDGET_SCENARIOS.map((scenario) => scenario.id),
     ).toEqual(['avail-session-after-budget-en']);
     expect(
-      [...AVAIL_SECTION_K_DROP_WINDOW_SCENARIOS, ...AVAIL_SECTION_K_AFTER_BUDGET_SCENARIOS].every(
-        (scenario) => !scenario.phase2,
-      ),
+      [
+        ...AVAIL_SECTION_K_DROP_WINDOW_SCENARIOS,
+        ...AVAIL_SECTION_K_AFTER_BUDGET_SCENARIOS,
+      ].every((scenario) => !scenario.phase2),
     ).toBe(true);
   });
 
   it('ships section K session scenarios (avail-1.12)', () => {
-    expect(AVAIL_SECTION_K_SESSION_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_SECTION_K_SESSION_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-session-add-window-en',
       'avail-session-drop-window-en',
       'avail-session-after-budget-en',
@@ -262,7 +280,9 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section L provider OR scenarios (avail-1.12)', () => {
-    expect(AVAIL_SECTION_L_PROVIDER_OR_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_SECTION_L_PROVIDER_OR_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-or-any-provider-en',
       'avail-or-named-fallback-en',
       'avail-or-same-provider-en',
@@ -270,9 +290,9 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section L any-provider and named-fallback scenarios without phase2', () => {
-    expect(AVAIL_SECTION_L_ANY_PROVIDER_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-or-any-provider-en'],
-    );
+    expect(
+      AVAIL_SECTION_L_ANY_PROVIDER_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-or-any-provider-en']);
     expect(
       AVAIL_SECTION_L_NAMED_FALLBACK_SCENARIOS.map((scenario) => scenario.id),
     ).toEqual(['avail-or-named-fallback-en']);
@@ -285,41 +305,51 @@ describe('ai-flexible-availability.fixtures (avail-1.10 / avail-1.12)', () => {
   });
 
   it('ships section L same-provider scenario without phase2', () => {
-    expect(AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-or-same-provider-en'],
-    );
     expect(
-      AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS.every((scenario) => !scenario.phase2),
+      AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-or-same-provider-en']);
+    expect(
+      AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS.every(
+        (scenario) => !scenario.phase2,
+      ),
     ).toBe(true);
-    expect(AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS[0]?.expectedParams).toMatchObject({
+    expect(
+      AVAIL_SECTION_L_SAME_PROVIDER_SCENARIOS[0]?.expectedParams,
+    ).toMatchObject({
       sameProviderAcrossWindows: true,
     });
   });
 
   it('ships section M budget-no-slots scenario separate from budget clarify', () => {
-    expect(AVAIL_SECTION_M_BUDGET_NO_SLOTS_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-budget-blocks-all-en'],
+    expect(
+      AVAIL_SECTION_M_BUDGET_NO_SLOTS_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-budget-blocks-all-en']);
+    expect(AVAIL_SECTION_M_BUDGET_NO_SLOTS_SCENARIOS[0]?.handlerOutcome).toBe(
+      true,
     );
-    expect(AVAIL_SECTION_M_BUDGET_NO_SLOTS_SCENARIOS[0]?.handlerOutcome).toBe(true);
   });
 
   it('ships section M neither-window and partial-window scenarios without phase2', () => {
-    expect(AVAIL_SECTION_M_NEITHER_WINDOW_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-neither-window-en'],
-    );
-    expect(AVAIL_SECTION_M_PARTIAL_WINDOW_SCENARIOS.map((scenario) => scenario.id)).toEqual(
-      ['avail-partial-one-window-en'],
-    );
+    expect(
+      AVAIL_SECTION_M_NEITHER_WINDOW_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-neither-window-en']);
+    expect(
+      AVAIL_SECTION_M_PARTIAL_WINDOW_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual(['avail-partial-one-window-en']);
     expect(
       [
         ...AVAIL_SECTION_M_NEITHER_WINDOW_SCENARIOS,
         ...AVAIL_SECTION_M_PARTIAL_WINDOW_SCENARIOS,
-      ].every((scenario) => !scenario.phase2 && scenario.handlerOutcome === true),
+      ].every(
+        (scenario) => !scenario.phase2 && scenario.handlerOutcome === true,
+      ),
     ).toBe(true);
   });
 
   it('ships section M no-slot/clarify scenarios (avail-1.12)', () => {
-    expect(AVAIL_SECTION_M_NO_SLOT_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      AVAIL_SECTION_M_NO_SLOT_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'avail-neither-window-en',
       'avail-partial-one-window-en',
       'avail-budget-blocks-all-en',

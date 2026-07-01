@@ -38,7 +38,9 @@ export function buildCustomerWhatsAppLink(phone: string): string | null {
   return digits ? `https://wa.me/${digits}` : null;
 }
 
-export function isStaffContactChannel(value: string): value is StaffContactChannel {
+export function isStaffContactChannel(
+  value: string,
+): value is StaffContactChannel {
   return (STAFF_CONTACT_CHANNELS as readonly string[]).includes(value);
 }
 
@@ -46,7 +48,11 @@ export function buildStaffContactedCustomerAnalyticsProps(
   bookingId: string,
   channel: StaffContactChannel,
   templateId?: string | null,
-): { bookingId: string; contactChannel: StaffContactChannel; templateId?: string } {
+): {
+  bookingId: string;
+  contactChannel: StaffContactChannel;
+  templateId?: string;
+} {
   const payload: {
     bookingId: string;
     contactChannel: StaffContactChannel;

@@ -1,5 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 
@@ -14,13 +17,19 @@ describe('ProviderMobileService my stats (prov-exp-2.1)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
   const clinicTestResultService = { listResultQueue: jest.fn() };
   const customerRepo = { createQueryBuilder: jest.fn(), findOne: jest.fn() };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = { getProfileForCustomer: jest.fn() };
   const patientClinicalProfileAccessService = {
     assertCustomerClinicalProfileAccess: jest.fn(),

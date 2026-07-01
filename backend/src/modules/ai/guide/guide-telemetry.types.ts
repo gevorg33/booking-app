@@ -70,10 +70,7 @@ export interface GuideTelemetryAnalyticsSummary {
   handoffToActionRate: number;
   groundingFailureRate: number;
   byTopic: Record<string, GuideTelemetryTopicMetrics>;
-  bySurface: Record<
-    AiGuideTelemetrySurface,
-    GuideTelemetryTopicMetrics
-  >;
+  bySurface: Record<AiGuideTelemetrySurface, GuideTelemetryTopicMetrics>;
   topUnansweredTopics: GuideUnansweredTopicRow[];
 }
 

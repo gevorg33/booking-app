@@ -35,9 +35,13 @@ export const ALL_PRODUCT_GUIDE_INTENTS = [
 
 export type ProductGuideIntentId = (typeof ALL_PRODUCT_GUIDE_INTENTS)[number];
 
-export const PRODUCT_GUIDE_INTENT_SET = new Set<string>(ALL_PRODUCT_GUIDE_INTENTS);
+export const PRODUCT_GUIDE_INTENT_SET = new Set<string>(
+  ALL_PRODUCT_GUIDE_INTENTS,
+);
 
-export function isAnyProductGuideIntent(action: string): action is ProductGuideIntentId {
+export function isAnyProductGuideIntent(
+  action: string,
+): action is ProductGuideIntentId {
   return PRODUCT_GUIDE_INTENT_SET.has(action);
 }
 

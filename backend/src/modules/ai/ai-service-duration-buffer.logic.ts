@@ -69,7 +69,12 @@ export async function handleUpdateServiceDurationBufferLogic(
       'Specify duration and/or buffer with scope (e.g. "Set all massage services to 60 minutes with 15 min buffer").',
       {
         clarify: true,
-        missing: ['durationMinutes', 'bufferMinutes', 'serviceName', 'categoryName'],
+        missing: [
+          'durationMinutes',
+          'bufferMinutes',
+          'serviceName',
+          'categoryName',
+        ],
       },
     );
   }

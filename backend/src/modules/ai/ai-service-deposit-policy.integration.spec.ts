@@ -10,7 +10,9 @@ describe('ai-service-deposit-policy integration (ai-cmd-ext-2.18)', () => {
   it.each(CONFIGURE_SERVICE_DEPOSIT_POLICY_PROMPTS.slice(0, 4))(
     'rescues unknown prompt $id via payments rescue',
     ({ prompt, expectedAction }) => {
-      expect(rescuePaymentsIntent(prompt, 'unknown')?.action).toBe(expectedAction);
+      expect(rescuePaymentsIntent(prompt, 'unknown')?.action).toBe(
+        expectedAction,
+      );
       const rescued = rescueService.rescue({
         prompt,
         action: 'unknown',
@@ -23,9 +25,9 @@ describe('ai-service-deposit-policy integration (ai-cmd-ext-2.18)', () => {
 
   it('utility rescue matches intent rescue', () => {
     const prompt = 'Set 30% deposit on premium tier services';
-    expect(rescueConfigureServiceDepositPolicyIntent(prompt, 'unknown')?.action).toBe(
-      'configure_service_deposit_policy',
-    );
+    expect(
+      rescueConfigureServiceDepositPolicyIntent(prompt, 'unknown')?.action,
+    ).toBe('configure_service_deposit_policy');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('configure_service_deposit_policy');
@@ -53,12 +55,14 @@ describe('ai-service-deposit-policy integration (ai-cmd-ext-2.18)', () => {
       },
     ] as any[];
 
-    const update = jest.fn(async (id: string, dto: Record<string, unknown>) => ({
-      id,
-      name: 'Featured Facial',
-      prepaymentMode: dto.prepaymentMode,
-      depositAmount: dto.depositAmount ?? 25,
-    }));
+    const update = jest.fn(
+      async (id: string, dto: Record<string, unknown>) => ({
+        id,
+        name: 'Featured Facial',
+        prepaymentMode: dto.prepaymentMode,
+        depositAmount: dto.depositAmount ?? 25,
+      }),
+    );
 
     const result = await handleConfigureServiceDepositPolicyLogic(
       { serviceService: { update } as any } as any,

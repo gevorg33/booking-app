@@ -73,10 +73,7 @@ export function shouldShowProviderPreVisitIntakeSection(input: {
 }
 
 export function formatProviderQuestionnaireAnswerText(
-  question: Pick<
-    ClinicQuestionnaireFlowContext['questions'][number],
-    'type'
-  >,
+  question: Pick<ClinicQuestionnaireFlowContext['questions'][number], 'type'>,
   values: string[],
   options: ClinicQuestionnaireFlowContext['options'],
 ): string {
@@ -84,9 +81,7 @@ export function formatProviderQuestionnaireAnswerText(
 
   if (isChoiceQuestionType(question.type)) {
     const questionOptions = options.filter((option) =>
-      values.some(
-        (value) => value === option.value || value === option.id,
-      ),
+      values.some((value) => value === option.value || value === option.id),
     );
     if (questionOptions.length) {
       return questionOptions.map((option) => option.display).join(', ');

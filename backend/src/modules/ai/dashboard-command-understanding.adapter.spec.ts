@@ -85,15 +85,12 @@ describe('dashboard-command-understanding.adapter (pipe-1.12.1)', () => {
         classify,
       });
 
-      await narrowReclassify!(
-        ['create_booking', 'book_nearest_slot'],
-        {
-          originalPrompt: 'hair long',
-          normalizedPrompt: 'hair long',
-          classifierContext: null,
-          method: 'passthrough',
-        },
-      );
+      await narrowReclassify!(['create_booking', 'book_nearest_slot'], {
+        originalPrompt: 'hair long',
+        normalizedPrompt: 'hair long',
+        classifierContext: null,
+        method: 'passthrough',
+      });
 
       expect(classify).toHaveBeenCalledWith(
         'hair long',
@@ -202,7 +199,10 @@ describe('dashboard-command-understanding.adapter (pipe-1.12.1)', () => {
         intelligence,
       });
 
-      const [first, second] = await Promise.all([resolveRoute(), resolveRoute()]);
+      const [first, second] = await Promise.all([
+        resolveRoute(),
+        resolveRoute(),
+      ]);
 
       expect(first).toBe(second);
       expect(intelligence.routeComplexity).toHaveBeenCalledTimes(1);

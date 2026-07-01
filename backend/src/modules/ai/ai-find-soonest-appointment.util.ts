@@ -218,7 +218,9 @@ function hasMutateBookIntent(prompt: string): boolean {
   return /\b(book|reserve|schedule|grab)\b/i.test(prompt);
 }
 
-function extractFindSoonestServiceNameFromPrompt(prompt: string): string | null {
+function extractFindSoonestServiceNameFromPrompt(
+  prompt: string,
+): string | null {
   const quoted = prompt.match(/"([^"]{1,60})"/);
   if (quoted) return quoted[1].trim();
 
@@ -286,7 +288,9 @@ export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
     return true;
   }
 
-  if (/\b(earliest|soonest|nearest)\s+(slot|appointment|opening)\b/i.test(prompt)) {
+  if (
+    /\b(earliest|soonest|nearest)\s+(slot|appointment|opening)\b/i.test(prompt)
+  ) {
     return true;
   }
 

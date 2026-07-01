@@ -18,7 +18,7 @@ export interface ClinicCompoundScenario {
 export const CLINIC_COMPOUND_CLASSIFIER_RULES = `- Clinic lab compounds (multi-step):
   - dashboard: "Order lipid panel for Maria and notify her when results are ready" → compound: create_test_order then notify_patient_result_ready (share customerName/testNames)
   - dashboard: "List abnormal results for Maria and explain her lab results" → compound: list_abnormal_results then explain_patient_results (share customerName) OR clinic_lab_review golden recipe
-  - customer: "Book lipid panel and notify me when results are ready" → compound: book_nearest_slot then explain_result_status (patient FAQ — NOT notify_patient_result_ready)
+  - customer: "Book lipid panel and notify me when results are ready" → compound: book_nearest_slot then notify_when_results_ready (read explain — NOT notify_patient_result_ready mutate)
   - public: "Book a CBC and tell me when results are ready on this page" → compound: book_appointment then explain_result_status
   - NOT single create_test_order when prompt also asks to notify/send/tell about results ready; NOT single explain_result_status when prompt also asks to book/order/schedule a lab panel first; NOT single list_abnormal_results when prompt also asks to explain/summarize flagged results.`;
 
@@ -126,9 +126,9 @@ export const CUSTOMER_CLINIC_COMPOUND_PROMPTS: ClinicCompoundScenario[] = [
     id: 'book-lipid-notify-me',
     prompt: 'Book lipid panel and notify me when results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
     paramsPartial: { serviceName: 'lipid panel', testName: 'lipid panel' },
-    misclassifiedAction: 'explain_result_status',
+    misclassifiedAction: 'notify_when_results_ready',
   },
   {
     id: 'schedule-cbc-explain-ready',
@@ -141,21 +141,21 @@ export const CUSTOMER_CLINIC_COMPOUND_PROMPTS: ClinicCompoundScenario[] = [
     id: 'reserve-panel-tell-me',
     prompt: 'Reserve lipid panel and tell me when lab results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
     paramsPartial: { serviceName: 'lipid panel' },
   },
   {
     id: 'book-blood-work-alert',
     prompt: 'Book blood work CBC and alert me when results are available',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
     paramsPartial: { serviceName: 'CBC' },
   },
   {
     id: 'book-panel-then-when-ready',
     prompt: 'Book lipid panel then notify me when results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
     misclassifiedAction: 'list_my_test_results',
   },
   {
@@ -175,13 +175,13 @@ export const CUSTOMER_CLINIC_COMPOUND_PROMPTS: ClinicCompoundScenario[] = [
     id: 'book-metabolic-notify-me',
     prompt: 'Book metabolic panel and notify me when test results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
   },
   {
     id: 'reserve-lipid-results-ready',
     prompt: 'Reserve lipid panel; notify me when results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
   },
   {
     id: 'book-cbc-also-explain',
@@ -193,7 +193,7 @@ export const CUSTOMER_CLINIC_COMPOUND_PROMPTS: ClinicCompoundScenario[] = [
     id: 'book-panel-my-results',
     prompt: 'Book lipid panel and tell me when my lab results are ready',
     surface: 'customer',
-    orderedActions: ['book_nearest_slot', 'explain_result_status'],
+    orderedActions: ['book_nearest_slot', 'notify_when_results_ready'],
   },
   {
     id: 'schedule-bmp-ready-faq',

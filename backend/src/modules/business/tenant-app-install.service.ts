@@ -32,7 +32,9 @@ export class TenantAppInstallService {
   }
 
   /** Force-regenerate landing URL + QR assets (Growth tab refresh). */
-  async regenerateForBusiness(business: Business): Promise<TenantAppInstallView> {
+  async regenerateForBusiness(
+    business: Business,
+  ): Promise<TenantAppInstallView> {
     return this.persistGeneratedAssets(business);
   }
 
@@ -44,7 +46,9 @@ export class TenantAppInstallService {
       this.frontendUrl(),
     );
     if (!generated) {
-      throw new Error(`Unable to generate app install assets for ${business.slug}`);
+      throw new Error(
+        `Unable to generate app install assets for ${business.slug}`,
+      );
     }
 
     business.settings = mergeTenantAppInstallIntoSettings(

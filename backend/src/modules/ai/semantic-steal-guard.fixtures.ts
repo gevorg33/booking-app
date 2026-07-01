@@ -58,14 +58,16 @@ function providerStatsScenarios(): SemanticStealGuardScenario[] {
     expectedAction: entry.expectedAction,
     rescueReason: entry.rescueReason,
   }));
-  const topStaff = TOP_SPECIALIST_REVENUE_SCENARIOS.slice(0, 4).map((entry) => ({
-    id: `top-staff-${entry.id}`,
-    domain: 'provider_stats' as const,
-    prompt: entry.prompt,
-    surface: 'dashboard' as const,
-    expectedAction: 'summarize_staff',
-    rescueReason: 'top_staff_revenue',
-  }));
+  const topStaff = TOP_SPECIALIST_REVENUE_SCENARIOS.slice(0, 4).map(
+    (entry) => ({
+      id: `top-staff-${entry.id}`,
+      domain: 'provider_stats' as const,
+      prompt: entry.prompt,
+      surface: 'dashboard' as const,
+      expectedAction: 'summarize_staff',
+      rescueReason: 'top_staff_revenue',
+    }),
+  );
   const totals = TOTAL_EARNINGS_SCENARIOS.slice(0, 2).map((entry) => ({
     id: `total-earnings-${entry.id}`,
     domain: 'provider_stats' as const,

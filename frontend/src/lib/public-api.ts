@@ -951,7 +951,12 @@ export function confirmPublicBookingPayment(slug: string, sessionId: string) {
 }
 
 export interface PublicAssistantNavigate {
-  path: 'professionals' | 'services' | 'checkout' | 'multi/checkout';
+  path:
+    | 'professionals'
+    | 'provider_profile'
+    | 'services'
+    | 'checkout'
+    | 'multi/checkout';
   query: Record<string, string>;
 }
 

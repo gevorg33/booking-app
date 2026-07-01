@@ -21,7 +21,9 @@ describe('ai-product-guide-ranking.util (ai-guide-1.2.1)', () => {
       messages,
     );
     expect(ranked[0]?.topicId).toBe('dashboard.core.schedule');
-    expect(ranked[0]?.score).toBeGreaterThanOrEqual(GUIDE_CORPUS_MATCH_THRESHOLD);
+    expect(ranked[0]?.score).toBeGreaterThanOrEqual(
+      GUIDE_CORPUS_MATCH_THRESHOLD,
+    );
   });
 
   it('honors explicit topicId over route', () => {

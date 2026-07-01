@@ -1,6 +1,10 @@
 import {
   CANCEL_PACKAGE_VISIT_SELF_PROMPTS,
+  CUSTOMER_CANCEL_PACKAGE_VISIT_SELF_CLASSIFIER_RULES,
+} from './ai-cancel-package-visit-self.fixtures.js';
+import {
   CUSTOMER_PACKAGE_VISIT_SELF_CLASSIFIER_RULES,
+  CUSTOMER_RESCHEDULE_PACKAGE_VISIT_SELF_CLASSIFIER_RULES,
   PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS,
   RESCHEDULE_PACKAGE_VISIT_SELF_PROMPTS,
   detectPackageVisitSelfCustomerAction,
@@ -8,15 +12,16 @@ import {
   extractPackageVisitIndexFromPrompt,
   rescuePackageVisitSelfCustomerIntent,
 } from './ai-package-visit-self-customer.util.js';
+import { RESCHEDULE_PACKAGE_VISIT_SELF_MULTILINGUAL_SCENARIOS } from './ai-reschedule-package-visit-self-multilingual.fixtures.js';
 import {
   isCancelPackageVisitSelfPrompt,
   isReschedulePackageVisitSelfPrompt,
-  isCancelMyBookingPrompt,
-  isRescheduleMyBookingPrompt,
-  rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
+import { isCancelMyBookingPrompt } from './ai-self-service-booking.util.js';
+import { isRescheduleMyBookingPrompt } from './ai-self-service-booking.util.js';
 import { isCancelPackageVisitPrompt } from './ai-booking-depth.util.js';
-import { AI_COMMAND_EVAL_PACKAGE_VISIT_SELF_CUSTOMER_CASES } from './eval/ai-command-eval.cases.js';
+import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
+import { AI_COMMAND_EVAL_RESCHEDULE_PACKAGE_VISIT_SELF_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 
 describe('ai-package-visit-self-customer.util (ai-cmd-customer-4.0 P2)', () => {
@@ -25,6 +30,12 @@ describe('ai-package-visit-self-customer.util (ai-cmd-customer-4.0 P2)', () => {
       'cancel_package_visit_self',
     );
     expect(CUSTOMER_PACKAGE_VISIT_SELF_CLASSIFIER_RULES).toContain(
+      'reschedule_package_visit_self',
+    );
+    expect(CUSTOMER_CANCEL_PACKAGE_VISIT_SELF_CLASSIFIER_RULES).toContain(
+      'cancel_package_visit_self',
+    );
+    expect(CUSTOMER_RESCHEDULE_PACKAGE_VISIT_SELF_CLASSIFIER_RULES).toContain(
       'reschedule_package_visit_self',
     );
   });
@@ -48,20 +59,26 @@ describe('ai-package-visit-self-customer.util (ai-cmd-customer-4.0 P2)', () => {
   });
 
   it.each(
-    PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
-  )('rescues package visit self prompt $id from unknown', (_id, row) => {
-    const rescued = rescuePackageVisitSelfCustomerIntent(row.prompt, 'unknown');
-    expect(rescued?.action).toBe(row.expectedAction);
-    expect(rescued?.rescueReason).toBe(row.rescueReason);
-    expect(rescueSelfServiceBookingIntent(row.prompt, 'unknown')?.action).toBe(
-      row.expectedAction,
-    );
-  });
+    RESCHEDULE_PACKAGE_VISIT_SELF_PROMPTS.map((row) => [row.id, row] as const),
+  )(
+    'rescues reschedule package visit self prompt $id from unknown',
+    (_id, row) => {
+      const rescued = rescuePackageVisitSelfCustomerIntent(
+        row.prompt,
+        'unknown',
+      );
+      expect(rescued?.action).toBe(row.expectedAction);
+      expect(rescued?.rescueReason).toBe(row.rescueReason);
+      expect(
+        rescueSelfServiceBookingIntent(row.prompt, 'unknown')?.action,
+      ).toBe(row.expectedAction);
+    },
+  );
 
   it('extracts visit index and package name from prompts', () => {
-    expect(extractPackageVisitIndexFromPrompt('Cancel visit 2 of my package')).toBe(
-      2,
-    );
+    expect(
+      extractPackageVisitIndexFromPrompt('Cancel visit 2 of my package'),
+    ).toBe(2);
     expect(
       enrichPackageVisitSelfParamsFromPrompt(
         {},
@@ -90,9 +107,9 @@ describe('ai-package-visit-self-customer.util (ai-cmd-customer-4.0 P2)', () => {
       isReschedulePackageVisitSelfPrompt('Reschedule my appointment'),
     ).toBe(false);
 
-    expect(
-      isCancelPackageVisitPrompt('Cancel package visit for Anna'),
-    ).toBe(true);
+    expect(isCancelPackageVisitPrompt('Cancel package visit for Anna')).toBe(
+      true,
+    );
     expect(
       isCancelPackageVisitSelfPrompt('Cancel package visit for Anna'),
     ).toBe(false);
@@ -112,15 +129,20 @@ describe('ai-package-visit-self-customer.util (ai-cmd-customer-4.0 P2)', () => {
     ).toBe('cancel_package_visit_self');
   });
 
-  it('maps package visit self fixtures to passing eval golden cases', () => {
+  it('maps reschedule package visit fixtures to passing eval golden cases', () => {
     expect(CANCEL_PACKAGE_VISIT_SELF_PROMPTS.length).toBeGreaterThanOrEqual(10);
     expect(RESCHEDULE_PACKAGE_VISIT_SELF_PROMPTS.length).toBeGreaterThanOrEqual(
       10,
     );
-    expect(AI_COMMAND_EVAL_PACKAGE_VISIT_SELF_CUSTOMER_CASES.length).toBe(
-      PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS.length,
+    expect(PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS.length).toBe(
+      CANCEL_PACKAGE_VISIT_SELF_PROMPTS.length +
+        RESCHEDULE_PACKAGE_VISIT_SELF_PROMPTS.length,
     );
-    for (const evalCase of AI_COMMAND_EVAL_PACKAGE_VISIT_SELF_CUSTOMER_CASES) {
+    expect(AI_COMMAND_EVAL_RESCHEDULE_PACKAGE_VISIT_SELF_CASES.length).toBe(
+      RESCHEDULE_PACKAGE_VISIT_SELF_PROMPTS.length +
+        RESCHEDULE_PACKAGE_VISIT_SELF_MULTILINGUAL_SCENARIOS.length,
+    );
+    for (const evalCase of AI_COMMAND_EVAL_RESCHEDULE_PACKAGE_VISIT_SELF_CASES) {
       expect(evaluateDeterministicEvalCase(evalCase).errors).toEqual([]);
     }
   });

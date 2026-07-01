@@ -5,7 +5,7 @@ import type {
 } from './provider-exp-ai-parity.fixtures.js';
 
 export function isProviderIntentRegistered(intent: string): boolean {
-  return (PROVIDER_INTENTS as readonly string[]).includes(intent);
+  return PROVIDER_INTENTS.includes(intent);
 }
 
 export function listUnknownProviderIntents(

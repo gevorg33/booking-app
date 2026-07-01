@@ -36,6 +36,14 @@ export interface AiCommandEvalExpectation {
   useSurfacePrivacyGdprCustomerRescue?: boolean;
   /** When true, eval uses customer gift card cancel-request rescue (request_gift_card_cancel). */
   useSurfaceGiftCardCancelCustomerRescue?: boolean;
+  /** When true, eval uses customer gift card account claim rescue (claim_gift_card_balance). */
+  useSurfaceClaimGiftCardBalanceCustomerRescue?: boolean;
+  /** When true, eval uses customer physical gift card delivery tracking rescue (track_physical_gift_card_order). */
+  useSurfaceTrackPhysicalGiftCardOrderRescue?: boolean;
+  /** When true, eval uses customer cancel package visit rescue (cancel_package_visit_self). */
+  useSurfaceCancelPackageVisitSelfRescue?: boolean;
+  /** When true, eval uses customer reschedule package visit rescue (reschedule_package_visit_self). */
+  useSurfaceReschedulePackageVisitSelfRescue?: boolean;
   /** When true, eval uses customer package visit self-service rescue (cancel/reschedule_package_visit_self). */
   useSurfacePackageVisitSelfCustomerRescue?: boolean;
   /** When true, eval uses customer package visit list rescue (list_my_package_visits). */
@@ -44,24 +52,78 @@ export interface AiCommandEvalExpectation {
   useSurfaceTourCustomerPublicRescue?: boolean;
   /** When true, eval uses customer/public checkout success product-card rescue. */
   useSurfaceCheckoutRecommendationsCustomerPublicRescue?: boolean;
+  /** When true, eval uses customer dismiss checkout recommendations rescue (ai-cmd-customer-4.16.2). */
+  useSurfaceDismissRecommendationsRescue?: boolean;
   /** When true, eval uses customer growth loops rescue (refer_a_friend / share_salon_link). */
   useSurfaceGrowthLoopsCustomerRescue?: boolean;
   /** When true, eval uses consumer adoption rescue (explain_my_notifications, rebook, etc.). */
   useSurfaceConsumerAdoptionRescue?: boolean;
+  /** When true, eval uses customer share my booking rescue (ai-cmd-customer-4.3.7). */
+  useSurfaceShareMyBookingRescue?: boolean;
+  /** When true, eval uses customer list upcoming appointments rescue (ai-cmd-customer-4.4.1). */
+  useSurfaceListMyUpcomingAppointmentsRescue?: boolean;
+  /** When true, eval uses customer explain cancel policy rescue (ai-cmd-customer-4.4.4). */
+  useSurfaceExplainCancelPolicyRescue?: boolean;
+  /** When true, eval uses customer/public deposit forfeiture rescue. */
+  useSurfaceExplainDepositForfeitureRescue?: boolean;
+  /** When true, eval uses customer/public budget discover chip rescue (ai-cmd-customer-4.20.3). */
+  useSurfaceFindServicesUnderBudgetRescue?: boolean;
+  /** When true, eval uses customer/public evening/weekend discover chip rescue (ai-cmd-customer-4.20.4). */
+  useSurfaceFindEveningWeekendSlotsRescue?: boolean;
+  /** When true, eval uses customer explain package visit rules rescue (ai-cmd-customer-4.15.4). */
+  useSurfaceExplainPackageVisitRulesRescue?: boolean;
+  useSurfaceExplainLoyaltyPointsRescue?: boolean;
+  useSurfaceExplainMySubscriptionRescue?: boolean;
+  /** When true, eval uses customer update my profile rescue (ai-cmd-customer-4.5.6). */
+  useSurfaceUpdateMyProfileRescue?: boolean;
+  /** When true, eval uses customer get manage link rescue (ai-cmd-customer-4.4.5). */
+  useSurfaceGetManageLinkRescue?: boolean;
+  /** When true, eval uses customer/public recover lost manage link rescue (ai-cmd-customer-4.17.3). */
+  useSurfaceRecoverLostManageLinkRescue?: boolean;
+  /** When true, eval uses customer notify running late rescue (ai-cmd-customer-4.4.6). */
+  useSurfaceNotifyRunningLateRescue?: boolean;
+  useSurfaceLeaveVisitReviewRescue?: boolean;
+  useSurfaceExplainPostVisitReviewPromptRescue?: boolean;
+  useSurfaceReportBookingProblemRescue?: boolean;
+  useSurfaceExplainShareRewardRescue?: boolean;
+  useSurfaceSignInAfterBookingRescue?: boolean;
+  /** When true, eval uses customer/public waitlist join+status rescue (ai-cmd-customer-4.4.7). */
+  useSurfaceCustomerWaitlistRescue?: boolean;
+  /** When true, eval uses customer rebook last appointment rescue (ai-cmd-customer-4.4.8). */
+  useSurfaceRebookLastAppointmentRescue?: boolean;
   /** When true, eval uses customer-surface self-service rescue only (acc-2.4 HY/RU). */
   useSurfaceMarketingGrowthRescue?: boolean;
   /** When true, eval uses customer-surface checkout success rescue only (acc-2.4 HY/RU). */
   useSurfaceConsumerCheckoutSuccessRescue?: boolean;
   /** When true, eval uses customer-surface checkout tax rescue only (acc-2.4 HY/RU). */
   useSurfaceConsumerCheckoutTaxRescue?: boolean;
+  /** When true, eval uses public/customer checkout tax rescue for explain_checkout_tax. */
+  useSurfaceExplainCheckoutTaxRescue?: boolean;
   /** When true, eval uses customer-surface clinic test results rescue only (acc-2.4 HY/RU). */
   useSurfaceConsumerClinicTestResultsRescue?: boolean;
+  /** When true, eval uses customer lab order tracking rescue (track_lab_order_status). */
+  useSurfaceTrackLabOrderStatusRescue?: boolean;
+  /** When true, eval uses customer clinic documents rescue (list_my_documents). */
+  useSurfaceListMyDocumentsRescue?: boolean;
+  /** When true, eval uses customer measurement flag FAQ rescue (explain_abnormal_result_flag). */
+  useSurfaceExplainAbnormalResultFlagRescue?: boolean;
+  /** When true, eval uses customer result-ready notification explain rescue. */
+  useSurfaceNotifyWhenResultsReadyRescue?: boolean;
   /** When true, eval uses provider-surface implication heuristic rescue (pipe-1.12.5). */
   useSurfaceProviderImplicationRescue?: boolean;
   /** When true, eval uses provider-surface push setup rescue only (acc-2.4 HY/RU). */
   useSurfaceProviderPushSetupRescue?: boolean;
   /** When true, eval uses payments-module rescue (customer/public checkout intents). */
   useSurfacePaymentsRescue?: boolean;
+  /** When true, eval uses resume booking draft rescue (customer/public). */
+  useSurfaceResumeBookingDraftRescue?: boolean;
+  useSurfaceExplainSlotNoLongerAvailableRescue?: boolean;
+  useSurfaceExplainMultiServicePaymentReturnRescue?: boolean;
+  useSurfaceRetryFailedNetworkActionRescue?: boolean;
+  useSurfaceExplainVoiceInputRescue?: boolean;
+  useSurfaceSpeakAssistantReplyRescue?: boolean;
+  useSurfaceGiveAiFeedbackRescue?: boolean;
+  useSurfaceExplainRtlLayoutRescue?: boolean;
   /** Validated action should fail with clarify (acc-2.6). */
   expectValidationClarify?: boolean;
   validationAction?: string;
@@ -92,7 +154,12 @@ export interface AiCommandEvalExpectation {
   /** acc-3.14 — assert semantic anchors resolve dashboard metric params. */
   useMetricResolverSemanticDetect?: boolean;
   metricResolverSemantic?: boolean;
-  metricResolverKind?: 'booking' | 'staff' | 'service' | 'customer' | 'appointment';
+  metricResolverKind?:
+    | 'booking'
+    | 'staff'
+    | 'service'
+    | 'customer'
+    | 'appointment';
   metricResolverExpected?: string;
   /** Use surface-scoped clinic lab booking rescue (i18n-clinic-v2-ai-8). */
   useSurfaceLabBookingRescue?: boolean;
@@ -135,6 +202,8 @@ export interface AiCommandEvalExpectation {
   compoundRecipeId?: string;
   /** Per-step param subset checks after decomposition. */
   compoundStepParams?: CompoundStepParamExpectation[];
+  /** Skip LLM classify for deterministic compound eval cases. */
+  noLlm?: boolean;
   /** Use surface-scoped product guide rescue (ai-guide-1.6.4). */
   useProductGuideRescue?: boolean;
   /** Assert enrichGuideTopicFromPrompt topicId (ai-guide-1.6.4). */

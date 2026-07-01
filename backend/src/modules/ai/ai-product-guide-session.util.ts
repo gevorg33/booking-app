@@ -54,10 +54,11 @@ function readStringArray(value: unknown): readonly string[] | undefined {
   return rows.length ? rows : undefined;
 }
 
-export function readPlanTierIdFromPageContext(pageCtx?: Record<string, unknown>): PlanTierId {
+export function readPlanTierIdFromPageContext(
+  pageCtx?: Record<string, unknown>,
+): PlanTierId {
   const raw =
-    readString(pageCtx?._planTierId) ??
-    readString(pageCtx?.planTierId);
+    readString(pageCtx?._planTierId) ?? readString(pageCtx?.planTierId);
   if (raw === 'starter' || raw === 'business' || raw === 'solo') return raw;
   return 'solo';
 }
@@ -66,7 +67,9 @@ function readPlanTierId(pageCtx?: Record<string, unknown>): PlanTierId {
   return readPlanTierIdFromPageContext(pageCtx);
 }
 
-function readEnabledModules(pageCtx?: Record<string, unknown>): readonly string[] | undefined {
+function readEnabledModules(
+  pageCtx?: Record<string, unknown>,
+): readonly string[] | undefined {
   const direct = readStringArray(pageCtx?.enabledModules);
   if (direct) return direct;
 
@@ -113,7 +116,8 @@ export function resolveRoleProfileFromSession(
   pageCtx?: Record<string, unknown>,
   accessTier?: AccessTier,
 ): GuideFlowRoleScope | undefined {
-  const explicit = readString(pageCtx?._roleProfile) ?? readString(pageCtx?.roleProfile);
+  const explicit =
+    readString(pageCtx?._roleProfile) ?? readString(pageCtx?.roleProfile);
   if (
     explicit === 'owner' ||
     explicit === 'manager' ||
@@ -148,14 +152,20 @@ export function resolveProductGuideSessionContext(
   let route = readString(pageCtx?.route);
   if (!route) {
     if (surface === 'public') route = mapPublicBookingGuideRoute(pageCtx);
-    else if (surface === 'provider') route = mapProviderMobileGuideRoute(pageCtx);
-    else if (surface === 'customer') route = mapCustomerMobileGuideRoute(pageCtx);
+    else if (surface === 'provider')
+      route = mapProviderMobileGuideRoute(pageCtx);
+    else if (surface === 'customer')
+      route = mapCustomerMobileGuideRoute(pageCtx);
   } else if (surface === 'provider') {
     route = mapProviderMobileGuideRoute(pageCtx) ?? route;
   }
 
   const accessTier = resolveAccessTierFromSession(pageCtx);
-  const roleProfile = resolveRoleProfileFromSession(surface, pageCtx, accessTier);
+  const roleProfile = resolveRoleProfileFromSession(
+    surface,
+    pageCtx,
+    accessTier,
+  );
 
   return {
     route,
@@ -185,7 +195,10 @@ export function buildProductGuideLogicInput(input: {
   locale?: string;
   userId?: string;
 }): ProductGuideLogicInput {
-  const sessionContext = resolveProductGuideSessionContext(input.session, input.surface);
+  const sessionContext = resolveProductGuideSessionContext(
+    input.session,
+    input.surface,
+  );
   return {
     businessId: input.businessId,
     prompt: input.prompt,

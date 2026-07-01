@@ -1,4 +1,7 @@
-import type { IntentAnchor, SemanticIntentLocale } from './ai-semantic-intent.types.js';
+import type {
+  IntentAnchor,
+  SemanticIntentLocale,
+} from './ai-semantic-intent.types.js';
 import { isGenericSemanticAnchorPrompt } from './intent-anchor.seed.util.js';
 
 /** Core intents with canonical EN/HY/RU anchors (pipe-1.4.1). */
@@ -20,7 +23,9 @@ const LOCALE_SORT_ORDER: Record<SemanticIntentLocale, number> = {
 };
 
 /** Sort anchors by action, then EN before HY/RU/translit (pipe-1.4.1). */
-export function sortIntentAnchorsEnFirst(anchors: IntentAnchor[]): IntentAnchor[] {
+export function sortIntentAnchorsEnFirst(
+  anchors: IntentAnchor[],
+): IntentAnchor[] {
   return [...anchors].sort((left, right) => {
     if (left.action !== right.action) {
       return left.action.localeCompare(right.action);

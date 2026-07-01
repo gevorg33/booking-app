@@ -37,28 +37,27 @@ export type ServiceOnlinePaymentPromptFixture = {
   paramsPartial?: Record<string, unknown>;
 };
 
-export const SERVICE_ONLINE_PAYMENT_EN_SCENARIO_IDS =
-  [
-    'all-services-50-deposit',
-    'all-services-full',
-    'specific-service-deposit',
-    'named-services-deposit',
-    'category-services-full',
-    'some-services-25',
-    'disable-specific',
-    'disable-all',
-    'fixed-deposit-dollar',
-    'stripe-all-half',
-    'public-booking-single-full',
-    'category-disable',
-    'decline-all-services',
-    'decline-specific-service',
-    'decline-named-services',
-    'decline-category-services',
-    'decline-some-services',
-    'decline-single-service-suffix',
-    'decline-every-service',
-  ] as const;
+export const SERVICE_ONLINE_PAYMENT_EN_SCENARIO_IDS = [
+  'all-services-50-deposit',
+  'all-services-full',
+  'specific-service-deposit',
+  'named-services-deposit',
+  'category-services-full',
+  'some-services-25',
+  'disable-specific',
+  'disable-all',
+  'fixed-deposit-dollar',
+  'stripe-all-half',
+  'public-booking-single-full',
+  'category-disable',
+  'decline-all-services',
+  'decline-specific-service',
+  'decline-named-services',
+  'decline-category-services',
+  'decline-some-services',
+  'decline-single-service-suffix',
+  'decline-every-service',
+] as const;
 
 export const SERVICE_ONLINE_PAYMENT_PROMPTS: ServiceOnlinePaymentPromptFixture[] =
   [
@@ -214,8 +213,7 @@ export const SERVICE_ONLINE_PAYMENT_PROMPTS: ServiceOnlinePaymentPromptFixture[]
     },
     {
       id: 'decline-category-services',
-      prompt:
-        'Decline online payment on public booking for massage services',
+      prompt: 'Decline online payment on public booking for massage services',
       surface: 'dashboard',
       expectedAction: 'configure_service_online_payment',
       paramsPartial: { categoryName: 'massage', prepaymentMode: 'none' },
@@ -241,8 +239,7 @@ export const SERVICE_ONLINE_PAYMENT_PROMPTS: ServiceOnlinePaymentPromptFixture[]
     },
     {
       id: 'decline-every-service',
-      prompt:
-        'Refuse online payment on public booking for every service',
+      prompt: 'Refuse online payment on public booking for every service',
       surface: 'dashboard',
       expectedAction: 'configure_service_online_payment',
       paramsPartial: { allServices: true, prepaymentMode: 'none' },
@@ -326,13 +323,13 @@ export function isConfigureServiceOnlinePaymentPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isCheckoutDefaultsScopePrompt(text)) return false;
   if (isExplainServiceOnlinePaymentSetupPrompt(text)) return false;
-  if (
-    /\bpackages?\b/i.test(text) &&
-    ONLINE_PAYMENT_SIGNAL.test(text)
-  ) {
+  if (/\bpackages?\b/i.test(text) && ONLINE_PAYMENT_SIGNAL.test(text)) {
     return false;
   }
-  if (isDepositPolicyTierFeaturedScope(text) || isExplicitDepositPolicyPrompt(text)) {
+  if (
+    isDepositPolicyTierFeaturedScope(text) ||
+    isExplicitDepositPolicyPrompt(text)
+  ) {
     return false;
   }
 
@@ -391,7 +388,11 @@ function parsePrepaymentMode(
   params: Record<string, unknown>,
 ): PrepaymentMode | undefined {
   const fromParams = params.prepaymentMode;
-  if (fromParams === 'none' || fromParams === 'full' || fromParams === 'deposit') {
+  if (
+    fromParams === 'none' ||
+    fromParams === 'full' ||
+    fromParams === 'deposit'
+  ) {
     return fromParams as PrepaymentMode;
   }
 
@@ -532,8 +533,7 @@ export function parseServiceOnlinePaymentConfig(
     serviceName: serviceName || undefined,
     serviceNames: serviceNames?.length ? serviceNames : undefined,
     categoryName: categoryName || undefined,
-    depositPercent:
-      depositPercent === undefined ? undefined : depositPercent,
+    depositPercent: depositPercent === undefined ? undefined : depositPercent,
     depositAmount: depositAmount ?? undefined,
   };
 }
@@ -545,10 +545,7 @@ export function resolveTargetServicesForOnlinePayment<
     isActive?: boolean;
     category?: { name: string } | null;
   },
->(
-  catalog: T[],
-  config: ParsedServiceOnlinePaymentConfig,
-): T[] {
+>(catalog: T[], config: ParsedServiceOnlinePaymentConfig): T[] {
   const active = catalog.filter((s) => s.isActive !== false);
   if (config.allServices) return active;
 
@@ -594,7 +591,9 @@ export function computeServiceDepositAmount(
   return Math.round(price * (pct / 100) * 100) / 100;
 }
 
-export function describePrepaymentMode(config: ParsedServiceOnlinePaymentConfig): string {
+export function describePrepaymentMode(
+  config: ParsedServiceOnlinePaymentConfig,
+): string {
   if (config.prepaymentMode === PrepaymentMode.NONE) {
     return 'online payment disabled';
   }

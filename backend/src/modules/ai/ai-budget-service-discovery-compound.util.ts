@@ -16,6 +16,7 @@ import {
 } from './ai-budget-service-discovery.util.js';
 import { isServiceCatalogRankPrompt } from './ai-service-rank-discovery.util.js';
 import { hasAvailabilityOrPattern } from './ai-flexible-availability.util.js';
+import { hasDiscoverBookAndPayPaymentCue } from './ai-discover-book-and-pay-compound.util.js';
 
 export type BudgetCompoundStep = {
   action: string;
@@ -23,7 +24,10 @@ export type BudgetCompoundStep = {
   segment: string;
 };
 
-export function isBudgetServiceDiscoveryCompoundPrompt(prompt: string): boolean {
+export function isBudgetServiceDiscoveryCompoundPrompt(
+  prompt: string,
+): boolean {
+  if (hasDiscoverBookAndPayPaymentCue(prompt)) return false;
   if (isServiceCatalogRankPrompt(prompt)) return false;
   if (hasAvailabilityOrPattern(prompt)) return false;
   if (!shouldExtractBudgetMaxPrice(prompt)) return false;
@@ -92,7 +96,9 @@ export function decomposeBudgetServiceDiscoveryCompoundPrompt(
     isBookNearestSlotPrompt(prompt)
   ) {
     const checkAction =
-      surface === 'public' ? 'check_availability' : 'check_providers_for_service';
+      surface === 'public'
+        ? 'check_availability'
+        : 'check_providers_for_service';
     return propagateSharedBookingContextAcrossSteps([
       { action: checkAction, params: shared, segment: prompt },
       {

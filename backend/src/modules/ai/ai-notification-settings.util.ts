@@ -177,7 +177,9 @@ function isPushRecipientsPrompt(prompt: string): boolean {
 }
 
 function isTestPushPromptLocal(prompt: string): boolean {
-  return /\b(test|send\s+test|ping)\b/i.test(prompt) && /\bpush\b/i.test(prompt);
+  return (
+    /\b(test|send\s+test|ping)\b/i.test(prompt) && /\bpush\b/i.test(prompt)
+  );
 }
 
 function isNotificationHistoryPromptLocal(prompt: string): boolean {
@@ -220,7 +222,10 @@ function isCustomerNotificationPrompt(prompt: string): boolean {
   );
 }
 
-function parseToggle(prompt: string, params: Record<string, unknown>): boolean | null {
+function parseToggle(
+  prompt: string,
+  params: Record<string, unknown>,
+): boolean | null {
   if (typeof params.enabled === 'boolean') return params.enabled;
   if (/\b(enable|turn\s+on|activate)\b/i.test(prompt)) return true;
   if (/\b(disable|turn\s+off|deactivate)\b/i.test(prompt)) return false;
@@ -264,9 +269,7 @@ function reminderField(
 ): keyof ParsedNotificationSettingsConfig {
   const suffix =
     channel === 'email' ? 'Email' : channel === 'sms' ? 'Sms' : 'Whatsapp';
-  return window === '24h'
-    ? (`reminder24h${suffix}` as keyof ParsedNotificationSettingsConfig)
-    : (`reminder1h${suffix}` as keyof ParsedNotificationSettingsConfig);
+  return window === '24h' ? `reminder24h${suffix}` : `reminder1h${suffix}`;
 }
 
 function applyChannelToggle(
@@ -309,12 +312,16 @@ export function isConfigureNotificationSettingsPrompt(prompt: string): boolean {
       text,
     ) || hasSettingsPhrase;
   const hasConfirmationCue =
-    /\bconfirmation\b/i.test(text) &&
-    /\b(email|whatsapp|sms)\b/i.test(text);
+    /\bconfirmation\b/i.test(text) && /\b(email|whatsapp|sms)\b/i.test(text);
 
   if (hasSettingsPhrase && hasMutateVerb) return true;
   if (hasMutateVerb && hasConfirmationCue && hasBusinessScope) return true;
-  if (hasMutateVerb && hasReminderCue && (hasWindowCue || hasChannelCue) && hasBusinessScope) {
+  if (
+    hasMutateVerb &&
+    hasReminderCue &&
+    (hasWindowCue || hasChannelCue) &&
+    hasBusinessScope
+  ) {
     return true;
   }
   if (
@@ -341,7 +348,9 @@ export function isConfigureNotificationSettingsPrompt(prompt: string): boolean {
   return false;
 }
 
-function parseSegmentSettings(segment: string): ParsedNotificationSettingsConfig {
+function parseSegmentSettings(
+  segment: string,
+): ParsedNotificationSettingsConfig {
   const partial: ParsedNotificationSettingsConfig = {};
   const toggle = parseToggle(segment, {});
   if (toggle === null) return partial;

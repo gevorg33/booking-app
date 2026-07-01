@@ -267,13 +267,9 @@ describe('AiClinicTestResultService integration (ai-cmd-clinic-6-gap-3.1)', () =
       expect(result.summary).toContain('WBC');
       expect(result.summary).toContain('4');
       expect(result.summary).toContain('11');
-      expect(clinicCatalogService.updateReferenceRangeByCode).toHaveBeenCalledWith(
-        businessId,
-        'WBC',
-        '4',
-        '11',
-        'owner',
-      );
+      expect(
+        clinicCatalogService.updateReferenceRangeByCode,
+      ).toHaveBeenCalledWith(businessId, 'WBC', '4', '11', 'owner');
     });
   });
 

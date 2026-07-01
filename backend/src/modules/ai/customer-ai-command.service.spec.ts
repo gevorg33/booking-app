@@ -161,6 +161,13 @@ describe('CustomerAiCommandService', () => {
           '"3-Day Mountain Trek" — checkout clamps pax from 4 to 4 (max group 8); Only 2 spots remaining for this tour date.',
         details: { rejectionReason: 'insufficientSpots', remainingSpots: 2 },
       })),
+      handleExplainTourBookingRecord: jest.fn(async () => ({
+        success: true,
+        action: 'explain_tour_booking_record',
+        summary:
+          'Your tour confirmation number is bk-tour-1 for "Wine Country".',
+        details: { bookingId: 'bk-tour-1', aspect: 'confirmationNumber' },
+      })),
     };
     const recommendationProduct = {
       handleExplainCheckoutRecommendations: jest.fn(async () => ({
@@ -253,6 +260,8 @@ describe('CustomerAiCommandService', () => {
       businessCurrency,
       businessLanguages,
       businessDateFormat,
+      businessHoursLocation: noopSprint,
+      providerSpecialty: noopSprint,
       businessTax,
       businessCompliance,
       tourService,
@@ -261,8 +270,11 @@ describe('CustomerAiCommandService', () => {
       clinicLabBooking: noopSprint,
       clinicBooking: noopSprint,
       guestCheckoutFields: noopSprint,
+      resumePendingPayment: noopSprint,
       consumerAdoption,
       publicAssistant,
+      productGuide: noopSprint,
+      emptyStateGuide: noopSprint,
     };
   }
 
@@ -286,6 +298,8 @@ describe('CustomerAiCommandService', () => {
       mocks.businessCurrency as any,
       mocks.businessLanguages as any,
       mocks.businessDateFormat as any,
+      mocks.businessHoursLocation as any,
+      mocks.providerSpecialty as any,
       mocks.businessTax as any,
       mocks.businessCompliance as any,
       mocks.tourService as any,
@@ -294,8 +308,11 @@ describe('CustomerAiCommandService', () => {
       mocks.clinicLabBooking as any,
       mocks.clinicBooking as any,
       mocks.guestCheckoutFields as any,
+      mocks.resumePendingPayment as any,
       mocks.consumerAdoption as any,
       mocks.publicAssistant as any,
+      mocks.productGuide as any,
+      mocks.emptyStateGuide as any,
     );
     return { service, ...mocks };
   }
@@ -462,9 +479,14 @@ describe('CustomerAiCommandService', () => {
       throw new Error('llm down');
     });
     const { service } = createService(mocks);
-    const result = await service.executeCommand('biz-1', 'xyzzy unknown phrase', [], {
-      slug: 'salon',
-    });
+    const result = await service.executeCommand(
+      'biz-1',
+      'xyzzy unknown phrase',
+      [],
+      {
+        slug: 'salon',
+      },
+    );
     expect(result.action).toBe('error');
   });
 
@@ -1050,6 +1072,29 @@ describe('CustomerAiCommandService', () => {
     );
   });
 
+  it('rescues explain_tour_booking_record from post-booking tour summary questions', async () => {
+    const mocks = createMocks();
+    mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
+    mocks.llm.completeJson = jest.fn(async () => ({
+      action: 'unknown',
+      params: {},
+      reasoning: 'unclear',
+    }));
+    const { service, tourService } = createService(mocks);
+    const result = await service.executeCommand(
+      'biz-1',
+      "What's my tour confirmation number?",
+      [],
+      { customerId: 'cust-1' },
+    );
+    expect(result.action).toBe('explain_tour_booking_record');
+    expect(tourService.handleExplainTourBookingRecord).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ sessionCustomerId: 'cust-1' }),
+      "What's my tour confirmation number?",
+    );
+  });
+
   it('rescues explain_tour_booking from booking-page tour detail questions', async () => {
     const mocks = createMocks();
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
@@ -1133,7 +1178,11 @@ describe('CustomerAiCommandService', () => {
       { customerId: 'cust-1' },
     );
     expect(result.action).toBe('explain_checkout_tax');
-    expect(businessTax.handleExplainCheckoutTax).toHaveBeenCalledWith('biz-1');
+    expect(businessTax.handleExplainCheckoutTax).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ aspect: 'service_list' }),
+      'What does incl. VAT mean on the service cards?',
+    );
   });
 
   it('returns deterministic compound failure without cascading when failedStep is set', async () => {

@@ -2,6 +2,7 @@ import {
   isExplainCheckoutTotalPrompt,
   isExplainPaymentStatusPrompt,
 } from './ai-payments.util.js';
+import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 
 export const NOTIFICATION_CURRENCY_INTENTS = [
   'explain_notification_currency',
@@ -56,6 +57,7 @@ export function hasNotificationCurrencyContext(prompt: string): boolean {
 }
 
 export function isExplainNotificationCurrencyPrompt(prompt: string): boolean {
+  if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
   if (isExplainPaymentStatusPrompt(prompt) && !hasCurrencyCue(prompt)) {
     return false;

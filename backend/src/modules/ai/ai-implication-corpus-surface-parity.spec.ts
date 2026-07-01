@@ -20,9 +20,9 @@ describe('ai-implication-corpus surface parity (pipe-1.12.5)', () => {
   });
 
   it('generates customer/public siblings for every EN dashboard seed', () => {
-    expect(listImplicationSurfaceParityGaps(AI_IMPLICATION_CORPUS_SCENARIOS)).toEqual(
-      [],
-    );
+    expect(
+      listImplicationSurfaceParityGaps(AI_IMPLICATION_CORPUS_SCENARIOS),
+    ).toEqual([]);
   });
 
   it('ships generated surface rows in the full corpus export', () => {
@@ -33,7 +33,8 @@ describe('ai-implication-corpus surface parity (pipe-1.12.5)', () => {
     for (const row of generated) {
       expect(
         AI_IMPLICATION_CORPUS_SCENARIOS.some(
-          (scenario) => scenario.id === row.id && scenario.surface === row.surface,
+          (scenario) =>
+            scenario.id === row.id && scenario.surface === row.surface,
         ),
       ).toBe(true);
     }
@@ -44,16 +45,20 @@ describe('ai-implication-corpus surface parity (pipe-1.12.5)', () => {
       AI_IMPLICATION_CORPUS_SCENARIOS.some(
         (row) =>
           row.id ===
-            implicationSurfaceSiblingId('en-hair-long-implied-booking', 'customer') &&
-          row.surface === 'customer',
+            implicationSurfaceSiblingId(
+              'en-hair-long-implied-booking',
+              'customer',
+            ) && row.surface === 'customer',
       ),
     ).toBe(true);
     expect(
       AI_IMPLICATION_CORPUS_SCENARIOS.some(
         (row) =>
           row.id ===
-            implicationSurfaceSiblingId('en-hair-long-implied-booking', 'public') &&
-          row.surface === 'public',
+            implicationSurfaceSiblingId(
+              'en-hair-long-implied-booking',
+              'public',
+            ) && row.surface === 'public',
       ),
     ).toBe(true);
   });

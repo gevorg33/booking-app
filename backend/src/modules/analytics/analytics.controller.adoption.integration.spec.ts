@@ -27,7 +27,12 @@ describe('AnalyticsController adoption integration (adopt-1.7)', () => {
       periodDays: 30,
       funnel: { steps: [], breakdowns: [] },
       retention: { cohortSize: 0 },
-      activation: { installedCount: 0, activatedCount: 0, activationRate: 0, windowDays: 7 },
+      activation: {
+        installedCount: 0,
+        activatedCount: 0,
+        activationRate: 0,
+        windowDays: 7,
+      },
       qualifiedActivation: {
         installedCount: 0,
         activatedCount: 0,
@@ -81,10 +86,20 @@ describe('AnalyticsController adoption integration (adopt-1.7)', () => {
       },
     });
 
-    const result = await controller.adoption('biz-1', { days: 30 }, { id: 'user-1' });
+    const result = await controller.adoption(
+      'biz-1',
+      { days: 30 },
+      { id: 'user-1' },
+    );
 
-    expect(businessService.ensureMember).toHaveBeenCalledWith('biz-1', 'user-1');
-    expect(appEventService.getAdoptionDashboard).toHaveBeenCalledWith('biz-1', 30);
+    expect(businessService.ensureMember).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
+    expect(appEventService.getAdoptionDashboard).toHaveBeenCalledWith(
+      'biz-1',
+      30,
+    );
     expect(result.periodDays).toBe(30);
   });
 });

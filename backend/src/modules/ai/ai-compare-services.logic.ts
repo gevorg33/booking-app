@@ -142,7 +142,8 @@ export async function handleCompareServicesLogic(
     return {
       success: false,
       action: 'compare_services',
-      summary: 'Name at least two services to compare (for example haircut vs blowdry).',
+      summary:
+        'Name at least two services to compare (for example haircut vs blowdry).',
       details: {
         clarify: true,
         missing: ['serviceNames'],
@@ -192,7 +193,7 @@ export async function handleCompareServicesLogic(
         path: 'services',
         query:
           resolved.length === 1
-            ? { serviceId: resolved[0]!.id }
+            ? { serviceId: resolved[0].id }
             : { serviceIds: resolved.map((entry) => entry.id).join(',') },
       },
     },

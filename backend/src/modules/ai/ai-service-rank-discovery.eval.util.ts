@@ -254,9 +254,7 @@ export function serviceRankDiscoveryScenarioToEvalCase(
       compoundStepParams: steps.map((_, stepIndex) => ({
         stepIndex,
         paramsPartial:
-          stepIndex === 0
-            ? listStepParams
-            : { bookingFirstAvailable: true },
+          stepIndex === 0 ? listStepParams : { bookingFirstAvailable: true },
       })),
     };
     return { id, prompt: scenario.prompt, locale: 'en', surface, expect };
@@ -315,9 +313,7 @@ export function serviceRankCompoundScenarioToEvalCase(
       compoundStepParams: steps.map((_, stepIndex) => ({
         stepIndex,
         paramsPartial:
-          stepIndex === 0
-            ? listStepParams
-            : { bookingFirstAvailable: true },
+          stepIndex === 0 ? listStepParams : { bookingFirstAvailable: true },
       })),
     },
   };
@@ -330,7 +326,9 @@ function buildRankEvalCasesForSurface(
   const promptCases = SIMILAR_SERVICE_RANK_PROMPTS.filter(filter)
     .filter((scenario) => rankScenarioEligibleForEval(scenario, surface))
     .filter((scenario) => !isRankCompoundScenario(scenario, surface))
-    .map((scenario) => serviceRankDiscoveryScenarioToEvalCase(scenario, surface));
+    .map((scenario) =>
+      serviceRankDiscoveryScenarioToEvalCase(scenario, surface),
+    );
 
   const compoundIds = new Set(
     SIMILAR_SERVICE_RANK_PROMPTS.filter((scenario) =>
@@ -345,7 +343,9 @@ function buildRankEvalCasesForSurface(
     (scenario) =>
       isRankCompoundScenario(scenario, surface) &&
       rankScenarioEligibleForEval(scenario, surface),
-  ).map((scenario) => serviceRankDiscoveryScenarioToEvalCase(scenario, surface));
+  ).map((scenario) =>
+    serviceRankDiscoveryScenarioToEvalCase(scenario, surface),
+  );
 
   return [...promptCases, ...compoundCases, ...compoundPromptCases];
 }

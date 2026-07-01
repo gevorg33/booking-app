@@ -1,4 +1,7 @@
-import type { PipelineStage, PipelineTrace } from './command-completion.types.js';
+import type {
+  PipelineStage,
+  PipelineTrace,
+} from './command-completion.types.js';
 import { PIPELINE_UNDERSTAND_STAGE_ORDER } from './command-understanding.types.js';
 
 export function appendPipelineTrace(

@@ -209,11 +209,11 @@ export function extractFeaturedTierFromPrompt(
   const tier = extractServiceTierFromPrompt(prompt);
   if (tier) return tier;
   const setTier = prompt.match(/\bto\s+(premium|standard)\s+tier\b/i);
-  if (setTier) return setTier[1]!.toLowerCase() as ServiceTier;
+  if (setTier) return setTier[1].toLowerCase() as ServiceTier;
   const asTier = prompt.match(
     /\bas\s+(premium|standard)\s+tier(?:\s+service)?\b/i,
   );
-  if (asTier) return asTier[1]!.toLowerCase() as ServiceTier;
+  if (asTier) return asTier[1].toLowerCase() as ServiceTier;
   return null;
 }
 
@@ -221,57 +221,57 @@ export function extractFeaturedServiceNameFromPrompt(
   prompt: string,
 ): string | null {
   const quoted = prompt.match(/\b(?:mark|feature|set)\s+"([^"]+)"/i);
-  if (quoted) return quoted[1]!.trim();
+  if (quoted) return quoted[1].trim();
 
   const asFeaturedService = prompt.match(
     /\b(?:mark|feature)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+as\s+(?:a\s+)?featured(?:\s+service)?\b/i,
   );
-  if (asFeaturedService) return asFeaturedService[1]!.trim();
+  if (asFeaturedService) return asFeaturedService[1].trim();
 
   const markFeatured = prompt.match(
     /\bmark\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+featured\b/i,
   );
-  if (markFeatured) return markFeatured[1]!.trim();
+  if (markFeatured) return markFeatured[1].trim();
 
   const featuredAndTier = prompt.match(
     /\bmark\s+([A-Za-z][\w\s'-]+?)\s+featured\s+and\s+(?:premium|standard)\s+tier\b/i,
   );
-  if (featuredAndTier) return featuredAndTier[1]!.trim();
+  if (featuredAndTier) return featuredAndTier[1].trim();
 
   const namedPair = prompt.match(
     /\b(?:feature|mark)\s+([A-Za-z][\w\s'-]+?)\s+and\s+([A-Za-z][\w\s'-]+?)(?:\s+as|\s+featured|\s*$)/i,
   );
-  if (namedPair) return namedPair[1]!.trim();
+  if (namedPair) return namedPair[1].trim();
 
   const asTierOnly = prompt.match(
     /\b(?:mark|set)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+as\s+(?:premium|standard)\s+tier(?:\s+service)?\b/i,
   );
-  if (asTierOnly) return asTierOnly[1]!.trim();
+  if (asTierOnly) return asTierOnly[1].trim();
 
   const asFeatured = prompt.match(
     /\b(?:mark|feature|set)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+as\s+(?:a\s+)?featured\b/i,
   );
-  if (asFeatured) return asFeatured[1]!.trim();
+  if (asFeatured) return asFeatured[1].trim();
 
   const setTierNamed = prompt.match(
     /\bset\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+to\s+(?:premium|standard)\s+tier\b/i,
   );
-  if (setTierNamed) return setTierNamed[1]!.trim();
+  if (setTierNamed) return setTierNamed[1].trim();
 
   const unfeature = prompt.match(
     /\b(?:unfeature|remove\s+featured\s+from|clear\s+featured\s+from)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)(?:\s+service|\s*$)/i,
   );
-  if (unfeature) return unfeature[1]!.trim();
+  if (unfeature) return unfeature[1].trim();
 
   const clearTier = prompt.match(
     /\b(?:clear|remove)\s+(?:premium|standard)\s+tier\s+from\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)(?:\s+service|\s*$)/i,
   );
-  if (clearTier) return clearTier[1]!.trim();
+  if (clearTier) return clearTier[1].trim();
 
   const serviceSuffix = prompt.match(
     /\b(?:feature|mark)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+service\b/i,
   );
-  if (serviceSuffix) return serviceSuffix[1]!.trim();
+  if (serviceSuffix) return serviceSuffix[1].trim();
 
   return null;
 }
@@ -288,18 +288,16 @@ function parseFeaturedScopeFromPrompt(prompt: string): {
     scope.allServices = true;
   }
 
-  const allCategory = prompt.match(
-    /\ball\s+([A-Za-z][\w&'-]+)\s+services?\b/i,
-  );
+  const allCategory = prompt.match(/\ball\s+([A-Za-z][\w&'-]+)\s+services?\b/i);
   if (allCategory) {
-    scope.categoryName = allCategory[1]!.trim();
+    scope.categoryName = allCategory[1].trim();
   }
 
   const namedPair = prompt.match(
     /\b(?:feature|mark)\s+([A-Za-z][\w\s'-]+?)\s+and\s+([A-Za-z][\w\s'-]+?)(?:\s+as|\s+featured|\s*$)/i,
   );
   if (namedPair) {
-    scope.serviceNames = [namedPair[1]!.trim(), namedPair[2]!.trim()];
+    scope.serviceNames = [namedPair[1].trim(), namedPair[2].trim()];
   }
 
   const serviceName = extractFeaturedServiceNameFromPrompt(prompt);
@@ -359,9 +357,9 @@ export function parseConfigureServiceFeaturedFromPrompt(
   const serviceTier =
     tierParam === ''
       ? ''
-      : resolveServiceTierParam(tierParam) ??
+      : (resolveServiceTierParam(tierParam) ??
         extractFeaturedTierFromPrompt(prompt) ??
-        undefined;
+        undefined);
 
   const parsed: ParsedConfigureServiceFeatured = {
     isFeatured,
@@ -373,9 +371,11 @@ export function parseConfigureServiceFeaturedFromPrompt(
       scope.serviceNames ??
       undefined,
     categoryName:
-      readStringParam(params, 'categoryName') ?? scope.categoryName ?? undefined,
+      readStringParam(params, 'categoryName') ??
+      scope.categoryName ??
+      undefined,
     allServices:
-      params.allServices === true ? true : scope.allServices ?? undefined,
+      params.allServices === true ? true : (scope.allServices ?? undefined),
   };
 
   if (

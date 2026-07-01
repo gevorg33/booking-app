@@ -228,7 +228,9 @@ describe('ProviderMobileService booking reassign (prov-exp-4.2)', () => {
     });
 
     await expect(
-      service.reassignBooking('biz-1', 'user-1', 'bk-1', { employeeId: 'emp-1' }),
+      service.reassignBooking('biz-1', 'user-1', 'bk-1', {
+        employeeId: 'emp-1',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -246,7 +248,9 @@ describe('ProviderMobileService booking reassign (prov-exp-4.2)', () => {
     );
 
     await expect(
-      service.reassignBooking('biz-1', 'mgr-1', 'bk-1', { employeeId: 'emp-2' }),
+      service.reassignBooking('biz-1', 'mgr-1', 'bk-1', {
+        employeeId: 'emp-2',
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 

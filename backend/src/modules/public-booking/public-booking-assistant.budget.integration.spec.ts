@@ -141,15 +141,12 @@ describe('public booking assistant budget rescue integration (ai-cmd-customer-3.
           scenario.prompt,
         ),
     ),
-  )(
-    'rescues public budget list_services for scenario $id',
-    ({ prompt }) => {
-      expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'unknown', 'public'),
-      ).toEqual({
-        action: 'list_services',
-        rescueReason: 'budget_list_services',
-      });
-    },
-  );
+  )('rescues public budget list_services for scenario $id', ({ prompt }) => {
+    expect(
+      rescueBudgetServiceDiscoveryIntent(prompt, 'unknown', 'public'),
+    ).toEqual({
+      action: 'list_services',
+      rescueReason: 'budget_list_services',
+    });
+  });
 });

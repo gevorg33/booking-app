@@ -1224,7 +1224,7 @@ export class PublicBookingService {
     businessId: string,
     service: Service,
   ): Promise<Employee[]> {
-    let employees = await this.employeeRepo.find({
+    const employees = await this.employeeRepo.find({
       where: { businessId, isActive: true },
       order: { name: 'ASC' },
     });
@@ -1249,12 +1249,7 @@ export class PublicBookingService {
 
     for (const startTime of startTimes) {
       if (
-        await this.canBookServiceAt(
-          businessId,
-          employee.id,
-          startTime,
-          service,
-        )
+        await this.canBookServiceAt(businessId, employee.id, startTime, service)
       ) {
         return true;
       }
@@ -1666,11 +1661,7 @@ export class PublicBookingService {
           if (options.timeOfDay) {
             const endDisplay = formatTimeDisplay(endTime);
             if (
-              !slotOverlapsTimeWindow(
-                timeSlot,
-                endDisplay,
-                options.timeOfDay,
-              )
+              !slotOverlapsTimeWindow(timeSlot, endDisplay, options.timeOfDay)
             ) {
               continue;
             }
@@ -1869,7 +1860,11 @@ export class PublicBookingService {
     bookingId: string,
   ) {
     const business = await this.resolveBusiness(slug);
-    await this.requireCustomerReviewableBooking(business.id, customerId, bookingId);
+    await this.requireCustomerReviewableBooking(
+      business.id,
+      customerId,
+      bookingId,
+    );
     const token = await this.reviewsService.ensureReviewToken(bookingId);
     const context = await this.reviewsService.getPublicContext(
       slug,
@@ -1915,13 +1910,24 @@ export class PublicBookingService {
       throw new NotFoundException('Booking not found');
     }
     if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Reviews are available after your visit is completed');
+      throw new BadRequestException(
+        'Reviews are available after your visit is completed',
+      );
     }
     if (booking.metadata?.reviewSubmittedAt) {
-      throw new BadRequestException('A review was already submitted for this appointment');
+      throw new BadRequestException(
+        'A review was already submitted for this appointment',
+      );
     }
-    if (await this.reviewsService.hasSubmittedReviewForBooking(businessId, bookingId)) {
-      throw new BadRequestException('A review was already submitted for this appointment');
+    if (
+      await this.reviewsService.hasSubmittedReviewForBooking(
+        businessId,
+        bookingId,
+      )
+    ) {
+      throw new BadRequestException(
+        'A review was already submitted for this appointment',
+      );
     }
     return booking;
   }

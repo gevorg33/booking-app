@@ -63,7 +63,9 @@ describe('ai-command-trace-recorder.util (pipe-1.10.3)', () => {
       pipelineTrace: [{ stage: 'clarify', action: 'create_booking', at: 't1' }],
     });
     expect(stamped.details?.traceId).toBe('trace-1');
-    expect(stamped.details?.traceRecorder).toBe(COMMAND_TRACE_RECORDER_PIPE_MARKER);
+    expect(stamped.details?.traceRecorder).toBe(
+      COMMAND_TRACE_RECORDER_PIPE_MARKER,
+    );
   });
 
   it('finalize merges misroute into pipeline trace once', () => {
@@ -72,7 +74,9 @@ describe('ai-command-trace-recorder.util (pipe-1.10.3)', () => {
       action: 'check_providers_for_service',
       summary: 'ok',
       details: {
-        pipelineTrace: [{ stage: 'execute', action: 'check_providers_for_service', at: 't2' }],
+        pipelineTrace: [
+          { stage: 'execute', action: 'check_providers_for_service', at: 't2' },
+        ],
       },
     };
     const finalized = finalizeCommandTraceResult(result, {
@@ -97,7 +101,9 @@ describe('ai-command-trace-recorder.util (pipe-1.10.3)', () => {
         routingTier: 'read_only',
         candidateSource: 'fast_heuristic',
         partialParams: { date: 'today' },
-        pipelineTrace: [{ stage: 'execute', action: 'list_bookings', at: 't3' }],
+        pipelineTrace: [
+          { stage: 'execute', action: 'list_bookings', at: 't3' },
+        ],
       },
     };
     const input = buildGatewayCommandTraceInput({

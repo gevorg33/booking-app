@@ -407,13 +407,7 @@ describe('ai-provider-exp-2.logic', () => {
 
   it('returns null for unknown dispatch action', async () => {
     await expect(
-      dispatchProviderExp2Intent(
-        deps,
-        'biz-1',
-        'user-1',
-        'unknown_action',
-        {},
-      ),
+      dispatchProviderExp2Intent(deps, 'biz-1', 'user-1', 'unknown_action', {}),
     ).resolves.toBeNull();
   });
 

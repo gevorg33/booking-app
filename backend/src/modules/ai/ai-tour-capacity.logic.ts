@@ -12,6 +12,7 @@ import {
 import type { CommandResult } from './command-completion.types.js';
 import {
   parseDiagnoseTourCapacityFromPrompt,
+  parseProactiveTourCapacityFromPrompt,
   type ParsedDiagnoseTourCapacity,
   type TourCapacityAspect,
 } from './ai-tour-capacity.util.js';
@@ -217,14 +218,17 @@ export async function handleDiagnoseTourCapacityLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const parsed = parseDiagnoseTourCapacityFromPrompt(
-    String(prompt ?? params._prompt ?? ''),
-    params,
-  );
+  const promptText = String(prompt ?? params._prompt ?? '');
+  const parsed =
+    params.tourGroupCheckout === true
+      ? parseProactiveTourCapacityFromPrompt(promptText, params)
+      : parseDiagnoseTourCapacityFromPrompt(promptText, params);
   if (!parsed) {
     return failure(
       'diagnose_tour_capacity',
-      'Ask why tour checkout rejected a pax count or date (e.g. "Why did checkout reject 4 people for the mountain trek?" or "Why only 2 spots remaining?").',
+      params.tourGroupCheckout === true
+        ? 'Tour group checkout needs a tour name, pax count, and date to check remaining seats before booking.'
+        : 'Ask why tour checkout rejected a pax count or date (e.g. "Why did checkout reject 4 people for the mountain trek?" or "Why only 2 spots remaining?").',
       { clarify: true },
     );
   }

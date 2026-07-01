@@ -184,8 +184,12 @@ export class NotificationsService {
       prefs.emailReminders &&
       customer.email
     ) {
-      await this.dispatch(ctx, 'confirmation', 'email', customer.email, async () =>
-        this.buildGroupedConfirmationEmail(ctx, lines, groupLabel),
+      await this.dispatch(
+        ctx,
+        'confirmation',
+        'email',
+        customer.email,
+        async () => this.buildGroupedConfirmationEmail(ctx, lines, groupLabel),
       );
     }
 
@@ -246,8 +250,12 @@ export class NotificationsService {
       prefs.emailReminders &&
       customer.email
     ) {
-      await this.dispatch(ctx, 'confirmation', 'email', customer.email, async () =>
-        this.buildConfirmationEmail(ctx, manageLink),
+      await this.dispatch(
+        ctx,
+        'confirmation',
+        'email',
+        customer.email,
+        async () => this.buildConfirmationEmail(ctx, manageLink),
       );
     }
 
@@ -471,6 +479,54 @@ export class NotificationsService {
     );
   }
 
+  async sendBusinessCustomerRunningLate(
+    bookingId: string,
+    minutesLate: number,
+  ): Promise<{ emailSent: boolean }> {
+    const ctx = await this.loadContext(bookingId);
+    if (!ctx) return { emailSent: false };
+
+    const { booking, business, businessSettings } = ctx;
+    if (!businessSettings.notifyBusinessOnCustomerBookingChange) {
+      return { emailSent: false };
+    }
+    if (!businessSettings.emailEnabled) return { emailSent: false };
+
+    const recipient = business.email?.trim();
+    if (!recipient) return { emailSent: false };
+
+    const locale = this.businessLocale(business.settings);
+    const customerName = booking.customer?.name ?? 'A customer';
+    const serviceName =
+      booking.service?.name ?? t(locale, 'email.defaultServiceName');
+    const when = formatNotificationDateDisplay(
+      booking.startTime,
+      business.settings,
+      locale,
+    );
+    const time = formatNotificationTimeRangeDisplay(
+      booking.startTime,
+      booking.endTime,
+      business.settings,
+      locale,
+    );
+    const summary = `${customerName} is running about ${minutesLate} minutes late for ${serviceName} scheduled for ${when} at ${time}.`;
+
+    await this.dispatch(
+      ctx,
+      'business_customer_running_late',
+      'email',
+      recipient,
+      () => ({
+        subject: `Customer running late — ${serviceName}`,
+        text: `${business.name} booking update\n\n${summary}`,
+        html: `<p>${summary.replace(/\n/g, '<br/>')}</p>`,
+      }),
+    );
+
+    return { emailSent: true };
+  }
+
   async sendMarketingNewCustomerRegistration(
     businessId: string,
     customerId: string,
@@ -593,7 +649,9 @@ export class NotificationsService {
 
     const prefs = getCustomerNotificationPreferences(customer.metadata);
     const notificationKind =
-      input.kind === 'ready_now' ? 'provider_ready_now' : 'provider_running_late';
+      input.kind === 'ready_now'
+        ? 'provider_ready_now'
+        : 'provider_running_late';
     let smsSent = false;
     let pushSent = false;
 
@@ -617,19 +675,21 @@ export class NotificationsService {
 
     if (prefs.pushReminders) {
       const locale = this.businessLocale(business.settings);
-      pushSent = await this.trySendConsumerSalonBookingPush(ctx, (url, pushLocale) =>
-        buildConsumerProviderVisitStatusPushPayload({
-          url,
-          businessId: business.id,
-          customerId: customer.id,
-          bookingId: booking.id,
-          businessName: business.name,
-          providerName: input.providerName,
-          serviceName: booking.service?.name ?? '',
-          kind: input.kind,
-          minutesLate: input.minutesLate,
-          locale: pushLocale,
-        }),
+      pushSent = await this.trySendConsumerSalonBookingPush(
+        ctx,
+        (url, pushLocale) =>
+          buildConsumerProviderVisitStatusPushPayload({
+            url,
+            businessId: business.id,
+            customerId: customer.id,
+            bookingId: booking.id,
+            businessName: business.name,
+            providerName: input.providerName,
+            serviceName: booking.service?.name ?? '',
+            kind: input.kind,
+            minutesLate: input.minutesLate,
+            locale: pushLocale,
+          }),
       );
     }
 
@@ -1167,10 +1227,10 @@ export class NotificationsService {
           (url, locale) =>
             buildConsumerBookingReminderPushPayload({
               url,
-              businessId: booking.business!.id,
+              businessId: booking.business.id,
               customerId: customer.id,
               bookingId: booking.id,
-              businessName: booking.business!.name,
+              businessName: booking.business.name,
               serviceName: booking.service?.name ?? '',
               scheduleLabel: this.buildBookingScheduleLabel(ctx, locale),
               minutesBefore,
@@ -1214,7 +1274,11 @@ export class NotificationsService {
     recipient: string,
     build:
       | (() => { subject?: string; html?: string; text: string } | null)
-      | (() => Promise<{ subject?: string; html?: string; text: string } | null>),
+      | (() => Promise<{
+          subject?: string;
+          html?: string;
+          text: string;
+        } | null>),
   ): Promise<boolean> {
     const existing = await this.logRepo.findOne({
       where: {
@@ -1778,7 +1842,8 @@ export class NotificationsService {
   ) {
     return buildTenantAppInstallEmailBlocks({
       frontendUrl:
-        this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000',
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3000',
       slug,
       serviceId,
       campaign,
@@ -2323,7 +2388,10 @@ export class NotificationsService {
     const { booking, business } = ctx;
     const selfService = resolveCustomerSelfServiceSettings(business.settings);
     if (canCustomerManageBookingOnline(booking, selfService)) {
-      const token = await ensureBookingManageToken(this.bookingRepo, booking.id);
+      const token = await ensureBookingManageToken(
+        this.bookingRepo,
+        booking.id,
+      );
       return buildConsumerBookingManagePushUrl(
         business.slug,
         booking.id,
@@ -2346,7 +2414,8 @@ export class NotificationsService {
     const locale = this.businessLocale(ctx.business.settings);
     const url = await this.resolveConsumerBookingPushUrl(ctx);
     const payload = buildPayload(url, locale);
-    const result = await this.consumerPushDispatch.sendTransactionalPush(payload);
+    const result =
+      await this.consumerPushDispatch.sendTransactionalPush(payload);
     return result.ok;
   }
 }

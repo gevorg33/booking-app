@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Send, Sparkles, X, HelpCircle } from 'lucide-react';
 import {
@@ -35,6 +35,7 @@ import {
   buildPublicAssistantExampleTenant,
   buildPublicAssistantExamples,
 } from '@/lib/public-assistant-examples.util';
+import { buildPublicPageSuggestions } from '@/lib/consumer-page-suggestions.util';
 import {
   resolveAssistantModePayload,
   withAssistantModeContext,
@@ -42,10 +43,12 @@ import {
 import { PublicAssistantGuidePanel } from '@/components/public-booking/public-assistant-guide-panel';
 import type { AiGuideResponse } from '@/lib/ai-client.types';
 import type { SpeechRecognitionErrorCode } from '@/lib/use-speech-recognition';
-import { isSpeechSynthesisSupported } from '@/lib/use-speech-recognition';
+import { isSpeechSynthesisSupported, localeToSpeechLang, speakText } from '@/lib/use-speech-recognition';
 import {
   buildPublicAssistantPageContext,
 } from '@/lib/public-booking-assistant-context.util';
+import { subscribePublicAssistantEvents } from '@/lib/public-assistant-events';
+import { handleAssistantFeedbackClientAction } from '@/lib/assistant-feedback.util';
 
 interface Message {
   id: string;
@@ -74,6 +77,7 @@ interface PublicBookingAssistantProps {
 export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
   const primary = tenant.branding.primaryColor || '#7c3aed';
   const [open, setOpen] = useState(false);
@@ -109,10 +113,17 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
       }),
     [publicProviders, publicServices],
   );
-  const examples = useMemo(
-    () => buildPublicAssistantExamples(guideMode, t, exampleTenant),
-    [exampleTenant, guideMode, t],
-  );
+  const pageSuggestions = useMemo(() => {
+    const search = searchParams.toString();
+    return buildPublicPageSuggestions(pathname, t, search ? `?${search}` : '');
+  }, [pathname, searchParams, t]);
+  const examples = useMemo(() => {
+    if (guideMode) {
+      return buildPublicAssistantExamples(true, t, exampleTenant);
+    }
+    if (pageSuggestions.length) return pageSuggestions;
+    return buildPublicAssistantExamples(false, t, exampleTenant);
+  }, [exampleTenant, guideMode, pageSuggestions, t]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const viewport = useViewportSize();
@@ -144,6 +155,13 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const followNavigate = useCallback(
     (navigate?: PublicAssistantResponse['navigate']) => {
       if (!navigate) return;
+      if (navigate.path === 'provider_profile' && navigate.query.employeeId) {
+        router.push(
+          bookPath(slug, `/providers/${navigate.query.employeeId}`),
+        );
+        setOpen(false);
+        return;
+      }
       const q = new URLSearchParams(navigate.query).toString();
       const href = q
         ? `${bookPath(slug, `/${navigate.path}`)}?${q}`
@@ -205,6 +223,17 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         if (result.sessionContext) {
           setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
         }
+
+        if (result.details?.clientAction === 'speakAssistantReply') {
+          const speakTextValue =
+            typeof result.details?.speakText === 'string'
+              ? result.details.speakText
+              : undefined;
+          if (speakTextValue && isSpeechSynthesisSupported()) {
+            speakText(speakTextValue, localeToSpeechLang(locale));
+          }
+        }
+        handleAssistantFeedbackClientAction(result.details);
       } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
@@ -287,6 +316,24 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, closeAssistant]);
 
+  useEffect(() => {
+    return subscribePublicAssistantEvents({
+      onOpen: () => setOpen(true),
+      onRun: ({ prompt, autoSubmit }) => {
+        setOpen(true);
+        if (autoSubmit !== false) {
+          void submit(prompt);
+          return;
+        }
+        setInput(prompt);
+      },
+      onPrompt: (prompt) => {
+        setOpen(true);
+        setInput(prompt);
+      },
+    });
+  }, [submit]);
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -362,6 +409,11 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                   {guideMode ? t('public.assistantGuideExamples') : t('public.assistantHint')}
                 </p>
                 <div className="space-y-2">
+                  {!guideMode && pageSuggestions.length > 0 ? (
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 text-left">
+                      {t('public.assistantPageSuggestionsTitle')}
+                    </p>
+                  ) : null}
                   {examples.map((ex) => (
                     <button
                       key={ex}

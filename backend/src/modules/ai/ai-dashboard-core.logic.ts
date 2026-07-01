@@ -166,11 +166,7 @@ export async function dispatchDashboardCoreIntent(
     case 'list_packages':
       return deps.catalog.handleListPackages(businessId);
     case 'create_package':
-      return deps.catalog.handleCreatePackage(
-        businessId,
-        params,
-        services,
-      );
+      return deps.catalog.handleCreatePackage(businessId, params, services);
     case 'update_package':
       return deps.catalog.handleUpdatePackage(businessId, params);
     case 'deactivate_package':

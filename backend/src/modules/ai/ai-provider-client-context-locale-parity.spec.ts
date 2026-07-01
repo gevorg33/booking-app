@@ -36,9 +36,11 @@ describe('ai provider client context locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('passes provider client context i18n eval case %s', (_id, scenario) => {
-    const evalCase = AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_CASES.find(
-      (row) => row.id === providerClientContextMultilingualEvalCaseId(scenario),
-    );
+    const evalCase =
+      AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_CASES.find(
+        (row) =>
+          row.id === providerClientContextMultilingualEvalCaseId(scenario),
+      );
     expect(evalCase).toBeDefined();
     const result = evaluateDeterministicEvalCase(evalCase!);
     expect(result.passed).toBe(true);
@@ -50,7 +52,9 @@ describe('ai provider client context locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('rescues provider client context i18n prompt %s', (_id, scenario) => {
-    expect(rescueProviderClientContextIntent(scenario.prompt, 'unknown')).toEqual({
+    expect(
+      rescueProviderClientContextIntent(scenario.prompt, 'unknown'),
+    ).toEqual({
       action: scenario.expectedAction,
       rescueReason: scenario.rescueReason,
     });

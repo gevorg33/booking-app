@@ -78,7 +78,9 @@ function buildRankDiscoverAndBookMultilingualScenarios(): RankDiscoverAndBookMul
         locale,
         prompt: locale === 'hy' ? i18n.hy : i18n.ru,
         orderedActions: [...enRow.orderedActions],
-        ...(enRow.expectedParams ? { paramsPartial: enRow.expectedParams } : {}),
+        ...(enRow.expectedParams
+          ? { paramsPartial: enRow.expectedParams }
+          : {}),
       });
     }
   }

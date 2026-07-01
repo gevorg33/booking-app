@@ -38,7 +38,9 @@ describe('ai budget service discovery classifier wiring (budget-1.2 / budget-1.9
     expect(publicSchema).toContain('I need a haircut, I have $50');
     expect(customerSchema).toContain('I need a haircut, I have $50');
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('maxPrice');
-    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('list_services');
+    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain(
+      'list_services',
+    );
   });
 });
 
@@ -55,7 +57,10 @@ describe('ai budget service discovery post-LLM rescue (budget-1.3)', () => {
 
   it('rescues unknown budget prompts to list_services on public path', () => {
     expect(
-      rescueBudgetServiceDiscoveryIntent('What can I book with $30?', 'unknown'),
+      rescueBudgetServiceDiscoveryIntent(
+        'What can I book with $30?',
+        'unknown',
+      ),
     ).toEqual({
       action: 'list_services',
       rescueReason: 'budget_list_services',
@@ -64,9 +69,11 @@ describe('ai budget service discovery post-LLM rescue (budget-1.3)', () => {
 });
 
 describe('ai budget disambiguation integration (budget-1.8)', () => {
-  it.each(BUDGET_DISAMBIGUATION_SCENARIOS.filter(
-    (scenario) => scenario.surface !== 'customer',
-  ))(
+  it.each(
+    BUDGET_DISAMBIGUATION_SCENARIOS.filter(
+      (scenario) => scenario.surface !== 'customer',
+    ),
+  )(
     'public enrichPublicAssistantParamsFromPrompt strips maxPrice for $id',
     ({ prompt }) => {
       const enriched = enrichPublicAssistantParamsFromPrompt(
@@ -113,9 +120,12 @@ describe('ai budget disambiguation integration (budget-1.8)', () => {
 });
 
 describe('ai budget service discovery integration — public surface (budget-1.10)', () => {
-  it.each(BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS.filter(
-    (scenario) => !scenario.skipMaxPrice && scenario.expectedParams?.maxPrice != null,
-  ))(
+  it.each(
+    BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS.filter(
+      (scenario) =>
+        !scenario.skipMaxPrice && scenario.expectedParams?.maxPrice != null,
+    ),
+  )(
     'extracts maxPrice for public scenario $id',
     ({ prompt, expectedParams }) => {
       expect(extractMaxPriceFromBudgetPrompt(prompt)).toBe(
@@ -161,9 +171,11 @@ describe('ai budget service discovery integration — public surface (budget-1.1
 });
 
 describe('ai budget service discovery integration — customer surface (budget-1.10)', () => {
-  it.each(BUDGET_SERVICE_DISCOVERY_CUSTOMER_PROMPTS.filter(
-    (scenario) => scenario.surface === 'customer',
-  ))('includes customer-only voice/mobile scenario $id', ({ id, surface }) => {
+  it.each(
+    BUDGET_SERVICE_DISCOVERY_CUSTOMER_PROMPTS.filter(
+      (scenario) => scenario.surface === 'customer',
+    ),
+  )('includes customer-only voice/mobile scenario $id', ({ id, surface }) => {
     expect(surface).toBe('customer');
     expect(budgetScenarioAppliesToSurface({ surface }, 'customer')).toBe(true);
     expect(budgetScenarioAppliesToSurface({ surface }, 'public')).toBe(false);
@@ -207,15 +219,12 @@ describe('ai budget service discovery integration — customer surface (budget-1
     const scenario = BUDGET_SESSION_SCENARIOS.find(
       (entry) => entry.id === 'budget-session-stale-budget-en',
     )!;
-    const turn1 = enrichDiscoveryParamsFromPrompt(
-      {},
-      scenario.turns[0]!.prompt,
-    );
+    const turn1 = enrichDiscoveryParamsFromPrompt({}, scenario.turns[0].prompt);
     expect(turn1.maxPrice).toBe(50);
 
     const turn2 = enrichBudgetFromPrompt(
       { ...turn1, serviceCategory: 'haircut' },
-      scenario.turns[1]!.prompt,
+      scenario.turns[1].prompt,
     );
     expect(turn2.maxPrice).toBe(30);
     expect(turn2.serviceCategory).toBe('haircut');
@@ -277,7 +286,9 @@ describe('ai budget service discovery integration — promo + subscription (budg
     const scenario = SIMILAR_BUDGET_SERVICE_PROMPTS.find(
       (entry) => entry.id === 'budget-subscription-en',
     )!;
-    expect(enrichBudgetFromPrompt({ maxPrice: 80 }, scenario.prompt).maxPrice).toBeUndefined();
+    expect(
+      enrichBudgetFromPrompt({ maxPrice: 80 }, scenario.prompt).maxPrice,
+    ).toBeUndefined();
     expect(
       rescueBudgetServiceDiscoveryIntent(
         scenario.prompt,
@@ -426,7 +437,11 @@ describe('ai budget service discovery integration — voice ASR + price range (b
       rescueReason: 'budget_list_services',
     });
     expect(
-      rescueBudgetServiceDiscoveryIntent(scenario.prompt, 'unknown', 'dashboard'),
+      rescueBudgetServiceDiscoveryIntent(
+        scenario.prompt,
+        'unknown',
+        'dashboard',
+      ),
     ).toEqual({
       action: 'list_services',
       rescueReason: 'budget_list_services',

@@ -58,7 +58,10 @@ describe('ai-product-guide.logic (ai-guide-1.2.3)', () => {
   it('builds navigate targets from corpus topics', () => {
     const messages = getFrontendGuideCorpusMessages('en');
     const topic = getGuideCorpusTopic('dashboard.core.schedule');
-    const resolved = resolveGuideCorpusTopic('dashboard.core.schedule', messages);
+    const resolved = resolveGuideCorpusTopic(
+      'dashboard.core.schedule',
+      messages,
+    );
     expect(topic).toBeTruthy();
     expect(resolved).toBeTruthy();
     const guide = buildGuideResponseFromCorpus(resolved!, topic!);
@@ -76,9 +79,11 @@ describe('ai-product-guide.logic (ai-guide-1.2.3)', () => {
         params: { topicId: expectedTopicId },
       });
       expect(result.success).toBe(true);
-      expect(result.guide?.relatedActions?.some((row) => row.action === expectedAction)).toBe(
-        true,
-      );
+      expect(
+        result.guide?.relatedActions?.some(
+          (row) => row.action === expectedAction,
+        ),
+      ).toBe(true);
     },
   );
 

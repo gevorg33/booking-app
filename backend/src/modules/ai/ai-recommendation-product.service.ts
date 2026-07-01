@@ -14,6 +14,7 @@ import { Service } from '../service/entities/service.entity.js';
 import { ServiceCategory } from '../service/entities/service-category.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { handleExplainCheckoutRecommendationsLogic } from './ai-checkout-recommendations.logic.js';
+import { handleDismissRecommendationsLogic } from './ai-dismiss-recommendations.logic.js';
 import { handleExplainConsumerCheckoutSuccessLogic } from './ai-consumer-checkout-success.logic.js';
 import { handleExplainRecommendationAnalyticsLogic } from './ai-recommendation-analytics.logic.js';
 import { handleSummarizeRecommendationPerformanceLogic } from './ai-recommendation-performance.logic.js';
@@ -160,6 +161,14 @@ export class AiRecommendationProductService {
       params,
       prompt,
     );
+  }
+
+  handleDismissRecommendations(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleDismissRecommendationsLogic(businessId, params, prompt);
   }
 
   handleExplainRecommendationAnalytics(

@@ -24,7 +24,12 @@ describe('AiUsageService (pipe-1.4.2)', () => {
   });
 
   it('estimates embedding cost from prompt tokens only on platform keys', () => {
-    const cost = service.estimateCostUsd(DEFAULT_EMBEDDING_MODEL, 10_000, 0, 'platform');
+    const cost = service.estimateCostUsd(
+      DEFAULT_EMBEDDING_MODEL,
+      10_000,
+      0,
+      'platform',
+    );
     expect(cost).toBeGreaterThan(0);
     expect(
       service.estimateCostUsd(DEFAULT_EMBEDDING_MODEL, 10_000, 0, 'business'),

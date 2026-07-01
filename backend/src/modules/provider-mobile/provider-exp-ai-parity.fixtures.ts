@@ -61,7 +61,11 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'View package / subscription / multi-service badges',
     coverage: {
       kind: 'provider-ai',
-      intents: ['summarize_client', 'list_my_package_visits', 'list_my_multi_service_groups'],
+      intents: [
+        'summarize_client',
+        'list_my_package_visits',
+        'list_my_multi_service_groups',
+      ],
     },
   },
   {
@@ -88,7 +92,10 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     taskId: 'prov-exp-2.1',
     screen: 'Profile / Insights',
     uiAction: 'View personal stats (week/month rollup)',
-    coverage: { kind: 'provider-ai', intents: ['my_stats', 'summarize_my_revenue'] },
+    coverage: {
+      kind: 'provider-ai',
+      intents: ['my_stats', 'summarize_my_revenue'],
+    },
   },
   {
     id: 'exp-2-1-team-stats-toggle',
@@ -113,7 +120,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Request review from client',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Review request policy and triggers configured on dashboard',
+      dashboardReason:
+        'Review request policy and triggers configured on dashboard',
     },
   },
   {
@@ -121,7 +129,10 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     taskId: 'prov-exp-2.3',
     screen: 'Profile / Insights',
     uiAction: 'View tip totals when tips enabled',
-    coverage: { kind: 'provider-ai', intents: ['my_stats', 'summarize_my_revenue'] },
+    coverage: {
+      kind: 'provider-ai',
+      intents: ['my_stats', 'summarize_my_revenue'],
+    },
   },
   // prov-exp-3 — check-in & timeline
   {
@@ -145,7 +156,11 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'View compact today timeline',
     coverage: {
       kind: 'provider-ai',
-      intents: ['show_appointments', 'summarize_day', 'summarize_my_appointments'],
+      intents: [
+        'show_appointments',
+        'summarize_day',
+        'summarize_my_appointments',
+      ],
     },
   },
   // prov-exp-4 — manager floor
@@ -166,7 +181,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
       dashboardReason:
         'Same-day reassignment uses dedicated mobile API; AI reschedule_booking moves time slots — complex multi-service reassignment stays dashboard',
     },
-    notes: 'Simple same-day reassign is manager UI; AI uses dashboard reassign_cancelled / operations flows',
+    notes:
+      'Simple same-day reassign is manager UI; AI uses dashboard reassign_cancelled / operations flows',
   },
   {
     id: 'exp-4-3-whos-next',
@@ -222,7 +238,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Edit canned message templates',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Template CRUD is business admin configuration on dashboard web',
+      dashboardReason:
+        'Template CRUD is business admin configuration on dashboard web',
     },
   },
   // prov-exp-7 — schedule self-service
@@ -231,7 +248,10 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     taskId: 'prov-exp-7.1',
     screen: 'Schedule',
     uiAction: 'Block lunch / break on own calendar',
-    coverage: { kind: 'provider-ai', intents: ['block_my_time', 'block_schedule'] },
+    coverage: {
+      kind: 'provider-ai',
+      intents: ['block_my_time', 'block_schedule'],
+    },
   },
   {
     id: 'exp-7-2-request-time-off',
@@ -254,7 +274,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Approve or deny time-off request',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Manager approval uses dashboard approve_time_off_request / deny_time_off_request',
+      dashboardReason:
+        'Manager approval uses dashboard approve_time_off_request / deny_time_off_request',
     },
   },
   {
@@ -289,7 +310,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Adjust loyalty points',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Point adjustments are dashboard CRM / admin AI only (adjust_loyalty)',
+      dashboardReason:
+        'Point adjustments are dashboard CRM / admin AI only (adjust_loyalty)',
     },
   },
   // prov-exp-10 — notifications & polish
@@ -334,7 +356,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Font scale / hit-target accessibility preferences',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Local device UI preferences — no provider AI command surface',
+      dashboardReason:
+        'Local device UI preferences — no provider AI command surface',
     },
   },
   {
@@ -344,7 +367,8 @@ export const PROVIDER_EXP_UI_AI_PARITY: readonly ProviderExpUiActionParity[] = [
     uiAction: 'Switch app language (EN/HY/RU)',
     coverage: {
       kind: 'dashboard-only',
-      dashboardReason: 'Locale picker is client UI — not an operational AI intent',
+      dashboardReason:
+        'Locale picker is client UI — not an operational AI intent',
     },
   },
 ];

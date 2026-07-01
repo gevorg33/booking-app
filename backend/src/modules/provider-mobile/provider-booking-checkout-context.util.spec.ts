@@ -100,10 +100,12 @@ describe('provider-booking-checkout-context.util (prov-exp-1.4)', () => {
     expect(
       readSubscriptionIdFromBookingMetadata({ subscriptionId: 'sub-1' }),
     ).toBe('sub-1');
-    expect(buildProviderBookingCheckoutContextView({
-      package: null,
-      subscription: null,
-      multiService: null,
-    })).toEqual({ package: null, subscription: null, multiService: null });
+    expect(
+      buildProviderBookingCheckoutContextView({
+        package: null,
+        subscription: null,
+        multiService: null,
+      }),
+    ).toEqual({ package: null, subscription: null, multiService: null });
   });
 });

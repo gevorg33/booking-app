@@ -11,9 +11,15 @@ import {
 
 describe('ai-implication-corpus.util', () => {
   it('counts scenarios per top intent', () => {
-    const counts = countImplicationScenariosByIntent(AI_IMPLICATION_CORPUS_SCENARIOS);
-    expect(counts.booking).toBeGreaterThanOrEqual(BOOKING_IMPLICATION_SCENARIOS.length);
-    expect(counts.booking).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
+    const counts = countImplicationScenariosByIntent(
+      AI_IMPLICATION_CORPUS_SCENARIOS,
+    );
+    expect(counts.booking).toBeGreaterThanOrEqual(
+      BOOKING_IMPLICATION_SCENARIOS.length,
+    );
+    expect(counts.booking).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
   });
 
   it('filters corpus by intent', () => {
@@ -21,13 +27,17 @@ describe('ai-implication-corpus.util', () => {
       AI_IMPLICATION_CORPUS_SCENARIOS,
       'booking',
     );
-    expect(booking.every((scenario) => scenario.topIntent === 'booking')).toBe(true);
-    expect(booking.length).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
+    expect(booking.every((scenario) => scenario.topIntent === 'booking')).toBe(
+      true,
+    );
+    expect(booking.length).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
   });
 
   it('throws when corpus under minimum', () => {
-    expect(() => assertImplicationCorpusCoverage([BOOKING_IMPLICATION_SCENARIOS[0]], 10)).toThrow(
-      /requires ≥10 prompts/,
-    );
+    expect(() =>
+      assertImplicationCorpusCoverage([BOOKING_IMPLICATION_SCENARIOS[0]], 10),
+    ).toThrow(/requires ≥10 prompts/);
   });
 });

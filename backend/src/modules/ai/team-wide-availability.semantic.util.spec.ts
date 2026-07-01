@@ -34,7 +34,10 @@ describe('team-wide-availability semantic util (pipe-1.13.2 / acc-3.14)', () => 
     '$id does not detect team-wide availability',
     ({ prompt, surface }) => {
       expect(
-        resolveTeamWideAvailabilitySemanticHints(prompt, surface ?? 'dashboard'),
+        resolveTeamWideAvailabilitySemanticHints(
+          prompt,
+          surface ?? 'dashboard',
+        ),
       ).toBeNull();
       expect(impliesTeamWideAvailabilityFromSemantic(prompt)).toBe(false);
       expect(isTeamWideProviderAvailabilityQuery(prompt)).toBe(false);

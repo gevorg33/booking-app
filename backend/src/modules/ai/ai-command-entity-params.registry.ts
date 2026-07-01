@@ -119,12 +119,16 @@ export function validateClinicTestResultExtIntentParamSpecs(
   for (const spec of specs) {
     for (const param of spec.required) {
       if (!CLINIC_TEST_RESULT_EXT_PARAM_IDS.includes(param)) {
-        errors.push(`param specs: unknown required param ${param} on ${spec.intent}`);
+        errors.push(
+          `param specs: unknown required param ${param} on ${spec.intent}`,
+        );
       }
     }
     for (const param of spec.optional) {
       if (!CLINIC_TEST_RESULT_EXT_PARAM_IDS.includes(param)) {
-        errors.push(`param specs: unknown optional param ${param} on ${spec.intent}`);
+        errors.push(
+          `param specs: unknown optional param ${param} on ${spec.intent}`,
+        );
       }
     }
     if (spec.requireAnyOf) {
@@ -166,6 +170,7 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'list_packages',
       'discover_packages',
       'describe_package_includes',
+      'explain_package_savings',
       'configure_package_localized_names',
     ],
   },
@@ -214,6 +219,7 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'create_booking_subscription_credit',
       'my_subscriptions',
       'subscription_usage',
+      'explain_my_subscription',
     ],
   },
   {
@@ -296,6 +302,7 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'add_services_to_cart',
       'remove_service_from_cart',
       'earliest_slot_all_services',
+      'explain_multi_service_cart',
       'show_cart_total_duration',
     ],
   },

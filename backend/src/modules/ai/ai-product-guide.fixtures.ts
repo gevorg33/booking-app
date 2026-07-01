@@ -234,17 +234,49 @@ export const APP_GUIDE_INTENT_BUCKET_SCENARIOS: readonly {
   action: string;
   expectedBucket: ProductGuideIntentBucket;
 }[] = [
-  { id: 'app-guide-feature', action: 'explain_app_feature', expectedBucket: 'guide' },
+  {
+    id: 'app-guide-feature',
+    action: 'explain_app_feature',
+    expectedBucket: 'guide',
+  },
   { id: 'app-guide-flow', action: 'guide_user_flow', expectedBucket: 'guide' },
-  { id: 'app-guide-screen', action: 'explain_current_screen', expectedBucket: 'guide' },
-  { id: 'app-guide-prefix', action: 'guide_billing_setup', expectedBucket: 'guide' },
-  { id: 'surrogate-booking-help', action: 'booking_help', expectedBucket: 'guide' },
-  { id: 'domain-explain-tax', action: 'explain_checkout_tax', expectedBucket: 'domain_explain' },
-  { id: 'domain-explain-currency', action: 'explain_tenant_currency', expectedBucket: 'domain_explain' },
-  { id: 'domain-explain-compliance', action: 'explain_compliance_status', expectedBucket: 'domain_explain' },
+  {
+    id: 'app-guide-screen',
+    action: 'explain_current_screen',
+    expectedBucket: 'guide',
+  },
+  {
+    id: 'app-guide-prefix',
+    action: 'guide_billing_setup',
+    expectedBucket: 'guide',
+  },
+  {
+    id: 'surrogate-booking-help',
+    action: 'booking_help',
+    expectedBucket: 'guide',
+  },
+  {
+    id: 'domain-explain-tax',
+    action: 'explain_checkout_tax',
+    expectedBucket: 'domain_explain',
+  },
+  {
+    id: 'domain-explain-currency',
+    action: 'explain_tenant_currency',
+    expectedBucket: 'domain_explain',
+  },
+  {
+    id: 'domain-explain-compliance',
+    action: 'explain_compliance_status',
+    expectedBucket: 'domain_explain',
+  },
   { id: 'action-mutate', action: 'create_booking', expectedBucket: 'action' },
   { id: 'action-read-list', action: 'list_services', expectedBucket: 'action' },
-  { id: 'action-read-open', action: 'open_billing_settings', expectedBucket: 'action' },
+  {
+    id: 'action-read-open',
+    action: 'open_billing_settings',
+    expectedBucket: 'action',
+  },
 ] as const;
 
 /** ai-guide-1.0.2 — pipe-1.2 product guide prompt detector. */
@@ -627,62 +659,63 @@ export interface ProductGuideHandoffScenario {
   expectedAction: string;
 }
 
-export const PRODUCT_GUIDE_HANDOFF_SCENARIOS: readonly ProductGuideHandoffScenario[] = [
-  {
-    id: 'handoff-online-payment',
-    prompt: 'Where do I turn on online payment?',
-    expectedTopicId: 'dashboard.core.employees',
-    expectedAction: 'configure_service_online_payment',
-  },
-  {
-    id: 'handoff-schedule-template',
-    prompt: 'How do I set up weekly schedule templates?',
-    expectedTopicId: 'dashboard.core.schedule',
-    expectedAction: 'apply_schedule',
-  },
-  {
-    id: 'handoff-setup-week',
-    prompt: 'How do I set up recurring weekly hours for all providers?',
-    expectedTopicId: 'dashboard.core.schedule',
-    expectedAction: 'setup_week_schedule',
-  },
-  {
-    id: 'handoff-block-schedule',
-    prompt: 'How do I block time off on the schedule?',
-    expectedTopicId: 'dashboard.core.schedule',
-    expectedAction: 'block_schedule',
-  },
-  {
-    id: 'handoff-create-template',
-    prompt: 'How do I create a new schedule template?',
-    expectedTopicId: 'dashboard.core.schedule',
-    expectedAction: 'create_schedule_template',
-  },
-  {
-    id: 'handoff-add-service',
-    prompt: 'How do I add a new service to the catalog?',
-    expectedTopicId: 'dashboard.core.employees',
-    expectedAction: 'create_service',
-  },
-  {
-    id: 'handoff-add-staff',
-    prompt: 'How do I invite a new stylist?',
-    expectedTopicId: 'dashboard.core.employees',
-    expectedAction: 'create_employee',
-  },
-  {
-    id: 'handoff-assign-services',
-    prompt: 'How do I assign services to a provider?',
-    expectedTopicId: 'dashboard.core.employees',
-    expectedAction: 'assign_employee_services',
-  },
-  {
-    id: 'handoff-inventory-link',
-    prompt: 'How do I link inventory products to services?',
-    expectedTopicId: 'dashboard.operations.inventory',
-    expectedAction: 'assign_employee_services',
-  },
-] as const;
+export const PRODUCT_GUIDE_HANDOFF_SCENARIOS: readonly ProductGuideHandoffScenario[] =
+  [
+    {
+      id: 'handoff-online-payment',
+      prompt: 'Where do I turn on online payment?',
+      expectedTopicId: 'dashboard.core.employees',
+      expectedAction: 'configure_service_online_payment',
+    },
+    {
+      id: 'handoff-schedule-template',
+      prompt: 'How do I set up weekly schedule templates?',
+      expectedTopicId: 'dashboard.core.schedule',
+      expectedAction: 'apply_schedule',
+    },
+    {
+      id: 'handoff-setup-week',
+      prompt: 'How do I set up recurring weekly hours for all providers?',
+      expectedTopicId: 'dashboard.core.schedule',
+      expectedAction: 'setup_week_schedule',
+    },
+    {
+      id: 'handoff-block-schedule',
+      prompt: 'How do I block time off on the schedule?',
+      expectedTopicId: 'dashboard.core.schedule',
+      expectedAction: 'block_schedule',
+    },
+    {
+      id: 'handoff-create-template',
+      prompt: 'How do I create a new schedule template?',
+      expectedTopicId: 'dashboard.core.schedule',
+      expectedAction: 'create_schedule_template',
+    },
+    {
+      id: 'handoff-add-service',
+      prompt: 'How do I add a new service to the catalog?',
+      expectedTopicId: 'dashboard.core.employees',
+      expectedAction: 'create_service',
+    },
+    {
+      id: 'handoff-add-staff',
+      prompt: 'How do I invite a new stylist?',
+      expectedTopicId: 'dashboard.core.employees',
+      expectedAction: 'create_employee',
+    },
+    {
+      id: 'handoff-assign-services',
+      prompt: 'How do I assign services to a provider?',
+      expectedTopicId: 'dashboard.core.employees',
+      expectedAction: 'assign_employee_services',
+    },
+    {
+      id: 'handoff-inventory-link',
+      prompt: 'How do I link inventory products to services?',
+      expectedTopicId: 'dashboard.operations.inventory',
+      expectedAction: 'assign_employee_services',
+    },
+  ] as const;
 
 /** ai-guide-1.2.4 — grounding failure fixtures. */
 export interface ProductGuideGroundingScenario {
@@ -692,62 +725,78 @@ export interface ProductGuideGroundingScenario {
   validateSettingsKeys?: boolean;
 }
 
-export const PRODUCT_GUIDE_GROUNDING_SCENARIOS: readonly ProductGuideGroundingScenario[] = [
-  {
-    id: 'unknown-route',
-    guide: {
-      summary: 'Go somewhere unknown.',
-      steps: [{ title: 'Step 1', body: 'Open the page.' }],
-      navigate: { path: '/dashboard/unknown-feature' },
-      topicId: 'dashboard.core.schedule',
-      sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+export const PRODUCT_GUIDE_GROUNDING_SCENARIOS: readonly ProductGuideGroundingScenario[] =
+  [
+    {
+      id: 'unknown-route',
+      guide: {
+        summary: 'Go somewhere unknown.',
+        steps: [{ title: 'Step 1', body: 'Open the page.' }],
+        navigate: { path: '/dashboard/unknown-feature' },
+        topicId: 'dashboard.core.schedule',
+        sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+      },
+      expectedIssueCodes: ['unknown_route'],
     },
-    expectedIssueCodes: ['unknown_route'],
-  },
-  {
-    id: 'unknown-handoff-action',
-    guide: {
-      summary: 'Try this action.',
-      steps: [{ title: 'Step 1', body: 'Do the thing.' }],
-      topicId: 'dashboard.core.schedule',
-      sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
-      relatedActions: [{ action: 'totally_fake_action', label: 'Fake' }],
+    {
+      id: 'unknown-handoff-action',
+      guide: {
+        summary: 'Try this action.',
+        steps: [{ title: 'Step 1', body: 'Do the thing.' }],
+        topicId: 'dashboard.core.schedule',
+        sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+        relatedActions: [{ action: 'totally_fake_action', label: 'Fake' }],
+      },
+      expectedIssueCodes: ['unknown_handoff_action'],
     },
-    expectedIssueCodes: ['unknown_handoff_action'],
-  },
-  {
-    id: 'unknown-intent-citation',
-    guide: {
-      summary: 'Run configure_fake_payment_toggle next.',
-      steps: [{ title: 'Step 1', body: 'Use configure_fake_payment_toggle in settings.' }],
-      topicId: 'dashboard.core.schedule',
-      sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+    {
+      id: 'unknown-intent-citation',
+      guide: {
+        summary: 'Run configure_fake_payment_toggle next.',
+        steps: [
+          {
+            title: 'Step 1',
+            body: 'Use configure_fake_payment_toggle in settings.',
+          },
+        ],
+        topicId: 'dashboard.core.schedule',
+        sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+      },
+      expectedIssueCodes: ['unknown_intent_citation'],
     },
-    expectedIssueCodes: ['unknown_intent_citation'],
-  },
-  {
-    id: 'unknown-setting-key',
-    guide: {
-      summary: 'Enable settings.fakePaymentToggle in the dashboard.',
-      steps: [{ title: 'Step 1', body: 'Open business.settings.fakePaymentToggle.' }],
-      topicId: 'dashboard.core.schedule',
-      sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+    {
+      id: 'unknown-setting-key',
+      guide: {
+        summary: 'Enable settings.fakePaymentToggle in the dashboard.',
+        steps: [
+          {
+            title: 'Step 1',
+            body: 'Open business.settings.fakePaymentToggle.',
+          },
+        ],
+        topicId: 'dashboard.core.schedule',
+        sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+      },
+      expectedIssueCodes: ['unknown_setting_key'],
+      validateSettingsKeys: true,
     },
-    expectedIssueCodes: ['unknown_setting_key'],
-    validateSettingsKeys: true,
-  },
-  {
-    id: 'grounded-setting-key',
-    guide: {
-      summary: 'Review settings.notifications for reminder toggles.',
-      steps: [{ title: 'Step 1', body: 'Open Settings and check settings.notifications.' }],
-      topicId: 'dashboard.core.schedule',
-      sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+    {
+      id: 'grounded-setting-key',
+      guide: {
+        summary: 'Review settings.notifications for reminder toggles.',
+        steps: [
+          {
+            title: 'Step 1',
+            body: 'Open Settings and check settings.notifications.',
+          },
+        ],
+        topicId: 'dashboard.core.schedule',
+        sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
+      },
+      expectedIssueCodes: [],
+      validateSettingsKeys: true,
     },
-    expectedIssueCodes: [],
-    validateSettingsKeys: true,
-  },
-] as const;
+  ] as const;
 
 /** ai-guide-1.2.3 — semantic retrieval paraphrases (keyword rank below threshold). */
 export interface ProductGuideSemanticScenario {
@@ -758,26 +807,27 @@ export interface ProductGuideSemanticScenario {
   expectedTopicId: string;
 }
 
-export const PRODUCT_GUIDE_SEMANTIC_SCENARIOS: readonly ProductGuideSemanticScenario[] = [
-  {
-    id: 'semantic-command-bar-paraphrase',
-    prompt: 'where do I type commands instead of clicking menus',
-    intent: 'explain_app_feature',
-    expectedTopicId: 'dashboard.ai.command-bar',
-  },
-  {
-    id: 'semantic-schedule-paraphrase',
-    prompt: 'configure repeating availability blocks for staff',
-    intent: 'guide_user_flow',
-    expectedTopicId: 'dashboard.core.schedule',
-  },
-  {
-    id: 'semantic-online-payment-paraphrase',
-    prompt: 'accept card payment when client books remotely',
-    intent: 'guide_user_flow',
-    expectedTopicId: 'dashboard.core.employees',
-  },
-] as const;
+export const PRODUCT_GUIDE_SEMANTIC_SCENARIOS: readonly ProductGuideSemanticScenario[] =
+  [
+    {
+      id: 'semantic-command-bar-paraphrase',
+      prompt: 'where do I type commands instead of clicking menus',
+      intent: 'explain_app_feature',
+      expectedTopicId: 'dashboard.ai.command-bar',
+    },
+    {
+      id: 'semantic-schedule-paraphrase',
+      prompt: 'configure repeating availability blocks for staff',
+      intent: 'guide_user_flow',
+      expectedTopicId: 'dashboard.core.schedule',
+    },
+    {
+      id: 'semantic-online-payment-paraphrase',
+      prompt: 'accept card payment when client books remotely',
+      intent: 'guide_user_flow',
+      expectedTopicId: 'dashboard.core.employees',
+    },
+  ] as const;
 
 /** ai-guide-1.2.3 — LLM polish merge scenarios. */
 export interface ProductGuidePolishScenario {
@@ -787,20 +837,23 @@ export interface ProductGuidePolishScenario {
   stepCount: number;
 }
 
-export const PRODUCT_GUIDE_POLISH_SCENARIOS: readonly ProductGuidePolishScenario[] = [
-  {
-    id: 'polish-rewrites-summary',
-    baseSummary: 'Set up weekly schedule templates.',
-    polishedSummary: 'Here is how to configure weekly schedule templates for your team.',
-    stepCount: 3,
-  },
-  {
-    id: 'polish-preserves-step-count',
-    baseSummary: 'Enable online payment.',
-    polishedSummary: 'You can turn on online prepayment from the service catalog.',
-    stepCount: 4,
-  },
-] as const;
+export const PRODUCT_GUIDE_POLISH_SCENARIOS: readonly ProductGuidePolishScenario[] =
+  [
+    {
+      id: 'polish-rewrites-summary',
+      baseSummary: 'Set up weekly schedule templates.',
+      polishedSummary:
+        'Here is how to configure weekly schedule templates for your team.',
+      stepCount: 3,
+    },
+    {
+      id: 'polish-preserves-step-count',
+      baseSummary: 'Enable online payment.',
+      polishedSummary:
+        'You can turn on online prepayment from the service catalog.',
+      stepCount: 4,
+    },
+  ] as const;
 
 /** ai-guide-1.6.2 — top-20 guide flows per surface + NL prompt variants (generated). */
 export type {

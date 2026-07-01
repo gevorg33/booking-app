@@ -1,6 +1,9 @@
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
-import type { CommandResult, GuideResponse } from './command-completion.types.js';
+import type {
+  CommandResult,
+  GuideResponse,
+} from './command-completion.types.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
 import {
   getGuideCorpusTopic,
@@ -46,7 +49,7 @@ export function buildPostFailureGuideFallbackInput(
   const sessionObj =
     session && typeof session === 'object' && 'context' in session
       ? (session as { context?: Record<string, unknown> })
-      : { context: session as Record<string, unknown> | undefined };
+      : { context: session };
   const ctx = resolveProductGuideSessionContext(sessionObj, surface);
   return {
     surface: ctx.surface ?? surface,
@@ -70,7 +73,8 @@ export function shouldAppendPostFailureGuideFallback(
   if (details.guideFallbackApplied === true) return false;
 
   const action = result.action;
-  if (!action || action === 'error' || action === 'security_blocked') return false;
+  if (!action || action === 'error' || action === 'security_blocked')
+    return false;
   if (isAppGuideIntent(action)) return false;
 
   if (
@@ -100,7 +104,10 @@ function formatPostFailureGuideLine(
   return `Here's how to ${taskLabel} on this page: ${trimmedBody}`;
 }
 
-function trimGuideForFallback(guide: GuideResponse, snippetLine: string): GuideResponse {
+function trimGuideForFallback(
+  guide: GuideResponse,
+  snippetLine: string,
+): GuideResponse {
   return {
     ...guide,
     summary: snippetLine,
@@ -141,21 +148,31 @@ export function resolvePostFailureGuideSnippet(
     const firstStep = resolved.steps[0];
     if (!firstStep?.body?.trim()) return null;
     const taskLabel = resolved.title.trim().toLowerCase();
-    const snippetLine = formatPostFailureGuideLine(locale, taskLabel, firstStep.body);
+    const snippetLine = formatPostFailureGuideLine(
+      locale,
+      taskLabel,
+      firstStep.body,
+    );
     return {
       snippetLine,
-      guide: trimGuideForFallback(buildGuideResponseFromFlowPlaybook(resolved), snippetLine),
+      guide: trimGuideForFallback(
+        buildGuideResponseFromFlowPlaybook(resolved),
+        snippetLine,
+      ),
     };
   }
 
-  const topic = getGuideCorpusTopic(topicId as GuideCorpusTopicId);
+  const topic = getGuideCorpusTopic(topicId);
   if (!topic) return null;
-  const resolvedTopic = resolveGuideCorpusTopic(topicId as GuideCorpusTopicId, messages);
+  const resolvedTopic = resolveGuideCorpusTopic(topicId, messages);
   if (!resolvedTopic) return null;
 
   const corpusGuide = buildGuideResponseFromCorpus(resolvedTopic, topic);
   const firstStep = corpusGuide.steps[0];
-  const body = firstStep?.body?.trim() || resolvedTopic.summary?.trim() || resolvedTopic.body?.trim();
+  const body =
+    firstStep?.body?.trim() ||
+    resolvedTopic.summary?.trim() ||
+    resolvedTopic.body?.trim();
   if (!body) return null;
 
   const taskLabel = resolvedTopic.title.trim().toLowerCase();

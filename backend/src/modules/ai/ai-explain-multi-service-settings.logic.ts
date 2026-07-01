@@ -53,8 +53,7 @@ function formatIncompatibleSummary(settings: MultiServiceSettings): string {
     .slice(0, 3)
     .map(([left, right]) => `${left} + ${right}`)
     .join('; ');
-  const extra =
-    pairs.length > 3 ? ` (+${pairs.length - 3} more)` : '';
+  const extra = pairs.length > 3 ? ` (+${pairs.length - 3} more)` : '';
   return `${pairs.length} incompatible ${scope} pair(s): ${preview}${extra}.`;
 }
 

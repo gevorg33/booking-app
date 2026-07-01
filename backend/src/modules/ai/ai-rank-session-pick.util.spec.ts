@@ -23,27 +23,30 @@ describe('ai-rank-session-pick.util (rank-session-pick-one-en)', () => {
   )!;
 
   it('detects list pick index from ordinal prompt', () => {
-    expect(extractRankSessionListPickIndexFromPrompt('book the second one tomorrow')).toBe(
-      2,
-    );
+    expect(
+      extractRankSessionListPickIndexFromPrompt('book the second one tomorrow'),
+    ).toBe(2);
     expect(isRankSessionListPickPrompt('book the third one')).toBe(true);
     expect(isRankSessionListPickPrompt('premium massage tomorrow')).toBe(false);
   });
 
   it('builds top-3 premium massage rank list on turn 1', () => {
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
     expect(turn1).toMatchObject({
       serviceCategory: 'massage',
       serviceRank: 'highest_price',
     });
     expect(
-      resolveListServicesRankLimitFromPrompt(scenario.turns[0]!.prompt, turn1),
+      resolveListServicesRankLimitFromPrompt(scenario.turns[0].prompt, turn1),
     ).toBe(3);
 
     const ranked = buildRankedServicesFromSessionContext(
       turn1,
       RANK_SESSION_PICK_CATALOG,
-      scenario.turns[0]!.prompt,
+      scenario.turns[0].prompt,
     );
     expect(ranked.map((service) => service.id)).toEqual([
       'massage-120',
@@ -53,11 +56,14 @@ describe('ai-rank-session-pick.util (rank-session-pick-one-en)', () => {
   });
 
   it('resolves second ranked service on turn 2 with persisted ids', () => {
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
     const ranked = buildRankedServicesFromSessionContext(
       turn1,
       RANK_SESSION_PICK_CATALOG,
-      scenario.turns[0]!.prompt,
+      scenario.turns[0].prompt,
     );
     const session = {
       ...turn1,
@@ -69,7 +75,7 @@ describe('ai-rank-session-pick.util (rank-session-pick-one-en)', () => {
     }));
 
     const picked = enrichRankSessionPickFromPrompt(
-      scenario.turns[1]!.prompt,
+      scenario.turns[1].prompt,
       session,
       catalog,
     );
@@ -78,19 +84,26 @@ describe('ai-rank-session-pick.util (rank-session-pick-one-en)', () => {
       serviceName: 'Relax massage',
       serviceId: 'massage-90',
     });
-    expect(resolveRankSessionListPickService(ranked, 2)?.name).toBe('Relax massage');
+    expect(resolveRankSessionListPickService(ranked, 2)?.name).toBe(
+      'Relax massage',
+    );
   });
 
   it('enrichPublicAssistantParamsFromPrompt maps pick prompt to booked service', () => {
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
     const ranked = buildRankedServicesFromSessionContext(
       turn1,
       RANK_SESSION_PICK_CATALOG,
-      scenario.turns[0]!.prompt,
+      scenario.turns[0].prompt,
     );
     const session = {
       ...turn1,
-      rankedServiceIds: serializeRankedServiceIds(ranked.map((service) => service.id)),
+      rankedServiceIds: serializeRankedServiceIds(
+        ranked.map((service) => service.id),
+      ),
     };
     const catalog = RANK_SESSION_PICK_CATALOG.map((service) => ({
       id: service.id,
@@ -98,12 +111,12 @@ describe('ai-rank-session-pick.util (rank-session-pick-one-en)', () => {
     }));
 
     const turn2 = enrichPublicAssistantParamsFromPrompt(
-      scenario.turns[1]!.prompt,
+      scenario.turns[1].prompt,
       session,
       catalog,
       'book_appointment',
     );
-    expect(turn2).toMatchObject(scenario.turns[1]!.expectedParams);
+    expect(turn2).toMatchObject(scenario.turns[1].expectedParams);
   });
 
   it('parseRankedServiceIdsFromSession accepts JSON and comma-separated ids', () => {
@@ -147,10 +160,9 @@ describe('ai-rank-session-pick.util inactive catalog filter (rank-inactive-exclu
       },
     ];
 
-    expect(filterActiveCatalogServices(services).map((service) => service.id)).toEqual([
-      'massage-90',
-      'massage-60',
-    ]);
+    expect(
+      filterActiveCatalogServices(services).map((service) => service.id),
+    ).toEqual(['massage-90', 'massage-60']);
 
     const result = composePublicListServicesRankResponse({
       matchedServices: services,
@@ -160,6 +172,8 @@ describe('ai-rank-session-pick.util inactive catalog filter (rank-inactive-exclu
       allCatalogServices: services,
     });
 
-    expect(result.services.map((service) => service.id)).toEqual(['massage-90']);
+    expect(result.services.map((service) => service.id)).toEqual([
+      'massage-90',
+    ]);
   });
 });

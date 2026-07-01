@@ -7,7 +7,10 @@ import { normalizeLocalizedNames } from '../../common/i18n/service-localized-nam
 import { parseLocalizedNamesFromPrompt } from './ai-catalog.util.js';
 
 /** Locales auto-filled on create_service when enabled for the business. */
-export const AUTO_SERVICE_TRANSLATION_LOCALES: readonly AppLocale[] = ['hy', 'ru'];
+export const AUTO_SERVICE_TRANSLATION_LOCALES: readonly AppLocale[] = [
+  'hy',
+  'ru',
+];
 
 export function mergeServiceLocalizedNames(
   ...maps: Array<LocalizedNamesMap | undefined>

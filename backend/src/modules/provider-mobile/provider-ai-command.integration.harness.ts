@@ -89,7 +89,9 @@ function buildProviderUnderstandMock() {
         params: classified.params ?? {},
         reasoning: classified.reasoning ?? 'harness',
         confidence:
-          typeof classified.confidence === 'number' ? classified.confidence : 0.9,
+          typeof classified.confidence === 'number'
+            ? classified.confidence
+            : 0.9,
         candidates: [
           {
             action: classified.action,
@@ -151,7 +153,11 @@ export function createProviderAiCommandHarness(
         isAvailableForBusiness: jest.fn(async () => false),
         isModelConfigured: () => false,
       } as any,
-      { isAvailableForBusiness: async () => false, embedText: jest.fn(), isModelConfigured: () => false } as any,
+      {
+        isAvailableForBusiness: async () => false,
+        embedText: jest.fn(),
+        isModelConfigured: () => false,
+      } as any,
       createMockGuideTelemetryService(),
     );
 
@@ -277,6 +283,13 @@ export function createProviderAiCommandHarness(
     } as any,
     productGuide,
     overrides.emptyStateGuide ??
-      ({ runIntent: jest.fn(async () => ({ success: true, action: 'explain_empty_catalog', summary: 'ok', details: {} })) } as any),
+      ({
+        runIntent: jest.fn(async () => ({
+          success: true,
+          action: 'explain_empty_catalog',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any),
   );
 }

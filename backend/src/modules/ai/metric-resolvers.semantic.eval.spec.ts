@@ -21,10 +21,7 @@ describe('metric-resolvers semantic eval (acc-3.14)', () => {
   });
 
   it.each(
-    AI_COMMAND_EVAL_METRIC_RESOLVER_SEMANTIC_CASES.map((row) => [
-      row.id,
-      row,
-    ]),
+    AI_COMMAND_EVAL_METRIC_RESOLVER_SEMANTIC_CASES.map((row) => [row.id, row]),
   )('passes eval case %s', (_id, evalCase) => {
     const result = evaluateDeterministicEvalCase(evalCase);
     expect(result.passed).toBe(true);

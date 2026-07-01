@@ -41,7 +41,11 @@ import {
   resolveCustomerRebookingCadenceDays,
 } from '../../common/utils/customer-rebooking-cadence.util.js';
 import { CustomerRebookingCadenceService } from '../customer/customer-rebooking-cadence.service.js';
-import { resolveLocale, t, type AppLocale } from '../../common/i18n/messages.js';
+import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
 import { MarketingAutomationLog } from './entities/marketing-automation-log.entity.js';
 import {
   DEFAULT_MARKETING_AUTOMATION_SETTINGS,
@@ -52,12 +56,8 @@ import {
 } from './marketing-automation.types.js';
 import { UpdateMarketingAutomationSettingsDto } from './dto/update-marketing-automation-settings.dto.js';
 import { AppEvent } from '../analytics/entities/app-event.entity.js';
-import {
-  type AppEventAnalyticsRow,
-} from '../../common/utils/app-adoption-analytics.util.js';
-import {
-  readCustomerAnalyticsAnonId,
-} from '../../common/utils/customer-analytics-anon.util.js';
+import { type AppEventAnalyticsRow } from '../../common/utils/app-adoption-analytics.util.js';
+import { readCustomerAnalyticsAnonId } from '../../common/utils/customer-analytics-anon.util.js';
 import {
   buildActivationConciergeResumePushUrl,
   buildActivationConciergeResumeWebUrl,
@@ -153,8 +153,8 @@ export class MarketingAutomationService {
       reEngagementLoyaltyBonusPoints:
         dto.reEngagementLoyaltyBonusPoints === null
           ? null
-          : dto.reEngagementLoyaltyBonusPoints ??
-            current.reEngagementLoyaltyBonusPoints,
+          : (dto.reEngagementLoyaltyBonusPoints ??
+            current.reEngagementLoyaltyBonusPoints),
     });
     business.settings = {
       ...(business.settings ?? {}),
@@ -263,7 +263,9 @@ export class MarketingAutomationService {
     return sent;
   }
 
-  async processBusinessActivationConcierge(businessId: string): Promise<number> {
+  async processBusinessActivationConcierge(
+    businessId: string,
+  ): Promise<number> {
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });
@@ -318,7 +320,8 @@ export class MarketingAutomationService {
       props: entity.props,
     }));
 
-    const sentByAnon = await this.buildActivationConciergeSentByAnon(businessId);
+    const sentByAnon =
+      await this.buildActivationConciergeSentByAnon(businessId);
     const inputs = listActivationConciergeCandidateInputs(
       rows,
       new Date(),
@@ -744,7 +747,9 @@ export class MarketingAutomationService {
       .createQueryBuilder('customer')
       .where('customer.business_id = :businessId', { businessId })
       .andWhere('customer.isActive = :isActive', { isActive: true })
-      .andWhere("customer.metadata->>'appAnalyticsAnonId' = :anonId", { anonId })
+      .andWhere("customer.metadata->>'appAnalyticsAnonId' = :anonId", {
+        anonId,
+      })
       .getOne();
   }
 
@@ -756,7 +761,10 @@ export class MarketingAutomationService {
   ): Promise<boolean> {
     const locale = this.businessLocale(business.settings);
     const bookingUrl = this.buildBookingUrl(business.slug);
-    const { promoLine, loyaltyLine } = buildWinBackIncentiveLines(settings, locale);
+    const { promoLine, loyaltyLine } = buildWinBackIncentiveLines(
+      settings,
+      locale,
+    );
     const text = t(locale, 'email.winBackMessage', {
       customerName: candidate.name,
       businessName: business.name,
@@ -852,7 +860,10 @@ export class MarketingAutomationService {
     notificationSettings: ReturnType<typeof mergeBusinessNotificationSettings>,
   ): Promise<boolean> {
     const locale = this.businessLocale(business.settings);
-    const bookUrl = this.buildServiceBookingUrl(business.slug, candidate.serviceId);
+    const bookUrl = this.buildServiceBookingUrl(
+      business.slug,
+      candidate.serviceId,
+    );
     const promoLine = settings.rebookingNudgePromoCode
       ? ` Use code ${settings.rebookingNudgePromoCode} when you book.`
       : '';
@@ -914,36 +925,39 @@ export class MarketingAutomationService {
       if (!shouldSendConsumerPush(customerPrefs, 'offers')) {
         // skip push when customer disabled offers
       } else {
-      const rebookUrl =
-        candidate.lastBookingId && candidate.lastStartTime
-          ? buildConsumerRebookPushUrl({
-              slug: business.slug,
+        const rebookUrl =
+          candidate.lastBookingId && candidate.lastStartTime
+            ? buildConsumerRebookPushUrl({
+                slug: business.slug,
+                serviceId: candidate.serviceId,
+                bookingId: candidate.lastBookingId,
+                startTime: candidate.lastStartTime,
+                employeeId: candidate.employeeId,
+              })
+            : buildConsumerBookServicePushUrl(
+                business.slug,
+                candidate.serviceId,
+              );
+        const ok = await this.dispatchCustomerMessage(
+          business.id,
+          candidate.customerId,
+          'rebooking_nudge',
+          'push',
+          candidate.customerId,
+          () =>
+            buildConsumerRebookingNudgePushPayload({
+              url: rebookUrl,
+              businessId: business.id,
+              customerId: candidate.customerId,
               serviceId: candidate.serviceId,
-              bookingId: candidate.lastBookingId,
-              startTime: candidate.lastStartTime,
-              employeeId: candidate.employeeId,
-            })
-          : buildConsumerBookServicePushUrl(business.slug, candidate.serviceId);
-      const ok = await this.dispatchCustomerMessage(
-        business.id,
-        candidate.customerId,
-        'rebooking_nudge',
-        'push',
-        candidate.customerId,
-        () =>
-          buildConsumerRebookingNudgePushPayload({
-            url: rebookUrl,
-            businessId: business.id,
-            customerId: candidate.customerId,
-            serviceId: candidate.serviceId,
-            businessName: business.name,
-            serviceName: candidate.serviceName,
-            cadenceLabel: formatRebookingCadenceLabel(candidate.cadenceDays),
-            locale,
-          }),
-        candidate.serviceId,
-      );
-      if (ok) sentAny = true;
+              businessName: business.name,
+              serviceName: candidate.serviceName,
+              cadenceLabel: formatRebookingCadenceLabel(candidate.cadenceDays),
+              locale,
+            }),
+          candidate.serviceId,
+        );
+        if (ok) sentAny = true;
       }
     }
 
@@ -987,7 +1001,11 @@ export class MarketingAutomationService {
       return ok;
     }
 
-    const content = build() as { subject?: string; html?: string; text: string };
+    const content = build() as {
+      subject?: string;
+      html?: string;
+      text: string;
+    };
     let ok = false;
     let error: string | undefined;
 

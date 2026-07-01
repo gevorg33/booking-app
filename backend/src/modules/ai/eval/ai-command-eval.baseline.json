@@ -283,7 +283,7 @@
       "total": 25,
       "accuracyPct": 100
     },
-    "compound:book_package+promo_code_help": {
+    "compound:book_package+apply_promo_code_checkout": {
       "passed": 2,
       "failed": 0,
       "total": 2,
@@ -722,9 +722,9 @@
       "accuracyPct": 100
     },
     "explain_cancel_policy": {
-      "passed": 3,
+      "passed": 22,
       "failed": 0,
-      "total": 3,
+      "total": 22,
       "accuracyPct": 100
     },
     "explain_checkout_currency": {
@@ -1016,9 +1016,9 @@
       "accuracyPct": 100
     },
     "get_manage_link": {
-      "passed": 3,
+      "passed": 22,
       "failed": 0,
-      "total": 3,
+      "total": 22,
       "accuracyPct": 100
     },
     "gift_card_creation_queue": {
@@ -1169,6 +1169,12 @@
       "passed": 120,
       "failed": 0,
       "total": 120,
+      "accuracyPct": 100
+    },
+    "list_my_upcoming_appointments": {
+      "passed": 19,
+      "failed": 0,
+      "total": 19,
       "accuracyPct": 100
     },
     "list_my_time_off_requests": {
@@ -1520,9 +1526,9 @@
       "accuracyPct": 100
     },
     "share_my_booking": {
-      "passed": 3,
+      "passed": 19,
       "failed": 0,
-      "total": 3,
+      "total": 19,
       "accuracyPct": 100
     },
     "share_salon_link": {
@@ -1652,9 +1658,9 @@
       "accuracyPct": 100
     },
     "track_physical_gift_card_order": {
-      "passed": 1,
+      "passed": 22,
       "failed": 0,
-      "total": 1,
+      "total": 22,
       "accuracyPct": 100
     },
     "trigger_reengagement": {

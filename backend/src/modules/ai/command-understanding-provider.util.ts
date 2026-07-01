@@ -13,7 +13,9 @@ export function buildProviderClassifierContext(
 Logged-in user: ${opts.providerName}
 View mode: ${opts.viewMode}${opts.viewMode === 'team' ? ' — manager/owner, all team appointments' : ' — own appointments only'}`;
 
-  const intelligenceBlock = buildProviderClassifierAppendix(opts.sessionContext);
+  const intelligenceBlock = buildProviderClassifierAppendix(
+    opts.sessionContext,
+  );
   const sessionBlock = buildProviderSessionContextBlock(opts.sessionContext);
   const i18nBlock = opts.pipelineContext.classifierContext
     ? `\n${opts.pipelineContext.classifierContext}`

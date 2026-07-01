@@ -1,6 +1,9 @@
 import type { LlmService } from '../../engine/agent/llm.service.js';
 import type { GuideResponse } from './command-completion.types.js';
-import { buildVoiceFriendlyFallback, enrichGuideResponseVoiceSummaries } from './ai-product-guide-voice.util.js';
+import {
+  buildVoiceFriendlyFallback,
+  enrichGuideResponseVoiceSummaries,
+} from './ai-product-guide-voice.util.js';
 import { verifyGuideResponseGrounding } from './ai-product-guide-grounding.util.js';
 import { GUIDE_CORPUS_MATCH_THRESHOLD } from './ai-product-guide-ranking.util.js';
 import type { AppGuideIntent } from './ai-product-guide.util.js';

@@ -49,15 +49,12 @@ describe('public-command-understanding.adapter (pipe-1.12.4)', () => {
       classify,
     });
 
-    await narrowReclassify!(
-      ['check_availability', 'book_appointment'],
-      {
-        originalPrompt: 'any openings tomorrow',
-        normalizedPrompt: 'any openings tomorrow',
-        classifierContext: null,
-        method: 'passthrough',
-      },
-    );
+    await narrowReclassify!(['check_availability', 'book_appointment'], {
+      originalPrompt: 'any openings tomorrow',
+      normalizedPrompt: 'any openings tomorrow',
+      classifierContext: null,
+      method: 'passthrough',
+    });
 
     expect(classify).toHaveBeenCalledWith(
       'any openings tomorrow',

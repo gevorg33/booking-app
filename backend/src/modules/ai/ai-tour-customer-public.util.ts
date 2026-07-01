@@ -1,12 +1,17 @@
 import { TOUR_BOOKING_CLASSIFIER_RULES } from './ai-tour-booking.fixtures.js';
 import { TOUR_CAPACITY_CLASSIFIER_RULES } from './ai-tour-capacity.fixtures.js';
 import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from './ai-tour-day-slots.fixtures.js';
+import { CUSTOMER_TOUR_BOOKING_RECORD_CLASSIFIER_RULES } from './ai-tour-booking-record.fixtures.js';
+import { TOUR_MEETING_POINT_CLASSIFIER_RULES } from './ai-tour-meeting-point.fixtures.js';
+import { EXPLAIN_TOUR_MEETING_POINT_PROMPTS } from './ai-tour-meeting-point.fixtures.js';
 import { EXPLAIN_TOUR_BOOKING_PROMPTS } from './ai-tour-booking.fixtures.js';
 import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js';
 import { DIAGNOSE_TOUR_CAPACITY_PROMPTS } from './ai-tour-capacity.fixtures.js';
+import { EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS } from './ai-tour-booking-record.fixtures.js';
 import {
   isDiagnoseTourCapacityPrompt,
   parseDiagnoseTourCapacityFromPrompt,
+  parseProactiveTourCapacityFromPrompt,
   rescueDiagnoseTourCapacityIntent,
 } from './ai-tour-capacity.util.js';
 import {
@@ -19,15 +24,28 @@ import {
   parseExplainTourDaySlotsFromPrompt,
   rescueTourDaySlotsIntent,
 } from './ai-tour-day-slots.util.js';
+import {
+  isExplainTourBookingRecordPrompt,
+  parseExplainTourBookingRecordFromPrompt,
+  rescueExplainTourBookingRecordIntent,
+} from './ai-tour-booking-record.util.js';
+import {
+  parseExplainTourMeetingPointFromPrompt,
+  rescueExplainTourMeetingPointIntent,
+} from './ai-tour-meeting-point.util.js';
 
 export const CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES = `${TOUR_BOOKING_CLASSIFIER_RULES}
 ${TOUR_DAY_SLOTS_CLASSIFIER_RULES}
-${TOUR_CAPACITY_CLASSIFIER_RULES}`;
+${TOUR_CAPACITY_CLASSIFIER_RULES}
+${TOUR_MEETING_POINT_CLASSIFIER_RULES}
+${CUSTOMER_TOUR_BOOKING_RECORD_CLASSIFIER_RULES}`;
 
 export type TourCustomerPublicAction =
   | 'explain_tour_booking'
   | 'explain_tour_day_slots'
-  | 'diagnose_tour_capacity';
+  | 'diagnose_tour_capacity'
+  | 'explain_tour_booking_record'
+  | 'explain_tour_meeting_point';
 
 export type TourCustomerPublicPromptFixture = {
   id: string;
@@ -40,6 +58,22 @@ export type TourCustomerPublicPromptFixture = {
   requestedPax?: number;
   aspect?: string;
 };
+
+function mapMeetingPointFixture(
+  entry: (typeof EXPLAIN_TOUR_MEETING_POINT_PROMPTS)[number],
+): TourCustomerPublicPromptFixture {
+  return {
+    id: entry.id,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    expectedAction: 'explain_tour_meeting_point',
+    rescueReason: 'explain_tour_meeting_point',
+    ...('serviceName' in entry && entry.serviceName
+      ? { serviceName: entry.serviceName }
+      : {}),
+    ...('aspect' in entry && entry.aspect ? { aspect: entry.aspect } : {}),
+  };
+}
 
 function mapBookingFixture(
   entry: (typeof EXPLAIN_TOUR_BOOKING_PROMPTS)[number],
@@ -94,17 +128,53 @@ function mapCapacityFixture(
   };
 }
 
+function mapBookingRecordFixture(
+  entry: (typeof EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS)[number],
+): TourCustomerPublicPromptFixture {
+  return {
+    id: entry.id,
+    prompt: entry.prompt,
+    surface: entry.surface,
+    expectedAction: 'explain_tour_booking_record',
+    rescueReason: 'explain_tour_booking_record',
+    ...('serviceName' in entry && entry.serviceName
+      ? { serviceName: entry.serviceName }
+      : {}),
+    ...('aspect' in entry && entry.aspect ? { aspect: entry.aspect } : {}),
+  };
+}
+
 export const TOUR_CUSTOMER_PUBLIC_PROMPTS: readonly TourCustomerPublicPromptFixture[] =
   [
     ...EXPLAIN_TOUR_BOOKING_PROMPTS.map(mapBookingFixture),
     ...EXPLAIN_TOUR_DAY_SLOTS_PROMPTS.map(mapDaySlotsFixture),
     ...DIAGNOSE_TOUR_CAPACITY_PROMPTS.map(mapCapacityFixture),
+    ...EXPLAIN_TOUR_MEETING_POINT_PROMPTS.map(mapMeetingPointFixture),
+    ...EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS.map(
+      mapBookingRecordFixture,
+    ),
   ];
 
 export function rescueTourCustomerPublicIntent(
   prompt: string,
   action: string,
 ): { action: TourCustomerPublicAction; rescueReason: string } | null {
+  const meetingPoint = rescueExplainTourMeetingPointIntent(prompt, action);
+  if (meetingPoint) {
+    return {
+      action: 'explain_tour_meeting_point',
+      rescueReason: meetingPoint.rescueReason,
+    };
+  }
+
+  const bookingRecord = rescueExplainTourBookingRecordIntent(prompt, action);
+  if (bookingRecord) {
+    return {
+      action: 'explain_tour_booking_record',
+      rescueReason: bookingRecord.rescueReason,
+    };
+  }
+
   const diagnose = rescueDiagnoseTourCapacityIntent(prompt, action);
   if (diagnose) {
     return {
@@ -146,7 +216,10 @@ export function enrichTourCustomerPublicParamsFromPrompt(
   const next = { ...params };
 
   if (action === 'diagnose_tour_capacity') {
-    const parsed = parseDiagnoseTourCapacityFromPrompt(prompt, next);
+    const parsed =
+      next.tourGroupCheckout === true
+        ? parseProactiveTourCapacityFromPrompt(prompt, next)
+        : parseDiagnoseTourCapacityFromPrompt(prompt, next);
     if (parsed?.serviceName && !next.serviceName) {
       next.serviceName = parsed.serviceName;
     }
@@ -174,6 +247,29 @@ export function enrichTourCustomerPublicParamsFromPrompt(
     return next;
   }
 
+  if (action === 'explain_tour_booking_record') {
+    const parsed = parseExplainTourBookingRecordFromPrompt(prompt, next);
+    if (parsed?.bookingId && !next.bookingId) next.bookingId = parsed.bookingId;
+    if (parsed?.customerName && !next.customerName) {
+      next.customerName = parsed.customerName;
+    }
+    if (parsed?.serviceName && !next.serviceName) {
+      next.serviceName = parsed.serviceName;
+    }
+    if (parsed?.aspect && !next.aspect) next.aspect = parsed.aspect;
+    return next;
+  }
+
+  if (action === 'explain_tour_meeting_point') {
+    const parsed = parseExplainTourMeetingPointFromPrompt(prompt, next);
+    if (parsed?.serviceName && !next.serviceName) {
+      next.serviceName = parsed.serviceName;
+    }
+    if (parsed?.bookingId && !next.bookingId) next.bookingId = parsed.bookingId;
+    if (parsed?.aspect && !next.aspect) next.aspect = parsed.aspect;
+    return next;
+  }
+
   const parsed = parseExplainTourBookingFromPrompt(prompt, next);
   if (parsed?.serviceName && !next.serviceName) {
     next.serviceName = parsed.serviceName;
@@ -189,4 +285,5 @@ export {
   isDiagnoseTourCapacityPrompt,
   isExplainTourBookingPrompt,
   isExplainTourDaySlotsPrompt,
+  isExplainTourBookingRecordPrompt,
 };

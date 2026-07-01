@@ -1,0 +1,250 @@
+import {
+  buildExplainPreparationNotesSummary,
+  handleExplainPreparationNotesLogic,
+} from './ai-explain-preparation-notes.logic.js';
+import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
+import { BookingStatus } from '../booking/entities/booking.entity.js';
+
+function makeDeps(
+  overrides: Partial<SelfServiceBookingLogicDeps> = {},
+): SelfServiceBookingLogicDeps {
+  return {
+    bookingRepo: {
+      findOne: jest.fn(async () => ({
+        id: 'book-1',
+        businessId: 'biz-1',
+        customerId: 'cust-1',
+        status: BookingStatus.CONFIRMED,
+        startTime: new Date('2026-07-15T14:00:00Z'),
+        endTime: new Date('2026-07-15T15:00:00Z'),
+        service: {
+          id: 'svc-1',
+          name: 'Lipid Panel',
+          metadata: {
+            serviceType: 'lab_test',
+            requiresFasting: true,
+            preparationNotes: 'Fast 12 hours before draw.',
+          },
+        },
+      })),
+      find: jest.fn(),
+    } as unknown as SelfServiceBookingLogicDeps['bookingRepo'],
+    businessRepo: {
+      findOne: jest.fn(async () => ({
+        id: 'biz-1',
+        name: 'City Clinic',
+      })),
+    } as unknown as SelfServiceBookingLogicDeps['businessRepo'],
+    serviceRepo: {
+      find: jest.fn(async () => []),
+    } as unknown as SelfServiceBookingLogicDeps['serviceRepo'],
+    ...overrides,
+  } as SelfServiceBookingLogicDeps;
+}
+
+describe('ai-explain-preparation-notes.logic (ai-cmd-customer-4.3.4)', () => {
+  it('buildExplainPreparationNotesSummary covers fasting and prep', () => {
+    const summary = buildExplainPreparationNotesSummary({
+      service: {
+        id: 'svc-1',
+        name: 'Lipid Panel',
+        metadata: {
+          serviceType: 'lab_test',
+          requiresFasting: true,
+          preparationNotes: 'Fast 12 hours before draw.',
+        },
+      },
+      aspect: 'all',
+    });
+    expect(summary).toContain('fasting is required');
+    expect(summary).toContain('Fast 12 hours');
+  });
+
+  it('returns preparation notes from booked service', async () => {
+    const result = await handleExplainPreparationNotesLogic(
+      makeDeps(),
+      'biz-1',
+      { aspect: 'fasting', bookingId: 'book-1', sessionCustomerId: 'cust-1' },
+      'Do I need to fast?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_preparation_notes');
+    expect(result.details.requiresFasting).toBe(true);
+    expect(result.details.preparationNotes).toBe('Fast 12 hours before draw.');
+  });
+
+  it('returns failure when booking cannot be resolved', async () => {
+    const deps = makeDeps({
+      bookingRepo: {
+        findOne: jest.fn(async () => null),
+        find: jest.fn(async () => []),
+      } as unknown as SelfServiceBookingLogicDeps['bookingRepo'],
+    });
+
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'biz-1',
+      {},
+      'Do I need to fast?',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details.clarify).toBe(true);
+  });
+
+  it('returns tour meeting point details', async () => {
+    const deps = makeDeps({
+      bookingRepo: {
+        findOne: jest.fn(async () => ({
+          id: 'book-2',
+          businessId: 'biz-1',
+          customerId: 'cust-1',
+          status: BookingStatus.CONFIRMED,
+          service: {
+            id: 'svc-2',
+            name: 'City Tour',
+            metadata: {
+              serviceType: 'tour',
+              meetingPoint: 'Main hotel lobby',
+              includedItems: 'Comfortable shoes',
+            },
+          },
+        })),
+      } as unknown as SelfServiceBookingLogicDeps['bookingRepo'],
+    });
+
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'biz-1',
+      {
+        aspect: 'meeting_point',
+        bookingId: 'book-2',
+        sessionCustomerId: 'cust-1',
+      },
+      'What should I bring to my City Tour appointment?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.details.includedItems).toBe('Comfortable shoes');
+  });
+
+  it('does not handle tour meeting point prompts', async () => {
+    const deps = makeDeps();
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Where do we meet for my tour?',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details?.clarify).toBe(true);
+  });
+
+  it('returns ambiguous booking failure when service matches multiple visits', async () => {
+    const deps = makeDeps({
+      bookingRepo: {
+        findOne: jest.fn(),
+        find: jest.fn(async () => [
+          {
+            id: 'book-a',
+            businessId: 'biz-1',
+            customerId: 'cust-1',
+            status: BookingStatus.CONFIRMED,
+            startTime: new Date('2026-07-15T14:00:00Z'),
+            service: {
+              id: 'svc-a',
+              name: 'Lipid Panel',
+              metadata: { serviceType: 'lab_test', requiresFasting: true },
+            },
+          },
+          {
+            id: 'book-b',
+            businessId: 'biz-1',
+            customerId: 'cust-1',
+            status: BookingStatus.CONFIRMED,
+            startTime: new Date('2026-07-16T14:00:00Z'),
+            service: {
+              id: 'svc-b',
+              name: 'Lipid Panel',
+              metadata: { serviceType: 'lab_test', requiresFasting: true },
+            },
+          },
+        ]),
+      } as unknown as SelfServiceBookingLogicDeps['bookingRepo'],
+    });
+
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1', serviceName: 'Lipid Panel' },
+      'Do I need to fast for my lipid panel?',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details.candidates).toHaveLength(2);
+  });
+
+  it('resolves service by name when no booking is linked', async () => {
+    const deps = makeDeps({
+      bookingRepo: {
+        findOne: jest.fn(async () => null),
+        find: jest.fn(async () => []),
+      } as unknown as SelfServiceBookingLogicDeps['bookingRepo'],
+      serviceRepo: {
+        find: jest.fn(async () => [
+          {
+            id: 'svc-3',
+            name: 'City Tour',
+            metadata: {
+              serviceType: 'tour',
+              meetingPoint: 'Lobby',
+              includedItems: 'Shoes',
+            },
+          },
+        ]),
+      } as unknown as SelfServiceBookingLogicDeps['serviceRepo'],
+    });
+
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1', serviceName: 'City Tour', aspect: 'all' },
+      'What should I bring for the city tour?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.details.serviceName).toBe('City Tour');
+  });
+
+  it('returns clarify when prompt cannot be parsed', async () => {
+    const result = await handleExplainPreparationNotesLogic(
+      makeDeps(),
+      'biz-1',
+      {},
+      'hello',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details.missing).toContain('aspect');
+  });
+
+  it('returns failure when business is missing', async () => {
+    const deps = makeDeps({
+      businessRepo: {
+        findOne: jest.fn(async () => null),
+      } as unknown as SelfServiceBookingLogicDeps['businessRepo'],
+    });
+
+    const result = await handleExplainPreparationNotesLogic(
+      deps,
+      'missing',
+      { bookingId: 'book-1' },
+      'Do I need to fast?',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('explain_preparation_notes');
+  });
+});

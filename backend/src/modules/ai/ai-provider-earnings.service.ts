@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  Booking,
-} from '../booking/entities/booking.entity.js';
+import { Booking } from '../booking/entities/booking.entity.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { BusinessService } from '../business/business.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';

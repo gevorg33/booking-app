@@ -3,7 +3,11 @@ import { SIMILAR_BUDGET_SERVICE_PROMPTS } from './ai-budget-service-discovery.fi
 import { SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS } from './ai-flexible-availability.fixtures.js';
 import { SIMILAR_SERVICE_RANK_PROMPTS } from './ai-service-rank-discovery.fixtures.js';
 
-export type ServiceDiscoveryDomain = 'budget' | 'rank' | 'availability' | 'cross';
+export type ServiceDiscoveryDomain =
+  | 'budget'
+  | 'rank'
+  | 'availability'
+  | 'cross';
 
 /** hy/ru/translit row linked to a budget, rank, or avail canonical fixture id (discover-1.5). */
 export type ServiceDiscoveryMultilingualScenario = {
@@ -289,7 +293,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', serviceRank: 'lowest_price' },
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'lowest_price',
+      },
     },
     {
       id: 'discover-ml-rank-hy-luxury',
@@ -299,7 +306,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+      },
     },
     {
       id: 'discover-ml-rank-hy-popular',
@@ -309,7 +319,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', serviceRank: 'most_popular' },
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'most_popular',
+      },
     },
     {
       id: 'discover-ml-rank-ru-deluxe',
@@ -319,7 +332,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'facial', serviceRank: 'highest_price' },
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'highest_price',
+      },
     },
     {
       id: 'discover-ml-rank-ru-popular',
@@ -329,7 +345,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'both',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', serviceRank: 'most_popular' },
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'most_popular',
+      },
     },
     {
       id: 'discover-ml-rank-translit-cheapest',
@@ -339,7 +358,10 @@ export const MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS: ServiceDiscoveryMultiling
       domain: 'rank',
       surface: 'customer',
       expectedAction: 'list_services',
-      expectedParams: { serviceCategory: 'haircut', serviceRank: 'lowest_price' },
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'lowest_price',
+      },
     },
     // Availability — direct mirrors
     mirrorSourceScenario(
@@ -466,13 +488,13 @@ export const SERVICE_DISCOVERY_MULTILINGUAL_FIXTURE_IDS =
 
 export function lookupServiceDiscoverySourceFixture(
   sourceFixtureId: string,
-):
-  | SourceFixtureRow
-  | undefined {
+): SourceFixtureRow | undefined {
   return (
     SIMILAR_BUDGET_SERVICE_PROMPTS.find((row) => row.id === sourceFixtureId) ??
     SIMILAR_SERVICE_RANK_PROMPTS.find((row) => row.id === sourceFixtureId) ??
-    SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find((row) => row.id === sourceFixtureId)
+    SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find(
+      (row) => row.id === sourceFixtureId,
+    )
   );
 }
 

@@ -36,7 +36,10 @@ export const AI_COMMAND_EVAL_MARKETING_GROWTH_MULTILINGUAL_CASES: AiCommandEvalC
 
 export function listMarketingGrowthEvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly Pick<MarketingGrowthMultilingualScenario, 'id'>[] = MARKETING_GROWTH_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    MarketingGrowthMultilingualScenario,
+    'id'
+  >[] = MARKETING_GROWTH_MULTILINGUAL_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   return scenarios

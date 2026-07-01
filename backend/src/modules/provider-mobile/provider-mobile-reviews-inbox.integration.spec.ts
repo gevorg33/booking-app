@@ -1,5 +1,8 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { ProviderMobileService } from './provider-mobile.service.js';
 
 describe('ProviderMobileService reviews inbox (prov-exp-2.2)', () => {
@@ -13,7 +16,10 @@ describe('ProviderMobileService reviews inbox (prov-exp-2.2)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = {
     getBookingRetailSales: jest.fn(),
     hasConfiguredRetailProducts: jest.fn(),
@@ -208,7 +214,11 @@ describe('ProviderMobileService reviews inbox (prov-exp-2.2)', () => {
     businessService.ensureMember.mockResolvedValue({ role: 'manager' });
     employeeRepo.findOne.mockResolvedValue(null);
 
-    const result = await service.getProviderReviewsInbox('biz-1', 'user-mgr', {});
+    const result = await service.getProviderReviewsInbox(
+      'biz-1',
+      'user-mgr',
+      {},
+    );
 
     expect(result.reviewCount).toBe(0);
     expect(reviewRepo.find).not.toHaveBeenCalled();

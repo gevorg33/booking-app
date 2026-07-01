@@ -135,9 +135,7 @@ function createClinicPublicBookingHarness() {
   };
 
   const multiServiceBookingsService = {
-    resolveSettingsFromBusiness: jest
-      .fn()
-      .mockReturnValue({ enabled: false }),
+    resolveSettingsFromBusiness: jest.fn().mockReturnValue({ enabled: false }),
   };
 
   const configService = {
@@ -150,25 +148,25 @@ function createClinicPublicBookingHarness() {
     businessService: {
       findBySlug: jest.fn().mockResolvedValue(business),
       findOne: jest.fn().mockResolvedValue(business),
-    } as any,
-    bookingService: bookingService as any,
-    customerService: customerService as any,
+    },
+    bookingService: bookingService,
+    customerService: customerService,
     stripeIntegrationService: {
       isConnectReady: jest.fn().mockReturnValue(false),
     } as any,
-    bookingPaymentService: bookingPaymentService as any,
-    checkoutPricingService: checkoutPricingService as any,
-    subscriptionsService: subscriptionsService as any,
-    multiServiceBookingsService: multiServiceBookingsService as any,
+    bookingPaymentService: bookingPaymentService,
+    checkoutPricingService: checkoutPricingService,
+    subscriptionsService: subscriptionsService,
+    multiServiceBookingsService: multiServiceBookingsService,
     notificationsService: {
       sendMultiAppointmentConfirmation: jest.fn(),
-    } as any,
+    },
     configService: configService,
-    serviceRepo: serviceRepo as any,
-    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
-    schedulingPeriodRepo: { find: jest.fn() } as any,
-    bookingRepo: createClinicBookingRepo(storedBookings) as any,
-    publicPreVisitIntakeService: publicPreVisitIntakeService as any,
+    serviceRepo: serviceRepo,
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
+    bookingRepo: createClinicBookingRepo(storedBookings),
+    publicPreVisitIntakeService: publicPreVisitIntakeService,
   });
 
   return {

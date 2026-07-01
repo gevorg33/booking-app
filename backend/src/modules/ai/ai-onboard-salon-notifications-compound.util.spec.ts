@@ -2,9 +2,7 @@ import {
   ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS,
   ONBOARD_SALON_NOTIFICATIONS_RESCUE_SCENARIOS,
 } from './ai-onboard-salon-notifications-compound.fixtures.js';
-import {
-  AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_COMPOUND_CASES,
-} from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_ONBOARD_SALON_NOTIFICATIONS_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import {
   buildOnboardSalonNotificationsCompoundParams,
@@ -27,7 +25,9 @@ describe('ai-onboard-salon-notifications-compound.util (ai-cmd-ext-4.8)', () => 
     ({ prompt, orderedActions, expectedParams }) => {
       const steps = decomposeOnboardSalonNotificationsCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
-      expect(steps).toHaveLength(ONBOARD_SALON_NOTIFICATIONS_STEP_ACTIONS.length);
+      expect(steps).toHaveLength(
+        ONBOARD_SALON_NOTIFICATIONS_STEP_ACTIONS.length,
+      );
       if (expectedParams?.emailEnabled === true) {
         expect(steps[0].params.emailEnabled).toBe(true);
       }
@@ -52,7 +52,7 @@ describe('ai-onboard-salon-notifications-compound.util (ai-cmd-ext-4.8)', () => 
       expect(
         rescueOnboardSalonNotificationsCompoundIntent(
           prompt,
-          misclassifiedAction!,
+          misclassifiedAction,
         ),
       ).toEqual({
         action: 'compound_intent',

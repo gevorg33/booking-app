@@ -9,7 +9,9 @@ describe('consumer-booking-push-link.util', () => {
   it('builds manage booking push deep link', () => {
     expect(
       buildConsumerBookingManagePushUrl('glow-nails', 'b-1', 'token-abc'),
-    ).toBe('optischedule://book/glow-nails/manage?bookingId=b-1&token=token-abc');
+    ).toBe(
+      'optischedule://book/glow-nails/manage?bookingId=b-1&token=token-abc',
+    );
   });
 
   it('builds salon home and gift card push deep links', () => {

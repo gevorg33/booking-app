@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { ServiceList } from '@/components/public-booking/service-list';
+import { PublicAssistantStarterChips } from '@/components/public-booking/public-assistant-starter-chips';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import {
   formatDuration,
@@ -202,7 +203,12 @@ export function ServicesClient({
       <>
         <PublicHeader tenant={tenant} showBack backHref={backHref} />
         <main className="max-w-lg mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-5">{t('public.selectService')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">{t('public.selectService')}</h1>
+          <PublicAssistantStarterChips
+            slug={slug}
+            primaryColor={primary}
+            className="mb-5"
+          />
           <ServiceList
             slug={slug}
             services={services}
@@ -225,10 +231,15 @@ export function ServicesClient({
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <main className="max-w-lg mx-auto px-4 py-6 pb-32">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('public.selectService')}</h1>
-        <p className="text-sm text-gray-500 mb-5">
+        <p className="text-sm text-gray-500 mb-3">
           {t('public.multiServiceWithProvider').replace('{name}', employeeName)} ·{' '}
           {t('public.multiServiceSelectHint')}
         </p>
+        <PublicAssistantStarterChips
+          slug={slug}
+          primaryColor={primary}
+          className="mb-5"
+        />
 
         {services.length === 0 ? (
           <div className="text-center py-12 text-gray-500">

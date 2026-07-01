@@ -7,9 +7,9 @@ import { getCommandEntry } from './ai-command-registry.util.js';
 
 describe('ai command unwired intent util (ai-cmd-ext-0.3)', () => {
   it('reports missing switch case for AiCommandService dashboard intents', () => {
-    expect(
-      resolveUnwiredIntentDispatchGap('create_booking', 'dashboard'),
-    ).toBe('missing_switch_case');
+    expect(resolveUnwiredIntentDispatchGap('create_booking', 'dashboard')).toBe(
+      'missing_switch_case',
+    );
     expect(buildUnwiredIntentSummary('create_booking', 'dashboard')).toMatch(
       /registered for dashboard \(handler AiCommandService\) but AiCommandService has no switch case wired yet/,
     );

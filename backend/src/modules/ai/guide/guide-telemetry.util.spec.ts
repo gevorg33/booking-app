@@ -19,7 +19,9 @@ describe('guide-telemetry.util (ai-guide-1.7.3)', () => {
   it.each(GUIDE_TELEMETRY_INGEST_SCENARIOS)(
     'parses ingest scenario $id',
     ({ input }) => {
-      expect(parseGuideTelemetryEventInput(input as Record<string, unknown>)).toEqual(input);
+      expect(
+        parseGuideTelemetryEventInput(input as Record<string, unknown>),
+      ).toEqual(input);
     },
   );
 
@@ -56,7 +58,10 @@ describe('guide-telemetry.util (ai-guide-1.7.3)', () => {
   });
 
   it('aggregateGuideTelemetryMetrics computes rates', () => {
-    const summary = aggregateGuideTelemetryMetrics(GUIDE_TELEMETRY_AGGREGATE_ROWS, 30);
+    const summary = aggregateGuideTelemetryMetrics(
+      GUIDE_TELEMETRY_AGGREGATE_ROWS,
+      30,
+    );
     expect(summary.topicsOpened).toBe(2);
     expect(summary.stepsCompleted).toBe(2);
     expect(summary.handoffsToAction).toBe(1);
@@ -102,7 +107,10 @@ describe('guide-telemetry.util (ai-guide-1.7.3)', () => {
 
 describe('guide-telemetry.util unanswered topics (ai-guide-1.7.4)', () => {
   it('rankUnansweredGuideTopics prioritizes low completion and grounding failures', () => {
-    const ranked = rankUnansweredGuideTopics(GUIDE_UNANSWERED_RANKING_FIXTURES.byTopic, 5);
+    const ranked = rankUnansweredGuideTopics(
+      GUIDE_UNANSWERED_RANKING_FIXTURES.byTopic,
+      5,
+    );
     expect(ranked.map((row) => row.topicId)).toEqual([
       'provider.today.overview',
       'unknown',
@@ -111,11 +119,17 @@ describe('guide-telemetry.util unanswered topics (ai-guide-1.7.4)', () => {
     expect(ranked[0]?.reasons).toContain('grounding_failure');
     expect(ranked[1]?.reasons).toContain('missing_topic');
     expect(ranked[2]?.reasons).toContain('low_completion');
-    expect(ranked.find((row) => row.topicId === 'dashboard.ai.ops')).toBeUndefined();
+    expect(
+      ranked.find((row) => row.topicId === 'dashboard.ai.ops'),
+    ).toBeUndefined();
   });
 
   it('buildGuideTelemetryAnalyticsSummary attaches topUnansweredTopics', () => {
-    const summary = buildGuideTelemetryAnalyticsSummary(GUIDE_TELEMETRY_AGGREGATE_ROWS, 30, 5);
+    const summary = buildGuideTelemetryAnalyticsSummary(
+      GUIDE_TELEMETRY_AGGREGATE_ROWS,
+      30,
+      5,
+    );
     expect(summary.topUnansweredTopics.length).toBeGreaterThan(0);
     expect(summary.topicsOpened).toBe(2);
   });

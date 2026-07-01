@@ -3,10 +3,7 @@ import { join } from 'node:path';
 import { AI_COMMAND_TRACE_PIPE_MARKER } from './ai-command-trace.fixtures.js';
 import { COMMAND_TRACE_RECORDER_PIPE_MARKER } from './ai-command-trace-recorder.fixtures.js';
 
-const AI_MODULE_SOURCE = readFileSync(
-  join(__dirname, 'ai.module.ts'),
-  'utf8',
-);
+const AI_MODULE_SOURCE = readFileSync(join(__dirname, 'ai.module.ts'), 'utf8');
 const GATEWAY_SOURCE = readFileSync(
   join(__dirname, 'ai-gateway.service.ts'),
   'utf8',

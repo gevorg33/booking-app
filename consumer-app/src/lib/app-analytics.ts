@@ -110,6 +110,8 @@ interface QueuedEvent {
 
 const ANON_ID_KEY = 'app-analytics-anon-id';
 const CONSENT_KEY = 'app-analytics-consent';
+export const CONSUMER_DECLINE_ANALYTICS_CONSENT_EVENT =
+  'consumer:decline-analytics-consent';
 const INSTALLED_KEY = 'app-analytics-installed';
 const FLUSH_INTERVAL_MS = 5_000;
 const MAX_BATCH_SIZE = 10;
@@ -160,6 +162,13 @@ export function setAnalyticsConsent(granted: boolean): void {
     trackAppInstalledOnce();
     track('app_opened');
     if (queue.length > 0) void flushAppAnalytics();
+  }
+}
+
+export function declineConsumerAnalyticsConsent(): void {
+  setAnalyticsConsent(false);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CONSUMER_DECLINE_ANALYTICS_CONSENT_EVENT));
   }
 }
 

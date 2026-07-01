@@ -128,9 +128,9 @@ describe('ai-create-service-prepayment.util (ai-cmd-ext-5.2)', () => {
         const rows = enriched.services as Array<Record<string, unknown>>;
         expect(rows).toHaveLength(services.length);
         for (let index = 0; index < services.length; index += 1) {
-          expect(rows[index]?.serviceName).toBe(services[index]!.serviceName);
+          expect(rows[index]?.serviceName).toBe(services[index].serviceName);
           expect(rows[index]?.prepaymentMode).toBe(
-            services[index]!.prepaymentMode,
+            services[index].prepaymentMode,
           );
         }
       },

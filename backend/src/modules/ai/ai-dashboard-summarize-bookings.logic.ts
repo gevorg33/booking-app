@@ -11,7 +11,8 @@ import type { CommandResult } from './command-completion.types.js';
 
 export const SUMMARIZE_BOOKINGS_INTENTS = ['summarize_bookings'] as const;
 
-export type SummarizeBookingsIntent = (typeof SUMMARIZE_BOOKINGS_INTENTS)[number];
+export type SummarizeBookingsIntent =
+  (typeof SUMMARIZE_BOOKINGS_INTENTS)[number];
 
 export function isSummarizeBookingsIntent(
   action: string,
@@ -27,8 +28,7 @@ export function isDashboardSummarizeBookingsPrompt(prompt: string): boolean {
   const hasPeriod =
     /\b(today|tomorrow|yesterday|this week|last week|this month|last month|all time)\b/i.test(
       lower,
-    ) ||
-    /\b\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?\b/.test(lower);
+    ) || /\b\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?\b/.test(lower);
 
   return (
     hasPeriod &&
@@ -55,7 +55,9 @@ export function rescueSummarizeBookingsIntent(
     action: 'summarize_bookings',
     bookingMetric,
     rescueReason:
-      bookingMetric === 'revenue' ? 'total_earnings' : 'summarize_bookings_metric',
+      bookingMetric === 'revenue'
+        ? 'total_earnings'
+        : 'summarize_bookings_metric',
   };
 }
 
@@ -167,11 +169,17 @@ export function composeSummarizeBookingsResult(
       booking.status !== 'completed' &&
       booking.status !== 'no_show',
   );
-  const confirmed = filtered.filter((booking) => booking.status === 'confirmed');
+  const confirmed = filtered.filter(
+    (booking) => booking.status === 'confirmed',
+  );
   const pending = filtered.filter((booking) => booking.status === 'pending');
-  const completed = filtered.filter((booking) => booking.status === 'completed');
+  const completed = filtered.filter(
+    (booking) => booking.status === 'completed',
+  );
   const active = filtered.filter((booking) => booking.status !== 'cancelled');
-  const cancelled = filtered.filter((booking) => booking.status === 'cancelled');
+  const cancelled = filtered.filter(
+    (booking) => booking.status === 'cancelled',
+  );
   const noShows = filtered.filter((booking) => booking.status === 'no_show');
   const unpaid = filtered.filter(
     (booking) =>
@@ -244,7 +252,7 @@ export function composeSummarizeBookingsResult(
       if (busiest.length === 0) {
         lines.push('• No active appointments in this period.');
       } else {
-        const [topName, topCount] = busiest[0]!;
+        const [topName, topCount] = busiest[0];
         const tied = busiest.filter(([, count]) => count === topCount);
         lines.push(`• ${topName}: ${topCount} appointment(s)`);
         if (tied.length > 1) {
@@ -294,7 +302,7 @@ export function composeSummarizeBookingsResult(
         ),
       );
       if (busiest.length > 0) {
-        lines.push(`• Busiest: ${busiest[0]![0]} (${busiest[0]![1]} appt(s))`);
+        lines.push(`• Busiest: ${busiest[0][0]} (${busiest[0][1]} appt(s))`);
       }
       break;
   }
@@ -326,7 +334,7 @@ export function composeSummarizeBookingsResult(
       revenue: revenueDetails,
       busiestProvider:
         busiest.length > 0
-          ? { name: busiest[0]![0], count: busiest[0]![1] }
+          ? { name: busiest[0][0], count: busiest[0][1] }
           : null,
       byProvider: Object.fromEntries(busiest),
     },

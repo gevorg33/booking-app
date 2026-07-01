@@ -76,7 +76,8 @@ export const CATALOG_NOTIFY_DASHBOARD_SCENARIOS: CatalogNotifyDashboardScenario[
     },
     {
       id: 'notify-create-package-hy',
-      prompt: 'Ստեղծիր «Սպա օր» փաթեթը մերսում + դեմք և տեղեկացրի՛ր հաճախորդներին',
+      prompt:
+        'Ստեղծիր «Սպա օր» փաթեթը մերսում + դեմք և տեղեկացրի՛ր հաճախորդներին',
       expectedAction: 'create_package',
       notifyCustomers: true,
       localeHint: 'hy',
@@ -113,7 +114,8 @@ export const CATALOG_NOTIFY_DASHBOARD_SCENARIOS: CatalogNotifyDashboardScenario[
     },
     {
       id: 'notify-announce-package-ru',
-      prompt: 'Создай пакет Spa Day с массажем и лицом и разошли объявление клиентам',
+      prompt:
+        'Создай пакет Spa Day с массажем и лицом и разошли объявление клиентам',
       expectedAction: 'create_package',
       notifyCustomers: true,
       localeHint: 'ru',

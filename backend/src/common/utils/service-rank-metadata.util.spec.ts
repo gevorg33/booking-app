@@ -56,12 +56,12 @@ describe('service-rank-metadata.util (rank-1.8)', () => {
 
   describe('extractServiceTierFromPrompt (rank-tier-metadata-en)', () => {
     it('detects premium tier filter prompts', () => {
-      expect(
-        isServiceTierFilterPrompt('Premium tier services for color'),
-      ).toBe(true);
-      expect(extractServiceTierFromPrompt('Premium tier services for color')).toBe(
-        'premium',
+      expect(isServiceTierFilterPrompt('Premium tier services for color')).toBe(
+        true,
       );
+      expect(
+        extractServiceTierFromPrompt('Premium tier services for color'),
+      ).toBe('premium');
       expect(
         enrichServiceTierFromPrompt({}, 'Premium tier services for color'),
       ).toEqual({ serviceTier: 'premium' });

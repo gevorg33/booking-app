@@ -28,6 +28,7 @@ import {
   handleValidateGiftCardLogic,
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
+import { handleBuyGiftCardForSomeoneLogic } from './ai-buy-gift-card-for-someone.logic.js';
 import { handleExplainServiceOnlinePaymentSetupLogic } from './ai-service-online-payment-setup.logic.js';
 import { handleConfigureServiceDepositPolicyLogic } from './ai-service-deposit-policy.logic.js';
 import { handleExplainPublicBookingCheckoutLogic } from './ai-explain-public-booking-checkout.logic.js';
@@ -239,12 +240,7 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
     handleExplainPaymentStatusLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('collect_cash_confirm', (deps, ctx) =>
-    handleCollectCashConfirmLogic(
-      deps,
-      ctx.businessId,
-      ctx.params,
-      ctx.userId,
-    ),
+    handleCollectCashConfirmLogic(deps, ctx.businessId, ctx.params, ctx.userId),
   );
   map.set('check_providers_for_service', (deps, ctx) =>
     handleCheckProvidersForServiceLogic(
@@ -258,12 +254,7 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
     handleBookNearestSlotLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
   );
   map.set('apply_gift_card_code', (deps, ctx) =>
-    handleApplyGiftCardCodeLogic(
-      deps,
-      ctx.businessId,
-      ctx.params,
-      ctx.prompt,
-    ),
+    handleApplyGiftCardCodeLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
   );
   map.set('check_gift_card_balance', (deps, ctx) =>
     handleCheckGiftCardBalanceLogic(
@@ -275,6 +266,14 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
   );
   map.set('buy_gift_card', (deps, ctx) =>
     handleBuyGiftCardLogic(deps, ctx.businessId, ctx.params, false),
+  );
+  map.set('buy_gift_card_for_someone', (deps, ctx) =>
+    handleBuyGiftCardForSomeoneLogic(
+      deps,
+      ctx.businessId,
+      withPromptParams(ctx.params, ctx.prompt),
+      ctx.prompt,
+    ),
   );
   map.set('buy_gift_card_physical', (deps, ctx) =>
     handleBuyGiftCardLogic(deps, ctx.businessId, ctx.params, true),

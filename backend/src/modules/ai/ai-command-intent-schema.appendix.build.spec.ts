@@ -23,7 +23,9 @@ const APPENDIX_BUILD_SOURCE = readFileSync(
 
 describe('ai-command-intent-schema appendix (ai-cmd-ext-6.3)', () => {
   it('builds appendix from domain *_CLASSIFIER_RULES imports only', () => {
-    expect(DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS.length).toBeGreaterThan(60);
+    expect(DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS.length).toBeGreaterThan(
+      60,
+    );
     expect(APPENDIX_BUILD_SOURCE).not.toMatch(/^- /m);
     expect(buildDashboardIntentSchemaAppendix()).toContain(
       CHECK_AND_BOOK_CLASSIFIER_RULES.trim(),
@@ -38,7 +40,9 @@ describe('ai-command-intent-schema appendix (ai-cmd-ext-6.3)', () => {
     expect(DASHBOARD_INTENT_SCHEMA).toContain(
       'explain_app_feature: READ — explain what a dashboard feature',
     );
-    expect(DASHBOARD_INTENT_SCHEMA).toContain('check_providers_for_service: READ');
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'check_providers_for_service: READ',
+    );
     expect(DASHBOARD_INTENT_SCHEMA).toBe(buildDashboardIntentSchema());
   });
 

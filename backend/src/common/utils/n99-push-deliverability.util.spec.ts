@@ -18,14 +18,18 @@ describe('n99-push-deliverability.util', () => {
       const classification = classifyFcmDeliveryError(code);
       expect(classification.action).toBe(action);
       expect(classification.provider).toBe(provider);
-      expect(shouldInvalidatePushToken(classification)).toBe(action === 'invalidate_token');
+      expect(shouldInvalidatePushToken(classification)).toBe(
+        action === 'invalidate_token',
+      );
     },
   );
 
   it.each(N99_PUSH_TOKEN_REFRESH_SCENARIOS)(
     'token refresh scenario $id',
     ({ previous, next, shouldRefresh }) => {
-      expect(shouldRefreshConsumerPushToken(previous, next)).toBe(shouldRefresh);
+      expect(shouldRefreshConsumerPushToken(previous, next)).toBe(
+        shouldRefresh,
+      );
     },
   );
 

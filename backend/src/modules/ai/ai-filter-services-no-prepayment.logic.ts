@@ -156,7 +156,7 @@ export async function handleFilterServicesNoPrepaymentLogic(
         path: 'services',
         query:
           rows.length === 1
-            ? { serviceId: rows[0]!.serviceId, prepaymentMode: 'none' }
+            ? { serviceId: rows[0].serviceId, prepaymentMode: 'none' }
             : {
                 serviceIds: rows.map((row) => row.serviceId).join(','),
                 prepaymentMode: 'none',

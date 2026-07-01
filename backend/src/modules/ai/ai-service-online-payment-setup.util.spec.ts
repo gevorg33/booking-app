@@ -60,7 +60,10 @@ describe('ai-service-online-payment-setup.util', () => {
   it.each(EXPLAIN_SERVICE_ONLINE_PAYMENT_SETUP_PROMPTS)(
     'parses explain setup fixture $id',
     ({ prompt, paramsPartial }) => {
-      const parsed = parseExplainServiceOnlinePaymentSetupFromPrompt(prompt, {});
+      const parsed = parseExplainServiceOnlinePaymentSetupFromPrompt(
+        prompt,
+        {},
+      );
       expect(parsed).not.toBeNull();
       if (paramsPartial?.serviceName) {
         expect(parsed?.serviceName).toBe(paramsPartial.serviceName);
@@ -114,9 +117,12 @@ describe('ai-service-online-payment-setup.util', () => {
   });
 
   it('filters services by category hint', () => {
-    const filtered = filterServicesForOnlinePaymentSetupExplain(catalog as any, {
-      categoryName: 'massage',
-    });
+    const filtered = filterServicesForOnlinePaymentSetupExplain(
+      catalog as any,
+      {
+        categoryName: 'massage',
+      },
+    );
     expect(filtered.map((service) => service.name)).toEqual(['Massage']);
   });
 });

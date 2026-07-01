@@ -18,23 +18,63 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('Armenian/Russian/transliteration check+book');
     expect(schema).toContain('забронируй ближайший');
     expect(schema).toContain('explain_checkout_currency');
+    expect(schema).toContain('explain_checkout_tax');
+    expect(schema).toContain('explain_deposit_forfeiture');
+    expect(schema).toContain('find_services_under_budget');
+    expect(schema).toContain('Services under $50');
+    expect(schema).toContain('find_evening_weekend_slots');
+    expect(schema).toContain('Evening or weekend slots for');
+    expect(schema).toContain('explain_salon_profile');
+    expect(schema).toContain('Tell me about this salon');
+    expect(schema).toContain('Do I lose my deposit if I cancel?');
+    expect(schema).toContain('NOT explain_consumer_checkout_tax');
     expect(schema).toContain('explain_why_stripe_required');
+    expect(schema).toContain('diagnose_stripe_checkout_failure');
+    expect(schema).toContain('pay_at_venue_fallback');
+    expect(schema).toContain('resume_booking_draft');
+    expect(schema).toContain('explain_slot_no_longer_available');
+    expect(schema).toContain('explain_voice_input');
+    expect(schema).toContain('speak_assistant_reply');
+    expect(schema).toContain('give_ai_feedback');
+    expect(schema).toContain('explain_rtl_layout');
     expect(schema).toContain('explain_checkout_total');
     expect(schema).toContain('explain_amount_due_now');
     expect(schema).toContain('How much do I pay today?');
     expect(schema).toContain('explain_guest_checkout_fields');
+    expect(schema).toContain('explain_why_sign_in');
+    expect(schema).toContain('sign_in_to_manage_booking');
+    expect(schema).toContain('recover_lost_manage_link');
+    expect(schema).toContain('fix_checkout_validation_error');
+    expect(schema).toContain('confirm_my_booking_details');
+    expect(schema).toContain('add_booking_to_calendar');
+    expect(schema).toContain('get_directions_to_salon');
+    expect(schema).toContain('explain_preparation_notes');
     expect(schema).toContain('Why do you need my email');
     expect(schema).toContain('explain_service_price');
     expect(schema).toContain('explain_payment_options_for_service');
     expect(schema).toContain('find_soonest_appointment');
+    expect(schema).toContain('join_waitlist');
+    expect(schema).toContain('check_waitlist_status');
     expect(schema).toContain("Who's free soonest for a trim");
     expect(schema).toContain('compare_services');
     expect(schema).toContain('Haircut vs blowdry price and duration');
     expect(schema).toContain('filter_services_no_prepayment');
     expect(schema).toContain('What can I book without paying online?');
     expect(schema).toContain('explain_business_hours_and_location');
+    expect(schema).toContain('Directions to the salon');
+    expect(schema).toContain('Do I need to fast before my visit?');
     expect(schema).toContain('When are you open Saturday?');
     expect(schema).toContain('explain_provider_specialty');
+    expect(schema).toContain('explain_any_provider_option');
+    expect(schema).toContain('pick_provider_for_service');
+    expect(schema).toContain('switch_provider_same_time');
+    expect(schema).toContain('explain_professional_profile');
+    expect(schema).toContain('explain_provider_availability');
+    expect(schema).toContain('What does Any stylist mean?');
+    expect(schema).toContain('Book with Anna for color');
+    expect(schema).toContain('Keep 3pm but different stylist');
+    expect(schema).toContain("Show me Anna's services");
+    expect(schema).toContain('Is Marco working Saturday?');
     expect(schema).toContain('Who is best for curly hair?');
     expect(schema).toContain('why prepayment');
     expect(schema).toContain('do I pay online for color');
@@ -46,6 +86,8 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('check_multi_service_availability');
     expect(schema).toContain('add_services_to_cart');
     expect(schema).toContain('promo_code_help');
+    expect(schema).toContain('how_to_download_app');
+    expect(schema).toContain('/get-app/[slug]');
     expect(schema).toContain('where enter promo code');
     expect(schema).toContain('proceed to Stripe checkout');
     expect(schema).toContain('Can I pay cash');
@@ -82,6 +124,8 @@ describe('buildPublicClassifierSchema', () => {
     );
     expect(schema).toContain('NOT explain_tour_booking');
     expect(schema).toContain('diagnose_tour_capacity');
+    expect(schema).toContain('explain_tour_meeting_point');
+    expect(schema).toContain('Where do we meet for my tour?');
     expect(schema).toContain('explain_checkout_recommendations');
     expect(schema).toContain('You might also like');
     expect(schema).toContain('NOT explain_recommendation_setup');
@@ -102,18 +146,24 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('highest_price');
     expect(schema).toContain('lowest_price');
     expect(schema).toContain('most_popular');
+    expect(schema).toContain('What is the best and premium haircut service?');
     expect(schema).toContain(
-      'What is the best and premium haircut service?',
+      'recommend_specialists, serviceCategory=massage — NO serviceRank',
     );
-    expect(schema).toContain('recommend_specialists, serviceCategory=massage — NO serviceRank');
     expect(schema).toContain('"availabilityWindows"');
     expect(schema).toContain(
       'I want a haircut tomorrow evening or Friday afternoon',
     );
     expect(schema).toContain('Monday and Friday afternoon');
     expect(schema).toContain('AND vs OR');
-    expect(schema).toContain('booking_help: READ — step-aware booking funnel guide');
-    expect(schema).toContain('explain_app_feature: READ — public booking page UI semantics');
-    expect(schema).toContain('bookingStep in session selects playbook when omitted');
+    expect(schema).toContain(
+      'booking_help: READ — step-aware booking funnel guide',
+    );
+    expect(schema).toContain(
+      'explain_app_feature: READ — public booking page UI semantics',
+    );
+    expect(schema).toContain(
+      'bookingStep in session selects playbook when omitted',
+    );
   });
 });

@@ -32,7 +32,9 @@ describe('ai-explain-service-price.util (ai-cmd-customer-4.1.1)', () => {
   );
 
   it.each(
-    EXPLAIN_SERVICE_PRICE_MULTILINGUAL_SCENARIOS.map((row) => [row.id, row] as const),
+    EXPLAIN_SERVICE_PRICE_MULTILINGUAL_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects multilingual explain-service-price prompt $id', (_id, row) => {
     expect(isExplainServicePricePrompt(row.prompt)).toBe(true);
     expect(rescueExplainServicePriceIntent(row.prompt, 'unknown')?.action).toBe(
@@ -56,12 +58,12 @@ describe('ai-explain-service-price.util (ai-cmd-customer-4.1.1)', () => {
     expect(extractServiceNameForPricePrompt('How much is a haircut?')).toBe(
       'haircut',
     );
-    expect(extractServiceNameForPricePrompt("What's the price of massage?")).toBe(
-      'massage',
-    );
-    expect(extractServiceNameForPricePrompt('Is massage included in the $80?')).toBe(
-      'massage',
-    );
+    expect(
+      extractServiceNameForPricePrompt("What's the price of massage?"),
+    ).toBe('massage');
+    expect(
+      extractServiceNameForPricePrompt('Is massage included in the $80?'),
+    ).toBe('massage');
     expect(
       enrichExplainServicePriceParamsFromPrompt({}, 'How much is a haircut?')
         .serviceName,
@@ -97,16 +99,18 @@ describe('ai-explain-service-price.util (ai-cmd-customer-4.1.1)', () => {
   });
 
   it('does not steal checkout-total or budget-list prompts', () => {
-    expect(isExplainServicePricePrompt('How much do I pay today for massage?')).toBe(
+    expect(
+      isExplainServicePricePrompt('How much do I pay today for massage?'),
+    ).toBe(false);
+    expect(
+      isExplainServicePricePrompt('Explain checkout total for massage'),
+    ).toBe(false);
+    expect(isExplainServicePricePrompt('What can I book under $50?')).toBe(
       false,
     );
-    expect(isExplainServicePricePrompt('Explain checkout total for massage')).toBe(
-      false,
-    );
-    expect(isExplainServicePricePrompt('What can I book under $50?')).toBe(false);
-    expect(isExplainServicePricePrompt('Why is there a deposit for massage?')).toBe(
-      false,
-    );
+    expect(
+      isExplainServicePricePrompt('Why is there a deposit for massage?'),
+    ).toBe(false);
   });
 
   it('maps explain-service-price fixtures to passing eval golden cases', () => {

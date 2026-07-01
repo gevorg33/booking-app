@@ -5,7 +5,10 @@ import {
   type ClinicTestResultExtEvalScenario,
 } from './ai-clinic-test-result-ext-multilingual.fixtures.js';
 import type { ClinicTestResultExtIntent } from './ai-clinic-test-result-ext.util.js';
-import type { AiCommandEvalCase, AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalLocale,
+} from './eval/ai-command-eval.types.js';
 
 export type ClinicTestResultExtLocaleParityGap = {
   enScenarioId: string;

@@ -8,6 +8,17 @@ export const TOUR_BOOKING_RECORD_CLASSIFIER_RULES = `- explain_tour_booking_reco
   - "Объясни запись тура: pax и даты начала/конца для бронирования bk-1" → explain_tour_booking_record, bookingId=bk-1
   - "Բացատրիր էքսկուրսիայի ամրագրումը pax-ով և տարեթվերով" → explain_tour_booking_record`;
 
+/** Customer mobile classifier rules (ai-cmd-customer-4.10.4). */
+export const CUSTOMER_TOUR_BOOKING_RECORD_CLASSIFIER_RULES = `- explain_tour_booking_record: READ — signed-in customer: summarize one of their tour bookings — confirmation number (booking ID), paxCount, tourStartDate, tourEndDate, specialRequirements. Triggers: "my tour confirmation number", "summarize my group booking", "my tour reservation details", "how many people on my tour". Uses session customer bookings when bookingId omitted. Optional bookingId. NOT confirm_my_booking_details (single appointment time/service summary without tour metadata), NOT explain_tour_booking (catalog max group / per-person price), NOT list_my_appointments (browse all bookings), NOT explain_tour_services (catalog list), and NOT explain_tour_day_slots (slot display).
+- Examples:
+  - "What's my tour confirmation number?" → explain_tour_booking_record, aspect=confirmationNumber
+  - "Summarize my group booking" → explain_tour_booking_record, aspect=all
+  - "How many people are on my tour reservation?" → explain_tour_booking_record, aspect=paxCount
+  - "When does my group tour start and end?" → explain_tour_booking_record, aspect=dates
+  - "Do I have special requirements saved on my tour?" → explain_tour_booking_record, aspect=specialRequirements
+  - "Какой номер подтверждения моего тура?" → explain_tour_booking_record, aspect=confirmationNumber
+  - "Ամփոփիր իմ խմբային ամրագրումը" → explain_tour_booking_record, aspect=all`;
+
 export const EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS = [
   {
     id: 'explain-record-bk-tour-1',
@@ -82,5 +93,106 @@ export const EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS = [
     prompt: 'Explain the pax count stored on tour booking bk-tour-1',
     bookingId: 'bk-tour-1',
     aspect: 'paxCount' as const,
+  },
+] as const;
+
+export const EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS = [
+  {
+    id: 'customer-confirmation-number',
+    prompt: "What's my tour confirmation number?",
+    aspect: 'confirmationNumber' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-summarize-group-booking',
+    prompt: 'Summarize my group booking',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-confirmation-code',
+    prompt: 'What is my tour booking confirmation code?',
+    aspect: 'confirmationNumber' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-wine-tour-details',
+    prompt: 'Show details for my Wine Country tour booking',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+    serviceName: 'Wine Country',
+  },
+  {
+    id: 'customer-pax-on-reservation',
+    prompt: 'How many people are on my tour reservation?',
+    aspect: 'paxCount' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-tour-start-end',
+    prompt: 'When does my group tour start and end?',
+    aspect: 'dates' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-recap-tour',
+    prompt: 'Recap my tour booking details',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-mountain-trek-stored',
+    prompt: "What's stored on my Mountain Trek booking?",
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+    serviceName: 'Mountain Trek',
+  },
+  {
+    id: 'customer-special-requirements-saved',
+    prompt: 'Do I have special requirements saved on my tour?',
+    aspect: 'specialRequirements' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-confirmation-hash',
+    prompt: 'My tour confirmation # — what is it?',
+    aspect: 'confirmationNumber' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-summarize-pax-dates',
+    prompt: 'Summarize pax and dates for my tour',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'customer-group-booking-summary',
+    prompt: 'Give me a summary of my group tour booking',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'ru-customer-confirmation-number',
+    prompt: 'Какой номер подтверждения моего тура?',
+    aspect: 'confirmationNumber' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'ru-customer-summarize-group',
+    prompt: 'Кратко опиши мою групповую запись на тур',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'hy-customer-summarize-group',
+    prompt: 'Ամփոփիր իմ խմբային ամրագրումը',
+    aspect: 'all' as const,
+    surface: 'customer' as const,
+  },
+  {
+    id: 'hy-customer-confirmation-number',
+    prompt: 'Ո՞րն է իմ էքսկուրսիայի հաստատման համարը',
+    aspect: 'confirmationNumber' as const,
+    surface: 'customer' as const,
   },
 ] as const;

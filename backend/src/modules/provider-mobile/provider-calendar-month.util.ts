@@ -68,7 +68,15 @@ function parseIsoDateKey(dateKey: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey.trim());
   if (!match) throw new Error(`Invalid date key: ${dateKey}`);
   return new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0),
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      12,
+      0,
+      0,
+      0,
+    ),
   );
 }
 
@@ -98,10 +106,16 @@ export function resolveProviderCalendarUtilizationBand(input: {
   utilizationPercent: number;
 }): ProviderCalendarUtilizationBand {
   if (input.bookingCount <= 0) return 'empty';
-  if (input.utilizationPercent >= PROVIDER_CALENDAR_UTILIZATION_BAND_THRESHOLDS.high) {
+  if (
+    input.utilizationPercent >=
+    PROVIDER_CALENDAR_UTILIZATION_BAND_THRESHOLDS.high
+  ) {
     return 'high';
   }
-  if (input.utilizationPercent >= PROVIDER_CALENDAR_UTILIZATION_BAND_THRESHOLDS.medium) {
+  if (
+    input.utilizationPercent >=
+    PROVIDER_CALENDAR_UTILIZATION_BAND_THRESHOLDS.medium
+  ) {
     return 'medium';
   }
   return 'low';
@@ -159,13 +173,17 @@ export function buildProviderCalendarMonthDaySummary(input: {
   employeeCount: number;
 }): ProviderCalendarMonthDaySummary {
   const bookingCount = countBookingsForDateKey(input.bookings, input.dateKey);
-  const bookedMinutes = sumBookedMinutesForDateKey(input.bookings, input.dateKey);
+  const bookedMinutes = sumBookedMinutesForDateKey(
+    input.bookings,
+    input.dateKey,
+  );
   let scheduledMinutes = sumScheduledMinutesForDateKey(
     input.periods,
     input.dateKey,
   );
   if (scheduledMinutes <= 0 && input.employeeCount > 0) {
-    scheduledMinutes = PROVIDER_CALENDAR_DEFAULT_DAY_MINUTES * input.employeeCount;
+    scheduledMinutes =
+      PROVIDER_CALENDAR_DEFAULT_DAY_MINUTES * input.employeeCount;
   }
   const utilizationPercent = computeProviderUtilizationPercent(
     bookedMinutes,

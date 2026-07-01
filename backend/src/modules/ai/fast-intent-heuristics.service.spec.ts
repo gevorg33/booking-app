@@ -37,8 +37,9 @@ function assertRoutingScenario(
   expect(candidates.map((candidate) => candidate.action)).toEqual(
     scenario.expectedActions,
   );
-  expect(candidates.every((candidate) => candidate.source === 'fast_heuristic'))
-    .toBe(true);
+  expect(
+    candidates.every((candidate) => candidate.source === 'fast_heuristic'),
+  ).toBe(true);
 
   if (scenario.expectedComplexityTier) {
     expect(candidates[0]?.paramHints?.complexityTier).toBe(
@@ -57,7 +58,9 @@ function assertRoutingScenario(
   }
 
   if (scenario.category === 'negative') {
-    throw new Error(`negative scenario ${scenario.id} must have zero candidates`);
+    throw new Error(
+      `negative scenario ${scenario.id} must have zero candidates`,
+    );
   }
 }
 

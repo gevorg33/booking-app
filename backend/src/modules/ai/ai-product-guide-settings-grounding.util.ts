@@ -108,8 +108,11 @@ export function collectUnknownSettingsPathIssues(
   extraAllowedPaths: readonly string[] = [],
 ): Array<{ code: 'unknown_setting_key'; message: string; value: string }> {
   const allowed = new Set(extraAllowedPaths);
-  const issues: Array<{ code: 'unknown_setting_key'; message: string; value: string }> =
-    [];
+  const issues: Array<{
+    code: 'unknown_setting_key';
+    message: string;
+    value: string;
+  }> = [];
 
   for (const path of collectSettingsPathsFromGuideText(text)) {
     if (isGroundedSettingsPath(path, allowed)) continue;

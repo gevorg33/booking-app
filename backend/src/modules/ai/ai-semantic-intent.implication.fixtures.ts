@@ -33,8 +33,9 @@ export const SEMANTIC_IMPLICATION_SCENARIOS: SemanticImplicationScenario[] =
   ).map(({ topIntent: _topIntent, ...scenario }) => scenario);
 
 /** Subset wired into deterministic token-cosine gate (pipe-1.4.4). */
-export const IMPLICATION_TOKEN_COSINE_SCENARIOS = SEMANTIC_IMPLICATION_SCENARIOS.filter(
-  (scenario) =>
-    scenario.id === 'en-hair-long-implied-booking' ||
-    scenario.id === 'en-work-time-implied-schedule',
-);
+export const IMPLICATION_TOKEN_COSINE_SCENARIOS =
+  SEMANTIC_IMPLICATION_SCENARIOS.filter(
+    (scenario) =>
+      scenario.id === 'en-hair-long-implied-booking' ||
+      scenario.id === 'en-work-time-implied-schedule',
+  );

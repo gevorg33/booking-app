@@ -7,13 +7,15 @@ import {
 } from './ai-provider-push-setup.util.js';
 
 describe('ai-provider-push-setup.util', () => {
-  it.each(PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS.map((scenario) => [scenario.id, scenario]))(
-    'rescues $0',
-    (_id, scenario) => {
-      const rescued = rescueProviderPushSetupIntent(scenario.prompt, 'unknown');
-      expect(rescued?.action).toBe(scenario.expectedAction);
-    },
-  );
+  it.each(
+    PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS.map((scenario) => [
+      scenario.id,
+      scenario,
+    ]),
+  )('rescues $0', (_id, scenario) => {
+    const rescued = rescueProviderPushSetupIntent(scenario.prompt, 'unknown');
+    expect(rescued?.action).toBe(scenario.expectedAction);
+  });
 
   it('prefers enable over explain for mutate phrasing', () => {
     expect(

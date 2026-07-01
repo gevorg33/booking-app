@@ -102,7 +102,11 @@ const AMBIGUOUS_INTENT_NEIGHBORS: Record<string, readonly string[]> = {
     'list_bookings',
     'analyze_appointments',
   ],
-  reschedule_booking: ['create_booking', 'cancel_bookings', 'check_availability'],
+  reschedule_booking: [
+    'create_booking',
+    'cancel_bookings',
+    'check_availability',
+  ],
 };
 
 function surfaceIntentSet(surface: CommandSurface): Set<string> {
@@ -188,10 +192,15 @@ export function buildNarrowIntentShortlist(
     }
   }
 
-  expandFromCompoundRecipes(seedForExpansion, surface, surfaceAllowed, (action) => {
-    pushExpanded(action);
-    if (ordered.length >= max) return;
-  });
+  expandFromCompoundRecipes(
+    seedForExpansion,
+    surface,
+    surfaceAllowed,
+    (action) => {
+      pushExpanded(action);
+      if (ordered.length >= max) return;
+    },
+  );
 
   return ordered.slice(0, max);
 }

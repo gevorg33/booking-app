@@ -51,6 +51,8 @@ import { buildRebookBookServicePath } from '../lib/consumer-rebook.util.js';
 import { canRebookBooking } from '../lib/home-screen-widget.util.js';
 import { trackRebookTap } from '../lib/consumer-growth-loops.util.js';
 import { useHomeScreenWidgetSync } from '../hooks/use-home-screen-widget-sync.js';
+import { enableConsumerNativePush } from '../services/native-push.js';
+import { openNotificationSettings } from '../lib/push-reachability.util.js';
 
 function statusLabel(status: string, copy: ConsumerCopy): string {
   switch (status) {
@@ -190,11 +192,22 @@ export default function AccountPage({
   const subscriptionsSectionRef = useRef<HTMLHeadingElement>(null);
   const privacySectionRef = useRef<HTMLDivElement>(null);
   const growthSectionRef = useRef<HTMLDivElement>(null);
+  const giftCardClaimSectionRef = useRef<HTMLElement>(null);
   const queryClient = useQueryClient();
   const searchParams = new URLSearchParams(location.search);
   const accountTab = searchParams.get('tab');
   const accountSection = searchParams.get('section');
+  const giftCardCodeFromQuery = searchParams.get('giftCardCode') ?? undefined;
+  const privacyActionFromQuery = searchParams.get('privacyAction');
+  const privacyAutoAction =
+    privacyActionFromQuery === 'export' || privacyActionFromQuery === 'delete'
+      ? privacyActionFromQuery
+      : undefined;
+  const reviewBookingIdFromQuery = searchParams.get('reviewBookingId');
+  const supportBookingIdFromQuery = searchParams.get('supportBookingId');
   const subscriptionIdFromQuery = searchParams.get('subscriptionId');
+  const enablePushFromQuery = searchParams.get('enablePush');
+  const openPushSettingsFromQuery = searchParams.get('openPushSettings');
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
@@ -206,6 +219,9 @@ export default function AccountPage({
   } | null>(null);
 
   const [reviewPromptBooking, setReviewPromptBooking] =
+    useState<PublicCustomerBookingItem | null>(null);
+
+  const [supportPromptBooking, setSupportPromptBooking] =
     useState<PublicCustomerBookingItem | null>(null);
 
   const bookingsQuery = useQuery({
@@ -235,6 +251,32 @@ export default function AccountPage({
     growthSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [accountSection, authed]);
 
+  useEffect(() => {
+    if (accountSection !== 'gift-card-claim' || !authed) return;
+    giftCardClaimSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [accountSection, authed]);
+
+  useEffect(() => {
+    if (!authed || enablePushFromQuery !== '1') return;
+    void enableConsumerNativePush(slug);
+    const next = new URLSearchParams(location.search);
+    next.delete('enablePush');
+    const qs = next.toString();
+    history.replace(buildSalonPath(slug, `/account${qs ? `?${qs}` : ''}`));
+  }, [authed, enablePushFromQuery, history, location.search, slug]);
+
+  useEffect(() => {
+    if (!authed || openPushSettingsFromQuery !== '1') return;
+    void openNotificationSettings();
+    const next = new URLSearchParams(location.search);
+    next.delete('openPushSettings');
+    const qs = next.toString();
+    history.replace(buildSalonPath(slug, `/account${qs ? `?${qs}` : ''}`));
+  }, [authed, history, location.search, openPushSettingsFromQuery, slug]);
+
   const giftCardsQuery = useQuery({
     queryKey: ['gift-cards-account', slug],
     queryFn: () => getPublicCustomerGiftCards(slug),
@@ -256,12 +298,45 @@ export default function AccountPage({
   };
 
   useEffect(() => {
+    if (!authed || bookingsQuery.isLoading || supportPromptBooking) return;
+    if (supportBookingIdFromQuery) {
+      const booking = (bookingsQuery.data ?? []).find(
+        (row) => row.id === supportBookingIdFromQuery,
+      );
+      if (booking) {
+        setSupportPromptBooking(booking);
+      }
+    }
+  }, [
+    authed,
+    bookingsQuery.data,
+    bookingsQuery.isLoading,
+    supportBookingIdFromQuery,
+    supportPromptBooking,
+  ]);
+
+  useEffect(() => {
     if (!authed || bookingsQuery.isLoading || reviewPromptBooking) return;
+    if (reviewBookingIdFromQuery) {
+      const booking = (bookingsQuery.data ?? []).find(
+        (row) => row.id === reviewBookingIdFromQuery,
+      );
+      if (booking && booking.canReview !== false) {
+        setReviewPromptBooking(booking);
+        return;
+      }
+    }
     const candidate = resolvePostVisitReviewCandidate(bookingsQuery.data ?? []);
     if (candidate) {
       setReviewPromptBooking(candidate);
     }
-  }, [authed, bookingsQuery.data, bookingsQuery.isLoading, reviewPromptBooking]);
+  }, [
+    authed,
+    bookingsQuery.data,
+    bookingsQuery.isLoading,
+    reviewPromptBooking,
+    reviewBookingIdFromQuery,
+  ]);
 
   const openReviewPrompt = useCallback((booking: PublicCustomerBookingItem) => {
     setReviewPromptBooking(booking);
@@ -349,6 +424,7 @@ export default function AccountPage({
                 slug={slug}
                 businessName={profile.name}
                 copy={copy}
+                autoAction={privacyAutoAction}
                 onDeleted={() => {
                   clearCustomerSession(slug);
                   history.replace(buildSalonPath(slug, '/account'));
@@ -379,6 +455,8 @@ export default function AccountPage({
             <ConsumerGiftCardClaimSection
               slug={slug}
               copy={copy}
+              initialCode={giftCardCodeFromQuery}
+              sectionRef={giftCardClaimSectionRef}
               onClaimed={() => void queryClient.invalidateQueries({ queryKey: ['gift-cards-account', slug] })}
             />
 
@@ -531,6 +609,19 @@ export default function AccountPage({
             zendeskWidgetConfigured={Boolean(profile.support?.zendeskWidgetKey)}
             onClose={() => setReviewPromptBooking(null)}
             onReviewSubmitted={reloadBookings}
+          />
+        ) : null}
+        {supportPromptBooking ? (
+          <PostVisitReviewPrompt
+            isOpen={Boolean(supportPromptBooking)}
+            slug={slug}
+            booking={supportPromptBooking}
+            copy={copy}
+            customerToken={token}
+            customerEmail={customer?.email}
+            zendeskWidgetConfigured={Boolean(profile.support?.zendeskWidgetKey)}
+            openSupportImmediately
+            onClose={() => setSupportPromptBooking(null)}
           />
         ) : null}
       </IonContent>

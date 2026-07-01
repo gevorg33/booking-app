@@ -199,7 +199,9 @@ export function extractMarkPaidEmployeeNameFromPrompt(
 }
 
 /** Appointment start time from "on … from 9:50" or generic clock phrases. */
-export function extractMarkPaidTimeSlotFromPrompt(prompt: string): string | null {
+export function extractMarkPaidTimeSlotFromPrompt(
+  prompt: string,
+): string | null {
   const onFrom = prompt.match(
     /\bon\s+[\s\S]+?\bfrom\s+(\d{1,2})(?::(\d{2}))?\b/i,
   );
@@ -262,8 +264,9 @@ function enrichMarkPaidPartyFromRoster(
   if (enriched.employeeName && enriched.customerName) return;
 
   const explicitCustomer = /\b(?:customer|client)\b/i.test(prompt);
-  const explicitProvider =
-    /\b(?:provider|stylist|staff|employee)\b/i.test(prompt);
+  const explicitProvider = /\b(?:provider|stylist|staff|employee)\b/i.test(
+    prompt,
+  );
   const employeeHit = roster.employees.length
     ? matchEntityInPrompt(prompt, roster.employees)
     : undefined;

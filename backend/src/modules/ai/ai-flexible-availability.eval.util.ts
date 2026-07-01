@@ -2,6 +2,7 @@ import {
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS,
   type FlexibleAvailabilityPromptFixture,
 } from './ai-flexible-availability.fixtures.js';
+import { isFindEveningWeekendSlotsPrompt } from './ai-find-evening-weekend-slots.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
   buildFlexibleAvailabilityCompoundSharedParams,
@@ -98,15 +99,16 @@ export function valuesMatchEvalPartial(
     );
   }
   if (expected !== null && typeof expected === 'object') {
-    if (actual === null || typeof actual !== 'object' || Array.isArray(actual)) {
+    if (
+      actual === null ||
+      typeof actual !== 'object' ||
+      Array.isArray(actual)
+    ) {
       return false;
     }
     return Object.entries(expected as Record<string, unknown>).every(
       ([key, value]) =>
-        valuesMatchEvalPartial(
-          (actual as Record<string, unknown>)[key],
-          value,
-        ),
+        valuesMatchEvalPartial((actual as Record<string, unknown>)[key], value),
     );
   }
   return actual === expected;
@@ -137,6 +139,7 @@ export function flexibleAvailabilityScenarioEligibleForEval(
   if (scenario.surface === 'customer' && surface !== 'customer') return false;
   if (scenario.surface === 'dashboard' && surface !== 'dashboard') return false;
   if (scenario.skipMaxPrice) return false;
+  if (isFindEveningWeekendSlotsPrompt(scenario.prompt)) return false;
 
   const action =
     surface === 'dashboard'
@@ -167,8 +170,7 @@ export function flexibleAvailabilityScenarioEligibleForEval(
       : buildFlexibleAvailabilityEvalParams(scenario.prompt, surface, action);
   const partial = pickMatchingParamsPartial(scenario.expectedParams, enriched);
   return (
-    Object.keys(partial).length > 0 &&
-    partial.availabilityWindows !== undefined
+    Object.keys(partial).length > 0 && partial.availabilityWindows !== undefined
   );
 }
 
@@ -216,7 +218,7 @@ export function flexibleAvailabilityScenarioToEvalCase(
         ? buildDashboardFlexibleAvailabilityEvalParams(scenario.prompt)
         : buildFlexibleAvailabilityCompoundSharedParams(
             scenario.prompt,
-            surface as 'public' | 'customer',
+            surface,
           );
     const sharedPartial = buildCompoundStepParamsPartial(shared);
     const listOnlyPartial: Record<string, unknown> = {};

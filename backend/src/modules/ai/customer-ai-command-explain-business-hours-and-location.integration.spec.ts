@@ -4,10 +4,13 @@ import { rescueExplainBusinessHoursAndLocationIntent } from './ai-explain-busine
 
 describe('customer-ai-command explain_business_hours_and_location integration (ai-cmd-customer-4.1.5)', () => {
   it.each(
-    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues explain_business_hours_and_location for $id', (_id, row) => {
     expect(
-      rescueExplainBusinessHoursAndLocationIntent(row.prompt, 'unknown')?.action,
+      rescueExplainBusinessHoursAndLocationIntent(row.prompt, 'unknown')
+        ?.action,
     ).toBe('explain_business_hours_and_location');
   });
 

@@ -65,7 +65,9 @@ function parseDefaultServicePrepaymentMode(
   return undefined;
 }
 
-function parseDefaultServiceDepositPercent(raw: unknown): number | null | undefined {
+function parseDefaultServiceDepositPercent(
+  raw: unknown,
+): number | null | undefined {
   if (raw === null) return null;
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
   if (raw <= 0 || raw >= 100) return undefined;
@@ -85,9 +87,7 @@ export function resolvePublicPaymentSettings(
   );
   return {
     acceptCashPayments: publicBooking.acceptCashPayments === true,
-    ...(defaultServicePrepaymentMode
-      ? { defaultServicePrepaymentMode }
-      : {}),
+    ...(defaultServicePrepaymentMode ? { defaultServicePrepaymentMode } : {}),
     ...(defaultServiceDepositPercent !== undefined
       ? { defaultServiceDepositPercent }
       : {}),
@@ -133,14 +133,16 @@ export function mergePublicPaymentSettingsPatch(
     current.defaultServicePrepaymentMode !== undefined
   ) {
     next.defaultServicePrepaymentMode =
-      patch.defaultServicePrepaymentMode ?? current.defaultServicePrepaymentMode;
+      patch.defaultServicePrepaymentMode ??
+      current.defaultServicePrepaymentMode;
   }
   if (
     patch.defaultServiceDepositPercent !== undefined ||
     current.defaultServiceDepositPercent !== undefined
   ) {
     next.defaultServiceDepositPercent =
-      patch.defaultServiceDepositPercent ?? current.defaultServiceDepositPercent;
+      patch.defaultServiceDepositPercent ??
+      current.defaultServiceDepositPercent;
   }
   if (next.defaultServicePrepaymentMode !== 'deposit') {
     delete next.defaultServiceDepositPercent;
