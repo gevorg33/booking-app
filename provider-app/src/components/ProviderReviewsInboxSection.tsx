@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   IonBadge,
-  IonButton,
   IonCard,
   IonCardContent,
   IonCardHeader,

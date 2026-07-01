@@ -6,7 +6,6 @@ import { useOperationalEvents } from '../lib/use-operational-events';
 import { useOnlineStatus } from '../lib/use-online-status';
 import {
   loadSuggestionsCache,
-  type CachedAiSuggestion,
 } from '../lib/provider-ai-suggestions-cache.util';
 import {
   fetchProviderAiSuggestions,

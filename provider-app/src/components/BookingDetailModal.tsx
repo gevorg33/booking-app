@@ -169,7 +169,7 @@ export default function BookingDetailModal({
       );
       return unwrap<ProviderBookingCustomerContext>(res);
     },
-    enabled: !!businessId && !!bookingId && !!booking?.customerId,
+    enabled: !!businessId && !!bookingId && !!booking?.customer?.id,
   });
 
   useEffect(() => {
@@ -640,7 +640,7 @@ export default function BookingDetailModal({
               />
             )}
 
-            {customerContextLoading && booking.customerId && (
+            {customerContextLoading && booking.customer?.id && (
               <div className="ion-margin-bottom empty-state">
                 <IonSpinner name="crescent" />
               </div>

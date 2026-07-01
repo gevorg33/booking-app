@@ -50,7 +50,7 @@ export default function TodayPage({ embedded = false }: { embedded?: boolean }) 
   const location = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [floorFilterEmployeeId, setFloorFilterEmployeeId] = useState<string | null>(null);
-  const teamWhosNextRef = useRef<HTMLElement | null>(null);
+  const teamWhosNextRef = useRef<HTMLDivElement | null>(null);
   const isManagerView = isMobileManagerRole(business?.membershipRole);
 
   useEffect(() => {

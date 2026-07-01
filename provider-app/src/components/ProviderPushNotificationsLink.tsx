@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { IonBadge, IonButton, IonItem, IonLabel, IonList } from '@ionic/react';
+import { IonBadge, IonItem, IonLabel, IonList } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { useAuthStore } from '../services/auth-store';
 import { fetchProviderPushNotifications } from '../lib/provider-push-notifications';

@@ -6,6 +6,7 @@ import {
   tryQueueOfflineAxiosError,
 } from '../lib/provider-api-offline.util';
 import { attachOperationFeedbackToAxios } from '../lib/operation-feedback';
+import type { MobileAppConfigView } from '../lib/app-version-gate.util';
 
 /** Android emulator uses 10.0.2.2; physical devices need your Mac LAN IP in VITE_API_URL. */
 function getApiBaseUrl(): string {
@@ -89,6 +90,22 @@ export async function recordAppAnalyticsEvents(
 ): Promise<{ recorded: number; skipped: number }> {
   const { data } = await api.post('/events/app', body, { skipOperationFeedback: true });
   return unwrap<{ recorded: number; skipped: number }>(data);
+}
+
+export async function fetchMobileAppConfig(input: {
+  surface: 'consumer_app' | 'provider_app';
+  platform: 'ios' | 'android' | 'web';
+  version?: string;
+}): Promise<MobileAppConfigView> {
+  const params = new URLSearchParams({
+    surface: input.surface,
+    platform: input.platform,
+  });
+  if (input.version?.trim()) params.set('version', input.version.trim());
+  const { data } = await api.get(`/mobile-app/config?${params.toString()}`, {
+    skipOperationFeedback: true,
+  });
+  return unwrap<MobileAppConfigView>(data);
 }
 
 export default api;

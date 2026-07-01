@@ -1,6 +1,6 @@
 import { IonApp, IonRouterOutlet } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Route, useHistory } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -17,12 +17,14 @@ import LoginPage from './pages/LoginPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import { OperationFeedbackHost } from './components/OperationFeedbackHost';
 import { ProviderTabRoute } from './components/ProviderTabRoute';
-import GuidePage from './pages/GuidePage';
 import { ProviderAppRedirect, ProviderRootRedirect } from './components/ProviderAppRedirect';
 import { AppStartupBridge } from './components/AppStartupBridge';
+import { AppVersionGate } from './components/AppVersionGate';
 import { BusinessDateFormatBootstrap } from './components/BusinessDateFormatBootstrap';
 import { AccessibilityBootstrap } from './components/AccessibilityBootstrap';
 import './components/operation-feedback.css';
+
+const GuidePage = lazy(() => import('./pages/GuidePage'));
 
 function AppRoutes() {
   const history = useHistory();
@@ -84,63 +86,67 @@ function AppRoutes() {
   }, [business?.id]);
 
   return (
-    <IonRouterOutlet id="main" animated={false}>
-      <Route exact path="/login" component={LoginPage} />
-      <Route exact path="/accept-invite" component={AcceptInvitePage} />
-      <Route exact path="/tabs/today">
-        <ProviderTabRoute page="today" />
-      </Route>
-      <Route exact path="/tabs/lab-collection">
-        <ProviderTabRoute page="lab-collection" />
-      </Route>
-      <Route exact path="/tabs/lab-results">
-        <ProviderTabRoute page="lab-results" />
-      </Route>
-      <Route exact path="/tabs/clinic-tasks">
-        <ProviderTabRoute page="clinic-tasks" />
-      </Route>
-      <Route exact path="/tabs/patients">
-        <ProviderTabRoute page="patients" />
-      </Route>
-      <Route exact path="/tabs/patients/:customerId">
-        <ProviderTabRoute page="patient-chart" />
-      </Route>
-      <Route exact path="/tabs/gift-cards">
-        <ProviderTabRoute page="gift-cards" />
-      </Route>
-      <Route exact path="/tabs/calendar">
-        <ProviderTabRoute page="calendar" />
-      </Route>
-      <Route exact path="/tabs/schedule">
-        <ProviderTabRoute page="schedule" />
-      </Route>
-      <Route exact path="/tabs/profile/guide" component={GuidePage} />
-      <Route exact path="/tabs/profile">
-        <ProviderTabRoute page="profile" />
-      </Route>
-      <Route exact path="/tabs/notifications">
-        <ProviderTabRoute page="notifications" />
-      </Route>
-      <Route exact path="/tabs">
-        <ProviderAppRedirect to="/tabs/today" />
-      </Route>
-      <Route exact path="/">
-        <ProviderRootRedirect />
-      </Route>
-    </IonRouterOutlet>
+    <Suspense fallback={null}>
+      <IonRouterOutlet id="main" animated={false}>
+        <Route exact path="/login" component={LoginPage} />
+        <Route exact path="/accept-invite" component={AcceptInvitePage} />
+        <Route exact path="/tabs/today">
+          <ProviderTabRoute page="today" />
+        </Route>
+        <Route exact path="/tabs/lab-collection">
+          <ProviderTabRoute page="lab-collection" />
+        </Route>
+        <Route exact path="/tabs/lab-results">
+          <ProviderTabRoute page="lab-results" />
+        </Route>
+        <Route exact path="/tabs/clinic-tasks">
+          <ProviderTabRoute page="clinic-tasks" />
+        </Route>
+        <Route exact path="/tabs/patients">
+          <ProviderTabRoute page="patients" />
+        </Route>
+        <Route exact path="/tabs/patients/:customerId">
+          <ProviderTabRoute page="patient-chart" />
+        </Route>
+        <Route exact path="/tabs/gift-cards">
+          <ProviderTabRoute page="gift-cards" />
+        </Route>
+        <Route exact path="/tabs/calendar">
+          <ProviderTabRoute page="calendar" />
+        </Route>
+        <Route exact path="/tabs/schedule">
+          <ProviderTabRoute page="schedule" />
+        </Route>
+        <Route exact path="/tabs/profile/guide" component={GuidePage} />
+        <Route exact path="/tabs/profile">
+          <ProviderTabRoute page="profile" />
+        </Route>
+        <Route exact path="/tabs/notifications">
+          <ProviderTabRoute page="notifications" />
+        </Route>
+        <Route exact path="/tabs">
+          <ProviderAppRedirect to="/tabs/today" />
+        </Route>
+        <Route exact path="/">
+          <ProviderRootRedirect />
+        </Route>
+      </IonRouterOutlet>
+    </Suspense>
   );
 }
 
 export default function App() {
   return (
-    <IonApp>
-      <AccessibilityBootstrap />
-      <BusinessDateFormatBootstrap />
-      <AppStartupBridge />
-      <OperationFeedbackHost />
-      <IonReactRouter>
-        <AppRoutes />
-      </IonReactRouter>
-    </IonApp>
+    <AppVersionGate>
+      <IonApp>
+        <AccessibilityBootstrap />
+        <BusinessDateFormatBootstrap />
+        <AppStartupBridge />
+        <OperationFeedbackHost />
+        <IonReactRouter>
+          <AppRoutes />
+        </IonReactRouter>
+      </IonApp>
+    </AppVersionGate>
   );
 }
