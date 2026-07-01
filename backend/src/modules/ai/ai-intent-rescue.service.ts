@@ -93,7 +93,10 @@ import { rescueIntegrationsIntent } from './ai-integrations.util.js';
 import { rescuePushNotificationsIntent } from './ai-push-notifications.util.js';
 import { rescueReschedulePackageVisitSelfIntent } from './ai-reschedule-package-visit-self.util.js';
 import { rescueCancelPackageVisitSelfIntent } from './ai-cancel-package-visit-self.util.js';
-import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
+import {
+  isMultiServiceAvailabilityDiscoveryPrompt,
+  rescueSelfServiceBookingIntent,
+} from './ai-self-service-booking.util.js';
 import { rescueCancelAndRebookCompoundIntent } from './ai-cancel-and-rebook-compound.util.js';
 import { rescueCancelPackageRebookSingleCompoundIntent } from './ai-cancel-package-rebook-single-compound.util.js';
 import { rescueProviderBookingIntent } from './ai-provider-booking.util.js';
@@ -1173,7 +1176,11 @@ export class AiIntentRescueService {
       action,
     );
     if (explainVoiceInputEarly) return explainVoiceInputEarly;
-    const selfServiceBooking = this.tryRescueSelfServiceBooking(prompt, action);
+    const selfServiceBooking = this.tryRescueSelfServiceBooking(
+      prompt,
+      action,
+      input.surface,
+    );
     if (selfServiceBooking) return selfServiceBooking;
     const pushNotifications = this.tryRescuePushNotifications(prompt, action);
     if (pushNotifications) return pushNotifications;
@@ -1984,6 +1991,7 @@ export class AiIntentRescueService {
     const selfServiceBookingUnknown = this.tryRescueSelfServiceBooking(
       prompt,
       action,
+      input.surface,
     );
     if (selfServiceBookingUnknown) return selfServiceBookingUnknown;
     const pushNotificationsUnknown = this.tryRescuePushNotifications(
@@ -2865,6 +2873,7 @@ export class AiIntentRescueService {
   private tryRescueSelfServiceBooking(
     prompt: string,
     action: string,
+    surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
     const cancelPackageRebookSingle =
       rescueCancelPackageRebookSingleCompoundIntent(prompt, action);
@@ -2903,16 +2912,24 @@ export class AiIntentRescueService {
         rescueReason: providerSameDayMulti.rescueReason,
       };
     }
-    const multiServiceDay = rescueMultiServiceDayCompoundIntent(prompt, action);
-    if (multiServiceDay) {
-      return {
-        action: multiServiceDay.action,
-        params: {},
-        reasoning:
-          'Multi-service day compound — add to cart, check availability, book visit.',
-        rescued: true,
-        rescueReason: multiServiceDay.rescueReason,
-      };
+    const skipMultiServiceDayCompoundOnPublic =
+      surface === 'public' &&
+      isMultiServiceAvailabilityDiscoveryPrompt(prompt);
+    if (!skipMultiServiceDayCompoundOnPublic) {
+      const multiServiceDay = rescueMultiServiceDayCompoundIntent(
+        prompt,
+        action,
+      );
+      if (multiServiceDay) {
+        return {
+          action: multiServiceDay.action,
+          params: {},
+          reasoning:
+            'Multi-service day compound — add to cart, check availability, book visit.',
+          rescued: true,
+          rescueReason: multiServiceDay.rescueReason,
+        };
+      }
     }
     const guestPayCashManage = rescueGuestPayCashManageCompoundIntent(
       prompt,

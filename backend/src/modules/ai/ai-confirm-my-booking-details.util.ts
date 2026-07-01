@@ -104,7 +104,27 @@ const CONSUMER_CHECKOUT_SUCCESS_UI_BLOCK = new RegExp(
   'iu',
 );
 
+function isServicePaymentOptionsQuestionPrompt(prompt: string): boolean {
+  if (/\bwhy\b/i.test(prompt)) return false;
+  if (/\b(can|could|may)\b/i.test(prompt)) {
+    return (
+      /\b(?:can|could|may)\s+i\s+pay\s+(?:online|in\s+cash|cash|by\s+card)\b/i.test(
+        prompt,
+      ) &&
+      /\b(?:this|the|selected|current|that)\s+(?:service|treatment)\b/i.test(
+        prompt,
+      )
+    );
+  }
+  return (
+    /\bdo\s+i\s+(?:need\s+to\s+)?pay\s+online\b/i.test(prompt) ||
+    /\bdo\s+i\s+have\s+to\s+pay\s+(?:online|by\s+card)\b/i.test(prompt) ||
+    /\bmust\s+i\s+pay\s+online\b/i.test(prompt)
+  );
+}
+
 export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
+  if (isServicePaymentOptionsQuestionPrompt(prompt)) return false;
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
