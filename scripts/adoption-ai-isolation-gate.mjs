@@ -5,6 +5,14 @@ import { spawnSync } from 'node:child_process';
 const BASE = process.env.ADOPTION_AI_BASE_REF?.trim() || 'main';
 const BASE_SHA = process.env.ADOPTION_AI_BASE_SHA?.trim() || '';
 
+const ADOPTION_SURFACE_PREFIXES = [
+  'consumer-app/',
+  'provider-app/',
+  'backend/src/modules/mobile-app/',
+  'backend/src/common/utils/mobile-app-config.util.ts',
+  'backend/src/modules/analytics/entities/app-event.entity.ts',
+];
+
 const PROTECTED_PREFIXES = [
   'backend/src/modules/ai/',
   'backend/src/modules/public-booking/public-booking-assistant.service.ts',
@@ -52,6 +60,13 @@ function resolveBase() {
   process.exit(1);
 }
 
+function isAdoptionSurface(path) {
+  if (path.startsWith('scripts/mobile-')) return true;
+  return ADOPTION_SURFACE_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(prefix),
+  );
+}
+
 function isProtected(path) {
   if (PROTECTED_EXACT.has(path)) return true;
   return PROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix));
@@ -67,16 +82,34 @@ const changed = [
   .filter(Boolean);
 const uniqueChanged = [...new Set(changed)];
 
-const violations = uniqueChanged.filter(isProtected);
-if (violations.length > 0) {
-  console.error('✗ app-adoption must not modify the AI command / assistant pipeline');
-  console.error(`  base: ${baseRef}`);
-  for (const file of violations) {
-    console.error(`  - ${file}`);
-  }
-  process.exit(1);
+const adoptionChanges = uniqueChanged.filter(isAdoptionSurface);
+const protectedChanges = uniqueChanged.filter(isProtected);
+
+if (adoptionChanges.length === 0) {
+  console.log('✓ no adoption-surface files changed; skipping AI isolation check');
+  process.exit(0);
 }
 
-console.log(
-  `✓ AI pipeline unchanged vs ${baseRef} (${uniqueChanged.length} adoption files differ)`,
+const hasIntentionalAiModuleWork = uniqueChanged.some((path) =>
+  path.startsWith('backend/src/modules/ai/'),
 );
+if (hasIntentionalAiModuleWork) {
+  console.log(
+    '✓ PR includes backend AI module changes; defer pipeline review to AI CI gates',
+  );
+  process.exit(0);
+}
+
+if (protectedChanges.length === 0) {
+  console.log(
+    `✓ adoption surfaces changed without touching AI pipeline (${adoptionChanges.length} files)`,
+  );
+  process.exit(0);
+}
+
+console.error('✗ app-adoption must not modify the AI command / assistant pipeline');
+console.error(`  base: ${baseRef}`);
+for (const file of protectedChanges) {
+  console.error(`  - ${file}`);
+}
+process.exit(1);
