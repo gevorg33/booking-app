@@ -1,4 +1,10 @@
-import type { MobileGuideBundle } from './mobile-guide.types.ts';
+import type {
+  GuideFlowPlaybookDef,
+  MobileGuideBundle,
+  MobileGuideListContext,
+  MobileGuideLocale,
+  ResolvedGuideFlowPlaybook,
+} from './mobile-guide.types.ts';
 import {
   assertMobileGuideCatalogIntegrity,
   assertMobileGuideI18nCoverage,
@@ -9,9 +15,16 @@ import {
 
 export interface MobileGuideModule {
   bundle: MobileGuideBundle;
-  listGuideTopics: typeof listGuideTopics;
-  resolveGuidePlaybook: typeof resolveGuidePlaybook;
-  resolveGuideFlowPlaybook: typeof resolveGuideFlowPlaybook;
+  listGuideTopics: (ctx: MobileGuideListContext) => GuideFlowPlaybookDef[];
+  resolveGuidePlaybook: (
+    topicId: string,
+    locale: MobileGuideLocale,
+    ctx: MobileGuideListContext,
+  ) => ResolvedGuideFlowPlaybook | null;
+  resolveGuideFlowPlaybook: (
+    playbook: GuideFlowPlaybookDef,
+    locale: MobileGuideLocale,
+  ) => ResolvedGuideFlowPlaybook;
   assertIntegrity: () => void;
   assertI18nCoverage: () => void;
 }

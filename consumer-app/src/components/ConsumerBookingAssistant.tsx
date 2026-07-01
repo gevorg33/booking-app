@@ -95,6 +95,8 @@ interface SessionContext {
   employeeName?: string | null;
   date?: string | null;
   serviceName?: string | null;
+  serviceId?: string | null;
+  bookingId?: string | null;
   timeSlot?: string | null;
   customerName?: string | null;
   screen?: string | null;

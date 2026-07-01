@@ -32,7 +32,12 @@ export function buildConsumerAssistantExamples(
   });
   return keys.map((key) => {
     const template = copy[key];
-    const fields = CONSUMER_ACTION_PROMPT_VARS[key];
+    const fields =
+      key in CONSUMER_ACTION_PROMPT_VARS
+        ? CONSUMER_ACTION_PROMPT_VARS[
+            key as keyof typeof CONSUMER_ACTION_PROMPT_VARS
+          ]
+        : undefined;
     if (!fields?.length) return template;
     const subset: Record<string, string> = {};
     for (const field of fields) subset[field] = vars[field as keyof typeof vars];
