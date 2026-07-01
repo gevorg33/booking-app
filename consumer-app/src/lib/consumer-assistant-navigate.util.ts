@@ -85,7 +85,7 @@ export function buildConsumerAssistantHref(
 
     if (!serviceId) return null;
     const params = new URLSearchParams();
-    const startTime = query.startTime?.trim();
+    const startTime = query.startTime?.trim() || query.slot?.trim();
     if (startTime) {
       params.set('slot', startTime);
       const date = dateKeyFromStartTime(startTime);
