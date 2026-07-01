@@ -9,6 +9,10 @@ import {
   isRetryOfflineActionPrompt,
 } from './ai-push-notifications.util.js';
 import { isExplainAppUpdateRequiredPrompt } from './ai-explain-app-update-required.util.js';
+import { isSwitchToConsumerAppPrompt } from './ai-marketing-growth.util.js';
+import { isHowToDownloadAppPrompt } from './ai-how-to-download-app.util.js';
+import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
+import { isSummarizeRecommendationPerformancePrompt } from './ai-recommendation-performance.util.js';
 
 export const EXPLAIN_OFFLINE_MODE_INTENTS = ['explain_offline_mode'] as const;
 
@@ -21,7 +25,10 @@ const PROVIDER_OFFLINE_CUE =
   /\b(provider\s+app|provider\s+mobile|today\s+tab|floor\s+status|staff\s+app)\b/i;
 
 const CONSUMER_OFFLINE_CUE =
-  /\b(why.{0,30}(offline|no internet)|say(?:s|ing)?\s+offline|offline\s+banner|consumer\s+app|this\s+app|my\s+booking|saved\s+salon|cached|waiting\s+to\s+sync|changes?\s+waiting|pending\s+sync|will.{0,20}sync|go\s+through|back\s+online|reconnect)\b/i;
+  /\b(why.{0,30}(offline|no internet)|say(?:s|ing)?\s+offline|offline\s+banner|consumer\s+app|this\s+app|saved\s+salon|cached|waiting\s+to\s+sync|changes?\s+waiting|pending\s+sync|will.{0,20}sync|back\s+online|reconnect)\b/i;
+
+const CONSUMER_OFFLINE_BOOKING_CUE =
+  /\b(?:my\s+booking|go\s+through)\b.*\b(?:offline|sync|queue|reconnect|online)\b|\b(?:offline|sync|queue|reconnect|online)\b.*\b(?:my\s+booking|go\s+through)\b/i;
 
 const WHY_OFFLINE_CUE =
   /\b(why.{0,30}offline|offline\s+banner|no\s+internet|say(?:s|ing)?\s+offline)\b/i;
@@ -79,6 +86,10 @@ export function resolveExplainOfflineModeAspect(
 export function isExplainOfflineModePrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isSwitchToConsumerAppPrompt(text)) return false;
+  if (isHowToDownloadAppPrompt(text)) return false;
+  if (isExplainRecommendationAnalyticsPrompt(text)) return false;
+  if (isSummarizeRecommendationPerformancePrompt(text)) return false;
   if (matchExplainOfflineModeScenario(text)) return true;
   if (isExplainAppUpdateRequiredPrompt(text)) return false;
   if (PROVIDER_OFFLINE_CUE.test(text)) return false;
@@ -100,7 +111,9 @@ export function isExplainOfflineModePrompt(prompt: string): boolean {
     return true;
   }
 
-  return CONSUMER_OFFLINE_CUE.test(text);
+  return (
+    CONSUMER_OFFLINE_CUE.test(text) || CONSUMER_OFFLINE_BOOKING_CUE.test(text)
+  );
 }
 
 export function isExplainOfflineModeIntent(

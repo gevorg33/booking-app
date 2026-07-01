@@ -52,7 +52,9 @@ function isCustomerTourBookingRecordSelfPrompt(prompt: string): boolean {
   if (isTourCatalogBookingPagePrompt(prompt)) return false;
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
   return (
-    /\b(my|our)\s+(?:tour\s+)?(?:group\s+)?booking\b/i.test(prompt) ||
+    /\b(my|our)\s+(?:(?:group\s+(?:tour\s+)?)|(?:tour\s+(?:group\s+)?))booking\b/i.test(
+      prompt,
+    ) ||
     /\b(my|our)\s+.+\s+tour\s+booking\b/i.test(prompt) ||
     /\b(?:show|details?).+\bmy\s+.+\s+tour\s+booking\b/i.test(prompt) ||
     /\b(my|our)\s+tour\s+(?:confirmation|reservation)\b/i.test(prompt) ||
@@ -60,9 +62,9 @@ function isCustomerTourBookingRecordSelfPrompt(prompt: string): boolean {
       prompt,
     ) &&
       /\b(my|our|tour)\b/i.test(prompt)) ||
-    /\bsummarize\s+my\s+(?:group\s+)?(?:tour\s+)?booking\b/i.test(prompt) ||
+    /\bsummarize\s+my\s+(?:(?:group|tour)\s+)+booking\b/i.test(prompt) ||
     /\bsummarize\b.+\bfor\s+my\s+tour\b/i.test(prompt) ||
-    /\b(?:recap|summary)\s+(?:of\s+)?my\s+(?:group\s+)?(?:tour\s+)?booking\b/i.test(
+    /\b(?:recap|summary)\s+(?:of\s+)?my\s+(?:(?:group|tour)\s+)+booking\b/i.test(
       prompt,
     ) ||
     /\bhow\s+many\s+people\s+(?:are\s+)?on\s+my\s+tour\b/i.test(prompt) ||
@@ -71,7 +73,9 @@ function isCustomerTourBookingRecordSelfPrompt(prompt: string): boolean {
       prompt,
     ) ||
     /\bspecial\s+requirements\s+saved\s+on\s+my\s+tour\b/i.test(prompt) ||
-    /(իմ\s+(?:խմբային\s+)?ամրագրում|հաստատման\s+համար)/i.test(prompt) ||
+    /(իմ\s+խմբային\s+ամրագրում|իմ\s+էքսկուրսի.{0,24}ամրագրում|էքսկուրսի.{0,15}հաստատման\s+համար)/i.test(
+      prompt,
+    ) ||
     /(мо(?:ей|ю|его|их)\s+(?:группов(?:ой|ую)|запис)|номер\s+подтвержден)/i.test(
       prompt,
     )
@@ -90,7 +94,7 @@ function hasTourBookingRecordTopic(prompt: string): boolean {
     /\b(booking|appointment)\b.{0,40}\b(pax\s+count|pax\b|special\s+requirements?|tour\s+dates?)\b/i.test(
       prompt,
     ) ||
-    /\b(provider\s+calendar|calendar)\b/i.test(prompt) ||
+    /\b(provider\s+calendar|tour\s+calendar|calendar\s+span)\b/i.test(prompt) ||
     /\b(multiple\s+days|across\s+days)\b/i.test(prompt) ||
     /\b(span|multiple\s+days|across)\b.{0,50}\b(calendar|provider)\b/i.test(
       prompt,
@@ -152,6 +156,13 @@ function isExplainTourServicesLikeList(prompt: string): boolean {
 }
 
 function isUpcomingTourListPrompt(prompt: string): boolean {
+  if (
+    /\b(?:my|our)\s+(?:\w+\s+){0,5}tour\s+booking\b/i.test(prompt) ||
+    /\bfor\s+my\s+tour\b/i.test(prompt) ||
+    /\b(?:my|our)\s+tour\s+(?:confirmation|reservation)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     /\b(departure\s+dates?|departure\s+schedule|remaining\s+capacity|seats?\s+left|spots?\s+remaining|grouped\s+by\s+departure)\b/i.test(
       prompt,
@@ -293,7 +304,9 @@ function isSingleTourBookingRecordPrompt(prompt: string): boolean {
     /\b(this|that)\s+(?:tour\s+)?(?:booking|tour)\b/i.test(prompt) ||
     /(?:это|эта|этот)\s+(?:\w+\s+){0,3}бронирован/i.test(prompt) ||
     /\bbooking\s+record\b/i.test(prompt) ||
-    /(ամրագրում|tour\s+booking\s+record)/i.test(prompt)
+    /(tour\s+booking\s+record|խմբային\s+ամրագրում|էքսկուրսի.{0,30}ամրագրում)/i.test(
+      prompt,
+    )
   ) {
     return true;
   }
@@ -320,12 +333,12 @@ export function isExplainTourBookingRecordPrompt(prompt: string): boolean {
   if (isTourCatalogBookingPagePrompt(prompt)) return false;
   if (isTourCalendarWeekListLikePrompt(prompt)) return false;
 
+  if (isUpcomingTourListPrompt(prompt)) return false;
+  if (isExplainTourServicesLikeList(prompt)) return false;
+
   if (isCustomerTourBookingRecordSelfPrompt(prompt)) {
     return true;
   }
-
-  if (isUpcomingTourListPrompt(prompt)) return false;
-  if (isExplainTourServicesLikeList(prompt)) return false;
 
   if (isSingleTourBookingRecordPrompt(prompt)) {
     return true;

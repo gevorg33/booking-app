@@ -108,6 +108,14 @@ describe('ai-explain-guest-checkout-fields.util', () => {
     ).toBe(false);
   });
 
+  it('does not steal explain_tenant_currency prompts', () => {
+    expect(
+      isExplainGuestCheckoutFieldsPrompt(
+        'Why does the salon app show prices in euros after I log in?',
+      ),
+    ).toBe(false);
+  });
+
   it('returns null rescue when already classified correctly', () => {
     expect(
       rescueExplainGuestCheckoutFieldsIntent(

@@ -13,6 +13,7 @@ import { BOOK_PACKAGE_WITH_NEAREST_SLOT_MULTILINGUAL_SCENARIOS } from './ai-book
 import {
   extractPackageNameFromPrompt,
   isBookPackagePrompt,
+  isBookWithCashPrompt,
   isCheckPackageAvailabilityPrompt,
   isSelfServiceCustomerPrompt,
 } from './ai-self-service-booking.util.js';
@@ -124,6 +125,12 @@ export function isBookPackageWithNearestSlotCompoundPrompt(
   if (text.length < 12) return false;
   if (matchBookPackageWithNearestSlotScenario(text)) return true;
   if (/\b(apply|use)\b/i.test(text) && /\bpromo\b/i.test(text)) return false;
+  if (
+    isCheckPackageAvailabilityPrompt(text) &&
+    (isBookWithCashPrompt(text) || /\bcash\s+at\s+visit\b/i.test(text))
+  ) {
+    return false;
+  }
   if (
     isCheckPackageAvailabilityPrompt(text) &&
     !hasPackageNearestSlotCue(text)

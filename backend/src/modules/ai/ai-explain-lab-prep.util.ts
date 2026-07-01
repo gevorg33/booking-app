@@ -1,6 +1,7 @@
 import { isBookLabCollectionPrompt } from './ai-clinic-lab-booking.util.js';
 import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
 import { isExplainClinicServicesPrompt } from './ai-clinic-service.util.js';
+import { isConfigureClinicServicePrompt } from './ai-clinic-service.util.js';
 import {
   isExplainResultStatusPrompt,
   isListMyTestResultsPrompt,
@@ -12,6 +13,7 @@ import {
   type ExplainLabPrepPromptFixture,
 } from './ai-explain-lab-prep.fixtures.js';
 import { extractServiceNameFromClinicBookingPrompt } from './ai-clinic-booking.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
 
 export {
   CUSTOMER_PUBLIC_EXPLAIN_LAB_PREP_CLASSIFIER_RULES,
@@ -58,7 +60,7 @@ const LAB_TARGET = new RegExp(
 );
 
 const CATALOG_FASTING_EXPLAIN = new RegExp(
-  String.raw`\b(?:which|what)\s+(?:lab\s+tests?|services?|tests?).*(?:fasting|prep|require)\b|\bfasting\s+requirements?\b|(?:[Кк]акие|[Кк]акой)\s+(?:лабораторн[\p{L}\p{M}]*\s+)?(?:тест[\p{L}\p{M}]*|услуг[\p{L}\p{M}]*|анализ[\p{L}\p{M}]*).*?(?:голод|натощак|пост)|(?:ինչ|որ)\s+(?:լաբ|ծառայ).*(?:ծոմավոր|նախապատրաստ)`,
+  String.raw`\b(?:which|what)\s+(?:lab\s+tests?|services?|tests?).*(?:fasting|prep(?:aration)?)\b|\bfasting\s+requirements?\b|(?:[Кк]акие|[Кк]акой)\s+(?:лабораторн[\p{L}\p{M}]*\s+)?(?:тест[\p{L}\p{M}]*|услуг[\p{L}\p{M}]*|анализ[\p{L}\p{M}]*).*?(?:голод|натощак|пост)|(?:ինչ|որ)\s+(?:լաբ|ծառայ).*(?:ծոմավոր|նախապատրաստ)`,
   'iu',
 );
 
@@ -99,6 +101,15 @@ export function isExplainLabPrepIntent(
 export function isExplainLabPrepPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isExplainServiceOnlinePaymentSetupPrompt(text)) return false;
+  if (isConfigureClinicServicePrompt(text)) return false;
+  if (
+    /\b(?:prepayment|online\s+payment|stripe|deposit|public\s+booking)\b/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
   if (matchExplainLabPrepScenario(text)) return true;
   if (isExplainPreparationNotesPrompt(text)) return false;
   if (isExplainClinicBookingPrompt(text)) return false;

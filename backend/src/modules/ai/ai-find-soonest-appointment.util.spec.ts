@@ -75,6 +75,11 @@ describe('ai-find-soonest-appointment.util (ai-cmd-customer-4.1.3)', () => {
     expect(
       isCheckProvidersForServicePrompt('Who is free tomorrow for massage?'),
     ).toBe(true);
+    expect(
+      isFindSoonestAppointmentPrompt(
+        'Put me in the earliest opening you have this week',
+      ),
+    ).toBe(false);
   });
 
   it('maps fixtures to passing eval golden cases', () => {

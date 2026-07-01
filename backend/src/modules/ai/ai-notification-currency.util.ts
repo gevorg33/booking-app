@@ -31,7 +31,8 @@ function hasCurrencyCue(prompt: string): boolean {
     /\b(currency|dram|drams|euro|euros|ruble|rubles|dollar|dollars)\b/i.test(
       prompt,
     ) ||
-    /\b(AMD|EUR|RUB|USD|GBP|GEL)\b/i.test(prompt)
+    /\b(AMD|EUR|RUB|USD|GBP|GEL)\b/i.test(prompt) ||
+    /(?:драм|евро|рубл|валют|արժույթ|դրամ)/iu.test(prompt)
   );
 }
 
@@ -63,6 +64,7 @@ export function isExplainNotificationCurrencyPrompt(prompt: string): boolean {
     return false;
   }
   if (!hasNotificationCurrencyContext(prompt)) return false;
+  if (!hasCurrencyCue(prompt)) return false;
 
   const hasCurrencyCueFlag = hasCurrencyCue(prompt);
 
@@ -100,7 +102,7 @@ export function isExplainNotificationCurrencyPrompt(prompt: string): boolean {
 
   if (containsArmenianScript(prompt)) {
     if (
-      /(ինչու|ինչ|որն|որը|որ)/i.test(prompt) &&
+      /(ինչու|ինչ|որն|որը|Որ\s+արժույթ)/i.test(prompt) &&
       /(արժույթ|գին|գումար|նամակ|հաստատում|հիշեցում|€|֏|₽|AMD|EUR|RUB|USD)/i.test(
         prompt,
       )

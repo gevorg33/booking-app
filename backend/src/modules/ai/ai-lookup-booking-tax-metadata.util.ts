@@ -19,8 +19,16 @@ export function hasLookupBookingTaxMetadataContext(prompt: string): boolean {
     return true;
   }
   if (
-    /\b(lookup|retrieve|pull|get|show|fetch)\b/i.test(prompt) &&
+    /\b(lookup|retrieve|pull|fetch)\b/i.test(prompt) &&
     /\b(tax|vat|gst|pst|metadata|pricing|receipt|dispute)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:get|show)\b/i.test(prompt) &&
+    /\b(?:metadata|frozen|snapshot|tax\s+metadata|metadata\.pricing)\b/i.test(
+      prompt,
+    )
   ) {
     return true;
   }
@@ -74,8 +82,10 @@ export function isLookupBookingTaxMetadataPrompt(prompt: string): boolean {
   if (!bookingAnchor) return false;
 
   const lookupCue =
-    /\b(?:lookup|retrieve|pull|get|show|fetch|what|which)\b/i.test(prompt) ||
-    /\b(?:metadata|frozen|snapshot|dispute|receipt|support)\b/i.test(prompt);
+    /\b(?:lookup|retrieve|pull|fetch|what|which)\b/i.test(prompt) ||
+    /\b(?:metadata|frozen|snapshot|dispute|receipt|support)\b/i.test(prompt) ||
+    (/\b(?:get|show)\b/i.test(prompt) &&
+      /\b(?:metadata|frozen|snapshot|tax\s+metadata)\b/i.test(prompt));
 
   return lookupCue;
 }

@@ -1,4 +1,6 @@
-import { parseBusinessHoursWindow } from './ai-operations.util.js';
+import { parseBusinessHoursWindow, isComplianceCheckPrompt } from './ai-operations.util.js';
+import { isExplainBusinessLanguagesPrompt } from './ai-business-languages.util.js';
+import { isApplyClinicPlaybookPrompt } from './ai-clinic-service.util.js';
 
 export const CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — explain salon opening hours (including a named weekday), street address, Google Maps link from the profile embed, and optional parking amenity copy. Triggers: "When are you open Saturday?", "Where are you located?", "What are your hours?", "Is there parking?", "What's the address?". Set aspect to hours|location|parking|hours_and_location when clear; set weekday for a named day. Navigate to profile when sharing map/address. NOT explain_salon_profile (general salon profile page / photos / social), NOT get_directions_to_salon (navigation/directions URL or visit parking guidance), NOT business_info (general salon description/contact dump), NOT booking_help (how to book), and NOT check_availability (slot search).`;
 
@@ -276,6 +278,17 @@ export function inferBusinessHoursLocationAspect(
 export function isExplainBusinessHoursAndLocationPrompt(
   prompt: string,
 ): boolean {
+  if (isComplianceCheckPrompt(prompt)) return false;
+  if (isExplainBusinessLanguagesPrompt(prompt)) return false;
+  if (isApplyClinicPlaybookPrompt(prompt)) return false;
+  if (
+    /(ամսաթվ|ժամ.{0,12}(?:ձևաչափ|կարգավոր)|date\s*format|time\s*format)/i.test(
+      prompt,
+    ) &&
+    /(բացատրիր|ինչ|որ|կարգավոր|explain|settings)/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     /(?:բացիր|открой).*(?:պրոֆիլ|profile|ծառայություն|услуг|маснագիր|специалист)/iu.test(
       prompt,

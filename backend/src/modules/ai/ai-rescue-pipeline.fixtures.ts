@@ -19,63 +19,27 @@ import { LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS } from './ai-launch-consume
 import { CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS } from './ai-clinic-lab-day-close-compound.fixtures.js';
 import { CLINIC_LAB_REVIEW_COMPOUND_PROMPTS } from './ai-clinic-lab-review-compound.fixtures.js';
 import { FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS } from './ai-flexible-availability.fixtures.js';
+import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
 
-/** Post-LLM rescue scenarios for compound checkout families (ai-cmd-h4.2). */
-export const COMPOUND_RESCUE_SCENARIOS = [
-  {
-    id: 'create_booking-to-package',
-    prompt: 'Book spa day package for James Friday 2pm',
-    action: 'create_booking',
-    expectedAction: 'create_package_booking',
-    rescueReason: 'create_booking_to_package',
-  },
-  {
-    id: 'unknown-package-book',
-    prompt: 'Book spa day package for James Friday 2pm',
-    action: 'unknown',
-    expectedAction: 'create_package_booking',
-    rescueReason: 'package_booking',
-  },
-  {
-    id: 'unknown-multi-service',
-    prompt: 'Book haircut and beard trim Tuesday 10am with Anna for Maria',
-    action: 'unknown',
-    expectedAction: 'create_multi_service_booking',
-    rescueReason: 'multi_service_booking',
-  },
-  {
-    id: 'create_booking-check-and-book',
-    prompt:
-      'check who is free tomorrow evening for permanent lashes, book the nearest slot',
-    action: 'create_booking',
-    expectedAction: 'create_booking',
-    rescueReason: 'check_and_book_compound',
-  },
-  {
-    id: 'create_booking-first-available',
-    prompt: 'Book first available slot for massage tomorrow',
-    action: 'create_booking',
-    expectedAction: 'create_booking',
-    rescueReason: 'booking_first_available',
-  },
-  {
-    id: 'gift-card-apply-checkout',
-    prompt: 'Apply gift card GCM-TEST at checkout',
-    action: 'validate_gift_card',
-    expectedAction: 'apply_gift_card_code',
-    rescueReason: 'apply_gift_card_checkout',
-  },
-  {
-    id: 'buy-gift-card-physical',
-    prompt: 'Buy physical gift card $75',
-    action: 'buy_gift_card',
-    expectedAction: 'buy_gift_card_physical',
-    rescueReason: 'digital_to_physical_gift_card',
-  },
-] as const;
+const SCENARIO_PROMPTS_BY_ID = Object.fromEntries(
+  COMPOUND_DECOMPOSITION_SCENARIOS.map((scenario) => [
+    scenario.id,
+    scenario.prompt,
+  ]),
+) as Record<string, string>;
+
+/** Pattern ids that differ from COMPOUND_DECOMPOSITION_SCENARIOS ids. */
+const GOLDEN_COMPOUND_PROMPT_ALIASES: Record<string, string> = {
+  customer_book_package_with_nearest_slot:
+    SCENARIO_PROMPTS_BY_ID.customer_book_package_nearest,
+  public_book_package_with_nearest_slot:
+    SCENARIO_PROMPTS_BY_ID.public_book_package_nearest,
+  customer_book_with_gift_card_compound:
+    SCENARIO_PROMPTS_BY_ID.customer_book_package_gift_card,
+};
 
 /** Golden decomposition prompts keyed by pattern id (ai-cmd-h4.2). */
-export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
+const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
   customer_book_package_apply_promo:
     'Book spa day package and apply promo code SPRING25',
   dashboard_cancel_visit_notify_waitlist:
@@ -157,6 +121,66 @@ export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
     CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
   dashboard_clinic_lab_review: CLINIC_LAB_REVIEW_COMPOUND_PROMPTS[0].prompt,
 };
+
+export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
+  ...SCENARIO_PROMPTS_BY_ID,
+  ...GOLDEN_COMPOUND_PROMPT_ALIASES,
+  ...MANUAL_GOLDEN_COMPOUND_PROMPTS,
+};
+
+/** Post-LLM rescue scenarios for compound checkout families (ai-cmd-h4.2). */
+export const COMPOUND_RESCUE_SCENARIOS = [
+  {
+    id: 'create_booking-to-package',
+    prompt: 'Book spa day package for James Friday 2pm',
+    action: 'create_booking',
+    expectedAction: 'create_package_booking',
+    rescueReason: 'create_booking_to_package',
+  },
+  {
+    id: 'unknown-package-book',
+    prompt: 'Book spa day package for James Friday 2pm',
+    action: 'unknown',
+    expectedAction: 'create_package_booking',
+    rescueReason: 'package_booking',
+  },
+  {
+    id: 'unknown-multi-service',
+    prompt: 'Book haircut and beard trim Tuesday 10am with Anna for Maria',
+    action: 'unknown',
+    expectedAction: 'create_multi_service_booking',
+    rescueReason: 'multi_service_booking',
+  },
+  {
+    id: 'create_booking-check-and-book',
+    prompt:
+      'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+    action: 'create_booking',
+    expectedAction: 'create_booking',
+    rescueReason: 'check_and_book_compound',
+  },
+  {
+    id: 'create_booking-first-available',
+    prompt: 'Book first available slot for massage tomorrow',
+    action: 'create_booking',
+    expectedAction: 'create_booking',
+    rescueReason: 'booking_first_available',
+  },
+  {
+    id: 'gift-card-apply-checkout',
+    prompt: 'Apply gift card GCM-TEST at checkout',
+    action: 'validate_gift_card',
+    expectedAction: 'apply_gift_card_code',
+    rescueReason: 'apply_gift_card_checkout',
+  },
+  {
+    id: 'buy-gift-card-physical',
+    prompt: 'Buy physical gift card $75',
+    action: 'buy_gift_card',
+    expectedAction: 'buy_gift_card_physical',
+    rescueReason: 'digital_to_physical_gift_card',
+  },
+] as const;
 
 /** Enrichment scenarios: compound prompts that must set bookingFirstAvailable hints. */
 const ALL_CHECK_AND_BOOK_PROMPTS = [

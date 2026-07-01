@@ -910,7 +910,7 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
   {
     id: 'customer_book_with_gift_card_compound',
     surface: 'customer',
-    recipeId: 'customer_self_service_compound',
+    recipeId: 'customer_book_with_gift_card_compound',
     matches: (prompt) => isBookWithGiftCardCompoundPrompt(prompt),
     buildSteps: (prompt) => {
       const raw = decomposeBookWithGiftCardCompoundPrompt(prompt);

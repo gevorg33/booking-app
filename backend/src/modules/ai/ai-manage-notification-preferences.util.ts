@@ -5,6 +5,9 @@ import {
 } from './ai-manage-notification-preferences.fixtures.js';
 import { MANAGE_NOTIFICATION_PREFERENCES_MULTILINGUAL_SCENARIOS } from './ai-manage-notification-preferences-multilingual.fixtures.js';
 import { isCustomerEnablePushNotificationsPrompt } from './ai-customer-enable-push-notifications.util.js';
+import { isPushNotificationsDomainPrompt } from './ai-push-notifications.util.js';
+import { isOpenBillingSettingsPrompt } from './ai-billing-loyalty-dashboard.util.js';
+import { isOpenComplianceDashboardPrompt } from './ai-business-compliance.util.js';
 
 export const MANAGE_NOTIFICATION_PREFERENCES_INTENTS = [
   'manage_notification_preferences',
@@ -27,6 +30,12 @@ const MANAGE_HY_RU_CUE =
 
 const EXPLAIN_QUESTION_CUE =
   /\b(what|which|explain|tell\s+me\s+about|do\s+i\s+get|will\s+i\s+get|how\s+do|how\s+will|will\s+you|do\s+you\s+send)\b/i;
+
+const CONSUMER_OS_PUSH_PERMISSION_CUE =
+  /\b(why (?:didn'?t|did not|don'?t|do not) (?:i )?(?:get|receive)|didn'?t (?:get|receive)|missed (?:my )?(?:push|alert|notification|booking alert)|blocked on my phone|notifications?\s+(?:are\s+)?blocked|denied push|turn it back on|provisional push|quiet notifications?|post_notifications|android (?:13|asks|permission)|fix push permissions?)\b/i;
+
+const CONSUMER_OS_OPEN_PUSH_SETTINGS_CUE =
+  /\b(open|take me to|go to|show)\s+(?!my\s)(?:notification settings|system settings|phone settings|app settings)\b/i;
 
 function matchManageNotificationPreferencesScenario(
   prompt: string,
@@ -70,6 +79,11 @@ export function inferManageNotificationPreferencesFocus(
 export function isManageNotificationPreferencesPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isOpenBillingSettingsPrompt(text)) return false;
+  if (isOpenComplianceDashboardPrompt(text)) return false;
+  if (CONSUMER_OS_PUSH_PERMISSION_CUE.test(text)) return false;
+  if (CONSUMER_OS_OPEN_PUSH_SETTINGS_CUE.test(text)) return false;
+  if (isPushNotificationsDomainPrompt(text)) return false;
   if (isCustomerEnablePushNotificationsPrompt(text)) return false;
   if (matchManageNotificationPreferencesScenario(text)) return true;
   if (isConfigureNotificationSettingsPrompt(text)) return false;

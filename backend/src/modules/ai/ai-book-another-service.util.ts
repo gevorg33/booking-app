@@ -38,7 +38,7 @@ const BOOK_ANOTHER_CUES = [
   /\b(?:another|different)\s+(?:service|visit|booking|appointment)\b/i,
   /\b(?:book|schedule)\s+(?:a\s+|an\s+|the\s+)?(?:another|different|one\s+more)\s+[a-z]/i,
   /\bsomething\s+else\b.*\b(?:today|book|service|appointment)\b/i,
-  /ամրագր(?:իր|ել|ում)|այլ\s+ծառայ|(?:ևս|մեկ)\s+(?:այց|ծառայ)|սկս(?:իր|ել|ում)/iu,
+  /ամրագր(?:իր|եք|ել)\b|այլ\s+ծառայ|(?:ևս|մեկ)\s+(?:այց|ծառայ)|սկս(?:իր|ել)\b/iu,
   /(?:ещё|еще)\s+од(?:ну|ин)|друг(?:ая|ую|ой)\s+услуг|запиш(?:и|ись|аться)|хочу\s+.*запис/iu,
 ];
 
@@ -85,6 +85,13 @@ export function isBookAnotherServicePrompt(prompt: string): boolean {
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (SUCCESS_SCREEN_EXPLAIN.test(prompt)) return false;
   if (EXPLAIN_CUE.test(prompt)) return false;
+  if (
+    /ամփոփիր\s+իմ|ինչ\s+ժամի|ովի\s+հետ|ամրագրում\s+եմ|какая\s+услуга|моя\s+запись/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (REBOOK_CUE.test(prompt)) return false;
   if (SPECIFIC_SLOT_CUE.test(prompt)) return false;
   return BOOK_ANOTHER_CUES.some((cue) => cue.test(prompt));

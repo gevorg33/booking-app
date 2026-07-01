@@ -1,10 +1,20 @@
-import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import { extractServiceNameFromPrompt, isBookNearestSlotPrompt } from './ai-payments.util.js';
 import { isBookAnotherServicePrompt } from './ai-book-another-service.util.js';
 import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 import { isListMyUpcomingAppointmentsPrompt } from './ai-list-my-upcoming-appointments.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
+import { isExplainTourBookingPrompt } from './ai-tour-booking.util.js';
 import { isExplainTourMeetingPointPrompt } from './ai-tour-meeting-point.util.js';
 import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
+import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
+import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
+import { isAddBookingToCalendarPrompt } from './ai-add-booking-to-calendar.util.js';
+import { isListTourCalendarWeekPrompt } from './ai-tour-calendar-week.util.js';
+import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
+import { isConfigureProviderPushDateFormatPrompt } from './ai-provider-date-format.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
+import { isExplainBookingDateFormatPrompt } from './ai-booking-date-format.util.js';
 import type { ConfirmMyBookingDetailsAspect } from './ai-confirm-my-booking-details.fixtures.js';
 
 export const CONFIRM_MY_BOOKING_DETAILS_INTENTS = [
@@ -28,7 +38,7 @@ const READ_CUE = new RegExp(
 );
 
 const BOOKING_CONTEXT = new RegExp(
-  String.raw`\b(?:my|this|just|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|go\s+through|booked\s+with`,
+  String.raw`\b(?:my|this|just|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|booked\s+with`,
   'iu',
 );
 
@@ -124,12 +134,39 @@ function isServicePaymentOptionsQuestionPrompt(prompt: string): boolean {
 }
 
 export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
+  if (isConfigureProviderPushDateFormatPrompt(prompt)) return false;
+  if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
+  if (isExplainBookingDateFormatPrompt(prompt)) return false;
+  if (isSignInAfterBookingPrompt(prompt)) return false;
+  if (isAddBookingToCalendarPrompt(prompt)) return false;
+  if (isListTourCalendarWeekPrompt(prompt)) return false;
+  if (isExplainTourCalendarSpanPrompt(prompt)) return false;
+  if (isBookNearestSlotPrompt(prompt)) return false;
+  if (
+    /\b(?:tax|vat|gst|payment\s+breakdown|marked\s+paid|collected|walk\s+me\s+through)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (isServicePaymentOptionsQuestionPrompt(prompt)) return false;
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
+  if (isExplainTourBookingPrompt(prompt)) return false;
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
+  if (isExplainNotificationCurrencyPrompt(prompt)) return false;
+  if (isExplainTenantCurrencyPrompt(prompt)) return false;
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isBookAnotherServicePrompt(prompt)) return false;
   if (isShareMyBookingPrompt(prompt)) return false;
+  if (/\bpackage\s+visit\s+status\b/i.test(prompt)) return false;
+  if (
+    /\bpackage\s+visits?\b/i.test(prompt) &&
+    /\b(status|progress|left|remaining|still\s+have|how\s+many)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (isListMyUpcomingAppointmentsPrompt(prompt)) return false;
   if (LIST_ALL_APPOINTMENTS.test(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;

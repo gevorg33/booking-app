@@ -5,6 +5,7 @@ import {
 import { isExplainCancelPolicyPrompt } from './ai-explain-cancel-policy.util.js';
 import { isCancelPackageVisitSelfPrompt } from './ai-cancel-package-visit-self.util.js';
 import { isReschedulePackageVisitSelfPrompt } from './ai-reschedule-package-visit-self.util.js';
+import { isExplainPackageDisplayNamePrompt } from './ai-package-display-name.util.js';
 import {
   EXPLAIN_PACKAGE_VISIT_RULES_PROMPTS,
   type ExplainPackageVisitRulesFocus,
@@ -31,7 +32,7 @@ const PACKAGE_VISIT_RULES_CUE = new RegExp(
 );
 
 const RULES_QUESTION_CUE = new RegExp(
-  String.raw`\b(?:can\s+i|am\s+i\s+allowed|do\s+(?:i|unused)|will\s+i|what\s+(?:are|is|happens)|explain|tell\s+me|how\s+do|is\s+it|terms?|rules?|policy|expire|expir|keep\s+the\s+package|lose\s+(?:my|the)\s+package|lose\s+the\s+rest|skip\s+a?\s*visit)\b|կարո՞ղ\s+եմ|ժամկետանց|բացատր|можно\s+ли|сгора|правил|политик|объясн`,
+  String.raw`\b(?:can\s+i|am\s+i\s+allowed|do\s+unused|will\s+i|what\s+(?:are|is|happens)|explain|tell\s+me|how\s+do|is\s+it|terms?|rules?|policy|expire|expir|keep\s+the\s+package|lose\s+(?:my|the)\s+package|lose\s+the\s+rest|skip\s+a?\s*visit)\b|կարո՞ղ\s+եմ|ժամկետանց|բացատր|можно\s+ли|сгора|правил|политик|объясн`,
   'iu',
 );
 
@@ -67,6 +68,16 @@ function matchExplainPackageVisitRulesScenario(
 }
 
 export function isPackageVisitRulesQuestionPrompt(prompt: string): boolean {
+  if (
+    /\b(how\s+many|visits?\s+left|remaining|still\s+have)\b/i.test(prompt) &&
+    /\bpackage\b/i.test(prompt) &&
+    /\bvisit/i.test(prompt) &&
+    !/\b(rules?|policy|terms?|expire|cancel|skip|lose|keep|forfeit)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (
     /\b(cancel|skip|reschedule|move)\s+(?:visit|package|spa\s+day)\b/i.test(
       prompt,
@@ -117,6 +128,7 @@ export function detectExplainPackageVisitRulesFocus(
 }
 
 export function isExplainPackageVisitRulesPrompt(prompt: string): boolean {
+  if (isExplainPackageDisplayNamePrompt(prompt)) return false;
   if (matchExplainPackageVisitRulesScenario(prompt)) return true;
   if (isCancelPackageVisitSelfPrompt(prompt)) return false;
   if (isReschedulePackageVisitSelfPrompt(prompt)) return false;

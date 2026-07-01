@@ -5,8 +5,12 @@ import {
 } from './ai-sign-in-after-booking.fixtures.js';
 import { SIGN_IN_AFTER_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-sign-in-after-booking-multilingual.fixtures.js';
 import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
 import { isExplainWhySignInPrompt } from './ai-explain-why-sign-in.util.js';
+import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
+import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 
 export const SIGN_IN_AFTER_BOOKING_INTENTS = ['sign_in_after_booking'] as const;
 
@@ -16,7 +20,7 @@ export type SignInAfterBookingIntent =
 export { CUSTOMER_SIGN_IN_AFTER_BOOKING_CLASSIFIER_RULES } from './ai-sign-in-after-booking.fixtures.js';
 
 const POST_BOOKING_SIGN_IN_CUE =
-  /\b(save (?:this )?booking to (?:my )?account|save (?:my )?appointment on the confirmation|sign in with google after|continue with (?:google|apple) after|post-booking sign|post booking sign|after (?:my )?booking|just booked|booking confirmation|one tap sign in after|turn my guest checkout into an account|guest booking merge when i sign in|maybe later|tap maybe later|skip saving this booking|asking me to save my booking)\b/i;
+  /\b(save (?:this )?booking to (?:my )?account|save (?:my )?appointment on the confirmation(?: screen| page)?|sign in with google after|continue with (?:google|apple) after|post-booking sign|post booking sign|one tap sign in after|turn my guest checkout into an account|guest booking merge when i sign in|maybe later|tap maybe later|skip saving this booking|asking me to save my booking)\b/i;
 
 const SAVE_TO_ACCOUNT_CUE =
   /\b(save (?:this )?booking|save (?:my )?appointment|asking me to save|confirmation screen)\b/i;
@@ -74,7 +78,21 @@ export function resolveSignInAfterBookingAspect(
 const MANAGE_LINK_ONLY_CUE =
   /\b(manage\s+link|reschedule\s+link|cancel\s+link|self[\s-]?service\s+link|resend manage)\b/i;
 
+function isCalendarExportPrompt(prompt: string): boolean {
+  return (
+    /\b(?:add|put|save|send|download|export|open|get|give)\b/i.test(prompt) &&
+    /\b(?:calendar|ics|google\s+calendar|outlook|օրացույց|календар)/i.test(
+      prompt,
+    ) &&
+    !/\b(?:account|sign[\s-]?in|log[\s-]?in)\b/i.test(prompt)
+  );
+}
+
 export function isSignInAfterBookingPrompt(prompt: string): boolean {
+  if (isCalendarExportPrompt(prompt)) return false;
+  if (isExplainAnyProviderOptionPrompt(prompt)) return false;
+  if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
+  if (isExplainConsumerCheckoutSuccessPrompt(prompt)) return false;
   if (matchSignInAfterBookingScenario(prompt)) return true;
   if (
     MANAGE_LINK_ONLY_CUE.test(prompt) &&
@@ -94,15 +112,18 @@ export function isSignInAfterBookingPrompt(prompt: string): boolean {
   if (
     (containsArmenianScript(prompt) &&
       /(պահպան|հաշվ|մուտք|Google|Apple|Ավելի ուշ)/i.test(prompt) &&
-      /(ամրագր|հետո|կիս)/i.test(prompt)) ||
+      /(ամրագր|հետո|կիս)/i.test(prompt) &&
+      !/օրացույց/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(сохран|аккаунт|войти|Google|Apple|позже|объедин)/i.test(prompt) &&
-      /(запис|после|гостев)/i.test(prompt))
+      /(запис|после|гостев)/i.test(prompt) &&
+      !/календар/i.test(prompt))
   ) {
     return true;
   }
 
   if (!POST_BOOKING_SIGN_IN_CUE.test(prompt)) return false;
+  if (isExplainNotificationCurrencyPrompt(prompt)) return false;
   if (hasSignInToManageBookingCue(prompt)) return false;
   if (isExplainWhySignInPrompt(prompt)) return false;
   if (isExplainGuestCheckoutFieldsPrompt(prompt)) return false;

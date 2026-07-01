@@ -72,12 +72,20 @@ const HY_RU_EXPLAIN_CART_CUE =
 export function isExplainMultiServiceCartPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (
+    /\bpackage\s+visits?\b/i.test(text) &&
+    /\b(status|progress|left|remaining|still\s+have|how\s+many|list|show)\b/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
   if (/\bcart\s+total\s+duration\b/i.test(text)) return false;
   if (
     /\b(show|what\s+is|how\s+long|total)\b/i.test(text) &&
     /\b(cart|basket|visit)\b/i.test(text) &&
     /\b(duration|time|minutes?|long)\b/i.test(text) &&
-    !/\b(what(?:'s|\s+is|\s+did)|picked|selected|added|treatments?|services?\s+are|in\s+my)\b/i.test(
+    !/\b(what(?:'s|\s+did)|picked|selected|added|treatments?|services?\s+are|in\s+my)\b/i.test(
       text,
     )
   ) {

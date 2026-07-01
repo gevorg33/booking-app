@@ -1,8 +1,17 @@
 import { isExplainDataRightsPrompt } from './ai-data-rights.util.js';
 import { isExplainWhySignInPrompt } from './ai-explain-why-sign-in.util.js';
+import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
 import { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
 import { isFixCheckoutValidationErrorPrompt } from './ai-fix-checkout-validation-error.util.js';
+import { isConfigureGranularConsentPrompt } from './ai-business-compliance.util.js';
+import { isConfigureStripeConnectPrompt } from './ai-stripe-connect.util.js';
+import { isExplainProviderDateDisplayPrompt } from './ai-provider-date-format.util.js';
+import { isExplainPackageDisplayNamePrompt } from './ai-package-display-name.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
+import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
+import { isExplainRecommendationSetupPrompt } from './ai-recommendation-product.util.js';
 
 export const GUEST_CHECKOUT_FIELDS_INTENTS = [
   'explain_guest_checkout_fields',
@@ -146,6 +155,13 @@ export function extractGuestCheckoutFieldsAspectFromPrompt(
 }
 
 export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
+  if (isConfigureGranularConsentPrompt(prompt)) return false;
+  if (isConfigureStripeConnectPrompt(prompt)) return false;
+  if (isExplainProviderDateDisplayPrompt(prompt)) return false;
+  if (isExplainPackageDisplayNamePrompt(prompt)) return false;
+  if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
+  if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
+  if (isExplainRecommendationSetupPrompt(prompt)) return false;
   if (isExplainWhySignInPrompt(prompt)) return false;
   if (
     /\b(save (?:this )?booking to (?:my )?account|sign in with google after|post-booking sign|after (?:my )?booking|maybe later on save|confirmation screen save)\b/i.test(
@@ -157,6 +173,8 @@ export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
   if (isFixCheckoutValidationErrorPrompt(prompt)) return false;
   if (isCheckoutConsentPrompt(prompt)) return true;
   if (isExplainDataRightsPrompt(prompt)) return false;
+  if (isExplainTenantCurrencyPrompt(prompt)) return false;
+  if (isExplainNotificationCurrencyPrompt(prompt)) return false;
   if (isExplainClinicBookingPrompt(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;

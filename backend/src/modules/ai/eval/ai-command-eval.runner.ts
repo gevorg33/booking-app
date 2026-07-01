@@ -2195,7 +2195,7 @@ export function evaluateDeterministicEvalCase(
     expect.compoundRecipeId !== undefined ||
     expect.compoundStepParams !== undefined
   ) {
-    const surface = expect.compoundSurface ?? 'dashboard';
+    const surface = expect.compoundSurface ?? evalCase.surface ?? 'dashboard';
     const decompositionResult = decomposeDeterministicForSurface(
       surface,
       prompt,

@@ -77,6 +77,20 @@ describe('ai-explain-why-sign-in.util (ai-cmd-customer-4.17.1)', () => {
     ).toBe(false);
   });
 
+  it('does not steal explain_tenant_currency prompts', () => {
+    expect(
+      isExplainWhySignInPrompt(
+        'Why does the salon app show prices in euros after I log in?',
+      ),
+    ).toBe(false);
+    expect(
+      rescueExplainWhySignInIntent(
+        'Why does the salon app show prices in euros after I log in?',
+        'unknown',
+      ),
+    ).toBeNull();
+  });
+
   it('returns null rescue when already classified correctly', () => {
     expect(
       rescueExplainWhySignInIntent(

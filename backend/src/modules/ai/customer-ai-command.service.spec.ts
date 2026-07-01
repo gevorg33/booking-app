@@ -60,6 +60,12 @@ describe('CustomerAiCommandService', () => {
         summary: 'promo ok',
         details: { promoCode: 'SPRING25' },
       })),
+      handleApplyPromoCodeCheckout: jest.fn(async () => ({
+        success: true,
+        action: 'apply_promo_code_checkout',
+        summary: 'promo applied',
+        details: { promoCode: 'SPRING25' },
+      })),
     };
     const sprintHandlers = {
       handleMyProfile: jest.fn(async () => ({
@@ -271,6 +277,16 @@ describe('CustomerAiCommandService', () => {
       clinicBooking: noopSprint,
       guestCheckoutFields: noopSprint,
       resumePendingPayment: noopSprint,
+      diagnoseStripeCheckoutFailure: noopSprint,
+      payAtVenueFallback: noopSprint,
+      resumeBookingDraft: noopSprint,
+      explainSlotNoLongerAvailable: noopSprint,
+      explainMultiServicePaymentReturn: noopSprint,
+      retryFailedNetworkAction: noopSprint,
+      explainVoiceInput: noopSprint,
+      speakAssistantReply: noopSprint,
+      giveAiFeedback: noopSprint,
+      explainRtlLayout: noopSprint,
       consumerAdoption,
       publicAssistant,
       productGuide: noopSprint,
@@ -309,6 +325,16 @@ describe('CustomerAiCommandService', () => {
       mocks.clinicBooking as any,
       mocks.guestCheckoutFields as any,
       mocks.resumePendingPayment as any,
+      mocks.diagnoseStripeCheckoutFailure as any,
+      mocks.payAtVenueFallback as any,
+      mocks.resumeBookingDraft as any,
+      mocks.explainSlotNoLongerAvailable as any,
+      mocks.explainMultiServicePaymentReturn as any,
+      mocks.retryFailedNetworkAction as any,
+      mocks.explainVoiceInput as any,
+      mocks.speakAssistantReply as any,
+      mocks.giveAiFeedback as any,
+      mocks.explainRtlLayout as any,
       mocks.consumerAdoption as any,
       mocks.publicAssistant as any,
       mocks.productGuide as any,
@@ -337,15 +363,22 @@ describe('CustomerAiCommandService', () => {
     const mocks = createMocks();
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
     mocks.llm.completeJson = jest.fn(async () => ({
-      action: 'business_info',
+      action: 'list_services',
       params: {},
-      reasoning: 'hours and location',
+      reasoning: 'service catalog',
     }));
+    mocks.publicAssistant = {
+      chat: jest.fn(async () => ({
+        success: true,
+        action: 'list_services',
+        summary: 'Haircut, Color, Spa',
+      })),
+    };
     const { service, publicAssistant } = createService(mocks);
 
     const result = await service.executeCommand(
       'biz-1',
-      'What are your opening hours?',
+      'What services do you offer?',
       [],
       {
         slug: 'salon',
@@ -354,11 +387,11 @@ describe('CustomerAiCommandService', () => {
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
-      'What are your opening hours?',
+      'What services do you offer?',
       expect.objectContaining({ locale: undefined }),
       { recordMetrics: false },
     );
-    expect(result.action).toBe('business_info');
+    expect(result.action).toBe('list_services');
   });
 
   it('dispatches classified customer self-service intents', async () => {

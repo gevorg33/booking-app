@@ -5,6 +5,7 @@ import {
 } from './ai-explain-post-visit-review-prompt.fixtures.js';
 import { EXPLAIN_POST_VISIT_REVIEW_PROMPT_MULTILINGUAL_SCENARIOS } from './ai-explain-post-visit-review-prompt-multilingual.fixtures.js';
 import { isLeaveVisitReviewPrompt } from './ai-leave-visit-review.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 
 export const EXPLAIN_POST_VISIT_REVIEW_PROMPT_INTENTS = [
   'explain_post_visit_review_prompt',
@@ -75,6 +76,7 @@ export function resolveExplainPostVisitReviewAspect(
 }
 
 export function isExplainPostVisitReviewPrompt(prompt: string): boolean {
+  if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
   if (matchExplainPostVisitReviewScenario(prompt)) return true;
   if (isLeaveVisitReviewPrompt(prompt)) return false;
   if (REPORT_PROBLEM_CUE.test(prompt)) return false;

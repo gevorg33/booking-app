@@ -59,6 +59,24 @@ describe('ai-list-my-upcoming-appointments.util (ai-cmd-customer-4.4.1)', () => 
     ).toBe(false);
   });
 
+  it('does not steal tour calendar or flexible booking prompts containing this week', () => {
+    expect(
+      isListMyUpcomingAppointmentsPrompt(
+        'Why is a multi-day tour clipped at the week boundary on the calendar?',
+      ),
+    ).toBe(false);
+    expect(
+      isListMyUpcomingAppointmentsPrompt(
+        'Grab the soonest available massage appointment this week',
+      ),
+    ).toBe(false);
+    expect(
+      isListMyUpcomingAppointmentsPrompt(
+        'Put me in the earliest opening you have this week',
+      ),
+    ).toBe(false);
+  });
+
   it('filters next appointment scope', () => {
     const bookings = [
       {

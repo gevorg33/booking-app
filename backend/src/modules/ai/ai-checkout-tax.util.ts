@@ -1,4 +1,6 @@
 import { isExplainBusinessTaxPrompt } from './ai-business-tax.util.js';
+import { isExplainStripeTaxChargePrompt } from './ai-stripe-tax-charge.util.js';
+import { isLookupBookingTaxMetadataPrompt } from './ai-lookup-booking-tax-metadata.util.js';
 import { isExplainCheckoutTotalPrompt } from './ai-payments.util.js';
 import { CHECKOUT_TAX_MULTILINGUAL_SCENARIOS } from './ai-checkout-tax-multilingual.fixtures.js';
 import { EXPLAIN_CHECKOUT_TAX_PROMPTS } from './ai-checkout-tax.fixtures.js';
@@ -103,6 +105,8 @@ function matchCheckoutTaxMultilingualScenario(
 }
 
 export function isExplainCheckoutTaxPrompt(prompt: string): boolean {
+  if (isExplainStripeTaxChargePrompt(prompt)) return false;
+  if (isLookupBookingTaxMetadataPrompt(prompt)) return false;
   if (matchCheckoutTaxMultilingualScenario(prompt)) return true;
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
   if (isExplainBusinessTaxPrompt(prompt)) return false;

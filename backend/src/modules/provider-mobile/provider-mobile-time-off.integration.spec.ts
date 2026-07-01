@@ -37,8 +37,8 @@ describe('ProviderTimeOffService (prov-exp-7.2)', () => {
       businessId: 'biz-1',
       employeeId: 'emp-1',
       requestedByUserId: 'user-1',
-      startDate: '2026-06-20',
-      endDate: '2026-06-20',
+      startDate: '2026-08-20',
+      endDate: '2026-08-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
       reason: 'Doctor',
@@ -56,8 +56,8 @@ describe('ProviderTimeOffService (prov-exp-7.2)', () => {
 
   it('creates pending request when feature enabled', async () => {
     const result = await service.createRequest('biz-1', 'user-1', 'emp-1', {
-      startDate: '2026-06-20',
-      endDate: '2026-06-20',
+      startDate: '2026-08-20',
+      endDate: '2026-08-20',
       dailyStartTime: '09:00',
       dailyEndTime: '17:00',
       reason: 'Doctor',
@@ -76,8 +76,8 @@ describe('ProviderTimeOffService (prov-exp-7.2)', () => {
 
     await expect(
       service.createRequest('biz-1', 'user-1', 'emp-1', {
-        startDate: '2026-06-10',
-        endDate: '2026-06-10',
+        startDate: '2026-08-10',
+        endDate: '2026-08-10',
         dailyStartTime: '09:00',
         dailyEndTime: '17:00',
       }),

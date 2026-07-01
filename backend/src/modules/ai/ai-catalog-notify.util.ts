@@ -32,6 +32,15 @@ export function isCatalogNotifyExplicitSkipPrompt(prompt: string): boolean {
 
 export function isCatalogNotifyCustomersPrompt(prompt: string): boolean {
   if (isCatalogNotifyExplicitSkipPrompt(prompt)) return false;
+  if (
+    /\b(?:running\s+late|late\s+for|i'?m\s+late|behind\s+schedule)\b/i.test(
+      prompt,
+    ) ||
+    /(ուշաց|ուշ\s+եմ|ուշացող)/i.test(prompt) ||
+    /(опаздыва|опоздаю)/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     (/\b(notify|email|push|announce|alert|message|tell|broadcast)\b/i.test(
       prompt,

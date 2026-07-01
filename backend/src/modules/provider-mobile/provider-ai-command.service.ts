@@ -114,6 +114,10 @@ import { ProviderPushActionService } from './provider-push-action.service.js';
 import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
 import { AiProviderClientContextService } from '../ai/ai-provider-client-context.service.js';
+import {
+  extractClientNoteBodyFromPrompt,
+  extractCustomerNameFromClientPrompt,
+} from '../ai/ai-provider-client-context.util.js';
 import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
@@ -633,6 +637,35 @@ export class ProviderAiCommandService {
     if (providerHeuristic !== parsed.action) {
       parsed.action = providerHeuristic;
       rescueReason = 'provider_heuristic';
+    }
+
+    const clientContextRescue =
+      this.providerClientContext.rescueProviderClientContextIntent(
+        prompt,
+        parsed.action,
+      );
+    if (clientContextRescue && clientContextRescue.action !== parsed.action) {
+      parsed.action = clientContextRescue.action;
+      rescueReason = clientContextRescue.rescueReason;
+      if (clientContextRescue.action === 'add_client_note') {
+        const noteBody = extractClientNoteBodyFromPrompt(prompt);
+        if (noteBody) {
+          (parsed.params as Record<string, unknown>).clientNote = noteBody;
+        }
+      }
+      const customerName = extractCustomerNameFromClientPrompt(prompt);
+      if (customerName) {
+        (parsed.params as Record<string, unknown>).customerName = customerName;
+      }
+    }
+
+    const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
+      prompt,
+      parsed.action,
+    );
+    if (providerExp2Rescue && providerExp2Rescue.action !== parsed.action) {
+      parsed.action = providerExp2Rescue.action;
+      rescueReason = providerExp2Rescue.rescueReason;
     }
 
     const voiceSummarizeRescue = rescueVoiceSummarizeNextClientIntent(

@@ -995,6 +995,7 @@ describe('customer-ai-command.logic', () => {
     expect(deps.calls['s36.get_manage_link']).toHaveBeenCalledWith(
       'biz-1',
       expect.objectContaining({ bookingId: 'bk-2', packageId: 'pkg-9' }),
+      'Book package and get manage link',
     );
   });
 });

@@ -1,4 +1,7 @@
 import { isExplainDataRightsPrompt } from './ai-data-rights.util.js';
+import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
+import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
 import { EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_SCENARIOS } from './ai-explain-why-sign-in-multilingual.fixtures.js';
 import {
@@ -114,6 +117,8 @@ export function inferExplainWhySignInAspect(
 export function isExplainWhySignInPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isExplainCheckoutRecommendationsPrompt(text)) return false;
+  if (isExplainConsumerCheckoutSuccessPrompt(text)) return false;
   if (matchExplainWhySignInScenario(text)) return true;
   if (POST_BOOKING_SAVE_CUE.test(text)) return false;
   if (MANAGE_LINK_SIGN_IN_CUE.test(text) || hasSignInToManageBookingCue(text)) {
@@ -121,6 +126,7 @@ export function isExplainWhySignInPrompt(prompt: string): boolean {
   }
   if (GUEST_CHECKOUT_FIELD_FOCUS.test(text)) return false;
   if (isExplainDataRightsPrompt(text)) return false;
+  if (isExplainTenantCurrencyPrompt(text)) return false;
   if (CHECKOUT_FIELD_TOPIC.test(text) && !ACCOUNT_SIGN_IN_TOPIC.test(text)) {
     return false;
   }

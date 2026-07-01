@@ -47,6 +47,7 @@ import {
   rescueExplainPatientAlertIntent,
   isExplainPatientAlertPrompt,
 } from './ai-explain-patient-alert.util.js';
+import { isPushNotificationsDomainPrompt } from './ai-push-notifications.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
@@ -97,11 +98,7 @@ export function rescueConsumerAdoptionIntent(
     return null;
   }
 
-  if (
-    /\b(push actions?|offline queue|last push|new booking push|push recipients|notification history)\b/i.test(
-      text,
-    )
-  ) {
+  if (isPushNotificationsDomainPrompt(text)) {
     return null;
   }
 
@@ -136,11 +133,17 @@ export function rescueConsumerAdoptionIntent(
   const explainNotifications = rescueExplainMyNotificationsIntent(text, action);
   if (explainNotifications) return explainNotifications;
 
-  const enablePush = rescueCustomerEnablePushNotificationsIntent(text, action);
-  if (enablePush) return enablePush;
-
   const explainPushPermission = rescueExplainPushPermissionIntent(text, action);
   if (explainPushPermission) return explainPushPermission;
+
+  const managePreferences = rescueManageNotificationPreferencesIntent(
+    text,
+    action,
+  );
+  if (managePreferences) return managePreferences;
+
+  const enablePush = rescueCustomerEnablePushNotificationsIntent(text, action);
+  if (enablePush) return enablePush;
 
   const explainOfflineMode = rescueExplainOfflineModeIntent(text, action);
   if (explainOfflineMode) return explainOfflineMode;
@@ -162,12 +165,6 @@ export function rescueConsumerAdoptionIntent(
     action,
   );
   if (explainHomeScreenWidget) return explainHomeScreenWidget;
-
-  const managePreferences = rescueManageNotificationPreferencesIntent(
-    text,
-    action,
-  );
-  if (managePreferences) return managePreferences;
 
   const explainShareReward = rescueExplainShareRewardIntent(text, action);
   if (explainShareReward) return explainShareReward;

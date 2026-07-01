@@ -900,6 +900,18 @@ export class AiIntentRescueService {
       action,
     );
     if (explainPreparationNotesEarly) return explainPreparationNotesEarly;
+    const explainCalendarSpanClassifiedEarly =
+      this.tryRescueExplainTourCalendarSpan(prompt, action);
+    if (explainCalendarSpanClassifiedEarly) {
+      return explainCalendarSpanClassifiedEarly;
+    }
+    const listCalendarWeekClassifiedEarly = this.tryRescueListTourCalendarWeek(
+      prompt,
+      action,
+    );
+    if (listCalendarWeekClassifiedEarly) {
+      return listCalendarWeekClassifiedEarly;
+    }
     const addBookingToCalendarEarly = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
@@ -1454,6 +1466,18 @@ export class AiIntentRescueService {
       this.tryRescueExplainPreparationNotes(prompt, action);
     if (explainPreparationNotesUnknown) return explainPreparationNotesUnknown;
 
+    const explainCalendarSpanBeforeSelfService =
+      this.tryRescueExplainTourCalendarSpan(prompt, action);
+    if (explainCalendarSpanBeforeSelfService) {
+      return explainCalendarSpanBeforeSelfService;
+    }
+
+    const listCalendarWeekBeforeSelfService =
+      this.tryRescueListTourCalendarWeek(prompt, action);
+    if (listCalendarWeekBeforeSelfService) {
+      return listCalendarWeekBeforeSelfService;
+    }
+
     const addBookingToCalendarUnknown = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
@@ -1759,6 +1783,12 @@ export class AiIntentRescueService {
       this.tryRescueCheckoutRecommendations(prompt, action);
     if (checkoutRecommendationsUnknown) return checkoutRecommendationsUnknown;
 
+    const pushNotificationsUnknownEarly = this.tryRescuePushNotifications(
+      prompt,
+      action,
+    );
+    if (pushNotificationsUnknownEarly) return pushNotificationsUnknownEarly;
+
     const consumerAdoptionUnknownEarly = this.tryRescueConsumerAdoption(
       prompt,
       action,
@@ -1795,18 +1825,6 @@ export class AiIntentRescueService {
       action,
     );
     if (listDeparturesUnknown) return listDeparturesUnknown;
-
-    const explainCalendarSpanUnknown = this.tryRescueExplainTourCalendarSpan(
-      prompt,
-      action,
-    );
-    if (explainCalendarSpanUnknown) return explainCalendarSpanUnknown;
-
-    const listCalendarWeekUnknown = this.tryRescueListTourCalendarWeek(
-      prompt,
-      action,
-    );
-    if (listCalendarWeekUnknown) return listCalendarWeekUnknown;
 
     const explainToursUnknown = this.tryRescueExplainTourServices(
       prompt,

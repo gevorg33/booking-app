@@ -27,6 +27,7 @@ import {
 } from './ai-payments.util.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
 import { GiftCardsService } from '../gift-cards/gift-cards.service.js';
@@ -46,6 +47,7 @@ const services = [
     businessId: 'biz-1',
     price: 80,
     isActive: true,
+    prepaymentMode: PrepaymentMode.NONE,
   },
   {
     id: 's2',
@@ -53,15 +55,19 @@ const services = [
     businessId: 'biz-1',
     price: 60,
     isActive: true,
+    prepaymentMode: PrepaymentMode.NONE,
   },
 ] as any[];
 
 describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
   const giftCardsService = {
-    validate: jest.fn(async () => ({ id: 'gc-1', code: 'GCM-ABCD1234' })),
-    getBalanceView: jest.fn(async () => ({
+    validate: jest.fn(async (code: string) => ({
       id: 'gc-1',
-      code: 'GCM-ABCD1234',
+      code: code || 'GCM-ABCD1234',
+    })),
+    getBalanceView: jest.fn(async (code?: string) => ({
+      id: 'gc-1',
+      code: code || 'GCM-ABCD1234',
       cardType: 'monetary',
       balance: 50,
       currency: 'USD',
@@ -81,7 +87,7 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
       ],
     })),
     findNearestBookableSlot: jest.fn(async () => ({
-      startTime: '2026-06-07T14:00:00Z',
+      startTime: '2026-08-07T14:00:00Z',
       employeeId: 'e1',
       employeeName: 'Anna Kim',
     })),

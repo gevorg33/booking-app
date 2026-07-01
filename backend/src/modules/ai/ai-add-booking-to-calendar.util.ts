@@ -1,6 +1,7 @@
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
+import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import type { AddBookingToCalendarFormat } from './ai-add-booking-to-calendar.fixtures.js';
 
 export const ADD_BOOKING_TO_CALENDAR_INTENTS = [
@@ -63,10 +64,6 @@ export function extractAddBookingToCalendarFormatFromPrompt(
 }
 
 export function isAddBookingToCalendarPrompt(prompt: string): boolean {
-  if (isExplainTourBookingRecordPrompt(prompt)) return false;
-  if (isShareMyBookingPrompt(prompt)) return false;
-  if (BLOCK_TOPIC.test(prompt)) return false;
-
   if (
     /(?:ավելացր.*օրացույց|օրացույց.*ավելաց|ics\s+ֆայլ|պահպան.*օրացույց|добав.*календар|google\s+calendar|outlook|ics\s+файл|сохрани.*календар|пришли\s+ics|отправ.*ics)/iu.test(
       prompt,
@@ -74,6 +71,20 @@ export function isAddBookingToCalendarPrompt(prompt: string): boolean {
   ) {
     return true;
   }
+
+  if (
+    /\b(?:show|list|summarize)\b/i.test(prompt) &&
+    /\b(?:tour\s+bookings?|tour\s+departures?|tours?)\b/i.test(prompt) &&
+    /\b(?:calendar\s+week|provider\s+calendar|provider\s+schedule|current\s+calendar\s+week)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (isExplainTourBookingRecordPrompt(prompt)) return false;
+  if (isShareMyBookingPrompt(prompt)) return false;
+  if (isSignInAfterBookingPrompt(prompt)) return false;
+  if (BLOCK_TOPIC.test(prompt)) return false;
 
   if (!CALENDAR_CUE.test(prompt)) return false;
   return (

@@ -379,6 +379,11 @@ export class CustomerAiCommandService {
       }
     }
 
+    if (parsed.action === 'check_availability') {
+      parsed.action = 'check_providers_for_service';
+      rescueReason = rescueReason ?? 'customer_check_availability_disambiguation';
+    }
+
     const action = parsed.action;
     let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
     params = applyPromptMentionedServiceOverrideToParams(prompt, params);

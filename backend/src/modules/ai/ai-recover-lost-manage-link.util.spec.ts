@@ -77,6 +77,14 @@ describe('ai-recover-lost-manage-link.util (ai-cmd-customer-4.17.3)', () => {
     ).toBe(false);
   });
 
+  it('does not steal explain_notification_currency prompts', () => {
+    expect(
+      isRecoverLostManageLinkPrompt(
+        'Why does my booking confirmation email show euros (€)?',
+      ),
+    ).toBe(false);
+  });
+
   it('covers isRecoverLostManageLinkIntent guard paths', () => {
     expect(
       rescueRecoverLostManageLinkIntent(

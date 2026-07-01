@@ -268,11 +268,23 @@ function cleanCapturedPhrase(value: string): string {
 }
 
 function hasNamedProviderCue(prompt: string): boolean {
+  if (/\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(prompt)) {
+    return false;
+  }
+  if (
+    /\b(?:check|see|look\s+up|find\s+out)\b/i.test(prompt) &&
+    /\bwho\b/i.test(prompt) &&
+    /\b(?:free|available|open)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(?:tell me about|learn(?: more)? about|what(?:'s| is)\s+\w+(?:'s)?\s+specialty|does\s+\w+\s+do)\b/i.test(
       prompt,
     ) ||
-    /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b)/i.test(prompt) ||
+    /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b|free\b|available\b|open\b|working\b|busy\b)/i.test(
+      prompt,
+    ) ||
     /պատմիր/iu.test(prompt) ||
     /(?:расскажи|расскажите)\s+(?:об|о)(?=\s)/iu.test(prompt)
   );
@@ -357,6 +369,14 @@ export function isExplainProviderSpecialtyPrompt(prompt: string): boolean {
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isRecommendAvailabilityPrompt(prompt)) return false;
   if (isRecommendSpecialistRankingPrompt(prompt)) return false;
+  if (
+    /\b(?:check|see|look\s+up|find\s+out)\b/i.test(prompt) &&
+    /\bwho\b/i.test(prompt) &&
+    /\b(?:free|available|open)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (/\bwho\s+is\s+(?:free|available|open)\b/i.test(prompt)) return false;
   if (
     /\b(?:book|schedule|reserve)\b/i.test(prompt) &&
     /\b(?:appointment|slot|with)\b/i.test(prompt)

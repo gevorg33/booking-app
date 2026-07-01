@@ -9,6 +9,8 @@ import {
   defaultCustomerRunningLateMinutes,
   normalizeCustomerRunningLateMinutes,
 } from '../../common/utils/customer-running-late.util.js';
+import { isExplainStripeCurrencyWarningPrompt } from './ai-stripe-currency-warning.util.js';
+import { isCatalogNotifyCustomersPrompt } from './ai-catalog-notify.util.js';
 
 export const NOTIFY_RUNNING_LATE_INTENTS = ['notify_running_late'] as const;
 
@@ -90,6 +92,8 @@ export function extractRunningLateMinutesFromCustomerPrompt(
 }
 
 export function isNotifyRunningLatePrompt(prompt: string): boolean {
+  if (isExplainStripeCurrencyWarningPrompt(prompt)) return false;
+  if (isCatalogNotifyCustomersPrompt(prompt)) return false;
   if (PROVIDER_RUNNING_LATE_CUE.test(prompt)) return false;
   if (RESCHEDULE_CUE.test(prompt) && !RUNNING_LATE_CUE.test(prompt))
     return false;
@@ -99,7 +103,9 @@ export function isNotifyRunningLatePrompt(prompt: string): boolean {
 
   if (
     (containsArmenianScript(prompt) &&
-      /(ուշ\s*եմ|ուշաց|տեղեկաց)/i.test(prompt)) ||
+      /(?:^|[^\u0530-\u058F])ուշ\s*եմ|(?<![\u0530-\u058F])ուշաց(?![\u0530-\u058F])|տեղեկաց/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
       /(опазды|задерж|сообщ.*салон)/i.test(prompt))
   ) {

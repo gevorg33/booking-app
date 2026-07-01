@@ -12,6 +12,7 @@ import {
   shouldForceProductGuideRouting,
 } from './ai-assistant-mode.util.js';
 import { isGrowthLoopsCustomerPrompt } from './ai-growth-loops-customer.util.js';
+import { isPromoCodeHelpPrompt } from './ai-marketing-growth.util.js';
 
 /**
  * ai-guide-1.0.1 — Product guide vs domain explain vs action taxonomy.
@@ -467,6 +468,10 @@ export function classifyPromptIntentBucket(
   if (!trimmed) return 'unknown';
 
   if (isGrowthLoopsCustomerPrompt(trimmed)) {
+    return 'action';
+  }
+
+  if (isPromoCodeHelpPrompt(trimmed)) {
     return 'action';
   }
 

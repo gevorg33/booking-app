@@ -39,6 +39,7 @@ export type PublicBookingHarnessDeps = {
   configService?: ConfigService;
   referralProgramService?: unknown;
   shareRewardService?: unknown;
+  tenantAppInstallService?: unknown;
   employeeRepo?: unknown;
   serviceRepo?: unknown;
   slotRepo?: unknown;
@@ -85,6 +86,7 @@ export function createPublicBookingServiceHarness(
     config,
     deps.referralProgramService ?? EMPTY,
     deps.shareRewardService ?? EMPTY,
+    deps.tenantAppInstallService ?? EMPTY,
     deps.employeeRepo ?? EMPTY,
     deps.serviceRepo ?? EMPTY,
     deps.slotRepo ?? EMPTY,

@@ -1,4 +1,6 @@
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
+import { isConfigureNotificationSettingsPrompt } from './ai-notification-settings.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import {
   extractGuestContactFromPrompt,
   normalizeGuestContactPhone,
@@ -26,12 +28,15 @@ export {
 export { RECOVER_LOST_MANAGE_LINK_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recover-lost-manage-link-multilingual.fixtures.js';
 
 const GUEST_RESEND_CUE = new RegExp(
-  String.raw`\b(?:resend|re-?send|lost|missing|didn'?t\s+get|never\s+got|confirmation\s+email|confirmation\s+text|text\s+me|sms\s+me|email\s+me)\b|կորցր|վերաուղարկ|перешл|потерял|не\s+получил|sms|հաստատման\s+նամակ`,
+  String.raw`\b(?:resend|re-?send|lost|missing|didn'?t\s+get|never\s+got|text\s+me|sms\s+me|email\s+me)\b|կորցր|վերաուղարկ|перешл|потерял|не\s+получил|հաստատման\s+նամակ`,
   'iu',
 );
 
+const LOST_CONFIRMATION_CHANNEL_CUE =
+  /\b(?:lost|missing|didn'?t\s+get|never\s+got|resend|re-?send).{0,30}confirmation\s+(?:email|text|sms)\b|\bconfirmation\s+(?:email|text|sms).{0,24}(?:lost|missing|didn'?t|never|resend|re-?send)/i;
+
 const MANAGE_LINK_CUE = new RegExp(
-  String.raw`\b(?:manage\s+link|booking\s+link|reschedule\s+link|cancel\s+link|self[\s-]?service\s+link|appointment\s+link|manage\s+my\s+booking)\b|karavarman\s+hghum|управлен|ссылк.*(?:запис|брон|управлен)`,
+  String.raw`\b(?:manage\s+link|booking\s+link|reschedule\s+link|cancel\s+link|self[\s-]?service\s+link|appointment\s+link|manage\s+my\s+booking)\b|karavarman\s+hghum|կառավարման\s+հղում|управлен|ссылк.*(?:запис|брон|управлен)`,
   'iu',
 );
 
@@ -73,8 +78,8 @@ export function hasRecoverLostManageLinkCue(prompt: string): boolean {
     return true;
   }
   if (
-    GUEST_RESEND_CUE.test(prompt) &&
-    /\b(?:booking|appointment|visit|manage|confirmation|link)\b/i.test(prompt)
+    (GUEST_RESEND_CUE.test(prompt) || LOST_CONFIRMATION_CHANNEL_CUE.test(prompt)) &&
+    /\b(?:booking|appointment|visit|manage|link)\b/i.test(prompt)
   ) {
     return true;
   }
@@ -87,17 +92,21 @@ export function hasRecoverLostManageLinkCue(prompt: string): boolean {
 export function isRecoverLostManageLinkPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
-  if (hasSignInToManageBookingCue(text)) return false;
-  if (SHARE_CUE.test(text) && !MANAGE_LINK_CUE.test(text)) return false;
+  if (isConfigureNotificationSettingsPrompt(text)) return false;
+  if (isExplainNotificationCurrencyPrompt(text)) return false;
+  if (GUEST_RESEND_CUE.test(text) && MANAGE_LINK_CUE.test(text)) return true;
   if (matchRecoverLostManageLinkScenario(text)) return true;
 
   if (
-    /(?:կորցր.{0,24}(?:հաստատման|amragr)|потерял.{0,24}(?:письмо|подтвержд)|не\s+получил.{0,24}(?:письмо|sms|ссылк))/iu.test(
+    /(?:կորցր|Կորցր).{0,24}(?:հաստատման|amragr)|потерял.{0,24}(?:письмо|подтвержд)|не\s+получил.{0,24}(?:письмо|sms|ссылк)/iu.test(
       text,
     )
   ) {
     return true;
   }
+
+  if (hasSignInToManageBookingCue(text)) return false;
+  if (SHARE_CUE.test(text) && !MANAGE_LINK_CUE.test(text)) return false;
 
   if (
     /(?:ուղարկ|send|resend|text|sms|email).{0,40}(?:link|hghum|ссылк|управлен)/iu.test(

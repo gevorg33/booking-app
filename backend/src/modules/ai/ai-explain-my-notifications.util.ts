@@ -7,6 +7,7 @@ import {
   type ExplainMyNotificationsPromptFixture,
 } from './ai-explain-my-notifications.fixtures.js';
 import { EXPLAIN_MY_NOTIFICATIONS_MULTILINGUAL_SCENARIOS } from './ai-explain-my-notifications-multilingual.fixtures.js';
+import { isPreviewBusinessDateFormatPrompt } from './ai-business-date-format.util.js';
 import type {
   BusinessNotificationSettings,
   CustomerNotificationPreferences,
@@ -256,6 +257,7 @@ export function buildMyNotificationsExplainCopy(options: {
 export function isExplainMyNotificationsPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isPreviewBusinessDateFormatPrompt(text)) return false;
   if (isExplainPushPermissionPrompt(text)) return false;
   if (isExplainTourBookingRecordPrompt(text)) return false;
   if (matchExplainMyNotificationsScenario(text)) return true;

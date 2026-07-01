@@ -81,12 +81,14 @@ describe('Sprint 36 customer booking AI scenarios', () => {
       bookings: [
         {
           id: 'book-1',
-          startTime: '2026-06-10T10:00:00Z',
+          startTime: futureBookingStart().toISOString(),
           status: BookingStatus.CONFIRMED,
           serviceName: 'Massage',
           employeeName: 'Maria',
           canCancel: true,
           canReschedule: true,
+          packagePurchaseId: 'pkg-purchase-1',
+          packageName: 'Spa Day',
         },
       ],
     })),

@@ -10,6 +10,7 @@ import {
 } from './ai-explain-prepayment.util.js';
 import { isExplainPaymentOptionsForServicePrompt } from './ai-explain-payment-options-for-service.util.js';
 import { isGuestPayCashManageCompoundCandidate } from './ai-guest-pay-cash-manage-cue.util.js';
+import { isConfigureCheckoutDefaultsPrompt } from './ai-checkout-defaults.util.js';
 
 export const CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES = `- choose_payment_method: MUTATE — list or confirm checkout payment options for the current booking (online card via Stripe, pay cash at venue when enabled). Triggers: choose/select payment method, what payment options at checkout, can I pay online/card at checkout, do you accept cash (without naming a catalog service). NOT configure_cash_payments (dashboard mutate), NOT explain_public_booking_checkout (holistic checkout flow read), NOT explain_why_stripe_required (policy why), NOT explain_payment_options_for_service (can I pay cash/online for a named service — READ), NOT explain_checkout_total (amount math), NOT pay_cash_at_visit (explicit cash selection).
 - pay_cash_at_visit: MUTATE — select pay-at-venue / cash for checkout when acceptCashPayments is enabled. Triggers: pay cash at visit, pay at venue, pay in cash at appointment, I'll pay cash when I arrive. Fails clearly when cash is disabled or the service requires online prepayment/deposit that cannot be skipped. NOT guest_pay_cash_manage (guest book + pay cash + email manage link compound); NOT pay_at_venue_fallback (skip/instead online payment — "Pay at salon instead", "Skip online payment"), NOT choose_payment_method (list options), NOT pay_online (card selection), NOT book_with_cash (booking-flow preference).`;
@@ -443,6 +444,7 @@ export function isAskPaymentOptionsPrompt(prompt: string): boolean {
 }
 
 export function isExplicitPayCashAtVisitPrompt(prompt: string): boolean {
+  if (isConfigureCheckoutDefaultsPrompt(prompt)) return false;
   if (isGuestPayCashManageCompoundCandidate(prompt)) return false;
   if (isAskPaymentOptionsPrompt(prompt)) return false;
   if (isServiceNamedPaymentOptionsQuestionPrompt(prompt)) return false;
@@ -514,6 +516,7 @@ export function rescueCashPaymentCheckoutIntent(
   if (action === 'choose_payment_method' || action === 'pay_cash_at_visit') {
     return null;
   }
+  if (isConfigureCheckoutDefaultsPrompt(prompt)) return null;
   if (isExplicitPayCashAtVisitPrompt(prompt)) {
     return { action: 'pay_cash_at_visit', rescueReason: 'pay_cash_at_visit' };
   }

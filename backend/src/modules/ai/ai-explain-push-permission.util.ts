@@ -5,6 +5,7 @@ import {
 } from './ai-explain-push-permission.fixtures.js';
 import { EXPLAIN_PUSH_PERMISSION_MULTILINGUAL_SCENARIOS } from './ai-explain-push-permission-multilingual.fixtures.js';
 import { isCustomerEnablePushNotificationsPrompt } from './ai-customer-enable-push-notifications.util.js';
+import { isManageNotificationPreferencesPrompt } from './ai-manage-notification-preferences.util.js';
 import { isExplainPushSetupPrompt } from './ai-provider-push-setup.util.js';
 import {
   N99_PUSH_PERMISSION_STATES,
@@ -93,6 +94,7 @@ export function isExplainPushPermissionPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (matchExplainPushPermissionScenario(text)) return true;
+  if (isManageNotificationPreferencesPrompt(text)) return false;
   if (isCustomerEnablePushNotificationsPrompt(text)) return false;
   if (isExplainPushSetupPrompt(text)) return false;
   if (/\bprovider\s+app\b/i.test(text)) return false;

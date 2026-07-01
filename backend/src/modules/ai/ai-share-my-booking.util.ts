@@ -43,6 +43,11 @@ const EXPLAIN_ONLY = new RegExp(
   'iu',
 );
 
+const EXPLAIN_READ_BOOKING = new RegExp(
+  String.raw`\b(?:what|when|where|who|which|tell\s+me\s+about|summarize|confirm)\b.*\b(?:booking|appointment|visit|reservation)\b|\b(?:booking|appointment)\b.*\b(?:details?|time|status)\b`,
+  'iu',
+);
+
 function matchShareMyBookingScenario(
   prompt: string,
 ): ShareMyBookingIntent | null {
@@ -63,6 +68,19 @@ export function isShareMyBookingIntent(
 
 export function isShareMyBookingPrompt(prompt: string): boolean {
   if (EXPLAIN_ONLY.test(prompt)) return false;
+  if (
+    /\b(?:ics|\.ics|google\s+calendar|outlook|add\s+to\s+calendar|calendar\s+file|download\s+calendar)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    EXPLAIN_READ_BOOKING.test(prompt) &&
+    !/\b(?:share|send|post|forward)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (REFER_FRIEND_CUE.test(prompt)) return false;
   if (SALON_SHARE_CUE.test(prompt)) return false;
   if (MANAGE_LINK_CUE.test(prompt)) return false;

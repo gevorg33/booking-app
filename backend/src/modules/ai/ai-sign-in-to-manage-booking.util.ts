@@ -1,5 +1,6 @@
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import { isExplainManageBookingPagePrompt } from './ai-explain-manage-booking-page.util.js';
+import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 import { SIGN_IN_TO_MANAGE_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-sign-in-to-manage-booking-multilingual.fixtures.js';
 import {
   SIGN_IN_TO_MANAGE_BOOKING_PROMPTS,
@@ -105,6 +106,7 @@ function isBareExplainWhySignInPrompt(prompt: string): boolean {
 export function isSignInToManageBookingPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isExplainConsumerCheckoutSuccessPrompt(text)) return false;
   if (isExplainManageBookingPagePrompt(text)) return false;
   if (matchSignInToManageBookingScenario(text)) return true;
   if (isSignInAfterBookingPrompt(text)) return false;

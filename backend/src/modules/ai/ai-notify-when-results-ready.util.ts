@@ -37,12 +37,12 @@ const STAFF_NOTIFY_BLOCK = new RegExp(
 );
 
 const NOTIFY_ME_CUE = new RegExp(
-  String.raw`\b(?:notify|text|alert|remind|message|send|ping|tell)\s+me\b|\b(?:sms|text|email|push|whatsapp)\s+me\b|(?:տեղեկացրիր|գրիր|հաղորդիր|ծանուցիր|ասա)\s+ինձ|(?:уведомь|напиши|сообщи|пришлите|отправьте|скажи)\s+мне`,
+  String.raw`\b(?:notify|text|alert|remind|message|send|ping|tell)\s+me\b|\b(?:sms|text|email|push|whatsapp)\s+me\b|(?:տեղեկացրիր|գրիր|հաղորդիր|ծանուցիր|ասա)\s+ինձ|(?:уведом(?:ь|и)|напиши|сообщи|пришлите|отправьте|скажи)\s+мне`,
   'iu',
 );
 
 const RESULT_READY_CONTEXT = new RegExp(
-  String.raw`\b(?:results?|lab|test).{0,20}(?:ready|released|available)\b|\b(?:ready|released|available).{0,20}(?:results?|lab|test)\b|\bresult[- ]?ready\b|(?:արդյունք|լաբ).{0,15}(?:պատրաստ|թողարկ)|(?:результат|анализ).{0,15}(?:готов|выпущен)`,
+  String.raw`\b(?:results?|lab|test).{0,20}(?:ready|released|available)\b|\b(?:ready|released|available).{0,20}(?:results?|lab|test)\b|\bresult[- ]?ready\b|(?:արդյունք|լաբ).{0,15}(?:պատրաստ|թողարկ)|(?:результат|анализ).{0,15}(?:готов|выпущен|доступн)`,
   'iu',
 );
 

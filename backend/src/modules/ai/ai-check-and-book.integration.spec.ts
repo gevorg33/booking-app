@@ -440,7 +440,7 @@ describe('ai check-and-book integration', () => {
         deps,
         'biz-1',
         { serviceName: 'Permanent lashes', date: '2026-06-06' },
-        'tomorrow evening',
+        'evening',
       );
 
       expect(deps.publicBookingService.recommendProviders).toHaveBeenCalledWith(

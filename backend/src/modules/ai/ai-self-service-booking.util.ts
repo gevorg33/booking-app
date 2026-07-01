@@ -25,8 +25,8 @@ import {
   isBookNearestSlotPrompt,
 } from './ai-payments.util.js';
 import { PUBLIC_AVAILABILITY_SCAN_DAYS } from './ai-orchestration.helpers.js';
-import { isConfirmMyBookingDetailsPrompt } from './ai-confirm-my-booking-details.util.js';
-import { isAddBookingToCalendarPrompt } from './ai-add-booking-to-calendar.util.js';
+import { rescueConfirmMyBookingDetailsIntent } from './ai-confirm-my-booking-details.util.js';
+import { rescueAddBookingToCalendarIntent } from './ai-add-booking-to-calendar.util.js';
 import { isExplainPreparationNotesPrompt } from './ai-explain-preparation-notes.util.js';
 import { rescueExplainPreparationNotesIntent } from './ai-explain-preparation-notes.util.js';
 import { rescueExplainLabPrepIntent } from './ai-explain-lab-prep.util.js';
@@ -167,7 +167,7 @@ const SERVICE_WORD_AFTER_WITH =
 
 function isBookWithNamedProviderPrompt(prompt: string): boolean {
   const match = prompt.match(
-    /\b(?:book|reserve|schedule)\b[^.?]*\bwith\s+(?:dr\.?\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
+    /\b(?:book|reserve|schedule)\b[\s\S]*?\bwith\s+(?:dr\.?\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/i,
   );
   if (!match?.[1]) return false;
   if (/\bwith\s+a\s+spa\b/i.test(prompt)) return false;
@@ -699,7 +699,7 @@ export function extractServiceNamesFromPrompt(prompt: string): string[] {
     names.push(spaDayWithPair[1].trim(), spaDayWithPair[2].trim());
   } else {
     const bookPair = prompt.match(
-      /\bbook\s+(?!a\s+spa\s+day\b)(.+?)\s+and\s+(.+?)(?:\s+together|\s+same\s+visit|\s+for\s+me|\?|$)/i,
+      /\bbook\s+(?!a\s+spa\s+day\b)(.+?)\s+and\s+(.+?)(?:\s+together|\s+same\s+visit|\s+for\s+me|\s+(?:on|at|this|next|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|\s+with\s+|\s+for\s+[A-Za-z]|\?|$)/i,
     );
     if (bookPair) {
       names.push(bookPair[1].trim(), bookPair[2].trim());
@@ -757,6 +757,13 @@ function pruneExtractedServiceNames(names: string[]): string[] {
         .replace(/^\s*multiple\s+(?:treatments?|services?)\s*[—–-]\s*/i, '')
         .replace(/\s+for\s+me$/i, '')
         .replace(/^\s*find\s+a\s+time\s+for\s+/i, '')
+        .replace(
+          /\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow)\b.*$/i,
+          '',
+        )
+        .replace(/\s+(?:at|on)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b.*$/i, '')
+        .replace(/\s+with\s+.+$/i, '')
+        .replace(/\s+for\s+.+$/i, '')
         .replace(/\s+(?:tomorrow|today|this\s+week)$/i, '')
         .replace(/\s+on\s+one\s+visit$/i, '')
         .replace(/\s+on\s+the(?:\s+same(?:\s+visit)?)?$/i, '')
@@ -1133,6 +1140,10 @@ export function rescueSelfServiceBookingIntent(
       rescueReason: 'post_booking_sign_in',
     };
   }
+  const confirmRescue = rescueConfirmMyBookingDetailsIntent(prompt, action);
+  if (confirmRescue) return confirmRescue;
+  const calendarRescue = rescueAddBookingToCalendarIntent(prompt, action);
+  if (calendarRescue) return calendarRescue;
   const explainManageBookingPage = rescueExplainManageBookingPageIntent(
     prompt,
     action,

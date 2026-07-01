@@ -11,6 +11,7 @@ import {
 } from './ai-intent-heuristics.js';
 import { isBudgetDiscoverAndBookCompoundPrompt } from './ai-budget-discover-and-book-compound.util.js';
 import { isRankDiscoverAndBookCompoundPrompt } from './ai-rank-discover-and-book-compound.util.js';
+import { isDiscoverBookAndPayCompoundPrompt } from './ai-discover-book-and-pay-compound.util.js';
 
 export interface ComplexityRoute {
   tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
@@ -70,6 +71,29 @@ export class CommandComplexityRouterService {
       };
     }
 
+    if (isDiscoverBookAndPayCompoundPrompt(trimmed)) {
+      return {
+        tier: 'compound',
+        useDecomposition: true,
+        reasoning: 'Discover book and pay compound',
+      };
+    }
+
+    const compound =
+      !(
+        FALLBACK_BOOKING_PATTERN.test(trimmed) &&
+        /\b(if\b|otherwise|else\b|whoever)\b/i.test(trimmed)
+      ) &&
+      (this.decomposition.isCompoundPrompt(trimmed) ||
+        COMPOUND_EXTRA.test(trimmed));
+    if (compound) {
+      return {
+        tier: 'compound',
+        useDecomposition: true,
+        reasoning: 'Compound markers detected',
+      };
+    }
+
     const fallback = extractProviderFallbackFromPrompt(trimmed, employees);
     const isConditionalBooking =
       /\b(book|schedule|reserve)\b/i.test(trimmed) &&
@@ -82,17 +106,6 @@ export class CommandComplexityRouterService {
         tier: 'orchestration',
         useDecomposition: false,
         reasoning: 'Conditional provider fallback booking',
-      };
-    }
-
-    const compound =
-      this.decomposition.isCompoundPrompt(trimmed) ||
-      COMPOUND_EXTRA.test(trimmed);
-    if (compound) {
-      return {
-        tier: 'compound',
-        useDecomposition: true,
-        reasoning: 'Compound markers detected',
       };
     }
 

@@ -82,6 +82,13 @@ export function isTrackPhysicalGiftCardOrderCustomerPrompt(
   if (isRequestGiftCardModifyLikePrompt(text)) return false;
   if (isDiscoverGiftCardProductsLikePrompt(text)) return false;
   if (isMyGiftCardsListOnlyPrompt(text)) return false;
+  if (
+    /\b(buy|purchase|order)\b/i.test(text) &&
+    isBuyGiftCardPhysicalPrompt(text) &&
+    !/\b(track|where|status|shipment|shipping|delivery)\b/i.test(text)
+  ) {
+    return false;
+  }
 
   const trackingCue =
     /\b(track|where|status|shipment|shipping|delivery|arrive|shipped|ship)\b/i.test(

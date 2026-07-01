@@ -6,6 +6,8 @@ import {
   resolveServices,
 } from './ai-orchestration.helpers.js';
 import { isCapacityRebalancePrompt } from './ai-scheduling.util.js';
+import { isHideAppointmentsFromCalendarPrompt } from './ai-schedule-ops-hints.util.js';
+import { isRemoveRetailLinePrompt } from './ai-retail-finance.util.js';
 
 const SENIORITY_MATRIX_RE =
   /\b(?:senior|junior)\s+(?:only|stylist|stylists|provider|providers|staff)\b/i;
@@ -29,6 +31,8 @@ export function isTransferServicesBetweenProvidersPrompt(
 
 /** "Unassign all Color services from Gevorg Gasparyan". */
 export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
+  if (isHideAppointmentsFromCalendarPrompt(prompt)) return false;
+  if (isRemoveRetailLinePrompt(prompt)) return false;
   if (isTransferServicesBetweenProvidersPrompt(prompt)) return false;
   if (SENIORITY_MATRIX_RE.test(prompt)) return false;
   // Locale/translation cleanup ("strip translations from catalog", "remove

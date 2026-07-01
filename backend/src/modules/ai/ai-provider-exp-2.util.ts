@@ -268,6 +268,22 @@ export function extractBookingActionCustomerName(
   return null;
 }
 
+/** Mirrors provider exp-2 rescue param enrichment when harness skips full rescue pipeline. */
+export function enrichProviderExp2ActionParams(
+  action: string,
+  params: Record<string, unknown>,
+  prompt: string,
+): void {
+  if (action === 'check_in_client' || action === 'mark_running_late') {
+    const customerName = extractBookingActionCustomerName(prompt, params);
+    if (customerName) params.customerName = customerName;
+  }
+  if (action === 'mark_running_late') {
+    const minutesLate = extractRunningLateMinutesFromPrompt(prompt, params);
+    if (minutesLate != null) params.minutesLate = minutesLate;
+  }
+}
+
 export function rescueProviderExp2Intent(
   prompt: string,
   action: string,

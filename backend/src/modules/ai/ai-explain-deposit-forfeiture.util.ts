@@ -6,6 +6,8 @@ import {
   EXPLAIN_DEPOSIT_FORFEITURE_PROMPTS,
   type ExplainDepositForfeiturePromptFixture,
 } from './ai-explain-deposit-forfeiture.fixtures.js';
+import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
+import { isListServicesPaymentFilterPrompt } from './ai-list-services-payment-filters.util.js';
 
 export const EXPLAIN_DEPOSIT_FORFEITURE_INTENTS = [
   'explain_deposit_forfeiture',
@@ -60,7 +62,15 @@ function matchDepositForfeitureMultilingualScenario(
   return null;
 }
 
+const PAYMENT_SETUP_MUTATE_CUE = new RegExp(
+  String.raw`\b(?:accept|enable|require|configure|set\s+up|turn\s+on|decline|disable|turn\s+off|stop|reject|remove|refuse)\b.{0,80}\b(?:online\s+payment|prepayment|public\s+booking)\b|\b(?:online\s+payment|prepayment).{0,60}\b(?:for|on)\s+(?:all\s+)?(?:services?|massage|haircut|facial|category)\b`,
+  'iu',
+);
+
 export function isExplainDepositForfeiturePrompt(prompt: string): boolean {
+  if (isConfigureServiceDepositPolicyPrompt(prompt)) return false;
+  if (isListServicesPaymentFilterPrompt(prompt)) return false;
+  if (PAYMENT_SETUP_MUTATE_CUE.test(prompt)) return false;
   if (
     /\b(package\s+visit|spa\s+day|package\s+bundle|package\s+appointment)\b/i.test(
       prompt,

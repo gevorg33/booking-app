@@ -7,6 +7,7 @@ import {
   extractSalonHintFromPrompt,
   normalizeSalonMatchText,
 } from './ai-saved-salons.shared.js';
+import { isSwitchToConsumerAppPrompt } from './ai-marketing-growth.util.js';
 
 export const SWITCH_SALON_TENANT_INTENTS = ['switch_salon_tenant'] as const;
 
@@ -66,11 +67,23 @@ const SAVED_SALON_LIST_ONLY_CUE =
 export function isSwitchSalonTenantPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isSwitchToConsumerAppPrompt(text)) return false;
+  if (
+    /\b(?:annual|monthly|yearly|billing|subscription|invoice)\b/i.test(text) &&
+    /\b(?:switch|toggle|enable|move|change)\b/i.test(text)
+  ) {
+    return false;
+  }
   if (SAVED_SALON_LIST_ONLY_CUE.test(text) && !SWITCH_SALON_CUE.test(text)) {
     return false;
   }
   if (matchSwitchSalonTenantScenario(text)) return true;
-  if (SWITCH_SALON_CUE.test(text)) return true;
+  if (
+    SWITCH_SALON_CUE.test(text) &&
+    /\b(salon|spa|tenant|demo-|glow|bliss)\b/i.test(text)
+  ) {
+    return true;
+  }
   return GENERIC_OTHER_SALON_CUE.test(text);
 }
 

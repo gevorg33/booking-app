@@ -391,7 +391,11 @@ describe('Sprint 30 payments AI scenarios', () => {
       expect((await payments.handleChoosePaymentMethod('biz-1')).success).toBe(
         true,
       );
-      expect((await payments.handlePayOnline('biz-1')).success).toBe(true);
+      expect((await payments.handlePayOnline('biz-1', {
+        serviceId: 's1',
+        employeeId: 'e1',
+        startTime: '2026-06-06T18:00:00Z',
+      })).success).toBe(true);
       expect((await payments.handlePayCashAtVisit('biz-1')).success).toBe(true);
       expect(
         (
