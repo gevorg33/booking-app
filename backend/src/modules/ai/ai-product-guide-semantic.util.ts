@@ -8,7 +8,10 @@ import {
   type GuideCorpusRankedTopic,
   type ProductGuideRetrieveQuery,
 } from './ai-product-guide-ranking.util.js';
-import { listGuideCorpusTopics, resolveGuideCorpusTopic } from './guide/ai-guide-corpus.util.js';
+import {
+  listGuideCorpusTopics,
+  resolveGuideCorpusTopic,
+} from './guide/ai-guide-corpus.util.js';
 import type { GuideCorpusTopicId } from './guide/ai-guide-corpus.types.js';
 import {
   cosineSimilarityVectors,
@@ -68,7 +71,8 @@ function buildGuideTopicSemanticAnchor(
   );
   const keywords = GUIDE_TOPIC_RETRIEVAL_KEYWORDS[topicId] ?? [];
   const semanticAnchors = GUIDE_TOPIC_SEMANTIC_ANCHORS[topicId] ?? [];
-  const anchorPhrase = topic?.anchor.replace(/^ai-/, 'ai ').replace(/-/g, ' ') ?? '';
+  const anchorPhrase =
+    topic?.anchor.replace(/^ai-/, 'ai ').replace(/-/g, ' ') ?? '';
   return [
     resolved?.title,
     resolved?.summary,
@@ -156,7 +160,8 @@ export function rankGuideCorpusTopicsSemanticDeterministic(
   return rankGuideTopicsBySemanticScore(
     query,
     messages,
-    (topicId, anchor) => scoreGuideTopicSemanticSimilarity(query.prompt, topicId, anchor),
+    (topicId, anchor) =>
+      scoreGuideTopicSemanticSimilarity(query.prompt, topicId, anchor),
     'semantic_token_cosine',
     GUIDE_SEMANTIC_MATCH_THRESHOLD,
   );
@@ -203,7 +208,11 @@ export async function rankGuideCorpusTopicsSemanticEmbedding(
 
   for (const topic of topics) {
     const anchor = buildGuideTopicSemanticAnchor(topic.topicId, messages);
-    const topicEmbedding = await embedGuideTopicHaystack(deps, topic.topicId, anchor);
+    const topicEmbedding = await embedGuideTopicHaystack(
+      deps,
+      topic.topicId,
+      anchor,
+    );
     if (!topicEmbedding) continue;
 
     let score = cosineSimilarityVectors(promptEmbedding, topicEmbedding);
@@ -279,7 +288,10 @@ export async function resolveGuideCorpusMatch(
       deps,
     );
   } else {
-    semanticRanked = rankGuideCorpusTopicsSemanticDeterministic(query, messages);
+    semanticRanked = rankGuideCorpusTopicsSemanticDeterministic(
+      query,
+      messages,
+    );
   }
 
   const semanticBest = semanticRanked[0] ?? null;

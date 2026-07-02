@@ -1,4 +1,5 @@
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
+import { PRIVACY_GDPR_MULTILINGUAL_SCENARIOS } from './ai-privacy-gdpr-multilingual.fixtures.js';
 
 export type CustomerIntentPromotionMultilingualIntent =
   | 'pay_online'
@@ -168,90 +169,13 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       expectedAction: 'my_subscriptions',
       rescueReason: 'my_subscriptions',
     },
-    {
-      id: 'privacy-export-hy',
-      locale: 'hy',
-      prompt: 'Արտահանել իմ տվյալները',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-export-hy-copy',
-      locale: 'hy',
-      prompt: 'Ներբեռնել իմ տվյալների պատճենը',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-export-hy-gdpr',
-      locale: 'hy',
-      prompt: 'Ուղարկել իմ GDPR export-ը',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-export-ru',
-      locale: 'ru',
-      prompt: 'Экспортировать мои данные',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-export-ru-copy',
-      locale: 'ru',
-      prompt: 'Скачать копию моих данных',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-export-ru-gdpr',
-      locale: 'ru',
-      prompt: 'Запросить GDPR экспорт',
-      expectedAction: 'privacy_export',
-      rescueReason: 'privacy_export',
-    },
-    {
-      id: 'privacy-delete-hy',
-      locale: 'hy',
-      prompt: 'Ջնջել իմ հաշիվը',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
-    {
-      id: 'privacy-delete-hy-forget',
-      locale: 'hy',
-      prompt: 'Մոռանալ իմ տվյալները',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
-    {
-      id: 'privacy-delete-hy-gdpr',
-      locale: 'hy',
-      prompt: 'Հեռացնել իմ consumer հաշիվը',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
-    {
-      id: 'privacy-delete-ru',
-      locale: 'ru',
-      prompt: 'Удалить мой аккаунт',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
-    {
-      id: 'privacy-delete-ru-forget',
-      locale: 'ru',
-      prompt: 'Забыть мои данные',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
-    {
-      id: 'privacy-delete-ru-gdpr',
-      locale: 'ru',
-      prompt: 'Удалить мой consumer аккаунт',
-      expectedAction: 'privacy_delete',
-      rescueReason: 'privacy_delete',
-    },
+    ...PRIVACY_GDPR_MULTILINGUAL_SCENARIOS.map((row) => ({
+      id: row.id,
+      locale: row.locale,
+      prompt: row.prompt,
+      expectedAction: row.expectedAction,
+      rescueReason: row.rescueReason,
+    })),
     {
       id: 'gift-card-cancel-hy',
       locale: 'hy',

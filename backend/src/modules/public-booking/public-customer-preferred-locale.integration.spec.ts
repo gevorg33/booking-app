@@ -49,7 +49,9 @@ describe('PublicCustomerAuthService preferred locale (catalog-notify-1.1)', () =
   });
 
   it('returns resolved locale with null stored when unset', async () => {
-    await expect(service.getPreferredLocale('demo-salon', 'cust-1')).resolves.toEqual({
+    await expect(
+      service.getPreferredLocale('demo-salon', 'cust-1'),
+    ).resolves.toEqual({
       preferredLocale: 'en',
       storedLocale: null,
     });

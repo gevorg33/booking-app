@@ -7,10 +7,7 @@ import {
   PAY_ONLINE_CHECKOUT_PROMPTS,
   rescuePayOnlineCheckoutIntent,
 } from './ai-pay-online-checkout.util.js';
-import {
-  isPayOnlinePrompt,
-  rescuePaymentsIntent,
-} from './ai-payments.util.js';
+import { isPayOnlinePrompt, rescuePaymentsIntent } from './ai-payments.util.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 
 describe('ai-pay-online-checkout.util (ai-cmd-customer-4.2.4 pay_online)', () => {
@@ -112,10 +109,8 @@ describe('ai-pay-online-checkout.util (ai-cmd-customer-4.2.4 pay_online)', () =>
 
   it('enriches serviceName from pay-online prompt', () => {
     expect(
-      enrichPayOnlineParamsFromPrompt(
-        {},
-        'Pay online for massage',
-        (prompt) => (/\bmassage\b/i.test(prompt) ? 'massage' : null),
+      enrichPayOnlineParamsFromPrompt({}, 'Pay online for massage', (prompt) =>
+        /\bmassage\b/i.test(prompt) ? 'massage' : null,
       ).serviceName,
     ).toBe('massage');
   });

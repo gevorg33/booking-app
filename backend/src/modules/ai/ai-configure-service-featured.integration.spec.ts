@@ -39,7 +39,10 @@ describe('configure_service_featured AI scenarios', () => {
       rescueCatalogIntent('Mark Haircut as featured', 'unknown')?.action,
     ).toBe('configure_service_featured');
     expect(
-      rescueCatalogIntent('Require $25 deposit on featured services', 'unknown'),
+      rescueCatalogIntent(
+        'Require $25 deposit on featured services',
+        'unknown',
+      ),
     ).toBeNull();
   });
 

@@ -1,4 +1,7 @@
-import { validateCommand, shouldValidateAction } from './command-completion.validator.js';
+import {
+  validateCommand,
+  shouldValidateAction,
+} from './command-completion.validator.js';
 import type { ResolvedCommand } from './command-completion.types.js';
 import { CONFIGURE_TEST_REFERENCE_RANGE_PROMPTS } from './ai-clinic-test-result-ext.fixtures.js';
 
@@ -157,7 +160,9 @@ describe('command-completion.validator', () => {
         }),
       );
       expect(result.ok).toBe(false);
-      expect(result.issues.some((issue) => issue.field === 'orderId')).toBe(true);
+      expect(result.issues.some((issue) => issue.field === 'orderId')).toBe(
+        true,
+      );
     });
 
     it('accepts configure_test_reference_range when range params are present', () => {

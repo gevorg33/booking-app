@@ -46,6 +46,7 @@ export const SHARED_BOOKING_CONTEXT_KEYS = [
   'maxPrice',
   'serviceRank',
   'serviceId',
+  'paxCount',
   'availabilityWindows',
   'chosenAvailabilityWindow',
   'chosenAvailabilityWindowIndex',

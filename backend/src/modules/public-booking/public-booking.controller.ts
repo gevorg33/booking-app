@@ -9,7 +9,9 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { PublicBookingService } from './public-booking.service.js';
 import { BusinessService } from '../business/business.service.js';
 import { AiGatewayService } from '../ai/ai-gateway.service.js';
@@ -38,6 +40,8 @@ import {
 } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
 import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
+import { PublicCustomerNotifyRunningLateDto } from './dto/public-customer-running-late.dto.js';
+import { PublicJoinWaitlistDto } from './dto/public-customer-waitlist.dto.js';
 import {
   PublicBookingManagePackageCancelDto,
   PublicBookingManagePackageRescheduleDto,
@@ -69,6 +73,7 @@ import { ConsumerPushTokenService } from '../notifications/consumer-push-token.s
 import { RegisterConsumerNativePushDto } from '../notifications/dto/register-consumer-native-push.dto.js';
 import { AckConsumerPushDeliveryDto } from '../notifications/dto/ack-consumer-push-delivery.dto.js';
 import { PublicConsumerSupportService } from './public-consumer-support.service.js';
+import { PublicCustomerWaitlistService } from './public-customer-waitlist.service.js';
 import { PublicConsumerSupportTicketDto } from './dto/public-consumer-support-ticket.dto.js';
 import { UpdatePublicConsumerNotificationPreferencesDto } from './dto/public-consumer-notification-preferences.dto.js';
 import { UpdatePublicCustomerPreferredLocaleDto } from './dto/public-customer-preferred-locale.dto.js';
@@ -96,6 +101,7 @@ export class PublicBookingController {
     private patientClinicalAlertsService: PatientClinicalAlertsService,
     private consumerPushTokenService: ConsumerPushTokenService,
     private publicConsumerSupportService: PublicConsumerSupportService,
+    private publicCustomerWaitlistService: PublicCustomerWaitlistService,
     private guideTelemetry: GuideTelemetryService,
   ) {}
 
@@ -891,6 +897,60 @@ export class PublicBookingController {
     );
   }
 
+  @Post('me/bookings/:bookingId/running-late')
+  @UseGuards(PublicCustomerAuthGuard)
+  notifyRunningLate(
+    @Param('slug') slug: string,
+    @Param('bookingId') bookingId: string,
+    @Body() dto: PublicCustomerNotifyRunningLateDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.notifyRunningLate(
+      slug,
+      user.customerId,
+      bookingId,
+      dto,
+    );
+  }
+
+  @Post('me/waitlist')
+  @UseGuards(PublicCustomerAuthGuard)
+  joinMyWaitlist(
+    @Param('slug') slug: string,
+    @Body() dto: PublicJoinWaitlistDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerWaitlistService.joinWaitlist(
+      slug,
+      user.customerId,
+      dto,
+    );
+  }
+
+  @Get('me/waitlist')
+  @UseGuards(PublicCustomerAuthGuard)
+  getMyWaitlistStatus(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerWaitlistService.getWaitlistStatus(
+      slug,
+      user.customerId,
+    );
+  }
+
+  @Post('me/waitlist/leave')
+  @UseGuards(PublicCustomerAuthGuard)
+  leaveMyWaitlist(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerWaitlistService.leaveWaitlist(
+      slug,
+      user.customerId,
+    );
+  }
+
   @Post('me/bookings/:bookingId/package/cancel')
   @UseGuards(PublicCustomerAuthGuard)
   cancelMyPackageVisit(
@@ -932,6 +992,24 @@ export class PublicBookingController {
       bookingId,
       token,
     );
+  }
+
+  @Get('bookings/manage/calendar.ics')
+  async downloadBookingCalendarIcs(
+    @Param('slug') slug: string,
+    @Query('bookingId') bookingId: string,
+    @Query('token') token: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { filename, content } =
+      await this.publicCustomerBookingService.getCalendarIcs(
+        slug,
+        bookingId,
+        token,
+      );
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return content;
   }
 
   @Post('bookings/manage/cancel')

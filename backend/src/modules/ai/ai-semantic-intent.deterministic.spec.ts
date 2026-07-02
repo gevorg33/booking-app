@@ -9,7 +9,10 @@ import {
   IMPLICATION_TOKEN_COSINE_SCENARIOS,
 } from './ai-semantic-intent.deterministic.fixtures.js';
 import { DETERMINISTIC_SEMANTIC_BOUNDARY_MARKER } from './ai-semantic-intent.deterministic.boundary.js';
-import { clearIntentAnchorBankCache, getIntentAnchorBank } from './intent-anchor.bank.js';
+import {
+  clearIntentAnchorBankCache,
+  getIntentAnchorBank,
+} from './intent-anchor.bank.js';
 import {
   DETERMINISTIC_SEMANTIC_PIPE_MARKER,
   rankAnchorsDeterministic,

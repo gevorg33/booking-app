@@ -17,7 +17,11 @@ describe('tenant-app-install-link.util', () => {
     'buildTenantAppInstallUrl $id',
     ({ frontendUrl, slug, serviceId, campaign, rootDomain, expectedUrl }) => {
       expect(
-        buildTenantAppInstallUrl(frontendUrl, slug, { serviceId, campaign, rootDomain }),
+        buildTenantAppInstallUrl(frontendUrl, slug, {
+          serviceId,
+          campaign,
+          rootDomain,
+        }),
       ).toBe(expectedUrl);
     },
   );
@@ -31,12 +35,15 @@ describe('tenant-app-install-link.util', () => {
   );
 
   it('builds localized plain-text and HTML promo blocks', () => {
-    const url = 'https://app.test/book/salon-a?src=qr&utm_campaign=confirmation_qr';
+    const url =
+      'https://app.test/book/salon-a?src=qr&utm_campaign=confirmation_qr';
     expect(buildTenantAppInstallLinkText(url, 'en')).toContain(url);
-    expect(buildTenantAppInstallLinkHtml(url, 'en', 'data:image/png;base64,abc')).toContain(
-      'Get the OptiSchedule app',
+    expect(
+      buildTenantAppInstallLinkHtml(url, 'en', 'data:image/png;base64,abc'),
+    ).toContain('Get the OptiSchedule app');
+    expect(buildTenantAppInstallLinkHtml(url, 'en', null)).not.toContain(
+      '<img',
     );
-    expect(buildTenantAppInstallLinkHtml(url, 'en', null)).not.toContain('<img');
   });
 
   it('buildTenantAppInstallQrDataUrl returns a PNG data URL', async () => {

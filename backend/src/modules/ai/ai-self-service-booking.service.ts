@@ -7,7 +7,10 @@ import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
+import { PublicCustomerWaitlistService } from '../public-booking/public-customer-waitlist.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import { PublicConsumerSupportService } from '../public-booking/public-consumer-support.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
@@ -17,12 +20,13 @@ import {
   isCustomerBookingCompoundPrompt,
   rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
+import { handleExplainDepositForfeitureLogic } from './ai-explain-deposit-forfeiture.logic.js';
+import { handleExplainManageBookingPageLogic } from './ai-explain-manage-booking-page.logic.js';
 import {
   handleAddServicesToCartLogic,
   handleBookMultiServiceLogic,
   handleBookPackageLogic,
   handleBookWithCashLogic,
-  handleBookWithGiftCardLogic,
   handleCancelMyBookingLogic,
   handleCancelPackageVisitSelfLogic,
   handleChangeProviderOnRescheduleLogic,
@@ -31,7 +35,17 @@ import {
   handleCustomerBookingCompoundLogic,
   handleExplainCancelPolicyLogic,
   handleGetManageLinkLogic,
+  handleRecoverLostManageLinkLogic,
+  handleSignInToManageBookingLogic,
+  handleNotifyRunningLateLogic,
+  handleLeaveVisitReviewLogic,
+  handleExplainPostVisitReviewPromptLogic,
+  handleReportBookingProblemLogic,
+  handleSignInAfterBookingLogic,
+  handleJoinWaitlistLogic,
+  handleCheckWaitlistStatusLogic,
   handleListMyAppointmentsLogic,
+  handleListMyUpcomingAppointmentsLogic,
   handleListMyPackageVisitsLogic,
   handleRemoveServiceFromCartLogic,
   handleRescheduleMyBookingLogic,
@@ -39,8 +53,18 @@ import {
   handleSelectSubscriptionPlanLogic,
   handleShowCartTotalDurationLogic,
   handleUseSubscriptionCreditLogic,
+  handleConfirmMyBookingDetailsLogic,
+  handleAddBookingToCalendarLogic,
   type SelfServiceBookingLogicDeps,
 } from './ai-self-service-booking.logic.js';
+import { handleBookWithGiftCardLogic } from './ai-book-with-gift-card.logic.js';
+import { handleExplainPreparationNotesLogic } from './ai-explain-preparation-notes.logic.js';
+import { handleBookAnotherServiceLogic } from './ai-book-another-service.logic.js';
+import { handleDiscoverPackagesLogic } from './ai-customer-crm.logic.js';
+import { handleExplainMultiServiceCartLogic } from './ai-explain-multi-service-cart.logic.js';
+import { handleExplainPackageSavingsLogic } from './ai-explain-package-savings.logic.js';
+import { handleExplainSubscriptionVsOneTimeLogic } from './ai-explain-subscription-vs-one-time.logic.js';
+import { handleExplainPackageVisitRulesLogic } from './ai-explain-package-visit-rules.logic.js';
 
 @Injectable()
 export class AiSelfServiceBookingService {
@@ -49,7 +73,10 @@ export class AiSelfServiceBookingService {
   constructor(
     publicBookingService: PublicBookingService,
     publicCustomerBookingService: PublicCustomerBookingService,
+    publicCustomerWaitlistService: PublicCustomerWaitlistService,
     publicCustomerAuthService: PublicCustomerAuthService,
+    publicConsumerSupportService: PublicConsumerSupportService,
+    notificationsService: NotificationsService,
     packagesService: ServicePackagesService,
     subscriptionsService: ServiceSubscriptionsService,
     multiServiceBookingsService: MultiServiceBookingsService,
@@ -61,7 +88,10 @@ export class AiSelfServiceBookingService {
     this.deps = {
       publicBookingService,
       publicCustomerBookingService,
+      publicCustomerWaitlistService,
       publicCustomerAuthService,
+      publicConsumerSupportService,
+      notificationsService,
       packagesService,
       subscriptionsService,
       multiServiceBookingsService,
@@ -99,6 +129,13 @@ export class AiSelfServiceBookingService {
 
   handleBookPackage(businessId: string, params: Record<string, any>) {
     return handleBookPackageLogic(this.deps, businessId, params);
+  }
+
+  handleDiscoverPackages(businessId: string) {
+    return handleDiscoverPackagesLogic(
+      { packagesService: this.deps.packagesService },
+      businessId,
+    );
   }
 
   handleBookMultiService(businessId: string, params: Record<string, any>) {
@@ -149,25 +186,102 @@ export class AiSelfServiceBookingService {
     params: Record<string, any>,
     prompt = '',
   ) {
-    return handleRescheduleMyBookingLogic(this.deps, businessId, params, prompt);
+    return handleRescheduleMyBookingLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleCancelPackageVisitSelf(
     businessId: string,
     params: Record<string, any>,
+    prompt = '',
   ) {
-    return handleCancelPackageVisitSelfLogic(this.deps, businessId, params);
+    return handleCancelPackageVisitSelfLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
   }
 
   handleReschedulePackageVisitSelf(
     businessId: string,
     params: Record<string, any>,
+    prompt = '',
   ) {
-    return handleReschedulePackageVisitSelfLogic(this.deps, businessId, params);
+    return handleReschedulePackageVisitSelfLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
   }
 
   handleListMyAppointments(businessId: string, params: Record<string, any>) {
     return handleListMyAppointmentsLogic(this.deps, businessId, params);
+  }
+
+  handleListMyUpcomingAppointments(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleListMyUpcomingAppointmentsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleConfirmMyBookingDetails(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleConfirmMyBookingDetailsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleAddBookingToCalendar(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleAddBookingToCalendarLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainPreparationNotes(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainPreparationNotesLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleBookAnotherService(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleBookAnotherServiceLogic(this.deps, businessId, params, prompt);
   }
 
   handleListMyPackageVisits(
@@ -183,12 +297,184 @@ export class AiSelfServiceBookingService {
     );
   }
 
-  handleGetManageLink(businessId: string, params: Record<string, any>) {
-    return handleGetManageLinkLogic(this.deps, businessId, params);
+  handleGetManageLink(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleGetManageLinkLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
   }
 
-  handleExplainCancelPolicy(businessId: string, params: Record<string, any>) {
-    return handleExplainCancelPolicyLogic(this.deps, businessId, params);
+  handleRecoverLostManageLink(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleRecoverLostManageLinkLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleSignInToManageBooking(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleSignInToManageBookingLogic(
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainManageBookingPage(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainManageBookingPageLogic(
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleNotifyRunningLate(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleNotifyRunningLateLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleLeaveVisitReview(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleLeaveVisitReviewLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleJoinWaitlist(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleJoinWaitlistLogic(
+      this.deps as any,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleCheckWaitlistStatus(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleCheckWaitlistStatusLogic(
+      this.deps as any,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainCancelPolicy(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainCancelPolicyLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainDepositForfeiture(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainDepositForfeitureLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainPackageVisitRules(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainPackageVisitRulesLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainPostVisitReviewPrompt(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainPostVisitReviewPromptLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleReportBookingProblem(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleReportBookingProblemLogic(
+      this.deps as any,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleSignInAfterBooking(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleSignInAfterBookingLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
   }
 
   handleBookWithCash(businessId: string, params: Record<string, any>) {
@@ -216,5 +502,44 @@ export class AiSelfServiceBookingService {
 
   handleShowCartTotalDuration(businessId: string, params: Record<string, any>) {
     return handleShowCartTotalDurationLogic(this.deps, businessId, params);
+  }
+
+  handleExplainMultiServiceCart(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainMultiServiceCartLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainPackageSavings(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainPackageSavingsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainSubscriptionVsOneTime(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainSubscriptionVsOneTimeLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 }

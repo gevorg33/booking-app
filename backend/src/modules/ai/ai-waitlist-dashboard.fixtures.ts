@@ -74,7 +74,11 @@ export const OFFER_WAITLIST_SLOT_PROMPTS = [
     id: 'waitlist-notify-cancelled-en',
     prompt: "Notify waitlist about Maria's cancelled slot on Friday at 2pm",
     expectedAction: 'offer_waitlist_slot' as const,
-    expectedParams: { employeeName: 'Maria', date: 'friday', timeSlot: '14:00' },
+    expectedParams: {
+      employeeName: 'Maria',
+      date: 'friday',
+      timeSlot: '14:00',
+    },
   },
   {
     id: 'waitlist-message-open-en',
@@ -98,7 +102,11 @@ export const OFFER_WAITLIST_SLOT_PROMPTS = [
     id: 'waitlist-reach-gevorg-en',
     prompt: "Reach out to waitlist for Gevorg's 2pm gap Friday",
     expectedAction: 'offer_waitlist_slot' as const,
-    expectedParams: { employeeName: 'Gevorg', date: 'friday', timeSlot: '14:00' },
+    expectedParams: {
+      employeeName: 'Gevorg',
+      date: 'friday',
+      timeSlot: '14:00',
+    },
   },
   {
     id: 'waitlist-notify-appointment-en',

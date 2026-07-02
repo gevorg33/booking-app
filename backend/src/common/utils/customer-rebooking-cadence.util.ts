@@ -7,7 +7,8 @@ import {
   type ServiceRebookingCadenceSource,
 } from './service-rebooking-cadence.util.js';
 
-export const CUSTOMER_REBOOKING_CADENCE_METADATA_KEY = 'learnedRebookingCadenceDays';
+export const CUSTOMER_REBOOKING_CADENCE_METADATA_KEY =
+  'learnedRebookingCadenceDays';
 export const CUSTOMER_REBOOKING_CADENCE_BY_SERVICE_METADATA_KEY =
   'learnedRebookingCadenceByService';
 
@@ -22,7 +23,8 @@ export function computeMedianRebookingIntervalDays(
   const dayGaps: number[] = [];
   for (const row of intervals) {
     if (!row.previousCompletedAt) continue;
-    const deltaMs = row.completedAt.getTime() - row.previousCompletedAt.getTime();
+    const deltaMs =
+      row.completedAt.getTime() - row.previousCompletedAt.getTime();
     const days = Math.round(deltaMs / (24 * 60 * 60 * 1000));
     if (days >= 7 && days <= 365) dayGaps.push(days);
   }
@@ -30,8 +32,8 @@ export function computeMedianRebookingIntervalDays(
   dayGaps.sort((a, b) => a - b);
   const mid = Math.floor(dayGaps.length / 2);
   return dayGaps.length % 2 === 0
-    ? Math.round((dayGaps[mid - 1]! + dayGaps[mid]!) / 2)
-    : dayGaps[mid]!;
+    ? Math.round((dayGaps[mid - 1] + dayGaps[mid]) / 2)
+    : dayGaps[mid];
 }
 
 export function readCustomerLearnedCadenceDays(
@@ -41,7 +43,8 @@ export function readCustomerLearnedCadenceDays(
 }
 
 function parseCadenceDays(raw: unknown): number | null {
-  if (typeof raw === 'number' && Number.isFinite(raw)) return clampCadenceDays(raw);
+  if (typeof raw === 'number' && Number.isFinite(raw))
+    return clampCadenceDays(raw);
   if (typeof raw === 'string' && raw.trim()) {
     const parsed = Number.parseInt(raw.trim(), 10);
     if (Number.isFinite(parsed)) return clampCadenceDays(parsed);
@@ -53,7 +56,8 @@ export function readCustomerServiceLearnedCadenceDays(
   metadata: Record<string, unknown> | null | undefined,
   serviceId: string,
 ): number | null {
-  const byService = metadata?.[CUSTOMER_REBOOKING_CADENCE_BY_SERVICE_METADATA_KEY];
+  const byService =
+    metadata?.[CUSTOMER_REBOOKING_CADENCE_BY_SERVICE_METADATA_KEY];
   if (byService && typeof byService === 'object' && !Array.isArray(byService)) {
     const fromService = parseCadenceDays(
       (byService as Record<string, unknown>)[serviceId],
@@ -73,13 +77,18 @@ export function resolveCustomerRebookingCadenceDays(input: {
   const learned =
     input.learnedFromHistory ??
     (input.serviceId
-      ? readCustomerServiceLearnedCadenceDays(input.customerMetadata, input.serviceId)
+      ? readCustomerServiceLearnedCadenceDays(
+          input.customerMetadata,
+          input.serviceId,
+        )
       : readCustomerLearnedCadenceDays(input.customerMetadata));
   if (learned != null) return learned;
   return resolveServiceRebookingCadenceDays(input.service, input.settings);
 }
 
-export function buildLearnedCadenceMetadataUpdate(days: number): Record<string, number> {
+export function buildLearnedCadenceMetadataUpdate(
+  days: number,
+): Record<string, number> {
   return { [CUSTOMER_REBOOKING_CADENCE_METADATA_KEY]: clampCadenceDays(days) };
 }
 
@@ -111,7 +120,7 @@ export function learnCustomerServiceCadenceDaysFromCompletedBookings(
     .map((booking, index) => ({
       completedAt: booking.endTime,
       previousCompletedAt:
-        index + 1 < completed.length ? completed[index + 1]!.endTime : null,
+        index + 1 < completed.length ? completed[index + 1].endTime : null,
     }))
     .filter((row) => row.previousCompletedAt != null)
     .map((row) => ({

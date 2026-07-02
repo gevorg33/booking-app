@@ -3,17 +3,19 @@ import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
 
 describe('ai-create-promo-code.logic', () => {
   const promoCodesService = {
-    create: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
-      id: 'promo-1',
-      code: dto.code,
-      discountType: dto.discountType,
-      discountValue: dto.discountValue,
-      minOrderAmount: dto.minOrderAmount ?? null,
-      maxUses: dto.maxUses ?? null,
-      expiresAt: dto.expiresAt ?? null,
-      description: dto.description ?? null,
-      isActive: true,
-    })),
+    create: jest.fn(
+      async (_businessId: string, dto: Record<string, unknown>) => ({
+        id: 'promo-1',
+        code: dto.code,
+        discountType: dto.discountType,
+        discountValue: dto.discountValue,
+        minOrderAmount: dto.minOrderAmount ?? null,
+        maxUses: dto.maxUses ?? null,
+        expiresAt: dto.expiresAt ?? null,
+        description: dto.description ?? null,
+        isActive: true,
+      }),
+    ),
   };
 
   it('creates promo code from parsed prompt', async () => {

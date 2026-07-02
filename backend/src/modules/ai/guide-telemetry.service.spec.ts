@@ -26,7 +26,9 @@ describe('GuideTelemetryService (ai-guide-1.7.3)', () => {
     expect(summary.handoffToActionRate).toBeCloseTo(0.5);
     expect(summary.byTopic['dashboard.core.schedule'].handoffs).toBe(1);
     expect(summary.topUnansweredTopics.length).toBeGreaterThan(0);
-    expect(summary.topUnansweredTopics[0]?.topicId).toBe('provider.today.overview');
+    expect(summary.topUnansweredTopics[0]?.topicId).toBe(
+      'provider.today.overview',
+    );
   });
 
   it('ingestClientEvents skips invalid rows', async () => {

@@ -1,9 +1,6 @@
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import type { Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { BusinessService } from '../business/business.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -48,8 +45,7 @@ async function resolveBookingForProviderAction(
   prompt?: string,
   context?: Record<string, unknown>,
 ): Promise<
-  | { bookingId: string; customerName: string }
-  | { error: CommandResult }
+  { bookingId: string; customerName: string } | { error: CommandResult }
 > {
   const explicitBookingId =
     (typeof params.bookingId === 'string' && params.bookingId.trim()) ||
@@ -233,7 +229,9 @@ export async function handleCheckInClientLogic(
     );
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : 'Check-in failed for this visit.';
+      error instanceof Error
+        ? error.message
+        : 'Check-in failed for this visit.';
     return failure('check_in_client', message, {
       bookingId: resolved.bookingId,
     });

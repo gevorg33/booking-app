@@ -29,9 +29,10 @@ describe('ai provider push setup locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('passes provider push setup i18n eval case %s', (_id, scenario) => {
-    const evalCase = AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_MULTILINGUAL_CASES.find(
-      (row) => row.id === providerPushSetupMultilingualEvalCaseId(scenario),
-    );
+    const evalCase =
+      AI_COMMAND_EVAL_PROVIDER_PUSH_SETUP_MULTILINGUAL_CASES.find(
+        (row) => row.id === providerPushSetupMultilingualEvalCaseId(scenario),
+      );
     expect(evalCase).toBeDefined();
     const result = evaluateDeterministicEvalCase(evalCase!);
     expect(result.passed).toBe(true);
@@ -71,8 +72,8 @@ describe('ai provider push setup locale parity (acc-2.4)', () => {
     expect(ruCases.length).toBe(8);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
-    expect(
-      hyCases.every((row) => row.expect.needsMultilingual === true),
-    ).toBe(true);
+    expect(hyCases.every((row) => row.expect.needsMultilingual === true)).toBe(
+      true,
+    );
   });
 });

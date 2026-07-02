@@ -39,19 +39,19 @@ describe('PublicBookingService bookMultiService same_visit', () => {
   };
 
   const service = createPublicBookingServiceHarness({
-    businessService: { findBySlug: jest.fn() } as any,
-    bookingService: bookingService as any,
-    customerService: { findOrCreatePublicCustomer: jest.fn() } as any,
+    businessService: { findBySlug: jest.fn() },
+    bookingService: bookingService,
+    customerService: { findOrCreatePublicCustomer: jest.fn() },
     stripeIntegrationService:
       stripeIntegrationService as unknown as StripeIntegrationService,
-    bookingPaymentService: bookingPaymentService as any,
-    checkoutPricingService: checkoutPricingService as any,
-    multiServiceBookingsService: multiServiceBookingsService as any,
-    notificationsService: notificationsService as any,
+    bookingPaymentService: bookingPaymentService,
+    checkoutPricingService: checkoutPricingService,
+    multiServiceBookingsService: multiServiceBookingsService,
+    notificationsService: notificationsService,
     configService: config as unknown as ConfigService,
-    serviceRepo: { findOne: jest.fn(), find: jest.fn() } as any,
-    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() } as any,
-    schedulingPeriodRepo: { find: jest.fn() } as any,
+    serviceRepo: { findOne: jest.fn(), find: jest.fn() },
+    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
+    schedulingPeriodRepo: { find: jest.fn() },
   });
 
   const business: Business = {

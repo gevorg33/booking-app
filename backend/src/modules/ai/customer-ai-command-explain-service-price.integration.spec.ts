@@ -8,9 +8,9 @@ describe('customer-ai-command explain_service_price integration (ai-cmd-customer
   it.each(EXPLAIN_SERVICE_PRICE_PROMPTS.map((row) => [row.id, row] as const))(
     'rescues explain_service_price for $id',
     (_id, row) => {
-      expect(rescueExplainServicePriceIntent(row.prompt, 'unknown')?.action).toBe(
-        'explain_service_price',
-      );
+      expect(
+        rescueExplainServicePriceIntent(row.prompt, 'unknown')?.action,
+      ).toBe('explain_service_price');
       expect(rescuePaymentsIntent(row.prompt, 'unknown')?.action).toBe(
         'explain_service_price',
       );

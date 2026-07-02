@@ -38,8 +38,10 @@ describe('explain_multi_service_settings AI scenarios', () => {
 
   it('disambiguates explain from configure limits', () => {
     expect(
-      rescueScheduleResourceIntent('Explain multi-service booking settings', 'unknown')
-        ?.action,
+      rescueScheduleResourceIntent(
+        'Explain multi-service booking settings',
+        'unknown',
+      )?.action,
     ).toBe('explain_multi_service_settings');
     expect(
       rescueScheduleResourceIntent(

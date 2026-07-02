@@ -1,6 +1,4 @@
-import {
-  PRODUCT_GUIDE_POLISH_SCENARIOS,
-} from './ai-product-guide.fixtures.js';
+import { PRODUCT_GUIDE_POLISH_SCENARIOS } from './ai-product-guide.fixtures.js';
 import {
   buildGuidePolishUserPrompt,
   mergePolishedGuideResponse,
@@ -16,8 +14,7 @@ describe('ai-product-guide-polish.util (ai-guide-1.2.3)', () => {
       steps: Array.from({ length: stepCount }, (_, index) => ({
         title: `Step ${index + 1}`,
         body: `Corpus body ${index + 1}`,
-        navigate:
-          index === 0 ? { path: '/dashboard/schedule' } : undefined,
+        navigate: index === 0 ? { path: '/dashboard/schedule' } : undefined,
       })),
       navigate: { path: '/dashboard/schedule' },
       sources: [{ topicId: 'dashboard.core.schedule', kind: 'topic' }],
@@ -106,7 +103,9 @@ describe('ai-product-guide-polish.util (ai-guide-1.2.3)', () => {
     );
     expect(result.polished).toBe(true);
     expect(result.guide.summary).toBe('Polished summary for weekly templates.');
-    expect(result.guide.steps[0].navigate).toEqual({ path: '/dashboard/schedule' });
+    expect(result.guide.steps[0].navigate).toEqual({
+      path: '/dashboard/schedule',
+    });
   });
 
   it('polishGuideResponseWithLlm rejects ungrounded settings paths', async () => {
@@ -125,7 +124,8 @@ describe('ai-product-guide-polish.util (ai-guide-1.2.3)', () => {
       {
         isAvailableForBusiness: async () => true,
         completeJson: async () => ({
-          summary: 'Enable settings.fakePaymentToggle in business.settings.fakePaymentToggle.',
+          summary:
+            'Enable settings.fakePaymentToggle in business.settings.fakePaymentToggle.',
           steps: [{ title: 'Bad', body: 'Toggle settings.fakePaymentToggle.' }],
         }),
       },

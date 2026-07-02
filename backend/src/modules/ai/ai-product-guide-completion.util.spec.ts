@@ -32,24 +32,25 @@ describe('ai-product-guide-completion.util (ai-guide-1.8.5)', () => {
     ]);
   });
 
-  it.each(
-    APP_GUIDE_COMPLETION_SCENARIOS.map((row) => [row.id, row] as const),
-  )('parseAppGuideIntentFromPrompt for $id', (_id, scenario) => {
-    expect(
-      parseAppGuideIntentFromPrompt(
-        scenario.action as 'guide_user_flow',
-        scenario.prompt,
-        scenario.params ?? {},
-      ),
-    ).toBe(scenario.expectValid);
-    expect(
-      parseProductGuideIntentFromPrompt(
-        scenario.action,
-        scenario.prompt,
-        scenario.params ?? {},
-      ),
-    ).toBe(scenario.expectValid);
-  });
+  it.each(APP_GUIDE_COMPLETION_SCENARIOS.map((row) => [row.id, row] as const))(
+    'parseAppGuideIntentFromPrompt for $id',
+    (_id, scenario) => {
+      expect(
+        parseAppGuideIntentFromPrompt(
+          scenario.action as 'guide_user_flow',
+          scenario.prompt,
+          scenario.params ?? {},
+        ),
+      ).toBe(scenario.expectValid);
+      expect(
+        parseProductGuideIntentFromPrompt(
+          scenario.action,
+          scenario.prompt,
+          scenario.params ?? {},
+        ),
+      ).toBe(scenario.expectValid);
+    },
+  );
 
   it.each(
     PROVIDER_GUIDE_COMPLETION_SCENARIOS.map((row) => [row.id, row] as const),
@@ -63,22 +64,23 @@ describe('ai-product-guide-completion.util (ai-guide-1.8.5)', () => {
     ).toBe(scenario.expectValid);
   });
 
-  it.each(
-    META_GUIDE_COMPLETION_SCENARIOS.map((row) => [row.id, row] as const),
-  )('parseMetaProductGuideIntentFromPrompt for $id', (_id, scenario) => {
-    expect(
-      parseMetaProductGuideIntentFromPrompt(
-        scenario.action as 'explain_ai_settings',
-        scenario.prompt,
-        scenario.params ?? {},
-      ),
-    ).toBe(scenario.expectValid);
-    expect(
-      parseProductGuideIntentFromPrompt(
-        scenario.action,
-        scenario.prompt,
-        scenario.params ?? {},
-      ),
-    ).toBe(scenario.expectValid);
-  });
+  it.each(META_GUIDE_COMPLETION_SCENARIOS.map((row) => [row.id, row] as const))(
+    'parseMetaProductGuideIntentFromPrompt for $id',
+    (_id, scenario) => {
+      expect(
+        parseMetaProductGuideIntentFromPrompt(
+          scenario.action as 'explain_ai_settings',
+          scenario.prompt,
+          scenario.params ?? {},
+        ),
+      ).toBe(scenario.expectValid);
+      expect(
+        parseProductGuideIntentFromPrompt(
+          scenario.action,
+          scenario.prompt,
+          scenario.params ?? {},
+        ),
+      ).toBe(scenario.expectValid);
+    },
+  );
 });

@@ -5,7 +5,9 @@ import { ConsumerPushTokenService } from './consumer-push-token.service.js';
 /** n99-4.8 — detect FCM accepts without client delivery acks. */
 @Injectable()
 export class ConsumerPushDeliverabilityScheduler {
-  private readonly logger = new Logger(ConsumerPushDeliverabilityScheduler.name);
+  private readonly logger = new Logger(
+    ConsumerPushDeliverabilityScheduler.name,
+  );
 
   constructor(private consumerPushTokens: ConsumerPushTokenService) {}
 
@@ -13,7 +15,9 @@ export class ConsumerPushDeliverabilityScheduler {
   async scanSilentDeliveryFailures(): Promise<void> {
     const count = await this.consumerPushTokens.scanSilentDeliveryFailures();
     if (count > 0) {
-      this.logger.warn(`Recorded ${count} consumer push silent delivery failure(s)`);
+      this.logger.warn(
+        `Recorded ${count} consumer push silent delivery failure(s)`,
+      );
     }
   }
 }

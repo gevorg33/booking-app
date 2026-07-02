@@ -1,5 +1,6 @@
 import { isMultilingualBookNearestPrompt } from './ai-check-and-book-multilingual.util.js';
 import { isFindSoonestAppointmentPrompt } from './ai-find-soonest-appointment.util.js';
+import { isExplainProviderAvailabilityPrompt } from './ai-explain-provider-availability.util.js';
 import {
   isCheckProvidersForServicePrompt,
   isBookNearestSlotPrompt,
@@ -58,6 +59,7 @@ export function isLookupServiceAssignmentPrompt(prompt: string): boolean {
 function publicAvailabilityAction(
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
+  if (isExplainProviderAvailabilityPrompt(prompt)) return null;
   if (isFindSoonestAppointmentPrompt(prompt)) {
     return {
       action: 'find_soonest_appointment',
@@ -98,6 +100,7 @@ function dashboardOrCustomerAvailabilityAction(
   surface: 'dashboard' | 'customer',
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
+  if (isExplainProviderAvailabilityPrompt(prompt)) return null;
   if (isFindSoonestAppointmentPrompt(prompt) && !hasBookVerb(prompt)) {
     return {
       action: 'find_soonest_appointment',

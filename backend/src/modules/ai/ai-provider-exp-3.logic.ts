@@ -1,8 +1,5 @@
 import { In, MoreThanOrEqual, Not, type Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { BusinessService } from '../business/business.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import type { AiRetailFinanceService } from './ai-retail-finance.service.js';
@@ -229,7 +226,8 @@ export async function handleSendClientMessageLogic(
   const channel = extractSendMessageChannel(prompt ?? '', params);
   if (
     channel === 'whatsapp' &&
-    (!notificationSettings.whatsappEnabled || !providerStatus.whatsappConfigured)
+    (!notificationSettings.whatsappEnabled ||
+      !providerStatus.whatsappConfigured)
   ) {
     return failure(
       'send_client_message',
@@ -285,7 +283,12 @@ export async function handleSendClientMessageLogic(
 function resolveBlockMyTimeWindow(
   prompt: string,
   params: Record<string, unknown>,
-): { date: string; startTime: string; endTime: string; placeholder: string } | null {
+): {
+  date: string;
+  startTime: string;
+  endTime: string;
+  placeholder: string;
+} | null {
   const dateRaw =
     (typeof params.date === 'string' && params.date.trim()) ||
     (typeof params.dateFrom === 'string' && params.dateFrom.trim()) ||
@@ -298,7 +301,8 @@ function resolveBlockMyTimeWindow(
 
   let startTime =
     (typeof params.timeFrom === 'string' && normalizeTime24(params.timeFrom)) ||
-    (typeof params.startTime === 'string' && normalizeTime24(params.startTime)) ||
+    (typeof params.startTime === 'string' &&
+      normalizeTime24(params.startTime)) ||
     null;
   let endTime =
     (typeof params.timeTo === 'string' && normalizeTime24(params.timeTo)) ||
@@ -314,7 +318,9 @@ function resolveBlockMyTimeWindow(
   }
 
   if (!startTime || !endTime) {
-    const lunch = PROVIDER_SELF_BLOCK_PRESETS.find((preset) => preset.id === 'lunch');
+    const lunch = PROVIDER_SELF_BLOCK_PRESETS.find(
+      (preset) => preset.id === 'lunch',
+    );
     if (/\blunch\b/i.test(prompt) && lunch) {
       startTime = lunch.startTime;
       endTime = lunch.endTime;
@@ -454,7 +460,8 @@ export async function dispatchProviderExp3Intent(
           params,
           'provider',
           employeeId,
-        )) ?? failure(
+        )) ??
+        failure(
           'request_time_off',
           'Could not submit time-off request. Use the Schedule tab or specify dates.',
           { clarify: true },

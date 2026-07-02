@@ -32,7 +32,9 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
   );
 
   it('detects retail, message, and block prompts', () => {
-    expect(isAddRetailToBookingPrompt('Add shampoo to this booking')).toBe(true);
+    expect(isAddRetailToBookingPrompt('Add shampoo to this booking')).toBe(
+      true,
+    );
     expect(isSendClientMessagePrompt('Text Jane running late')).toBe(true);
     expect(isBlockMyTimePrompt('Block my lunch today')).toBe(true);
     expect(isProviderExp3Intent('send_client_message')).toBe(true);
@@ -50,9 +52,7 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       startTime: '12:00',
       endTime: '13:00',
     });
-    expect(
-      extractRetailProductName('Add shampoo to booking', {}),
-    ).toBeTruthy();
+    expect(extractRetailProductName('Add shampoo to booking', {})).toBeTruthy();
     expect(extractRetailProductName('add retail', { productName: 'Oil' })).toBe(
       'Oil',
     );
@@ -60,7 +60,9 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       'custom',
     );
     expect(
-      extractMessageTemplateHint('hello', { messageTemplate: 'confirming-tomorrow' }),
+      extractMessageTemplateHint('hello', {
+        messageTemplate: 'confirming-tomorrow',
+      }),
     ).toBe('confirming-tomorrow');
     expect(isBlockMyTimePrompt('block Maria schedule')).toBe(false);
     expect(isAddRetailToBookingPrompt('remove retail line')).toBe(false);

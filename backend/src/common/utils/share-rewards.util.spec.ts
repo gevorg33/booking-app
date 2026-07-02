@@ -22,9 +22,9 @@ describe('share-rewards.util', () => {
   it.each(SHARE_REWARD_COOLDOWN_SCENARIOS)(
     '$id evaluates cooldown eligibility',
     ({ lastAt, cooldownHours, now, expectedEligible }) => {
-      expect(
-        isShareRewardEligible(lastAt, cooldownHours, new Date(now)),
-      ).toBe(expectedEligible);
+      expect(isShareRewardEligible(lastAt, cooldownHours, new Date(now))).toBe(
+        expectedEligible,
+      );
     },
   );
 

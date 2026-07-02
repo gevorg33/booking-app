@@ -273,7 +273,10 @@ export function isConfigureOnlineBookingPrompt(prompt: string): boolean {
     return true;
   }
   if (
-    matchLocale(lower, /(?:включ|отключ|настро|активир|скры|скрой|останов|разреш)/u) &&
+    matchLocale(
+      lower,
+      /(?:включ|отключ|настро|активир|скры|скрой|останов|разреш)/u,
+    ) &&
     /(?:online\s+booking|public\s+booking|booking\s+(?:page|website|link)|book\s+online|публичн\w*\s+(?:страниц\w*|booking)|онлайн[-\s]?(?:booking|запис))/iu.test(
       prompt,
     )
@@ -329,9 +332,7 @@ export function rescueStaffOperationsIntent(
 }
 
 export function extractEmployeeEmailFromPrompt(prompt: string): string | null {
-  const match = prompt.match(
-    /\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/i,
-  );
+  const match = prompt.match(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/i);
   return match?.[1]?.toLowerCase() ?? null;
 }
 
@@ -350,7 +351,9 @@ const STAFF_ROLE_WORDS = new Set([
   'new',
 ]);
 
-function normalizeExtractedEmployeeName(name: string | undefined): string | null {
+function normalizeExtractedEmployeeName(
+  name: string | undefined,
+): string | null {
   if (!name) return null;
   const trimmed = name
     .trim()
@@ -382,7 +385,9 @@ export function extractEmployeeNameFromPrompt(prompt: string): string | null {
   const inviteIdx = prompt.search(/\binvite\b/i);
   if (inviteIdx >= 0) {
     const inviteTail = prompt.slice(inviteIdx).replace(/^\s*invite\s+/i, '');
-    const inviteSimple = inviteTail.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/);
+    const inviteSimple = inviteTail.match(
+      /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
+    );
     const fromInviteSimple = normalizeExtractedEmployeeName(inviteSimple?.[1]);
     if (fromInviteSimple) return fromInviteSimple;
   }
@@ -407,7 +412,9 @@ export function extractEmployeeNameFromPrompt(prompt: string): string | null {
   const fromTeamName = normalizeExtractedEmployeeName(fromTeam?.[1]);
   if (fromTeamName) return fromTeamName;
 
-  const hyInvite = prompt.match(/(?:հրավիր|ուղարկ.*հրավեր).{0,20}?([A-Z][a-z]+)/iu);
+  const hyInvite = prompt.match(
+    /(?:հրավիր|ուղարկ.*հրավեր).{0,20}?([A-Z][a-z]+)/iu,
+  );
   const fromHyInvite = normalizeExtractedEmployeeName(hyInvite?.[1]);
   if (fromHyInvite) return fromHyInvite;
 
@@ -417,7 +424,9 @@ export function extractEmployeeNameFromPrompt(prompt: string): string | null {
   const fromHyDeactivate = normalizeExtractedEmployeeName(hyDeactivate?.[1]);
   if (fromHyDeactivate) return fromHyDeactivate;
 
-  const ruInvite = prompt.match(/(?:приглас|отправ.*приглаш).{0,20}?([A-Z][a-z]+)/iu);
+  const ruInvite = prompt.match(
+    /(?:приглас|отправ.*приглаш).{0,20}?([A-Z][a-z]+)/iu,
+  );
   const fromRuInvite = normalizeExtractedEmployeeName(ruInvite?.[1]);
   if (fromRuInvite) return fromRuInvite;
 
@@ -443,9 +452,7 @@ export function extractEmployeeNameFromPrompt(prompt: string): string | null {
 export function extractServiceNamesFromPrompt(
   prompt: string,
 ): string[] | undefined {
-  const withServices = prompt.match(
-    /\bwith\s+([\w\s,and]+?)\s+services?\b/i,
-  );
+  const withServices = prompt.match(/\bwith\s+([\w\s,and]+?)\s+services?\b/i);
   if (!withServices?.[1]) return undefined;
   return withServices[1]
     .split(/\s+and\s+|,\s*/i)
@@ -465,7 +472,9 @@ export function parseOnlineBookingEnabledFromPrompt(
     return false;
   }
   if (
-    /(?:отключ|скры|скрой|останов|hide|stop|disable|turn\s+off)/iu.test(prompt) &&
+    /(?:отключ|скры|скрой|останов|hide|stop|disable|turn\s+off)/iu.test(
+      prompt,
+    ) &&
     /(?:online|public|онлайн|публичн|booking).{0,30}(?:booking|запис|link|page)?/iu.test(
       prompt,
     )

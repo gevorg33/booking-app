@@ -34,11 +34,19 @@ function envKey(
   return `MOBILE_${surfaceKey}_${platformKey}_${suffix}`;
 }
 
-function readEnv(name: string, fallback: string, env: NodeJS.ProcessEnv = process.env): string {
+function readEnv(
+  name: string,
+  fallback: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   return env[name]?.trim() || fallback;
 }
 
-function readBool(name: string, fallback = false, env: NodeJS.ProcessEnv = process.env): boolean {
+function readBool(
+  name: string,
+  fallback = false,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
   const raw = env[name]?.trim().toLowerCase();
   if (!raw) return fallback;
   return raw === '1' || raw === 'true' || raw === 'yes';
@@ -58,7 +66,11 @@ export function resolveMobileAppConfig(
     minSupportedVersion,
     env,
   );
-  const killSwitch = readBool(envKey(query.surface, query.platform, 'KILL_SWITCH'), false, env);
+  const killSwitch = readBool(
+    envKey(query.surface, query.platform, 'KILL_SWITCH'),
+    false,
+    env,
+  );
   const updateRequired = readBool(
     envKey(query.surface, query.platform, 'UPDATE_REQUIRED'),
     false,

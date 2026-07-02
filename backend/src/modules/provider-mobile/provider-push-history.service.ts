@@ -51,7 +51,10 @@ export class ProviderPushHistoryService {
     userId: string,
     referenceDate: Date = new Date(),
   ): Promise<ProviderPushNotificationCenterView> {
-    const since = providerPushHistoryCutoff(referenceDate, PROVIDER_PUSH_HISTORY_DAYS);
+    const since = providerPushHistoryCutoff(
+      referenceDate,
+      PROVIDER_PUSH_HISTORY_DAYS,
+    );
     const rows = await this.repo.find({
       where: {
         businessId,

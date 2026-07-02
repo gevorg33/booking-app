@@ -8,7 +8,10 @@ import type { StripeIntegrationPublicView } from '../billing/stripe-integration.
 import { getBusinessStripeIntegration } from '../billing/stripe-integration.types.js';
 import type { PlanTierId } from '../billing/plan-limits.js';
 import { resolvePublicPaymentSettings } from '../../common/utils/customer-self-service.util.js';
-import type { CommandResult, GuideResponse } from './command-completion.types.js';
+import type {
+  CommandResult,
+  GuideResponse,
+} from './command-completion.types.js';
 import type { AccessTier } from './access-control.matrix.js';
 import {
   DASHBOARD_DENIED_BY_TIER,
@@ -104,12 +107,17 @@ function readString(value: unknown): string | undefined {
 }
 
 function readPlanTierId(ctx: EmptyStateGuideContext): PlanTierId {
-  const raw = ctx.planTierId ?? ctx.session?.context?._planTierId ?? ctx.session?.context?.planTierId;
+  const raw =
+    ctx.planTierId ??
+    ctx.session?.context?._planTierId ??
+    ctx.session?.context?.planTierId;
   if (raw === 'starter' || raw === 'business' || raw === 'solo') return raw;
   return 'solo';
 }
 
-function isPublicBookingEnabled(settings: Record<string, unknown> | null | undefined): boolean {
+function isPublicBookingEnabled(
+  settings: Record<string, unknown> | null | undefined,
+): boolean {
   const pb = settings?.publicBooking as { enabled?: boolean } | undefined;
   return pb?.enabled !== false;
 }
@@ -123,14 +131,23 @@ export async function loadEmptyStateGuideSnapshot(
   });
   if (!business) return null;
 
-  const [serviceCountTotal, serviceCountActive, employeeCountTotal, employeeCountActive, stripe] =
-    await Promise.all([
-      deps.serviceRepo.count({ where: { businessId: ctx.businessId } }),
-      deps.serviceRepo.count({ where: { businessId: ctx.businessId, isActive: true } }),
-      deps.employeeRepo.count({ where: { businessId: ctx.businessId } }),
-      deps.employeeRepo.count({ where: { businessId: ctx.businessId, isActive: true } }),
-      deps.stripeIntegrationService.getPublicSettings(ctx.businessId),
-    ]);
+  const [
+    serviceCountTotal,
+    serviceCountActive,
+    employeeCountTotal,
+    employeeCountActive,
+    stripe,
+  ] = await Promise.all([
+    deps.serviceRepo.count({ where: { businessId: ctx.businessId } }),
+    deps.serviceRepo.count({
+      where: { businessId: ctx.businessId, isActive: true },
+    }),
+    deps.employeeRepo.count({ where: { businessId: ctx.businessId } }),
+    deps.employeeRepo.count({
+      where: { businessId: ctx.businessId, isActive: true },
+    }),
+    deps.stripeIntegrationService.getPublicSettings(ctx.businessId),
+  ]);
 
   const payment = resolvePublicPaymentSettings(business.settings);
   let linkedEmployeeServiceCount: number | undefined;
@@ -153,7 +170,9 @@ export async function loadEmptyStateGuideSnapshot(
     employeeCountTotal,
     employeeCountActive,
     stripe,
-    onlinePaymentsEnabled: Boolean(getBusinessStripeIntegration(business.settings).connectAccountId),
+    onlinePaymentsEnabled: Boolean(
+      getBusinessStripeIntegration(business.settings).connectAccountId,
+    ),
     acceptCashPayments: payment.acceptCashPayments,
     planTierId: readPlanTierId(ctx),
     enabledModules: ctx.enabledModules,
@@ -163,7 +182,10 @@ export async function loadEmptyStateGuideSnapshot(
   };
 }
 
-function extractVisibilitySubject(prompt: string, params: Record<string, unknown> = {}): string {
+function extractVisibilitySubject(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): string {
   const explicit =
     readString(params.featureName) ??
     readString(params.subject) ??
@@ -176,12 +198,14 @@ function extractVisibilitySubject(prompt: string, params: Record<string, unknown
   const match =
     prompt.match(
       /(?:why\s+(?:can(?:'|no)?t|don(?:'|no)?t)\s+i\s+see|can(?:'|no)?t\s+see|missing)\s+(?:the\s+)?(.+?)(?:\?|$|on\s+my)/i,
-    ) ??
-    prompt.match(/no\s+access\s+to\s+(?:the\s+)?(.+?)(?:\?|$)/i);
+    ) ?? prompt.match(/no\s+access\s+to\s+(?:the\s+)?(.+?)(?:\?|$)/i);
   return match?.[1]?.trim() || 'this feature';
 }
 
-function buildNavigate(path: string, label?: string): GuideResponse['navigate'] {
+function buildNavigate(
+  path: string,
+  label?: string,
+): GuideResponse['navigate'] {
   return { path, ...(label ? { label } : {}) };
 }
 
@@ -204,7 +228,11 @@ function buildEmptyStateGuideResponse(input: {
 function describeStripeConnectStatus(
   snapshot: EmptyStateGuideSnapshot,
   locale: AppLocale,
-): { summary: string; steps: GuideResponse['steps']; navigate: GuideResponse['navigate'] } {
+): {
+  summary: string;
+  steps: GuideResponse['steps'];
+  navigate: GuideResponse['navigate'];
+} {
   const { stripe, acceptCashPayments } = snapshot;
   const settingsPath = '/dashboard/settings/integrations';
   const navigate = buildNavigate(settingsPath, 'Open Integrations');
@@ -221,7 +249,12 @@ function describeStripeConnectStatus(
       navigate,
       steps: [
         {
-          title: locale === 'hy' ? 'Միացրեք Stripe' : locale === 'ru' ? 'Подключите Stripe' : 'Connect Stripe',
+          title:
+            locale === 'hy'
+              ? 'Միացրեք Stripe'
+              : locale === 'ru'
+                ? 'Подключите Stripe'
+                : 'Connect Stripe',
           body:
             locale === 'hy'
               ? 'Բացեք Settings → Integrations → Stripe Connect և ավարտեք OAuth կամ Express onboarding-ը։'
@@ -294,7 +327,11 @@ function describeStripeConnectStatus(
     steps: [
       {
         title:
-          locale === 'hy' ? 'Stripe պատրաստ է' : locale === 'ru' ? 'Stripe готов' : 'Stripe is ready',
+          locale === 'hy'
+            ? 'Stripe պատրաստ է'
+            : locale === 'ru'
+              ? 'Stripe готов'
+              : 'Stripe is ready',
         body: summary,
         navigate,
       },
@@ -342,7 +379,10 @@ export async function handleExplainEmptyCatalogLogic(
   const steps: GuideResponse['steps'] = [];
   let navigate = buildNavigate('/dashboard/services', 'Open Services');
 
-  if (!snapshot.publicBookingEnabled && (ctx.surface === 'public' || ctx.surface === 'customer')) {
+  if (
+    !snapshot.publicBookingEnabled &&
+    (ctx.surface === 'public' || ctx.surface === 'customer')
+  ) {
     reasons.push(
       locale === 'hy'
         ? 'Հանրային ամրագրումը (public booking) անջատված է այս սalon-ում։'
@@ -378,7 +418,11 @@ export async function handleExplainEmptyCatalogLogic(
     );
     steps.push({
       title:
-        locale === 'hy' ? 'Ավելացրեք ծառայություն' : locale === 'ru' ? 'Добавьте услугу' : 'Add a service',
+        locale === 'hy'
+          ? 'Ավելացրեք ծառայություն'
+          : locale === 'ru'
+            ? 'Добавьте услугу'
+            : 'Add a service',
       body:
         locale === 'hy'
           ? 'Dashboard → Services → Create service, ապա նշեք Active։'
@@ -477,7 +521,11 @@ export async function handleExplainEmptyCatalogLogic(
     reasons.push(okSummary);
     steps.push({
       title:
-        locale === 'hy' ? 'Կատալոգը OK է' : locale === 'ru' ? 'Каталог в порядке' : 'Catalog looks fine',
+        locale === 'hy'
+          ? 'Կատալոգը OK է'
+          : locale === 'ru'
+            ? 'Каталог в порядке'
+            : 'Catalog looks fine',
       body: okSummary,
     });
   }
@@ -561,7 +609,13 @@ export async function handleExplainVisibilityBlockLogic(
   for (const topicId of topicCandidates) {
     const playbook = findGuideFlowPlaybookByTopicId(topicId);
     if (!playbook) continue;
-    if (!isGuideFlowPlaybookRoleVerticalVisible(playbook, listCtx, activeVerticals)) {
+    if (
+      !isGuideFlowPlaybookRoleVerticalVisible(
+        playbook,
+        listCtx,
+        activeVerticals,
+      )
+    ) {
       reasons.push(
         locale === 'hy'
           ? `${subject} թաքնված է ձեր role/vertical filter-ով։`
@@ -586,7 +640,12 @@ export async function handleExplainVisibilityBlockLogic(
       break;
     }
     if (!isGuideFlowPlaybookEntitlementAllowed(playbook, listCtx)) {
-      const gate = describeGuidePlaybookGate(playbook, listCtx, locale, messages);
+      const gate = describeGuidePlaybookGate(
+        playbook,
+        listCtx,
+        locale,
+        messages,
+      );
       reasons.push(gate.summary);
       steps.push({
         title: gate.featureLabel,
@@ -598,7 +657,11 @@ export async function handleExplainVisibilityBlockLogic(
     }
   }
 
-  const deniedIntent = resolveDeniedIntentForRole(ctx.surface, ctx.role, subject);
+  const deniedIntent = resolveDeniedIntentForRole(
+    ctx.surface,
+    ctx.role,
+    subject,
+  );
   if (deniedIntent) {
     reasons.push(
       locale === 'hy'
@@ -609,7 +672,11 @@ export async function handleExplainVisibilityBlockLogic(
     );
     steps.push({
       title:
-        locale === 'hy' ? 'Role permission' : locale === 'ru' ? 'Права роли' : 'Role permission',
+        locale === 'hy'
+          ? 'Role permission'
+          : locale === 'ru'
+            ? 'Права роли'
+            : 'Role permission',
       body:
         locale === 'hy'
           ? 'Manager/owner role-ով մուտք գործեք կամ խնդրեք owner-ին բացել այս screen-ը։'
@@ -700,6 +767,9 @@ export async function runEmptyStateGuideIntentLogic(
     case 'explain_stripe_not_connected':
       return handleExplainStripeNotConnectedLogic(deps, ctx);
     default:
-      return failure(intent, `Unsupported empty-state guide intent: ${intent}.`);
+      return failure(
+        intent,
+        `Unsupported empty-state guide intent: ${intent}.`,
+      );
   }
 }

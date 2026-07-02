@@ -100,8 +100,18 @@ export const SORT_SERVICES_BY_PRICE_ASC_SCENARIOS: Array<{
   {
     id: 'rank-lowest-standard-tier-en',
     services: [
-      { id: 'prem-low', name: 'Premium lite', price: 50, serviceTier: 'premium' },
-      { id: 'std-high', name: 'Standard plus', price: 80, serviceTier: 'standard' },
+      {
+        id: 'prem-low',
+        name: 'Premium lite',
+        price: 50,
+        serviceTier: 'premium',
+      },
+      {
+        id: 'std-high',
+        name: 'Standard plus',
+        price: 80,
+        serviceTier: 'standard',
+      },
     ],
     expectedIds: ['std-high', 'prem-low'],
   },
@@ -163,8 +173,18 @@ export const SORT_SERVICES_BY_PRICE_DESC_SCENARIOS: Array<{
   {
     id: 'rank-tier-metadata-en',
     services: [
-      { id: 'std-high', name: 'Standard plus', price: 100, serviceTier: 'standard' },
-      { id: 'prem-low', name: 'Premium lite', price: 70, serviceTier: 'premium' },
+      {
+        id: 'std-high',
+        name: 'Standard plus',
+        price: 100,
+        serviceTier: 'standard',
+      },
+      {
+        id: 'prem-low',
+        name: 'Premium lite',
+        price: 70,
+        serviceTier: 'premium',
+      },
     ],
     expectedIds: ['prem-low', 'std-high'],
   },
@@ -185,9 +205,24 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
   {
     id: 'pick-highest-single',
     catalog: [
-      { id: 'basic', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'premium', name: 'Haircut premium', price: 85, serviceCategory: 'haircut' },
-      { id: 'standard', name: 'Haircut standard', price: 55, serviceCategory: 'haircut' },
+      {
+        id: 'basic',
+        name: 'Haircut basic',
+        price: 35,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'premium',
+        name: 'Haircut premium',
+        price: 85,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'standard',
+        name: 'Haircut standard',
+        price: 55,
+        serviceCategory: 'haircut',
+      },
     ],
     options: {
       serviceCategory: 'haircut',
@@ -199,8 +234,18 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
   {
     id: 'pick-lowest-single',
     catalog: [
-      { id: 'basic', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'premium', name: 'Haircut premium', price: 85, serviceCategory: 'haircut' },
+      {
+        id: 'basic',
+        name: 'Haircut basic',
+        price: 35,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'premium',
+        name: 'Haircut premium',
+        price: 85,
+        serviceCategory: 'haircut',
+      },
     ],
     options: {
       serviceCategory: 'haircut',
@@ -212,8 +257,18 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
   {
     id: 'pick-missing-price-excluded',
     catalog: [
-      { id: 'quote-only', name: 'Custom quote', price: null, serviceCategory: 'color' },
-      { id: 'priced-color', name: 'Color basic', price: 80, serviceCategory: 'color' },
+      {
+        id: 'quote-only',
+        name: 'Custom quote',
+        price: null,
+        serviceCategory: 'color',
+      },
+      {
+        id: 'priced-color',
+        name: 'Color basic',
+        price: 80,
+        serviceCategory: 'color',
+      },
     ],
     options: {
       serviceCategory: 'color',
@@ -261,9 +316,24 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
   {
     id: 'pick-category-filter-first',
     catalog: [
-      { id: 'hair-120', name: 'Color deluxe', price: 120, serviceCategory: 'hair color' },
-      { id: 'facial-90', name: 'Facial gold', price: 90, serviceCategory: 'facial' },
-      { id: 'hair-80', name: 'Color basic', price: 80, serviceCategory: 'hair color' },
+      {
+        id: 'hair-120',
+        name: 'Color deluxe',
+        price: 120,
+        serviceCategory: 'hair color',
+      },
+      {
+        id: 'facial-90',
+        name: 'Facial gold',
+        price: 90,
+        serviceCategory: 'facial',
+      },
+      {
+        id: 'hair-80',
+        name: 'Color basic',
+        price: 80,
+        serviceCategory: 'hair color',
+      },
     ],
     options: {
       serviceCategory: 'hair color',
@@ -313,8 +383,18 @@ export const PICK_RANKED_SERVICES_SCENARIOS: Array<{
   {
     id: 'pick-premium-tier-over-price',
     catalog: [
-      { id: 'std-high', name: 'Standard plus', price: 100, serviceTier: 'standard' },
-      { id: 'prem-low', name: 'Premium lite', price: 70, serviceTier: 'premium' },
+      {
+        id: 'std-high',
+        name: 'Standard plus',
+        price: 100,
+        serviceTier: 'standard',
+      },
+      {
+        id: 'prem-low',
+        name: 'Premium lite',
+        price: 70,
+        serviceTier: 'premium',
+      },
     ],
     options: { serviceRank: 'highest_price', limit: 1 },
     expectedIds: ['prem-low'],
@@ -360,18 +440,63 @@ export const SHARED_BUDGET_FILTER_SCENARIO_IDS = [
 ] as const;
 
 export const DISCOVER_INTERSECTION_CATALOG: CatalogFixtureService[] = [
-  { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-  { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
-  { id: 'hair-75', name: 'Haircut premium', price: 75, serviceCategory: 'haircut' },
-  { id: 'facial-55', name: 'Facial standard', price: 55, serviceCategory: 'facial' },
-  { id: 'facial-95', name: 'Facial deluxe', price: 95, serviceCategory: 'facial' },
-  { id: 'facial-120', name: 'Facial luxury', price: 120, serviceCategory: 'facial' },
+  {
+    id: 'hair-35',
+    name: 'Haircut basic',
+    price: 35,
+    serviceCategory: 'haircut',
+  },
+  {
+    id: 'hair-45',
+    name: 'Haircut standard',
+    price: 45,
+    serviceCategory: 'haircut',
+  },
+  {
+    id: 'hair-75',
+    name: 'Haircut premium',
+    price: 75,
+    serviceCategory: 'haircut',
+  },
+  {
+    id: 'facial-55',
+    name: 'Facial standard',
+    price: 55,
+    serviceCategory: 'facial',
+  },
+  {
+    id: 'facial-95',
+    name: 'Facial deluxe',
+    price: 95,
+    serviceCategory: 'facial',
+  },
+  {
+    id: 'facial-120',
+    name: 'Facial luxury',
+    price: 120,
+    serviceCategory: 'facial',
+  },
 ];
 
 export const DISCOVER_SECTION_A_MASSAGE_CATALOG: CatalogFixtureService[] = [
-  { id: 'massage-55', name: 'Massage basic', price: 55, serviceCategory: 'massage' },
-  { id: 'massage-65', name: 'Massage standard', price: 65, serviceCategory: 'massage' },
-  { id: 'massage-95', name: 'Massage premium', price: 95, serviceCategory: 'massage' },
+  {
+    id: 'massage-55',
+    name: 'Massage basic',
+    price: 55,
+    serviceCategory: 'massage',
+  },
+  {
+    id: 'massage-65',
+    name: 'Massage standard',
+    price: 65,
+    serviceCategory: 'massage',
+  },
+  {
+    id: 'massage-95',
+    name: 'Massage premium',
+    price: 95,
+    serviceCategory: 'massage',
+  },
 ];
 
 export const RESOLVE_SERVICE_DISCOVERY_PARAMS_SCENARIOS: Array<{
@@ -551,10 +676,30 @@ export const APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS: Array<{
   {
     id: 'discover-budget-asap-en',
     catalog: [
-      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
-      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
-      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
+      {
+        id: 'manicure-25',
+        name: 'Manicure basic',
+        price: 25,
+        serviceCategory: 'manicure',
+      },
+      {
+        id: 'hair-35',
+        name: 'Haircut basic',
+        price: 35,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'manicure-40',
+        name: 'Manicure deluxe',
+        price: 40,
+        serviceCategory: 'manicure',
+      },
+      {
+        id: 'hair-45',
+        name: 'Haircut standard',
+        price: 45,
+        serviceCategory: 'haircut',
+      },
     ],
     params: { maxPrice: 40, limit: 1 },
     expectedIds: ['manicure-25'],
@@ -695,13 +840,48 @@ export const APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS: Array<{
   {
     id: 'discover-not-admin-en',
     catalog: [
-      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
-      { id: 'hair-75', name: 'Haircut premium', price: 75, serviceCategory: 'haircut' },
-      { id: 'facial-55', name: 'Facial standard', price: 55, serviceCategory: 'facial' },
-      { id: 'massage-55', name: 'Massage basic', price: 55, serviceCategory: 'massage' },
-      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
-      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
+      {
+        id: 'hair-35',
+        name: 'Haircut basic',
+        price: 35,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'hair-45',
+        name: 'Haircut standard',
+        price: 45,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'hair-75',
+        name: 'Haircut premium',
+        price: 75,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'facial-55',
+        name: 'Facial standard',
+        price: 55,
+        serviceCategory: 'facial',
+      },
+      {
+        id: 'massage-55',
+        name: 'Massage basic',
+        price: 55,
+        serviceCategory: 'massage',
+      },
+      {
+        id: 'manicure-25',
+        name: 'Manicure basic',
+        price: 25,
+        serviceCategory: 'manicure',
+      },
+      {
+        id: 'manicure-40',
+        name: 'Manicure deluxe',
+        price: 40,
+        serviceCategory: 'manicure',
+      },
     ],
     params: { maxPrice: 50 },
     expectedIds: ['manicure-25', 'hair-35', 'manicure-40', 'hair-45'],
@@ -720,8 +900,18 @@ export const APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS: Array<{
   {
     id: 'discover-hy-cheapest-en',
     catalog: [
-      { id: 'manicure-25', name: 'Manicure basic', price: 25, serviceCategory: 'manicure' },
-      { id: 'manicure-40', name: 'Manicure deluxe', price: 40, serviceCategory: 'manicure' },
+      {
+        id: 'manicure-25',
+        name: 'Manicure basic',
+        price: 25,
+        serviceCategory: 'manicure',
+      },
+      {
+        id: 'manicure-40',
+        name: 'Manicure deluxe',
+        price: 40,
+        serviceCategory: 'manicure',
+      },
     ],
     params: {
       maxPrice: 30,
@@ -841,10 +1031,7 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
         bookingFirstAvailable: true,
         maxPrice: 150,
         serviceRank: 'highest_price',
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['saturday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['saturday'] }],
       },
     },
     {
@@ -858,10 +1045,7 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       expectedAfterPipeline: {
         serviceCategory: 'facial',
         maxPrice: 100,
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['sunday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['sunday'] }],
       },
     },
     {
@@ -948,10 +1132,7 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       expectedAfterPipeline: {
         serviceCategory: 'haircut',
         maxPrice: 50,
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['friday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['friday'] }],
       },
     },
     {

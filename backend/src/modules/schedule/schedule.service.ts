@@ -386,7 +386,11 @@ export class ScheduleService implements OnModuleInit {
       );
     }
 
-    return this.createDirectScheduleForDay(businessId, { ...dto, date: dto.date }, userId);
+    return this.createDirectScheduleForDay(
+      businessId,
+      { ...dto, date: dto.date },
+      userId,
+    );
   }
 
   private async createRepetitiveDirectSchedule(

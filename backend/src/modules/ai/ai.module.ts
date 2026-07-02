@@ -46,6 +46,16 @@ import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicBookingService } from './ai-clinic-booking.service.js';
 import { AiGuestCheckoutFieldsService } from './ai-explain-guest-checkout-fields.service.js';
 import { AiResumePendingPaymentService } from './ai-resume-pending-payment.service.js';
+import { AiDiagnoseStripeCheckoutFailureService } from './ai-diagnose-stripe-checkout-failure.service.js';
+import { AiPayAtVenueFallbackService } from './ai-pay-at-venue-fallback.service.js';
+import { AiResumeBookingDraftService } from './ai-resume-booking-draft.service.js';
+import { AiExplainSlotNoLongerAvailableService } from './ai-explain-slot-no-longer-available.service.js';
+import { AiExplainMultiServicePaymentReturnService } from './ai-explain-multi-service-payment-return.service.js';
+import { AiRetryFailedNetworkActionService } from './ai-retry-failed-network-action.service.js';
+import { AiExplainVoiceInputService } from './ai-explain-voice-input.service.js';
+import { AiSpeakAssistantReplyService } from './ai-speak-assistant-reply.service.js';
+import { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
+import { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { AiProviderPushSetupService } from './ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from './ai-provider-earnings.service.js';
@@ -273,6 +283,16 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiClinicBookingService,
     AiGuestCheckoutFieldsService,
     AiResumePendingPaymentService,
+    AiDiagnoseStripeCheckoutFailureService,
+    AiPayAtVenueFallbackService,
+    AiResumeBookingDraftService,
+    AiExplainSlotNoLongerAvailableService,
+    AiExplainMultiServicePaymentReturnService,
+    AiRetryFailedNetworkActionService,
+    AiExplainVoiceInputService,
+    AiSpeakAssistantReplyService,
+    AiGiveAiFeedbackService,
+    AiExplainRtlLayoutService,
     AiConsumerAdoptionService,
     AiProviderPushSetupService,
     AiProviderEarningsService,
@@ -371,6 +391,14 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiSelfServiceBookingService,
     AiMarketingGrowthService,
     AiGuestCheckoutFieldsService,
+    AiDiagnoseStripeCheckoutFailureService,
+    AiPayAtVenueFallbackService,
+    AiResumeBookingDraftService,
+    AiExplainSlotNoLongerAvailableService,
+    AiExplainVoiceInputService,
+    AiSpeakAssistantReplyService,
+    AiGiveAiFeedbackService,
+    AiExplainRtlLayoutService,
     GuideTelemetryService,
     AiCommandTraceService,
   ],

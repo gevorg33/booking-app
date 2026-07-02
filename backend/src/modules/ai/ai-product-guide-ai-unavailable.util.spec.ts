@@ -80,20 +80,27 @@ describe('ai-product-guide-ai-unavailable.util (ai-guide-1.8.10)', () => {
 
   it('shouldOfferAiUnavailableGuideFallback rejects act-mode booking prompts', () => {
     expect(
-      shouldOfferAiUnavailableGuideFallback('Book Anna tomorrow at 3pm', 'dashboard', {
-        context: { assistantMode: 'act' },
-      }),
+      shouldOfferAiUnavailableGuideFallback(
+        'Book Anna tomorrow at 3pm',
+        'dashboard',
+        {
+          context: { assistantMode: 'act' },
+        },
+      ),
     ).toBe(false);
   });
 
   it('resolveNativeGuideNavigateTarget maps dashboard topic to /dashboard/guide#anchor', () => {
     expect(
-      resolveNativeGuideNavigateTarget('dashboard', 'dashboard.core.schedule').path,
+      resolveNativeGuideNavigateTarget('dashboard', 'dashboard.core.schedule')
+        .path,
     ).toContain('/dashboard/guide');
   });
 
   it('resolveNativeGuideNavigateTarget maps provider to mobile guide path', () => {
-    expect(resolveNativeGuideNavigateTarget('provider', 'provider-assistant')).toEqual({
+    expect(
+      resolveNativeGuideNavigateTarget('provider', 'provider-assistant'),
+    ).toEqual({
       path: 'guide',
       query: { topicId: 'provider-assistant' },
     });
@@ -130,15 +137,21 @@ describe('ai-product-guide-ai-unavailable.util (ai-guide-1.8.10)', () => {
       session: { context: { route: '/tabs/today' } },
       locale: 'en',
     });
-    expect(result?.guide?.steps.some((step) => step.title === 'Offline suggestion cache')).toBe(
-      true,
-    );
-    expect(result?.guide?.steps.some((step) => step.navigate?.query?.topicId === 'provider-assistant')).toBe(
-      true,
-    );
+    expect(
+      result?.guide?.steps.some(
+        (step) => step.title === 'Offline suggestion cache',
+      ),
+    ).toBe(true);
+    expect(
+      result?.guide?.steps.some(
+        (step) => step.navigate?.query?.topicId === 'provider-assistant',
+      ),
+    ).toBe(true);
   });
 
   it('buildAiUnavailableBannerSummary covers quota reason', () => {
-    expect(buildAiUnavailableBannerSummary('quota_exceeded', 'en')).toContain('quota');
+    expect(buildAiUnavailableBannerSummary('quota_exceeded', 'en')).toContain(
+      'quota',
+    );
   });
 });

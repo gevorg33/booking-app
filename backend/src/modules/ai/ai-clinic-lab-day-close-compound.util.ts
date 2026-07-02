@@ -38,8 +38,7 @@ export const CLINIC_LAB_DAY_CLOSE_CLASSIFIER_RULES = `- clinic_lab_day_close (co
 const FULL_DAY_CLOSE_CUE =
   /\b(?:lab\s+day\s+close|close\s+(?:out\s+)?(?:the\s+)?lab(?:\s+day)?|end[\s-]of[\s-]lab\s+day|lab\s+closeout|wrap\s+up\s+lab|finish\s+lab\s+day|lab\s+day\s+end[\s-]to[\s-]end|close\s+the\s+day(?:\s+in\s+lab)?|lab\s+day\s+wrap[\s-]up)\b/i;
 
-const LIST_STEP_CUE =
-  /\b(?:list|show|what|which|pending|open)\b/i;
+const LIST_STEP_CUE = /\b(?:list|show|what|which|pending|open)\b/i;
 const LIST_ORDER_NOUN =
   /\b(?:test\s+orders?|lab\s+orders?|pending\s+(?:lab|test)|orders?\s+awaiting\s+results?)\b/i;
 
@@ -51,7 +50,8 @@ const RELEASE_STEP_CUE = /\b(?:release|publish)\b/i;
 const RELEASE_TARGET_CUE =
   /\b(?:results?\s+to|to\s+patient|patient\s+chart|make\s+.*available)\b/i;
 
-const NOTIFY_STEP_CUE = /\b(?:notify|send|tell|alert|message|contact|inform)\b/i;
+const NOTIFY_STEP_CUE =
+  /\b(?:notify|send|tell|alert|message|contact|inform)\b/i;
 const NOTIFY_READY_CUE =
   /\b(?:results?\s+(?:are\s+)?ready|when\s+results?\s+are\s+ready|result[- ]?ready|result[- ]?ready\s+notification)\b/i;
 
@@ -157,7 +157,8 @@ export function buildClinicLabDayCloseCompoundParams(
   const entered = parseEnterTestResultFromPrompt(prompt, params);
   if (entered?.orderId) params.orderId = entered.orderId;
   if (entered?.resultId) params.resultId = entered.resultId;
-  if (entered?.measurementCode) params.measurementCode = entered.measurementCode;
+  if (entered?.measurementCode)
+    params.measurementCode = entered.measurementCode;
   if (entered?.value) params.value = entered.value;
   if (entered?.customerName && !params.customerName) {
     params.customerName = entered.customerName;

@@ -23,12 +23,15 @@ describe('ai-consumer-clinic-test-results.util', () => {
     'What is my loyalty points balance',
     'Track my physical gift card order',
     'Notify patient lab results are ready',
-  ])('does not treat staff or non-results prompts as list my results (%s)', (prompt) => {
-    expect(isListMyTestResultsPrompt(prompt)).toBe(false);
-    expect(
-      rescueConsumerClinicTestResultsIntent(prompt, 'unknown'),
-    ).toBeNull();
-  });
+  ])(
+    'does not treat staff or non-results prompts as list my results (%s)',
+    (prompt) => {
+      expect(isListMyTestResultsPrompt(prompt)).toBe(false);
+      expect(
+        rescueConsumerClinicTestResultsIntent(prompt, 'unknown'),
+      ).toBeNull();
+    },
+  );
 
   it.each(LIST_MY_TEST_RESULTS_PROMPTS)(
     'detects list my test results prompt $id',

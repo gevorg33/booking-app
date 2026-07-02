@@ -7,7 +7,8 @@ export const META_PRODUCT_GUIDE_INTENTS = [
   'explain_assistant_approval',
 ] as const;
 
-export type MetaProductGuideIntent = (typeof META_PRODUCT_GUIDE_INTENTS)[number];
+export type MetaProductGuideIntent =
+  (typeof META_PRODUCT_GUIDE_INTENTS)[number];
 
 /** Provider meta guide intents (approval + suggestion chips). */
 export const PROVIDER_META_GUIDE_INTENTS = [
@@ -15,7 +16,8 @@ export const PROVIDER_META_GUIDE_INTENTS = [
   'explain_assistant_approval',
 ] as const;
 
-export type ProviderMetaGuideIntent = (typeof PROVIDER_META_GUIDE_INTENTS)[number];
+export type ProviderMetaGuideIntent =
+  (typeof PROVIDER_META_GUIDE_INTENTS)[number];
 
 export interface SuggestionChipGuideTarget {
   topicId: string;
@@ -102,7 +104,11 @@ export const META_PRODUCT_GUIDE_RESCUE_SCENARIOS: readonly MetaProductGuideRescu
       samplePrompt: 'What are the Today tab suggestion cards?',
       prompt:
         /\b(?:suggestion\s+cards?|today\s+suggestions?|ai\s+chips?|tap\s+to\s+run\s+suggestion|what\s+(?:do|does)\s+(?:these\s+)?suggestions?\s+(?:mean|do))\b/i,
-      fromActions: ['unknown', 'show_appointments', 'explain_provider_app_tabs'],
+      fromActions: [
+        'unknown',
+        'show_appointments',
+        'explain_provider_app_tabs',
+      ],
     },
     {
       id: 'provider-swipe-approval',

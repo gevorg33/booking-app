@@ -18,8 +18,16 @@ describe('ShareRewardService', () => {
         shareRewards: {
           enabled: true,
           cooldownHours: 24,
-          salon: { enabled: true, rewardType: 'loyalty_points', loyaltyPoints: 5 },
-          booking: { enabled: true, rewardType: 'loyalty_points', loyaltyPoints: 10 },
+          salon: {
+            enabled: true,
+            rewardType: 'loyalty_points',
+            loyaltyPoints: 5,
+          },
+          booking: {
+            enabled: true,
+            rewardType: 'loyalty_points',
+            loyaltyPoints: 10,
+          },
         },
       },
     }),

@@ -31,11 +31,17 @@ const PROVIDER_ROLE_WORD_PATTERN =
 /** Provider-rank prompts that name a role/title (not only generic specialist). */
 export function isEmployeeRoleRankPrompt(prompt: string): boolean {
   if (!prompt?.trim()) return false;
-  return isProviderRankDiscoveryPrompt(prompt) && extractEmployeeRoleFromPrompt(prompt) != null;
+  return (
+    isProviderRankDiscoveryPrompt(prompt) &&
+    extractEmployeeRoleFromPrompt(prompt) != null
+  );
 }
 
 function normalizeEmployeeRoleTerm(term: string): string {
-  const normalized = term.trim().toLowerCase().replace(/[?.!]+$/, '');
+  const normalized = term
+    .trim()
+    .toLowerCase()
+    .replace(/[?.!]+$/, '');
   if (!normalized) return normalized;
   if (EMPLOYEE_ROLE_OCCUPATIONS.has(normalized)) return normalized;
   if (normalized.endsWith('s')) {
@@ -105,7 +111,9 @@ export function employeeRoleMatchesHint(
     .map((value) => value.trim().toLowerCase());
   if (fields.length === 0) return false;
 
-  if (fields.some((field) => field.includes(needle) || needle.includes(field))) {
+  if (
+    fields.some((field) => field.includes(needle) || needle.includes(field))
+  ) {
     return true;
   }
 
@@ -125,7 +133,7 @@ export function extractEmployeeRoleFromPrompt(prompt: string): string | null {
     /\bwho\s+are\s+(?:the\s+)?(?:top|best|highest)[\s-]*(?:rated\s+)?([a-z][\w-]*(?:\s+[a-z][\w-]*)?)\b/i,
   );
   if (whoAreRanked) {
-    const term = normalizeEmployeeRoleTerm(whoAreRanked[1]!);
+    const term = normalizeEmployeeRoleTerm(whoAreRanked[1]);
     if (isEmployeeRoleOccupation(term)) return term;
     if (/\bspecialists?\b/i.test(term)) return term;
   }
@@ -134,7 +142,7 @@ export function extractEmployeeRoleFromPrompt(prompt: string): string | null {
     /\b(?:top|best|highest)[\s-]*(?:rated)?\s+([a-z][\w-]*(?:\s+[a-z][\w-]*)?)\s*$/i,
   );
   if (ratedTail) {
-    const term = normalizeEmployeeRoleTerm(ratedTail[1]!);
+    const term = normalizeEmployeeRoleTerm(ratedTail[1]);
     if (isEmployeeRoleOccupation(term)) return term;
     if (/\bspecialists?\b/i.test(term)) return term;
   }
@@ -143,7 +151,7 @@ export function extractEmployeeRoleFromPrompt(prompt: string): string | null {
     /\b(?:top|best|highest|recommended|suggested)\s+(?:rated\s+)?([a-z]+(?:ologist|iatrist|ician|ist)s?)\s*$/i,
   );
   if (occupation) {
-    return normalizeEmployeeRoleTerm(occupation[1]!);
+    return normalizeEmployeeRoleTerm(occupation[1]);
   }
 
   const roleWord = prompt.match(PROVIDER_ROLE_WORD_PATTERN);
@@ -151,7 +159,7 @@ export function extractEmployeeRoleFromPrompt(prompt: string): string | null {
     roleWord &&
     /\b(?:top|best|highest|rated|recommended|suggested)\b/i.test(prompt)
   ) {
-    const normalized = normalizeEmployeeRoleTerm(roleWord[0]!);
+    const normalized = normalizeEmployeeRoleTerm(roleWord[0]);
     if (
       normalized !== 'specialist' &&
       normalized !== 'provider' &&
@@ -173,12 +181,10 @@ export function enrichEmployeeRoleRankFromPrompt(
   if (!employeeRole) return params;
 
   const serviceCategoryHint =
-    (typeof params.serviceCategory === 'string' && params.serviceCategory.trim()) ||
+    (typeof params.serviceCategory === 'string' &&
+      params.serviceCategory.trim()) ||
     extractProviderRankServiceCategoryFromPrompt(prompt);
-  if (
-    serviceCategoryHint &&
-    GENERIC_PROVIDER_ROLE_WORDS.has(employeeRole)
-  ) {
+  if (serviceCategoryHint && GENERIC_PROVIDER_ROLE_WORDS.has(employeeRole)) {
     return params;
   }
 

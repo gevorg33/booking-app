@@ -199,17 +199,15 @@ export async function findNearestBookableSlotAcrossWindowsWithFinder(
   },
   findInWindow: FindNearestBookableSlotFn,
 ): Promise<ChosenNearestAvailabilityWindow | null> {
-  const picked = await scanWindowsForSlots(
-    options.windows,
-    async (window) =>
-      findInWindow(slug, {
-        serviceId: options.serviceId,
-        employeeId: options.employeeId,
-        notBeforeTime: window.notBeforeTime ?? null,
-        startDateKey: window.dateKeys[0] ?? null,
-        dateKeys: window.dateKeys.length > 0 ? window.dateKeys : null,
-        timeOfDay: window.timeOfDay,
-      }),
+  const picked = await scanWindowsForSlots(options.windows, async (window) =>
+    findInWindow(slug, {
+      serviceId: options.serviceId,
+      employeeId: options.employeeId,
+      notBeforeTime: window.notBeforeTime ?? null,
+      startDateKey: window.dateKeys[0] ?? null,
+      dateKeys: window.dateKeys.length > 0 ? window.dateKeys : null,
+      timeOfDay: window.timeOfDay,
+    }),
   );
 
   if (!picked) return null;

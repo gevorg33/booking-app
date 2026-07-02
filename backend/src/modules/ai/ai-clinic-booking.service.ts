@@ -8,6 +8,10 @@ import {
   handleExplainClinicBookingLogic,
   type ClinicBookingLogicDeps,
 } from './ai-clinic-booking.logic.js';
+import { handleExplainLabPrepLogic } from './ai-explain-lab-prep.logic.js';
+import { handleExplainClinicBookingFieldsLogic } from './ai-explain-clinic-booking-fields.logic.js';
+import { handleExplainPublicIntakeFormLogic } from './ai-explain-public-intake-form.logic.js';
+import { handleCompleteIntakeAndBookLogic } from './ai-complete-intake-and-book.logic.js';
 
 @Injectable()
 export class AiClinicBookingService {
@@ -29,6 +33,53 @@ export class AiClinicBookingService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleExplainClinicBookingLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainLabPrep(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainLabPrepLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleExplainClinicBookingFields(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainClinicBookingFieldsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainPublicIntakeForm(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainPublicIntakeFormLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleCompleteIntakeAndBook(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleCompleteIntakeAndBookLogic(
       this.deps,
       businessId,
       params,

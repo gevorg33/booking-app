@@ -49,7 +49,10 @@ export function assertClinicTestResultExtMultilingualScenario(
   scenario: ClinicTestResultExtEvalScenario,
 ): void {
   expect(
-    isClinicTestResultExtPromptForIntent(scenario.prompt, scenario.expectedAction),
+    isClinicTestResultExtPromptForIntent(
+      scenario.prompt,
+      scenario.expectedAction,
+    ),
   ).toBe(true);
 
   const rescued = rescueClinicTestResultExtIntent(scenario.prompt, 'unknown');

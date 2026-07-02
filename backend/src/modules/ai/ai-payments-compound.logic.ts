@@ -4,9 +4,7 @@ import {
   type PaymentsCompoundStep,
 } from './ai-payments.util.js';
 import { dispatchPaymentsLogicIntent } from './ai-payments-dispatch.util.js';
-import {
-  mergeCheckProvidersHandoffIntoContext,
-} from './ai-check-book-handoff.util.js';
+import { mergeCheckProvidersHandoffIntoContext } from './ai-check-book-handoff.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import type { PaymentsLogicDeps } from './ai-payments.logic.js';
 
@@ -60,7 +58,8 @@ function mergeCompoundContext(
       | { query?: Record<string, string> }
       | undefined;
     if (navigate?.query?.serviceId) next.serviceId = navigate.query.serviceId;
-    if (navigate?.query?.employeeId) next.employeeId = navigate.query.employeeId;
+    if (navigate?.query?.employeeId)
+      next.employeeId = navigate.query.employeeId;
     if (navigate?.query?.startTime) next.startTime = navigate.query.startTime;
     if (details.sessionContext && typeof details.sessionContext === 'object') {
       Object.assign(next, details.sessionContext);

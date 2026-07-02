@@ -18,17 +18,19 @@ import { PromoDiscountType } from '../promo-codes/entities/promo-code.entity.js'
 
 describe('create_promo_code AI scenarios', () => {
   const promoCodesService = {
-    create: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
-      id: 'promo-1',
-      code: dto.code,
-      discountType: dto.discountType,
-      discountValue: dto.discountValue,
-      minOrderAmount: null,
-      maxUses: null,
-      expiresAt: null,
-      description: null,
-      isActive: true,
-    })),
+    create: jest.fn(
+      async (_businessId: string, dto: Record<string, unknown>) => ({
+        id: 'promo-1',
+        code: dto.code,
+        discountType: dto.discountType,
+        discountValue: dto.discountValue,
+        minOrderAmount: null,
+        maxUses: null,
+        expiresAt: null,
+        description: null,
+        isActive: true,
+      }),
+    ),
   };
 
   let service: AiMarketingGrowthService;
@@ -42,13 +44,22 @@ describe('create_promo_code AI scenarios', () => {
           provide: MarketingAutomationService,
           useValue: { getSettings: jest.fn(), updateSettings: jest.fn() },
         },
-        { provide: PlanEntitlementsService, useValue: { getEntitlements: jest.fn() } },
+        {
+          provide: PlanEntitlementsService,
+          useValue: { getEntitlements: jest.fn() },
+        },
         { provide: BillingService, useValue: { getSubscription: jest.fn() } },
         { provide: LoyaltyService, useValue: { getSettings: jest.fn() } },
         { provide: PromoCodesService, useValue: promoCodesService },
         { provide: StripeService, useValue: { isConfigured: false } },
-        { provide: StripeIntegrationService, useValue: { getSettings: jest.fn() } },
-        { provide: ConfigService, useValue: { get: jest.fn(() => 'https://app.test') } },
+        {
+          provide: StripeIntegrationService,
+          useValue: { getSettings: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn(() => 'https://app.test') },
+        },
         {
           provide: TenantAppInstallService,
           useValue: {
@@ -62,7 +73,9 @@ describe('create_promo_code AI scenarios', () => {
         },
         {
           provide: getRepositoryToken(Business),
-          useValue: { findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })) },
+          useValue: {
+            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+          },
         },
       ],
     }).compile();
@@ -81,8 +94,10 @@ describe('create_promo_code AI scenarios', () => {
 
   it('disambiguates create from promo help', () => {
     expect(
-      rescueMarketingGrowthIntent('Create promo code SAVE10 for 20% off', 'unknown')
-        ?.action,
+      rescueMarketingGrowthIntent(
+        'Create promo code SAVE10 for 20% off',
+        'unknown',
+      )?.action,
     ).toBe('create_promo_code');
     expect(
       rescueMarketingGrowthIntent('How do promo codes work', 'unknown')?.action,

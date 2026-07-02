@@ -56,16 +56,19 @@ describe('ai-product-guide.util (ai-guide-1.0.1)', () => {
   it.each(PRODUCT_GUIDE_TAXONOMY_SCENARIOS)(
     'classifies prompt bucket for $id',
     ({ prompt, expectedBucket, classifiedAction }) => {
-      expect(
-        classifyPromptIntentBucket(prompt, { classifiedAction }),
-      ).toBe(expectedBucket);
+      expect(classifyPromptIntentBucket(prompt, { classifiedAction })).toBe(
+        expectedBucket,
+      );
     },
   );
 
   it.each(PRODUCT_GUIDE_DISAMBIGUATION_SCENARIOS)(
     'disambiguates misroutes for $id',
     ({ prompt, classifiedAction, expectedAction, expectedReason }) => {
-      const resolved = resolveProductGuideDisambiguation(prompt, classifiedAction);
+      const resolved = resolveProductGuideDisambiguation(
+        prompt,
+        classifiedAction,
+      );
       if (expectedAction === null) {
         expect(resolved).toBeNull();
         return;
@@ -79,7 +82,9 @@ describe('ai-product-guide.util (ai-guide-1.0.1)', () => {
 
   it('exposes stable disambiguation table ids', () => {
     expect(PRODUCT_GUIDE_DISAMBIGUATION_TABLE.length).toBeGreaterThanOrEqual(7);
-    expect(lookupProductGuideDisambiguationRow('nav-vs-configure-online-payment')).toMatchObject({
+    expect(
+      lookupProductGuideDisambiguationRow('nav-vs-configure-online-payment'),
+    ).toMatchObject({
       preferredIntent: 'guide_user_flow',
     });
   });
@@ -117,11 +122,16 @@ describe('ai-product-guide.util (ai-guide-1.0.4 GuideResponse)', () => {
   it('validates GuideResponse shape', () => {
     expect(isGuideResponse(SAMPLE_GUIDE_RESPONSE)).toBe(true);
     expect(isGuideResponse({ summary: 'x', steps: [] })).toBe(true);
-    expect(isGuideResponse({ summary: 'x', steps: [{ title: 'a' }] })).toBe(false);
+    expect(isGuideResponse({ summary: 'x', steps: [{ title: 'a' }] })).toBe(
+      false,
+    );
   });
 
   it('buildGuideCommandResult attaches guide payload', () => {
-    const result = buildGuideCommandResult('guide_user_flow', SAMPLE_GUIDE_RESPONSE);
+    const result = buildGuideCommandResult(
+      'guide_user_flow',
+      SAMPLE_GUIDE_RESPONSE,
+    );
     expect(result.guide).toEqual(SAMPLE_GUIDE_RESPONSE);
     expect(result.summary).toBe(SAMPLE_GUIDE_RESPONSE.summary);
     expect(result.action).toBe('guide_user_flow');
@@ -211,10 +221,14 @@ describe('ai-product-guide.util (ai-guide-1.0.5 misroute guard)', () => {
 
   it('ai-guide-1.0.3 — forces guide rescue in guide mode', () => {
     expect(
-      rescueProductGuideMisroute('How many appointments today?', 'summarize_bookings', {
-        surface: 'dashboard',
-        assistantMode: 'guide',
-      }),
+      rescueProductGuideMisroute(
+        'How many appointments today?',
+        'summarize_bookings',
+        {
+          surface: 'dashboard',
+          assistantMode: 'guide',
+        },
+      ),
     ).toMatchObject({
       action: 'guide_user_flow',
       rescueReason: 'assistant_mode_guide',

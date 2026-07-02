@@ -23,7 +23,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
     get: jest.fn().mockReturnValue('http://localhost:3000'),
   };
   const consumerPushDispatch = {
-    sendTransactionalPush: jest.fn().mockResolvedValue({ ok: true, sentCount: 1 }),
+    sendTransactionalPush: jest
+      .fn()
+      .mockResolvedValue({ ok: true, sentCount: 1 }),
   };
   const loyaltyService = {
     adjust: jest.fn().mockResolvedValue({ pointsBalance: 0 }),
@@ -71,7 +73,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
     logRepo.findOne.mockResolvedValue(null);
     bookingRepo.exists.mockResolvedValue(false);
     bookingRepo.findOne.mockResolvedValue(null);
-    customerRebookingCadenceService.computeLearnedCadenceDays.mockResolvedValue(null);
+    customerRebookingCadenceService.computeLearnedCadenceDays.mockResolvedValue(
+      null,
+    );
     configService.get.mockReturnValue('http://localhost:3000');
   });
 
@@ -198,7 +202,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
         },
       ]),
     });
-    customerRebookingCadenceService.computeLearnedCadenceDays.mockResolvedValue(21);
+    customerRebookingCadenceService.computeLearnedCadenceDays.mockResolvedValue(
+      21,
+    );
     bookingRepo.findOne.mockResolvedValue({
       id: 'bk-last',
       startTime: new Date('2026-05-01T14:00:00.000Z'),
@@ -536,7 +542,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
       },
     ]);
 
-    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(1);
+    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(
+      1,
+    );
     expect(smsService.send).toHaveBeenCalled();
   });
 
@@ -559,7 +567,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
       },
     ]);
 
-    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(1);
+    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(
+      1,
+    );
     expect(consumerPushDispatch.sendTransactionalPush).not.toHaveBeenCalled();
   });
 
@@ -596,7 +606,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
       },
     ]);
 
-    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(0);
+    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(
+      0,
+    );
     expect(logRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ channel: 'push', status: 'failed' }),
     );
@@ -636,7 +648,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
       },
     ]);
 
-    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(0);
+    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(
+      0,
+    );
     expect(logRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ channel: 'push', status: 'skipped' }),
     );
@@ -669,7 +683,9 @@ describe('MarketingAutomationService rebooking nudges (adopt-4.4)', () => {
       },
     ]);
 
-    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(1);
+    await expect(service.processBusinessRebookingNudges('biz-1')).resolves.toBe(
+      1,
+    );
     expect(emailService.send).toHaveBeenCalledWith(
       expect.objectContaining({
         text: expect.stringContaining('REBOOK15'),

@@ -6,6 +6,7 @@ import { ClinicTestOrderBookingRequestService } from '../clinic-test-results/ord
 import { ClinicTestOrderService } from '../clinic-test-results/order/clinic-test-order.service.js';
 import { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
 import type { CommandResult } from './command-completion.types.js';
+import { handleBookLabFromOrderLogic } from './ai-book-lab-from-order.logic.js';
 import {
   handleBookLabCollectionLogic,
   handleListMyLabBookingRequestsLogic,
@@ -86,6 +87,14 @@ export class AiClinicLabBookingService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleBookLabCollectionLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleBookLabFromOrder(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleBookLabFromOrderLogic(this.deps, businessId, params, prompt);
   }
 
   handleListPatientPendingLabRequests(

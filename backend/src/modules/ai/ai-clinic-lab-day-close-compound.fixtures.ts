@@ -213,7 +213,8 @@ export const CLINIC_LAB_DAY_CLOSE_EN_SCENARIO_IDS =
 
 export const CLINIC_LAB_DAY_CLOSE_RESCUE_SCENARIOS =
   CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS.filter(
-    (scenario) => 'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
+    (scenario) =>
+      'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
   ) as Array<
     ClinicLabDayCloseCompoundFixture & { misclassifiedAction: string }
   >;

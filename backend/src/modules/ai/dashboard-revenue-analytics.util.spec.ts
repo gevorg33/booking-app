@@ -78,20 +78,26 @@ describe('dashboard-revenue-analytics.util', () => {
       true,
     );
     expect(isTotalEarningsPrompt('Общая выручка за месяц')).toBe(true);
-    expect(isTotalEarningsPrompt('Total booking revenue this month')).toBe(true);
+    expect(isTotalEarningsPrompt('Total booking revenue this month')).toBe(
+      true,
+    );
   });
 
   it('excludes provider-personal HY/RU prompts from dashboard total earnings', () => {
     expect(isTotalEarningsPrompt('Իմ եկամուտը անցյալ ամիս')).toBe(false);
     expect(isTotalEarningsPrompt('Моя выручка за прошлый месяц')).toBe(false);
     expect(
-      isDashboardTotalEarningsPromptHyRu('Top 3 specialists by revenue last week'),
+      isDashboardTotalEarningsPromptHyRu(
+        'Top 3 specialists by revenue last week',
+      ),
     ).toBe(false);
+    expect(isDashboardTotalEarningsPromptHyRu('Իմ եկամուտը անցյալ ամիս')).toBe(
+      false,
+    );
     expect(
-      isDashboardTotalEarningsPromptHyRu('Իմ եկամուտը անցյալ ամիս'),
-    ).toBe(false);
-    expect(
-      isDashboardTotalEarningsPromptHyRu('Ցույց տուր իմ ցուցանիշները այս շաբաթ'),
+      isDashboardTotalEarningsPromptHyRu(
+        'Ցույց տուր իմ ցուցանիշները այս շաբաթ',
+      ),
     ).toBe(false);
   });
 

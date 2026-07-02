@@ -64,7 +64,10 @@ describe('ai-resume-pending-payment.logic', () => {
         prompt,
       );
       expect(result.success).toBe(false);
-      expect(result.details).toMatchObject({ clarify: true, missing: expect.any(Array) });
+      expect(result.details).toMatchObject({
+        clarify: true,
+        missing: expect.any(Array),
+      });
     },
   );
 

@@ -35,7 +35,10 @@ describe('semantic-steal-guard.util (pipe-1.5.3 / acc-2.8)', () => {
     '%s corpus has no semantic steal into core booking/schedule intents',
     (_domain, scenarios) => {
       for (const scenario of scenarios) {
-        const check = checkSemanticStealGuard(scenario.prompt, scenario.surface);
+        const check = checkSemanticStealGuard(
+          scenario.prompt,
+          scenario.surface,
+        );
         expect(check.stolen).toBe(false);
       }
     },

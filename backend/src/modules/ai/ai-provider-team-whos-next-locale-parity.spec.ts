@@ -32,9 +32,11 @@ describe('ai provider team whos next locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('passes team whos next i18n eval case %s', (_id, scenario) => {
-    const evalCase = AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.find(
-      (row) => row.id === providerTeamWhosNextMultilingualEvalCaseId(scenario),
-    );
+    const evalCase =
+      AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.find(
+        (row) =>
+          row.id === providerTeamWhosNextMultilingualEvalCaseId(scenario),
+      );
     expect(evalCase).toBeDefined();
     const result = evaluateDeterministicEvalCase(evalCase!);
     expect(result.passed).toBe(true);
@@ -46,7 +48,9 @@ describe('ai provider team whos next locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('rescues team whos next i18n prompt %s', (_id, scenario) => {
-    expect(rescueProviderTeamWhosNextIntent(scenario.prompt, 'unknown')).toEqual({
+    expect(
+      rescueProviderTeamWhosNextIntent(scenario.prompt, 'unknown'),
+    ).toEqual({
       action: scenario.expectedAction,
       rescueReason: scenario.rescueReason,
     });
@@ -62,12 +66,14 @@ describe('ai provider team whos next locale parity (acc-2.4)', () => {
   });
 
   it('tags HY/RU team whos next eval rows with provider surface and locale', () => {
-    const hyCases = AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'ru',
+      );
 
     expect(hyCases.length).toBe(2);
     expect(ruCases.length).toBe(2);

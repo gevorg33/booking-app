@@ -4,7 +4,8 @@
  */
 export const ACC_3_14_PIPE_MARKER = 'acc-3.14';
 
-export const BOOKING_PARAM_HINTS_RELATIVE_FILE = 'ai-booking-param-hints.util.ts';
+export const BOOKING_PARAM_HINTS_RELATIVE_FILE =
+  'ai-booking-param-hints.util.ts';
 export const METRIC_RESOLVERS_RELATIVE_FILE = 'ai-metric-resolvers.util.ts';
 
 /** Paraphrase detectors — must live in *.semantic.util.ts, not param-hints / metric resolvers. */

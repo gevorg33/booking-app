@@ -8,7 +8,12 @@ import {
 } from './ai-integration-health.snapshot.js';
 
 const disabledSnapshot: IntegrationHealthSnapshot = {
-  webhooks: { configured: false, count: 0, active: 0, summary: 'Webhooks: none configured.' },
+  webhooks: {
+    configured: false,
+    count: 0,
+    active: 0,
+    summary: 'Webhooks: none configured.',
+  },
   apiKeys: { configured: false, count: 0, summary: 'API keys: none created.' },
   zendesk: {
     configured: false,

@@ -11,12 +11,14 @@ describe('guide-flow frontend parity (ai-guide-1.1.2)', () => {
       'frontend/src/lib/ai-command-bar-guide.util.ts',
     );
     const source = readFileSync(frontendPath, 'utf8');
-    const topicMatches = [
-      ...source.matchAll(/topicId:\s*'([^']+)'/g),
-    ].map((match) => match[1]);
+    const topicMatches = [...source.matchAll(/topicId:\s*'([^']+)'/g)].map(
+      (match) => match[1],
+    );
     expect(topicMatches.length).toBeGreaterThan(10);
 
-    for (const [route, topicId] of Object.entries(GUIDE_FLOW_ROUTE_PRIMARY_TOPIC)) {
+    for (const [route, topicId] of Object.entries(
+      GUIDE_FLOW_ROUTE_PRIMARY_TOPIC,
+    )) {
       if (!route.startsWith('/dashboard')) continue;
       expect(DASHBOARD_ROUTE_PRIMARY_TOPIC[route]).toBe(topicId);
       if (source.includes(`'${route}'`)) {

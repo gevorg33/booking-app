@@ -35,15 +35,24 @@ describe('ai-service-rank-discovery-compound.util (rank-1.7)', () => {
     const prompt =
       "Show premium facial options, check who's free tomorrow, book nearest slot";
     expect(isServiceRankDiscoveryCompoundPrompt(prompt)).toBe(false);
-    expect(decomposeDeterministicForSurface('dashboard', prompt)?.recipeId).toBe(
-      'rank_discover_and_book',
-    );
+    expect(
+      decomposeDeterministicForSurface('dashboard', prompt)?.recipeId,
+    ).toBe('rank_discover_and_book');
   });
 
   it.each(SERVICE_RANK_COMPOUND_SCENARIOS)(
     'decomposes public rank compound $id',
-    ({ prompt, serviceRank, serviceCategory, maxPrice, publicCompoundSteps }) => {
-      const steps = decomposeServiceRankDiscoveryCompoundPrompt(prompt, 'public');
+    ({
+      prompt,
+      serviceRank,
+      serviceCategory,
+      maxPrice,
+      publicCompoundSteps,
+    }) => {
+      const steps = decomposeServiceRankDiscoveryCompoundPrompt(
+        prompt,
+        'public',
+      );
       expect(steps.map((step) => step.action)).toEqual(publicCompoundSteps);
       expect(steps[0]?.params.serviceRank).toBe(serviceRank);
       expect(steps.at(-1)?.params.bookingFirstAvailable).toBe(true);

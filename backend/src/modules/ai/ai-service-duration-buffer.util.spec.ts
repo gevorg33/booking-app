@@ -72,7 +72,9 @@ describe('ai-service-duration-buffer.util', () => {
   it.each(UPDATE_SERVICE_DURATION_BUFFER_PROMPTS)(
     'rescues unknown action to update_service_duration_buffer for $id',
     ({ prompt, expectedAction }) => {
-      expect(rescueUpdateServiceDurationBufferIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueUpdateServiceDurationBufferIntent(prompt, 'unknown'),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });
@@ -88,11 +90,7 @@ describe('ai-service-duration-buffer.util', () => {
       resolveTargetServicesForDurationBuffer([...catalog], parsed).map(
         (s) => s.name,
       ),
-    ).toEqual([
-      'Swedish Massage',
-      'Deep Tissue Massage',
-      'Neck Massage',
-    ]);
+    ).toEqual(['Swedish Massage', 'Deep Tissue Massage', 'Neck Massage']);
   });
 
   it('does not treat category move as duration buffer update', () => {

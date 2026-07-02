@@ -53,10 +53,7 @@ export function shouldEmitSelfVerifyClarify(
 export function lowerConfidenceAfterSelfVerifyFailure(
   confidence: number,
 ): number {
-  return Math.min(
-    confidence,
-    SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD - 0.01,
-  );
+  return Math.min(confidence, SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD - 0.01);
 }
 
 function intentChoiceLabel(surface: CommandSurface): string {
@@ -107,7 +104,7 @@ function suggestionsForRule(
 
   return [
     'Book Anna for a haircut tomorrow at 3pm',
-    'Show today\'s appointments',
+    "Show today's appointments",
     'Clear Gevorg schedule for tomorrow',
   ].slice(0, 3);
 }
@@ -123,7 +120,9 @@ function summaryForUnknownIntent(surface: CommandSurface): string {
 }
 
 /** True when dispatch must not enter the handler switch (pipe-1.8.1). */
-export function isUnknownIntentForHandlerBlock(action: string | undefined): boolean {
+export function isUnknownIntentForHandlerBlock(
+  action: string | undefined,
+): boolean {
   return !action || action === 'unknown';
 }
 

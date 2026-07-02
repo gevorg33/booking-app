@@ -43,15 +43,15 @@ export function isFlexibleAvailabilityBudgetCompoundPrompt(
 export function isFlexibleAvailabilityBudgetBookCompoundPrompt(
   prompt: string,
 ): boolean {
-  if (isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt)) return false;
+  if (isFlexibleAvailabilityListBudgetThenOrCompoundPrompt(prompt))
+    return false;
   if (!isFlexibleAvailabilityBudgetCompoundPrompt(prompt)) return false;
   if (isBookNearestSlotPrompt(prompt)) return true;
   if (/\b(?:whichever|which ever)\s+is\s+sooner\b/i.test(prompt)) {
     return true;
   }
   return (
-    isCheckProvidersForServicePrompt(prompt) &&
-    isBookNearestSlotPrompt(prompt)
+    isCheckProvidersForServicePrompt(prompt) && isBookNearestSlotPrompt(prompt)
   );
 }
 
@@ -130,11 +130,16 @@ export function buildFlexibleAvailabilityEvalParams(
     if (typeof params.serviceName === 'string' && !params.serviceCategory) {
       params = {
         ...params,
-        serviceCategory: normalizeAvailabilityServiceCategory(params.serviceName),
+        serviceCategory: normalizeAvailabilityServiceCategory(
+          params.serviceName,
+        ),
         serviceName: null,
       };
     }
-    params = enrichFlexibleAvailabilityServiceCategoryFromPrompt(prompt, params);
+    params = enrichFlexibleAvailabilityServiceCategoryFromPrompt(
+      prompt,
+      params,
+    );
     applyFlexibleAvailabilityBookHints(action, params, prompt);
     return params;
   }
@@ -196,10 +201,11 @@ export function decomposeFlexibleAvailabilityBudgetCompoundPrompt(
   prompt: string,
   surface: Extract<CommandSurface, 'public' | 'customer'>,
 ): FlexibleAvailabilityCompoundStep[] {
-  const listThenOr = decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt(
-    prompt,
-    surface,
-  );
+  const listThenOr =
+    decomposeFlexibleAvailabilityListBudgetThenOrCompoundPrompt(
+      prompt,
+      surface,
+    );
   if (listThenOr.length > 0) return listThenOr;
 
   if (!isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt)) return [];

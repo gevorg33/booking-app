@@ -27,9 +27,7 @@ import {
   pickEarliestSlotAcrossWindows,
   scanWindowsForSlots,
 } from './ai-flexible-availability.util.js';
-import {
-  applyBudgetFilterForAvailabilityCheck,
-} from './ai-flexible-availability-check.logic.js';
+import { applyBudgetFilterForAvailabilityCheck } from './ai-flexible-availability-check.logic.js';
 import { buildDashboardFlexibleAvailabilityEvalParams } from './ai-flexible-availability.eval.util.js';
 import {
   buildFlexibleAvailabilityEvalParams,
@@ -106,9 +104,7 @@ describe('ai flexible availability classifier wiring (avail-1.2)', () => {
 
   it('maps canonical OR prompts to availabilityWindows examples', () => {
     for (const scenario of AVAILABILITY_WINDOW_PARSE_SCENARIOS) {
-      expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain(
-        scenario.prompt,
-      );
+      expect(FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES).toContain(scenario.prompt);
     }
   });
 
@@ -172,7 +168,9 @@ describe('ai flexible availability post-LLM enrichment (avail-1.3)', () => {
 });
 
 function flexibleScenario(id: string) {
-  const row = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find((entry) => entry.id === id);
+  const row = SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS.find(
+    (entry) => entry.id === id,
+  );
   if (!row) throw new Error(`missing scenario ${id}`);
   return row;
 }
@@ -236,19 +234,25 @@ describe('ai flexible availability single window (avail-single-*-en)', () => {
 describe('ai flexible availability budget OR handlers (avail-budget-no-match / pick-service)', () => {
   it.each(
     FLEXIBLE_AVAILABILITY_BUDGET_SCENARIOS.filter((row) =>
-      ['avail-budget-no-match-or-en', 'avail-budget-pick-service-first-en'].includes(
-        row.id,
-      ),
+      [
+        'avail-budget-no-match-or-en',
+        'avail-budget-pick-service-first-en',
+      ].includes(row.id),
     ),
-  )('$id catalog filter for OR availability check', ({ catalog, maxPrice, expectedServiceIds, expectNoMatch }) => {
-    const result = applyBudgetFilterForAvailabilityCheck(catalog, maxPrice);
-    expect(result.services.map((service) => service.id)).toEqual(expectedServiceIds);
-    if (expectNoMatch) {
-      expect(result.noMatchSummary).toContain('Closest options');
-      return;
-    }
-    expect(result.services.length).toBeGreaterThanOrEqual(2);
-  });
+  )(
+    '$id catalog filter for OR availability check',
+    ({ catalog, maxPrice, expectedServiceIds, expectNoMatch }) => {
+      const result = applyBudgetFilterForAvailabilityCheck(catalog, maxPrice);
+      expect(result.services.map((service) => service.id)).toEqual(
+        expectedServiceIds,
+      );
+      if (expectNoMatch) {
+        expect(result.noMatchSummary).toContain('Closest options');
+        return;
+      }
+      expect(result.services.length).toBeGreaterThanOrEqual(2);
+    },
+  );
 
   it('avail-budget-no-match-or-en enriches OR windows + maxPrice from empty params', () => {
     const scenario = flexibleScenario('avail-budget-no-match-or-en');
@@ -287,16 +291,19 @@ describe('ai flexible availability section D handler outcomes', () => {
       { defaultScanDays: 14, referenceTodayDateKey: scenario.todayDateKey },
     );
 
-    const picked = await scanWindowsForSlots(windows, async (window, windowIndex) => {
-      for (const dateKey of window.dateKeys) {
-        const slots = scenario.slotsByKey[`e1:${dateKey}`] ?? [];
-        if (slots.length > 0) {
-          return slots[0]!;
+    const picked = await scanWindowsForSlots(
+      windows,
+      async (window, windowIndex) => {
+        for (const dateKey of window.dateKeys) {
+          const slots = scenario.slotsByKey[`e1:${dateKey}`] ?? [];
+          if (slots.length > 0) {
+            return slots[0];
+          }
         }
-      }
-      void windowIndex;
-      return null;
-    });
+        void windowIndex;
+        return null;
+      },
+    );
 
     expect(picked?.slot.startTime).toBe(scenario.expectedBestNavigateStartTime);
     expect(picked?.windowIndex).toBe(pickFixture.expectedWindowIndex);
@@ -328,9 +335,9 @@ describe('ai flexible availability section F multilingual OR (avail-or-hy/ru/tra
   it.each(AVAIL_MULTILINGUAL_SCENARIOS)(
     '$id enrichDiscoveryParamsFromPrompt splits OR windows',
     (scenario) => {
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
       expect(
         buildFlexibleAvailabilityEvalParams(
           scenario.prompt,
@@ -466,9 +473,9 @@ describe('ai flexible availability section H specific times & per-window provide
   it.each(AVAIL_SECTION_H_SPECIFIC_PROVIDER_SCENARIOS)(
     '$id enriches via discovery pipeline',
     (scenario) => {
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
     },
   );
 
@@ -497,12 +504,12 @@ describe('ai flexible availability section H dashboard OR parity', () => {
   it.each(AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS)(
     '$id enriches dashboard params with OR windows and allProviders',
     (scenario) => {
-      expect(enrichDashboardCheckAvailabilityParams({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDashboardCheckAvailabilityParams({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
       expect(
         buildDashboardFlexibleAvailabilityEvalParams(scenario.prompt),
       ).toMatchObject(scenario.expectedParams ?? {});
@@ -512,16 +519,19 @@ describe('ai flexible availability section H dashboard OR parity', () => {
   it.each(AVAIL_SECTION_H_DASHBOARD_PARITY_SCENARIOS)(
     '$id resolves grouped dashboard availability windows',
     (scenario) => {
-      const enriched = enrichDashboardCheckAvailabilityParams({}, scenario.prompt);
+      const enriched = enrichDashboardCheckAvailabilityParams(
+        {},
+        scenario.prompt,
+      );
       const windows = resolveDashboardCheckAvailabilityWindows(
         enriched,
         scenario.prompt,
         'UTC',
       );
       expect(windows.length).toBeGreaterThanOrEqual(2);
-      expect(
-        shouldGroupDashboardAvailabilityByWindow(windows, enriched),
-      ).toBe(true);
+      expect(shouldGroupDashboardAvailabilityByWindow(windows, enriched)).toBe(
+        true,
+      );
     },
   );
 });
@@ -540,9 +550,9 @@ describe('ai flexible availability section I after-work & lunch OR', () => {
   it.each(AVAIL_SECTION_I_AFTER_WORK_LUNCH_SCENARIOS)(
     '$id enriches via discovery pipeline',
     (scenario) => {
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
     },
   );
 
@@ -583,9 +593,9 @@ describe('ai flexible availability section J ASAP & chip OR', () => {
     (scenario) => {
       const { bookingFirstAvailable: _bookingFirstAvailable, ...expected } =
         scenario.expectedParams ?? {};
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        expected,
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(expected);
     },
   );
 
@@ -630,9 +640,9 @@ describe('ai flexible availability section J imperative OR', () => {
       expect(parseAvailabilityWindowsFromPrompt(scenario.prompt)).toEqual(
         scenario.expectedParams?.availabilityWindows,
       );
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
       expect(
         buildFlexibleAvailabilityEvalParams(
           scenario.prompt,
@@ -659,8 +669,8 @@ describe('ai flexible availability section K session add window', () => {
       expect(turn1Prompt).toBeTruthy();
       expect(turn2Prompt).toBeTruthy();
 
-      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt!);
-      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt!);
+      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt);
+      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt);
       expect(merged).toMatchObject(scenario.expectedParams ?? {});
     },
   );
@@ -671,8 +681,8 @@ describe('ai flexible availability section K session drop window', () => {
     '$id narrows session OR windows across session turns',
     (scenario) => {
       const [turn1Prompt, turn2Prompt] = scenario.sessionTurns ?? [];
-      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt!);
-      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt!);
+      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt);
+      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt);
       expect(merged).toMatchObject(scenario.expectedParams ?? {});
     },
   );
@@ -685,9 +695,9 @@ describe('ai flexible availability section L any provider OR', () => {
       expect(parseAvailabilityWindowsFromPrompt(scenario.prompt)).toEqual(
         scenario.expectedParams?.availabilityWindows,
       );
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
       expect(
         buildFlexibleAvailabilityEvalParams(
           scenario.prompt,
@@ -792,9 +802,9 @@ describe('ai flexible availability section M neither window', () => {
       expect(parseAvailabilityWindowsFromPrompt(scenario.prompt)).toEqual(
         scenario.expectedParams?.availabilityWindows,
       );
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
     },
   );
 });
@@ -806,9 +816,9 @@ describe('ai flexible availability section M partial one window', () => {
       expect(parseAvailabilityWindowsFromPrompt(scenario.prompt)).toEqual(
         scenario.expectedParams?.availabilityWindows,
       );
-      expect(enrichDiscoveryParamsFromPrompt({}, scenario.prompt)).toMatchObject(
-        scenario.expectedParams ?? {},
-      );
+      expect(
+        enrichDiscoveryParamsFromPrompt({}, scenario.prompt),
+      ).toMatchObject(scenario.expectedParams ?? {});
     },
   );
 });
@@ -818,8 +828,8 @@ describe('ai flexible availability section K session after budget', () => {
     '$id carries maxPrice and OR windows across session turns',
     (scenario) => {
       const [turn1Prompt, turn2Prompt] = scenario.sessionTurns ?? [];
-      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt!);
-      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt!);
+      const turn1 = enrichDiscoveryParamsFromPrompt({}, turn1Prompt);
+      const merged = enrichDiscoveryParamsFromPrompt(turn1, turn2Prompt);
       expect(merged).toMatchObject(scenario.expectedParams ?? {});
     },
   );
@@ -873,7 +883,7 @@ describe('ai flexible availability per-window date keys (avail-1.4)', () => {
     expect(windows[1]).toMatchObject({
       timeOfDay: 'afternoon',
     });
-    for (const dateKey of windows[1]!.dateKeys) {
+    for (const dateKey of windows[1].dateKeys) {
       expect(new Date(`${dateKey}T12:00:00.000Z`).getUTCDay()).toBe(5);
     }
   });
@@ -886,9 +896,14 @@ describe('ai flexible availability per-window date keys (avail-1.4)', () => {
     const windows = resolvePublicAvailabilityWindows(params, undefined, 'UTC', {
       defaultScanDays: 14,
     });
-    const flattened = resolvePublicAvailabilityDateKeys(params, undefined, 'UTC', {
-      defaultScanDays: 14,
-    });
+    const flattened = resolvePublicAvailabilityDateKeys(
+      params,
+      undefined,
+      'UTC',
+      {
+        defaultScanDays: 14,
+      },
+    );
 
     expect(flattened).toEqual([
       ...new Set(windows.flatMap((window) => window.dateKeys)),

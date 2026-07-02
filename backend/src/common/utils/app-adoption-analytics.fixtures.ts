@@ -612,7 +612,11 @@ export const APP_ACTIVATION_ONBOARDING_FIXTURE_ROWS: AppAdoptionFixtureRow[] = [
     appSurface: 'consumer_app',
     locale: 'en',
     createdAt: '2026-06-08T11:05:00.000Z',
-    props: { onboardingVariant: 'control', abandonedStep: 'slot', serviceId: 'svc-2' },
+    props: {
+      onboardingVariant: 'control',
+      abandonedStep: 'slot',
+      serviceId: 'svc-2',
+    },
   },
   {
     id: 'ao-control-resume',
@@ -622,7 +626,11 @@ export const APP_ACTIVATION_ONBOARDING_FIXTURE_ROWS: AppAdoptionFixtureRow[] = [
     appSurface: 'consumer_app',
     locale: 'en',
     createdAt: '2026-06-08T11:10:00.000Z',
-    props: { onboardingVariant: 'control', abandonedStep: 'slot', serviceId: 'svc-2' },
+    props: {
+      onboardingVariant: 'control',
+      abandonedStep: 'slot',
+      serviceId: 'svc-2',
+    },
   },
 ];
 

@@ -33,7 +33,6 @@ import {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-
 const BOOKING_STATUS_ALIASES: Record<string, string> = {
   cancelled: 'cancelled',
   canceled: 'cancelled',
@@ -256,8 +255,7 @@ function resolveWeekdayIso(
 }
 
 /** Month/day phrases with optional explicit year for reschedule parsing. */
-const RESCHEDULE_NAMED_DATE =
-  String.raw`(?:[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{4})?|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+(?:\s+\d{4})?)`;
+const RESCHEDULE_NAMED_DATE = String.raw`(?:[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{4})?|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+(?:\s+\d{4})?)`;
 
 function parseOrdinalMonthFragment(
   fragment: string,
@@ -901,7 +899,6 @@ export function extractCustomerFromBookingPrompt(
   return undefined;
 }
 
-
 /** Ordered provider names when the user gives a conditional fallback booking chain. */
 export function extractProviderFallbackFromPrompt(
   prompt: string,
@@ -938,7 +935,6 @@ export function extractProviderFallbackFromPrompt(
     fallbackAnyProvider,
   };
 }
-
 
 export function normalizeBookingStatusValue(
   value: unknown,

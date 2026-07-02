@@ -15,13 +15,18 @@ import {
   pickBestGuideFlowPlaybook,
   rankGuideFlowPlaybooks,
 } from './guide/guide-flow.corpus.util.js';
-import type { GuideFlowPlaybookDef, GuideFlowRankedPlaybook } from './guide/guide-flow.types.js';
+import type {
+  GuideFlowPlaybookDef,
+  GuideFlowRankedPlaybook,
+} from './guide/guide-flow.types.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
 import { resolveLocale } from '../../common/i18n/messages.js';
 
 type MessageTree = { [key: string]: string | MessageTree };
 
-export type GuideFlowMatch = GuideFlowRankedPlaybook & { playbook: GuideFlowPlaybookDef };
+export type GuideFlowMatch = GuideFlowRankedPlaybook & {
+  playbook: GuideFlowPlaybookDef;
+};
 export type GuideCorpusMatch = GuideCorpusRankedTopic;
 
 export type GuideMatchKind = 'flow' | 'corpus' | 'none';
@@ -41,10 +46,17 @@ function pickConfidentGuideMatch(
   flowBest: GuideFlowMatch | null,
   corpusBest: GuideCorpusMatch | null,
 ): GuideKeywordMatchResolution {
-  const flowConfident = flowBest ? isGuideCorpusMatchConfident(flowBest.score) : false;
-  const corpusConfident = corpusBest ? isGuideCorpusMatchConfident(corpusBest.score) : false;
+  const flowConfident = flowBest
+    ? isGuideCorpusMatchConfident(flowBest.score)
+    : false;
+  const corpusConfident = corpusBest
+    ? isGuideCorpusMatchConfident(corpusBest.score)
+    : false;
 
-  if (flowConfident && (!corpusConfident || flowBest!.score >= (corpusBest?.score ?? 0))) {
+  if (
+    flowConfident &&
+    (!corpusConfident || flowBest!.score >= (corpusBest?.score ?? 0))
+  ) {
     return { kind: 'flow', flowBest: flowBest!, corpusBest };
   }
   if (corpusConfident && corpusBest) {

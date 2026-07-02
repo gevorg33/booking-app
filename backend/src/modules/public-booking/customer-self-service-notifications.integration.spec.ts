@@ -173,6 +173,38 @@ describe('Customer self-service business notifications integration', () => {
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
+  it('emails business on customer running late', async () => {
+    await notifications.sendBusinessCustomerRunningLate('book-1', 15);
+
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'owner@salon.test',
+        subject: expect.stringContaining('running late'),
+        text: expect.stringContaining(
+          'Jane Doe is running about 15 minutes late',
+        ),
+      }),
+    );
+  });
+
+  it('skips running late email when business notification toggle is off', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...baseBooking,
+      business: {
+        ...baseBooking.business,
+        settings: {
+          notifications: {
+            emailEnabled: true,
+            notifyBusinessOnCustomerBookingChange: false,
+          },
+        },
+      },
+    });
+
+    await notifications.sendBusinessCustomerRunningLate('book-1', 15);
+    expect(emailService.send).not.toHaveBeenCalled();
+  });
+
   it('no-ops when booking context is missing', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
     await notifications.sendBusinessCustomerBookingChange(

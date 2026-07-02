@@ -11,25 +11,19 @@ import { DISCOVER_CROSS_SPRINT_MULTILINGUAL_SCENARIOS } from './ai-service-disco
 import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
 import { enrichDiscoverParityParamsForSurface } from './ai-customer-public-discover-parity.util.js';
 import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js';
-import {
-  resolvePublicAvailabilityWindows,
-} from './ai-orchestration.helpers.js';
+import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
 import {
   APPLY_SERVICE_DISCOVERY_TO_CATALOG_SCENARIOS,
   SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS,
 } from './ai-service-catalog-rank.fixtures.js';
-import {
-  applyServiceDiscoveryToCatalog,
-} from './ai-service-catalog-rank.util.js';
+import { applyServiceDiscoveryToCatalog } from './ai-service-catalog-rank.util.js';
 import {
   applyBudgetFilterForRecommendSpecialists,
   composePublicListServicesBudgetResponse,
   resolveDiscoverConstrainedService,
 } from './ai-budget-list-services.logic.js';
 import { applyBudgetFilterForAvailabilityCheck } from './ai-flexible-availability-check.logic.js';
-import {
-  composePublicListServicesRankResponse,
-} from './ai-rank-list-services.logic.js';
+import { composePublicListServicesRankResponse } from './ai-rank-list-services.logic.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import { buildNearestAvailabilityWindowQueries } from './ai-nearest-slot-resolver.util.js';
 import { isFlexibleAvailabilityBudgetBookCompoundPrompt } from './ai-flexible-availability-compound.util.js';
@@ -66,9 +60,9 @@ describe('ai service discovery fixtures (discover-1.6)', () => {
     expect(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS.length).toBe(
       new Set(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS).size,
     );
-    expect(SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS.length).toBeGreaterThanOrEqual(
-      15,
-    );
+    expect(
+      SERVICE_DISCOVERY_PUBLIC_INTEGRATION_IDS.length,
+    ).toBeGreaterThanOrEqual(15);
   });
 
   it('covers TODO sections A, B, C, D, E, F, and H', () => {
@@ -77,9 +71,9 @@ describe('ai service discovery fixtures (discover-1.6)', () => {
         expect(SERVICE_DISCOVERY_JOURNEY_SCENARIOS.length).toBeGreaterThan(0);
         continue;
       }
-      expect(serviceDiscoveryPublicIntegrationBySection(section).length).toBeGreaterThan(
-        0,
-      );
+      expect(
+        serviceDiscoveryPublicIntegrationBySection(section).length,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -450,9 +444,9 @@ describe('ai service discovery public integration — section D flagship (discov
       (row) => row.id === 'discover-flagship-book-en',
     )!;
     const enriched = runPublicDiscoveryEnrichment(scenario);
-    expect(isFlexibleAvailabilityBudgetBookCompoundPrompt(scenario.prompt)).toBe(
-      true,
-    );
+    expect(
+      isFlexibleAvailabilityBudgetBookCompoundPrompt(scenario.prompt),
+    ).toBe(true);
     expect(enriched).toMatchObject({
       maxPrice: 80,
       serviceRank: 'lowest_price',
@@ -463,7 +457,10 @@ describe('ai service discovery public integration — section D flagship (discov
     const massageCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
       (service) => service.serviceCategory === 'massage',
     );
-    const resolved = resolveDiscoverConstrainedService(massageCatalog, enriched);
+    const resolved = resolveDiscoverConstrainedService(
+      massageCatalog,
+      enriched,
+    );
     expect(resolved.service?.id).toBe('massage-55');
     expect(
       buildNearestAvailabilityWindowQueries(enriched, scenario.prompt, 'UTC'),
@@ -475,9 +472,9 @@ describe('ai service discovery public integration — section D flagship (discov
       (row) => row.id === 'discover-flagship-premium-en',
     )!;
     const enriched = runPublicDiscoveryEnrichment(scenario);
-    expect(isFlexibleAvailabilityBudgetBookCompoundPrompt(scenario.prompt)).toBe(
-      true,
-    );
+    expect(
+      isFlexibleAvailabilityBudgetBookCompoundPrompt(scenario.prompt),
+    ).toBe(true);
     expect(enriched).toMatchObject({
       maxPrice: 150,
       serviceRank: 'highest_price',
@@ -488,7 +485,10 @@ describe('ai service discovery public integration — section D flagship (discov
     const stylingCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
       (service) => service.serviceCategory === 'styling',
     );
-    const resolved = resolveDiscoverConstrainedService(stylingCatalog, enriched);
+    const resolved = resolveDiscoverConstrainedService(
+      stylingCatalog,
+      enriched,
+    );
     expect(resolved.service?.id).toBe('style-140');
     expect(
       buildNearestAvailabilityWindowQueries(enriched, scenario.prompt, 'UTC'),
@@ -505,10 +505,7 @@ describe('ai service discovery public integration — section D flagship (discov
     expect(enriched).toMatchObject({
       maxPrice: 100,
       serviceCategory: 'facial',
-      availabilityWindows: [
-        { date: 'tomorrow' },
-        { weekdays: ['sunday'] },
-      ],
+      availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['sunday'] }],
     });
 
     const facialCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
@@ -650,7 +647,9 @@ describe('ai service discovery public integration — section F journey (discove
   it.each(SERVICE_DISCOVERY_JOURNEY_SCENARIOS)(
     'runs multi-turn session for $id',
     (scenario) => {
-      let session: Record<string, unknown> = { ...(scenario.initialSession ?? {}) };
+      let session: Record<string, unknown> = {
+        ...(scenario.initialSession ?? {}),
+      };
       const haircutCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
         (service) =>
           (service.serviceCategory ?? '').includes('hair') ||
@@ -682,7 +681,9 @@ describe('ai service discovery public integration — section F journey (discove
         if (scenario.expectedListCatalogIds && index === listTurnIndex) {
           const params = scenario.listCatalogParams ?? session;
           const catalog =
-            params.serviceCategory === 'massage' ? massageCatalog : haircutCatalog;
+            params.serviceCategory === 'massage'
+              ? massageCatalog
+              : haircutCatalog;
           expect(
             applyServiceDiscoveryToCatalog(catalog, params).map(
               (service) => service.id,
@@ -705,12 +706,18 @@ describe('ai service discovery public integration — section F journey (discove
       }
 
       if (scenario.expectedBookServiceId) {
-        const resolved = resolveDiscoverConstrainedService(haircutCatalog, session);
+        const resolved = resolveDiscoverConstrainedService(
+          haircutCatalog,
+          session,
+        );
         expect(resolved.service?.id).toBe(scenario.expectedBookServiceId);
       }
 
       if (scenario.expectedClarifyServiceId) {
-        const resolved = resolveDiscoverConstrainedService(haircutCatalog, session);
+        const resolved = resolveDiscoverConstrainedService(
+          haircutCatalog,
+          session,
+        );
         expect(resolved.service?.id).toBe(scenario.expectedClarifyServiceId);
       }
     },
@@ -720,9 +727,9 @@ describe('ai service discovery public integration — section F journey (discove
     const scenario = SERVICE_DISCOVERY_JOURNEY_SCENARIOS.find(
       (row) => row.id === 'discover-journey-budget-list-book-en',
     )!;
-    const turn1 = enrichDiscoveryParamsFromPrompt({}, scenario.turns[0]!.prompt);
-    const haircutCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter((service) =>
-      (service.serviceCategory ?? '').includes('hair'),
+    const turn1 = enrichDiscoveryParamsFromPrompt({}, scenario.turns[0].prompt);
+    const haircutCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
+      (service) => (service.serviceCategory ?? '').includes('hair'),
     );
     const composed = composePublicListServicesBudgetResponse({
       matchedServices: haircutCatalog.map((service) => ({
@@ -763,40 +770,39 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
       (row) => row.surface === 'public' && row.expectedCatalogIds,
     ),
   )('applyServiceDiscoveryToCatalog for $id', (scenario) => {
-      const enriched = enrichDiscoverParityParamsForSurface(
-        scenario.surface,
-        scenario.prompt,
-        scenario.classifierParams ?? {},
-        SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-        scenario.action,
-      );
-      const params = scenario.catalogParams ?? enriched;
-      const facialCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
-        (service) => service.serviceCategory === 'facial',
-      );
-      expect(
-        applyServiceDiscoveryToCatalog(facialCatalog, params).map(
-          (service) => service.id,
-        ),
-      ).toEqual(scenario.expectedCatalogIds);
-    },
-  );
+    const enriched = enrichDiscoverParityParamsForSurface(
+      scenario.surface,
+      scenario.prompt,
+      scenario.classifierParams ?? {},
+      SERVICE_DISCOVERY_INTEGRATION_CATALOG,
+      scenario.action,
+    );
+    const params = scenario.catalogParams ?? enriched;
+    const facialCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
+      (service) => service.serviceCategory === 'facial',
+    );
+    expect(
+      applyServiceDiscoveryToCatalog(facialCatalog, params).map(
+        (service) => service.id,
+      ),
+    ).toEqual(scenario.expectedCatalogIds);
+  });
 
   it('discover-parity-budget public and customer share identical list_services outcome', () => {
     const scenarios = serviceDiscoveryParityByPairId('discover-parity-budget');
     const publicEnriched = enrichDiscoverParityParamsForSurface(
       'public',
-      scenarios[0]!.prompt,
-      scenarios[0]!.classifierParams ?? {},
+      scenarios[0].prompt,
+      scenarios[0].classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      scenarios[0]!.action,
+      scenarios[0].action,
     );
     const customerEnriched = enrichDiscoverParityParamsForSurface(
       'customer',
-      scenarios[1]!.prompt,
-      scenarios[1]!.classifierParams ?? {},
+      scenarios[1].prompt,
+      scenarios[1].classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      scenarios[1]!.action,
+      scenarios[1].action,
     );
     expect(publicEnriched).toEqual(customerEnriched);
 
@@ -808,7 +814,7 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
         ...service,
         currency: 'EUR',
       })),
-      maxPrice: publicEnriched.maxPrice as number,
+      maxPrice: publicEnriched.maxPrice,
       serviceCategory: 'facial',
       header: 'Services within your budget:',
     });
@@ -821,17 +827,17 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
     const scenarios = serviceDiscoveryParityByPairId('discover-parity-or');
     const publicEnriched = enrichDiscoverParityParamsForSurface(
       'public',
-      scenarios[0]!.prompt,
-      scenarios[0]!.classifierParams ?? {},
+      scenarios[0].prompt,
+      scenarios[0].classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      scenarios[0]!.action,
+      scenarios[0].action,
     );
     const customerEnriched = enrichDiscoverParityParamsForSurface(
       'customer',
-      scenarios[1]!.prompt,
-      scenarios[1]!.classifierParams ?? {},
+      scenarios[1].prompt,
+      scenarios[1].classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      scenarios[1]!.action,
+      scenarios[1].action,
     );
     expect(publicEnriched).toEqual(customerEnriched);
     expect(publicEnriched.availabilityWindows).toEqual([
@@ -841,7 +847,7 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
 
     const windows = resolvePublicAvailabilityWindows(
       publicEnriched,
-      scenarios[0]!.prompt,
+      scenarios[0].prompt,
       'UTC',
       { defaultScanDays: 14 },
     );
@@ -1040,9 +1046,7 @@ describe('ai service discovery public integration — section H negatives (disco
       action: 'explain_checkout_currency',
       rescueReason: 'explain_checkout_currency',
     });
-    expect(
-      rescueCheckoutCurrencyIntent(scenario.prompt, 'unknown'),
-    ).toEqual({
+    expect(rescueCheckoutCurrencyIntent(scenario.prompt, 'unknown')).toEqual({
       action: 'explain_checkout_currency',
       rescueReason: 'explain_checkout_currency',
     });

@@ -8,7 +8,10 @@ import {
   IMPLICATION_LEGACY_LOCALE_SIBLING_IDS,
   IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS,
 } from './ai-implication-corpus-multilingual.fixtures.js';
-import type { AiCommandEvalCase, AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalLocale,
+} from './eval/ai-command-eval.types.js';
 import { implicationCorpusEvalCaseId } from './ai-implication-corpus.eval.util.js';
 
 export type ImplicationLocaleParityGap = {
@@ -23,13 +26,15 @@ export type ImplicationAnchorLocaleParityGap = {
   missingLocales: AiEvalLocale[];
 };
 
-const IMPLIED_EN_ANCHOR_LEGACY_SIBLINGS: Record<string, { hy: string; ru: string }> =
-  {
-    'en-implied-haircut-need': {
-      hy: 'hy-implied-trim-need',
-      ru: 'ru-implied-trim-need',
-    },
-  };
+const IMPLIED_EN_ANCHOR_LEGACY_SIBLINGS: Record<
+  string,
+  { hy: string; ru: string }
+> = {
+  'en-implied-haircut-need': {
+    hy: 'hy-implied-trim-need',
+    ru: 'ru-implied-trim-need',
+  },
+};
 
 /** acc-2.4 partial — every EN implication anchor needs HY + RU siblings. */
 export function listImplicationAnchorLocaleParityGaps(): ImplicationAnchorLocaleParityGap[] {
@@ -69,22 +74,26 @@ export function listImplicationAnchorLocaleParityGaps(): ImplicationAnchorLocale
 function scenarioLocaleIndex(
   scenarios: readonly ImplicationCorpusScenario[],
 ): Map<string, { hy: boolean; ru: boolean; intent: string }> {
-  const byEnId = new Map<string, { hy: boolean; ru: boolean; intent: string }>();
+  const byEnId = new Map<
+    string,
+    { hy: boolean; ru: boolean; intent: string }
+  >();
 
   for (const enScenarioId of IMPLICATION_EN_SCENARIO_IDS) {
     byEnId.set(enScenarioId, { hy: false, ru: false, intent: '' });
   }
 
-  const allScenarios = [...scenarios, ...IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS];
+  const allScenarios = [
+    ...scenarios,
+    ...IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS,
+  ];
   for (const scenario of allScenarios) {
     if (scenario.locale !== 'hy' && scenario.locale !== 'ru') continue;
 
     const enScenarioId =
       Object.entries(IMPLICATION_LEGACY_LOCALE_SIBLING_IDS).find(
-        ([, legacy]) =>
-          legacy.hy === scenario.id || legacy.ru === scenario.id,
-      )?.[0] ??
-      scenario.id.replace(/^hy-/, 'en-').replace(/^ru-/, 'en-');
+        ([, legacy]) => legacy.hy === scenario.id || legacy.ru === scenario.id,
+      )?.[0] ?? scenario.id.replace(/^hy-/, 'en-').replace(/^ru-/, 'en-');
 
     const slot = byEnId.get(enScenarioId);
     if (!slot) continue;

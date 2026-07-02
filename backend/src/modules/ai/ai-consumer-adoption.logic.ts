@@ -1,21 +1,37 @@
-import { BookingStatus } from '../booking/entities/booking.entity.js';
-import { buildConsumerRebookAccountPath } from '../../common/utils/consumer-rebook.util.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
+import type { ConsumerPushTokenService } from '../notifications/consumer-push-token.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES,
   getCustomerNotificationPreferences,
 } from '../notifications/notification.types.js';
+import { handleShareMyBookingLogic as handleShareMyBookingLogicCore } from './ai-share-my-booking.logic.js';
+import { handleExplainShareRewardLogic as handleExplainShareRewardLogicCore } from './ai-explain-share-reward.logic.js';
 import { buildMyNotificationsExplainCopy } from './ai-explain-my-notifications.util.js';
+import { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
+import { handleSwitchSalonTenantLogic } from './ai-switch-salon-tenant.logic.js';
+import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
+import { handleCustomerEnablePushNotificationsLogic } from './ai-customer-enable-push-notifications.logic.js';
+import { handleExplainPushPermissionLogic } from './ai-explain-push-permission.logic.js';
+import { handleExplainOfflineModeLogic } from './ai-explain-offline-mode.logic.js';
+import { handleExplainAppUpdateRequiredLogic } from './ai-explain-app-update-required.logic.js';
+import { handleExplainAnalyticsConsentLogic } from './ai-explain-analytics-consent.logic.js';
+import { handleExplainHomeScreenWidgetLogic } from './ai-explain-home-screen-widget.logic.js';
+import { handleExplainPatientAlertLogic } from './ai-explain-patient-alert.logic.js';
+
+export { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
+export { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
+export { handleSwitchSalonTenantLogic } from './ai-switch-salon-tenant.logic.js';
 
 export interface ConsumerAdoptionLogicDeps {
   publicCustomerAuthService: PublicCustomerAuthService;
   publicBookingService: PublicBookingService;
   pushNotifications: AiPushNotificationsService;
   notificationsService: NotificationsService;
+  consumerPushTokenService: ConsumerPushTokenService;
 }
 
 function failure(
@@ -34,22 +50,11 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
-function resolveSessionCustomerId(params: Record<string, unknown>): string | undefined {
+function resolveSessionCustomerId(
+  params: Record<string, unknown>,
+): string | undefined {
   const raw = params.sessionCustomerId ?? params.customerId;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-}
-
-function pickLastCompletedBooking<
-  T extends { status: string; startTime: string | Date },
->(bookings: T[]): T | null {
-  return (
-    bookings
-      .filter((b) => String(b.status).toLowerCase() === BookingStatus.COMPLETED)
-      .sort(
-        (a, b) =>
-          new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
-      )[0] ?? null
-  );
 }
 
 export async function handleExplainMyNotificationsLogic(
@@ -152,64 +157,6 @@ export async function handleReferAFriendLogic(
   );
 }
 
-export async function handleRebookLastAppointmentLogic(
-  deps: ConsumerAdoptionLogicDeps,
-  businessId: string,
-  params: Record<string, unknown>,
-): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId) {
-    return failure(
-      'rebook_last_appointment',
-      'Sign in to rebook your last visit.',
-      { clarify: true },
-    );
-  }
-
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
-  if (!slug) return failure('rebook_last_appointment', 'Business not found.');
-
-  const { bookings } = await deps.publicCustomerAuthService.listBookings(
-    slug,
-    customerId,
-  );
-  const last = pickLastCompletedBooking(bookings);
-  if (!last) {
-    return failure(
-      'rebook_last_appointment',
-      'No completed visits found to rebook yet.',
-    );
-  }
-
-  const path = buildConsumerRebookAccountPath({
-    slug,
-    serviceId: last.serviceId,
-    bookingId: last.id,
-    startTime: last.startTime,
-    employeeId: last.employeeId,
-  });
-
-  return success(
-    'rebook_last_appointment',
-    `Rebooking ${last.serviceName} with ${last.employeeName} at your last visit time.`,
-    {
-      bookingId: last.id,
-      serviceId: last.serviceId,
-      navigate: {
-        path: 'checkout',
-        query: {
-          serviceId: last.serviceId,
-          startTime: last.startTime,
-          employeeId: last.employeeId,
-          rebook: '1',
-          rebookBookingId: last.id,
-        },
-      },
-      path,
-    },
-  );
-}
-
 export async function handleShareSalonLinkLogic(
   deps: ConsumerAdoptionLogicDeps,
   businessId: string,
@@ -217,12 +164,17 @@ export async function handleShareSalonLinkLogic(
 ): Promise<CommandResult> {
   const customerId = resolveSessionCustomerId(params);
   if (!customerId) {
-    return failure('share_salon_link', 'Sign in to share your salon link.', { clarify: true });
+    return failure('share_salon_link', 'Sign in to share your salon link.', {
+      clarify: true,
+    });
   }
   const slug = typeof params.slug === 'string' ? params.slug : undefined;
   if (!slug) return failure('share_salon_link', 'Business not found.');
 
-  const view = await deps.publicBookingService.getCustomerShareRewards(slug, customerId);
+  const view = await deps.publicBookingService.getCustomerShareRewards(
+    slug,
+    customerId,
+  );
   const rewardHint = view.salonShareEnabled
     ? ` You can earn ${view.salonRewardSummary} when you share.`
     : '';
@@ -236,63 +188,31 @@ export async function handleShareSalonLinkLogic(
   );
 }
 
+export async function handleExplainShareRewardLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+  prompt = '',
+): Promise<CommandResult> {
+  return handleExplainShareRewardLogicCore(
+    { publicBookingService: deps.publicBookingService },
+    businessId,
+    params,
+    prompt,
+  );
+}
+
 export async function handleShareMyBookingLogic(
   deps: ConsumerAdoptionLogicDeps,
   businessId: string,
   params: Record<string, unknown>,
+  prompt = '',
 ): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId) {
-    return failure('share_my_booking', 'Sign in to share a booking.', { clarify: true });
-  }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
-  if (!slug) return failure('share_my_booking', 'Business not found.');
-
-  const view = await deps.publicBookingService.getCustomerShareRewards(slug, customerId);
-  const rewardHint = view.bookingShareEnabled
-    ? ` You can earn ${view.bookingRewardSummary} when you share a booking.`
-    : '';
-  return success(
-    'share_my_booking',
-    `Open Account → My bookings and tap Share booking on a confirmed visit.${rewardHint}`,
-    {
-      navigate: { path: 'account', query: {} },
-      bookingShareEnabled: view.bookingShareEnabled,
-    },
-  );
-}
-
-export async function handleFindMySavedSalonsLogic(
-  params: Record<string, unknown>,
-): Promise<CommandResult> {
-  const recentSalons = Array.isArray(params.recentSalons)
-    ? params.recentSalons
-        .filter(
-          (entry): entry is { slug: string; name: string } =>
-            !!entry &&
-            typeof entry === 'object' &&
-            typeof (entry as { slug?: string }).slug === 'string' &&
-            typeof (entry as { name?: string }).name === 'string',
-        )
-        .slice(0, 8)
-    : [];
-
-  if (recentSalons.length === 0) {
-    return success(
-      'find_my_saved_salons',
-      'Recently visited salons are saved on this device. Open the app home screen or tap the salon switcher to jump back to a place you booked before.',
-      { recentSalons: [], navigate: { path: 'home', query: {} } },
-    );
-  }
-
-  const lines = recentSalons.map((salon) => `• ${salon.name}`).join('\n');
-  return success(
-    'find_my_saved_salons',
-    `Salons saved on this device:\n${lines}`,
-    {
-      recentSalons,
-      navigate: { path: 'home', query: {} },
-    },
+  return handleShareMyBookingLogicCore(
+    { publicBookingService: deps.publicBookingService },
+    businessId,
+    params,
+    prompt,
   );
 }
 
@@ -313,16 +233,38 @@ export async function dispatchConsumerAdoptionIntent(
         params,
         prompt,
       );
+    case 'enable_push_notifications':
+      return handleCustomerEnablePushNotificationsLogic(
+        deps,
+        businessId,
+        params,
+      );
+    case 'explain_push_permission':
+      return handleExplainPushPermissionLogic(deps, businessId, params, prompt);
+    case 'explain_offline_mode':
+      return handleExplainOfflineModeLogic(businessId, params, prompt);
+    case 'explain_app_update_required':
+      return handleExplainAppUpdateRequiredLogic(businessId, params, prompt);
+    case 'explain_analytics_consent':
+      return handleExplainAnalyticsConsentLogic(businessId, params, prompt);
+    case 'explain_home_screen_widget':
+      return handleExplainHomeScreenWidgetLogic(businessId, params, prompt);
+    case 'explain_patient_alert':
+      return handleExplainPatientAlertLogic(businessId, params, prompt);
     case 'refer_a_friend':
       return handleReferAFriendLogic(deps, businessId, params);
+    case 'explain_share_reward':
+      return handleExplainShareRewardLogic(deps, businessId, params, prompt);
     case 'share_salon_link':
       return handleShareSalonLinkLogic(deps, businessId, params);
     case 'share_my_booking':
-      return handleShareMyBookingLogic(deps, businessId, params);
+      return handleShareMyBookingLogic(deps, businessId, params, prompt);
     case 'rebook_last_appointment':
-      return handleRebookLastAppointmentLogic(deps, businessId, params);
+      return handleRebookLastAppointmentLogic(deps, businessId, params, prompt);
     case 'find_my_saved_salons':
-      return handleFindMySavedSalonsLogic(params);
+      return handleFindMySavedSalonsLogic(params, prompt);
+    case 'switch_salon_tenant':
+      return handleSwitchSalonTenantLogic(params, prompt);
     default:
       return null;
   }

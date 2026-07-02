@@ -39,8 +39,7 @@ export const MULTILINGUAL_CLINIC_SERVICE_EVAL_SCENARIOS: ClinicServiceEvalScenar
     {
       id: 'hy-configure-lipid-prep',
       locale: 'hy',
-      prompt:
-        'Սահմանի՛ր lipid panel-ի նախապատրաստման կետերը՝ 12 ժամ ծոմավոր',
+      prompt: 'Սահմանի՛ր lipid panel-ի նախապատրաստման կետերը՝ 12 ժամ ծոմավոր',
       expectedAction: 'configure_clinic_service',
       rescueReason: 'configure_clinic_service',
       paramsPartial: {

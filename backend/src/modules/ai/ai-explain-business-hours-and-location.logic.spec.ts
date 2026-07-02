@@ -78,9 +78,9 @@ describe('ai-explain-business-hours-and-location.logic (ai-cmd-customer-4.1.5)',
     expect((result.details as { mapsUrl?: string }).mapsUrl).toContain(
       'google.com/maps',
     );
-    expect((result.details as { navigate?: { path: string } }).navigate?.path).toBe(
-      'profile',
-    );
+    expect(
+      (result.details as { navigate?: { path: string } }).navigate?.path,
+    ).toBe('profile');
   });
 
   it('explains location and map link', async () => {

@@ -25,13 +25,17 @@ describe('ai-subscription-membership-customer.util (ai-cmd-customer-4.0 P1)', ()
   });
 
   it.each(
-    SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
+    SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects membership prompt $id', (_id, row) => {
     expect(detectMembershipCustomerAction(row.prompt)).toBe(row.expectedAction);
   });
 
   it.each(
-    SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS.map((row) => [row.id, row] as const),
+    SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues membership prompt $id from unknown', (_id, row) => {
     const rescued = rescueMembershipCustomerIntent(row.prompt, 'unknown');
     expect(rescued?.action).toBe(row.expectedAction);
@@ -42,9 +46,9 @@ describe('ai-subscription-membership-customer.util (ai-cmd-customer-4.0 P1)', ()
     'detects use-subscription-credit prompt $id via self-service helper',
     (_id, row) => {
       expect(isUseSubscriptionCreditPrompt(row.prompt)).toBe(true);
-      expect(rescueSelfServiceBookingIntent(row.prompt, 'unknown')?.action).toBe(
-        'use_subscription_credit',
-      );
+      expect(
+        rescueSelfServiceBookingIntent(row.prompt, 'unknown')?.action,
+      ).toBe('use_subscription_credit');
     },
   );
 
@@ -71,6 +75,17 @@ describe('ai-subscription-membership-customer.util (ai-cmd-customer-4.0 P1)', ()
         date: expect.any(String),
       }),
     );
+  });
+
+  it('rescues membership booking phrasing to subscription_first_visit compound', () => {
+    const prompt = "Use my membership for today's massage";
+    expect(isUseSubscriptionCreditPrompt(prompt)).toBe(false);
+    expect(
+      rescueMembershipCustomerIntent(prompt, 'use_subscription_credit'),
+    ).toEqual({
+      action: 'compound_intent',
+      rescueReason: 'subscription_first_visit_compound',
+    });
   });
 
   it('does not steal subscription usage or plan discovery prompts', () => {

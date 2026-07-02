@@ -232,7 +232,7 @@ function isSingleServicePaymentOptionsPrompt(prompt: string): boolean {
       !/\bwhat\s+(?:can|services)\b/i.test(prompt)) ||
     (/\b(?:can|could|may)\s+i\s+pay\s+(?:in\s+)?cash\b/i.test(prompt) &&
       /\bfor\s+(?:a|an|the\s+)?[a-z]/i.test(prompt)) ||
-    (/\bdo\s+i\s+pay\s+(?:online|by\s+card)\s+for\b/i.test(prompt))
+    /\bdo\s+i\s+pay\s+(?:online|by\s+card)\s+for\b/i.test(prompt)
   );
 }
 

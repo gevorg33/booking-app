@@ -24,7 +24,7 @@ export const CUSTOMER_APP_GUIDE_RESCUE_SCENARIOS: readonly CustomerAppGuideRescu
       intent: 'guide_user_flow',
       samplePrompt: 'How do I update my profile?',
       prompt:
-        /\b(?:how\s+do\s+i\s+(?:update|edit|change)\s+(?:my\s+)?profile|update\s+(?:my\s+)?(?:name|phone|email|avatar)|profile\s+settings?|sign\s+in\s+to\s+my\s+account)\b|(?:как\s+(?:обновить|изменить).+(?:профил|profile))/iu,
+        /\b(?:how\s+do\s+i\s+(?:update|edit|change)\s+(?:my\s+)?(?:profile|name|phone|email|avatar)|profile\s+settings?|sign\s+in\s+to\s+my\s+account)\b|(?:как\s+(?:обновить|изменить).+(?:профил|profile))/iu,
       fromActions: ['unknown', 'list_my_appointments', 'how_to_download_app'],
     },
     {
@@ -129,8 +129,18 @@ export const CUSTOMER_APP_GUIDE_CLASSIFIER_SCENARIOS = [
 ] as const;
 
 export const CONSUMER_ACTIVATION_STEP_SCENARIOS = [
-  { id: 'welcome', pathname: '/', step: 'welcome' as const, slotSelected: false },
-  { id: 'salon', pathname: '/s/glow-nails/home', step: 'salon' as const, slotSelected: false },
+  {
+    id: 'welcome',
+    pathname: '/',
+    step: 'welcome' as const,
+    slotSelected: false,
+  },
+  {
+    id: 'salon',
+    pathname: '/s/glow-nails/home',
+    step: 'salon' as const,
+    slotSelected: false,
+  },
   {
     id: 'service',
     pathname: '/s/glow-nails/services',
@@ -200,7 +210,15 @@ export const CUSTOMER_APP_GUIDE_ROUTE_SCENARIOS = [
   { id: 'tab-account', context: { tab: 'account' }, route: '/s/account' },
   { id: 'tab-packages', context: { tab: 'packages' }, route: '/s/packages' },
   { id: 'tab-book', context: { tab: 'services' }, route: '/s/book' },
-  { id: 'path-account', context: { screen: '/s/demo-salon/account' }, route: '/s/account' },
-  { id: 'path-packages', context: { pathname: '/s/demo-salon/packages' }, route: '/s/packages' },
+  {
+    id: 'path-account',
+    context: { screen: '/s/demo-salon/account' },
+    route: '/s/account',
+  },
+  {
+    id: 'path-packages',
+    context: { pathname: '/s/demo-salon/packages' },
+    route: '/s/packages',
+  },
   { id: 'path-home', context: { screen: '/s/demo-salon/home' }, route: '/s' },
 ] as const;

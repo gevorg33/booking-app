@@ -83,20 +83,24 @@ describe('ai provider exp-3 locale parity (acc-2.4)', () => {
       (row) => row.expectedAction === 'request_time_off',
     ).map((scenario) => [scenario.id, scenario.prompt]),
   )('detects request_time_off i18n prompt %s', (_id, prompt) => {
-    expect(
-      rescueProviderExp3Intent(prompt, 'unknown')?.action,
-    ).toBe('request_time_off');
+    expect(rescueProviderExp3Intent(prompt, 'unknown')?.action).toBe(
+      'request_time_off',
+    );
   });
 
   it('tags HY/RU provider exp-3 eval rows with provider surface and locale', () => {
     const hyCases = [
-      ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES.filter((row) => row.locale === 'hy'),
+      ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES.filter(
+        (row) => row.locale === 'hy',
+      ),
       ...AI_COMMAND_EVAL_PROVIDER_EXP_3_MULTILINGUAL_CASES.filter(
         (row) => row.locale === 'hy',
       ),
     ];
     const ruCases = [
-      ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES.filter((row) => row.locale === 'ru'),
+      ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES.filter(
+        (row) => row.locale === 'ru',
+      ),
       ...AI_COMMAND_EVAL_PROVIDER_EXP_3_MULTILINGUAL_CASES.filter(
         (row) => row.locale === 'ru',
       ),

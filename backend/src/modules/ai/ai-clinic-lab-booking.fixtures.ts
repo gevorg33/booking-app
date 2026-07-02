@@ -10,15 +10,20 @@ export const DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- push_lab_booking
   - "Show orders awaiting patient booking" → list_test_orders, awaitingPatientBooking=true`;
 
 /** Customer mobile classifier rules. */
-export const CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_my_lab_booking_requests: READ — clinic only, signed-in: list pending lab collection appointments staff asked you to book (Lab to book). Triggers: lab to book|lab appointments to book|pending lab collection|book my lab tests. NOT list_my_test_results (released results), NOT my_appointments (schedule).
-- book_lab_collection: READ/MUTATE — clinic only, signed-in: open or complete booking for a pushed lab collection request; returns book link or next step. Triggers: book my lab collection|book blood draw|schedule my lab draw|lab collection appointment. NOT book_appointment (generic service), NOT list_my_lab_booking_requests (list only).
+export const CONSUMER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_my_lab_booking_requests: READ — clinic only, signed-in: list pending lab collection appointments staff asked you to book (Lab to book). Triggers: lab to book|lab appointments to book|pending lab collection|book my lab tests. NOT list_my_test_results (released results), NOT my_appointments (schedule), NOT book_lab_collection_nearest (book with earliest slot).
+- book_lab_collection: READ/MUTATE — clinic only, signed-in: open or complete booking for a pushed lab collection request; returns book link or next step. Triggers: book my lab collection|book blood draw|schedule my lab draw|lab collection appointment. NOT book_appointment (generic service), NOT list_my_lab_booking_requests (list only), NOT book_lab_collection_nearest (earliest/nearest slot compound), NOT book_lab_from_order (specific lab order / Lab to book tab).
+- book_lab_from_order: MUTATE — clinic only, signed-in customer: book collection for a clinic lab order from Lab to book (LabToBookPage / myLabToBook*). Triggers: book collection for my lab order|schedule draw from Lab to book tab. NOT list_my_lab_booking_requests (list only), NOT book_lab_collection (generic without order/tab context).
+- book_lab_collection_nearest (compound): list_my_lab_booking_requests → book_lab_collection with bookingFirstAvailable=true when user wants earliest/nearest/soonest lab draw slot. Example: "Book lab draw earliest slot".
 - Examples:
   - "What lab appointments do I need to book?" → list_my_lab_booking_requests
-  - "Book my lab collection" → book_lab_collection`;
+  - "Book my lab collection" → book_lab_collection
+  - "Book collection for my lab order" → book_lab_from_order
+  - "Book lab draw earliest slot" → book_lab_collection_nearest`;
 
 /** Public booking web appendix (logged-in account phrasing). */
 export const PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX = `- list_my_lab_booking_requests: "Lab appointments to book on my account", "Pending lab collection requests"
-- book_lab_collection: "Book my lab blood draw from the clinic request", "Schedule collection for my lab order"`;
+- book_lab_collection: "Book my lab blood draw from the clinic request", "Schedule collection for my lab order"
+- book_lab_collection_nearest: "Book lab draw earliest slot", "Schedule my blood draw soonest opening"`;
 
 /** Provider mobile classifier rules. */
 export const PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_patient_pending_lab_requests: READ — clinic only: list patients on your schedule with lab orders awaiting patient self-booking (pushed, no collection booked). Triggers: patients waiting to book lab|pending lab booking requests|who still needs to book collection. NOT list_my_collection_queue (specimen draw queue), NOT list_test_orders (dashboard-wide).`;

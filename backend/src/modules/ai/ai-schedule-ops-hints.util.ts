@@ -202,7 +202,6 @@ export function applyScheduleOpsPromptHints(
 
   inheritScheduleFollowUpContext(params, context.session, action, prompt);
   // dateRange / employee matching moved to pipeline structural stage (pipe-1.7.1)
-
 }
 
 export function enrichCompoundSubStepScheduleHints(

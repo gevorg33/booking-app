@@ -1,5 +1,8 @@
 import type { Repository } from 'typeorm';
-import { Booking, BookingStatus } from '../../modules/booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+} from '../../modules/booking/entities/booking.entity.js';
 
 /** Rolling window for service popularity rank (rank-1.9). */
 export const SERVICE_BOOKING_POPULARITY_WINDOW_DAYS = 90;

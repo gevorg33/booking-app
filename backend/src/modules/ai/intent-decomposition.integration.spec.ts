@@ -224,7 +224,7 @@ describe('intent-decomposition integration (ai-cmd-0.3)', () => {
         'actor-1',
         evalCase.prompt,
         'UTC',
-        evalCase.expect.compoundSurface ?? 'dashboard',
+        evalCase.expect.compoundSurface ?? evalCase.surface ?? 'dashboard',
       );
       if (evalCase.expect.compoundSteps) {
         expect(steps.map((step) => step.action)).toEqual(

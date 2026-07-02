@@ -26,7 +26,9 @@ export function extractPublicHandleCheckAvailabilitySource(
   const start = source.indexOf('private async handleCheckAvailability');
   const end = source.indexOf('private async handleRecommendSpecialists', start);
   if (start === -1 || end === -1) {
-    throw new Error('handleCheckAvailability block not found in public assistant');
+    throw new Error(
+      'handleCheckAvailability block not found in public assistant',
+    );
   }
   return source.slice(start, end);
 }
@@ -109,8 +111,12 @@ export function assertConsumerDiscoveryChipsCopyCatalog(
     }
   }
 
-  expect(catalogSource).toContain("promptKey: 'assistantDiscoverPromptUnder50'");
-  expect(catalogSource).toContain("promptKey: 'assistantDiscoverPromptPremium'");
+  expect(catalogSource).toContain(
+    "promptKey: 'assistantDiscoverPromptUnder50'",
+  );
+  expect(catalogSource).toContain(
+    "promptKey: 'assistantDiscoverPromptPremium'",
+  );
   expect(catalogSource).toContain(
     "promptKey: 'assistantDiscoverPromptEveningWeekend'",
   );

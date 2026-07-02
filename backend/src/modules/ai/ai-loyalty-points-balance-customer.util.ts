@@ -3,7 +3,7 @@ import {
   rescueMarketingGrowthIntent,
 } from './ai-marketing-growth.util.js';
 
-export const CUSTOMER_LOYALTY_POINTS_BALANCE_CLASSIFIER_RULES = `- loyalty_points_balance: READ — show the signed-in customer's loyalty/reward points balance and approximate dollar value. Triggers: how many points do I have, what's my loyalty points balance, check my reward points, show my bonus points. Requires session customerId. NOT explain_loyalty_points (how earning works / what points are worth — future), NOT apply_loyalty_at_checkout (spend points on booking), NOT summarize_loyalty_program (salon admin overview), NOT configure_loyalty_settings (admin mutate).`;
+export const CUSTOMER_LOYALTY_POINTS_BALANCE_CLASSIFIER_RULES = `- loyalty_points_balance: READ — show the signed-in customer's loyalty/reward points balance and approximate dollar value. Triggers: how many points do I have, what's my loyalty points balance, check my reward points, show my bonus points. Requires session customerId. NOT explain_loyalty_points (how earning works / what points are worth), NOT apply_loyalty_at_checkout (spend points on booking), NOT summarize_loyalty_program (salon admin overview), NOT configure_loyalty_settings (admin mutate).`;
 
 export type LoyaltyPointsBalancePromptFixture = {
   id: string;
@@ -118,7 +118,9 @@ export function rescueLoyaltyPointsBalanceCustomerIntent(
 export function detectLoyaltyPointsBalanceCustomerAction(
   prompt: string,
 ): 'loyalty_points_balance' | null {
-  return rescueLoyaltyPointsBalanceCustomerIntent(prompt, 'unknown')?.action ?? null;
+  return (
+    rescueLoyaltyPointsBalanceCustomerIntent(prompt, 'unknown')?.action ?? null
+  );
 }
 
 export { isLoyaltyPointsBalancePrompt };

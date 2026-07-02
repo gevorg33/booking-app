@@ -25,6 +25,14 @@ export interface ClinicBookingLabSummary {
   measurementFlag?: string;
 }
 
+export interface ClinicCustomerResultTrackingView {
+  id: string;
+  testName: string | null;
+  status: string;
+  releasedAt: string | null;
+  createdAt: string;
+}
+
 export type { ClinicPatientReleasedResultView };
 
 @Injectable()
@@ -160,5 +168,27 @@ export class ClinicTestResultsService {
         observationByMeasurementId,
       }),
     );
+  }
+
+  async listCustomerResultsForTracking(
+    businessId: string,
+    customerId: string,
+  ): Promise<ClinicCustomerResultTrackingView[]> {
+    await this.assertEnabled(businessId);
+
+    const results = await this.resultRepo.find({
+      where: { businessId, customerId },
+      relations: { order: true, testType: true },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+
+    return results.map((result) => ({
+      id: result.id,
+      testName: result.testType?.title ?? result.order?.displayNames ?? null,
+      status: result.status,
+      releasedAt: result.releasedAt?.toISOString() ?? null,
+      createdAt: result.createdAt.toISOString(),
+    }));
   }
 }

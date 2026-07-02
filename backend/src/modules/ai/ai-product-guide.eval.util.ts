@@ -124,7 +124,9 @@ export function productGuideClassifierScenarioToEvalCase(
     requiresLlm: true,
     expect: {
       action: scenario.expectedAction,
-      ...(scenario.topicId ? { paramsPartial: { topicId: scenario.topicId } } : {}),
+      ...(scenario.topicId
+        ? { paramsPartial: { topicId: scenario.topicId } }
+        : {}),
     },
   };
 }
@@ -140,7 +142,9 @@ export function productGuideHandlerScenarioToEvalCase(
     requiresLlm: true,
     expect: {
       action: scenario.intent,
-      ...(scenario.topicId ? { paramsPartial: { topicId: scenario.topicId } } : {}),
+      ...(scenario.topicId
+        ? { paramsPartial: { topicId: scenario.topicId } }
+        : {}),
     },
   };
 }
@@ -157,7 +161,9 @@ export function productGuideRescueScenarioToEvalCase(
       useProductGuideRescue: true,
       rescueFromAction: scenario.fromAction,
       rescuedAction: scenario.expectedAction,
-      ...(scenario.expectedReason ? { rescueReason: scenario.expectedReason } : {}),
+      ...(scenario.expectedReason
+        ? { rescueReason: scenario.expectedReason }
+        : {}),
     },
   };
 }
@@ -187,7 +193,9 @@ export function productGuideMisrouteScenarioToEvalCase(
       useProductGuideRescue: true,
       rescueFromAction: scenario.classifiedAction,
       rescuedAction: scenario.expectedAction,
-      ...(scenario.expectedReason ? { rescueReason: scenario.expectedReason } : {}),
+      ...(scenario.expectedReason
+        ? { rescueReason: scenario.expectedReason }
+        : {}),
     },
   };
 }
@@ -261,7 +269,9 @@ export function productGuideMultilingualScenarioToEvalCase(
       useProductGuideRescue: true,
       rescueFromAction: scenario.rescueFromAction,
       rescuedAction: scenario.expectedAction,
-      ...(scenario.expectedReason ? { rescueReason: scenario.expectedReason } : {}),
+      ...(scenario.expectedReason
+        ? { rescueReason: scenario.expectedReason }
+        : {}),
       ...(scenario.topicId
         ? {
             useProductGuideTopicEnrich: true,
@@ -280,14 +290,20 @@ export function productGuideMultilingualScenarioToEvalCase(
 /** Dashboard classifier/handler LLM golden seeds (ai-guide-1.2.6). */
 export const AI_COMMAND_EVAL_PRODUCT_GUIDE_DASHBOARD_LLM_CASES: AiCommandEvalCase[] =
   [
-    ...PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.map(productGuideClassifierScenarioToEvalCase),
-    ...PRODUCT_GUIDE_HANDLER_SCENARIOS.map(productGuideHandlerScenarioToEvalCase),
+    ...PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.map(
+      productGuideClassifierScenarioToEvalCase,
+    ),
+    ...PRODUCT_GUIDE_HANDLER_SCENARIOS.map(
+      productGuideHandlerScenarioToEvalCase,
+    ),
   ];
 
 /** Deterministic four-surface rescue/misroute/enrich eval (ai-guide-1.6.3 / 1.6.4). */
 export const AI_COMMAND_EVAL_PRODUCT_GUIDE_RESCUE_CASES: AiCommandEvalCase[] = [
   ...PRODUCT_GUIDE_RESCUE_SCENARIOS.map(productGuideRescueScenarioToEvalCase),
-  ...PRODUCT_GUIDE_MISROUTE_SCENARIOS.map(productGuideMisrouteScenarioToEvalCase),
+  ...PRODUCT_GUIDE_MISROUTE_SCENARIOS.map(
+    productGuideMisrouteScenarioToEvalCase,
+  ),
   ...ENRICH_GUIDE_TOPIC_SCENARIOS.map(enrichGuideTopicScenarioToEvalCase),
 ];
 
@@ -296,10 +312,13 @@ export const AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES: AiCommandEvalCase[] =
   TOP_APP_GUIDE_FLOWS.map((flow) => {
     const row = SIMILAR_APP_GUIDE_PROMPTS.find(
       (prompt) =>
-        prompt.surface === flow.surface && prompt.id === `${flow.surface}-${flow.id}-v01`,
+        prompt.surface === flow.surface &&
+        prompt.id === `${flow.surface}-${flow.id}-v01`,
     );
     if (!row) {
-      throw new Error(`Missing v01 similar prompt for flow ${flow.id} on ${flow.surface}`);
+      throw new Error(
+        `Missing v01 similar prompt for flow ${flow.id} on ${flow.surface}`,
+      );
     }
     return similarAppGuidePromptToEvalCase(row);
   });
@@ -317,9 +336,15 @@ export const AI_COMMAND_EVAL_PRODUCT_GUIDE_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES,
   ...AI_COMMAND_EVAL_PRODUCT_GUIDE_MULTILINGUAL_CASES,
   ...META_PRODUCT_GUIDE_RESCUE_SCENARIOS.map(metaGuideRescueScenarioToEvalCase),
-  ...META_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.map(metaGuideClassifierScenarioToEvalCase),
-  ...EMPTY_STATE_GUIDE_RESCUE_SCENARIOS.map(emptyStateGuideRescueScenarioToEvalCase),
-  ...EMPTY_STATE_GUIDE_CLASSIFIER_SCENARIOS.map(emptyStateGuideClassifierScenarioToEvalCase),
+  ...META_PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.map(
+    metaGuideClassifierScenarioToEvalCase,
+  ),
+  ...EMPTY_STATE_GUIDE_RESCUE_SCENARIOS.map(
+    emptyStateGuideRescueScenarioToEvalCase,
+  ),
+  ...EMPTY_STATE_GUIDE_CLASSIFIER_SCENARIOS.map(
+    emptyStateGuideClassifierScenarioToEvalCase,
+  ),
   ...AI_UNAVAILABLE_GUIDE_SCENARIOS.map(aiUnavailableGuideScenarioToEvalCase),
 ];
 

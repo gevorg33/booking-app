@@ -24,9 +24,5 @@ export function enrichDiscoverParityParamsForSurface(
     { ...classifierParams },
     prompt,
   );
-  return applyPromptMentionedServiceOverrideToParams(
-    prompt,
-    enriched,
-    catalog,
-  );
+  return applyPromptMentionedServiceOverrideToParams(prompt, enriched, catalog);
 }

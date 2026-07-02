@@ -25,8 +25,12 @@ describe('provider-push-history.util (prov-exp-10.1)', () => {
   );
 
   it('maps push kinds from payload types', () => {
-    expect(resolveProviderPushHistoryKind('booking_created')).toBe('booking_created');
-    expect(resolveProviderPushHistoryKind('payment_received')).toBe('payment_received');
+    expect(resolveProviderPushHistoryKind('booking_created')).toBe(
+      'booking_created',
+    );
+    expect(resolveProviderPushHistoryKind('payment_received')).toBe(
+      'payment_received',
+    );
     expect(resolveProviderPushHistoryKind(undefined)).toBe('booking_updated');
   });
 
@@ -57,10 +61,16 @@ describe('provider-push-history.util (prov-exp-10.1)', () => {
   });
 
   it('covers all push history kind mappings', () => {
-    expect(resolveProviderPushHistoryKind('booking_cancelled')).toBe('booking_cancelled');
-    expect(resolveProviderPushHistoryKind('booking_rescheduled')).toBe('booking_rescheduled');
+    expect(resolveProviderPushHistoryKind('booking_cancelled')).toBe(
+      'booking_cancelled',
+    );
+    expect(resolveProviderPushHistoryKind('booking_rescheduled')).toBe(
+      'booking_rescheduled',
+    );
     expect(resolveProviderPushHistoryKind('end_of_day')).toBe('end_of_day');
-    expect(resolveProviderPushHistoryKind('booking_updated')).toBe('booking_updated');
+    expect(resolveProviderPushHistoryKind('booking_updated')).toBe(
+      'booking_updated',
+    );
   });
 
   it('supports custom history windows', () => {

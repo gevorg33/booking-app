@@ -18,19 +18,20 @@ describe('ai-service-duration-buffer integration (ai-cmd-ext-2.17)', () => {
   it.each(UPDATE_SERVICE_DURATION_BUFFER_PROMPTS.slice(0, 4))(
     'rescues unknown prompt $id via catalog rescue',
     ({ prompt, expectedAction }) => {
-      expect(rescueCatalogIntent(prompt, 'unknown')?.action).toBe(expectedAction);
-      expect(rescueUpdateServiceDurationBufferIntent(prompt, 'unknown')?.action).toBe(
+      expect(rescueCatalogIntent(prompt, 'unknown')?.action).toBe(
         expectedAction,
       );
+      expect(
+        rescueUpdateServiceDurationBufferIntent(prompt, 'unknown')?.action,
+      ).toBe(expectedAction);
     },
   );
 
   it('utility rescue matches catalog rescue', () => {
-    const prompt =
-      'Set all massage services to 60 minutes with 15 min buffer';
-    expect(rescueUpdateServiceDurationBufferIntent(prompt, 'unknown')?.action).toBe(
-      'update_service_duration_buffer',
-    );
+    const prompt = 'Set all massage services to 60 minutes with 15 min buffer';
+    expect(
+      rescueUpdateServiceDurationBufferIntent(prompt, 'unknown')?.action,
+    ).toBe('update_service_duration_buffer');
     expect(rescueCatalogIntent(prompt, 'unknown')?.action).toBe(
       'update_service_duration_buffer',
     );

@@ -17,7 +17,9 @@ export function serviceOnlinePaymentMultilingualScenarioToEvalCase(
       rescuedAction: scenario.expectedAction,
       rescueReason: scenario.rescueReason,
       needsMultilingual: true,
-      ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+      ...(scenario.paramsPartial
+        ? { paramsPartial: scenario.paramsPartial }
+        : {}),
     },
   };
 }

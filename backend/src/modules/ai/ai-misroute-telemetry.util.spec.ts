@@ -106,7 +106,9 @@ describe('ai-misroute-telemetry.util (pipe-1.10.2)', () => {
   });
 
   it('resolveSemanticTelemetry picks highest semantic_match candidate', () => {
-    const semantic = resolveSemanticTelemetry(MISROUTE_SEMANTIC_FIXTURE_CANDIDATES);
+    const semantic = resolveSemanticTelemetry(
+      MISROUTE_SEMANTIC_FIXTURE_CANDIDATES,
+    );
     expect(semantic.semanticAction).toBe('create_booking');
     expect(semantic.semanticConfidence).toBe(0.84);
   });

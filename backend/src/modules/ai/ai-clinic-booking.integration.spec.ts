@@ -64,7 +64,9 @@ describe('ai clinic booking integration (ai-cmd-clinic-5)', () => {
   it.each(CLINIC_BOOKING_RESCUE_SCENARIOS)(
     'rescues $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(rescueExplainClinicBookingIntent(prompt, misclassifiedAction)).toEqual({
+      expect(
+        rescueExplainClinicBookingIntent(prompt, misclassifiedAction),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });

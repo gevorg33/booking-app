@@ -108,7 +108,10 @@ const READ_STRIPE_STATUS =
 
 function isExplainStripeStatusPrompt(prompt: string): boolean {
   if (!READ_STRIPE_STATUS.test(prompt)) return false;
-  if (CONFIGURE_STRIPE_VERB.test(prompt) && /\b(now|start|begin|open)\b/i.test(prompt)) {
+  if (
+    CONFIGURE_STRIPE_VERB.test(prompt) &&
+    /\b(now|start|begin|open)\b/i.test(prompt)
+  ) {
     return false;
   }
   return (
@@ -142,7 +145,10 @@ function parseConnectCountry(
   params: Record<string, unknown>,
 ): string | undefined {
   const fromParams = params.country;
-  if (typeof fromParams === 'string' && /^[A-Za-z]{2}$/.test(fromParams.trim())) {
+  if (
+    typeof fromParams === 'string' &&
+    /^[A-Za-z]{2}$/.test(fromParams.trim())
+  ) {
     return fromParams.trim().toUpperCase();
   }
   const iso = prompt.match(/\b(?:country\s+)?([A-Z]{2})\b/);
@@ -156,9 +162,10 @@ function parseStartOnboarding(
 ): boolean {
   if (params.startOnboarding === true) return true;
   return (
-    /\b(?:start|begin|open)\b/i.test(prompt) &&
-    /\b(?:onboarding|setup|connect)\b/i.test(prompt)
-  ) || /\bconnect\s+(?:stripe\s+)?now\b/i.test(prompt);
+    (/\b(?:start|begin|open)\b/i.test(prompt) &&
+      /\b(?:onboarding|setup|connect)\b/i.test(prompt)) ||
+    /\bconnect\s+(?:stripe\s+)?now\b/i.test(prompt)
+  );
 }
 
 export function isConfigureStripeConnectPrompt(prompt: string): boolean {
@@ -173,7 +180,9 @@ export function isConfigureStripeConnectPrompt(prompt: string): boolean {
     return false;
   }
   if (
-    /\b(subscription|billing\s+portal|invoice|plan|seat\s+limit)\b/i.test(text) &&
+    /\b(subscription|billing\s+portal|invoice|plan|seat\s+limit)\b/i.test(
+      text,
+    ) &&
     !STRIPE_CONNECT_SIGNAL.test(text)
   ) {
     return false;
@@ -222,7 +231,10 @@ export function enrichConfigureStripeConnectParamsFromPrompt(
 export function rescueConfigureStripeConnectIntent(
   prompt: string,
   action: string,
-): { action: typeof CONFIGURE_STRIPE_CONNECT_INTENT; rescueReason: string } | null {
+): {
+  action: typeof CONFIGURE_STRIPE_CONNECT_INTENT;
+  rescueReason: string;
+} | null {
   if (action === CONFIGURE_STRIPE_CONNECT_INTENT) return null;
   if (!isConfigureStripeConnectPrompt(prompt)) return null;
   return {

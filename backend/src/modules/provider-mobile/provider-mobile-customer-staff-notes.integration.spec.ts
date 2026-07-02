@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { PatientStaffNotesService } from '../patient-clinical-profiles/patient-staff-notes.service.js';
@@ -17,13 +21,19 @@ describe('ProviderMobileService customer staff notes (prov-exp-1.3)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
   const clinicTestResultService = { listResultQueue: jest.fn() };
   const customerRepo = { createQueryBuilder: jest.fn(), findOne: jest.fn() };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = { getProfileForCustomer: jest.fn() };
   const patientClinicalProfileAccessService = {
     assertCustomerClinicalProfileAccess: jest.fn(),

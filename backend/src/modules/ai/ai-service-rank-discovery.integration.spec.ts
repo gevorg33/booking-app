@@ -51,9 +51,7 @@ describe('ai service rank discovery classifier wiring (rank-1.2)', () => {
     expect(publicSchema).toContain(
       'What is the best and premium haircut service?',
     );
-    expect(customerSchema).toContain(
-      "What's the cheapest haircut you offer?",
-    );
+    expect(customerSchema).toContain("What's the cheapest haircut you offer?");
     expect(publicSchema).toContain(
       'recommend_specialists, serviceCategory=massage — NO serviceRank',
     );
@@ -73,7 +71,11 @@ describe('ai service rank discovery classifier wiring (rank-1.2)', () => {
 });
 
 describe('ai service rank discovery post-LLM rescue (rank-1.3)', () => {
-  it.each(SERVICE_RANK_EXTRACTION_SCENARIOS.filter((scenario) => scenario.serviceRank))(
+  it.each(
+    SERVICE_RANK_EXTRACTION_SCENARIOS.filter(
+      (scenario) => scenario.serviceRank,
+    ),
+  )(
     'enrichServiceRankFromPrompt sets serviceRank for $id',
     ({ prompt, serviceRank }) => {
       expect(enrichServiceRankFromPrompt({}, prompt).serviceRank).toBe(
@@ -169,7 +171,11 @@ describe('ai service rank admin analytics guard (rank-not-analyze-*-en)', () => 
       ).serviceRank,
     ).toBeUndefined();
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'dashboard'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'dashboard',
+      ),
     ).toEqual({
       action: 'analyze_services',
       rescueReason: 'rank_to_analyze_services',
@@ -189,7 +195,11 @@ describe('ai service rank admin analytics guard (rank-not-analyze-*-en)', () => 
       ).serviceRank,
     ).toBeUndefined();
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'dashboard'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'dashboard',
+      ),
     ).toEqual({
       action: 'analyze_appointments',
       rescueReason: 'rank_to_analyze_appointments',
@@ -200,7 +210,9 @@ describe('ai service rank admin analytics guard (rank-not-analyze-*-en)', () => 
 
 describe('ai service rank package guard (rank-not-package-en)', () => {
   it('documents package disambiguation in rank classifier rules', () => {
-    expect(SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES).toContain('discover_packages');
+    expect(SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES).toContain(
+      'discover_packages',
+    );
     expect(SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES).toContain(
       "What's your premium spa package?",
     );
@@ -218,14 +230,22 @@ describe('ai service rank package guard (rank-not-package-en)', () => {
       ).serviceRank,
     ).toBeUndefined();
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'public'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'public',
+      ),
     ).toEqual({
       action: 'booking_help',
       rescueReason: 'discover_packages',
       params: {},
     });
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'customer'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'customer',
+      ),
     ).toEqual({
       action: 'discover_packages',
       rescueReason: 'discover_packages',
@@ -258,7 +278,11 @@ describe('ai service rank mid-range browse (rank-mid-range-en)', () => {
       limit: 3,
     });
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'public'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'public',
+      ),
     ).toEqual({
       action: 'list_services',
       rescueReason: 'rank_mid_range_list',
@@ -343,9 +367,9 @@ describe('ai service rank most popular (rank-most-popular-en)', () => {
       serviceCategory: 'haircut',
       serviceRank: 'most_popular',
     });
-    expect(
-      enrichServiceRankFromPrompt({}, scenario.prompt).serviceRank,
-    ).toBe('most_popular');
+    expect(enrichServiceRankFromPrompt({}, scenario.prompt).serviceRank).toBe(
+      'most_popular',
+    );
     expect(
       rescueServiceRankDiscoveryIntent(scenario.prompt, 'unknown', 'public'),
     ).toEqual({
@@ -369,11 +393,17 @@ describe('ai service rank tier metadata filter (rank-tier-metadata-en)', () => {
       serviceTier: 'premium',
     });
     expect(
-      enrichServiceRankFromPrompt({ serviceRank: 'highest_price' }, scenario.prompt)
-        .serviceRank,
+      enrichServiceRankFromPrompt(
+        { serviceRank: 'highest_price' },
+        scenario.prompt,
+      ).serviceRank,
     ).toBeUndefined();
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'customer'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'customer',
+      ),
     ).toEqual({
       action: 'list_services',
       rescueReason: 'rank_tier_filter',
@@ -432,7 +462,11 @@ describe('ai service rank subjective rescue (rank-best-for-me-en)', () => {
       ).serviceRank,
     ).toBeUndefined();
     expect(
-      rescueServiceRankDiscoveryIntent(scenario.prompt, 'list_services', 'public'),
+      rescueServiceRankDiscoveryIntent(
+        scenario.prompt,
+        'list_services',
+        'public',
+      ),
     ).toEqual({
       action: 'booking_help',
       rescueReason: 'rank_subjective_booking_help',
@@ -504,13 +538,16 @@ describe('ai service rank discovery session flows (rank-1.12 / discover-exit-1)'
     const scenario = RANK_SESSION_SCENARIOS.find(
       (entry) => entry.id === 'rank-session-upgrade-en',
     )!;
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
     expect(turn1).toMatchObject({
       serviceCategory: 'haircut',
       serviceRank: 'lowest_price',
     });
 
-    const turn2Prompt = scenario.turns[1]!.prompt;
+    const turn2Prompt = scenario.turns[1].prompt;
     expect(isRankSessionUpgradePrompt(turn2Prompt)).toBe(true);
     const turn2 = enrichRankSessionParamsFromPrompt(turn1, turn2Prompt);
     expect(turn2).toMatchObject({
@@ -530,43 +567,51 @@ describe('ai service rank discovery session flows (rank-1.12 / discover-exit-1)'
     const scenario = RANK_SESSION_SCENARIOS.find(
       (entry) => entry.id === 'rank-session-pick-one-en',
     )!;
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
-    expect(turn1).toMatchObject(scenario.turns[0]!.expectedParams);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
+    expect(turn1).toMatchObject(scenario.turns[0].expectedParams);
 
     const ranked = buildRankedServicesFromSessionContext(
       turn1,
       RANK_SESSION_PICK_CATALOG,
-      scenario.turns[0]!.prompt,
+      scenario.turns[0].prompt,
     );
     const session = {
       ...turn1,
-      rankedServiceIds: serializeRankedServiceIds(ranked.map((service) => service.id)),
+      rankedServiceIds: serializeRankedServiceIds(
+        ranked.map((service) => service.id),
+      ),
     };
     const catalog = RANK_SESSION_PICK_CATALOG.map((service) => ({
       id: service.id,
       name: service.name,
     }));
     const turn2 = enrichPublicAssistantParamsFromPrompt(
-      scenario.turns[1]!.prompt,
+      scenario.turns[1].prompt,
       session,
       catalog,
       'book_appointment',
     );
-    expect(turn2).toMatchObject(scenario.turns[1]!.expectedParams);
-    expect(scenario.turns[1]!.expectedAction).toBe('book_appointment');
+    expect(turn2).toMatchObject(scenario.turns[1].expectedParams);
+    expect(scenario.turns[1].expectedAction).toBe('book_appointment');
   });
 
   it('rank-session-then-budget-en intersects prior rank with new maxPrice on T2', () => {
     const scenario = RANK_SESSION_SCENARIOS.find(
       (entry) => entry.id === 'rank-session-then-budget-en',
     )!;
-    const turn1 = enrichRankSessionParamsFromPrompt({}, scenario.turns[0]!.prompt);
+    const turn1 = enrichRankSessionParamsFromPrompt(
+      {},
+      scenario.turns[0].prompt,
+    );
     expect(turn1).toMatchObject({
       serviceCategory: 'facial',
       serviceRank: 'highest_price',
     });
 
-    const turn2Prompt = scenario.turns[1]!.prompt;
+    const turn2Prompt = scenario.turns[1].prompt;
     expect(isRankSessionBudgetRefinePrompt(turn2Prompt)).toBe(true);
     expect(extractMaxPriceFromBudgetPrompt(turn2Prompt)).toBe(120);
     const turn2 = enrichRankSessionParamsFromPrompt(turn1, turn2Prompt);

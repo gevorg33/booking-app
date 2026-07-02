@@ -10,7 +10,9 @@ describe('ai-clinic-booking-multilingual.util', () => {
       expect(evalCase.expect.rescuedAction).toBe('explain_clinic_booking');
       expect(evalCase.surface).toBe(scenario.surface);
       if (scenario.paramsPartial?.aspect) {
-        expect(evalCase.expect.paramsPartial?.aspect).toBe(scenario.paramsPartial.aspect);
+        expect(evalCase.expect.paramsPartial?.aspect).toBe(
+          scenario.paramsPartial.aspect,
+        );
       }
       if (scenario.paramsPartial?.serviceName) {
         expect(evalCase.expect.paramsPartial?.serviceName).toBe(

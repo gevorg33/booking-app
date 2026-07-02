@@ -23,9 +23,7 @@ describe('intent-candidate-rerank merge (pipe-1.4.5)', () => {
     }) => {
       const merged = mergeIntentCandidateSources({
         heuristics,
-        classifier: classifier
-          ? classifiedIntentToCandidate(classifier)
-          : null,
+        classifier: classifier ? classifiedIntentToCandidate(classifier) : null,
         semantic,
       });
 
@@ -45,7 +43,8 @@ describe('intent-candidate-rerank merge (pipe-1.4.5)', () => {
 
   it('tracks merged vs eligible counts for three-source pool', () => {
     const scenario = MERGE_RERANK_SCENARIOS.find(
-      (entry) => entry.id === 'phase1-defers-heuristic-when-classifier-resolved',
+      (entry) =>
+        entry.id === 'phase1-defers-heuristic-when-classifier-resolved',
     )!;
 
     const merged = mergeIntentCandidateSources({

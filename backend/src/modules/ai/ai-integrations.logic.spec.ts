@@ -288,18 +288,20 @@ describe('ai-integrations.logic', () => {
         }),
       } as any,
     });
-    expect((await handleDeleteWebhookLogic(failDeps, 'biz-1', {})).success).toBe(
-      false,
-    );
+    expect(
+      (await handleDeleteWebhookLogic(failDeps, 'biz-1', {})).success,
+    ).toBe(false);
   });
 
   it('toggles webhooks on and off with idempotent summaries', async () => {
-    const updateSubscription = jest.fn(async (_b: string, id: string, dto: any) => ({
-      id,
-      url: 'https://hooks.example.com/a',
-      events: ['booking.created'],
-      isActive: dto.isActive,
-    }));
+    const updateSubscription = jest.fn(
+      async (_b: string, id: string, dto: any) => ({
+        id,
+        url: 'https://hooks.example.com/a',
+        events: ['booking.created'],
+        isActive: dto.isActive,
+      }),
+    );
     const deps = buildDeps({
       webhooksService: {
         ...buildDeps().webhooksService,

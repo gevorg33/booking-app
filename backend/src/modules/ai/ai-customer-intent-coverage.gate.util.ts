@@ -25,8 +25,8 @@ export function buildAiCustomerIntentCoverageGateTestPathPattern(): string {
   return `(${AI_CUSTOMER_INTENT_COVERAGE_GATE_SPEC_PATTERNS.join('|')})`;
 }
 
-/** Baseline required count before 4.0 P0–P3 promotion (ai-cmd-customer-2.6). */
-export const CUSTOMER_INTENT_COVERAGE_REQUIRED_BASELINE_COUNT = 19;
+/** Baseline required count before 4.0 P0–P3 promotion (ai-cmd-customer-2.6 + 4.17 shipped READ). */
+export const CUSTOMER_INTENT_COVERAGE_REQUIRED_BASELINE_COUNT = 45;
 
 export function listGraduatedCustomerIntentCoverageRequired(): string[] {
   const promoted = new Set<string>(CUSTOMER_INTENT_PROMOTION_INTENT_LIST);
@@ -74,6 +74,8 @@ export function listCustomerIntentCoverageGateGaps(
       .map((row) => `${row.intent}: promotion row not in REQUIRED gate`),
     ...auditCustomerIntentPromotionQueue(evalCases)
       .filter((row) => !row.hasEval || !row.hasFixture)
-      .map((row) => `${row.intent}: missing eval or fixture in promotion audit`),
+      .map(
+        (row) => `${row.intent}: missing eval or fixture in promotion audit`,
+      ),
   ];
 }

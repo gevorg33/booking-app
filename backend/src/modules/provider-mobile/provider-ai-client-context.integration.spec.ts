@@ -16,10 +16,16 @@ describe('Provider AI client context (prov-exp-1.6)', () => {
     providerClientContext = {
       rescueProviderClientContextIntent: jest.fn((prompt: string) => {
         if (/summarize this client/i.test(prompt)) {
-          return { action: 'summarize_client', rescueReason: 'summarize_client' };
+          return {
+            action: 'summarize_client',
+            rescueReason: 'summarize_client',
+          };
         }
         if (/visit history/i.test(prompt)) {
-          return { action: 'show_client_history', rescueReason: 'show_client_history' };
+          return {
+            action: 'show_client_history',
+            rescueReason: 'show_client_history',
+          };
         }
         if (/staff note/i.test(prompt)) {
           return { action: 'add_client_note', rescueReason: 'add_client_note' };

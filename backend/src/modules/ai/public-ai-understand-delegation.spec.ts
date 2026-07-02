@@ -39,12 +39,8 @@ describe('PublicBookingAssistantService understand delegation (pipe-1.12.4)', ()
   });
 
   it('keeps public discovery post-pipeline rescue and execution in PublicBookingAssistantService', () => {
-    expect(PUBLIC_ASSISTANT_SOURCE).toContain(
-      'applyPublicBookingHelpRescue',
-    );
-    expect(PUBLIC_ASSISTANT_SOURCE).toContain(
-      'dispatchPublicAppGuideIntent',
-    );
+    expect(PUBLIC_ASSISTANT_SOURCE).toContain('applyPublicBookingHelpRescue');
+    expect(PUBLIC_ASSISTANT_SOURCE).toContain('dispatchPublicAppGuideIntent');
     expect(PUBLIC_ASSISTANT_SOURCE).toContain(
       'applyBudgetAndRankServiceDiscoveryRescue',
     );

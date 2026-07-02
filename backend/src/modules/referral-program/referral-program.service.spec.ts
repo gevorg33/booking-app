@@ -33,9 +33,9 @@ describe('ReferralProgramService', () => {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn().mockResolvedValue([
-        { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' },
-      ]),
+      getRawMany: jest
+        .fn()
+        .mockResolvedValue([{ id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }]),
     })),
   };
 
@@ -64,9 +64,15 @@ describe('ReferralProgramService', () => {
       metadata: {},
     });
 
-    const result = await service.claimReferralCode('biz-1', 'referee-1', 'A1B2C3D4');
+    const result = await service.claimReferralCode(
+      'biz-1',
+      'referee-1',
+      'A1B2C3D4',
+    );
     expect(result.attached).toBe(true);
-    expect(result.referrerCustomerId).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+    expect(result.referrerCustomerId).toBe(
+      'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    );
     expect(result.refereePromoCode).toBeNull();
     expect(customerRepo.save).toHaveBeenCalled();
   });
@@ -79,7 +85,9 @@ describe('ReferralProgramService', () => {
       status: BookingStatus.COMPLETED,
       customer: {
         id: 'referee-1',
-        metadata: { referredByCustomerId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' },
+        metadata: {
+          referredByCustomerId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        },
       },
       business: {
         settings: {
@@ -110,7 +118,9 @@ describe('ReferralProgramService', () => {
       status: BookingStatus.COMPLETED,
       customer: {
         id: 'referee-1',
-        metadata: { referredByCustomerId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' },
+        metadata: {
+          referredByCustomerId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        },
       },
       business: {
         settings: {

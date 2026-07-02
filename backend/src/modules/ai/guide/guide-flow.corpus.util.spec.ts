@@ -1,8 +1,9 @@
 import { getFrontendGuideCorpusMessages } from './ai-guide-corpus-i18n.fixtures.js';
-import { listGuideCorpusLocales, resolveGuideCorpusI18nKey } from './ai-guide-corpus-i18n.util.js';
 import {
-  GUIDE_FLOW_RANK_SCENARIOS,
-} from './guide-flow.fixtures.js';
+  listGuideCorpusLocales,
+  resolveGuideCorpusI18nKey,
+} from './ai-guide-corpus-i18n.util.js';
+import { GUIDE_FLOW_RANK_SCENARIOS } from './guide-flow.fixtures.js';
 import { listAllGuideFlowPlaybookDefs } from './guide-flow.loader.js';
 import {
   buildGuideResponseFromFlowPlaybook,

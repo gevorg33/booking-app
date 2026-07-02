@@ -143,7 +143,9 @@ describe('ServiceSubscriptionsService', () => {
       expect.objectContaining({ name: 'Nail club' }),
       expect.objectContaining({ notifyCustomers: true }),
     );
-    expect(catalogAnnouncement.announceSubscriptionPlan).toHaveBeenCalledTimes(1);
+    expect(catalogAnnouncement.announceSubscriptionPlan).toHaveBeenCalledTimes(
+      1,
+    );
   });
 
   it('does not announce subscription plan when notifyCustomers is absent', async () => {

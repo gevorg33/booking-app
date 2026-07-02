@@ -14,13 +14,19 @@ describe('ProviderMobileService pre-visit intake summary (prov-exp-1.5)', () => 
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
   const clinicTestResultService = { listResultQueue: jest.fn() };
   const customerRepo = { createQueryBuilder: jest.fn(), findOne: jest.fn() };
-  const reviewRepo = { find: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
+  const reviewRepo = {
+    find: jest.fn(),
+    exists: jest.fn().mockResolvedValue(false),
+  };
   const patientClinicalProfilesService = { getProfileForCustomer: jest.fn() };
   const patientClinicalProfileAccessService = {
     assertCustomerClinicalProfileAccess: jest.fn(),
@@ -124,7 +130,9 @@ describe('ProviderMobileService pre-visit intake summary (prov-exp-1.5)', () => 
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessService.ensureMember.mockResolvedValue({ role: MemberRole.MANAGER });
+    businessService.ensureMember.mockResolvedValue({
+      role: MemberRole.MANAGER,
+    });
     businessService.findOne.mockResolvedValue({
       id: 'biz-1',
       settings: { businessType: 'polyclinic' },

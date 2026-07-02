@@ -43,7 +43,10 @@ describe('ai-filter-services-no-prepayment.util (ai-cmd-customer-4.1.7)', () => 
   it.each(
     FILTER_SERVICES_NO_PREPAYMENT_PROMPTS.map((row) => [row.id, row] as const),
   )('rescues no-prepayment browse prompt $id from unknown', (_id, row) => {
-    const rescued = rescueFilterServicesNoPrepaymentIntent(row.prompt, 'unknown');
+    const rescued = rescueFilterServicesNoPrepaymentIntent(
+      row.prompt,
+      'unknown',
+    );
     expect(rescued?.action).toBe(row.expectedAction);
     expect(rescued?.rescueReason).toBe(row.rescueReason);
   });
@@ -60,7 +63,9 @@ describe('ai-filter-services-no-prepayment.util (ai-cmd-customer-4.1.7)', () => 
 
   it('disambiguates single-service payment options from catalog browse', () => {
     expect(
-      isFilterServicesNoPrepaymentPrompt('What can I book without paying online?'),
+      isFilterServicesNoPrepaymentPrompt(
+        'What can I book without paying online?',
+      ),
     ).toBe(true);
     expect(
       isFilterServicesNoPrepaymentPrompt(

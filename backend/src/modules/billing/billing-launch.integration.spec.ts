@@ -350,7 +350,8 @@ describe('Sprint 12.a billing launch integration', () => {
         action: 'noop',
       })),
     };
-    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } =
+      createAiGatewayPlatformMocks();
 
     const gateway = new AiGatewayService(
       dashboardCommands as any,

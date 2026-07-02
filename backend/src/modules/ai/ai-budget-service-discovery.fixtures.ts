@@ -247,8 +247,7 @@ export const SIMILAR_BUDGET_SERVICE_PROMPTS: BudgetServiceDiscoveryPromptFixture
     },
     {
       id: 'budget-or-windows-en',
-      prompt:
-        'Haircut tomorrow evening or Friday afternoon, I have $50',
+      prompt: 'Haircut tomorrow evening or Friday afternoon, I have $50',
       surface: 'both',
       expectedAction: 'check_availability',
       expectedParams: {
@@ -556,171 +555,414 @@ function budgetHandlerFromSharedFilter(
   };
 }
 
-export const BUDGET_HANDLER_OUTCOME_SCENARIOS: BudgetHandlerOutcomeScenario[] = [
-  budgetHandlerFromSharedFilter('budget-multiple-matches', {
-    services: [
-      { id: 'hair-55', name: 'Haircut premium', price: 55, serviceCategory: 'hair' },
-      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'hair' },
-      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'hair' },
-    ],
-  }),
-  budgetHandlerFromSharedFilter('budget-exact-at-ceiling', {
-    services: [
-      { id: 'massage-50', name: 'Massage', price: 50, serviceCategory: 'massage' },
-    ],
-    expectedNavigateServiceId: 'massage-50',
-  }),
-  {
-    id: 'budget-no-match-cheapest-hint',
-    services: [
-      { id: 'hair-55', name: 'Haircut standard', price: 55, serviceCategory: 'hair', durationMinutes: 30 },
-      { id: 'hair-60', name: 'Haircut deluxe', price: 60, serviceCategory: 'hair', durationMinutes: 45 },
-    ],
-    maxPrice: 50,
-    expectedIds: [],
-    expectNoMatchHint: true,
-  },
-  {
-    id: 'budget-named-service-en',
-    services: [
-      { id: 'sw85', name: 'Swedish massage', price: 85 },
-      { id: 'sw95', name: 'Swedish massage (90 min)', price: 95 },
-      { id: 'dt70', name: 'Deep tissue massage', price: 70 },
-    ],
-    maxPrice: 90,
-    serviceName: 'Swedish massage',
-    expectedIds: ['sw85'],
-    expectedNavigateServiceId: 'sw85',
-  },
-  {
-    id: 'budget-any-provider-en',
-    services: [
-      { id: 'h35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'h45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
-      { id: 'h55', name: 'Haircut premium', price: 55, serviceCategory: 'haircut' },
-      { id: 'm40', name: 'Express massage', price: 40, serviceCategory: 'massage' },
-    ],
-    maxPrice: 45,
-    expectedIds: ['h35', 'm40', 'h45'],
-  },
-  {
-    id: 'budget-provider-no-match-en',
-    services: [
-      { id: 'k35', name: 'Karo cut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'k45', name: 'Karo cut standard', price: 45, serviceCategory: 'haircut' },
-    ],
-    maxPrice: 30,
-    employeeName: 'Karo',
-    expectedIds: [],
-    expectNoMatchHint: true,
-  },
-  {
-    id: 'budget-short-service-en',
-    services: [
-      { id: 'h20', name: 'Quick cut', price: 35, durationMinutes: 20, serviceCategory: 'haircut' },
-      { id: 'h30', name: 'Haircut standard', price: 38, durationMinutes: 30, serviceCategory: 'haircut' },
-      { id: 'h45', name: 'Haircut premium', price: 40, durationMinutes: 45, serviceCategory: 'haircut' },
-      { id: 'h55', name: 'Haircut deluxe', price: 55, durationMinutes: 60, serviceCategory: 'haircut' },
-    ],
-    maxPrice: 40,
-    serviceCategory: 'haircut',
-    preferShortDuration: true,
-    expectedIds: ['h20', 'h30', 'h45'],
-  },
-  {
-    id: 'budget-long-massage-en',
-    services: [
-      { id: 'm90-95', name: 'Deep massage 90m', price: 95, durationMinutes: 90, serviceCategory: 'massage' },
-      { id: 'm60-70', name: 'Relax massage 60m', price: 70, durationMinutes: 60, serviceCategory: 'massage' },
-      { id: 'm90-110', name: 'Luxury massage 90m', price: 110, durationMinutes: 90, serviceCategory: 'massage' },
-    ],
-    maxPrice: 100,
-    minDurationMinutes: 90,
-    serviceCategory: 'massage',
-    expectedIds: ['m90-95'],
-    expectedNavigateServiceId: 'm90-95',
-  },
-  {
-    id: 'budget-long-massage-no-match-en',
-    services: [
-      { id: 'm90-105', name: 'Deep massage 90m', price: 105, durationMinutes: 90, serviceCategory: 'massage' },
-      { id: 'm90-120', name: 'Luxury massage 90m', price: 120, durationMinutes: 90, serviceCategory: 'massage' },
-    ],
-    maxPrice: 100,
-    minDurationMinutes: 90,
-    serviceCategory: 'massage',
-    expectedIds: [],
-    expectNoMatchHint: true,
-  },
-  {
-    id: 'budget-range-en',
-    services: [
-      { id: 'h35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'h45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
-      { id: 'h55', name: 'Haircut premium', price: 55, serviceCategory: 'haircut' },
-      { id: 'h65', name: 'Haircut deluxe', price: 65, serviceCategory: 'haircut' },
-    ],
-    minPrice: 40,
-    maxPrice: 60,
-    serviceCategory: 'haircut',
-    expectedIds: ['h45', 'h55'],
-  },
-  {
-    id: 'budget-cart-total-en',
-    services: [
-      { id: 'h1', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'f1', name: 'Express facial', price: 45, serviceCategory: 'facial' },
-      { id: 'm1', name: 'Deep massage', price: 70, serviceCategory: 'massage' },
-    ],
-    maxTotalPrice: 100,
-    serviceCount: 2,
-    expectedComboIds: [['h1', 'f1']],
-  },
-  {
-    id: 'budget-single-match-navigate',
-    services: [
-      { id: 'massage-40', name: 'Relax massage', price: 40, serviceCategory: 'massage' },
-      { id: 'massage-70', name: 'Deep tissue', price: 70, serviceCategory: 'massage' },
-    ],
-    maxPrice: 50,
-    expectedIds: ['massage-40'],
-    expectedNavigateServiceId: 'massage-40',
-  },
-  {
-    id: 'budget-filter-after-category',
-    services: [
-      { id: 'hair-35', name: 'Cut basic', price: 35, serviceCategory: 'hair' },
-      { id: 'hair-45', name: 'Cut standard', price: 45, serviceCategory: 'hair' },
-      { id: 'hair-55', name: 'Cut premium', price: 55, serviceCategory: 'hair' },
-      { id: 'hair-65', name: 'Cut deluxe', price: 65, serviceCategory: 'hair' },
-      { id: 'hair-75', name: 'Cut vip', price: 75, serviceCategory: 'hair' },
-      { id: 'nails-25', name: 'Manicure', price: 25, serviceCategory: 'nails' },
-    ],
-    maxPrice: 50,
-    serviceCategory: 'hair',
-    expectedIds: ['hair-35', 'hair-45'],
-  },
-];
+export const BUDGET_HANDLER_OUTCOME_SCENARIOS: BudgetHandlerOutcomeScenario[] =
+  [
+    budgetHandlerFromSharedFilter('budget-multiple-matches', {
+      services: [
+        {
+          id: 'hair-55',
+          name: 'Haircut premium',
+          price: 55,
+          serviceCategory: 'hair',
+        },
+        {
+          id: 'hair-35',
+          name: 'Haircut basic',
+          price: 35,
+          serviceCategory: 'hair',
+        },
+        {
+          id: 'hair-45',
+          name: 'Haircut standard',
+          price: 45,
+          serviceCategory: 'hair',
+        },
+      ],
+    }),
+    budgetHandlerFromSharedFilter('budget-exact-at-ceiling', {
+      services: [
+        {
+          id: 'massage-50',
+          name: 'Massage',
+          price: 50,
+          serviceCategory: 'massage',
+        },
+      ],
+      expectedNavigateServiceId: 'massage-50',
+    }),
+    {
+      id: 'budget-no-match-cheapest-hint',
+      services: [
+        {
+          id: 'hair-55',
+          name: 'Haircut standard',
+          price: 55,
+          serviceCategory: 'hair',
+          durationMinutes: 30,
+        },
+        {
+          id: 'hair-60',
+          name: 'Haircut deluxe',
+          price: 60,
+          serviceCategory: 'hair',
+          durationMinutes: 45,
+        },
+      ],
+      maxPrice: 50,
+      expectedIds: [],
+      expectNoMatchHint: true,
+    },
+    {
+      id: 'budget-named-service-en',
+      services: [
+        { id: 'sw85', name: 'Swedish massage', price: 85 },
+        { id: 'sw95', name: 'Swedish massage (90 min)', price: 95 },
+        { id: 'dt70', name: 'Deep tissue massage', price: 70 },
+      ],
+      maxPrice: 90,
+      serviceName: 'Swedish massage',
+      expectedIds: ['sw85'],
+      expectedNavigateServiceId: 'sw85',
+    },
+    {
+      id: 'budget-any-provider-en',
+      services: [
+        {
+          id: 'h35',
+          name: 'Haircut basic',
+          price: 35,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h45',
+          name: 'Haircut standard',
+          price: 45,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h55',
+          name: 'Haircut premium',
+          price: 55,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'm40',
+          name: 'Express massage',
+          price: 40,
+          serviceCategory: 'massage',
+        },
+      ],
+      maxPrice: 45,
+      expectedIds: ['h35', 'm40', 'h45'],
+    },
+    {
+      id: 'budget-provider-no-match-en',
+      services: [
+        {
+          id: 'k35',
+          name: 'Karo cut basic',
+          price: 35,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'k45',
+          name: 'Karo cut standard',
+          price: 45,
+          serviceCategory: 'haircut',
+        },
+      ],
+      maxPrice: 30,
+      employeeName: 'Karo',
+      expectedIds: [],
+      expectNoMatchHint: true,
+    },
+    {
+      id: 'budget-short-service-en',
+      services: [
+        {
+          id: 'h20',
+          name: 'Quick cut',
+          price: 35,
+          durationMinutes: 20,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h30',
+          name: 'Haircut standard',
+          price: 38,
+          durationMinutes: 30,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h45',
+          name: 'Haircut premium',
+          price: 40,
+          durationMinutes: 45,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h55',
+          name: 'Haircut deluxe',
+          price: 55,
+          durationMinutes: 60,
+          serviceCategory: 'haircut',
+        },
+      ],
+      maxPrice: 40,
+      serviceCategory: 'haircut',
+      preferShortDuration: true,
+      expectedIds: ['h20', 'h30', 'h45'],
+    },
+    {
+      id: 'budget-long-massage-en',
+      services: [
+        {
+          id: 'm90-95',
+          name: 'Deep massage 90m',
+          price: 95,
+          durationMinutes: 90,
+          serviceCategory: 'massage',
+        },
+        {
+          id: 'm60-70',
+          name: 'Relax massage 60m',
+          price: 70,
+          durationMinutes: 60,
+          serviceCategory: 'massage',
+        },
+        {
+          id: 'm90-110',
+          name: 'Luxury massage 90m',
+          price: 110,
+          durationMinutes: 90,
+          serviceCategory: 'massage',
+        },
+      ],
+      maxPrice: 100,
+      minDurationMinutes: 90,
+      serviceCategory: 'massage',
+      expectedIds: ['m90-95'],
+      expectedNavigateServiceId: 'm90-95',
+    },
+    {
+      id: 'budget-long-massage-no-match-en',
+      services: [
+        {
+          id: 'm90-105',
+          name: 'Deep massage 90m',
+          price: 105,
+          durationMinutes: 90,
+          serviceCategory: 'massage',
+        },
+        {
+          id: 'm90-120',
+          name: 'Luxury massage 90m',
+          price: 120,
+          durationMinutes: 90,
+          serviceCategory: 'massage',
+        },
+      ],
+      maxPrice: 100,
+      minDurationMinutes: 90,
+      serviceCategory: 'massage',
+      expectedIds: [],
+      expectNoMatchHint: true,
+    },
+    {
+      id: 'budget-range-en',
+      services: [
+        {
+          id: 'h35',
+          name: 'Haircut basic',
+          price: 35,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h45',
+          name: 'Haircut standard',
+          price: 45,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h55',
+          name: 'Haircut premium',
+          price: 55,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'h65',
+          name: 'Haircut deluxe',
+          price: 65,
+          serviceCategory: 'haircut',
+        },
+      ],
+      minPrice: 40,
+      maxPrice: 60,
+      serviceCategory: 'haircut',
+      expectedIds: ['h45', 'h55'],
+    },
+    {
+      id: 'budget-cart-total-en',
+      services: [
+        {
+          id: 'h1',
+          name: 'Haircut basic',
+          price: 35,
+          serviceCategory: 'haircut',
+        },
+        {
+          id: 'f1',
+          name: 'Express facial',
+          price: 45,
+          serviceCategory: 'facial',
+        },
+        {
+          id: 'm1',
+          name: 'Deep massage',
+          price: 70,
+          serviceCategory: 'massage',
+        },
+      ],
+      maxTotalPrice: 100,
+      serviceCount: 2,
+      expectedComboIds: [['h1', 'f1']],
+    },
+    {
+      id: 'budget-single-match-navigate',
+      services: [
+        {
+          id: 'massage-40',
+          name: 'Relax massage',
+          price: 40,
+          serviceCategory: 'massage',
+        },
+        {
+          id: 'massage-70',
+          name: 'Deep tissue',
+          price: 70,
+          serviceCategory: 'massage',
+        },
+      ],
+      maxPrice: 50,
+      expectedIds: ['massage-40'],
+      expectedNavigateServiceId: 'massage-40',
+    },
+    {
+      id: 'budget-filter-after-category',
+      services: [
+        {
+          id: 'hair-35',
+          name: 'Cut basic',
+          price: 35,
+          serviceCategory: 'hair',
+        },
+        {
+          id: 'hair-45',
+          name: 'Cut standard',
+          price: 45,
+          serviceCategory: 'hair',
+        },
+        {
+          id: 'hair-55',
+          name: 'Cut premium',
+          price: 55,
+          serviceCategory: 'hair',
+        },
+        {
+          id: 'hair-65',
+          name: 'Cut deluxe',
+          price: 65,
+          serviceCategory: 'hair',
+        },
+        { id: 'hair-75', name: 'Cut vip', price: 75, serviceCategory: 'hair' },
+        {
+          id: 'nails-25',
+          name: 'Manicure',
+          price: 25,
+          serviceCategory: 'nails',
+        },
+      ],
+      maxPrice: 50,
+      serviceCategory: 'hair',
+      expectedIds: ['hair-35', 'hair-45'],
+    },
+  ];
 
 /** Amount extraction golden rows (sections D, E, J). */
 export const BUDGET_MAX_PRICE_EXTRACTION_SCENARIOS: BudgetMaxPriceExtractionScenario[] =
   [
-    { id: 'budget-dollar-sign-en', prompt: 'I have $50 for a haircut', maxPrice: 50 },
-    { id: 'budget-word-amount-en', prompt: 'I have fifty dollars for massage', maxPrice: 50 },
-    { id: 'budget-under-phrase-en', prompt: 'Haircut below 50 bucks', maxPrice: 50 },
-    { id: 'budget-decimal-en', prompt: 'Anything under $49.99', maxPrice: 49.99 },
-    { id: 'budget-no-currency-word-en', prompt: 'I only have 50 for styling', maxPrice: 50 },
-    { id: 'budget-hy-dram', prompt: 'Ես 5000 դրամ ունեմ մազակտման համար', maxPrice: 5000 },
-    { id: 'budget-ru-ruble', prompt: 'У меня 3000 рублей на стрижку', maxPrice: 3000 },
-    { id: 'budget-euro-symbol-en', prompt: 'Facials under €40 please', maxPrice: 40 },
-    { id: 'budget-voice-short-en', prompt: 'Haircut fifty bucks max', maxPrice: 50 },
+    {
+      id: 'budget-dollar-sign-en',
+      prompt: 'I have $50 for a haircut',
+      maxPrice: 50,
+    },
+    {
+      id: 'budget-word-amount-en',
+      prompt: 'I have fifty dollars for massage',
+      maxPrice: 50,
+    },
+    {
+      id: 'budget-under-phrase-en',
+      prompt: 'Haircut below 50 bucks',
+      maxPrice: 50,
+    },
+    {
+      id: 'budget-decimal-en',
+      prompt: 'Anything under $49.99',
+      maxPrice: 49.99,
+    },
+    {
+      id: 'budget-no-currency-word-en',
+      prompt: 'I only have 50 for styling',
+      maxPrice: 50,
+    },
+    {
+      id: 'budget-hy-dram',
+      prompt: 'Ես 5000 դրամ ունեմ մազակտման համար',
+      maxPrice: 5000,
+    },
+    {
+      id: 'budget-ru-ruble',
+      prompt: 'У меня 3000 рублей на стрижку',
+      maxPrice: 3000,
+    },
+    {
+      id: 'budget-euro-symbol-en',
+      prompt: 'Facials under €40 please',
+      maxPrice: 40,
+    },
+    {
+      id: 'budget-voice-short-en',
+      prompt: 'Haircut fifty bucks max',
+      maxPrice: 50,
+    },
     { id: 'budget-voice-no-verb-en', prompt: 'Massage under 80', maxPrice: 80 },
-    { id: 'budget-question-en', prompt: 'Can I get a facial for less than 40?', maxPrice: 40 },
-    { id: 'budget-range-en', prompt: 'Haircut between $40 and $60', maxPrice: 60 },
-    { id: 'budget-round-number-en', prompt: 'About 50 dollars for styling', maxPrice: 50 },
-    { id: 'budget-tenant-amd-en', prompt: 'Haircut under 15000 dram', maxPrice: 15000 },
+    {
+      id: 'budget-question-en',
+      prompt: 'Can I get a facial for less than 40?',
+      maxPrice: 40,
+    },
+    {
+      id: 'budget-range-en',
+      prompt: 'Haircut between $40 and $60',
+      maxPrice: 60,
+    },
+    {
+      id: 'budget-round-number-en',
+      prompt: 'About 50 dollars for styling',
+      maxPrice: 50,
+    },
+    {
+      id: 'budget-tenant-amd-en',
+      prompt: 'Haircut under 15000 dram',
+      maxPrice: 15000,
+    },
     { id: 'budget-zero-en', prompt: 'Free consultation options?', maxPrice: 0 },
-    { id: 'budget-large-en', prompt: 'Nothing over 500000 dram', maxPrice: 500000 },
+    {
+      id: 'budget-large-en',
+      prompt: 'Nothing over 500000 dram',
+      maxPrice: 500000,
+    },
     {
       id: 'budget-voice-asr-en',
       prompt: 'I have 50 dollars for her cut',
@@ -915,7 +1157,10 @@ export const BUDGET_SESSION_SCENARIOS: BudgetSessionScenario[] = [
     id: 'budget-session-raise-en',
     surface: 'both',
     turns: [
-      { prompt: 'Show me haircuts under $40', expectedParams: { maxPrice: 40 } },
+      {
+        prompt: 'Show me haircuts under $40',
+        expectedParams: { maxPrice: 40 },
+      },
       { prompt: 'ok what about $60?', expectedParams: { maxPrice: 60 } },
     ],
   },
@@ -937,7 +1182,10 @@ export const BUDGET_SESSION_SCENARIOS: BudgetSessionScenario[] = [
     id: 'budget-session-after-list-en',
     surface: 'both',
     turns: [
-      { prompt: 'What can I book under $50?', expectedParams: { maxPrice: 50 } },
+      {
+        prompt: 'What can I book under $50?',
+        expectedParams: { maxPrice: 50 },
+      },
       {
         prompt: 'book the cheapest tomorrow',
         expectedParams: { maxPrice: 50, bookingFirstAvailable: true },
@@ -991,9 +1239,8 @@ export const BUDGET_SESSION_SCENARIOS: BudgetSessionScenario[] = [
   },
 ];
 
-export const BUDGET_DISAMBIGUATION_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
-  (scenario) => scenario.skipMaxPrice,
-);
+export const BUDGET_DISAMBIGUATION_SCENARIOS =
+  SIMILAR_BUDGET_SERVICE_PROMPTS.filter((scenario) => scenario.skipMaxPrice);
 
 /** Section H — voice / mobile phrasing (budget-1.12). */
 export const BUDGET_VOICE_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
@@ -1006,23 +1253,25 @@ export const BUDGET_VOICE_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
 export { BUDGET_SESSION_SCENARIOS as BUDGET_SESSION_FIXTURES };
 
 /** Section J — currency & amount edge cases (budget-1.12). */
-export const BUDGET_CURRENCY_EDGE_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
-  (scenario) =>
-    scenario.id.startsWith('budget-range-') ||
-    scenario.id.startsWith('budget-round-') ||
-    scenario.id.startsWith('budget-tenant-') ||
-    scenario.id.startsWith('budget-zero-') ||
-    scenario.id.startsWith('budget-large-') ||
-    scenario.id.startsWith('budget-currency-'),
-);
+export const BUDGET_CURRENCY_EDGE_SCENARIOS =
+  SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
+    (scenario) =>
+      scenario.id.startsWith('budget-range-') ||
+      scenario.id.startsWith('budget-round-') ||
+      scenario.id.startsWith('budget-tenant-') ||
+      scenario.id.startsWith('budget-zero-') ||
+      scenario.id.startsWith('budget-large-') ||
+      scenario.id.startsWith('budget-currency-'),
+  );
 
 /** Section K — provider / named service + budget (budget-1.12). */
-export const BUDGET_PROVIDER_NAMED_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
-  (scenario) =>
-    scenario.id.startsWith('budget-named-') ||
-    scenario.id.startsWith('budget-any-provider-') ||
-    scenario.id === 'budget-provider-no-match-en',
-);
+export const BUDGET_PROVIDER_NAMED_SCENARIOS =
+  SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
+    (scenario) =>
+      scenario.id.startsWith('budget-named-') ||
+      scenario.id.startsWith('budget-any-provider-') ||
+      scenario.id === 'budget-provider-no-match-en',
+  );
 
 /** Section L — duration + budget hooks (budget-1.12). */
 export const BUDGET_DURATION_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
@@ -1042,8 +1291,7 @@ export const BUDGET_DOMAIN_FIXTURE_IDS: readonly string[] = [
 
 export const BUDGET_SERVICE_DISCOVERY_PUBLIC_PROMPTS =
   SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
-    (scenario) =>
-      scenario.surface === 'public' || scenario.surface === 'both',
+    (scenario) => scenario.surface === 'public' || scenario.surface === 'both',
   );
 
 export const BUDGET_SERVICE_DISCOVERY_CUSTOMER_PROMPTS =

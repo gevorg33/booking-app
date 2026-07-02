@@ -13,7 +13,10 @@ describe('ProviderMobileService team floor (prov-exp-4.1)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
@@ -190,9 +193,9 @@ describe('ProviderMobileService team floor (prov-exp-4.1)', () => {
       userId: 'user-1',
     });
 
-    await expect(service.getTeamFloorToday('biz-1', 'user-1')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getTeamFloorToday('biz-1', 'user-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects unknown provider filters', async () => {

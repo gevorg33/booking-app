@@ -46,11 +46,14 @@ describe('ai-checkout-recommendations-customer-public.util (ai-cmd-customer-4.0 
     MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS.map(
       (row) => [row.id, row] as const,
     ),
-  )('rescues multilingual checkout recommendations scenario $id', (_id, row) => {
-    expect(detectCheckoutRecommendationsCustomerPublicAction(row.prompt)).toBe(
-      row.expectedAction,
-    );
-  });
+  )(
+    'rescues multilingual checkout recommendations scenario $id',
+    (_id, row) => {
+      expect(
+        detectCheckoutRecommendationsCustomerPublicAction(row.prompt),
+      ).toBe(row.expectedAction);
+    },
+  );
 
   it('enriches aspect and service filters from success-screen prompts', () => {
     expect(

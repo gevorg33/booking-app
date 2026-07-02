@@ -862,8 +862,7 @@ describe('ai-booking-depth.logic', () => {
         { _timeZone: 'UTC' },
         'user-1',
         {
-          prompt:
-            'mark Gevorg Gasparyan done and paid on 5 june at 9:50',
+          prompt: 'mark Gevorg Gasparyan done and paid on 5 june at 9:50',
           employees,
           customers,
           timeZone: 'UTC',
@@ -1117,7 +1116,8 @@ describe('ai-booking-depth.logic', () => {
         { _timeZone: 'UTC' },
         'user-1',
         {
-          prompt: "mark Unknown Person's appointment as done and paid on 5th of june",
+          prompt:
+            "mark Unknown Person's appointment as done and paid on 5th of june",
           employees,
           timeZone: 'UTC',
         },
@@ -1448,7 +1448,9 @@ describe('ai-booking-depth.logic', () => {
         } as any,
         bookingService: bookingService as any,
       });
-      const employees = [{ id: 'emp-other', name: 'Gevorg Gasparyan' }] as any[];
+      const employees = [
+        { id: 'emp-other', name: 'Gevorg Gasparyan' },
+      ] as any[];
       const customers = [{ id: 'cust-1', name: 'Karo Mazmanyan' }] as any[];
 
       const result = await handleMarkPaidLogic(
@@ -1496,7 +1498,9 @@ describe('ai-booking-depth.logic', () => {
         } as any,
         bookingService: bookingService as any,
       });
-      const employees = [{ id: 'emp-gevorg', name: 'Gevorg Gasparyan' }] as any[];
+      const employees = [
+        { id: 'emp-gevorg', name: 'Gevorg Gasparyan' },
+      ] as any[];
       const customers = [{ id: 'cust-1', name: 'Karo Mazmanyan' }] as any[];
 
       const result = await handleMarkPaidLogic(
@@ -1532,15 +1536,18 @@ describe('ai-booking-depth.logic', () => {
       const bookingService = { update: jest.fn(async () => ({})) };
       const deps = buildDeps({
         bookingRepo: {
-          find: jest.fn().mockResolvedValue([booking, {
-            id: 'other',
-            businessId: 'biz-1',
-            status: BookingStatus.CONFIRMED,
-            paymentStatus: PaymentStatus.UNPAID,
-            startTime,
-            endTime: new Date('2026-06-05T10:50:00.000Z'),
-            customer: { name: 'Someone Else' },
-          }]),
+          find: jest.fn().mockResolvedValue([
+            booking,
+            {
+              id: 'other',
+              businessId: 'biz-1',
+              status: BookingStatus.CONFIRMED,
+              paymentStatus: PaymentStatus.UNPAID,
+              startTime,
+              endTime: new Date('2026-06-05T10:50:00.000Z'),
+              customer: { name: 'Someone Else' },
+            },
+          ]),
           findOne: jest.fn().mockResolvedValue(booking),
         } as any,
         bookingService: bookingService as any,

@@ -25,7 +25,12 @@ describe('guide-flow.merge.util (ai-guide-1.1.3 / 1.1.4)', () => {
         vertical: 'clinic',
         planTierId: 'business',
         enabledModules: ['giftCards'],
-        roleProfile: surface === 'dashboard' ? 'owner' : surface === 'provider' ? 'provider' : 'customer',
+        roleProfile:
+          surface === 'dashboard'
+            ? 'owner'
+            : surface === 'provider'
+              ? 'provider'
+              : 'customer',
       });
       const picked = pickGuideFlowPlaybookForRoute(route, playbooks);
       expect(picked?.topicId).toBe(topicId);
@@ -36,7 +41,9 @@ describe('guide-flow.merge.util (ai-guide-1.1.3 / 1.1.4)', () => {
     'role overlay visibility for $id',
     ({ topicId, ctx, expectedVisible }) => {
       const playbooks = listGuideFlowPlaybooks(ctx);
-      expect(playbooks.some((row) => row.topicId === topicId)).toBe(expectedVisible);
+      expect(playbooks.some((row) => row.topicId === topicId)).toBe(
+        expectedVisible,
+      );
     },
   );
 
@@ -44,15 +51,22 @@ describe('guide-flow.merge.util (ai-guide-1.1.3 / 1.1.4)', () => {
     'vertical overlay visibility for $id',
     ({ topicId, ctx, expectedVisible }) => {
       const playbooks = listGuideFlowPlaybooks(ctx);
-      expect(playbooks.some((row) => row.topicId === topicId)).toBe(expectedVisible);
+      expect(playbooks.some((row) => row.topicId === topicId)).toBe(
+        expectedVisible,
+      );
     },
   );
 
   it('merges clinic overlay playbooks when vertical is clinic', () => {
     const overlays = resolveActiveGuideVerticalOverlays({ vertical: 'clinic' });
     expect(overlays).toContain('clinic');
-    const playbooks = listGuideFlowPlaybooks({ surface: 'customer', vertical: 'clinic' });
-    expect(playbooks.some((row) => row.topicId === 'consumer-clinic')).toBe(true);
+    const playbooks = listGuideFlowPlaybooks({
+      surface: 'customer',
+      vertical: 'clinic',
+    });
+    expect(playbooks.some((row) => row.topicId === 'consumer-clinic')).toBe(
+      true,
+    );
   });
 
   it('ships ordered steps with navigate targets on dashboard schedule playbook', () => {

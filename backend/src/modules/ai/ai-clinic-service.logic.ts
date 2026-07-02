@@ -88,7 +88,12 @@ export async function handleConfigureClinicServiceLogic(
       'Specify the service and clinic settings to update (e.g. "Mark CBC as a lab test requiring fasting" or "Set lipid panel prep instructions to fast 12 hours").',
       {
         clarify: true,
-        missing: ['serviceName', 'serviceType', 'requiresFasting', 'preparationNotes'],
+        missing: [
+          'serviceName',
+          'serviceType',
+          'requiresFasting',
+          'preparationNotes',
+        ],
       },
     );
   }
@@ -158,7 +163,9 @@ export interface ClinicCatalogStats {
   departments: Array<{ name: string; count: number }>;
 }
 
-function buildCatalogStats(services: ClinicServiceSummary[]): ClinicCatalogStats {
+function buildCatalogStats(
+  services: ClinicServiceSummary[],
+): ClinicCatalogStats {
   const departmentCounts = new Map<string, number>();
   let consultation = 0;
   let labTest = 0;
@@ -195,8 +202,7 @@ function buildCatalogStats(services: ClinicServiceSummary[]): ClinicCatalogStats
 
 function formatFastingServices(services: ClinicServiceSummary[]): string {
   const fasting = services.filter(
-    (service) =>
-      service.serviceType === 'lab_test' && service.requiresFasting,
+    (service) => service.serviceType === 'lab_test' && service.requiresFasting,
   );
   if (fasting.length === 0) return 'No lab tests require fasting.';
   return `Fasting required: ${fasting.map((service) => service.name).join(', ')}.`;
@@ -216,7 +222,7 @@ function buildExplainClinicServicesSummary(
   }
 
   if (parsed.serviceName && services.length === 1) {
-    const service = services[0]!;
+    const service = services[0];
     const typeLabel = service.serviceType
       ? formatClinicServiceTypeBadge(service.serviceType)
       : 'Unclassified';

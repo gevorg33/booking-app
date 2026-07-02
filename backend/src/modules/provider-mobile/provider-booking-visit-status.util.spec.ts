@@ -18,7 +18,9 @@ describe('provider-booking-visit-status.util (prov-exp-3.2)', () => {
   it.each(PROVIDER_VISIT_STATUS_ELIGIBILITY_SCENARIOS)(
     'buildProviderVisitStatusEligibility — $id',
     ({ booking, allowed }) => {
-      expect(buildProviderVisitStatusEligibility(booking).allowed).toBe(allowed);
+      expect(buildProviderVisitStatusEligibility(booking).allowed).toBe(
+        allowed,
+      );
     },
   );
 

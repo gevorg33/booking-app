@@ -32,7 +32,7 @@ export function ProviderTabShell() {
 
   return (
     <>
-      <ProviderAiShell />
+      <ProviderAiShell>{null}</ProviderAiShell>
       <ProviderBodyPortal>
         <ProviderBottomTabBar
           activeTab={activeTab}

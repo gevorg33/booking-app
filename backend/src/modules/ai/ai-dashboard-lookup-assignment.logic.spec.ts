@@ -6,7 +6,12 @@ import {
 const CATALOG = [
   { id: 'h-30', name: 'Basic cut', price: 30, serviceCategory: 'haircut' },
   { id: 'h-60', name: 'Premium cut', price: 60, serviceCategory: 'haircut' },
-  { id: 'm-95', name: 'Massage premium', price: 95, serviceCategory: 'massage' },
+  {
+    id: 'm-95',
+    name: 'Massage premium',
+    price: 95,
+    serviceCategory: 'massage',
+  },
 ];
 
 describe('resolveLookupAssignmentService (ai-cmd-ext-1.5)', () => {

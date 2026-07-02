@@ -1,6 +1,4 @@
-import {
-  GUIDE_MULTITURN_SCENARIO_FIXTURES,
-} from './ai-product-guide-multiturn.fixtures.js';
+import { GUIDE_MULTITURN_SCENARIO_FIXTURES } from './ai-product-guide-multiturn.fixtures.js';
 import {
   applyGuideNavigation,
   attachGuideMultiTurnSessionToResult,
@@ -20,7 +18,9 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
   it.each(
     GUIDE_MULTITURN_SCENARIO_FIXTURES.map((row) => [row.id, row] as const),
   )('detectGuideNavigationIntent for $id', (_id, scenario) => {
-    expect(detectGuideNavigationIntent(scenario.prompt)).toBe(scenario.navigation);
+    expect(detectGuideNavigationIntent(scenario.prompt)).toBe(
+      scenario.navigation,
+    );
   });
 
   it('readGuideMultiTurnSession parses guide fields from context', () => {
@@ -47,7 +47,9 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
   });
 
   it('applyGuideNavigation advances, backs up, and restarts', () => {
-    const initial = createInitialGuideMultiTurnSession('dashboard.core.schedule');
+    const initial = createInitialGuideMultiTurnSession(
+      'dashboard.core.schedule',
+    );
     const next = applyGuideNavigation(initial, 'next', 4);
     expect(next.session.guideStepIndex).toBe(1);
     expect(next.session.completedSteps).toEqual([0]);
@@ -60,9 +62,10 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
     expect(restart.session).toEqual(initial);
 
     expect(applyGuideNavigation(initial, 'back', 4).boundary).toBe('first');
-    expect(applyGuideNavigation({ ...initial, guideStepIndex: 3 }, 'next', 4).boundary).toBe(
-      'last',
-    );
+    expect(
+      applyGuideNavigation({ ...initial, guideStepIndex: 3 }, 'next', 4)
+        .boundary,
+    ).toBe('last');
   });
 
   it('initializeGuideMultiTurnResult seeds guide session on first guide response', () => {
@@ -92,7 +95,9 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
   });
 
   it('attachGuideMultiTurnSessionToResult writes sessionContext for clients', () => {
-    const session = createInitialGuideMultiTurnSession('dashboard.core.schedule');
+    const session = createInitialGuideMultiTurnSession(
+      'dashboard.core.schedule',
+    );
     const attached = attachGuideMultiTurnSessionToResult(
       {
         success: true,
@@ -133,9 +138,13 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
       locale: 'en',
     });
     expect(start.success).toBe(true);
-    expect(hasActiveGuideMultiTurnSession(start.details.sessionContext)).toBe(true);
+    expect(hasActiveGuideMultiTurnSession(start.details.sessionContext)).toBe(
+      true,
+    );
 
-    const session = { context: start.details.sessionContext as Record<string, unknown> };
+    const session = {
+      context: start.details.sessionContext as Record<string, unknown>,
+    };
     const next = handleGuideUserFlowLogic({
       businessId: 'biz-1',
       prompt: 'next step',
@@ -152,7 +161,9 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
       prompt: 'go back',
       route: '/dashboard/schedule',
       locale: 'en',
-      session: { context: next.details.sessionContext as Record<string, unknown> },
+      session: {
+        context: next.details.sessionContext as Record<string, unknown>,
+      },
     });
     expect(back.success).toBe(true);
     expect(back.details.guideNavigation).toBe('back');
@@ -163,7 +174,9 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
       prompt: 'start over',
       route: '/dashboard/schedule',
       locale: 'en',
-      session: { context: next.details.sessionContext as Record<string, unknown> },
+      session: {
+        context: next.details.sessionContext as Record<string, unknown>,
+      },
     });
     expect(restart.success).toBe(true);
     expect(restart.details.guideNavigation).toBe('restart');

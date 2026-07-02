@@ -95,7 +95,9 @@ describe('ai command handler coverage (ai-cmd-ext-0.2 / ai-cmd-ext-6.1)', () => 
       (id) => !PAYMENTS_LOGIC_DISPATCH_MAP.has(id),
     );
     expect(missing).toEqual([]);
-    expect(DASHBOARD_CORE_LOGIC_SOURCE).toContain('deps.payments.dispatchIntent');
+    expect(DASHBOARD_CORE_LOGIC_SOURCE).toContain(
+      'deps.payments.dispatchIntent',
+    );
     for (const id of DASHBOARD_PAYMENTS_INTENT_SET) {
       expect(DASHBOARD_CORE_LOGIC_SOURCE).not.toContain(`case '${id}':`);
     }
@@ -126,9 +128,7 @@ describe('ai payments registry dispatch (ai-cmd-ext-6.2)', () => {
   });
 
   it('routes legacy executeSingleIntent through payments.dispatchIntent', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      'this.payments.dispatchIntent',
-    );
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain('this.payments.dispatchIntent');
   });
 });
 

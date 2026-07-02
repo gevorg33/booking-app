@@ -1,4 +1,7 @@
-import { EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS } from './ai-tour-booking-record.fixtures.js';
+import {
+  EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS,
+  EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS,
+} from './ai-tour-booking-record.fixtures.js';
 import { EXPLAIN_TOUR_SERVICES_PROMPTS } from './ai-tour-service.fixtures.js';
 import {
   isExplainTourBookingRecordPrompt,
@@ -15,6 +18,24 @@ describe('ai-tour-booking-record.util (ai-cmd-tour-7)', () => {
       expect(parseExplainTourBookingRecordFromPrompt(prompt)).not.toBeNull();
     },
   );
+
+  it.each(EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS)(
+    'detects customer tour booking record prompt $id',
+    ({ prompt }) => {
+      expect(isExplainTourBookingRecordPrompt(prompt)).toBe(true);
+      expect(parseExplainTourBookingRecordFromPrompt(prompt)).not.toBeNull();
+    },
+  );
+
+  it.each(
+    EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS.filter(
+      (entry) => 'aspect' in entry && entry.aspect,
+    ),
+  )('parses customer aspect for $id', ({ prompt, aspect }) => {
+    expect(parseExplainTourBookingRecordFromPrompt(prompt)?.aspect).toBe(
+      aspect,
+    );
+  });
 
   it.each(EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS)(
     'rescues unknown action to explain_tour_booking_record for $id',

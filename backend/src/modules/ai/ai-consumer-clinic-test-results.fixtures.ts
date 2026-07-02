@@ -1,8 +1,9 @@
 /** Customer + public classifier rules for patient lab results (ai-cmd-clinic-v2-5). */
-export const CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES = `- list_my_test_results: READ — clinic only, logged-in account: list released lab results visible in My Results. Triggers: my test results|my lab results|results in my account|released results. Requires sign-in. NOT my_appointments (bookings schedule), NOT list_providers, NOT dashboard list_test_orders.
-- explain_result_status: READ — clinic only: explain lab result status (Released, pending, processing, reviewed) in patient-friendly terms; optional testName. Works signed-in or general FAQ. NOT explain_checkout_tax, NOT explain_data_rights, NOT notify_patient_result_ready.
+export const CONSUMER_CLINIC_TEST_RESULTS_CLASSIFIER_RULES = `- list_my_test_results: READ — clinic only, logged-in account: list released lab results visible in My Results. Triggers: my test results|my lab results|results in my account|released results|show/list/open my results. Requires sign-in. NOT track_lab_order_status (are results ready, track lab order), NOT my_appointments (bookings schedule), NOT list_providers, NOT dashboard list_test_orders.
+- explain_result_status: READ — clinic only: explain lab result status (Released, pending, processing, reviewed) in patient-friendly terms; optional testName. Works signed-in or general FAQ. NOT results_then_rebook (explain status then rebook last visit compound), NOT track_lab_order_status (readiness tracking without FAQ), NOT explain_checkout_tax, NOT explain_data_rights, NOT notify_patient_result_ready.
 - Examples:
   - "Show my lab test results" → list_my_test_results
+  - "Are my results ready?" → track_lab_order_status (customer app)
   - "What does released mean for my lab results?" → explain_result_status, status=Released`;
 
 export const LIST_MY_TEST_RESULTS_PROMPTS = [
@@ -13,14 +14,11 @@ export const LIST_MY_TEST_RESULTS_PROMPTS = [
     prompt: 'What lab results do I have in my account?',
   },
   { id: 'released-results', prompt: 'Show my released lab results' },
-  { id: 'my-cbc-results', prompt: 'Do I have any CBC results ready?' },
-  { id: 'results-ready', prompt: 'Are any of my test results ready?' },
   { id: 'open-my-results', prompt: 'Open my lab results' },
   { id: 'account-results', prompt: 'What results are in My Results?' },
   { id: 'see-test-results', prompt: 'Can I see my test results?' },
   { id: 'lab-results-account', prompt: 'My lab results on my account' },
   { id: 'check-my-results', prompt: 'Check my lab test results' },
-  { id: 'any-results', prompt: 'Do I have test results available?' },
 ] as const;
 
 export const EXPLAIN_RESULT_STATUS_PROMPTS = [

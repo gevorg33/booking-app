@@ -1,8 +1,8 @@
 /** Classifier rules for gift card checkout & payment compounds (ai-cmd-h3.4). */
 export const GIFT_CARD_PAYMENTS_CLASSIFIER_RULES = `- Customer checkout compounds (one message): book_nearest_slot or check_providers_for_service → apply_gift_card_code → choose_payment_method / pay_online / pay_cash_at_visit. Multi-step execution is automatic — inherit serviceName, date, giftCardCode across steps.
-- apply_gift_card_code: redeem/preview a code at checkout (GCM-/GCB-/GCS-). NOT validate_gift_card (dashboard admin) or my_gift_cards (account balance).
+- apply_gift_card_code: redeem/preview a code at checkout (GCM-/GCB-/GCS-). NOT validate_gift_card (dashboard admin), NOT my_gift_cards (account balance), NOT claim_gift_card_balance (add code to account).
 - choose_payment_method: pick cash, online/Stripe, gift card, or subscription credit before completing checkout.
-- buy_gift_card_physical: order a mailed/shipped gift card. buy_gift_card is digital only.
+- buy_gift_card_physical: order a mailed/shipped gift card. buy_gift_card is digital only. buy_gift_card_for_someone navigates to gift catalog/checkout with recipient fields when buying for someone else.
 - track_physical_gift_card_order: customer self-service tracking after a physical order — NOT track_gift_card_shipment (provider fulfillment).
 - Physical order handoff: "buy physical gift card … and track my order" → buy_gift_card_physical then track_physical_gift_card_order; inherit amount, deliveryMethod, giftCardOrderId when returned from purchase step.
 - Example compound: "Book nearest slot for massage tomorrow and apply gift card GCM-ABCD1234 and choose payment method" → book_nearest_slot, apply_gift_card_code, choose_payment_method with shared serviceName/date.

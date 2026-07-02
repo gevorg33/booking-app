@@ -25,9 +25,9 @@ describe('ai-service-catalog-browse.util', () => {
   });
 
   it('does not steal explicit booking prompts', () => {
-    expect(
-      isServiceCatalogBrowsePrompt('book a massage tomorrow at 3pm'),
-    ).toBe(false);
+    expect(isServiceCatalogBrowsePrompt('book a massage tomorrow at 3pm')).toBe(
+      false,
+    );
   });
 
   it('enriches category keyword for recommend and want phrasing', () => {

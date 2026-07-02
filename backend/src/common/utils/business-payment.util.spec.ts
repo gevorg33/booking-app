@@ -20,9 +20,9 @@ describe('business-payment.util (prov-exp-2.3)', () => {
     expect(
       readBusinessPaymentSettings({ payment: { tipsEnabled: true } }),
     ).toEqual({ tipsEnabled: true });
-    expect(
-      businessPaymentTipsEnabled({ payment: { tipsEnabled: true } }),
-    ).toBe(true);
+    expect(businessPaymentTipsEnabled({ payment: { tipsEnabled: true } })).toBe(
+      true,
+    );
   });
 
   it('treats non-boolean tipsEnabled as disabled', () => {

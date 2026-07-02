@@ -77,11 +77,9 @@ describe('ai-clinic-test-result-ext dispatch (ai-cmd-clinic-6-gap-3.2)', () => {
           );
           break;
         case 'handleConfigureTestReferenceRange':
-          expect(service.handleConfigureTestReferenceRange).toHaveBeenCalledWith(
-            businessId,
-            userId,
-            params,
-          );
+          expect(
+            service.handleConfigureTestReferenceRange,
+          ).toHaveBeenCalledWith(businessId, userId, params);
           break;
         case 'handleListAbnormalResults':
           expect(service.handleListAbnormalResults).toHaveBeenCalledWith(

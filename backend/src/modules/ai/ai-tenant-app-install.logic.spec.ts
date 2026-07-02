@@ -22,7 +22,11 @@ describe('ai-tenant-app-install.logic', () => {
   };
 
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon-demo', settings: {} })),
+    findOne: jest.fn(async () => ({
+      id: 'biz-1',
+      slug: 'salon-demo',
+      settings: {},
+    })),
   };
 
   it('explains tenant app install landing and QR', async () => {
@@ -34,7 +38,10 @@ describe('ai-tenant-app-install.logic', () => {
     expect(result.action).toBe('explain_tenant_app_install');
     expect(result.summary).toContain('/get-app/salon-demo');
     expect(result.details?.guidance).toMatchObject({
-      navigate: { path: '/dashboard/integrations', label: 'Open Integrations → Growth' },
+      navigate: {
+        path: '/dashboard/integrations',
+        label: 'Open Integrations → Growth',
+      },
     });
   });
 

@@ -3,7 +3,8 @@
 export const REFERRAL_METADATA_REFERRED_BY = 'referredByCustomerId';
 export const REFERRAL_METADATA_CODE_USED = 'referralCodeUsed';
 export const REFERRAL_METADATA_CONVERTED_AT = 'referralConvertedAt';
-export const REFERRAL_METADATA_CONVERTED_BOOKING_ID = 'referralConvertedBookingId';
+export const REFERRAL_METADATA_CONVERTED_BOOKING_ID =
+  'referralConvertedBookingId';
 
 export const REFERRER_REWARD_TYPES = ['loyalty_points', 'gift_card'] as const;
 export type ReferrerRewardType = (typeof REFERRER_REWARD_TYPES)[number];
@@ -51,13 +52,19 @@ export const REFERRAL_RESOLVE_SCENARIOS = [
   {
     id: 'unique-prefix',
     code: 'A1B2C3D4',
-    customerIds: ['a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'],
+    customerIds: [
+      'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    ],
     expected: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   },
   {
     id: 'ambiguous-prefix',
     code: 'AB',
-    customerIds: ['ab111111-1111-1111-1111-111111111111', 'ab222222-2222-2222-2222-222222222222'],
+    customerIds: [
+      'ab111111-1111-1111-1111-111111111111',
+      'ab222222-2222-2222-2222-222222222222',
+    ],
     expected: null,
   },
 ] as const;

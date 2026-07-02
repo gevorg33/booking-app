@@ -14,6 +14,7 @@ import {
   enrichServiceRankFromPrompt,
   isServiceCatalogRankPrompt,
 } from './ai-service-rank-discovery.util.js';
+import { hasDiscoverBookAndPayPaymentCue } from './ai-discover-book-and-pay-compound.util.js';
 
 export type RankCompoundStep = {
   action: string;
@@ -43,7 +44,10 @@ function extractRankCompoundServiceCategory(
     ?.trim()
     .replace(/[,.]$/, '');
   if (keyword && keyword.length >= 3) {
-    const next: Record<string, unknown> = { ...params, serviceCategory: keyword };
+    const next: Record<string, unknown> = {
+      ...params,
+      serviceCategory: keyword,
+    };
     if (params.serviceName) delete next.serviceName;
     return next;
   }
@@ -84,6 +88,7 @@ function hasRankCompoundCheckStepCue(prompt: string): boolean {
 }
 
 export function isServiceRankDiscoveryCompoundPrompt(prompt: string): boolean {
+  if (hasDiscoverBookAndPayPaymentCue(prompt)) return false;
   if (!hasRankCompoundBookStepCue(prompt)) return false;
   if (!isServiceCatalogRankPrompt(prompt)) return false;
   if (hasRankCompoundCheckStepCue(prompt)) return false;

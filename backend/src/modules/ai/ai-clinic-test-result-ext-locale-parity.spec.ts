@@ -51,12 +51,14 @@ describe('ai-clinic-test-result-ext locale parity (ai-cmd-clinic-6-gap-1.4 / par
   });
 
   it('tags HY/RU ext eval rows with dashboard surface, locale, and needsMultilingual', () => {
-    const hyCases = AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'ru',
+      );
 
     expect(hyCases.length).toBe(CLINIC_TEST_RESULT_EXT_EN_SCENARIO_IDS.length);
     expect(ruCases.length).toBe(CLINIC_TEST_RESULT_EXT_EN_SCENARIO_IDS.length);
@@ -78,9 +80,10 @@ describe('ai-clinic-test-result-ext locale parity (ai-cmd-clinic-6-gap-1.4 / par
       scenario,
     ]),
   )('passes clinic ext i18n eval case %s', (_id, scenario) => {
-    const evalCase = AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.find(
-      (row) => row.id === clinicTestResultExtMultilingualEvalCaseId(scenario),
-    );
+    const evalCase =
+      AI_COMMAND_EVAL_CLINIC_TEST_RESULT_EXT_MULTILINGUAL_CASES.find(
+        (row) => row.id === clinicTestResultExtMultilingualEvalCaseId(scenario),
+      );
     expect(evalCase).toBeDefined();
     expect(evalCase?.locale).toBe(scenario.locale);
     expect(evalCase?.expect.rescuedAction).toBe(scenario.expectedAction);

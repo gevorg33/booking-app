@@ -24,9 +24,9 @@ describe('ai-create-service-prepayment integration (ai-cmd-ext-5.2)', () => {
   it.each(CREATE_SERVICE_PREPAYMENT_RESCUE_SCENARIOS)(
     'payments rescue routes $id to create_service',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(
-        rescuePaymentsIntent(prompt, misclassifiedAction)?.action,
-      ).toBe(expectedAction);
+      expect(rescuePaymentsIntent(prompt, misclassifiedAction)?.action).toBe(
+        expectedAction,
+      );
     },
   );
 
@@ -41,7 +41,9 @@ describe('ai-create-service-prepayment integration (ai-cmd-ext-5.2)', () => {
       expect(rescued?.action).toBe('create_service');
       expect(rescued?.rescued).toBe(true);
       if (paramsPartial?.prepaymentMode) {
-        expect(rescued?.params?.prepaymentMode).toBe(paramsPartial.prepaymentMode);
+        expect(rescued?.params?.prepaymentMode).toBe(
+          paramsPartial.prepaymentMode,
+        );
       }
     },
   );
@@ -80,9 +82,9 @@ describe('ai-create-service-prepayment integration (ai-cmd-ext-5.2)', () => {
   it.each(CREATE_SERVICES_PREPAYMENT_RESCUE_SCENARIOS)(
     'payments rescue routes bulk $id to create_services',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(
-        rescuePaymentsIntent(prompt, misclassifiedAction)?.action,
-      ).toBe(expectedAction);
+      expect(rescuePaymentsIntent(prompt, misclassifiedAction)?.action).toBe(
+        expectedAction,
+      );
     },
   );
 

@@ -121,9 +121,7 @@ export function extractWaitlistOfferEmployeeName(
   );
   if (hyPossessive?.[1]) return hyPossessive[1];
 
-  const ruCancel = prompt.match(
-    /(?:об\s+)?отмен[еа]\s+([A-Z][a-z]+)\b/iu,
-  );
+  const ruCancel = prompt.match(/(?:об\s+)?отмен[еа]\s+([A-Z][a-z]+)\b/iu);
   if (ruCancel?.[1]) return ruCancel[1];
 
   const forEmployee = prompt.match(/\bfor\s+([A-Z][a-z]+)'s\b/);

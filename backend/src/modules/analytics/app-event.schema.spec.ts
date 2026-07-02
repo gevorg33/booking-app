@@ -59,9 +59,7 @@ describe('app_event schema (adopt-1.3)', () => {
       .columns.filter((column) => column.target === AppEvent)
       .map((column) => column.options.name ?? column.propertyName);
 
-    expect(columns).toEqual(
-      expect.arrayContaining([...ADOPT_1_3_COLUMNS]),
-    );
+    expect(columns).toEqual(expect.arrayContaining([...ADOPT_1_3_COLUMNS]));
   });
 
   it('indexes businessId+event+createdAt, platform, and anonId', () => {

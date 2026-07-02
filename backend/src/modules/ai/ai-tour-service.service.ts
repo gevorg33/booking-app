@@ -14,6 +14,7 @@ import { handleExplainTourCalendarSpanLogic } from './ai-tour-calendar-span.logi
 import { handleListTourCalendarWeekLogic } from './ai-tour-calendar-week.logic.js';
 import { handleExplainTourBookingLogic } from './ai-tour-booking.logic.js';
 import { handleExplainTourDaySlotsLogic } from './ai-tour-day-slots.logic.js';
+import { handleExplainTourMeetingPointLogic } from './ai-tour-meeting-point.logic.js';
 import {
   handleApplyTourPlaybookLogic,
   handleConfigureTourServiceLogic,
@@ -169,6 +170,19 @@ export class AiTourServiceService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleDiagnoseTourCapacityLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainTourMeetingPoint(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainTourMeetingPointLogic(
       this.deps,
       businessId,
       params,

@@ -80,7 +80,9 @@ describe('MarketingAutomationScheduler', () => {
   });
 
   it('runs hourly activation concierge job and logs when messages sent', async () => {
-    marketingAutomationService.processAllActivationConciergeNudges.mockResolvedValue(1);
+    marketingAutomationService.processAllActivationConciergeNudges.mockResolvedValue(
+      1,
+    );
     const logSpy = jest
       .spyOn((scheduler as any).logger, 'log')
       .mockImplementation();

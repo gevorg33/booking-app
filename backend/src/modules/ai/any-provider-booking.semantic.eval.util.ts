@@ -25,4 +25,6 @@ export function anyProviderBookingScenarioToEvalCase(
 }
 
 export const AI_COMMAND_EVAL_ANY_PROVIDER_BOOKING_SEMANTIC_CASES: AiCommandEvalCase[] =
-  ANY_PROVIDER_BOOKING_SEMANTIC_SCENARIOS.map(anyProviderBookingScenarioToEvalCase);
+  ANY_PROVIDER_BOOKING_SEMANTIC_SCENARIOS.map(
+    anyProviderBookingScenarioToEvalCase,
+  );

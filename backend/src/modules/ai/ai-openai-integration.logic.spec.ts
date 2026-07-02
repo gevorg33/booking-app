@@ -3,11 +3,13 @@ import * as openaiIntegrationUtil from './ai-openai-integration.util.js';
 
 describe('ai-openai-integration.logic', () => {
   it('updates openai integration settings', async () => {
-    const updateSettings = jest.fn(async (_businessId: string, patch: object) => ({
-      configured: true,
-      usingPlatformDefault: false,
-      ...patch,
-    }));
+    const updateSettings = jest.fn(
+      async (_businessId: string, patch: object) => ({
+        configured: true,
+        usingPlatformDefault: false,
+        ...patch,
+      }),
+    );
 
     const result = await handleConfigureOpenaiIntegrationLogic(
       { openAiIntegrationService: { updateSettings } as any },

@@ -2,9 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { AiSemanticIntentService } from './ai-semantic-intent.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
-import {
-  resolveAssistantModeFromSession,
-} from './ai-assistant-mode.util.js';
+import { resolveAssistantModeFromSession } from './ai-assistant-mode.util.js';
 import { FastIntentHeuristicsService } from './fast-intent-heuristics.service.js';
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
 import {
@@ -59,7 +57,9 @@ import {
 } from './ai-intent-structural-enrich.util.js';
 @Injectable()
 export class CommandUnderstandingPipelineService {
-  private readonly logger = new Logger(CommandUnderstandingPipelineService.name);
+  private readonly logger = new Logger(
+    CommandUnderstandingPipelineService.name,
+  );
 
   constructor(
     private readonly promptNormalization: AiPromptNormalizationService,
@@ -219,7 +219,8 @@ export class CommandUnderstandingPipelineService {
 
     const top = heuristicCandidates[0];
     const rerankEligible = heuristicCandidates.filter(
-      (candidate) => candidate.confidence >= FAST_HEURISTIC_RERANK_MIN_CONFIDENCE,
+      (candidate) =>
+        candidate.confidence >= FAST_HEURISTIC_RERANK_MIN_CONFIDENCE,
     ).length;
     appendPipelineTrace(
       trace,
@@ -308,12 +309,7 @@ export class CommandUnderstandingPipelineService {
       classified?.confidence,
       { low: input.confidenceLow, high: input.confidenceHigh },
     );
-    appendPipelineTrace(
-      trace,
-      'confidence_gate',
-      gate.decision,
-      gate.reason,
-    );
+    appendPipelineTrace(trace, 'confidence_gate', gate.decision, gate.reason);
     return gate;
   }
 
@@ -330,12 +326,7 @@ export class CommandUnderstandingPipelineService {
       candidates.every((c) => c.action === 'unknown');
 
     if (!shouldMatch) {
-      appendPipelineTrace(
-        trace,
-        'semantic_match',
-        'skipped',
-        gate.reason,
-      );
+      appendPipelineTrace(trace, 'semantic_match', 'skipped', gate.reason);
       return;
     }
 
@@ -491,7 +482,9 @@ export class CommandUnderstandingPipelineService {
       return working;
     }
 
-    candidates.push(classifiedIntentToCandidate(reclassified, 'narrow_reclassify'));
+    candidates.push(
+      classifiedIntentToCandidate(reclassified, 'narrow_reclassify'),
+    );
     appendPipelineTrace(
       trace,
       'narrow_reclassify',
@@ -593,7 +586,12 @@ export class CommandUnderstandingPipelineService {
     const { intent, result, clarify } = outcome;
 
     if (!intent) {
-      appendPipelineTrace(trace, 'self_verify', working.action, 'no intent after self-verify');
+      appendPipelineTrace(
+        trace,
+        'self_verify',
+        working.action,
+        'no intent after self-verify',
+      );
       return { intent: working, result: { passed: true } };
     }
 
@@ -629,7 +627,12 @@ export class CommandUnderstandingPipelineService {
     working: ClassifiedIntent | null,
   ): ClassifiedIntent | null {
     if (!working) {
-      appendPipelineTrace(trace, 'structural_enrich', 'unknown', 'no working intent');
+      appendPipelineTrace(
+        trace,
+        'structural_enrich',
+        'unknown',
+        'no working intent',
+      );
       return working;
     }
 
@@ -698,5 +701,4 @@ export class CommandUnderstandingPipelineService {
       blockReason: opts.reason,
     };
   }
-
 }

@@ -102,8 +102,9 @@ describe('ai-flexible-availability-clarify.logic (avail-1.9)', () => {
       { dateKeys: ['2026-06-12'], timeOfDay: 'evening' },
     ]);
     expect(merged).toHaveLength(1);
-    expect(detectAvailabilityWindowOverlap(merged, 'UTC', '2026-06-11').hasOverlap)
-      .toBe(false);
+    expect(
+      detectAvailabilityWindowOverlap(merged, 'UTC', '2026-06-11').hasOverlap,
+    ).toBe(false);
   });
 
   it.each(FLEXIBLE_AVAILABILITY_BUDGET_CLARIFY_SCENARIOS)(
@@ -298,47 +299,52 @@ describe('ai-flexible-availability-clarify.logic (avail-1.9)', () => {
 
   it.each(
     PUBLIC_AVAIL_HANDLER_INTEGRATION_SCENARIOS.filter((row) =>
-      ['avail-slots-window-a-only', 'avail-slots-window-b-only'].includes(row.id),
+      ['avail-slots-window-a-only', 'avail-slots-window-b-only'].includes(
+        row.id,
+      ),
     ),
-  )('$id composePublicAvailabilityCheckSummary lists empty OR window', (scenario) => {
-    const filledLabel =
-      scenario.id === 'avail-slots-window-a-only'
-        ? 'Tomorrow evening'
-        : 'Friday afternoon';
-    const emptyLabel = scenario.expectedEmptyWindowLabels?.[0] ?? '';
-    const summary = composePublicAvailabilityCheckSummary({
-      serviceLabel: 'Lash extensions',
-      locale: 'en',
-      timeZone: 'UTC',
-      singleProvider: true,
-      groupByWindow: true,
-      windowReports: [
-        {
-          label: filledLabel,
-          dayReports: [
-            {
-              dateKey: '2026-06-11',
-              providers: [
-                {
-                  employeeId: 'e1',
-                  employeeName: 'Alice',
-                  times: ['18:00'],
-                  firstSlot: '2026-06-11T18:00:00.000Z',
-                },
-              ],
-            },
-          ],
-        },
-        {
-          label: emptyLabel,
-          dayReports: [],
-        },
-      ],
-      flatDayReports: [],
-      totalDayCount: 1,
-    });
+  )(
+    '$id composePublicAvailabilityCheckSummary lists empty OR window',
+    (scenario) => {
+      const filledLabel =
+        scenario.id === 'avail-slots-window-a-only'
+          ? 'Tomorrow evening'
+          : 'Friday afternoon';
+      const emptyLabel = scenario.expectedEmptyWindowLabels?.[0] ?? '';
+      const summary = composePublicAvailabilityCheckSummary({
+        serviceLabel: 'Lash extensions',
+        locale: 'en',
+        timeZone: 'UTC',
+        singleProvider: true,
+        groupByWindow: true,
+        windowReports: [
+          {
+            label: filledLabel,
+            dayReports: [
+              {
+                dateKey: '2026-06-11',
+                providers: [
+                  {
+                    employeeId: 'e1',
+                    employeeName: 'Alice',
+                    times: ['18:00'],
+                    firstSlot: '2026-06-11T18:00:00.000Z',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            label: emptyLabel,
+            dayReports: [],
+          },
+        ],
+        flatDayReports: [],
+        totalDayCount: 1,
+      });
 
-    expect(summary).toContain(`${filledLabel}:`);
-    expect(summary).toContain(`No open slots for ${emptyLabel}.`);
-  });
+      expect(summary).toContain(`${filledLabel}:`);
+      expect(summary).toContain(`No open slots for ${emptyLabel}.`);
+    },
+  );
 });

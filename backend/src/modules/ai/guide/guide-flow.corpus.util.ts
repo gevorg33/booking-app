@@ -63,7 +63,9 @@ export function buildGuideResponseFromFlowPlaybook(
     body: step.body,
     navigate:
       step.navigate ??
-      (index === 0 && resolved.navigateTarget ? resolved.navigateTarget : undefined),
+      (index === 0 && resolved.navigateTarget
+        ? resolved.navigateTarget
+        : undefined),
   }));
 
   const summary =
@@ -133,7 +135,10 @@ function tokenizePrompt(prompt: string): string[] {
 export function buildGuideFlowListContext(
   query: ProductGuideRetrieveQuery,
 ): Parameters<typeof mergeGuideFlowPlaybooks>[0] {
-  const surface = query.surface ?? resolveGuideFlowSurfaceFromRoute(query.route) ?? 'dashboard';
+  const surface =
+    query.surface ??
+    resolveGuideFlowSurfaceFromRoute(query.route) ??
+    'dashboard';
   return {
     surface,
     route: query.route,
@@ -144,7 +149,7 @@ export function buildGuideFlowListContext(
       resolveGuideFlowRoleScope({
         surface,
         role: query.role,
-        roleProfile: query.roleProfile as GuideFlowRoleScope | undefined,
+        roleProfile: query.roleProfile,
       }) ?? undefined,
     retailPosEnabled: query.retailPosEnabled,
     enabledModules: query.enabledModules,
@@ -210,7 +215,10 @@ export function rankGuideFlowPlaybookDefs(
       }
     }
 
-    if (query.intent === 'explain_current_screen' && routePrimaryTopicId === playbook.topicId) {
+    if (
+      query.intent === 'explain_current_screen' &&
+      routePrimaryTopicId === playbook.topicId
+    ) {
       score += 0.2;
       reasons.push('screen_route_bias');
     }
@@ -252,7 +260,9 @@ export function pickBestGuideFlowPlaybook(
   return { ...best, playbook };
 }
 
-export function listGuideFlowI18nKeys(playbook: GuideFlowPlaybookDef): string[] {
+export function listGuideFlowI18nKeys(
+  playbook: GuideFlowPlaybookDef,
+): string[] {
   const keys = [playbook.titleKey];
   if (playbook.summaryKey) keys.push(playbook.summaryKey);
   if (playbook.voiceSummaryKey) keys.push(playbook.voiceSummaryKey);

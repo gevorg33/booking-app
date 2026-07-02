@@ -302,7 +302,10 @@ export function prepareUpdateServicePricesPlanLogic(
   services: Service[],
   userId?: string,
 ): AgentPlan | null {
-  const enrichedParams = enrichUpdateServicePricesParamsFromPrompt(params, prompt);
+  const enrichedParams = enrichUpdateServicePricesParamsFromPrompt(
+    params,
+    prompt,
+  );
   const adjustment = parsePriceAdjustment(prompt, enrichedParams);
   if (!adjustment) return null;
 

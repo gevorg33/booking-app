@@ -1,4 +1,7 @@
-export type TypoVariantKind = 'lowercase' | 'no_punctuation' | 'compact_spacing';
+export type TypoVariantKind =
+  | 'lowercase'
+  | 'no_punctuation'
+  | 'compact_spacing';
 
 export type TypoVariant = {
   kind: TypoVariantKind;
@@ -10,7 +13,10 @@ export function lowercasePrompt(prompt: string): string {
 }
 
 export function stripPromptPunctuation(prompt: string): string {
-  return prompt.replace(/[?!.,;:]+/g, '').replace(/\s+/g, ' ').trim();
+  return prompt
+    .replace(/[?!.,;:]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function compactPromptSpacing(prompt: string): string {

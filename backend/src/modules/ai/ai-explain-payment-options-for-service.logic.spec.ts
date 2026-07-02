@@ -27,7 +27,9 @@ const services = [
   },
 ] as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],
@@ -111,6 +113,8 @@ describe('ai-explain-payment-options-for-service.logic (ai-cmd-customer-4.1.2)',
       { serviceId: 's1', serviceName: 'Massage' },
     );
     expect(result.success).toBe(true);
-    expect((result.details as { serviceName: string }).serviceName).toBe('Massage');
+    expect((result.details as { serviceName: string }).serviceName).toBe(
+      'Massage',
+    );
   });
 });

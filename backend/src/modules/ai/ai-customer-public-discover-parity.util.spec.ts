@@ -32,17 +32,17 @@ describe('ai customer public discover parity util (discover-1.6 section G)', () 
 
     const publicEnriched = enrichDiscoverParityParamsForSurface(
       'public',
-      publicScenario!.prompt,
-      publicScenario!.classifierParams ?? {},
+      publicScenario.prompt,
+      publicScenario.classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      publicScenario!.action,
+      publicScenario.action,
     );
     const customerEnriched = enrichDiscoverParityParamsForSurface(
       'customer',
-      customerScenario!.prompt,
-      customerScenario!.classifierParams ?? {},
+      customerScenario.prompt,
+      customerScenario.classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      customerScenario!.action,
+      customerScenario.action,
     );
 
     expect(publicEnriched).toEqual(customerEnriched);
@@ -50,11 +50,12 @@ describe('ai customer public discover parity util (discover-1.6 section G)', () 
     const facialCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
       (service) => service.serviceCategory === 'facial',
     );
-    const params = publicScenario!.catalogParams ?? publicEnriched;
-    const catalogIds = applyServiceDiscoveryToCatalog(facialCatalog, params).map(
-      (service) => service.id,
-    );
-    expect(catalogIds).toEqual(publicScenario!.expectedCatalogIds);
+    const params = publicScenario.catalogParams ?? publicEnriched;
+    const catalogIds = applyServiceDiscoveryToCatalog(
+      facialCatalog,
+      params,
+    ).map((service) => service.id);
+    expect(catalogIds).toEqual(publicScenario.expectedCatalogIds);
 
     const composeInput = {
       matchedServices: facialCatalog.map((service) => ({
@@ -74,34 +75,33 @@ describe('ai customer public discover parity util (discover-1.6 section G)', () 
   });
 
   it('discover-parity-or public and customer produce identical OR availability windows', () => {
-    const [publicScenario, customerScenario] = serviceDiscoveryParityByPairId(
-      'discover-parity-or',
-    );
+    const [publicScenario, customerScenario] =
+      serviceDiscoveryParityByPairId('discover-parity-or');
     const publicEnriched = enrichDiscoverParityParamsForSurface(
       'public',
-      publicScenario!.prompt,
-      publicScenario!.classifierParams ?? {},
+      publicScenario.prompt,
+      publicScenario.classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      publicScenario!.action,
+      publicScenario.action,
     );
     const customerEnriched = enrichDiscoverParityParamsForSurface(
       'customer',
-      customerScenario!.prompt,
-      customerScenario!.classifierParams ?? {},
+      customerScenario.prompt,
+      customerScenario.classifierParams ?? {},
       SERVICE_DISCOVERY_INTEGRATION_CATALOG,
-      customerScenario!.action,
+      customerScenario.action,
     );
 
     expect(publicEnriched).toEqual(customerEnriched);
-    expect(publicEnriched).toMatchObject(publicScenario!.expectedDiscovery);
+    expect(publicEnriched).toMatchObject(publicScenario.expectedDiscovery);
 
     const windows = resolvePublicAvailabilityWindows(
       publicEnriched,
-      publicScenario!.prompt,
+      publicScenario.prompt,
       'UTC',
       { defaultScanDays: 14 },
     );
-    expect(windows).toHaveLength(publicScenario!.expectOrWindowCount ?? 2);
+    expect(windows).toHaveLength(publicScenario.expectOrWindowCount ?? 2);
   });
 
   it('discover-parity-voice-customer ASR enrich matches public check_availability', () => {

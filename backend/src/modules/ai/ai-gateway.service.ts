@@ -314,7 +314,8 @@ export class AiGatewayService {
       [ASSISTANT_MODE_CONTEXT_KEY]: resolveAssistantMode({
         prompt: params.prompt,
         surface: params.surface,
-        explicit: params.assistantMode ?? params.context?.[ASSISTANT_MODE_CONTEXT_KEY],
+        explicit:
+          params.assistantMode ?? params.context?.[ASSISTANT_MODE_CONTEXT_KEY],
       }),
       _capabilityHints: this.getCapabilityHints(params.surface, tier),
       _entityMemoryBlock: memoryBlock || undefined,

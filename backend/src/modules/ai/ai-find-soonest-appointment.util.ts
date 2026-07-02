@@ -4,6 +4,7 @@ import {
   isMultilingualFindSoonestAppointmentPrompt,
 } from './ai-check-and-book-multilingual.util.js';
 import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
+import { isEarliestSlotAllServicesPrompt } from './ai-schedule-resources.util.js';
 
 export const CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES = `- find_soonest_appointment: READ — find the single soonest/earliest/nearest open slot for a service ("Who's free soonest for a trim", "Earliest slot this week"). Set bookingFirstAvailable=true, timeSlot=null, allProviders=true when no named specialist. Uses the same availability scan as check_availability with first-available ranking. NOT book_nearest_slot|book_appointment (mutate booking), NOT check_providers_for_service (general who-is-free list without soonest/earliest cue), NOT check_availability (open-times browse without soonest focus).`;
 
@@ -215,10 +216,41 @@ const SOONEST_CUE =
 
 function hasMutateBookIntent(prompt: string): boolean {
   if (MULTILINGUAL_BOOK_VERBS.test(prompt)) return true;
-  return /\b(book|reserve|schedule|grab)\b/i.test(prompt);
+  return (
+    /\b(book|reserve|schedule|grab)\b/i.test(prompt) ||
+    /\bput\s+me\s+in\b/i.test(prompt) ||
+    /\b(?:get|slot)\s+me\s+in\b/i.test(prompt)
+  );
 }
 
-function extractFindSoonestServiceNameFromPrompt(prompt: string): string | null {
+/** Check-then-book compound: who-is-free + book-nearest in one message (not read-only soonest). */
+function isCheckThenBookCompoundPrompt(prompt: string): boolean {
+  const hasCompoundJoin =
+    /\band\b/i.test(prompt) ||
+    /\bthen\b/i.test(prompt) ||
+    /;\s*/.test(prompt) ||
+    /\?\s*(?=(?:book|find|get|reserve|schedule)\b)/i.test(prompt);
+  if (!hasCompoundJoin) return false;
+
+  const hasTeamAvailability =
+    (/\b(?:who|which|anyone|anybody)\b/i.test(prompt) &&
+      /\b(?:free|available|open)\b/i.test(prompt)) ||
+    (/\b(?:see|look\s+up|check)\b/i.test(prompt) &&
+      /\bwho\b/i.test(prompt) &&
+      /\b(?:free|available|open)\b/i.test(prompt));
+
+  const hasBookNearest =
+    /\b(?:book|reserve|schedule|grab|put\s+me\s+in)\b/i.test(prompt) ||
+    (/\b(?:find|get)\b/i.test(prompt) &&
+      /\b(?:nearest|soonest|next|earliest|asap)\b/i.test(prompt) &&
+      /\b(?:slot|appointment|opening|time)\b/i.test(prompt));
+
+  return hasTeamAvailability && hasBookNearest;
+}
+
+function extractFindSoonestServiceNameFromPrompt(
+  prompt: string,
+): string | null {
   const quoted = prompt.match(/"([^"]{1,60})"/);
   if (quoted) return quoted[1].trim();
 
@@ -254,6 +286,8 @@ function extractFindSoonestServiceNameFromPrompt(prompt: string): string | null 
 
 export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
   if (hasMutateBookIntent(prompt)) return false;
+  if (isCheckThenBookCompoundPrompt(prompt)) return false;
+  if (isEarliestSlotAllServicesPrompt(prompt)) return false;
 
   if (isMultilingualFindSoonestAppointmentPrompt(prompt)) {
     return true;
@@ -265,6 +299,15 @@ export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
     (SOONEST_CUE.test(prompt) || /\b(first|next)\b/i.test(prompt))
   ) {
     return true;
+  }
+
+  if (
+    /\b(?:find|get)\b/i.test(prompt) &&
+    SOONEST_CUE.test(prompt) &&
+    /\b(?:slot|appointment|opening|time)\b/i.test(prompt) &&
+    !/\b(?:who|which|when|what)\b/i.test(prompt)
+  ) {
+    return false;
   }
 
   if (
@@ -286,7 +329,9 @@ export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
     return true;
   }
 
-  if (/\b(earliest|soonest|nearest)\s+(slot|appointment|opening)\b/i.test(prompt)) {
+  if (
+    /\b(earliest|soonest|nearest)\s+(slot|appointment|opening)\b/i.test(prompt)
+  ) {
     return true;
   }
 

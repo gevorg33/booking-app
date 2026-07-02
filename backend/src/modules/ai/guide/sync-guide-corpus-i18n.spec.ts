@@ -12,7 +12,10 @@ const SNAPSHOT_PATH = join(
   'dashboard-guide-corpus-i18n.snapshot.json',
 );
 
-function deepMergeMessages(base: MessageTree, override: MessageTree): MessageTree {
+function deepMergeMessages(
+  base: MessageTree,
+  override: MessageTree,
+): MessageTree {
   const result: MessageTree = { ...base };
   for (const key of Object.keys(override)) {
     const ov = override[key];
@@ -25,7 +28,7 @@ function deepMergeMessages(base: MessageTree, override: MessageTree): MessageTre
       typeof b === 'object' &&
       !Array.isArray(b)
     ) {
-      result[key] = deepMergeMessages(b as MessageTree, ov as MessageTree);
+      result[key] = deepMergeMessages(b, ov);
     } else if (ov !== undefined) {
       result[key] = ov;
     }
@@ -35,17 +38,20 @@ function deepMergeMessages(base: MessageTree, override: MessageTree): MessageTre
 
 function pickGuideCorpusMessages(full: MessageTree): MessageTree {
   return {
-    guide: full.guide as MessageTree,
-    helpCenter: full.helpCenter as MessageTree,
+    guide: full.guide,
+    helpCenter: full.helpCenter,
   };
 }
 
-function buildGuideCorpusI18nSnapshot(): Record<GuideCorpusLocale, MessageTree> {
-  const enTree = en as MessageTree;
+function buildGuideCorpusI18nSnapshot(): Record<
+  GuideCorpusLocale,
+  MessageTree
+> {
+  const enTree = en;
   return {
     en: pickGuideCorpusMessages(enTree),
-    hy: pickGuideCorpusMessages(deepMergeMessages(enTree, hy as MessageTree)),
-    ru: pickGuideCorpusMessages(deepMergeMessages(enTree, ru as MessageTree)),
+    hy: pickGuideCorpusMessages(deepMergeMessages(enTree, hy)),
+    ru: pickGuideCorpusMessages(deepMergeMessages(enTree, ru)),
   };
 }
 

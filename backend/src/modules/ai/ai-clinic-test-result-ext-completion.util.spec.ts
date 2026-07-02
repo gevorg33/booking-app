@@ -23,7 +23,11 @@ describe('ai-clinic-test-result-ext-completion.util', () => {
     'accepts upload prompt $id',
     ({ prompt, orderId }) => {
       const issues = validateClinicTestResultExtCommand(
-        baseCmd({ action: 'upload_patient_result', prompt, params: { orderId } }),
+        baseCmd({
+          action: 'upload_patient_result',
+          prompt,
+          params: { orderId },
+        }),
       );
       expect(issues).toEqual([]);
     },
@@ -82,7 +86,10 @@ describe('ai-clinic-test-result-ext-completion.util', () => {
         params: { measurementCode: 'WBC' },
       }),
     );
-    expect(issues.map((issue) => issue.field)).toEqual(['normalLow', 'normalHigh']);
+    expect(issues.map((issue) => issue.field)).toEqual([
+      'normalLow',
+      'normalHigh',
+    ]);
   });
 
   it('accepts list_abnormal_results without params', () => {

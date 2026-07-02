@@ -234,9 +234,9 @@ describe('ai-catalog.util', () => {
         serviceName: 'Neck Massage',
         categoryName: 'Massage',
       });
-      expect(
-        rescueCatalogIntent(prompt, 'unknown')?.rescueReason,
-      ).toBe('assign_service_category');
+      expect(rescueCatalogIntent(prompt, 'unknown')?.rescueReason).toBe(
+        'assign_service_category',
+      );
     });
 
     it('extracts category for create_service prompts', () => {
@@ -334,7 +334,9 @@ describe('ai-catalog.util', () => {
         'Add services under Spa category: cut 30m $20',
       );
       expect(bulkParams.categoryName).toBe('Spa');
-      expect(extractCreateServiceCategoryFromPrompt('hello world')).toBeUndefined();
+      expect(
+        extractCreateServiceCategoryFromPrompt('hello world'),
+      ).toBeUndefined();
       expect(
         rescueCatalogIntent(
           'move Neck Massage under service category: Massage',
@@ -432,15 +434,22 @@ describe('ai-catalog.util', () => {
         rescueCatalogIntent('Mark Haircut as featured', 'unknown')?.action,
       ).toBe('configure_service_featured');
       expect(
-        rescueCatalogIntent('Move all hair services under Hair category', 'unknown')
-          ?.action,
+        rescueCatalogIntent(
+          'Move all hair services under Hair category',
+          'unknown',
+        )?.action,
       ).toBe('bulk_assign_services_category');
       expect(
-        rescueCatalogIntent('Require 50% online prepayment for Spa Day package', 'unknown')
-          ?.action,
+        rescueCatalogIntent(
+          'Require 50% online prepayment for Spa Day package',
+          'unknown',
+        )?.action,
       ).toBe('configure_package_online_payment');
       expect(
-        rescueCatalogIntent('Require $25 deposit on featured services', 'unknown'),
+        rescueCatalogIntent(
+          'Require $25 deposit on featured services',
+          'unknown',
+        ),
       ).toBeNull();
       expect(
         rescueCatalogIntent('Hide balayage from public catalog', 'unknown')

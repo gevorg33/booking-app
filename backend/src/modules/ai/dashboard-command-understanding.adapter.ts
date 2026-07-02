@@ -17,9 +17,7 @@ import type {
   BuildDashboardClassifierContextOpts,
   BuildDashboardClassifyCallbacksOpts,
 } from './command-understanding-adapter.types.js';
-import {
-  DASHBOARD_COMMAND_UNDERSTANDING_SURFACE,
-} from './command-understanding-adapter.types.js';
+import { DASHBOARD_COMMAND_UNDERSTANDING_SURFACE } from './command-understanding-adapter.types.js';
 import type { PipelineUnderstandInput } from './command-understanding.types.js';
 
 export function buildDashboardClassifierContext(
@@ -39,7 +37,9 @@ export function buildDashboardClassifierContext(
 export function buildDashboardClassifyCallbacks(
   opts: BuildDashboardClassifyCallbacksOpts,
 ): DashboardClassifyCallbacks {
-  const resolveContext = (pipelineContext: BuildDashboardClassifierContextOpts['pipelineContext']) =>
+  const resolveContext = (
+    pipelineContext: BuildDashboardClassifierContextOpts['pipelineContext'],
+  ) =>
     buildDashboardClassifierContext({
       catalog: opts.catalog,
       timeZone: opts.timeZone,
@@ -101,9 +101,7 @@ export function buildDashboardUnderstandInput(
 }
 
 @Injectable()
-export class DashboardCommandUnderstandingAdapter
-  implements CommandUnderstandingSurfaceAdapter<DashboardUnderstandDeps>
-{
+export class DashboardCommandUnderstandingAdapter implements CommandUnderstandingSurfaceAdapter<DashboardUnderstandDeps> {
   readonly surface = DASHBOARD_COMMAND_UNDERSTANDING_SURFACE;
 
   constructor(

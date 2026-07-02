@@ -47,6 +47,8 @@ describe('ai-product-guide-voice.util (ai-guide-1.4.4)', () => {
       steps: [{ title: 'Today', body: 'Tap Today to see appointments.' }],
     });
     expect(enriched.voiceSummary).toContain('Open Today');
-    expect(resolveGuideStepVoiceSummary(enriched.steps[0]!)).toContain('Open Today');
+    expect(resolveGuideStepVoiceSummary(enriched.steps[0])).toContain(
+      'Open Today',
+    );
   });
 });

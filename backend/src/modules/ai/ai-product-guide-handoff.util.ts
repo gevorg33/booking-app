@@ -1,5 +1,8 @@
 import { COMMAND_REGISTRY_BY_ID } from './ai-command-registry.js';
-import type { GuideRelatedAction, GuideResponse } from './command-completion.types.js';
+import type {
+  GuideRelatedAction,
+  GuideResponse,
+} from './command-completion.types.js';
 import type { GuideCorpusTopicId } from './guide/ai-guide-corpus.types.js';
 import { enrichServiceOnlinePaymentParamsFromPrompt } from './ai-service-online-payment.util.js';
 import type { AppGuideIntent } from './ai-product-guide.util.js';
@@ -83,7 +86,8 @@ export const GUIDE_HANDOFF_RULES: readonly GuideHandoffRule[] = [
     id: 'services-add-service',
     topicIds: ['dashboard.core.employees'],
     intents: ['guide_user_flow'],
-    promptCue: /\b(add|create|new)\s+(?:a\s+)?(?:new\s+)?service|service catalog\b/i,
+    promptCue:
+      /\b(add|create|new)\s+(?:a\s+)?(?:new\s+)?service|service catalog\b/i,
     action: 'create_service',
     label: 'Add a service to the catalog',
   },
@@ -174,9 +178,9 @@ export function buildGuideHandoffDispatch(
   };
 }
 
-export function readGuideHandoffDispatch(
-  session?: { context?: Record<string, unknown> },
-): GuideHandoffDispatch | null {
+export function readGuideHandoffDispatch(session?: {
+  context?: Record<string, unknown>;
+}): GuideHandoffDispatch | null {
   const raw = session?.context?.[GUIDE_HANDOFF_CONTEXT_KEY];
   if (!raw || typeof raw !== 'object') return null;
   const action = (raw as GuideHandoffDispatch).action;
@@ -186,7 +190,7 @@ export function readGuideHandoffDispatch(
     action: action.trim(),
     params:
       params && typeof params === 'object' && !Array.isArray(params)
-        ? (params as Record<string, unknown>)
+        ? params
         : undefined,
     source: 'product_guide',
   };
@@ -214,8 +218,12 @@ export function isGuideHandoffMutatingAction(action: string): boolean {
   return COMMAND_REGISTRY_BY_ID.get(action)?.mutating === true;
 }
 
-function ruleMatches(rule: GuideHandoffRule, input: GuideHandoffInput, topicId?: string): boolean {
-  if (!topicId || !rule.topicIds.includes(topicId as GuideCorpusTopicId)) return false;
+function ruleMatches(
+  rule: GuideHandoffRule,
+  input: GuideHandoffInput,
+  topicId?: string,
+): boolean {
+  if (!topicId || !rule.topicIds.includes(topicId)) return false;
   if (rule.intents && !rule.intents.includes(input.intent)) return false;
   return rule.promptCue.test(input.prompt);
 }

@@ -36,13 +36,13 @@ export const PORTED_ORDER_STATUS_ACTION_SCENARIOS: PortedOrderStatusActionScenar
   );
 
 export const PORTED_ORDER_STATUS_ACTION_REJECT_SCENARIOS =
-  CLINIC_LAB_ORDER_TRANSITION_FIXTURES.filter((fixture) => !fixture.allowed).map(
-    (fixture) => ({
-      id: fixture.id,
-      from: fixture.from as ClinicTestOrderStatus,
-      to: fixture.to as ClinicTestOrderStatus,
-    }),
-  );
+  CLINIC_LAB_ORDER_TRANSITION_FIXTURES.filter(
+    (fixture) => !fixture.allowed,
+  ).map((fixture) => ({
+    id: fixture.id,
+    from: fixture.from as ClinicTestOrderStatus,
+    to: fixture.to as ClinicTestOrderStatus,
+  }));
 
 export interface PortedTestResultActionScenario {
   id: string;
@@ -62,14 +62,16 @@ export const PORTED_TEST_RESULT_ACTION_SCENARIOS: PortedTestResultActionScenario
   [
     {
       id: 'pollin-review-success',
-      pollinSource: 'test-result-actions.test.ts — Should test result mark as reviewed',
+      pollinSource:
+        'test-result-actions.test.ts — Should test result mark as reviewed',
       action: 'markAsReviewed',
       fromStatus: 'Completed',
       comment: 'Comment for review',
     },
     {
       id: 'pollin-release-success',
-      pollinSource: 'test-result-actions.test.ts — Should mark as released - success',
+      pollinSource:
+        'test-result-actions.test.ts — Should mark as released - success',
       action: 'markAsReleased',
       fromStatus: 'Reviewed',
       comment: 'comment for release',
@@ -83,32 +85,34 @@ export const PORTED_TEST_RESULT_ACTION_SCENARIOS: PortedTestResultActionScenario
 export const PORTED_TEST_RESULT_ACTION_NOT_FOUND_SCENARIOS = [
   {
     id: 'pollin-release-not-found',
-    pollinSource: 'test-result-actions.test.ts — Should throw error result not found (release)',
+    pollinSource:
+      'test-result-actions.test.ts — Should throw error result not found (release)',
     action: 'markAsReleased' as const,
     resultId: 'INVALID_ID',
   },
   {
     id: 'pollin-review-not-found',
-    pollinSource: 'test-result-actions.test.ts — Should throw error result not found (review)',
+    pollinSource:
+      'test-result-actions.test.ts — Should throw error result not found (review)',
     action: 'markAsReviewed' as const,
     resultId: 'INVALID_ID',
   },
 ];
 
 export const PORTED_RESULT_STATUS_TRANSITION_SCENARIOS =
-  CLINIC_LAB_RESULT_TRANSITION_FIXTURES.filter((fixture) => fixture.allowed).map(
-    (fixture) => ({
-      id: fixture.id,
-      from: fixture.from as ClinicTestResultStatus,
-      to: fixture.to as ClinicTestResultStatus,
-    }),
-  );
+  CLINIC_LAB_RESULT_TRANSITION_FIXTURES.filter(
+    (fixture) => fixture.allowed,
+  ).map((fixture) => ({
+    id: fixture.id,
+    from: fixture.from as ClinicTestResultStatus,
+    to: fixture.to as ClinicTestResultStatus,
+  }));
 
 export const PORTED_RESULT_STATUS_REJECT_SCENARIOS =
-  CLINIC_LAB_RESULT_TRANSITION_FIXTURES.filter((fixture) => !fixture.allowed).map(
-    (fixture) => ({
-      id: fixture.id,
-      from: fixture.from as ClinicTestResultStatus,
-      to: fixture.to as ClinicTestResultStatus,
-    }),
-  );
+  CLINIC_LAB_RESULT_TRANSITION_FIXTURES.filter(
+    (fixture) => !fixture.allowed,
+  ).map((fixture) => ({
+    id: fixture.id,
+    from: fixture.from as ClinicTestResultStatus,
+    to: fixture.to as ClinicTestResultStatus,
+  }));

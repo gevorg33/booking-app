@@ -14,7 +14,9 @@ describe('provider-booking-customer-staff-notes.util (prov-exp-1.3)', () => {
   it('validates note length up to 500 chars', () => {
     expect(isValidProviderCustomerStaffNoteBody('ok')).toBe(true);
     expect(
-      isValidProviderCustomerStaffNoteBody('x'.repeat(PROVIDER_CUSTOMER_STAFF_NOTE_MAX_LENGTH)),
+      isValidProviderCustomerStaffNoteBody(
+        'x'.repeat(PROVIDER_CUSTOMER_STAFF_NOTE_MAX_LENGTH),
+      ),
     ).toBe(true);
     expect(
       isValidProviderCustomerStaffNoteBody(

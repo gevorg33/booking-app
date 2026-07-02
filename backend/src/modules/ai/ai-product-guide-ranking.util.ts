@@ -58,7 +58,11 @@ export const GUIDE_TOPIC_RETRIEVAL_KEYWORDS: Partial<
 > = {
   'dashboard.ai.command-bar': ['command bar', 'orchestrix', 'sparkle button'],
   'dashboard.ai.approval': ['approve', 'approval', 'plan diff'],
-  'dashboard.core.schedule': ['schedule template', 'weekly schedule', 'block schedule'],
+  'dashboard.core.schedule': [
+    'schedule template',
+    'weekly schedule',
+    'block schedule',
+  ],
   'dashboard.core.employees': [
     'online payment',
     'prepayment',
@@ -221,7 +225,10 @@ export function rankGuideCorpusTopics(
       }
     }
 
-    if (query.intent === 'explain_current_screen' && routePrimary === topic.topicId) {
+    if (
+      query.intent === 'explain_current_screen' &&
+      routePrimary === topic.topicId
+    ) {
       score += 0.25;
       reasons.push('screen_route_bias');
     }
@@ -242,7 +249,10 @@ export function rankGuideCorpusTopics(
       reasons.push('feature_group_bias');
     }
 
-    if (query.intent === 'explain_current_screen' && topic.anchor.includes('ai-')) {
+    if (
+      query.intent === 'explain_current_screen' &&
+      topic.anchor.includes('ai-')
+    ) {
       score -= 0.05;
     }
 

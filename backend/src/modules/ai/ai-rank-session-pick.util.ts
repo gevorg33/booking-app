@@ -36,7 +36,7 @@ export function extractRankSessionListPickIndexFromPrompt(
 ): number | null {
   const match = prompt.match(RANK_SESSION_LIST_PICK_PATTERN);
   if (!match) return null;
-  const index = LIST_PICK_INDEX[match[1]!.toLowerCase()];
+  const index = LIST_PICK_INDEX[match[1].toLowerCase()];
   return index ?? null;
 }
 
@@ -50,7 +50,9 @@ export function parseRankedServiceIdsFromSession(
   try {
     const parsed = JSON.parse(value) as unknown;
     if (Array.isArray(parsed)) {
-      return parsed.filter((entry): entry is string => typeof entry === 'string');
+      return parsed.filter(
+        (entry): entry is string => typeof entry === 'string',
+      );
     }
   } catch {
     return value
@@ -76,7 +78,7 @@ export function buildRankedServicesFromSessionContext<
   prompt?: string,
 ): T[] {
   const serviceRank = isValidServiceRank(sessionParams.serviceRank)
-    ? (sessionParams.serviceRank as ServiceRank)
+    ? sessionParams.serviceRank
     : null;
   if (!serviceRank) return [];
 
@@ -105,10 +107,7 @@ export function buildRankedServicesFromSessionContext<
 
 export function resolveRankSessionListPickService<
   T extends { id: string; name: string },
->(
-  rankedServices: readonly T[],
-  pickIndex: number,
-): T | null {
+>(rankedServices: readonly T[], pickIndex: number): T | null {
   if (pickIndex < 1 || pickIndex > rankedServices.length) return null;
   return rankedServices[pickIndex - 1] ?? null;
 }

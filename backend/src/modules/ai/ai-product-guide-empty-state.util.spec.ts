@@ -26,7 +26,9 @@ describe('ai-product-guide-empty-state.util (ai-guide-1.8.9)', () => {
   it.each(EMPTY_STATE_GUIDE_CLASSIFIER_SCENARIOS)(
     'parseEmptyStateGuideIntentFromPrompt accepts $id',
     ({ intent, surface, prompt }) => {
-      expect(parseEmptyStateGuideIntentFromPrompt(intent, prompt, surface)).toBe(true);
+      expect(
+        parseEmptyStateGuideIntentFromPrompt(intent, prompt, surface),
+      ).toBe(true);
       expect(isEmptyStateGuideIntent(intent)).toBe(true);
       expect(isEmptyStateGuideIntentOnSurface(intent, surface)).toBe(true);
     },
@@ -37,7 +39,10 @@ describe('ai-product-guide-empty-state.util (ai-guide-1.8.9)', () => {
       isEmptyStateGuideIntentOnSurface('explain_visibility_block', 'customer'),
     ).toBe(false);
     expect(
-      isEmptyStateGuideIntentOnSurface('explain_stripe_not_connected', 'dashboard'),
+      isEmptyStateGuideIntentOnSurface(
+        'explain_stripe_not_connected',
+        'dashboard',
+      ),
     ).toBe(true);
   });
 

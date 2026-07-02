@@ -4,19 +4,31 @@ export const STAFF_MESSAGE_TEMPLATE_RESOLVE_SCENARIOS = [
   {
     id: 'customer-name-placeholder',
     body: 'Hi {customerName}, see you soon.',
-    context: { customerName: 'Alex', businessName: 'Glow Salon', appointmentTime: '3:00 PM' },
+    context: {
+      customerName: 'Alex',
+      businessName: 'Glow Salon',
+      appointmentTime: '3:00 PM',
+    },
     expected: 'Hi Alex, see you soon.',
   },
   {
     id: 'missing-customer-name-fallback',
     body: 'Hi {customerName}!',
-    context: { customerName: null, businessName: 'Glow Salon', appointmentTime: '3:00 PM' },
+    context: {
+      customerName: null,
+      businessName: 'Glow Salon',
+      appointmentTime: '3:00 PM',
+    },
     expected: 'Hi there!',
   },
   {
     id: 'all-placeholders',
     body: '{customerName} at {businessName} on {appointmentTime}',
-    context: { customerName: 'Sam', businessName: 'Studio', appointmentTime: '10:00' },
+    context: {
+      customerName: 'Sam',
+      businessName: 'Studio',
+      appointmentTime: '10:00',
+    },
     expected: 'Sam at Studio on 10:00',
   },
 ] as const;

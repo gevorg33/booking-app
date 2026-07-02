@@ -1,6 +1,12 @@
-import type { AiCommandEvalCase, AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalLocale,
+} from './eval/ai-command-eval.types.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
-import type { IntentAnchor, SemanticIntentLocale } from './ai-semantic-intent.types.js';
+import type {
+  IntentAnchor,
+  SemanticIntentLocale,
+} from './ai-semantic-intent.types.js';
 import { looksLikeTransliteration } from './ai-prompt-i18n.js';
 
 const ENTITY_NAME_PATTERN =
@@ -31,12 +37,15 @@ export function sanitizePromptForSemanticAnchor(prompt: string): string {
 }
 
 function toSemanticLocale(locale?: AiEvalLocale): SemanticIntentLocale {
-  if (locale === 'hy' || locale === 'ru' || locale === 'translit') return locale;
+  if (locale === 'hy' || locale === 'ru' || locale === 'translit')
+    return locale;
   return 'en';
 }
 
 /** Infer locale from script when eval cases omit locale (acc-3.12). */
-export function detectSemanticPromptLocale(prompt: string): SemanticIntentLocale {
+export function detectSemanticPromptLocale(
+  prompt: string,
+): SemanticIntentLocale {
   if (/[\u0530-\u058F]/.test(prompt)) return 'hy';
   if (/[\u0400-\u04FF]/.test(prompt)) return 'ru';
   if (looksLikeTransliteration(prompt)) return 'translit';

@@ -27,6 +27,7 @@ export function PostVisitReviewPrompt({
   zendeskWidgetConfigured,
   onClose,
   onReviewSubmitted,
+  openSupportImmediately = false,
 }: {
   isOpen: boolean;
   slug: string;
@@ -37,6 +38,8 @@ export function PostVisitReviewPrompt({
   zendeskWidgetConfigured?: boolean;
   onClose: () => void;
   onReviewSubmitted?: () => void;
+  /** Skip satisfaction prompt and open post-booking support handoff (AI navigate fallback). */
+  openSupportImmediately?: boolean;
 }) {
   const [step, setStep] = useState<PromptStep>('satisfaction');
   const [followUpMessage, setFollowUpMessage] = useState<string | null>(null);
@@ -164,6 +167,11 @@ export function PostVisitReviewPrompt({
     submitSupportTicket,
     zendeskWidgetConfigured,
   ]);
+
+  useEffect(() => {
+    if (!isOpen || !openSupportImmediately) return;
+    void handleUnhappy();
+  }, [handleUnhappy, isOpen, openSupportImmediately]);
 
   if (step === 'rating') {
     return (

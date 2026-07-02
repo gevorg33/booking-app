@@ -44,7 +44,9 @@ describe('intent-anchor.bank (pipe-1.4.1)', () => {
     '$id — canonical EN anchor exists for $action',
     ({ action, expectedCanonicalEnAnchorId }) => {
       const bank = getIntentAnchorBank();
-      const primary = bank.find((anchor) => anchor.id === expectedCanonicalEnAnchorId);
+      const primary = bank.find(
+        (anchor) => anchor.id === expectedCanonicalEnAnchorId,
+      );
       expect(primary).toMatchObject({
         action,
         locale: 'en',

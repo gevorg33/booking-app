@@ -39,10 +39,14 @@ describe('guide-flow mobile App.tsx route coverage (ai-guide-1.9.13)', () => {
 
   it('maps consumer App.tsx paths to canonical guide-flow routes', () => {
     expect(
-      mapConsumerAppRouteToGuideFlowRoute(normalizeConsumerAppRoutePath('/s/:slug/home')),
+      mapConsumerAppRouteToGuideFlowRoute(
+        normalizeConsumerAppRoutePath('/s/:slug/home'),
+      ),
     ).toBe('/s');
     expect(
-      mapConsumerAppRouteToGuideFlowRoute(normalizeConsumerAppRoutePath('/s/:slug/services')),
+      mapConsumerAppRouteToGuideFlowRoute(
+        normalizeConsumerAppRoutePath('/s/:slug/services'),
+      ),
     ).toBe('/s/services');
     expect(
       mapConsumerAppRouteToGuideFlowRoute(
@@ -50,12 +54,16 @@ describe('guide-flow mobile App.tsx route coverage (ai-guide-1.9.13)', () => {
       ),
     ).toBe('/s/book');
     expect(
-      mapConsumerAppRouteToGuideFlowRoute(normalizeConsumerAppRoutePath('/s/:slug/results')),
+      mapConsumerAppRouteToGuideFlowRoute(
+        normalizeConsumerAppRoutePath('/s/:slug/results'),
+      ),
     ).toBe('/s/results');
   });
 
   it('normalizes provider patient chart route to patients tab guide route', () => {
-    expect(normalizeProviderAppRoutePath('/tabs/patients/:customerId')).toBe('/tabs/patients');
+    expect(normalizeProviderAppRoutePath('/tabs/patients/:customerId')).toBe(
+      '/tabs/patients',
+    );
   });
 
   it('covers every consumer tab/booking route and provider /tabs/* route', () => {

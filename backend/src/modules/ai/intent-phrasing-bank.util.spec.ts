@@ -31,7 +31,9 @@ describe('intent-phrasing-bank.util (acc-3.12)', () => {
   });
 
   it('maps canonical entries to anchors with source=canonical', () => {
-    const anchor = phrasingEntryToIntentAnchor(CANONICAL_PHRASING_BANK.entries[0]!);
+    const anchor = phrasingEntryToIntentAnchor(
+      CANONICAL_PHRASING_BANK.entries[0],
+    );
     expect(anchor.source).toBe('canonical');
     expect(anchor.id).toBe('en-book-first-available');
     expect(anchor.action).toBe('create_booking');
@@ -49,12 +51,14 @@ describe('intent-phrasing-bank.util (acc-3.12)', () => {
   });
 
   it('harvests eval cases flagged useSemanticIntentMatch without seed-util code changes', () => {
-    const harvested = harvestEvalPhrasingAnchors(AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES);
+    const harvested = harvestEvalPhrasingAnchors(
+      AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES,
+    );
     expect(harvested.length).toBeGreaterThan(0);
     expect(harvested.every((anchor) => anchor.source === 'eval')).toBe(true);
-    expect(harvested.some((anchor) => anchor.id.startsWith('eval-semantic-'))).toBe(
-      true,
-    );
+    expect(
+      harvested.some((anchor) => anchor.id.startsWith('eval-semantic-')),
+    ).toBe(true);
   });
 
   it('adds new eval paraphrases to the bank without touching seed util', () => {
@@ -85,8 +89,9 @@ describe('intent-phrasing-bank.util (acc-3.12)', () => {
   it('dedupes canonical and eval anchors on action+phrase key', () => {
     const duplicateEval: AiCommandEvalCase = {
       id: 'semantic-dup-canonical',
-      prompt: CANONICAL_PHRASING_BANK.entries.find((e) => e.id === 'en-book-first-available')!
-        .phrase,
+      prompt: CANONICAL_PHRASING_BANK.entries.find(
+        (e) => e.id === 'en-book-first-available',
+      )!.phrase,
       surface: 'dashboard',
       expect: {
         useSemanticIntentMatch: true,
@@ -105,8 +110,16 @@ describe('intent-phrasing-bank.util (acc-3.12)', () => {
   });
 
   it.each([
-    { locale: 'hy', phrase: 'ամենաառաջին ազատ ժամանակին գրանցել', action: 'create_booking' },
-    { locale: 'ru', phrase: 'записать на ближайшее свободное время', action: 'create_booking' },
+    {
+      locale: 'hy',
+      phrase: 'ամենաառաջին ազատ ժամանակին գրանցել',
+      action: 'create_booking',
+    },
+    {
+      locale: 'ru',
+      phrase: 'записать на ближайшее свободное время',
+      action: 'create_booking',
+    },
     {
       locale: 'hy',
       phrase: 'ամրագրիր մոտակա ազատ slot-ը',

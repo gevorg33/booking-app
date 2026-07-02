@@ -59,9 +59,7 @@ import {
 import { buildCheckProvidersSummary } from './ai-provider-availability.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
 import { parseMultilingualTimeOfDayWindow } from './ai-check-and-book-multilingual.util.js';
-import {
-  resolveBudgetMaxPrice,
-} from './ai-budget-service-discovery.util.js';
+import { resolveBudgetMaxPrice } from './ai-budget-service-discovery.util.js';
 import {
   resolveBudgetConstrainedService,
   resolveDiscoverConstrainedService,
@@ -450,21 +448,17 @@ export async function handleExplainCheckoutTotalLogic(
     giftCardApplied ? ` − gift card $${giftCardApplied.toFixed(2)}` : '',
     ` = $${amountDue.toFixed(2)} due now.`,
   ];
-  return success(
-    'explain_checkout_total',
-    summaryParts.join(''),
-    {
-      serviceId: service.id,
-      serviceName: service.name,
-      servicePrice,
-      prepaymentMode: service.prepaymentMode,
-      prepaymentDue,
-      balanceAtVisit,
-      giftCardApplied,
-      amountDue,
-      giftCardBalance: balanceView,
-    },
-  );
+  return success('explain_checkout_total', summaryParts.join(''), {
+    serviceId: service.id,
+    serviceName: service.name,
+    servicePrice,
+    prepaymentMode: service.prepaymentMode,
+    prepaymentDue,
+    balanceAtVisit,
+    giftCardApplied,
+    amountDue,
+    giftCardBalance: balanceView,
+  });
 }
 
 export async function handleListSubscriptionRevenueLogic(
@@ -993,15 +987,18 @@ export async function handleCheckProvidersForServiceLogic(
           parseTimeOfDayWindow(prompt ?? '', windowParams) ??
           parseMultilingualTimeOfDayWindow(prompt ?? '', windowParams);
 
-        const result = await deps.publicBookingService.recommendProviders(slug, {
-          serviceId: service.id,
-          dateKeys: window.dateKeys,
-          notBeforeTime,
-          limit: params.limit as number | undefined,
-        });
+        const result = await deps.publicBookingService.recommendProviders(
+          slug,
+          {
+            serviceId: service.id,
+            dateKeys: window.dateKeys,
+            notBeforeTime,
+            limit: params.limit as number | undefined,
+          },
+        );
         const formatted = buildCheckProvidersSummary({
           serviceName: service.name,
-          dateKey: window.dateKeys[0]!,
+          dateKey: window.dateKeys[0],
           providers: result.providers,
           timeOfDay,
           notBeforeTime,
@@ -1066,7 +1063,7 @@ export async function handleCheckProvidersForServiceLogic(
     const dateKey =
       result.providers.find((provider) =>
         dateKeys.includes(provider.earliestDateKey),
-      )?.earliestDateKey ?? dateKeys[0]!;
+      )?.earliestDateKey ?? dateKeys[0];
     const formatted = buildCheckProvidersSummary({
       serviceName: service.name,
       dateKey,

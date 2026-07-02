@@ -153,6 +153,25 @@ export function parseExplainDataRightsFromPrompt(
   return { aspect: parseExplainDataRightsAspect(prompt, params) };
 }
 
+export function buildExplainDataRightsNavigate(
+  aspect: DataRightsAspect,
+): { path: 'account'; query: Record<string, string> } | undefined {
+  if (aspect === 'cookie_banner') return undefined;
+  if (aspect === 'export') {
+    return {
+      path: 'account',
+      query: { section: 'privacy', privacyAction: 'export' },
+    };
+  }
+  if (aspect === 'delete') {
+    return {
+      path: 'account',
+      query: { section: 'privacy', privacyAction: 'delete' },
+    };
+  }
+  return { path: 'account', query: { section: 'privacy' } };
+}
+
 export function rescueExplainDataRightsIntent(
   prompt: string,
   action: string,

@@ -2,9 +2,7 @@ import {
   CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS,
   CONFIGURE_SERVICES_PAYMENT_MATRIX_RESCUE_SCENARIOS,
 } from './ai-configure-services-payment-matrix-compound.fixtures.js';
-import {
-  AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_CASES,
-} from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import {
   decomposeConfigureServicesPaymentMatrixCompoundPrompt,
@@ -24,7 +22,8 @@ describe('ai-configure-services-payment-matrix-compound.util (ai-cmd-ext-4.6)', 
   it.each(CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS)(
     'decomposeConfigureServicesPaymentMatrixCompoundPrompt $id',
     ({ prompt, orderedActions, categorySteps, expectedParams }) => {
-      const steps = decomposeConfigureServicesPaymentMatrixCompoundPrompt(prompt);
+      const steps =
+        decomposeConfigureServicesPaymentMatrixCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
       expect(steps.at(-1)?.action).toBe('configure_cash_payments');
 
@@ -52,7 +51,9 @@ describe('ai-configure-services-payment-matrix-compound.util (ai-cmd-ext-4.6)', 
         const priceStep = steps.find(
           (step) => step.action === 'update_service_prices',
         );
-        expect(priceStep?.params.percentChange).toBe(expectedParams.percentChange);
+        expect(priceStep?.params.percentChange).toBe(
+          expectedParams.percentChange,
+        );
       }
       if (expectedParams?.acceptCashPayments === true) {
         expect(steps.at(-1)?.params.acceptCashPayments).toBe(true);
@@ -66,7 +67,7 @@ describe('ai-configure-services-payment-matrix-compound.util (ai-cmd-ext-4.6)', 
       expect(
         rescueConfigureServicesPaymentMatrixCompoundIntent(
           prompt,
-          misclassifiedAction!,
+          misclassifiedAction,
         ),
       ).toEqual({
         action: 'compound_intent',

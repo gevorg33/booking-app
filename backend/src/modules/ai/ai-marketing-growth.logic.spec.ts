@@ -150,17 +150,19 @@ function buildDeps(
         minOrderAmount: null,
         expiresAt: null,
       })),
-      create: jest.fn(async (_businessId: string, dto: Record<string, unknown>) => ({
-        id: 'promo-1',
-        code: dto.code,
-        discountType: dto.discountType,
-        discountValue: dto.discountValue,
-        minOrderAmount: dto.minOrderAmount ?? null,
-        maxUses: dto.maxUses ?? null,
-        expiresAt: dto.expiresAt ?? null,
-        description: dto.description ?? null,
-        isActive: true,
-      })),
+      create: jest.fn(
+        async (_businessId: string, dto: Record<string, unknown>) => ({
+          id: 'promo-1',
+          code: dto.code,
+          discountType: dto.discountType,
+          discountValue: dto.discountValue,
+          minOrderAmount: dto.minOrderAmount ?? null,
+          maxUses: dto.maxUses ?? null,
+          expiresAt: dto.expiresAt ?? null,
+          description: dto.description ?? null,
+          isActive: true,
+        }),
+      ),
     } as any,
     stripeService: { isConfigured: false } as any,
     configService: {
@@ -421,9 +423,16 @@ describe('ai-marketing-growth.logic', () => {
     expect(
       (await handleRegenerateTenantAppInstallQrLogic(deps, 'biz-1')).success,
     ).toBe(true);
-    expect((await handleCreatePromoCodeLogic(deps, 'biz-1', {}, 'Create promo code SAVE10 for 20% off')).success).toBe(
-      true,
-    );
+    expect(
+      (
+        await handleCreatePromoCodeLogic(
+          deps,
+          'biz-1',
+          {},
+          'Create promo code SAVE10 for 20% off',
+        )
+      ).success,
+    ).toBe(true);
     expect(
       (
         await handleConfigureLoyaltySettingsLogic(
@@ -454,9 +463,9 @@ describe('ai-marketing-growth.logic', () => {
       },
     );
     expect(loyaltyConfigureCompound.success).toBe(true);
-    expect(
-      (await handleOpenBillingSettingsLogic(deps, 'biz-1')).success,
-    ).toBe(true);
+    expect((await handleOpenBillingSettingsLogic(deps, 'biz-1')).success).toBe(
+      true,
+    );
     expect(
       (await handleSummarizeLoyaltyProgramLogic(deps, 'biz-1')).success,
     ).toBe(true);
@@ -697,7 +706,9 @@ describe('ai-marketing-growth.logic', () => {
           success: true,
           action: 'how_to_download_app',
           summary: '',
-          details: { guidance: { landingUrl: 'https://app.test/get-app/salon' } },
+          details: {
+            guidance: { landingUrl: 'https://app.test/get-app/salon' },
+          },
         },
       ).consumerAppGuidance,
     ).toMatchObject({ landingUrl: 'https://app.test/get-app/salon' });
@@ -716,7 +727,11 @@ describe('ai-marketing-growth.logic', () => {
     expect(
       mergeMarketingGrowthCompoundContext(
         {},
-        { action: 'regenerate_tenant_app_install_qr', params: {}, segment: 'x' },
+        {
+          action: 'regenerate_tenant_app_install_qr',
+          params: {},
+          segment: 'x',
+        },
         {
           success: true,
           action: 'regenerate_tenant_app_install_qr',
@@ -898,15 +913,22 @@ describe('ai-marketing-growth.logic', () => {
     ).toContain('at or near');
 
     const promoCompound = await handleMarketingGrowthCompoundLogic(
-      deps,
+      buildDeps({
+        planEntitlementsService: {
+          getEntitlements: jest.fn(async () => ({
+            ...entitlementsStarter,
+            flags: entitlementsStarter.limits.flags,
+          })),
+        } as any,
+      }),
       'biz-1',
       'compound',
       {
         compoundSteps: [
           {
-            action: 'promo_code_help',
+            action: 'apply_promo_code_checkout',
             params: { promoCode: 'SAVE10' },
-            segment: 'promo',
+            segment: 'Apply code SAVE10 at checkout',
           },
           {
             action: 'loyalty_points_balance',

@@ -15,9 +15,9 @@ describe('booking-command-react-fallback.util (pipe-1.9.2)', () => {
 
   it('detects unknown pipeline terminal action', () => {
     expect(isStillUnknownAfterSemanticRescue({ action: 'unknown' })).toBe(true);
-    expect(isStillUnknownAfterSemanticRescue({ action: 'create_booking' })).toBe(
-      false,
-    );
+    expect(
+      isStillUnknownAfterSemanticRescue({ action: 'create_booking' }),
+    ).toBe(false);
   });
 
   it.each(REACT_FALLBACK_SCENARIOS)(

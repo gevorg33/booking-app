@@ -11,7 +11,8 @@ import { decomposeDeterministicForSurface } from './intent-decomposition.util.js
 
 const COMPOUND_SCENARIOS = SIMILAR_BUDGET_SERVICE_PROMPTS.filter(
   (scenario) =>
-    scenario.publicCompoundSteps?.length || scenario.customerCompoundSteps?.length,
+    scenario.publicCompoundSteps?.length ||
+    scenario.customerCompoundSteps?.length,
 );
 
 describe('ai-budget-service-discovery-compound.util (budget-1.7)', () => {
@@ -30,7 +31,9 @@ describe('ai-budget-service-discovery-compound.util (budget-1.7)', () => {
   );
 
   it.each(
-    COMPOUND_SCENARIOS.filter((scenario) => scenario.publicCompoundSteps?.length),
+    COMPOUND_SCENARIOS.filter(
+      (scenario) => scenario.publicCompoundSteps?.length,
+    ),
   )('decomposes public budget compound $id', (scenario) => {
     const steps = decomposeBudgetServiceDiscoveryCompoundPrompt(
       scenario.prompt,
@@ -72,7 +75,10 @@ describe('ai-budget-service-discovery-compound.util (budget-1.7)', () => {
     'golden deterministic decomposition for public $id',
     (scenario) => {
       if (!scenario.publicCompoundSteps?.length) return;
-      const result = decomposeDeterministicForSurface('public', scenario.prompt);
+      const result = decomposeDeterministicForSurface(
+        'public',
+        scenario.prompt,
+      );
       expect(result?.steps.map((step) => step.action)).toEqual(
         scenario.publicCompoundSteps,
       );

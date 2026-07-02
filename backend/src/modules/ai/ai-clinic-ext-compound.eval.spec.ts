@@ -1,6 +1,4 @@
-import {
-  decomposeDeterministicForSurface,
-} from './intent-decomposition.util.js';
+import { decomposeDeterministicForSurface } from './intent-decomposition.util.js';
 import { COMPOUND_COMMAND_RECIPES } from './ai-command-registry.js';
 import { listClinicLabDayCloseLocaleParityGaps } from './ai-clinic-lab-day-close-compound-locale-parity.util.js';
 import { listClinicLabReviewLocaleParityGaps } from './ai-clinic-lab-review-compound-locale-parity.util.js';
@@ -22,7 +20,9 @@ function assertClinicExtCompoundEvalCaseHasCompoundSteps(
   );
 }
 
-function clinicExtCompoundEvalCasesForRecipe(recipeId: string): AiCommandEvalCase[] {
+function clinicExtCompoundEvalCasesForRecipe(
+  recipeId: string,
+): AiCommandEvalCase[] {
   return AI_COMMAND_EVAL_CLINIC_EXT_COMPOUND_CASES.filter(
     (row) => row.expect.compoundRecipeId === recipeId,
   );
@@ -74,9 +74,9 @@ describe('ai-clinic-ext-compound eval compoundSteps (parity-3.2, ai-cmd-clinic-6
         (entry) => entry.id === recipeId,
       );
       expect(recipe).toBeDefined();
-      expect(clinicExtCompoundEvalCasesForRecipe(recipeId).length).toBeGreaterThanOrEqual(
-        10,
-      );
+      expect(
+        clinicExtCompoundEvalCasesForRecipe(recipeId).length,
+      ).toBeGreaterThanOrEqual(10);
       for (const examplePrompt of recipe!.examplePrompts) {
         const result = decomposeDeterministicForSurface(
           'dashboard',

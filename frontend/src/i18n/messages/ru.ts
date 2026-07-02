@@ -2151,6 +2151,66 @@ const ru: MessageTree = {
     fallbackService: 'услуга',
     fallbackServiceCategory: 'наши услуги',
     exampleLocation: 'Где вы находитесь?',
+    assistantPageSuggestionsTitle: 'Для этой страницы',
+    assistantStarterChipsTitle: 'Спросите помощника',
+    pageSuggestions: {
+      book: {
+        amountDue: 'Сколько я плачу сегодня?',
+        payCash: 'Оплатить наличными на визите',
+        whyEmail: 'Зачем нужен email?',
+      },
+      serviceList: {
+        servicePrice: 'Сколько стоит {service}?',
+        payOnlineOrCash: 'Нужно ли платить онлайн за {service}?',
+        noPrepayment: 'Что можно забронировать без онлайн-оплаты?',
+      },
+      manage: {
+        cancel: 'Отменить эту запись',
+        reschedule: 'Перенести на следующую неделю',
+        sendLink: 'Отправить ссылку для управления',
+      },
+      manageGuest: {
+        signIn: 'Войти для управления',
+        resendLink: 'Переотправить ссылку для управления',
+      },
+      account: {
+        nextAppointment: 'Моя следующая запись',
+        turnOffReminders: 'Отключить напоминания',
+        rebookLast: 'Повторно записаться на прошлый визит',
+      },
+      home: {
+        cheapestService: 'Какая услуга самая дешёвая?',
+        whoFreeTomorrow: 'Кто свободен завтра?',
+      },
+      multiPicker: {
+        duration: 'Сколько времени это займёт?',
+        afternoonSlot: 'Найти дневной слот для всех услуг',
+      },
+      giftCard: {
+        applyPromo: 'Применить промокод',
+        explainTax: 'Объяснить итог с налогом',
+      },
+      multiCheckout: {
+        useSubscription: 'Использовать мой абонемент',
+        zeroTotal: 'Почему итог $0?',
+      },
+      package: {
+        visitCount: 'Сколько визитов в этом пакете?',
+        bookFirstVisit: 'Записаться на первый визит сейчас',
+      },
+      lab: {
+        bookDraw: 'Записаться на забор анализов',
+        whyCollection: 'Зачем нужен забор?',
+      },
+      results: {
+        releasedMeaning: 'Что значит released?',
+        cbcPending: 'Почему CBC всё ещё pending?',
+      },
+      welcome: {
+        savedSalons: 'Найти мои сохранённые салоны',
+        getApp: 'Как скачать приложение?',
+      },
+    },
     signIn: 'Войти',
     signInWithGoogle: 'Войти через Google',
     signingIn: 'Вход…',
@@ -2845,6 +2905,8 @@ const ru: MessageTree = {
         specimen: 'Образец',
         measurement: 'Флаг',
         unnamedResult: 'Результат анализа',
+        uploadHandoff:
+          'Прикрепите файл результата для заказа {orderId} здесь. Чтобы ввести значения вручную, используйте AI-командную строку (enter_test_result).',
       },
       ordersTab: {
         title: 'Лабораторные заказы',

@@ -26,7 +26,9 @@ export {
 export function isEmptyStateGuideIntent(
   action: string,
 ): action is EmptyStateGuideIntent {
-  return (DASHBOARD_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(action);
+  return (DASHBOARD_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 export function isEmptyStateGuideIntentOnSurface(
@@ -36,12 +38,14 @@ export function isEmptyStateGuideIntentOnSurface(
   if (!isEmptyStateGuideIntent(action)) return false;
   if (surface === 'dashboard') return true;
   if (surface === 'provider') {
-    return (PROVIDER_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(action);
-  }
-  if (surface === 'customer' || surface === 'public') {
-    return (CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(
+    return (PROVIDER_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(
       action,
     );
+  }
+  if (surface === 'customer' || surface === 'public') {
+    return (
+      CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS as readonly string[]
+    ).includes(action);
   }
   return false;
 }

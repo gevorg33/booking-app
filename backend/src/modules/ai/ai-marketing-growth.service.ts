@@ -40,7 +40,10 @@ import { handleConfigureStripeConnectLogic } from './ai-stripe-connect.logic.js'
 import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logic.js';
 import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
 import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
+import { handleApplyPromoCodeCheckoutLogic } from './ai-apply-promo-code-checkout.logic.js';
+import { handleApplyLoyaltyAtCheckoutLogic } from './ai-apply-loyalty-at-checkout.logic.js';
 import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
+import { handleExplainLoyaltyPointsLogic } from './ai-explain-loyalty-points.logic.js';
 
 @Injectable()
 export class AiMarketingGrowthService {
@@ -174,8 +177,47 @@ export class AiMarketingGrowthService {
     return handlePromoCodeHelpLogic(this.deps, businessId, params, prompt);
   }
 
+  handleApplyPromoCodeCheckout(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleApplyPromoCodeCheckoutLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleApplyLoyaltyAtCheckout(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleApplyLoyaltyAtCheckoutLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
   handleLoyaltyPointsBalance(businessId: string, params: Record<string, any>) {
     return handleLoyaltyPointsBalanceLogic(this.deps, businessId, params);
+  }
+
+  handleExplainLoyaltyPoints(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainLoyaltyPointsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleOpenBillingSettings(businessId: string) {

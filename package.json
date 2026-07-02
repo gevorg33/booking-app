@@ -11,6 +11,11 @@
     "dev:backend": "bash scripts/dev-backend.sh",
     "dev:stop": "bash scripts/dev-stop.sh",
     "deploy:frontend": "bash scripts/deploy-vercel.sh --prod",
-    "deploy:backend": "bash scripts/deploy-railway.sh up --detach"
+    "deploy:backend": "bash scripts/deploy-railway.sh up --detach",
+    "test": "npm run test --prefix backend && npm run test --prefix frontend && npm run test --prefix consumer-app && npm run test --prefix provider-app",
+    "test:backend": "npm run test --prefix backend",
+    "test:frontend": "npm run test --prefix frontend",
+    "test:consumer-app": "npm run test --prefix consumer-app",
+    "test:provider-app": "npm run test --prefix provider-app"
   }
 }

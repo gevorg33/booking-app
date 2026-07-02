@@ -6,7 +6,9 @@ import {
 describe('tenant-public-url.util', () => {
   it('buildTenantPublicPath returns internal book route', () => {
     expect(buildTenantPublicPath('Salon-A')).toBe('/book/salon-a');
-    expect(buildTenantPublicPath('salon-a', '/services')).toBe('/book/salon-a/services');
+    expect(buildTenantPublicPath('salon-a', '/services')).toBe(
+      '/book/salon-a/services',
+    );
   });
 
   it.each([

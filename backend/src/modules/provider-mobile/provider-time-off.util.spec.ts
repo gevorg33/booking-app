@@ -129,7 +129,12 @@ describe('provider-time-off.util (prov-exp-7.2)', () => {
     expect(summarizeTimeOffRequests([view])).toContain('2026-06-20');
     expect(
       summarizeTimeOffRequests([
-        { ...view, employeeName: null, startDate: '2026-06-21', endDate: '2026-06-22' },
+        {
+          ...view,
+          employeeName: null,
+          startDate: '2026-06-21',
+          endDate: '2026-06-22',
+        },
       ]),
     ).toContain('Provider');
   });

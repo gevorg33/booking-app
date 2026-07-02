@@ -1,9 +1,7 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
-import {
-  handleExplainMyNotificationsLogic,
-  handleFindMySavedSalonsLogic,
-  handleRebookLastAppointmentLogic,
-} from './ai-consumer-adoption.logic.js';
+import { handleExplainMyNotificationsLogic } from './ai-consumer-adoption.logic.js';
+import { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
+import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 import { DEFAULT_BUSINESS_NOTIFICATION_SETTINGS } from '../notifications/notification.types.js';
 
 describe('ai-consumer-adoption.logic', () => {
@@ -64,12 +62,16 @@ describe('ai-consumer-adoption.logic', () => {
   });
 
   it('lists saved salons from client context', async () => {
-    const result = await handleFindMySavedSalonsLogic({
-      recentSalons: [{ slug: 'demo-salon', name: 'Demo Salon' }],
-    });
+    const result = await handleFindMySavedSalonsLogic(
+      {
+        recentSalons: [{ slug: 'demo-salon', name: 'Demo Salon' }],
+      },
+      'Show my saved salons',
+    );
     expect(result.success).toBe(true);
     expect(result.action).toBe('find_my_saved_salons');
     expect(result.details?.recentSalons).toHaveLength(1);
+    expect(result.details?.navigate).toMatchObject({ path: 'tenant_switch' });
   });
 
   it('rebooks the last completed visit', async () => {
@@ -99,13 +101,18 @@ describe('ai-consumer-adoption.logic', () => {
         sessionCustomerId: 'cust-1',
         slug: 'demo-salon',
       },
+      'Book the same as last time',
     );
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('rebook_last_appointment');
     expect(result.details?.navigate).toMatchObject({
       path: 'checkout',
-      query: expect.objectContaining({ serviceId: 'svc-1', rebook: '1' }),
+      query: expect.objectContaining({
+        serviceId: 'svc-1',
+        rebook: '1',
+        rebookSource: 'account',
+      }),
     });
   });
 });

@@ -54,7 +54,11 @@ describe('sync mobile guide flows (ai-guide-1.9.1)', () => {
     execSync(`node ${SCRIPT}`, { cwd: ROOT, stdio: 'pipe' });
     expect(readText(consumerBundle)).toBe(beforeConsumer);
     expect(readText(providerBundle)).toBe(beforeProvider);
-    expect(readManifestStableFields(consumerManifest)).toBe(beforeConsumerManifest);
-    expect(readManifestStableFields(providerManifest)).toBe(beforeProviderManifest);
+    expect(readManifestStableFields(consumerManifest)).toBe(
+      beforeConsumerManifest,
+    );
+    expect(readManifestStableFields(providerManifest)).toBe(
+      beforeProviderManifest,
+    );
   });
 });

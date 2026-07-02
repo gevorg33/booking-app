@@ -168,7 +168,9 @@ function validateClinicTestResultCapabilityRowSet(
       );
     }
 
-    errors.push(...assertClinicTestResultAccessTierMatchesMatrix(row.id, row.tier));
+    errors.push(
+      ...assertClinicTestResultAccessTierMatchesMatrix(row.id, row.tier),
+    );
 
     const tierDerivedMutating = row.tier === 'M';
     if (row.mutating !== tierDerivedMutating) {
@@ -437,6 +439,8 @@ export const CUSTOMER_PUBLIC_RESCUE_ROUTING = {
     customerHandler:
       'CustomerAiCommandService.rescueIntent() → applyBudgetAndRankServiceDiscoveryRescue + disambiguateMisclassifiedAvailabilityIntent',
     intents: [
+      'find_services_under_budget',
+      'find_evening_weekend_slots',
       'list_services',
       'recommend_specialists',
       'check_availability',

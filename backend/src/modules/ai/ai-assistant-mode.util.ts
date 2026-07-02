@@ -8,10 +8,7 @@ export type AssistantMode = (typeof ASSISTANT_MODE_VALUES)[number];
 export const ASSISTANT_MODE_CONTEXT_KEY = 'assistantMode';
 
 export function isAssistantMode(value: unknown): value is AssistantMode {
-  return (
-    value === 'guide' ||
-    value === 'act'
-  );
+  return value === 'guide' || value === 'act';
 }
 
 export function parseAssistantMode(value: unknown): AssistantMode | undefined {

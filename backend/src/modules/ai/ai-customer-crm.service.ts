@@ -11,6 +11,7 @@ import { CustomerService } from '../customer/customer.service.js';
 import { CustomerPrivacyService } from '../customer/customer-privacy.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { GiftCardOrderService } from '../gift-cards/gift-card-order.service.js';
+import { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -41,6 +42,7 @@ import {
   handleMySubscriptionsLogic,
   handlePrivacyDeleteLogic,
   handlePrivacyExportLogic,
+  handleClaimGiftCardBalanceLogic,
   handleRequestGiftCardCancelLogic,
   handleRequestGiftCardModifyLogic,
   handleSendReengagementMessageLogic,
@@ -50,6 +52,8 @@ import {
   handleTrackPhysicalGiftCardOrderLogic,
   type CustomerCrmLogicDeps,
 } from './ai-customer-crm.logic.js';
+import { handleExplainMySubscriptionLogic } from './ai-explain-my-subscription.logic.js';
+import { handleUpdateMyProfileLogic } from './ai-update-my-profile.logic.js';
 
 @Injectable()
 export class AiCustomerCrmService {
@@ -60,6 +64,7 @@ export class AiCustomerCrmService {
     customerPrivacyService: CustomerPrivacyService,
     subscriptionsService: ServiceSubscriptionsService,
     giftCardOrderService: GiftCardOrderService,
+    giftCardClaimService: GiftCardClaimService,
     packagesService: ServicePackagesService,
     zendeskService: ZendeskIntegrationService,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
@@ -76,6 +81,7 @@ export class AiCustomerCrmService {
       customerPrivacyService,
       subscriptionsService,
       giftCardOrderService,
+      giftCardClaimService,
       packagesService,
       zendeskService,
       bookingRepo,
@@ -291,6 +297,27 @@ export class AiCustomerCrmService {
     return handleMySubscriptionsLogic(this.deps, businessId, params);
   }
 
+  handleExplainMySubscription(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainMySubscriptionLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleUpdateMyProfile(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleUpdateMyProfileLogic(this.deps, businessId, params, prompt);
+  }
+
   handleSubscriptionUsage(businessId: string, params: Record<string, any>) {
     return handleSubscriptionUsageLogic(this.deps, businessId, params);
   }
@@ -325,12 +352,33 @@ export class AiCustomerCrmService {
     return handleTrackPhysicalGiftCardOrderLogic(this.deps, businessId, params);
   }
 
-  handlePrivacyExport(businessId: string, params: Record<string, any>) {
-    return handlePrivacyExportLogic(this.deps, businessId, params);
+  handlePrivacyExport(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handlePrivacyExportLogic(this.deps, businessId, params, prompt);
   }
 
-  handlePrivacyDelete(businessId: string, params: Record<string, any>) {
-    return handlePrivacyDeleteLogic(this.deps, businessId, params);
+  handleClaimGiftCardBalance(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleClaimGiftCardBalanceLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handlePrivacyDelete(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handlePrivacyDeleteLogic(this.deps, businessId, params, prompt);
   }
 
   handleDiscoverPackages(businessId: string) {

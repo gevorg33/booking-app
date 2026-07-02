@@ -8,9 +8,10 @@ import type { AiCommandEvalCase } from './eval/ai-command-eval.types.js';
 export { IMPLICATION_CORPUS_PIPE_MARKER };
 
 /** Scenarios wired to CI — polarity guards stay in corpus unit tests only. */
-export const AI_IMPLICATION_CORPUS_EVAL_SCENARIOS = AI_IMPLICATION_CORPUS_SCENARIOS.filter(
-  (scenario) => !scenario.mustNotMatch?.length,
-);
+export const AI_IMPLICATION_CORPUS_EVAL_SCENARIOS =
+  AI_IMPLICATION_CORPUS_SCENARIOS.filter(
+    (scenario) => !scenario.mustNotMatch?.length,
+  );
 
 export function implicationCorpusEvalCaseId(
   scenario: Pick<ImplicationCorpusScenario, 'id'>,

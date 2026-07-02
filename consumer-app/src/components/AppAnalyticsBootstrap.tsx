@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import {
   configureAppAnalytics,
+  CONSUMER_DECLINE_ANALYTICS_CONSENT_EVENT,
   hydrateAnalyticsAppVersion,
   markWarmAnalyticsSession,
   readAnalyticsConsent,
@@ -43,6 +44,14 @@ export function AppAnalyticsBootstrap() {
         void ensureAndroidDefaultOnReachabilityOnFirstOpen();
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    const hidePrompt = () => setConsentPrompt(false);
+    window.addEventListener(CONSUMER_DECLINE_ANALYTICS_CONSENT_EVENT, hidePrompt);
+    return () => {
+      window.removeEventListener(CONSUMER_DECLINE_ANALYTICS_CONSENT_EVENT, hidePrompt);
+    };
   }, []);
 
   useEffect(() => {

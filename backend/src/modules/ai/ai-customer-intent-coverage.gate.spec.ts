@@ -33,7 +33,9 @@ describe('ai customer intent coverage gate manifest (ai-cmd-customer-4.0.3)', ()
     };
     const script = packageJson.scripts?.['test:ai-customer-intent-coverage'];
     expect(script).toBeDefined();
-    expect(script).toContain(buildAiCustomerIntentCoverageGateTestPathPattern());
+    expect(script).toContain(
+      buildAiCustomerIntentCoverageGateTestPathPattern(),
+    );
   });
 
   it('tracks every promoted intent in CUSTOMER_INTENT_COVERAGE_REQUIRED', () => {
@@ -48,8 +50,8 @@ describe('ai customer intent coverage gate manifest (ai-cmd-customer-4.0.3)', ()
   });
 
   it('reports no gate gaps for required + graduated promotion intents', () => {
-    expect(listCustomerIntentCoverageGateGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES)).toEqual(
-      [],
-    );
+    expect(
+      listCustomerIntentCoverageGateGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES),
+    ).toEqual([]);
   });
 });

@@ -49,15 +49,12 @@ describe('provider-command-understanding.adapter (pipe-1.12.2)', () => {
       classify,
     });
 
-    await narrowReclassify!(
-      ['list_bookings', 'show_appointments'],
-      {
-        originalPrompt: 'schedule today',
-        normalizedPrompt: 'schedule today',
-        classifierContext: null,
-        method: 'passthrough',
-      },
-    );
+    await narrowReclassify!(['list_bookings', 'show_appointments'], {
+      originalPrompt: 'schedule today',
+      normalizedPrompt: 'schedule today',
+      classifierContext: null,
+      method: 'passthrough',
+    });
 
     expect(classify).toHaveBeenCalledWith(
       'schedule today',

@@ -40,9 +40,9 @@ describe('intent-anchor.bank.boundary (pipe-1.4.1)', () => {
       'utf8',
     );
     for (const token of INTENT_ANCHOR_FORBIDDEN_ENTITY_TOKENS) {
-      expect(
-        new RegExp(`\\b${token}\\b`, 'i').test(phrasingSource),
-      ).toBe(false);
+      expect(new RegExp(`\\b${token}\\b`, 'i').test(phrasingSource)).toBe(
+        false,
+      );
     }
   });
 });

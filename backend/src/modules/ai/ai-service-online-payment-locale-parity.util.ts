@@ -3,7 +3,10 @@ import {
   SERVICE_ONLINE_PAYMENT_PROMPTS,
 } from './ai-service-online-payment.util.js';
 import { SERVICE_ONLINE_PAYMENT_MULTILINGUAL_SCENARIOS } from './ai-service-online-payment-multilingual.fixtures.js';
-import type { AiCommandEvalCase, AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalLocale,
+} from './eval/ai-command-eval.types.js';
 
 export type ServiceOnlinePaymentLocaleParityGap = {
   enScenarioId: string;

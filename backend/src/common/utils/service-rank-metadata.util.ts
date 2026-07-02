@@ -18,10 +18,12 @@ export function isServiceTierFilterPrompt(prompt: string): boolean {
   return /\b(?:premium|standard)\s+tier\b/i.test(prompt);
 }
 
-export function extractServiceTierFromPrompt(prompt: string): ServiceTier | null {
+export function extractServiceTierFromPrompt(
+  prompt: string,
+): ServiceTier | null {
   const match = prompt.match(/\b(standard|premium)\s+tier\b/i);
   if (!match) return null;
-  return match[1]!.toLowerCase() as ServiceTier;
+  return match[1].toLowerCase() as ServiceTier;
 }
 
 export function enrichServiceTierFromPrompt(
@@ -75,9 +77,7 @@ export function applyServiceRankMetadataToMetadata(
 
 export function enrichCatalogEntryWithServiceRankMetadata<
   T extends { metadata?: Record<string, unknown> | null },
->(
-  entry: T,
-): T & { isFeatured?: boolean; serviceTier?: ServiceTier | null } {
+>(entry: T): T & { isFeatured?: boolean; serviceTier?: ServiceTier | null } {
   const rank = extractServiceRankMetadata(entry.metadata ?? undefined);
   return {
     ...entry,

@@ -12,23 +12,19 @@ import {
   lookupServiceDiscoverySourceFixture,
   type ServiceDiscoveryMultilingualScenario,
 } from './ai-service-discovery-multilingual.fixtures.js';
-import {
-  budgetServiceDiscoveryScenarioToEvalCase,
-} from './ai-budget-service-discovery.eval.util.js';
+import { budgetServiceDiscoveryScenarioToEvalCase } from './ai-budget-service-discovery.eval.util.js';
 import type { BudgetServiceDiscoveryPromptFixture } from './ai-budget-service-discovery.fixtures.js';
-import {
-  flexibleAvailabilityScenarioToEvalCase,
-} from './ai-flexible-availability.eval.util.js';
+import { flexibleAvailabilityScenarioToEvalCase } from './ai-flexible-availability.eval.util.js';
 import type { FlexibleAvailabilityPromptFixture } from './ai-flexible-availability.fixtures.js';
-import {
-  serviceRankDiscoveryScenarioToEvalCase,
-} from './ai-service-rank-discovery.eval.util.js';
+import { serviceRankDiscoveryScenarioToEvalCase } from './ai-service-rank-discovery.eval.util.js';
 import type { ServiceRankDiscoveryPromptFixture } from './ai-service-rank-discovery.fixtures.js';
 import { buildFlexibleAvailabilityEvalParams } from './ai-flexible-availability-compound.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { enrichPublicAssistantParamsFromPrompt } from './ai-intent-heuristics.js';
 import { rescueCheckoutCurrencyIntent } from './ai-checkout-currency.util.js';
 import { rescueBudgetServiceDiscoveryIntent } from './ai-budget-service-discovery.util.js';
+import { isFindServicesUnderBudgetPrompt } from './ai-find-services-under-budget.util.js';
+import { isFindEveningWeekendSlotsPrompt } from './ai-find-evening-weekend-slots.util.js';
 import { applyServiceDiscoveryToCatalog } from './ai-service-catalog-rank.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import { valuesMatchEvalPartial } from './ai-flexible-availability.eval.util.js';
@@ -42,7 +38,10 @@ import type {
 export const DISCOVER_CROSS_SPRINT_MIN_EVAL_CASES = 30;
 
 export type DiscoverCrossSprintEvalExpectation = AiCommandEvalCase['expect'] & {
-  discoverCrossSprintKind: 'public-integration' | 'multilingual' | 'consumer-chip';
+  discoverCrossSprintKind:
+    | 'public-integration'
+    | 'multilingual'
+    | 'consumer-chip';
   discoverClassifierParams?: Record<string, unknown>;
   discoverForbiddenKeys?: readonly string[];
   discoverCatalogIds?: readonly string[];
@@ -107,7 +106,9 @@ function evaluatePublicIntegrationCase(
 
   if (expect.discoverExpectSingleWindow) {
     if (enriched.availabilityWindows !== undefined) {
-      errors.push('expected legacy single window without availabilityWindows[]');
+      errors.push(
+        'expected legacy single window without availabilityWindows[]',
+      );
     }
     const windows = resolvePublicAvailabilityWindows(
       enriched,
@@ -163,10 +164,7 @@ function evaluatePublicIntegrationCase(
   if (expect.rescuedAction && expect.rescueFromAction) {
     const rescued =
       expect.rescueReason === 'explain_checkout_currency'
-        ? rescueCheckoutCurrencyIntent(
-            scenario.prompt,
-            expect.rescueFromAction,
-          )
+        ? rescueCheckoutCurrencyIntent(scenario.prompt, expect.rescueFromAction)
         : rescueBudgetServiceDiscoveryIntent(
             scenario.prompt,
             expect.rescueFromAction,
@@ -212,7 +210,6 @@ function buildMultilingualClassifierSeed(
 
   return seed;
 }
-
 
 export function multilingualSurfacesForScenario(
   scenario: ServiceDiscoveryMultilingualScenario,
@@ -325,7 +322,9 @@ function evaluateTranslatedMultilingualCase(
     }
     if (expected.bookingFirstAvailable === true) {
       if (enriched.bookingFirstAvailable !== true) {
-        errors.push('bookingFirstAvailable: expected true, got false/undefined');
+        errors.push(
+          'bookingFirstAvailable: expected true, got false/undefined',
+        );
       }
     }
     const expectedWindows = Array.isArray(expected.availabilityWindows)
@@ -345,7 +344,9 @@ function evaluateTranslatedMultilingualCase(
       }
     } else if (expected.date != null && expected.timeOfDay != null) {
       if (enriched.availabilityWindows !== undefined) {
-        errors.push('forbidden availabilityWindows for single-window cross prompt');
+        errors.push(
+          'forbidden availabilityWindows for single-window cross prompt',
+        );
       }
       const windows = resolvePublicAvailabilityWindows(
         enriched,
@@ -474,11 +475,20 @@ function evaluateConsumerChipCase(
     if (enriched.maxPrice !== 50) {
       errors.push(`maxPrice: expected 50, got ${String(enriched.maxPrice)}`);
     }
+    if (!isFindServicesUnderBudgetPrompt(chip.prompt)) {
+      errors.push('budget chip prompt must match find_services_under_budget');
+    }
   } else if (chip.domain === 'rank') {
     const enriched = enrichDiscoveryParamsFromPrompt({}, chip.prompt);
     if (enriched.serviceRank !== 'highest_price') {
       errors.push(
         `serviceRank: expected highest_price, got ${String(enriched.serviceRank)}`,
+      );
+    }
+  } else if (chip.domain === 'availability') {
+    if (!isFindEveningWeekendSlotsPrompt(chip.prompt)) {
+      errors.push(
+        'availability chip prompt must match find_evening_weekend_slots',
       );
     }
   } else if (expect.discoverChipFixtureId) {

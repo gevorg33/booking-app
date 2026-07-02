@@ -14,12 +14,11 @@ import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fix
 function buildPlanGateInput(
   scenario: (typeof GUIDE_PLAN_GATE_SCENARIOS)[number],
 ): ProductGuideLogicInput {
-  const surface =
-    scenario.route.startsWith('/dashboard')
-      ? 'dashboard'
-      : scenario.route.startsWith('/tabs')
-        ? 'provider'
-        : 'customer';
+  const surface = scenario.route.startsWith('/dashboard')
+    ? 'dashboard'
+    : scenario.route.startsWith('/tabs')
+      ? 'provider'
+      : 'customer';
   return {
     businessId: 'biz-plan-gate',
     prompt: `How do I use ${scenario.topicId}?`,
@@ -70,36 +69,46 @@ describe('ai-product-guide-plan-gate.util (ai-guide-1.8.4)', () => {
     GUIDE_PLAN_GATE_SCENARIOS.filter((row) => row.expectGated).map(
       (row) => [row.id, row] as const,
     ),
-  )('tryResolvePlanGatedGuideResult returns upgrade guide for $id', (_id, scenario) => {
-    const result = tryResolvePlanGatedGuideResult(
-      'guide_user_flow',
-      buildPlanGateInput(scenario),
-      'en',
-    );
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    expect(result!.guide?.summary).toMatch(/not available on your/i);
-    expect(result!.guide?.steps?.[0]?.navigate?.path).toBe('/dashboard/billing');
-    expect(result!.details?.guidePlanGated).toBe(true);
-    expect(result!.details?.pipeMarker).toBe(GUIDE_PLAN_GATE_PIPE_MARKER);
-  });
+  )(
+    'tryResolvePlanGatedGuideResult returns upgrade guide for $id',
+    (_id, scenario) => {
+      const result = tryResolvePlanGatedGuideResult(
+        'guide_user_flow',
+        buildPlanGateInput(scenario),
+        'en',
+      );
+      expect(result).not.toBeNull();
+      expect(result!.success).toBe(true);
+      expect(result!.guide?.summary).toMatch(/not available on your/i);
+      expect(result!.guide?.steps?.[0]?.navigate?.path).toBe(
+        '/dashboard/billing',
+      );
+      expect(result!.details?.guidePlanGated).toBe(true);
+      expect(result!.details?.pipeMarker).toBe(GUIDE_PLAN_GATE_PIPE_MARKER);
+    },
+  );
 
   it.each(
     GUIDE_PLAN_GATE_SCENARIOS.filter((row) => !row.expectGated).map(
       (row) => [row.id, row] as const,
     ),
-  )('tryResolvePlanGatedGuideResult passes through allowed plan for $id', (_id, scenario) => {
-    expect(
-      tryResolvePlanGatedGuideResult(
-        'guide_user_flow',
-        buildPlanGateInput(scenario),
-        'en',
-      ),
-    ).toBeNull();
-  });
+  )(
+    'tryResolvePlanGatedGuideResult passes through allowed plan for $id',
+    (_id, scenario) => {
+      expect(
+        tryResolvePlanGatedGuideResult(
+          'guide_user_flow',
+          buildPlanGateInput(scenario),
+          'en',
+        ),
+      ).toBeNull();
+    },
+  );
 
   it('buildPlanGatedGuideCommandResult includes upgrade and preview steps', () => {
-    const scenario = GUIDE_PLAN_GATE_SCENARIOS.find((row) => row.id === 'ai-ops-solo-blocked')!;
+    const scenario = GUIDE_PLAN_GATE_SCENARIOS.find(
+      (row) => row.id === 'ai-ops-solo-blocked',
+    )!;
     const playbook = findGuideFlowPlaybookByTopicId(scenario.topicId)!;
     const input = buildPlanGateInput(scenario);
     const ctx = buildGuideFlowListContextFromInput(input);
@@ -122,7 +131,9 @@ describe('ai-product-guide-plan-gate.util (ai-guide-1.8.4)', () => {
   });
 
   it('handleProductGuideIntentLogic returns plan gate before keyword match', () => {
-    const scenario = GUIDE_PLAN_GATE_SCENARIOS.find((row) => row.id === 'gift-cards-solo-blocked')!;
+    const scenario = GUIDE_PLAN_GATE_SCENARIOS.find(
+      (row) => row.id === 'gift-cards-solo-blocked',
+    )!;
     const result = handleProductGuideIntentLogic(
       'guide_user_flow',
       buildPlanGateInput(scenario),

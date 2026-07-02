@@ -41,7 +41,9 @@ describe('provider-retail-pos.util', () => {
         PROVIDER_RETAIL_POS_CATALOG_FIXTURE,
         scenario.query,
       );
-      expect(filtered.map((product) => product.id)).toEqual(scenario.expectedIds);
+      expect(filtered.map((product) => product.id)).toEqual(
+        scenario.expectedIds,
+      );
     },
   );
 

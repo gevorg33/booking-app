@@ -28,9 +28,27 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'deposit', depositPercent: 50 },
       services: [
-        { serviceName: 'facemassage', durationMinutes: 60, price: 50, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'haircut', durationMinutes: 30, price: 25, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'manicure', durationMinutes: 45, price: 40, prepaymentMode: 'deposit', depositPercent: 50 },
+        {
+          serviceName: 'facemassage',
+          durationMinutes: 60,
+          price: 50,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'haircut',
+          durationMinutes: 30,
+          price: 25,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'manicure',
+          durationMinutes: 45,
+          price: 40,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
       ],
       misclassifiedAction: 'configure_service_online_payment',
     },
@@ -41,9 +59,25 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'massage', durationMinutes: 60, price: 80, prepaymentMode: 'full' },
-        { serviceName: 'facial', durationMinutes: 45, price: 60, prepaymentMode: 'none' },
-        { serviceName: 'gel manicure', durationMinutes: 30, price: 35, prepaymentMode: 'deposit', depositPercent: 20 },
+        {
+          serviceName: 'massage',
+          durationMinutes: 60,
+          price: 80,
+          prepaymentMode: 'full',
+        },
+        {
+          serviceName: 'facial',
+          durationMinutes: 45,
+          price: 60,
+          prepaymentMode: 'none',
+        },
+        {
+          serviceName: 'gel manicure',
+          durationMinutes: 30,
+          price: 35,
+          prepaymentMode: 'deposit',
+          depositPercent: 20,
+        },
       ],
     },
     {
@@ -54,8 +88,18 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'full' },
       services: [
-        { serviceName: 'brow lamination', durationMinutes: 30, price: 55, prepaymentMode: 'full' },
-        { serviceName: 'lash lift', durationMinutes: 45, price: 70, prepaymentMode: 'full' },
+        {
+          serviceName: 'brow lamination',
+          durationMinutes: 30,
+          price: 55,
+          prepaymentMode: 'full',
+        },
+        {
+          serviceName: 'lash lift',
+          durationMinutes: 45,
+          price: 70,
+          prepaymentMode: 'full',
+        },
       ],
     },
     {
@@ -66,9 +110,27 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'deposit', depositPercent: 30 },
       services: [
-        { serviceName: 'Swedish massage', durationMinutes: 60, price: 75, prepaymentMode: 'deposit', depositPercent: 30 },
-        { serviceName: 'deep tissue', durationMinutes: 90, price: 120, prepaymentMode: 'deposit', depositPercent: 30 },
-        { serviceName: 'hot stone', durationMinutes: 75, price: 95, prepaymentMode: 'deposit', depositPercent: 30 },
+        {
+          serviceName: 'Swedish massage',
+          durationMinutes: 60,
+          price: 75,
+          prepaymentMode: 'deposit',
+          depositPercent: 30,
+        },
+        {
+          serviceName: 'deep tissue',
+          durationMinutes: 90,
+          price: 120,
+          prepaymentMode: 'deposit',
+          depositPercent: 30,
+        },
+        {
+          serviceName: 'hot stone',
+          durationMinutes: 75,
+          price: 95,
+          prepaymentMode: 'deposit',
+          depositPercent: 30,
+        },
       ],
       misclassifiedAction: 'configure_service_deposit_policy',
     },
@@ -79,8 +141,18 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'premium facial', durationMinutes: 60, price: 90, prepaymentMode: 'full' },
-        { serviceName: 'walk-in trim', durationMinutes: 20, price: 20, prepaymentMode: 'none' },
+        {
+          serviceName: 'premium facial',
+          durationMinutes: 60,
+          price: 90,
+          prepaymentMode: 'full',
+        },
+        {
+          serviceName: 'walk-in trim',
+          durationMinutes: 20,
+          price: 20,
+          prepaymentMode: 'none',
+        },
       ],
     },
     {
@@ -91,8 +163,20 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'deposit', depositPercent: 50 },
       services: [
-        { serviceName: 'haircut', durationMinutes: 30, price: 35, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'beard trim', durationMinutes: 20, price: 20, prepaymentMode: 'deposit', depositPercent: 50 },
+        {
+          serviceName: 'haircut',
+          durationMinutes: 30,
+          price: 35,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'beard trim',
+          durationMinutes: 20,
+          price: 20,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
       ],
     },
     {
@@ -102,9 +186,24 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'classic facial', durationMinutes: 50, price: 65, prepaymentMode: 'deposit' },
-        { serviceName: 'classic manicure', durationMinutes: 40, price: 40, prepaymentMode: 'deposit' },
-        { serviceName: 'classic pedicure', durationMinutes: 50, price: 50, prepaymentMode: 'deposit' },
+        {
+          serviceName: 'classic facial',
+          durationMinutes: 50,
+          price: 65,
+          prepaymentMode: 'deposit',
+        },
+        {
+          serviceName: 'classic manicure',
+          durationMinutes: 40,
+          price: 40,
+          prepaymentMode: 'deposit',
+        },
+        {
+          serviceName: 'classic pedicure',
+          durationMinutes: 50,
+          price: 50,
+          prepaymentMode: 'deposit',
+        },
       ],
     },
     {
@@ -114,8 +213,20 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'root touch-up', durationMinutes: 90, price: 110, prepaymentMode: 'deposit', depositPercent: 25 },
-        { serviceName: 'full highlights', durationMinutes: 150, price: 220, prepaymentMode: 'deposit', depositPercent: 25 },
+        {
+          serviceName: 'root touch-up',
+          durationMinutes: 90,
+          price: 110,
+          prepaymentMode: 'deposit',
+          depositPercent: 25,
+        },
+        {
+          serviceName: 'full highlights',
+          durationMinutes: 150,
+          price: 220,
+          prepaymentMode: 'deposit',
+          depositPercent: 25,
+        },
       ],
     },
     {
@@ -125,9 +236,24 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'express massage', durationMinutes: 30, price: 45, prepaymentMode: 'full' },
-        { serviceName: 'deluxe massage', durationMinutes: 90, price: 130, prepaymentMode: 'full' },
-        { serviceName: 'couples massage', durationMinutes: 60, price: 160, prepaymentMode: 'full' },
+        {
+          serviceName: 'express massage',
+          durationMinutes: 30,
+          price: 45,
+          prepaymentMode: 'full',
+        },
+        {
+          serviceName: 'deluxe massage',
+          durationMinutes: 90,
+          price: 130,
+          prepaymentMode: 'full',
+        },
+        {
+          serviceName: 'couples massage',
+          durationMinutes: 60,
+          price: 160,
+          prepaymentMode: 'full',
+        },
       ],
       misclassifiedAction: 'explain_service_online_payment_setup',
     },
@@ -139,8 +265,18 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'none' },
       services: [
-        { serviceName: 'kids haircut', durationMinutes: 20, price: 18, prepaymentMode: 'none' },
-        { serviceName: 'senior haircut', durationMinutes: 25, price: 22, prepaymentMode: 'none' },
+        {
+          serviceName: 'kids haircut',
+          durationMinutes: 20,
+          price: 18,
+          prepaymentMode: 'none',
+        },
+        {
+          serviceName: 'senior haircut',
+          durationMinutes: 25,
+          price: 22,
+          prepaymentMode: 'none',
+        },
       ],
     },
     {
@@ -151,10 +287,34 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       expectedAction: 'create_services',
       paramsPartial: { prepaymentMode: 'deposit', depositPercent: 50 },
       services: [
-        { serviceName: 'blowout', durationMinutes: 45, price: 55, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'updo', durationMinutes: 60, price: 80, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'makeup', durationMinutes: 75, price: 95, prepaymentMode: 'deposit', depositPercent: 50 },
-        { serviceName: 'lashes', durationMinutes: 90, price: 120, prepaymentMode: 'deposit', depositPercent: 50 },
+        {
+          serviceName: 'blowout',
+          durationMinutes: 45,
+          price: 55,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'updo',
+          durationMinutes: 60,
+          price: 80,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'makeup',
+          durationMinutes: 75,
+          price: 95,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
+        {
+          serviceName: 'lashes',
+          durationMinutes: 90,
+          price: 120,
+          prepaymentMode: 'deposit',
+          depositPercent: 50,
+        },
       ],
     },
     {
@@ -164,8 +324,20 @@ export const CREATE_SERVICES_PREPAYMENT_PROMPTS: CreateServicesPrepaymentFixture
       surface: 'dashboard',
       expectedAction: 'create_services',
       services: [
-        { serviceName: 'bridal makeup', durationMinutes: 120, price: 250, prepaymentMode: 'deposit', depositAmount: 75 },
-        { serviceName: 'trial makeup', durationMinutes: 90, price: 150, prepaymentMode: 'deposit', depositAmount: 50 },
+        {
+          serviceName: 'bridal makeup',
+          durationMinutes: 120,
+          price: 250,
+          prepaymentMode: 'deposit',
+          depositAmount: 75,
+        },
+        {
+          serviceName: 'trial makeup',
+          durationMinutes: 90,
+          price: 150,
+          prepaymentMode: 'deposit',
+          depositAmount: 50,
+        },
       ],
     },
   ];

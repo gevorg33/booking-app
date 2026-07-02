@@ -39,9 +39,9 @@ describe('ai-explain-amount-due-now.util (ai-cmd-customer-4.2.1)', () => {
     ),
   )('detects multilingual amount-due-now prompt $id', (_id, row) => {
     expect(isExplainAmountDueNowPrompt(row.prompt)).toBe(true);
-    expect(
-      rescueExplainAmountDueNowIntent(row.prompt, 'unknown')?.action,
-    ).toBe('explain_amount_due_now');
+    expect(rescueExplainAmountDueNowIntent(row.prompt, 'unknown')?.action).toBe(
+      'explain_amount_due_now',
+    );
   });
 
   it.each(EXPLAIN_AMOUNT_DUE_NOW_PROMPTS.map((row) => [row.id, row] as const))(
@@ -76,9 +76,9 @@ describe('ai-explain-amount-due-now.util (ai-cmd-customer-4.2.1)', () => {
     expect(
       isExplainCheckoutTotalPrompt('Explain checkout total for haircut'),
     ).toBe(true);
-    expect(
-      isExplainAmountDueNowPrompt('Why must I pay now for massage?'),
-    ).toBe(false);
+    expect(isExplainAmountDueNowPrompt('Why must I pay now for massage?')).toBe(
+      false,
+    );
   });
 
   it.each(AI_COMMAND_EVAL_EXPLAIN_AMOUNT_DUE_NOW_CASES)(

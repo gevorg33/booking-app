@@ -92,18 +92,18 @@ describe('Public booking cash + manage token integration', () => {
   const configService = { get: jest.fn(() => 'https://app.test') };
 
   const publicBookingService = createPublicBookingServiceHarness({
-    businessService: businessService as any,
-    bookingService: bookingService as any,
-    customerService: customerService as any,
+    businessService: businessService,
+    bookingService: bookingService,
+    customerService: customerService,
     stripeIntegrationService: stripeIntegrationService as any,
-    bookingPaymentService: bookingPaymentService as any,
-    checkoutPricingService: checkoutPricingService as any,
+    bookingPaymentService: bookingPaymentService,
+    checkoutPricingService: checkoutPricingService,
     notificationsService: {
       sendMultiAppointmentConfirmation: jest.fn(),
-    } as any,
+    },
     configService: configService as any,
-    serviceRepo: serviceRepo as any,
-    bookingRepo: bookingRepo as any,
+    serviceRepo: serviceRepo,
+    bookingRepo: bookingRepo,
   });
 
   beforeEach(() => {

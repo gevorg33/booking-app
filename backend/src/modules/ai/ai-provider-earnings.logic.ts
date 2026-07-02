@@ -1,9 +1,6 @@
 import { Between, Not, In } from 'typeorm';
 import type { Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { CommissionsService } from '../commissions/commissions.service.js';
 import type { BusinessService } from '../business/business.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
@@ -49,16 +46,15 @@ async function resolveProviderDateRange(
   params: Record<string, unknown>,
   prompt?: string,
 ): Promise<{ start: string; end: string }> {
-  const range =
-    resolveDateRange(
-      {
-        date: params.date as string | null | undefined,
-        dateFrom: params.dateFrom as string | null | undefined,
-        dateTo: params.dateTo as string | null | undefined,
-        _timeZone: params._timeZone as string | null | undefined,
-      },
-      prompt,
-    ) ?? { start: getTodayDateKey(), end: getTodayDateKey() };
+  const range = resolveDateRange(
+    {
+      date: params.date as string | null | undefined,
+      dateFrom: params.dateFrom as string | null | undefined,
+      dateTo: params.dateTo as string | null | undefined,
+      _timeZone: params._timeZone as string | null | undefined,
+    },
+    prompt,
+  ) ?? { start: getTodayDateKey(), end: getTodayDateKey() };
   return range;
 }
 
@@ -68,7 +64,10 @@ async function loadScopedBookings(
   userId: string,
   range: { start: string; end: string },
 ): Promise<{ bookings: Booking[]; employeeId: string | null }> {
-  const access = await deps.providerMobile.resolveMobileAccess(businessId, userId);
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
   const employeeId = deps.providerMobile.getScopedEmployeeId(access) ?? null;
   const { start, end } = isoDateRangeToUtcBounds(range);
 
@@ -97,7 +96,10 @@ export async function handleSummarizeMyAppointmentsLogic(
   params: Record<string, unknown>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const access = await deps.providerMobile.resolveMobileAccess(businessId, userId);
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
   if (access.viewMode === 'team' && !access.employee) {
     return failure(
       'summarize_my_appointments',
@@ -133,7 +135,10 @@ export async function handleSummarizeMyRevenueLogic(
   params: Record<string, unknown>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const access = await deps.providerMobile.resolveMobileAccess(businessId, userId);
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
   if (!access.employee) {
     return failure(
       'summarize_my_revenue',
@@ -143,7 +148,12 @@ export async function handleSummarizeMyRevenueLogic(
   }
 
   const range = await resolveProviderDateRange(params, prompt);
-  const { bookings } = await loadScopedBookings(deps, businessId, userId, range);
+  const { bookings } = await loadScopedBookings(
+    deps,
+    businessId,
+    userId,
+    range,
+  );
   const [business, rules] = await Promise.all([
     deps.businessService.findOne(businessId),
     deps.commissionsService.list(businessId),

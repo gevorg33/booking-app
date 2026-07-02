@@ -22,15 +22,14 @@ describe('ai-find-soonest-appointment.util (ai-cmd-customer-4.1.3)', () => {
     );
   });
 
-  it.each(FIND_SOONEST_APPOINTMENT_PROMPTS.map((row) => [row.id, row] as const))(
-    'detects find-soonest prompt $id',
-    (_id, row) => {
-      expect(isFindSoonestAppointmentPrompt(row.prompt)).toBe(true);
-      expect(detectFindSoonestAppointmentAction(row.prompt)).toBe(
-        row.expectedAction,
-      );
-    },
-  );
+  it.each(
+    FIND_SOONEST_APPOINTMENT_PROMPTS.map((row) => [row.id, row] as const),
+  )('detects find-soonest prompt $id', (_id, row) => {
+    expect(isFindSoonestAppointmentPrompt(row.prompt)).toBe(true);
+    expect(detectFindSoonestAppointmentAction(row.prompt)).toBe(
+      row.expectedAction,
+    );
+  });
 
   it.each(
     FIND_SOONEST_APPOINTMENT_MULTILINGUAL_SCENARIOS.map(
@@ -38,22 +37,21 @@ describe('ai-find-soonest-appointment.util (ai-cmd-customer-4.1.3)', () => {
     ),
   )('detects multilingual find-soonest prompt $id', (_id, row) => {
     expect(isFindSoonestAppointmentPrompt(row.prompt)).toBe(true);
-    expect(rescueFindSoonestAppointmentIntent(row.prompt, 'unknown')?.action).toBe(
+    expect(
+      rescueFindSoonestAppointmentIntent(row.prompt, 'unknown')?.action,
+    ).toBe('find_soonest_appointment');
+  });
+
+  it.each(
+    FIND_SOONEST_APPOINTMENT_PROMPTS.map((row) => [row.id, row] as const),
+  )('rescues find-soonest prompt $id from unknown', (_id, row) => {
+    const rescued = rescueFindSoonestAppointmentIntent(row.prompt, 'unknown');
+    expect(rescued?.action).toBe(row.expectedAction);
+    expect(rescued?.rescueReason).toBe(row.rescueReason);
+    expect(rescuePaymentsIntent(row.prompt, 'unknown')?.action).toBe(
       'find_soonest_appointment',
     );
   });
-
-  it.each(FIND_SOONEST_APPOINTMENT_PROMPTS.map((row) => [row.id, row] as const))(
-    'rescues find-soonest prompt $id from unknown',
-    (_id, row) => {
-      const rescued = rescueFindSoonestAppointmentIntent(row.prompt, 'unknown');
-      expect(rescued?.action).toBe(row.expectedAction);
-      expect(rescued?.rescueReason).toBe(row.rescueReason);
-      expect(rescuePaymentsIntent(row.prompt, 'unknown')?.action).toBe(
-        'find_soonest_appointment',
-      );
-    },
-  );
 
   it('enriches bookingFirstAvailable and serviceName', () => {
     const enriched = enrichFindSoonestParamsFromPrompt(
@@ -77,12 +75,18 @@ describe('ai-find-soonest-appointment.util (ai-cmd-customer-4.1.3)', () => {
     expect(
       isCheckProvidersForServicePrompt('Who is free tomorrow for massage?'),
     ).toBe(true);
+    expect(
+      isFindSoonestAppointmentPrompt(
+        'Put me in the earliest opening you have this week',
+      ),
+    ).toBe(false);
   });
 
   it('maps fixtures to passing eval golden cases', () => {
     expect(
-      FIND_SOONEST_APPOINTMENT_PROMPTS.filter((row) => row.surface === 'customer')
-        .length,
+      FIND_SOONEST_APPOINTMENT_PROMPTS.filter(
+        (row) => row.surface === 'customer',
+      ).length,
     ).toBeGreaterThanOrEqual(10);
     expect(
       FIND_SOONEST_APPOINTMENT_PROMPTS.filter((row) => row.surface === 'public')

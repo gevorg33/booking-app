@@ -33,8 +33,7 @@ const SALON_VENUE_CUE =
 const STRIPE_STEP_CUE =
   /\b(?:connect|set\s+up|configure|link)\b.*\bstripe\b|\bstripe\s+connect\b|\bstripe\s+for\s+(?:card|client|booking)/i;
 
-const CASH_STEP_CUE =
-  /\b(?:cash|pay\s+at\s+(?:the\s+)?venue|accept\s+cash)\b/i;
+const CASH_STEP_CUE = /\b(?:cash|pay\s+at\s+(?:the\s+)?venue|accept\s+cash)\b/i;
 
 const ONLINE_PAYMENT_STEP_CUE =
   /\b(?:online\s+payment|prepayment|50\s*%|half\s+deposit|deposit\s+prepayment)\b/i;

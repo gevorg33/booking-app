@@ -58,13 +58,13 @@ export class BookingCompletedListener {
     }
 
     try {
-      const conversion = await this.referralProgramService.processBookingCompleted(
-        booking.id,
-      );
+      const conversion =
+        await this.referralProgramService.processBookingCompleted(booking.id);
       if (!conversion.converted || !booking.business?.slug) return;
 
       const referralCode =
-        typeof booking.customer?.metadata?.[REFERRAL_METADATA_CODE_USED] === 'string'
+        typeof booking.customer?.metadata?.[REFERRAL_METADATA_CODE_USED] ===
+        'string'
           ? booking.customer.metadata[REFERRAL_METADATA_CODE_USED]
           : undefined;
 
@@ -73,7 +73,7 @@ export class BookingCompletedListener {
         tenantSlug: booking.business.slug,
         bookingId: booking.id,
         referrerCustomerId: conversion.referrerCustomerId!,
-        refereeCustomerId: booking.customerId!,
+        refereeCustomerId: booking.customerId,
         referralCode,
       });
       await this.appEventRepo.save(this.appEventRepo.create(payload));

@@ -40,7 +40,8 @@ const snapshot: IntegrationHealthSnapshot = {
     configured: true,
     usingPlatformDefault: false,
     phoneNumberId: '123',
-    summary: 'WhatsApp: connected with salon credentials (phone number ID 123).',
+    summary:
+      'WhatsApp: connected with salon credentials (phone number ID 123).',
   },
   openAi: {
     configured: false,
@@ -61,9 +62,9 @@ describe('ai-integration-health.snapshot', () => {
   });
 
   it('builds focused and overview summaries', () => {
-    expect(buildFocusedIntegrationHealthSummary(snapshot, 'whatsapp')).toContain(
-      'WhatsApp: connected',
-    );
+    expect(
+      buildFocusedIntegrationHealthSummary(snapshot, 'whatsapp'),
+    ).toContain('WhatsApp: connected');
     expect(buildIntegrationHealthOverviewSummary(snapshot)).toContain('6/8');
   });
 });
@@ -71,9 +72,7 @@ describe('ai-integration-health.snapshot', () => {
 describe('ai-explain-integration-health.logic', () => {
   const deps = {
     webhooksService: {
-      listSubscriptions: jest.fn(async () => [
-        { id: 'wh-1', isActive: true },
-      ]),
+      listSubscriptions: jest.fn(async () => [{ id: 'wh-1', isActive: true }]),
     },
     apiKeyService: { listKeys: jest.fn(async () => [{ id: 'k1' }]) },
     zendeskIntegrationService: {

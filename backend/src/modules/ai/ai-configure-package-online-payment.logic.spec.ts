@@ -150,7 +150,9 @@ describe('ai-configure-package-online-payment.logic', () => {
   });
 
   it('surfaces service update errors', async () => {
-    serviceService.update.mockRejectedValueOnce(new Error('Stripe not connected'));
+    serviceService.update.mockRejectedValueOnce(
+      new Error('Stripe not connected'),
+    );
     const result = await handleConfigurePackageOnlinePaymentLogic(
       { packagesService, serviceService } as any,
       'biz-1',

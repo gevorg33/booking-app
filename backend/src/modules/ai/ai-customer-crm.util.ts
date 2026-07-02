@@ -1,3 +1,15 @@
+import {
+  isExplainMySubscriptionPrompt,
+  rescueExplainMySubscriptionIntent,
+} from './ai-explain-my-subscription.util.js';
+import {
+  isUpdateMyProfilePrompt,
+  rescueUpdateMyProfileIntent,
+} from './ai-update-my-profile.util.js';
+import { isTrackPhysicalGiftCardOrderCustomerPrompt } from './ai-track-physical-gift-card-order.util.js';
+import { rescueClaimGiftCardBalanceIntent } from './ai-claim-gift-card-balance.util.js';
+import { hasSubscriptionCheckoutCompareCue } from './ai-explain-subscription-vs-one-time.util.js';
+
 export const DASHBOARD_CRM_MUTATE_INTENTS = [
   'extend_subscription',
   'cancel_subscription_admin',
@@ -19,13 +31,16 @@ export const DASHBOARD_CRM_READ_INTENTS = [
 export const CUSTOMER_ACCOUNT_MUTATE_INTENTS = [
   'request_gift_card_cancel',
   'request_gift_card_modify',
+  'claim_gift_card_balance',
   'privacy_export',
   'privacy_delete',
+  'update_my_profile',
 ] as const;
 
 export const CUSTOMER_ACCOUNT_READ_INTENTS = [
   'my_profile',
   'my_appointments',
+  'explain_my_subscription',
   'my_subscriptions',
   'subscription_usage',
   'my_gift_cards',
@@ -186,6 +201,7 @@ export function isCustomerNoShowHistoryPrompt(prompt: string): boolean {
 }
 
 export function isMyProfilePrompt(prompt: string): boolean {
+  if (isUpdateMyProfilePrompt(prompt)) return false;
   return (
     /\bmy\b/i.test(prompt) && /\b(profile|account|details)\b/i.test(prompt)
   );
@@ -200,6 +216,7 @@ export function isMyAppointmentsPrompt(prompt: string): boolean {
 }
 
 export function isMySubscriptionsPrompt(prompt: string): boolean {
+  if (isExplainMySubscriptionPrompt(prompt)) return false;
   if (isSubscriptionUsagePrompt(prompt)) return false;
   if (hasDashboardCustomerReference(prompt) && !/\bmy\b/i.test(prompt)) {
     return false;
@@ -218,7 +235,9 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  const mentionsMembership = /\b(subscription|membership|plan)s?\b/i.test(prompt);
+  const mentionsMembership = /\b(subscription|membership|plan)s?\b/i.test(
+    prompt,
+  );
   if (!mentionsMembership) return false;
 
   return (
@@ -235,6 +254,7 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
 }
 
 export function isSubscriptionUsagePrompt(prompt: string): boolean {
+  if (isExplainMySubscriptionPrompt(prompt)) return false;
   return (
     /\bmy\b/i.test(prompt) &&
     /\b(subscription|membership|plan)\b/i.test(prompt) &&
@@ -311,10 +331,7 @@ export function isRequestGiftCardModifyPrompt(prompt: string): boolean {
 }
 
 export function isTrackPhysicalGiftCardPrompt(prompt: string): boolean {
-  return (
-    /\b(track|where|status|shipment|shipping|delivery)\b/i.test(prompt) &&
-    /\b(gift\s*card|physical|order)\b/i.test(prompt)
-  );
+  return isTrackPhysicalGiftCardOrderCustomerPrompt(prompt);
 }
 
 export function isPrivacySelfServiceMutateCommand(prompt: string): boolean {
@@ -352,8 +369,9 @@ export function isPrivacyExportPrompt(prompt: string): boolean {
     /\bgdpr\s+export\b/i.test(prompt) ||
     /\bget\s+my\s+data\s+export\b/i.test(prompt);
 
-  const dataTarget =
-    /\b(data|information|account|profile|personal)\b/i.test(prompt);
+  const dataTarget = /\b(data|information|account|profile|personal)\b/i.test(
+    prompt,
+  );
 
   return selfScope && exportIntent && dataTarget;
 }
@@ -371,8 +389,9 @@ export function isPrivacyDeletePrompt(prompt: string): boolean {
     /\bright\s+to\s+be\s+forgotten\b/i.test(prompt) ||
     /\bgdpr\s+delete\b/i.test(prompt);
 
-  const dataTarget =
-    /\b(data|account|information|profile|personal)\b/i.test(prompt);
+  const dataTarget = /\b(data|account|information|profile|personal)\b/i.test(
+    prompt,
+  );
 
   return (
     selfScope &&
@@ -395,6 +414,7 @@ export function isDiscoverPackagesPrompt(prompt: string): boolean {
 }
 
 export function isDiscoverSubscriptionPlansPrompt(prompt: string): boolean {
+  if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
   return (
     /\b(what|which|show|list|discover|available|membership)\b/i.test(prompt) &&
     /\b(subscription|membership)\s+plans?\b/i.test(prompt) &&
@@ -491,11 +511,21 @@ export function rescueCustomerCrmIntent(
   prompt: string,
   action: string,
 ): { action: CustomerCrmIntent; rescueReason: string } | null {
-  if (isCustomerCrmIntent(action)) return null;
   if (isCrmCompoundPrompt(prompt) && action !== 'compound_intent') {
     return null;
   }
   if (isProviderMobileClientContextPrompt(prompt)) return null;
+
+  const updateProfileEarly = rescueUpdateMyProfileIntent(prompt, action);
+  if (updateProfileEarly) return updateProfileEarly;
+
+  const claimGiftCardBalanceEarly = rescueClaimGiftCardBalanceIntent(
+    prompt,
+    action,
+  );
+  if (claimGiftCardBalanceEarly) return claimGiftCardBalanceEarly;
+
+  if (isCustomerCrmIntent(action)) return null;
 
   if (isPrivacySelfServiceMutateCommand(prompt)) {
     if (isPrivacyDeletePrompt(prompt))
@@ -513,7 +543,7 @@ export function rescueCustomerCrmIntent(
       action: 'request_gift_card_cancel',
       rescueReason: 'gift_card_cancel',
     };
-  if (isTrackPhysicalGiftCardPrompt(prompt))
+  if (isTrackPhysicalGiftCardOrderCustomerPrompt(prompt))
     return {
       action: 'track_physical_gift_card_order',
       rescueReason: 'track_gift_card',
@@ -525,6 +555,8 @@ export function rescueCustomerCrmIntent(
     };
   if (isGiftCardBalancePrompt(prompt))
     return { action: 'gift_card_balance', rescueReason: 'gift_card_balance' };
+  const explainSubscription = rescueExplainMySubscriptionIntent(prompt, action);
+  if (explainSubscription) return explainSubscription;
   if (isSubscriptionUsagePrompt(prompt))
     return { action: 'subscription_usage', rescueReason: 'subscription_usage' };
   if (isMyGiftCardsPrompt(prompt))
@@ -704,6 +736,9 @@ function classifyCrmSegment(
   }
   if (isMyAppointmentsPrompt(text)) {
     return { action: 'my_appointments', params: {}, segment: text };
+  }
+  if (isExplainMySubscriptionPrompt(text)) {
+    return { action: 'explain_my_subscription', params: {}, segment: text };
   }
   if (isMySubscriptionsPrompt(text)) {
     return { action: 'my_subscriptions', params: {}, segment: text };

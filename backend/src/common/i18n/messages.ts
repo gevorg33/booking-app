@@ -146,8 +146,7 @@ const en: MessageTree = {
       '{businessName}: Book your {collectionServiceName} for ordered labs ({testNames}): {bookUrl}',
     clinicLabBookingRequestWhatsapp:
       'Book {collectionServiceName} for ordered labs ({testNames})',
-    clinicLabBookingRequestPushTitle:
-      '{businessName}: Book lab collection',
+    clinicLabBookingRequestPushTitle: '{businessName}: Book lab collection',
     clinicLabBookingRequestPushBody:
       'Book your {collectionServiceName} for ordered labs ({testNames}).',
     clinicLabBookingRequestPushForegroundHint:
@@ -158,18 +157,15 @@ const en: MessageTree = {
     bookingConfirmedPushForegroundHint:
       'Confirmed: {serviceName} on {scheduleLabel}',
     bookingReminderPushTitle: '{businessName}: Appointment reminder',
-    bookingReminderPushBody:
-      '{serviceName} on {scheduleLabel} — see you soon.',
+    bookingReminderPushBody: '{serviceName} on {scheduleLabel} — see you soon.',
     bookingReminderPushForegroundHint:
       'Reminder: {serviceName} on {scheduleLabel}',
     bookingRescheduledPushTitle: '{businessName}: Appointment rescheduled',
-    bookingRescheduledPushBody:
-      '{serviceName} is now on {scheduleLabel}.',
+    bookingRescheduledPushBody: '{serviceName} is now on {scheduleLabel}.',
     bookingRescheduledPushForegroundHint:
       'Rescheduled to {scheduleLabel} — tap to view',
     bookingCancelledPushTitle: '{businessName}: Appointment cancelled',
-    bookingCancelledPushBody:
-      '{serviceName} on {scheduleLabel} was cancelled.',
+    bookingCancelledPushBody: '{serviceName} on {scheduleLabel} was cancelled.',
     bookingCancelledPushForegroundHint:
       '{serviceName} cancelled — tap to rebook',
     providerRunningLatePushTitle: '{businessName}: Running late',
@@ -182,15 +178,13 @@ const en: MessageTree = {
       '{providerName} is ready for your {serviceName} now.',
     providerReadyNowPushForegroundHint: '{providerName} is ready for you',
     giftCardReceivedPushTitle: '{businessName}: Gift card received',
-    giftCardReceivedPushBody:
-      'You received a gift card from {senderName}.',
+    giftCardReceivedPushBody: 'You received a gift card from {senderName}.',
     giftCardReceivedPushForegroundHint:
       'Gift card from {senderName} — tap to view',
     rebookingNudgePushTitle: '{businessName}: Time to rebook',
     rebookingNudgePushBody:
       'Your next {serviceName} is due ({cadenceLabel}). Tap to book.',
-    rebookingNudgePushForegroundHint:
-      'Time for {serviceName} — tap to book',
+    rebookingNudgePushForegroundHint: 'Time for {serviceName} — tap to book',
     rebookingNudgeEmailSubject:
       'Time for your next {serviceName} — {businessName}',
     rebookingNudgeMessage:
@@ -431,18 +425,15 @@ const hy: MessageTree = {
     bookingConfirmedPushForegroundHint:
       'Հաստատված՝ {serviceName} {scheduleLabel}',
     bookingReminderPushTitle: '{businessName}՝ հիշեցում',
-    bookingReminderPushBody:
-      '{serviceName}՝ {scheduleLabel} — սպասում ենք ձեզ',
+    bookingReminderPushBody: '{serviceName}՝ {scheduleLabel} — սպասում ենք ձեզ',
     bookingReminderPushForegroundHint:
       'Հիշեցում՝ {serviceName} {scheduleLabel}',
     bookingRescheduledPushTitle: '{businessName}՝ ամրագրումը տեղափոխված է',
-    bookingRescheduledPushBody:
-      '{serviceName} այժմ {scheduleLabel} է',
+    bookingRescheduledPushBody: '{serviceName} այժմ {scheduleLabel} է',
     bookingRescheduledPushForegroundHint:
       'Տեղափոխված է {scheduleLabel} — հպեք դիտելու',
     bookingCancelledPushTitle: '{businessName}՝ ամրագրումը չեղարկված է',
-    bookingCancelledPushBody:
-      '{serviceName} {scheduleLabel} չեղարկվել է',
+    bookingCancelledPushBody: '{serviceName} {scheduleLabel} չեղարկվել է',
     bookingCancelledPushForegroundHint:
       '{serviceName} չեղարկված է — հպեք վերամրագրելու',
     providerRunningLatePushTitle: '{businessName}՝ ուշացում',
@@ -451,21 +442,17 @@ const hy: MessageTree = {
     providerRunningLatePushForegroundHint:
       '{providerName}-ը {minutesLate} ր ուշ է',
     providerReadyNowPushTitle: '{businessName}՝ պատրաստ է',
-    providerReadyNowPushBody:
-      '{providerName}-ը պատրաստ է ձեր {serviceName}-ին',
+    providerReadyNowPushBody: '{providerName}-ը պատրաստ է ձեր {serviceName}-ին',
     providerReadyNowPushForegroundHint: '{providerName}-ը պատրաստ է ձեզ',
     giftCardReceivedPushTitle: '{businessName}՝ նվեր քարտ',
-    giftCardReceivedPushBody:
-      'Դուք նվեր քարտ եք ստացել {senderName}-ից',
+    giftCardReceivedPushBody: 'Դուք նվեր քարտ եք ստացել {senderName}-ից',
     giftCardReceivedPushForegroundHint:
       'Նվեր քարտ {senderName}-ից — հպեք դիտելու',
     rebookingNudgePushTitle: '{businessName}՝ վերամրագրման ժամանակն է',
     rebookingNudgePushBody:
       'Ձեր հաջորդ {serviceName}-ի ժամանակն է ({cadenceLabel})։ Հպեք ամրագրելու',
-    rebookingNudgePushForegroundHint:
-      '{serviceName} — հպեք ամրագրելու',
-    rebookingNudgeEmailSubject:
-      'Վերամրագրեք {serviceName} — {businessName}',
+    rebookingNudgePushForegroundHint: '{serviceName} — հպեք ամրագրելու',
+    rebookingNudgeEmailSubject: 'Վերամրագրեք {serviceName} — {businessName}',
     rebookingNudgeMessage:
       'Ողջույն {customerName}, {businessName}-ում {serviceName} վերամրագրելու ժամանակն է։ {bookUrl}{promoLine}',
     winBackEmailSubject: 'Ցանկանում ենք նորից տեսնել ձեզ — {businessName}',
@@ -612,7 +599,8 @@ const ru: MessageTree = {
     availabilityHeader: 'Свободные слоты для {service} ({days} дн.):',
     availabilityHeaderBudget:
       'Свободные слоты для {service} (варианты до ${maxPrice}) ({days} дн.):',
-    availabilityHeaderOptions: 'Свободные слоты для {service} ({count} вариантов):',
+    availabilityHeaderOptions:
+      'Свободные слоты для {service} ({count} вариантов):',
     availabilityHeaderOptionsBudget:
       'Свободные слоты для {service} (варианты до ${maxPrice}) ({count} вариантов):',
     availabilityDaySingleProvider: '{weekday} {date}: {times}',
@@ -670,10 +658,12 @@ const ru: MessageTree = {
     giftCardBalanceLine: 'Баланс: {price}',
     giftCardPurchaseLine: 'Оплачено: {price}',
     appInstallPromoHeading: 'Скачайте приложение OptiSchedule',
-    appInstallPromoLinkLabel: 'Установить или открыть приложение для этого салона',
+    appInstallPromoLinkLabel:
+      'Установить или открыть приложение для этого салона',
     appInstallPromoText:
       'Приложение OptiSchedule для быстрой повторной записи и напоминаний: {url}',
-    appInstallQrAlt: 'QR-код для установки приложения OptiSchedule для этого салона',
+    appInstallQrAlt:
+      'QR-код для установки приложения OptiSchedule для этого салона',
     clinicResultReadySubject:
       'Ваши результаты анализов готовы — {businessName}',
     clinicResultReadyBody:
@@ -706,18 +696,15 @@ const ru: MessageTree = {
     bookingConfirmedPushForegroundHint:
       'Подтверждено: {serviceName} {scheduleLabel}',
     bookingReminderPushTitle: '{businessName}: Напоминание о записи',
-    bookingReminderPushBody:
-      '{serviceName} {scheduleLabel} — ждём вас.',
+    bookingReminderPushBody: '{serviceName} {scheduleLabel} — ждём вас.',
     bookingReminderPushForegroundHint:
       'Напоминание: {serviceName} {scheduleLabel}',
     bookingRescheduledPushTitle: '{businessName}: Запись перенесена',
-    bookingRescheduledPushBody:
-      '{serviceName} теперь {scheduleLabel}.',
+    bookingRescheduledPushBody: '{serviceName} теперь {scheduleLabel}.',
     bookingRescheduledPushForegroundHint:
       'Перенесено на {scheduleLabel} — нажмите для просмотра',
     bookingCancelledPushTitle: '{businessName}: Запись отменена',
-    bookingCancelledPushBody:
-      '{serviceName} {scheduleLabel} отменена.',
+    bookingCancelledPushBody: '{serviceName} {scheduleLabel} отменена.',
     bookingCancelledPushForegroundHint:
       '{serviceName} отменена — нажмите, чтобы записаться снова',
     providerRunningLatePushTitle: '{businessName}: Задержка',
@@ -726,12 +713,10 @@ const ru: MessageTree = {
     providerRunningLatePushForegroundHint:
       '{providerName} опаздывает на {minutesLate} мин',
     providerReadyNowPushTitle: '{businessName}: Готовы принять',
-    providerReadyNowPushBody:
-      '{providerName} готов к вашему {serviceName}.',
+    providerReadyNowPushBody: '{providerName} готов к вашему {serviceName}.',
     providerReadyNowPushForegroundHint: '{providerName} готов принять вас',
     giftCardReceivedPushTitle: '{businessName}: Подарочная карта',
-    giftCardReceivedPushBody:
-      'Вы получили подарочную карту от {senderName}.',
+    giftCardReceivedPushBody: 'Вы получили подарочную карту от {senderName}.',
     giftCardReceivedPushForegroundHint:
       'Подарочная карта от {senderName} — нажмите для просмотра',
     rebookingNudgePushTitle: '{businessName}: Пора записаться снова',
@@ -749,8 +734,7 @@ const ru: MessageTree = {
     winBackPromoLine: ' Используйте код {promoCode} при записи.',
     winBackLoyaltyLine: ' Мы начислили ${bonusAmount} бонусов на ваш счёт.',
     winBackPushTitle: '{businessName}: Мы скучаем по вам',
-    winBackPushBody:
-      'Давно не были — запишитесь в {businessName}.{promoLine}',
+    winBackPushBody: 'Давно не были — запишитесь в {businessName}.{promoLine}',
     winBackPushForegroundHint: 'Нажмите, чтобы записаться в {businessName}',
   },
   pdf: {

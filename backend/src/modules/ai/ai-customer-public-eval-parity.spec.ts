@@ -39,7 +39,9 @@ const SHARED_DISCOVERY_EVAL: Record<
     publicCases: readonly { id: string }[];
     customerCases: readonly { id: string }[];
     evalIdPrefix: string;
-    surfacesFor: (fixture: { surface?: string }) => Array<'public' | 'customer'>;
+    surfacesFor: (fixture: {
+      surface?: string;
+    }) => Array<'public' | 'customer'>;
     eligible: (
       fixture: { id: string; surface?: string; phase2?: boolean },
       surface: 'public' | 'customer',
@@ -89,8 +91,14 @@ describe('ai customer public eval parity (ai-cmd-customer-3.2 / gap-5)', () => {
   it.each(['budget', 'rank', 'availability'] as const)(
     'duplicates EN eval rows for every eval-eligible both-surface %s fixture',
     (domain) => {
-      const { fixtures, publicCases, customerCases, evalIdPrefix, surfacesFor, eligible } =
-        SHARED_DISCOVERY_EVAL[domain];
+      const {
+        fixtures,
+        publicCases,
+        customerCases,
+        evalIdPrefix,
+        surfacesFor,
+        eligible,
+      } = SHARED_DISCOVERY_EVAL[domain];
       const publicIds = publicCases.map((row) => row.id);
       const customerIds = customerCases.map((row) => row.id);
 
@@ -119,7 +127,8 @@ describe('ai customer public eval parity (ai-cmd-customer-3.2 / gap-5)', () => {
     );
 
     for (const scenario of MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS.filter(
-      (row) => row.surface === 'both' && isMultilingualDiscoverEvalEligible(row),
+      (row) =>
+        row.surface === 'both' && isMultilingualDiscoverEvalEligible(row),
     )) {
       for (const surface of multilingualSurfacesForScenario(scenario)) {
         expect(evalIds).toContain(multilingualEvalCaseId(scenario, surface));
@@ -136,7 +145,8 @@ describe('ai customer public eval parity (ai-cmd-customer-3.2 / gap-5)', () => {
     );
 
     for (const scenario of MULTILINGUAL_SERVICE_DISCOVERY_SCENARIOS.filter(
-      (row) => row.surface === 'both' && isMultilingualDiscoverEvalEligible(row),
+      (row) =>
+        row.surface === 'both' && isMultilingualDiscoverEvalEligible(row),
     )) {
       for (const surface of multilingualSurfacesForScenario(scenario)) {
         const evalCase = byId.get(multilingualEvalCaseId(scenario, surface));
@@ -157,16 +167,18 @@ describe('ai customer public eval parity (ai-cmd-customer-3.2 / gap-5)', () => {
     expect(locales.has('hy')).toBe(true);
     expect(locales.has('ru')).toBe(true);
 
-    const hyPublic = AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'hy' && row.surface === 'public',
-    ).length;
+    const hyPublic =
+      AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'hy' && row.surface === 'public',
+      ).length;
     const hyCustomer =
       AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
         (row) => row.locale === 'hy' && row.surface === 'customer',
       ).length;
-    const ruPublic = AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'ru' && row.surface === 'public',
-    ).length;
+    const ruPublic =
+      AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'ru' && row.surface === 'public',
+      ).length;
     const ruCustomer =
       AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_MULTILINGUAL_CASES.filter(
         (row) => row.locale === 'ru' && row.surface === 'customer',

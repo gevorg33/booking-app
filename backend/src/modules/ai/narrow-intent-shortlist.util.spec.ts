@@ -35,7 +35,9 @@ describe('narrow-intent-shortlist.util (pipe-1.4.7 / acc-3.3)', () => {
         resolveNarrowShortlistSurfaceIntents(surface),
       );
       for (const action of shortlist) {
-        const isRanked = ranked.some((candidate) => candidate.action === action);
+        const isRanked = ranked.some(
+          (candidate) => candidate.action === action,
+        );
         expect(isRanked || surfaceIntents.has(action)).toBe(true);
       }
     },

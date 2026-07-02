@@ -337,10 +337,7 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
         maxPrice: 150,
         serviceRank: 'highest_price',
         bookingFirstAvailable: true,
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['saturday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['saturday'] }],
       },
       catalogParams: {
         maxPrice: 150,
@@ -362,10 +359,7 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
       },
       expectedDiscovery: {
         maxPrice: 100,
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['sunday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['sunday'] }],
       },
       forbiddenDiscoveryKeys: ['serviceRank'],
       catalogParams: {
@@ -476,12 +470,7 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
       catalogParams: {
         maxPrice: 50,
       },
-      expectedCatalogIds: [
-        'manicure-25',
-        'hair-35',
-        'manicure-40',
-        'hair-45',
-      ],
+      expectedCatalogIds: ['manicure-25', 'hair-35', 'manicure-40', 'hair-45'],
     },
     {
       id: 'discover-not-currency-explain-en',
@@ -516,7 +505,11 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
         serviceCount: 2,
         date: 'tomorrow',
       },
-      forbiddenDiscoveryKeys: ['maxPrice', 'availabilityWindows', 'serviceRank'],
+      forbiddenDiscoveryKeys: [
+        'maxPrice',
+        'availabilityWindows',
+        'serviceRank',
+      ],
       catalogParams: {
         maxTotalPrice: 100,
         serviceCount: 2,
@@ -766,10 +759,7 @@ export const SERVICE_DISCOVERY_PARITY_SCENARIOS: ServiceDiscoveryParityScenario[
       expectedDiscovery: {
         maxPrice: 50,
         serviceCategory: 'haircut',
-        availabilityWindows: [
-          { date: 'tomorrow' },
-          { weekdays: ['friday'] },
-        ],
+        availabilityWindows: [{ date: 'tomorrow' }, { weekdays: ['friday'] }],
       },
       forbiddenDiscoveryKeys: ['date', 'timeOfDay', 'weekdays'],
       expectOrWindowCount: 2,
@@ -777,9 +767,8 @@ export const SERVICE_DISCOVERY_PARITY_SCENARIOS: ServiceDiscoveryParityScenario[
     },
   ];
 
-export const SERVICE_DISCOVERY_PARITY_IDS = SERVICE_DISCOVERY_PARITY_SCENARIOS.map(
-  (scenario) => scenario.id,
-);
+export const SERVICE_DISCOVERY_PARITY_IDS =
+  SERVICE_DISCOVERY_PARITY_SCENARIOS.map((scenario) => scenario.id);
 
 export function serviceDiscoveryParityByPairId(
   pairId: string,
@@ -803,5 +792,7 @@ export function serviceDiscoveryPublicIntegrationBySection(
 export function serviceDiscoveryJourneyById(
   id: string,
 ): ServiceDiscoveryJourneyScenario | undefined {
-  return SERVICE_DISCOVERY_JOURNEY_SCENARIOS.find((scenario) => scenario.id === id);
+  return SERVICE_DISCOVERY_JOURNEY_SCENARIOS.find(
+    (scenario) => scenario.id === id,
+  );
 }

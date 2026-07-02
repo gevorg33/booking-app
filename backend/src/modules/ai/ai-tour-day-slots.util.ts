@@ -61,7 +61,9 @@ function hasTourDaySlotsTopic(prompt: string): boolean {
       prompt,
     ) ||
     /\b(why|how\s+many).{0,40}\b(spots?|seats?|places?)\b/i.test(prompt) ||
-    /(մեկ\s+մեկնում|մնաց|քանի\s+տեղ|ամբողջությամբ\s+ամրագրված|օրական)/i.test(prompt) ||
+    /(մեկ\s+մեկնում|մնաց|քանի\s+տեղ|ամբողջությամբ\s+ամրագրված|օրական)/i.test(
+      prompt,
+    ) ||
     /(одно\s+время|осталось|мест|недоступен|полностью\s+забронирован)/i.test(
       prompt,
     )
@@ -254,6 +256,15 @@ function isSingleTourDaySlotsPrompt(prompt: string): boolean {
 }
 
 export function isExplainTourDaySlotsPrompt(prompt: string): boolean {
+  if (
+    /\b(?:book|reserve|schedule|get|buy|purchase|order)\b/i.test(prompt) &&
+    /\b(?:tours?|treks?|excursions?|hikes?)\b/i.test(prompt) &&
+    /\b(?:earliest|soonest|nearest|first\s+available|asap|next\s+available)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (isCatalogMutateCommandPrompt(prompt)) return false;
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
   if (isAvailabilityListingPrompt(prompt)) return false;

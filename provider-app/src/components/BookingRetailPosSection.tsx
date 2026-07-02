@@ -44,7 +44,7 @@ export default function BookingRetailPosSection({
   const [searchHint, setSearchHint] = useState<string | null>(null);
 
   const money = (amount: number) =>
-    formatBookingMoney(amount, currency ?? undefined, businessCurrency);
+    formatBookingMoney(amount, currency ?? businessCurrency ?? 'USD', businessCurrency);
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
     queryKey: ['provider-retail-products', businessId],

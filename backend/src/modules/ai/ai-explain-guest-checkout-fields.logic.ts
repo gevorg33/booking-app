@@ -20,8 +20,7 @@ const FIELD_EXPLANATIONS: Record<
     'Your email lets the salon send booking confirmations and optional email reminders. Provide email or phone — not both.',
   phone:
     'Your phone lets staff reach you and enables SMS or WhatsApp reminders when you opt in. Provide email or phone — not both. WhatsApp reminders require a valid phone number.',
-  name:
-    'Your name is required so the salon can identify you on the appointment and on confirmations.',
+  name: 'Your name is required so the salon can identify you on the appointment and on confirmations.',
   guest_vs_account:
     'You can complete checkout as a guest without creating an account. Enter your name plus email or phone. Signing in before checkout is optional; you can create an account after booking to manage future visits.',
   contact_merge:
@@ -112,7 +111,9 @@ export async function handleExplainGuestCheckoutFieldsLogic(
     );
   }
 
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('explain_guest_checkout_fields', 'Business not found.');
   }

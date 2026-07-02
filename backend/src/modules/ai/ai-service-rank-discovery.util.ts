@@ -18,9 +18,7 @@ import {
 import type { ServiceRank } from './ai-service-catalog-rank.util.js';
 import { isValidServiceRank } from './ai-service-catalog-rank.util.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
-import {
-  enrichEmployeeRoleRankFromPrompt,
-} from './ai-employee-role-rank.util.js';
+import { enrichEmployeeRoleRankFromPrompt } from './ai-employee-role-rank.util.js';
 import { resolveListServicesRankLimitFromPrompt } from './ai-rank-list-services.logic.js';
 import { isRankSessionListPickPrompt } from './ai-rank-session-pick.util.js';
 import {
@@ -40,8 +38,7 @@ const MOST_POPULAR_PATTERN =
 const SERVICE_CATALOG_NOUN_PATTERN =
   /\b(?:service|services|option|options|offering|offerings|package tier)\b/i;
 
-const PROVIDER_RATING_PATTERN =
-  /\b(?:rated|reviews?|stars?|rating)\b/i;
+const PROVIDER_RATING_PATTERN = /\b(?:rated|reviews?|stars?|rating)\b/i;
 
 const SUBJECTIVE_RANK_PATTERN =
   /\b(?:first[\s-]?time|for\s+me|for\s+my|recommend(?:ed)?\s+for|suitable\s+for|new\s+to|beginner|beginners)\b/i;
@@ -99,7 +96,10 @@ const RANK_SERVICE_CATEGORY_NOISE = new Set([
 ]);
 
 function normalizeRankServiceCategoryKeyword(keyword: string): string | null {
-  const cleaned = keyword.trim().replace(/[?.!]+$/, '').toLowerCase();
+  const cleaned = keyword
+    .trim()
+    .replace(/[?.!]+$/, '')
+    .toLowerCase();
   if (!cleaned || RANK_SERVICE_CATEGORY_NOISE.has(cleaned)) return null;
   const aliased = RANK_SERVICE_CATEGORY_ALIASES[cleaned] ?? cleaned;
   return aliased.length >= 3 ? aliased : null;
@@ -161,8 +161,9 @@ export function isServiceCatalogRecommendNotProviderPrompt(
 export function isServiceCatalogRankSpecialistPrompt(prompt: string): boolean {
   const specialist =
     /\b(?:specialist|stylist|therapist|provider|employee)s?\b/i.test(prompt);
-  const rankCue =
-    /\b(?:best|rated|top|highest|recommended|suggested)\b/i.test(prompt);
+  const rankCue = /\b(?:best|rated|top|highest|recommended|suggested)\b/i.test(
+    prompt,
+  );
   return specialist && rankCue;
 }
 
@@ -193,7 +194,7 @@ export function extractProviderRankServiceCategoryFromPrompt(
   );
   if (forServiceMatch) {
     const normalized = normalizeRankServiceCategoryKeyword(
-      forServiceMatch[1]!.trim().replace(/[?.!]+$/, ''),
+      forServiceMatch[1].trim().replace(/[?.!]+$/, ''),
     );
     if (normalized) return normalized;
   }
@@ -202,7 +203,7 @@ export function extractProviderRankServiceCategoryFromPrompt(
     /\b(?:best\s+)?(?:rated\s+)?([a-z][\w-]*(?:\s+[a-z][\w-]*)?)\s+(?:specialist|stylist|therapist|provider|employee)s?\b/i,
   );
   if (specialist) {
-    const category = specialist[1]!.trim().replace(/[?.!]+$/, '');
+    const category = specialist[1].trim().replace(/[?.!]+$/, '');
     if (category.length >= 2 && category.toLowerCase() !== 'rated') {
       const normalized = normalizeRankServiceCategoryKeyword(category);
       if (normalized) return normalized;
@@ -213,7 +214,7 @@ export function extractProviderRankServiceCategoryFromPrompt(
     /\b(?:best\s+)?rated\s+([a-z][\w\s-]{2,40}?)(?:\s+this\s+week|\s+under|\s+for|$)/i,
   );
   if (rated) {
-    const category = rated[1]!.trim().replace(/[?.!]+$/, '');
+    const category = rated[1].trim().replace(/[?.!]+$/, '');
     return category.length >= 2 ? category : null;
   }
 
@@ -252,7 +253,7 @@ export function extractSubjectiveRankServiceCategoryFromPrompt(
     /\bfirst[\s-]?time\s+([a-z][\w-]*(?:\s+[a-z][\w-]*)?)\b/i,
   );
   if (firstTime) {
-    const category = firstTime[1]!.trim().replace(/[?.!]+$/, '');
+    const category = firstTime[1].trim().replace(/[?.!]+$/, '');
     return category.length >= 3 ? category : null;
   }
 
@@ -260,7 +261,7 @@ export function extractSubjectiveRankServiceCategoryFromPrompt(
     /\bfor\s+(?:a\s+)?([a-z][\w-]*(?:\s+[a-z][\w-]*)?)\s*[?.!]?\s*$/i,
   );
   if (forA) {
-    const category = forA[1]!.trim().replace(/[?.!]+$/, '');
+    const category = forA[1].trim().replace(/[?.!]+$/, '');
     return category.length >= 3 ? category : null;
   }
 
@@ -322,30 +323,32 @@ export function extractServiceRankServiceCategoryFromPrompt(
   if (isMidRangeServiceListPrompt(prompt)) {
     const midRangeMatch = prompt.match(MID_RANGE_CATEGORY_PATTERN);
     if (midRangeMatch) {
-      return normalizeRankServiceCategoryKeyword(midRangeMatch[1]!);
+      return normalizeRankServiceCategoryKeyword(midRangeMatch[1]);
     }
   }
 
   const tierFor = prompt.match(TIER_FILTER_CATEGORY_PATTERN);
   if (tierFor) {
-    return normalizeRankServiceCategoryKeyword(tierFor[1]!);
+    return normalizeRankServiceCategoryKeyword(tierFor[1]);
   }
 
   const rankMatch = prompt.match(RANK_SERVICE_CATEGORY_PATTERN);
   if (rankMatch) {
-    return normalizeRankServiceCategoryKeyword(rankMatch[1]!);
+    return normalizeRankServiceCategoryKeyword(rankMatch[1]);
   }
 
   const bestMatch = prompt.match(RANK_BEST_SERVICE_CATEGORY_PATTERN);
   if (bestMatch) {
-    return normalizeRankServiceCategoryKeyword(bestMatch[1]!);
+    return normalizeRankServiceCategoryKeyword(bestMatch[1]);
   }
 
   return null;
 }
 
 /** Deterministic serviceRank extraction for post-LLM enrichment (rank-1.3). */
-export function extractServiceRankFromPrompt(prompt: string): ServiceRank | null {
+export function extractServiceRankFromPrompt(
+  prompt: string,
+): ServiceRank | null {
   if (!prompt?.trim() || isServiceRankEnrichmentBlockedPrompt(prompt)) {
     return null;
   }
@@ -381,10 +384,12 @@ export function extractServiceRankFromPrompt(prompt: string): ServiceRank | null
   return null;
 }
 
-export function extractBestServiceCategoryFromPrompt(prompt: string): string | null {
+export function extractBestServiceCategoryFromPrompt(
+  prompt: string,
+): string | null {
   const match = prompt.match(RANK_BEST_SERVICE_CATEGORY_PATTERN);
   if (!match) return null;
-  const category = match[1]!.trim().replace(/[?.!]+$/, '');
+  const category = match[1].trim().replace(/[?.!]+$/, '');
   return category.length >= 3 ? category : null;
 }
 
@@ -507,7 +512,8 @@ export function buildSubjectiveRankDiscoveryRescueParams(
 ): Record<string, unknown> {
   const params = enrichBudgetFromPrompt({}, prompt);
   delete params.serviceRank;
-  const serviceCategory = extractSubjectiveRankServiceCategoryFromPrompt(prompt);
+  const serviceCategory =
+    extractSubjectiveRankServiceCategoryFromPrompt(prompt);
   if (serviceCategory) {
     params.serviceCategory = serviceCategory;
   }

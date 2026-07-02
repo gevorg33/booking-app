@@ -49,7 +49,11 @@ export const PUBLIC_BOOKING_GUIDE_RESCUE_SCENARIOS: readonly PublicBookingGuideR
       samplePrompt: 'Walk me through checkout and payment',
       prompt:
         /\b(?:walk\s+me\s+through\s+checkout|checkout\s+steps?|explain\s+checkout|how\s+(?:does|do)\s+(?:checkout|payment)\s+work)\b|(?:провед(?:и|ите)\s+меня\s+по\s+шагам\s+checkout|checkout\s+и\s+оплат)/iu,
-      fromActions: ['unknown', 'explain_checkout_currency', 'explain_checkout_tax'],
+      fromActions: [
+        'unknown',
+        'explain_checkout_currency',
+        'explain_checkout_tax',
+      ],
     },
     {
       id: 'pick-service-provider',
@@ -60,9 +64,15 @@ export const PUBLIC_BOOKING_GUIDE_RESCUE_SCENARIOS: readonly PublicBookingGuideR
   ] as const;
 
 export const PUBLIC_BOOKING_GUIDE_CLASSIFIER_SCENARIOS = [
-  { id: '5.1-book-step-by-step', prompt: 'How do I book an appointment step by step?' },
+  {
+    id: '5.1-book-step-by-step',
+    prompt: 'How do I book an appointment step by step?',
+  },
   { id: '5.1-after-time', prompt: 'What happens after I pick a time?' },
-  { id: '5.1-checkout-walkthrough', prompt: 'Walk me through checkout and payment' },
+  {
+    id: '5.1-checkout-walkthrough',
+    prompt: 'Walk me through checkout and payment',
+  },
   { id: '5.1-pick-service', prompt: 'How do I pick a service and provider?' },
 ] as const;
 
@@ -104,7 +114,10 @@ export const PUBLIC_BOOKING_GUIDE_ROUTE_SCENARIOS = [
   },
 ] as const;
 
-export type PublicBookingCheckoutStep = 'professionals' | 'services' | 'checkout';
+export type PublicBookingCheckoutStep =
+  | 'professionals'
+  | 'services'
+  | 'checkout';
 
 export { PUBLIC_APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 export { PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
@@ -168,10 +181,16 @@ export function enrichPublicBookingGuideTopicFromPrompt(
   }
 
   const lower = prompt.toLowerCase();
-  if (/\b(checkout|payment|confirm|after\s+i\s+pick\s+a\s+time)\b/i.test(lower)) {
+  if (
+    /\b(checkout|payment|confirm|after\s+i\s+pick\s+a\s+time)\b/i.test(lower)
+  ) {
     return 'public-checkout';
   }
-  if (/\b(availability|available\s+slot|free\s+slot|open\s+slot|time\s+slot)\b/i.test(lower)) {
+  if (
+    /\b(availability|available\s+slot|free\s+slot|open\s+slot|time\s+slot)\b/i.test(
+      lower,
+    )
+  ) {
     return 'public-availability';
   }
   if (/(?:свободн(?:ые|ый)\s+слот|посмотреть\s+слот)/iu.test(prompt)) {
@@ -204,7 +223,9 @@ export function mergePublicBookingGuideContext(
   };
 }
 
-function normalizeExplicitBookRoute(route: string): PublicBookingFunnelGuideRoute {
+function normalizeExplicitBookRoute(
+  route: string,
+): PublicBookingFunnelGuideRoute {
   const path = route.split('?')[0]?.replace(/\/+$/, '') || route;
   if (path === '/book/checkout' || path.endsWith('/checkout')) {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
@@ -219,9 +240,14 @@ function normalizeExplicitBookRoute(route: string): PublicBookingFunnelGuideRout
 }
 
 /** Parse public web or consumer app pathname into canonical guide-flow route (ai-guide-1.5.1). */
-export function parseBookingPathToGuideRoute(pathname: string): PublicBookingFunnelGuideRoute | undefined {
+export function parseBookingPathToGuideRoute(
+  pathname: string,
+): PublicBookingFunnelGuideRoute | undefined {
   const lower = pathname.toLowerCase();
-  if (/\/checkout(\/|$|\?)/.test(lower) || /\/book\/multi\/checkout/.test(lower)) {
+  if (
+    /\/checkout(\/|$|\?)/.test(lower) ||
+    /\/book\/multi\/checkout/.test(lower)
+  ) {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
   }
   if (/\/professionals(\/|$|\?)/.test(lower) || /\/any(\/|$|\?)/.test(lower)) {
@@ -254,7 +280,8 @@ export function mapPublicBookingGuideRoute(
     return normalizeExplicitBookRoute(explicitRoute);
   }
 
-  const step = readString(context?.bookingStep) ?? readString(context?.checkoutStep);
+  const step =
+    readString(context?.bookingStep) ?? readString(context?.checkoutStep);
   if (step === 'checkout' || step === 'payment') {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
   }
@@ -293,7 +320,10 @@ export function rescuePublicBookingHelpIntent(
   if (action === 'booking_help') return action;
 
   for (const scenario of PUBLIC_BOOKING_GUIDE_RESCUE_SCENARIOS) {
-    if (scenario.fromActions?.length && !scenario.fromActions.includes(action)) {
+    if (
+      scenario.fromActions?.length &&
+      !scenario.fromActions.includes(action)
+    ) {
       continue;
     }
     if (scenario.prompt.test(prompt)) {
@@ -336,7 +366,9 @@ export function resolvePublicBookingGuideIntent(
 
   if (
     route === PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.professionals &&
-    /\b(professional|provider|specialist|who\s+should\s+i\s+pick)\b/i.test(lower)
+    /\b(professional|provider|specialist|who\s+should\s+i\s+pick)\b/i.test(
+      lower,
+    )
   ) {
     return 'explain_current_screen';
   }
@@ -345,7 +377,9 @@ export function resolvePublicBookingGuideIntent(
     route === PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.services &&
     /\b(service|treatment|what\s+do\s+you\s+offer)\b/i.test(lower)
   ) {
-    return intent === 'guide_user_flow' ? 'guide_user_flow' : 'explain_app_feature';
+    return intent === 'guide_user_flow'
+      ? 'guide_user_flow'
+      : 'explain_app_feature';
   }
 
   return intent;

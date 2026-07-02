@@ -12,15 +12,14 @@ describe('ai ambiguity corpus eval (acc-2.6)', () => {
     );
   });
 
-  it.each(AMBIGUITY_CORPUS_SCENARIOS.map((scenario) => [scenario.id, scenario]))(
-    'passes ambiguity corpus eval case %s',
-    (_id, scenario) => {
-      const evalCase = AI_COMMAND_EVAL_AMBIGUITY_CORPUS_CASES.find(
-        (row) => row.id === ambiguityCorpusEvalCaseId(scenario),
-      );
-      expect(evalCase).toBeDefined();
-      const result = evaluateDeterministicEvalCase(evalCase!);
-      expect(result.passed).toBe(true);
-    },
-  );
+  it.each(
+    AMBIGUITY_CORPUS_SCENARIOS.map((scenario) => [scenario.id, scenario]),
+  )('passes ambiguity corpus eval case %s', (_id, scenario) => {
+    const evalCase = AI_COMMAND_EVAL_AMBIGUITY_CORPUS_CASES.find(
+      (row) => row.id === ambiguityCorpusEvalCaseId(scenario),
+    );
+    expect(evalCase).toBeDefined();
+    const result = evaluateDeterministicEvalCase(evalCase!);
+    expect(result.passed).toBe(true);
+  });
 });

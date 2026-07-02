@@ -38,15 +38,13 @@ export const DEFAULT_STAFF_MESSAGE_TEMPLATES: StaffMessageTemplate[] = [
   {
     id: 'running-late',
     label: 'Running late',
-    body:
-      "Hi {customerName}, I'm running about 10 minutes late for your appointment. Thank you for your patience!",
+    body: "Hi {customerName}, I'm running about 10 minutes late for your appointment. Thank you for your patience!",
     enabled: true,
   },
   {
     id: 'confirming-tomorrow',
     label: 'Confirming tomorrow',
-    body:
-      'Hi {customerName}, confirming your appointment at {businessName} on {appointmentTime}. Reply if you need to change anything.',
+    body: 'Hi {customerName}, confirming your appointment at {businessName} on {appointmentTime}. Reply if you need to change anything.',
     enabled: true,
   },
 ];
@@ -76,7 +74,9 @@ export function readStaffMessageTemplatesSettings(
   const templates = Array.isArray(block.templates)
     ? block.templates
         .map(normalizeStaffMessageTemplate)
-        .filter((template): template is StaffMessageTemplate => template != null)
+        .filter(
+          (template): template is StaffMessageTemplate => template != null,
+        )
     : [];
 
   return {
@@ -150,7 +150,8 @@ export function listActiveStaffMessageTemplates(
         : [];
 
   return source.filter(
-    (template) => template.enabled && template.label.trim() && template.body.trim(),
+    (template) =>
+      template.enabled && template.label.trim() && template.body.trim(),
   );
 }
 

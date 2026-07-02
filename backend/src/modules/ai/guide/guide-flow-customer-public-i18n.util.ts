@@ -13,9 +13,7 @@ const GUIDE_DIR = join(__dirname);
 const ARMENIAN_SCRIPT = /[\u0530-\u058F]/;
 const CYRILLIC_SCRIPT = /[\u0400-\u04FF]/;
 
-export function customerPublicGuideI18nJsonPath(
-  locale: 'hy' | 'ru',
-): string {
+export function customerPublicGuideI18nJsonPath(locale: 'hy' | 'ru'): string {
   return join(GUIDE_DIR, `guide-flow-customer-public-i18n.${locale}.json`);
 }
 

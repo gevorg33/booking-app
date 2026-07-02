@@ -108,7 +108,10 @@ describe('dispatchDashboardCoreIntent (ai-cmd-ext-6.1)', () => {
 
   it('dispatches catalog intent', async () => {
     const deps = mockDeps();
-    const result = (await dispatchDashboardCoreIntent(deps, baseCtx)) as CommandResult;
+    const result = (await dispatchDashboardCoreIntent(
+      deps,
+      baseCtx,
+    )) as CommandResult;
     expect(result.success).toBe(true);
     expect(deps.catalog.handleListPackages).toHaveBeenCalledWith('biz-1');
   });

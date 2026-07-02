@@ -558,7 +558,11 @@ export class ProviderMobileController {
     @CurrentUser() user: { id: string },
     @Body() dto: CreateProviderSelfBlockDto,
   ) {
-    return this.providerService.createProviderSelfBlock(businessId, user.id, dto);
+    return this.providerService.createProviderSelfBlock(
+      businessId,
+      user.id,
+      dto,
+    );
   }
 
   @Get('schedule/gaps')

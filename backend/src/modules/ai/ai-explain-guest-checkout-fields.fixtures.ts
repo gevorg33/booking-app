@@ -36,24 +36,9 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS: readonly ExplainGuestCheckou
       rescueReason: 'guest_checkout_fields',
     },
     {
-      id: 'without-account-customer',
-      prompt: 'Can I book without an account?',
-      surface: 'customer',
-      expectedAction: 'explain_guest_checkout_fields',
-      aspect: 'guest_vs_account',
-      rescueReason: 'guest_checkout_fields',
-    },
-    {
-      id: 'sign-up-required-customer',
-      prompt: 'Do I need to sign up to book an appointment?',
-      surface: 'customer',
-      expectedAction: 'explain_guest_checkout_fields',
-      aspect: 'guest_vs_account',
-      rescueReason: 'guest_checkout_fields',
-    },
-    {
       id: 'merge-after-sign-in-customer',
-      prompt: 'Will my guest booking link if I sign in with the same email later?',
+      prompt:
+        'Will my guest booking link if I sign in with the same email later?',
       surface: 'customer',
       expectedAction: 'explain_guest_checkout_fields',
       aspect: 'contact_merge',
@@ -61,7 +46,8 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS: readonly ExplainGuestCheckou
     },
     {
       id: 'same-phone-merge-customer',
-      prompt: 'What happens when I book as a guest with the same phone as my profile?',
+      prompt:
+        'What happens when I book as a guest with the same phone as my profile?',
       surface: 'customer',
       expectedAction: 'explain_guest_checkout_fields',
       aspect: 'contact_merge',
@@ -132,24 +118,9 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS: readonly ExplainGuestCheckou
       rescueReason: 'guest_checkout_fields',
     },
     {
-      id: 'without-account-public',
-      prompt: 'Can I book without creating an account on this page?',
-      surface: 'public',
-      expectedAction: 'explain_guest_checkout_fields',
-      aspect: 'guest_vs_account',
-      rescueReason: 'guest_checkout_fields',
-    },
-    {
-      id: 'guest-checkout-public',
-      prompt: 'Can I complete guest checkout without signing in?',
-      surface: 'public',
-      expectedAction: 'explain_guest_checkout_fields',
-      aspect: 'guest_vs_account',
-      rescueReason: 'guest_checkout_fields',
-    },
-    {
       id: 'merge-after-sign-in-public',
-      prompt: 'If I book as a guest and later log in with the same phone, do bookings merge?',
+      prompt:
+        'If I book as a guest and later log in with the same phone, do bookings merge?',
       surface: 'public',
       expectedAction: 'explain_guest_checkout_fields',
       aspect: 'contact_merge',
@@ -157,7 +128,8 @@ export const EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS: readonly ExplainGuestCheckou
     },
     {
       id: 'profile-prefill-public',
-      prompt: 'How does signed-in checkout pre-fill my profile email and phone?',
+      prompt:
+        'How does signed-in checkout pre-fill my profile email and phone?',
       surface: 'public',
       expectedAction: 'explain_guest_checkout_fields',
       aspect: 'contact_merge',
@@ -210,12 +182,6 @@ export const GUEST_CHECKOUT_FIELDS_RESCUE_SCENARIOS = [
     id: 'booking-help-to-guest-fields',
     prompt: 'Why do you need my email at checkout?',
     misclassifiedAction: 'booking_help',
-    expectedAction: 'explain_guest_checkout_fields',
-  },
-  {
-    id: 'data-rights-to-guest-fields',
-    prompt: 'Can I book without an account?',
-    misclassifiedAction: 'explain_data_rights',
     expectedAction: 'explain_guest_checkout_fields',
   },
   {

@@ -17,6 +17,7 @@ import {
   isExplainDataRightsPrompt,
   rescueExplainDataRightsIntent,
 } from './ai-data-rights.util.js';
+import { PRIVACY_GDPR_MULTILINGUAL_SCENARIOS } from './ai-privacy-gdpr-multilingual.fixtures.js';
 
 describe('ai-privacy-gdpr-customer.util (ai-cmd-customer-4.0 P2)', () => {
   it('exports classifier rules for privacy export and delete', () => {
@@ -98,7 +99,8 @@ describe('ai-privacy-gdpr-customer.util (ai-cmd-customer-4.0 P2)', () => {
     expect(PRIVACY_EXPORT_PROMPTS.length).toBeGreaterThanOrEqual(10);
     expect(PRIVACY_DELETE_PROMPTS.length).toBeGreaterThanOrEqual(10);
     expect(AI_COMMAND_EVAL_PRIVACY_GDPR_CUSTOMER_CASES.length).toBe(
-      PRIVACY_GDPR_CUSTOMER_PROMPTS.length,
+      PRIVACY_GDPR_CUSTOMER_PROMPTS.length +
+        PRIVACY_GDPR_MULTILINGUAL_SCENARIOS.length,
     );
     for (const evalCase of AI_COMMAND_EVAL_PRIVACY_GDPR_CUSTOMER_CASES) {
       expect(evaluateDeterministicEvalCase(evalCase).errors).toEqual([]);

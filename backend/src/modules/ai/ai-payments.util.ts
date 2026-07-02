@@ -1,5 +1,10 @@
 import { isTrackPhysicalGiftCardPrompt } from './ai-customer-crm.util.js';
 import {
+  hasGiftCardForSomeoneCue,
+  isBuyGiftCardForSomeonePrompt,
+  rescueBuyGiftCardForSomeoneIntent,
+} from './ai-buy-gift-card-for-someone.util.js';
+import {
   isMultilingualBookNearestPrompt,
   isMultilingualCheckProvidersPrompt,
 } from './ai-check-and-book-multilingual.util.js';
@@ -24,9 +29,7 @@ import {
   isConfigureServiceOnlinePaymentPrompt,
   enrichServiceOnlinePaymentParamsFromPrompt,
 } from './ai-service-online-payment.util.js';
-import {
-  rescueListServicesPaymentFilterIntent,
-} from './ai-list-services-payment-filters.util.js';
+import { rescueListServicesPaymentFilterIntent } from './ai-list-services-payment-filters.util.js';
 import { rescueFilterServicesNoPrepaymentIntent } from './ai-filter-services-no-prepayment.util.js';
 import { rescueExplainAmountDueNowIntent } from './ai-explain-amount-due-now.util.js';
 import {
@@ -61,6 +64,8 @@ import {
   rescuePayOnlineCheckoutIntent,
 } from './ai-pay-online-checkout.util.js';
 import { rescueResumePendingPaymentIntent } from './ai-resume-pending-payment.util.js';
+import { rescueConsumerDiagnoseStripeCheckoutFailureIntent } from './ai-diagnose-stripe-checkout-failure.util.js';
+import { rescuePayAtVenueFallbackIntent } from './ai-pay-at-venue-fallback.util.js';
 import {
   isExplainServiceOnlinePaymentSetupPrompt,
   parseExplainServiceOnlinePaymentSetupFromPrompt,
@@ -114,6 +119,7 @@ export const CUSTOMER_PAYMENTS_INTENTS = [
   'check_gift_card_balance',
   'buy_gift_card',
   'buy_gift_card_physical',
+  'buy_gift_card_for_someone',
   'choose_payment_method',
   'pay_online',
   'pay_cash_at_visit',
@@ -325,6 +331,17 @@ export function isBookNearestSlotPrompt(prompt: string): boolean {
 
 export function isApplyGiftCardCodePrompt(prompt: string): boolean {
   if (/\bcurrency\s+code\b/i.test(prompt)) return false;
+  if (
+    /\b(redeem|claim|add|link|register|attach|activate)\b/i.test(prompt) &&
+    /\b(gift\s*card|code)\b/i.test(prompt) &&
+    (/\b(account|my account|to my account|on my account)\b/i.test(prompt) ||
+      (/\b(GCM-|GCB-|GCS-)\b/i.test(prompt) &&
+        !/\b(checkout|booking|visit|appointment|book|reserve|schedule|balance)\b/i.test(
+          prompt,
+        )))
+  ) {
+    return false;
+  }
   return (
     /\b(apply|use|redeem|preview)\b/i.test(prompt) &&
     (/\b(gift\s*card)\b/i.test(prompt) || /\bcode\b/i.test(prompt)) &&
@@ -345,6 +362,7 @@ export function isCheckGiftCardBalancePrompt(prompt: string): boolean {
 }
 
 export function isBuyGiftCardPrompt(prompt: string): boolean {
+  if (hasGiftCardForSomeoneCue(prompt)) return false;
   return (
     /\b(buy|purchase|order)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -354,6 +372,7 @@ export function isBuyGiftCardPrompt(prompt: string): boolean {
 }
 
 export function isBuyGiftCardPhysicalPrompt(prompt: string): boolean {
+  if (hasGiftCardForSomeoneCue(prompt)) return false;
   return (
     /\b(buy|purchase|order)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -362,7 +381,10 @@ export function isBuyGiftCardPhysicalPrompt(prompt: string): boolean {
 }
 
 export function isChoosePaymentMethodPrompt(prompt: string): boolean {
-  if (isExplainAmountDueNowPrompt(prompt) || isExplainCheckoutTotalPrompt(prompt)) {
+  if (
+    isExplainAmountDueNowPrompt(prompt) ||
+    isExplainCheckoutTotalPrompt(prompt)
+  ) {
     return false;
   }
   if (
@@ -617,7 +639,9 @@ export function rescuePaymentsIntent(
     | 'explain_service_price'
     | 'explain_amount_due_now'
     | 'explain_checkout_total'
-    | 'resume_pending_payment';
+    | 'resume_pending_payment'
+    | 'diagnose_stripe_checkout_failure'
+    | 'pay_at_venue_fallback';
   rescueReason: string;
 } | null {
   const filterNoPrepayment = rescueFilterServicesNoPrepaymentIntent(
@@ -637,6 +661,12 @@ export function rescuePaymentsIntent(
     action,
   );
   if (createServicePrepayment) return createServicePrepayment;
+
+  const buyGiftCardForSomeone = rescueBuyGiftCardForSomeoneIntent(
+    prompt,
+    action,
+  );
+  if (buyGiftCardForSomeone) return buyGiftCardForSomeone;
 
   if (isPaymentsIntent(action)) return null;
 
@@ -664,8 +694,10 @@ export function rescuePaymentsIntent(
   const cashCheckout = rescueCashPaymentCheckoutIntent(prompt, action);
   if (cashCheckout) return cashCheckout;
 
-  const explainPublicBookingCheckout =
-    rescueExplainPublicBookingCheckoutIntent(prompt, action);
+  const explainPublicBookingCheckout = rescueExplainPublicBookingCheckoutIntent(
+    prompt,
+    action,
+  );
   if (explainPublicBookingCheckout) return explainPublicBookingCheckout;
 
   const auditMissingOnlinePayment =
@@ -680,10 +712,8 @@ export function rescuePaymentsIntent(
 
   if (isReceiptStatusPrompt(prompt))
     return { action: 'receipt_status', rescueReason: 'receipt' };
-  const explainOnlinePaymentSetup = rescueExplainServiceOnlinePaymentSetupIntent(
-    prompt,
-    action,
-  );
+  const explainOnlinePaymentSetup =
+    rescueExplainServiceOnlinePaymentSetupIntent(prompt, action);
   if (explainOnlinePaymentSetup) return explainOnlinePaymentSetup;
   const amountDueNow = rescueExplainAmountDueNowIntent(prompt, action);
   if (amountDueNow) return amountDueNow;
@@ -692,9 +722,15 @@ export function rescuePaymentsIntent(
   }
   const prepaymentExplain = rescueExplainPrepaymentIntent(prompt, action);
   if (prepaymentExplain) return prepaymentExplain;
-  const checkoutDefaults = rescueConfigureCheckoutDefaultsIntent(prompt, action);
+  const checkoutDefaults = rescueConfigureCheckoutDefaultsIntent(
+    prompt,
+    action,
+  );
   if (checkoutDefaults) return checkoutDefaults;
-  const depositPolicy = rescueConfigureServiceDepositPolicyIntent(prompt, action);
+  const depositPolicy = rescueConfigureServiceDepositPolicyIntent(
+    prompt,
+    action,
+  );
   if (depositPolicy) return depositPolicy;
   if (isExplainWhyStripeRequiredPrompt(prompt)) {
     return {
@@ -710,6 +746,14 @@ export function rescuePaymentsIntent(
   }
   if (isPayCashAtVisitPrompt(prompt))
     return { action: 'pay_cash_at_visit', rescueReason: 'pay_cash' };
+  const payAtVenueFallbackRescue = rescuePayAtVenueFallbackIntent(
+    prompt,
+    action,
+  );
+  if (payAtVenueFallbackRescue) return payAtVenueFallbackRescue;
+  const diagnoseCheckoutFailureRescue =
+    rescueConsumerDiagnoseStripeCheckoutFailureIntent(prompt, action);
+  if (diagnoseCheckoutFailureRescue) return diagnoseCheckoutFailureRescue;
   const resumePendingPaymentRescue = rescueResumePendingPaymentIntent(
     prompt,
     action,
@@ -721,6 +765,12 @@ export function rescuePaymentsIntent(
     return { action: 'choose_payment_method', rescueReason: 'payment_method' };
   }
   if (isTrackPhysicalGiftCardPrompt(prompt)) return null;
+  if (isBuyGiftCardForSomeonePrompt(prompt)) {
+    return {
+      action: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
+    };
+  }
   if (isBuyGiftCardPhysicalPrompt(prompt)) {
     return {
       action: 'buy_gift_card_physical',
@@ -933,7 +983,11 @@ function classifyPaymentsSegment(
     return { action: 'list_subscription_revenue', params: base, segment: text };
   }
   if (isConfigureCheckoutDefaultsPrompt(text)) {
-    return { action: 'configure_checkout_defaults', params: base, segment: text };
+    return {
+      action: 'configure_checkout_defaults',
+      params: base,
+      segment: text,
+    };
   }
   if (isConfigureServiceDepositPolicyPrompt(text)) {
     return {

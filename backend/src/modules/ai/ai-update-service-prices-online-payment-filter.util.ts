@@ -35,13 +35,18 @@ function hasOnlinePaymentScopeCue(prompt: string): boolean {
     return false;
   }
 
-  if (/\bskip\s+cash[\s-]?only\b/i.test(text) && /\bonline\s+payment\b/i.test(text)) {
+  if (
+    /\bskip\s+cash[\s-]?only\b/i.test(text) &&
+    /\bonline\s+payment\b/i.test(text)
+  ) {
     return true;
   }
 
   if (
     /\bcash[\s-]?only\b/i.test(text) &&
-    !/\b(?:with|require|accept)\s+online[\s-]?(?:payment|prepayment)\b/i.test(text)
+    !/\b(?:with|require|accept)\s+online[\s-]?(?:payment|prepayment)\b/i.test(
+      text,
+    )
   ) {
     return false;
   }
@@ -60,7 +65,9 @@ function hasOnlinePaymentScopeCue(prompt: string): boolean {
     /\b(?:services?|offerings?)\s+that\s+(?:have|require|accept)\s+online[\s-]?(?:payment|prepayment)\b/i.test(
       text,
     ) ||
-    /\bonline[\s-]?payment\s+(?:enabled\s+)?(?:services?|offerings?)\b/i.test(text) ||
+    /\bonline[\s-]?payment\s+(?:enabled\s+)?(?:services?|offerings?)\b/i.test(
+      text,
+    ) ||
     /\bfor\s+online[\s-]?payment\s+(?:services?|offerings?)\b/i.test(text) ||
     /\bthat\s+require\s+online\s+payment\b/i.test(text) ||
     /\baccept\s+online\s+prepayment\s+only\b/i.test(text)

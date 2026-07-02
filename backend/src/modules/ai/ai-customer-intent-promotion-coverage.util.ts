@@ -6,9 +6,7 @@ import {
   type CustomerIntentPromotionMultilingualScenario,
 } from './ai-customer-intent-promotion-multilingual.fixtures.js';
 import { CUSTOMER_INTENT_PROMOTION_INTENT_LIST } from './ai-customer-intent-promotion.intents.js';
-import {
-  EXPLAIN_WHY_STRIPE_REQUIRED_PROMPTS,
-} from './ai-explain-prepayment.util.js';
+import { EXPLAIN_WHY_STRIPE_REQUIRED_PROMPTS } from './ai-explain-prepayment.util.js';
 import { GIFT_CARD_CANCEL_CUSTOMER_PROMPTS } from './ai-gift-card-cancel-customer.util.js';
 import { GROWTH_LOOPS_CUSTOMER_PROMPTS } from './ai-growth-loops-customer.fixtures.js';
 import { MULTILINGUAL_GROWTH_LOOPS_EVAL_SCENARIOS } from './ai-growth-loops-customer.fixtures.js';
@@ -16,9 +14,7 @@ import { LIST_MY_PACKAGE_VISITS_CUSTOMER_PROMPTS } from './ai-list-my-package-vi
 import { LOYALTY_POINTS_BALANCE_PROMPTS } from './ai-loyalty-points-balance-customer.util.js';
 import { MARKETING_GROWTH_MULTILINGUAL_SCENARIOS } from './ai-marketing-growth-multilingual.fixtures.js';
 import { MULTI_SERVICE_CUSTOMER_PUBLIC_PROMPTS } from './ai-multi-service-customer-public.util.js';
-import {
-  PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS,
-} from './ai-package-visit-self-customer.util.js';
+import { PACKAGE_VISIT_SELF_CUSTOMER_PROMPTS } from './ai-package-visit-self-customer.util.js';
 import { PAY_ONLINE_CHECKOUT_PROMPTS } from './ai-pay-online-checkout.util.js';
 import { PRIVACY_GDPR_CUSTOMER_PROMPTS } from './ai-privacy-gdpr-customer.util.js';
 import { PROMO_CODE_HELP_PROMPTS } from './ai-promo-code-help-customer-public.util.js';
@@ -29,6 +25,9 @@ import { DIAGNOSE_TOUR_CAPACITY_PROMPTS } from './ai-tour-capacity.fixtures.js';
 import { EXPLAIN_TOUR_BOOKING_PROMPTS } from './ai-tour-booking.fixtures.js';
 import { MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS } from './ai-tour-consumer-multilingual.fixtures.js';
 import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js';
+import { EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS } from './ai-tour-booking-record.fixtures.js';
+import { EXPLAIN_TOUR_MEETING_POINT_PROMPTS } from './ai-tour-meeting-point.fixtures.js';
+import { EXPLAIN_TOUR_MEETING_POINT_MULTILINGUAL_SCENARIOS } from './ai-tour-meeting-point-multilingual.fixtures.js';
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
 
 export const CUSTOMER_INTENT_PROMOTION_MIN_EN_FIXTURES = 10;
@@ -39,7 +38,10 @@ export const CUSTOMER_INTENT_PROMOTION_MIN_RU_FIXTURES = 2;
 export const CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES: Readonly<
   Record<string, readonly string[]>
 > = {
-  cancel_my_booking: ['cancel-my-booking-', 'self-service-i18n-cancel-my-booking-'],
+  cancel_my_booking: [
+    'cancel-my-booking-',
+    'self-service-i18n-cancel-my-booking-',
+  ],
   reschedule_my_booking: [
     'reschedule-my-booking-',
     'self-service-i18n-reschedule-my-booking-',
@@ -57,7 +59,10 @@ export const CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES: Readonly<
     'multi-service-',
     'self-service-i18n-check-multi-service-availability-',
   ],
-  promo_code_help: ['promo-code-help-', 'marketing-growth-i18n-promo-code-help-'],
+  promo_code_help: [
+    'promo-code-help-',
+    'marketing-growth-i18n-promo-code-help-',
+  ],
   use_subscription_credit: [
     'subscription-membership-',
     'self-service-i18n-use-subscription-credit-',
@@ -91,6 +96,11 @@ export const CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES: Readonly<
   explain_tour_booking: ['tour-booking-', 'tour-consumer-'],
   explain_tour_day_slots: ['tour-day-slots-', 'tour-consumer-'],
   diagnose_tour_capacity: ['tour-capacity-', 'tour-consumer-'],
+  explain_tour_booking_record: [
+    'tour-booking-record-customer-',
+    'tour-consumer-',
+  ],
+  explain_tour_meeting_point: ['tour-meeting-point-', 'tour-consumer-'],
   explain_checkout_recommendations: ['checkout-recommendations-'],
   refer_a_friend: ['growth-loops-'],
   share_salon_link: ['growth-loops-'],
@@ -160,7 +170,9 @@ function selfServiceMultilingualForIntent(intent: string): FixtureLocaleRow[] {
   );
 }
 
-function marketingGrowthMultilingualForIntent(intent: string): FixtureLocaleRow[] {
+function marketingGrowthMultilingualForIntent(
+  intent: string,
+): FixtureLocaleRow[] {
   return MARKETING_GROWTH_MULTILINGUAL_SCENARIOS.filter(
     (row) => row.expectedAction === intent,
   );
@@ -197,7 +209,10 @@ function growthLoopsForIntent(intent: string): FixtureLocaleRow[] {
 function fixtureRowsForPromotionIntent(intent: string): FixtureLocaleRow[] {
   switch (intent) {
     case 'cancel_my_booking':
-      return [...CANCEL_MY_BOOKING_PROMPTS, ...selfServiceMultilingualForIntent(intent)];
+      return [
+        ...CANCEL_MY_BOOKING_PROMPTS,
+        ...selfServiceMultilingualForIntent(intent),
+      ];
     case 'reschedule_my_booking':
       return [
         ...RESCHEDULE_MY_BOOKING_PROMPTS,
@@ -288,6 +303,16 @@ function fixtureRowsForPromotionIntent(intent: string): FixtureLocaleRow[] {
         ...DIAGNOSE_TOUR_CAPACITY_PROMPTS,
         ...tourConsumerMultilingualForIntent(intent),
       ];
+    case 'explain_tour_booking_record':
+      return [
+        ...EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS,
+        ...tourConsumerMultilingualForIntent(intent),
+      ];
+    case 'explain_tour_meeting_point':
+      return [
+        ...EXPLAIN_TOUR_MEETING_POINT_PROMPTS,
+        ...EXPLAIN_TOUR_MEETING_POINT_MULTILINGUAL_SCENARIOS,
+      ];
     case 'explain_checkout_recommendations':
       return checkoutRecommendationsForIntent(intent);
     case 'refer_a_friend':
@@ -307,8 +332,7 @@ export function auditCustomerIntentPromotionFixtures(): CustomerIntentPromotionF
       enCount: counts.en,
       hyCount: counts.hy,
       ruCount: counts.ru,
-      evalIdPrefixes:
-        CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES[intent] ?? [],
+      evalIdPrefixes: CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES[intent] ?? [],
     };
   });
 }
@@ -347,8 +371,12 @@ export function collectCustomerPromotionFixtureIntents(): Set<string> {
   return covered;
 }
 
-export function promotionEvalIdTargetsCustomerSurface(evalCaseId: string): boolean {
-  for (const prefixes of Object.values(CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES)) {
+export function promotionEvalIdTargetsCustomerSurface(
+  evalCaseId: string,
+): boolean {
+  for (const prefixes of Object.values(
+    CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES,
+  )) {
     if (prefixes.some((prefix) => evalCaseId.startsWith(prefix))) {
       return true;
     }

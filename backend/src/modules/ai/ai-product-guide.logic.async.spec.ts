@@ -12,7 +12,7 @@ describe('ai-product-guide.logic async (ai-guide-1.2.3)', () => {
     const scenario = PRODUCT_GUIDE_SEMANTIC_SCENARIOS[0];
     const messages = getFrontendGuideCorpusMessages('en');
     const resolved = resolveGuideCorpusTopic(
-      scenario.expectedTopicId as GuideCorpusTopicId,
+      scenario.expectedTopicId,
       messages,
     );
     const stepCount = Math.max(resolved?.steps.length ?? 1, 1);

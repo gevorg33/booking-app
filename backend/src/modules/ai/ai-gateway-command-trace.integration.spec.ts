@@ -32,7 +32,8 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
         aiUsageWarning: false,
       })),
     };
-    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } =
+      createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as never,
       { executeCommand: jest.fn() } as never,
@@ -104,7 +105,9 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       details: {
         needsClarification: true,
         traceId: 'trace-clarify',
-        pipelineTrace: [{ stage: 'clarify', action: 'create_booking', at: 't' }],
+        pipelineTrace: [
+          { stage: 'clarify', action: 'create_booking', at: 't' },
+        ],
       },
     });
     await gateway.execute({
@@ -135,7 +138,8 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       approveTask: jest.fn(),
       retryWorkflowStep: jest.fn(),
     };
-    const { aiSettings, platform, commandTrace } = createAiGatewayPlatformMocks();
+    const { aiSettings, platform, commandTrace } =
+      createAiGatewayPlatformMocks();
     const gateway = new AiGatewayService(
       dashboardCommands as never,
       { executeCommand: jest.fn() } as never,

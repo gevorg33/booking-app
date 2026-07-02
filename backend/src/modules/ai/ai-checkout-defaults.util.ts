@@ -51,8 +51,7 @@ export const CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS: ConfigureCheckoutDefaultsPromp
     },
     {
       id: 'cash-and-full-new-services',
-      prompt:
-        'Allow pay at venue and require full prepayment on new services',
+      prompt: 'Allow pay at venue and require full prepayment on new services',
       surface: 'dashboard',
       expectedAction: CONFIGURE_CHECKOUT_DEFAULTS_INTENT,
       paramsPartial: {
@@ -73,8 +72,7 @@ export const CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS: ConfigureCheckoutDefaultsPromp
     },
     {
       id: 'new-services-25-deposit',
-      prompt:
-        'Set default online payment for new services to 25% deposit',
+      prompt: 'Set default online payment for new services to 25% deposit',
       surface: 'dashboard',
       expectedAction: CONFIGURE_CHECKOUT_DEFAULTS_INTENT,
       paramsPartial: {
@@ -110,8 +108,7 @@ export const CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS: ConfigureCheckoutDefaultsPromp
     },
     {
       id: 'pay-at-venue-new-service-default',
-      prompt:
-        'Turn on pay at venue and set new service default to 50% deposit',
+      prompt: 'Turn on pay at venue and set new service default to 50% deposit',
       surface: 'dashboard',
       expectedAction: CONFIGURE_CHECKOUT_DEFAULTS_INTENT,
       paramsPartial: {
@@ -254,7 +251,10 @@ export function parseConfigureCheckoutDefaultsFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedCheckoutDefaultsConfig | null {
-  if (!isConfigureCheckoutDefaultsPrompt(prompt) && !params._forceCheckoutDefaults) {
+  if (
+    !isConfigureCheckoutDefaultsPrompt(prompt) &&
+    !params._forceCheckoutDefaults
+  ) {
     const hasExplicitParams =
       typeof params.acceptCashPayments === 'boolean' ||
       prepaymentModeFromParams(params) !== undefined;
@@ -275,7 +275,8 @@ export function parseConfigureCheckoutDefaultsFromPrompt(
     config.defaultServicePrepaymentMode = modeFromParams;
     if (modeFromParams === PrepaymentMode.DEPOSIT) {
       if (typeof params.defaultServiceDepositPercent === 'number') {
-        config.defaultServiceDepositPercent = params.defaultServiceDepositPercent;
+        config.defaultServiceDepositPercent =
+          params.defaultServiceDepositPercent;
       } else if (params.defaultServiceDepositPercent === null) {
         config.defaultServiceDepositPercent = null;
       }
@@ -322,7 +323,10 @@ export function parseConfigureCheckoutDefaultsFromPrompt(
 export function rescueConfigureCheckoutDefaultsIntent(
   prompt: string,
   action: string,
-): { action: typeof CONFIGURE_CHECKOUT_DEFAULTS_INTENT; rescueReason: string } | null {
+): {
+  action: typeof CONFIGURE_CHECKOUT_DEFAULTS_INTENT;
+  rescueReason: string;
+} | null {
   if (action === CONFIGURE_CHECKOUT_DEFAULTS_INTENT) return null;
   if (!isConfigureCheckoutDefaultsPrompt(prompt)) return null;
   return {

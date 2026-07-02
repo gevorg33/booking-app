@@ -18,6 +18,7 @@ import {
   isCreatePromoCodePrompt,
   rescueCreatePromoCodeIntent,
 } from './ai-create-promo-code.util.js';
+import { isApplyPromoCodeCheckoutPrompt } from './ai-apply-promo-code-checkout.util.js';
 import {
   isConfigureLoyaltySettingsPrompt,
   rescueConfigureLoyaltySettingsIntent,
@@ -26,8 +27,20 @@ import {
   isHowToDownloadAppPrompt,
   rescueHowToDownloadAppIntent,
 } from './ai-how-to-download-app.util.js';
+import {
+  isExplainLoyaltyPointsPrompt,
+  rescueExplainLoyaltyPointsIntent,
+} from './ai-explain-loyalty-points.util.js';
+import {
+  extractLoyaltyPointsToRedeemFromPrompt,
+  isApplyLoyaltyAtCheckoutPrompt,
+  rescueApplyLoyaltyAtCheckoutIntent,
+} from './ai-apply-loyalty-at-checkout.util.js';
 
-export { isHowToDownloadAppPrompt, rescueHowToDownloadAppIntent } from './ai-how-to-download-app.util.js';
+export {
+  isHowToDownloadAppPrompt,
+  rescueHowToDownloadAppIntent,
+} from './ai-how-to-download-app.util.js';
 
 export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
   'configure_marketing_automation',
@@ -54,6 +67,9 @@ export const CUSTOMER_MARKETING_GROWTH_INTENTS = [
   'how_to_download_app',
   'switch_to_consumer_app',
   'promo_code_help',
+  'apply_promo_code_checkout',
+  'apply_loyalty_at_checkout',
+  'explain_loyalty_points',
   'loyalty_points_balance',
 ] as const;
 
@@ -181,13 +197,12 @@ export function isSwitchToConsumerAppPrompt(prompt: string): boolean {
     (/\b(consumer\s+app|booking\s+app|customer\s+app|mobile\s+app)\b/i.test(
       prompt,
     ) ||
-      /(consumer app|booking app|customer app|прилож|mobile app)/i.test(
-        prompt,
-      ))
+      /(consumer app|booking app|customer app|прилож|mobile app)/i.test(prompt))
   );
 }
 
 export function isPromoCodeHelpPrompt(prompt: string): boolean {
+  if (isApplyPromoCodeCheckoutPrompt(prompt)) return false;
   if (isCreatePromoCodePrompt(prompt)) return false;
   if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
   if (
@@ -292,9 +307,7 @@ export function extractPromoCodeFromPrompt(prompt: string): string | null {
   if (validate) return validate[1].trim();
   const isValid = prompt.match(/\bis\s+([A-Z0-9_-]{3,})\s+valid\b/i);
   if (isValid) return isValid[1].trim();
-  const applyCode = prompt.match(
-    /\bapply\s+code\s+([A-Z0-9_-]{3,})\b/i,
-  );
+  const applyCode = prompt.match(/\bapply\s+code\s+([A-Z0-9_-]{3,})\b/i);
   if (applyCode) return applyCode[1].trim();
   const withCode = prompt.match(/\bwith\s+code\s+([A-Z0-9_-]{3,})\b/i);
   if (withCode) return withCode[1].trim();
@@ -370,7 +383,10 @@ export function buildConsumerAppDownloadGuidance(input: {
 } {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
   const pwaUrl = input.businessSlug
-    ? buildTenantPublicUrl({ slug: input.businessSlug, frontendUrl: input.frontendUrl })
+    ? buildTenantPublicUrl({
+        slug: input.businessSlug,
+        frontendUrl: input.frontendUrl,
+      })
     : frontendUrl;
   const iosUrl = input.iosAppUrl?.trim() || null;
   const androidUrl = input.androidAppUrl?.trim() || null;
@@ -393,7 +409,10 @@ export function buildConsumerAppSwitchGuidance(input: {
 }): { summary: string; deepLink: string; steps: string[] } {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
   const deepLink = input.businessSlug
-    ? buildTenantPublicUrl({ slug: input.businessSlug, frontendUrl: input.frontendUrl })
+    ? buildTenantPublicUrl({
+        slug: input.businessSlug,
+        frontendUrl: input.frontendUrl,
+      })
     : frontendUrl;
   return {
     summary:
@@ -440,10 +459,20 @@ export function rescueMarketingGrowthIntent(
     };
   }
 
+  const explainLoyalty = rescueExplainLoyaltyPointsIntent(prompt, action);
+  if (explainLoyalty) return explainLoyalty;
+  const applyLoyalty = rescueApplyLoyaltyAtCheckoutIntent(prompt, action);
+  if (applyLoyalty) return applyLoyalty;
   if (isLoyaltyPointsBalancePrompt(prompt)) {
     return {
       action: 'loyalty_points_balance',
       rescueReason: 'loyalty_balance',
+    };
+  }
+  if (isApplyPromoCodeCheckoutPrompt(prompt)) {
+    return {
+      action: 'apply_promo_code_checkout',
+      rescueReason: 'apply_promo_code_checkout',
     };
   }
   const createPromo = rescueCreatePromoCodeIntent(prompt, action);
@@ -603,10 +632,35 @@ function classifyMarketingGrowthSegment(
     return { action: 'create_promo_code', params: base, segment: text };
   }
   if (isConfigureLoyaltySettingsPrompt(text)) {
-    return { action: 'configure_loyalty_settings', params: base, segment: text };
+    return {
+      action: 'configure_loyalty_settings',
+      params: base,
+      segment: text,
+    };
+  }
+  if (isApplyPromoCodeCheckoutPrompt(text)) {
+    return {
+      action: 'apply_promo_code_checkout',
+      params: base,
+      segment: text,
+    };
+  }
+  if (isApplyLoyaltyAtCheckoutPrompt(text)) {
+    const points = extractLoyaltyPointsToRedeemFromPrompt(text);
+    if (points != null && points !== 'max') {
+      base.loyaltyPointsToRedeem = points;
+    }
+    return {
+      action: 'apply_loyalty_at_checkout',
+      params: base,
+      segment: text,
+    };
   }
   if (isPromoCodeHelpPrompt(text)) {
     return { action: 'promo_code_help', params: base, segment: text };
+  }
+  if (isExplainLoyaltyPointsPrompt(text)) {
+    return { action: 'explain_loyalty_points', params: base, segment: text };
   }
   if (isLoyaltyPointsBalancePrompt(text)) {
     return { action: 'loyalty_points_balance', params: base, segment: text };

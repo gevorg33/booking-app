@@ -71,10 +71,9 @@ export function canMutateProviderBookingEmployee(
   return Boolean(access.employeeId && bookingEmployeeId === access.employeeId);
 }
 
-export function filterReassignTargetEmployees<T extends { id: string; name: string }>(
-  employees: T[],
-  currentEmployeeId: string,
-): T[] {
+export function filterReassignTargetEmployees<
+  T extends { id: string; name: string },
+>(employees: T[], currentEmployeeId: string): T[] {
   return employees.filter((employee) => employee.id !== currentEmployeeId);
 }
 

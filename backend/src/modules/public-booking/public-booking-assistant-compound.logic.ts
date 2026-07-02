@@ -45,7 +45,8 @@ function mergePublicCompoundContext(
     next.chosenAvailabilityWindow = stepParams.chosenAvailabilityWindow;
   }
   if (stepParams.chosenAvailabilityWindowIndex != null) {
-    next.chosenAvailabilityWindowIndex = stepParams.chosenAvailabilityWindowIndex;
+    next.chosenAvailabilityWindowIndex =
+      stepParams.chosenAvailabilityWindowIndex;
   }
   if (result.sessionContext && typeof result.sessionContext === 'object') {
     const session = result.sessionContext as Record<string, unknown>;
@@ -53,7 +54,7 @@ function mergePublicCompoundContext(
       next.cartServiceIds = session.cartServiceIds;
     }
   }
-  const details = (result.details ?? {}) as Record<string, unknown>;
+  const details = result.details ?? {};
   if (details.serviceId != null) {
     next.serviceId = details.serviceId;
   }
@@ -114,7 +115,7 @@ export async function executePublicAssistantCompoundFromSteps(
     );
   }
 
-  const last = results[results.length - 1]!;
+  const last = results[results.length - 1];
   return {
     ...last,
     action: 'compound_intent',

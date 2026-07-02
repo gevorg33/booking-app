@@ -44,7 +44,9 @@ describe('ai-cmd-clinic-6-gap exit criteria (gap-1–4, parity-2.4 / acc-2.4)', 
   });
 
   it('has zero per-intent regression on ext dashboard eval subset (acc-2.4)', () => {
-    const report = buildDeterministicAccuracyReport(CLINIC_EXT_DASHBOARD_EVAL_CASES);
+    const report = buildDeterministicAccuracyReport(
+      CLINIC_EXT_DASHBOARD_EVAL_CASES,
+    );
     expect(report.failed).toBe(0);
     for (const intentId of CLINIC_EXT_INTENT_IDS) {
       const row = report.byIntent.find((entry) => entry.intent === intentId);

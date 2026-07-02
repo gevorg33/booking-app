@@ -26,9 +26,9 @@ describe('ai-notification-settings integration (ai-cmd-ext-2.19)', () => {
   it('utility rescue matches intent rescue', () => {
     const prompt =
       'Configure notification settings — enable email and WhatsApp, disable SMS';
-    expect(rescueConfigureNotificationSettingsIntent(prompt, 'unknown')?.action).toBe(
-      'configure_notification_settings',
-    );
+    expect(
+      rescueConfigureNotificationSettingsIntent(prompt, 'unknown')?.action,
+    ).toBe('configure_notification_settings');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('configure_notification_settings');
@@ -44,7 +44,9 @@ describe('ai-notification-settings integration (ai-cmd-ext-2.19)', () => {
   });
 
   it('handleConfigureNotificationSettingsLogic end-to-end', async () => {
-    const updateBusinessSettings = jest.fn(async (_id: string, patch: object) => patch);
+    const updateBusinessSettings = jest.fn(
+      async (_id: string, patch: object) => patch,
+    );
     const result = await handleConfigureNotificationSettingsLogic(
       { notificationsService: { updateBusinessSettings } as any },
       'biz-1',

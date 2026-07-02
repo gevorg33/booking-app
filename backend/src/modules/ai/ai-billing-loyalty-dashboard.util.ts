@@ -53,7 +53,10 @@ export function isOpenBillingSettingsPrompt(prompt: string): boolean {
   }
 
   if (
-    matchLocale(lower, /(?:բացիր|կառավարիր|բիլինգ|բաժանորդագրություն|վճարում)/u) &&
+    matchLocale(
+      lower,
+      /(?:բացիր|կառավարիր|բիլինգ|բաժանորդագրություն|վճարում)/u,
+    ) &&
     /(?:billing|subscription|plan|portal|invoice|payment|բաժանորդագրություն|վճարում)/iu.test(
       prompt,
     )

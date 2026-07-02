@@ -113,8 +113,10 @@ describe('Sprint 34 tenant app install AI scenarios', () => {
         ?.action,
     ).toBe('regenerate_tenant_app_install_qr');
     expect(
-      rescueMarketingGrowthIntent('Explain our tenant app install QR', 'unknown')
-        ?.action,
+      rescueMarketingGrowthIntent(
+        'Explain our tenant app install QR',
+        'unknown',
+      )?.action,
     ).toBe('explain_tenant_app_install');
   });
 
@@ -129,8 +131,10 @@ describe('Sprint 34 tenant app install AI scenarios', () => {
 
   it('disambiguates customer download from tenant app install explain', () => {
     expect(
-      rescueMarketingGrowthIntent('How do I download the app on my phone', 'unknown')
-        ?.action,
+      rescueMarketingGrowthIntent(
+        'How do I download the app on my phone',
+        'unknown',
+      )?.action,
     ).toBe('how_to_download_app');
     expect(
       rescueMarketingGrowthIntent(

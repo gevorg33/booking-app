@@ -4,10 +4,11 @@ import {
 } from './ai-command-entity-params.util.js';
 import { isConfigureCheckoutDefaultsPrompt } from './ai-checkout-defaults.util.js';
 import { isConfigureServicesPaymentMatrixCompoundPrompt } from './ai-configure-services-payment-matrix-compound.util.js';
+import { isDeclineOnlinePaymentCategoryCompoundPrompt } from './ai-decline-online-payment-category-compound.util.js';
 import {
-  isDeclineOnlinePaymentCategoryCompoundPrompt,
-} from './ai-decline-online-payment-category-compound.util.js';
-import { parseCashPaymentsToggle, hasCashMutateCue } from './ai-payments.util.js';
+  parseCashPaymentsToggle,
+  hasCashMutateCue,
+} from './ai-payments.util.js';
 import { isSetupSalonCheckoutCompoundPrompt } from './ai-setup-salon-checkout-compound.util.js';
 import {
   enrichServiceOnlinePaymentParamsFromPrompt,
@@ -41,14 +42,11 @@ export function hasOnlinePaymentMutateCue(prompt: string): boolean {
   return (
     /\b(?:decline|disable|turn\s+off|stop|reject|accept|require|enable)\b/i.test(
       prompt,
-    ) &&
-    /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(prompt)
+    ) && /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(prompt)
   );
 }
 
-function buildConfigureCashPaymentsStep(
-  prompt: string,
-): {
+function buildConfigureCashPaymentsStep(prompt: string): {
   action: 'configure_cash_payments';
   params: Record<string, unknown>;
   segment: string;
@@ -64,9 +62,7 @@ function buildConfigureCashPaymentsStep(
   };
 }
 
-function buildOnlinePaymentStep(
-  prompt: string,
-): {
+function buildOnlinePaymentStep(prompt: string): {
   action: 'configure_service_online_payment';
   params: Record<string, unknown>;
   segment: string;
@@ -113,7 +109,11 @@ export function decomposeCashAndDeclineAllOnlinePaymentCompoundPrompt(
   segment: string;
 }> {
   const trimmed = prompt.trim();
-  if (!trimmed || !hasCashMutateCue(trimmed) || !hasOnlinePaymentMutateCue(trimmed)) {
+  if (
+    !trimmed ||
+    !hasCashMutateCue(trimmed) ||
+    !hasOnlinePaymentMutateCue(trimmed)
+  ) {
     return [];
   }
   if (isDeclineOnlinePaymentCategoryCompoundPrompt(trimmed)) return [];
@@ -161,7 +161,9 @@ export function isCashAndOnlinePaymentCompoundPrompt(prompt: string): boolean {
 
 export function resolveCashAndOnlinePaymentCompoundRecipeId(
   prompt: string,
-): typeof CASH_AND_ONLINE_PAYMENT_COMPOUND_RECIPE_ID | 'decline_online_payment_category' {
+):
+  | typeof CASH_AND_ONLINE_PAYMENT_COMPOUND_RECIPE_ID
+  | 'decline_online_payment_category' {
   if (isDeclineOnlinePaymentCategoryCompoundPrompt(prompt)) {
     return 'decline_online_payment_category';
   }

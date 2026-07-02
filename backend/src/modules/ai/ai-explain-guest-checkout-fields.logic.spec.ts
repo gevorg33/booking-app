@@ -36,16 +36,16 @@ describe('ai-explain-guest-checkout-fields.logic', () => {
     expect(result.summary).toContain('phone');
   });
 
-  it('explains guest vs account checkout', async () => {
+  it('explains contact merge after sign-in', async () => {
     const result = await handleExplainGuestCheckoutFieldsLogic(
       deps,
       'biz-1',
       {},
-      'Can I book without an account?',
+      'Will my guest booking link if I sign in with the same email later?',
     );
 
     expect(result.success).toBe(true);
-    expect(result.summary).toContain('guest');
+    expect(result.summary).toContain('sign in');
   });
 
   it('tailors consent copy from business privacy settings', async () => {

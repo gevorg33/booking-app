@@ -70,9 +70,9 @@ describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
     expect(getGuideCorpusTopicByAnchor('schedule')?.topicId).toBe(
       'dashboard.core.schedule',
     );
-    expect(getGuideCorpusTopicByHelpCenterId('operations-inventory')?.topicId).toBe(
-      'dashboard.operations.inventory',
-    );
+    expect(
+      getGuideCorpusTopicByHelpCenterId('operations-inventory')?.topicId,
+    ).toBe('dashboard.operations.inventory');
     expect(HELP_CENTER_TOPIC_TO_CORPUS_TOPIC_ID.schedule).toBe(
       'dashboard.core.schedule',
     );
@@ -122,10 +122,15 @@ describe('ai-guide-corpus (ai-guide-1.1.1)', () => {
   it('resolves EN/HY/RU corpus text from frontend guide i18n', () => {
     for (const locale of listGuideCorpusLocales()) {
       const messages = getFrontendGuideCorpusMessages(locale);
-      const topic = resolveGuideCorpusTopic('dashboard.core.schedule', messages);
+      const topic = resolveGuideCorpusTopic(
+        'dashboard.core.schedule',
+        messages,
+      );
       expect(topic?.title).toBeTruthy();
       expect(topic?.steps.length).toBeGreaterThanOrEqual(4);
-      for (const key of listGuideCorpusI18nKeys('dashboard.operations.inventory')) {
+      for (const key of listGuideCorpusI18nKeys(
+        'dashboard.operations.inventory',
+      )) {
         const text = resolveGuideCorpusI18nKey(messages, key);
         expect(text).toBeTruthy();
       }

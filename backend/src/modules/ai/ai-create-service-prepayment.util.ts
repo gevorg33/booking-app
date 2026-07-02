@@ -17,8 +17,7 @@ export const CREATE_SERVICE_PREPAYMENT_CLASSIFIER_RULES = `- create_service prep
 
 const CREATE_SERVICE_CUE =
   /\b(?:create|add|register|offer|introduce|set\s+up)\s+(?:a\s+)?(?:new\s+)?(?:service|offering|treatment)s?\b/i;
-const SHORT_ADD_CUE =
-  /\badd\s+(?:a\s+)?(?:new\s+)?[a-z]/i;
+const SHORT_ADD_CUE = /\badd\s+(?:a\s+)?(?:new\s+)?[a-z]/i;
 
 export type ParsedCreateServicePrepayment = {
   prepaymentMode?: 'none' | 'full' | 'deposit';
@@ -88,7 +87,9 @@ function parseCreateServiceDepositPercent(prompt: string): number | undefined {
   return undefined;
 }
 
-function parseCreateServiceFixedDepositAmount(prompt: string): number | undefined {
+function parseCreateServiceFixedDepositAmount(
+  prompt: string,
+): number | undefined {
   const patterns = [
     /\$(\d+(?:\.\d+)?)\s+deposit\b/i,
     /\bdeposit\s+(?:of\s+)?\$(\d+(?:\.\d+)?)/i,
@@ -259,9 +260,7 @@ function matchBulkServiceSegment(
   serviceName: string,
 ): string | undefined {
   const normalized = serviceName.trim().toLowerCase();
-  return segments.find((segment) =>
-    segment.toLowerCase().includes(normalized),
-  );
+  return segments.find((segment) => segment.toLowerCase().includes(normalized));
 }
 
 function parseBulkServiceRowFromSegment(
@@ -316,7 +315,9 @@ export function enrichCreateServicesPrepaymentParamsFromPrompt(
     const serviceName = String(rowObj.serviceName ?? rowObj.name ?? '').trim();
     const segment =
       segments[index] ??
-      (serviceName ? matchBulkServiceSegment(segments, serviceName) : undefined) ??
+      (serviceName
+        ? matchBulkServiceSegment(segments, serviceName)
+        : undefined) ??
       prompt;
     const rowParsed = parseCreateServicePrepaymentFromPrompt(segment, rowObj);
     return {
@@ -344,7 +345,8 @@ export function enrichCreateServicesPrepaymentParamsFromPrompt(
 
   return {
     ...params,
-    ...(globalParsed?.prepaymentMode && enrichedRows.every((row) => !row.prepaymentMode)
+    ...(globalParsed?.prepaymentMode &&
+    enrichedRows.every((row) => !row.prepaymentMode)
       ? { prepaymentMode: globalParsed.prepaymentMode }
       : {}),
     services: enrichedRows,
@@ -380,7 +382,8 @@ export function isCreateServicesPrepaymentPrompt(prompt: string): boolean {
   }
 
   return splitBulkCreateServiceSegments(text).some(
-    (segment) => !!parseCreateServicePrepaymentFromPrompt(segment, {})?.prepaymentMode,
+    (segment) =>
+      !!parseCreateServicePrepaymentFromPrompt(segment, {})?.prepaymentMode,
   );
 }
 

@@ -121,5 +121,6 @@ export const UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS: UpdateServiceP
 
 export const UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_RESCUE_SCENARIOS =
   UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
-    (row) => row.misclassifiedAction && row.paramsPartial?.onlyWithOnlinePayment,
+    (row) =>
+      row.misclassifiedAction && row.paramsPartial?.onlyWithOnlinePayment,
   );

@@ -28,23 +28,38 @@ export function resolveGuideFlowSurfaceFromRoute(
   if (!route) return undefined;
   if (route.startsWith('/dashboard')) return 'dashboard';
   if (route.startsWith('/tabs')) return 'provider';
-  if (route.startsWith('/s') || route.startsWith('/consumer')) return 'customer';
-  if (route === '/book' || route.startsWith('/book/') || route.startsWith('/public')) {
+  if (route.startsWith('/s') || route.startsWith('/consumer'))
+    return 'customer';
+  if (
+    route === '/book' ||
+    route.startsWith('/book/') ||
+    route.startsWith('/public')
+  ) {
     return 'public';
   }
   return undefined;
 }
 
-const VERTICAL_PLAYBOOK_IDS = new Set<VerticalPlaybookId>(['salon', 'clinic', 'tour']);
+const VERTICAL_PLAYBOOK_IDS = new Set<VerticalPlaybookId>([
+  'salon',
+  'clinic',
+  'tour',
+]);
 
 function resolveBusinessVerticalPlaybookId(input: {
   vertical?: string;
   businessType?: string;
 }): VerticalPlaybookId {
-  if (input.vertical && VERTICAL_PLAYBOOK_IDS.has(input.vertical as VerticalPlaybookId)) {
+  if (
+    input.vertical &&
+    VERTICAL_PLAYBOOK_IDS.has(input.vertical as VerticalPlaybookId)
+  ) {
     return input.vertical as VerticalPlaybookId;
   }
-  if (input.businessType && VERTICAL_PLAYBOOK_IDS.has(input.businessType as VerticalPlaybookId)) {
+  if (
+    input.businessType &&
+    VERTICAL_PLAYBOOK_IDS.has(input.businessType as VerticalPlaybookId)
+  ) {
     return input.businessType as VerticalPlaybookId;
   }
   if (input.vertical) return resolveVerticalPlaybookId(input.vertical);
@@ -62,7 +77,8 @@ export function resolveActiveGuideVerticalOverlays(input: {
   const active: GuideVerticalOverlayId[] = [];
   if (playbookVertical === 'clinic') active.push('clinic');
   if (playbookVertical === 'tour') active.push('tour');
-  if (input.retailPosEnabled || input.vertical === 'retail') active.push('retail');
+  if (input.retailPosEnabled || input.vertical === 'retail')
+    active.push('retail');
   return active;
 }
 
@@ -72,21 +88,26 @@ export function resolveGuideFlowRoleScope(input: {
   roleProfile?: AiRoleProfile | GuideFlowRoleScope;
 }): GuideFlowRoleScope | null {
   if (input.roleProfile) {
-    const profile = input.roleProfile as GuideFlowRoleScope;
-    if (input.surface === 'provider' && profile === 'receptionist') return 'provider';
-    if (input.surface === 'customer' || input.surface === 'public') return 'customer';
+    const profile = input.roleProfile;
+    if (input.surface === 'provider' && profile === 'receptionist')
+      return 'provider';
+    if (input.surface === 'customer' || input.surface === 'public')
+      return 'customer';
     return profile;
   }
 
   if (input.role) {
     const tier = input.role as AccessTier;
-    if (input.surface === 'customer' || input.surface === 'public') return 'customer';
+    if (input.surface === 'customer' || input.surface === 'public')
+      return 'customer';
     const profile = mapAccessTierToRoleProfile(tier);
-    if (input.surface === 'provider' && profile === 'receptionist') return 'provider';
+    if (input.surface === 'provider' && profile === 'receptionist')
+      return 'provider';
     return profile;
   }
 
-  if (input.surface === 'customer' || input.surface === 'public') return 'customer';
+  if (input.surface === 'customer' || input.surface === 'public')
+    return 'customer';
   return null;
 }
 
@@ -97,7 +118,9 @@ const PLAN_TIER_ORDER: Record<PlanTierId, number> = {
 };
 
 /** Maps guide module ids to subscription plan feature flags (ai-guide-1.8.4). */
-export const GUIDE_MODULE_PLAN_FLAGS: Readonly<Record<string, PlanFeatureFlag>> = {
+export const GUIDE_MODULE_PLAN_FLAGS: Readonly<
+  Record<string, PlanFeatureFlag>
+> = {
   giftCards: 'giftCards',
   promoCodes: 'promoCodes',
   loyalty: 'loyalty',
@@ -105,11 +128,16 @@ export const GUIDE_MODULE_PLAN_FLAGS: Readonly<Record<string, PlanFeatureFlag>> 
   stripeConnect: 'stripeConnect',
 };
 
-export function resolveGuideFlowPlanTier(ctx: GuideFlowListContext): PlanTierId {
+export function resolveGuideFlowPlanTier(
+  ctx: GuideFlowListContext,
+): PlanTierId {
   return ctx.planTierId ?? 'solo';
 }
 
-export function isPlanTierAtLeast(current: PlanTierId, required: PlanTierId): boolean {
+export function isPlanTierAtLeast(
+  current: PlanTierId,
+  required: PlanTierId,
+): boolean {
   return PLAN_TIER_ORDER[current] >= PLAN_TIER_ORDER[required];
 }
 
@@ -138,7 +166,9 @@ export function isGuideFlowPlaybookModuleAllowed(
   if (!playbook.requiresModule?.length) return true;
   if (
     enabledModules?.length &&
-    playbook.requiresModule.some((moduleId) => enabledModules.includes(moduleId))
+    playbook.requiresModule.some((moduleId) =>
+      enabledModules.includes(moduleId),
+    )
   ) {
     return true;
   }
@@ -166,7 +196,9 @@ export function isGuideFlowPlaybookRoleVerticalVisible(
   if (playbook.surface !== ctx.surface) return false;
 
   if (playbook.verticals?.length) {
-    const allowed = playbook.verticals.some((id) => activeVerticals.includes(id));
+    const allowed = playbook.verticals.some((id) =>
+      activeVerticals.includes(id),
+    );
     if (!allowed) return false;
   }
 
@@ -193,7 +225,9 @@ export function isGuideFlowPlaybookVisible(
   return isGuideFlowPlaybookEntitlementAllowed(playbook, ctx);
 }
 
-export function mergeGuideFlowPlaybooks(ctx: GuideFlowListContext): GuideFlowPlaybookDef[] {
+export function mergeGuideFlowPlaybooks(
+  ctx: GuideFlowListContext,
+): GuideFlowPlaybookDef[] {
   const activeVerticals = resolveActiveGuideVerticalOverlays(ctx);
   const base = listGuideFlowSurfacePlaybooks(ctx.surface);
   const merged: GuideFlowPlaybookDef[] = [];
@@ -248,14 +282,19 @@ export function pickGuideFlowPlaybookForRoute(
   )[0];
 }
 
-export function listGuideFlowPlaybooks(ctx: GuideFlowListContext): GuideFlowPlaybookDef[] {
+export function listGuideFlowPlaybooks(
+  ctx: GuideFlowListContext,
+): GuideFlowPlaybookDef[] {
   return mergeGuideFlowPlaybooks(ctx);
 }
 
 export function listGuideFlowOverlayPlaybookIds(
   overlayId: GuideVerticalOverlayId,
 ): readonly string[] {
-  return getGuideFlowOverlayBundle(overlayId)?.playbooks.map((row) => row.topicId) ?? [];
+  return (
+    getGuideFlowOverlayBundle(overlayId)?.playbooks.map((row) => row.topicId) ??
+    []
+  );
 }
 
 export function listGuideFlowSurfacesWithOverlays(): readonly GuideVerticalOverlayId[] {

@@ -6,6 +6,8 @@ import {
   resolveServices,
 } from './ai-orchestration.helpers.js';
 import { isCapacityRebalancePrompt } from './ai-scheduling.util.js';
+import { isHideAppointmentsFromCalendarPrompt } from './ai-schedule-ops-hints.util.js';
+import { isRemoveRetailLinePrompt } from './ai-retail-finance.util.js';
 
 const SENIORITY_MATRIX_RE =
   /\b(?:senior|junior)\s+(?:only|stylist|stylists|provider|providers|staff)\b/i;
@@ -15,7 +17,10 @@ export function isTransferServicesBetweenProvidersPrompt(
   prompt: string,
 ): boolean {
   if (isCapacityRebalancePrompt(prompt)) return false;
-  if (/\b(slot|appointment|booking)s?\b/i.test(prompt) && /\bmove\s+\d+/i.test(prompt)) {
+  if (
+    /\b(slot|appointment|booking)s?\b/i.test(prompt) &&
+    /\bmove\s+\d+/i.test(prompt)
+  ) {
     return false;
   }
   const hasTransferVerb = /\b(move|transfer|reassign)\b/i.test(prompt);
@@ -26,6 +31,8 @@ export function isTransferServicesBetweenProvidersPrompt(
 
 /** "Unassign all Color services from Gevorg Gasparyan". */
 export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
+  if (isHideAppointmentsFromCalendarPrompt(prompt)) return false;
+  if (isRemoveRetailLinePrompt(prompt)) return false;
   if (isTransferServicesBetweenProvidersPrompt(prompt)) return false;
   if (SENIORITY_MATRIX_RE.test(prompt)) return false;
   // Locale/translation cleanup ("strip translations from catalog", "remove
@@ -489,10 +496,8 @@ export function resolveUnassignEmployeeServicesInput(
         : null,
       categoryName:
         typeof params.categoryName === 'string' ? params.categoryName : null,
-      unassignAllServices:
-        params.unassignAllServices === true ? true : null,
-      unassignFromCategory:
-        params.unassignFromCategory === true ? true : null,
+      unassignAllServices: params.unassignAllServices === true ? true : null,
+      unassignFromCategory: params.unassignFromCategory === true ? true : null,
     },
     categories,
   );
@@ -599,10 +604,8 @@ export function resolveTransferEmployeeServicesInput(
         : null,
       categoryName:
         typeof params.categoryName === 'string' ? params.categoryName : null,
-      unassignAllServices:
-        params.unassignAllServices === true ? true : null,
-      transferFromCategory:
-        params.transferFromCategory === true ? true : null,
+      unassignAllServices: params.unassignAllServices === true ? true : null,
+      transferFromCategory: params.transferFromCategory === true ? true : null,
     },
     categories,
   );

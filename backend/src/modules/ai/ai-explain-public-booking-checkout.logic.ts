@@ -158,8 +158,9 @@ export async function handleExplainPublicBookingCheckoutLogic(
     fullPrepaymentCount: grouped.full,
     depositPrepaymentCount: grouped.deposit,
     totalActiveServices: catalog.length,
-    defaultServicePrepaymentMode:
-      payment.defaultServicePrepaymentMode as PrepaymentMode | undefined,
+    defaultServicePrepaymentMode: payment.defaultServicePrepaymentMode as
+      | PrepaymentMode
+      | undefined,
     defaultServiceDepositPercent:
       payment.defaultServiceDepositPercent ?? undefined,
   });

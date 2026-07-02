@@ -219,6 +219,14 @@ export function isExplainAmountDueNowPrompt(prompt: string): boolean {
   if (/\bwhy\b/i.test(prompt)) return false;
   if (isBudgetCatalogBrowsePrompt(prompt)) return false;
   if (
+    /\b(?:refund(?:able)?|forfeit|lose\s+my|get\s+my|cancel\s+for\s+free|free\s+cancel|cancellation\s+fee)\b/i.test(
+      prompt,
+    ) &&
+    /\b(?:cancel|cancellation|if\s+i\s+cancel)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
     /\b(?:explain|break\s*down)\b/i.test(prompt) &&
     /\bcheckout\s+total\b/i.test(prompt) &&
     !/\b(?:pay|due)\s+today\b/i.test(prompt)

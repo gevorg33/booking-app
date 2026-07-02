@@ -101,10 +101,12 @@ describe('ai-budget-list-services.logic (budget-1.4 / 1.6)', () => {
 
       for (const id of expectedIds) {
         const service = services.find((entry) => entry.id === id);
-        expect(result.summary).toContain(formatPublicListServiceLine({
-          ...service!,
-          currency: 'USD',
-        }));
+        expect(result.summary).toContain(
+          formatPublicListServiceLine({
+            ...service!,
+            currency: 'USD',
+          }),
+        );
       }
     },
   );
@@ -163,7 +165,9 @@ describe('ai-budget-list-services.logic (budget-1.4 / 1.6)', () => {
       'massage-55',
       'massage-65',
     ]);
-    expect(result.summary).toContain('Highest in your $80 range: Massage standard at $65');
+    expect(result.summary).toContain(
+      'Highest in your $80 range: Massage standard at $65',
+    );
     expect(buildBudgetRangeHighestInRangeNote(services, 80)).toBe(
       'Highest in your $80 range: Massage standard at $65.',
     );
@@ -252,11 +256,30 @@ describe('ai-budget-list-services.logic (budget-1.4 / 1.6)', () => {
 
   it('discover-no-premium-in-budget-en uses premium-specific no-match copy', () => {
     const catalog = [
-      { id: 'hair-35', name: 'Haircut basic', price: 35, serviceCategory: 'haircut' },
-      { id: 'hair-45', name: 'Haircut standard', price: 45, serviceCategory: 'haircut' },
-      { id: 'hair-75', name: 'Haircut premium', price: 75, serviceCategory: 'haircut' },
+      {
+        id: 'hair-35',
+        name: 'Haircut basic',
+        price: 35,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'hair-45',
+        name: 'Haircut standard',
+        price: 45,
+        serviceCategory: 'haircut',
+      },
+      {
+        id: 'hair-75',
+        name: 'Haircut premium',
+        price: 75,
+        serviceCategory: 'haircut',
+      },
     ];
-    const summary = buildRankPremiumNoMatchInBudgetSummary(catalog, 30, 'haircut');
+    const summary = buildRankPremiumNoMatchInBudgetSummary(
+      catalog,
+      30,
+      'haircut',
+    );
     expect(summary).toContain('No premium haircut under $30.');
     expect(summary).toContain('Closest options');
     expect(summary).toContain('Haircut basic');
@@ -265,8 +288,20 @@ describe('ai-budget-list-services.logic (budget-1.4 / 1.6)', () => {
 
   it('leaves catalog unchanged when maxPrice is absent', () => {
     const services = [
-      { id: 'a', name: 'Premium', price: 80, durationMinutes: 60, currency: 'USD' },
-      { id: 'b', name: 'Basic', price: 20, durationMinutes: 30, currency: 'USD' },
+      {
+        id: 'a',
+        name: 'Premium',
+        price: 80,
+        durationMinutes: 60,
+        currency: 'USD',
+      },
+      {
+        id: 'b',
+        name: 'Basic',
+        price: 20,
+        durationMinutes: 30,
+        currency: 'USD',
+      },
     ];
 
     const result = composePublicListServicesBudgetResponse({
@@ -330,7 +365,10 @@ describe('applyBudgetFilterForRecommendSpecialists (budget-1.5)', () => {
       { id: 'a', name: 'Premium massage', price: 120 },
       { id: 'b', name: 'Basic massage', price: 60 },
     ];
-    const result = applyBudgetFilterForRecommendSpecialists(services, undefined);
+    const result = applyBudgetFilterForRecommendSpecialists(
+      services,
+      undefined,
+    );
     expect(result.services).toEqual(services);
     expect(result.noMatchSummary).toBeNull();
   });

@@ -5,7 +5,10 @@ import {
   AI_COMMAND_EVAL_LLM_CASES,
 } from './ai-command-eval.cases.js';
 import { runDeterministicEvalSuite } from './ai-command-eval.runner.js';
-import type { AiCommandEvalCase, AiEvalCaseResult } from './ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalCaseResult,
+} from './ai-command-eval.types.js';
 
 export interface IntentAccuracyStats {
   intent: string;
@@ -64,7 +67,9 @@ export const AI_ACCURACY_BASELINE_PATH = path.join(
 );
 
 /** Primary intent label for scorecard grouping. */
-export function resolveEvalCaseIntentLabel(evalCase: AiCommandEvalCase): string {
+export function resolveEvalCaseIntentLabel(
+  evalCase: AiCommandEvalCase,
+): string {
   const { expect } = evalCase;
   if (expect.useSemanticIntentMatch && expect.semanticMatchAction) {
     if (expect.implicationTopIntent) {
@@ -167,7 +172,9 @@ export function loadAccuracyBaseline(
 ): AiAccuracyBaseline | null {
   if (!fs.existsSync(baselinePath)) return null;
   try {
-    const raw = JSON.parse(fs.readFileSync(baselinePath, 'utf8')) as AiAccuracyBaseline;
+    const raw = JSON.parse(
+      fs.readFileSync(baselinePath, 'utf8'),
+    ) as AiAccuracyBaseline;
     if (raw.version !== 1) return null;
     return raw;
   } catch {
@@ -179,7 +186,11 @@ export function writeAccuracyBaseline(
   baseline: AiAccuracyBaseline,
   baselinePath = AI_ACCURACY_BASELINE_PATH,
 ): void {
-  fs.writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(
+    baselinePath,
+    `${JSON.stringify(baseline, null, 2)}\n`,
+    'utf8',
+  );
 }
 
 export function diffAccuracyAgainstBaseline(
@@ -339,7 +350,10 @@ export function formatAccuracyReport(report: AiAccuracyReport): string {
       );
     }
   } else {
-    lines.push('', 'Baseline: (none — run with UPDATE_AI_EVAL_BASELINE=1 to create)');
+    lines.push(
+      '',
+      'Baseline: (none — run with UPDATE_AI_EVAL_BASELINE=1 to create)',
+    );
   }
 
   if (report.failures.length) {

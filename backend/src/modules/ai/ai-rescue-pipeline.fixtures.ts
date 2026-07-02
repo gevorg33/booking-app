@@ -19,6 +19,114 @@ import { LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS } from './ai-launch-consume
 import { CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS } from './ai-clinic-lab-day-close-compound.fixtures.js';
 import { CLINIC_LAB_REVIEW_COMPOUND_PROMPTS } from './ai-clinic-lab-review-compound.fixtures.js';
 import { FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS } from './ai-flexible-availability.fixtures.js';
+import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
+
+const SCENARIO_PROMPTS_BY_ID = Object.fromEntries(
+  COMPOUND_DECOMPOSITION_SCENARIOS.map((scenario) => [
+    scenario.id,
+    scenario.prompt,
+  ]),
+) as Record<string, string>;
+
+/** Pattern ids that differ from COMPOUND_DECOMPOSITION_SCENARIOS ids. */
+const GOLDEN_COMPOUND_PROMPT_ALIASES: Record<string, string> = {
+  customer_book_package_with_nearest_slot:
+    SCENARIO_PROMPTS_BY_ID.customer_book_package_nearest,
+  public_book_package_with_nearest_slot:
+    SCENARIO_PROMPTS_BY_ID.public_book_package_nearest,
+  customer_book_with_gift_card_compound:
+    SCENARIO_PROMPTS_BY_ID.customer_book_package_gift_card,
+};
+
+/** Golden decomposition prompts keyed by pattern id (ai-cmd-h4.2). */
+const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
+  customer_book_package_apply_promo:
+    'Book spa day package and apply promo code SPRING25',
+  dashboard_cancel_visit_notify_waitlist:
+    'Cancel package visit and notify waitlist for Anna',
+  dashboard_cancel_visit_coordinate_waitlist:
+    'Cancel package visit and coordinate waitlist offer for Friday',
+  dashboard_check_and_book_nearest:
+    'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+  customer_check_and_book_nearest:
+    'Who is available tomorrow evening for massage and book the nearest slot',
+  public_budget_check_then_book:
+    "Who's free for a facial under $60 tomorrow evening, book the soonest",
+  public_budget_book_nearest: 'Book a haircut under $50 tomorrow, nearest slot',
+  customer_budget_check_then_book:
+    "Who's free for a facial under $60 tomorrow evening, book the soonest",
+  customer_budget_book_nearest:
+    'Book a haircut under $50 tomorrow, nearest slot',
+  public_rank_book_nearest:
+    'Book your most premium facial tomorrow, nearest slot',
+  customer_rank_book_nearest:
+    'Book your most premium facial tomorrow, nearest slot',
+  public_flexible_avail_budget_check_then_book:
+    "Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest",
+  customer_flexible_avail_budget_check_then_book:
+    'I want a haircut tomorrow evening or Friday afternoon, I have $50, book the soonest',
+  dashboard_package_line_checkout: ALL_PACKAGE_CHECKOUT_PROMPTS[0].prompt,
+  dashboard_multi_service_cart_checkout:
+    ALL_MULTI_SERVICE_CHECKOUT_PROMPTS[0].prompt,
+  customer_gift_card_checkout_compound: GIFT_CARD_CHECKOUT_PROMPTS[0].prompt,
+  customer_gift_card_checkout:
+    'Use gift card GCM-ABCD1234 and book nearest haircut',
+  customer_multi_service_day: 'Massage and facial same afternoon — find a time',
+  customer_guest_pay_cash_manage:
+    'Book as guest, pay at visit, email manage link',
+  customer_guest_book_and_manage: 'Book as guest and email me the manage link',
+  customer_physical_gift_card_handoff:
+    'Buy physical gift card $100 and track my order',
+  dashboard_clinic_order_notify:
+    "Order lipid panel for Maria's visit and notify her when results are ready",
+  customer_clinic_book_explain_results:
+    'Book lipid panel and notify me when results are ready',
+  public_clinic_book_explain_results:
+    'Book lipid panel and tell me when results are ready on this page',
+  public_flexible_avail_list_budget_then_or:
+    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
+      (row) => row.id === 'avail-list-budget-then-or-en',
+    )!.prompt,
+  customer_flexible_avail_list_budget_then_or:
+    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
+      (row) => row.id === 'avail-list-budget-then-or-en',
+    )!.prompt,
+  customer_discover_book_and_pay:
+    'Book cheapest massage under $60 tomorrow and pay online',
+  customer_rebook_and_pay: 'Rebook my last visit and pay with card',
+  customer_cancel_package_rebook_single:
+    'Skip package visit 2 and book a trim instead',
+  customer_cancel_and_rebook: 'Cancel Friday and book the next available slot',
+  public_discover_book_and_pay:
+    'Book cheapest massage under $60 tomorrow and pay online',
+  dashboard_budget_discover_and_book:
+    BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
+  dashboard_rank_discover_and_book:
+    RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
+  dashboard_onboard_new_provider:
+    PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
+  dashboard_setup_salon_checkout:
+    SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS[0].prompt,
+  dashboard_configure_services_payment_matrix:
+    CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS[0].prompt,
+  dashboard_decline_online_payment_category:
+    DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS[0].prompt,
+  dashboard_cash_and_online_payment:
+    CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS[0].prompt,
+  dashboard_onboard_salon_notifications:
+    ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS[0].prompt,
+  dashboard_launch_consumer_app_growth:
+    LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS[0].prompt,
+  dashboard_clinic_lab_day_close:
+    CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
+  dashboard_clinic_lab_review: CLINIC_LAB_REVIEW_COMPOUND_PROMPTS[0].prompt,
+};
+
+export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
+  ...SCENARIO_PROMPTS_BY_ID,
+  ...GOLDEN_COMPOUND_PROMPT_ALIASES,
+  ...MANUAL_GOLDEN_COMPOUND_PROMPTS,
+};
 
 /** Post-LLM rescue scenarios for compound checkout families (ai-cmd-h4.2). */
 export const COMPOUND_RESCUE_SCENARIOS = [
@@ -73,74 +181,6 @@ export const COMPOUND_RESCUE_SCENARIOS = [
     rescueReason: 'digital_to_physical_gift_card',
   },
 ] as const;
-
-/** Golden decomposition prompts keyed by pattern id (ai-cmd-h4.2). */
-export const GOLDEN_COMPOUND_PROMPT_BY_ID: Record<string, string> = {
-  customer_book_package_apply_promo:
-    'Book spa day package and apply promo code SPRING25',
-  dashboard_cancel_visit_notify_waitlist:
-    'Cancel package visit and notify waitlist for Anna',
-  dashboard_cancel_visit_coordinate_waitlist:
-    'Cancel package visit and coordinate waitlist offer for Friday',
-  dashboard_check_and_book_nearest:
-    'check who is free tomorrow evening for permanent lashes, book the nearest slot',
-  customer_check_and_book_nearest:
-    'Who is available tomorrow evening for massage and book the nearest slot',
-  public_budget_check_then_book:
-    "Who's free for a facial under $60 tomorrow evening, book the soonest",
-  public_budget_book_nearest:
-    'Book a haircut under $50 tomorrow, nearest slot',
-  customer_budget_check_then_book:
-    "Who's free for a facial under $60 tomorrow evening, book the soonest",
-  customer_budget_book_nearest:
-    'Book a haircut under $50 tomorrow, nearest slot',
-  public_rank_book_nearest:
-    'Book your most premium facial tomorrow, nearest slot',
-  customer_rank_book_nearest:
-    'Book your most premium facial tomorrow, nearest slot',
-  public_flexible_avail_budget_check_then_book:
-    "Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest",
-  customer_flexible_avail_budget_check_then_book:
-    'I want a haircut tomorrow evening or Friday afternoon, I have $50, book the soonest',
-  dashboard_package_line_checkout: ALL_PACKAGE_CHECKOUT_PROMPTS[0].prompt,
-  dashboard_multi_service_cart_checkout:
-    ALL_MULTI_SERVICE_CHECKOUT_PROMPTS[0].prompt,
-  customer_gift_card_checkout_compound: GIFT_CARD_CHECKOUT_PROMPTS[0].prompt,
-  customer_physical_gift_card_handoff:
-    'Buy physical gift card $100 and track my order',
-  dashboard_clinic_order_notify:
-    "Order lipid panel for Maria's visit and notify her when results are ready",
-  customer_clinic_book_explain_results:
-    'Book lipid panel and notify me when results are ready',
-  public_clinic_book_explain_results:
-    'Book lipid panel and tell me when results are ready on this page',
-  public_flexible_avail_list_budget_then_or:
-    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
-      (row) => row.id === 'avail-list-budget-then-or-en',
-    )!.prompt,
-  customer_flexible_avail_list_budget_then_or:
-    FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
-      (row) => row.id === 'avail-list-budget-then-or-en',
-    )!.prompt,
-  dashboard_budget_discover_and_book:
-    BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
-  dashboard_rank_discover_and_book:
-    RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS[0].prompt,
-  dashboard_onboard_new_provider: PROVIDER_ONBOARDING_COMPOUND_PROMPTS[0].prompt,
-  dashboard_setup_salon_checkout: SETUP_SALON_CHECKOUT_COMPOUND_PROMPTS[0].prompt,
-  dashboard_configure_services_payment_matrix:
-    CONFIGURE_SERVICES_PAYMENT_MATRIX_COMPOUND_PROMPTS[0].prompt,
-  dashboard_decline_online_payment_category:
-    DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS[0].prompt,
-  dashboard_cash_and_online_payment:
-    CASH_AND_ONLINE_PAYMENT_COMPOUND_PROMPTS[0].prompt,
-  dashboard_onboard_salon_notifications:
-    ONBOARD_SALON_NOTIFICATIONS_COMPOUND_PROMPTS[0].prompt,
-  dashboard_launch_consumer_app_growth:
-    LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS[0].prompt,
-  dashboard_clinic_lab_day_close: CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS[0].prompt,
-  dashboard_clinic_lab_review: CLINIC_LAB_REVIEW_COMPOUND_PROMPTS[0].prompt,
-};
 
 /** Enrichment scenarios: compound prompts that must set bookingFirstAvailable hints. */
 const ALL_CHECK_AND_BOOK_PROMPTS = [

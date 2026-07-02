@@ -40,9 +40,9 @@ describe('metric-resolvers semantic util (acc-3.14)', () => {
   it.each(METRIC_RESOLVER_POSITIVE_SCENARIOS)(
     '$id resolves $kind metric $expectedMetric',
     ({ prompt, kind, expectedMetric, surface }) => {
-      expect(
-        resolveMetricForKind(kind, prompt, surface ?? 'dashboard'),
-      ).toBe(expectedMetric);
+      expect(resolveMetricForKind(kind, prompt, surface ?? 'dashboard')).toBe(
+        expectedMetric,
+      );
     },
   );
 

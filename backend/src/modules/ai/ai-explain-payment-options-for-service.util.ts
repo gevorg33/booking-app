@@ -233,7 +233,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bdo\s+i\s+(?:need\s+to\s+)?pay\s+(?:online|by\s+card)\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (payOnlineFor) {
-    const name = cleanExtractedServiceName(payOnlineFor[1]!);
+    const name = cleanExtractedServiceName(payOnlineFor[1]);
     if (name) return name;
   }
 
@@ -241,7 +241,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bmust\s+i\s+pay\s+online\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (mustPayOnlineFor) {
-    const name = cleanExtractedServiceName(mustPayOnlineFor[1]!);
+    const name = cleanExtractedServiceName(mustPayOnlineFor[1]);
     if (name) return name;
   }
 
@@ -249,7 +249,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bdo\s+i\s+have\s+to\s+pay\s+(?:online|by\s+card)\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (haveToPayFor) {
-    const name = cleanExtractedServiceName(haveToPayFor[1]!);
+    const name = cleanExtractedServiceName(haveToPayFor[1]);
     if (name) return name;
   }
 
@@ -257,7 +257,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bcan\s+i\s+pay\s+(?:in\s+)?cash\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (cashFor) {
-    const name = cleanExtractedServiceName(cashFor[1]!);
+    const name = cleanExtractedServiceName(cashFor[1]);
     if (name) return name;
   }
 
@@ -265,7 +265,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bcan\s+i\s+pay\s+(?:online|by\s+card)\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (payOnlineCan) {
-    const name = cleanExtractedServiceName(payOnlineCan[1]!);
+    const name = cleanExtractedServiceName(payOnlineCan[1]);
     if (name) return name;
   }
 
@@ -273,7 +273,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\b(?:is|are)\s+(?:online\s+payment|card\s+payment)\s+required\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (requiredFor) {
-    const name = cleanExtractedServiceName(requiredFor[1]!);
+    const name = cleanExtractedServiceName(requiredFor[1]);
     if (name) return name;
   }
 
@@ -281,7 +281,7 @@ export function extractServiceNameForPaymentOptionsPrompt(
     /\bis\s+card\s+payment\s+required\s+for\s+(?:a|an|the\s+)?([a-z][\w\s'-]{2,50}?)(?:\s*\?|$)/i,
   );
   if (cardRequiredFor) {
-    const name = cleanExtractedServiceName(cardRequiredFor[1]!);
+    const name = cleanExtractedServiceName(cardRequiredFor[1]);
     if (name) return name;
   }
 
@@ -318,7 +318,9 @@ export function hasNamedServicePaymentOptionsPrompt(prompt: string): boolean {
   );
 }
 
-export function isExplainPaymentOptionsForServicePrompt(prompt: string): boolean {
+export function isExplainPaymentOptionsForServicePrompt(
+  prompt: string,
+): boolean {
   if (/\bwhy\b/i.test(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
@@ -333,8 +335,7 @@ export function isExplainPaymentOptionsForServicePrompt(prompt: string): boolean
     /կարո՞ղ\s+եմ.*կանխիկ/i.test(prompt) ||
     /պետք\s+ա.*առցանց/i.test(prompt) ||
     /պետք\s+է.*առցանց/i.test(prompt) ||
-    (/այս\s+ծառայության/i.test(prompt) &&
-      /առցանց|վճար/i.test(prompt))
+    (/այս\s+ծառայության/i.test(prompt) && /առցանց|վճար/i.test(prompt))
   ) {
     return true;
   }
@@ -435,7 +436,10 @@ export function enrichPaymentOptionsParamsFromCatalogContext(
 export function rescueExplainPaymentOptionsForServiceIntent(
   prompt: string,
   action: string,
-): { action: 'explain_payment_options_for_service'; rescueReason: string } | null {
+): {
+  action: 'explain_payment_options_for_service';
+  rescueReason: string;
+} | null {
   if (action === 'explain_payment_options_for_service') return null;
   if (!isExplainPaymentOptionsForServicePrompt(prompt)) return null;
   return {

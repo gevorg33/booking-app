@@ -5,9 +5,12 @@ import {
 } from './adoption-exit-gate.util.js';
 
 describe('adoption-exit-gate.util', () => {
-  it.each(ADOPTION_EXIT_GATE_SCENARIOS)('$id exit gate met=$expectMet', ({ input, expectMet }) => {
-    expect(buildAdoptionExitGate(input).met).toBe(expectMet);
-  });
+  it.each(ADOPTION_EXIT_GATE_SCENARIOS)(
+    '$id exit gate met=$expectMet',
+    ({ input, expectMet }) => {
+      expect(buildAdoptionExitGate(input).met).toBe(expectMet);
+    },
+  );
 
   it('computes locale activation spread', () => {
     const spread = computeLocaleActivationSpread({

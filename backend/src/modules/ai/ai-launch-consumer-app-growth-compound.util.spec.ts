@@ -2,9 +2,7 @@ import {
   LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_PROMPTS,
   LAUNCH_CONSUMER_APP_GROWTH_RESCUE_SCENARIOS,
 } from './ai-launch-consumer-app-growth-compound.fixtures.js';
-import {
-  AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_CASES,
-} from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_LAUNCH_CONSUMER_APP_GROWTH_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import {
   buildLaunchConsumerAppGrowthCompoundParams,
@@ -27,7 +25,9 @@ describe('ai-launch-consumer-app-growth-compound.util (ai-cmd-ext-4.9)', () => {
     ({ prompt, orderedActions, expectedParams }) => {
       const steps = decomposeLaunchConsumerAppGrowthCompoundPrompt(prompt);
       expect(steps.map((step) => step.action)).toEqual([...orderedActions]);
-      expect(steps).toHaveLength(LAUNCH_CONSUMER_APP_GROWTH_STEP_ACTIONS.length);
+      expect(steps).toHaveLength(
+        LAUNCH_CONSUMER_APP_GROWTH_STEP_ACTIONS.length,
+      );
       if (expectedParams?.emailOnNewCustomerRegistration === true) {
         expect(steps[2].params.emailOnNewCustomerRegistration).toBe(true);
       }
@@ -45,7 +45,7 @@ describe('ai-launch-consumer-app-growth-compound.util (ai-cmd-ext-4.9)', () => {
       expect(
         rescueLaunchConsumerAppGrowthCompoundIntent(
           prompt,
-          misclassifiedAction!,
+          misclassifiedAction,
         ),
       ).toEqual({
         action: 'compound_intent',

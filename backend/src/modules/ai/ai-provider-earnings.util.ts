@@ -34,8 +34,7 @@ export const PROVIDER_EARNINGS_INTENTS = [
   'summarize_my_revenue',
 ] as const;
 
-export type ProviderEarningsIntent =
-  (typeof PROVIDER_EARNINGS_INTENTS)[number];
+export type ProviderEarningsIntent = (typeof PROVIDER_EARNINGS_INTENTS)[number];
 
 export interface ProviderAppointmentCountSummary {
   total: number;
@@ -130,10 +129,7 @@ export function isoDateRangeToUtcBounds(range: DateRange): {
   return { start, end };
 }
 
-export function buildPeriodLabel(
-  range: DateRange,
-  prompt?: string,
-): string {
+export function buildPeriodLabel(range: DateRange, prompt?: string): string {
   const lower = (prompt ?? '').toLowerCase();
   if (range.start === range.end) {
     if (/\btoday\b/i.test(lower)) return 'today';
@@ -151,7 +147,10 @@ export function buildPeriodLabel(
 export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isSummarizeMyRevenuePrompt(prompt)) return false;
-  if (isBookNearestSlotPrompt(prompt) || isCheckProvidersForServicePrompt(prompt)) {
+  if (
+    isBookNearestSlotPrompt(prompt) ||
+    isCheckProvidersForServicePrompt(prompt)
+  ) {
     return false;
   }
   if (
@@ -198,7 +197,9 @@ export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   if (/\b(client snapshot|summarize client|visit count)\b/i.test(lower)) {
     return false;
   }
-  if (/\b(revenue|earnings?|income|made|earn(?:ed)?|money|paid)\b/i.test(lower)) {
+  if (
+    /\b(revenue|earnings?|income|made|earn(?:ed)?|money|paid)\b/i.test(lower)
+  ) {
     return false;
   }
 
@@ -239,7 +240,8 @@ export function isSummarizeMyRevenuePrompt(prompt: string): boolean {
     ) ||
     /\bhow much\b/i.test(lower) ||
     /\bdid i make\b/i.test(lower) ||
-    (containsArmenianScript(prompt) && /(վաստակ|եկամուտ|գումար|բաժին|զուտ)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(վաստակ|եկամուտ|գումար|բաժին|զուտ)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(заработ|доход|выручк|чистый|нетто|причитается)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) && /сколько\s+я/i.test(prompt));
@@ -391,14 +393,19 @@ export function summarizeProviderRevenue(
     computeProviderBookingEarnings(booking, rules),
   );
 
-  const grossCollected = breakdowns.reduce((sum, row) => sum + row.grossCollected, 0);
+  const grossCollected = breakdowns.reduce(
+    (sum, row) => sum + row.grossCollected,
+    0,
+  );
   const taxExcluded = breakdowns.reduce((sum, row) => sum + row.taxExcluded, 0);
   const netBeforeCommission = breakdowns.reduce(
     (sum, row) => sum + row.netBeforeSplit,
     0,
   );
   const providerNet = breakdowns.reduce((sum, row) => sum + row.providerNet, 0);
-  const commissionApplied = breakdowns.some((row) => row.commissionType != null);
+  const commissionApplied = breakdowns.some(
+    (row) => row.commissionType != null,
+  );
 
   let scheduledUnpaidValue = 0;
   for (const booking of scheduledUnpaid) {

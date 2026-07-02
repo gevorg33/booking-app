@@ -2,6 +2,7 @@ import {
   isExplainCheckoutTotalPrompt,
   isExplainPaymentStatusPrompt,
 } from './ai-payments.util.js';
+import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 
 export const NOTIFICATION_CURRENCY_INTENTS = [
   'explain_notification_currency',
@@ -30,7 +31,8 @@ function hasCurrencyCue(prompt: string): boolean {
     /\b(currency|dram|drams|euro|euros|ruble|rubles|dollar|dollars)\b/i.test(
       prompt,
     ) ||
-    /\b(AMD|EUR|RUB|USD|GBP|GEL)\b/i.test(prompt)
+    /\b(AMD|EUR|RUB|USD|GBP|GEL)\b/i.test(prompt) ||
+    /(?:драм|евро|рубл|валют|արժույթ|դրամ)/iu.test(prompt)
   );
 }
 
@@ -56,11 +58,13 @@ export function hasNotificationCurrencyContext(prompt: string): boolean {
 }
 
 export function isExplainNotificationCurrencyPrompt(prompt: string): boolean {
+  if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
   if (isExplainPaymentStatusPrompt(prompt) && !hasCurrencyCue(prompt)) {
     return false;
   }
   if (!hasNotificationCurrencyContext(prompt)) return false;
+  if (!hasCurrencyCue(prompt)) return false;
 
   const hasCurrencyCueFlag = hasCurrencyCue(prompt);
 
@@ -98,7 +102,7 @@ export function isExplainNotificationCurrencyPrompt(prompt: string): boolean {
 
   if (containsArmenianScript(prompt)) {
     if (
-      /(ինչու|ինչ|որն|որը|որ)/i.test(prompt) &&
+      /(ինչու|ինչ|որն|որը|Որ\s+արժույթ)/i.test(prompt) &&
       /(արժույթ|գին|գումար|նամակ|հաստատում|հիշեցում|€|֏|₽|AMD|EUR|RUB|USD)/i.test(
         prompt,
       )

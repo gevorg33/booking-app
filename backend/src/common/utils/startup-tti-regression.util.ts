@@ -57,7 +57,11 @@ export function buildWeeklyStartupTtiRegressionAlert(
   const end = now;
   const currentStart = new Date(end.getTime() - 7 * DAY_MS);
   const previousStart = new Date(end.getTime() - 14 * DAY_MS);
-  const currentWeekRate = computeStartupTtiRateForWindow(rows, currentStart, end);
+  const currentWeekRate = computeStartupTtiRateForWindow(
+    rows,
+    currentStart,
+    end,
+  );
   const previousWeekRate = computeStartupTtiRateForWindow(
     rows,
     previousStart,

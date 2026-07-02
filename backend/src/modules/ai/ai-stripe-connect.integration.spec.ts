@@ -31,10 +31,7 @@ describe('ai-stripe-connect integration (ai-cmd-ext-2.15)', () => {
 
   it('does not rescue explain stripe status to configure', () => {
     expect(
-      rescueConfigureStripeConnectIntent(
-        'Is Stripe Connect ready?',
-        'unknown',
-      ),
+      rescueConfigureStripeConnectIntent('Is Stripe Connect ready?', 'unknown'),
     ).toBeNull();
   });
 
@@ -48,7 +45,9 @@ describe('ai-stripe-connect integration (ai-cmd-ext-2.15)', () => {
             detailsSubmitted: false,
             oauthAvailable: true,
           })),
-          startConnect: jest.fn(async () => ({ url: 'https://stripe.test/onboard' })),
+          startConnect: jest.fn(async () => ({
+            url: 'https://stripe.test/onboard',
+          })),
         } as any,
       },
       'biz-1',

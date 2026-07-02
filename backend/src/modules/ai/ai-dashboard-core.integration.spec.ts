@@ -57,7 +57,10 @@ describe('AiDashboardCoreService integration (ai-cmd-ext-6.1)', () => {
         { provide: AiCatalogService, useValue: catalog },
         { provide: AiPaymentsService, useValue: payments },
         { provide: AiMarketingGrowthService, useValue: {} },
-        { provide: AiNotificationSettingsService, useValue: notificationSettings },
+        {
+          provide: AiNotificationSettingsService,
+          useValue: notificationSettings,
+        },
         { provide: AiWhatsappIntegrationService, useValue: {} },
         { provide: AiPushNotificationsService, useValue: {} },
         { provide: AiIntegrationsService, useValue: {} },

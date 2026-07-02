@@ -83,6 +83,11 @@ const CLINIC_CATALOG_FASTING_EXPLAIN = new RegExp(
   'iu',
 );
 
+const CONSUMER_LAB_PREP_EXPLAIN = new RegExp(
+  String.raw`\b(?:do i need to fast\s+for\s+(?:blood\s+work|lab\s+work|lab\s+tests?|blood\s+tests?)|should i fast\s+for\s+(?:blood\s+work|lab\s+work|lab\s+tests?|blood\s+tests?)|fast(?:ing)?\s+for\s+(?:blood\s+work|lab\s+work|lab\s+tests?|blood\s+tests?)|(?:does|do)\s+[A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*){0,3}\s+require\s+fasting|prep(?:aration)?\s+(?:instructions?\s+)?for\s+(?:the\s+)?(?:CBC|lipid|blood\s+work|lab|panel|TSH|metabolic))\b|ծոմավոր.*(?:արյան|լաբ)|голод.*(?:кров|анализ|лаб)|натощак`,
+  'iu',
+);
+
 function containsArmenianScript(text: string): boolean {
   return /[\u0530-\u058F]/.test(text);
 }
@@ -91,7 +96,9 @@ function containsCyrillicScript(text: string): boolean {
   return /[\u0400-\u04FF]/.test(text);
 }
 
-export function isClinicBookingIntent(action: string): action is ClinicBookingIntent {
+export function isClinicBookingIntent(
+  action: string,
+): action is ClinicBookingIntent {
   return (CLINIC_BOOKING_INTENTS as readonly string[]).includes(action);
 }
 
@@ -99,7 +106,9 @@ export function assertClinicBookingBusinessType(
   businessType: string | undefined | null,
 ): void {
   if (!isClinicVerticalBusinessType(businessType)) {
-    throw new Error('Clinic booking checkout fields are only available for clinic vertical businesses.');
+    throw new Error(
+      'Clinic booking checkout fields are only available for clinic vertical businesses.',
+    );
   }
 }
 
@@ -139,7 +148,9 @@ export function extractServiceNameFromClinicBookingPrompt(
   );
   if (prepFor?.[1]?.trim()) {
     const candidate = prepFor[1].trim();
-    if (!/^(visit|this|on|checkout|booking|form|page|field)$/i.test(candidate)) {
+    if (
+      !/^(visit|this|on|checkout|booking|form|page|field)$/i.test(candidate)
+    ) {
       return candidate;
     }
   }
@@ -157,8 +168,34 @@ export function extractServiceNameFromClinicBookingPrompt(
   return null;
 }
 
+const VISIT_PREP_AFTER_BOOKING = new RegExp(
+  String.raw`\b(?:do i need to fast(?:\s+(?:before|for)\s+my|\?)|should i fast(?:\s+(?:before|for)\s+my|\?)|what should i bring(?:\s+(?:to|for)\s+my)?|what do i need to bring(?:\s+(?:to|for)\s+my)?|meeting point|where do we meet(?:\s+for\s+my)?|prep instructions? for my|prepare for my visit|before my appointment|for my tour)\b|ինչ.*բեր.*իմ|ծոմավոր.*իմ\s+այց|որտեղ.*հանդիպ.*իմ|что.*взять.*мо|голод.*(?:мо(?:ем|его|й)\s+)?визит|где.*встреч.*мо`,
+  'iu',
+);
+
+const CLINIC_BOOKING_FIELDS_BLOCK = new RegExp(
+  String.raw`\b(?:why\s+(?:do\s+you\s+)?(?:ask|need)\s+(?:for\s+)?(?:my\s+)?(?:id|passport|government\s+id|national\s+id)|passport\s+number|date\s+of\s+birth|insurance\s+(?:provider|policy|number|field)|emergency\s+contact|home\s+address|identity\s+fields?)\b|ինչու.*(?:id|անձնագիր)|зачем.*(?:id|паспорт|дата\s+рождения|страхов)`,
+  'iu',
+);
+
+const PUBLIC_INTAKE_FORM_BLOCK = new RegExp(
+  String.raw`\b(?:why\s+these\s+health\s+questions|can\s+i\s+skip\s+the\s+form|optional\s+pre-visit|skip\s+for\s+now|health\s+questions|book\s+without\s+filling\s+the\s+questionnaire|questionnaire\s+before\s+checkout)\b|ինչու.*առողջության|բաց\s+թողնել.*ձև|почему.*здоров|пропуст.*анкет`,
+  'iu',
+);
+
 export function isExplainClinicBookingPrompt(prompt: string): boolean {
+  if (PUBLIC_INTAKE_FORM_BLOCK.test(prompt)) return false;
+  if (CLINIC_BOOKING_FIELDS_BLOCK.test(prompt)) return false;
+  if (VISIT_PREP_AFTER_BOOKING.test(prompt) && !CHECKOUT_CONTEXT.test(prompt)) {
+    return false;
+  }
   if (CLINIC_CATALOG_FASTING_EXPLAIN.test(prompt)) return false;
+  if (
+    CONSUMER_LAB_PREP_EXPLAIN.test(prompt) &&
+    !CHECKOUT_CONTEXT.test(prompt)
+  ) {
+    return false;
+  }
   if (NON_CLINIC_BOOKING_BLOCK.test(prompt)) return false;
   if (STAFF_CLINIC_ADMIN_BLOCK.test(prompt)) return false;
   if (isExplainDataRightsPrompt(prompt)) return false;
@@ -211,9 +248,13 @@ export function parseExplainClinicBookingFromPrompt(
 
   const aspectFromParams =
     typeof params.aspect === 'string' &&
-    ['symptoms', 'referralNotes', 'preparation', 'preVisitIntake', 'all'].includes(
-      params.aspect,
-    )
+    [
+      'symptoms',
+      'referralNotes',
+      'preparation',
+      'preVisitIntake',
+      'all',
+    ].includes(params.aspect)
       ? (params.aspect as ClinicBookingAspect)
       : undefined;
 

@@ -43,7 +43,7 @@ describe('IntentDecompositionService', () => {
     );
     expect(steps.map((step) => step.action)).toEqual([
       'book_package',
-      'promo_code_help',
+      'apply_promo_code_checkout',
     ]);
     expect(llm.completeJson).not.toHaveBeenCalled();
   });

@@ -45,9 +45,13 @@ describe('provider-team-floor.util (prov-exp-4.1)', () => {
     'buildTeamFloorColumns — $id',
     ({ bookings, expectedColumnIds, expectedFirstBookingIds }) => {
       const columns = buildTeamFloorColumns(bookings, mapBooking);
-      expect(columns.map((column) => column.employeeId)).toEqual(expectedColumnIds);
+      expect(columns.map((column) => column.employeeId)).toEqual(
+        expectedColumnIds,
+      );
       const alex = columns.find((column) => column.employeeId === 'emp-1');
-      expect(alex?.bookings.map((booking) => booking.id)).toEqual(expectedFirstBookingIds);
+      expect(alex?.bookings.map((booking) => booking.id)).toEqual(
+        expectedFirstBookingIds,
+      );
     },
   );
 
@@ -81,8 +85,12 @@ describe('provider-team-floor.util (prov-exp-4.1)', () => {
       'emp-1',
       'emp-2',
     ]);
-    expect(filterTeamFloorBookingsByEmployee(bookings, 'emp-1')).toHaveLength(1);
-    expect(filterTeamFloorBookingsByEmployee(bookings, UNASSIGNED_EMPLOYEE_ID)).toHaveLength(1);
+    expect(filterTeamFloorBookingsByEmployee(bookings, 'emp-1')).toHaveLength(
+      1,
+    );
+    expect(
+      filterTeamFloorBookingsByEmployee(bookings, UNASSIGNED_EMPLOYEE_ID),
+    ).toHaveLength(1);
     expect(isValidTeamFloorEmployeeFilter(providers, 'emp-2')).toBe(true);
     expect(isValidTeamFloorEmployeeFilter(providers, 'missing')).toBe(false);
   });

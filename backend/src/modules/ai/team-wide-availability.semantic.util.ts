@@ -31,7 +31,9 @@ const NAMED_PROVIDER_AVAILABILITY_IN_PROMPT =
   /\b(?:is|are)\s+[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i;
 
 /** Structural guard — named specialist availability is not team-wide (acc-3.14). */
-export function promptImpliesNamedProviderAvailability(prompt: string): boolean {
+export function promptImpliesNamedProviderAvailability(
+  prompt: string,
+): boolean {
   if (NAMED_PROVIDER_AVAILABILITY_IN_PROMPT.test(prompt)) {
     return true;
   }
@@ -43,9 +45,7 @@ export function promptImpliesNamedProviderAvailability(prompt: string): boolean 
   }
   if (
     /\bbook\b/i.test(prompt) &&
-    /\bwith\s+(?!any\b|whichever\b|whoever\b|whatever\b)[A-Za-z]/i.test(
-      prompt,
-    )
+    /\bwith\s+(?!any\b|whichever\b|whoever\b|whatever\b)[A-Za-z]/i.test(prompt)
   ) {
     return true;
   }
@@ -112,7 +112,8 @@ export function impliesTeamWideAvailabilityFromSemantic(
   surfaces: readonly CommandSurface[] = DEFAULT_TEAM_WIDE_AVAILABILITY_SURFACES,
 ): boolean {
   return surfaces.some(
-    (surface) => resolveTeamWideAvailabilitySemanticHints(prompt, surface) != null,
+    (surface) =>
+      resolveTeamWideAvailabilitySemanticHints(prompt, surface) != null,
   );
 }
 

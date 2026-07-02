@@ -38,7 +38,7 @@ export function findAffordableServiceCombos<T extends BudgetCatalogService>(
       return;
     }
     for (let index = startIndex; index < services.length; index++) {
-      const service = services[index]!;
+      const service = services[index];
       const nextSum = sum + (service.price ?? 0);
       if (nextSum > maxTotalPrice) continue;
       picked.push(service);
@@ -90,7 +90,7 @@ export function resolveListServicesNavigateHint(
   services: ReadonlyArray<{ id: string }>,
 ): ListServicesNavigateHint | undefined {
   if (services.length === 1) {
-    return { path: 'services', query: { serviceId: services[0]!.id } };
+    return { path: 'services', query: { serviceId: services[0].id } };
   }
   if (services.length > 1) {
     return { path: 'services', query: {} };
@@ -307,10 +307,10 @@ export function composeDashboardListServicesBudgetResponse(input: {
       success: true,
       summary:
         budgetMax != null
-          ? buildBudgetListServicesNoMatchSummary(
+          ? (buildBudgetListServicesNoMatchSummary(
               input.matchedServices,
               budgetMax,
-            ) ?? `Nothing found under $${budgetMax}.`
+            ) ?? `Nothing found under $${budgetMax}.`)
           : `Nothing found in the $${budgetMin}–$${budgetMax ?? '∞'} range.`,
       detailsServices: [],
     };
@@ -384,10 +384,10 @@ export function composePublicListServicesBudgetResponse(input: {
       success: true,
       summary:
         budgetMax != null
-          ? buildBudgetListServicesNoMatchSummary(
+          ? (buildBudgetListServicesNoMatchSummary(
               input.matchedServices,
               budgetMax,
-            ) ?? `Nothing found under $${budgetMax}.`
+            ) ?? `Nothing found under $${budgetMax}.`)
           : `Nothing found in the $${budgetMin}–$${budgetMax ?? '∞'} range.`,
     };
   }
@@ -409,9 +409,7 @@ export function composePublicListServicesBudgetResponse(input: {
 }
 
 /** Pick the bookable service under an optional budget ceiling (cheapest when multiple). */
-export function resolveBudgetConstrainedService<
-  T extends BudgetCatalogService,
->(
+export function resolveBudgetConstrainedService<T extends BudgetCatalogService>(
   catalog: readonly T[],
   params: {
     serviceId?: string | null;
@@ -429,7 +427,8 @@ export function resolveBudgetConstrainedService<
 
   const budgetMax = resolveBudgetMaxPrice(params.maxPrice);
   if (budgetMax == null) {
-    if (matched.length === 1) return { service: matched[0] ?? null, noMatchSummary: null };
+    if (matched.length === 1)
+      return { service: matched[0] ?? null, noMatchSummary: null };
     if (params.serviceName) {
       const needle = params.serviceName.toLowerCase();
       const byName = matched.find((service) =>
@@ -503,7 +502,7 @@ export function resolveDiscoverConstrainedService<
       }
     }
 
-    return { service: discovered[0] as T, noMatchSummary: null };
+    return { service: discovered[0], noMatchSummary: null };
   }
 
   if (params.serviceName) {
@@ -520,7 +519,10 @@ export function resolveDiscoverConstrainedService<
 /** Budget filter for recommend_specialists — same ceiling semantics as list_services. */
 export function applyBudgetFilterForRecommendSpecialists<
   T extends BudgetCatalogService,
->(matchedServices: readonly T[], maxPrice: unknown): {
+>(
+  matchedServices: readonly T[],
+  maxPrice: unknown,
+): {
   services: T[];
   noMatchSummary: string | null;
 } {
@@ -529,7 +531,10 @@ export function applyBudgetFilterForRecommendSpecialists<
     return { services: [...matchedServices], noMatchSummary: null };
   }
 
-  const services = applyBudgetFilterToMatchedServices(matchedServices, budgetMax);
+  const services = applyBudgetFilterToMatchedServices(
+    matchedServices,
+    budgetMax,
+  );
   if (services.length > 0) {
     return { services, noMatchSummary: null };
   }

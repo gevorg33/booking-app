@@ -52,7 +52,12 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: "Why can't I see the Integrations menu?",
       prompt:
         /\b(?:why\s+(?:can(?:'|no)?t|don(?:'|no)?t)\s+i\s+see|why\s+is\s+.+\s+(?:hidden|missing|not\s+showing)|can(?:'|no)?t\s+see\s+(?:the\s+)?(?:menu|tab|page|section|feature)|no\s+access\s+to|missing\s+(?:menu|tab|page|section))\b/i,
-      fromActions: ['unknown', 'explain_app_feature', 'guide_user_flow', 'list_integration_health'],
+      fromActions: [
+        'unknown',
+        'explain_app_feature',
+        'guide_user_flow',
+        'list_integration_health',
+      ],
     },
     {
       id: 'dashboard-empty-catalog',
@@ -61,7 +66,12 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: 'No services shown on the booking page',
       prompt:
         /\b(?:no\s+services?\s+(?:shown|listed|available|displayed)|empty\s+(?:service|catalog)\s*(?:list|page)?|why\s+(?:are\s+there\s+)?no\s+services?|services?\s+(?:list\s+)?(?:is\s+)?empty|booking\s+page\s+(?:shows\s+)?no\s+services?)\b/i,
-      fromActions: ['unknown', 'list_services', 'explain_app_feature', 'guide_user_flow'],
+      fromActions: [
+        'unknown',
+        'list_services',
+        'explain_app_feature',
+        'guide_user_flow',
+      ],
     },
     {
       id: 'dashboard-stripe-not-connected',
@@ -84,7 +94,11 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: "Why can't I see team schedule?",
       prompt:
         /\b(?:why\s+(?:can(?:'|no)?t|don(?:'|no)?t)\s+i\s+see|can(?:'|no)?t\s+see\s+(?:team|everyone|other\s+providers?)|missing\s+(?:tab|menu|screen)|no\s+access\s+to)\b/i,
-      fromActions: ['unknown', 'explain_team_view_scope', 'explain_provider_app_tabs'],
+      fromActions: [
+        'unknown',
+        'explain_team_view_scope',
+        'explain_provider_app_tabs',
+      ],
     },
     {
       id: 'provider-empty-catalog',
@@ -102,7 +116,12 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: 'Why are no services showing for this salon?',
       prompt:
         /\b(?:no\s+services?\s+(?:shown|showing|available|listed)|why\s+are\s+no\s+services?\s+(?:shown|showing|available|listed)|empty\s+service\s*list|why\s+(?:are\s+there\s+)?no\s+services?|can(?:'|no)?t\s+(?:find|see)\s+(?:any\s+)?services?)\b/i,
-      fromActions: ['unknown', 'discover_services', 'list_services', 'explain_app_feature'],
+      fromActions: [
+        'unknown',
+        'discover_services',
+        'list_services',
+        'explain_app_feature',
+      ],
     },
     {
       id: 'customer-stripe-not-connected',
@@ -111,7 +130,11 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: 'Online card payment is unavailable — why?',
       prompt:
         /\b(?:(?:why\s+is\s+)?online\s+(?:card\s+)?pay(?:ment)?(?:\s+is)?\s+(?:unavailable|not\s+(?:available|working|set\s*up))|stripe\s+(?:is\s+)?not\s+connected|can(?:'|no)?t\s+pay\s+online|card\s+checkout\s+(?:unavailable|disabled))\b/i,
-      fromActions: ['unknown', 'explain_why_stripe_required', 'choose_payment_method'],
+      fromActions: [
+        'unknown',
+        'explain_why_stripe_required',
+        'choose_payment_method',
+      ],
     },
     {
       id: 'public-empty-catalog',
@@ -120,7 +143,12 @@ export const EMPTY_STATE_GUIDE_RESCUE_SCENARIOS: readonly EmptyStateGuideRescueS
       samplePrompt: 'No services shown on the booking page',
       prompt:
         /\b(?:no\s+services?\s+(?:shown|available|listed)|empty\s+(?:service|booking)\s*(?:list|page)?|why\s+(?:are\s+there\s+)?no\s+services?|booking\s+page\s+(?:shows\s+)?no\s+services?)\b/i,
-      fromActions: ['unknown', 'list_services', 'booking_help', 'explain_app_feature'],
+      fromActions: [
+        'unknown',
+        'list_services',
+        'booking_help',
+        'explain_app_feature',
+      ],
     },
     {
       id: 'public-stripe-not-connected',

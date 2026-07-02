@@ -49,7 +49,10 @@ export function readTenantAppInstallSettings(
   if (typeof record.landingUrl !== 'string' || !record.landingUrl.trim()) {
     return null;
   }
-  if (typeof record.qrDataUrl !== 'string' || !record.qrDataUrl.startsWith('data:image/')) {
+  if (
+    typeof record.qrDataUrl !== 'string' ||
+    !record.qrDataUrl.startsWith('data:image/')
+  ) {
     return null;
   }
   return {

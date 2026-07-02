@@ -2,9 +2,7 @@ import {
   DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_PROMPTS,
   DECLINE_ONLINE_PAYMENT_CATEGORY_RESCUE_SCENARIOS,
 } from './ai-decline-online-payment-category-compound.fixtures.js';
-import {
-  AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_CASES,
-} from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_DECLINE_ONLINE_PAYMENT_CATEGORY_COMPOUND_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import {
   decomposeDeclineOnlinePaymentCategoryCompoundPrompt,
@@ -30,9 +28,13 @@ describe('ai-decline-online-payment-category-compound.util (ai-cmd-ext-4.7)', ()
       expect(steps).toHaveLength(categorySteps.length);
       categorySteps.forEach((expected, index) => {
         expect(steps[index].params.categoryName).toBe(expected.categoryName);
-        expect(steps[index].params.prepaymentMode).toBe(expected.prepaymentMode);
+        expect(steps[index].params.prepaymentMode).toBe(
+          expected.prepaymentMode,
+        );
         if (expected.depositPercent != null) {
-          expect(steps[index].params.depositPercent).toBe(expected.depositPercent);
+          expect(steps[index].params.depositPercent).toBe(
+            expected.depositPercent,
+          );
         }
       });
     },
@@ -44,7 +46,7 @@ describe('ai-decline-online-payment-category-compound.util (ai-cmd-ext-4.7)', ()
       expect(
         rescueDeclineOnlinePaymentCategoryCompoundIntent(
           prompt,
-          misclassifiedAction!,
+          misclassifiedAction,
         ),
       ).toEqual({
         action: 'compound_intent',

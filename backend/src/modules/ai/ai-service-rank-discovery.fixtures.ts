@@ -194,7 +194,6 @@ export const SERVICE_RANK_EXTRACTION_SCENARIOS: ServiceRankExtractionScenario[] 
     },
   ];
 
-
 export type ServiceRankRecommendSpecialistsRescueScenario = {
   id: string;
   prompt: string;
@@ -508,93 +507,106 @@ export type RankSessionScenario = {
 };
 
 /** NL prompts for classifier, rescue, and eval (sections A–L). */
-export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] = [
-  // A — Premium / top-tier
-  {
-    id: 'rank-premium-hair-en',
-    prompt: 'What is the best and premium haircut service?',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: {
-      serviceCategory: 'haircut',
-      serviceRank: 'highest_price',
-      limit: 1,
+export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
+  [
+    // A — Premium / top-tier
+    {
+      id: 'rank-premium-hair-en',
+      prompt: 'What is the best and premium haircut service?',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+        limit: 1,
+      },
     },
-  },
-  {
-    id: 'rank-luxury-massage-en',
-    prompt: "What's your luxury massage option?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-deluxe-facial-en',
-    prompt: 'Do you have a deluxe facial?',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'facial', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-most-expensive-en',
-    prompt: 'Which is your most expensive styling service?',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'styling', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-top-tier-en',
-    prompt: 'Show me your top-tier hair color services',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: {
-      serviceCategory: 'hair color',
-      serviceRank: 'highest_price',
-      limit: 3,
+    {
+      id: 'rank-luxury-massage-en',
+      prompt: "What's your luxury massage option?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+      },
     },
-  },
-  // B — Cheapest / value
-  {
-    id: 'rank-cheapest-hair-en',
-    prompt: "What's the cheapest haircut you offer?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: {
-      serviceCategory: 'haircut',
-      serviceRank: 'lowest_price',
-      limit: 1,
+    {
+      id: 'rank-deluxe-facial-en',
+      prompt: 'Do you have a deluxe facial?',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'highest_price',
+      },
     },
-  },
-  {
-    id: 'rank-most-affordable-en',
-    prompt: 'Most affordable massage option',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'massage', serviceRank: 'lowest_price' },
-  },
-  // C — Best service vs best specialist
-  {
-    id: 'rank-not-specialist-en',
-    prompt: "What's the best premium service for lashes?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'lash', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-specialist-stays-en',
-    prompt: 'Who is the best rated lash specialist this week?',
-    surface: 'both',
-    expectedAction: 'recommend_specialists',
-    providerRank: true,
-    expectedParams: { serviceCategory: 'lash' },
-  },
-  {
-    id: 'rank-best-service-explicit-en',
-    prompt: 'Best service in your spa menu for relaxation',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'spa', serviceRank: 'highest_price' },
-  },
+    {
+      id: 'rank-most-expensive-en',
+      prompt: 'Which is your most expensive styling service?',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'styling',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-top-tier-en',
+      prompt: 'Show me your top-tier hair color services',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'hair color',
+        serviceRank: 'highest_price',
+        limit: 3,
+      },
+    },
+    // B — Cheapest / value
+    {
+      id: 'rank-cheapest-hair-en',
+      prompt: "What's the cheapest haircut you offer?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'lowest_price',
+        limit: 1,
+      },
+    },
+    {
+      id: 'rank-most-affordable-en',
+      prompt: 'Most affordable massage option',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'lowest_price',
+      },
+    },
+    // C — Best service vs best specialist
+    {
+      id: 'rank-not-specialist-en',
+      prompt: "What's the best premium service for lashes?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'lash', serviceRank: 'highest_price' },
+    },
+    {
+      id: 'rank-specialist-stays-en',
+      prompt: 'Who is the best rated lash specialist this week?',
+      surface: 'both',
+      expectedAction: 'recommend_specialists',
+      providerRank: true,
+      expectedParams: { serviceCategory: 'lash' },
+    },
+    {
+      id: 'rank-best-service-explicit-en',
+      prompt: 'Best service in your spa menu for relaxation',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'spa', serviceRank: 'highest_price' },
+    },
     {
       id: 'rank-best-for-me-en',
       prompt: "What's the best option for a first-time haircut?",
@@ -603,20 +615,20 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
       subjectiveRank: true,
       expectedParams: { serviceCategory: 'haircut' },
     },
-  // E — Compounds
-  {
-    id: 'rank-book-premium-en',
-    prompt: 'Book your most premium facial tomorrow, nearest slot',
-    surface: 'both',
-    expectedAction: 'book_appointment',
-    expectedParams: {
-      serviceCategory: 'facial',
-      serviceRank: 'highest_price',
-      bookingFirstAvailable: true,
+    // E — Compounds
+    {
+      id: 'rank-book-premium-en',
+      prompt: 'Book your most premium facial tomorrow, nearest slot',
+      surface: 'both',
+      expectedAction: 'book_appointment',
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'highest_price',
+        bookingFirstAvailable: true,
+      },
+      publicCompoundSteps: ['list_services', 'book_appointment'],
+      customerCompoundSteps: ['list_services', 'book_nearest_slot'],
     },
-    publicCompoundSteps: ['list_services', 'book_appointment'],
-    customerCompoundSteps: ['list_services', 'book_nearest_slot'],
-  },
     {
       id: 'rank-list-then-book-en',
       prompt: "What's your best massage and book it Saturday",
@@ -630,192 +642,236 @@ export const SIMILAR_SERVICE_RANK_PROMPTS: ServiceRankDiscoveryPromptFixture[] =
       publicCompoundSteps: ['list_services', 'book_appointment'],
       customerCompoundSteps: ['list_services', 'book_nearest_slot'],
     },
-  {
-    id: 'rank-premium-under-budget-en',
-    prompt: 'Best premium haircut I can get under $80',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: {
-      serviceCategory: 'haircut',
-      serviceRank: 'highest_price',
-      maxPrice: 80,
+    {
+      id: 'rank-premium-under-budget-en',
+      prompt: 'Best premium haircut I can get under $80',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+        maxPrice: 80,
+      },
     },
-  },
-  // F — Multilingual
-  {
-    id: 'rank-premium-hy',
-    prompt: 'Որն է ձեր ամենապրեմիում մազակրտումը',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-luxury-ru',
-    prompt: 'Какой у вас люксовый массаж?',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-cheapest-hy',
-    prompt: 'Ամենաէժան մազակրտումը',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'lowest_price' },
-  },
-  {
-    id: 'rank-translit-premium',
-    prompt: 'Premium uslugi dlya strizhki',
-    surface: 'customer',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-translit-cheapest',
-    prompt: 'Samaya deshevaya strizhka',
-    surface: 'customer',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'lowest_price' },
-  },
-  // G — Negative / rescue
-  {
-    id: 'rank-not-analyze-appt-en',
-    prompt: 'Most expensive appointment today',
-    surface: 'dashboard',
-    expectedAction: 'analyze_appointments',
-    blocked: true,
-  },
-  {
-    id: 'rank-not-analyze-services-admin-en',
-    prompt: 'Most booked service this month',
-    surface: 'dashboard',
-    expectedAction: 'analyze_services',
-    blocked: true,
-  },
-  {
-    id: 'rank-not-package-en',
-    prompt: "What's your premium spa package?",
-    surface: 'both',
-    expectedAction: 'discover_packages',
-    blocked: true,
-  },
-  {
-    id: 'rank-rated-means-provider-en',
-    prompt: 'Best rated deep tissue massage',
-    surface: 'both',
-    expectedAction: 'recommend_specialists',
-    blocked: true,
-  },
-  // H — Popularity + metadata (shipped rank-1.8 / 1.9)
-  {
-    id: 'rank-most-popular-en',
-    prompt: "What's your most popular haircut?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'most_popular' },
-  },
-  {
-    id: 'rank-best-selling-en',
-    prompt: 'What is your best-selling facial treatment?',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'facial', serviceRank: 'most_popular' },
-  },
-  {
-    id: 'rank-tier-metadata-en',
-    prompt: 'Premium tier services for color',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'color', serviceTier: 'premium' },
-  },
-  // I — Synonyms & marketing language
-  {
-    id: 'rank-vip-en',
-    prompt: 'VIP hair treatment options',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'hair', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-signature-en',
-    prompt: "What's your signature massage?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-flagship-en',
-    prompt: 'Flagship facial service',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'facial', serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-entry-level-en',
-    prompt: 'Entry-level manicure',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'manicure', serviceRank: 'lowest_price' },
-  },
-  {
-    id: 'rank-budget-friendly-en',
-    prompt: 'Budget-friendly pedicure',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'pedicure', serviceRank: 'lowest_price' },
-  },
-  {
-    id: 'rank-mid-range-en',
-    prompt: 'Mid-range color service',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'color', limit: 3 },
-  },
-  // J — Voice / mobile
-  {
-    id: 'rank-voice-premium-en',
-    prompt: 'Premium cut?',
-    surface: 'customer',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'highest_price', limit: 1 },
-  },
-  {
-    id: 'rank-voice-chip-en',
-    prompt: 'Premium services',
-    surface: 'customer',
-    expectedAction: 'list_services',
-    expectedParams: { serviceRank: 'highest_price' },
-  },
-  {
-    id: 'rank-voice-cheapest-en',
-    prompt: 'Cheapest facial you got',
-    surface: 'customer',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'facial', serviceRank: 'lowest_price' },
-  },
-  {
-    id: 'rank-compare-en',
-    prompt: "What's the difference between standard and premium haircut?",
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'haircut', serviceRank: 'highest_price', limit: 2 },
-    phase2: true,
-  },
-  {
-    id: 'rank-recommend-not-provider-en',
-    prompt: 'Recommend your best spa service not a person',
-    surface: 'both',
-    expectedAction: 'list_services',
-    expectedParams: { serviceCategory: 'spa', serviceRank: 'highest_price' },
-  },
-  // Plain catalog (no rank)
-  {
-    id: 'rank-plain-catalog-en',
-    prompt: 'What services do you offer?',
-    surface: 'both',
-    expectedAction: 'list_services',
-  },
-];
+    // F — Multilingual
+    {
+      id: 'rank-premium-hy',
+      prompt: 'Որն է ձեր ամենապրեմիում մազակրտումը',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-luxury-ru',
+      prompt: 'Какой у вас люксовый массаж?',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-cheapest-hy',
+      prompt: 'Ամենաէժան մազակրտումը',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'lowest_price',
+      },
+    },
+    {
+      id: 'rank-translit-premium',
+      prompt: 'Premium uslugi dlya strizhki',
+      surface: 'customer',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-translit-cheapest',
+      prompt: 'Samaya deshevaya strizhka',
+      surface: 'customer',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'lowest_price',
+      },
+    },
+    // G — Negative / rescue
+    {
+      id: 'rank-not-analyze-appt-en',
+      prompt: 'Most expensive appointment today',
+      surface: 'dashboard',
+      expectedAction: 'analyze_appointments',
+      blocked: true,
+    },
+    {
+      id: 'rank-not-analyze-services-admin-en',
+      prompt: 'Most booked service this month',
+      surface: 'dashboard',
+      expectedAction: 'analyze_services',
+      blocked: true,
+    },
+    {
+      id: 'rank-not-package-en',
+      prompt: "What's your premium spa package?",
+      surface: 'both',
+      expectedAction: 'discover_packages',
+      blocked: true,
+    },
+    {
+      id: 'rank-rated-means-provider-en',
+      prompt: 'Best rated deep tissue massage',
+      surface: 'both',
+      expectedAction: 'recommend_specialists',
+      blocked: true,
+    },
+    // H — Popularity + metadata (shipped rank-1.8 / 1.9)
+    {
+      id: 'rank-most-popular-en',
+      prompt: "What's your most popular haircut?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'most_popular',
+      },
+    },
+    {
+      id: 'rank-best-selling-en',
+      prompt: 'What is your best-selling facial treatment?',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'most_popular',
+      },
+    },
+    {
+      id: 'rank-tier-metadata-en',
+      prompt: 'Premium tier services for color',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'color', serviceTier: 'premium' },
+    },
+    // I — Synonyms & marketing language
+    {
+      id: 'rank-vip-en',
+      prompt: 'VIP hair treatment options',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'hair', serviceRank: 'highest_price' },
+    },
+    {
+      id: 'rank-signature-en',
+      prompt: "What's your signature massage?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'massage',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-flagship-en',
+      prompt: 'Flagship facial service',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'highest_price',
+      },
+    },
+    {
+      id: 'rank-entry-level-en',
+      prompt: 'Entry-level manicure',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'manicure',
+        serviceRank: 'lowest_price',
+      },
+    },
+    {
+      id: 'rank-budget-friendly-en',
+      prompt: 'Budget-friendly pedicure',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'pedicure',
+        serviceRank: 'lowest_price',
+      },
+    },
+    {
+      id: 'rank-mid-range-en',
+      prompt: 'Mid-range color service',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'color', limit: 3 },
+    },
+    // J — Voice / mobile
+    {
+      id: 'rank-voice-premium-en',
+      prompt: 'Premium cut?',
+      surface: 'customer',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+        limit: 1,
+      },
+    },
+    {
+      id: 'rank-voice-chip-en',
+      prompt: 'Premium services',
+      surface: 'customer',
+      expectedAction: 'list_services',
+      expectedParams: { serviceRank: 'highest_price' },
+    },
+    {
+      id: 'rank-voice-cheapest-en',
+      prompt: 'Cheapest facial you got',
+      surface: 'customer',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'facial',
+        serviceRank: 'lowest_price',
+      },
+    },
+    {
+      id: 'rank-compare-en',
+      prompt: "What's the difference between standard and premium haircut?",
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: {
+        serviceCategory: 'haircut',
+        serviceRank: 'highest_price',
+        limit: 2,
+      },
+      phase2: true,
+    },
+    {
+      id: 'rank-recommend-not-provider-en',
+      prompt: 'Recommend your best spa service not a person',
+      surface: 'both',
+      expectedAction: 'list_services',
+      expectedParams: { serviceCategory: 'spa', serviceRank: 'highest_price' },
+    },
+    // Plain catalog (no rank)
+    {
+      id: 'rank-plain-catalog-en',
+      prompt: 'What services do you offer?',
+      surface: 'both',
+      expectedAction: 'list_services',
+    },
+  ];
 
 /** Multi-turn session flows (section K). */
 export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
@@ -825,11 +881,17 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
     turns: [
       {
         prompt: "What's the cheapest haircut you offer?",
-        expectedParams: { serviceCategory: 'haircut', serviceRank: 'lowest_price' },
+        expectedParams: {
+          serviceCategory: 'haircut',
+          serviceRank: 'lowest_price',
+        },
       },
       {
         prompt: 'show premium instead',
-        expectedParams: { serviceCategory: 'haircut', serviceRank: 'highest_price' },
+        expectedParams: {
+          serviceCategory: 'haircut',
+          serviceRank: 'highest_price',
+        },
       },
     ],
   },
@@ -839,7 +901,10 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
     turns: [
       {
         prompt: "What's your luxury facial option?",
-        expectedParams: { serviceCategory: 'facial', serviceRank: 'highest_price' },
+        expectedParams: {
+          serviceCategory: 'facial',
+          serviceRank: 'highest_price',
+        },
       },
       {
         prompt: 'anything like that under $120?',
@@ -857,7 +922,10 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
     turns: [
       {
         prompt: 'Top 3 premium massages',
-        expectedParams: { serviceCategory: 'massage', serviceRank: 'highest_price' },
+        expectedParams: {
+          serviceCategory: 'massage',
+          serviceRank: 'highest_price',
+        },
       },
       {
         prompt: 'book the second one tomorrow',
@@ -872,12 +940,14 @@ export const RANK_SESSION_SCENARIOS: RankSessionScenario[] = [
   },
 ];
 
-export const RANK_DISAMBIGUATION_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
-  (scenario) => scenario.blocked || scenario.providerRank || scenario.subjectiveRank,
-);
+export const RANK_DISAMBIGUATION_SCENARIOS =
+  SIMILAR_SERVICE_RANK_PROMPTS.filter(
+    (scenario) =>
+      scenario.blocked || scenario.providerRank || scenario.subjectiveRank,
+  );
 
-export const RANK_VOICE_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter((scenario) =>
-  scenario.id.startsWith('rank-voice-'),
+export const RANK_VOICE_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
+  (scenario) => scenario.id.startsWith('rank-voice-'),
 );
 
 /** Section J — voice / mobile phrasing (rank-1.12). */
@@ -899,21 +969,32 @@ export const RANK_HANDLER_EDGE_SCENARIOS = (
     'rank-zero-price',
     'rank-missing-price',
   ] as const
-).map((id) => RANK_HANDLER_OUTCOME_SCENARIOS.find((scenario) => scenario.id === id)!);
-
-export const RANK_MULTILINGUAL_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter((scenario) =>
-  ['rank-premium-hy', 'rank-luxury-ru', 'rank-cheapest-hy', 'rank-translit-premium', 'rank-translit-cheapest'].includes(scenario.id),
+).map(
+  (id) =>
+    RANK_HANDLER_OUTCOME_SCENARIOS.find((scenario) => scenario.id === id)!,
 );
 
-export const RANK_SYNONYM_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter((scenario) =>
-  [
-    'rank-vip-en',
-    'rank-signature-en',
-    'rank-flagship-en',
-    'rank-entry-level-en',
-    'rank-budget-friendly-en',
-    'rank-mid-range-en',
-  ].includes(scenario.id),
+export const RANK_MULTILINGUAL_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
+  (scenario) =>
+    [
+      'rank-premium-hy',
+      'rank-luxury-ru',
+      'rank-cheapest-hy',
+      'rank-translit-premium',
+      'rank-translit-cheapest',
+    ].includes(scenario.id),
+);
+
+export const RANK_SYNONYM_SCENARIOS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
+  (scenario) =>
+    [
+      'rank-vip-en',
+      'rank-signature-en',
+      'rank-flagship-en',
+      'rank-entry-level-en',
+      'rank-budget-friendly-en',
+      'rank-mid-range-en',
+    ].includes(scenario.id),
 );
 
 export {
@@ -932,30 +1013,39 @@ export const RANK_DOMAIN_FIXTURE_IDS: readonly string[] = [
     ...RANK_SESSION_SCENARIOS.map((scenario) => scenario.id),
     ...SERVICE_RANK_COMPOUND_SCENARIOS.map((scenario) => scenario.id),
     ...SERVICE_RANK_EXTRACTION_SCENARIOS.map((scenario) => scenario.id),
-    ...SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS.map((scenario) => scenario.id),
+    ...SERVICE_RANK_RECOMMEND_SPECIALISTS_RESCUE_SCENARIOS.map(
+      (scenario) => scenario.id,
+    ),
     ...RANK_HANDLER_OUTCOME_SCENARIOS.map((scenario) => scenario.id),
     ...RANK_NAVIGATE_SCENARIOS.map((scenario) => scenario.id),
   ]),
 ];
 
-export const SERVICE_RANK_DISCOVERY_PUBLIC_PROMPTS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
-  (scenario) => scenario.surface === 'public' || scenario.surface === 'both',
-);
+export const SERVICE_RANK_DISCOVERY_PUBLIC_PROMPTS =
+  SIMILAR_SERVICE_RANK_PROMPTS.filter(
+    (scenario) => scenario.surface === 'public' || scenario.surface === 'both',
+  );
 
-export const SERVICE_RANK_DISCOVERY_CUSTOMER_PROMPTS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
-  (scenario) => scenario.surface === 'customer' || scenario.surface === 'both',
-);
+export const SERVICE_RANK_DISCOVERY_CUSTOMER_PROMPTS =
+  SIMILAR_SERVICE_RANK_PROMPTS.filter(
+    (scenario) =>
+      scenario.surface === 'customer' || scenario.surface === 'both',
+  );
 
-export const SERVICE_RANK_DISCOVERY_DASHBOARD_PROMPTS = SIMILAR_SERVICE_RANK_PROMPTS.filter(
-  (scenario) => scenario.surface === 'dashboard' || scenario.surface === 'both',
-);
+export const SERVICE_RANK_DISCOVERY_DASHBOARD_PROMPTS =
+  SIMILAR_SERVICE_RANK_PROMPTS.filter(
+    (scenario) =>
+      scenario.surface === 'dashboard' || scenario.surface === 'both',
+  );
 
 const premiumHyPrompt =
-  SIMILAR_SERVICE_RANK_PROMPTS.find((scenario) => scenario.id === 'rank-premium-hy')
-    ?.prompt ?? '';
+  SIMILAR_SERVICE_RANK_PROMPTS.find(
+    (scenario) => scenario.id === 'rank-premium-hy',
+  )?.prompt ?? '';
 const cheapestHyPrompt =
-  SIMILAR_SERVICE_RANK_PROMPTS.find((scenario) => scenario.id === 'rank-cheapest-hy')
-    ?.prompt ?? '';
+  SIMILAR_SERVICE_RANK_PROMPTS.find(
+    (scenario) => scenario.id === 'rank-cheapest-hy',
+  )?.prompt ?? '';
 
 /** Multilingual rank keyword hints for deterministic rescue (rank-1.10). */
 export const RANK_I18N_HIGHEST_HINTS = [

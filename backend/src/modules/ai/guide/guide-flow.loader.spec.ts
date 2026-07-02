@@ -13,10 +13,18 @@ import {
 describe('guide-flow.loader (ai-guide-1.1.2)', () => {
   it('loads unique playbooks for all four surfaces', () => {
     assertGuideFlowCatalogIntegrity();
-    expect(listGuideFlowSurfacePlaybooks('dashboard').length).toBeGreaterThanOrEqual(11);
-    expect(listGuideFlowSurfacePlaybooks('provider').length).toBeGreaterThanOrEqual(12);
-    expect(listGuideFlowSurfacePlaybooks('customer').length).toBeGreaterThanOrEqual(6);
-    expect(listGuideFlowSurfacePlaybooks('public').length).toBeGreaterThanOrEqual(3);
+    expect(
+      listGuideFlowSurfacePlaybooks('dashboard').length,
+    ).toBeGreaterThanOrEqual(11);
+    expect(
+      listGuideFlowSurfacePlaybooks('provider').length,
+    ).toBeGreaterThanOrEqual(12);
+    expect(
+      listGuideFlowSurfacePlaybooks('customer').length,
+    ).toBeGreaterThanOrEqual(6);
+    expect(
+      listGuideFlowSurfacePlaybooks('public').length,
+    ).toBeGreaterThanOrEqual(3);
     expect(listAllGuideFlowPlaybookDefs().length).toBeGreaterThan(30);
   });
 

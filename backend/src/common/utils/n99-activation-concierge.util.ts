@@ -107,9 +107,11 @@ export function buildActivationConciergeResumePushUrl(input: {
   const base = buildConsumerBookServicePushUrl(input.slug, input.serviceId);
   const url = new URL(base);
   url.searchParams.set('resume', '1');
-  if (input.date?.trim()) url.searchParams.set('date', input.date.trim().slice(0, 10));
+  if (input.date?.trim())
+    url.searchParams.set('date', input.date.trim().slice(0, 10));
   if (input.slot?.trim()) url.searchParams.set('slot', input.slot.trim());
-  if (input.employeeId?.trim()) url.searchParams.set('employeeId', input.employeeId.trim());
+  if (input.employeeId?.trim())
+    url.searchParams.set('employeeId', input.employeeId.trim());
   return url.toString();
 }
 

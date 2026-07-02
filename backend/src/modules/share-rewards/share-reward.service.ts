@@ -74,8 +74,14 @@ export class ShareRewardService {
       enabled: settings.enabled,
       salonShareEnabled: isShareChannelEnabled(settings, 'salon'),
       bookingShareEnabled: isShareChannelEnabled(settings, 'booking'),
-      salonRewardSummary: buildShareRewardSummary(settings.salon, business.settings),
-      bookingRewardSummary: buildShareRewardSummary(settings.booking, business.settings),
+      salonRewardSummary: buildShareRewardSummary(
+        settings.salon,
+        business.settings,
+      ),
+      bookingRewardSummary: buildShareRewardSummary(
+        settings.booking,
+        business.settings,
+      ),
       cooldownHours: settings.cooldownHours,
       salonNextEligibleAt: nextShareRewardEligibleAt(
         readShareRewardLastAt(metadata, 'salon'),
@@ -124,7 +130,10 @@ export class ShareRewardService {
         awarded: false,
         channel,
         reason: 'cooldown',
-        nextEligibleAt: nextShareRewardEligibleAt(lastAt, settings.cooldownHours),
+        nextEligibleAt: nextShareRewardEligibleAt(
+          lastAt,
+          settings.cooldownHours,
+        ),
       };
     }
 
@@ -148,7 +157,10 @@ export class ShareRewardService {
     };
     await this.customerRepo.save(customer);
 
-    const rewardSummary = buildShareRewardSummary(channelSettings, business.settings);
+    const rewardSummary = buildShareRewardSummary(
+      channelSettings,
+      business.settings,
+    );
     this.logger.log(
       `Share reward claimed channel=${channel} customer=${customerId} business=${businessId}`,
     );
@@ -160,7 +172,10 @@ export class ShareRewardService {
       rewardSummary,
       loyaltyPoints: issued.loyaltyPoints,
       giftCardId: issued.giftCardId,
-      nextEligibleAt: nextShareRewardEligibleAt(claimedAt, settings.cooldownHours),
+      nextEligibleAt: nextShareRewardEligibleAt(
+        claimedAt,
+        settings.cooldownHours,
+      ),
     };
   }
 
@@ -226,7 +241,9 @@ export class ShareRewardService {
   }
 
   private async requireBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business?.slug) throw new Error('Business not found');
     return business;
   }

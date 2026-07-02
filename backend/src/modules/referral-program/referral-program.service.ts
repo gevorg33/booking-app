@@ -89,7 +89,10 @@ export class ReferralProgramService {
       referrerRewardType: settings.referrerRewardType,
       referrerBonusPoints: settings.referrerBonusPoints,
       referrerGiftCardAmount: settings.referrerGiftCardAmount,
-      referrerRewardSummary: buildReferrerRewardSummary(settings, business.settings),
+      referrerRewardSummary: buildReferrerRewardSummary(
+        settings,
+        business.settings,
+      ),
       refereeBonusPoints: settings.refereeBonusPoints,
       refereePromoCode: settings.refereePromoCode,
       conversionsCount,
@@ -148,7 +151,9 @@ export class ReferralProgramService {
     };
   }
 
-  async processBookingCompleted(bookingId: string): Promise<ReferralConversionResult> {
+  async processBookingCompleted(
+    bookingId: string,
+  ): Promise<ReferralConversionResult> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       relations: { customer: true, business: true },
@@ -165,7 +170,9 @@ export class ReferralProgramService {
       return { converted: false, bookingId, reason: 'disabled' };
     }
 
-    const referrerCustomerId = readReferredByCustomerId(booking.customer.metadata);
+    const referrerCustomerId = readReferredByCustomerId(
+      booking.customer.metadata,
+    );
     if (!referrerCustomerId) {
       return { converted: false, bookingId, reason: 'no_referrer' };
     }
@@ -218,9 +225,13 @@ export class ReferralProgramService {
       referrerCustomerId,
       referrerRewardType: referrerReward?.type,
       referrerBonusPoints:
-        referrerReward?.type === 'loyalty_points' ? referrerReward.loyaltyPoints : undefined,
+        referrerReward?.type === 'loyalty_points'
+          ? referrerReward.loyaltyPoints
+          : undefined,
       referrerGiftCardId:
-        referrerReward?.type === 'gift_card' ? referrerReward.giftCardId : undefined,
+        referrerReward?.type === 'gift_card'
+          ? referrerReward.giftCardId
+          : undefined,
       refereeBonusPoints: refereeBonus,
     };
   }
@@ -280,7 +291,7 @@ export class ReferralProgramService {
     const matches = ids.filter(
       (id) => deriveReferralCodeFromCustomerId(id) === normalized,
     );
-    return matches.length === 1 ? matches[0]! : null;
+    return matches.length === 1 ? matches[0] : null;
   }
 
   private async countReferralConversions(
@@ -291,13 +302,17 @@ export class ReferralProgramService {
       where: { businessId, isActive: true },
       select: { id: true, metadata: true },
     });
-    return rows.filter(
-      (row) => readReferredByCustomerId(row.metadata) === referrerCustomerId,
-    ).filter((row) => hasReferralConversion(row.metadata)).length;
+    return rows
+      .filter(
+        (row) => readReferredByCustomerId(row.metadata) === referrerCustomerId,
+      )
+      .filter((row) => hasReferralConversion(row.metadata)).length;
   }
 
   private async requireBusiness(businessId: string): Promise<Business> {
-    const business = await this.businessRepo.findOne({ where: { id: businessId } });
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId },
+    });
     if (!business?.slug) {
       throw new Error('Business not found');
     }

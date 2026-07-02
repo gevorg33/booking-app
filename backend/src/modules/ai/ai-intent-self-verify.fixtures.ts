@@ -29,56 +29,57 @@ export type ApplySelfVerifyCorrectionScenario = {
   expectedCorrectedAction?: string;
 };
 
-export const SELF_VERIFY_VOCAB_HELPER_SCENARIOS: SelfVerifyVocabHelperScenario[] = [
-  {
-    id: 'clear-schedule-schedule-vocab',
-    prompt: 'Clear Gevorg schedule for tomorrow',
-    expectScheduleMutation: true,
-    expectBookingAppointment: false,
-    expectWorkTime: false,
-    expectDirectSchedule: false,
-  },
-  {
-    id: 'work-time-schedule-vocab',
-    prompt: 'Create work time for Gevorg next week',
-    expectScheduleMutation: true,
-    expectBookingAppointment: false,
-    expectWorkTime: true,
-    expectDirectSchedule: false,
-  },
-  {
-    id: 'direct-schedule-vocab',
-    prompt: 'Set direct schedule for Maria next week',
-    expectScheduleMutation: true,
-    expectBookingAppointment: false,
-    expectWorkTime: false,
-    expectDirectSchedule: true,
-  },
-  {
-    id: 'block-schedule-vocab',
-    prompt: 'Block Gevorg schedule tomorrow',
-    expectScheduleMutation: true,
-    expectBookingAppointment: false,
-  },
-  {
-    id: 'booking-vocab',
-    prompt: 'Book Anna for a haircut tomorrow at 3pm',
-    expectScheduleMutation: false,
-    expectBookingAppointment: true,
-  },
-  {
-    id: 'empty-prompt-no-vocab',
-    prompt: '   ',
-    expectScheduleMutation: false,
-    expectBookingAppointment: false,
-  },
-  {
-    id: 'generic-schedule-for-client',
-    prompt: 'Schedule a massage for James tomorrow',
-    expectScheduleMutation: false,
-    expectBookingAppointment: true,
-  },
-];
+export const SELF_VERIFY_VOCAB_HELPER_SCENARIOS: SelfVerifyVocabHelperScenario[] =
+  [
+    {
+      id: 'clear-schedule-schedule-vocab',
+      prompt: 'Clear Gevorg schedule for tomorrow',
+      expectScheduleMutation: true,
+      expectBookingAppointment: false,
+      expectWorkTime: false,
+      expectDirectSchedule: false,
+    },
+    {
+      id: 'work-time-schedule-vocab',
+      prompt: 'Create work time for Gevorg next week',
+      expectScheduleMutation: true,
+      expectBookingAppointment: false,
+      expectWorkTime: true,
+      expectDirectSchedule: false,
+    },
+    {
+      id: 'direct-schedule-vocab',
+      prompt: 'Set direct schedule for Maria next week',
+      expectScheduleMutation: true,
+      expectBookingAppointment: false,
+      expectWorkTime: false,
+      expectDirectSchedule: true,
+    },
+    {
+      id: 'block-schedule-vocab',
+      prompt: 'Block Gevorg schedule tomorrow',
+      expectScheduleMutation: true,
+      expectBookingAppointment: false,
+    },
+    {
+      id: 'booking-vocab',
+      prompt: 'Book Anna for a haircut tomorrow at 3pm',
+      expectScheduleMutation: false,
+      expectBookingAppointment: true,
+    },
+    {
+      id: 'empty-prompt-no-vocab',
+      prompt: '   ',
+      expectScheduleMutation: false,
+      expectBookingAppointment: false,
+    },
+    {
+      id: 'generic-schedule-for-client',
+      prompt: 'Schedule a massage for James tomorrow',
+      expectScheduleMutation: false,
+      expectBookingAppointment: true,
+    },
+  ];
 
 export const APPLY_SELF_VERIFY_CORRECTION_SCENARIOS: ApplySelfVerifyCorrectionScenario[] =
   [
@@ -136,32 +137,33 @@ export const APPLY_SELF_VERIFY_CORRECTION_SCENARIOS: ApplySelfVerifyCorrectionSc
     },
   ];
 
-export const BOOKING_SELF_VERIFY_ACTION_SCENARIOS: SelfVerifyFixtureScenario[] = [
-  {
-    id: 'book_nearest_slot-on-clear',
-    prompt: 'Clear Gevorg schedule for tomorrow',
-    action: 'book_nearest_slot',
-    expectPassed: false,
-    expectedRuleId: 'booking_vs_clear_mismatch',
-    expectedCorrectedAction: 'clear_schedule',
-  },
-  {
-    id: 'reschedule_booking-on-clear',
-    prompt: 'Clear Karo schedule Friday',
-    action: 'reschedule_booking',
-    expectPassed: false,
-    expectedRuleId: 'booking_vs_clear_mismatch',
-    expectedCorrectedAction: 'clear_schedule',
-  },
-  {
-    id: 'book_appointment-on-work-time',
-    prompt: 'Create work time for Gevorg next week',
-    action: 'book_appointment',
-    expectPassed: false,
-    expectedRuleId: 'schedule_vocab_mismatch',
-    expectedCorrectedAction: 'create_direct_schedule',
-  },
-];
+export const BOOKING_SELF_VERIFY_ACTION_SCENARIOS: SelfVerifyFixtureScenario[] =
+  [
+    {
+      id: 'book_nearest_slot-on-clear',
+      prompt: 'Clear Gevorg schedule for tomorrow',
+      action: 'book_nearest_slot',
+      expectPassed: false,
+      expectedRuleId: 'booking_vs_clear_mismatch',
+      expectedCorrectedAction: 'clear_schedule',
+    },
+    {
+      id: 'reschedule_booking-on-clear',
+      prompt: 'Clear Karo schedule Friday',
+      action: 'reschedule_booking',
+      expectPassed: false,
+      expectedRuleId: 'booking_vs_clear_mismatch',
+      expectedCorrectedAction: 'clear_schedule',
+    },
+    {
+      id: 'book_appointment-on-work-time',
+      prompt: 'Create work time for Gevorg next week',
+      action: 'book_appointment',
+      expectPassed: false,
+      expectedRuleId: 'schedule_vocab_mismatch',
+      expectedCorrectedAction: 'create_direct_schedule',
+    },
+  ];
 
 export const SELF_VERIFY_PASS_SCENARIOS: SelfVerifyFixtureScenario[] = [
   {

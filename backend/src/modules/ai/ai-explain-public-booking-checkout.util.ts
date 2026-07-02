@@ -60,7 +60,8 @@ export const EXPLAIN_PUBLIC_BOOKING_CHECKOUT_PROMPTS: ExplainPublicBookingChecko
     },
     {
       id: 'customer-payment-methods',
-      prompt: 'What payment methods can customers use on public booking checkout?',
+      prompt:
+        'What payment methods can customers use on public booking checkout?',
       surface: 'dashboard',
       expectedAction: EXPLAIN_PUBLIC_BOOKING_CHECKOUT_INTENT,
     },
@@ -147,10 +148,7 @@ function isPerServiceOnlinePaymentSetupQuery(prompt: string): boolean {
 }
 
 function hasCheckoutPaymentInteractionContext(prompt: string): boolean {
-  if (
-    hasPublicBookingCheckoutSurface(prompt) &&
-    /\bpayment\b/i.test(prompt)
-  ) {
+  if (hasPublicBookingCheckoutSurface(prompt) && /\bpayment\b/i.test(prompt)) {
     return true;
   }
 

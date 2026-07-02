@@ -3,12 +3,14 @@ import * as notificationSettingsUtil from './ai-notification-settings.util.js';
 
 describe('ai-notification-settings.logic', () => {
   it('updates business notification settings', async () => {
-    const updateBusinessSettings = jest.fn(async (_businessId: string, patch: object) => ({
-      ...patch,
-      emailEnabled: true,
-      whatsappEnabled: true,
-      smsEnabled: false,
-    }));
+    const updateBusinessSettings = jest.fn(
+      async (_businessId: string, patch: object) => ({
+        ...patch,
+        emailEnabled: true,
+        whatsappEnabled: true,
+        smsEnabled: false,
+      }),
+    );
 
     const result = await handleConfigureNotificationSettingsLogic(
       { notificationsService: { updateBusinessSettings } as any },
@@ -38,7 +40,9 @@ describe('ai-notification-settings.logic', () => {
   });
 
   it('updates business notification settings from params prompt fallback', async () => {
-    const updateBusinessSettings = jest.fn(async (_businessId: string, patch: object) => patch);
+    const updateBusinessSettings = jest.fn(
+      async (_businessId: string, patch: object) => patch,
+    );
 
     const result = await handleConfigureNotificationSettingsLogic(
       { notificationsService: { updateBusinessSettings } as any },

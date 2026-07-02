@@ -1,6 +1,4 @@
-import {
-  formatBusinessMoney,
-} from '../../common/utils/business-currency.util.js';
+import { formatBusinessMoney } from '../../common/utils/business-currency.util.js';
 import type { ProviderMyStatsView } from '../provider-mobile/provider-my-stats.util.js';
 import {
   emptyTeamFloorStatusCounts,
@@ -35,17 +33,35 @@ export function isMyStatsPrompt(prompt: string): boolean {
   if (isTeamWhosNextPrompt(prompt)) return false;
 
   if (/\bhow am i doing\b/i.test(lower)) return true;
-  if (containsCyrillicScript(prompt) && /\u043a\u0430\u043a\s+\u0443\s+\u043c\u0435\u043d\u044f\s+\u0434\u0435\u043b\u0430/i.test(prompt)) {
+  if (
+    containsCyrillicScript(prompt) &&
+    /\u043a\u0430\u043a\s+\u0443\s+\u043c\u0435\u043d\u044f\s+\u0434\u0435\u043b\u0430/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
   if (/\bteam stats\b/i.test(lower)) return true;
-  if (containsCyrillicScript(prompt) && /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(prompt)) {
+  if (
+    containsCyrillicScript(prompt) &&
+    /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
-  if (containsArmenianScript(prompt) && prompt.includes('\u0576\u0579') && prompt.includes('\u0565\u0574')) {
+  if (
+    containsArmenianScript(prompt) &&
+    prompt.includes('\u0576\u0579') &&
+    prompt.includes('\u0565\u0574')
+  ) {
     return true;
   }
-  if (containsArmenianScript(prompt) && prompt.includes('\u056b\u0574\u056b') && prompt.includes('\u0581\u0578\u0582')) {
+  if (
+    containsArmenianScript(prompt) &&
+    prompt.includes('\u056b\u0574\u056b') &&
+    prompt.includes('\u0581\u0578\u0582')
+  ) {
     return true;
   }
 
@@ -53,7 +69,8 @@ export function isMyStatsPrompt(prompt: string): boolean {
     /\b(my stats|my statistics|my performance|week stats|month stats|my utilization|utilization and revenue|performance this)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(ցուցանիշ|կատարողական|օգտագործումը|աշխատանքի)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(ցուցանիշ|կատարողական|օգտագործումը|աշխատանքի)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(статистик|показател|как у меня|загрузка|выручка)/i.test(prompt));
 
@@ -71,9 +88,12 @@ export function isTeamFloorStatusPrompt(prompt: string): boolean {
     /\b(team floor|floor board|floor status|floor counts|who is waiting|who'?s waiting|who is in service|in service on the floor|waiting on the floor|on the floor)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(թիմ.*հարկ|հարկ.*կարգ|հարկ.*տախտակ|հարկ.*հաշվ|հարկում)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(թիմ.*հարկ|հարկ.*կարգ|հարկ.*տախտակ|հարկ.*հաշվ|հարկում)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
-      /(команд.*зал|статус.*зал|кто жд|доск.*зал|зал.*доск|работ.*зал|в работе.*зал|сводк.*зал)/i.test(prompt));
+      /(команд.*зал|статус.*зал|кто жд|доск.*зал|зал.*доск|работ.*зал|в работе.*зал|сводк.*зал)/i.test(
+        prompt,
+      ));
 
   if (floorStatusCue) return true;
   if (isTeamWhosNextPrompt(prompt)) return false;
@@ -91,7 +111,8 @@ export function isCheckInClientPrompt(prompt: string): boolean {
     ) ||
     /\b[A-Z][\w'.-]+\s+arrived\b/.test(prompt) ||
     (containsArmenianScript(prompt) && /(ժամանում|գրանց)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) && /(отмет.*приход|зарегистр.*приход|приехала|пришедш)/i.test(prompt))
+    (containsCyrillicScript(prompt) &&
+      /(отмет.*приход|зарегистр.*приход|приехала|пришедш)/i.test(prompt))
   );
 }
 
@@ -104,7 +125,8 @@ export function isMarkRunningLatePrompt(prompt: string): boolean {
     /\b(running\s+\d+\s*(?:m|min|minutes?)?\s*late|running late|i'?m late|i am late|mark .+ running late)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(ուշ եմ|ուշաց|ուշացող)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(ուշ եմ|ուշաց|ուշացող)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) && /(опазды|задерж)/i.test(prompt))
   );
 }
@@ -155,10 +177,19 @@ export function inferMyStatsScopeFromPrompt(
   const raw = String(params.scope ?? '').toLowerCase();
   if (raw === 'team') return 'team';
   if (/\bteam stats\b/i.test(prompt)) return 'team';
-  if (containsArmenianScript(prompt) && prompt.includes('\u056b\u0574\u056b') && prompt.includes('\u0581\u0578\u0582')) {
+  if (
+    containsArmenianScript(prompt) &&
+    prompt.includes('\u056b\u0574\u056b') &&
+    prompt.includes('\u0581\u0578\u0582')
+  ) {
     return 'team';
   }
-  if (containsCyrillicScript(prompt) && /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(prompt)) {
+  if (
+    containsCyrillicScript(prompt) &&
+    /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(
+      prompt,
+    )
+  ) {
     return 'team';
   }
   return 'mine';
@@ -199,10 +230,14 @@ export function extractBookingActionCustomerName(
   const fromClientPrompt = extractCustomerNameFromClientPrompt(prompt);
   if (fromClientPrompt) return fromClientPrompt;
 
-  const ruNameMatch = prompt.match(/\b([A-Z][A-Za-z]+)(?:\s+(?:приехала|опаздывает)|\s+как\s+приш)/i);
+  const ruNameMatch = prompt.match(
+    /\b([A-Z][A-Za-z]+)(?:\s+(?:приехала|опаздывает)|\s+как\s+приш)/i,
+  );
   if (ruNameMatch?.[1]?.trim()) return ruNameMatch[1].trim();
 
-  const ruLateNameMatch = prompt.match(/(?:что|что\s+)([A-Z][A-Za-z]+)\s+опаздывает/i);
+  const ruLateNameMatch = prompt.match(
+    /(?:что|что\s+)([A-Z][A-Za-z]+)\s+опаздывает/i,
+  );
   if (ruLateNameMatch?.[1]?.trim()) return ruLateNameMatch[1].trim();
 
   const arrivedMatch = prompt.match(
@@ -231,6 +266,22 @@ export function extractBookingActionCustomerName(
   if (runningLateMatch?.[1]?.trim()) return runningLateMatch[1].trim();
 
   return null;
+}
+
+/** Mirrors provider exp-2 rescue param enrichment when harness skips full rescue pipeline. */
+export function enrichProviderExp2ActionParams(
+  action: string,
+  params: Record<string, unknown>,
+  prompt: string,
+): void {
+  if (action === 'check_in_client' || action === 'mark_running_late') {
+    const customerName = extractBookingActionCustomerName(prompt, params);
+    if (customerName) params.customerName = customerName;
+  }
+  if (action === 'mark_running_late') {
+    const minutesLate = extractRunningLateMinutesFromPrompt(prompt, params);
+    if (minutesLate != null) params.minutesLate = minutesLate;
+  }
 }
 
 export function rescueProviderExp2Intent(
@@ -295,7 +346,9 @@ export function formatProviderMyStatsSummary(
   return `${parts.join(', ')}.`;
 }
 
-export function formatTeamFloorStatusSummary(floor: TeamFloorTodayView): string {
+export function formatTeamFloorStatusSummary(
+  floor: TeamFloorTodayView,
+): string {
   if (floor.totalBookings === 0) {
     return 'Team floor is clear today — no active appointments on the board.';
   }

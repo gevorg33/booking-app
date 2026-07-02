@@ -35,25 +35,39 @@ describe('ai-implication-corpus.fixtures (pipe-1.11.1)', () => {
     expect(() =>
       assertImplicationCorpusCoverage(AI_IMPLICATION_CORPUS_SCENARIOS),
     ).not.toThrow();
-    const counts = countImplicationScenariosByIntent(AI_IMPLICATION_CORPUS_SCENARIOS);
-    expect(counts.booking).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
-    expect(counts.schedule).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
-    expect(counts.availability).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
+    const counts = countImplicationScenariosByIntent(
+      AI_IMPLICATION_CORPUS_SCENARIOS,
+    );
+    expect(counts.booking).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
+    expect(counts.schedule).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
+    expect(counts.availability).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
   });
 
   it('exports per-intent EN slices included in full corpus counts', () => {
-    const counts = countImplicationScenariosByIntent(AI_IMPLICATION_CORPUS_SCENARIOS);
-    expect(counts.booking).toBeGreaterThanOrEqual(BOOKING_IMPLICATION_SCENARIOS.length);
-    expect(counts.schedule).toBeGreaterThanOrEqual(SCHEDULE_IMPLICATION_SCENARIOS.length);
+    const counts = countImplicationScenariosByIntent(
+      AI_IMPLICATION_CORPUS_SCENARIOS,
+    );
+    expect(counts.booking).toBeGreaterThanOrEqual(
+      BOOKING_IMPLICATION_SCENARIOS.length,
+    );
+    expect(counts.schedule).toBeGreaterThanOrEqual(
+      SCHEDULE_IMPLICATION_SCENARIOS.length,
+    );
     expect(counts.availability).toBeGreaterThanOrEqual(
       AVAILABILITY_IMPLICATION_SCENARIOS.length,
     );
   });
 
   it('keeps prompts generic — no entity names', () => {
-    expect(findCorpusPromptsWithEntityNames(AI_IMPLICATION_CORPUS_SCENARIOS)).toEqual(
-      [],
-    );
+    expect(
+      findCorpusPromptsWithEntityNames(AI_IMPLICATION_CORPUS_SCENARIOS),
+    ).toEqual([]);
   });
 
   it.each(
@@ -101,7 +115,9 @@ describe('ai-implication-corpus.fixtures (pipe-1.11.1)', () => {
       }
       if (mustNotMatch?.length) {
         for (const blocked of mustNotMatch) {
-          const blockedRank = ranked.find((entry) => entry.anchor.action === blocked);
+          const blockedRank = ranked.find(
+            (entry) => entry.anchor.action === blocked,
+          );
           if (blockedRank && ranked[0]) {
             expect(blockedRank.score).toBeLessThan(ranked[0].score);
           }
@@ -111,21 +127,26 @@ describe('ai-implication-corpus.fixtures (pipe-1.11.1)', () => {
   );
 
   it.each(
-    AI_IMPLICATION_CORPUS_SCENARIOS.filter((scenario) => scenario.mustNotMatch?.length),
-  )('$id must-not-match polarity holds for $expectedAction', ({ prompt, surface, expectedAction, mustNotMatch }) => {
-    const allowedActions = resolveSemanticAllowedActions(surface);
-    const anchors = filterAnchorsForSurface(
-      buildCanonicalPhrasingBank([]),
-      surface,
-      allowedActions,
-    );
-    const match = resolveSemanticMatch(
-      rankAnchorsDeterministic(prompt, anchors),
-      { threshold: SEMANTIC_CONCEPT_THRESHOLD },
-    );
-    expect(match?.action).toBe(expectedAction);
-    for (const blocked of mustNotMatch ?? []) {
-      expect(match?.action).not.toBe(blocked);
-    }
-  });
+    AI_IMPLICATION_CORPUS_SCENARIOS.filter(
+      (scenario) => scenario.mustNotMatch?.length,
+    ),
+  )(
+    '$id must-not-match polarity holds for $expectedAction',
+    ({ prompt, surface, expectedAction, mustNotMatch }) => {
+      const allowedActions = resolveSemanticAllowedActions(surface);
+      const anchors = filterAnchorsForSurface(
+        buildCanonicalPhrasingBank([]),
+        surface,
+        allowedActions,
+      );
+      const match = resolveSemanticMatch(
+        rankAnchorsDeterministic(prompt, anchors),
+        { threshold: SEMANTIC_CONCEPT_THRESHOLD },
+      );
+      expect(match?.action).toBe(expectedAction);
+      for (const blocked of mustNotMatch ?? []) {
+        expect(match?.action).not.toBe(blocked);
+      }
+    },
+  );
 });

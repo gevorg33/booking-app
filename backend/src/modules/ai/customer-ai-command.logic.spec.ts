@@ -28,6 +28,10 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
     calls,
     customerCrm: {
       handleMyProfile: register('s28.my_profile', 'my_profile'),
+      handleUpdateMyProfile: register(
+        's28.update_my_profile',
+        'update_my_profile',
+      ),
       handleMyAppointments: register('s28.my_appointments', 'my_appointments'),
       handleMySubscriptions: register(
         's28.my_subscriptions',
@@ -248,6 +252,10 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
         's34.loyalty_points_balance',
         'loyalty_points_balance',
       ),
+      handleExplainLoyaltyPoints: register(
+        's34.explain_loyalty_points',
+        'explain_loyalty_points',
+      ),
     } as any,
     pushNotifications: {
       handleExplainLastPush: register(
@@ -327,6 +335,10 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
         's36.explain_cancel_policy',
         'explain_cancel_policy',
       ),
+      handleExplainDepositForfeiture: register(
+        's36.explain_deposit_forfeiture',
+        'explain_deposit_forfeiture',
+      ),
       handleBookWithCash: register('s36.book_with_cash', 'book_with_cash'),
       handleBookWithGiftCard: register(
         's36.book_with_gift_card',
@@ -347,6 +359,14 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
       handleShowCartTotalDuration: register(
         's36.show_cart_total_duration',
         'show_cart_total_duration',
+      ),
+      handleExplainMultiServiceCart: register(
+        's36.explain_multi_service_cart',
+        'explain_multi_service_cart',
+      ),
+      handleExplainPackageSavings: register(
+        's36.explain_package_savings',
+        'explain_package_savings',
       ),
     } as any,
     businessLanguages: {
@@ -389,6 +409,14 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
       handleDiagnoseTourCapacity: register(
         'tour.diagnose_tour_capacity',
         'diagnose_tour_capacity',
+      ),
+      handleExplainTourBookingRecord: register(
+        'tour.explain_tour_booking_record',
+        'explain_tour_booking_record',
+      ),
+      handleExplainTourMeetingPoint: register(
+        'tour.explain_tour_meeting_point',
+        'explain_tour_meeting_point',
       ),
     } as any,
     recommendationProduct: {
@@ -434,6 +462,7 @@ function buildDeps(): CustomerAiCommandLogicDeps & {
 
 const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   { action: 'my_profile', callKey: 's28.my_profile' },
+  { action: 'update_my_profile', callKey: 's28.update_my_profile' },
   { action: 'my_appointments', callKey: 's28.my_appointments' },
   { action: 'my_subscriptions', callKey: 's28.my_subscriptions' },
   { action: 'subscription_usage', callKey: 's28.subscription_usage' },
@@ -515,6 +544,7 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   { action: 'switch_to_consumer_app', callKey: 's34.switch_to_consumer_app' },
   { action: 'promo_code_help', callKey: 's34.promo_code_help' },
   { action: 'loyalty_points_balance', callKey: 's34.loyalty_points_balance' },
+  { action: 'explain_loyalty_points', callKey: 's34.explain_loyalty_points' },
   { action: 'explain_last_push', callKey: 's35.explain_last_push' },
   { action: 'open_booking_from_push', callKey: 's35.open_booking_from_push' },
   { action: 'offline_queue_status', callKey: 's35.offline_queue_status' },
@@ -554,6 +584,10 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   { action: 'list_my_package_visits', callKey: 's36.list_my_package_visits' },
   { action: 'get_manage_link', callKey: 's36.get_manage_link' },
   { action: 'explain_cancel_policy', callKey: 's36.explain_cancel_policy' },
+  {
+    action: 'explain_deposit_forfeiture',
+    callKey: 's36.explain_deposit_forfeiture',
+  },
   { action: 'book_with_cash', callKey: 's36.book_with_cash' },
   { action: 'book_with_gift_card', callKey: 's36.book_with_gift_card' },
   {
@@ -568,6 +602,14 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   {
     action: 'show_cart_total_duration',
     callKey: 's36.show_cart_total_duration',
+  },
+  {
+    action: 'explain_multi_service_cart',
+    callKey: 's36.explain_multi_service_cart',
+  },
+  {
+    action: 'explain_package_savings',
+    callKey: 's36.explain_package_savings',
   },
   {
     action: 'explain_booking_languages',
@@ -598,6 +640,14 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
     callKey: 'tour.explain_tour_day_slots',
   },
   {
+    action: 'explain_tour_booking_record',
+    callKey: 'tour.explain_tour_booking_record',
+  },
+  {
+    action: 'explain_tour_meeting_point',
+    callKey: 'tour.explain_tour_meeting_point',
+  },
+  {
     action: 'explain_checkout_recommendations',
     callKey: 'rec.explain_checkout_recommendations',
   },
@@ -605,7 +655,10 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
     action: 'explain_consumer_checkout_success',
     callKey: 'rec.explain_consumer_checkout_success',
   },
-  { action: 'explain_my_notifications', callKey: 'adopt.explain_my_notifications' },
+  {
+    action: 'explain_my_notifications',
+    callKey: 'adopt.explain_my_notifications',
+  },
   {
     action: 'manage_notification_preferences',
     callKey: 'adopt.manage_notification_preferences',
@@ -613,8 +666,12 @@ const DISPATCH_CASES: Array<{ action: string; callKey: string }> = [
   { action: 'refer_a_friend', callKey: 'adopt.refer_a_friend' },
   { action: 'share_salon_link', callKey: 'adopt.share_salon_link' },
   { action: 'share_my_booking', callKey: 'adopt.share_my_booking' },
-  { action: 'rebook_last_appointment', callKey: 'adopt.rebook_last_appointment' },
+  {
+    action: 'rebook_last_appointment',
+    callKey: 'adopt.rebook_last_appointment',
+  },
   { action: 'find_my_saved_salons', callKey: 'adopt.find_my_saved_salons' },
+  { action: 'switch_salon_tenant', callKey: 'adopt.switch_salon_tenant' },
   {
     action: 'explain_checkout_currency',
     callKey: 'curr.explain_checkout_currency',
@@ -938,6 +995,7 @@ describe('customer-ai-command.logic', () => {
     expect(deps.calls['s36.get_manage_link']).toHaveBeenCalledWith(
       'biz-1',
       expect.objectContaining({ bookingId: 'bk-2', packageId: 'pkg-9' }),
+      'Book package and get manage link',
     );
   });
 });

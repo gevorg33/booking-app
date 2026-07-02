@@ -2,7 +2,9 @@ import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { handleConfigureCheckoutDefaultsLogic } from './ai-checkout-defaults.logic.js';
 import { CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS } from './ai-checkout-defaults.fixtures.js';
 
-function buildDeps(business: Record<string, unknown> = { id: 'biz-1', settings: {} }) {
+function buildDeps(
+  business: Record<string, unknown> = { id: 'biz-1', settings: {} },
+) {
   const saved: Record<string, unknown>[] = [];
   return {
     deps: {
@@ -71,7 +73,9 @@ describe('ai-checkout-defaults.logic', () => {
     expect(result.success).toBe(true);
     const publicBooking = (business.settings as any).publicBooking;
     expect(publicBooking.acceptCashPayments).toBe(true);
-    expect(publicBooking.defaultServicePrepaymentMode).toBe(PrepaymentMode.FULL);
+    expect(publicBooking.defaultServicePrepaymentMode).toBe(
+      PrepaymentMode.FULL,
+    );
     expect(result.details?.navigate).toEqual({
       path: '/dashboard/services',
       label: 'Open Services',

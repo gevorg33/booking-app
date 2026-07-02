@@ -7,7 +7,10 @@ import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { extractTimeSlotFromPrompt } from './ai-structural-extractors.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
-import { parseTimeOfDayWindow, type TimeOfDayWindow } from './ai-operations.util.js';
+import {
+  parseTimeOfDayWindow,
+  type TimeOfDayWindow,
+} from './ai-operations.util.js';
 
 const AVAILABILITY_LUNCH_TIME_FROM = '12:00';
 const AVAILABILITY_LUNCH_TIME_TO = '14:00';
@@ -50,8 +53,7 @@ const WEEKDAY_PATTERN =
 const TIME_OF_DAY_PATTERN =
   /\b(morning|afternoon|evening|tonight|eve|am|pm|lunch)\b/i;
 
-const RELATIVE_DATE_PATTERN =
-  /\b(tomorrow|today|tonight)\b/i;
+const RELATIVE_DATE_PATTERN = /\b(tomorrow|today|tonight)\b/i;
 
 const AVAILABILITY_OR_SPLIT_PATTERN =
   /\s*,\s*|\s+or\s+|\s+կամ\s+|\s+или\s+|\s+kam\s+/iu;
@@ -201,9 +203,11 @@ export function normalizeAvailabilityWindowEntry(
 export function isAvailabilityAndWeekdaysPattern(prompt: string): boolean {
   if (!prompt?.trim()) return false;
   if (/\s+or\s+/i.test(prompt)) return false;
-  if (!/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\s+and\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i.test(
-    prompt,
-  )) {
+  if (
+    !/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\s+and\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   return TIME_OF_DAY_PATTERN.test(prompt);
@@ -226,7 +230,10 @@ function stripLeadingAvailabilityIntentPrefix(clause: string): string {
       /^(?:who'?s?|who is)\s+free\s+(?:for\s+[\w\s-]{0,40}?\s+)?(?:on\s+)?/i,
       '',
     )
-    .replace(/^(?:any|some)\s+slots?\s+(?:for\s+[\w\s-]{0,40}?\s+)?(?:on\s+)?/i, '')
+    .replace(
+      /^(?:any|some)\s+slots?\s+(?:for\s+[\w\s-]{0,40}?\s+)?(?:on\s+)?/i,
+      '',
+    )
     .replace(
       /^[a-z][\w\s-]{0,40}?\s+(?=tomorrow|today|tonight|mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|vagh|zavtra|վաղ|завтра|ուրբ|urbat|pyatnic|пятниц)/i,
       '',
@@ -264,7 +271,11 @@ export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
 
   const fromList = enrichListServicesParamsFromPrompt(prompt, params);
   if (fromList.serviceCategory) {
-    return { ...params, serviceCategory: fromList.serviceCategory, serviceName: null };
+    return {
+      ...params,
+      serviceCategory: fromList.serviceCategory,
+      serviceName: null,
+    };
   }
 
   for (const entry of MULTILINGUAL_SERVICE_CATEGORY_PATTERNS) {
@@ -293,7 +304,9 @@ export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
   const needMatch = prompt.match(
     /\bneed\s+(?:a\s+)?([a-z][\w\s-]{2,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b)/i,
   );
-  const leadingMatch = prompt.match(FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN);
+  const leadingMatch = prompt.match(
+    FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN,
+  );
   const keyword = (
     showListMatch?.[1] ??
     translitLeadMatch?.[1] ??
@@ -338,7 +351,9 @@ export function enrichFlexibleAvailabilitySameProviderFromPrompt(
 }
 
 /** Team-wide OR availability — any stylist/provider across windows (avail-or-any-provider-en). */
-export function isFlexibleAvailabilityAnyProviderPrompt(prompt: string): boolean {
+export function isFlexibleAvailabilityAnyProviderPrompt(
+  prompt: string,
+): boolean {
   if (!prompt?.trim()) return false;
   const lower = prompt.toLowerCase();
   return (
@@ -374,7 +389,10 @@ export function enrichFlexibleAvailabilitySingleWindowFromPrompt(
   if (hasAvailabilityOrPattern(prompt)) return params;
   if (isAvailabilityAndWeekdaysPattern(prompt)) return params;
 
-  let next = enrichFlexibleAvailabilityServiceCategoryFromPrompt(prompt, params);
+  let next = enrichFlexibleAvailabilityServiceCategoryFromPrompt(
+    prompt,
+    params,
+  );
 
   const timeOfDay =
     parseTimeOfDayWindow(prompt, next) ??
@@ -397,7 +415,10 @@ export function enrichFlexibleAvailabilitySingleWindowFromPrompt(
     }
   }
 
-  if (next.allProviders !== true && isFlexibleAvailabilityTeamWidePrompt(prompt)) {
+  if (
+    next.allProviders !== true &&
+    isFlexibleAvailabilityTeamWidePrompt(prompt)
+  ) {
     next = { ...next, allProviders: true };
   }
 
@@ -441,14 +462,8 @@ function stripTrailingBudgetPhrase(prompt: string): string {
       /,?\s*(?:у\s+меня|u\s+menya)\s+[\d,]+(?:\.\d{1,2})?\s*(?:долларов|dollarov|rub(?:ley|lya|les)?).*$/iu,
       '',
     )
-    .replace(
-      /,?\s*[\d,]+(?:\.\d{1,2})?\s*դրամ\s+ունեմ.*$/iu,
-      '',
-    )
-    .replace(
-      /,?\s*ունեմ\s+[\d,]+(?:\.\d{1,2})?\s*դրամ.*$/iu,
-      '',
-    )
+    .replace(/,?\s*[\d,]+(?:\.\d{1,2})?\s*դրամ\s+ունեմ.*$/iu, '')
+    .replace(/,?\s*ունեմ\s+[\d,]+(?:\.\d{1,2})?\s*դրամ.*$/iu, '')
     .replace(
       /,?\s*(?:i\s+)?(?:only\s+)?have\s+[\$€£]?\s*[\d,]+(?:\.\d{1,2})?.*$/i,
       '',
@@ -502,10 +517,7 @@ function preserveLeadingEmployeeNameThroughStrip(clause: string): string {
 
 function normalizeAvailabilityOrClause(clause: string): string {
   return preserveLeadingEmployeeNameThroughStrip(clause)
-    .replace(
-      /^same\s+(?:person|provider|stylist|specialist|therapist)\s+/i,
-      '',
-    )
+    .replace(/^same\s+(?:person|provider|stylist|specialist|therapist)\s+/i, '')
     .replace(
       /^(?:any|anyone|anybody)\s+(?:provider|stylist|specialist|staff|therapist)s?\s+/i,
       '',
@@ -544,8 +556,7 @@ export function hasAvailabilityOrPattern(prompt: string): boolean {
   const normalizedPrompt = availabilityOrSourcePrompt(prompt);
   const hasOrToken = promptHasAvailabilityOrSeparator(normalizedPrompt);
   const hasEitherOr =
-    /\beither\b/i.test(normalizedPrompt) &&
-    /\bor\b/i.test(normalizedPrompt);
+    /\beither\b/i.test(normalizedPrompt) && /\bor\b/i.test(normalizedPrompt);
 
   if (!hasOrToken && !hasEitherOr) return false;
 
@@ -578,7 +589,10 @@ function extractRelativeDateFromClause(clause: string): string | null {
   ) {
     return 'tomorrow';
   }
-  if (/\btomorrow\b/i.test(clause) || promptMentionsMultilingualTomorrow(clause)) {
+  if (
+    /\btomorrow\b/i.test(clause) ||
+    promptMentionsMultilingualTomorrow(clause)
+  ) {
     return 'tomorrow';
   }
   if (/\btoday\b/i.test(clause) || /\btonight\b/i.test(clause)) {
@@ -592,7 +606,9 @@ function extractWeekendWeekdaysFromClause(clause: string): string[] | null {
   return ['saturday', 'sunday'];
 }
 
-function extractTimeOfDayFromClause(clause: string): AvailabilityTimeOfDay | null {
+function extractTimeOfDayFromClause(
+  clause: string,
+): AvailabilityTimeOfDay | null {
   const parsed = parseTimeOfDayWindow(clause, {});
   if (parsed) return parsed;
 
@@ -841,7 +857,8 @@ function availabilityWindowMatches(
 ): boolean {
   return (
     left.date === right.date &&
-    JSON.stringify(left.weekdays ?? []) === JSON.stringify(right.weekdays ?? []) &&
+    JSON.stringify(left.weekdays ?? []) ===
+      JSON.stringify(right.weekdays ?? []) &&
     left.timeOfDay === right.timeOfDay &&
     left.timeFrom === right.timeFrom &&
     left.timeTo === right.timeTo &&
@@ -875,12 +892,7 @@ function inheritSessionWindowTimeFilter(
   target: AvailabilityWindow,
   existing: readonly AvailabilityWindow[],
 ): AvailabilityWindow {
-  if (
-    target.timeOfDay ||
-    target.timeFrom ||
-    target.timeTo ||
-    target.timeSlot
-  ) {
+  if (target.timeOfDay || target.timeFrom || target.timeTo || target.timeSlot) {
     return target;
   }
 
@@ -939,7 +951,10 @@ export function enrichAvailabilitySessionDropFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
 ): Record<string, unknown> {
-  const base = enrichFlexibleAvailabilityServiceCategoryFromPrompt(prompt, params);
+  const base = enrichFlexibleAvailabilityServiceCategoryFromPrompt(
+    prompt,
+    params,
+  );
   const dropped = resolveSessionDropWindow(base, prompt);
   if (!dropped) return base;
 
@@ -961,7 +976,10 @@ export function enrichAvailabilitySessionAppendFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
 ): Record<string, unknown> {
-  const base = enrichFlexibleAvailabilityServiceCategoryFromPrompt(prompt, params);
+  const base = enrichFlexibleAvailabilityServiceCategoryFromPrompt(
+    prompt,
+    params,
+  );
   const clause = normalizeAvailabilitySessionAppendClause(prompt);
   const newWindow = parseAvailabilityWindowClause(clause);
   if (!newWindow) return base;
@@ -1057,9 +1075,7 @@ export type AvailabilityWindowSlotCandidate<T extends { startTime: string }> = {
 };
 
 /** Pick earliest bookable slot across OR windows (avail-1.6 / discover-1.2). */
-export function pickEarliestSlotAcrossWindows<
-  T extends { startTime: string },
->(
+export function pickEarliestSlotAcrossWindows<T extends { startTime: string }>(
   candidates: readonly AvailabilityWindowSlotCandidate<T>[],
 ): AvailabilityWindowSlotCandidate<T> | null {
   if (candidates.length === 0) return null;
@@ -1079,7 +1095,7 @@ export async function scanWindowsForSlots<T extends { startTime: string }>(
   const candidates: AvailabilityWindowSlotCandidate<T>[] = [];
 
   for (let windowIndex = 0; windowIndex < windows.length; windowIndex++) {
-    const window = windows[windowIndex]!;
+    const window = windows[windowIndex];
     const slot = await scanWindow(window, windowIndex);
     if (!slot) continue;
     candidates.push({

@@ -13,7 +13,8 @@ export const N99_PUSH_PERMISSION_STATES = [
   'prompt',
 ] as const;
 
-export type N99PushPermissionState = (typeof N99_PUSH_PERMISSION_STATES)[number];
+export type N99PushPermissionState =
+  (typeof N99_PUSH_PERMISSION_STATES)[number];
 
 export const N99_PUSH_REACHABLE_STATES = new Set<N99PushPermissionState>([
   'full',

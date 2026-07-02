@@ -61,10 +61,7 @@ describe('ai-service-catalog-rank.util (budget-1.1)', () => {
 
   it('returns a copy when maxPrice is invalid (no budget constraint)', () => {
     const services = [{ id: 'a', name: 'A', price: 100 }];
-    const filtered = filterServicesByMaxPrice(
-      services,
-      Number.NaN,
-    );
+    const filtered = filterServicesByMaxPrice(services, Number.NaN);
     expect(filtered).toEqual(services);
     expect(filtered).not.toBe(services);
   });
@@ -98,10 +95,7 @@ describe('ai-service-catalog-rank.util (budget-1.1)', () => {
       filterServicesByMaxPrice(services, 50),
     );
 
-    expect(result.map((service) => service.id)).toEqual([
-      'hair-35',
-      'hair-45',
-    ]);
+    expect(result.map((service) => service.id)).toEqual(['hair-35', 'hair-45']);
   });
 });
 
@@ -119,9 +113,9 @@ describe('ai-service-catalog-rank.util (rank-1.1)', () => {
   it.each(SORT_SERVICES_BY_PRICE_DESC_SCENARIOS)(
     'sortServicesByPriceDesc $id',
     ({ services, expectedIds }) => {
-      expect(sortServicesByPriceDesc(services).map((service) => service.id)).toEqual(
-        expectedIds,
-      );
+      expect(
+        sortServicesByPriceDesc(services).map((service) => service.id),
+      ).toEqual(expectedIds);
     },
   );
 

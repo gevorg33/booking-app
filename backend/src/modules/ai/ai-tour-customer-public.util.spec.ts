@@ -6,11 +6,15 @@ import {
   isDiagnoseTourCapacityPrompt,
   isExplainTourBookingPrompt,
   isExplainTourDaySlotsPrompt,
+  isExplainTourBookingRecordPrompt,
   rescueTourCustomerPublicIntent,
 } from './ai-tour-customer-public.util.js';
+import { isExplainTourMeetingPointPrompt } from './ai-tour-meeting-point.util.js';
 import { AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_CASES } from './eval/ai-command-eval.cases.js';
 import { AI_COMMAND_EVAL_EXPLAIN_TOUR_DAY_SLOTS_CASES } from './eval/ai-command-eval.cases.js';
 import { AI_COMMAND_EVAL_DIAGNOSE_TOUR_CAPACITY_CASES } from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_CASES } from './eval/ai-command-eval.cases.js';
+import { AI_COMMAND_EVAL_EXPLAIN_TOUR_MEETING_POINT_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 
 describe('ai-tour-customer-public.util (ai-cmd-customer-4.0 P3)', () => {
@@ -24,16 +28,28 @@ describe('ai-tour-customer-public.util (ai-cmd-customer-4.0 P3)', () => {
     expect(CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES).toContain(
       'diagnose_tour_capacity',
     );
+    expect(CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES).toContain(
+      'explain_tour_booking_record',
+    );
+    expect(CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES).toContain(
+      'explain_tour_meeting_point',
+    );
   });
 
   it.each(TOUR_CUSTOMER_PUBLIC_PROMPTS.map((row) => [row.id, row] as const))(
     'detects tour customer/public prompt $id',
     (_id, row) => {
-      expect(detectTourCustomerPublicAction(row.prompt)).toBe(row.expectedAction);
+      expect(detectTourCustomerPublicAction(row.prompt)).toBe(
+        row.expectedAction,
+      );
       if (row.expectedAction === 'explain_tour_booking') {
         expect(isExplainTourBookingPrompt(row.prompt)).toBe(true);
       } else if (row.expectedAction === 'explain_tour_day_slots') {
         expect(isExplainTourDaySlotsPrompt(row.prompt)).toBe(true);
+      } else if (row.expectedAction === 'explain_tour_booking_record') {
+        expect(isExplainTourBookingRecordPrompt(row.prompt)).toBe(true);
+      } else if (row.expectedAction === 'explain_tour_meeting_point') {
+        expect(isExplainTourMeetingPointPrompt(row.prompt)).toBe(true);
       } else {
         expect(isDiagnoseTourCapacityPrompt(row.prompt)).toBe(true);
       }
@@ -69,6 +85,16 @@ describe('ai-tour-customer-public.util (ai-cmd-customer-4.0 P3)', () => {
     ).toMatchObject({
       requestedPax: 4,
     });
+    expect(
+      enrichTourCustomerPublicParamsFromPrompt(
+        {},
+        'What time should I arrive for my Mountain Trek?',
+        'explain_tour_meeting_point',
+      ),
+    ).toMatchObject({
+      serviceName: 'Mountain Trek',
+      aspect: 'arrival_time',
+    });
   });
 
   it('does not steal admin tour catalog or availability listing prompts', () => {
@@ -99,6 +125,8 @@ describe('ai-tour-customer-public.util (ai-cmd-customer-4.0 P3)', () => {
       ...AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_CASES,
       ...AI_COMMAND_EVAL_EXPLAIN_TOUR_DAY_SLOTS_CASES,
       ...AI_COMMAND_EVAL_DIAGNOSE_TOUR_CAPACITY_CASES,
+      ...AI_COMMAND_EVAL_EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_CASES,
+      ...AI_COMMAND_EVAL_EXPLAIN_TOUR_MEETING_POINT_CASES,
     ];
     for (const evalCase of evalCases) {
       expect(evaluateDeterministicEvalCase(evalCase).errors).toEqual([]);

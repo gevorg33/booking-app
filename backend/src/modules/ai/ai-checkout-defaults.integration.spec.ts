@@ -10,7 +10,9 @@ describe('ai-checkout-defaults integration (ai-cmd-ext-2.16)', () => {
   it.each(CONFIGURE_CHECKOUT_DEFAULTS_PROMPTS.slice(0, 4))(
     'rescues unknown prompt $id via payments rescue',
     ({ prompt, expectedAction }) => {
-      expect(rescuePaymentsIntent(prompt, 'unknown')?.action).toBe(expectedAction);
+      expect(rescuePaymentsIntent(prompt, 'unknown')?.action).toBe(
+        expectedAction,
+      );
       const rescued = rescueService.rescue({
         prompt,
         action: 'unknown',
@@ -24,9 +26,9 @@ describe('ai-checkout-defaults integration (ai-cmd-ext-2.16)', () => {
   it('utility rescue matches intent rescue', () => {
     const prompt =
       'Set checkout defaults: allow cash at venue and 50% prepayment for new services';
-    expect(rescueConfigureCheckoutDefaultsIntent(prompt, 'unknown')?.action).toBe(
-      'configure_checkout_defaults',
-    );
+    expect(
+      rescueConfigureCheckoutDefaultsIntent(prompt, 'unknown')?.action,
+    ).toBe('configure_checkout_defaults');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('configure_checkout_defaults');
@@ -58,8 +60,8 @@ describe('ai-checkout-defaults integration (ai-cmd-ext-2.16)', () => {
       'Default new services to no online payment',
     );
     expect(result.success).toBe(true);
-    expect((business.settings as any).publicBooking.defaultServicePrepaymentMode).toBe(
-      'none',
-    );
+    expect(
+      (business.settings as any).publicBooking.defaultServicePrepaymentMode,
+    ).toBe('none');
   });
 });

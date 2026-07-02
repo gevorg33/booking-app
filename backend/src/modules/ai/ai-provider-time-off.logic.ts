@@ -51,11 +51,10 @@ export async function handleListTimeOffRequestsLogic(
     status,
   );
 
-  return success(
-    'list_time_off_requests',
-    summarizeTimeOffRequests(requests),
-    { requests, status },
-  );
+  return success('list_time_off_requests', summarizeTimeOffRequests(requests), {
+    requests,
+    status,
+  });
 }
 
 export async function handleApproveTimeOffRequestLogic(
@@ -158,8 +157,7 @@ export async function handleRequestTimeOffLogic(
     (typeof params.date === 'string' && params.date.trim()) ||
     null;
   const endDate =
-    (typeof params.endDate === 'string' && params.endDate.trim()) ||
-    startDate;
+    (typeof params.endDate === 'string' && params.endDate.trim()) || startDate;
   if (!startDate || !endDate) {
     return failure(
       'request_time_off',
@@ -177,7 +175,8 @@ export async function handleRequestTimeOffLogic(
         startDate,
         endDate,
         dailyStartTime:
-          (typeof params.dailyStartTime === 'string' && params.dailyStartTime) ||
+          (typeof params.dailyStartTime === 'string' &&
+            params.dailyStartTime) ||
           (typeof params.timeFrom === 'string' && params.timeFrom) ||
           '00:00',
         dailyEndTime:
@@ -197,7 +196,9 @@ export async function handleRequestTimeOffLogic(
     );
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : 'Could not submit time-off request';
+      error instanceof Error
+        ? error.message
+        : 'Could not submit time-off request';
     return failure('request_time_off', message);
   }
 }
@@ -214,7 +215,7 @@ export async function handleListMyTimeOffRequestsLogic(
   );
   return success(
     'list_my_time_off_requests',
-    summarizeTimeOffRequests(requests as ProviderTimeOffRequestView[]),
+    summarizeTimeOffRequests(requests),
     { requests },
   );
 }

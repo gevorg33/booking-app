@@ -33,7 +33,10 @@ describe('booking-first-available semantic util (pipe-1.13.1 / acc-3.14)', () =>
     '$id does not detect first-available booking meaning',
     ({ prompt, surface }) => {
       expect(
-        resolveBookingFirstAvailableSemanticHints(prompt, surface ?? 'dashboard'),
+        resolveBookingFirstAvailableSemanticHints(
+          prompt,
+          surface ?? 'dashboard',
+        ),
       ).toBeNull();
       expect(impliesBookingFirstAvailableFromSemantic(prompt)).toBe(false);
       expect(isFirstAvailableBookingPrompt(prompt)).toBe(false);
@@ -52,8 +55,11 @@ describe('booking-first-available semantic util (pipe-1.13.1 / acc-3.14)', () =>
     MULTILINGUAL_FLEXIBLE_BOOKING_PROMPTS.filter((entry) =>
       entry.id.includes('book-nearest'),
     ),
-  )('multilingual flexible booking $id implies first-available', ({ prompt }) => {
-    expect(impliesBookingFirstAvailableFromSemantic(prompt)).toBe(true);
-    expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
-  });
+  )(
+    'multilingual flexible booking $id implies first-available',
+    ({ prompt }) => {
+      expect(impliesBookingFirstAvailableFromSemantic(prompt)).toBe(true);
+      expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
+    },
+  );
 });

@@ -11,9 +11,12 @@ import {
 } from './referral-program.util.js';
 
 describe('referral-program.util', () => {
-  it.each(REFERRAL_CODE_SCENARIOS)('$id derives referral code', ({ customerId, expected }) => {
-    expect(deriveReferralCodeFromCustomerId(customerId)).toBe(expected);
-  });
+  it.each(REFERRAL_CODE_SCENARIOS)(
+    '$id derives referral code',
+    ({ customerId, expected }) => {
+      expect(deriveReferralCodeFromCustomerId(customerId)).toBe(expected);
+    },
+  );
 
   it.each(REFERRAL_RESOLVE_SCENARIOS)(
     '$id resolves referrer from candidates',

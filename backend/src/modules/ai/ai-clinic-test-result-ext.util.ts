@@ -55,12 +55,12 @@ function extractOrderIdFromExtPrompt(prompt: string): string | null {
   const hyOrder = prompt.match(/պատվեր(?:ի)?\s+#?\s*([a-z0-9-]{2,})/iu);
   if (hyOrder?.[1]) return hyOrder[1].trim();
 
-  const ruOrder = prompt.match(
-    /(?:к\s+)?заказ(?:у)?\s+([a-z0-9-]{2,})/iu,
-  );
+  const ruOrder = prompt.match(/(?:к\s+)?заказ(?:у)?\s+([a-z0-9-]{2,})/iu);
   if (ruOrder?.[1]) return ruOrder[1].trim();
 
-  const ruOrderFor = prompt.match(/(?:для\s+)?заказ(?:а)?\s+#?\s*([a-z0-9-]{2,})/iu);
+  const ruOrderFor = prompt.match(
+    /(?:для\s+)?заказ(?:а)?\s+#?\s*([a-z0-9-]{2,})/iu,
+  );
   return ruOrderFor?.[1]?.trim() ?? null;
 }
 
@@ -139,8 +139,8 @@ export function isExplainPatientResultsPrompt(prompt: string): boolean {
 
   if (
     /\b(?:lab\s+result|result)\s+status\b/i.test(prompt) ||
-    (/բացատրիր.*կարգավիճակ/iu.test(prompt) ||
-      /объясни.*статус/iu.test(prompt))
+    /բացատրիր.*կարգավիճակ/iu.test(prompt) ||
+    /объясни.*статус/iu.test(prompt)
   ) {
     return false;
   }
@@ -154,7 +154,8 @@ export function isExplainPatientResultsPrompt(prompt: string): boolean {
   }
 
   return (
-    LAB_RESULT_MEASUREMENT_NOUN.test(prompt) && EXPLAIN_RESULTS_VERB.test(prompt)
+    LAB_RESULT_MEASUREMENT_NOUN.test(prompt) &&
+    EXPLAIN_RESULTS_VERB.test(prompt)
   );
 }
 
@@ -221,10 +222,7 @@ export function extractMeasurementCodeFromExtPrompt(
   const codeBeforeRange = prompt.match(
     /\b([A-Za-z][\w-]*)\s+(?:reference|normal)\s+range\b/i,
   );
-  if (
-    codeBeforeRange?.[1] &&
-    !CONFIGURE_RANGE_VERB.test(codeBeforeRange[1])
-  ) {
+  if (codeBeforeRange?.[1] && !CONFIGURE_RANGE_VERB.test(codeBeforeRange[1])) {
     return codeBeforeRange[1].trim();
   }
 
@@ -294,7 +292,9 @@ export function parseUploadPatientResultFromPrompt(
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
       ? params.orderId.trim()
-      : undefined) ?? extractOrderIdFromExtPrompt(prompt) ?? undefined;
+      : undefined) ??
+    extractOrderIdFromExtPrompt(prompt) ??
+    undefined;
   const customerName =
     (typeof params.customerName === 'string' && params.customerName.trim()
       ? params.customerName.trim()
@@ -340,9 +340,7 @@ function extractExplainPatientNameFromPrompt(prompt: string): string | null {
     return normalizeMultilingualCustomerName(hyForCustomer[1]);
   }
 
-  const ruResultsGenitive = prompt.match(
-    /results?\s+([\p{L}]+)\s+простым/iu,
-  );
+  const ruResultsGenitive = prompt.match(/results?\s+([\p{L}]+)\s+простым/iu);
   if (ruResultsGenitive?.[1]) {
     return normalizeMultilingualCustomerName(ruResultsGenitive[1]);
   }
@@ -361,11 +359,15 @@ export function parseExplainPatientResultsFromPrompt(
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
       ? params.orderId.trim()
-      : undefined) ?? extractOrderIdFromExtPrompt(prompt) ?? undefined;
+      : undefined) ??
+    extractOrderIdFromExtPrompt(prompt) ??
+    undefined;
   const customerName =
     (typeof params.customerName === 'string' && params.customerName.trim()
       ? params.customerName.trim()
-      : undefined) ?? extractExplainPatientNameFromPrompt(prompt) ?? undefined;
+      : undefined) ??
+    extractExplainPatientNameFromPrompt(prompt) ??
+    undefined;
   if (!orderId && !customerName) return null;
   return { orderId, customerName };
 }
@@ -378,7 +380,9 @@ export function parseListAbnormalResultsFromPrompt(
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
       ? params.orderId.trim()
-      : undefined) ?? extractOrderIdFromExtPrompt(prompt) ?? undefined;
+      : undefined) ??
+    extractOrderIdFromExtPrompt(prompt) ??
+    undefined;
   const customerName =
     (typeof params.customerName === 'string' && params.customerName.trim()
       ? params.customerName.trim()
@@ -404,7 +408,9 @@ export function parseConfigureTestReferenceRangeFromPrompt(
   const measurementCode =
     (typeof params.measurementCode === 'string' && params.measurementCode.trim()
       ? params.measurementCode.trim()
-      : undefined) ?? extractMeasurementCodeFromExtPrompt(prompt) ?? undefined;
+      : undefined) ??
+    extractMeasurementCodeFromExtPrompt(prompt) ??
+    undefined;
   const bounds = extractReferenceRangeBounds(prompt);
   const normalLow =
     (typeof params.normalLow === 'string' && params.normalLow.trim()
@@ -423,9 +429,7 @@ export function parseConfigureTestReferenceRangeFromPrompt(
 }
 
 /** Deterministic classifier/heuristic path when LLM labels the ext intent correctly (no rescue). */
-export function detectClinicTestResultExtIntentFromPrompt(
-  prompt: string,
-): {
+export function detectClinicTestResultExtIntentFromPrompt(prompt: string): {
   action: ClinicTestResultExtIntent;
   params: Record<string, unknown>;
 } | null {
@@ -472,7 +476,10 @@ export function rescueClinicTestResultExtIntent(
       rescueReason: 'configure_test_reference_range',
     };
   }
-  if (isUploadPatientResultPrompt(prompt) && action !== 'upload_patient_result') {
+  if (
+    isUploadPatientResultPrompt(prompt) &&
+    action !== 'upload_patient_result'
+  ) {
     return {
       action: 'upload_patient_result',
       rescueReason: 'upload_patient_result',

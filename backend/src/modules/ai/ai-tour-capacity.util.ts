@@ -65,7 +65,9 @@ function isEducationalDaySlotsOnlyPrompt(prompt: string): boolean {
   return false;
 }
 
-function extractRequestedPax(prompt: string): number | undefined {
+export function extractTourPaxCountFromPrompt(
+  prompt: string,
+): number | undefined {
   const patterns = [
     /\b(\d{1,2})\s+(?:people|guests?|pax|persons?|travelers?|հոգի|человек|чел\.?)\b/i,
     /(?:отклонил|մերժեց)\s+(\d{1,2})\s+(?:հոգի|человек)/i,
@@ -192,11 +194,105 @@ export function isTourCapacityIntent(
   return (TOUR_CAPACITY_INTENTS as readonly string[]).includes(action);
 }
 
+function hasProactiveTourCapacityCheckCue(prompt: string): boolean {
+  return (
+    /\b(?:book|reserve)\s+if\s+(?:enough|there\s+are\s+enough)\s+(?:seats?|spots?)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:only\s+)?if\s+(?:enough|there\s+are\s+enough)\s+(?:seats?|spots?)\b/i.test(
+      prompt,
+    ) ||
+    /\bwhen\s+(?:seats?|spots?)\s+(?:are\s+)?available\b/i.test(prompt) ||
+    /\bif\s+capacity\s+allows?\b/i.test(prompt) ||
+    /\bwhen\s+capacity\s+allows?\b/i.test(prompt) ||
+    /(?:եթե|միայն\s+եթե).{0,20}(?:տեղ|բավական)/i.test(prompt) ||
+    /(?:если|только\s+если).{0,20}(?:мест|хватит)/i.test(prompt)
+  );
+}
+
+function hasProactiveTourBookingTopic(prompt: string): boolean {
+  return (
+    /\b(?:tours?|treks?|excursions?|hikes?)\b/i.test(prompt) ||
+    /(?:տուր|էքսկուրս)/i.test(prompt) ||
+    /(?:тур|экскурс)/i.test(prompt)
+  );
+}
+
+export function isProactiveTourCapacityCheckPrompt(prompt: string): boolean {
+  if (!hasProactiveTourCapacityCheckCue(prompt)) return false;
+  if (!hasProactiveTourBookingTopic(prompt)) return false;
+  if (extractTourPaxCountFromPrompt(prompt) == null) return false;
+  return true;
+}
+
 export function isDiagnoseTourCapacityPrompt(prompt: string): boolean {
   if (isEducationalDaySlotsOnlyPrompt(prompt)) return false;
+  if (isProactiveTourCapacityCheckPrompt(prompt)) return false;
   if (!hasCheckoutRejectionCue(prompt)) return false;
   if (!hasTourCapacityTopic(prompt)) return false;
   return true;
+}
+
+export function parseProactiveTourCapacityFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): ParsedDiagnoseTourCapacity | null {
+  const fromCompound = params.tourGroupCheckout === true;
+  if (!isProactiveTourCapacityCheckPrompt(prompt) && !fromCompound) return null;
+
+  const serviceId =
+    typeof params.serviceId === 'string' ? params.serviceId.trim() : undefined;
+  const serviceNameFromParams =
+    typeof params.serviceName === 'string'
+      ? params.serviceName.trim()
+      : undefined;
+  const serviceName =
+    serviceNameFromParams || extractServiceNameFromPrompt(prompt) || undefined;
+
+  const dateFromParams =
+    typeof params.date === 'string'
+      ? toIsoDay(params.date.trim(), 'UTC')
+      : typeof params.dateKey === 'string'
+        ? params.dateKey.trim()
+        : undefined;
+  const dateKey =
+    dateFromParams && /^\d{4}-\d{2}-\d{2}$/.test(dateFromParams)
+      ? dateFromParams
+      : extractDateFromPrompt(prompt);
+
+  const requestedPaxFromParams =
+    typeof params.requestedPax === 'number'
+      ? params.requestedPax
+      : typeof params.requestedPax === 'string'
+        ? Number(params.requestedPax)
+        : typeof params.paxCount === 'number'
+          ? params.paxCount
+          : undefined;
+  const requestedPax =
+    Number.isFinite(requestedPaxFromParams) && requestedPaxFromParams! > 0
+      ? Math.floor(requestedPaxFromParams!)
+      : extractTourPaxCountFromPrompt(prompt);
+
+  const aspectFromParams =
+    typeof params.aspect === 'string' ? params.aspect.trim() : undefined;
+  const aspect =
+    aspectFromParams === 'maxGroup' ||
+    aspectFromParams === 'fullyBooked' ||
+    aspectFromParams === 'insufficientSpots' ||
+    aspectFromParams === 'clampedPax' ||
+    aspectFromParams === 'all'
+      ? aspectFromParams
+      : 'all';
+
+  if (!serviceName && !serviceId && requestedPax == null) return null;
+
+  return {
+    serviceId,
+    serviceName,
+    dateKey,
+    requestedPax,
+    aspect,
+  };
 }
 
 export function parseDiagnoseTourCapacityFromPrompt(
@@ -236,7 +332,7 @@ export function parseDiagnoseTourCapacityFromPrompt(
   const requestedPax =
     Number.isFinite(requestedPaxFromParams) && requestedPaxFromParams! > 0
       ? Math.floor(requestedPaxFromParams!)
-      : extractRequestedPax(prompt);
+      : extractTourPaxCountFromPrompt(prompt);
 
   const aspectFromParams =
     typeof params.aspect === 'string' ? params.aspect.trim() : undefined;

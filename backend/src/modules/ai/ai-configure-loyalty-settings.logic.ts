@@ -88,16 +88,13 @@ export async function handleConfigureLoyaltySettingsLogic(
       where: { id: businessId },
     });
     if (!business) {
-      return failure(
-        'configure_loyalty_settings',
-        'Business not found.',
-        { navigate: NAVIGATE },
-      );
+      return failure('configure_loyalty_settings', 'Business not found.', {
+        navigate: NAVIGATE,
+      });
     }
 
     const existing =
-      (business.settings?.loyalty as Record<string, unknown> | undefined) ??
-      {};
+      (business.settings?.loyalty as Record<string, unknown> | undefined) ?? {};
     const loyalty: Record<string, unknown> = { ...existing };
 
     if (parsed.earnPercentCashback != null) {
@@ -122,7 +119,9 @@ export async function handleConfigureLoyaltySettingsLogic(
         ?.enabled !== false;
     const parts: string[] = [];
     if (parsed.enabled != null) {
-      parts.push(enabled ? 'enabled loyalty program' : 'disabled loyalty program');
+      parts.push(
+        enabled ? 'enabled loyalty program' : 'disabled loyalty program',
+      );
     }
     if (parsed.earnPercentCashback != null) {
       parts.push(`set earn rate to ${settings.earnPercentCashback}%`);

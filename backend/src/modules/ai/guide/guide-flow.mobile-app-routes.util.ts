@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GuideFlowSurface } from './guide-flow.types.js';
-import { matchGuideFlowRoute, mergeGuideFlowPlaybooks } from './guide-flow.merge.util.js';
+import {
+  matchGuideFlowRoute,
+  mergeGuideFlowPlaybooks,
+} from './guide-flow.merge.util.js';
 import {
   CONSUMER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS,
   PROVIDER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS,
@@ -10,8 +13,14 @@ import {
 
 const REPO_ROOT = join(__dirname, '../../../../..');
 
-export const CONSUMER_MOBILE_APP_PATH = join(REPO_ROOT, 'consumer-app/src/App.tsx');
-export const PROVIDER_MOBILE_APP_PATH = join(REPO_ROOT, 'provider-app/src/App.tsx');
+export const CONSUMER_MOBILE_APP_PATH = join(
+  REPO_ROOT,
+  'consumer-app/src/App.tsx',
+);
+export const PROVIDER_MOBILE_APP_PATH = join(
+  REPO_ROOT,
+  'provider-app/src/App.tsx',
+);
 
 /** Parse `<Route … path="…">` entries from Ionic App.tsx source. */
 export function parseMobileAppRoutePaths(appSource: string): string[] {
@@ -32,7 +41,11 @@ export function normalizeProviderAppRoutePath(routePath: string): string {
 }
 
 export function isConsumerMobileGuideRelevantRoute(routePath: string): boolean {
-  return routePath === '/' || routePath.startsWith('/s/:slug') || routePath.startsWith('/s/');
+  return (
+    routePath === '/' ||
+    routePath.startsWith('/s/:slug') ||
+    routePath.startsWith('/s/')
+  );
 }
 
 export function isProviderMobileTabsRoute(routePath: string): boolean {
@@ -40,25 +53,37 @@ export function isProviderMobileTabsRoute(routePath: string): boolean {
 }
 
 export function isConsumerMobileAppNoGuideRoute(routePath: string): boolean {
-  return CONSUMER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS.some((pattern) => pattern.test(routePath));
+  return CONSUMER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS.some((pattern) =>
+    pattern.test(routePath),
+  );
 }
 
 export function isProviderMobileAppNoGuideRoute(routePath: string): boolean {
-  return PROVIDER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS.some((pattern) => pattern.test(routePath));
+  return PROVIDER_MOBILE_APP_NO_GUIDE_ROUTE_PATTERNS.some((pattern) =>
+    pattern.test(routePath),
+  );
 }
 
 /** Map normalized consumer App.tsx path to canonical guide-flow route prefix. */
-export function mapConsumerAppRouteToGuideFlowRoute(normalizedPath: string): string {
+export function mapConsumerAppRouteToGuideFlowRoute(
+  normalizedPath: string,
+): string {
   if (normalizedPath === '/') return '/consumer/welcome';
   if (normalizedPath.includes('/login') || normalizedPath.includes('/guide')) {
     return normalizedPath;
   }
-  if (normalizedPath.includes('/manage') || normalizedPath.includes('/profile')) {
+  if (
+    normalizedPath.includes('/manage') ||
+    normalizedPath.includes('/profile')
+  ) {
     return '/s/account';
   }
   if (normalizedPath.includes('/results')) return '/s/results';
   if (normalizedPath.includes('/lab-')) return '/s/lab-requests';
-  if (normalizedPath.includes('/packages') || normalizedPath.includes('/gift-cards')) {
+  if (
+    normalizedPath.includes('/packages') ||
+    normalizedPath.includes('/gift-cards')
+  ) {
     return '/s/packages';
   }
   if (normalizedPath.includes('/account')) return '/s/account';
@@ -74,10 +99,15 @@ export function mapConsumerAppRouteToGuideFlowRoute(normalizedPath: string): str
   return normalizedPath;
 }
 
-function assertRouteHasGuidePlaybook(surface: GuideFlowSurface, route: string): void {
+function assertRouteHasGuidePlaybook(
+  surface: GuideFlowSurface,
+  route: string,
+): void {
   const topicId = resolveGuideFlowRoutePrimaryTopic(route);
   if (!topicId) {
-    throw new Error(`Missing guide primary topic for ${surface} mobile route ${route}`);
+    throw new Error(
+      `Missing guide primary topic for ${surface} mobile route ${route}`,
+    );
   }
 
   const playbooks = mergeGuideFlowPlaybooks({
@@ -115,9 +145,11 @@ export function assertMobileGuideAppRouteCoverage(options?: {
   providerAppSource?: string;
 }): void {
   const consumerSource =
-    options?.consumerAppSource ?? readFileSync(CONSUMER_MOBILE_APP_PATH, 'utf8');
+    options?.consumerAppSource ??
+    readFileSync(CONSUMER_MOBILE_APP_PATH, 'utf8');
   const providerSource =
-    options?.providerAppSource ?? readFileSync(PROVIDER_MOBILE_APP_PATH, 'utf8');
+    options?.providerAppSource ??
+    readFileSync(PROVIDER_MOBILE_APP_PATH, 'utf8');
 
   for (const routePath of listConsumerMobileAppGuideRoutes(consumerSource)) {
     const guideRoute = mapConsumerAppRouteToGuideFlowRoute(

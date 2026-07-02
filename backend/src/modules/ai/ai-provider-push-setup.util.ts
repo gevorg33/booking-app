@@ -1,9 +1,7 @@
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from './ai-provider-push-setup.fixtures.js';
 import { PROVIDER_PUSH_SETUP_MULTILINGUAL_SCENARIOS } from './ai-provider-push-setup-multilingual.fixtures.js';
 import { hasProviderPushTimeContext } from './ai-provider-date-format.util.js';
-import {
-  isExplainLastPushPrompt,
-} from './ai-push-notifications.util.js';
+import { isExplainLastPushPrompt } from './ai-push-notifications.util.js';
 
 export const PROVIDER_PUSH_SETUP_INTENTS = [
   'explain_push_setup',
@@ -112,7 +110,8 @@ export function isEnablePushNotificationsPrompt(prompt: string): boolean {
     /\b(?:enable|turn\s+on|activate|switch\s+on|allow|subscribe)\b/i.test(
       prompt,
     ) ||
-    (containsArmenianScript(prompt) && /(միաց|ակտիվ|թույլ\s+տուր)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(միաց|ակտիվ|թույլ\s+տուր)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(включ|актив|разреши|подключ)/i.test(prompt));
 

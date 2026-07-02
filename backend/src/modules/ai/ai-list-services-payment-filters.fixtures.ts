@@ -88,7 +88,9 @@ export const LIST_SERVICES_PAYMENT_FILTER_RESCUE_SCENARIOS =
   LIST_SERVICES_PAYMENT_FILTER_PROMPTS.filter(
     (scenario) =>
       'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
-  ) as Array<ListServicesPaymentFilterFixture & { misclassifiedAction: string }>;
+  ) as Array<
+    ListServicesPaymentFilterFixture & { misclassifiedAction: string }
+  >;
 
 export const LIST_SERVICES_PAYMENT_FILTER_EN_SCENARIO_IDS =
   LIST_SERVICES_PAYMENT_FILTER_PROMPTS.map((row) => row.id);

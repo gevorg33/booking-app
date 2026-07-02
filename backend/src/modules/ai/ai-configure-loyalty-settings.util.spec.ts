@@ -24,7 +24,9 @@ describe('ai-configure-loyalty-settings.util', () => {
   );
 
   it('disambiguates configure from summarize and customer balance', () => {
-    expect(isConfigureLoyaltySettingsPrompt('How does loyalty work')).toBe(false);
+    expect(isConfigureLoyaltySettingsPrompt('How does loyalty work')).toBe(
+      false,
+    );
     expect(isConfigureLoyaltySettingsPrompt('Summarize loyalty program')).toBe(
       false,
     );
@@ -52,14 +54,18 @@ describe('ai-configure-loyalty-settings.util', () => {
     expect(extractEarnPercentFromPrompt('Set loyalty earn rate to 10%')).toBe(
       10,
     );
-    expect(extractEarnPercentFromPrompt('Configure loyalty — 5% cashback')).toBe(
-      5,
+    expect(
+      extractEarnPercentFromPrompt('Configure loyalty — 5% cashback'),
+    ).toBe(5);
+    expect(extractLoyaltyEnabledFromPrompt('Enable loyalty program')).toBe(
+      true,
     );
-    expect(extractLoyaltyEnabledFromPrompt('Enable loyalty program')).toBe(true);
     expect(extractLoyaltyEnabledFromPrompt('Disable loyalty program')).toBe(
       false,
     );
-    expect(parseConfigureLoyaltySettingsFromPrompt('Book a haircut', {})).toBeNull();
+    expect(
+      parseConfigureLoyaltySettingsFromPrompt('Book a haircut', {}),
+    ).toBeNull();
     expect(
       parseConfigureLoyaltySettingsFromPrompt('', {
         earnPercentCashback: 10,

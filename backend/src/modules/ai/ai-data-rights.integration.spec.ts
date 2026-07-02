@@ -73,6 +73,12 @@ describe('ai data rights integration (ai-cmd-compliance-7)', () => {
       expect(result.success).toBe(true);
       expect(result.action).toBe('explain_data_rights');
       expect(result.summary.length).toBeGreaterThan(20);
+      if (aspect === 'export' || aspect === 'delete' || aspect === 'all') {
+        expect(result.details?.navigate).toMatchObject({
+          path: 'account',
+          query: expect.objectContaining({ section: 'privacy' }),
+        });
+      }
     },
   );
 });

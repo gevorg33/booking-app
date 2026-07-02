@@ -1,5 +1,5 @@
 import { IonButton, IonInput, IonSpinner } from '@ionic/react';
-import { useState } from 'react';
+import { useEffect, useState, type Ref } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { resolveGiftCardClaimSuccessCopyKey } from '../lib/gift-card-purchase.util.js';
 import { claimPublicGiftCard } from '../services/public-api.js';
@@ -7,16 +7,26 @@ import { claimPublicGiftCard } from '../services/public-api.js';
 export function ConsumerGiftCardClaimSection({
   slug,
   copy,
+  initialCode,
+  sectionRef,
   onClaimed,
 }: {
   slug: string;
   copy: ConsumerCopy;
+  initialCode?: string;
+  sectionRef?: Ref<HTMLElement>;
   onClaimed?: () => void;
 }) {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(initialCode ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialCode?.trim()) {
+      setCode(initialCode.trim());
+    }
+  }, [initialCode]);
 
   const handleClaim = async () => {
     const trimmed = code.trim();
@@ -38,7 +48,7 @@ export function ConsumerGiftCardClaimSection({
   };
 
   return (
-    <section className="salon-card" style={{ marginTop: 16 }}>
+    <section ref={sectionRef} className="salon-card" style={{ marginTop: 16 }}>
       <h2 style={{ fontSize: 16, fontWeight: 600 }}>{copy.giftCardRedeemSectionTitle}</h2>
       <p style={{ fontSize: 14, fontWeight: 500, marginTop: 8 }}>{copy.giftCardClaimTitle}</p>
       <p style={{ fontSize: 12, color: '#6b7280' }}>{copy.giftCardClaimHint}</p>

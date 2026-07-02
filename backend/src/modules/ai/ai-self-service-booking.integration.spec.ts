@@ -9,6 +9,9 @@ import { Service } from '../service/entities/service.entity.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import { PublicConsumerSupportService } from '../public-booking/public-consumer-support.service.js';
+import { PublicCustomerWaitlistService } from '../public-booking/public-customer-waitlist.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
@@ -78,12 +81,14 @@ describe('Sprint 36 customer booking AI scenarios', () => {
       bookings: [
         {
           id: 'book-1',
-          startTime: '2026-06-10T10:00:00Z',
+          startTime: futureBookingStart().toISOString(),
           status: BookingStatus.CONFIRMED,
           serviceName: 'Massage',
           employeeName: 'Maria',
           canCancel: true,
           canReschedule: true,
+          packagePurchaseId: 'pkg-purchase-1',
+          packageName: 'Spa Day',
         },
       ],
     })),
@@ -190,6 +195,22 @@ describe('Sprint 36 customer booking AI scenarios', () => {
         {
           provide: PublicCustomerAuthService,
           useValue: publicCustomerAuthService,
+        },
+        {
+          provide: PublicConsumerSupportService,
+          useValue: {
+            createPostBookingSupportTicket: jest.fn(async () => ({
+              ticketId: 'ticket-1',
+            })),
+          },
+        },
+        {
+          provide: PublicCustomerWaitlistService,
+          useValue: {},
+        },
+        {
+          provide: NotificationsService,
+          useValue: { sendCustomerRunningLate: jest.fn() },
         },
         { provide: ServicePackagesService, useValue: packagesService },
         {

@@ -80,9 +80,13 @@ export interface ProductGuideLogicDeps {
   semantic?: GuideCorpusSemanticDeps;
 }
 
-function readTopicIdParam(params?: Record<string, unknown>): string | undefined {
+function readTopicIdParam(
+  params?: Record<string, unknown>,
+): string | undefined {
   const topicId = params?.topicId;
-  return typeof topicId === 'string' && topicId.trim() ? topicId.trim() : undefined;
+  return typeof topicId === 'string' && topicId.trim()
+    ? topicId.trim()
+    : undefined;
 }
 
 function resolveGuideLocale(locale?: string): AppLocale {
@@ -141,7 +145,9 @@ function finalizeGuideResponse(
 function buildDeterministicFlowGuideResult(
   intent: AppGuideIntent,
   input: ProductGuideLogicInput,
-  best: NonNullable<Awaited<ReturnType<typeof resolveGuideKeywordMatch>>['flowBest']>,
+  best: NonNullable<
+    Awaited<ReturnType<typeof resolveGuideKeywordMatch>>['flowBest']
+  >,
   locale: AppLocale,
   messages: ReturnType<typeof getFrontendGuideCorpusMessages>,
 ): CommandResult {
@@ -209,10 +215,10 @@ function buildDeterministicGuideResult(
   locale: AppLocale,
   retrievalPath: string,
 ): CommandResult {
-  const topic = getGuideCorpusTopic(best.topicId as GuideCorpusTopicId);
+  const topic = getGuideCorpusTopic(best.topicId);
   const messages = getFrontendGuideCorpusMessages(locale);
   const resolved = topic
-    ? resolveGuideCorpusTopic(best.topicId as GuideCorpusTopicId, messages)
+    ? resolveGuideCorpusTopic(best.topicId, messages)
     : null;
 
   if (!topic || !resolved) {
@@ -280,7 +286,11 @@ export function handleProductGuideIntentLogic(
   input: ProductGuideLogicInput,
 ): CommandResult {
   const locale = resolveGuideLocale(input.locale);
-  const navigationResult = tryHandleGuideMultiTurnNavigation(intent, input, locale);
+  const navigationResult = tryHandleGuideMultiTurnNavigation(
+    intent,
+    input,
+    locale,
+  );
   if (navigationResult) return navigationResult;
 
   const planGateResult = tryResolvePlanGatedGuideResult(intent, input, locale);
@@ -291,7 +301,13 @@ export function handleProductGuideIntentLogic(
   const match = resolveGuideMatch(query, messages);
 
   if (match.kind === 'flow' && match.flowBest) {
-    return buildDeterministicFlowGuideResult(intent, input, match.flowBest, locale, messages);
+    return buildDeterministicFlowGuideResult(
+      intent,
+      input,
+      match.flowBest,
+      locale,
+      messages,
+    );
   }
 
   if (match.kind === 'corpus') {
@@ -317,7 +333,11 @@ export async function handleProductGuideIntentLogicAsync(
   deps?: ProductGuideLogicDeps,
 ): Promise<CommandResult> {
   const locale = resolveGuideLocale(input.locale);
-  const navigationResult = tryHandleGuideMultiTurnNavigation(intent, input, locale);
+  const navigationResult = tryHandleGuideMultiTurnNavigation(
+    intent,
+    input,
+    locale,
+  );
   if (navigationResult) return navigationResult;
 
   const planGateResult = tryResolvePlanGatedGuideResult(intent, input, locale);
@@ -325,7 +345,11 @@ export async function handleProductGuideIntentLogicAsync(
 
   const messages = getFrontendGuideCorpusMessages(locale);
   const query = buildProductGuideQuery(intent, input, locale);
-  const resolution = await resolveGuideFullMatch(query, messages, deps?.semantic);
+  const resolution = await resolveGuideFullMatch(
+    query,
+    messages,
+    deps?.semantic,
+  );
 
   if (resolution.kind === 'flow' && resolution.flowBest) {
     const flowResult = buildDeterministicFlowGuideResult(
@@ -338,7 +362,10 @@ export async function handleProductGuideIntentLogicAsync(
     if (!flowResult.success || !flowResult.guide || !deps?.llm) {
       return flowResult;
     }
-    const resolved = resolveGuideFlowPlaybook(resolution.flowBest.playbook, messages);
+    const resolved = resolveGuideFlowPlaybook(
+      resolution.flowBest.playbook,
+      messages,
+    );
     const polished = await polishGuideResponseWithLlm(
       {
         businessId: input.businessId,
@@ -381,9 +408,9 @@ export async function handleProductGuideIntentLogicAsync(
     return deterministic;
   }
 
-  const topic = getGuideCorpusTopic(resolution.corpusBest.topicId as GuideCorpusTopicId);
+  const topic = getGuideCorpusTopic(resolution.corpusBest.topicId);
   const resolved = topic
-    ? resolveGuideCorpusTopic(resolution.corpusBest.topicId as GuideCorpusTopicId, messages)
+    ? resolveGuideCorpusTopic(resolution.corpusBest.topicId, messages)
     : null;
   if (!resolved) return deterministic;
 
@@ -453,7 +480,11 @@ export async function handleExplainCurrentScreenLogicAsync(
   input: ProductGuideLogicInput,
   deps?: ProductGuideLogicDeps,
 ): Promise<CommandResult> {
-  return handleProductGuideIntentLogicAsync('explain_current_screen', input, deps);
+  return handleProductGuideIntentLogicAsync(
+    'explain_current_screen',
+    input,
+    deps,
+  );
 }
 
 export function handleExplainAppFeatureLogic(

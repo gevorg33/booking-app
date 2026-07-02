@@ -12,15 +12,15 @@ import type { GuideResponse } from '../command-completion.types.js';
 
 describe('guide-topic-help-articles.util (ai-guide-1.7.1)', () => {
   it('builds Zendesk Help Center URLs with locale fallbacks', () => {
-    expect(
-      buildZendeskHelpCenterArticleUrl('acme', '360010001', 'en'),
-    ).toBe('https://acme.zendesk.com/hc/en-us/articles/360010001');
+    expect(buildZendeskHelpCenterArticleUrl('acme', '360010001', 'en')).toBe(
+      'https://acme.zendesk.com/hc/en-us/articles/360010001',
+    );
     expect(
       buildZendeskHelpCenterArticleUrl('https://acme.zendesk.com/', '42', 'ru'),
     ).toBe('https://acme.zendesk.com/hc/ru/articles/42');
-    expect(
-      buildZendeskHelpCenterArticleUrl('acme', '42', 'hy'),
-    ).toBe('https://acme.zendesk.com/hc/en-us/articles/42');
+    expect(buildZendeskHelpCenterArticleUrl('acme', '42', 'hy')).toBe(
+      'https://acme.zendesk.com/hc/en-us/articles/42',
+    );
   });
 
   it('derives helpCenterTopicId from dashboard corpus topics', () => {
@@ -70,6 +70,8 @@ describe('guide-topic-help-articles.util (ai-guide-1.7.1)', () => {
   });
 
   it('returns undefined when topic has no article mapping', () => {
-    expect(resolveGuideTopicHelpArticle('dashboard.operations.tips')).toBeUndefined();
+    expect(
+      resolveGuideTopicHelpArticle('dashboard.operations.tips'),
+    ).toBeUndefined();
   });
 });

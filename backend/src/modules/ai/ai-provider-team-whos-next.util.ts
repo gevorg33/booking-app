@@ -15,7 +15,9 @@ export type ProviderTeamWhosNextIntent =
 export function isProviderTeamWhosNextIntent(
   action: string,
 ): action is ProviderTeamWhosNextIntent {
-  return (PROVIDER_TEAM_WHOS_NEXT_INTENTS as readonly string[]).includes(action);
+  return (PROVIDER_TEAM_WHOS_NEXT_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 export function matchProviderTeamWhosNextScenario(

@@ -174,7 +174,11 @@ describe('Provider guide screen context (ai-guide-1.4.2)', () => {
     {
       id: 'calendar-view',
       context: {
-        screenContext: { route: '/tabs/calendar', tab: 'calendar', mobileRoute: 'schedule' },
+        screenContext: {
+          route: '/tabs/calendar',
+          tab: 'calendar',
+          mobileRoute: 'schedule',
+        },
         assistantMode: 'guide' as const,
       },
       prompt: 'What am I looking at here on this screen?',

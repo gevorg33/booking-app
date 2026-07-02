@@ -19,7 +19,9 @@ export function pipelineResultToClassifiedIntent(
 export function findClassifierCandidate(
   result: PipelineUnderstandResult,
 ): IntentCandidate | undefined {
-  return result.candidates.find((candidate) => candidate.source === 'classifier');
+  return result.candidates.find(
+    (candidate) => candidate.source === 'classifier',
+  );
 }
 
 export function findRescueCandidate(

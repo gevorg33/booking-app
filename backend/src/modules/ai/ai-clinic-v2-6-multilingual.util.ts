@@ -18,7 +18,8 @@ export type ClinicV2RescuableAction =
   | 'list_my_collection_queue'
   | 'mark_specimen_collected'
   | 'list_my_test_results'
-  | 'explain_result_status';
+  | 'explain_result_status'
+  | 'compound_intent';
 
 export function rescueClinicV2SurfaceIntent(
   prompt: string,

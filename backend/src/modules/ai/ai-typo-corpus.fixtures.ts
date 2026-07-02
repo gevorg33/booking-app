@@ -99,6 +99,7 @@ export const TYPO_CORPUS_SEEDS: TypoCorpusSeed[] = [
     expect: {
       rescuedAction: 'rebook_last_appointment',
       rescueReason: 'rebook_last_appointment',
+      useSurfaceRebookLastAppointmentRescue: true,
     },
   },
   {

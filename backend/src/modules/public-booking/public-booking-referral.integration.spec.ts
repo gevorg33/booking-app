@@ -40,9 +40,9 @@ describe('PublicBookingService referral program (adopt-6.1)', () => {
   };
 
   const service = createPublicBookingServiceHarness({
-    businessService: businessService as never,
+    businessService: businessService,
     configService: { get: jest.fn() } as never,
-    referralProgramService: referralProgramService as never,
+    referralProgramService: referralProgramService,
   });
 
   beforeEach(() => {

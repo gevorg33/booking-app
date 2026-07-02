@@ -1,6 +1,9 @@
 import type { Repository } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BookingStatus, type Booking } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  type Booking,
+} from '../booking/entities/booking.entity.js';
 import {
   buildClinicLabResultUploadHandoff,
   buildClinicLabResultUploadNavigate,
@@ -81,9 +84,7 @@ async function resolveClinicTestOrderForUpload(
     order: { createdAt: 'DESC' },
     take: 100,
   });
-  return (
-    recent.find((row) => orderIdMatches(row.id, trimmed)) ?? null
-  );
+  return recent.find((row) => orderIdMatches(row.id, trimmed)) ?? null;
 }
 
 export async function handleUploadPatientResultLogic(
@@ -156,11 +157,7 @@ export async function handleExplainPatientResultsLogic(
 
   let customerId: string | undefined;
   if (customerName) {
-    customerId = await resolveCustomerIdByName(
-      deps,
-      businessId,
-      customerName,
-    );
+    customerId = await resolveCustomerIdByName(deps, businessId, customerName);
   }
 
   const results = await deps.resultRepo.find({
@@ -334,6 +331,10 @@ export async function handleListAbnormalResultsLogic(
   return success(
     'list_abnormal_results',
     `Abnormal results (${abnormal.length}):\n${lines.join('\n')}`,
-    { count: abnormal.length, entries: shown, customerName: customerName || undefined },
+    {
+      count: abnormal.length,
+      entries: shown,
+      customerName: customerName || undefined,
+    },
   );
 }

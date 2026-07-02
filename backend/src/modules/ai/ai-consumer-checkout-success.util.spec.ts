@@ -69,6 +69,23 @@ describe('ai-consumer-checkout-success.util (ai-cmd-rec-6)', () => {
     ).toBe(false);
   });
 
+  it('blocks tax-focused consumer checkout prompts', () => {
+    expect(
+      isExplainConsumerCheckoutSuccessPrompt(
+        'Why is there a tax line on checkout in the consumer app service list?',
+      ),
+    ).toBe(false);
+  });
+
+  it('blocks navigate-to-appointments imperatives', () => {
+    expect(
+      isExplainConsumerCheckoutSuccessPrompt('Take me to my appointments'),
+    ).toBe(false);
+    expect(
+      isExplainConsumerCheckoutSuccessPrompt('Navigate to my appointments'),
+    ).toBe(false);
+  });
+
   it('recognizes intent id', () => {
     expect(
       isConsumerCheckoutSuccessIntent('explain_consumer_checkout_success'),

@@ -34,7 +34,10 @@ describe('ai-intent-structural-enrich-work-time.util (pipe-1.7.2)', () => {
     'applyDefaultWorkTimeSchedulePeriods $id',
     (scenario) => {
       const params = { ...(scenario.params ?? {}) };
-      const result = applyDefaultWorkTimeSchedulePeriods(params, scenario.prompt);
+      const result = applyDefaultWorkTimeSchedulePeriods(
+        params,
+        scenario.prompt,
+      );
 
       expect(result.appliedDefault).toBe(scenario.expectAppliedDefault);
       expect(params.timeFrom).toBe(scenario.expectTimeFrom);

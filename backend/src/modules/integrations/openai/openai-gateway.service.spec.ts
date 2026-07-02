@@ -3,10 +3,7 @@ import { OPENAI_EMBED_SCENARIOS } from './openai-embed.fixtures.js';
 import { OpenAiGatewayService } from './openai-gateway.service.js';
 import { AiUsageService } from './ai-usage.service.js';
 import { OpenAiIntegrationService } from './openai-integration.service.js';
-import {
-  DEFAULT_EMBEDDING_MODEL,
-  type AiCallContext,
-} from './openai.types.js';
+import { DEFAULT_EMBEDDING_MODEL, type AiCallContext } from './openai.types.js';
 
 const embeddingsCreate = jest.fn();
 

@@ -102,7 +102,9 @@ export function buildProviderPushNotificationCenterView(
   days: number = PROVIDER_PUSH_HISTORY_DAYS,
 ): ProviderPushNotificationCenterView {
   const items = rows
-    .filter((row) => isProviderPushWithinHistoryWindow(row.sentAt, referenceDate, days))
+    .filter((row) =>
+      isProviderPushWithinHistoryWindow(row.sentAt, referenceDate, days),
+    )
     .slice(0, PROVIDER_PUSH_HISTORY_LIMIT)
     .map(mapProviderPushNotificationItem);
 

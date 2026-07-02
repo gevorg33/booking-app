@@ -22,7 +22,9 @@ export function consumerClinicTestResultsDeferredMultilingualScenarioToEvalCase(
       rescuedAction: scenario.expectedAction,
       rescueReason: scenario.rescueReason,
       useSurfaceConsumerClinicTestResultsRescue: true,
-      ...(scenario.paramsPartial ? { paramsPartial: scenario.paramsPartial } : {}),
+      ...(scenario.paramsPartial
+        ? { paramsPartial: scenario.paramsPartial }
+        : {}),
       needsMultilingual: true,
     },
   };

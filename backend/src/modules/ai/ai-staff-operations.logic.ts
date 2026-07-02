@@ -74,11 +74,7 @@ export async function handleCreateEmployeeLogic(
     typeof params.phone === 'string' ? params.phone.trim() : undefined;
   const serviceNames =
     params.serviceNames ?? extractServiceNamesFromPrompt(prompt ?? '');
-  const serviceIds = await resolveServiceIds(
-    deps,
-    businessId,
-    serviceNames,
-  );
+  const serviceIds = await resolveServiceIds(deps, businessId, serviceNames);
 
   try {
     const employee = await deps.employeeService.create(
@@ -92,9 +88,7 @@ export async function handleCreateEmployeeLogic(
       userId,
     );
     const serviceNote =
-      serviceIds.length > 0
-        ? ` Assigned ${serviceIds.length} service(s).`
-        : '';
+      serviceIds.length > 0 ? ` Assigned ${serviceIds.length} service(s).` : '';
     return success(
       'create_employee',
       `Created team member ${employee.name}.${serviceNote}`,
@@ -181,11 +175,10 @@ export async function handleUpdateEmployeeLogic(
     ]
       .filter(Boolean)
       .join(', ');
-    return success(
-      'update_employee',
-      `Updated ${match.name}: ${changes}.`,
-      { employeeId: updated.id, employeeName: updated.name },
-    );
+    return success('update_employee', `Updated ${match.name}: ${changes}.`, {
+      employeeId: updated.id,
+      employeeName: updated.name,
+    });
   } catch (err: any) {
     return failure(
       'update_employee',
@@ -257,11 +250,10 @@ export async function handleInviteStaffMemberLogic(
       email,
       employeeName,
     });
-    return success(
-      'invite_staff_member',
-      `Invitation sent to ${email}.`,
-      { invitationId: invite.id, email },
-    );
+    return success('invite_staff_member', `Invitation sent to ${email}.`, {
+      invitationId: invite.id,
+      email,
+    });
   } catch (err: any) {
     return failure(
       'invite_staff_member',
@@ -320,7 +312,9 @@ export async function handleConfigureOnlineBookingLogic(
   params: Record<string, unknown>,
   prompt: string | undefined,
 ): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({ where: { id: businessId } });
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
   if (!business) {
     return failure('configure_online_booking', 'Business not found.');
   }

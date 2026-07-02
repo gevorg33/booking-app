@@ -4,6 +4,7 @@ import { PublicBookingService } from '../public-booking/public-booking.service.j
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { ConsumerPushTokenService } from '../notifications/consumer-push-token.service.js';
 import { GROWTH_LOOPS_CUSTOMER_PROMPTS } from './ai-growth-loops-customer.fixtures.js';
 import { rescueGrowthLoopsCustomerIntent } from './ai-growth-loops-customer.util.js';
 
@@ -47,6 +48,15 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
           provide: NotificationsService,
           useValue: {},
         },
+        {
+          provide: ConsumerPushTokenService,
+          useValue: {
+            getNativePushStatus: jest.fn(async () => ({
+              registered: false,
+              platform: null,
+            })),
+          },
+        },
       ],
     }).compile();
 
@@ -56,29 +66,27 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
   it.each(GROWTH_LOOPS_CUSTOMER_PROMPTS.map((row) => [row.id, row]))(
     'rescues growth loops action for $0',
     (_id, row) => {
-      expect(rescueGrowthLoopsCustomerIntent(row.prompt, 'unknown')?.action).toBe(
-        row.expectedAction,
-      );
+      expect(
+        rescueGrowthLoopsCustomerIntent(row.prompt, 'unknown')?.action,
+      ).toBe(row.expectedAction);
     },
   );
 
   it('returns referral code for refer_a_friend', async () => {
-    const result = await service.handleIntent(
-      'biz-1',
-      'refer_a_friend',
-      { sessionCustomerId: 'cust-1', slug: 'demo-salon' },
-    );
+    const result = await service.handleIntent('biz-1', 'refer_a_friend', {
+      sessionCustomerId: 'cust-1',
+      slug: 'demo-salon',
+    });
     expect(result?.success).toBe(true);
     expect(result?.details?.referralCode).toBe('ABC12345');
     expect(result?.details?.shareUrl).toContain('ref=ABC12345');
   });
 
   it('returns growth navigation for share_salon_link', async () => {
-    const result = await service.handleIntent(
-      'biz-1',
-      'share_salon_link',
-      { sessionCustomerId: 'cust-1', slug: 'demo-salon' },
-    );
+    const result = await service.handleIntent('biz-1', 'share_salon_link', {
+      sessionCustomerId: 'cust-1',
+      slug: 'demo-salon',
+    });
     expect(result?.success).toBe(true);
     expect(result?.details?.navigate).toMatchObject({
       path: 'account',

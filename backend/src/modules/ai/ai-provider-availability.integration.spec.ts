@@ -6,9 +6,7 @@ import {
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
 import { findNearestBookableSlotAcrossWindowsWithFinder } from './ai-nearest-slot-resolver.util.js';
-import {
-  addDaysToDateKey,
-} from '../../common/utils/timezone.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -65,32 +63,32 @@ function buildDeps(
   overrides: Partial<PaymentsLogicDeps> = {},
 ): PaymentsLogicDeps {
   const publicBookingService = {
-      recommendProviders: jest.fn(async () => ({
-        providers: [
-          {
-            id: 'e1',
-            name: 'Karo Mazmanyan',
-            role: 'Cosmetologist',
-            averageRating: null,
-            reviewCount: 0,
-            earliestDateKey: '2026-06-06',
-            earliestStartTime: '14:00',
-            previewTimes: ['14:00', '14:30'],
-            matchedServiceId: 's2',
-            matchedServiceName: 'Permanent lips',
-          },
-        ],
-      })),
-      findNearestBookableSlot: jest.fn(async () => ({
-        startTime: '2026-06-06T14:00:00Z',
-        employeeId: 'e1',
-        employeeName: 'Karo Mazmanyan',
-      })),
-    } as {
-      recommendProviders: jest.Mock;
-      findNearestBookableSlot: jest.Mock;
-      findNearestBookableSlotAcrossWindows?: jest.Mock;
-    };
+    recommendProviders: jest.fn(async () => ({
+      providers: [
+        {
+          id: 'e1',
+          name: 'Karo Mazmanyan',
+          role: 'Cosmetologist',
+          averageRating: null,
+          reviewCount: 0,
+          earliestDateKey: '2026-06-06',
+          earliestStartTime: '14:00',
+          previewTimes: ['14:00', '14:30'],
+          matchedServiceId: 's2',
+          matchedServiceName: 'Permanent lips',
+        },
+      ],
+    })),
+    findNearestBookableSlot: jest.fn(async () => ({
+      startTime: '2026-06-06T14:00:00Z',
+      employeeId: 'e1',
+      employeeName: 'Karo Mazmanyan',
+    })),
+  } as {
+    recommendProviders: jest.Mock;
+    findNearestBookableSlot: jest.Mock;
+    findNearestBookableSlotAcrossWindows?: jest.Mock;
+  };
   attachNearestAcrossWindowsMock(publicBookingService);
 
   return {
@@ -242,7 +240,7 @@ describe('ai provider availability integration', () => {
 
     it('uses monday evening windows instead of a stale session date', async () => {
       const mondayKeys = nextMondayDateKeys('UTC');
-      const mondayKey = mondayKeys[0]!;
+      const mondayKey = mondayKeys[0];
       const recommendProviders = jest.fn(async () => ({
         providers: [
           {

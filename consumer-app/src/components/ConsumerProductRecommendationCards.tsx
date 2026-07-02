@@ -4,6 +4,12 @@ import { IonButton, IonIcon } from '@ionic/react';
 import { closeOutline, openOutline } from 'ionicons/icons';
 import { fetchCheckoutRecommendations } from '../services/public-api.js';
 import {
+  buildCheckoutRecommendationsDismissKey,
+  CONSUMER_DISMISS_CHECKOUT_RECOMMENDATIONS_EVENT,
+  dismissCheckoutRecommendations,
+  isCheckoutRecommendationsDismissed,
+} from '../lib/consumer-checkout-recommendations-dismiss.util.js';
+import {
   buildCheckoutRecommendationParams,
   resolveRecommendationProductsFromQuery,
 } from '../lib/checkout-recommendations.js';
@@ -33,7 +39,14 @@ export function ConsumerProductRecommendationCards({
   bookingId?: string;
   copy: ConsumerCopy;
 }) {
-  const [dismissed, setDismissed] = useState(false);
+  const dismissKey = buildCheckoutRecommendationsDismissKey(
+    slug,
+    bookingId,
+    service.id,
+  );
+  const [dismissed, setDismissed] = useState(() =>
+    isCheckoutRecommendationsDismissed(dismissKey),
+  );
   const impressionSeen = useRef(new Set<string>());
   const analyticsContext = {
     slug,
@@ -52,6 +65,27 @@ export function ConsumerProductRecommendationCards({
   });
 
   const products = resolveRecommendationProductsFromQuery(data, isError);
+
+  useEffect(() => {
+    setDismissed(isCheckoutRecommendationsDismissed(dismissKey));
+  }, [dismissKey]);
+
+  useEffect(() => {
+    const onDismiss = (event: Event) => {
+      const detail = (event as CustomEvent<{ slug?: string; bookingId?: string; serviceId?: string }>)
+        .detail;
+      if (detail?.slug && detail.slug !== slug) return;
+      if (detail?.bookingId && bookingId && detail.bookingId !== bookingId) return;
+      if (detail?.serviceId && detail.serviceId !== service.id) return;
+      setDismissed(true);
+    };
+    window.addEventListener(CONSUMER_DISMISS_CHECKOUT_RECOMMENDATIONS_EVENT, onDismiss);
+    return () =>
+      window.removeEventListener(
+        CONSUMER_DISMISS_CHECKOUT_RECOMMENDATIONS_EVENT,
+        onDismiss,
+      );
+  }, [slug, bookingId, service.id]);
 
   useEffect(() => {
     if (dismissed || isLoading || isError || products.length === 0) return;
@@ -95,7 +129,10 @@ export function ConsumerProductRecommendationCards({
           fill="clear"
           size="small"
           aria-label={copy.dismissRecommendations}
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            dismissCheckoutRecommendations(dismissKey);
+            setDismissed(true);
+          }}
         >
           <IonIcon slot="icon-only" icon={closeOutline} />
         </IonButton>

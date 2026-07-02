@@ -36,7 +36,8 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
         {
           provide: IntentDecompositionService,
           useValue: {
-            isCompoundPrompt: (prompt: string) => /\band then\b|;\s*/i.test(prompt),
+            isCompoundPrompt: (prompt: string) =>
+              /\band then\b|;\s*/i.test(prompt),
           },
         },
         {
@@ -69,7 +70,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     );
   });
 
-  function traceStages(result: Awaited<ReturnType<typeof pipeline.understand>>) {
+  function traceStages(
+    result: Awaited<ReturnType<typeof pipeline.understand>>,
+  ) {
     return result.trace.map((entry) => entry.stage);
   }
 
@@ -93,15 +96,19 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(isUnderstandTraceOrdered(result.trace)).toBe(true);
     expect(result.status).toBe('resolved');
     expect(result.action).toBe('create_booking');
-    expect(result.context.normalizedPrompt).toBe('book first available tomorrow');
+    expect(result.context.normalizedPrompt).toBe(
+      'book first available tomorrow',
+    );
     expect(semanticMatch).not.toHaveBeenCalled();
   });
 
   it('normalize runs first and passes classifierContext to classify for HY prompts', async () => {
     const hyPrompt = 'Ցույց տուր ամրագրումները վաղը';
-    let receivedContext: Awaited<
-      ReturnType<CommandUnderstandingPipelineService['understand']>
-    >['context'] | null = null;
+    let receivedContext:
+      | Awaited<
+          ReturnType<CommandUnderstandingPipelineService['understand']>
+        >['context']
+      | null = null;
 
     const result = await pipeline.understand({
       ...baseInput,
@@ -121,7 +128,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(result.context.method).toBe('multilingual');
     expect(result.context.classifierContext).toBeTruthy();
     expect(receivedContext?.normalizedPrompt).toBe(hyPrompt);
-    expect(receivedContext?.classifierContext).toBe(result.context.classifierContext);
+    expect(receivedContext?.classifierContext).toBe(
+      result.context.classifierContext,
+    );
   });
 
   it('skips semantic_match when confidence gate passes', async () => {
@@ -135,7 +144,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
       }),
     });
 
-    const semanticTrace = result.trace.find((t) => t.stage === 'semantic_match');
+    const semanticTrace = result.trace.find(
+      (t) => t.stage === 'semantic_match',
+    );
     expect(semanticTrace?.action).toBe('skipped');
     expect(semanticMatch).not.toHaveBeenCalled();
     expect(result.gate.decision).toBe('skip_semantic');
@@ -351,10 +362,7 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     });
 
     expect(narrowReclassify).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        'create_booking',
-        'check_providers_for_service',
-      ]),
+      expect.arrayContaining(['create_booking', 'check_providers_for_service']),
       expect.objectContaining({
         normalizedPrompt: 'book first available tomorrow',
       }),
@@ -362,9 +370,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     const shortlist = narrowReclassify.mock.calls[0]?.[0] as string[];
     expect(shortlist.length).toBeLessThanOrEqual(10);
     expect(shortlist.length).toBeGreaterThan(2);
-    expect(result.trace.find((t) => t.stage === 'narrow_reclassify')?.action).toBe(
-      'create_booking',
-    );
+    expect(
+      result.trace.find((t) => t.stage === 'narrow_reclassify')?.action,
+    ).toBe('create_booking');
   });
 
   it('fast_heuristics stage emits read-only IntentCandidate before classify (pipe-1.2.1)', async () => {
@@ -470,7 +478,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     });
 
     expect(semanticMatch).not.toHaveBeenCalled();
-    const semanticTrace = result.trace.find((t) => t.stage === 'semantic_match');
+    const semanticTrace = result.trace.find(
+      (t) => t.stage === 'semantic_match',
+    );
     expect(semanticTrace?.action).toBe('skipped');
     expect(semanticTrace?.detail).toContain('no semantic anchors');
   });
@@ -496,7 +506,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
       }),
     });
 
-    const sources = new Set(result.candidates.map((candidate) => candidate.source));
+    const sources = new Set(
+      result.candidates.map((candidate) => candidate.source),
+    );
     expect(sources.has('fast_heuristic')).toBe(true);
     expect(sources.has('classifier')).toBe(true);
     expect(sources.has('semantic_match')).toBe(true);
@@ -505,7 +517,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(rerankTrace?.detail).toContain('merged=3');
     expect(result.action).toBe('create_booking');
     expect(
-      result.candidates.some((candidate) => candidate.source === 'semantic_match'),
+      result.candidates.some(
+        (candidate) => candidate.source === 'semantic_match',
+      ),
     ).toBe(true);
   });
 
@@ -530,7 +544,8 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     );
     expect(
       result.candidates.some(
-        (c) => c.source === 'fast_heuristic' && c.action === 'show_appointments',
+        (c) =>
+          c.source === 'fast_heuristic' && c.action === 'show_appointments',
       ),
     ).toBe(true);
   });
@@ -669,9 +684,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(result.params.periods).toEqual([
       { startTime: '09:00', endTime: '19:00', type: 'service_block' },
     ]);
-    expect(result.trace.find((t) => t.stage === 'structural_enrich')?.detail).toContain(
-      'workTimeDefault',
-    );
+    expect(
+      result.trace.find((t) => t.stage === 'structural_enrich')?.detail,
+    ).toContain('workTimeDefault');
   });
 
   it('pipe-1.7.1 structural_enrich applies date range and employee matching', async () => {
@@ -691,9 +706,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(result.params.dateFrom).toBeTruthy();
     expect(result.params.dateTo).toBeTruthy();
     expect(result.params.employeeName).toBe('Gevorg Gasparyan');
-    expect(result.trace.find((t) => t.stage === 'structural_enrich')?.detail).toContain(
-      'dateRange',
-    );
+    expect(
+      result.trace.find((t) => t.stage === 'structural_enrich')?.detail,
+    ).toContain('dateRange');
   });
 
   it('pipe-1.6.2 self_verify clarify on uncorrectable fail + low confidence', async () => {
@@ -716,12 +731,12 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     expect(result.clarifyFields).toEqual(['intentChoice']);
     expect(result.clarifySummary).toContain('schedule');
     expect(result.clarifySuggestions?.length).toBeGreaterThanOrEqual(2);
-    expect(result.trace.find((t) => t.stage === 'self_verify')?.detail).toContain(
-      'clarify:schedule_vocab_mismatch',
-    );
-    expect(result.trace.find((t) => t.stage === 'structural_enrich')?.detail).toContain(
-      'skipped; self_verify clarify',
-    );
+    expect(
+      result.trace.find((t) => t.stage === 'self_verify')?.detail,
+    ).toContain('clarify:schedule_vocab_mismatch');
+    expect(
+      result.trace.find((t) => t.stage === 'structural_enrich')?.detail,
+    ).toContain('skipped; self_verify clarify');
   });
 
   it('pipe-1.6.1 self_verify corrects booking vs clear mismatch', async () => {
@@ -745,9 +760,9 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
     });
 
     expect(result.action).toBe('clear_schedule');
-    expect(result.trace.find((t) => t.stage === 'self_verify')?.detail).toContain(
-      'booking_vs_clear_mismatch',
-    );
+    expect(
+      result.trace.find((t) => t.stage === 'self_verify')?.detail,
+    ).toContain('booking_vs_clear_mismatch');
   });
 
   it('returns blocked status for empty prompt', async () => {

@@ -68,7 +68,9 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
   });
 
   it('ships section G disambiguation scenarios', () => {
-    expect(RANK_DISAMBIGUATION_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      RANK_DISAMBIGUATION_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'rank-specialist-stays-en',
       'rank-best-for-me-en',
       'rank-not-analyze-appt-en',
@@ -79,7 +81,9 @@ describe('ai-service-rank-discovery.fixtures (rank-1.2 / rank-1.10)', () => {
   });
 
   it('covers compound and handler outcome ids from the rank matrix', () => {
-    expect(SERVICE_RANK_COMPOUND_SCENARIOS.map((scenario) => scenario.id)).toEqual([
+    expect(
+      SERVICE_RANK_COMPOUND_SCENARIOS.map((scenario) => scenario.id),
+    ).toEqual([
       'rank-book-premium-en',
       'rank-premium-under-budget-en',
       'rank-cheapest-book-en',
@@ -172,11 +176,14 @@ describe('ai-service-rank-discovery.fixtures sections I–L (rank-1.12)', () => 
     RANK_SYNONYM_SCENARIOS.filter(
       (scenario) => !scenario.phase2 && scenario.expectedParams?.serviceRank,
     ),
-  )('synonym scenario $id extracts serviceRank', ({ prompt, expectedParams }) => {
-    expect(extractServiceRankFromPrompt(prompt)).toBe(
-      expectedParams!.serviceRank,
-    );
-  });
+  )(
+    'synonym scenario $id extracts serviceRank',
+    ({ prompt, expectedParams }) => {
+      expect(extractServiceRankFromPrompt(prompt)).toBe(
+        expectedParams!.serviceRank,
+      );
+    },
+  );
 
   it('rank-mid-range-en synonym lists by category without serviceRank', () => {
     const scenario = RANK_SYNONYM_SCENARIOS.find(
@@ -193,9 +200,12 @@ describe('ai-service-rank-discovery.fixtures sections I–L (rank-1.12)', () => 
     RANK_MOBILE_SCENARIOS.filter(
       (scenario) => !scenario.phase2 && scenario.expectedParams?.serviceRank,
     ),
-  )('mobile scenario $id extracts serviceRank', ({ prompt, expectedParams }) => {
-    expect(extractServiceRankFromPrompt(prompt)).toBe(
-      expectedParams!.serviceRank,
-    );
-  });
+  )(
+    'mobile scenario $id extracts serviceRank',
+    ({ prompt, expectedParams }) => {
+      expect(extractServiceRankFromPrompt(prompt)).toBe(
+        expectedParams!.serviceRank,
+      );
+    },
+  );
 });

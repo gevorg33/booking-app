@@ -1,4 +1,7 @@
-import type { IntentRescueInput, IntentRescueResult } from './ai-intent-rescue.service.js';
+import type {
+  IntentRescueInput,
+  IntentRescueResult,
+} from './ai-intent-rescue.service.js';
 import { RESCUE_PIPELINE_BOUNDARY_MARKER } from './ai-intent-rescue.boundary.js';
 import {
   applySemanticParamHintsToRescueInput,
@@ -43,11 +46,7 @@ export interface IntentRescuePipelineHost {
 export function buildRescuePipelineContext(
   input: IntentRescueInput,
 ): RescuePipelineContext {
-  const budgetSurface:
-    | 'dashboard'
-    | 'customer'
-    | 'public'
-    | undefined =
+  const budgetSurface: 'dashboard' | 'customer' | 'public' | undefined =
     input.surface === 'public' ||
     input.surface === 'customer' ||
     input.surface === 'dashboard'

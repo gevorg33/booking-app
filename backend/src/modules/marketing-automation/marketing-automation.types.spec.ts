@@ -50,7 +50,9 @@ describe('marketing-automation.types', () => {
       reEngagementPromoCode: null,
     });
     expect(
-      mergeMarketingAutomationSettings({ rebookingNudgePromoCode: '  REBOOK  ' }),
+      mergeMarketingAutomationSettings({
+        rebookingNudgePromoCode: '  REBOOK  ',
+      }),
     ).toMatchObject({
       rebookingNudgePromoCode: 'REBOOK',
     });

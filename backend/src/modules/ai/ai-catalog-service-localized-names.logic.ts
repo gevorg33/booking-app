@@ -17,7 +17,8 @@ export async function translateServiceLocalizedNames(
   },
 ): Promise<LocalizedNamesMap | undefined> {
   if (input.targetLocales.length === 0) return undefined;
-  if (!(await openAi.isAvailableForBusiness(input.businessId))) return undefined;
+  if (!(await openAi.isAvailableForBusiness(input.businessId)))
+    return undefined;
 
   const result = await openAi.completeJson<Partial<Record<AppLocale, string>>>(
     {

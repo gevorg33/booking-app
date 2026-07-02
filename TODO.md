@@ -1301,9 +1301,9 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 - [x] **ai-cmd-customer-4.2.2** — `explain_guest_checkout_fields`
 - [x] **ai-cmd-customer-4.2.3** — `resume_pending_payment`
 - [x] **ai-cmd-customer-4.2.4** — Harden **`choose_payment_method`** + **`pay_online`** deferred promotion
-- [ ] **ai-cmd-customer-4.2.5** — `apply_promo_code_checkout`
+- [x] **ai-cmd-customer-4.2.5** — `apply_promo_code_checkout`
 - [x] **ai-cmd-customer-4.2.6** — `explain_checkout_steps`
-- [ ] **ai-cmd-customer-4.2.7** — `fix_checkout_validation_error`
+- [x] **ai-cmd-customer-4.2.7** — `fix_checkout_validation_error`
 
 ---
 
@@ -1319,13 +1319,13 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.3.6** | `book_another_service` | R | both | “Book another service same day” | Navigate without stale success state (**BookPage** reset) |
 | **4.3.7** | `share_my_booking` | R | customer | “Share my appointment with my partner” | **Shipped** in adoption — add eval coverage |
 
-- [ ] **ai-cmd-customer-4.3.1** — `confirm_my_booking_details`
-- [ ] **ai-cmd-customer-4.3.2** — `add_booking_to_calendar`
-- [ ] **ai-cmd-customer-4.3.3** — `get_directions_to_salon`
-- [ ] **ai-cmd-customer-4.3.4** — `explain_preparation_notes`
-- [ ] **ai-cmd-customer-4.3.5** — HY/RU eval for **`explain_consumer_checkout_success`**
-- [ ] **ai-cmd-customer-4.3.6** — `book_another_service` (guard against success-state bug on rebook)
-- [ ] **ai-cmd-customer-4.3.7** — Full DoD for **`share_my_booking`**
+- [x] **ai-cmd-customer-4.3.1** — `confirm_my_booking_details`
+- [x] **ai-cmd-customer-4.3.2** — `add_booking_to_calendar`
+- [x] **ai-cmd-customer-4.3.3** — `get_directions_to_salon`
+- [x] **ai-cmd-customer-4.3.4** — `explain_preparation_notes`
+- [x] **ai-cmd-customer-4.3.5** — HY/RU eval for **`explain_consumer_checkout_success`**
+- [x] **ai-cmd-customer-4.3.6** — `book_another_service` (guard against success-state bug on rebook)
+- [x] **ai-cmd-customer-4.3.7** — Full DoD for **`share_my_booking`**
 
 ---
 
@@ -1342,14 +1342,14 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.4.7** | `join_waitlist` / `check_waitlist_status` | M/R | customer + public | “Notify me if something opens Friday” | Needs waitlist customer API parity with dashboard **offer_waitlist_slot** |
 | **4.4.8** | `rebook_last_appointment` | R | customer | “Book the same as last time” | **Shipped** in adoption — wire navigate + eval |
 
-- [ ] **ai-cmd-customer-4.4.1** — `list_my_upcoming_appointments`
+- [x] **ai-cmd-customer-4.4.1** — `list_my_upcoming_appointments`
 - [x] **ai-cmd-customer-4.4.2** — `cancel_my_booking` (full DoD)
 - [x] **ai-cmd-customer-4.4.3** — `reschedule_my_booking` (full DoD)
-- [ ] **ai-cmd-customer-4.4.4** — Enrich **`explain_cancel_policy`** (deposit forfeiture)
-- [ ] **ai-cmd-customer-4.4.5** — Guest **`get_manage_link`** via email/phone lookup
-- [ ] **ai-cmd-customer-4.4.6** — `notify_running_late` (product-dependent)
-- [ ] **ai-cmd-customer-4.4.7** — Customer waitlist join/status
-- [ ] **ai-cmd-customer-4.4.8** — Full DoD for **`rebook_last_appointment`**
+- [x] **ai-cmd-customer-4.4.4** — Enrich **`explain_cancel_policy`** (deposit forfeiture)
+- [x] **ai-cmd-customer-4.4.5** — Guest **`get_manage_link`** via email/phone lookup
+- [x] **ai-cmd-customer-4.4.6** — `notify_running_late` (product-dependent)
+- [x] **ai-cmd-customer-4.4.7** — Customer waitlist join/status
+- [x] **ai-cmd-customer-4.4.8** — Full DoD for **`rebook_last_appointment`**
 
 ---
 
@@ -1365,13 +1365,13 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.5.6** | `update_my_profile` | M | customer | “Change my phone number”, “Update my name” | **`my_profile`** read exists — mutate gap |
 | **4.5.7** | `how_to_download_app` | R | customer + public | “Get the app”, “Install on my phone” | Link **`explain_tenant_app_install`** / QR slug |
 
-- [ ] **ai-cmd-customer-4.5.1** — `explain_loyalty_points`
-- [ ] **ai-cmd-customer-4.5.2** — `apply_loyalty_at_checkout`
-- [ ] **ai-cmd-customer-4.5.3** — `explain_my_subscription`
-- [ ] **ai-cmd-customer-4.5.4** — HY/RU for **`manage_notification_preferences`**
-- [ ] **ai-cmd-customer-4.5.5** — HY/RU for **`explain_my_notifications`**
-- [ ] **ai-cmd-customer-4.5.6** — `update_my_profile`
-- [ ] **ai-cmd-customer-4.5.7** — Align app install prompts public ↔ customer
+- [x] **ai-cmd-customer-4.5.1** — `explain_loyalty_points`
+- [x] **ai-cmd-customer-4.5.2** — `apply_loyalty_at_checkout`
+- [x] **ai-cmd-customer-4.5.3** — `explain_my_subscription`
+- [x] **ai-cmd-customer-4.5.4** — HY/RU for **`manage_notification_preferences`**
+- [x] **ai-cmd-customer-4.5.5** — HY/RU for **`explain_my_notifications`**
+- [x] **ai-cmd-customer-4.5.6** — `update_my_profile`
+- [x] **ai-cmd-customer-4.5.7** — Align app install prompts public ↔ customer
 
 ---
 
@@ -1385,11 +1385,11 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.6.4** | `track_gift_card_delivery` | R | customer | “Where is my physical gift card?” | **`track_physical_gift_card_order`** — eval |
 | **4.6.5** | `explain_package_savings` | R | both | “Is the bundle cheaper than separate?” | Read package lines vs à la carte |
 
-- [ ] **ai-cmd-customer-4.6.1** — `explain_multi_service_cart`
-- [ ] **ai-cmd-customer-4.6.2** — `book_package_with_nearest_slot` compound
-- [ ] **ai-cmd-customer-4.6.3** — `book_with_gift_card` full DoD
-- [ ] **ai-cmd-customer-4.6.4** — Gift card delivery tracking eval
-- [ ] **ai-cmd-customer-4.6.5** — `explain_package_savings`
+- [x] **ai-cmd-customer-4.6.1** — `explain_multi_service_cart`
+- [x] **ai-cmd-customer-4.6.2** — `book_package_with_nearest_slot` compound
+- [x] **ai-cmd-customer-4.6.3** — `book_with_gift_card` full DoD
+- [x] **ai-cmd-customer-4.6.4** — Gift card delivery tracking eval
+- [x] **ai-cmd-customer-4.6.5** — `explain_package_savings`
 
 ---
 
@@ -1402,10 +1402,10 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.7.3** | `book_lab_collection_nearest` | M | both | “Book lab draw earliest slot” | Compound lab booking + **`bookingFirstAvailable`** |
 | **4.7.4** | `explain_clinic_booking_fields` | R | both | “Why do you ask for my ID?” | Extend **`explain_clinic_booking`** |
 
-- [ ] **ai-cmd-customer-4.7.1** — `explain_lab_prep`
-- [ ] **ai-cmd-customer-4.7.2** — `track_lab_order_status`
-- [ ] **ai-cmd-customer-4.7.3** — `book_lab_collection_nearest`
-- [ ] **ai-cmd-customer-4.7.4** — `explain_clinic_booking_fields`
+- [x] **ai-cmd-customer-4.7.1** — `explain_lab_prep`
+- [x] **ai-cmd-customer-4.7.2** — `track_lab_order_status`
+- [x] **ai-cmd-customer-4.7.3** — `book_lab_collection_nearest`
+- [x] **ai-cmd-customer-4.7.4** — `explain_clinic_booking_fields`
 
 ---
 
@@ -1420,12 +1420,12 @@ Many customer-native intents exist in registry + handlers but lack ≥10 NL fixt
 | **4.8.5** | `multi_service_day` | `add_services_to_cart` → `check_multi_service_availability` → book | “Massage and facial same afternoon — find a time” |
 | **4.8.6** | `guest_book_and_manage` | book as guest → `get_manage_link` | “Book as guest and email me the manage link” |
 
-- [ ] **ai-cmd-customer-4.8.1** — `discover_book_and_pay`
-- [ ] **ai-cmd-customer-4.8.2** — `rebook_and_pay`
-- [ ] **ai-cmd-customer-4.8.3** — `cancel_and_rebook`
-- [ ] **ai-cmd-customer-4.8.4** — `gift_card_checkout`
-- [ ] **ai-cmd-customer-4.8.5** — `multi_service_day`
-- [ ] **ai-cmd-customer-4.8.6** — `guest_book_and_manage`
+- [x] **ai-cmd-customer-4.8.1** — `discover_book_and_pay`
+- [x] **ai-cmd-customer-4.8.2** — `rebook_and_pay`
+- [x] **ai-cmd-customer-4.8.3** — `cancel_and_rebook`
+- [x] **ai-cmd-customer-4.8.4** — `gift_card_checkout`
+- [x] **ai-cmd-customer-4.8.5** — `multi_service_day`
+- [x] **ai-cmd-customer-4.8.6** — `guest_book_and_manage`
 
 ---
 
@@ -1449,8 +1449,8 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **`WelcomePage`** | “Find my saved salons”, “How do I get the app?” |
 | **Public booking web** | Same as **4.1**–**4.2** where anonymous |
 
-- [ ] **ai-cmd-customer-4.9.1** — Consumer app page suggestion map in `frontend` + `consumer-app` i18n
-- [ ] **ai-cmd-customer-4.9.2** — Public booking assistant starter chips on checkout + service list
+- [x] **ai-cmd-customer-4.9.1** — Consumer app page suggestion map in `frontend` + `consumer-app` i18n
+- [x] **ai-cmd-customer-4.9.2** — Public booking assistant starter chips on checkout + service list
 
 ---
 
@@ -1468,9 +1468,9 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 - [x] **ai-cmd-customer-4.10.1** — HY/RU eval for **`explain_tour_booking`**
 - [x] **ai-cmd-customer-4.10.2** — HY/RU eval for **`explain_tour_day_slots`**
 - [x] **ai-cmd-customer-4.10.3** — Checkout error copy for **`diagnose_tour_capacity`**
-- [ ] **ai-cmd-customer-4.10.4** — Full DoD for **`explain_tour_booking_record`**
-- [ ] **ai-cmd-customer-4.10.5** — `book_tour_nearest_departure` compound
-- [ ] **ai-cmd-customer-4.10.6** — `explain_tour_meeting_point`
+- [x] **ai-cmd-customer-4.10.4** — Full DoD for **`explain_tour_booking_record`**
+- [x] **ai-cmd-customer-4.10.5** — `book_tour_nearest_departure` compound
+- [x] **ai-cmd-customer-4.10.6** — `explain_tour_meeting_point`
 
 ---
 
@@ -1484,11 +1484,11 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.11.4** | `switch_provider_same_time` | M | both | “Keep 3pm but different stylist” | Re-run availability with same slot block |
 | **4.11.5** | `explain_professional_profile` | R | both | “Show me Anna’s services”, “What does this stylist specialize in?” | **`ProviderProfilePage`** / **`ProfessionalsPage`** navigate |
 
-- [ ] **ai-cmd-customer-4.11.1** — `explain_any_provider_option`
-- [ ] **ai-cmd-customer-4.11.2** — `pick_provider_for_service`
-- [ ] **ai-cmd-customer-4.11.3** — `explain_provider_availability`
-- [ ] **ai-cmd-customer-4.11.4** — `switch_provider_same_time`
-- [ ] **ai-cmd-customer-4.11.5** — `explain_professional_profile`
+- [x] **ai-cmd-customer-4.11.1** — `explain_any_provider_option`
+- [x] **ai-cmd-customer-4.11.2** — `pick_provider_for_service`
+- [x] **ai-cmd-customer-4.11.3** — `explain_provider_availability`
+- [x] **ai-cmd-customer-4.11.4** — `switch_provider_same_time`
+- [x] **ai-cmd-customer-4.11.5** — `explain_professional_profile`
 
 ---
 
@@ -1502,11 +1502,11 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.12.4** | `explain_share_reward` | R | customer | “Do I get points for sharing?”, “What happens when I share my booking?” | **`shareBookingLinkWithReward`** / growth card |
 | **4.12.5** | `sign_in_after_booking` | R | customer | “Save this booking to my account”, “Sign in with Google after booking” | **`postBookingSignIn*`** — guest → account merge |
 
-- [ ] **ai-cmd-customer-4.12.1** — `leave_visit_review`
-- [ ] **ai-cmd-customer-4.12.2** — `explain_post_visit_review_prompt`
-- [ ] **ai-cmd-customer-4.12.3** — `report_booking_problem`
-- [ ] **ai-cmd-customer-4.12.4** — `explain_share_reward`
-- [ ] **ai-cmd-customer-4.12.5** — `sign_in_after_booking`
+- [x] **ai-cmd-customer-4.12.1** — `leave_visit_review`
+- [x] **ai-cmd-customer-4.12.2** — `explain_post_visit_review_prompt`
+- [x] **ai-cmd-customer-4.12.3** — `report_booking_problem`
+- [x] **ai-cmd-customer-4.12.4** — `explain_share_reward`
+- [x] **ai-cmd-customer-4.12.5** — `sign_in_after_booking`
 
 ---
 
@@ -1521,12 +1521,12 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.13.5** | `explain_analytics_consent` | R | customer | “Why are you asking about analytics?”, “Turn off usage tracking” | **`analyticsConsent*`** |
 | **4.13.6** | `explain_home_screen_widget` | R | customer | “Add next appointment to home screen”, “What does the widget show?” | **`widgetNextAppointment*`** / quick rebook |
 
-- [ ] **ai-cmd-customer-4.13.1** — `enable_push_notifications`
-- [ ] **ai-cmd-customer-4.13.2** — `explain_push_permission`
-- [ ] **ai-cmd-customer-4.13.3** — `explain_offline_mode`
-- [ ] **ai-cmd-customer-4.13.4** — `explain_app_update_required`
-- [ ] **ai-cmd-customer-4.13.5** — `explain_analytics_consent`
-- [ ] **ai-cmd-customer-4.13.6** — `explain_home_screen_widget`
+- [x] **ai-cmd-customer-4.13.1** — `enable_push_notifications`
+- [x] **ai-cmd-customer-4.13.2** — `explain_push_permission`
+- [x] **ai-cmd-customer-4.13.3** — `explain_offline_mode`
+- [x] **ai-cmd-customer-4.13.4** — `explain_app_update_required`
+- [x] **ai-cmd-customer-4.13.5** — `explain_analytics_consent`
+- [x] **ai-cmd-customer-4.13.6** — `explain_home_screen_widget`
 
 ---
 
@@ -1542,13 +1542,13 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.14.6** | `explain_abnormal_result_flag` | R | customer | “What does high mean on my CBC?”, “Is abnormal serious?” | Measurement flags — general FAQ, not medical advice |
 | **4.14.7** | `notify_when_results_ready` | R | customer | “Text me when results are ready” | Read-only explain until **`notify_patient_result_ready`** customer path exists |
 
-- [ ] **ai-cmd-customer-4.14.1** — `explain_public_intake_form`
-- [ ] **ai-cmd-customer-4.14.2** — `complete_intake_and_book`
-- [ ] **ai-cmd-customer-4.14.3** — `explain_patient_alert`
-- [ ] **ai-cmd-customer-4.14.4** — `book_lab_from_order`
-- [ ] **ai-cmd-customer-4.14.5** — `list_my_documents`
-- [ ] **ai-cmd-customer-4.14.6** — `explain_abnormal_result_flag`
-- [ ] **ai-cmd-customer-4.14.7** — `notify_when_results_ready` (read explain)
+- [x] **ai-cmd-customer-4.14.1** — `explain_public_intake_form`
+- [x] **ai-cmd-customer-4.14.2** — `complete_intake_and_book`
+- [x] **ai-cmd-customer-4.14.3** — `explain_patient_alert`
+- [x] **ai-cmd-customer-4.14.4** — `book_lab_from_order`
+- [x] **ai-cmd-customer-4.14.5** — `list_my_documents`
+- [x] **ai-cmd-customer-4.14.6** — `explain_abnormal_result_flag`
+- [x] **ai-cmd-customer-4.14.7** — `notify_when_results_ready` (read explain)
 
 ---
 
@@ -1562,9 +1562,9 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.15.4** | `explain_package_visit_rules` | R | customer | “Can I cancel one visit and keep the package?”, “Do unused visits expire?” | Package T&C from catalog |
 
 - [x] **ai-cmd-customer-4.15.1** — `list_my_package_visits` full DoD
-- [ ] **ai-cmd-customer-4.15.2** — `cancel_package_visit` / **`cancel_package_visit_self`**
-- [ ] **ai-cmd-customer-4.15.3** — `reschedule_package_visit` / **`reschedule_package_visit_self`**
-- [ ] **ai-cmd-customer-4.15.4** — `explain_package_visit_rules`
+- [x] **ai-cmd-customer-4.15.2** — `cancel_package_visit` / **`cancel_package_visit_self`**
+- [x] **ai-cmd-customer-4.15.3** — `reschedule_package_visit` / **`reschedule_package_visit_self`**
+- [x] **ai-cmd-customer-4.15.4** — `explain_package_visit_rules`
 
 ---
 
@@ -1578,9 +1578,9 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.16.4** | `buy_gift_card_for_someone` | M | customer | “Buy a $100 gift card for my mom”, “Email a digital gift card” | **`GiftCardCatalogPage`** → checkout |
 
 - [x] **ai-cmd-customer-4.16.1** — HY/RU for **`explain_checkout_recommendations`**
-- [ ] **ai-cmd-customer-4.16.2** — `dismiss_recommendations` (mutate navigate)
-- [ ] **ai-cmd-customer-4.16.3** — `explain_subscription_vs_one_time`
-- [ ] **ai-cmd-customer-4.16.4** — `buy_gift_card_for_someone`
+- [x] **ai-cmd-customer-4.16.2** — `dismiss_recommendations` (mutate navigate)
+- [x] **ai-cmd-customer-4.16.3** — `explain_subscription_vs_one_time`
+- [x] **ai-cmd-customer-4.16.4** — `buy_gift_card_for_someone`
 
 ---
 
@@ -1594,11 +1594,11 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.17.4** | `switch_salon_tenant` | R | customer | “Go back to Salon X”, “Show salons I visited” | **`ConsumerTenantSwitcher`** + **`find_my_saved_salons`** |
 | **4.17.5** | `explain_data_rights` | R | both | “Export my data”, “Delete my account” | **Shipped** — pair with **`privacy_export`** / **`privacy_delete`** mutate ( **4.0** P2) |
 
-- [ ] **ai-cmd-customer-4.17.1** — `explain_why_sign_in`
-- [ ] **ai-cmd-customer-4.17.2** — `sign_in_to_manage_booking`
-- [ ] **ai-cmd-customer-4.17.3** — `recover_lost_manage_link`
-- [ ] **ai-cmd-customer-4.17.4** — Full DoD for **`find_my_saved_salons`** + tenant switch navigate
-- [ ] **ai-cmd-customer-4.17.5** — Promote **`privacy_export`** / **`privacy_delete`** from **4.0** P2
+- [x] **ai-cmd-customer-4.17.1** — `explain_why_sign_in`
+- [x] **ai-cmd-customer-4.17.2** — `sign_in_to_manage_booking`
+- [x] **ai-cmd-customer-4.17.3** — `recover_lost_manage_link`
+- [x] **ai-cmd-customer-4.17.4** — Full DoD for **`find_my_saved_salons`** + tenant switch navigate
+- [x] **ai-cmd-customer-4.17.5** — Promote **`privacy_export`** / **`privacy_delete`** from **4.0** P2
 
 ---
 
@@ -1613,12 +1613,12 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.18.5** | `explain_multi_service_payment_return` | R | customer | “I paid but booking not confirmed”, “Return from Stripe for spa day” | **`multiServicePaymentReturnHint`** |
 | **4.18.6** | `retry_failed_network_action` | R | customer | “Booking didn’t save — retry?”, “Sync failed” | **`networkRetryAction`** / offline queue |
 
-- [ ] **ai-cmd-customer-4.18.1** — `diagnose_stripe_checkout_failure` (customer/public)
-- [ ] **ai-cmd-customer-4.18.2** — `pay_at_venue_fallback`
-- [ ] **ai-cmd-customer-4.18.3** — `resume_booking_draft`
-- [ ] **ai-cmd-customer-4.18.4** — `explain_slot_no_longer_available`
-- [ ] **ai-cmd-customer-4.18.5** — `explain_multi_service_payment_return`
-- [ ] **ai-cmd-customer-4.18.6** — `retry_failed_network_action`
+- [x] **ai-cmd-customer-4.18.1** — `diagnose_stripe_checkout_failure` (customer/public)
+- [x] **ai-cmd-customer-4.18.2** — `pay_at_venue_fallback`
+- [x] **ai-cmd-customer-4.18.3** — `resume_booking_draft`
+- [x] **ai-cmd-customer-4.18.4** — `explain_slot_no_longer_available`
+- [x] **ai-cmd-customer-4.18.5** — `explain_multi_service_payment_return`
+- [x] **ai-cmd-customer-4.18.6** — `retry_failed_network_action`
 
 ---
 
@@ -1631,10 +1631,10 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.19.3** | `give_ai_feedback` | M | both | “That was wrong”, “Wrong date picked” | **`feedbackUp`** / **`feedbackDown`** + reason chips |
 | **4.19.4** | `explain_rtl_layout` | R | both | “Why is text on the right?” | RTL copy / **`adoption-a11y.css`** |
 
-- [ ] **ai-cmd-customer-4.19.1** — `explain_voice_input`
-- [ ] **ai-cmd-customer-4.19.2** — `speak_assistant_reply`
-- [ ] **ai-cmd-customer-4.19.3** — `give_ai_feedback`
-- [ ] **ai-cmd-customer-4.19.4** — `explain_rtl_layout`
+- [x] **ai-cmd-customer-4.19.1** — `explain_voice_input`
+- [x] **ai-cmd-customer-4.19.2** — `speak_assistant_reply`
+- [x] **ai-cmd-customer-4.19.3** — `give_ai_feedback`
+- [x] **ai-cmd-customer-4.19.4** — `explain_rtl_layout`
 
 ---
 
@@ -1650,13 +1650,13 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.20.6** | `claim_gift_card_balance` | M | customer | “Redeem gift card code GCM-…”, “Add gift card to account” | **`ConsumerGiftCardClaimSection`** |
 | **4.20.7** | `explain_manage_booking_page` | R | both | “What can I do on this manage page?”, “Invalid manage link” | Guest **`ManageBookingPage`** UX |
 
-- [ ] **ai-cmd-customer-4.20.1** — Public **`explain_checkout_tax`** parity with consumer tax intent
-- [ ] **ai-cmd-customer-4.20.2** — `explain_deposit_forfeiture`
-- [ ] **ai-cmd-customer-4.20.3** — Wire budget discover chips → classifier
-- [ ] **ai-cmd-customer-4.20.4** — Wire evening/weekend discover chips → classifier
-- [ ] **ai-cmd-customer-4.20.5** — `explain_salon_profile`
-- [ ] **ai-cmd-customer-4.20.6** — `claim_gift_card_balance`
-- [ ] **ai-cmd-customer-4.20.7** — `explain_manage_booking_page`
+- [x] **ai-cmd-customer-4.20.1** — Public **`explain_checkout_tax`** parity with consumer tax intent
+- [x] **ai-cmd-customer-4.20.2** — `explain_deposit_forfeiture`
+- [x] **ai-cmd-customer-4.20.3** — Wire budget discover chips → classifier
+- [x] **ai-cmd-customer-4.20.4** — Wire evening/weekend discover chips → classifier
+- [x] **ai-cmd-customer-4.20.5** — `explain_salon_profile`
+- [x] **ai-cmd-customer-4.20.6** — `claim_gift_card_balance`
+- [x] **ai-cmd-customer-4.20.7** — `explain_manage_booking_page`
 
 ---
 
@@ -1672,13 +1672,13 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | **4.21.6** | `guest_pay_cash_manage` | guest book → pay cash → email manage link | “Book as guest, pay at visit, email manage link” |
 | **4.21.7** | `cancel_package_rebook_single` | cancel package visit → book single service | “Skip package visit 2 and book a trim instead” |
 
-- [ ] **ai-cmd-customer-4.21.1** — `intake_lab_book_pay`
-- [ ] **ai-cmd-customer-4.21.2** — `tour_group_checkout`
-- [ ] **ai-cmd-customer-4.21.3** — `provider_same_day_multi`
-- [ ] **ai-cmd-customer-4.21.4** — `subscription_first_visit`
-- [ ] **ai-cmd-customer-4.21.5** — `results_then_rebook`
-- [ ] **ai-cmd-customer-4.21.6** — `guest_pay_cash_manage`
-- [ ] **ai-cmd-customer-4.21.7** — `cancel_package_rebook_single`
+- [x] **ai-cmd-customer-4.21.1** — `intake_lab_book_pay`
+- [x] **ai-cmd-customer-4.21.2** — `tour_group_checkout`
+- [x] **ai-cmd-customer-4.21.3** — `provider_same_day_multi`
+- [x] **ai-cmd-customer-4.21.4** — `subscription_first_visit`
+- [x] **ai-cmd-customer-4.21.5** — `results_then_rebook`
+- [x] **ai-cmd-customer-4.21.6** — `guest_pay_cash_manage`
+- [x] **ai-cmd-customer-4.21.7** — `cancel_package_rebook_single`
 
 ---
 
@@ -1894,7 +1894,7 @@ Wire suggested prompts into **`AI_PAGE_SUGGESTIONS`** / localized consumer strin
 | `POST …/checkout/recommendations/events` | ⚪ | — | Analytics — no AI |
 | Dismiss UI (client-only) | 🔴 | `dismiss_recommendations` (**4.16.2** proposed) | Client state — navigate intent |
 
-- [ ] **ai-cmd-customer-6.10.1** — `dismiss_recommendations` — client navigate + session flag (no REST)
+- [x] **ai-cmd-customer-6.10.1** — `dismiss_recommendations` — client navigate + session flag (no REST)
 
 ---
 

@@ -201,34 +201,46 @@ export interface AdoptionDashboardExport {
   pushReachability: PushReachabilityDashboardExport;
   headlines: AdoptionHeadlineMetrics;
   weeklyActivationAlert: AdoptionWeeklyActivationAlert;
-  weeklyStartupTtiRegressionAlert: ReturnType<typeof buildWeeklyStartupTtiRegressionAlert>;
+  weeklyStartupTtiRegressionAlert: ReturnType<
+    typeof buildWeeklyStartupTtiRegressionAlert
+  >;
   exitGate: AdoptionExitGateResult;
 }
 
-export function resolveAppAdoptionEvent(event: string): AppAdoptionEventName | null {
+export function resolveAppAdoptionEvent(
+  event: string,
+): AppAdoptionEventName | null {
   return (APP_ADOPTION_EVENTS as readonly string[]).includes(event)
     ? (event as AppAdoptionEventName)
     : null;
 }
 
-export function resolveAppAdoptionPlatform(platform: string): AppAdoptionPlatform | null {
+export function resolveAppAdoptionPlatform(
+  platform: string,
+): AppAdoptionPlatform | null {
   return (APP_ADOPTION_PLATFORMS as readonly string[]).includes(platform)
     ? (platform as AppAdoptionPlatform)
     : null;
 }
 
-export function resolveAppAdoptionSurface(surface: string): AppAdoptionSurface | null {
+export function resolveAppAdoptionSurface(
+  surface: string,
+): AppAdoptionSurface | null {
   return (APP_ADOPTION_SURFACES as readonly string[]).includes(surface)
     ? (surface as AppAdoptionSurface)
     : null;
 }
 
-export function resolveAppAdoptionStartType(value: string | undefined): AppAdoptionStartType | null {
+export function resolveAppAdoptionStartType(
+  value: string | undefined,
+): AppAdoptionStartType | null {
   if (value === 'cold' || value === 'warm') return value;
   return null;
 }
 
-export function resolveAppAdoptionUserType(value: string | undefined): AppAdoptionUserType | null {
+export function resolveAppAdoptionUserType(
+  value: string | undefined,
+): AppAdoptionUserType | null {
   if (value === 'first_open' || value === 'returning') return value;
   return null;
 }
@@ -375,7 +387,11 @@ function buildFunnelStepsForRows(
   for (let index = 0; index < steps.length; index += 1) {
     const count = countStrictFunnelStep(rows, anonIds, index, steps);
     const conversionFromPrevious =
-      index === 0 || previousCount === 0 ? (index === 0 ? 1 : null) : count / previousCount;
+      index === 0 || previousCount === 0
+        ? index === 0
+          ? 1
+          : null
+        : count / previousCount;
     const dropOffFromPrevious =
       index === 0 || previousCount === 0
         ? null
@@ -404,7 +420,7 @@ function buildBreakdownValues(
         ? row.platform
         : dimension === 'locale'
           ? row.locale
-          : row.tenantSlug ?? '(none)';
+          : (row.tenantSlug ?? '(none)');
     values.add(value);
   }
   return [...values].sort();
@@ -413,7 +429,10 @@ function buildBreakdownValues(
 export function buildActivationOnboardingFunnel(
   rows: AppEventAnalyticsRow[],
 ): AdoptionFunnelExport {
-  const steps = buildFunnelStepsForRows(rows, APP_ACTIVATION_ONBOARDING_FUNNEL_STEPS);
+  const steps = buildFunnelStepsForRows(
+    rows,
+    APP_ACTIVATION_ONBOARDING_FUNNEL_STEPS,
+  );
   return { steps, breakdowns: [] };
 }
 
@@ -475,7 +494,9 @@ export function computeBookingAbandonmentRecovery(
   };
 }
 
-export function buildAdoptionFunnel(rows: AppEventAnalyticsRow[]): AdoptionFunnelExport {
+export function buildAdoptionFunnel(
+  rows: AppEventAnalyticsRow[],
+): AdoptionFunnelExport {
   const steps = buildFunnelStepsForRows(rows);
   const breakdowns: AdoptionFunnelBreakdown[] = [];
 
@@ -503,9 +524,13 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY_MS);
 }
 
-export function buildRetentionCohorts(rows: AppEventAnalyticsRow[]): RetentionCohortExport {
+export function buildRetentionCohorts(
+  rows: AppEventAnalyticsRow[],
+): RetentionCohortExport {
   const cohortAnonIds = uniqueAnonIds(
-    rows.filter((row) => row.event === 'app_installed' || row.event === 'app_opened'),
+    rows.filter(
+      (row) => row.event === 'app_installed' || row.event === 'app_opened',
+    ),
   );
 
   let d1Returns = 0;
@@ -518,7 +543,8 @@ export function buildRetentionCohorts(rows: AppEventAnalyticsRow[]): RetentionCo
 
   for (const anonId of cohortAnonIds) {
     const cohortStart =
-      firstEventAt(rows, anonId, 'app_installed') ?? firstEventAt(rows, anonId, 'app_opened');
+      firstEventAt(rows, anonId, 'app_installed') ??
+      firstEventAt(rows, anonId, 'app_opened');
     if (!cohortStart) continue;
 
     const opens = rows
@@ -526,7 +552,9 @@ export function buildRetentionCohorts(rows: AppEventAnalyticsRow[]): RetentionCo
       .map((row) => row.createdAt)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    const returnOpens = opens.filter((at) => at.getTime() > cohortStart.getTime() + 60_000);
+    const returnOpens = opens.filter(
+      (at) => at.getTime() > cohortStart.getTime() + 60_000,
+    );
 
     let returnedD1 = false;
     let returnedD7 = false;
@@ -647,8 +675,16 @@ export function buildWeeklyActivationAlert(
   const end = now;
   const currentStart = new Date(end.getTime() - 7 * DAY_MS);
   const previousStart = new Date(end.getTime() - 14 * DAY_MS);
-  const currentWeekRate = computeActivationRateForWindow(rows, currentStart, end);
-  const previousWeekRate = computeActivationRateForWindow(rows, previousStart, currentStart);
+  const currentWeekRate = computeActivationRateForWindow(
+    rows,
+    currentStart,
+    end,
+  );
+  const previousWeekRate = computeActivationRateForWindow(
+    rows,
+    previousStart,
+    currentStart,
+  );
   const deltaPoints = previousWeekRate - currentWeekRate;
 
   return {
@@ -674,7 +710,8 @@ export function computePushPrimingOptInRate(
     if (
       userRows.some(
         (row) =>
-          row.event === 'push_priming_accepted' && row.props?.pushOptIn === true,
+          row.event === 'push_priming_accepted' &&
+          row.props?.pushOptIn === true,
       )
     ) {
       acceptedUsers += 1;
@@ -702,14 +739,19 @@ export function computeAdoptionHeadlineMetrics(
   let crashFreeSessions = 0;
   for (const anonId of openAnonIds) {
     const userOpens = openRows.filter((row) => row.anonId === anonId);
-    if (userOpens.some((row) => row.props?.pushOptIn === true)) pushOptInUsers += 1;
+    if (userOpens.some((row) => row.props?.pushOptIn === true))
+      pushOptInUsers += 1;
   }
   for (const open of openRows) {
     if (open.props?.crashFree !== false) crashFreeSessions += 1;
   }
 
-  const referralSent = rows.filter((row) => row.event === 'referral_sent').length;
-  const referralConverted = rows.filter((row) => row.event === 'referral_converted').length;
+  const referralSent = rows.filter(
+    (row) => row.event === 'referral_sent',
+  ).length;
+  const referralConverted = rows.filter(
+    (row) => row.event === 'referral_converted',
+  ).length;
   const primingOptInRate = computePushPrimingOptInRate(rows);
 
   const crashFreeSessionRate =
@@ -723,7 +765,9 @@ export function computeAdoptionHeadlineMetrics(
     crashFreeSessionRate,
     crashFreeSessionSloMet: meetsCrashFreeSessionSlo(crashFreeSessionRate),
     startupTtiWithinBudgetRate,
-    startupTtiSloMet: meetsStartupTtiWithinBudgetSlo(startupTtiWithinBudgetRate),
+    startupTtiSloMet: meetsStartupTtiWithinBudgetSlo(
+      startupTtiWithinBudgetRate,
+    ),
     referralKFactor:
       referralSent === 0 ? null : referralConverted / referralSent,
   };
@@ -746,7 +790,10 @@ export function buildAdoptionExitGateFromRows(
   const currentRetention = buildRetentionCohorts(currentRows);
   const previousHeadlines = computeAdoptionHeadlineMetrics(previousRows);
 
-  const localeRates: Record<string, { activationRate: number; installs: number }> = {};
+  const localeRates: Record<
+    string,
+    { activationRate: number; installs: number }
+  > = {};
   for (const locale of ['en', 'hy', 'ru']) {
     const localeRows = currentRows.filter((row) => row.locale === locale);
     const installs = uniqueAnonIds(
@@ -765,7 +812,8 @@ export function buildAdoptionExitGateFromRows(
     d30RetentionTrendDelta:
       currentRetention.d30ReturnRate - previousRetention.d30ReturnRate,
     referralKFactorTrendDelta:
-      (headlines.referralKFactor ?? 0) - (previousHeadlines.referralKFactor ?? 0),
+      (headlines.referralKFactor ?? 0) -
+      (previousHeadlines.referralKFactor ?? 0),
     localeSpread: computeLocaleActivationSpread(localeRates),
     referralKFactor: headlines.referralKFactor ?? 0,
   });
@@ -775,7 +823,9 @@ export function buildAdoptionDashboardExport(
   rows: AppEventAnalyticsRow[],
   periodDays: number,
   now = new Date(),
-  deliverabilityAggregate?: Parameters<typeof buildPushReachabilityDashboardExport>[1],
+  deliverabilityAggregate?: Parameters<
+    typeof buildPushReachabilityDashboardExport
+  >[1],
 ): AdoptionDashboardExport {
   return {
     periodDays,
@@ -804,7 +854,10 @@ export function buildAdoptionDashboardExport(
     ),
     headlines: computeAdoptionHeadlineMetrics(rows),
     weeklyActivationAlert: buildWeeklyActivationAlert(rows, now),
-    weeklyStartupTtiRegressionAlert: buildWeeklyStartupTtiRegressionAlert(rows, now),
+    weeklyStartupTtiRegressionAlert: buildWeeklyStartupTtiRegressionAlert(
+      rows,
+      now,
+    ),
     exitGate: buildAdoptionExitGateFromRows(rows, now),
   };
 }

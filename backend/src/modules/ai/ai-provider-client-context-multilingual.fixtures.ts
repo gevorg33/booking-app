@@ -170,13 +170,28 @@ function buildProviderClientContextMultilingualScenarios(): ProviderClientContex
   const rows: ProviderClientContextMultilingualScenario[] = [];
 
   for (const [enScenarioId, i18n] of Object.entries(SUMMARIZE_I18N)) {
-    pushClientContextMultilingualRows(rows, enScenarioId, 'summarize_client', i18n);
+    pushClientContextMultilingualRows(
+      rows,
+      enScenarioId,
+      'summarize_client',
+      i18n,
+    );
   }
   for (const [enScenarioId, i18n] of Object.entries(HISTORY_I18N)) {
-    pushClientContextMultilingualRows(rows, enScenarioId, 'show_client_history', i18n);
+    pushClientContextMultilingualRows(
+      rows,
+      enScenarioId,
+      'show_client_history',
+      i18n,
+    );
   }
   for (const [enScenarioId, i18n] of Object.entries(NOTE_I18N)) {
-    pushClientContextMultilingualRows(rows, enScenarioId, 'add_client_note', i18n);
+    pushClientContextMultilingualRows(
+      rows,
+      enScenarioId,
+      'add_client_note',
+      i18n,
+    );
   }
 
   return rows;

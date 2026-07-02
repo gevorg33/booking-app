@@ -37,6 +37,7 @@ import {
   parseCartServiceIds,
   rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
+import { isListMyUpcomingAppointmentsPrompt } from './ai-list-my-upcoming-appointments.util.js';
 
 describe('ai-self-service-booking.util', () => {
   describe('intent registry', () => {
@@ -44,6 +45,9 @@ describe('ai-self-service-booking.util', () => {
       expect(SELF_SERVICE_BOOKING_INTENTS).toContain('book_package');
       expect(SELF_SERVICE_BOOKING_INTENTS).toContain(
         'show_cart_total_duration',
+      );
+      expect(SELF_SERVICE_BOOKING_INTENTS).toContain(
+        'explain_multi_service_cart',
       );
       for (const intent of SELF_SERVICE_BOOKING_INTENTS) {
         expect(isSelfServiceBookingIntent(intent)).toBe(true);
@@ -87,9 +91,9 @@ describe('ai-self-service-booking.util', () => {
       expect(
         isReschedulePackageVisitSelfPrompt('Reschedule my spa day visit'),
       ).toBe(true);
-      expect(isListMyAppointmentsPrompt('List my upcoming appointments')).toBe(
-        true,
-      );
+      expect(
+        isListMyUpcomingAppointmentsPrompt('List my upcoming appointments'),
+      ).toBe(true);
       expect(isGetManageLinkPrompt('Get manage link for my booking')).toBe(
         true,
       );

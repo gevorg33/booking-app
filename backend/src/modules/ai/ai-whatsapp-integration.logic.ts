@@ -60,7 +60,11 @@ export async function handleConfigureWhatsappIntegrationLogic(
       'Ask to configure WhatsApp integration (e.g. "Configure WhatsApp integration" or "Use platform default WhatsApp connection").',
       {
         clarify: true,
-        missing: ['usePlatformDefault', 'templateConfirmation', 'phoneNumberId'],
+        missing: [
+          'usePlatformDefault',
+          'templateConfirmation',
+          'phoneNumberId',
+        ],
       },
     );
   }

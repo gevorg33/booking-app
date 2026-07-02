@@ -31,7 +31,9 @@ describe('AiCommandService understand delegation (pipe-1.0.4 / pipe-1.12.1)', ()
   it('keeps post-understand enrichment and execution in AiCommandService', () => {
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('mergeSessionContext');
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('runCompletionValidateHandoff');
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('buildExecutionConfirmationResult');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'buildExecutionConfirmationResult',
+    );
   });
 
   it('covers all understand stages via pipeline trace contract', () => {
@@ -43,7 +45,9 @@ describe('AiCommandService understand delegation (pipe-1.0.4 / pipe-1.12.1)', ()
 
 describe('AiCommandService confidence gate wiring (pipe-1.3.3 / pipe-1.12.1)', () => {
   it('passes AiSettingsService confidence bands into dashboard understand adapter', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('confidence: aiConfig.confidence');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'confidence: aiConfig.confidence',
+    );
     expect(AI_COMMAND_SERVICE_SOURCE).toContain(
       'sessionConfidenceHigh: session?.context?._confidenceHigh',
     );
@@ -62,7 +66,9 @@ describe('DashboardCommandUnderstandingAdapter wiring (pipe-1.12.1)', () => {
     expect(adapterSource).toContain('buildDashboardUnderstandInput');
     expect(adapterSource).toContain('resolveConfidenceGateThresholds');
     expect(adapterSource).toContain('buildDashboardClassifyCallbacks');
-    expect(adapterSource).toContain("surface: DASHBOARD_COMMAND_UNDERSTANDING_SURFACE");
+    expect(adapterSource).toContain(
+      'surface: DASHBOARD_COMMAND_UNDERSTANDING_SURFACE',
+    );
   });
 });
 
@@ -153,7 +159,9 @@ describe('AiIntentRescueService semantic exclusion (pipe-1.5.1)', () => {
       'utf8',
     );
     expect(skipSource).toContain('shouldSkipStructuralEnrichAfterSelfVerify');
-    expect(pipelineSource).toContain('shouldSkipStructuralEnrichAfterSelfVerify');
+    expect(pipelineSource).toContain(
+      'shouldSkipStructuralEnrichAfterSelfVerify',
+    );
     expect(pipelineSource).toContain('resolveSelfVerifyStageOutcome');
     expect(pipelineSource).toContain('applyStructuralIntentEnrichment');
   });

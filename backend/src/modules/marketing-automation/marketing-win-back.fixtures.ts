@@ -3,14 +3,20 @@
 export const WIN_BACK_INCENTIVE_SCENARIOS = [
   {
     id: 'promo-only',
-    settings: { reEngagementPromoCode: 'WINBACK10', reEngagementLoyaltyBonusPoints: null },
+    settings: {
+      reEngagementPromoCode: 'WINBACK10',
+      reEngagementLoyaltyBonusPoints: null,
+    },
     locale: 'en' as const,
     expectPromo: true,
     expectLoyalty: false,
   },
   {
     id: 'loyalty-only',
-    settings: { reEngagementPromoCode: null, reEngagementLoyaltyBonusPoints: 5 },
+    settings: {
+      reEngagementPromoCode: null,
+      reEngagementLoyaltyBonusPoints: 5,
+    },
     locale: 'en' as const,
     expectPromo: false,
     expectLoyalty: true,
@@ -27,7 +33,10 @@ export const WIN_BACK_INCENTIVE_SCENARIOS = [
   },
   {
     id: 'no-incentive',
-    settings: { reEngagementPromoCode: null, reEngagementLoyaltyBonusPoints: null },
+    settings: {
+      reEngagementPromoCode: null,
+      reEngagementLoyaltyBonusPoints: null,
+    },
     locale: 'en' as const,
     expectPromo: false,
     expectLoyalty: false,

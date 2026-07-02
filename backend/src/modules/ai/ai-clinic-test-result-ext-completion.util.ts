@@ -28,7 +28,10 @@ function paramPresent(cmd: ResolvedCommand, key: string): boolean {
   return true;
 }
 
-function rangeValuePresent(cmd: ResolvedCommand, key: 'normalLow' | 'normalHigh'): boolean {
+function rangeValuePresent(
+  cmd: ResolvedCommand,
+  key: 'normalLow' | 'normalHigh',
+): boolean {
   const value = cmd.params[key] ?? cmd.enrichedParams[key];
   if (value === undefined || value === null || value === '') return false;
   return true;
@@ -81,7 +84,10 @@ export function validateClinicTestResultExtCommand(
     }
 
     case 'configure_test_reference_range': {
-      const parsed = parseConfigureTestReferenceRangeFromPrompt(prompt, mergedParams);
+      const parsed = parseConfigureTestReferenceRangeFromPrompt(
+        prompt,
+        mergedParams,
+      );
       const measurementCode =
         parsed?.measurementCode ??
         (typeof mergedParams.measurementCode === 'string'

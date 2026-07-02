@@ -29,7 +29,7 @@ export const BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS = [
   {
     id: 'filter-catalog-facial-60-en',
     prompt:
-      "Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment",
+      'Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment',
     orderedActions: [
       'list_services',
       'check_providers_for_service',
@@ -186,7 +186,8 @@ export const BUDGET_DISCOVER_AND_BOOK_EN_SCENARIO_IDS =
 
 export const BUDGET_DISCOVER_AND_BOOK_RESCUE_SCENARIOS =
   BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS.filter(
-    (scenario) => 'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
+    (scenario) =>
+      'misclassifiedAction' in scenario && !!scenario.misclassifiedAction,
   ) as Array<
     BudgetDiscoverAndBookCompoundFixture & { misclassifiedAction: string }
   >;

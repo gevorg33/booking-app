@@ -391,7 +391,9 @@ describe('PatientClinicalAlertsService (integration)', () => {
     );
 
     expect(list.totalCount).toBe(CLINIC_PATIENT_ALERT_LIST_EXPECTED.totalCount);
-    expect(accessService.assertCustomerClinicalProfileAccess).not.toHaveBeenCalled();
+    expect(
+      accessService.assertCustomerClinicalProfileAccess,
+    ).not.toHaveBeenCalled();
   });
 
   it('dismisses customer account alerts without employee id', async () => {
@@ -410,6 +412,8 @@ describe('PatientClinicalAlertsService (integration)', () => {
         dismissedByEmployeeId: null,
       }),
     );
-    expect(accessService.assertCustomerClinicalProfileAccess).not.toHaveBeenCalled();
+    expect(
+      accessService.assertCustomerClinicalProfileAccess,
+    ).not.toHaveBeenCalled();
   });
 });

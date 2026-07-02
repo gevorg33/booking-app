@@ -62,7 +62,7 @@ describe('ai-clinic-lab-day-close-compound.util (ai-cmd-ext-4.2)', () => {
     'rescueClinicLabDayCloseCompoundIntent $id',
     ({ prompt, misclassifiedAction }) => {
       expect(
-        rescueClinicLabDayCloseCompoundIntent(prompt, misclassifiedAction!),
+        rescueClinicLabDayCloseCompoundIntent(prompt, misclassifiedAction),
       ).toEqual({
         action: 'compound_intent',
         rescueReason: 'clinic_lab_day_close_compound',
@@ -72,9 +72,7 @@ describe('ai-clinic-lab-day-close-compound.util (ai-cmd-ext-4.2)', () => {
 
   it('does not treat single list_test_orders as lab day close compound', () => {
     expect(
-      isClinicLabDayCloseCompoundPrompt(
-        "Show Maria's lab orders for tomorrow",
-      ),
+      isClinicLabDayCloseCompoundPrompt("Show Maria's lab orders for tomorrow"),
     ).toBe(false);
     expect(
       decomposeClinicLabDayCloseCompoundPrompt(

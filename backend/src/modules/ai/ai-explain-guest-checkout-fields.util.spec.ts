@@ -12,9 +12,9 @@ import { EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_SCENARIOS } from './ai-expla
 
 describe('ai-explain-guest-checkout-fields.util', () => {
   it('exports classifier rules for explain_guest_checkout_fields', () => {
-    expect(CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES).toContain(
-      'explain_guest_checkout_fields',
-    );
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES,
+    ).toContain('explain_guest_checkout_fields');
   });
 
   it.each(
@@ -24,7 +24,9 @@ describe('ai-explain-guest-checkout-fields.util', () => {
     expect(parseExplainGuestCheckoutFieldsFromPrompt(row.prompt)?.aspect).toBe(
       row.aspect,
     );
-    expect(rescueExplainGuestCheckoutFieldsIntent(row.prompt, 'unknown')).toEqual({
+    expect(
+      rescueExplainGuestCheckoutFieldsIntent(row.prompt, 'unknown'),
+    ).toEqual({
       action: 'explain_guest_checkout_fields',
       rescueReason: 'guest_checkout_fields',
     });
@@ -36,16 +38,19 @@ describe('ai-explain-guest-checkout-fields.util', () => {
     ),
   )('detects multilingual guest checkout fields prompt for $id', (_id, row) => {
     expect(isExplainGuestCheckoutFieldsPrompt(row.prompt)).toBe(true);
-    expect(rescueExplainGuestCheckoutFieldsIntent(row.prompt, 'unknown')?.action).toBe(
-      'explain_guest_checkout_fields',
-    );
+    expect(
+      rescueExplainGuestCheckoutFieldsIntent(row.prompt, 'unknown')?.action,
+    ).toBe('explain_guest_checkout_fields');
   });
 
   it.each(
     GUEST_CHECKOUT_FIELDS_RESCUE_SCENARIOS.map((row) => [row.id, row] as const),
   )('rescues $id from misclassified action', (_id, row) => {
     expect(
-      rescueExplainGuestCheckoutFieldsIntent(row.prompt, row.misclassifiedAction),
+      rescueExplainGuestCheckoutFieldsIntent(
+        row.prompt,
+        row.misclassifiedAction,
+      ),
     ).toEqual({
       action: row.expectedAction,
       rescueReason: 'guest_checkout_fields',
@@ -53,10 +58,12 @@ describe('ai-explain-guest-checkout-fields.util', () => {
   });
 
   it('does not treat GDPR export/delete as guest checkout fields', () => {
-    expect(isExplainGuestCheckoutFieldsPrompt('How can I export my personal data?')).toBe(
+    expect(
+      isExplainGuestCheckoutFieldsPrompt('How can I export my personal data?'),
+    ).toBe(false);
+    expect(isExplainGuestCheckoutFieldsPrompt('Delete my account data')).toBe(
       false,
     );
-    expect(isExplainGuestCheckoutFieldsPrompt('Delete my account data')).toBe(false);
   });
 
   it('does not treat clinic checkout fields as guest checkout fields', () => {
@@ -67,16 +74,45 @@ describe('ai-explain-guest-checkout-fields.util', () => {
     ).toBe(false);
   });
 
+  it('does not treat checkout validation troubleshooting as guest checkout fields', () => {
+    expect(
+      isExplainGuestCheckoutFieldsPrompt(
+        'It says enter email but I already filled it in at checkout',
+      ),
+    ).toBe(false);
+  });
+
   it('does not treat amount due prompts as guest checkout fields', () => {
-    expect(isExplainGuestCheckoutFieldsPrompt('How much do I pay today?')).toBe(false);
+    expect(isExplainGuestCheckoutFieldsPrompt('How much do I pay today?')).toBe(
+      false,
+    );
   });
 
   it('does not treat generic booking funnel walkthrough as guest checkout fields', () => {
     expect(
-      isExplainGuestCheckoutFieldsPrompt('Walk me through booking step by step'),
+      isExplainGuestCheckoutFieldsPrompt(
+        'Walk me through booking step by step',
+      ),
     ).toBe(false);
     expect(
       isExplainGuestCheckoutFieldsPrompt('What happens after I pick a time?'),
+    ).toBe(false);
+  });
+
+  it('does not steal explain_why_sign_in prompts', () => {
+    expect(isExplainGuestCheckoutFieldsPrompt('Do I need an account?')).toBe(
+      false,
+    );
+    expect(
+      isExplainGuestCheckoutFieldsPrompt("What's the benefit of signing in?"),
+    ).toBe(false);
+  });
+
+  it('does not steal explain_tenant_currency prompts', () => {
+    expect(
+      isExplainGuestCheckoutFieldsPrompt(
+        'Why does the salon app show prices in euros after I log in?',
+      ),
     ).toBe(false);
   });
 

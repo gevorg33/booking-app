@@ -38,7 +38,9 @@ export function deriveReferralCodeFromCustomerId(customerId: string): string {
   return customerId.replace(/-/g, '').slice(0, 8).toUpperCase() || 'FRIEND';
 }
 
-export function normalizeReferralCode(raw: string | null | undefined): string | null {
+export function normalizeReferralCode(
+  raw: string | null | undefined,
+): string | null {
   const code = raw?.trim().toUpperCase();
   if (!code || code.length < 4 || code.length > 16) return null;
   if (!/^[A-Z0-9]+$/.test(code)) return null;
@@ -57,17 +59,24 @@ export function mergeReferralProgramSettings(
     enabled: input.enabled !== false,
     referrerRewardType: parseReferrerRewardType(input.referrerRewardType),
     referrerBonusPoints: clampBonusPoints(input.referrerBonusPoints, 25),
-    referrerGiftCardAmount: clampGiftCardAmount(input.referrerGiftCardAmount, 25),
+    referrerGiftCardAmount: clampGiftCardAmount(
+      input.referrerGiftCardAmount,
+      25,
+    ),
     refereeBonusPoints: clampBonusPoints(input.refereeBonusPoints, 25),
     refereePromoCode:
-      typeof input.refereePromoCode === 'string' && input.refereePromoCode.trim()
+      typeof input.refereePromoCode === 'string' &&
+      input.refereePromoCode.trim()
         ? input.refereePromoCode.trim().toUpperCase()
         : null,
   };
 }
 
 function parseReferrerRewardType(raw: unknown): ReferrerRewardType {
-  if (typeof raw === 'string' && (REFERRER_REWARD_TYPES as readonly string[]).includes(raw)) {
+  if (
+    typeof raw === 'string' &&
+    (REFERRER_REWARD_TYPES as readonly string[]).includes(raw)
+  ) {
     return raw as ReferrerRewardType;
   }
   return DEFAULT_REFERRAL_PROGRAM_SETTINGS.referrerRewardType;
@@ -104,7 +113,9 @@ export function readReferredByCustomerId(
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-export function hasReferralConversion(metadata?: Record<string, unknown> | null): boolean {
+export function hasReferralConversion(
+  metadata?: Record<string, unknown> | null,
+): boolean {
   return Boolean(metadata?.[REFERRAL_METADATA_CONVERTED_AT]);
 }
 
@@ -123,7 +134,8 @@ export function buildReferralConversionMetadata(input: {
   convertedAt?: string;
 }): Record<string, string> {
   return {
-    [REFERRAL_METADATA_CONVERTED_AT]: input.convertedAt ?? new Date().toISOString(),
+    [REFERRAL_METADATA_CONVERTED_AT]:
+      input.convertedAt ?? new Date().toISOString(),
     [REFERRAL_METADATA_CONVERTED_BOOKING_ID]: input.bookingId,
   };
 }
@@ -134,9 +146,7 @@ export function buildReferralShareUrl(
   referralCode: string,
   rootDomain?: string,
 ): string {
-  const url = new URL(
-    buildTenantPublicUrl({ slug, frontendUrl, rootDomain }),
-  );
+  const url = new URL(buildTenantPublicUrl({ slug, frontendUrl, rootDomain }));
   url.searchParams.set('ref', referralCode);
   url.searchParams.set('src', 'referral');
   return url.toString();
@@ -151,7 +161,7 @@ export function resolveReferrerFromCandidates(
   const matches = customerIds.filter(
     (id) => deriveReferralCodeFromCustomerId(id) === normalized,
   );
-  return matches.length === 1 ? matches[0]! : null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export function canSelfRefer(

@@ -32,12 +32,7 @@ describe('ai-flexible-availability-check.logic (avail-1.5)', () => {
     'buildPublicAvailabilityWindowLabel $id',
     ({ window, todayDateKey, expectedLabel }) => {
       expect(
-        buildPublicAvailabilityWindowLabel(
-          window,
-          'en',
-          'UTC',
-          todayDateKey,
-        ),
+        buildPublicAvailabilityWindowLabel(window, 'en', 'UTC', todayDateKey),
       ).toBe(expectedLabel);
     },
   );

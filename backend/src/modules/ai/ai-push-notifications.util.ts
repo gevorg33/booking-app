@@ -117,6 +117,22 @@ export function isOpenBookingFromPushPrompt(prompt: string): boolean {
 }
 
 export function isOfflineQueueStatusPrompt(prompt: string): boolean {
+  if (
+    /\b(why.{0,30}offline|my\s+booking|consumer\s+app|saved\s+salon|waiting\s+to\s+sync|will.{0,20}sync)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\bwhat\s+happens\s+to\b/i.test(prompt) &&
+    /\b(pending\s+sync|sync\s+actions?)\b/i.test(prompt) &&
+    !/\b(provider\s+app|provider\s+mobile|today\s+tab|staff\s+app)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(offline\s+queue(?:\s+status)?|queued\s+actions?|pending\s+sync|what(?:'s|\s+is)\s+queued)\b/i.test(
       prompt,
@@ -128,6 +144,12 @@ export function isOfflineQueueStatusPrompt(prompt: string): boolean {
 }
 
 export function isRetryOfflineActionPrompt(prompt: string): boolean {
+  if (
+    /\b(will.{0,30}sync|my\s+booking|consumer\s+app)\b/i.test(prompt) &&
+    !/\b(retry|replay|resync|flush)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(retry|replay|resync|sync|flush)\b/i.test(prompt) &&
     /\b(offline|queued|queue|pending\s+actions?)\b/i.test(prompt)
@@ -135,6 +157,7 @@ export function isRetryOfflineActionPrompt(prompt: string): boolean {
 }
 
 export function isDismissPushPrompt(prompt: string): boolean {
+  if (/\b(patient|clinic)\s+alert\b/i.test(prompt)) return false;
   return (
     /\b(dismiss|clear|ignore|close)\b/i.test(prompt) &&
     /\b(push|notification|alert|banner)\b/i.test(prompt) &&
@@ -543,6 +566,27 @@ export function rescuePushNotificationsIntent(
   }
 
   return null;
+}
+
+/** True when prompt belongs to Sprint 35 push/offline/dashboard notification intents. */
+export function isPushNotificationsDomainPrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (!text) return false;
+  return (
+    isExplainLastPushPrompt(text) ||
+    isOpenBookingFromPushPrompt(text) ||
+    isOfflineQueueStatusPrompt(text) ||
+    isRetryOfflineActionPrompt(text) ||
+    isDismissPushPrompt(text) ||
+    isEndOfDaySummaryPrompt(text) ||
+    isNewBookingPushActionsPrompt(text) ||
+    isConfigurePushRecipientsPrompt(text) ||
+    isTestPushPrompt(text) ||
+    isNotificationHistoryPrompt(text) ||
+    isToggleBusinessEmailOnCustomerChangePrompt(text) ||
+    isConfigureNotificationSettingsPrompt(text) ||
+    isConfigureWhatsappIntegrationPrompt(text)
+  );
 }
 
 export function classifyPushNotificationsSegment(

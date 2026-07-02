@@ -59,7 +59,7 @@ describe('dashboard summarize_bookings handler E2E (ai-cmd-ext-1.6)', () => {
         expect(result.summary).toContain(
           buildSummarizeBookingsRevenueLine(
             expectedTotal,
-            expectedAppointmentCount!,
+            expectedAppointmentCount,
             settings,
           ),
         );
@@ -143,7 +143,6 @@ describe('dashboard summarize_bookings Nest handler path (ai-cmd-ext-1.6)', () =
   });
 });
 
-
 describe('dashboard summarize_bookings revenue rescue + formatting (ai-cmd-ext-1.6)', () => {
   const rescue = new AiIntentRescueService();
 
@@ -158,7 +157,9 @@ describe('dashboard summarize_bookings revenue rescue + formatting (ai-cmd-ext-1
       expect(result?.action).toBe('summarize_bookings');
       if (bookingMetric === 'revenue') {
         expect(result?.params.bookingMetric).toBe('revenue');
-        expect(resolveBookingMetric(result?.params ?? {}, prompt)).toBe('revenue');
+        expect(resolveBookingMetric(result?.params ?? {}, prompt)).toBe(
+          'revenue',
+        );
       }
     },
   );

@@ -72,7 +72,9 @@ export function assertClinicTestResultExtCommandResultShape(
   return errors;
 }
 
-export function coerceClinicTestResultExtIntent(action: string): ClinicTestResultExtIntent {
+export function coerceClinicTestResultExtIntent(
+  action: string,
+): ClinicTestResultExtIntent {
   if (!isClinicTestResultExtIntent(action)) {
     throw new Error(`Not a clinic test result ext intent: ${action}`);
   }

@@ -27,7 +27,9 @@ const services = [
   },
 ] as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],
@@ -92,9 +94,10 @@ describe('ai-find-soonest-appointment.logic (ai-cmd-customer-4.1.3)', () => {
     expect(result.action).toBe('find_soonest_appointment');
     expect(result.summary).toContain('Soonest opening');
     expect(result.summary).toContain('Anna');
-    expect((result.details as { bookingFirstAvailable: boolean }).bookingFirstAvailable).toBe(
-      true,
-    );
+    expect(
+      (result.details as { bookingFirstAvailable: boolean })
+        .bookingFirstAvailable,
+    ).toBe(true);
   });
 
   it('reports no slots when nearest scan is empty', async () => {

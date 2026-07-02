@@ -1,6 +1,17 @@
 import { isExplainDataRightsPrompt } from './ai-data-rights.util.js';
+import { isExplainWhySignInPrompt } from './ai-explain-why-sign-in.util.js';
+import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
 import { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
+import { isFixCheckoutValidationErrorPrompt } from './ai-fix-checkout-validation-error.util.js';
+import { isConfigureGranularConsentPrompt } from './ai-business-compliance.util.js';
+import { isConfigureStripeConnectPrompt } from './ai-stripe-connect.util.js';
+import { isExplainProviderDateDisplayPrompt } from './ai-provider-date-format.util.js';
+import { isExplainPackageDisplayNamePrompt } from './ai-package-display-name.util.js';
+import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
+import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
+import { isExplainRecommendationSetupPrompt } from './ai-recommendation-product.util.js';
 
 export const GUEST_CHECKOUT_FIELDS_INTENTS = [
   'explain_guest_checkout_fields',
@@ -23,7 +34,7 @@ export interface ParsedExplainGuestCheckoutFields {
   aspect: GuestCheckoutFieldsAspect;
 }
 
-export const CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES = `- explain_guest_checkout_fields: READ — explain guest checkout contact fields on the consumer app or public booking page: why name/email/phone are collected, email OR phone rule, booking without an account, signed-in vs guest merge, reminder toggles, and privacy consent checkboxes. Triggers: "Why do you need my email?", "Can I book without an account?", "Do I need both email and phone?", "Will my guest booking link after sign-in?". Set aspect when clear (email|phone|name|guest_vs_account|contact_merge|reminders|consent|all). NOT booking_help (full funnel walkthrough without field focus), NOT explain_data_rights (GDPR export/delete/cookie banner), NOT explain_clinic_booking (symptoms/referral/fasting), NOT fix_checkout_validation_error (validation error troubleshooting), NOT privacy_export|privacy_delete (mutate), NOT explain_amount_due_now|explain_checkout_total (payment math).`;
+export const CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES = `- explain_guest_checkout_fields: READ — explain guest checkout contact fields on the consumer app or public booking page: why name/email/phone are collected, email OR phone rule, signed-in vs guest merge, reminder toggles, and privacy consent checkboxes. Triggers: "Why do you need my email?", "Do I need both email and phone?", "Will my guest booking link after sign-in?". Set aspect when clear (email|phone|name|guest_vs_account|contact_merge|reminders|consent|all). NOT explain_why_sign_in (account required/benefits/history — no field focus), NOT sign_in_after_booking (PostBookingSignInPrompt after confirmation), NOT booking_help (full funnel walkthrough without field focus), NOT explain_data_rights (GDPR export/delete/cookie banner), NOT explain_clinic_booking (symptoms/referral/fasting), NOT explain_clinic_booking_fields (ID/DOB/insurance/intake identity fields), NOT fix_checkout_validation_error (validation error troubleshooting), NOT privacy_export|privacy_delete (mutate), NOT explain_amount_due_now|explain_checkout_total (payment math).`;
 
 const READ_CUE = new RegExp(
   String.raw`\b(what|why|how|where|explain|tell|describe|should|do i|does|can i|need|required|optional|mean|means|without|guest|account)\b|ինչ|ինչու|ինչպես|բացատր|պետք|համար\s+է|что|почему|как|объясни|нужно|зачем|можно\s+ли|без\s+аккаунта`,
@@ -76,7 +87,7 @@ const BOTH_CONTACT_TOPIC = new RegExp(
 );
 
 const BLOCK_TOPIC = new RegExp(
-  String.raw`\b(?:validation\s+error|invalid\s+email|won'?t\s+accept|says\s+enter|already\s+filled|error\s+message|fix\s+checkout|passenger|pax|group\s+size|tour\s+checkout|symptoms?|referral|fasting|lab\s+prep|export\s+my\s+data|delete\s+my\s+account|cookie\s+banner|gdpr|deposit|due\s+today|pay\s+today|checkout\s+total)\b|ախտանիշ|экспорт\s+данных|удалить\s+аккаунт|депозит`,
+  String.raw`\b(?:validation\s+error|invalid\s+email|won'?t\s+accept|(?:say|says)\s+enter|already\s+filled|error\s+message|fix\s+checkout|still\s+(?:get|says|show|ask).*enter|contact\s+details?\s+missing|passenger|pax|group\s+size|tour\s+checkout|symptoms?|referral|fasting|lab\s+prep|export\s+my\s+data|delete\s+my\s+account|cookie\s+banner|gdpr|deposit|due\s+today|pay\s+today|checkout\s+total)\b|ախտանիշ|экспорт\s+данных|удалить\s+аккаунт|депозит`,
   'iu',
 );
 
@@ -125,26 +136,52 @@ export function extractGuestCheckoutFieldsAspectFromPrompt(
   if (PHONE_TOPIC.test(prompt) && /\b(?:no|without)\s+email\b/i.test(prompt)) {
     return 'phone';
   }
-  if (EMAIL_TOPIC.test(prompt) && /\bjust\s+email\b/i.test(prompt)) return 'email';
+  if (EMAIL_TOPIC.test(prompt) && /\bjust\s+email\b/i.test(prompt))
+    return 'email';
   if (PHONE_TOPIC.test(prompt) && /\bjust\s+(?:my\s+)?phone\b/i.test(prompt)) {
     return 'phone';
   }
   if (NAME_TOPIC.test(prompt)) return 'name';
   if (EMAIL_TOPIC.test(prompt)) return 'email';
   if (PHONE_TOPIC.test(prompt)) return 'phone';
-  if (/\b(?:guest\s+checkout|contact\s+details?|checkout\s+fields?)\b/iu.test(prompt)) {
+  if (
+    /\b(?:guest\s+checkout|contact\s+details?|checkout\s+fields?)\b/iu.test(
+      prompt,
+    )
+  ) {
     return 'all';
   }
   return 'all';
 }
 
 export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
+  if (isConfigureGranularConsentPrompt(prompt)) return false;
+  if (isConfigureStripeConnectPrompt(prompt)) return false;
+  if (isExplainProviderDateDisplayPrompt(prompt)) return false;
+  if (isExplainPackageDisplayNamePrompt(prompt)) return false;
+  if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
+  if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
+  if (isExplainRecommendationSetupPrompt(prompt)) return false;
+  if (isExplainWhySignInPrompt(prompt)) return false;
+  if (
+    /\b(save (?:this )?booking to (?:my )?account|sign in with google after|post-booking sign|after (?:my )?booking|maybe later on save|confirmation screen save)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (isFixCheckoutValidationErrorPrompt(prompt)) return false;
   if (isCheckoutConsentPrompt(prompt)) return true;
   if (isExplainDataRightsPrompt(prompt)) return false;
+  if (isExplainTenantCurrencyPrompt(prompt)) return false;
+  if (isExplainNotificationCurrencyPrompt(prompt)) return false;
   if (isExplainClinicBookingPrompt(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;
-  if (GENERIC_FUNNEL_WALKTHROUGH.test(prompt) && !GUEST_FIELD_TOPIC.test(prompt)) {
+  if (
+    GENERIC_FUNNEL_WALKTHROUGH.test(prompt) &&
+    !GUEST_FIELD_TOPIC.test(prompt)
+  ) {
     return false;
   }
 
@@ -206,7 +243,8 @@ export function parseExplainGuestCheckoutFieldsFromPrompt(
       : undefined;
 
   return {
-    aspect: aspectFromParams ?? extractGuestCheckoutFieldsAspectFromPrompt(prompt),
+    aspect:
+      aspectFromParams ?? extractGuestCheckoutFieldsAspectFromPrompt(prompt),
   };
 }
 

@@ -32,21 +32,16 @@ export function promptImpliesPlainAvailabilityNotRecommend(
   if (STAFF_METRIC_LANGUAGE.test(prompt)) return true;
   if (RANKING_LANGUAGE.test(prompt)) return false;
   if (impliesTeamWideAvailabilityFromSemantic(prompt)) return true;
-  if (
-    /\bfree\s+slots?\b/i.test(prompt) &&
-    /\bfor\s+[A-Za-z]/i.test(prompt)
-  ) {
+  if (/\bfree\s+slots?\b/i.test(prompt) && /\bfor\s+[A-Za-z]/i.test(prompt)) {
     return true;
   }
   return false;
 }
 
 function recommendSpecialistsAnchors(surface: CommandSurface) {
-  return filterAnchorsForSurface(
-    buildCanonicalPhrasingBank([]),
-    surface,
-    ['recommend_specialists'],
-  ).filter((anchor) => anchor.paramHints?.recommendSpecialists === true);
+  return filterAnchorsForSurface(buildCanonicalPhrasingBank([]), surface, [
+    'recommend_specialists',
+  ]).filter((anchor) => anchor.paramHints?.recommendSpecialists === true);
 }
 
 export function resolveRecommendSpecialistsSemanticHints(
@@ -87,7 +82,8 @@ export function impliesRecommendSpecialistsFromSemantic(
   surfaces: readonly CommandSurface[] = DEFAULT_RECOMMEND_SPECIALISTS_SURFACES,
 ): boolean {
   return surfaces.some(
-    (surface) => resolveRecommendSpecialistsSemanticHints(prompt, surface) != null,
+    (surface) =>
+      resolveRecommendSpecialistsSemanticHints(prompt, surface) != null,
   );
 }
 

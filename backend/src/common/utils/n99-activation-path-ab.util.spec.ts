@@ -32,13 +32,23 @@ describe('n99-activation-path-ab.util (n99-3.8)', () => {
   const rows = toRows(N99_ACTIVATION_PATH_AB_FIXTURE_ROWS);
 
   it('scores qualified activation per variant with min sample gate', () => {
-    const signInPre = scoreActivationPathAbVariant(rows, 'signInPlacement', 'pre_confirm', 2);
+    const signInPre = scoreActivationPathAbVariant(
+      rows,
+      'signInPlacement',
+      'pre_confirm',
+      2,
+    );
     expect(signInPre.qualifiedInstalls).toBe(2);
     expect(signInPre.qualifiedActivated).toBe(2);
     expect(signInPre.qualifiedActivationRate).toBe(1);
     expect(signInPre.sufficientSample).toBe(true);
 
-    const signInPost = scoreActivationPathAbVariant(rows, 'signInPlacement', 'post_booking', 2);
+    const signInPost = scoreActivationPathAbVariant(
+      rows,
+      'signInPlacement',
+      'post_booking',
+      2,
+    );
     expect(signInPost.qualifiedInstalls).toBe(2);
     expect(signInPost.qualifiedActivated).toBe(1);
     expect(signInPost.qualifiedActivationRate).toBe(0.5);
@@ -55,13 +65,20 @@ describe('n99-activation-path-ab.util (n99-3.8)', () => {
     expect(promotion.promoted.paymentTiming).toBe(
       N99_ACTIVATION_PATH_AB_PROMOTION_EXPECTATIONS.paymentTiming,
     );
-    expect(promotion.dimensions.every((entry) => entry.promotionApplied)).toBe(true);
+    expect(promotion.dimensions.every((entry) => entry.promotionApplied)).toBe(
+      true,
+    );
   });
 
   it('keeps defaults when sample is below threshold', () => {
-    const promotion = promoteActivationPathVariants(rows, N99_ACTIVATION_PATH_AB_MIN_SAMPLE);
+    const promotion = promoteActivationPathVariants(
+      rows,
+      N99_ACTIVATION_PATH_AB_MIN_SAMPLE,
+    );
     expect(promotion.promoted.signInPlacement).toBe('post_booking');
-    expect(promotion.dimensions.every((entry) => !entry.promotionApplied)).toBe(true);
+    expect(promotion.dimensions.every((entry) => !entry.promotionApplied)).toBe(
+      true,
+    );
   });
 
   it('builds dashboard export with scores and promotion report', () => {
@@ -99,7 +116,9 @@ describe('n99-activation-path-ab.util (n99-3.8)', () => {
 
   it('computeActivationPathAbScores returns all dimension variants', () => {
     const scores = computeActivationPathAbScores(rows, 2);
-    expect(scores.map((entry) => `${entry.dimension}:${entry.variant}`)).toEqual([
+    expect(
+      scores.map((entry) => `${entry.dimension}:${entry.variant}`),
+    ).toEqual([
       'signInPlacement:post_booking',
       'signInPlacement:pre_confirm',
       'slotPreselection:nearest_auto',

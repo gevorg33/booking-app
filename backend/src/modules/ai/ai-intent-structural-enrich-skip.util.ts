@@ -18,9 +18,11 @@ export function shouldSkipStructuralEnrichAfterSelfVerify(
   return selfVerify.clarify != null;
 }
 
-export function buildStructuralEnrichSkipTraceDetail(
-  action: string,
-): { stage: 'structural_enrich'; action: string; detail: string } {
+export function buildStructuralEnrichSkipTraceDetail(action: string): {
+  stage: 'structural_enrich';
+  action: string;
+  detail: string;
+} {
   return {
     stage: 'structural_enrich',
     action,

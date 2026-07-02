@@ -29,7 +29,9 @@ describe('ai-product-guide.eval.util (ai-guide-1.6.4)', () => {
   it('covers all four surfaces in similar + multilingual eval cases', () => {
     const surfaces = new Set([
       ...AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES.map((row) => row.surface),
-      ...AI_COMMAND_EVAL_PRODUCT_GUIDE_MULTILINGUAL_CASES.map((row) => row.surface),
+      ...AI_COMMAND_EVAL_PRODUCT_GUIDE_MULTILINGUAL_CASES.map(
+        (row) => row.surface,
+      ),
     ]);
     expect([...surfaces].sort()).toEqual(listProductGuideEvalSurfaces().sort());
   });
@@ -61,7 +63,9 @@ describe('ai-product-guide.eval.util (ai-guide-1.6.4)', () => {
   it('passes deterministic product guide rescue, enrich, and similar cases', () => {
     const deterministic = [
       ...AI_COMMAND_EVAL_PRODUCT_GUIDE_RESCUE_CASES,
-      ...AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES.filter((row) => !row.requiresLlm),
+      ...AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES.filter(
+        (row) => !row.requiresLlm,
+      ),
       ...AI_COMMAND_EVAL_PRODUCT_GUIDE_MULTILINGUAL_CASES,
     ];
     const failures = deterministic.filter(
@@ -69,11 +73,16 @@ describe('ai-product-guide.eval.util (ai-guide-1.6.4)', () => {
     );
     if (failures.length > 0) {
       const detail = failures
-        .map((row) => `${row.id}: ${evaluateDeterministicEvalCase(row).errors.join('; ')}`)
+        .map(
+          (row) =>
+            `${row.id}: ${evaluateDeterministicEvalCase(row).errors.join('; ')}`,
+        )
         .join('\n');
       throw new Error(`Product guide eval failures:\n${detail}`);
     }
-    expect(AI_COMMAND_EVAL_PRODUCT_GUIDE_CASES.length).toBeGreaterThanOrEqual(100);
+    expect(AI_COMMAND_EVAL_PRODUCT_GUIDE_CASES.length).toBeGreaterThanOrEqual(
+      100,
+    );
   });
 
   it('tags LLM-only dashboard classifier/handler cases with requiresLlm', () => {
@@ -84,7 +93,7 @@ describe('ai-product-guide.eval.util (ai-guide-1.6.4)', () => {
   });
 
   it('similarAppGuidePromptToEvalCase preserves surface and topicId', () => {
-    const row = AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES[0]!;
+    const row = AI_COMMAND_EVAL_PRODUCT_GUIDE_SIMILAR_CASES[0];
     const evalCase = similarAppGuidePromptToEvalCase({
       id: row.id.replace('product-guide-similar-', ''),
       surface: row.surface!,
@@ -105,12 +114,16 @@ describe('ai-product-guide.eval.util (ai-guide-1.6.4)', () => {
       expect(evalCase.surface).toBe(scenario.surface);
       expect(evalCase.expect.guideEvalRoute).toBe(scenario.route);
       expect(
-        shouldOfferAiUnavailableGuideFallback(scenario.prompt, scenario.surface, {
-          context: {
-            route: scenario.route,
-            assistantMode: scenario.assistantMode,
+        shouldOfferAiUnavailableGuideFallback(
+          scenario.prompt,
+          scenario.surface,
+          {
+            context: {
+              route: scenario.route,
+              assistantMode: scenario.assistantMode,
+            },
           },
-        }),
+        ),
       ).toBe(scenario.expectGuide);
     }
   });

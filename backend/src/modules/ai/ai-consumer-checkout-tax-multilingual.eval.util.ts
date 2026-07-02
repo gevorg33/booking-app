@@ -37,7 +37,10 @@ export const AI_COMMAND_EVAL_CONSUMER_CHECKOUT_TAX_MULTILINGUAL_CASES: AiCommand
 
 export function listConsumerCheckoutTaxEvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly Pick<ConsumerCheckoutTaxMultilingualScenario, 'id'>[] = CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS,
+  scenarios: readonly Pick<
+    ConsumerCheckoutTaxMultilingualScenario,
+    'id'
+  >[] = CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   return scenarios

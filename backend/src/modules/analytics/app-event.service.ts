@@ -32,12 +32,17 @@ export class AppEventService {
     private readonly consumerPushTokens: ConsumerPushTokenService,
   ) {}
 
-  async ingestEvents(dto: IngestAppEventsDto): Promise<{ recorded: number; skipped: number }> {
+  async ingestEvents(
+    dto: IngestAppEventsDto,
+  ): Promise<{ recorded: number; skipped: number }> {
     if (!dto.consentGranted) {
       throw new BadRequestException('Analytics consent is required');
     }
 
-    const businessId = await this.resolveBusinessId(dto.businessId, dto.tenantSlug);
+    const businessId = await this.resolveBusinessId(
+      dto.businessId,
+      dto.tenantSlug,
+    );
     let recorded = 0;
     let skipped = 0;
 
@@ -55,7 +60,10 @@ export class AppEventService {
       );
       this.rateLimits.set(rateKey, next);
       if (limited) {
-        throw new HttpException('App event rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+        throw new HttpException(
+          'App event rate limit exceeded',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
 
       await this.appEventRepo.save(this.appEventRepo.create(payload));

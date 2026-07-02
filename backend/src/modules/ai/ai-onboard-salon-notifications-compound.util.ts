@@ -2,12 +2,8 @@ import {
   enrichParamsWithSharedEntities,
   propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
-import {
-  parseConfigureNotificationSettingsFromPrompt,
-} from './ai-notification-settings.util.js';
-import {
-  parseConfigureWhatsappIntegrationFromPrompt,
-} from './ai-whatsapp-integration.util.js';
+import { parseConfigureNotificationSettingsFromPrompt } from './ai-notification-settings.util.js';
+import { parseConfigureWhatsappIntegrationFromPrompt } from './ai-whatsapp-integration.util.js';
 
 export const ONBOARD_SALON_NOTIFICATIONS_STEP_ACTIONS = [
   'configure_notification_settings',
@@ -87,11 +83,7 @@ export function isOnboardSalonNotificationsCompoundPrompt(
   if (fullOnboarding) return true;
   if (stepFamilies < 3) return false;
 
-  return (
-    stepFamilies >= 3 ||
-    COMPOUND_MARKERS.test(text) ||
-    /;\s*/.test(text)
-  );
+  return stepFamilies >= 3 || COMPOUND_MARKERS.test(text) || /;\s*/.test(text);
 }
 
 export type OnboardSalonNotificationsStep = {

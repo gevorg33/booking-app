@@ -128,17 +128,24 @@ export function enrichCancelMyBookingParamsFromPrompt(
   prompt: string,
 ): Record<string, unknown> {
   const next = { ...params };
+  const knownService = prompt.match(
+    /\b(massage|haircut|facial|color|manicure|blowdry)\b/i,
+  )?.[1];
+  const extracted = extractServiceNameFromPrompt(prompt);
   const serviceName =
     (params.serviceName as string | undefined)?.trim() ||
-    extractServiceNameFromPrompt(prompt) ||
-    prompt.match(/\b(massage|haircut|facial|color|manicure|blowdry)\b/i)?.[1];
+    knownService ||
+    extracted ||
+    undefined;
   if (serviceName && !next.serviceName) {
     next.serviceName = serviceName.replace(/^tomorrow's\s+/i, '').trim();
   }
   return next;
 }
 
-export function matchCustomerOwnedBooking<T extends CustomerOwnedBookingMatchInput>(
+export function matchCustomerOwnedBooking<
+  T extends CustomerOwnedBookingMatchInput,
+>(
   bookings: T[],
   params: Record<string, unknown>,
   prompt: string,
@@ -148,8 +155,7 @@ export function matchCustomerOwnedBooking<T extends CustomerOwnedBookingMatchInp
   const now = new Date();
   let candidates = bookings.filter(
     (row) =>
-      row.status === BookingStatus.CONFIRMED &&
-      new Date(row.startTime) >= now,
+      row.status === BookingStatus.CONFIRMED && new Date(row.startTime) >= now,
   );
 
   if (params.bookingId) {
@@ -206,10 +212,10 @@ export function matchCustomerOwnedBooking<T extends CustomerOwnedBookingMatchInp
 
   const hasSpecificFilters = Boolean(
     params.bookingId ||
-      params.serviceName ||
-      params.date ||
-      params.timeSlot ||
-      params.employeeName,
+    params.serviceName ||
+    params.date ||
+    params.timeSlot ||
+    params.employeeName,
   );
 
   if (candidates.length > 1 && !hasSpecificFilters) {

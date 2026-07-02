@@ -333,9 +333,9 @@ export const DASHBOARD_GUIDE_CORPUS_TOC: readonly GuideCorpusTocGroup[] = [
   {
     id: 'core',
     navLabelKey: `${CORE}.navLabel`,
-    topicIds: DASHBOARD_GUIDE_CORPUS_TOPICS.filter((t) => t.group === 'core').map(
-      (t) => t.topicId,
-    ),
+    topicIds: DASHBOARD_GUIDE_CORPUS_TOPICS.filter(
+      (t) => t.group === 'core',
+    ).map((t) => t.topicId),
   },
   {
     id: 'operations',
@@ -368,8 +368,12 @@ export const GUIDE_CORPUS_ANCHOR_TO_TOPIC_ID: Readonly<
 );
 
 /** Full guide page URL for a corpus topic. */
-export function buildDashboardGuideTopicUrl(topicId: GuideCorpusTopicId): string {
-  const topic = DASHBOARD_GUIDE_CORPUS_TOPICS.find((row) => row.topicId === topicId);
+export function buildDashboardGuideTopicUrl(
+  topicId: GuideCorpusTopicId,
+): string {
+  const topic = DASHBOARD_GUIDE_CORPUS_TOPICS.find(
+    (row) => row.topicId === topicId,
+  );
   if (!topic) return '/dashboard/guide';
   return `/dashboard/guide#${topic.anchor}`;
 }

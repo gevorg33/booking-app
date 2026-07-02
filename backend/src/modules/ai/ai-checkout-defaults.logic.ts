@@ -50,7 +50,10 @@ export async function handleConfigureCheckoutDefaultsLogic(
     return failure(
       'configure_checkout_defaults',
       'Specify checkout defaults (e.g. "Set checkout defaults: allow cash at venue and 50% prepayment for new services").',
-      { clarify: true, missing: ['acceptCashPayments', 'defaultServicePrepaymentMode'] },
+      {
+        clarify: true,
+        missing: ['acceptCashPayments', 'defaultServicePrepaymentMode'],
+      },
     );
   }
 

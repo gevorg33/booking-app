@@ -73,7 +73,9 @@ export function readReferralCodeUsed(
   metadata?: Record<string, unknown> | null,
 ): string | null {
   const raw = metadata?.[REFERRAL_METADATA_CODE_USED];
-  return typeof raw === 'string' && raw.trim() ? raw.trim().toUpperCase() : null;
+  return typeof raw === 'string' && raw.trim()
+    ? raw.trim().toUpperCase()
+    : null;
 }
 
 export function buildProviderBookingCustomerContextView(

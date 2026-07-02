@@ -20,11 +20,18 @@ export class ConsumerPushTokenService {
     customerId: string,
     businessId: string,
     dto: RegisterConsumerNativePushDto,
-  ): Promise<{ registered: true; platform: 'ios' | 'android'; refreshed: boolean }> {
+  ): Promise<{
+    registered: true;
+    platform: 'ios' | 'android';
+    refreshed: boolean;
+  }> {
     const existing = await this.tokenRepo.findOne({
       where: { customerId, businessId, platform: dto.platform },
     });
-    const refreshed = shouldRefreshConsumerPushToken(existing?.token, dto.token);
+    const refreshed = shouldRefreshConsumerPushToken(
+      existing?.token,
+      dto.token,
+    );
 
     await this.tokenRepo.delete({
       customerId,
@@ -83,7 +90,10 @@ export class ConsumerPushTokenService {
     await this.recordFcmAccepted(tokenId, `legacy-${tokenId}`);
   }
 
-  async recordDeliveryFailure(tokenId: string, errorCode: string): Promise<void> {
+  async recordDeliveryFailure(
+    tokenId: string,
+    errorCode: string,
+  ): Promise<void> {
     const token = await this.tokenRepo.findOne({ where: { id: tokenId } });
     if (!token) return;
     token.deliveryFailureCount += 1;
@@ -134,12 +144,23 @@ export class ConsumerPushTokenService {
     return candidateIds.length;
   }
 
-  async getDeliverabilityAggregate(businessId: string): Promise<PushDeliverabilityTokenAggregate> {
+  async getDeliverabilityAggregate(
+    businessId: string,
+  ): Promise<PushDeliverabilityTokenAggregate> {
     const raw = await this.tokenRepo
       .createQueryBuilder('token')
-      .select('COALESCE(SUM(token.delivery_success_count), 0)', 'deliverySuccessCount')
-      .addSelect('COALESCE(SUM(token.delivery_failure_count), 0)', 'deliveryFailureCount')
-      .addSelect('COALESCE(SUM(token.silent_failure_count), 0)', 'silentFailureCount')
+      .select(
+        'COALESCE(SUM(token.delivery_success_count), 0)',
+        'deliverySuccessCount',
+      )
+      .addSelect(
+        'COALESCE(SUM(token.delivery_failure_count), 0)',
+        'deliveryFailureCount',
+      )
+      .addSelect(
+        'COALESCE(SUM(token.silent_failure_count), 0)',
+        'silentFailureCount',
+      )
       .where('token.business_id = :businessId', { businessId })
       .getRawOne<{
         deliverySuccessCount: string;

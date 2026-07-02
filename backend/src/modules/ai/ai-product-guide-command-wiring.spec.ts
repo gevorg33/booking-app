@@ -6,7 +6,10 @@ import {
   resolveProductGuideSessionContext,
 } from './ai-product-guide.util.js';
 import { PRODUCT_GUIDE_CLASSIFIER_SCENARIOS } from './ai-product-guide.fixtures.js';
-import { DASHBOARD_CLASSIFIER_ACTION_UNION, DASHBOARD_INTENT_SCHEMA } from './ai-command-intent-schema.build.js';
+import {
+  DASHBOARD_CLASSIFIER_ACTION_UNION,
+  DASHBOARD_INTENT_SCHEMA,
+} from './ai-command-intent-schema.build.js';
 import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 import { resolveHandlerForSurface } from './ai-command-registry.util.js';
 
@@ -23,7 +26,9 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
   });
 
   it('wires APP_GUIDE_CLASSIFIER_RULES into INTENT_SCHEMA appendix', () => {
-    expect(DASHBOARD_INTENT_SCHEMA).toContain(APP_GUIDE_CLASSIFIER_RULES.trim());
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      APP_GUIDE_CLASSIFIER_RULES.trim(),
+    );
     expect(DASHBOARD_INTENT_SCHEMA).toContain(
       'explain_app_feature: READ — explain what a dashboard feature',
     );
@@ -67,7 +72,9 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
   });
 
   it('dispatches guide handoffs directly without classifier hop (ai-guide-1.2.5)', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('readGuideHandoffDispatch(session)');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'readGuideHandoffDispatch(session)',
+    );
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('validateGuideHandoffDispatch');
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('isGuideHandoffMutatingAction');
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('directGuideHandoff: true');
@@ -75,7 +82,9 @@ describe('ai-product-guide command wiring (ai-guide-1.2.6)', () => {
   });
 
   it('covers classifier scenarios for guide vs mutate disambiguation', () => {
-    expect(PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length).toBeGreaterThanOrEqual(10);
+    expect(PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.length).toBeGreaterThanOrEqual(
+      10,
+    );
     for (const intent of APP_GUIDE_INTENTS) {
       expect(
         PRODUCT_GUIDE_CLASSIFIER_SCENARIOS.some(

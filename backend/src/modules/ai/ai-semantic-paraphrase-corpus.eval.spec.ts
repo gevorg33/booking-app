@@ -21,10 +21,11 @@ describe('semantic paraphrase eval (acc-3.16)', () => {
     }
   });
 
-  it.each(
-    AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES.map((row) => [row.id, row]),
-  )('passes eval case %s', (_id, evalCase) => {
-    const result = evaluateDeterministicEvalCase(evalCase);
-    expect(result.passed).toBe(true);
-  });
+  it.each(AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES.map((row) => [row.id, row]))(
+    'passes eval case %s',
+    (_id, evalCase) => {
+      const result = evaluateDeterministicEvalCase(evalCase);
+      expect(result.passed).toBe(true);
+    },
+  );
 });

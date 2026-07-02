@@ -79,7 +79,13 @@ function buildProviderGuideValidationIssues(
   action: ProviderProductGuideIntent,
   params: Record<string, unknown>,
 ): ValidationIssue[] {
-  if (parseProviderProductGuideIntentFromPrompt(action, readPrompt(params), params)) {
+  if (
+    parseProviderProductGuideIntentFromPrompt(
+      action,
+      readPrompt(params),
+      params,
+    )
+  ) {
     return [];
   }
   return [
@@ -97,7 +103,9 @@ function buildProviderMetaGuideValidationIssues(
   action: ProviderMetaGuideIntent,
   params: Record<string, unknown>,
 ): ValidationIssue[] {
-  if (parseMetaProductGuideIntentFromPrompt(action, readPrompt(params), params)) {
+  if (
+    parseMetaProductGuideIntentFromPrompt(action, readPrompt(params), params)
+  ) {
     return [];
   }
   if (action === 'explain_ai_suggestions') {
@@ -334,7 +342,9 @@ const PROVIDER_ACTION_RULES: Record<
         ],
 
   block_my_time: (params) =>
-    params.date && (params.timeFrom || params.startTime) && (params.timeTo || params.endTime)
+    params.date &&
+    (params.timeFrom || params.startTime) &&
+    (params.timeTo || params.endTime)
       ? []
       : params.timeFrom || params.startTime
         ? []
@@ -392,17 +402,32 @@ const PROVIDER_ACTION_RULES: Record<
   explain_profile_settings: (params) =>
     buildProviderGuideValidationIssues('explain_profile_settings', params),
   explain_assistant_confirm_swipe: (params) =>
-    buildProviderGuideValidationIssues('explain_assistant_confirm_swipe', params),
+    buildProviderGuideValidationIssues(
+      'explain_assistant_confirm_swipe',
+      params,
+    ),
   explain_provider_compound_steps: (params) =>
-    buildProviderGuideValidationIssues('explain_provider_compound_steps', params),
+    buildProviderGuideValidationIssues(
+      'explain_provider_compound_steps',
+      params,
+    ),
   explain_ai_suggestions: (params) =>
     buildProviderMetaGuideValidationIssues('explain_ai_suggestions', params),
   explain_assistant_approval: (params) =>
-    buildProviderMetaGuideValidationIssues('explain_assistant_approval', params),
+    buildProviderMetaGuideValidationIssues(
+      'explain_assistant_approval',
+      params,
+    ),
   explain_visibility_block: (params) =>
-    buildProviderEmptyStateGuideValidationIssues('explain_visibility_block', params),
+    buildProviderEmptyStateGuideValidationIssues(
+      'explain_visibility_block',
+      params,
+    ),
   explain_empty_catalog: (params) =>
-    buildProviderEmptyStateGuideValidationIssues('explain_empty_catalog', params),
+    buildProviderEmptyStateGuideValidationIssues(
+      'explain_empty_catalog',
+      params,
+    ),
 };
 
 export function validateProviderCommand(

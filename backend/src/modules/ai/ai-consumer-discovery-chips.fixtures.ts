@@ -36,6 +36,5 @@ export const CONSUMER_DISCOVERY_CHIP_FIXTURES: readonly ConsumerDiscoveryChipFix
     },
   ] as const;
 
-export const CONSUMER_DISCOVERY_CHIP_FIXTURE_IDS = CONSUMER_DISCOVERY_CHIP_FIXTURES.map(
-  (chip) => chip.id,
-);
+export const CONSUMER_DISCOVERY_CHIP_FIXTURE_IDS =
+  CONSUMER_DISCOVERY_CHIP_FIXTURES.map((chip) => chip.id);

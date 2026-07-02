@@ -69,8 +69,12 @@ export class AiBusinessTaxService {
     return handleExplainBusinessTaxLogic(this.deps, businessId, params, prompt);
   }
 
-  handleExplainCheckoutTax(businessId: string): Promise<CommandResult> {
-    return handleExplainCheckoutTaxLogic(this.deps, businessId);
+  handleExplainCheckoutTax(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainCheckoutTaxLogic(this.deps, businessId, params, prompt);
   }
 
   handleExplainConsumerCheckoutTax(

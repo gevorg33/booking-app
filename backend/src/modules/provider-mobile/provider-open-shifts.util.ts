@@ -1,6 +1,9 @@
 /** prov-exp-7.3 — open schedule gaps (>30m) on provider calendar with waitlist AI. */
 
-import { normalizeTime24, timeToMinutes } from '../../common/utils/time-format.util.js';
+import {
+  normalizeTime24,
+  timeToMinutes,
+} from '../../common/utils/time-format.util.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import type { TimeInterval } from '../schedule/helpers/schedule-gap.helpers.js';
 
@@ -106,9 +109,7 @@ export function extractGapWindowFromPrompt(prompt: string): {
   timeFrom: string | null;
   timeTo: string | null;
 } {
-  const range = prompt.match(
-    /(\d{1,2}:\d{2})\s*(?:to|–|-)\s*(\d{1,2}:\d{2})/i,
-  );
+  const range = prompt.match(/(\d{1,2}:\d{2})\s*(?:to|–|-)\s*(\d{1,2}:\d{2})/i);
   if (!range) {
     return { timeFrom: null, timeTo: null };
   }

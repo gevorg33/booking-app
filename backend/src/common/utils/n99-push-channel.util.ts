@@ -14,7 +14,8 @@ export {
 
 export type ConsumerPushPreferenceCategory = 'reminders' | 'offers' | 'news';
 
-export const N99_PUSH_REACHABILITY_SCOPE_TRANSACTIONAL = 'transactional' as const;
+export const N99_PUSH_REACHABILITY_SCOPE_TRANSACTIONAL =
+  'transactional' as const;
 export const N99_PUSH_REACHABILITY_SCOPE_MARKETING = 'marketing' as const;
 
 /** n99-4.3 — Android channel for FCM delivery (transactional vs marketing). */
@@ -61,19 +62,18 @@ export function isTransactionalReachabilityAnalyticsProps(
   props: Record<string, unknown> | null | undefined,
 ): boolean {
   if (!props) return false;
-  if (props.pushReachabilityScope === N99_PUSH_REACHABILITY_SCOPE_MARKETING) return false;
+  if (props.pushReachabilityScope === N99_PUSH_REACHABILITY_SCOPE_MARKETING)
+    return false;
   if (props.pushReminders === false) return false;
   if (props.pushReachability === true) return true;
   const state = props.pushPermissionState;
-  return (
-    state === 'full' ||
-    state === 'provisional' ||
-    state === 'default_on'
-  );
+  return state === 'full' || state === 'provisional' || state === 'default_on';
 }
 
-export function listConsumerPushTypesForChannel(channelId: N99PushChannelId): string[] {
-  return N99_PUSH_TYPE_CHANNEL_SCENARIOS.filter((row) => row.channelId === channelId).map(
-    (row) => row.pushType,
-  );
+export function listConsumerPushTypesForChannel(
+  channelId: N99PushChannelId,
+): string[] {
+  return N99_PUSH_TYPE_CHANNEL_SCENARIOS.filter(
+    (row) => row.channelId === channelId,
+  ).map((row) => row.pushType);
 }

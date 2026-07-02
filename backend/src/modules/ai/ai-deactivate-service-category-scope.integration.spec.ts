@@ -51,10 +51,8 @@ describe('ai-deactivate-service-category-scope integration', () => {
     'rescues $id from $misclassifiedAction',
     ({ prompt, misclassifiedAction, expectedAction }) => {
       expect(
-        rescueDeactivateServiceCategoryScopeIntent(
-          prompt,
-          misclassifiedAction!,
-        )?.action,
+        rescueDeactivateServiceCategoryScopeIntent(prompt, misclassifiedAction!)
+          ?.action,
       ).toBe(expectedAction);
     },
   );

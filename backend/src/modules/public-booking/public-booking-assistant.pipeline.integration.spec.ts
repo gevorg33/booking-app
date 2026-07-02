@@ -3,7 +3,10 @@ import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from '../ai/ai-checkout-currency.f
 import { CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES } from '../ai/ai-explain-payment-options-for-service.util.js';
 import { CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES } from '../ai/ai-multi-service-customer-public.util.js';
 import { CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES } from '../ai/ai-promo-code-help-customer-public.util.js';
-import { CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES, TOUR_CUSTOMER_PUBLIC_PROMPTS } from '../ai/ai-tour-customer-public.util.js';
+import {
+  CUSTOMER_PUBLIC_TOUR_CLASSIFIER_RULES,
+  TOUR_CUSTOMER_PUBLIC_PROMPTS,
+} from '../ai/ai-tour-customer-public.util.js';
 import { CUSTOMER_PUBLIC_CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES } from '../ai/ai-checkout-recommendations-customer-public.util.js';
 import { CHECKOUT_RECOMMENDATIONS_CUSTOMER_PUBLIC_PROMPTS } from '../ai/ai-checkout-recommendations-customer-public.util.js';
 import {
@@ -34,16 +37,19 @@ describe('public booking assistant pipeline integration (pipe-1.12.4)', () => {
       effectivePrompt: budgetScenario.prompt,
       confidence: { low: 0.65, high: 0.82 },
       locale: 'en',
-      businessContextBlock: 'Business: Salon\nServices: Haircut — 30 min, 40 USD',
+      businessContextBlock:
+        'Business: Salon\nServices: Haircut — 30 min, 40 USD',
       classify,
     });
 
     expect(classify).toHaveBeenCalled();
     expect(result.action).toBe('list_services');
-    expect(result.params?.maxPrice).toBe(budgetScenario.expectedParams?.maxPrice);
+    expect(result.params?.maxPrice).toBe(
+      budgetScenario.expectedParams?.maxPrice,
+    );
   });
 
-  it('rescues explain_checkout_currency from unknown on booking-page tax questions', async () => {
+  it('rescues explain_checkout_currency from unknown on booking-page currency questions', async () => {
     const understand = buildPublicUnderstandMock();
     const classify = jest.fn().mockResolvedValue({
       action: 'unknown',
@@ -85,9 +91,9 @@ describe('public booking assistant pipeline integration (pipe-1.12.4)', () => {
     });
 
     expect(result.action).toBe('explain_payment_options_for_service');
-    expect(CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES).toContain(
-      'session serviceId/serviceName',
-    );
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CLASSIFIER_RULES,
+    ).toContain('session serviceId/serviceName');
   });
 
   it('rescues check_multi_service_availability from unknown for spa-day phrasing', async () => {
@@ -228,7 +234,8 @@ describe('public booking assistant pipeline integration (pipe-1.12.4)', () => {
       effectivePrompt: checkoutRecommendationsScenario.prompt,
       confidence: { low: 0.65, high: 0.82 },
       locale: 'en',
-      businessContextBlock: 'Business: Salon\nServices: Haircut — 30 min, 40 USD',
+      businessContextBlock:
+        'Business: Salon\nServices: Haircut — 30 min, 40 USD',
       classify,
     });
 

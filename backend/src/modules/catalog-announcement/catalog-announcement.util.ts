@@ -19,7 +19,10 @@ import type {
   CatalogNotifyTemplateMap,
 } from './catalog-announcement.types.js';
 
-const CATALOG_NOTIFY_KEYS = ['notifyCustomers', 'notificationTemplate'] as const;
+const CATALOG_NOTIFY_KEYS = [
+  'notifyCustomers',
+  'notificationTemplate',
+] as const;
 
 export function stripCatalogNotifyFields<T extends object>(
   dto: T,
@@ -136,14 +139,8 @@ function sanitizeDefaultTemplateMap(
   for (const [key, value] of Object.entries(input)) {
     const locale = normalizeAppLocale(key);
     if (!locale || !value || typeof value !== 'object') continue;
-    const subject =
-      typeof (value as CatalogNotifyLocaleTemplate).subject === 'string'
-        ? (value as CatalogNotifyLocaleTemplate).subject
-        : '';
-    const bodyText =
-      typeof (value as CatalogNotifyLocaleTemplate).bodyText === 'string'
-        ? (value as CatalogNotifyLocaleTemplate).bodyText
-        : '';
+    const subject = typeof value.subject === 'string' ? value.subject : '';
+    const bodyText = typeof value.bodyText === 'string' ? value.bodyText : '';
     if (!subject.trim() || !bodyText.trim()) continue;
     result[locale] = { subject: subject.trim(), bodyText: bodyText.trim() };
   }

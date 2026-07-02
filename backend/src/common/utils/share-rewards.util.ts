@@ -72,8 +72,15 @@ function mergeChannelSettings(
   };
 }
 
-function parseRewardKind(raw: unknown, fallback: ShareRewardKind): ShareRewardKind {
-  return raw === 'gift_card' ? 'gift_card' : fallback === 'gift_card' ? 'gift_card' : 'loyalty_points';
+function parseRewardKind(
+  raw: unknown,
+  fallback: ShareRewardKind,
+): ShareRewardKind {
+  return raw === 'gift_card'
+    ? 'gift_card'
+    : fallback === 'gift_card'
+      ? 'gift_card'
+      : 'loyalty_points';
 }
 
 function clampCooldownHours(raw: unknown): number {

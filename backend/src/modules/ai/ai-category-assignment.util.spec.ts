@@ -433,25 +433,26 @@ describe('ai-category-assignment.util', () => {
       expect(isAssignCategoryToProviderPrompt(prompt)).toBe(false);
     });
 
-    it.each(
-      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.map((s) => [s.id, s]),
-    )('rescues unassign %s', (_id, scenario) => {
-      const rescued = rescueUnassignServicesFromProviderIntent(
-        scenario.prompt,
-        'unknown',
-        {},
-      );
-      expect(rescued?.action).toBe(scenario.expectedAction);
-      expect(rescued?.rescueReason).toBe(scenario.rescueReason);
-      expect(rescued?.params.employeeName).toBe(scenario.employeeName);
-      if (scenario.categoryName) {
-        expect(rescued?.params.categoryName).toBe(scenario.categoryName);
-        expect(rescued?.params.unassignFromCategory).toBe(true);
-      }
-      if (scenario.unassignAllServices) {
-        expect(rescued?.params.unassignAllServices).toBe(true);
-      }
-    });
+    it.each(CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.map((s) => [s.id, s]))(
+      'rescues unassign %s',
+      (_id, scenario) => {
+        const rescued = rescueUnassignServicesFromProviderIntent(
+          scenario.prompt,
+          'unknown',
+          {},
+        );
+        expect(rescued?.action).toBe(scenario.expectedAction);
+        expect(rescued?.rescueReason).toBe(scenario.rescueReason);
+        expect(rescued?.params.employeeName).toBe(scenario.employeeName);
+        if (scenario.categoryName) {
+          expect(rescued?.params.categoryName).toBe(scenario.categoryName);
+          expect(rescued?.params.unassignFromCategory).toBe(true);
+        }
+        if (scenario.unassignAllServices) {
+          expect(rescued?.params.unassignAllServices).toBe(true);
+        }
+      },
+    );
 
     it.each(
       TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]),
@@ -463,9 +464,7 @@ describe('ai-category-assignment.util', () => {
       );
       expect(rescued?.action).toBe(scenario.expectedAction);
       expect(rescued?.rescueReason).toBe(scenario.rescueReason);
-      expect(rescued?.params.fromEmployeeName).toBe(
-        scenario.fromEmployeeName,
-      );
+      expect(rescued?.params.fromEmployeeName).toBe(scenario.fromEmployeeName);
       expect(rescued?.params.toEmployeeName).toBe(scenario.toEmployeeName);
       if (scenario.categoryName) {
         expect(rescued?.params.categoryName).toBe(scenario.categoryName);
@@ -982,9 +981,9 @@ describe('ai-category-assignment.util', () => {
 
   describe('extractUnassignFromProviderFromPrompt', () => {
     it.each(
-      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter((s) => s.categoryName).map(
-        (s) => [s.id, s],
-      ),
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter(
+        (s) => s.categoryName,
+      ).map((s) => [s.id, s]),
     )('extracts unassign fields for %s', (_id, scenario) => {
       const extracted = extractUnassignFromProviderFromPrompt(scenario.prompt);
       expect(extracted.employeeName).toBe(scenario.employeeName);
@@ -993,18 +992,17 @@ describe('ai-category-assignment.util', () => {
   });
 
   describe('extractTransferBetweenProvidersFromPrompt', () => {
-    it.each(TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]))(
-      'extracts transfer fields for %s',
-      (_id, scenario) => {
-        const extracted = extractTransferBetweenProvidersFromPrompt(
-          scenario.prompt,
-        );
-        expect(extracted.fromEmployeeName).toBe(scenario.fromEmployeeName);
-        expect(extracted.toEmployeeName).toBe(scenario.toEmployeeName);
-        if (scenario.categoryName) {
-          expect(extracted.categoryName).toBe(scenario.categoryName);
-        }
-      },
-    );
+    it.each(
+      TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]),
+    )('extracts transfer fields for %s', (_id, scenario) => {
+      const extracted = extractTransferBetweenProvidersFromPrompt(
+        scenario.prompt,
+      );
+      expect(extracted.fromEmployeeName).toBe(scenario.fromEmployeeName);
+      expect(extracted.toEmployeeName).toBe(scenario.toEmployeeName);
+      if (scenario.categoryName) {
+        expect(extracted.categoryName).toBe(scenario.categoryName);
+      }
+    });
   });
 });

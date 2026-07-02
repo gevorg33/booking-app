@@ -8,9 +8,7 @@ import {
   SEMANTIC_CONCEPT_THRESHOLD,
 } from './ai-semantic-intent.util.js';
 import { resolveSemanticAllowedActions } from './semantic-allowed-actions.util.js';
-import {
-  IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS,
-} from './ai-implication-corpus-multilingual.fixtures.js';
+import { IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS } from './ai-implication-corpus-multilingual.fixtures.js';
 import {
   listImplicationAnchorLocaleParityGaps,
   listImplicationCorpusLocaleParityGaps,
@@ -29,9 +27,9 @@ describe('ai implication corpus locale parity (acc-2.4 / pipe-1.11.5)', () => {
   });
 
   it('maps every HY/RU implication scenario to an eval golden case', () => {
-    expect(listImplicationEvalLocaleParityGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES)).toEqual(
-      [],
-    );
+    expect(
+      listImplicationEvalLocaleParityGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES),
+    ).toEqual([]);
   });
 
   it.each(
@@ -59,7 +57,10 @@ describe('ai implication corpus locale parity (acc-2.4 / pipe-1.11.5)', () => {
   );
 
   it.each(
-    IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS.map((scenario) => [scenario.id, scenario]),
+    IMPLICATION_CORPUS_MULTILINGUAL_SCENARIOS.map((scenario) => [
+      scenario.id,
+      scenario,
+    ]),
   )('passes eval case for %s', (_id, scenario) => {
     const evalCase = AI_COMMAND_EVAL_IMPLICATION_CASES.find(
       (row) => row.id === implicationCorpusEvalCaseId(scenario),

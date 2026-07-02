@@ -56,7 +56,12 @@ export class AiGuideTelemetry {
   @Column({ name: 'total_steps', type: 'int', nullable: true })
   totalSteps: number | null;
 
-  @Column({ name: 'handoff_action', type: 'varchar', length: 128, nullable: true })
+  @Column({
+    name: 'handoff_action',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
   handoffAction: string | null;
 
   @Column({ name: 'related_actions_count', type: 'int', nullable: true })

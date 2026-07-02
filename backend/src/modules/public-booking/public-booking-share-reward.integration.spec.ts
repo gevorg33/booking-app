@@ -11,7 +11,11 @@ describe('PublicBookingService share rewards (adopt-6.2)', () => {
     settings: {
       shareRewards: {
         enabled: true,
-        salon: { enabled: true, rewardType: 'loyalty_points', loyaltyPoints: 5 },
+        salon: {
+          enabled: true,
+          rewardType: 'loyalty_points',
+          loyaltyPoints: 5,
+        },
       },
     },
   };
@@ -40,9 +44,9 @@ describe('PublicBookingService share rewards (adopt-6.2)', () => {
   };
 
   const service = createPublicBookingServiceHarness({
-    businessService: businessService as never,
+    businessService: businessService,
     configService: { get: jest.fn() } as never,
-    shareRewardService: shareRewardService as never,
+    shareRewardService: shareRewardService,
   });
 
   beforeEach(() => {
@@ -50,7 +54,9 @@ describe('PublicBookingService share rewards (adopt-6.2)', () => {
   });
 
   it('returns share rewards view for signed-in customer', async () => {
-    await expect(service.getCustomerShareRewards('demo-salon', 'cust-1')).resolves.toEqual(
+    await expect(
+      service.getCustomerShareRewards('demo-salon', 'cust-1'),
+    ).resolves.toEqual(
       expect.objectContaining({
         salonShareEnabled: true,
         salonRewardSummary: '5 loyalty points',

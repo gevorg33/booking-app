@@ -2,7 +2,9 @@ import { SEMANTIC_ALLOWED_ACTIONS_SCENARIOS } from './semantic-allowed-actions.f
 
 describe('semantic-allowed-actions.fixtures (pipe-1.4.6)', () => {
   it('has unique scenario ids', () => {
-    const ids = SEMANTIC_ALLOWED_ACTIONS_SCENARIOS.map((scenario) => scenario.id);
+    const ids = SEMANTIC_ALLOWED_ACTIONS_SCENARIOS.map(
+      (scenario) => scenario.id,
+    );
     expect(new Set(ids).size).toBe(ids.length);
   });
 

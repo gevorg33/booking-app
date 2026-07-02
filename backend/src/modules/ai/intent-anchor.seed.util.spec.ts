@@ -29,19 +29,25 @@ describe('intent-anchor.seed.util', () => {
 
   it('rejects prompts with person names', () => {
     expect(
-      isGenericSemanticAnchorPrompt('Move to June 11 nearest free time for Maria'),
+      isGenericSemanticAnchorPrompt(
+        'Move to June 11 nearest free time for Maria',
+      ),
     ).toBe(false);
   });
 
   it('harvests only eval cases flagged useSemanticIntentMatch', () => {
-    const harvested = harvestEvalPhrasingAnchors(AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES);
+    const harvested = harvestEvalPhrasingAnchors(
+      AI_COMMAND_EVAL_SEMANTIC_INTENT_CASES,
+    );
     expect(harvested.length).toBeGreaterThan(0);
     expect(harvested.every((anchor) => anchor.source === 'eval')).toBe(true);
   });
 
   it('merges canonical and eval banks without duplicate action+phrase keys', () => {
     const bank = getIntentAnchorBank();
-    const keys = bank.map((anchor) => `${anchor.action}::${anchor.phrase.toLowerCase()}`);
+    const keys = bank.map(
+      (anchor) => `${anchor.action}::${anchor.phrase.toLowerCase()}`,
+    );
     expect(new Set(keys).size).toBe(keys.length);
     expect(bank.length).toBeGreaterThan(canonicalBankToAnchors().length);
   });

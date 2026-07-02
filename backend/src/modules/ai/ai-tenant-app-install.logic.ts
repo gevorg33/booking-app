@@ -73,9 +73,8 @@ export async function handleRegenerateTenantAppInstallQrLogic(
       );
     }
 
-    const view = await deps.tenantAppInstallService.regenerateForBusiness(
-      business,
-    );
+    const view =
+      await deps.tenantAppInstallService.regenerateForBusiness(business);
     const result = buildRegenerateTenantAppInstallSummary({ view });
 
     return success('regenerate_tenant_app_install_qr', result.summary, {

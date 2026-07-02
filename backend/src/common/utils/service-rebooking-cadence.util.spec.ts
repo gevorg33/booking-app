@@ -1,4 +1,7 @@
-import { REBOOKING_CADENCE_SCENARIOS, REBOOKING_DUE_SCENARIOS } from './service-rebooking-cadence.fixtures.js';
+import {
+  REBOOKING_CADENCE_SCENARIOS,
+  REBOOKING_DUE_SCENARIOS,
+} from './service-rebooking-cadence.fixtures.js';
 import {
   computeRebookingDueDate,
   formatRebookingCadenceLabel,
@@ -22,7 +25,9 @@ describe('service-rebooking-cadence.util', () => {
 
   it('returns null when service cadence metadata is invalid', () => {
     expect(
-      readServiceRebookingCadenceDays({ metadata: { rebookingCadenceDays: 'bad' } }),
+      readServiceRebookingCadenceDays({
+        metadata: { rebookingCadenceDays: 'bad' },
+      }),
     ).toBeNull();
   });
 
@@ -56,13 +61,17 @@ describe('service-rebooking-cadence.util', () => {
 
   it('reads string cadence days from service metadata', () => {
     expect(
-      readServiceRebookingCadenceDays({ metadata: { rebookingCadenceDays: '21' } }),
+      readServiceRebookingCadenceDays({
+        metadata: { rebookingCadenceDays: '21' },
+      }),
     ).toBe(21);
   });
 
   it('returns null for invalid string cadence metadata', () => {
     expect(
-      readServiceRebookingCadenceDays({ metadata: { rebookingCadenceDays: 'bad' } }),
+      readServiceRebookingCadenceDays({
+        metadata: { rebookingCadenceDays: 'bad' },
+      }),
     ).toBeNull();
   });
 });

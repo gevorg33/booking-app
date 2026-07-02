@@ -17,6 +17,7 @@ import {
   isProviderMarkPaidPrompt,
   type ProviderBookingCompoundStep,
 } from './ai-provider-booking.util.js';
+import { enrichProviderExp2ActionParams } from './ai-provider-exp-2.util.js';
 
 /** Push deep-link actions with NL parity (ai-cmd-h3.5). */
 export const PROVIDER_PUSH_PARITY_ACTIONS = [
@@ -304,6 +305,8 @@ export function applyProviderMobilePromptHints(
   if (isConfirmBookingFromPushPrompt(prompt) && !params.status) {
     params.status = 'confirmed';
   }
+
+  enrichProviderExp2ActionParams(action, params, prompt);
 }
 
 function classifyProviderMobileSegment(

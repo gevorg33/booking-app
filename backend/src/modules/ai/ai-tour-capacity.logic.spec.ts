@@ -80,6 +80,27 @@ describe('ai-tour-capacity.logic (ai-cmd-tour-9)', () => {
     expect(result.details?.rejectionReason).toBe('fullyBooked');
   });
 
+  it('diagnoses proactive tour group checkout capacity check', async () => {
+    const result = await handleDiagnoseTourCapacityLogic(
+      deps(),
+      'biz-1',
+      {
+        tourGroupCheckout: true,
+        serviceName: '3-Day Mountain Trek',
+        requestedPax: 4,
+        date: '2026-08-15',
+      },
+      'Wine tour for 6 next Saturday — book if enough seats',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('diagnose_tour_capacity');
+    expect(result.details).toMatchObject({
+      requestedPax: 4,
+      remainingSpots: 2,
+    });
+  });
+
   it('diagnoses pax clamp when requested above max group', async () => {
     bookingService.findAll.mockResolvedValueOnce([]);
 

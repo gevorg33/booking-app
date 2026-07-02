@@ -47,7 +47,9 @@ describe('AiSemanticIntentService embedding path (pipe-1.4.3)', () => {
     service = moduleRef.get(AiSemanticIntentService);
     rag = moduleRef.get(AiRagService);
 
-    jest.spyOn(semanticUtil, 'shouldUseDeterministicSemanticFallback').mockReturnValue(false);
+    jest
+      .spyOn(semanticUtil, 'shouldUseDeterministicSemanticFallback')
+      .mockReturnValue(false);
     await service.onModuleInit();
   });
 

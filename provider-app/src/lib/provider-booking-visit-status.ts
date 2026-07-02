@@ -40,7 +40,7 @@ export async function markProviderBookingReadyNow(
 
 export function formatVisitStatusLabel(
   status: ProviderVisitStatusSnapshot,
-  t: (key: string, params?: Record<string, unknown>) => string,
+  t: (key: string, params?: Record<string, string | number>) => string,
 ): string {
   if (status.kind === 'ready_now') {
     return t('provider.visitStatusReadyNow');

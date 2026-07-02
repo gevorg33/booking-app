@@ -1,4 +1,7 @@
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
 
 export { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
@@ -357,7 +360,7 @@ export function hasPrepaymentServiceIdentity(
 ): boolean {
   const serviceName = (params.serviceName as string | undefined)?.trim();
   if (serviceName && isDeicticServiceReference(serviceName)) {
-    return (params.serviceId != null && params.serviceId !== '');
+    return params.serviceId != null && params.serviceId !== '';
   }
   return (
     (params.serviceId != null && params.serviceId !== '') ||
@@ -425,8 +428,13 @@ export function isExplainWhyPrepaymentPrompt(prompt: string): boolean {
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isDoIPayOnlineForServicePrompt(prompt)) return false;
   if (/\bdo\s+i\s+pay\s+online\b/i.test(prompt)) return true;
-  if (/\bwhy\s+(?:must|do)\s+i\s+(?:have\s+to\s+)?pay\b/i.test(prompt)) return true;
-  if (/\bwhy\s+(?:do\s+i\s+need|is)\s+.*\b(prepayment|prepay|deposit)\b/i.test(prompt)) {
+  if (/\bwhy\s+(?:must|do)\s+i\s+(?:have\s+to\s+)?pay\b/i.test(prompt))
+    return true;
+  if (
+    /\bwhy\s+(?:do\s+i\s+need|is)\s+.*\b(prepayment|prepay|deposit)\b/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
   if (/\bwhy\s+pay\s+online\b/i.test(prompt)) return true;

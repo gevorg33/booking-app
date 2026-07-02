@@ -35,7 +35,10 @@ describe('ai-multi-service-customer-public.util (ai-cmd-customer-4.0 P1)', () =>
   it.each(
     MULTI_SERVICE_CUSTOMER_PUBLIC_PROMPTS.map((row) => [row.id, row] as const),
   )('rescues multi-service prompt $id from unknown', (_id, row) => {
-    const rescued = rescueMultiServiceCustomerPublicIntent(row.prompt, 'unknown');
+    const rescued = rescueMultiServiceCustomerPublicIntent(
+      row.prompt,
+      'unknown',
+    );
     expect(rescued?.action).toBe(row.expectedAction);
   });
 
@@ -72,9 +75,9 @@ describe('ai-multi-service-customer-public.util (ai-cmd-customer-4.0 P1)', () =>
 
   it('maps multi-service fixtures to passing eval golden cases', () => {
     expect(BOOK_MULTI_SERVICE_PROMPTS.length).toBeGreaterThanOrEqual(10);
-    expect(CHECK_MULTI_SERVICE_AVAILABILITY_PROMPTS.length).toBeGreaterThanOrEqual(
-      10,
-    );
+    expect(
+      CHECK_MULTI_SERVICE_AVAILABILITY_PROMPTS.length,
+    ).toBeGreaterThanOrEqual(10);
     expect(AI_COMMAND_EVAL_MULTI_SERVICE_CUSTOMER_PUBLIC_CASES.length).toBe(
       MULTI_SERVICE_CUSTOMER_PUBLIC_PROMPTS.length,
     );

@@ -228,7 +228,9 @@ describe('ai-booking-depth.util', () => {
       "mark Karo Mazmanyan's appointment as done and paid on 5th of june from 9:50";
 
     it('returns null possessive owner when phrasing is absent', () => {
-      expect(extractPossessiveAppointmentOwnerName('mark paid today')).toBeNull();
+      expect(
+        extractPossessiveAppointmentOwnerName('mark paid today'),
+      ).toBeNull();
     });
 
     it('extracts stylist role as provider', () => {
@@ -240,7 +242,9 @@ describe('ai-booking-depth.util', () => {
     });
 
     it('extracts provider possessive, date, and time slot', () => {
-      expect(extractMarkPaidEmployeeNameFromPrompt(prompt)).toBe('Karo Mazmanyan');
+      expect(extractMarkPaidEmployeeNameFromPrompt(prompt)).toBe(
+        'Karo Mazmanyan',
+      );
       expect(extractMarkPaidTimeSlotFromPrompt(prompt)).toBe('09:50');
       const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
         employees: [{ name: 'Karo Mazmanyan' }],
@@ -262,29 +266,19 @@ describe('ai-booking-depth.util', () => {
     });
 
     it('uses customer roster when possessive matches a client not a provider', () => {
-      const enriched = enrichMarkPaidParamsFromPrompt(
-        prompt,
-        {},
-        'UTC',
-        {
-          employees: [{ name: 'Gevorg Gasparyan' }],
-          customers: [{ name: 'Karo Mazmanyan' }],
-        },
-      );
+      const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
+        employees: [{ name: 'Gevorg Gasparyan' }],
+        customers: [{ name: 'Karo Mazmanyan' }],
+      });
       expect(enriched.customerName).toBe('Karo Mazmanyan');
       expect(enriched.employeeName).toBeUndefined();
     });
 
     it('prefers provider when possessive matches both rosters', () => {
-      const enriched = enrichMarkPaidParamsFromPrompt(
-        prompt,
-        {},
-        'UTC',
-        {
-          employees: [{ name: 'Karo Mazmanyan' }],
-          customers: [{ name: 'Karo Mazmanyan' }],
-        },
-      );
+      const enriched = enrichMarkPaidParamsFromPrompt(prompt, {}, 'UTC', {
+        employees: [{ name: 'Karo Mazmanyan' }],
+        customers: [{ name: 'Karo Mazmanyan' }],
+      });
       expect(enriched.employeeName).toBe('Karo Mazmanyan');
       expect(enriched.customerName).toBeUndefined();
     });

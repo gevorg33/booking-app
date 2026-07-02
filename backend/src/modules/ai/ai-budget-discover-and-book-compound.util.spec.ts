@@ -57,7 +57,7 @@ describe('ai-budget-discover-and-book-compound.util (ai-cmd-ext-4.3)', () => {
     'rescueBudgetDiscoverAndBookCompoundIntent $id',
     ({ prompt, misclassifiedAction }) => {
       expect(
-        rescueBudgetDiscoverAndBookCompoundIntent(prompt, misclassifiedAction!),
+        rescueBudgetDiscoverAndBookCompoundIntent(prompt, misclassifiedAction),
       ).toEqual({
         action: 'compound_intent',
         rescueReason: 'budget_discover_and_book_compound',
@@ -79,7 +79,7 @@ describe('ai-budget-discover-and-book-compound.util (ai-cmd-ext-4.3)', () => {
   it('does not treat check+book without budget as discover-and-book compound', () => {
     expect(
       isBudgetDiscoverAndBookCompoundPrompt(
-        "check who is free tomorrow evening for lashes, book the nearest slot",
+        'check who is free tomorrow evening for lashes, book the nearest slot',
       ),
     ).toBe(false);
   });

@@ -35,6 +35,9 @@ import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logi
 import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
 import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
 import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
+import { handleExplainLoyaltyPointsLogic } from './ai-explain-loyalty-points.logic.js';
+import { handleApplyPromoCodeCheckoutLogic } from './ai-apply-promo-code-checkout.logic.js';
+import { handleApplyLoyaltyAtCheckoutLogic } from './ai-apply-loyalty-at-checkout.logic.js';
 
 export interface MarketingGrowthLogicDeps {
   marketingAutomationService: MarketingAutomationService;
@@ -670,7 +673,10 @@ export function mergeMarketingGrowthCompoundContext(
   if (step.action === 'explain_tenant_app_install' && details.appInstall) {
     next.tenantAppInstall = details.appInstall;
   }
-  if (step.action === 'regenerate_tenant_app_install_qr' && details.appInstall) {
+  if (
+    step.action === 'regenerate_tenant_app_install_qr' &&
+    details.appInstall
+  ) {
     next.tenantAppInstall = details.appInstall;
     next.tenantAppInstallRegenerated = details.regenerated === true;
   }
@@ -761,7 +767,10 @@ export async function handleMarketingGrowthCompoundLogic(
         result = await handleExplainTenantAppInstallLogic(deps, businessId);
         break;
       case 'regenerate_tenant_app_install_qr':
-        result = await handleRegenerateTenantAppInstallQrLogic(deps, businessId);
+        result = await handleRegenerateTenantAppInstallQrLogic(
+          deps,
+          businessId,
+        );
         break;
       case 'create_promo_code':
         result = await handleCreatePromoCodeLogic(
@@ -793,11 +802,35 @@ export async function handleMarketingGrowthCompoundLogic(
           step.segment,
         );
         break;
+      case 'apply_promo_code_checkout':
+        result = await handleApplyPromoCodeCheckoutLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'apply_loyalty_at_checkout':
+        result = await handleApplyLoyaltyAtCheckoutLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
       case 'loyalty_points_balance':
         result = await handleLoyaltyPointsBalanceLogic(
           deps,
           businessId,
           stepParams,
+        );
+        break;
+      case 'explain_loyalty_points':
+        result = await handleExplainLoyaltyPointsLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
         );
         break;
       default:

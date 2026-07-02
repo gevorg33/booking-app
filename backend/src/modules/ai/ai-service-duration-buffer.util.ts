@@ -32,8 +32,7 @@ export const UPDATE_SERVICE_DURATION_BUFFER_PROMPTS: UpdateServiceDurationBuffer
   [
     {
       id: 'category-duration-buffer',
-      prompt:
-        'Set all massage services to 60 minutes with 15 min buffer',
+      prompt: 'Set all massage services to 60 minutes with 15 min buffer',
       surface: 'dashboard',
       expectedAction: UPDATE_SERVICE_DURATION_BUFFER_INTENT,
       paramsPartial: {
@@ -141,20 +140,17 @@ export const UPDATE_SERVICE_DURATION_BUFFER_PROMPTS: UpdateServiceDurationBuffer
 const DURATION_BUFFER_SIGNAL =
   /\b(duration|buffer|minutes?\s+long|min\s+buffer|minute\s+buffer)\b/i;
 
-const MUTATE_DURATION_VERB =
-  /\b(set|change|update|adjust|make|configure)\b/i;
+const MUTATE_DURATION_VERB = /\b(set|change|update|adjust|make|configure)\b/i;
 
 const CREATE_SERVICE_SIGNAL =
   /\b(add|create|new)\s+(?:a\s+)?service\b|\$\s*\d|USD\s*\d|\d+\s*(?:m|min(?:ute)?s?)\s*\$\s*\d/i;
 
-const TOUR_DURATION_DAYS =
-  /\bduration\s+days?\b|\b(\d+)\s+day\s+tour\b/i;
+const TOUR_DURATION_DAYS = /\bduration\s+days?\b|\b(\d+)\s+day\s+tour\b/i;
 
 const MULTI_SERVICE_MAX =
   /\bmax(?:imum)?\s+duration\b|\bmulti[\s-]?service\b.*\bmax\b/i;
 
-const CATEGORY_MOVE =
-  /\b(?:move|assign)\b.+\b(?:under|to)\b.+\bcategory\b/i;
+const CATEGORY_MOVE = /\b(?:move|assign)\b.+\b(?:under|to)\b.+\bcategory\b/i;
 
 function hasDurationOrBufferValue(prompt: string): boolean {
   return (
@@ -178,11 +174,7 @@ export function isUpdateServiceDurationBufferPrompt(prompt: string): boolean {
     );
   const hasMinutesValue = /\b\d+\s*(?:m|min(?:ute)?s?)\b/i.test(text);
 
-  if (
-    MUTATE_DURATION_VERB.test(text) &&
-    hasServiceScope &&
-    hasMinutesValue
-  ) {
+  if (MUTATE_DURATION_VERB.test(text) && hasServiceScope && hasMinutesValue) {
     return true;
   }
 
@@ -224,22 +216,16 @@ function parseDurationMinutes(
     /\bduration\s+to\s+(\d{1,3})\s*(?:m|min(?:ute)?s?)\b/i,
   );
   if (durationTo) return Math.max(10, parseInt(durationTo[1], 10));
-  const longMatch = prompt.match(
-    /\b(\d{1,3})\s*(?:m|min(?:ute)?s?)\s+long\b/i,
-  );
+  const longMatch = prompt.match(/\b(\d{1,3})\s*(?:m|min(?:ute)?s?)\s+long\b/i);
   if (longMatch) return Math.max(10, parseInt(longMatch[1], 10));
-  const toMinutes = prompt.match(
-    /\bto\s+(\d{1,3})\s*(?:m|min(?:ute)?s?)\b/i,
-  );
+  const toMinutes = prompt.match(/\bto\s+(\d{1,3})\s*(?:m|min(?:ute)?s?)\b/i);
   if (
     toMinutes &&
     (/\bduration\b/i.test(prompt) || /\bservices?\b/i.test(prompt))
   ) {
     return Math.max(10, parseInt(toMinutes[1], 10));
   }
-  const emDash = prompt.match(
-    /[—–-]\s*(\d{1,3})\s*(?:m|in(?:ute)?s?)\b/i,
-  );
+  const emDash = prompt.match(/[—–-]\s*(\d{1,3})\s*(?:m|in(?:ute)?s?)\b/i);
   if (emDash && /\bduration\b/i.test(prompt)) {
     return Math.max(10, parseInt(emDash[1], 10));
   }

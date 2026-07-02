@@ -20,9 +20,8 @@ import {
   isPaymentsCompoundPrompt,
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
-import {
-  handleExplainServiceOnlinePaymentSetupLogic,
-} from './ai-service-online-payment-setup.logic.js';
+import { handleBuyGiftCardForSomeoneLogic } from './ai-buy-gift-card-for-someone.logic.js';
+import { handleExplainServiceOnlinePaymentSetupLogic } from './ai-service-online-payment-setup.logic.js';
 import { handleExplainPublicBookingCheckoutLogic } from './ai-explain-public-booking-checkout.logic.js';
 import { handleExplainServicePriceLogic } from './ai-explain-service-price.logic.js';
 import { handleExplainPaymentOptionsForServiceLogic } from './ai-explain-payment-options-for-service.logic.js';
@@ -61,9 +60,7 @@ import {
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
 import { handlePaymentsCompoundLogic } from './ai-payments-compound.logic.js';
-import {
-  dispatchPaymentsLogicIntent,
-} from './ai-payments-dispatch.util.js';
+import { dispatchPaymentsLogicIntent } from './ai-payments-dispatch.util.js';
 import type { PaymentsDispatchContext } from './ai-payments-dispatch.build.js';
 
 @Injectable()
@@ -206,12 +203,7 @@ export class AiPaymentsService {
     params: Record<string, any> = {},
     prompt = '',
   ) {
-    return handleCompareServicesLogic(
-      this.deps,
-      businessId,
-      params,
-      prompt,
-    );
+    return handleCompareServicesLogic(this.deps, businessId, params, prompt);
   }
 
   handleFilterServicesNoPrepayment(
@@ -425,6 +417,19 @@ export class AiPaymentsService {
     return handleBuyGiftCardLogic(this.deps, businessId, params, physical);
   }
 
+  handleBuyGiftCardForSomeone(
+    businessId: string,
+    params: Record<string, any> = {},
+    prompt = '',
+  ) {
+    return handleBuyGiftCardForSomeoneLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
   handleChoosePaymentMethod(
     businessId: string,
     params: Record<string, any> = {},
@@ -500,9 +505,7 @@ export class AiPaymentsService {
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-6.2). Returns null when action is not a payments intent. */
-  dispatchIntent(
-    ctx: PaymentsDispatchContext,
-  ): Promise<CommandResult | null> {
+  dispatchIntent(ctx: PaymentsDispatchContext): Promise<CommandResult | null> {
     return dispatchPaymentsLogicIntent(this.deps, ctx);
   }
 }

@@ -42,14 +42,16 @@ describe('ai discover exit gate (discover-exit-1)', () => {
     const orphans = findOrphanFixtureIds(DISCOVER_EXIT_FIXTURE_IDS, covered);
 
     expect(orphans).toEqual([]);
-    expect(listDiscoverExitItEachCoverageGaps(DISCOVER_EXIT_FIXTURE_IDS)).toEqual(
-      [],
-    );
+    expect(
+      listDiscoverExitItEachCoverageGaps(DISCOVER_EXIT_FIXTURE_IDS),
+    ).toEqual([]);
   });
 
   it('covers every budget domain fixture id via discover-suite it.each', () => {
     const covered = buildDiscoverExitItEachCoveredIds();
-    expect(findOrphanFixtureIds(BUDGET_DOMAIN_FIXTURE_IDS, covered)).toEqual([]);
+    expect(findOrphanFixtureIds(BUDGET_DOMAIN_FIXTURE_IDS, covered)).toEqual(
+      [],
+    );
   });
 
   it('covers every rank domain fixture id via discover-suite it.each', () => {
@@ -78,9 +80,9 @@ describe('ai discover exit gate (discover-exit-2)', () => {
 
 describe('ai discover exit gate (discover-exit-3)', () => {
   it('includes cross-sprint discover eval cases in discover exit coverage', () => {
-    expect(AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES.length).toBeGreaterThanOrEqual(
-      DISCOVER_CROSS_SPRINT_MIN_EVAL_CASES,
-    );
+    expect(
+      AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES.length,
+    ).toBeGreaterThanOrEqual(DISCOVER_CROSS_SPRINT_MIN_EVAL_CASES);
     for (const evalCase of AI_COMMAND_EVAL_DISCOVER_CROSS_SPRINT_CASES) {
       expect(evalCase.id).toMatch(/^discover-/);
     }

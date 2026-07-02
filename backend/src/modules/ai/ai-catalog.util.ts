@@ -621,14 +621,19 @@ export function rescueCatalogIntent(
       rescueReason: 'service_compatibility',
     };
   }
-  const durationBuffer = rescueUpdateServiceDurationBufferIntent(prompt, action);
+  const durationBuffer = rescueUpdateServiceDurationBufferIntent(
+    prompt,
+    action,
+  );
   if (durationBuffer) return durationBuffer;
   const featured = rescueConfigureServiceFeaturedIntent(prompt, action);
   if (featured) return featured;
   const bulkCategory = rescueBulkAssignServicesCategoryIntent(prompt, action);
   if (bulkCategory) return bulkCategory;
-  const packageOnlinePayment =
-    rescueConfigurePackageOnlinePaymentIntent(prompt, action);
+  const packageOnlinePayment = rescueConfigurePackageOnlinePaymentIntent(
+    prompt,
+    action,
+  );
   if (packageOnlinePayment) return packageOnlinePayment;
   const categoryDeactivate = rescueDeactivateServiceCategoryScopeIntent(
     prompt,
@@ -892,7 +897,10 @@ function extractPackageNameFromUpdatePrompt(text: string): string | undefined {
         /\b(?:update|change|edit)\s+(?:the\s+)?([A-Za-z][\w\s]+?)\s+package\b/i,
       )?.[1]
       ?.trim() ??
-    text.match(/(?:обнов|измен)\w*\s+(?:the\s+)?(?:пакет\s+)?([A-Za-z][\w\s]+)/i)?.[1]
+    text
+      .match(
+        /(?:обнов|измен)\w*\s+(?:the\s+)?(?:пакет\s+)?([A-Za-z][\w\s]+)/i,
+      )?.[1]
       ?.trim()
   );
 }
@@ -903,7 +911,8 @@ function extractPlanNameFromUpdatePrompt(text: string): string | undefined {
       .match(
         /\b(?:update|change|edit)\s+(?:the\s+)?([A-Za-z][\w\s-]+?)\s+(?:subscription\s+)?(?:membership|plan)\b/i,
       )?.[1]
-      ?.trim() ?? text.match(/\b([A-Za-z][\w\s-]+?)\s+membership\b/i)?.[1]?.trim()
+      ?.trim() ??
+    text.match(/\b([A-Za-z][\w\s-]+?)\s+membership\b/i)?.[1]?.trim()
   );
 }
 

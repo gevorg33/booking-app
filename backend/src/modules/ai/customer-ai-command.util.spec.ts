@@ -213,6 +213,10 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('You might also like');
     expect(schema).toContain('NOT explain_recommendation_setup');
     expect(schema).toContain('diagnose_tour_capacity');
+    expect(schema).toContain('explain_tour_booking_record');
+    expect(schema).toContain('explain_tour_meeting_point');
+    expect(schema).toContain("What's my tour confirmation number?");
+    expect(schema).toContain('Where do we meet for my tour?');
     expect(schema).toContain(
       'Why does Mountain Trek show only one departure time per day when I book?',
     );
@@ -226,17 +230,19 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('highest_price');
     expect(schema).toContain('lowest_price');
     expect(schema).toContain('most_popular');
+    expect(schema).toContain("What's the cheapest haircut you offer?");
     expect(schema).toContain(
-      "What's the cheapest haircut you offer?",
+      'recommend_specialists, serviceCategory=massage — NO serviceRank',
     );
-    expect(schema).toContain('recommend_specialists, serviceCategory=massage — NO serviceRank');
     expect(schema).toContain('"availabilityWindows"');
     expect(schema).toContain(
       'I want a haircut tomorrow evening or Friday afternoon',
     );
     expect(schema).toContain('Monday and Friday afternoon');
     expect(schema).toContain('AND vs OR');
-    expect(schema).toContain('explain_app_feature: READ — consumer app UI feature semantics');
+    expect(schema).toContain(
+      'explain_app_feature: READ — consumer app UI feature semantics',
+    );
     expect(schema).toContain('consumer-packages-gift-cards');
     expect(schema).toContain('"topicId"');
   });
@@ -251,9 +257,7 @@ describe('customer-ai-command.util', () => {
         details: {
           maxPrice: 50,
           serviceRank: 'lowest_price',
-          availabilityWindows: [
-            { date: 'tomorrow', timeOfDay: 'evening' },
-          ],
+          availabilityWindows: [{ date: 'tomorrow', timeOfDay: 'evening' }],
           sessionContext: { serviceCategory: 'haircut' },
         },
       },

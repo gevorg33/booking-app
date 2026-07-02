@@ -26,7 +26,8 @@ function readScreenContextRecord(
 }
 
 function normalizeProviderGuideRoute(route: string): string | undefined {
-  if (route === '/accept-invite' || route === '/invite') return '/accept-invite';
+  if (route === '/accept-invite' || route === '/invite')
+    return '/accept-invite';
   if (route.startsWith('/tabs')) return route.split('?')[0];
   return undefined;
 }

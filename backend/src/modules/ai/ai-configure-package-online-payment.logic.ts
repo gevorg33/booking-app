@@ -1,4 +1,7 @@
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import type { UpdateServiceDto } from '../service/dto/create-service.dto.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { CatalogLogicDeps } from './ai-catalog.logic.js';
@@ -58,7 +61,11 @@ export async function handleConfigurePackageOnlinePaymentLogic(
     );
   }
 
-  if (!parsed.allPackages && !parsed.packageName && !parsed.packageNames?.length) {
+  if (
+    !parsed.allPackages &&
+    !parsed.packageName &&
+    !parsed.packageNames?.length
+  ) {
     return failure(
       'configure_package_online_payment',
       'Which package should I update — one package, several by name, or all packages?',

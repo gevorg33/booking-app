@@ -22,7 +22,9 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
 
   it('maps every provider open shifts i18n fixture row to an eval golden case', () => {
     expect(
-      listProviderOpenShiftsEvalLocaleParityGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES),
+      listProviderOpenShiftsEvalLocaleParityGaps(
+        AI_COMMAND_EVAL_DETERMINISTIC_CASES,
+      ),
     ).toEqual([]);
   });
 
@@ -32,9 +34,10 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
       scenario,
     ]),
   )('passes provider open shifts i18n eval case %s', (_id, scenario) => {
-    const evalCase = AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.find(
-      (row) => row.id === providerOpenShiftsMultilingualEvalCaseId(scenario),
-    );
+    const evalCase =
+      AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.find(
+        (row) => row.id === providerOpenShiftsMultilingualEvalCaseId(scenario),
+      );
     expect(evalCase).toBeDefined();
     const result = evaluateDeterministicEvalCase(evalCase!);
     expect(result.passed).toBe(true);
@@ -62,12 +65,14 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
   });
 
   it('tags HY/RU provider open shifts eval rows with provider surface and locale', () => {
-    const hyCases = AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'hy',
-    );
-    const ruCases = AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.filter(
-      (row) => row.locale === 'ru',
-    );
+    const hyCases =
+      AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'hy',
+      );
+    const ruCases =
+      AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_MULTILINGUAL_CASES.filter(
+        (row) => row.locale === 'ru',
+      );
 
     expect(hyCases.length).toBe(2);
     expect(ruCases.length).toBe(2);

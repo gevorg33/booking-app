@@ -185,7 +185,10 @@ export const N99_QUALIFIED_INSTALL_SCENARIOS = [
   },
   {
     id: 'salon-plus-service',
-    install: { tenantSlug: 'salon-a', props: { serviceId: 'svc-1', installSource: 'ad' } },
+    install: {
+      tenantSlug: 'salon-a',
+      props: { serviceId: 'svc-1', installSource: 'ad' },
+    },
     expectQualified: true,
   },
   {
@@ -258,7 +261,9 @@ export const N99_LOCALE_COHORT_SCENARIOS = [
   },
   {
     id: 'hy-under-sampled',
-    rows: buildN99QualifiedActivationNear99FixtureRows().filter((row) => row.locale !== 'hy'),
+    rows: buildN99QualifiedActivationNear99FixtureRows().filter(
+      (row) => row.locale !== 'hy',
+    ),
     expectSpread: undefined as number | undefined,
     expectInsufficient: ['hy'],
   },

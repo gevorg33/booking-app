@@ -4,11 +4,15 @@ import {
 } from './ai-typo-corpus.fixtures.js';
 import type { AiCommandEvalCase } from './eval/ai-command-eval.types.js';
 
-export function typoCorpusEvalCaseId(entry: Pick<TypoCorpusEntry, 'id'>): string {
+export function typoCorpusEvalCaseId(
+  entry: Pick<TypoCorpusEntry, 'id'>,
+): string {
   return `typo-corpus-${entry.id}`;
 }
 
-export function typoCorpusEntryToEvalCase(entry: TypoCorpusEntry): AiCommandEvalCase {
+export function typoCorpusEntryToEvalCase(
+  entry: TypoCorpusEntry,
+): AiCommandEvalCase {
   return {
     id: typoCorpusEvalCaseId(entry),
     prompt: entry.prompt,

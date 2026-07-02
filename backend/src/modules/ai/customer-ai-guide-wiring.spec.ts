@@ -11,8 +11,12 @@ describe('CustomerAiCommandService guide wiring (ai-guide-1.5.2 / 1.5.4 / 1.6.3)
     expect(CUSTOMER_SERVICE_SOURCE).toContain('rescueProductGuideIntent');
     expect(CUSTOMER_SERVICE_SOURCE).toContain('enrichGuideTopicFromPrompt');
     expect(CUSTOMER_SERVICE_SOURCE).toContain('dispatchCustomerAppGuideIntent');
-    expect(CUSTOMER_SERVICE_SOURCE).toContain('mergeCustomerActivationGuideContext');
-    expect(CUSTOMER_SERVICE_SOURCE).toContain('mapCustomerActivationGuideRoute');
+    expect(CUSTOMER_SERVICE_SOURCE).toContain(
+      'mergeCustomerActivationGuideContext',
+    );
+    expect(CUSTOMER_SERVICE_SOURCE).toContain(
+      'mapCustomerActivationGuideRoute',
+    );
     expect(CUSTOMER_SERVICE_SOURCE).toContain('isAppGuideIntent(action)');
     expect(CUSTOMER_SERVICE_SOURCE).toContain('customer_app_guide');
   });

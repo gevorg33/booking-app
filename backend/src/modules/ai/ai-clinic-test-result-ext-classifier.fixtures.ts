@@ -56,7 +56,9 @@ function buildEnClassifierScenario(
     prompt: fixture.prompt,
     locale: 'en',
     expectedAction: fixture.expectedAction,
-    ...(fixture.expectedParams ? { paramsPartial: fixture.expectedParams } : {}),
+    ...(fixture.expectedParams
+      ? { paramsPartial: fixture.expectedParams }
+      : {}),
   };
 }
 
@@ -64,7 +66,8 @@ function buildLocaleClassifierScenario(
   enScenarioId: (typeof CLINIC_TEST_RESULT_EXT_CLASSIFIER_GOLDEN_EN_SCENARIO_IDS)[number],
   locale: 'hy' | 'ru',
 ): ClinicTestResultExtClassifierScenario {
-  const rowId = CLASSIFIER_MULTILINGUAL_ROW_BY_EN_AND_LOCALE[enScenarioId][locale];
+  const rowId =
+    CLASSIFIER_MULTILINGUAL_ROW_BY_EN_AND_LOCALE[enScenarioId][locale];
   const row = MULTILINGUAL_CLINIC_TEST_RESULT_EXT_EVAL_SCENARIOS.find(
     (entry) => entry.id === rowId,
   );

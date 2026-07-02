@@ -16,5207 +16,5210 @@ export interface SimilarAppGuidePrompt {
 
 export const TOP_APP_GUIDE_FLOWS: readonly TopAppGuideFlowDef[] = [
   {
-    "id": "dashboard-schedule",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule"
+    id: 'dashboard-schedule',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
   },
   {
-    "id": "dashboard-calendar",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar"
+    id: 'dashboard-calendar',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
   },
   {
-    "id": "dashboard-employees",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees"
+    id: 'dashboard-employees',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
   },
   {
-    "id": "dashboard-ops-overview",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview"
+    id: 'dashboard-ops-overview',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
   },
   {
-    "id": "dashboard-ops-problems",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems"
+    id: 'dashboard-ops-problems',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
   },
   {
-    "id": "dashboard-ops-workflow",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow"
+    id: 'dashboard-ops-workflow',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
   },
   {
-    "id": "dashboard-ops-locations",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations"
+    id: 'dashboard-ops-locations',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
   },
   {
-    "id": "dashboard-ops-inventory",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory"
+    id: 'dashboard-ops-inventory',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
   },
   {
-    "id": "dashboard-ops-expenses",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses"
+    id: 'dashboard-ops-expenses',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
   },
   {
-    "id": "dashboard-ops-commissions",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions"
+    id: 'dashboard-ops-commissions',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
   },
   {
-    "id": "dashboard-ops-pl",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl"
+    id: 'dashboard-ops-pl',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
   },
   {
-    "id": "dashboard-ops-tips",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips"
+    id: 'dashboard-ops-tips',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
   },
   {
-    "id": "dashboard-ai-overview",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview"
+    id: 'dashboard-ai-overview',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
   },
   {
-    "id": "dashboard-ai-getting-started",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started"
+    id: 'dashboard-ai-getting-started',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
   },
   {
-    "id": "dashboard-ai-command-bar",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar"
+    id: 'dashboard-ai-command-bar',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
   },
   {
-    "id": "dashboard-ai-dashboard",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard"
+    id: 'dashboard-ai-dashboard',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
   },
   {
-    "id": "dashboard-ai-approval",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval"
+    id: 'dashboard-ai-approval',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
   },
   {
-    "id": "dashboard-ai-ops",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops"
+    id: 'dashboard-ai-ops',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
   },
   {
-    "id": "dashboard-ai-mobile",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile"
+    id: 'dashboard-ai-mobile',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
   },
   {
-    "id": "dashboard-ai-examples",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples"
+    id: 'dashboard-ai-examples',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
   },
   {
-    "id": "provider-getting-started",
-    "surface": "provider",
-    "topicId": "provider-getting-started"
+    id: 'provider-getting-started',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
   },
   {
-    "id": "provider-appointments",
-    "surface": "provider",
-    "topicId": "provider-appointments"
+    id: 'provider-appointments',
+    surface: 'provider',
+    topicId: 'provider-appointments',
   },
   {
-    "id": "provider-appointments-today",
-    "surface": "provider",
-    "topicId": "provider-appointments"
+    id: 'provider-appointments-today',
+    surface: 'provider',
+    topicId: 'provider-appointments',
   },
   {
-    "id": "provider-calendar",
-    "surface": "provider",
-    "topicId": "provider-calendar"
+    id: 'provider-calendar',
+    surface: 'provider',
+    topicId: 'provider-calendar',
   },
   {
-    "id": "provider-schedule-blocks",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks"
+    id: 'provider-schedule-blocks',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
   },
   {
-    "id": "provider-gift-cards",
-    "surface": "provider",
-    "topicId": "provider-gift-cards"
+    id: 'provider-gift-cards',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
   },
   {
-    "id": "provider-profile-settings",
-    "surface": "provider",
-    "topicId": "provider-profile-settings"
+    id: 'provider-profile-settings',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
   },
   {
-    "id": "provider-staff-invite",
-    "surface": "provider",
-    "topicId": "provider-staff-invite"
+    id: 'provider-staff-invite',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
   },
   {
-    "id": "provider-today-calendar",
-    "surface": "provider",
-    "topicId": "provider-today-calendar"
+    id: 'provider-today-calendar',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
   },
   {
-    "id": "provider-assistant",
-    "surface": "provider",
-    "topicId": "provider-assistant"
+    id: 'provider-assistant',
+    surface: 'provider',
+    topicId: 'provider-assistant',
   },
   {
-    "id": "provider-assistant-confirm",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm"
+    id: 'provider-assistant-confirm',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
   },
   {
-    "id": "provider-compound-steps",
-    "surface": "provider",
-    "topicId": "provider-compound-steps"
+    id: 'provider-compound-steps',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
   },
   {
-    "id": "provider-view-scope",
-    "surface": "provider",
-    "topicId": "provider-view-scope"
+    id: 'provider-view-scope',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
   },
   {
-    "id": "provider-team-manager",
-    "surface": "provider",
-    "topicId": "provider-team-manager"
+    id: 'provider-team-manager',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
   },
   {
-    "id": "provider-clinic",
-    "surface": "provider",
-    "topicId": "provider-clinic"
+    id: 'provider-clinic',
+    surface: 'provider',
+    topicId: 'provider-clinic',
   },
   {
-    "id": "provider-retail-pos",
-    "surface": "provider",
-    "topicId": "provider-retail-pos"
+    id: 'provider-retail-pos',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
   },
   {
-    "id": "provider-appointments-mark-paid",
-    "surface": "provider",
-    "topicId": "provider-appointments"
+    id: 'provider-appointments-mark-paid',
+    surface: 'provider',
+    topicId: 'provider-appointments',
   },
   {
-    "id": "provider-calendar-week-view",
-    "surface": "provider",
-    "topicId": "provider-calendar"
+    id: 'provider-calendar-week-view',
+    surface: 'provider',
+    topicId: 'provider-calendar',
   },
   {
-    "id": "provider-schedule-time-off",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks"
+    id: 'provider-schedule-time-off',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
   },
   {
-    "id": "provider-gift-cards-redeem",
-    "surface": "provider",
-    "topicId": "provider-gift-cards"
+    id: 'provider-gift-cards-redeem',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
   },
   {
-    "id": "common-steps",
-    "surface": "customer",
-    "topicId": "guide-flow-common"
+    id: 'common-steps',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
   },
   {
-    "id": "consumer-getting-started",
-    "surface": "customer",
-    "topicId": "consumer-getting-started"
+    id: 'consumer-getting-started',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
   },
   {
-    "id": "consumer-tabs",
-    "surface": "customer",
-    "topicId": "consumer-tabs"
+    id: 'consumer-tabs',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
   },
   {
-    "id": "consumer-booking-flow",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow"
+    id: 'consumer-booking-flow',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
   },
   {
-    "id": "consumer-packages",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards"
+    id: 'consumer-packages',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
   },
   {
-    "id": "consumer-account",
-    "surface": "customer",
-    "topicId": "consumer-account"
+    id: 'consumer-account',
+    surface: 'customer',
+    topicId: 'consumer-account',
   },
   {
-    "id": "consumer-assistant",
-    "surface": "customer",
-    "topicId": "consumer-assistant"
+    id: 'consumer-assistant',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
   },
   {
-    "id": "consumer-activation-welcome",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome"
+    id: 'consumer-activation-welcome',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
   },
   {
-    "id": "consumer-activation-salon",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon"
+    id: 'consumer-activation-salon',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
   },
   {
-    "id": "consumer-activation-service",
-    "surface": "customer",
-    "topicId": "consumer-activation-service"
+    id: 'consumer-activation-service',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
   },
   {
-    "id": "consumer-activation-slot",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot"
+    id: 'consumer-activation-slot',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
   },
   {
-    "id": "consumer-activation-confirm",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm"
+    id: 'consumer-activation-confirm',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
   },
   {
-    "id": "consumer-clinic",
-    "surface": "customer",
-    "topicId": "consumer-clinic"
+    id: 'consumer-clinic',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
   },
   {
-    "id": "consumer-tour-packages",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages"
+    id: 'consumer-tour-packages',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
   },
   {
-    "id": "consumer-tabs-upcoming",
-    "surface": "customer",
-    "topicId": "consumer-tabs"
+    id: 'consumer-tabs-upcoming',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
   },
   {
-    "id": "consumer-account-profile",
-    "surface": "customer",
-    "topicId": "consumer-account"
+    id: 'consumer-account-profile',
+    surface: 'customer',
+    topicId: 'consumer-account',
   },
   {
-    "id": "consumer-booking-first",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow"
+    id: 'consumer-booking-first',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
   },
   {
-    "id": "consumer-packages-redeem",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards"
+    id: 'consumer-packages-redeem',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
   },
   {
-    "id": "consumer-assistant-help",
-    "surface": "customer",
-    "topicId": "consumer-assistant"
+    id: 'consumer-assistant-help',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
   },
   {
-    "id": "consumer-activation-overview",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome"
+    id: 'consumer-activation-overview',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
   },
   {
-    "id": "public-booking-funnel",
-    "surface": "public",
-    "topicId": "public-booking-funnel"
+    id: 'public-booking-funnel',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
   },
   {
-    "id": "public-professionals",
-    "surface": "public",
-    "topicId": "public-booking-professionals"
+    id: 'public-professionals',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
   },
   {
-    "id": "public-services",
-    "surface": "public",
-    "topicId": "public-booking-services"
+    id: 'public-services',
+    surface: 'public',
+    topicId: 'public-booking-services',
   },
   {
-    "id": "public-checkout",
-    "surface": "public",
-    "topicId": "public-checkout"
+    id: 'public-checkout',
+    surface: 'public',
+    topicId: 'public-checkout',
   },
   {
-    "id": "public-availability",
-    "surface": "public",
-    "topicId": "public-availability"
+    id: 'public-availability',
+    surface: 'public',
+    topicId: 'public-availability',
   },
   {
-    "id": "public-tour-checkout",
-    "surface": "public",
-    "topicId": "public-tour-checkout"
+    id: 'public-tour-checkout',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
   },
   {
-    "id": "public-funnel-start",
-    "surface": "public",
-    "topicId": "public-booking-funnel"
+    id: 'public-funnel-start',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
   },
   {
-    "id": "public-professionals-pick",
-    "surface": "public",
-    "topicId": "public-booking-professionals"
+    id: 'public-professionals-pick',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
   },
   {
-    "id": "public-services-browse",
-    "surface": "public",
-    "topicId": "public-booking-services"
+    id: 'public-services-browse',
+    surface: 'public',
+    topicId: 'public-booking-services',
   },
   {
-    "id": "public-checkout-pay",
-    "surface": "public",
-    "topicId": "public-checkout"
+    id: 'public-checkout-pay',
+    surface: 'public',
+    topicId: 'public-checkout',
   },
   {
-    "id": "public-availability-slots",
-    "surface": "public",
-    "topicId": "public-availability"
+    id: 'public-availability-slots',
+    surface: 'public',
+    topicId: 'public-availability',
   },
   {
-    "id": "public-tour-payment",
-    "surface": "public",
-    "topicId": "public-tour-checkout"
+    id: 'public-tour-payment',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
   },
   {
-    "id": "public-funnel-mobile",
-    "surface": "public",
-    "topicId": "public-booking-funnel"
+    id: 'public-funnel-mobile',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
   },
   {
-    "id": "public-professionals-filter",
-    "surface": "public",
-    "topicId": "public-booking-professionals"
+    id: 'public-professionals-filter',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
   },
   {
-    "id": "public-services-compare",
-    "surface": "public",
-    "topicId": "public-booking-services"
+    id: 'public-services-compare',
+    surface: 'public',
+    topicId: 'public-booking-services',
   },
   {
-    "id": "public-checkout-guest",
-    "surface": "public",
-    "topicId": "public-checkout"
+    id: 'public-checkout-guest',
+    surface: 'public',
+    topicId: 'public-checkout',
   },
   {
-    "id": "public-availability-today",
-    "surface": "public",
-    "topicId": "public-availability"
+    id: 'public-availability-today',
+    surface: 'public',
+    topicId: 'public-availability',
   },
   {
-    "id": "public-tour-steps",
-    "surface": "public",
-    "topicId": "public-tour-checkout"
+    id: 'public-tour-steps',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
   },
   {
-    "id": "public-funnel-help",
-    "surface": "public",
-    "topicId": "public-booking-funnel"
+    id: 'public-funnel-help',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
   },
   {
-    "id": "public-services-duration",
-    "surface": "public",
-    "topicId": "public-booking-services"
-  }
+    id: 'public-services-duration',
+    surface: 'public',
+    topicId: 'public-booking-services',
+  },
 ] as const;
 
 export const SIMILAR_APP_GUIDE_PROMPTS: readonly SimilarAppGuidePrompt[] = [
   {
-    "id": "dashboard-dashboard-schedule-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "How do I set up weekly schedule templates?"
+    id: 'dashboard-dashboard-schedule-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'How do I set up weekly schedule templates?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Walk me through creating a staff schedule for next week"
+    id: 'dashboard-dashboard-schedule-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'Walk me through creating a staff schedule for next week',
   },
   {
-    "id": "dashboard-dashboard-schedule-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Where is the schedule template editor on the dashboard?"
+    id: 'dashboard-dashboard-schedule-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'Where is the schedule template editor on the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Help me with this page — how do I block off lunch breaks?"
+    id: 'dashboard-dashboard-schedule-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'Help me with this page — how do I block off lunch breaks?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Step by step: how do I assign shifts to multiple stylists?"
+    id: 'dashboard-dashboard-schedule-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'Step by step: how do I assign shifts to multiple stylists?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "What can I do on the Schedule page?"
+    id: 'dashboard-dashboard-schedule-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'What can I do on the Schedule page?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Show me how to copy last week's schedule"
+    id: 'dashboard-dashboard-schedule-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: "Show me how to copy last week's schedule",
   },
   {
-    "id": "dashboard-dashboard-schedule-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "How can I add a new time-off block to the schedule?"
+    id: 'dashboard-dashboard-schedule-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'How can I add a new time-off block to the schedule?',
   },
   {
-    "id": "dashboard-dashboard-schedule-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "Explain how schedule templates work in Orchestrix"
+    id: 'dashboard-dashboard-schedule-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: 'Explain how schedule templates work in Orchestrix',
   },
   {
-    "id": "dashboard-dashboard-schedule-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.schedule",
-    "prompt": "I'm on Schedule — where do I publish changes?"
+    id: 'dashboard-dashboard-schedule-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.schedule',
+    prompt: "I'm on Schedule — where do I publish changes?",
   },
   {
-    "id": "dashboard-dashboard-calendar-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "How do I view all appointments on the calendar?"
+    id: 'dashboard-dashboard-calendar-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'How do I view all appointments on the calendar?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Walk me through filtering the calendar by stylist"
+    id: 'dashboard-dashboard-calendar-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Walk me through filtering the calendar by stylist',
   },
   {
-    "id": "dashboard-dashboard-calendar-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Where is the day view on the calendar page?"
+    id: 'dashboard-dashboard-calendar-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Where is the day view on the calendar page?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Help me with this page — how do I jump to a specific date?"
+    id: 'dashboard-dashboard-calendar-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Help me with this page — how do I jump to a specific date?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Step by step: how do I create a booking from the calendar?"
+    id: 'dashboard-dashboard-calendar-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Step by step: how do I create a booking from the calendar?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "What can I do on the Calendar page?"
+    id: 'dashboard-dashboard-calendar-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'What can I do on the Calendar page?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Show me how to switch between week and month view"
+    id: 'dashboard-dashboard-calendar-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Show me how to switch between week and month view',
   },
   {
-    "id": "dashboard-dashboard-calendar-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "How can I see cancelled appointments on the calendar?"
+    id: 'dashboard-dashboard-calendar-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'How can I see cancelled appointments on the calendar?',
   },
   {
-    "id": "dashboard-dashboard-calendar-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "Explain what the color codes mean on the calendar"
+    id: 'dashboard-dashboard-calendar-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: 'Explain what the color codes mean on the calendar',
   },
   {
-    "id": "dashboard-dashboard-calendar-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.calendar",
-    "prompt": "I'm looking at the calendar — where do I print the day sheet?"
+    id: 'dashboard-dashboard-calendar-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.calendar',
+    prompt: "I'm looking at the calendar — where do I print the day sheet?",
   },
   {
-    "id": "dashboard-dashboard-employees-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "How do I add a new stylist to the team?"
+    id: 'dashboard-dashboard-employees-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'How do I add a new stylist to the team?',
   },
   {
-    "id": "dashboard-dashboard-employees-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Walk me through assigning services to an employee"
+    id: 'dashboard-dashboard-employees-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Walk me through assigning services to an employee',
   },
   {
-    "id": "dashboard-dashboard-employees-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Where do I edit employee working hours?"
+    id: 'dashboard-dashboard-employees-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Where do I edit employee working hours?',
   },
   {
-    "id": "dashboard-dashboard-employees-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Help me with this page — how do I deactivate a staff member?"
+    id: 'dashboard-dashboard-employees-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Help me with this page — how do I deactivate a staff member?',
   },
   {
-    "id": "dashboard-dashboard-employees-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Step by step: how do I invite a new team member by email?"
+    id: 'dashboard-dashboard-employees-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Step by step: how do I invite a new team member by email?',
   },
   {
-    "id": "dashboard-dashboard-employees-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "What can I do on the Employees page?"
+    id: 'dashboard-dashboard-employees-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'What can I do on the Employees page?',
   },
   {
-    "id": "dashboard-dashboard-employees-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Show me how to upload a profile photo for a stylist"
+    id: 'dashboard-dashboard-employees-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Show me how to upload a profile photo for a stylist',
   },
   {
-    "id": "dashboard-dashboard-employees-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "How can I change someone's role from receptionist to manager?"
+    id: 'dashboard-dashboard-employees-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: "How can I change someone's role from receptionist to manager?",
   },
   {
-    "id": "dashboard-dashboard-employees-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "Explain the difference between active and archived employees"
+    id: 'dashboard-dashboard-employees-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: 'Explain the difference between active and archived employees',
   },
   {
-    "id": "dashboard-dashboard-employees-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.core.employees",
-    "prompt": "I'm on Employees — where do I set commission rates?"
+    id: 'dashboard-dashboard-employees-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.core.employees',
+    prompt: "I'm on Employees — where do I set commission rates?",
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "What is the Operations overview page for?"
+    id: 'dashboard-dashboard-ops-overview-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'What is the Operations overview page for?',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Walk me through the Operations dashboard sections"
+    id: 'dashboard-dashboard-ops-overview-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'Walk me through the Operations dashboard sections',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Where do I start if I'm new to Operations?"
+    id: 'dashboard-dashboard-ops-overview-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: "Where do I start if I'm new to Operations?",
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Help me with this page — what should I check first each morning?"
+    id: 'dashboard-dashboard-ops-overview-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'Help me with this page — what should I check first each morning?',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Step by step: how do I navigate from overview to inventory?"
+    id: 'dashboard-dashboard-ops-overview-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'Step by step: how do I navigate from overview to inventory?',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "What can I do on the Operations overview?"
+    id: 'dashboard-dashboard-ops-overview-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'What can I do on the Operations overview?',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Show me how Operations connects to reports and P&L"
+    id: 'dashboard-dashboard-ops-overview-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'Show me how Operations connects to reports and P&L',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "How can I tell if inventory is linked correctly from here?"
+    id: 'dashboard-dashboard-ops-overview-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'How can I tell if inventory is linked correctly from here?',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "Explain what workflows are managed under Operations"
+    id: 'dashboard-dashboard-ops-overview-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: 'Explain what workflows are managed under Operations',
   },
   {
-    "id": "dashboard-dashboard-ops-overview-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.overview",
-    "prompt": "I'm on Operations overview — where are expense settings?"
+    id: 'dashboard-dashboard-ops-overview-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.overview',
+    prompt: "I'm on Operations overview — where are expense settings?",
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Why aren't my bookings showing on the calendar?"
+    id: 'dashboard-dashboard-ops-problems-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: "Why aren't my bookings showing on the calendar?",
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Walk me through fixing double-booked time slots"
+    id: 'dashboard-dashboard-ops-problems-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'Walk me through fixing double-booked time slots',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Where do I find common troubleshooting steps?"
+    id: 'dashboard-dashboard-ops-problems-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'Where do I find common troubleshooting steps?',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Help me with this page — my schedule looks empty, what now?"
+    id: 'dashboard-dashboard-ops-problems-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'Help me with this page — my schedule looks empty, what now?',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Step by step: how do I resolve a payment sync issue?"
+    id: 'dashboard-dashboard-ops-problems-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'Step by step: how do I resolve a payment sync issue?',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "What problems does this guide section cover?"
+    id: 'dashboard-dashboard-ops-problems-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'What problems does this guide section cover?',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Show me how to fix a client who can't book online"
+    id: 'dashboard-dashboard-ops-problems-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: "Show me how to fix a client who can't book online",
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "How can I troubleshoot missing employee availability?"
+    id: 'dashboard-dashboard-ops-problems-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'How can I troubleshoot missing employee availability?',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "Explain why online booking might be disabled"
+    id: 'dashboard-dashboard-ops-problems-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: 'Explain why online booking might be disabled',
   },
   {
-    "id": "dashboard-dashboard-ops-problems-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.problems",
-    "prompt": "I'm stuck — where do I look when notifications aren't sending?"
+    id: 'dashboard-dashboard-ops-problems-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.problems',
+    prompt: "I'm stuck — where do I look when notifications aren't sending?",
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "How do I set up the daily front-desk workflow?"
+    id: 'dashboard-dashboard-ops-workflow-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'How do I set up the daily front-desk workflow?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Walk me through the check-in to checkout workflow"
+    id: 'dashboard-dashboard-ops-workflow-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Walk me through the check-in to checkout workflow',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Where is the workflow checklist in Operations?"
+    id: 'dashboard-dashboard-ops-workflow-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Where is the workflow checklist in Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Help me with this page — how do I customize workflow steps?"
+    id: 'dashboard-dashboard-ops-workflow-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Help me with this page — how do I customize workflow steps?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Step by step: how do I train reception on the workflow?"
+    id: 'dashboard-dashboard-ops-workflow-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Step by step: how do I train reception on the workflow?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "What can I do with Operations workflows?"
+    id: 'dashboard-dashboard-ops-workflow-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'What can I do with Operations workflows?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Show me how workflow ties into customer records"
+    id: 'dashboard-dashboard-ops-workflow-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Show me how workflow ties into customer records',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "How can I add a reminder step before appointments?"
+    id: 'dashboard-dashboard-ops-workflow-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'How can I add a reminder step before appointments?',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "Explain what the workflow tip callout means"
+    id: 'dashboard-dashboard-ops-workflow-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: 'Explain what the workflow tip callout means',
   },
   {
-    "id": "dashboard-dashboard-ops-workflow-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.workflow",
-    "prompt": "I'm on workflow — where do I link inventory to services?"
+    id: 'dashboard-dashboard-ops-workflow-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.workflow',
+    prompt: "I'm on workflow — where do I link inventory to services?",
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "How do I add a second salon location?"
+    id: 'dashboard-dashboard-ops-locations-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'How do I add a second salon location?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Walk me through editing location address and hours"
+    id: 'dashboard-dashboard-ops-locations-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Walk me through editing location address and hours',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Where do I switch the active location on the dashboard?"
+    id: 'dashboard-dashboard-ops-locations-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Where do I switch the active location on the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Help me with this page — how do I assign staff to a location?"
+    id: 'dashboard-dashboard-ops-locations-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Help me with this page — how do I assign staff to a location?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Step by step: how do I set timezone for a new branch?"
+    id: 'dashboard-dashboard-ops-locations-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Step by step: how do I set timezone for a new branch?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "What can I do on the locations settings?"
+    id: 'dashboard-dashboard-ops-locations-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'What can I do on the locations settings?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Show me how multi-location booking works"
+    id: 'dashboard-dashboard-ops-locations-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Show me how multi-location booking works',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "How can I hide a location from online booking?"
+    id: 'dashboard-dashboard-ops-locations-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'How can I hide a location from online booking?',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "Explain the locations note about shared customers"
+    id: 'dashboard-dashboard-ops-locations-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: 'Explain the locations note about shared customers',
   },
   {
-    "id": "dashboard-dashboard-ops-locations-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.locations",
-    "prompt": "I'm setting up locations — where do I add phone numbers?"
+    id: 'dashboard-dashboard-ops-locations-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.locations',
+    prompt: "I'm setting up locations — where do I add phone numbers?",
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "How do I link retail products to services?"
+    id: 'dashboard-dashboard-ops-inventory-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'How do I link retail products to services?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Walk me through adding a new product to inventory"
+    id: 'dashboard-dashboard-ops-inventory-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Walk me through adding a new product to inventory',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Where is inventory under Operations?"
+    id: 'dashboard-dashboard-ops-inventory-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Where is inventory under Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Help me with this page — how do I track stock levels?"
+    id: 'dashboard-dashboard-ops-inventory-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Help me with this page — how do I track stock levels?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Step by step: how do I set low-stock alerts?"
+    id: 'dashboard-dashboard-ops-inventory-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Step by step: how do I set low-stock alerts?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "What can I do with Operations inventory?"
+    id: 'dashboard-dashboard-ops-inventory-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'What can I do with Operations inventory?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Show me how automatic inventory deduction works"
+    id: 'dashboard-dashboard-ops-inventory-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Show me how automatic inventory deduction works',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "How can I import products in bulk?"
+    id: 'dashboard-dashboard-ops-inventory-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'How can I import products in bulk?',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "Explain how inventory connects to checkout and POS"
+    id: 'dashboard-dashboard-ops-inventory-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: 'Explain how inventory connects to checkout and POS',
   },
   {
-    "id": "dashboard-dashboard-ops-inventory-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.inventory",
-    "prompt": "I'm on inventory — where do I adjust quantity after a delivery?"
+    id: 'dashboard-dashboard-ops-inventory-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.inventory',
+    prompt: "I'm on inventory — where do I adjust quantity after a delivery?",
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "How do I record a salon expense?"
+    id: 'dashboard-dashboard-ops-expenses-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'How do I record a salon expense?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Walk me through categorizing monthly rent"
+    id: 'dashboard-dashboard-ops-expenses-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Walk me through categorizing monthly rent',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Where do I enter supply purchases in Operations?"
+    id: 'dashboard-dashboard-ops-expenses-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Where do I enter supply purchases in Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Help me with this page — how do I attach a receipt?"
+    id: 'dashboard-dashboard-ops-expenses-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Help me with this page — how do I attach a receipt?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Step by step: how do I review expenses for last month?"
+    id: 'dashboard-dashboard-ops-expenses-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Step by step: how do I review expenses for last month?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "What expense categories are available?"
+    id: 'dashboard-dashboard-ops-expenses-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'What expense categories are available?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Show me how expenses feed into the P&L report"
+    id: 'dashboard-dashboard-ops-expenses-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Show me how expenses feed into the P&L report',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "How can I split an expense across two locations?"
+    id: 'dashboard-dashboard-ops-expenses-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'How can I split an expense across two locations?',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "Explain the expense examples on this page"
+    id: 'dashboard-dashboard-ops-expenses-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: 'Explain the expense examples on this page',
   },
   {
-    "id": "dashboard-dashboard-ops-expenses-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.expenses",
-    "prompt": "I'm tracking expenses — where do I export them?"
+    id: 'dashboard-dashboard-ops-expenses-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.expenses',
+    prompt: "I'm tracking expenses — where do I export them?",
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "How do I set commission rules for stylists?"
+    id: 'dashboard-dashboard-ops-commissions-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'How do I set commission rules for stylists?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Walk me through tiered commission setup"
+    id: 'dashboard-dashboard-ops-commissions-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Walk me through tiered commission setup',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Where are commission settings in Operations?"
+    id: 'dashboard-dashboard-ops-commissions-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Where are commission settings in Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Help me with this page — how do I test a commission calculation?"
+    id: 'dashboard-dashboard-ops-commissions-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Help me with this page — how do I test a commission calculation?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Step by step: how do I assign different rates per service?"
+    id: 'dashboard-dashboard-ops-commissions-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Step by step: how do I assign different rates per service?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "What can I configure on the commissions page?"
+    id: 'dashboard-dashboard-ops-commissions-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'What can I configure on the commissions page?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Show me how commissions appear on payroll reports"
+    id: 'dashboard-dashboard-ops-commissions-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Show me how commissions appear on payroll reports',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "How can I override commission for one booking?"
+    id: 'dashboard-dashboard-ops-commissions-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'How can I override commission for one booking?',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "Explain the commission rule callout on this page"
+    id: 'dashboard-dashboard-ops-commissions-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: 'Explain the commission rule callout on this page',
   },
   {
-    "id": "dashboard-dashboard-ops-commissions-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.commissions",
-    "prompt": "I'm on commissions — where do I see earned vs paid?"
+    id: 'dashboard-dashboard-ops-commissions-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.commissions',
+    prompt: "I'm on commissions — where do I see earned vs paid?",
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "How do I read the profit and loss report?"
+    id: 'dashboard-dashboard-ops-pl-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'How do I read the profit and loss report?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Walk me through revenue vs expenses on P&L"
+    id: 'dashboard-dashboard-ops-pl-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Walk me through revenue vs expenses on P&L',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Where is the P&L section in Operations?"
+    id: 'dashboard-dashboard-ops-pl-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Where is the P&L section in Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Help me with this page — what does net income mean here?"
+    id: 'dashboard-dashboard-ops-pl-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Help me with this page — what does net income mean here?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Step by step: how do I compare P&L month over month?"
+    id: 'dashboard-dashboard-ops-pl-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Step by step: how do I compare P&L month over month?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "What line items show up on the P&L?"
+    id: 'dashboard-dashboard-ops-pl-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'What line items show up on the P&L?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Show me how commissions affect net profit"
+    id: 'dashboard-dashboard-ops-pl-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Show me how commissions affect net profit',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "How can I filter P&L by location?"
+    id: 'dashboard-dashboard-ops-pl-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'How can I filter P&L by location?',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "Explain the P&L formula shown in the guide"
+    id: 'dashboard-dashboard-ops-pl-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: 'Explain the P&L formula shown in the guide',
   },
   {
-    "id": "dashboard-dashboard-ops-pl-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.pl",
-    "prompt": "I'm reviewing P&L — where do tips appear?"
+    id: 'dashboard-dashboard-ops-pl-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.pl',
+    prompt: "I'm reviewing P&L — where do tips appear?",
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "What are the best tips for running Operations smoothly?"
+    id: 'dashboard-dashboard-ops-tips-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'What are the best tips for running Operations smoothly?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Walk me through the Operations tips on this page"
+    id: 'dashboard-dashboard-ops-tips-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Walk me through the Operations tips on this page',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Where do I find operational best practices?"
+    id: 'dashboard-dashboard-ops-tips-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Where do I find operational best practices?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Help me with this page — any shortcuts for daily ops?"
+    id: 'dashboard-dashboard-ops-tips-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Help me with this page — any shortcuts for daily ops?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Step by step: which tip should I follow first as a new owner?"
+    id: 'dashboard-dashboard-ops-tips-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Step by step: which tip should I follow first as a new owner?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "What limitations should I know about Operations?"
+    id: 'dashboard-dashboard-ops-tips-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'What limitations should I know about Operations?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Show me how these tips relate to inventory and workflow"
+    id: 'dashboard-dashboard-ops-tips-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Show me how these tips relate to inventory and workflow',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "How can I avoid common Operations mistakes?"
+    id: 'dashboard-dashboard-ops-tips-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'How can I avoid common Operations mistakes?',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "Explain the limitations callout at the bottom"
+    id: 'dashboard-dashboard-ops-tips-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: 'Explain the limitations callout at the bottom',
   },
   {
-    "id": "dashboard-dashboard-ops-tips-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.operations.tips",
-    "prompt": "I'm new to Operations — summarize the top tips here"
+    id: 'dashboard-dashboard-ops-tips-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.operations.tips',
+    prompt: "I'm new to Operations — summarize the top tips here",
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "What is Orchestrix AI and where do I learn about it?"
+    id: 'dashboard-dashboard-ai-overview-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'What is Orchestrix AI and where do I learn about it?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Walk me through the AI help center overview"
+    id: 'dashboard-dashboard-ai-overview-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Walk me through the AI help center overview',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Where is the guide for AI features on the dashboard?"
+    id: 'dashboard-dashboard-ai-overview-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Where is the guide for AI features on the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Help me with this page — what AI tools do I have?"
+    id: 'dashboard-dashboard-ai-overview-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Help me with this page — what AI tools do I have?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Step by step: how do I get started with dashboard AI?"
+    id: 'dashboard-dashboard-ai-overview-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Step by step: how do I get started with dashboard AI?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "What does the AI overview section cover?"
+    id: 'dashboard-dashboard-ai-overview-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'What does the AI overview section cover?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Show me how AI connects to the command bar"
+    id: 'dashboard-dashboard-ai-overview-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Show me how AI connects to the command bar',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "How can I find AI examples and tips?"
+    id: 'dashboard-dashboard-ai-overview-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'How can I find AI examples and tips?',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "Explain the main AI capabilities listed here"
+    id: 'dashboard-dashboard-ai-overview-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: 'Explain the main AI capabilities listed here',
   },
   {
-    "id": "dashboard-dashboard-ai-overview-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.overview",
-    "prompt": "I'm on the AI overview — where do I enable AI settings?"
+    id: 'dashboard-dashboard-ai-overview-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.overview',
+    prompt: "I'm on the AI overview — where do I enable AI settings?",
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "How do I turn on AI for my salon dashboard?"
+    id: 'dashboard-dashboard-ai-getting-started-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'How do I turn on AI for my salon dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Walk me through AI getting started steps"
+    id: 'dashboard-dashboard-ai-getting-started-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'Walk me through AI getting started steps',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Where are AI settings in dashboard settings?"
+    id: 'dashboard-dashboard-ai-getting-started-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'Where are AI settings in dashboard settings?',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Help me with this page — what's the first thing to configure?"
+    id: 'dashboard-dashboard-ai-getting-started-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: "Help me with this page — what's the first thing to configure?",
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Step by step: how do I complete AI onboarding?"
+    id: 'dashboard-dashboard-ai-getting-started-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'Step by step: how do I complete AI onboarding?',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "What permissions do I need for AI commands?"
+    id: 'dashboard-dashboard-ai-getting-started-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'What permissions do I need for AI commands?',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Show me how to verify AI is working after setup"
+    id: 'dashboard-dashboard-ai-getting-started-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'Show me how to verify AI is working after setup',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "How can I choose which staff can use AI?"
+    id: 'dashboard-dashboard-ai-getting-started-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'How can I choose which staff can use AI?',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "Explain the getting started note about approvals"
+    id: 'dashboard-dashboard-ai-getting-started-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: 'Explain the getting started note about approvals',
   },
   {
-    "id": "dashboard-dashboard-ai-getting-started-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.getting-started",
-    "prompt": "I'm setting up AI — where do I read the safety tips?"
+    id: 'dashboard-dashboard-ai-getting-started-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.getting-started',
+    prompt: "I'm setting up AI — where do I read the safety tips?",
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "What does the Orchestrix command bar do?"
+    id: 'dashboard-dashboard-ai-command-bar-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'What does the Orchestrix command bar do?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Walk me through typing my first AI command"
+    id: 'dashboard-dashboard-ai-command-bar-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'Walk me through typing my first AI command',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Where is the command bar on the dashboard?"
+    id: 'dashboard-dashboard-ai-command-bar-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'Where is the command bar on the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Help me with this page — how do I ask a question vs run an action?"
+    id: 'dashboard-dashboard-ai-command-bar-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt:
+      'Help me with this page — how do I ask a question vs run an action?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Step by step: how do I use voice or shortcuts with the command bar?"
+    id: 'dashboard-dashboard-ai-command-bar-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt:
+      'Step by step: how do I use voice or shortcuts with the command bar?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "What kinds of prompts work best in the command bar?"
+    id: 'dashboard-dashboard-ai-command-bar-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'What kinds of prompts work best in the command bar?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Show me how the command bar suggests completions"
+    id: 'dashboard-dashboard-ai-command-bar-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'Show me how the command bar suggests completions',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "How can I review what the AI is about to do?"
+    id: 'dashboard-dashboard-ai-command-bar-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'How can I review what the AI is about to do?',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "Explain the command bar tip about confirmations"
+    id: 'dashboard-dashboard-ai-command-bar-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: 'Explain the command bar tip about confirmations',
   },
   {
-    "id": "dashboard-dashboard-ai-command-bar-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.command-bar",
-    "prompt": "I'm new to the command bar — give me a quick tour"
+    id: 'dashboard-dashboard-ai-command-bar-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.command-bar',
+    prompt: "I'm new to the command bar — give me a quick tour",
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "What AI features appear on the main dashboard home?"
+    id: 'dashboard-dashboard-ai-dashboard-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'What AI features appear on the main dashboard home?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Walk me through AI quick actions on the home page"
+    id: 'dashboard-dashboard-ai-dashboard-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Walk me through AI quick actions on the home page',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Where do I find AI widgets after login?"
+    id: 'dashboard-dashboard-ai-dashboard-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Where do I find AI widgets after login?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Help me with this page — what can AI do from home?"
+    id: 'dashboard-dashboard-ai-dashboard-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Help me with this page — what can AI do from home?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Step by step: how do I open the guide from the dashboard?"
+    id: 'dashboard-dashboard-ai-dashboard-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Step by step: how do I open the guide from the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "What does the AI dashboard section explain?"
+    id: 'dashboard-dashboard-ai-dashboard-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'What does the AI dashboard section explain?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Show me how home shortcuts differ from the command bar"
+    id: 'dashboard-dashboard-ai-dashboard-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Show me how home shortcuts differ from the command bar',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "How can I pin frequent AI tasks to the dashboard?"
+    id: 'dashboard-dashboard-ai-dashboard-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'How can I pin frequent AI tasks to the dashboard?',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "Explain the four dashboard AI features listed in the guide"
+    id: 'dashboard-dashboard-ai-dashboard-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: 'Explain the four dashboard AI features listed in the guide',
   },
   {
-    "id": "dashboard-dashboard-ai-dashboard-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.dashboard",
-    "prompt": "I'm on the dashboard home — where is AI ops?"
+    id: 'dashboard-dashboard-ai-dashboard-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.dashboard',
+    prompt: "I'm on the dashboard home — where is AI ops?",
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "What does plan approval mean in Orchestrix AI?"
+    id: 'dashboard-dashboard-ai-approval-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'What does plan approval mean in Orchestrix AI?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Walk me through approving an AI-suggested change"
+    id: 'dashboard-dashboard-ai-approval-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Walk me through approving an AI-suggested change',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Where do I review pending AI approvals?"
+    id: 'dashboard-dashboard-ai-approval-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Where do I review pending AI approvals?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Help me with this page — why do some commands need approval?"
+    id: 'dashboard-dashboard-ai-approval-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Help me with this page — why do some commands need approval?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Step by step: how do I reject a risky AI action?"
+    id: 'dashboard-dashboard-ai-approval-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Step by step: how do I reject a risky AI action?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "What happens after I approve an AI plan?"
+    id: 'dashboard-dashboard-ai-approval-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'What happens after I approve an AI plan?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Show me how approval protects bulk mutations"
+    id: 'dashboard-dashboard-ai-approval-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Show me how approval protects bulk mutations',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "How can I see who approved a change?"
+    id: 'dashboard-dashboard-ai-approval-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'How can I see who approved a change?',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "Explain the approval warning callout"
+    id: 'dashboard-dashboard-ai-approval-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: 'Explain the approval warning callout',
   },
   {
-    "id": "dashboard-dashboard-ai-approval-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.approval",
-    "prompt": "I'm unsure about an AI preview — where do I read approval steps?"
+    id: 'dashboard-dashboard-ai-approval-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.approval',
+    prompt: "I'm unsure about an AI preview — where do I read approval steps?",
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "How do I use the AI Ops dashboard page?"
+    id: 'dashboard-dashboard-ai-ops-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'How do I use the AI Ops dashboard page?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Walk me through AI accuracy metrics on AI Ops"
+    id: 'dashboard-dashboard-ai-ops-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Walk me through AI accuracy metrics on AI Ops',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Where is AI Ops in the sidebar?"
+    id: 'dashboard-dashboard-ai-ops-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Where is AI Ops in the sidebar?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Help me with this page — what should I monitor weekly?"
+    id: 'dashboard-dashboard-ai-ops-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Help me with this page — what should I monitor weekly?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Step by step: how do I find misclassified prompts?"
+    id: 'dashboard-dashboard-ai-ops-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Step by step: how do I find misclassified prompts?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "What can I learn from the AI Ops analytics?"
+    id: 'dashboard-dashboard-ai-ops-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'What can I learn from the AI Ops analytics?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Show me how to drill into worst-performing intents"
+    id: 'dashboard-dashboard-ai-ops-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Show me how to drill into worst-performing intents',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "How can I export AI trace data from here?"
+    id: 'dashboard-dashboard-ai-ops-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'How can I export AI trace data from here?',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "Explain the AI Ops steps in the guide"
+    id: 'dashboard-dashboard-ai-ops-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: 'Explain the AI Ops steps in the guide',
   },
   {
-    "id": "dashboard-dashboard-ai-ops-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.ops",
-    "prompt": "I'm on AI Ops — where do I see clarify vs execute rates?"
+    id: 'dashboard-dashboard-ai-ops-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.ops',
+    prompt: "I'm on AI Ops — where do I see clarify vs execute rates?",
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "How does AI work on the provider and customer mobile apps?"
+    id: 'dashboard-dashboard-ai-mobile-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'How does AI work on the provider and customer mobile apps?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Walk me through mobile AI assistants vs dashboard AI"
+    id: 'dashboard-dashboard-ai-mobile-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Walk me through mobile AI assistants vs dashboard AI',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Where do I read about mobile AI capabilities?"
+    id: 'dashboard-dashboard-ai-mobile-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Where do I read about mobile AI capabilities?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Help me with this page — can staff use AI on their phones?"
+    id: 'dashboard-dashboard-ai-mobile-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Help me with this page — can staff use AI on their phones?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Step by step: how do I enable mobile AI for my team?"
+    id: 'dashboard-dashboard-ai-mobile-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Step by step: how do I enable mobile AI for my team?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "What mobile AI features are documented here?"
+    id: 'dashboard-dashboard-ai-mobile-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'What mobile AI features are documented here?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Show me how dashboard AI differs from provider app AI"
+    id: 'dashboard-dashboard-ai-mobile-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Show me how dashboard AI differs from provider app AI',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "How can customers ask the app for help booking?"
+    id: 'dashboard-dashboard-ai-mobile-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'How can customers ask the app for help booking?',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "Explain the mobile AI bullet points in the guide"
+    id: 'dashboard-dashboard-ai-mobile-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: 'Explain the mobile AI bullet points in the guide',
   },
   {
-    "id": "dashboard-dashboard-ai-mobile-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.mobile",
-    "prompt": "I'm comparing surfaces — summarize mobile AI for me"
+    id: 'dashboard-dashboard-ai-mobile-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.mobile',
+    prompt: "I'm comparing surfaces — summarize mobile AI for me",
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v01",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Show me example commands I can try in the command bar"
+    id: 'dashboard-dashboard-ai-examples-v01',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Show me example commands I can try in the command bar',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v02",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Walk me through the sample AI prompts on this page"
+    id: 'dashboard-dashboard-ai-examples-v02',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Walk me through the sample AI prompts on this page',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v03",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Where do I find safe read-only AI examples?"
+    id: 'dashboard-dashboard-ai-examples-v03',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Where do I find safe read-only AI examples?',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v04",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Help me with this page — give me a booking example command"
+    id: 'dashboard-dashboard-ai-examples-v04',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Help me with this page — give me a booking example command',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v05",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Step by step: how do I practice with example six?"
+    id: 'dashboard-dashboard-ai-examples-v05',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Step by step: how do I practice with example six?',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v06",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "What do the example commands demonstrate?"
+    id: 'dashboard-dashboard-ai-examples-v06',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'What do the example commands demonstrate?',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v07",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Show me an example for checking availability"
+    id: 'dashboard-dashboard-ai-examples-v07',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Show me an example for checking availability',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v08",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "How can I copy an example into the command bar?"
+    id: 'dashboard-dashboard-ai-examples-v08',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'How can I copy an example into the command bar?',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v09",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "Explain what example two does without running it"
+    id: 'dashboard-dashboard-ai-examples-v09',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: 'Explain what example two does without running it',
   },
   {
-    "id": "dashboard-dashboard-ai-examples-v10",
-    "surface": "dashboard",
-    "topicId": "dashboard.ai.examples",
-    "prompt": "I'm learning AI — which example should I try first?"
+    id: 'dashboard-dashboard-ai-examples-v10',
+    surface: 'dashboard',
+    topicId: 'dashboard.ai.examples',
+    prompt: "I'm learning AI — which example should I try first?",
   },
   {
-    "id": "provider-provider-getting-started-v01",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "How do I get started with the provider app?"
+    id: 'provider-provider-getting-started-v01',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'How do I get started with the provider app?',
   },
   {
-    "id": "provider-provider-getting-started-v02",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Walk me through the provider app onboarding"
+    id: 'provider-provider-getting-started-v02',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'Walk me through the provider app onboarding',
   },
   {
-    "id": "provider-provider-getting-started-v03",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Where is the getting started guide in the provider app?"
+    id: 'provider-provider-getting-started-v03',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'Where is the getting started guide in the provider app?',
   },
   {
-    "id": "provider-provider-getting-started-v04",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Help me with this page — what should I do on day one?"
+    id: 'provider-provider-getting-started-v04',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'Help me with this page — what should I do on day one?',
   },
   {
-    "id": "provider-provider-getting-started-v05",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Step by step: how do I find my today's appointments?"
+    id: 'provider-provider-getting-started-v05',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: "Step by step: how do I find my today's appointments?",
   },
   {
-    "id": "provider-provider-getting-started-v06",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "What tabs should I explore first as a new stylist?"
+    id: 'provider-provider-getting-started-v06',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'What tabs should I explore first as a new stylist?',
   },
   {
-    "id": "provider-provider-getting-started-v07",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Show me how to open the in-app guide from here"
+    id: 'provider-provider-getting-started-v07',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'Show me how to open the in-app guide from here',
   },
   {
-    "id": "provider-provider-getting-started-v08",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "How can I switch between personal and team views?"
+    id: 'provider-provider-getting-started-v08',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'How can I switch between personal and team views?',
   },
   {
-    "id": "provider-provider-getting-started-v09",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "Explain what the provider getting started steps cover"
+    id: 'provider-provider-getting-started-v09',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: 'Explain what the provider getting started steps cover',
   },
   {
-    "id": "provider-provider-getting-started-v10",
-    "surface": "provider",
-    "topicId": "provider-getting-started",
-    "prompt": "I'm new to the app — guide me through the basics"
+    id: 'provider-provider-getting-started-v10',
+    surface: 'provider',
+    topicId: 'provider-getting-started',
+    prompt: "I'm new to the app — guide me through the basics",
   },
   {
-    "id": "provider-provider-appointments-v01",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "How do I see my appointments on the Today tab?"
+    id: 'provider-provider-appointments-v01',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'How do I see my appointments on the Today tab?',
   },
   {
-    "id": "provider-provider-appointments-v02",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Walk me through checking in a client from Today"
+    id: 'provider-provider-appointments-v02',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Walk me through checking in a client from Today',
   },
   {
-    "id": "provider-provider-appointments-v03",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Where is the appointment list on the provider app?"
+    id: 'provider-provider-appointments-v03',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Where is the appointment list on the provider app?',
   },
   {
-    "id": "provider-provider-appointments-v04",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Help me with this page — how do I open appointment details?"
+    id: 'provider-provider-appointments-v04',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Help me with this page — how do I open appointment details?',
   },
   {
-    "id": "provider-provider-appointments-v05",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Step by step: how do I mark no-show from Today?"
+    id: 'provider-provider-appointments-v05',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Step by step: how do I mark no-show from Today?',
   },
   {
-    "id": "provider-provider-appointments-v06",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "What can I do with appointments on this tab?"
+    id: 'provider-provider-appointments-v06',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'What can I do with appointments on this tab?',
   },
   {
-    "id": "provider-provider-appointments-v07",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Show me how to filter today's bookings by status"
+    id: 'provider-provider-appointments-v07',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "Show me how to filter today's bookings by status",
   },
   {
-    "id": "provider-provider-appointments-v08",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "How can I call a client from an appointment card?"
+    id: 'provider-provider-appointments-v08',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'How can I call a client from an appointment card?',
   },
   {
-    "id": "provider-provider-appointments-v09",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Explain the difference between Today and Calendar for appointments"
+    id: 'provider-provider-appointments-v09',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt:
+      'Explain the difference between Today and Calendar for appointments',
   },
   {
-    "id": "provider-provider-appointments-v10",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "I'm on Today — where do I add a walk-in booking?"
+    id: 'provider-provider-appointments-v10',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "I'm on Today — where do I add a walk-in booking?",
   },
   {
-    "id": "provider-provider-appointments-today-v01",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "What's on my schedule for today in the provider app?"
+    id: 'provider-provider-appointments-today-v01',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "What's on my schedule for today in the provider app?",
   },
   {
-    "id": "provider-provider-appointments-today-v02",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Walk me through reviewing today's bookings one by one"
+    id: 'provider-provider-appointments-today-v02',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "Walk me through reviewing today's bookings one by one",
   },
   {
-    "id": "provider-provider-appointments-today-v03",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Where do I see my next upcoming appointment?"
+    id: 'provider-provider-appointments-today-v03',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Where do I see my next upcoming appointment?',
   },
   {
-    "id": "provider-provider-appointments-today-v04",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Help me with Today — how do I prepare for the next client?"
+    id: 'provider-provider-appointments-today-v04',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Help me with Today — how do I prepare for the next client?',
   },
   {
-    "id": "provider-provider-appointments-today-v05",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Step by step: how do I reorder or prioritize today's list?"
+    id: 'provider-provider-appointments-today-v05',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "Step by step: how do I reorder or prioritize today's list?",
   },
   {
-    "id": "provider-provider-appointments-today-v06",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "What actions are available on each today appointment?"
+    id: 'provider-provider-appointments-today-v06',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'What actions are available on each today appointment?',
   },
   {
-    "id": "provider-provider-appointments-today-v07",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Show me how to refresh today's list after a change"
+    id: 'provider-provider-appointments-today-v07',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "Show me how to refresh today's list after a change",
   },
   {
-    "id": "provider-provider-appointments-today-v08",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "How can I see only my chair's appointments today?"
+    id: 'provider-provider-appointments-today-v08',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "How can I see only my chair's appointments today?",
   },
   {
-    "id": "provider-provider-appointments-today-v09",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Explain how Today tab updates when the dashboard changes schedule"
+    id: 'provider-provider-appointments-today-v09',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Explain how Today tab updates when the dashboard changes schedule',
   },
   {
-    "id": "provider-provider-appointments-today-v10",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "I'm starting my shift — walk me through Today tab"
+    id: 'provider-provider-appointments-today-v10',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "I'm starting my shift — walk me through Today tab",
   },
   {
-    "id": "provider-provider-calendar-v01",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "How do I switch to week view on the Calendar tab?"
+    id: 'provider-provider-calendar-v01',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'How do I switch to week view on the Calendar tab?',
   },
   {
-    "id": "provider-provider-calendar-v02",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Walk me through finding a booking next Tuesday"
+    id: 'provider-provider-calendar-v02',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Walk me through finding a booking next Tuesday',
   },
   {
-    "id": "provider-provider-calendar-v03",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Where is the Calendar tab in the provider app?"
+    id: 'provider-provider-calendar-v03',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Where is the Calendar tab in the provider app?',
   },
   {
-    "id": "provider-provider-calendar-v04",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Help me with this page — how do I see team vs my calendar?"
+    id: 'provider-provider-calendar-v04',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Help me with this page — how do I see team vs my calendar?',
   },
   {
-    "id": "provider-provider-calendar-v05",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Step by step: how do I block time on the calendar?"
+    id: 'provider-provider-calendar-v05',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Step by step: how do I block time on the calendar?',
   },
   {
-    "id": "provider-provider-calendar-v06",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "What can I do on the provider Calendar tab?"
+    id: 'provider-provider-calendar-v06',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'What can I do on the provider Calendar tab?',
   },
   {
-    "id": "provider-provider-calendar-v07",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Show me how calendar colors map to booking status"
+    id: 'provider-provider-calendar-v07',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Show me how calendar colors map to booking status',
   },
   {
-    "id": "provider-provider-calendar-v08",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "How can I jump to a specific date quickly?"
+    id: 'provider-provider-calendar-v08',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'How can I jump to a specific date quickly?',
   },
   {
-    "id": "provider-provider-calendar-v09",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Explain Calendar tab vs Schedule tab"
+    id: 'provider-provider-calendar-v09',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Explain Calendar tab vs Schedule tab',
   },
   {
-    "id": "provider-provider-calendar-v10",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "I'm on Calendar — where do I open a booking to edit?"
+    id: 'provider-provider-calendar-v10',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: "I'm on Calendar — where do I open a booking to edit?",
   },
   {
-    "id": "provider-provider-schedule-blocks-v01",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "How do I add a schedule block for time off?"
+    id: 'provider-provider-schedule-blocks-v01',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'How do I add a schedule block for time off?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v02",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Walk me through blocking lunch on the Schedule tab"
+    id: 'provider-provider-schedule-blocks-v02',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Walk me through blocking lunch on the Schedule tab',
   },
   {
-    "id": "provider-provider-schedule-blocks-v03",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Where is the Schedule tab for availability blocks?"
+    id: 'provider-provider-schedule-blocks-v03',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Where is the Schedule tab for availability blocks?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v04",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Help me with this page — how do I edit an existing block?"
+    id: 'provider-provider-schedule-blocks-v04',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Help me with this page — how do I edit an existing block?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v05",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Step by step: how do I set recurring weekly blocks?"
+    id: 'provider-provider-schedule-blocks-v05',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Step by step: how do I set recurring weekly blocks?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v06",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "What can I do on the Schedule blocks page?"
+    id: 'provider-provider-schedule-blocks-v06',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'What can I do on the Schedule blocks page?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v07",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Show me how blocks affect online booking slots"
+    id: 'provider-provider-schedule-blocks-v07',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Show me how blocks affect online booking slots',
   },
   {
-    "id": "provider-provider-schedule-blocks-v08",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "How can I delete a block I added by mistake?"
+    id: 'provider-provider-schedule-blocks-v08',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'How can I delete a block I added by mistake?',
   },
   {
-    "id": "provider-provider-schedule-blocks-v09",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Explain the difference between schedule blocks and bookings"
+    id: 'provider-provider-schedule-blocks-v09',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Explain the difference between schedule blocks and bookings',
   },
   {
-    "id": "provider-provider-schedule-blocks-v10",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "I'm on Schedule — where do I see blocks vs appointments?"
+    id: 'provider-provider-schedule-blocks-v10',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: "I'm on Schedule — where do I see blocks vs appointments?",
   },
   {
-    "id": "provider-provider-gift-cards-v01",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "How do I sell a gift card from the provider app?"
+    id: 'provider-provider-gift-cards-v01',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'How do I sell a gift card from the provider app?',
   },
   {
-    "id": "provider-provider-gift-cards-v02",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Walk me through checking a gift card balance"
+    id: 'provider-provider-gift-cards-v02',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Walk me through checking a gift card balance',
   },
   {
-    "id": "provider-provider-gift-cards-v03",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Where is the Gift Cards tab?"
+    id: 'provider-provider-gift-cards-v03',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Where is the Gift Cards tab?',
   },
   {
-    "id": "provider-provider-gift-cards-v04",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Help me with this page — how do I redeem a gift card at checkout?"
+    id: 'provider-provider-gift-cards-v04',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Help me with this page — how do I redeem a gift card at checkout?',
   },
   {
-    "id": "provider-provider-gift-cards-v05",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Step by step: how do I email a digital gift card to a client?"
+    id: 'provider-provider-gift-cards-v05',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Step by step: how do I email a digital gift card to a client?',
   },
   {
-    "id": "provider-provider-gift-cards-v06",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "What can I do on the Gift Cards tab?"
+    id: 'provider-provider-gift-cards-v06',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'What can I do on the Gift Cards tab?',
   },
   {
-    "id": "provider-provider-gift-cards-v07",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Show me how gift cards apply to a booking payment"
+    id: 'provider-provider-gift-cards-v07',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Show me how gift cards apply to a booking payment',
   },
   {
-    "id": "provider-provider-gift-cards-v08",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "How can I see recent gift card sales?"
+    id: 'provider-provider-gift-cards-v08',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'How can I see recent gift card sales?',
   },
   {
-    "id": "provider-provider-gift-cards-v09",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Explain gift card vs package in the provider app"
+    id: 'provider-provider-gift-cards-v09',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Explain gift card vs package in the provider app',
   },
   {
-    "id": "provider-provider-gift-cards-v10",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "I'm on Gift Cards — where do I issue a new card?"
+    id: 'provider-provider-gift-cards-v10',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: "I'm on Gift Cards — where do I issue a new card?",
   },
   {
-    "id": "provider-provider-profile-settings-v01",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "How do I change my display name in the provider app?"
+    id: 'provider-provider-profile-settings-v01',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'How do I change my display name in the provider app?',
   },
   {
-    "id": "provider-provider-profile-settings-v02",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Walk me through updating my profile photo"
+    id: 'provider-provider-profile-settings-v02',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Walk me through updating my profile photo',
   },
   {
-    "id": "provider-provider-profile-settings-v03",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Where is the Profile tab for settings?"
+    id: 'provider-provider-profile-settings-v03',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Where is the Profile tab for settings?',
   },
   {
-    "id": "provider-provider-profile-settings-v04",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Help me with this page — how do I edit my job title?"
+    id: 'provider-provider-profile-settings-v04',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Help me with this page — how do I edit my job title?',
   },
   {
-    "id": "provider-provider-profile-settings-v05",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Step by step: how do I update notification preferences?"
+    id: 'provider-provider-profile-settings-v05',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Step by step: how do I update notification preferences?',
   },
   {
-    "id": "provider-provider-profile-settings-v06",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "What profile fields can I edit myself?"
+    id: 'provider-provider-profile-settings-v06',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'What profile fields can I edit myself?',
   },
   {
-    "id": "provider-provider-profile-settings-v07",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Show me where avatar changes appear to clients"
+    id: 'provider-provider-profile-settings-v07',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Show me where avatar changes appear to clients',
   },
   {
-    "id": "provider-provider-profile-settings-v08",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "How can I verify my phone number on profile?"
+    id: 'provider-provider-profile-settings-v08',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'How can I verify my phone number on profile?',
   },
   {
-    "id": "provider-provider-profile-settings-v09",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "Explain what staff cannot change without a manager"
+    id: 'provider-provider-profile-settings-v09',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: 'Explain what staff cannot change without a manager',
   },
   {
-    "id": "provider-provider-profile-settings-v10",
-    "surface": "provider",
-    "topicId": "provider-profile-settings",
-    "prompt": "I'm on Profile — where do I log out of the app?"
+    id: 'provider-provider-profile-settings-v10',
+    surface: 'provider',
+    topicId: 'provider-profile-settings',
+    prompt: "I'm on Profile — where do I log out of the app?",
   },
   {
-    "id": "provider-provider-staff-invite-v01",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "What is this staff invite link for?"
+    id: 'provider-provider-staff-invite-v01',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'What is this staff invite link for?',
   },
   {
-    "id": "provider-provider-staff-invite-v02",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Walk me through accepting an invite to join a salon"
+    id: 'provider-provider-staff-invite-v02',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Walk me through accepting an invite to join a salon',
   },
   {
-    "id": "provider-provider-staff-invite-v03",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Where do I complete staff invite onboarding?"
+    id: 'provider-provider-staff-invite-v03',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Where do I complete staff invite onboarding?',
   },
   {
-    "id": "provider-provider-staff-invite-v04",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Help me with this page — I got an email invite, what now?"
+    id: 'provider-provider-staff-invite-v04',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Help me with this page — I got an email invite, what now?',
   },
   {
-    "id": "provider-provider-staff-invite-v05",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Step by step: how do I set my password after accepting?"
+    id: 'provider-provider-staff-invite-v05',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Step by step: how do I set my password after accepting?',
   },
   {
-    "id": "provider-provider-staff-invite-v06",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "What happens when I tap Accept invite?"
+    id: 'provider-provider-staff-invite-v06',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'What happens when I tap Accept invite?',
   },
   {
-    "id": "provider-provider-staff-invite-v07",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Show me how to pick my display name during invite"
+    id: 'provider-provider-staff-invite-v07',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Show me how to pick my display name during invite',
   },
   {
-    "id": "provider-provider-staff-invite-v08",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "How can I troubleshoot an expired invite link?"
+    id: 'provider-provider-staff-invite-v08',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'How can I troubleshoot an expired invite link?',
   },
   {
-    "id": "provider-provider-staff-invite-v09",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "Explain the staff invite flow for new stylists"
+    id: 'provider-provider-staff-invite-v09',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: 'Explain the staff invite flow for new stylists',
   },
   {
-    "id": "provider-provider-staff-invite-v10",
-    "surface": "provider",
-    "topicId": "provider-staff-invite",
-    "prompt": "I'm on Accept invite — where do I choose my services?"
+    id: 'provider-provider-staff-invite-v10',
+    surface: 'provider',
+    topicId: 'provider-staff-invite',
+    prompt: "I'm on Accept invite — where do I choose my services?",
   },
   {
-    "id": "provider-provider-today-calendar-v01",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "What's the difference between Today and Calendar tabs?"
+    id: 'provider-provider-today-calendar-v01',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: "What's the difference between Today and Calendar tabs?",
   },
   {
-    "id": "provider-provider-today-calendar-v02",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Walk me through when to use Today vs Calendar view"
+    id: 'provider-provider-today-calendar-v02',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Walk me through when to use Today vs Calendar view',
   },
   {
-    "id": "provider-provider-today-calendar-v03",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Where does the guide explain Today vs Calendar?"
+    id: 'provider-provider-today-calendar-v03',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Where does the guide explain Today vs Calendar?',
   },
   {
-    "id": "provider-provider-today-calendar-v04",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Help me with this page — which tab shows the full week?"
+    id: 'provider-provider-today-calendar-v04',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Help me with this page — which tab shows the full week?',
   },
   {
-    "id": "provider-provider-today-calendar-v05",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Step by step: how do I switch from Today to Calendar?"
+    id: 'provider-provider-today-calendar-v05',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Step by step: how do I switch from Today to Calendar?',
   },
   {
-    "id": "provider-provider-today-calendar-v06",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "What does the Today vs Calendar guide cover?"
+    id: 'provider-provider-today-calendar-v06',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'What does the Today vs Calendar guide cover?',
   },
   {
-    "id": "provider-provider-today-calendar-v07",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Show me examples of tasks better on Calendar tab"
+    id: 'provider-provider-today-calendar-v07',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Show me examples of tasks better on Calendar tab',
   },
   {
-    "id": "provider-provider-today-calendar-v08",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "How can managers use Calendar differently than stylists?"
+    id: 'provider-provider-today-calendar-v08',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'How can managers use Calendar differently than stylists?',
   },
   {
-    "id": "provider-provider-today-calendar-v09",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "Explain why Today is optimized for the current shift"
+    id: 'provider-provider-today-calendar-v09',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: 'Explain why Today is optimized for the current shift',
   },
   {
-    "id": "provider-provider-today-calendar-v10",
-    "surface": "provider",
-    "topicId": "provider-today-calendar",
-    "prompt": "I'm confused about tabs — clarify Today vs Calendar for me"
+    id: 'provider-provider-today-calendar-v10',
+    surface: 'provider',
+    topicId: 'provider-today-calendar',
+    prompt: "I'm confused about tabs — clarify Today vs Calendar for me",
   },
   {
-    "id": "provider-provider-assistant-v01",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "How do I use the AI assistant in the provider app?"
+    id: 'provider-provider-assistant-v01',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'How do I use the AI assistant in the provider app?',
   },
   {
-    "id": "provider-provider-assistant-v02",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Walk me through asking the provider assistant a question"
+    id: 'provider-provider-assistant-v02',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Walk me through asking the provider assistant a question',
   },
   {
-    "id": "provider-provider-assistant-v03",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Where is the AI assistant button on mobile?"
+    id: 'provider-provider-assistant-v03',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Where is the AI assistant button on mobile?',
   },
   {
-    "id": "provider-provider-assistant-v04",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Help me with this page — can the assistant explain Today tab?"
+    id: 'provider-provider-assistant-v04',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Help me with this page — can the assistant explain Today tab?',
   },
   {
-    "id": "provider-provider-assistant-v05",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Step by step: how do I use voice with the provider assistant?"
+    id: 'provider-provider-assistant-v05',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Step by step: how do I use voice with the provider assistant?',
   },
   {
-    "id": "provider-provider-assistant-v06",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "What kinds of help can the provider AI give?"
+    id: 'provider-provider-assistant-v06',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'What kinds of help can the provider AI give?',
   },
   {
-    "id": "provider-provider-assistant-v07",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Show me how assistant answers differ from running commands"
+    id: 'provider-provider-assistant-v07',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Show me how assistant answers differ from running commands',
   },
   {
-    "id": "provider-provider-assistant-v08",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "How can I get a walkthrough without changing bookings?"
+    id: 'provider-provider-assistant-v08',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'How can I get a walkthrough without changing bookings?',
   },
   {
-    "id": "provider-provider-assistant-v09",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "Explain when the assistant asks me to confirm an action"
+    id: 'provider-provider-assistant-v09',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: 'Explain when the assistant asks me to confirm an action',
   },
   {
-    "id": "provider-provider-assistant-v10",
-    "surface": "provider",
-    "topicId": "provider-assistant",
-    "prompt": "I'm on the assistant — how do I ask about mark paid?"
+    id: 'provider-provider-assistant-v10',
+    surface: 'provider',
+    topicId: 'provider-assistant',
+    prompt: "I'm on the assistant — how do I ask about mark paid?",
   },
   {
-    "id": "provider-provider-assistant-confirm-v01",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Why do I have to swipe to confirm AI actions?"
+    id: 'provider-provider-assistant-confirm-v01',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Why do I have to swipe to confirm AI actions?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v02",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Walk me through the confirm swipe preview screen"
+    id: 'provider-provider-assistant-confirm-v02',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Walk me through the confirm swipe preview screen',
   },
   {
-    "id": "provider-provider-assistant-confirm-v03",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Where does swipe-to-confirm appear in the provider app?"
+    id: 'provider-provider-assistant-confirm-v03',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Where does swipe-to-confirm appear in the provider app?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v04",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Help me with this page — what will change before I confirm?"
+    id: 'provider-provider-assistant-confirm-v04',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Help me with this page — what will change before I confirm?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v05",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Step by step: how do I cancel after opening the confirm sheet?"
+    id: 'provider-provider-assistant-confirm-v05',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Step by step: how do I cancel after opening the confirm sheet?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v06",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "What safety reasons exist for swipe confirm?"
+    id: 'provider-provider-assistant-confirm-v06',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'What safety reasons exist for swipe confirm?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v07",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Show me how to read the preview before swiping"
+    id: 'provider-provider-assistant-confirm-v07',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Show me how to read the preview before swiping',
   },
   {
-    "id": "provider-provider-assistant-confirm-v08",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "How can I see which booking the confirm applies to?"
+    id: 'provider-provider-assistant-confirm-v08',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'How can I see which booking the confirm applies to?',
   },
   {
-    "id": "provider-provider-assistant-confirm-v09",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "Explain assistant confirm vs immediate execution"
+    id: 'provider-provider-assistant-confirm-v09',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: 'Explain assistant confirm vs immediate execution',
   },
   {
-    "id": "provider-provider-assistant-confirm-v10",
-    "surface": "provider",
-    "topicId": "provider-assistant-confirm",
-    "prompt": "I'm on confirm swipe — what happens if I dismiss it?"
+    id: 'provider-provider-assistant-confirm-v10',
+    surface: 'provider',
+    topicId: 'provider-assistant-confirm',
+    prompt: "I'm on confirm swipe — what happens if I dismiss it?",
   },
   {
-    "id": "provider-provider-compound-steps-v01",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "How do multi-step provider commands work?"
+    id: 'provider-provider-compound-steps-v01',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'How do multi-step provider commands work?',
   },
   {
-    "id": "provider-provider-compound-steps-v02",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Walk me through a compound command one step at a time"
+    id: 'provider-provider-compound-steps-v02',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Walk me through a compound command one step at a time',
   },
   {
-    "id": "provider-provider-compound-steps-v03",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Where does the guide explain provider compound steps?"
+    id: 'provider-provider-compound-steps-v03',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Where does the guide explain provider compound steps?',
   },
   {
-    "id": "provider-provider-compound-steps-v04",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Help me with this page — what happens next in a compound?"
+    id: 'provider-provider-compound-steps-v04',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Help me with this page — what happens next in a compound?',
   },
   {
-    "id": "provider-provider-compound-steps-v05",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Step by step: how do I run check then mark paid separately?"
+    id: 'provider-provider-compound-steps-v05',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Step by step: how do I run check then mark paid separately?',
   },
   {
-    "id": "provider-provider-compound-steps-v06",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "What is shared context across compound steps?"
+    id: 'provider-provider-compound-steps-v06',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'What is shared context across compound steps?',
   },
   {
-    "id": "provider-provider-compound-steps-v07",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Show me an example compound without executing it"
+    id: 'provider-provider-compound-steps-v07',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Show me an example compound without executing it',
   },
   {
-    "id": "provider-provider-compound-steps-v08",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "How can I stop a compound after the first step?"
+    id: 'provider-provider-compound-steps-v08',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'How can I stop a compound after the first step?',
   },
   {
-    "id": "provider-provider-compound-steps-v09",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "Explain why compounds run sequentially on mobile"
+    id: 'provider-provider-compound-steps-v09',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: 'Explain why compounds run sequentially on mobile',
   },
   {
-    "id": "provider-provider-compound-steps-v10",
-    "surface": "provider",
-    "topicId": "provider-compound-steps",
-    "prompt": "I'm mid-compound — how do I know what's left?"
+    id: 'provider-provider-compound-steps-v10',
+    surface: 'provider',
+    topicId: 'provider-compound-steps',
+    prompt: "I'm mid-compound — how do I know what's left?",
   },
   {
-    "id": "provider-provider-view-scope-v01",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Why do I see everyone's bookings on my calendar?"
+    id: 'provider-provider-view-scope-v01',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: "Why do I see everyone's bookings on my calendar?",
   },
   {
-    "id": "provider-provider-view-scope-v02",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Walk me through switching to my calendar only view"
+    id: 'provider-provider-view-scope-v02',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'Walk me through switching to my calendar only view',
   },
   {
-    "id": "provider-provider-view-scope-v03",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Where do I change team view scope in the provider app?"
+    id: 'provider-provider-view-scope-v03',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'Where do I change team view scope in the provider app?',
   },
   {
-    "id": "provider-provider-view-scope-v04",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Help me with this page — how do I hide other stylists' appointments?"
+    id: 'provider-provider-view-scope-v04',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt:
+      "Help me with this page — how do I hide other stylists' appointments?",
   },
   {
-    "id": "provider-provider-view-scope-v05",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Step by step: how do managers toggle team vs personal scope?"
+    id: 'provider-provider-view-scope-v05',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'Step by step: how do managers toggle team vs personal scope?',
   },
   {
-    "id": "provider-provider-view-scope-v06",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "What is team view scope in the provider app?"
+    id: 'provider-provider-view-scope-v06',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'What is team view scope in the provider app?',
   },
   {
-    "id": "provider-provider-view-scope-v07",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Show me how view scope affects Today and Calendar tabs"
+    id: 'provider-provider-view-scope-v07',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'Show me how view scope affects Today and Calendar tabs',
   },
   {
-    "id": "provider-provider-view-scope-v08",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "How can I tell if I'm in manager team view?"
+    id: 'provider-provider-view-scope-v08',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: "How can I tell if I'm in manager team view?",
   },
   {
-    "id": "provider-provider-view-scope-v09",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "Explain view scope for reception vs stylist roles"
+    id: 'provider-provider-view-scope-v09',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: 'Explain view scope for reception vs stylist roles',
   },
   {
-    "id": "provider-provider-view-scope-v10",
-    "surface": "provider",
-    "topicId": "provider-view-scope",
-    "prompt": "I'm seeing too many bookings — how do I narrow the view?"
+    id: 'provider-provider-view-scope-v10',
+    surface: 'provider',
+    topicId: 'provider-view-scope',
+    prompt: "I'm seeing too many bookings — how do I narrow the view?",
   },
   {
-    "id": "provider-provider-team-manager-v01",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "How do I manage my team from the provider app as a manager?"
+    id: 'provider-provider-team-manager-v01',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'How do I manage my team from the provider app as a manager?',
   },
   {
-    "id": "provider-provider-team-manager-v02",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Walk me through team manager features on mobile"
+    id: 'provider-provider-team-manager-v02',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'Walk me through team manager features on mobile',
   },
   {
-    "id": "provider-provider-team-manager-v03",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Where is the team manager guide in the provider app?"
+    id: 'provider-provider-team-manager-v03',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'Where is the team manager guide in the provider app?',
   },
   {
-    "id": "provider-provider-team-manager-v04",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Help me with this page — how do I see who's working today?"
+    id: 'provider-provider-team-manager-v04',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: "Help me with this page — how do I see who's working today?",
   },
   {
-    "id": "provider-provider-team-manager-v05",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Step by step: how do I review team schedule blocks?"
+    id: 'provider-provider-team-manager-v05',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'Step by step: how do I review team schedule blocks?',
   },
   {
-    "id": "provider-provider-team-manager-v06",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "What can managers do that regular stylists cannot?"
+    id: 'provider-provider-team-manager-v06',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'What can managers do that regular stylists cannot?',
   },
   {
-    "id": "provider-provider-team-manager-v07",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Show me how team manager connects to view scope"
+    id: 'provider-provider-team-manager-v07',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'Show me how team manager connects to view scope',
   },
   {
-    "id": "provider-provider-team-manager-v08",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "How can I invite staff from the manager view?"
+    id: 'provider-provider-team-manager-v08',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'How can I invite staff from the manager view?',
   },
   {
-    "id": "provider-provider-team-manager-v09",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "Explain team manager vs profile settings"
+    id: 'provider-provider-team-manager-v09',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: 'Explain team manager vs profile settings',
   },
   {
-    "id": "provider-provider-team-manager-v10",
-    "surface": "provider",
-    "topicId": "provider-team-manager",
-    "prompt": "I'm a salon manager — guide me through team tools"
+    id: 'provider-provider-team-manager-v10',
+    surface: 'provider',
+    topicId: 'provider-team-manager',
+    prompt: "I'm a salon manager — guide me through team tools",
   },
   {
-    "id": "provider-provider-clinic-v01",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "How do I collect lab specimens in the clinic provider app?"
+    id: 'provider-provider-clinic-v01',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'How do I collect lab specimens in the clinic provider app?',
   },
   {
-    "id": "provider-provider-clinic-v02",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Walk me through the lab collection tab"
+    id: 'provider-provider-clinic-v02',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Walk me through the lab collection tab',
   },
   {
-    "id": "provider-provider-clinic-v03",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Where are lab results for patients in the provider app?"
+    id: 'provider-provider-clinic-v03',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Where are lab results for patients in the provider app?',
   },
   {
-    "id": "provider-provider-clinic-v04",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Help me with this page — how do I open a patient chart?"
+    id: 'provider-provider-clinic-v04',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Help me with this page — how do I open a patient chart?',
   },
   {
-    "id": "provider-provider-clinic-v05",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Step by step: how do I mark a specimen collected?"
+    id: 'provider-provider-clinic-v05',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Step by step: how do I mark a specimen collected?',
   },
   {
-    "id": "provider-provider-clinic-v06",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "What clinic tabs appear for lab staff?"
+    id: 'provider-provider-clinic-v06',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'What clinic tabs appear for lab staff?',
   },
   {
-    "id": "provider-provider-clinic-v07",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Show me how lab collection differs from salon appointments"
+    id: 'provider-provider-clinic-v07',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Show me how lab collection differs from salon appointments',
   },
   {
-    "id": "provider-provider-clinic-v08",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "How can I find preparation notes for a lab order?"
+    id: 'provider-provider-clinic-v08',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'How can I find preparation notes for a lab order?',
   },
   {
-    "id": "provider-provider-clinic-v09",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "Explain the clinic overlay guide for providers"
+    id: 'provider-provider-clinic-v09',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: 'Explain the clinic overlay guide for providers',
   },
   {
-    "id": "provider-provider-clinic-v10",
-    "surface": "provider",
-    "topicId": "provider-clinic",
-    "prompt": "I'm on lab collection — where do I scan an order?"
+    id: 'provider-provider-clinic-v10',
+    surface: 'provider',
+    topicId: 'provider-clinic',
+    prompt: "I'm on lab collection — where do I scan an order?",
   },
   {
-    "id": "provider-provider-retail-pos-v01",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "How do I ring up a retail product sale on mobile?"
+    id: 'provider-provider-retail-pos-v01',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'How do I ring up a retail product sale on mobile?',
   },
   {
-    "id": "provider-provider-retail-pos-v02",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Walk me through POS checkout on the Today tab"
+    id: 'provider-provider-retail-pos-v02',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Walk me through POS checkout on the Today tab',
   },
   {
-    "id": "provider-provider-retail-pos-v03",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Where is retail POS in the provider app?"
+    id: 'provider-provider-retail-pos-v03',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Where is retail POS in the provider app?',
   },
   {
-    "id": "provider-provider-retail-pos-v04",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Help me with this page — how do I add products to a sale?"
+    id: 'provider-provider-retail-pos-v04',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Help me with this page — how do I add products to a sale?',
   },
   {
-    "id": "provider-provider-retail-pos-v05",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Step by step: how do I take payment for retail only?"
+    id: 'provider-provider-retail-pos-v05',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Step by step: how do I take payment for retail only?',
   },
   {
-    "id": "provider-provider-retail-pos-v06",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "What can I do with retail POS on the provider app?"
+    id: 'provider-provider-retail-pos-v06',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'What can I do with retail POS on the provider app?',
   },
   {
-    "id": "provider-provider-retail-pos-v07",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Show me how retail sales link to inventory"
+    id: 'provider-provider-retail-pos-v07',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Show me how retail sales link to inventory',
   },
   {
-    "id": "provider-provider-retail-pos-v08",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "How can I apply a discount on a product sale?"
+    id: 'provider-provider-retail-pos-v08',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'How can I apply a discount on a product sale?',
   },
   {
-    "id": "provider-provider-retail-pos-v09",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "Explain retail POS vs booking checkout"
+    id: 'provider-provider-retail-pos-v09',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: 'Explain retail POS vs booking checkout',
   },
   {
-    "id": "provider-provider-retail-pos-v10",
-    "surface": "provider",
-    "topicId": "provider-retail-pos",
-    "prompt": "I'm selling products — guide me through mobile POS"
+    id: 'provider-provider-retail-pos-v10',
+    surface: 'provider',
+    topicId: 'provider-retail-pos',
+    prompt: "I'm selling products — guide me through mobile POS",
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v01",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "How do I mark a booking as paid on the Today tab?"
+    id: 'provider-provider-appointments-mark-paid-v01',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'How do I mark a booking as paid on the Today tab?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v02",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Walk me through recording payment for an appointment"
+    id: 'provider-provider-appointments-mark-paid-v02',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Walk me through recording payment for an appointment',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v03",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Where is the mark paid action on an appointment?"
+    id: 'provider-provider-appointments-mark-paid-v03',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Where is the mark paid action on an appointment?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v04",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Help me with this page — how do I mark partial payment?"
+    id: 'provider-provider-appointments-mark-paid-v04',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Help me with this page — how do I mark partial payment?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v05",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Step by step: how do I mark paid after a card terminal?"
+    id: 'provider-provider-appointments-mark-paid-v05',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Step by step: how do I mark paid after a card terminal?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v06",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "What payment statuses can I set on Today?"
+    id: 'provider-provider-appointments-mark-paid-v06',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'What payment statuses can I set on Today?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v07",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Show me how mark paid affects reports"
+    id: 'provider-provider-appointments-mark-paid-v07',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Show me how mark paid affects reports',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v08",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "How can I undo mark paid if I tapped wrong?"
+    id: 'provider-provider-appointments-mark-paid-v08',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'How can I undo mark paid if I tapped wrong?',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v09",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "Explain mark paid vs adding a retail sale"
+    id: 'provider-provider-appointments-mark-paid-v09',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: 'Explain mark paid vs adding a retail sale',
   },
   {
-    "id": "provider-provider-appointments-mark-paid-v10",
-    "surface": "provider",
-    "topicId": "provider-appointments",
-    "prompt": "I'm finishing a service — how do I mark the client paid?"
+    id: 'provider-provider-appointments-mark-paid-v10',
+    surface: 'provider',
+    topicId: 'provider-appointments',
+    prompt: "I'm finishing a service — how do I mark the client paid?",
   },
   {
-    "id": "provider-provider-calendar-week-view-v01",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "How do I see my whole week on the Calendar tab?"
+    id: 'provider-provider-calendar-week-view-v01',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'How do I see my whole week on the Calendar tab?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v02",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Walk me through navigating week view on mobile calendar"
+    id: 'provider-provider-calendar-week-view-v02',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Walk me through navigating week view on mobile calendar',
   },
   {
-    "id": "provider-provider-calendar-week-view-v03",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Where do I switch calendar to week mode?"
+    id: 'provider-provider-calendar-week-view-v03',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Where do I switch calendar to week mode?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v04",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Help me with Calendar — how do I compare days side by side?"
+    id: 'provider-provider-calendar-week-view-v04',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Help me with Calendar — how do I compare days side by side?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v05",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Step by step: how do I scroll to next week?"
+    id: 'provider-provider-calendar-week-view-v05',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Step by step: how do I scroll to next week?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v06",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "What shows in week view vs day view?"
+    id: 'provider-provider-calendar-week-view-v06',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'What shows in week view vs day view?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v07",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Show me how to spot gaps in my weekly schedule"
+    id: 'provider-provider-calendar-week-view-v07',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Show me how to spot gaps in my weekly schedule',
   },
   {
-    "id": "provider-provider-calendar-week-view-v08",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "How can I tap a day in week view for details?"
+    id: 'provider-provider-calendar-week-view-v08',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'How can I tap a day in week view for details?',
   },
   {
-    "id": "provider-provider-calendar-week-view-v09",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "Explain week view for planning time off"
+    id: 'provider-provider-calendar-week-view-v09',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: 'Explain week view for planning time off',
   },
   {
-    "id": "provider-provider-calendar-week-view-v10",
-    "surface": "provider",
-    "topicId": "provider-calendar",
-    "prompt": "I'm planning ahead — show me week view on Calendar"
+    id: 'provider-provider-calendar-week-view-v10',
+    surface: 'provider',
+    topicId: 'provider-calendar',
+    prompt: "I'm planning ahead — show me week view on Calendar",
   },
   {
-    "id": "provider-provider-schedule-time-off-v01",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "How do I request time off using schedule blocks?"
+    id: 'provider-provider-schedule-time-off-v01',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'How do I request time off using schedule blocks?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v02",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Walk me through blocking vacation days on Schedule"
+    id: 'provider-provider-schedule-time-off-v02',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Walk me through blocking vacation days on Schedule',
   },
   {
-    "id": "provider-provider-schedule-time-off-v03",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Where do I add a multi-day time-off block?"
+    id: 'provider-provider-schedule-time-off-v03',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Where do I add a multi-day time-off block?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v04",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Help me with Schedule — how do I block a holiday?"
+    id: 'provider-provider-schedule-time-off-v04',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Help me with Schedule — how do I block a holiday?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v05",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Step by step: how do I see if time off removed online slots?"
+    id: 'provider-provider-schedule-time-off-v05',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Step by step: how do I see if time off removed online slots?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v06",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "What happens when I block time off mid-week?"
+    id: 'provider-provider-schedule-time-off-v06',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'What happens when I block time off mid-week?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v07",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Show me how managers approve time-off blocks"
+    id: 'provider-provider-schedule-time-off-v07',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Show me how managers approve time-off blocks',
   },
   {
-    "id": "provider-provider-schedule-time-off-v08",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "How can I edit time off without deleting the block?"
+    id: 'provider-provider-schedule-time-off-v08',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'How can I edit time off without deleting the block?',
   },
   {
-    "id": "provider-provider-schedule-time-off-v09",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "Explain time-off blocks vs calling the salon"
+    id: 'provider-provider-schedule-time-off-v09',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'Explain time-off blocks vs calling the salon',
   },
   {
-    "id": "provider-provider-schedule-time-off-v10",
-    "surface": "provider",
-    "topicId": "provider-schedule-blocks",
-    "prompt": "I need Friday off — walk me through schedule blocks"
+    id: 'provider-provider-schedule-time-off-v10',
+    surface: 'provider',
+    topicId: 'provider-schedule-blocks',
+    prompt: 'I need Friday off — walk me through schedule blocks',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v01",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "How do I redeem a client's gift card at checkout?"
+    id: 'provider-provider-gift-cards-redeem-v01',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: "How do I redeem a client's gift card at checkout?",
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v02",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Walk me through applying gift card credit to a booking"
+    id: 'provider-provider-gift-cards-redeem-v02',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Walk me through applying gift card credit to a booking',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v03",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Where do I enter a gift card code on mobile?"
+    id: 'provider-provider-gift-cards-redeem-v03',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Where do I enter a gift card code on mobile?',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v04",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Help me with Gift Cards — how do I redeem partial balance?"
+    id: 'provider-provider-gift-cards-redeem-v04',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Help me with Gift Cards — how do I redeem partial balance?',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v05",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Step by step: how do I verify a gift card before redeeming?"
+    id: 'provider-provider-gift-cards-redeem-v05',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Step by step: how do I verify a gift card before redeeming?',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v06",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "What if the gift card doesn't cover the full amount?"
+    id: 'provider-provider-gift-cards-redeem-v06',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: "What if the gift card doesn't cover the full amount?",
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v07",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Show me how redeemed amount shows on the receipt"
+    id: 'provider-provider-gift-cards-redeem-v07',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Show me how redeemed amount shows on the receipt',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v08",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "How can I see remaining balance after redeem?"
+    id: 'provider-provider-gift-cards-redeem-v08',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'How can I see remaining balance after redeem?',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v09",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Explain redeeming gift cards vs packages"
+    id: 'provider-provider-gift-cards-redeem-v09',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Explain redeeming gift cards vs packages',
   },
   {
-    "id": "provider-provider-gift-cards-redeem-v10",
-    "surface": "provider",
-    "topicId": "provider-gift-cards",
-    "prompt": "Client has a gift card — how do I apply it on Today?"
+    id: 'provider-provider-gift-cards-redeem-v10',
+    surface: 'provider',
+    topicId: 'provider-gift-cards',
+    prompt: 'Client has a gift card — how do I apply it on Today?',
   },
   {
-    "id": "customer-common-steps-v01",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "What do the numbered guide steps mean in the app?"
+    id: 'customer-common-steps-v01',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'What do the numbered guide steps mean in the app?',
   },
   {
-    "id": "customer-common-steps-v02",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Walk me through how guide steps work"
+    id: 'customer-common-steps-v02',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Walk me through how guide steps work',
   },
   {
-    "id": "customer-common-steps-v03",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Where can I see step-by-step help in the consumer app?"
+    id: 'customer-common-steps-v03',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Where can I see step-by-step help in the consumer app?',
   },
   {
-    "id": "customer-common-steps-v04",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Help me with this guide — what is step one usually?"
+    id: 'customer-common-steps-v04',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Help me with this guide — what is step one usually?',
   },
   {
-    "id": "customer-common-steps-v05",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Step by step: how do I follow the in-app guide?"
+    id: 'customer-common-steps-v05',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Step by step: how do I follow the in-app guide?',
   },
   {
-    "id": "customer-common-steps-v06",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Explain the common guide step labels"
+    id: 'customer-common-steps-v06',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Explain the common guide step labels',
   },
   {
-    "id": "customer-common-steps-v07",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "Show me how to go to the next guide step"
+    id: 'customer-common-steps-v07',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'Show me how to go to the next guide step',
   },
   {
-    "id": "customer-common-steps-v08",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "How can I reopen a guide I closed?"
+    id: 'customer-common-steps-v08',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'How can I reopen a guide I closed?',
   },
   {
-    "id": "customer-common-steps-v09",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "What happens when I finish all guide steps?"
+    id: 'customer-common-steps-v09',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: 'What happens when I finish all guide steps?',
   },
   {
-    "id": "customer-common-steps-v10",
-    "surface": "customer",
-    "topicId": "guide-flow-common",
-    "prompt": "I'm reading a guide — how do steps link to screens?"
+    id: 'customer-common-steps-v10',
+    surface: 'customer',
+    topicId: 'guide-flow-common',
+    prompt: "I'm reading a guide — how do steps link to screens?",
   },
   {
-    "id": "customer-consumer-getting-started-v01",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "How do I get started with the consumer booking app?"
+    id: 'customer-consumer-getting-started-v01',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'How do I get started with the consumer booking app?',
   },
   {
-    "id": "customer-consumer-getting-started-v02",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Walk me through the consumer app for first-time users"
+    id: 'customer-consumer-getting-started-v02',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Walk me through the consumer app for first-time users',
   },
   {
-    "id": "customer-consumer-getting-started-v03",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Where is getting started help in the salon app?"
+    id: 'customer-consumer-getting-started-v03',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Where is getting started help in the salon app?',
   },
   {
-    "id": "customer-consumer-getting-started-v04",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Help me with this page — what should I do after install?"
+    id: 'customer-consumer-getting-started-v04',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Help me with this page — what should I do after install?',
   },
   {
-    "id": "customer-consumer-getting-started-v05",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Step by step: how do I book my first appointment in the app?"
+    id: 'customer-consumer-getting-started-v05',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Step by step: how do I book my first appointment in the app?',
   },
   {
-    "id": "customer-consumer-getting-started-v06",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "What tabs and features should I explore first?"
+    id: 'customer-consumer-getting-started-v06',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'What tabs and features should I explore first?',
   },
   {
-    "id": "customer-consumer-getting-started-v07",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Show me how to open the guide from the app home"
+    id: 'customer-consumer-getting-started-v07',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Show me how to open the guide from the app home',
   },
   {
-    "id": "customer-consumer-getting-started-v08",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "How can I find my salon after signing up?"
+    id: 'customer-consumer-getting-started-v08',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'How can I find my salon after signing up?',
   },
   {
-    "id": "customer-consumer-getting-started-v09",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "Explain the consumer getting started steps"
+    id: 'customer-consumer-getting-started-v09',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: 'Explain the consumer getting started steps',
   },
   {
-    "id": "customer-consumer-getting-started-v10",
-    "surface": "customer",
-    "topicId": "consumer-getting-started",
-    "prompt": "I'm new to the app — guide me from the beginning"
+    id: 'customer-consumer-getting-started-v10',
+    surface: 'customer',
+    topicId: 'consumer-getting-started',
+    prompt: "I'm new to the app — guide me from the beginning",
   },
   {
-    "id": "customer-consumer-tabs-v01",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Where are my appointments in the consumer app?"
+    id: 'customer-consumer-tabs-v01',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Where are my appointments in the consumer app?',
   },
   {
-    "id": "customer-consumer-tabs-v02",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Walk me through the main tabs at the bottom"
+    id: 'customer-consumer-tabs-v02',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Walk me through the main tabs at the bottom',
   },
   {
-    "id": "customer-consumer-tabs-v03",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "What does each tab do in the salon app?"
+    id: 'customer-consumer-tabs-v03',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'What does each tab do in the salon app?',
   },
   {
-    "id": "customer-consumer-tabs-v04",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Help me with this page — which tab is for booking?"
+    id: 'customer-consumer-tabs-v04',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Help me with this page — which tab is for booking?',
   },
   {
-    "id": "customer-consumer-tabs-v05",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Step by step: how do I switch between Home and Account?"
+    id: 'customer-consumer-tabs-v05',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Step by step: how do I switch between Home and Account?',
   },
   {
-    "id": "customer-consumer-tabs-v06",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Explain the consumer app tab bar"
+    id: 'customer-consumer-tabs-v06',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Explain the consumer app tab bar',
   },
   {
-    "id": "customer-consumer-tabs-v07",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Show me where upcoming bookings live"
+    id: 'customer-consumer-tabs-v07',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Show me where upcoming bookings live',
   },
   {
-    "id": "customer-consumer-tabs-v08",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "How can I get back to the home tab quickly?"
+    id: 'customer-consumer-tabs-v08',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'How can I get back to the home tab quickly?',
   },
   {
-    "id": "customer-consumer-tabs-v09",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "What is on the Book tab vs Account tab?"
+    id: 'customer-consumer-tabs-v09',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'What is on the Book tab vs Account tab?',
   },
   {
-    "id": "customer-consumer-tabs-v10",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "I'm lost in the app — explain the tabs to me"
+    id: 'customer-consumer-tabs-v10',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: "I'm lost in the app — explain the tabs to me",
   },
   {
-    "id": "customer-consumer-booking-flow-v01",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "How do I book an appointment in the consumer app?"
+    id: 'customer-consumer-booking-flow-v01',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'How do I book an appointment in the consumer app?',
   },
   {
-    "id": "customer-consumer-booking-flow-v02",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Walk me through picking a service and time"
+    id: 'customer-consumer-booking-flow-v02',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Walk me through picking a service and time',
   },
   {
-    "id": "customer-consumer-booking-flow-v03",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Where do I start a new booking from the app?"
+    id: 'customer-consumer-booking-flow-v03',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Where do I start a new booking from the app?',
   },
   {
-    "id": "customer-consumer-booking-flow-v04",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Help me with this page — how do I choose a stylist?"
+    id: 'customer-consumer-booking-flow-v04',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Help me with this page — how do I choose a stylist?',
   },
   {
-    "id": "customer-consumer-booking-flow-v05",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Step by step: how do I confirm my booking?"
+    id: 'customer-consumer-booking-flow-v05',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Step by step: how do I confirm my booking?',
   },
   {
-    "id": "customer-consumer-booking-flow-v06",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "What happens after I pick a time slot?"
+    id: 'customer-consumer-booking-flow-v06',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'What happens after I pick a time slot?',
   },
   {
-    "id": "customer-consumer-booking-flow-v07",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Show me how to change service before confirming"
+    id: 'customer-consumer-booking-flow-v07',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Show me how to change service before confirming',
   },
   {
-    "id": "customer-consumer-booking-flow-v08",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "How can I book for someone else in the app?"
+    id: 'customer-consumer-booking-flow-v08',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'How can I book for someone else in the app?',
   },
   {
-    "id": "customer-consumer-booking-flow-v09",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Explain the in-app booking flow screens"
+    id: 'customer-consumer-booking-flow-v09',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Explain the in-app booking flow screens',
   },
   {
-    "id": "customer-consumer-booking-flow-v10",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "I want a haircut tomorrow — walk me through booking"
+    id: 'customer-consumer-booking-flow-v10',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'I want a haircut tomorrow — walk me through booking',
   },
   {
-    "id": "customer-consumer-packages-v01",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "How do gift cards and packages work in the app?"
+    id: 'customer-consumer-packages-v01',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'How do gift cards and packages work in the app?',
   },
   {
-    "id": "customer-consumer-packages-v02",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Walk me through buying a service package"
+    id: 'customer-consumer-packages-v02',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Walk me through buying a service package',
   },
   {
-    "id": "customer-consumer-packages-v03",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Where is the packages tab in the consumer app?"
+    id: 'customer-consumer-packages-v03',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Where is the packages tab in the consumer app?',
   },
   {
-    "id": "customer-consumer-packages-v04",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Help me with this page — how do I redeem a package session?"
+    id: 'customer-consumer-packages-v04',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Help me with this page — how do I redeem a package session?',
   },
   {
-    "id": "customer-consumer-packages-v05",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Step by step: how do I check my package balance?"
+    id: 'customer-consumer-packages-v05',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Step by step: how do I check my package balance?',
   },
   {
-    "id": "customer-consumer-packages-v06",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "What is the difference between packages and gift cards?"
+    id: 'customer-consumer-packages-v06',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'What is the difference between packages and gift cards?',
   },
   {
-    "id": "customer-consumer-packages-v07",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Show me how subscriptions appear in the app"
+    id: 'customer-consumer-packages-v07',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Show me how subscriptions appear in the app',
   },
   {
-    "id": "customer-consumer-packages-v08",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "How can I share a gift card with a friend?"
+    id: 'customer-consumer-packages-v08',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'How can I share a gift card with a friend?',
   },
   {
-    "id": "customer-consumer-packages-v09",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Explain packages and gift cards on this screen"
+    id: 'customer-consumer-packages-v09',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Explain packages and gift cards on this screen',
   },
   {
-    "id": "customer-consumer-packages-v10",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "I bought a package — where do I use it when booking?"
+    id: 'customer-consumer-packages-v10',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'I bought a package — where do I use it when booking?',
   },
   {
-    "id": "customer-consumer-account-v01",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "How do I update my profile in the Account tab?"
+    id: 'customer-consumer-account-v01',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'How do I update my profile in the Account tab?',
   },
   {
-    "id": "customer-consumer-account-v02",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Walk me through account settings in the consumer app"
+    id: 'customer-consumer-account-v02',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Walk me through account settings in the consumer app',
   },
   {
-    "id": "customer-consumer-account-v03",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Where is my booking history in Account?"
+    id: 'customer-consumer-account-v03',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Where is my booking history in Account?',
   },
   {
-    "id": "customer-consumer-account-v04",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Help me with this page — how do I change my phone number?"
+    id: 'customer-consumer-account-v04',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Help me with this page — how do I change my phone number?',
   },
   {
-    "id": "customer-consumer-account-v05",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Step by step: how do I manage notification preferences?"
+    id: 'customer-consumer-account-v05',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Step by step: how do I manage notification preferences?',
   },
   {
-    "id": "customer-consumer-account-v06",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "What can I see and edit on the Account tab?"
+    id: 'customer-consumer-account-v06',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'What can I see and edit on the Account tab?',
   },
   {
-    "id": "customer-consumer-account-v07",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Show me how to log out from Account"
+    id: 'customer-consumer-account-v07',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Show me how to log out from Account',
   },
   {
-    "id": "customer-consumer-account-v08",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "How can I delete saved payment methods?"
+    id: 'customer-consumer-account-v08',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'How can I delete saved payment methods?',
   },
   {
-    "id": "customer-consumer-account-v09",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Explain the Account tab sections"
+    id: 'customer-consumer-account-v09',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Explain the Account tab sections',
   },
   {
-    "id": "customer-consumer-account-v10",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "I'm on Account — where are my past appointments?"
+    id: 'customer-consumer-account-v10',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: "I'm on Account — where are my past appointments?",
   },
   {
-    "id": "customer-consumer-assistant-v01",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "How do I use the AI assistant in the consumer app?"
+    id: 'customer-consumer-assistant-v01',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'How do I use the AI assistant in the consumer app?',
   },
   {
-    "id": "customer-consumer-assistant-v02",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Walk me through asking the app for booking help"
+    id: 'customer-consumer-assistant-v02',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Walk me through asking the app for booking help',
   },
   {
-    "id": "customer-consumer-assistant-v03",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Where is the assistant button in the salon app?"
+    id: 'customer-consumer-assistant-v03',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Where is the assistant button in the salon app?',
   },
   {
-    "id": "customer-consumer-assistant-v04",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Help me with this page — can the assistant explain tabs?"
+    id: 'customer-consumer-assistant-v04',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Help me with this page — can the assistant explain tabs?',
   },
   {
-    "id": "customer-consumer-assistant-v05",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Step by step: how do I ask where my appointment is?"
+    id: 'customer-consumer-assistant-v05',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Step by step: how do I ask where my appointment is?',
   },
   {
-    "id": "customer-consumer-assistant-v06",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "What questions can the consumer assistant answer?"
+    id: 'customer-consumer-assistant-v06',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'What questions can the consumer assistant answer?',
   },
   {
-    "id": "customer-consumer-assistant-v07",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Show me how assistant help differs from booking actions"
+    id: 'customer-consumer-assistant-v07',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Show me how assistant help differs from booking actions',
   },
   {
-    "id": "customer-consumer-assistant-v08",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "How can I use voice with the consumer assistant?"
+    id: 'customer-consumer-assistant-v08',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'How can I use voice with the consumer assistant?',
   },
   {
-    "id": "customer-consumer-assistant-v09",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Explain when the assistant shows guide steps"
+    id: 'customer-consumer-assistant-v09',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Explain when the assistant shows guide steps',
   },
   {
-    "id": "customer-consumer-assistant-v10",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "I need help navigating — open the consumer assistant guide"
+    id: 'customer-consumer-assistant-v10',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'I need help navigating — open the consumer assistant guide',
   },
   {
-    "id": "customer-consumer-activation-welcome-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "What happens on the welcome screen after I install the app?"
+    id: 'customer-consumer-activation-welcome-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'What happens on the welcome screen after I install the app?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Walk me through the activation welcome step"
+    id: 'customer-consumer-activation-welcome-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Walk me through the activation welcome step',
   },
   {
-    "id": "customer-consumer-activation-welcome-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Where am I in onboarding on the welcome page?"
+    id: 'customer-consumer-activation-welcome-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Where am I in onboarding on the welcome page?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Help me with this page — what should I tap next?"
+    id: 'customer-consumer-activation-welcome-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Help me with this page — what should I tap next?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Step by step: how do I continue from welcome?"
+    id: 'customer-consumer-activation-welcome-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Step by step: how do I continue from welcome?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Explain the activation welcome screen"
+    id: 'customer-consumer-activation-welcome-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Explain the activation welcome screen',
   },
   {
-    "id": "customer-consumer-activation-welcome-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Show me what welcome introduces before choosing a salon"
+    id: 'customer-consumer-activation-welcome-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Show me what welcome introduces before choosing a salon',
   },
   {
-    "id": "customer-consumer-activation-welcome-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "How can I skip or resume welcome later?"
+    id: 'customer-consumer-activation-welcome-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'How can I skip or resume welcome later?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "What is activation vs regular booking in the app?"
+    id: 'customer-consumer-activation-welcome-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'What is activation vs regular booking in the app?',
   },
   {
-    "id": "customer-consumer-activation-welcome-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "I'm on welcome — what's the next onboarding step?"
+    id: 'customer-consumer-activation-welcome-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: "I'm on welcome — what's the next onboarding step?",
   },
   {
-    "id": "customer-consumer-activation-salon-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "How do I pick my salon during app activation?"
+    id: 'customer-consumer-activation-salon-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'How do I pick my salon during app activation?',
   },
   {
-    "id": "customer-consumer-activation-salon-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Walk me through choosing a location in onboarding"
+    id: 'customer-consumer-activation-salon-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'Walk me through choosing a location in onboarding',
   },
   {
-    "id": "customer-consumer-activation-salon-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Where do I search for my salon name?"
+    id: 'customer-consumer-activation-salon-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'Where do I search for my salon name?',
   },
   {
-    "id": "customer-consumer-activation-salon-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Help me with this page — I don't see my salon listed"
+    id: 'customer-consumer-activation-salon-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: "Help me with this page — I don't see my salon listed",
   },
   {
-    "id": "customer-consumer-activation-salon-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Step by step: how do I confirm the right salon?"
+    id: 'customer-consumer-activation-salon-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'Step by step: how do I confirm the right salon?',
   },
   {
-    "id": "customer-consumer-activation-salon-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Explain the activation salon selection screen"
+    id: 'customer-consumer-activation-salon-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'Explain the activation salon selection screen',
   },
   {
-    "id": "customer-consumer-activation-salon-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "Show me how to switch salon if I picked wrong"
+    id: 'customer-consumer-activation-salon-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'Show me how to switch salon if I picked wrong',
   },
   {
-    "id": "customer-consumer-activation-salon-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "How can I enter an invite code for my salon?"
+    id: 'customer-consumer-activation-salon-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'How can I enter an invite code for my salon?',
   },
   {
-    "id": "customer-consumer-activation-salon-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "What happens after I select a salon in activation?"
+    id: 'customer-consumer-activation-salon-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: 'What happens after I select a salon in activation?',
   },
   {
-    "id": "customer-consumer-activation-salon-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-salon",
-    "prompt": "I'm on salon pick — how do I move to services?"
+    id: 'customer-consumer-activation-salon-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-salon',
+    prompt: "I'm on salon pick — how do I move to services?",
   },
   {
-    "id": "customer-consumer-activation-service-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "How do I choose a service during activation?"
+    id: 'customer-consumer-activation-service-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'How do I choose a service during activation?',
   },
   {
-    "id": "customer-consumer-activation-service-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Walk me through picking your first service in onboarding"
+    id: 'customer-consumer-activation-service-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Walk me through picking your first service in onboarding',
   },
   {
-    "id": "customer-consumer-activation-service-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Where is the service list on the activation screen?"
+    id: 'customer-consumer-activation-service-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Where is the service list on the activation screen?',
   },
   {
-    "id": "customer-consumer-activation-service-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Help me with this page — how do I filter services?"
+    id: 'customer-consumer-activation-service-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Help me with this page — how do I filter services?',
   },
   {
-    "id": "customer-consumer-activation-service-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Step by step: how do I continue after selecting a service?"
+    id: 'customer-consumer-activation-service-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Step by step: how do I continue after selecting a service?',
   },
   {
-    "id": "customer-consumer-activation-service-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Explain the activation service step"
+    id: 'customer-consumer-activation-service-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Explain the activation service step',
   },
   {
-    "id": "customer-consumer-activation-service-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "Show me how service choice affects available stylists"
+    id: 'customer-consumer-activation-service-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'Show me how service choice affects available stylists',
   },
   {
-    "id": "customer-consumer-activation-service-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "How can I change service before picking a time?"
+    id: 'customer-consumer-activation-service-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: 'How can I change service before picking a time?',
   },
   {
-    "id": "customer-consumer-activation-service-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "What if the service I want isn't listed?"
+    id: 'customer-consumer-activation-service-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: "What if the service I want isn't listed?",
   },
   {
-    "id": "customer-consumer-activation-service-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-service",
-    "prompt": "I'm onboarding — guide me through service selection"
+    id: 'customer-consumer-activation-service-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-service',
+    prompt: "I'm onboarding — guide me through service selection",
   },
   {
-    "id": "customer-consumer-activation-slot-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "How do I pick a time slot during activation?"
+    id: 'customer-consumer-activation-slot-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'How do I pick a time slot during activation?',
   },
   {
-    "id": "customer-consumer-activation-slot-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Walk me through choosing appointment time in onboarding"
+    id: 'customer-consumer-activation-slot-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Walk me through choosing appointment time in onboarding',
   },
   {
-    "id": "customer-consumer-activation-slot-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Where are available slots on the activation screen?"
+    id: 'customer-consumer-activation-slot-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Where are available slots on the activation screen?',
   },
   {
-    "id": "customer-consumer-activation-slot-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Help me with this page — why are no slots showing?"
+    id: 'customer-consumer-activation-slot-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Help me with this page — why are no slots showing?',
   },
   {
-    "id": "customer-consumer-activation-slot-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Step by step: how do I select morning vs afternoon?"
+    id: 'customer-consumer-activation-slot-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Step by step: how do I select morning vs afternoon?',
   },
   {
-    "id": "customer-consumer-activation-slot-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Explain the activation slot picker"
+    id: 'customer-consumer-activation-slot-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Explain the activation slot picker',
   },
   {
-    "id": "customer-consumer-activation-slot-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "Show me how to change date for more slots"
+    id: 'customer-consumer-activation-slot-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'Show me how to change date for more slots',
   },
   {
-    "id": "customer-consumer-activation-slot-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "How can I see which stylist each slot belongs to?"
+    id: 'customer-consumer-activation-slot-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'How can I see which stylist each slot belongs to?',
   },
   {
-    "id": "customer-consumer-activation-slot-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "What happens after I tap a time slot?"
+    id: 'customer-consumer-activation-slot-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: 'What happens after I tap a time slot?',
   },
   {
-    "id": "customer-consumer-activation-slot-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-slot",
-    "prompt": "I'm on slot pick — walk me through to confirmation"
+    id: 'customer-consumer-activation-slot-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-slot',
+    prompt: "I'm on slot pick — walk me through to confirmation",
   },
   {
-    "id": "customer-consumer-activation-confirm-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "How do I confirm my first booking during activation?"
+    id: 'customer-consumer-activation-confirm-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'How do I confirm my first booking during activation?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Walk me through the activation confirm screen"
+    id: 'customer-consumer-activation-confirm-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Walk me through the activation confirm screen',
   },
   {
-    "id": "customer-consumer-activation-confirm-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Where do I review details before confirming?"
+    id: 'customer-consumer-activation-confirm-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Where do I review details before confirming?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Help me with this page — how do I edit before confirm?"
+    id: 'customer-consumer-activation-confirm-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Help me with this page — how do I edit before confirm?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Step by step: how do I finish activation after confirm?"
+    id: 'customer-consumer-activation-confirm-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Step by step: how do I finish activation after confirm?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Explain what the confirm screen shows"
+    id: 'customer-consumer-activation-confirm-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Explain what the confirm screen shows',
   },
   {
-    "id": "customer-consumer-activation-confirm-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "Show me how to add notes before confirming"
+    id: 'customer-consumer-activation-confirm-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'Show me how to add notes before confirming',
   },
   {
-    "id": "customer-consumer-activation-confirm-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "How can I change payment method on confirm?"
+    id: 'customer-consumer-activation-confirm-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'How can I change payment method on confirm?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "What happens right after I confirm activation booking?"
+    id: 'customer-consumer-activation-confirm-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: 'What happens right after I confirm activation booking?',
   },
   {
-    "id": "customer-consumer-activation-confirm-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-confirm",
-    "prompt": "I'm on confirm — is there anything else before I'm done?"
+    id: 'customer-consumer-activation-confirm-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-confirm',
+    prompt: "I'm on confirm — is there anything else before I'm done?",
   },
   {
-    "id": "customer-consumer-clinic-v01",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "How do I view my lab results in the consumer app?"
+    id: 'customer-consumer-clinic-v01',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'How do I view my lab results in the consumer app?',
   },
   {
-    "id": "customer-consumer-clinic-v02",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Walk me through lab requests and results tabs"
+    id: 'customer-consumer-clinic-v02',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Walk me through lab requests and results tabs',
   },
   {
-    "id": "customer-consumer-clinic-v03",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Where are preparation notes for my lab test?"
+    id: 'customer-consumer-clinic-v03',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Where are preparation notes for my lab test?',
   },
   {
-    "id": "customer-consumer-clinic-v04",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Help me with this page — how do I download a result PDF?"
+    id: 'customer-consumer-clinic-v04',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Help me with this page — how do I download a result PDF?',
   },
   {
-    "id": "customer-consumer-clinic-v05",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Step by step: how do I find a pending lab order?"
+    id: 'customer-consumer-clinic-v05',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Step by step: how do I find a pending lab order?',
   },
   {
-    "id": "customer-consumer-clinic-v06",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Explain the clinic section in the consumer app"
+    id: 'customer-consumer-clinic-v06',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Explain the clinic section in the consumer app',
   },
   {
-    "id": "customer-consumer-clinic-v07",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "Show me how lab results differ from salon bookings"
+    id: 'customer-consumer-clinic-v07',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'Show me how lab results differ from salon bookings',
   },
   {
-    "id": "customer-consumer-clinic-v08",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "How can I share results with my doctor from the app?"
+    id: 'customer-consumer-clinic-v08',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'How can I share results with my doctor from the app?',
   },
   {
-    "id": "customer-consumer-clinic-v09",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "What notifications arrive when results are ready?"
+    id: 'customer-consumer-clinic-v09',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: 'What notifications arrive when results are ready?',
   },
   {
-    "id": "customer-consumer-clinic-v10",
-    "surface": "customer",
-    "topicId": "consumer-clinic",
-    "prompt": "I'm a clinic patient — guide me through results"
+    id: 'customer-consumer-clinic-v10',
+    surface: 'customer',
+    topicId: 'consumer-clinic',
+    prompt: "I'm a clinic patient — guide me through results",
   },
   {
-    "id": "customer-consumer-tour-packages-v01",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "How do tour packages work in the consumer app?"
+    id: 'customer-consumer-tour-packages-v01',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'How do tour packages work in the consumer app?',
   },
   {
-    "id": "customer-consumer-tour-packages-v02",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Walk me through browsing tour package offers"
+    id: 'customer-consumer-tour-packages-v02',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'Walk me through browsing tour package offers',
   },
   {
-    "id": "customer-consumer-tour-packages-v03",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Where do I see included tour activities?"
+    id: 'customer-consumer-tour-packages-v03',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'Where do I see included tour activities?',
   },
   {
-    "id": "customer-consumer-tour-packages-v04",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Help me with this page — how do I compare tour packages?"
+    id: 'customer-consumer-tour-packages-v04',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'Help me with this page — how do I compare tour packages?',
   },
   {
-    "id": "customer-consumer-tour-packages-v05",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Step by step: how do I book a tour package?"
+    id: 'customer-consumer-tour-packages-v05',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'Step by step: how do I book a tour package?',
   },
   {
-    "id": "customer-consumer-tour-packages-v06",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Explain tour packages vs regular service booking"
+    id: 'customer-consumer-tour-packages-v06',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'Explain tour packages vs regular service booking',
   },
   {
-    "id": "customer-consumer-tour-packages-v07",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "Show me what's included in a tour package listing"
+    id: 'customer-consumer-tour-packages-v07',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: "Show me what's included in a tour package listing",
   },
   {
-    "id": "customer-consumer-tour-packages-v08",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "How can I see departure times for tours?"
+    id: 'customer-consumer-tour-packages-v08',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'How can I see departure times for tours?',
   },
   {
-    "id": "customer-consumer-tour-packages-v09",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "What is the tour packages overlay in the app?"
+    id: 'customer-consumer-tour-packages-v09',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'What is the tour packages overlay in the app?',
   },
   {
-    "id": "customer-consumer-tour-packages-v10",
-    "surface": "customer",
-    "topicId": "consumer-tour-packages",
-    "prompt": "I want a day tour — guide me through packages"
+    id: 'customer-consumer-tour-packages-v10',
+    surface: 'customer',
+    topicId: 'consumer-tour-packages',
+    prompt: 'I want a day tour — guide me through packages',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v01",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Where do I see my upcoming appointments?"
+    id: 'customer-consumer-tabs-upcoming-v01',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Where do I see my upcoming appointments?',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v02",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Walk me through finding the next booking on Home tab"
+    id: 'customer-consumer-tabs-upcoming-v02',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Walk me through finding the next booking on Home tab',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v03",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Help me — which tab shows appointments coming up?"
+    id: 'customer-consumer-tabs-upcoming-v03',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Help me — which tab shows appointments coming up?',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v04",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Step by step: how do I open details for my next visit?"
+    id: 'customer-consumer-tabs-upcoming-v04',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Step by step: how do I open details for my next visit?',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v05",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Show me how upcoming bookings are sorted"
+    id: 'customer-consumer-tabs-upcoming-v05',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Show me how upcoming bookings are sorted',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v06",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "How can I reschedule from the upcoming list?"
+    id: 'customer-consumer-tabs-upcoming-v06',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'How can I reschedule from the upcoming list?',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v07",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Explain where upcoming vs past appointments live"
+    id: 'customer-consumer-tabs-upcoming-v07',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Explain where upcoming vs past appointments live',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v08",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "What badge or icon marks my next appointment?"
+    id: 'customer-consumer-tabs-upcoming-v08',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'What badge or icon marks my next appointment?',
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v09",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "I'm looking for tomorrow's haircut — which tab?"
+    id: 'customer-consumer-tabs-upcoming-v09',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: "I'm looking for tomorrow's haircut — which tab?",
   },
   {
-    "id": "customer-consumer-tabs-upcoming-v10",
-    "surface": "customer",
-    "topicId": "consumer-tabs",
-    "prompt": "Walk me through upcoming appointments on the home screen"
+    id: 'customer-consumer-tabs-upcoming-v10',
+    surface: 'customer',
+    topicId: 'consumer-tabs',
+    prompt: 'Walk me through upcoming appointments on the home screen',
   },
   {
-    "id": "customer-consumer-account-profile-v01",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "How do I edit my name and email in Account?"
+    id: 'customer-consumer-account-profile-v01',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'How do I edit my name and email in Account?',
   },
   {
-    "id": "customer-consumer-account-profile-v02",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Walk me through updating profile photo in Account"
+    id: 'customer-consumer-account-profile-v02',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Walk me through updating profile photo in Account',
   },
   {
-    "id": "customer-consumer-account-profile-v03",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Help me with Account — where is edit profile?"
+    id: 'customer-consumer-account-profile-v03',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Help me with Account — where is edit profile?',
   },
   {
-    "id": "customer-consumer-account-profile-v04",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Step by step: how do I save profile changes?"
+    id: 'customer-consumer-account-profile-v04',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Step by step: how do I save profile changes?',
   },
   {
-    "id": "customer-consumer-account-profile-v05",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Show me required vs optional profile fields"
+    id: 'customer-consumer-account-profile-v05',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Show me required vs optional profile fields',
   },
   {
-    "id": "customer-consumer-account-profile-v06",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "How can I update my preferred language in profile?"
+    id: 'customer-consumer-account-profile-v06',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'How can I update my preferred language in profile?',
   },
   {
-    "id": "customer-consumer-account-profile-v07",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Explain profile settings vs booking history in Account"
+    id: 'customer-consumer-account-profile-v07',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Explain profile settings vs booking history in Account',
   },
   {
-    "id": "customer-consumer-account-profile-v08",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "Where do I change contact info for reminders?"
+    id: 'customer-consumer-account-profile-v08',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'Where do I change contact info for reminders?',
   },
   {
-    "id": "customer-consumer-account-profile-v09",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "What profile info does my stylist see?"
+    id: 'customer-consumer-account-profile-v09',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: 'What profile info does my stylist see?',
   },
   {
-    "id": "customer-consumer-account-profile-v10",
-    "surface": "customer",
-    "topicId": "consumer-account",
-    "prompt": "I'm on Account — guide me through profile edits"
+    id: 'customer-consumer-account-profile-v10',
+    surface: 'customer',
+    topicId: 'consumer-account',
+    prompt: "I'm on Account — guide me through profile edits",
   },
   {
-    "id": "customer-consumer-booking-first-v01",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Walk me through my very first in-app booking"
+    id: 'customer-consumer-booking-first-v01',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Walk me through my very first in-app booking',
   },
   {
-    "id": "customer-consumer-booking-first-v02",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "How do I complete first booking after activation?"
+    id: 'customer-consumer-booking-first-v02',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'How do I complete first booking after activation?',
   },
   {
-    "id": "customer-consumer-booking-first-v03",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Help me book for the first time in the consumer app"
+    id: 'customer-consumer-booking-first-v03',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Help me book for the first time in the consumer app',
   },
   {
-    "id": "customer-consumer-booking-first-v04",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Step by step: first booking from the Book tab"
+    id: 'customer-consumer-booking-first-v04',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Step by step: first booking from the Book tab',
   },
   {
-    "id": "customer-consumer-booking-first-v05",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Show me the simplest path to my first appointment"
+    id: 'customer-consumer-booking-first-v05',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Show me the simplest path to my first appointment',
   },
   {
-    "id": "customer-consumer-booking-first-v06",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Where do I start if I've never booked in the app?"
+    id: 'customer-consumer-booking-first-v06',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: "Where do I start if I've never booked in the app?",
   },
   {
-    "id": "customer-consumer-booking-first-v07",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "Explain first booking vs activation booking"
+    id: 'customer-consumer-booking-first-v07',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'Explain first booking vs activation booking',
   },
   {
-    "id": "customer-consumer-booking-first-v08",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "How can I pick any stylist for my first visit?"
+    id: 'customer-consumer-booking-first-v08',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'How can I pick any stylist for my first visit?',
   },
   {
-    "id": "customer-consumer-booking-first-v09",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "What confirmation do I get after first booking?"
+    id: 'customer-consumer-booking-first-v09',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: 'What confirmation do I get after first booking?',
   },
   {
-    "id": "customer-consumer-booking-first-v10",
-    "surface": "customer",
-    "topicId": "consumer-booking-flow",
-    "prompt": "I'm ready for my first real booking — guide me"
+    id: 'customer-consumer-booking-first-v10',
+    surface: 'customer',
+    topicId: 'consumer-booking-flow',
+    prompt: "I'm ready for my first real booking — guide me",
   },
   {
-    "id": "customer-consumer-packages-redeem-v01",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "How do I use a package session when booking?"
+    id: 'customer-consumer-packages-redeem-v01',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'How do I use a package session when booking?',
   },
   {
-    "id": "customer-consumer-packages-redeem-v02",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Walk me through redeeming package credit at checkout"
+    id: 'customer-consumer-packages-redeem-v02',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Walk me through redeeming package credit at checkout',
   },
   {
-    "id": "customer-consumer-packages-redeem-v03",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Help me — where do I apply my package balance?"
+    id: 'customer-consumer-packages-redeem-v03',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Help me — where do I apply my package balance?',
   },
   {
-    "id": "customer-consumer-packages-redeem-v04",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Step by step: how do I redeem one session from a package?"
+    id: 'customer-consumer-packages-redeem-v04',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Step by step: how do I redeem one session from a package?',
   },
   {
-    "id": "customer-consumer-packages-redeem-v05",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Show me remaining sessions on my package"
+    id: 'customer-consumer-packages-redeem-v05',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Show me remaining sessions on my package',
   },
   {
-    "id": "customer-consumer-packages-redeem-v06",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "How can I tell if a booking used package credit?"
+    id: 'customer-consumer-packages-redeem-v06',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'How can I tell if a booking used package credit?',
   },
   {
-    "id": "customer-consumer-packages-redeem-v07",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Explain redeeming packages vs paying full price"
+    id: 'customer-consumer-packages-redeem-v07',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Explain redeeming packages vs paying full price',
   },
   {
-    "id": "customer-consumer-packages-redeem-v08",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "Where in the app do I see package expiration?"
+    id: 'customer-consumer-packages-redeem-v08',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'Where in the app do I see package expiration?',
   },
   {
-    "id": "customer-consumer-packages-redeem-v09",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "What if my package doesn't cover this service?"
+    id: 'customer-consumer-packages-redeem-v09',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: "What if my package doesn't cover this service?",
   },
   {
-    "id": "customer-consumer-packages-redeem-v10",
-    "surface": "customer",
-    "topicId": "consumer-packages-gift-cards",
-    "prompt": "I have a 5-session package — how do I redeem one?"
+    id: 'customer-consumer-packages-redeem-v10',
+    surface: 'customer',
+    topicId: 'consumer-packages-gift-cards',
+    prompt: 'I have a 5-session package — how do I redeem one?',
   },
   {
-    "id": "customer-consumer-assistant-help-v01",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Can the assistant help me find Account settings?"
+    id: 'customer-consumer-assistant-help-v01',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Can the assistant help me find Account settings?',
   },
   {
-    "id": "customer-consumer-assistant-help-v02",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Ask the assistant to explain the Book tab to me"
+    id: 'customer-consumer-assistant-help-v02',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Ask the assistant to explain the Book tab to me',
   },
   {
-    "id": "customer-consumer-assistant-help-v03",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Help me use AI to understand packages screen"
+    id: 'customer-consumer-assistant-help-v03',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Help me use AI to understand packages screen',
   },
   {
-    "id": "customer-consumer-assistant-help-v04",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Step by step: how do I ask the assistant for a walkthrough?"
+    id: 'customer-consumer-assistant-help-v04',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Step by step: how do I ask the assistant for a walkthrough?',
   },
   {
-    "id": "customer-consumer-assistant-help-v05",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Show me example questions for the consumer assistant"
+    id: 'customer-consumer-assistant-help-v05',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Show me example questions for the consumer assistant',
   },
   {
-    "id": "customer-consumer-assistant-help-v06",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "How can the assistant guide me without booking?"
+    id: 'customer-consumer-assistant-help-v06',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'How can the assistant guide me without booking?',
   },
   {
-    "id": "customer-consumer-assistant-help-v07",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Explain what the assistant knows about my current screen"
+    id: 'customer-consumer-assistant-help-v07',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Explain what the assistant knows about my current screen',
   },
   {
-    "id": "customer-consumer-assistant-help-v08",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Where is help if the assistant doesn't understand?"
+    id: 'customer-consumer-assistant-help-v08',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: "Where is help if the assistant doesn't understand?",
   },
   {
-    "id": "customer-consumer-assistant-help-v09",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "Walk me through voice questions to the assistant"
+    id: 'customer-consumer-assistant-help-v09',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'Walk me through voice questions to the assistant',
   },
   {
-    "id": "customer-consumer-assistant-help-v10",
-    "surface": "customer",
-    "topicId": "consumer-assistant",
-    "prompt": "I need navigation help — what should I ask the assistant?"
+    id: 'customer-consumer-assistant-help-v10',
+    surface: 'customer',
+    topicId: 'consumer-assistant',
+    prompt: 'I need navigation help — what should I ask the assistant?',
   },
   {
-    "id": "customer-consumer-activation-overview-v01",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Give me an overview of the activation funnel steps"
+    id: 'customer-consumer-activation-overview-v01',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Give me an overview of the activation funnel steps',
   },
   {
-    "id": "customer-consumer-activation-overview-v02",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Walk me through welcome to confirm in onboarding"
+    id: 'customer-consumer-activation-overview-v02',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Walk me through welcome to confirm in onboarding',
   },
   {
-    "id": "customer-consumer-activation-overview-v03",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Help me understand all activation screens in order"
+    id: 'customer-consumer-activation-overview-v03',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Help me understand all activation screens in order',
   },
   {
-    "id": "customer-consumer-activation-overview-v04",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Step by step: what are the five activation steps?"
+    id: 'customer-consumer-activation-overview-v04',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Step by step: what are the five activation steps?',
   },
   {
-    "id": "customer-consumer-activation-overview-v05",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Show me a map of activation from welcome onward"
+    id: 'customer-consumer-activation-overview-v05',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Show me a map of activation from welcome onward',
   },
   {
-    "id": "customer-consumer-activation-overview-v06",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "How long does activation usually take?"
+    id: 'customer-consumer-activation-overview-v06',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'How long does activation usually take?',
   },
   {
-    "id": "customer-consumer-activation-overview-v07",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Explain salon, service, slot, confirm in activation"
+    id: 'customer-consumer-activation-overview-v07',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Explain salon, service, slot, confirm in activation',
   },
   {
-    "id": "customer-consumer-activation-overview-v08",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Where am I if I'm past welcome but not done?"
+    id: 'customer-consumer-activation-overview-v08',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: "Where am I if I'm past welcome but not done?",
   },
   {
-    "id": "customer-consumer-activation-overview-v09",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Can I exit activation and finish later?"
+    id: 'customer-consumer-activation-overview-v09',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Can I exit activation and finish later?',
   },
   {
-    "id": "customer-consumer-activation-overview-v10",
-    "surface": "customer",
-    "topicId": "consumer-activation-welcome",
-    "prompt": "Summarize the whole activation flow for me"
+    id: 'customer-consumer-activation-overview-v10',
+    surface: 'customer',
+    topicId: 'consumer-activation-welcome',
+    prompt: 'Summarize the whole activation flow for me',
   },
   {
-    "id": "public-public-booking-funnel-v01",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Help me understand the booking steps on this site"
+    id: 'public-public-booking-funnel-v01',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Help me understand the booking steps on this site',
   },
   {
-    "id": "public-public-booking-funnel-v02",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Walk me through the public booking funnel"
+    id: 'public-public-booking-funnel-v02',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Walk me through the public booking funnel',
   },
   {
-    "id": "public-public-booking-funnel-v03",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Where do I start booking on this page?"
+    id: 'public-public-booking-funnel-v03',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Where do I start booking on this page?',
   },
   {
-    "id": "public-public-booking-funnel-v04",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Step by step: how does online booking work here?"
+    id: 'public-public-booking-funnel-v04',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Step by step: how does online booking work here?',
   },
   {
-    "id": "public-public-booking-funnel-v05",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "What happens after I pick a service on the website?"
+    id: 'public-public-booking-funnel-v05',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'What happens after I pick a service on the website?',
   },
   {
-    "id": "public-public-booking-funnel-v06",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Explain the booking funnel from start to checkout"
+    id: 'public-public-booking-funnel-v06',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Explain the booking funnel from start to checkout',
   },
   {
-    "id": "public-public-booking-funnel-v07",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Show me what each booking step is for"
+    id: 'public-public-booking-funnel-v07',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Show me what each booking step is for',
   },
   {
-    "id": "public-public-booking-funnel-v08",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "How can I go back to an earlier booking step?"
+    id: 'public-public-booking-funnel-v08',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'How can I go back to an earlier booking step?',
   },
   {
-    "id": "public-public-booking-funnel-v09",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "I'm new to this salon site — guide me through booking"
+    id: 'public-public-booking-funnel-v09',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "I'm new to this salon site — guide me through booking",
   },
   {
-    "id": "public-public-booking-funnel-v10",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "What is the first step on the public booking page?"
+    id: 'public-public-booking-funnel-v10',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'What is the first step on the public booking page?',
   },
   {
-    "id": "public-public-professionals-v01",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "How do I choose a stylist on the booking site?"
+    id: 'public-public-professionals-v01',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'How do I choose a stylist on the booking site?',
   },
   {
-    "id": "public-public-professionals-v02",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Walk me through the professionals selection step"
+    id: 'public-public-professionals-v02',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Walk me through the professionals selection step',
   },
   {
-    "id": "public-public-professionals-v03",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Where do I pick a specific provider?"
+    id: 'public-public-professionals-v03',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Where do I pick a specific provider?',
   },
   {
-    "id": "public-public-professionals-v04",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Help me with this page — can I choose anyone available?"
+    id: 'public-public-professionals-v04',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Help me with this page — can I choose anyone available?',
   },
   {
-    "id": "public-public-professionals-v05",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Step by step: how do I filter professionals by service?"
+    id: 'public-public-professionals-v05',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Step by step: how do I filter professionals by service?',
   },
   {
-    "id": "public-public-professionals-v06",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Explain the choose professional step"
+    id: 'public-public-professionals-v06',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Explain the choose professional step',
   },
   {
-    "id": "public-public-professionals-v07",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Show me how to see stylist bios and photos"
+    id: 'public-public-professionals-v07',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Show me how to see stylist bios and photos',
   },
   {
-    "id": "public-public-professionals-v08",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "How can I pick any available professional?"
+    id: 'public-public-professionals-v08',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'How can I pick any available professional?',
   },
   {
-    "id": "public-public-professionals-v09",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "What if my preferred stylist isn't listed?"
+    id: 'public-public-professionals-v09',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "What if my preferred stylist isn't listed?",
   },
   {
-    "id": "public-public-professionals-v10",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "I'm on professionals — how do I continue to services?"
+    id: 'public-public-professionals-v10',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "I'm on professionals — how do I continue to services?",
   },
   {
-    "id": "public-public-services-v01",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How do I browse services on the booking website?"
+    id: 'public-public-services-v01',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How do I browse services on the booking website?',
   },
   {
-    "id": "public-public-services-v02",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Walk me through selecting a service online"
+    id: 'public-public-services-v02',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Walk me through selecting a service online',
   },
   {
-    "id": "public-public-services-v03",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Where is the services list on public booking?"
+    id: 'public-public-services-v03',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Where is the services list on public booking?',
   },
   {
-    "id": "public-public-services-v04",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Help me with this page — how do I compare durations?"
+    id: 'public-public-services-v04',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Help me with this page — how do I compare durations?',
   },
   {
-    "id": "public-public-services-v05",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Step by step: how do I pick add-ons for a service?"
+    id: 'public-public-services-v05',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Step by step: how do I pick add-ons for a service?',
   },
   {
-    "id": "public-public-services-v06",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Explain the services selection step"
+    id: 'public-public-services-v06',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Explain the services selection step',
   },
   {
-    "id": "public-public-services-v07",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Show me how prices display on the services page"
+    id: 'public-public-services-v07',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Show me how prices display on the services page',
   },
   {
-    "id": "public-public-services-v08",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How can I search for a specific treatment?"
+    id: 'public-public-services-v08',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How can I search for a specific treatment?',
   },
   {
-    "id": "public-public-services-v09",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "What happens after I tap a service?"
+    id: 'public-public-services-v09',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'What happens after I tap a service?',
   },
   {
-    "id": "public-public-services-v10",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "I'm on services — how do I get to availability?"
+    id: 'public-public-services-v10',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: "I'm on services — how do I get to availability?",
   },
   {
-    "id": "public-public-checkout-v01",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "What do I enter on the checkout page when booking?"
+    id: 'public-public-checkout-v01',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'What do I enter on the checkout page when booking?',
   },
   {
-    "id": "public-public-checkout-v02",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Walk me through the public checkout step"
+    id: 'public-public-checkout-v02',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Walk me through the public checkout step',
   },
   {
-    "id": "public-public-checkout-v03",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Where do I add my contact info before confirming?"
+    id: 'public-public-checkout-v03',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Where do I add my contact info before confirming?',
   },
   {
-    "id": "public-public-checkout-v04",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Help me with checkout — how do I pay the deposit?"
+    id: 'public-public-checkout-v04',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Help me with checkout — how do I pay the deposit?',
   },
   {
-    "id": "public-public-checkout-v05",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Step by step: how do I complete my online booking?"
+    id: 'public-public-checkout-v05',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Step by step: how do I complete my online booking?',
   },
   {
-    "id": "public-public-checkout-v06",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Explain the checkout fields on this booking site"
+    id: 'public-public-checkout-v06',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Explain the checkout fields on this booking site',
   },
   {
-    "id": "public-public-checkout-v07",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Show me how to apply a promo code at checkout"
+    id: 'public-public-checkout-v07',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Show me how to apply a promo code at checkout',
   },
   {
-    "id": "public-public-checkout-v08",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "How can I review my appointment before paying?"
+    id: 'public-public-checkout-v08',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'How can I review my appointment before paying?',
   },
   {
-    "id": "public-public-checkout-v09",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "What confirmation do I get after checkout?"
+    id: 'public-public-checkout-v09',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'What confirmation do I get after checkout?',
   },
   {
-    "id": "public-public-checkout-v10",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "I'm on checkout — walk me through to confirmation"
+    id: 'public-public-checkout-v10',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: "I'm on checkout — walk me through to confirmation",
   },
   {
-    "id": "public-public-availability-v01",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How do I see available time slots online?"
+    id: 'public-public-availability-v01',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How do I see available time slots online?',
   },
   {
-    "id": "public-public-availability-v02",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Walk me through picking a date and time on the site"
+    id: 'public-public-availability-v02',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Walk me through picking a date and time on the site',
   },
   {
-    "id": "public-public-availability-v03",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Where is the availability calendar on public booking?"
+    id: 'public-public-availability-v03',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Where is the availability calendar on public booking?',
   },
   {
-    "id": "public-public-availability-v04",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Help me with this page — why are some days grayed out?"
+    id: 'public-public-availability-v04',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Help me with this page — why are some days grayed out?',
   },
   {
-    "id": "public-public-availability-v05",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Step by step: how do I find evening appointments?"
+    id: 'public-public-availability-v05',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Step by step: how do I find evening appointments?',
   },
   {
-    "id": "public-public-availability-v06",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Explain how availability works on the booking page"
+    id: 'public-public-availability-v06',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Explain how availability works on the booking page',
   },
   {
-    "id": "public-public-availability-v07",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Show me how to change date to see more slots"
+    id: 'public-public-availability-v07',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Show me how to change date to see more slots',
   },
   {
-    "id": "public-public-availability-v08",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How can I see only morning availability?"
+    id: 'public-public-availability-v08',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How can I see only morning availability?',
   },
   {
-    "id": "public-public-availability-v09",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "What timezone are the slots shown in?"
+    id: 'public-public-availability-v09',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'What timezone are the slots shown in?',
   },
   {
-    "id": "public-public-availability-v10",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "I'm picking a time — guide me through availability"
+    id: 'public-public-availability-v10',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: "I'm picking a time — guide me through availability",
   },
   {
-    "id": "public-public-tour-checkout-v01",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "How does checkout work for tour bookings?"
+    id: 'public-public-tour-checkout-v01',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'How does checkout work for tour bookings?',
   },
   {
-    "id": "public-public-tour-checkout-v02",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Walk me through tour package checkout on the site"
+    id: 'public-public-tour-checkout-v02',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Walk me through tour package checkout on the site',
   },
   {
-    "id": "public-public-tour-checkout-v03",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Where do I confirm tour departure details?"
+    id: 'public-public-tour-checkout-v03',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Where do I confirm tour departure details?',
   },
   {
-    "id": "public-public-tour-checkout-v04",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Help me with tour checkout — what's included in the price?"
+    id: 'public-public-tour-checkout-v04',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: "Help me with tour checkout — what's included in the price?",
   },
   {
-    "id": "public-public-tour-checkout-v05",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Step by step: how do I pay for a tour online?"
+    id: 'public-public-tour-checkout-v05',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Step by step: how do I pay for a tour online?',
   },
   {
-    "id": "public-public-tour-checkout-v06",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Explain tour checkout vs regular service checkout"
+    id: 'public-public-tour-checkout-v06',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Explain tour checkout vs regular service checkout',
   },
   {
-    "id": "public-public-tour-checkout-v07",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Show me passenger or guest fields on tour checkout"
+    id: 'public-public-tour-checkout-v07',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Show me passenger or guest fields on tour checkout',
   },
   {
-    "id": "public-public-tour-checkout-v08",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "How can I add tour extras before paying?"
+    id: 'public-public-tour-checkout-v08',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'How can I add tour extras before paying?',
   },
   {
-    "id": "public-public-tour-checkout-v09",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "What policies apply at tour checkout?"
+    id: 'public-public-tour-checkout-v09',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'What policies apply at tour checkout?',
   },
   {
-    "id": "public-public-tour-checkout-v10",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "I'm booking a tour — walk me through checkout"
+    id: 'public-public-tour-checkout-v10',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: "I'm booking a tour — walk me through checkout",
   },
   {
-    "id": "public-public-funnel-start-v01",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "I'm on the booking page — where do I begin?"
+    id: 'public-public-funnel-start-v01',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "I'm on the booking page — where do I begin?",
   },
   {
-    "id": "public-public-funnel-start-v02",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Walk me from the landing page into booking"
+    id: 'public-public-funnel-start-v02',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Walk me from the landing page into booking',
   },
   {
-    "id": "public-public-funnel-start-v03",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Help me start a new appointment on this website"
+    id: 'public-public-funnel-start-v03',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Help me start a new appointment on this website',
   },
   {
-    "id": "public-public-funnel-start-v04",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Step by step: first click to start public booking"
+    id: 'public-public-funnel-start-v04',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Step by step: first click to start public booking',
   },
   {
-    "id": "public-public-funnel-start-v05",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Show me the entry point for guest booking"
+    id: 'public-public-funnel-start-v05',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Show me the entry point for guest booking',
   },
   {
-    "id": "public-public-funnel-start-v06",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "How do I begin if I don't have an account?"
+    id: 'public-public-funnel-start-v06',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "How do I begin if I don't have an account?",
   },
   {
-    "id": "public-public-funnel-start-v07",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Explain what I should do on the first booking screen"
+    id: 'public-public-funnel-start-v07',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Explain what I should do on the first booking screen',
   },
   {
-    "id": "public-public-funnel-start-v08",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Where is the Book now button on this site?"
+    id: 'public-public-funnel-start-v08',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Where is the Book now button on this site?',
   },
   {
-    "id": "public-public-funnel-start-v09",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "What information do I need before starting?"
+    id: 'public-public-funnel-start-v09',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'What information do I need before starting?',
   },
   {
-    "id": "public-public-funnel-start-v10",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Guide me from the homepage into the booking funnel"
+    id: 'public-public-funnel-start-v10',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Guide me from the homepage into the booking funnel',
   },
   {
-    "id": "public-public-professionals-pick-v01",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Can I pick any available professional?"
+    id: 'public-public-professionals-pick-v01',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Can I pick any available professional?',
   },
   {
-    "id": "public-public-professionals-pick-v02",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Walk me through choosing anyone who's free"
+    id: 'public-public-professionals-pick-v02',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "Walk me through choosing anyone who's free",
   },
   {
-    "id": "public-public-professionals-pick-v03",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Help me select a stylist quickly on this step"
+    id: 'public-public-professionals-pick-v03',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Help me select a stylist quickly on this step',
   },
   {
-    "id": "public-public-professionals-pick-v04",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Step by step: pick first available professional"
+    id: 'public-public-professionals-pick-v04',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Step by step: pick first available professional',
   },
   {
-    "id": "public-public-professionals-pick-v05",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Show me how any-professional option works"
+    id: 'public-public-professionals-pick-v05',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Show me how any-professional option works',
   },
   {
-    "id": "public-public-professionals-pick-v06",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "How do I see who's available soonest?"
+    id: 'public-public-professionals-pick-v06',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "How do I see who's available soonest?",
   },
   {
-    "id": "public-public-professionals-pick-v07",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Explain picking a named stylist vs anyone"
+    id: 'public-public-professionals-pick-v07',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Explain picking a named stylist vs anyone',
   },
   {
-    "id": "public-public-professionals-pick-v08",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Where is the any stylist toggle?"
+    id: 'public-public-professionals-pick-v08',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Where is the any stylist toggle?',
   },
   {
-    "id": "public-public-professionals-pick-v09",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "What changes if I don't pick a specific person?"
+    id: 'public-public-professionals-pick-v09',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "What changes if I don't pick a specific person?",
   },
   {
-    "id": "public-public-professionals-pick-v10",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "I don't mind who cuts my hair — guide this step"
+    id: 'public-public-professionals-pick-v10',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: "I don't mind who cuts my hair — guide this step",
   },
   {
-    "id": "public-public-services-browse-v01",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How do I browse all services without searching?"
+    id: 'public-public-services-browse-v01',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How do I browse all services without searching?',
   },
   {
-    "id": "public-public-services-browse-v02",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Walk me through scrolling the services catalog"
+    id: 'public-public-services-browse-v02',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Walk me through scrolling the services catalog',
   },
   {
-    "id": "public-public-services-browse-v03",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Help me explore categories on the services page"
+    id: 'public-public-services-browse-v03',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Help me explore categories on the services page',
   },
   {
-    "id": "public-public-services-browse-v04",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Step by step: browse services then pick one"
+    id: 'public-public-services-browse-v04',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Step by step: browse services then pick one',
   },
   {
-    "id": "public-public-services-browse-v05",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Show me how service categories are organized"
+    id: 'public-public-services-browse-v05',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Show me how service categories are organized',
   },
   {
-    "id": "public-public-services-browse-v06",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How can I see popular services first?"
+    id: 'public-public-services-browse-v06',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How can I see popular services first?',
   },
   {
-    "id": "public-public-services-browse-v07",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Explain browsing vs searching services online"
+    id: 'public-public-services-browse-v07',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Explain browsing vs searching services online',
   },
   {
-    "id": "public-public-services-browse-v08",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Where are service descriptions and duration?"
+    id: 'public-public-services-browse-v08',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Where are service descriptions and duration?',
   },
   {
-    "id": "public-public-services-browse-v09",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "What filters exist on the services browse page?"
+    id: 'public-public-services-browse-v09',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'What filters exist on the services browse page?',
   },
   {
-    "id": "public-public-services-browse-v10",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "I want to look around — guide services browsing"
+    id: 'public-public-services-browse-v10',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'I want to look around — guide services browsing',
   },
   {
-    "id": "public-public-checkout-pay-v01",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "How do I pay online at booking checkout?"
+    id: 'public-public-checkout-pay-v01',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'How do I pay online at booking checkout?',
   },
   {
-    "id": "public-public-checkout-pay-v02",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Walk me through entering card details on checkout"
+    id: 'public-public-checkout-pay-v02',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Walk me through entering card details on checkout',
   },
   {
-    "id": "public-public-checkout-pay-v03",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Help me pay a deposit on this checkout page"
+    id: 'public-public-checkout-pay-v03',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Help me pay a deposit on this checkout page',
   },
   {
-    "id": "public-public-checkout-pay-v04",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Step by step: complete payment and confirm booking"
+    id: 'public-public-checkout-pay-v04',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Step by step: complete payment and confirm booking',
   },
   {
-    "id": "public-public-checkout-pay-v05",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Show me accepted payment methods at checkout"
+    id: 'public-public-checkout-pay-v05',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Show me accepted payment methods at checkout',
   },
   {
-    "id": "public-public-checkout-pay-v06",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "How can I pay in full instead of deposit?"
+    id: 'public-public-checkout-pay-v06',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'How can I pay in full instead of deposit?',
   },
   {
-    "id": "public-public-checkout-pay-v07",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Explain deposit vs full payment on checkout"
+    id: 'public-public-checkout-pay-v07',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Explain deposit vs full payment on checkout',
   },
   {
-    "id": "public-public-checkout-pay-v08",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Where do I see the total before paying?"
+    id: 'public-public-checkout-pay-v08',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Where do I see the total before paying?',
   },
   {
-    "id": "public-public-checkout-pay-v09",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "What if my card is declined at checkout?"
+    id: 'public-public-checkout-pay-v09',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'What if my card is declined at checkout?',
   },
   {
-    "id": "public-public-checkout-pay-v10",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "I'm ready to pay — guide checkout payment"
+    id: 'public-public-checkout-pay-v10',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: "I'm ready to pay — guide checkout payment",
   },
   {
-    "id": "public-public-availability-slots-v01",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How do time slots work on the availability page?"
+    id: 'public-public-availability-slots-v01',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How do time slots work on the availability page?',
   },
   {
-    "id": "public-public-availability-slots-v02",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Walk me through tapping an open slot"
+    id: 'public-public-availability-slots-v02',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Walk me through tapping an open slot',
   },
   {
-    "id": "public-public-availability-slots-v03",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Help me understand slot length on the calendar"
+    id: 'public-public-availability-slots-v03',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Help me understand slot length on the calendar',
   },
   {
-    "id": "public-public-availability-slots-v04",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Step by step: pick the best slot for my schedule"
+    id: 'public-public-availability-slots-v04',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Step by step: pick the best slot for my schedule',
   },
   {
-    "id": "public-public-availability-slots-v05",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Show me how slots relate to service duration"
+    id: 'public-public-availability-slots-v05',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Show me how slots relate to service duration',
   },
   {
-    "id": "public-public-availability-slots-v06",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How can I see consecutive slots for long services?"
+    id: 'public-public-availability-slots-v06',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How can I see consecutive slots for long services?',
   },
   {
-    "id": "public-public-availability-slots-v07",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Explain why some slots are unavailable"
+    id: 'public-public-availability-slots-v07',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Explain why some slots are unavailable',
   },
   {
-    "id": "public-public-availability-slots-v08",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Where do I switch AM/PM on availability?"
+    id: 'public-public-availability-slots-v08',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Where do I switch AM/PM on availability?',
   },
   {
-    "id": "public-public-availability-slots-v09",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "What happens when I select a slot?"
+    id: 'public-public-availability-slots-v09',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'What happens when I select a slot?',
   },
   {
-    "id": "public-public-availability-slots-v10",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Guide me through choosing a time slot"
+    id: 'public-public-availability-slots-v10',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Guide me through choosing a time slot',
   },
   {
-    "id": "public-public-tour-payment-v01",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "What payment options exist for tour checkout?"
+    id: 'public-public-tour-payment-v01',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'What payment options exist for tour checkout?',
   },
   {
-    "id": "public-public-tour-payment-v02",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Walk me through paying for a tour package online"
+    id: 'public-public-tour-payment-v02',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Walk me through paying for a tour package online',
   },
   {
-    "id": "public-public-tour-payment-v03",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Help me understand tour pricing at payment"
+    id: 'public-public-tour-payment-v03',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Help me understand tour pricing at payment',
   },
   {
-    "id": "public-public-tour-payment-v04",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Step by step: pay for tour seats on checkout"
+    id: 'public-public-tour-payment-v04',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Step by step: pay for tour seats on checkout',
   },
   {
-    "id": "public-public-tour-payment-v05",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Show me group payment for tour bookings"
+    id: 'public-public-tour-payment-v05',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Show me group payment for tour bookings',
   },
   {
-    "id": "public-public-tour-payment-v06",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "How can I split tour payment across cards?"
+    id: 'public-public-tour-payment-v06',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'How can I split tour payment across cards?',
   },
   {
-    "id": "public-public-tour-payment-v07",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Explain tour deposit rules on payment"
+    id: 'public-public-tour-payment-v07',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Explain tour deposit rules on payment',
   },
   {
-    "id": "public-public-tour-payment-v08",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Where is the final tour price breakdown?"
+    id: 'public-public-tour-payment-v08',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Where is the final tour price breakdown?',
   },
   {
-    "id": "public-public-tour-payment-v09",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Do tours require full payment upfront?"
+    id: 'public-public-tour-payment-v09',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Do tours require full payment upfront?',
   },
   {
-    "id": "public-public-tour-payment-v10",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Guide me through tour payment on this site"
+    id: 'public-public-tour-payment-v10',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Guide me through tour payment on this site',
   },
   {
-    "id": "public-public-funnel-mobile-v01",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "How do I book on my phone using this website?"
+    id: 'public-public-funnel-mobile-v01',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'How do I book on my phone using this website?',
   },
   {
-    "id": "public-public-funnel-mobile-v02",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Walk me through mobile booking on this page"
+    id: 'public-public-funnel-mobile-v02',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Walk me through mobile booking on this page',
   },
   {
-    "id": "public-public-funnel-mobile-v03",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Help me with booking funnel on a small screen"
+    id: 'public-public-funnel-mobile-v03',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Help me with booking funnel on a small screen',
   },
   {
-    "id": "public-public-funnel-mobile-v04",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Step by step: complete booking on mobile browser"
+    id: 'public-public-funnel-mobile-v04',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Step by step: complete booking on mobile browser',
   },
   {
-    "id": "public-public-funnel-mobile-v05",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Show me mobile-friendly navigation between steps"
+    id: 'public-public-funnel-mobile-v05',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Show me mobile-friendly navigation between steps',
   },
   {
-    "id": "public-public-funnel-mobile-v06",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "How does the funnel work on iPhone Safari?"
+    id: 'public-public-funnel-mobile-v06',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'How does the funnel work on iPhone Safari?',
   },
   {
-    "id": "public-public-funnel-mobile-v07",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Explain scrolling and taps on mobile booking"
+    id: 'public-public-funnel-mobile-v07',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Explain scrolling and taps on mobile booking',
   },
   {
-    "id": "public-public-funnel-mobile-v08",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Where is the menu on mobile public booking?"
+    id: 'public-public-funnel-mobile-v08',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Where is the menu on mobile public booking?',
   },
   {
-    "id": "public-public-funnel-mobile-v09",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Can I book without installing an app?"
+    id: 'public-public-funnel-mobile-v09',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Can I book without installing an app?',
   },
   {
-    "id": "public-public-funnel-mobile-v10",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "I'm on my phone — guide the booking funnel"
+    id: 'public-public-funnel-mobile-v10',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "I'm on my phone — guide the booking funnel",
   },
   {
-    "id": "public-public-professionals-filter-v01",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "How do I filter professionals by language or specialty?"
+    id: 'public-public-professionals-filter-v01',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'How do I filter professionals by language or specialty?',
   },
   {
-    "id": "public-public-professionals-filter-v02",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Walk me through narrowing the stylist list"
+    id: 'public-public-professionals-filter-v02',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Walk me through narrowing the stylist list',
   },
   {
-    "id": "public-public-professionals-filter-v03",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Help me filter providers on this booking step"
+    id: 'public-public-professionals-filter-v03',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Help me filter providers on this booking step',
   },
   {
-    "id": "public-public-professionals-filter-v04",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Step by step: find a stylist who does color"
+    id: 'public-public-professionals-filter-v04',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Step by step: find a stylist who does color',
   },
   {
-    "id": "public-public-professionals-filter-v05",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Show me filter chips on the professionals page"
+    id: 'public-public-professionals-filter-v05',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Show me filter chips on the professionals page',
   },
   {
-    "id": "public-public-professionals-filter-v06",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "How can I clear filters and see everyone again?"
+    id: 'public-public-professionals-filter-v06',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'How can I clear filters and see everyone again?',
   },
   {
-    "id": "public-public-professionals-filter-v07",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Explain professional filters on public booking"
+    id: 'public-public-professionals-filter-v07',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Explain professional filters on public booking',
   },
   {
-    "id": "public-public-professionals-filter-v08",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "Where do I search by stylist name?"
+    id: 'public-public-professionals-filter-v08',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'Where do I search by stylist name?',
   },
   {
-    "id": "public-public-professionals-filter-v09",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "What filters are available for providers?"
+    id: 'public-public-professionals-filter-v09',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'What filters are available for providers?',
   },
   {
-    "id": "public-public-professionals-filter-v10",
-    "surface": "public",
-    "topicId": "public-booking-professionals",
-    "prompt": "I need a color specialist — guide filtering"
+    id: 'public-public-professionals-filter-v10',
+    surface: 'public',
+    topicId: 'public-booking-professionals',
+    prompt: 'I need a color specialist — guide filtering',
   },
   {
-    "id": "public-public-services-compare-v01",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How do I compare two services before booking?"
+    id: 'public-public-services-compare-v01',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How do I compare two services before booking?',
   },
   {
-    "id": "public-public-services-compare-v02",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Walk me through comparing prices and duration"
+    id: 'public-public-services-compare-v02',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Walk me through comparing prices and duration',
   },
   {
-    "id": "public-public-services-compare-v03",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Help me decide between similar services online"
+    id: 'public-public-services-compare-v03',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Help me decide between similar services online',
   },
   {
-    "id": "public-public-services-compare-v04",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Step by step: compare haircut vs trim services"
+    id: 'public-public-services-compare-v04',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Step by step: compare haircut vs trim services',
   },
   {
-    "id": "public-public-services-compare-v05",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Show me how to read service details side by side"
+    id: 'public-public-services-compare-v05',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Show me how to read service details side by side',
   },
   {
-    "id": "public-public-services-compare-v06",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How can I see which service includes wash?"
+    id: 'public-public-services-compare-v06',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How can I see which service includes wash?',
   },
   {
-    "id": "public-public-services-compare-v07",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Explain comparing services on the booking site"
+    id: 'public-public-services-compare-v07',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Explain comparing services on the booking site',
   },
   {
-    "id": "public-public-services-compare-v08",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Where are service FAQs or descriptions?"
+    id: 'public-public-services-compare-v08',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Where are service FAQs or descriptions?',
   },
   {
-    "id": "public-public-services-compare-v09",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "What should I check before picking a service?"
+    id: 'public-public-services-compare-v09',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'What should I check before picking a service?',
   },
   {
-    "id": "public-public-services-compare-v10",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "I'm torn between two services — guide comparison"
+    id: 'public-public-services-compare-v10',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: "I'm torn between two services — guide comparison",
   },
   {
-    "id": "public-public-checkout-guest-v01",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Can I checkout as a guest without an account?"
+    id: 'public-public-checkout-guest-v01',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Can I checkout as a guest without an account?',
   },
   {
-    "id": "public-public-checkout-guest-v02",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Walk me through guest checkout on the booking site"
+    id: 'public-public-checkout-guest-v02',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Walk me through guest checkout on the booking site',
   },
   {
-    "id": "public-public-checkout-guest-v03",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Help me book without creating a login"
+    id: 'public-public-checkout-guest-v03',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Help me book without creating a login',
   },
   {
-    "id": "public-public-checkout-guest-v04",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Step by step: guest checkout with email only"
+    id: 'public-public-checkout-guest-v04',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Step by step: guest checkout with email only',
   },
   {
-    "id": "public-public-checkout-guest-v05",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Show me what guest checkout requires"
+    id: 'public-public-checkout-guest-v05',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Show me what guest checkout requires',
   },
   {
-    "id": "public-public-checkout-guest-v06",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "How can I create an account after guest checkout?"
+    id: 'public-public-checkout-guest-v06',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'How can I create an account after guest checkout?',
   },
   {
-    "id": "public-public-checkout-guest-v07",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Explain guest vs signed-in checkout"
+    id: 'public-public-checkout-guest-v07',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Explain guest vs signed-in checkout',
   },
   {
-    "id": "public-public-checkout-guest-v08",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Where do I enter name and phone as a guest?"
+    id: 'public-public-checkout-guest-v08',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Where do I enter name and phone as a guest?',
   },
   {
-    "id": "public-public-checkout-guest-v09",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "Will I get confirmation email as a guest?"
+    id: 'public-public-checkout-guest-v09',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: 'Will I get confirmation email as a guest?',
   },
   {
-    "id": "public-public-checkout-guest-v10",
-    "surface": "public",
-    "topicId": "public-checkout",
-    "prompt": "I don't want to sign up — guide guest checkout"
+    id: 'public-public-checkout-guest-v10',
+    surface: 'public',
+    topicId: 'public-checkout',
+    prompt: "I don't want to sign up — guide guest checkout",
   },
   {
-    "id": "public-public-availability-today-v01",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How do I find an appointment today on this site?"
+    id: 'public-public-availability-today-v01',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How do I find an appointment today on this site?',
   },
   {
-    "id": "public-public-availability-today-v02",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Walk me through today's available slots"
+    id: 'public-public-availability-today-v02',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: "Walk me through today's available slots",
   },
   {
-    "id": "public-public-availability-today-v03",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Help me book something later today online"
+    id: 'public-public-availability-today-v03',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Help me book something later today online',
   },
   {
-    "id": "public-public-availability-today-v04",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Step by step: filter availability for today only"
+    id: 'public-public-availability-today-v04',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Step by step: filter availability for today only',
   },
   {
-    "id": "public-public-availability-today-v05",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Show me same-day booking on the calendar"
+    id: 'public-public-availability-today-v05',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Show me same-day booking on the calendar',
   },
   {
-    "id": "public-public-availability-today-v06",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "How can I see if anyone is free this afternoon?"
+    id: 'public-public-availability-today-v06',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'How can I see if anyone is free this afternoon?',
   },
   {
-    "id": "public-public-availability-today-v07",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Explain same-day availability rules"
+    id: 'public-public-availability-today-v07',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'Explain same-day availability rules',
   },
   {
-    "id": "public-public-availability-today-v08",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "Where do I jump to today's date quickly?"
+    id: 'public-public-availability-today-v08',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: "Where do I jump to today's date quickly?",
   },
   {
-    "id": "public-public-availability-today-v09",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "What if nothing is open today?"
+    id: 'public-public-availability-today-v09',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'What if nothing is open today?',
   },
   {
-    "id": "public-public-availability-today-v10",
-    "surface": "public",
-    "topicId": "public-availability",
-    "prompt": "I need an appointment today — guide availability"
+    id: 'public-public-availability-today-v10',
+    surface: 'public',
+    topicId: 'public-availability',
+    prompt: 'I need an appointment today — guide availability',
   },
   {
-    "id": "public-public-tour-steps-v01",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "What are the steps to book a tour on this site?"
+    id: 'public-public-tour-steps-v01',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'What are the steps to book a tour on this site?',
   },
   {
-    "id": "public-public-tour-steps-v02",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Walk me through tour booking from start to finish"
+    id: 'public-public-tour-steps-v02',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Walk me through tour booking from start to finish',
   },
   {
-    "id": "public-public-tour-steps-v03",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Help me understand tour-specific booking steps"
+    id: 'public-public-tour-steps-v03',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Help me understand tour-specific booking steps',
   },
   {
-    "id": "public-public-tour-steps-v04",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Step by step: tour funnel vs regular booking"
+    id: 'public-public-tour-steps-v04',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Step by step: tour funnel vs regular booking',
   },
   {
-    "id": "public-public-tour-steps-v05",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Show me each tour step before checkout"
+    id: 'public-public-tour-steps-v05',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Show me each tour step before checkout',
   },
   {
-    "id": "public-public-tour-steps-v06",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "How do tour departures appear in the funnel?"
+    id: 'public-public-tour-steps-v06',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'How do tour departures appear in the funnel?',
   },
   {
-    "id": "public-public-tour-steps-v07",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Explain tour booking steps on public site"
+    id: 'public-public-tour-steps-v07',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Explain tour booking steps on public site',
   },
   {
-    "id": "public-public-tour-steps-v08",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "Where do I pick tour date vs service date?"
+    id: 'public-public-tour-steps-v08',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'Where do I pick tour date vs service date?',
   },
   {
-    "id": "public-public-tour-steps-v09",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "What extra steps do tours require?"
+    id: 'public-public-tour-steps-v09',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: 'What extra steps do tours require?',
   },
   {
-    "id": "public-public-tour-steps-v10",
-    "surface": "public",
-    "topicId": "public-tour-checkout",
-    "prompt": "I'm booking a tour — walk me through all steps"
+    id: 'public-public-tour-steps-v10',
+    surface: 'public',
+    topicId: 'public-tour-checkout',
+    prompt: "I'm booking a tour — walk me through all steps",
   },
   {
-    "id": "public-public-funnel-help-v01",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "I'm stuck on booking — help me with this page"
+    id: 'public-public-funnel-help-v01',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "I'm stuck on booking — help me with this page",
   },
   {
-    "id": "public-public-funnel-help-v02",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Walk me through where I am in the booking process"
+    id: 'public-public-funnel-help-v02',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Walk me through where I am in the booking process',
   },
   {
-    "id": "public-public-funnel-help-v03",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Help me understand what this booking step wants"
+    id: 'public-public-funnel-help-v03',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Help me understand what this booking step wants',
   },
   {
-    "id": "public-public-funnel-help-v04",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Step by step: recover if I picked the wrong option"
+    id: 'public-public-funnel-help-v04',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Step by step: recover if I picked the wrong option',
   },
   {
-    "id": "public-public-funnel-help-v05",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Show me how to get help during online booking"
+    id: 'public-public-funnel-help-v05',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Show me how to get help during online booking',
   },
   {
-    "id": "public-public-funnel-help-v06",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "How can I contact the salon from the funnel?"
+    id: 'public-public-funnel-help-v06',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'How can I contact the salon from the funnel?',
   },
   {
-    "id": "public-public-funnel-help-v07",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Explain the progress indicator on booking steps"
+    id: 'public-public-funnel-help-v07',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Explain the progress indicator on booking steps',
   },
   {
-    "id": "public-public-funnel-help-v08",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Where do I go back without losing my selections?"
+    id: 'public-public-funnel-help-v08',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: 'Where do I go back without losing my selections?',
   },
   {
-    "id": "public-public-funnel-help-v09",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "What should I do if booking won't continue?"
+    id: 'public-public-funnel-help-v09',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "What should I do if booking won't continue?",
   },
   {
-    "id": "public-public-funnel-help-v10",
-    "surface": "public",
-    "topicId": "public-booking-funnel",
-    "prompt": "Guide me — I'm confused on this booking screen"
+    id: 'public-public-funnel-help-v10',
+    surface: 'public',
+    topicId: 'public-booking-funnel',
+    prompt: "Guide me — I'm confused on this booking screen",
   },
   {
-    "id": "public-public-services-duration-v01",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How do I see how long each service takes?"
+    id: 'public-public-services-duration-v01',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How do I see how long each service takes?',
   },
   {
-    "id": "public-public-services-duration-v02",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Walk me through service duration on the booking site"
+    id: 'public-public-services-duration-v02',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Walk me through service duration on the booking site',
   },
   {
-    "id": "public-public-services-duration-v03",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Help me pick a service that fits my lunch break"
+    id: 'public-public-services-duration-v03',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Help me pick a service that fits my lunch break',
   },
   {
-    "id": "public-public-services-duration-v04",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Step by step: find short services by duration"
+    id: 'public-public-services-duration-v04',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Step by step: find short services by duration',
   },
   {
-    "id": "public-public-services-duration-v05",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Show me where duration is listed for services"
+    id: 'public-public-services-duration-v05',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Show me where duration is listed for services',
   },
   {
-    "id": "public-public-services-duration-v06",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "How does duration affect available time slots?"
+    id: 'public-public-services-duration-v06',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'How does duration affect available time slots?',
   },
   {
-    "id": "public-public-services-duration-v07",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Explain service length on the services page"
+    id: 'public-public-services-duration-v07',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Explain service length on the services page',
   },
   {
-    "id": "public-public-services-duration-v08",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "Where can I filter by appointment length?"
+    id: 'public-public-services-duration-v08',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'Where can I filter by appointment length?',
   },
   {
-    "id": "public-public-services-duration-v09",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "What if I need a longer combo service?"
+    id: 'public-public-services-duration-v09',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'What if I need a longer combo service?',
   },
   {
-    "id": "public-public-services-duration-v10",
-    "surface": "public",
-    "topicId": "public-booking-services",
-    "prompt": "I only have an hour — guide me by service duration"
-  }
+    id: 'public-public-services-duration-v10',
+    surface: 'public',
+    topicId: 'public-booking-services',
+    prompt: 'I only have an hour — guide me by service duration',
+  },
 ] as const;
-

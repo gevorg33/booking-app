@@ -31,7 +31,7 @@ describe('intent-decomposition.schema', () => {
     expect(schema.goldenPatternIds).toContain(
       'customer_book_package_apply_promo',
     );
-    expect(schema.promptBlock).toContain('promo_code_help');
+    expect(schema.promptBlock).toContain('apply_promo_code_checkout');
   });
 
   it('builds provider and public schemas', () => {
@@ -88,7 +88,7 @@ describe('intent-decomposition.schema', () => {
       'bulk_smart_cancel',
     );
     expect(buildDecompositionSchemaView('customer').promptBlock).toContain(
-      'book_package + promo_code_help',
+      'book_package + apply_promo_code_checkout',
     );
     expect(buildDecompositionSchemaView('provider').promptBlock).toContain(
       'mark_paid',

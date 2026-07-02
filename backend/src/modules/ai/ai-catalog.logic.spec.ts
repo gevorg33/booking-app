@@ -275,7 +275,12 @@ describe('ai-catalog.logic', () => {
   describe('handleUpdateServiceLogic', () => {
     it('moves a service into a category', async () => {
       const catalogServices = [
-        { id: 'svc-neck', name: 'Neck Massage', price: 40, durationMinutes: 30 },
+        {
+          id: 'svc-neck',
+          name: 'Neck Massage',
+          price: 40,
+          durationMinutes: 30,
+        },
         ...services,
       ] as any[];
       const update = jest.fn(async (id, dto) => ({
@@ -337,7 +342,12 @@ describe('ai-catalog.logic', () => {
 
     it('parses service and category names from prompt text', async () => {
       const catalogServices = [
-        { id: 'svc-neck', name: 'Neck Massage', price: 40, durationMinutes: 30 },
+        {
+          id: 'svc-neck',
+          name: 'Neck Massage',
+          price: 40,
+          durationMinutes: 30,
+        },
       ] as any[];
       const update = jest.fn(async (id, dto) => ({
         id,
@@ -389,7 +399,9 @@ describe('ai-catalog.logic', () => {
         services,
       );
       expect(missingCategory.success).toBe(false);
-      expect((missingCategory.details as any).missing).toContain('categoryName');
+      expect((missingCategory.details as any).missing).toContain(
+        'categoryName',
+      );
     });
   });
 
@@ -1505,7 +1517,10 @@ describe('ai-catalog.logic', () => {
         } as any,
         serviceService: {
           findAll: jest.fn().mockImplementation(async () => [...services]),
-          create: jest.fn(async (_b, dto) => ({ id: `svc-${dto.name}`, ...dto })),
+          create: jest.fn(async (_b, dto) => ({
+            id: `svc-${dto.name}`,
+            ...dto,
+          })),
           remove: jest.fn(),
           update: jest.fn(async (id, dto) => ({
             id,

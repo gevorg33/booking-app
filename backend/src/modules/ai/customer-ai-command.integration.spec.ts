@@ -69,6 +69,26 @@ function createCustomerIntegrationHarness(
           handlerMocks.set(prop, mock);
           return mock;
         }
+        if (prop === 'handleIntent') {
+          const mock = jest.fn(
+            async (
+              _businessId: string,
+              action: string,
+              params?: Record<string, unknown>,
+            ) => ({
+              success: true,
+              action,
+              summary: `${action} ok`,
+              details: {
+                bookingId: 'bk-1',
+                packageId: params?.packageId ?? 'pkg-1',
+                manageUrl: 'https://example.com/manage/bk-1',
+              },
+            }),
+          );
+          handlerMocks.set(prop, mock);
+          return mock;
+        }
         if (prop.startsWith('handle')) {
           const action = prop
             .replace(/^handle/, '')
@@ -86,6 +106,25 @@ function createCustomerIntegrationHarness(
         if (prop === 'isMarketingGrowthCompound') return () => false;
         if (prop === 'isPushNotificationsCompound') return () => false;
         if (prop === 'isFulfillmentCompound') return () => false;
+        if (prop === 'dispatchIntent') {
+          const mock = jest.fn(async ({ action, params }: { action: string; params?: Record<string, unknown> }) => ({
+            success: true,
+            action,
+            summary: `${action} ok`,
+            details: {
+              bookingId: 'bk-1',
+              packageId: params?.packageId ?? 'pkg-1',
+              manageUrl: 'https://example.com/manage/bk-1',
+              sessionContext: {
+                serviceName: 'Spa Day',
+                serviceCategory: params?.serviceCategory,
+                availabilityWindows: params?.availabilityWindows,
+              },
+            },
+          }));
+          handlerMocks.set(prop, mock);
+          return mock;
+        }
         if (prop === 'handleCustomerBookingCompound') {
           return async () => ({
             success: false,
@@ -169,6 +208,8 @@ function createCustomerIntegrationHarness(
       })),
     } as any,
     sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
     {
       handleExplainDataRights: jest.fn(async () => ({
         success: true,
@@ -192,11 +233,31 @@ function createCustomerIntegrationHarness(
         summary: 'ok',
         details: {},
       })),
+      handleNotifyWhenResultsReady: jest.fn(async () => ({
+        success: true,
+        action: 'notify_when_results_ready',
+        summary: 'ok',
+        details: {},
+      })),
     } as any,
     sprintHandlers as any,
     sprintHandlers as any,
-    {} as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
     publicAssistant as any,
+    sprintHandlers as any,
+    sprintHandlers as any,
   );
 
   return { service, llm, publicAssistant, sprintHandlers };
@@ -375,12 +436,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       publicAssistant,
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
@@ -400,12 +459,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       llmAction: 'list_services',
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(result.action).toBe('compound_intent');
     expect(result.success).toBe(true);
@@ -466,12 +523,10 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       publicAssistant,
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
     expect(publicAssistant.chat).toHaveBeenCalledWith(
       'salon',
@@ -494,14 +549,17 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       llmParams: scenario.expectedParams ?? {},
     });
 
-    const result = await service.executeCommand(
-      'biz-1',
-      scenario.prompt,
-      [],
-      { slug: 'salon', customerId: 'cust-1' },
-    );
+    const result = await service.executeCommand('biz-1', scenario.prompt, [], {
+      slug: 'salon',
+      customerId: 'cust-1',
+    });
 
-    expect(sprintHandlers.handleCheckProvidersForService).toHaveBeenCalled();
+    expect(sprintHandlers.dispatchIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'check_providers_for_service',
+        params: expect.objectContaining({ serviceCategory: 'massage' }),
+      }),
+    );
     expect(result.action).toBe('check_providers_for_service');
     expect(result.details?.sessionContext).toMatchObject({
       serviceCategory: 'massage',

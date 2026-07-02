@@ -6,7 +6,10 @@ import {
   type IntentRescuePipelineHost,
   type RescuePipelineContext,
 } from './ai-intent-rescue-pipeline.util.js';
-import type { IntentRescueInput, IntentRescueResult } from './ai-intent-rescue.service.js';
+import type {
+  IntentRescueInput,
+  IntentRescueResult,
+} from './ai-intent-rescue.service.js';
 
 function rescueResult(action: string): IntentRescueResult {
   return {

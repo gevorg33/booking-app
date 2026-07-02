@@ -43,9 +43,11 @@ function createBookableDatesHarness() {
   };
 
   const employeeRepo = {
-    find: jest.fn().mockResolvedValue([
-      { id: 'emp-1', name: 'Alex', isActive: true, serviceIds: ['svc-1'] },
-    ]),
+    find: jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'emp-1', name: 'Alex', isActive: true, serviceIds: ['svc-1'] },
+      ]),
   };
 
   const serviceInstance = createPublicBookingServiceHarness({

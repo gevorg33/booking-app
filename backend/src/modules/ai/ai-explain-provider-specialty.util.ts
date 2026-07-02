@@ -1,4 +1,7 @@
-export const CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES = `- explain_provider_specialty: READ — explain a provider's role, specialty/bio copy from their profile, linked services, and ratings; or match specialists to a hair/skin/service topic (e.g. curly hair, balayage). Triggers: "Who is best for curly hair?", "Tell me about Anna", "Who specializes in color?", "What is Maria's specialty?". Set aspect to named_provider when a person is named (providerName) or specialty_match when asking who fits a topic (specialtyTopic). Navigate to the professionals profile when possible. NOT recommend_specialists (ranked availability/slots this week), NOT list_providers (roster only), NOT check_availability (slot search), and NOT business_info (salon description).`;
+import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
+import { isExplainProfessionalProfilePrompt } from './ai-explain-professional-profile.util.js';
+
+export const CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES = `- explain_provider_specialty: READ — explain a provider's role, specialty/bio copy from their profile, linked services, and ratings; or match specialists to a hair/skin/service topic (e.g. curly hair, balayage). Triggers: "Who is best for curly hair?", "Tell me about Anna", "Who specializes in color?", "What is Maria's specialty?". Set aspect to named_provider when a person is named (providerName) or specialty_match when asking who fits a topic (specialtyTopic). Navigate to the professionals profile when possible. NOT explain_professional_profile (open profile page / show services list), NOT explain_any_provider_option (Any stylist picker), NOT recommend_specialists (ranked availability/slots this week), NOT list_providers (roster only), NOT check_availability (slot search), and NOT business_info (salon description).`;
 
 export type ProviderSpecialtyAspect = 'named_provider' | 'specialty_match';
 
@@ -265,11 +268,23 @@ function cleanCapturedPhrase(value: string): string {
 }
 
 function hasNamedProviderCue(prompt: string): boolean {
+  if (/\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(prompt)) {
+    return false;
+  }
+  if (
+    /\b(?:check|see|look\s+up|find\s+out)\b/i.test(prompt) &&
+    /\bwho\b/i.test(prompt) &&
+    /\b(?:free|available|open)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(?:tell me about|learn(?: more)? about|what(?:'s| is)\s+\w+(?:'s)?\s+specialty|does\s+\w+\s+do)\b/i.test(
       prompt,
     ) ||
-    /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b)/i.test(prompt) ||
+    /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b|free\b|available\b|open\b|working\b|busy\b)/i.test(
+      prompt,
+    ) ||
     /պատմիր/iu.test(prompt) ||
     /(?:расскажи|расскажите)\s+(?:об|о)(?=\s)/iu.test(prompt)
   );
@@ -350,8 +365,18 @@ export function inferProviderSpecialtyAspect(
 }
 
 export function isExplainProviderSpecialtyPrompt(prompt: string): boolean {
+  if (isExplainProfessionalProfilePrompt(prompt)) return false;
+  if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isRecommendAvailabilityPrompt(prompt)) return false;
   if (isRecommendSpecialistRankingPrompt(prompt)) return false;
+  if (
+    /\b(?:check|see|look\s+up|find\s+out)\b/i.test(prompt) &&
+    /\bwho\b/i.test(prompt) &&
+    /\b(?:free|available|open)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (/\bwho\s+is\s+(?:free|available|open)\b/i.test(prompt)) return false;
   if (
     /\b(?:book|schedule|reserve)\b/i.test(prompt) &&
     /\b(?:appointment|slot|with)\b/i.test(prompt)
@@ -497,7 +522,9 @@ export function scoreEmployeeForSpecialtyTopic(input: {
   let score = 0;
   if (textFields.includes(topicLower)) score += 100;
 
-  for (const token of topicLower.split(/\s+/).filter((part) => part.length > 2)) {
+  for (const token of topicLower
+    .split(/\s+/)
+    .filter((part) => part.length > 2)) {
     if (textFields.includes(token)) score += 20;
   }
 

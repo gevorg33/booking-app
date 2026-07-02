@@ -426,7 +426,10 @@ export function assertClinicTestResultExtMultilingualCoverage(
   const counts = Object.fromEntries(
     EXT_INTENTS.map((intent) => [
       intent,
-      { hy: 0, ru: 0, en: 0, translit: 0 } satisfies Record<AiEvalLocale, number>,
+      { hy: 0, ru: 0, en: 0, translit: 0 } satisfies Record<
+        AiEvalLocale,
+        number
+      >,
     ]),
   ) as Record<ClinicTestResultExtIntent, Record<AiEvalLocale, number>>;
 

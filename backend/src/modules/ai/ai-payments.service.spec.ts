@@ -231,7 +231,15 @@ describe('AiPaymentsService', () => {
     expect((await service.handleChoosePaymentMethod('biz-1')).success).toBe(
       true,
     );
-    expect((await service.handlePayOnline('biz-1')).success).toBe(true);
+    expect(
+      (
+        await service.handlePayOnline('biz-1', {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+        })
+      ).success,
+    ).toBe(true);
     expect((await service.handlePayCashAtVisit('biz-1')).success).toBe(true);
     expect(
       (

@@ -46,6 +46,8 @@ describe('ai-customer-intent-promotion.util (ai-cmd-customer-4.0.1)', () => {
       'explain_tour_booking',
       'explain_tour_day_slots',
       'diagnose_tour_capacity',
+      'explain_tour_booking_record',
+      'explain_tour_meeting_point',
       'explain_checkout_recommendations',
       'refer_a_friend',
       'share_salon_link',
@@ -89,8 +91,8 @@ describe('ai-customer-intent-promotion.util (ai-cmd-customer-4.0.1)', () => {
     expect(listCustomerIntentPromotionRegistryGaps()).toEqual([]);
 
     const summary = summarizeCustomerIntentPromotionAudit(rows);
-    expect(summary.total).toBe(22);
-    expect(summary.required).toBe(22);
+    expect(summary.total).toBe(24);
+    expect(summary.required).toBe(24);
     expect(summary.deferred).toBe(0);
     expect(summary.readyForRequiredPromotion).toBe(0);
     expect(summary.p0Deferred).toBe(0);

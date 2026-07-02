@@ -187,10 +187,7 @@ function buildRec7MultilingualScenarios(): ConsumerCheckoutSuccessMultilingualSc
 }
 
 export const CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_SCENARIOS: ConsumerCheckoutSuccessMultilingualScenario[] =
-  [
-    ...buildRec6MultilingualScenarios(),
-    ...buildRec7MultilingualScenarios(),
-  ];
+  [...buildRec6MultilingualScenarios(), ...buildRec7MultilingualScenarios()];
 
 export const CONSUMER_CHECKOUT_SUCCESS_EN_SCENARIO_IDS: string[] = [
   ...EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_PROMPTS.map((row) => row.id),

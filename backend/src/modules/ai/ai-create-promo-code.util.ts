@@ -24,49 +24,77 @@ export const CREATE_PROMO_CODE_PROMPTS: CreatePromoCodePromptFixture[] = [
     prompt: 'Create promo code SAVE10 for 20% off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'SAVE10', discountType: 'percent', discountValue: 20 },
+    paramsPartial: {
+      code: 'SAVE10',
+      discountType: 'percent',
+      discountValue: 20,
+    },
   },
   {
     id: 'add-welcome15',
     prompt: 'Add a new discount code WELCOME15 — 15 percent',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'WELCOME15', discountType: 'percent', discountValue: 15 },
+    paramsPartial: {
+      code: 'WELCOME15',
+      discountType: 'percent',
+      discountValue: 15,
+    },
   },
   {
     id: 'make-summer25-fixed',
     prompt: 'Make coupon SUMMER25 with $10 off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'SUMMER25', discountType: 'fixed', discountValue: 10 },
+    paramsPartial: {
+      code: 'SUMMER25',
+      discountType: 'fixed',
+      discountValue: 10,
+    },
   },
   {
     id: 'new-promo-vip20',
     prompt: 'Set up promo code VIP20 at 20% discount',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'VIP20', discountType: 'percent', discountValue: 20 },
+    paramsPartial: {
+      code: 'VIP20',
+      discountType: 'percent',
+      discountValue: 20,
+    },
   },
   {
     id: 'create-haircut5',
     prompt: 'Create discount code HAIRCUT5 for $5 off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'HAIRCUT5', discountType: 'fixed', discountValue: 5 },
+    paramsPartial: {
+      code: 'HAIRCUT5',
+      discountType: 'fixed',
+      discountValue: 5,
+    },
   },
   {
     id: 'add-new-client10',
     prompt: 'Add promo code NEWCLIENT10 — 10% off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'NEWCLIENT10', discountType: 'percent', discountValue: 10 },
+    paramsPartial: {
+      code: 'NEWCLIENT10',
+      discountType: 'percent',
+      discountValue: 10,
+    },
   },
   {
     id: 'generate-loyalty15',
     prompt: 'Generate promo code LOYAL15 with 15 percent discount',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'LOYAL15', discountType: 'percent', discountValue: 15 },
+    paramsPartial: {
+      code: 'LOYAL15',
+      discountType: 'percent',
+      discountValue: 15,
+    },
   },
   {
     id: 'create-min-order',
@@ -97,32 +125,41 @@ export const CREATE_PROMO_CODE_PROMPTS: CreatePromoCodePromptFixture[] = [
     prompt: 'Issue a new promo code REFERRAL25 at 25% off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'REFERRAL25', discountType: 'percent', discountValue: 25 },
+    paramsPartial: {
+      code: 'REFERRAL25',
+      discountType: 'percent',
+      discountValue: 25,
+    },
   },
   {
     id: 'create-quoted-code',
     prompt: 'Create promo code "SPRING30" for 30% off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'SPRING30', discountType: 'percent', discountValue: 30 },
+    paramsPartial: {
+      code: 'SPRING30',
+      discountType: 'percent',
+      discountValue: 30,
+    },
   },
   {
     id: 'add-salon-welcome',
     prompt: 'Add a salon promo code SALONWELCOME with 20 dollars off',
     surface: 'dashboard',
     expectedAction: CREATE_PROMO_CODE_INTENT,
-    paramsPartial: { code: 'SALONWELCOME', discountType: 'fixed', discountValue: 20 },
+    paramsPartial: {
+      code: 'SALONWELCOME',
+      discountType: 'fixed',
+      discountValue: 20,
+    },
   },
 ];
 
-const CREATE_VERB =
-  /\b(create|add|new|set\s+up|make|generate|issue)\b/i;
+const CREATE_VERB = /\b(create|add|new|set\s+up|make|generate|issue)\b/i;
 
-const PROMO_SIGNAL =
-  /\b(promo\s+codes?|discount\s+codes?|coupons?)\b/i;
+const PROMO_SIGNAL = /\b(promo\s+codes?|discount\s+codes?|coupons?)\b/i;
 
-const HELP_SIGNAL =
-  /\b(how|work|help|explain|validate|check|apply|use)\b/i;
+const HELP_SIGNAL = /\b(how|work|help|explain|validate|check|apply|use)\b/i;
 
 const PROMO_CODE_STOPWORDS = new Set([
   'FOR',
@@ -135,7 +172,9 @@ const PROMO_CODE_STOPWORDS = new Set([
   'THIS',
 ]);
 
-function normalizePromoCodeName(value: string | null | undefined): string | null {
+function normalizePromoCodeName(
+  value: string | null | undefined,
+): string | null {
   if (!value) return null;
   const normalized = value.trim().toUpperCase();
   if (!/^[A-Z0-9_-]{3,}$/.test(normalized)) return null;
@@ -205,9 +244,7 @@ export function extractPromoDiscountFromPrompt(
     };
   }
 
-  const dollarsOff = prompt.match(
-    /\b(\d+(?:\.\d+)?)\s+dollars?\s+off\b/i,
-  );
+  const dollarsOff = prompt.match(/\b(\d+(?:\.\d+)?)\s+dollars?\s+off\b/i);
   if (dollarsOff) {
     return {
       discountType: PromoDiscountType.FIXED,
@@ -242,9 +279,7 @@ function readStringParam(
   return undefined;
 }
 
-function normalizeDiscountType(
-  value: unknown,
-): PromoDiscountType | undefined {
+function normalizeDiscountType(value: unknown): PromoDiscountType | undefined {
   if (value === PromoDiscountType.PERCENT || value === 'percent') {
     return PromoDiscountType.PERCENT;
   }

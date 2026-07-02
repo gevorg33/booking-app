@@ -101,7 +101,9 @@ async function handlePushAction(
 
   if (actionId === 'suggest_reschedule') {
     dispatchProviderPushEffects(
-      parseProviderPushPayload(buildSuggestReschedulePushPayload(bookingId, bizId)),
+      parseProviderPushPayload(
+        buildSuggestReschedulePushPayload(bookingId, bizId) as Record<string, unknown>,
+      ),
     );
   }
 }
@@ -141,7 +143,7 @@ async function attachPushListeners(businessId: string): Promise<void> {
     const actionId = (action.actionId || payload.actionId || '').trim();
     const bizId = payload.businessId ?? activeBusinessId;
 
-    if (shouldExecutePushAction(actionId, bookingId, bizId)) {
+    if (shouldExecutePushAction(actionId, bookingId, bizId) && bizId && bookingId) {
       try {
         await handlePushAction(bizId, bookingId, actionId);
       } catch (err) {

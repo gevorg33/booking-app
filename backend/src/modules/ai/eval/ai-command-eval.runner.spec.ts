@@ -184,7 +184,9 @@ describe('ai-command-eval.runner', () => {
       },
     });
     expect(result.passed).toBe(false);
-    expect(result.errors[0]).toMatch(/paramsPartial: rescue returned no params/);
+    expect(result.errors[0]).toMatch(
+      /paramsPartial: rescue returned no params/,
+    );
     jest.restoreAllMocks();
   });
 
@@ -213,9 +215,9 @@ describe('ai-command-eval.runner', () => {
       },
     });
     expect(result.passed).toBe(false);
-    expect(result.errors.some((e) => e.includes('params.notifyCustomers'))).toBe(
-      true,
-    );
+    expect(
+      result.errors.some((e) => e.includes('params.notifyCustomers')),
+    ).toBe(true);
   });
 
   it('passes rescue with rescueReason and no paramsPartial', () => {
@@ -419,7 +421,7 @@ describe('ai-command-eval.runner', () => {
       prompt: 'Book spa day package and apply promo code WELCOME',
       expect: {
         compoundSurface: 'customer',
-        compoundSteps: ['book_package', 'promo_code_help'],
+        compoundSteps: ['book_package', 'apply_promo_code_checkout'],
         compoundStepParams: [{ stepIndex: 0 }],
       },
     });

@@ -37,8 +37,7 @@ export async function trySemanticIntentRescue(
     return null;
   }
 
-  const norm =
-    input.promptNorm ?? (await input.normalizePrompt());
+  const norm = input.promptNorm ?? (await input.normalizePrompt());
   const semantic = await semanticIntent.match({
     businessId: input.businessId,
     userId: input.userId,

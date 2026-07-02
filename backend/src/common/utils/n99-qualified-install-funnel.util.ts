@@ -26,10 +26,18 @@ export interface N99QualifiedInstallFunnelStepDef {
 
 export const N99_QUALIFIED_INSTALL_FUNNEL_STEPS: readonly N99QualifiedInstallFunnelStepDef[] =
   [
-    { id: 'qualified_install', label: 'Qualified install', event: 'app_installed' },
+    {
+      id: 'qualified_install',
+      label: 'Qualified install',
+      event: 'app_installed',
+    },
     { id: 'first_open', label: 'First open', event: 'app_opened' },
     { id: 'salon_viewed', label: 'Salon viewed', event: 'viewed_salon' },
-    { id: 'booking_started', label: 'Booking started', event: 'started_booking' },
+    {
+      id: 'booking_started',
+      label: 'Booking started',
+      event: 'started_booking',
+    },
     {
       id: 'slot_step',
       label: 'Slot step',
@@ -42,7 +50,11 @@ export const N99_QUALIFIED_INSTALL_FUNNEL_STEPS: readonly N99QualifiedInstallFun
       event: 'onboarding_step_viewed',
       props: { onboardingStep: 'confirm' },
     },
-    { id: 'booking_completed', label: 'Booking completed', event: 'completed_booking' },
+    {
+      id: 'booking_completed',
+      label: 'Booking completed',
+      event: 'completed_booking',
+    },
   ];
 
 export interface N99QualifiedInstallFunnelStep {
@@ -108,7 +120,9 @@ function hasFunnelStepEvent(
   anonId: string,
   step: N99QualifiedInstallFunnelStepDef,
 ): boolean {
-  return rows.some((row) => row.anonId === anonId && matchesFunnelStepEvent(row, step));
+  return rows.some(
+    (row) => row.anonId === anonId && matchesFunnelStepEvent(row, step),
+  );
 }
 
 function reachedQualifiedFunnelStep(
@@ -149,11 +163,19 @@ export function buildQualifiedInstallFunnel(
   const steps: N99QualifiedInstallFunnelStep[] = [];
   let previousCount = 0;
 
-  for (let index = 0; index < N99_QUALIFIED_INSTALL_FUNNEL_STEPS.length; index += 1) {
+  for (
+    let index = 0;
+    index < N99_QUALIFIED_INSTALL_FUNNEL_STEPS.length;
+    index += 1
+  ) {
     const def = N99_QUALIFIED_INSTALL_FUNNEL_STEPS[index];
     const count = countQualifiedFunnelStep(rows, cohort, index);
     const conversionFromPrevious =
-      index === 0 || previousCount === 0 ? (index === 0 ? 1 : null) : count / previousCount;
+      index === 0 || previousCount === 0
+        ? index === 0
+          ? 1
+          : null
+        : count / previousCount;
     const dropOffFromPrevious =
       index === 0 || previousCount === 0
         ? null
@@ -203,8 +225,8 @@ export function auditQualifiedInstallDeadEnds(
   const fixTickets: N99QualifiedInstallDeadEndFixTicket[] = [];
 
   for (let index = 1; index < funnel.steps.length; index += 1) {
-    const step = funnel.steps[index]!;
-    const previous = funnel.steps[index - 1]!;
+    const step = funnel.steps[index];
+    const previous = funnel.steps[index - 1];
     const drop = step.dropOffFromPrevious;
     if (drop == null || drop <= threshold + 1e-9) continue;
     fixTickets.push(buildFixTicket(step, previous));

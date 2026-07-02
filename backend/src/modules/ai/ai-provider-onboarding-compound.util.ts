@@ -114,33 +114,34 @@ export function extractOnboardingEmployeeNameFromPrompt(
   const setupFor = prompt.match(
     /\b(?:setup|set\s+up)\s+for\s+(?:new\s+)?(?:[\w\s]+\s+)?([A-Z][a-z]+)\b/i,
   );
-  if (setupFor?.[1] && !INVALID_ONBOARDING_NAME.has(setupFor[1].toLowerCase())) {
+  if (
+    setupFor?.[1] &&
+    !INVALID_ONBOARDING_NAME.has(setupFor[1].toLowerCase())
+  ) {
     return setupFor[1];
   }
 
-  const readyName = prompt.match(/\b(?:get|make)\s+new\s+[\w\s]+\s+([A-Z][a-z]+)\s+ready\b/i);
+  const readyName = prompt.match(
+    /\b(?:get|make)\s+new\s+[\w\s]+\s+([A-Z][a-z]+)\s+ready\b/i,
+  );
   if (readyName?.[1]) return readyName[1];
 
   const forName = prompt.match(/\bfor\s+([A-Z][a-z]+)\b/);
-  if (
-    forName?.[1] &&
-    !INVALID_ONBOARDING_NAME.has(forName[1].toLowerCase())
-  ) {
+  if (forName?.[1] && !INVALID_ONBOARDING_NAME.has(forName[1].toLowerCase())) {
     return forName[1];
   }
 
   const fromStaff = extractEmployeeNameFromPrompt(prompt);
-  if (
-    fromStaff &&
-    !INVALID_ONBOARDING_NAME.has(fromStaff.toLowerCase())
-  ) {
+  if (fromStaff && !INVALID_ONBOARDING_NAME.has(fromStaff.toLowerCase())) {
     return fromStaff;
   }
 
   return null;
 }
 
-export function extractOnboardingTemplateName(prompt: string): string | undefined {
+export function extractOnboardingTemplateName(
+  prompt: string,
+): string | undefined {
   if (/\bweekday\s+template\b/i.test(prompt)) return 'weekday';
   const fromNamed = prompt.match(/\bfrom\s+([\w\s]+?)\s+template\b/i);
   if (fromNamed?.[1]?.trim()) return fromNamed[1].trim();
@@ -178,9 +179,8 @@ export function isProviderOnboardingCompoundPrompt(prompt: string): boolean {
   if (!hasFullCue) return false;
 
   const stepFamilies = countOnboardingStepFamilies(text);
-  const fullSetup = /\b(?:end[\s-]to[\s-]end|from\s+scratch|full\s+setup)\b/i.test(
-    text,
-  );
+  const fullSetup =
+    /\b(?:end[\s-]to[\s-]end|from\s+scratch|full\s+setup)\b/i.test(text);
   if (stepFamilies < 2) return false;
   if (!fullSetup && stepFamilies < 3) return false;
 

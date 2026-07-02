@@ -2,6 +2,7 @@
 
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { CheckoutForm } from '@/components/public-booking/checkout-form';
+import { PublicAssistantStarterChips } from '@/components/public-booking/public-assistant-starter-chips';
 import type { PublicBusinessProfile, PublicService } from '@/lib/public-api';
 
 interface CheckoutClientProps {
@@ -29,6 +30,11 @@ export function CheckoutClient({
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
       <main className="max-w-lg mx-auto px-4 py-6">
+        <PublicAssistantStarterChips
+          slug={tenant.slug}
+          primaryColor={tenant.branding.primaryColor}
+          className="mb-4"
+        />
         <CheckoutForm
           tenant={tenant}
           employee={employee}

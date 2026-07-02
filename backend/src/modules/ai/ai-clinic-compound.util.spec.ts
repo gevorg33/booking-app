@@ -86,12 +86,12 @@ describe('ai-clinic-compound.util (ai-cmd-clinic-v2-7)', () => {
     expect(step?.action).toBe('notify_patient_result_ready');
   });
 
-  it('classifies consumer follow-up segment as explain_result_status', () => {
+  it('classifies consumer follow-up segment as notify_when_results_ready', () => {
     const step = classifyClinicCompoundSegment(
       'notify me when results are ready',
       'customer',
     );
-    expect(step?.action).toBe('explain_result_status');
+    expect(step?.action).toBe('notify_when_results_ready');
     expect(
       isClinicResultFollowUpSegment(
         'notify me when results are ready',
@@ -118,7 +118,7 @@ describe('ai-clinic-compound.util (ai-cmd-clinic-v2-7)', () => {
     expect(customer?.recipeId).toBe('customer_clinic_compound');
     expect(customer?.steps.map((step) => step.action)).toEqual([
       'book_nearest_slot',
-      'explain_result_status',
+      'notify_when_results_ready',
     ]);
   });
 

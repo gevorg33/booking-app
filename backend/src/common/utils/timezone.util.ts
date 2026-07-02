@@ -206,8 +206,7 @@ export function computeWallClockNowMarkerPercent(
     if (wallNow.dateKey > endDay) return null;
   }
   if (wallNow.minutes < startMin || wallNow.minutes > endMin) return null;
-  const percent =
-    ((wallNow.minutes - startMin) / (endMin - startMin)) * 100;
+  const percent = ((wallNow.minutes - startMin) / (endMin - startMin)) * 100;
   return Math.min(100, Math.max(0, Math.round(percent * 10) / 10));
 }
 

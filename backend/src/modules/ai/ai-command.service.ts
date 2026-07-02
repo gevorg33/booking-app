@@ -211,7 +211,10 @@ import {
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
 import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
-import { CommandResult, type PipelineTrace } from './command-completion.types.js';
+import {
+  CommandResult,
+  type PipelineTrace,
+} from './command-completion.types.js';
 import { buildUnwiredDashboardIntentResult } from './ai-command-unwired-intent.util.js';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import { AiEventsService } from './ai-events.service.js';
@@ -340,9 +343,7 @@ import { enrichServiceDepositPolicyParamsFromPrompt } from './ai-service-deposit
 import { enrichNotificationSettingsParamsFromPrompt } from './ai-notification-settings.util.js';
 import { enrichWhatsappIntegrationParamsFromPrompt } from './ai-whatsapp-integration.util.js';
 import { enrichOpenaiIntegrationParamsFromPrompt } from './ai-openai-integration.util.js';
-import {
-  composeSummarizeBookingsResult,
-} from './ai-dashboard-summarize-bookings.logic.js';
+import { composeSummarizeBookingsResult } from './ai-dashboard-summarize-bookings.logic.js';
 import { enrichOfferWaitlistSlotParams } from './ai-waitlist-dashboard.util.js';
 import { parseUpdateServiceDurationBufferFromPrompt } from './ai-service-duration-buffer.util.js';
 import { enrichConfigureStripeConnectParamsFromPrompt } from './ai-stripe-connect.util.js';
@@ -578,14 +579,15 @@ export class AiCommandService {
     const presetRoute = session?.context?._complexityRoute as
       | ComplexityRoute
       | undefined;
-    const resolveComplexityRoute = this.dashboardUnderstanding.createResolveRoute({
-      businessId,
-      classifierPrompt,
-      employees,
-      router: this.complexityRouter,
-      intelligence: this.intelligence,
-      presetRoute,
-    });
+    const resolveComplexityRoute =
+      this.dashboardUnderstanding.createResolveRoute({
+        businessId,
+        classifierPrompt,
+        employees,
+        router: this.complexityRouter,
+        intelligence: this.intelligence,
+        presetRoute,
+      });
     const graphComplexityRoute = await resolveComplexityRoute();
 
     const sessionWithRoute: CommandSessionOptions = {
@@ -881,14 +883,18 @@ export class AiCommandService {
         timeZone,
       );
       if (subIntents.length > 1) {
-        const misroutePayload = recordMisrouteTelemetry(this.aiEvents, businessId, {
-          surface: 'dashboard',
-          prompt: effectivePrompt,
-          classifierAction: 'compound_intent',
-          rescuedAction: 'compound_intent',
-          rescueReason: 'compound_decomposition',
-          compoundStepCount: subIntents.length,
-        });
+        const misroutePayload = recordMisrouteTelemetry(
+          this.aiEvents,
+          businessId,
+          {
+            surface: 'dashboard',
+            prompt: effectivePrompt,
+            classifierAction: 'compound_intent',
+            rescuedAction: 'compound_intent',
+            rescueReason: 'compound_decomposition',
+            compoundStepCount: subIntents.length,
+          },
+        );
         const compoundResult = await this.executeCompoundIntents(
           businessId,
           effectivePrompt,
@@ -954,7 +960,10 @@ export class AiCommandService {
       traceId: resolveCommandTraceId(session?.context),
       pipelineTrace: [],
     };
-    const guideFallbackInput = buildPostFailureGuideFallbackInput(session, 'dashboard');
+    const guideFallbackInput = buildPostFailureGuideFallbackInput(
+      session,
+      'dashboard',
+    );
     const traceStamp = (result: CommandResult) =>
       finalizeCommandTraceResult(
         appendPostFailureGuideFallback(result, guideFallbackInput),
@@ -1102,7 +1111,11 @@ export class AiCommandService {
     );
     parsed.params._timeZone = timeZone;
 
-    if (!skipClassifierRescues && parsed.action === 'unknown' && isClearSchedulePrompt(effectivePrompt)) {
+    if (
+      !skipClassifierRescues &&
+      parsed.action === 'unknown' &&
+      isClearSchedulePrompt(effectivePrompt)
+    ) {
       parsed.action = 'clear_schedule';
       parsed.reasoning =
         'Clear applied schedule periods and micro-slots for the provider on the specified date(s).';
@@ -1156,7 +1169,10 @@ export class AiCommandService {
       }
     }
 
-    if (!skipClassifierRescues && shouldBlockUnknownFromHandlerSwitch(parsed.action)) {
+    if (
+      !skipClassifierRescues &&
+      shouldBlockUnknownFromHandlerSwitch(parsed.action)
+    ) {
       const clarify = buildUnknownIntentClarifyResult({
         surface: 'dashboard',
         prompt: effectivePrompt,
@@ -1444,7 +1460,10 @@ export class AiCommandService {
     const handoffConfirmPrompt =
       typeof guideHandoff?.params?.prompt === 'string'
         ? String(guideHandoff.params.prompt)
-        : buildGuideHandoffExecutionPrompt(parsed.action, resolved.enrichedParams);
+        : buildGuideHandoffExecutionPrompt(
+            parsed.action,
+            resolved.enrichedParams,
+          );
 
     if (
       guideHandoff &&
@@ -1545,2771 +1564,2926 @@ export class AiCommandService {
       });
       if (paymentsResult != null) {
         result = paymentsResult;
-      } else switch (parsed.action) {
-      case 'create_booking':
-        result = await this.handleCreateBooking(
-          businessId,
-          params,
-          employees,
-          services,
-          customers,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'create_booking_subscription_credit': {
-        const prepared =
-          await this.bookingDepth.prepareSubscriptionCreditParams(
-            businessId,
-            params,
-            customers,
-            services,
-            (list, name) => this.resolveCustomer(list, name),
-            (list, name) => this.resolveService(list, name) ?? undefined,
-          );
-        if (!prepared.ok) {
-          result = prepared.result;
-          break;
-        }
-        result = await this.handleCreateBooking(
-          businessId,
-          prepared.params,
-          employees,
-          services,
-          customers,
-          userId,
-          effectivePrompt,
-        );
-        if (result.action === 'create_booking') {
-          result = { ...result, action: 'create_booking_subscription_credit' };
-        }
-        break;
-      }
-      case 'create_booking_cash': {
-        const businessRow = await this.businessRepo.findOne({
-          where: { id: businessId },
-          select: { settings: true },
-        });
-        const prepared = this.bookingDepth.prepareCashCreateParams(
-          params,
-          businessRow?.settings ?? null,
-        );
-        if (!prepared.ok) {
-          result = prepared.result;
-          break;
-        }
-        result = await this.handleCreateBooking(
-          businessId,
-          prepared.params,
-          employees,
-          services,
-          customers,
-          userId,
-          effectivePrompt,
-        );
-        if (result.action === 'create_booking') {
-          result = { ...result, action: 'create_booking_cash' };
-        }
-        break;
-      }
-      case 'create_package_booking': {
-        const businessRow = await this.businessRepo.findOne({
-          where: { id: businessId },
-        });
-        if (!businessRow) {
-          result = {
-            success: false,
-            action: 'create_package_booking',
-            summary: 'Business not found',
-            details: {},
-          };
-          break;
-        }
-        result = await this.bookingDepth.handleCreatePackageBooking(
-          businessId,
-          params,
-          businessRow,
-          employees,
-          services,
-          customers,
-          (list, name) => this.resolveEmployee(list, name),
-          (list, name) => this.resolveCustomer(list, name),
-          userId,
-        );
-        break;
-      }
-      case 'create_multi_service_booking': {
-        const businessRow = await this.businessRepo.findOne({
-          where: { id: businessId },
-        });
-        if (!businessRow) {
-          result = {
-            success: false,
-            action: 'create_multi_service_booking',
-            summary: 'Business not found',
-            details: {},
-          };
-          break;
-        }
-        result = await this.bookingDepth.handleCreateMultiServiceBooking(
-          businessId,
-          params,
-          businessRow,
-          employees,
-          services,
-          customers,
-          (list, name) => this.resolveEmployee(list, name),
-          (list, p) => this.resolveServices(list, p),
-          (list, name) => this.resolveCustomer(list, name),
-          userId,
-        );
-        break;
-      }
-      case 'cancel_package_visit':
-        result = await this.bookingDepth.handleCancelPackageVisit(
-          businessId,
-          params,
-          userId,
-        );
-        break;
-      case 'cancel_multi_service_group':
-        result = await this.bookingDepth.handleCancelMultiServiceGroup(
-          businessId,
-          params,
-          userId,
-        );
-        break;
-      case 'reschedule_package_visit':
-        result = await this.bookingDepth.handleReschedulePackageVisit(
-          businessId,
-          params,
-          userId,
-        );
-        break;
-      case 'reschedule_multi_service_group':
-        result = await this.bookingDepth.handleRescheduleMultiServiceGroup(
-          businessId,
-          params,
-          userId,
-        );
-        break;
-      case 'list_cash_pending_bookings':
-        result = await this.bookingDepth.handleListCashPending(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'list_package_bookings':
-        result = await this.bookingDepth.handleListPackageBookings(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'list_multi_service_bookings':
-        result = await this.bookingDepth.handleListMultiServiceBookings(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'mark_paid': {
-        const pageCtx = session?.context as Record<string, unknown> | undefined;
-        result = await this.bookingDepth.handleMarkPaid(
-          businessId,
-          { ...params, _timeZone: timeZone },
-          userId,
-          {
-            prompt: effectivePrompt,
-            employees,
-            customers,
-            timeZone,
-            sessionDate:
-              typeof pageCtx?.date === 'string' ? pageCtx.date : undefined,
-            calendarRoute:
-              typeof pageCtx?.route === 'string' ? pageCtx.route : undefined,
-          },
-        );
-        break;
-      }
-      case 'assign_booking_resource':
-        result = await this.bookingDepth.handleAssignResource(
-          businessId,
-          params,
-          userId,
-        );
-        break;
-      case 'explain_booking_policy':
-        result = await this.bookingDepth.handleExplainPolicy(
-          businessId,
-          params,
-        );
-        break;
-      case 'list_customer_subscriptions':
-        result = await this.customerCrm.handleListCustomerSubscriptions(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'subscription_usage_history':
-        result = await this.customerCrm.handleSubscriptionUsageHistory(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'extend_subscription':
-        result = await this.customerCrm.handleExtendSubscription(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'cancel_subscription_admin':
-        result = await this.customerCrm.handleCancelSubscriptionAdmin(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'list_customer_gift_cards':
-        result = await this.customerCrm.handleListCustomerGiftCards(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'list_customer_bookings':
-        result = await this.customerCrm.handleListCustomerBookings(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'customer_no_show_history':
-        result = await this.customerCrm.handleCustomerNoShowHistory(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'tag_customer':
-        result = await this.customerCrm.handleTagCustomer(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'export_customer_data':
-        result = await this.customerCrm.handleExportCustomerData(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'delete_customer_data':
-        result = await this.customerCrm.handleDeleteCustomerData(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'send_reengagement_message':
-        result = await this.customerCrm.handleSendReengagementMessage(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'merge_customers':
-        result = await this.customerCrm.handleMergeCustomers(
-          businessId,
-          params,
-          customers,
-          (list, name) => this.resolveCustomer(list, name),
-        );
-        break;
-      case 'my_profile':
-        result = await this.customerCrm.handleMyProfile(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'my_appointments':
-        result = await this.customerCrm.handleMyAppointments(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'my_subscriptions':
-        result = await this.customerCrm.handleMySubscriptions(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'subscription_usage':
-        result = await this.customerCrm.handleSubscriptionUsage(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'my_gift_cards':
-        result = await this.customerCrm.handleMyGiftCards(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'gift_card_balance':
-        result = await this.customerCrm.handleGiftCardBalance(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'gift_card_redemption_history':
-        result = await this.customerCrm.handleGiftCardRedemptionHistory(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId,
-          },
-        );
-        break;
-      case 'request_gift_card_cancel':
-        result = await this.customerCrm.handleRequestGiftCardCancel(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId,
-          },
-        );
-        break;
-      case 'request_gift_card_modify':
-        result = await this.customerCrm.handleRequestGiftCardModify(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId,
-          },
-        );
-        break;
-      case 'track_physical_gift_card_order':
-        result = await this.customerCrm.handleTrackPhysicalGiftCardOrder(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId,
-          },
-        );
-        break;
-      case 'privacy_export':
-        result = await this.customerCrm.handlePrivacyExport(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'privacy_delete':
-        result = await this.customerCrm.handlePrivacyDelete(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId,
-        });
-        break;
-      case 'discover_packages':
-        result = await this.customerCrm.handleDiscoverPackages(businessId);
-        break;
-      case 'discover_subscription_plans':
-        result = await this.customerCrm.handleDiscoverSubscriptionPlans(
-          businessId,
-          params,
-        );
-        break;
-      case 'discover_gift_card_products':
-        result =
-          await this.customerCrm.handleDiscoverGiftCardProducts(businessId);
-        break;
-      case 'list_scheduling_resources':
-        result =
-          await this.scheduleResources.handleListSchedulingResources(
-            businessId,
-          );
-        break;
-      case 'create_resource':
-        result = await this.scheduleResources.handleCreateResource(
-          businessId,
-          params,
-        );
-        break;
-      case 'update_resource':
-        result = await this.scheduleResources.handleUpdateResource(
-          businessId,
-          params,
-        );
-        break;
-      case 'deactivate_resource':
-        result = await this.scheduleResources.handleDeactivateResource(
-          businessId,
-          params,
-        );
-        break;
-      case 'assign_resource_hours':
-        result = await this.scheduleResources.handleAssignResourceHours(
-          businessId,
-          params,
-          services,
-        );
-        break;
-      case 'list_resource_conflicts':
-        result = await this.scheduleResources.handleListResourceConflicts(
-          businessId,
-          params,
-        );
-        break;
-      case 'explain_resource_conflict':
-        result = await this.scheduleResources.handleExplainResourceConflict(
-          businessId,
-          params,
-        );
-        break;
-      case 'explain_multi_service_settings':
-        result = await this.scheduleResources.handleExplainMultiServiceSettings(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'configure_multi_service_scheduling_mode':
-        result =
-          await this.scheduleResources.handleConfigureMultiServiceSchedulingMode(
-            businessId,
-            params,
-          );
-        break;
-      case 'my_resource_assignments':
-        result = await this.scheduleResources.handleMyResourceAssignments(
-          businessId,
-          {
-            ...params,
-            sessionEmployeeId: employeeId,
-          },
-        );
-        break;
-      case 'block_resource_unavailable':
-        result = await this.scheduleResources.handleBlockResourceUnavailable(
-          businessId,
-          params,
-        );
-        break;
-      case 'check_multi_service_block_availability':
-        result =
-          await this.scheduleResources.handleCheckMultiServiceBlockAvailability(
-            businessId,
-            params,
-          );
-        break;
-      case 'check_package_line_availability':
-        result =
-          await this.scheduleResources.handleCheckPackageLineAvailability(
-            businessId,
-            params,
-          );
-        break;
-      case 'earliest_slot_all_services':
-        result = await this.scheduleResources.handleEarliestSlotAllServices(
-          businessId,
-          params,
-        );
-        break;
-      case 'providers_available_later_days':
-        result = await this.scheduleResources.handleProvidersAvailableLaterDays(
-          businessId,
-          params,
-        );
-        break;
-      case 'explain_why_no_slots':
-        result = await this.scheduleResources.handleExplainWhyNoSlots(
-          businessId,
-          params,
-        );
-        break;
-      case 'list_products':
-        result = await this.retailFinance.handleListProducts(
-          businessId,
-          params,
-        );
-        break;
-      case 'summarize_automation_performance':
-        result =
-          await this.marketingGrowth.handleSummarizeAutomationPerformance(
-            businessId,
-          );
-        break;
-      case 'trigger_reengagement':
-        result =
-          await this.marketingGrowth.handleTriggerReengagement(businessId);
-        break;
-      case 'list_inactive_customers':
-        result =
-          await this.marketingGrowth.handleListInactiveCustomers(businessId);
-        break;
-      case 'explain_plan_limits':
-        result = await this.marketingGrowth.handleExplainPlanLimits(businessId);
-        break;
-      case 'suggest_upgrade':
-        result = await this.marketingGrowth.handleSuggestUpgrade(businessId);
-        break;
-      case 'toggle_annual_billing':
-        result = await this.marketingGrowth.handleToggleAnnualBilling(
-          businessId,
-          params,
-          session?.context?.userEmail as string | undefined,
-        );
-        break;
-      case 'summarize_new_registrations':
-        result = await this.marketingGrowth.handleSummarizeNewRegistrations(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'open_billing_settings':
-        result =
-          await this.marketingGrowth.handleOpenBillingSettings(businessId);
-        break;
-      case 'summarize_loyalty_program':
-        result =
-          await this.marketingGrowth.handleSummarizeLoyaltyProgram(businessId);
-        break;
-      case 'explain_tenant_app_install':
-        result =
-          await this.marketingGrowth.handleExplainTenantAppInstall(businessId);
-        break;
-      case 'regenerate_tenant_app_install_qr':
-        result =
-          await this.marketingGrowth.handleRegenerateTenantAppInstallQr(
-            businessId,
-          );
-        break;
-      case 'create_promo_code':
-        result = await this.marketingGrowth.handleCreatePromoCode(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'how_to_download_app':
-        result = await this.marketingGrowth.handleHowToDownloadApp(businessId);
-        break;
-      case 'switch_to_consumer_app':
-        result =
-          await this.marketingGrowth.handleSwitchToConsumerApp(businessId);
-        break;
-      case 'promo_code_help':
-        result = await this.marketingGrowth.handlePromoCodeHelp(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'loyalty_points_balance':
-        result = await this.marketingGrowth.handleLoyaltyPointsBalance(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'explain_last_push':
-        result = await this.pushNotifications.handleExplainLastPush({
-          ...params,
-          lastPush: params.lastPush ?? session?.context?.lastPush,
-        });
-        break;
-      case 'open_booking_from_push':
-        result = await this.pushNotifications.handleOpenBookingFromPush(
-          businessId,
-          {
-            ...params,
-            lastPush: params.lastPush ?? session?.context?.lastPush,
-          },
-          effectivePrompt,
-        );
-        break;
-      case 'offline_queue_status':
-        result = await this.pushNotifications.handleOfflineQueueStatus({
-          ...params,
-          offlineQueueCount:
-            params.offlineQueueCount ?? session?.context?.offlineQueueCount,
-          online: params.online ?? session?.context?.online,
-        });
-        break;
-      case 'retry_offline_action':
-        result = await this.pushNotifications.handleRetryOfflineAction({
-          ...params,
-          offlineQueueCount:
-            params.offlineQueueCount ?? session?.context?.offlineQueueCount,
-          online: params.online ?? session?.context?.online,
-        });
-        break;
-      case 'dismiss_push':
-        result = await this.pushNotifications.handleDismissPush({
-          ...params,
-          lastPush: params.lastPush ?? session?.context?.lastPush,
-        });
-        break;
-      case 'end_of_day_summary':
-        result = await this.pushNotifications.handleEndOfDaySummary(
-          businessId,
-          {
-            ...params,
-            sessionEmployeeId:
-              (params.sessionEmployeeId as string | undefined) ??
-              (session?.context?.scopedEmployeeId as string | undefined) ??
-              employeeId,
-          },
-        );
-        break;
-      case 'new_booking_push_actions':
-        result = await this.pushNotifications.handleNewBookingPushActions();
-        break;
-      case 'test_push':
-        result = await this.pushNotifications.handleTestPush(businessId, {
-          ...params,
-          userId,
-        });
-        break;
-      case 'notification_history':
-        result = await this.pushNotifications.handleNotificationHistory(
-          businessId,
-          params,
-        );
-        break;
-      case 'toggle_business_email_on_customer_change':
-        result =
-          await this.pushNotifications.handleToggleBusinessEmailOnCustomerChange(
-            businessId,
-            params,
-            effectivePrompt,
-          );
-        break;
-      case 'enable_notifications':
-        result = await this.pushNotifications.handleEnableNotifications(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-          effectivePrompt,
-        );
-        break;
-      case 'appointment_reminder_preferences':
-        result =
-          await this.pushNotifications.handleAppointmentReminderPreferences(
-            businessId,
-            {
+      } else
+        switch (parsed.action) {
+          case 'create_booking':
+            result = await this.handleCreateBooking(
+              businessId,
+              params,
+              employees,
+              services,
+              customers,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'create_booking_subscription_credit': {
+            const prepared =
+              await this.bookingDepth.prepareSubscriptionCreditParams(
+                businessId,
+                params,
+                customers,
+                services,
+                (list, name) => this.resolveCustomer(list, name),
+                (list, name) => this.resolveService(list, name) ?? undefined,
+              );
+            if (!prepared.ok) {
+              result = prepared.result;
+              break;
+            }
+            result = await this.handleCreateBooking(
+              businessId,
+              prepared.params,
+              employees,
+              services,
+              customers,
+              userId,
+              effectivePrompt,
+            );
+            if (result.action === 'create_booking') {
+              result = {
+                ...result,
+                action: 'create_booking_subscription_credit',
+              };
+            }
+            break;
+          }
+          case 'create_booking_cash': {
+            const businessRow = await this.businessRepo.findOne({
+              where: { id: businessId },
+              select: { settings: true },
+            });
+            const prepared = this.bookingDepth.prepareCashCreateParams(
+              params,
+              businessRow?.settings ?? null,
+            );
+            if (!prepared.ok) {
+              result = prepared.result;
+              break;
+            }
+            result = await this.handleCreateBooking(
+              businessId,
+              prepared.params,
+              employees,
+              services,
+              customers,
+              userId,
+              effectivePrompt,
+            );
+            if (result.action === 'create_booking') {
+              result = { ...result, action: 'create_booking_cash' };
+            }
+            break;
+          }
+          case 'create_package_booking': {
+            const businessRow = await this.businessRepo.findOne({
+              where: { id: businessId },
+            });
+            if (!businessRow) {
+              result = {
+                success: false,
+                action: 'create_package_booking',
+                summary: 'Business not found',
+                details: {},
+              };
+              break;
+            }
+            result = await this.bookingDepth.handleCreatePackageBooking(
+              businessId,
+              params,
+              businessRow,
+              employees,
+              services,
+              customers,
+              (list, name) => this.resolveEmployee(list, name),
+              (list, name) => this.resolveCustomer(list, name),
+              userId,
+            );
+            break;
+          }
+          case 'create_multi_service_booking': {
+            const businessRow = await this.businessRepo.findOne({
+              where: { id: businessId },
+            });
+            if (!businessRow) {
+              result = {
+                success: false,
+                action: 'create_multi_service_booking',
+                summary: 'Business not found',
+                details: {},
+              };
+              break;
+            }
+            result = await this.bookingDepth.handleCreateMultiServiceBooking(
+              businessId,
+              params,
+              businessRow,
+              employees,
+              services,
+              customers,
+              (list, name) => this.resolveEmployee(list, name),
+              (list, p) => this.resolveServices(list, p),
+              (list, name) => this.resolveCustomer(list, name),
+              userId,
+            );
+            break;
+          }
+          case 'cancel_package_visit':
+            result = await this.bookingDepth.handleCancelPackageVisit(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'cancel_multi_service_group':
+            result = await this.bookingDepth.handleCancelMultiServiceGroup(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'reschedule_package_visit':
+            result = await this.bookingDepth.handleReschedulePackageVisit(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'reschedule_multi_service_group':
+            result = await this.bookingDepth.handleRescheduleMultiServiceGroup(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'list_cash_pending_bookings':
+            result = await this.bookingDepth.handleListCashPending(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'list_package_bookings':
+            result = await this.bookingDepth.handleListPackageBookings(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'list_multi_service_bookings':
+            result = await this.bookingDepth.handleListMultiServiceBookings(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'mark_paid': {
+            const pageCtx = session?.context as
+              | Record<string, unknown>
+              | undefined;
+            result = await this.bookingDepth.handleMarkPaid(
+              businessId,
+              { ...params, _timeZone: timeZone },
+              userId,
+              {
+                prompt: effectivePrompt,
+                employees,
+                customers,
+                timeZone,
+                sessionDate:
+                  typeof pageCtx?.date === 'string' ? pageCtx.date : undefined,
+                calendarRoute:
+                  typeof pageCtx?.route === 'string'
+                    ? pageCtx.route
+                    : undefined,
+              },
+            );
+            break;
+          }
+          case 'assign_booking_resource':
+            result = await this.bookingDepth.handleAssignResource(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'explain_booking_policy':
+            result = await this.bookingDepth.handleExplainPolicy(
+              businessId,
+              params,
+            );
+            break;
+          case 'list_customer_subscriptions':
+            result = await this.customerCrm.handleListCustomerSubscriptions(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'subscription_usage_history':
+            result = await this.customerCrm.handleSubscriptionUsageHistory(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'extend_subscription':
+            result = await this.customerCrm.handleExtendSubscription(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'cancel_subscription_admin':
+            result = await this.customerCrm.handleCancelSubscriptionAdmin(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'list_customer_gift_cards':
+            result = await this.customerCrm.handleListCustomerGiftCards(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'list_customer_bookings':
+            result = await this.customerCrm.handleListCustomerBookings(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'customer_no_show_history':
+            result = await this.customerCrm.handleCustomerNoShowHistory(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'tag_customer':
+            result = await this.customerCrm.handleTagCustomer(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'export_customer_data':
+            result = await this.customerCrm.handleExportCustomerData(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'delete_customer_data':
+            result = await this.customerCrm.handleDeleteCustomerData(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'send_reengagement_message':
+            result = await this.customerCrm.handleSendReengagementMessage(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'merge_customers':
+            result = await this.customerCrm.handleMergeCustomers(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
+          case 'my_profile':
+            result = await this.customerCrm.handleMyProfile(businessId, {
               ...params,
-              sessionCustomerId: session?.context?.customerId as
-                | string
-                | undefined,
-            },
-            effectivePrompt,
-          );
-        break;
-      case 'book_package':
-        result = await this.selfServiceBooking.handleBookPackage(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId as string | undefined,
-          _prompt: effectivePrompt,
-        });
-        break;
-      case 'book_multi_service':
-        result = await this.selfServiceBooking.handleBookMultiService(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            cartServiceIds:
-              session?.context?.cartServiceIds ?? params.cartServiceIds,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'check_package_availability':
-        result = await this.selfServiceBooking.handleCheckPackageAvailability(
-          businessId,
-          {
-            ...params,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'check_multi_service_availability':
-        result =
-          await this.selfServiceBooking.handleCheckMultiServiceAvailability(
-            businessId,
-            {
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'my_appointments':
+            result = await this.customerCrm.handleMyAppointments(businessId, {
               ...params,
-              cartServiceIds:
-                session?.context?.cartServiceIds ?? params.cartServiceIds,
-              _prompt: effectivePrompt,
-            },
-          );
-        break;
-      case 'select_subscription_plan':
-        result = await this.selfServiceBooking.handleSelectSubscriptionPlan(
-          businessId,
-          {
-            ...params,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'use_subscription_credit':
-        result = await this.selfServiceBooking.handleUseSubscriptionCredit(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'cancel_my_booking':
-        result = await this.selfServiceBooking.handleCancelMyBooking(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            bookingId: params.bookingId ?? session?.context?.bookingId,
-          },
-        );
-        break;
-      case 'reschedule_my_booking':
-        result = await this.selfServiceBooking.handleRescheduleMyBooking(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            bookingId: params.bookingId ?? session?.context?.bookingId,
-          },
-        );
-        break;
-      case 'cancel_package_visit_self':
-        result = await this.selfServiceBooking.handleCancelPackageVisitSelf(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            bookingId: params.bookingId ?? session?.context?.bookingId,
-          },
-        );
-        break;
-      case 'reschedule_package_visit_self':
-        result = await this.selfServiceBooking.handleReschedulePackageVisitSelf(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            bookingId: params.bookingId ?? session?.context?.bookingId,
-          },
-        );
-        break;
-      case 'list_my_appointments':
-        result = await this.selfServiceBooking.handleListMyAppointments(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'list_my_package_visits':
-        result = await this.selfServiceBooking.handleListMyPackageVisits(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-          effectivePrompt,
-        );
-        break;
-      case 'get_manage_link':
-        result = await this.selfServiceBooking.handleGetManageLink(businessId, {
-          ...params,
-          sessionCustomerId: session?.context?.customerId as string | undefined,
-          bookingId: params.bookingId ?? session?.context?.bookingId,
-        });
-        break;
-      case 'explain_cancel_policy':
-        result = await this.selfServiceBooking.handleExplainCancelPolicy(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'book_with_cash':
-        result = await this.selfServiceBooking.handleBookWithCash(
-          businessId,
-          params,
-        );
-        break;
-      case 'book_with_gift_card':
-        result = await this.selfServiceBooking.handleBookWithGiftCard(
-          businessId,
-          {
-            ...params,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'change_provider_on_reschedule':
-        result = await this.selfServiceBooking.handleChangeProviderOnReschedule(
-          businessId,
-          {
-            ...params,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'add_services_to_cart':
-        result = await this.selfServiceBooking.handleAddServicesToCart(
-          businessId,
-          {
-            ...params,
-            cartServiceIds:
-              session?.context?.cartServiceIds ?? params.cartServiceIds,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'remove_service_from_cart':
-        result = await this.selfServiceBooking.handleRemoveServiceFromCart(
-          businessId,
-          {
-            ...params,
-            cartServiceIds:
-              session?.context?.cartServiceIds ?? params.cartServiceIds,
-            _prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'show_cart_total_duration':
-        result = await this.selfServiceBooking.handleShowCartTotalDuration(
-          businessId,
-          {
-            ...params,
-            cartServiceIds:
-              session?.context?.cartServiceIds ?? params.cartServiceIds,
-          },
-        );
-        break;
-      case 'explain_recommendation_setup': {
-        const parsedExplainSetup = parseExplainRecommendationSetupFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result =
-          await this.recommendationProduct.handleExplainRecommendationSetup(
-            businessId,
-            parsedExplainSetup
-              ? {
-                  ...params,
-                  ...(parsedExplainSetup.serviceId
-                    ? { serviceId: parsedExplainSetup.serviceId }
-                    : {}),
-                  ...(parsedExplainSetup.serviceName
-                    ? { serviceName: parsedExplainSetup.serviceName }
-                    : {}),
-                  ...(parsedExplainSetup.categoryId
-                    ? { categoryId: parsedExplainSetup.categoryId }
-                    : {}),
-                  ...(parsedExplainSetup.categoryName
-                    ? { categoryName: parsedExplainSetup.categoryName }
-                    : {}),
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'explain_recommendation_analytics': {
-        const parsedAnalytics = parseExplainRecommendationAnalyticsFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result =
-          await this.recommendationProduct.handleExplainRecommendationAnalytics(
-            businessId,
-            parsedAnalytics
-              ? {
-                  ...params,
-                  ...(parsedAnalytics.aspect
-                    ? { aspect: parsedAnalytics.aspect }
-                    : {}),
-                  ...(parsedAnalytics.surface
-                    ? { surface: parsedAnalytics.surface }
-                    : {}),
-                  ...(parsedAnalytics.productName
-                    ? { productName: parsedAnalytics.productName }
-                    : {}),
-                  ...(parsedAnalytics.daysAhead
-                    ? { daysAhead: parsedAnalytics.daysAhead }
-                    : {}),
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'summarize_recommendation_performance': {
-        const parsedPerformance =
-          parseSummarizeRecommendationPerformanceFromPrompt(
-            effectivePrompt,
-            params,
-          );
-        result =
-          await this.recommendationProduct.handleSummarizeRecommendationPerformance(
-            businessId,
-            parsedPerformance
-              ? {
-                  ...params,
-                  ...(parsedPerformance.aspect
-                    ? { aspect: parsedPerformance.aspect }
-                    : {}),
-                  ...(parsedPerformance.surface
-                    ? { surface: parsedPerformance.surface }
-                    : {}),
-                  ...(parsedPerformance.serviceName
-                    ? { serviceName: parsedPerformance.serviceName }
-                    : {}),
-                  ...(parsedPerformance.productName
-                    ? { productName: parsedPerformance.productName }
-                    : {}),
-                  ...(parsedPerformance.daysAhead
-                    ? { daysAhead: parsedPerformance.daysAhead }
-                    : {}),
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'configure_recommendation_product': {
-        const parsedRecommendation =
-          parseConfigureRecommendationProductFromPrompt(
-            effectivePrompt,
-            params,
-          );
-        result =
-          await this.recommendationProduct.handleConfigureRecommendationProduct(
-            businessId,
-            parsedRecommendation
-              ? {
-                  ...params,
-                  ...(parsedRecommendation.productId
-                    ? { productId: parsedRecommendation.productId }
-                    : {}),
-                  ...(parsedRecommendation.productName
-                    ? {
-                        productName: parsedRecommendation.productName,
-                        name: parsedRecommendation.productName,
-                      }
-                    : {}),
-                  ...(parsedRecommendation.description
-                    ? { description: parsedRecommendation.description }
-                    : {}),
-                  ...(parsedRecommendation.imageUrl
-                    ? { imageUrl: parsedRecommendation.imageUrl }
-                    : {}),
-                  ...(parsedRecommendation.externalLink
-                    ? { externalLink: parsedRecommendation.externalLink }
-                    : {}),
-                  ...(parsedRecommendation.retailPrice !== undefined
-                    ? { retailPrice: parsedRecommendation.retailPrice }
-                    : {}),
-                  ...(parsedRecommendation.wantsImage
-                    ? { wantsImage: true }
-                    : {}),
-                  ...(parsedRecommendation.wantsLink
-                    ? { wantsLink: true }
-                    : {}),
-                  ...(parsedRecommendation.isUpdate ? { isUpdate: true } : {}),
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'link_recommended_products': {
-        const parsedLinks = parseLinkRecommendedProductsFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.recommendationProduct.handleLinkRecommendedProducts(
-          businessId,
-          parsedLinks
-            ? {
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'my_subscriptions':
+            result = await this.customerCrm.handleMySubscriptions(businessId, {
+              ...params,
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'explain_my_subscription':
+            result = await this.customerCrm.handleExplainMySubscription(
+              businessId,
+              {
                 ...params,
-                ...(parsedLinks.productNames.length > 0
-                  ? { productNames: parsedLinks.productNames }
-                  : {}),
-                ...(parsedLinks.productIds
-                  ? { productIds: parsedLinks.productIds }
-                  : {}),
-                ...(parsedLinks.serviceId
-                  ? { serviceId: parsedLinks.serviceId }
-                  : {}),
-                ...(parsedLinks.serviceName
-                  ? { serviceName: parsedLinks.serviceName }
-                  : {}),
-                ...(parsedLinks.categoryId
-                  ? { categoryId: parsedLinks.categoryId }
-                  : {}),
-                ...(parsedLinks.categoryName
-                  ? { categoryName: parsedLinks.categoryName }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'create_product':
-        result = await this.retailFinance.handleCreateProduct(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'link_product_to_service':
-        result = await this.retailFinance.handleLinkProductToService(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'adjust_inventory':
-        result = await this.retailFinance.handleAdjustInventory(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'add_retail_sale_to_booking':
-        result = await this.retailFinance.handleAddRetailSaleToBooking(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'remove_retail_line':
-        result = await this.retailFinance.handleRemoveRetailLine(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'record_expense':
-        result = await this.retailFinance.handleRecordExpense(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'list_expenses':
-        result = await this.retailFinance.handleListExpenses(
-          businessId,
-          params,
-        );
-        break;
-      case 'summarize_pl':
-        result = await this.retailFinance.handleSummarizePl(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'commission_report':
-        result = await this.retailFinance.handleCommissionReport(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'payout_export':
-        result = await this.retailFinance.handlePayoutExport(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'suggest_retail_upsell':
-        result = await this.retailFinance.handleSuggestRetailUpsell(
-          businessId,
-          {
-            ...params,
-            sessionEmployeeId: session?.context?.employeeId as
-              | string
-              | undefined,
-            _prompt: effectivePrompt,
-          },
-          effectivePrompt,
-        );
-        break;
-      case 'add_retail_to_my_booking':
-        result = await this.retailFinance.handleAddRetailToMyBooking(
-          businessId,
-          {
-            ...params,
-            sessionEmployeeId: session?.context?.employeeId as
-              | string
-              | undefined,
-            _prompt: effectivePrompt,
-          },
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'list_webhooks':
-        result = await this.integrations.handleListWebhooks(businessId);
-        break;
-      case 'create_webhook':
-        result = await this.integrations.handleCreateWebhook(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'delete_webhook':
-        result = await this.integrations.handleDeleteWebhook(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'toggle_webhook':
-        result = await this.integrations.handleToggleWebhook(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'test_webhook':
-        result = await this.integrations.handleTestWebhook(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'rotate_api_key':
-        result = await this.integrations.handleRotateApiKey(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'list_zapier_triggers':
-        result = await this.integrations.handleListZapierTriggers(businessId);
-        break;
-      case 'configure_zapier':
-        result = await this.integrations.handleConfigureZapier(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'configure_openai_integration':
-        result = await this.openaiIntegration.handleConfigureOpenaiIntegration(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'run_accounting_export':
-        result = await this.integrations.handleRunAccountingExport(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'configure_zendesk':
-        result = await this.integrations.handleConfigureZendesk(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'create_support_ticket':
-        result = await this.integrations.handleCreateSupportTicket(
-          businessId,
-          params,
-          effectivePrompt,
-          session?.context?.userEmail as string | undefined,
-          session?.context?.userName as string | undefined,
-        );
-        break;
-      case 'sync_customer_to_zendesk':
-        result = await this.integrations.handleSyncCustomerToZendesk(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'list_integration_health':
-        result =
-          await this.integrations.handleListIntegrationHealth(businessId);
-        break;
-      case 'explain_integration_health':
-        result = await this.integrations.handleExplainIntegrationHealth(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'contact_support':
-        result = await this.integrations.handleContactSupport(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            _prompt: effectivePrompt,
-          },
-          effectivePrompt,
-          session?.context?.userEmail as string | undefined,
-          session?.context?.userName as string | undefined,
-        );
-        break;
-      case 'open_ticket_for_order':
-        result = await this.integrations.handleOpenTicketForOrder(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            _prompt: effectivePrompt,
-          },
-          effectivePrompt,
-          session?.context?.userEmail as string | undefined,
-          session?.context?.userName as string | undefined,
-        );
-        break;
-      case 'list_gift_card_orders':
-        result = await this.giftFulfillment.handleListGiftCardOrders(
-          businessId,
-          params,
-        );
-        break;
-      case 'filter_awaiting_creation':
-        result = await this.giftFulfillment.handleFilterAwaitingCreation(
-          businessId,
-          params,
-        );
-        break;
-      case 'assign_card_creator':
-        result = await this.giftFulfillment.handleAssignCardCreator(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'assign_delivery_staff':
-        result = await this.giftFulfillment.handleAssignDeliveryStaff(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'mark_shipped':
-        result = await this.giftFulfillment.handleMarkShipped(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'mark_delivered':
-        result = await this.giftFulfillment.handleMarkDelivered(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'cancel_gift_card_order':
-        result = await this.giftFulfillment.handleCancelGiftCardOrder(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'extend_cancel_window':
-        result = await this.giftFulfillment.handleExtendCancelWindow(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'print_packing_slip':
-        result = await this.giftFulfillment.handlePrintPackingSlip(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'gift_card_creation_queue':
-        result =
-          await this.giftFulfillment.handleGiftCardCreationQueue(businessId);
-        break;
-      case 'start_card_preparation':
-        result = await this.giftFulfillment.handleStartCardPreparation(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'mark_card_ready':
-        result = await this.giftFulfillment.handleMarkCardReady(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'delivery_queue':
-        result = await this.giftFulfillment.handleDeliveryQueue(businessId);
-        break;
-      case 'accept_delivery':
-        result = await this.giftFulfillment.handleAcceptDelivery(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'mark_out_for_delivery':
-        result = await this.giftFulfillment.handleMarkOutForDelivery(
-          businessId,
-          params,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      case 'capture_delivery_proof':
-        result = await this.giftFulfillment.handleCaptureDeliveryProof(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'notify_delay':
-        result = await this.giftFulfillment.handleNotifyDelay(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'track_gift_card_shipment':
-        result = await this.giftFulfillment.handleTrackGiftCardShipment(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'enter_shipping_address':
-        result = await this.giftFulfillment.handleEnterShippingAddress(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-            _prompt: effectivePrompt,
-          },
-          effectivePrompt,
-        );
-        break;
-      case 'shipping_method_quote':
-        result = await this.giftFulfillment.handleShippingMethodQuote(
-          businessId,
-          params,
-        );
-        break;
-      case 'order_status_notifications':
-        result = await this.giftFulfillment.handleOrderStatusNotifications(
-          businessId,
-          {
-            ...params,
-            sessionCustomerId: session?.context?.customerId as
-              | string
-              | undefined,
-          },
-        );
-        break;
-      case 'accept_hipaa_baa': {
-        const parsedBaa = parseAcceptHipaaBaaFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleAcceptHipaaBaa(
-          businessId,
-          userId,
-          parsedBaa
-            ? { ...params, ...parsedBaa, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_compliance_status': {
-        const parsedComplianceStatus = parseExplainComplianceStatusFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleExplainComplianceStatus(
-          businessId,
-          parsedComplianceStatus
-            ? { ...params, ...parsedComplianceStatus, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'list_sub_processors': {
-        const parsedSubProcessors = parseListSubProcessorsFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleListSubProcessors(
-          businessId,
-          userId,
-          parsedSubProcessors
-            ? { ...params, ...parsedSubProcessors, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_gdpr_checklist': {
-        const parsedGdprChecklist = parseExplainGdprChecklistFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleExplainGdprChecklist(
-          businessId,
-          userId,
-          parsedGdprChecklist
-            ? { ...params, ...parsedGdprChecklist, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'open_compliance_dashboard': {
-        const parsedOpenCompliance = parseOpenComplianceDashboardFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleOpenComplianceDashboard(
-          businessId,
-          userId,
-          parsedOpenCompliance
-            ? { ...params, ...parsedOpenCompliance, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'admin_delete_customer_data': {
-        const parsedAdminDelete = parseAdminDeleteCustomerDataFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleAdminDeleteCustomerData(
-          businessId,
-          parsedAdminDelete
-            ? { ...params, ...parsedAdminDelete, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'report_data_breach': {
-        const parsedBreach = parseReportDataBreachFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleReportDataBreach(
-          businessId,
-          userId,
-          parsedBreach
-            ? { ...params, ...parsedBreach, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'send_breach_notification': {
-        const parsedSendBreach = parseSendBreachNotificationFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleSendBreachNotification(
-          businessId,
-          userId,
-          parsedSendBreach
-            ? { ...params, ...parsedSendBreach, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'list_breach_incidents': {
-        const parsedBreachList = parseListBreachIncidentsFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleListBreachIncidents(
-          businessId,
-          userId,
-          parsedBreachList
-            ? { ...params, ...parsedBreachList, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'view_phi_access_audit': {
-        const parsedPhiAudit = parseViewPhiAccessAuditFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleViewPhiAccessAudit(
-          businessId,
-          userId,
-          parsedPhiAudit
-            ? { ...params, ...parsedPhiAudit, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_phi_encryption_status': {
-        const parsedPhiEncryption = parseExplainPhiEncryptionStatusFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessCompliance.handleExplainPhiEncryptionStatus(
-          businessId,
-          parsedPhiEncryption
-            ? { ...params, ...parsedPhiEncryption, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_minimum_necessary_phi_access': {
-        const parsedMinimumNecessary =
-          parseExplainMinimumNecessaryPhiAccessFromPrompt(
-            effectivePrompt,
-            params,
-          );
-        result =
-          await this.businessCompliance.handleExplainMinimumNecessaryPhiAccess(
-            businessId,
-            parsedMinimumNecessary
-              ? {
-                  ...params,
-                  ...parsedMinimumNecessary,
-                  _prompt: effectivePrompt,
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'explain_hipaa_session_timeout': {
-        const parsedHipaaTimeoutExplain =
-          parseExplainHipaaSessionTimeoutFromPrompt(effectivePrompt, params);
-        result = await this.businessCompliance.handleExplainHipaaSessionTimeout(
-          businessId,
-          parsedHipaaTimeoutExplain
-            ? {
+                sessionCustomerId: session?.context?.customerId,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'subscription_usage':
+            result = await this.customerCrm.handleSubscriptionUsage(
+              businessId,
+              {
                 ...params,
-                ...parsedHipaaTimeoutExplain,
+                sessionCustomerId: session?.context?.customerId,
+              },
+            );
+            break;
+          case 'my_gift_cards':
+            result = await this.customerCrm.handleMyGiftCards(businessId, {
+              ...params,
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'gift_card_balance':
+            result = await this.customerCrm.handleGiftCardBalance(businessId, {
+              ...params,
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'gift_card_redemption_history':
+            result = await this.customerCrm.handleGiftCardRedemptionHistory(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId,
+              },
+            );
+            break;
+          case 'request_gift_card_cancel':
+            result = await this.customerCrm.handleRequestGiftCardCancel(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId,
+              },
+            );
+            break;
+          case 'request_gift_card_modify':
+            result = await this.customerCrm.handleRequestGiftCardModify(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId,
+              },
+            );
+            break;
+          case 'track_physical_gift_card_order':
+            result = await this.customerCrm.handleTrackPhysicalGiftCardOrder(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId,
+              },
+            );
+            break;
+          case 'privacy_export':
+            result = await this.customerCrm.handlePrivacyExport(businessId, {
+              ...params,
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'privacy_delete':
+            result = await this.customerCrm.handlePrivacyDelete(businessId, {
+              ...params,
+              sessionCustomerId: session?.context?.customerId,
+            });
+            break;
+          case 'discover_packages':
+            result = await this.customerCrm.handleDiscoverPackages(businessId);
+            break;
+          case 'discover_subscription_plans':
+            result = await this.customerCrm.handleDiscoverSubscriptionPlans(
+              businessId,
+              params,
+            );
+            break;
+          case 'discover_gift_card_products':
+            result =
+              await this.customerCrm.handleDiscoverGiftCardProducts(businessId);
+            break;
+          case 'list_scheduling_resources':
+            result =
+              await this.scheduleResources.handleListSchedulingResources(
+                businessId,
+              );
+            break;
+          case 'create_resource':
+            result = await this.scheduleResources.handleCreateResource(
+              businessId,
+              params,
+            );
+            break;
+          case 'update_resource':
+            result = await this.scheduleResources.handleUpdateResource(
+              businessId,
+              params,
+            );
+            break;
+          case 'deactivate_resource':
+            result = await this.scheduleResources.handleDeactivateResource(
+              businessId,
+              params,
+            );
+            break;
+          case 'assign_resource_hours':
+            result = await this.scheduleResources.handleAssignResourceHours(
+              businessId,
+              params,
+              services,
+            );
+            break;
+          case 'list_resource_conflicts':
+            result = await this.scheduleResources.handleListResourceConflicts(
+              businessId,
+              params,
+            );
+            break;
+          case 'explain_resource_conflict':
+            result = await this.scheduleResources.handleExplainResourceConflict(
+              businessId,
+              params,
+            );
+            break;
+          case 'explain_multi_service_settings':
+            result =
+              await this.scheduleResources.handleExplainMultiServiceSettings(
+                businessId,
+                params,
+                effectivePrompt,
+              );
+            break;
+          case 'configure_multi_service_scheduling_mode':
+            result =
+              await this.scheduleResources.handleConfigureMultiServiceSchedulingMode(
+                businessId,
+                params,
+              );
+            break;
+          case 'my_resource_assignments':
+            result = await this.scheduleResources.handleMyResourceAssignments(
+              businessId,
+              {
+                ...params,
+                sessionEmployeeId: employeeId,
+              },
+            );
+            break;
+          case 'block_resource_unavailable':
+            result =
+              await this.scheduleResources.handleBlockResourceUnavailable(
+                businessId,
+                params,
+              );
+            break;
+          case 'check_multi_service_block_availability':
+            result =
+              await this.scheduleResources.handleCheckMultiServiceBlockAvailability(
+                businessId,
+                params,
+              );
+            break;
+          case 'check_package_line_availability':
+            result =
+              await this.scheduleResources.handleCheckPackageLineAvailability(
+                businessId,
+                params,
+              );
+            break;
+          case 'earliest_slot_all_services':
+            result = await this.scheduleResources.handleEarliestSlotAllServices(
+              businessId,
+              params,
+            );
+            break;
+          case 'providers_available_later_days':
+            result =
+              await this.scheduleResources.handleProvidersAvailableLaterDays(
+                businessId,
+                params,
+              );
+            break;
+          case 'explain_why_no_slots':
+            result = await this.scheduleResources.handleExplainWhyNoSlots(
+              businessId,
+              params,
+            );
+            break;
+          case 'list_products':
+            result = await this.retailFinance.handleListProducts(
+              businessId,
+              params,
+            );
+            break;
+          case 'summarize_automation_performance':
+            result =
+              await this.marketingGrowth.handleSummarizeAutomationPerformance(
+                businessId,
+              );
+            break;
+          case 'trigger_reengagement':
+            result =
+              await this.marketingGrowth.handleTriggerReengagement(businessId);
+            break;
+          case 'list_inactive_customers':
+            result =
+              await this.marketingGrowth.handleListInactiveCustomers(
+                businessId,
+              );
+            break;
+          case 'explain_plan_limits':
+            result =
+              await this.marketingGrowth.handleExplainPlanLimits(businessId);
+            break;
+          case 'suggest_upgrade':
+            result =
+              await this.marketingGrowth.handleSuggestUpgrade(businessId);
+            break;
+          case 'toggle_annual_billing':
+            result = await this.marketingGrowth.handleToggleAnnualBilling(
+              businessId,
+              params,
+              session?.context?.userEmail as string | undefined,
+            );
+            break;
+          case 'summarize_new_registrations':
+            result = await this.marketingGrowth.handleSummarizeNewRegistrations(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'open_billing_settings':
+            result =
+              await this.marketingGrowth.handleOpenBillingSettings(businessId);
+            break;
+          case 'summarize_loyalty_program':
+            result =
+              await this.marketingGrowth.handleSummarizeLoyaltyProgram(
+                businessId,
+              );
+            break;
+          case 'explain_tenant_app_install':
+            result =
+              await this.marketingGrowth.handleExplainTenantAppInstall(
+                businessId,
+              );
+            break;
+          case 'regenerate_tenant_app_install_qr':
+            result =
+              await this.marketingGrowth.handleRegenerateTenantAppInstallQr(
+                businessId,
+              );
+            break;
+          case 'create_promo_code':
+            result = await this.marketingGrowth.handleCreatePromoCode(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'how_to_download_app':
+            result =
+              await this.marketingGrowth.handleHowToDownloadApp(businessId);
+            break;
+          case 'switch_to_consumer_app':
+            result =
+              await this.marketingGrowth.handleSwitchToConsumerApp(businessId);
+            break;
+          case 'promo_code_help':
+            result = await this.marketingGrowth.handlePromoCodeHelp(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'loyalty_points_balance':
+            result = await this.marketingGrowth.handleLoyaltyPointsBalance(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'explain_loyalty_points':
+            result = await this.marketingGrowth.handleExplainLoyaltyPoints(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'explain_last_push':
+            result = await this.pushNotifications.handleExplainLastPush({
+              ...params,
+              lastPush: params.lastPush ?? session?.context?.lastPush,
+            });
+            break;
+          case 'open_booking_from_push':
+            result = await this.pushNotifications.handleOpenBookingFromPush(
+              businessId,
+              {
+                ...params,
+                lastPush: params.lastPush ?? session?.context?.lastPush,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'offline_queue_status':
+            result = await this.pushNotifications.handleOfflineQueueStatus({
+              ...params,
+              offlineQueueCount:
+                params.offlineQueueCount ?? session?.context?.offlineQueueCount,
+              online: params.online ?? session?.context?.online,
+            });
+            break;
+          case 'retry_offline_action':
+            result = await this.pushNotifications.handleRetryOfflineAction({
+              ...params,
+              offlineQueueCount:
+                params.offlineQueueCount ?? session?.context?.offlineQueueCount,
+              online: params.online ?? session?.context?.online,
+            });
+            break;
+          case 'dismiss_push':
+            result = await this.pushNotifications.handleDismissPush({
+              ...params,
+              lastPush: params.lastPush ?? session?.context?.lastPush,
+            });
+            break;
+          case 'end_of_day_summary':
+            result = await this.pushNotifications.handleEndOfDaySummary(
+              businessId,
+              {
+                ...params,
+                sessionEmployeeId:
+                  (params.sessionEmployeeId as string | undefined) ??
+                  (session?.context?.scopedEmployeeId as string | undefined) ??
+                  employeeId,
+              },
+            );
+            break;
+          case 'new_booking_push_actions':
+            result = await this.pushNotifications.handleNewBookingPushActions();
+            break;
+          case 'test_push':
+            result = await this.pushNotifications.handleTestPush(businessId, {
+              ...params,
+              userId,
+            });
+            break;
+          case 'notification_history':
+            result = await this.pushNotifications.handleNotificationHistory(
+              businessId,
+              params,
+            );
+            break;
+          case 'toggle_business_email_on_customer_change':
+            result =
+              await this.pushNotifications.handleToggleBusinessEmailOnCustomerChange(
+                businessId,
+                params,
+                effectivePrompt,
+              );
+            break;
+          case 'enable_notifications':
+            result = await this.pushNotifications.handleEnableNotifications(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'appointment_reminder_preferences':
+            result =
+              await this.pushNotifications.handleAppointmentReminderPreferences(
+                businessId,
+                {
+                  ...params,
+                  sessionCustomerId: session?.context?.customerId as
+                    | string
+                    | undefined,
+                },
+                effectivePrompt,
+              );
+            break;
+          case 'book_package':
+            result = await this.selfServiceBooking.handleBookPackage(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
                 _prompt: effectivePrompt,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_business_tax':
-        result = await this.businessTax.handleExplainBusinessTax(
-          businessId,
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-        );
-        break;
-      case 'explain_stacked_tax':
-        result = await this.businessTax.handleExplainStackedTax(
-          businessId,
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-        );
-        break;
-      case 'explain_stripe_tax_charge': {
-        const parsedStripeTax = parseExplainStripeTaxChargeFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessTax.handleExplainStripeTaxCharge(
-          businessId,
-          parsedStripeTax
-            ? { ...params, ...parsedStripeTax, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'quote_staff_booking_tax': {
-        const parsedQuoteTax = parseQuoteStaffBookingTaxFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessTax.handleQuoteStaffBookingTax(
-          businessId,
-          parsedQuoteTax
-            ? { ...params, ...parsedQuoteTax, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'summarize_customer_tax_paid': {
-        const parsedCustomerTax = parseSummarizeCustomerTaxPaidFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessTax.handleSummarizeCustomerTaxPaid(
-          businessId,
-          parsedCustomerTax
-            ? { ...params, ...parsedCustomerTax, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'lookup_booking_tax_metadata': {
-        const parsedLookupTax = parseLookupBookingTaxMetadataFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessTax.handleLookupBookingTaxMetadata(
-          businessId,
-          parsedLookupTax
-            ? { ...params, ...parsedLookupTax, _prompt: effectivePrompt }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_business_languages':
-        result =
-          await this.businessLanguages.handleExplainBusinessLanguages(
-            businessId,
-          );
-        break;
-      case 'explain_business_date_format':
-        result =
-          await this.businessDateFormat.handleExplainBusinessDateFormat(
-            businessId,
-          );
-        break;
-      case 'preview_business_date_format': {
-        const parsedPreview = parseBusinessDateFormatFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.businessDateFormat.handlePreviewBusinessDateFormat(
-          businessId,
-          parsedPreview
-            ? {
+              },
+            );
+            break;
+          case 'book_multi_service':
+            result = await this.selfServiceBooking.handleBookMultiService(
+              businessId,
+              {
                 ...params,
-                ...(parsedPreview.dateFormat
-                  ? { dateFormat: parsedPreview.dateFormat }
-                  : {}),
-                ...(parsedPreview.timeFormat
-                  ? { timeFormat: parsedPreview.timeFormat }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'audit_dashboard_date_surfaces':
-        result =
-          await this.businessDateFormat.handleAuditDashboardDateSurfaces(
-            businessId,
-          );
-        break;
-      case 'explain_notification_date_format':
-        result =
-          await this.businessDateFormat.handleExplainNotificationDateFormat(
-            businessId,
-          );
-        break;
-      case 'preview_notification_datetime': {
-        const messageKind =
-          typeof params.messageKind === 'string'
-            ? params.messageKind
-            : undefined;
-        result =
-          await this.businessDateFormat.handlePreviewNotificationDatetime(
-            businessId,
-            messageKind ? { ...params, messageKind } : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'notify_patient_result_ready':
-        result = await this.businessDateFormat.handleNotifyPatientResultReady(
-          businessId,
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      case 'create_test_order':
-      case 'create_catalog_test_order': {
-        result = await this.clinicTestOrder.handleCreateTestOrder(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      }
-      case 'push_lab_booking_to_patient':
-        result = await this.clinicLabBooking.handlePushLabBookingToPatient(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      case 'staff_book_lab_collection':
-        result = await this.clinicLabBooking.handleStaffBookLabCollection(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      case 'list_test_orders':
-        result = await this.clinicTestOrder.handleListTestOrders(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-        );
-        break;
-      case 'enter_test_result': {
-        result = await this.clinicTestResult.handleEnterTestResult(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      }
-      case 'release_test_result': {
-        result = await this.clinicTestResult.handleReleaseTestResult(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      }
-      case 'upload_patient_result':
-      case 'explain_patient_results':
-      case 'configure_test_reference_range':
-      case 'list_abnormal_results':
-        result = await dispatchClinicTestResultExtIntent(
-          coerceClinicTestResultExtIntent(parsed.action),
-          this.clinicTestResult,
-          {
-            businessId,
-            userId: userId ?? '',
-            params,
-            prompt: effectivePrompt,
-          },
-        );
-        break;
-      case 'explain_patient_chart':
-        result = await this.clinicPatientChart.handleExplainPatientChart(
-          businessId,
-          userId ?? '',
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-        );
-        break;
-      case 'explain_app_feature':
-      case 'guide_user_flow':
-      case 'explain_current_screen':
-        result = await this.dispatchProductGuideIntent(
-          parsed.action,
-          businessId,
-          params,
-          effectivePrompt,
-          session,
-        );
-        break;
-      case 'explain_ai_settings':
-      case 'explain_ai_suggestions':
-      case 'explain_assistant_approval':
-        result = await this.dispatchMetaProductGuideIntent(
-          parsed.action,
-          businessId,
-          params,
-          effectivePrompt,
-          session,
-          userId,
-        );
-        break;
-      case 'explain_visibility_block':
-      case 'explain_empty_catalog':
-      case 'explain_stripe_not_connected':
-        result = await this.dispatchEmptyStateGuideIntent(
-          parsed.action,
-          businessId,
-          params,
-          effectivePrompt,
-          session,
-        );
-        break;
-      case 'explain_date_input_format':
-        result =
-          await this.businessDateFormat.handleExplainDateInputFormat(
-            businessId,
-          );
-        break;
-      case 'preview_date_input_parse': {
-        const dateStrings = parseDateStringsFromPrompt(effectivePrompt, params);
-        result = await this.businessDateFormat.handlePreviewDateInputParse(
-          businessId,
-          { ...params, dateStrings, _prompt: effectivePrompt },
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'configure_package_localized_names': {
-        const parsedPackageNames = parsePackageLocalizedNamesFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result =
-          await this.packageLocalizedNames.handleConfigurePackageLocalizedNames(
-            businessId,
-            parsedPackageNames
-              ? {
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                cartServiceIds:
+                  session?.context?.cartServiceIds ?? params.cartServiceIds,
+                _prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'check_package_availability':
+            result =
+              await this.selfServiceBooking.handleCheckPackageAvailability(
+                businessId,
+                {
                   ...params,
-                  operation: parsedPackageNames.operation,
-                  packageId: parsedPackageNames.packageId,
-                  packageName: parsedPackageNames.packageName,
-                  locale: parsedPackageNames.locale,
-                  displayName: parsedPackageNames.displayName,
-                }
-              : params,
-            effectivePrompt,
-          );
-        break;
-      }
-      case 'configure_tour_service': {
-        const parsedTour = parseConfigureTourServiceFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleConfigureTourService(
-          businessId,
-          parsedTour
-            ? {
-                ...params,
-                serviceId: parsedTour.serviceId,
-                serviceName: parsedTour.serviceName,
-                ...(parsedTour.enableTour
-                  ? { enableTour: true, serviceType: 'tour' }
-                  : {}),
-                ...(parsedTour.maxGroupSize !== undefined
-                  ? { maxGroupSize: parsedTour.maxGroupSize }
-                  : {}),
-                ...(parsedTour.difficulty
-                  ? { difficulty: parsedTour.difficulty }
-                  : {}),
-                ...(parsedTour.coverImage
-                  ? { coverImage: parsedTour.coverImage }
-                  : {}),
-                ...(parsedTour.meetingPoint
-                  ? { meetingPoint: parsedTour.meetingPoint }
-                  : {}),
-                ...(parsedTour.includedItems
-                  ? { includedItems: parsedTour.includedItems }
-                  : {}),
-                ...(parsedTour.durationDays !== undefined
-                  ? { durationDays: parsedTour.durationDays }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_tour_services': {
-        const parsedExplainTours = parseExplainTourServicesFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleExplainTourServices(
-          businessId,
-          parsedExplainTours
-            ? {
-                ...params,
-                serviceId: parsedExplainTours.serviceId,
-                serviceName: parsedExplainTours.serviceName,
-                daysAhead: parsedExplainTours.daysAhead,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_tour_booking_record': {
-        const parsedRecord = parseExplainTourBookingRecordFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleExplainTourBookingRecord(
-          businessId,
-          parsedRecord
-            ? {
-                ...params,
-                bookingId: parsedRecord.bookingId,
-                customerName: parsedRecord.customerName,
-                serviceName: parsedRecord.serviceName,
-                aspect: parsedRecord.aspect,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_tour_calendar_span': {
-        const parsedCalendarSpan = parseExplainTourCalendarSpanFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleExplainTourCalendarSpan(
-          businessId,
-          parsedCalendarSpan
-            ? {
-                ...params,
-                serviceId: parsedCalendarSpan.serviceId,
-                serviceName: parsedCalendarSpan.serviceName,
-                weekStartDate: parsedCalendarSpan.weekStartDate,
-                aspect: parsedCalendarSpan.aspect,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'list_tour_calendar_week': {
-        const parsedCalendarWeek = parseListTourCalendarWeekFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleListTourCalendarWeek(
-          businessId,
-          parsedCalendarWeek
-            ? {
-                ...params,
-                employeeId: parsedCalendarWeek.employeeId,
-                employeeName: parsedCalendarWeek.employeeName,
-                serviceId: parsedCalendarWeek.serviceId,
-                serviceName: parsedCalendarWeek.serviceName,
-                weekStartDate: parsedCalendarWeek.weekStartDate,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'list_upcoming_tour_departures': {
-        const parsedDepartures = parseListUpcomingTourDeparturesFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.tourService.handleListUpcomingTourDepartures(
-          businessId,
-          parsedDepartures
-            ? {
-                ...params,
-                serviceId: parsedDepartures.serviceId,
-                serviceName: parsedDepartures.serviceName,
-                daysAhead: parsedDepartures.daysAhead,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'apply_tour_playbook':
-        result = await this.tourService.handleApplyTourPlaybook(
-          businessId,
-          userId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'configure_clinic_service': {
-        const parsedClinic = parseConfigureClinicServiceFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.clinicService.handleConfigureClinicService(
-          businessId,
-          parsedClinic
-            ? {
-                ...params,
-                serviceId: parsedClinic.serviceId,
-                serviceName: parsedClinic.serviceName,
-                ...(parsedClinic.serviceType
-                  ? { serviceType: parsedClinic.serviceType }
-                  : {}),
-                ...(parsedClinic.requiresFasting !== undefined
-                  ? { requiresFasting: parsedClinic.requiresFasting }
-                  : {}),
-                ...(parsedClinic.preparationNotes
-                  ? { preparationNotes: parsedClinic.preparationNotes }
-                  : {}),
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'explain_clinic_services': {
-        const parsedExplainClinic = parseExplainClinicServicesFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result = await this.clinicService.handleExplainClinicServices(
-          businessId,
-          parsedExplainClinic
-            ? {
-                ...params,
-                serviceId: parsedExplainClinic.serviceId,
-                serviceName: parsedExplainClinic.serviceName,
-              }
-            : params,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'apply_clinic_playbook':
-        result = await this.clinicService.handleApplyClinicPlaybook(
-          businessId,
-          userId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'explain_package_display_name': {
-        const parsedDisplayName = parsePackageDisplayNameExplainFromPrompt(
-          effectivePrompt,
-          params,
-        );
-        result =
-          await this.packageLocalizedNames.handleExplainPackageDisplayName(
-            businessId,
-            parsedDisplayName
-              ? {
+                  _prompt: effectivePrompt,
+                },
+              );
+            break;
+          case 'check_multi_service_availability':
+            result =
+              await this.selfServiceBooking.handleCheckMultiServiceAvailability(
+                businessId,
+                {
                   ...params,
-                  packageId: parsedDisplayName.packageId,
-                  packageName: parsedDisplayName.packageName,
-                  locale: parsedDisplayName.queryLocale,
-                }
-              : params,
-            effectivePrompt,
-            typeof session?.context?.locale === 'string'
-              ? session.context.locale
-              : undefined,
-          );
-        break;
-      }
-      case 'explain_business_currency':
-        result =
-          await this.businessCurrency.handleExplainBusinessCurrency(businessId);
-        break;
-      case 'explain_stripe_currency_warning':
-        result =
-          await this.businessCurrency.handleExplainStripeCurrencyWarning(
-            businessId,
-          );
-        break;
-      case 'diagnose_stripe_checkout_failure':
-        result =
-          await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
-            businessId,
-          );
-        break;
-      case 'explain_reports_currency':
-        result =
-          await this.businessCurrency.handleExplainReportsCurrency(businessId);
-        break;
-      case 'summarize_revenue_kpis':
-        result = await this.businessCurrency.handleSummarizeRevenueKpis(
-          businessId,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'bulk_update_service_currency':
-        result = await this.businessCurrency.handleBulkUpdateServiceCurrency(
-          businessId,
-          { ...params, _prompt: effectivePrompt },
-          effectivePrompt,
-          isExecutionConfirmed(session),
-        );
-        break;
-      case 'create_service': {
-        const createParams = { ...params };
-        enrichCreateServiceParamsFromPrompt(createParams, effectivePrompt, services);
-        if (
-          Array.isArray(createParams.services) &&
-          createParams.services.length > 1
-        ) {
-          result = await this.handleCreateServices(
-            businessId,
-            createParams,
-            services,
-            userId,
-            effectivePrompt,
-          );
-        } else {
-          result = await this.handleCreateService(
-            businessId,
-            createParams,
-            services,
-            userId,
-            effectivePrompt,
-          );
+                  cartServiceIds:
+                    session?.context?.cartServiceIds ?? params.cartServiceIds,
+                  _prompt: effectivePrompt,
+                },
+              );
+            break;
+          case 'select_subscription_plan':
+            result = await this.selfServiceBooking.handleSelectSubscriptionPlan(
+              businessId,
+              {
+                ...params,
+                _prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'use_subscription_credit':
+            result = await this.selfServiceBooking.handleUseSubscriptionCredit(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'cancel_my_booking':
+            result = await this.selfServiceBooking.handleCancelMyBooking(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                bookingId: params.bookingId ?? session?.context?.bookingId,
+              },
+            );
+            break;
+          case 'reschedule_my_booking':
+            result = await this.selfServiceBooking.handleRescheduleMyBooking(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                bookingId: params.bookingId ?? session?.context?.bookingId,
+              },
+            );
+            break;
+          case 'cancel_package_visit_self':
+            result = await this.selfServiceBooking.handleCancelPackageVisitSelf(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                bookingId: params.bookingId ?? session?.context?.bookingId,
+              },
+            );
+            break;
+          case 'reschedule_package_visit_self':
+            result =
+              await this.selfServiceBooking.handleReschedulePackageVisitSelf(
+                businessId,
+                {
+                  ...params,
+                  sessionCustomerId: session?.context?.customerId as
+                    | string
+                    | undefined,
+                  bookingId: params.bookingId ?? session?.context?.bookingId,
+                },
+              );
+            break;
+          case 'list_my_appointments':
+            result = await this.selfServiceBooking.handleListMyAppointments(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'list_my_package_visits':
+            result = await this.selfServiceBooking.handleListMyPackageVisits(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'get_manage_link':
+            result = await this.selfServiceBooking.handleGetManageLink(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                bookingId: params.bookingId ?? session?.context?.bookingId,
+              },
+            );
+            break;
+          case 'explain_cancel_policy':
+            result = await this.selfServiceBooking.handleExplainCancelPolicy(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'explain_package_visit_rules':
+            result =
+              await this.selfServiceBooking.handleExplainPackageVisitRules(
+                businessId,
+                {
+                  ...params,
+                  sessionCustomerId: session?.context?.customerId as
+                    | string
+                    | undefined,
+                },
+                effectivePrompt,
+              );
+            break;
+          case 'book_with_cash':
+            result = await this.selfServiceBooking.handleBookWithCash(
+              businessId,
+              params,
+            );
+            break;
+          case 'book_with_gift_card':
+            result = await this.selfServiceBooking.handleBookWithGiftCard(
+              businessId,
+              {
+                ...params,
+                _prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'change_provider_on_reschedule':
+            result =
+              await this.selfServiceBooking.handleChangeProviderOnReschedule(
+                businessId,
+                {
+                  ...params,
+                  _prompt: effectivePrompt,
+                },
+              );
+            break;
+          case 'add_services_to_cart':
+            result = await this.selfServiceBooking.handleAddServicesToCart(
+              businessId,
+              {
+                ...params,
+                cartServiceIds:
+                  session?.context?.cartServiceIds ?? params.cartServiceIds,
+                _prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'remove_service_from_cart':
+            result = await this.selfServiceBooking.handleRemoveServiceFromCart(
+              businessId,
+              {
+                ...params,
+                cartServiceIds:
+                  session?.context?.cartServiceIds ?? params.cartServiceIds,
+                _prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'show_cart_total_duration':
+            result = await this.selfServiceBooking.handleShowCartTotalDuration(
+              businessId,
+              {
+                ...params,
+                cartServiceIds:
+                  session?.context?.cartServiceIds ?? params.cartServiceIds,
+              },
+            );
+            break;
+          case 'explain_multi_service_cart':
+            result =
+              await this.selfServiceBooking.handleExplainMultiServiceCart(
+                businessId,
+                {
+                  ...params,
+                  cartServiceIds:
+                    session?.context?.cartServiceIds ?? params.cartServiceIds,
+                  _prompt: effectivePrompt,
+                },
+                effectivePrompt,
+              );
+            break;
+          case 'explain_package_savings':
+            result = await this.selfServiceBooking.handleExplainPackageSavings(
+              businessId,
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          case 'explain_subscription_vs_one_time':
+            result =
+              await this.selfServiceBooking.handleExplainSubscriptionVsOneTime(
+                businessId,
+                { ...params, _prompt: effectivePrompt },
+                effectivePrompt,
+              );
+            break;
+          case 'explain_recommendation_setup': {
+            const parsedExplainSetup =
+              parseExplainRecommendationSetupFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.recommendationProduct.handleExplainRecommendationSetup(
+                businessId,
+                parsedExplainSetup
+                  ? {
+                      ...params,
+                      ...(parsedExplainSetup.serviceId
+                        ? { serviceId: parsedExplainSetup.serviceId }
+                        : {}),
+                      ...(parsedExplainSetup.serviceName
+                        ? { serviceName: parsedExplainSetup.serviceName }
+                        : {}),
+                      ...(parsedExplainSetup.categoryId
+                        ? { categoryId: parsedExplainSetup.categoryId }
+                        : {}),
+                      ...(parsedExplainSetup.categoryName
+                        ? { categoryName: parsedExplainSetup.categoryName }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'explain_recommendation_analytics': {
+            const parsedAnalytics =
+              parseExplainRecommendationAnalyticsFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.recommendationProduct.handleExplainRecommendationAnalytics(
+                businessId,
+                parsedAnalytics
+                  ? {
+                      ...params,
+                      ...(parsedAnalytics.aspect
+                        ? { aspect: parsedAnalytics.aspect }
+                        : {}),
+                      ...(parsedAnalytics.surface
+                        ? { surface: parsedAnalytics.surface }
+                        : {}),
+                      ...(parsedAnalytics.productName
+                        ? { productName: parsedAnalytics.productName }
+                        : {}),
+                      ...(parsedAnalytics.daysAhead
+                        ? { daysAhead: parsedAnalytics.daysAhead }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'summarize_recommendation_performance': {
+            const parsedPerformance =
+              parseSummarizeRecommendationPerformanceFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.recommendationProduct.handleSummarizeRecommendationPerformance(
+                businessId,
+                parsedPerformance
+                  ? {
+                      ...params,
+                      ...(parsedPerformance.aspect
+                        ? { aspect: parsedPerformance.aspect }
+                        : {}),
+                      ...(parsedPerformance.surface
+                        ? { surface: parsedPerformance.surface }
+                        : {}),
+                      ...(parsedPerformance.serviceName
+                        ? { serviceName: parsedPerformance.serviceName }
+                        : {}),
+                      ...(parsedPerformance.productName
+                        ? { productName: parsedPerformance.productName }
+                        : {}),
+                      ...(parsedPerformance.daysAhead
+                        ? { daysAhead: parsedPerformance.daysAhead }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'configure_recommendation_product': {
+            const parsedRecommendation =
+              parseConfigureRecommendationProductFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.recommendationProduct.handleConfigureRecommendationProduct(
+                businessId,
+                parsedRecommendation
+                  ? {
+                      ...params,
+                      ...(parsedRecommendation.productId
+                        ? { productId: parsedRecommendation.productId }
+                        : {}),
+                      ...(parsedRecommendation.productName
+                        ? {
+                            productName: parsedRecommendation.productName,
+                            name: parsedRecommendation.productName,
+                          }
+                        : {}),
+                      ...(parsedRecommendation.description
+                        ? { description: parsedRecommendation.description }
+                        : {}),
+                      ...(parsedRecommendation.imageUrl
+                        ? { imageUrl: parsedRecommendation.imageUrl }
+                        : {}),
+                      ...(parsedRecommendation.externalLink
+                        ? { externalLink: parsedRecommendation.externalLink }
+                        : {}),
+                      ...(parsedRecommendation.retailPrice !== undefined
+                        ? { retailPrice: parsedRecommendation.retailPrice }
+                        : {}),
+                      ...(parsedRecommendation.wantsImage
+                        ? { wantsImage: true }
+                        : {}),
+                      ...(parsedRecommendation.wantsLink
+                        ? { wantsLink: true }
+                        : {}),
+                      ...(parsedRecommendation.isUpdate
+                        ? { isUpdate: true }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'link_recommended_products': {
+            const parsedLinks = parseLinkRecommendedProductsFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.recommendationProduct.handleLinkRecommendedProducts(
+                businessId,
+                parsedLinks
+                  ? {
+                      ...params,
+                      ...(parsedLinks.productNames.length > 0
+                        ? { productNames: parsedLinks.productNames }
+                        : {}),
+                      ...(parsedLinks.productIds
+                        ? { productIds: parsedLinks.productIds }
+                        : {}),
+                      ...(parsedLinks.serviceId
+                        ? { serviceId: parsedLinks.serviceId }
+                        : {}),
+                      ...(parsedLinks.serviceName
+                        ? { serviceName: parsedLinks.serviceName }
+                        : {}),
+                      ...(parsedLinks.categoryId
+                        ? { categoryId: parsedLinks.categoryId }
+                        : {}),
+                      ...(parsedLinks.categoryName
+                        ? { categoryName: parsedLinks.categoryName }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'create_product':
+            result = await this.retailFinance.handleCreateProduct(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'link_product_to_service':
+            result = await this.retailFinance.handleLinkProductToService(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'adjust_inventory':
+            result = await this.retailFinance.handleAdjustInventory(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'add_retail_sale_to_booking':
+            result = await this.retailFinance.handleAddRetailSaleToBooking(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'remove_retail_line':
+            result = await this.retailFinance.handleRemoveRetailLine(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'record_expense':
+            result = await this.retailFinance.handleRecordExpense(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'list_expenses':
+            result = await this.retailFinance.handleListExpenses(
+              businessId,
+              params,
+            );
+            break;
+          case 'summarize_pl':
+            result = await this.retailFinance.handleSummarizePl(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'commission_report':
+            result = await this.retailFinance.handleCommissionReport(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'payout_export':
+            result = await this.retailFinance.handlePayoutExport(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'suggest_retail_upsell':
+            result = await this.retailFinance.handleSuggestRetailUpsell(
+              businessId,
+              {
+                ...params,
+                sessionEmployeeId: session?.context?.employeeId as
+                  | string
+                  | undefined,
+                _prompt: effectivePrompt,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'add_retail_to_my_booking':
+            result = await this.retailFinance.handleAddRetailToMyBooking(
+              businessId,
+              {
+                ...params,
+                sessionEmployeeId: session?.context?.employeeId as
+                  | string
+                  | undefined,
+                _prompt: effectivePrompt,
+              },
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'list_webhooks':
+            result = await this.integrations.handleListWebhooks(businessId);
+            break;
+          case 'create_webhook':
+            result = await this.integrations.handleCreateWebhook(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'delete_webhook':
+            result = await this.integrations.handleDeleteWebhook(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'toggle_webhook':
+            result = await this.integrations.handleToggleWebhook(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'test_webhook':
+            result = await this.integrations.handleTestWebhook(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'rotate_api_key':
+            result = await this.integrations.handleRotateApiKey(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'list_zapier_triggers':
+            result =
+              await this.integrations.handleListZapierTriggers(businessId);
+            break;
+          case 'configure_zapier':
+            result = await this.integrations.handleConfigureZapier(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'configure_openai_integration':
+            result =
+              await this.openaiIntegration.handleConfigureOpenaiIntegration(
+                businessId,
+                params,
+                effectivePrompt,
+              );
+            break;
+          case 'run_accounting_export':
+            result = await this.integrations.handleRunAccountingExport(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'configure_zendesk':
+            result = await this.integrations.handleConfigureZendesk(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'create_support_ticket':
+            result = await this.integrations.handleCreateSupportTicket(
+              businessId,
+              params,
+              effectivePrompt,
+              session?.context?.userEmail as string | undefined,
+              session?.context?.userName as string | undefined,
+            );
+            break;
+          case 'sync_customer_to_zendesk':
+            result = await this.integrations.handleSyncCustomerToZendesk(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'list_integration_health':
+            result =
+              await this.integrations.handleListIntegrationHealth(businessId);
+            break;
+          case 'explain_integration_health':
+            result = await this.integrations.handleExplainIntegrationHealth(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'contact_support':
+            result = await this.integrations.handleContactSupport(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                _prompt: effectivePrompt,
+              },
+              effectivePrompt,
+              session?.context?.userEmail as string | undefined,
+              session?.context?.userName as string | undefined,
+            );
+            break;
+          case 'open_ticket_for_order':
+            result = await this.integrations.handleOpenTicketForOrder(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                _prompt: effectivePrompt,
+              },
+              effectivePrompt,
+              session?.context?.userEmail as string | undefined,
+              session?.context?.userName as string | undefined,
+            );
+            break;
+          case 'list_gift_card_orders':
+            result = await this.giftFulfillment.handleListGiftCardOrders(
+              businessId,
+              params,
+            );
+            break;
+          case 'filter_awaiting_creation':
+            result = await this.giftFulfillment.handleFilterAwaitingCreation(
+              businessId,
+              params,
+            );
+            break;
+          case 'assign_card_creator':
+            result = await this.giftFulfillment.handleAssignCardCreator(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'assign_delivery_staff':
+            result = await this.giftFulfillment.handleAssignDeliveryStaff(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'mark_shipped':
+            result = await this.giftFulfillment.handleMarkShipped(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'mark_delivered':
+            result = await this.giftFulfillment.handleMarkDelivered(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'cancel_gift_card_order':
+            result = await this.giftFulfillment.handleCancelGiftCardOrder(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'extend_cancel_window':
+            result = await this.giftFulfillment.handleExtendCancelWindow(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'print_packing_slip':
+            result = await this.giftFulfillment.handlePrintPackingSlip(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'gift_card_creation_queue':
+            result =
+              await this.giftFulfillment.handleGiftCardCreationQueue(
+                businessId,
+              );
+            break;
+          case 'start_card_preparation':
+            result = await this.giftFulfillment.handleStartCardPreparation(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'mark_card_ready':
+            result = await this.giftFulfillment.handleMarkCardReady(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'delivery_queue':
+            result = await this.giftFulfillment.handleDeliveryQueue(businessId);
+            break;
+          case 'accept_delivery':
+            result = await this.giftFulfillment.handleAcceptDelivery(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'mark_out_for_delivery':
+            result = await this.giftFulfillment.handleMarkOutForDelivery(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'capture_delivery_proof':
+            result = await this.giftFulfillment.handleCaptureDeliveryProof(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'notify_delay':
+            result = await this.giftFulfillment.handleNotifyDelay(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'track_gift_card_shipment':
+            result = await this.giftFulfillment.handleTrackGiftCardShipment(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'enter_shipping_address':
+            result = await this.giftFulfillment.handleEnterShippingAddress(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+                _prompt: effectivePrompt,
+              },
+              effectivePrompt,
+            );
+            break;
+          case 'shipping_method_quote':
+            result = await this.giftFulfillment.handleShippingMethodQuote(
+              businessId,
+              params,
+            );
+            break;
+          case 'order_status_notifications':
+            result = await this.giftFulfillment.handleOrderStatusNotifications(
+              businessId,
+              {
+                ...params,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              },
+            );
+            break;
+          case 'accept_hipaa_baa': {
+            const parsedBaa = parseAcceptHipaaBaaFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleAcceptHipaaBaa(
+              businessId,
+              userId,
+              parsedBaa
+                ? { ...params, ...parsedBaa, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_compliance_status': {
+            const parsedComplianceStatus =
+              parseExplainComplianceStatusFromPrompt(effectivePrompt, params);
+            result =
+              await this.businessCompliance.handleExplainComplianceStatus(
+                businessId,
+                parsedComplianceStatus
+                  ? {
+                      ...params,
+                      ...parsedComplianceStatus,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'list_sub_processors': {
+            const parsedSubProcessors = parseListSubProcessorsFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleListSubProcessors(
+              businessId,
+              userId,
+              parsedSubProcessors
+                ? {
+                    ...params,
+                    ...parsedSubProcessors,
+                    _prompt: effectivePrompt,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_gdpr_checklist': {
+            const parsedGdprChecklist = parseExplainGdprChecklistFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleExplainGdprChecklist(
+              businessId,
+              userId,
+              parsedGdprChecklist
+                ? {
+                    ...params,
+                    ...parsedGdprChecklist,
+                    _prompt: effectivePrompt,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'open_compliance_dashboard': {
+            const parsedOpenCompliance = parseOpenComplianceDashboardFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.businessCompliance.handleOpenComplianceDashboard(
+                businessId,
+                userId,
+                parsedOpenCompliance
+                  ? {
+                      ...params,
+                      ...parsedOpenCompliance,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'admin_delete_customer_data': {
+            const parsedAdminDelete = parseAdminDeleteCustomerDataFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.businessCompliance.handleAdminDeleteCustomerData(
+                businessId,
+                parsedAdminDelete
+                  ? {
+                      ...params,
+                      ...parsedAdminDelete,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'report_data_breach': {
+            const parsedBreach = parseReportDataBreachFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleReportDataBreach(
+              businessId,
+              userId,
+              parsedBreach
+                ? { ...params, ...parsedBreach, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'send_breach_notification': {
+            const parsedSendBreach = parseSendBreachNotificationFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleSendBreachNotification(
+              businessId,
+              userId,
+              parsedSendBreach
+                ? { ...params, ...parsedSendBreach, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'list_breach_incidents': {
+            const parsedBreachList = parseListBreachIncidentsFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleListBreachIncidents(
+              businessId,
+              userId,
+              parsedBreachList
+                ? { ...params, ...parsedBreachList, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'view_phi_access_audit': {
+            const parsedPhiAudit = parseViewPhiAccessAuditFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleViewPhiAccessAudit(
+              businessId,
+              userId,
+              parsedPhiAudit
+                ? { ...params, ...parsedPhiAudit, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_phi_encryption_status': {
+            const parsedPhiEncryption =
+              parseExplainPhiEncryptionStatusFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.businessCompliance.handleExplainPhiEncryptionStatus(
+                businessId,
+                parsedPhiEncryption
+                  ? {
+                      ...params,
+                      ...parsedPhiEncryption,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'explain_minimum_necessary_phi_access': {
+            const parsedMinimumNecessary =
+              parseExplainMinimumNecessaryPhiAccessFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.businessCompliance.handleExplainMinimumNecessaryPhiAccess(
+                businessId,
+                parsedMinimumNecessary
+                  ? {
+                      ...params,
+                      ...parsedMinimumNecessary,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'explain_hipaa_session_timeout': {
+            const parsedHipaaTimeoutExplain =
+              parseExplainHipaaSessionTimeoutFromPrompt(
+                effectivePrompt,
+                params,
+              );
+            result =
+              await this.businessCompliance.handleExplainHipaaSessionTimeout(
+                businessId,
+                parsedHipaaTimeoutExplain
+                  ? {
+                      ...params,
+                      ...parsedHipaaTimeoutExplain,
+                      _prompt: effectivePrompt,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'explain_business_tax':
+            result = await this.businessTax.handleExplainBusinessTax(
+              businessId,
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          case 'explain_stacked_tax':
+            result = await this.businessTax.handleExplainStackedTax(
+              businessId,
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          case 'explain_stripe_tax_charge': {
+            const parsedStripeTax = parseExplainStripeTaxChargeFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessTax.handleExplainStripeTaxCharge(
+              businessId,
+              parsedStripeTax
+                ? { ...params, ...parsedStripeTax, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'quote_staff_booking_tax': {
+            const parsedQuoteTax = parseQuoteStaffBookingTaxFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessTax.handleQuoteStaffBookingTax(
+              businessId,
+              parsedQuoteTax
+                ? { ...params, ...parsedQuoteTax, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'summarize_customer_tax_paid': {
+            const parsedCustomerTax = parseSummarizeCustomerTaxPaidFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessTax.handleSummarizeCustomerTaxPaid(
+              businessId,
+              parsedCustomerTax
+                ? { ...params, ...parsedCustomerTax, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'lookup_booking_tax_metadata': {
+            const parsedLookupTax = parseLookupBookingTaxMetadataFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessTax.handleLookupBookingTaxMetadata(
+              businessId,
+              parsedLookupTax
+                ? { ...params, ...parsedLookupTax, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_business_languages':
+            result =
+              await this.businessLanguages.handleExplainBusinessLanguages(
+                businessId,
+              );
+            break;
+          case 'explain_business_date_format':
+            result =
+              await this.businessDateFormat.handleExplainBusinessDateFormat(
+                businessId,
+              );
+            break;
+          case 'preview_business_date_format': {
+            const parsedPreview = parseBusinessDateFormatFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.businessDateFormat.handlePreviewBusinessDateFormat(
+                businessId,
+                parsedPreview
+                  ? {
+                      ...params,
+                      ...(parsedPreview.dateFormat
+                        ? { dateFormat: parsedPreview.dateFormat }
+                        : {}),
+                      ...(parsedPreview.timeFormat
+                        ? { timeFormat: parsedPreview.timeFormat }
+                        : {}),
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'audit_dashboard_date_surfaces':
+            result =
+              await this.businessDateFormat.handleAuditDashboardDateSurfaces(
+                businessId,
+              );
+            break;
+          case 'explain_notification_date_format':
+            result =
+              await this.businessDateFormat.handleExplainNotificationDateFormat(
+                businessId,
+              );
+            break;
+          case 'preview_notification_datetime': {
+            const messageKind =
+              typeof params.messageKind === 'string'
+                ? params.messageKind
+                : undefined;
+            result =
+              await this.businessDateFormat.handlePreviewNotificationDatetime(
+                businessId,
+                messageKind ? { ...params, messageKind } : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'notify_patient_result_ready':
+            result =
+              await this.businessDateFormat.handleNotifyPatientResultReady(
+                businessId,
+                { ...params, _prompt: effectivePrompt },
+                effectivePrompt,
+                isExecutionConfirmed(session),
+              );
+            break;
+          case 'create_test_order':
+          case 'create_catalog_test_order': {
+            result = await this.clinicTestOrder.handleCreateTestOrder(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+              isExecutionConfirmed(session),
+            );
+            break;
+          }
+          case 'push_lab_booking_to_patient':
+            result = await this.clinicLabBooking.handlePushLabBookingToPatient(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+              isExecutionConfirmed(session),
+            );
+            break;
+          case 'staff_book_lab_collection':
+            result = await this.clinicLabBooking.handleStaffBookLabCollection(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+              isExecutionConfirmed(session),
+            );
+            break;
+          case 'list_test_orders':
+            result = await this.clinicTestOrder.handleListTestOrders(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          case 'enter_test_result': {
+            result = await this.clinicTestResult.handleEnterTestResult(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+              isExecutionConfirmed(session),
+            );
+            break;
+          }
+          case 'release_test_result': {
+            result = await this.clinicTestResult.handleReleaseTestResult(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+              isExecutionConfirmed(session),
+            );
+            break;
+          }
+          case 'upload_patient_result':
+          case 'explain_patient_results':
+          case 'configure_test_reference_range':
+          case 'list_abnormal_results':
+            result = await dispatchClinicTestResultExtIntent(
+              coerceClinicTestResultExtIntent(parsed.action),
+              this.clinicTestResult,
+              {
+                businessId,
+                userId: userId ?? '',
+                params,
+                prompt: effectivePrompt,
+              },
+            );
+            break;
+          case 'explain_patient_chart':
+            result = await this.clinicPatientChart.handleExplainPatientChart(
+              businessId,
+              userId ?? '',
+              { ...params, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          case 'explain_app_feature':
+          case 'guide_user_flow':
+          case 'explain_current_screen':
+            result = await this.dispatchProductGuideIntent(
+              parsed.action,
+              businessId,
+              params,
+              effectivePrompt,
+              session,
+            );
+            break;
+          case 'explain_ai_settings':
+          case 'explain_ai_suggestions':
+          case 'explain_assistant_approval':
+            result = await this.dispatchMetaProductGuideIntent(
+              parsed.action,
+              businessId,
+              params,
+              effectivePrompt,
+              session,
+              userId,
+            );
+            break;
+          case 'explain_visibility_block':
+          case 'explain_empty_catalog':
+          case 'explain_stripe_not_connected':
+            result = await this.dispatchEmptyStateGuideIntent(
+              parsed.action,
+              businessId,
+              params,
+              effectivePrompt,
+              session,
+            );
+            break;
+          case 'explain_date_input_format':
+            result =
+              await this.businessDateFormat.handleExplainDateInputFormat(
+                businessId,
+              );
+            break;
+          case 'preview_date_input_parse': {
+            const dateStrings = parseDateStringsFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessDateFormat.handlePreviewDateInputParse(
+              businessId,
+              { ...params, dateStrings, _prompt: effectivePrompt },
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'configure_package_localized_names': {
+            const parsedPackageNames = parsePackageLocalizedNamesFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.packageLocalizedNames.handleConfigurePackageLocalizedNames(
+                businessId,
+                parsedPackageNames
+                  ? {
+                      ...params,
+                      operation: parsedPackageNames.operation,
+                      packageId: parsedPackageNames.packageId,
+                      packageName: parsedPackageNames.packageName,
+                      locale: parsedPackageNames.locale,
+                      displayName: parsedPackageNames.displayName,
+                    }
+                  : params,
+                effectivePrompt,
+              );
+            break;
+          }
+          case 'configure_tour_service': {
+            const parsedTour = parseConfigureTourServiceFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleConfigureTourService(
+              businessId,
+              parsedTour
+                ? {
+                    ...params,
+                    serviceId: parsedTour.serviceId,
+                    serviceName: parsedTour.serviceName,
+                    ...(parsedTour.enableTour
+                      ? { enableTour: true, serviceType: 'tour' }
+                      : {}),
+                    ...(parsedTour.maxGroupSize !== undefined
+                      ? { maxGroupSize: parsedTour.maxGroupSize }
+                      : {}),
+                    ...(parsedTour.difficulty
+                      ? { difficulty: parsedTour.difficulty }
+                      : {}),
+                    ...(parsedTour.coverImage
+                      ? { coverImage: parsedTour.coverImage }
+                      : {}),
+                    ...(parsedTour.meetingPoint
+                      ? { meetingPoint: parsedTour.meetingPoint }
+                      : {}),
+                    ...(parsedTour.includedItems
+                      ? { includedItems: parsedTour.includedItems }
+                      : {}),
+                    ...(parsedTour.durationDays !== undefined
+                      ? { durationDays: parsedTour.durationDays }
+                      : {}),
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_tour_services': {
+            const parsedExplainTours = parseExplainTourServicesFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleExplainTourServices(
+              businessId,
+              parsedExplainTours
+                ? {
+                    ...params,
+                    serviceId: parsedExplainTours.serviceId,
+                    serviceName: parsedExplainTours.serviceName,
+                    daysAhead: parsedExplainTours.daysAhead,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_tour_booking_record': {
+            const parsedRecord = parseExplainTourBookingRecordFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleExplainTourBookingRecord(
+              businessId,
+              parsedRecord
+                ? {
+                    ...params,
+                    bookingId: parsedRecord.bookingId,
+                    customerName: parsedRecord.customerName,
+                    serviceName: parsedRecord.serviceName,
+                    aspect: parsedRecord.aspect,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_tour_calendar_span': {
+            const parsedCalendarSpan = parseExplainTourCalendarSpanFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleExplainTourCalendarSpan(
+              businessId,
+              parsedCalendarSpan
+                ? {
+                    ...params,
+                    serviceId: parsedCalendarSpan.serviceId,
+                    serviceName: parsedCalendarSpan.serviceName,
+                    weekStartDate: parsedCalendarSpan.weekStartDate,
+                    aspect: parsedCalendarSpan.aspect,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'list_tour_calendar_week': {
+            const parsedCalendarWeek = parseListTourCalendarWeekFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleListTourCalendarWeek(
+              businessId,
+              parsedCalendarWeek
+                ? {
+                    ...params,
+                    employeeId: parsedCalendarWeek.employeeId,
+                    employeeName: parsedCalendarWeek.employeeName,
+                    serviceId: parsedCalendarWeek.serviceId,
+                    serviceName: parsedCalendarWeek.serviceName,
+                    weekStartDate: parsedCalendarWeek.weekStartDate,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'list_upcoming_tour_departures': {
+            const parsedDepartures = parseListUpcomingTourDeparturesFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.tourService.handleListUpcomingTourDepartures(
+              businessId,
+              parsedDepartures
+                ? {
+                    ...params,
+                    serviceId: parsedDepartures.serviceId,
+                    serviceName: parsedDepartures.serviceName,
+                    daysAhead: parsedDepartures.daysAhead,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'apply_tour_playbook':
+            result = await this.tourService.handleApplyTourPlaybook(
+              businessId,
+              userId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'configure_clinic_service': {
+            const parsedClinic = parseConfigureClinicServiceFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.clinicService.handleConfigureClinicService(
+              businessId,
+              parsedClinic
+                ? {
+                    ...params,
+                    serviceId: parsedClinic.serviceId,
+                    serviceName: parsedClinic.serviceName,
+                    ...(parsedClinic.serviceType
+                      ? { serviceType: parsedClinic.serviceType }
+                      : {}),
+                    ...(parsedClinic.requiresFasting !== undefined
+                      ? { requiresFasting: parsedClinic.requiresFasting }
+                      : {}),
+                    ...(parsedClinic.preparationNotes
+                      ? { preparationNotes: parsedClinic.preparationNotes }
+                      : {}),
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_clinic_services': {
+            const parsedExplainClinic = parseExplainClinicServicesFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.clinicService.handleExplainClinicServices(
+              businessId,
+              parsedExplainClinic
+                ? {
+                    ...params,
+                    serviceId: parsedExplainClinic.serviceId,
+                    serviceName: parsedExplainClinic.serviceName,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'apply_clinic_playbook':
+            result = await this.clinicService.handleApplyClinicPlaybook(
+              businessId,
+              userId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'explain_package_display_name': {
+            const parsedDisplayName = parsePackageDisplayNameExplainFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result =
+              await this.packageLocalizedNames.handleExplainPackageDisplayName(
+                businessId,
+                parsedDisplayName
+                  ? {
+                      ...params,
+                      packageId: parsedDisplayName.packageId,
+                      packageName: parsedDisplayName.packageName,
+                      locale: parsedDisplayName.queryLocale,
+                    }
+                  : params,
+                effectivePrompt,
+                typeof session?.context?.locale === 'string'
+                  ? session.context.locale
+                  : undefined,
+              );
+            break;
+          }
+          case 'explain_business_currency':
+            result =
+              await this.businessCurrency.handleExplainBusinessCurrency(
+                businessId,
+              );
+            break;
+          case 'explain_stripe_currency_warning':
+            result =
+              await this.businessCurrency.handleExplainStripeCurrencyWarning(
+                businessId,
+              );
+            break;
+          case 'diagnose_stripe_checkout_failure':
+            result =
+              await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
+                businessId,
+              );
+            break;
+          case 'explain_reports_currency':
+            result =
+              await this.businessCurrency.handleExplainReportsCurrency(
+                businessId,
+              );
+            break;
+          case 'summarize_revenue_kpis':
+            result = await this.businessCurrency.handleSummarizeRevenueKpis(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'bulk_update_service_currency':
+            result =
+              await this.businessCurrency.handleBulkUpdateServiceCurrency(
+                businessId,
+                { ...params, _prompt: effectivePrompt },
+                effectivePrompt,
+                isExecutionConfirmed(session),
+              );
+            break;
+          case 'create_service': {
+            const createParams = { ...params };
+            enrichCreateServiceParamsFromPrompt(
+              createParams,
+              effectivePrompt,
+              services,
+            );
+            if (
+              Array.isArray(createParams.services) &&
+              createParams.services.length > 1
+            ) {
+              result = await this.handleCreateServices(
+                businessId,
+                createParams,
+                services,
+                userId,
+                effectivePrompt,
+              );
+            } else {
+              result = await this.handleCreateService(
+                businessId,
+                createParams,
+                services,
+                userId,
+                effectivePrompt,
+              );
+            }
+            break;
+          }
+          case 'create_services': {
+            const bulkCreateParams = { ...params };
+            enrichCreateServicesParamsFromPrompt(
+              bulkCreateParams,
+              effectivePrompt,
+            );
+            result = await this.handleCreateServices(
+              businessId,
+              bulkCreateParams,
+              services,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'cancel_bookings':
+            if (
+              /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(
+                effectivePrompt,
+              ) ||
+              params.notifyCustomers ||
+              params.reason
+            ) {
+              result = await this.handleBulkSmartCancel(
+                businessId,
+                effectivePrompt,
+                params,
+                catalog.services,
+                catalog.employees,
+                employeeId,
+                userId,
+                { notifyOnly: !/waitlist|rebook/i.test(effectivePrompt) },
+              );
+            } else {
+              result = await this.handleCancelBookings(
+                businessId,
+                effectivePrompt,
+                params,
+                catalog.services,
+                catalog.employees,
+                employeeId,
+                userId,
+              );
+            }
+            break;
+          case 'bulk_smart_cancel':
+            result = await this.handleBulkSmartCancel(
+              businessId,
+              effectivePrompt,
+              params,
+              catalog.services,
+              catalog.employees,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'hide_appointments_from_calendar':
+            result = await this.handleHideAppointmentsFromCalendar(
+              businessId,
+              params,
+              catalog.services,
+              catalog.employees,
+              catalog.customers,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'unhide_appointments_from_calendar':
+            result = await this.handleUnhideAppointmentsFromCalendar(
+              businessId,
+              params,
+              catalog.services,
+              catalog.employees,
+              catalog.customers,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'fill_slot_from_waitlist':
+            result = await this.handleFillSlotFromWaitlist(
+              businessId,
+              params,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'list_bookings':
+          case 'show_appointments':
+            result = await this.handleListBookings(
+              businessId,
+              effectivePrompt,
+              params,
+              employeeId,
+              resolvedEmployee?.name,
+              services,
+            );
+            break;
+          case 'check_availability':
+            result = await this.handleCheckAvailability(
+              businessId,
+              params,
+              employeeId,
+              resolvedEmployee?.name,
+              effectivePrompt,
+            );
+            break;
+          case 'summarize_day':
+            result = await this.handleSummarizeDay(
+              businessId,
+              params,
+              employeeId,
+              resolvedEmployee?.name,
+            );
+            break;
+          case 'summarize_bookings':
+            result = await this.handleSummarizeBookings(
+              businessId,
+              effectivePrompt,
+              params,
+              employeeId,
+              resolvedEmployee?.name,
+            );
+            break;
+          case 'analyze_appointments':
+            result = await this.handleAnalyzeAppointments(
+              businessId,
+              effectivePrompt,
+              params,
+              employeeId,
+              resolvedEmployee?.name,
+            );
+            break;
+          case 'list_services':
+            result = await this.handleListServices(
+              businessId,
+              services,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'analyze_services':
+            result = await this.handleAnalyzeServices(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'summarize_staff':
+            result = await this.handleSummarizeStaff(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+            );
+            break;
+          case 'lookup_customer':
+            result = await this.handleLookupCustomer(
+              businessId,
+              params,
+              customers,
+              (session?.context?._accessTier as string | undefined) ??
+                (session?.context?._actorRole as string | undefined),
+            );
+            break;
+          case 'summarize_waitlist':
+            result = await this.handleSummarizeWaitlist(businessId, params);
+            break;
+          case 'lookup_service_assignment':
+            result = await this.handleLookupServiceAssignment(
+              businessId,
+              employees,
+              services,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'list_employees':
+            result = this.handleListEmployees(employees, params);
+            break;
+          case 'list_templates':
+            result = this.handleListTemplates(templates);
+            break;
+          case 'create_schedule_template':
+            result = await this.scheduleHandlers.handleCreateScheduleTemplate(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'mark_no_shows':
+            result = await this.handleMarkNoShows(
+              businessId,
+              effectivePrompt,
+              params,
+              catalog.services,
+              catalog.employees,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'no_show_recovery':
+            result = await this.handleNoShowRecovery(
+              businessId,
+              effectivePrompt,
+              params,
+              catalog.services,
+              catalog.employees,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'payment_sweep':
+            result = await this.handlePaymentSweep(
+              businessId,
+              effectivePrompt,
+              params,
+              catalog.services,
+              catalog.employees,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'update_bookings':
+            result = await this.handleUpdateBookings(
+              businessId,
+              effectivePrompt,
+              params,
+              catalog.services,
+              catalog.employees,
+              employeeId,
+              userId,
+            );
+            break;
+          case 'day_replan':
+            result = await this.handleDayReplan(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              timeZone,
+              userId,
+            );
+            break;
+          case 'sick_day_replan':
+            result = await this.operations.handleSickDayReplan(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              timeZone,
+              userId,
+            );
+            break;
+          case 'import_services_from_menu':
+            result = await this.operations.handleImportServicesFromMenu(
+              businessId,
+              effectivePrompt,
+              params,
+              userId,
+            );
+            break;
+          case 'update_service_prices':
+            result = await this.operations.handleUpdateServicePrices(
+              businessId,
+              effectivePrompt,
+              params,
+              services,
+              userId,
+            );
+            break;
+          case 'staff_service_matrix':
+            result = await this.operations.handleStaffServiceMatrix(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'check_schedule_compliance':
+            result = await this.operations.handleCheckScheduleCompliance(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'revenue_forecast':
+            result = await this.operations.handleRevenueForecast(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'create_employee':
+            result = await this.operations.handleCreateEmployee(
+              businessId,
+              params,
+              effectivePrompt,
+              userId,
+            );
+            break;
+          case 'update_employee':
+            result = await this.operations.handleUpdateEmployee(
+              businessId,
+              params,
+              effectivePrompt,
+              userId,
+            );
+            break;
+          case 'invite_staff_member':
+            result = await this.operations.handleInviteStaffMember(
+              businessId,
+              params,
+              effectivePrompt,
+              userId,
+            );
+            break;
+          case 'deactivate_employee':
+            result = await this.operations.handleDeactivateEmployee(
+              businessId,
+              params,
+              effectivePrompt,
+              userId,
+            );
+            break;
+          case 'list_waitlist_entries':
+            result = await handleListWaitlistEntriesLogic(
+              { customerRepo: this.customerRepo },
+              businessId,
+              params,
+            );
+            break;
+          case 'offer_waitlist_slot':
+            result = await handleOfferWaitlistSlotLogic(
+              { customerRepo: this.customerRepo },
+              businessId,
+              enrichOfferWaitlistSlotParams(effectivePrompt, params),
+            );
+            break;
+          case 'fill_unused_slots':
+            result = await this.scheduleHandlers.handleFillScheduleGaps(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'list_schedule_gaps':
+            result = await this.scheduleHandlers.handleListScheduleGaps(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+            );
+            break;
+          case 'apply_schedule':
+            result = await this.scheduleHandlers.handleApplySchedule(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'block_schedule':
+            result = await this.scheduleHandlers.handleBlockSchedule(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'list_time_off_requests':
+          case 'approve_time_off_request':
+          case 'deny_time_off_request':
+            result = (await this.providerTimeOff.handleIntent(
+              businessId,
+              userId!,
+              parsed.action,
+              params,
+              'dashboard',
+            )) ?? {
+              success: false,
+              action: parsed.action,
+              summary: 'Could not process time-off request.',
+              details: { clarify: true },
+            };
+            break;
+          case 'clear_schedule':
+            result = await this.scheduleHandlers.handleClearSchedule(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'create_direct_schedule':
+            result = await this.scheduleHandlers.handleCreateDirectSchedule(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'assign_employee_services':
+            result = await this.handleAssignEmployeeServices(
+              businessId,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'unassign_employee_services':
+            result = await this.handleUnassignEmployeeServices(
+              businessId,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'transfer_employee_services':
+            result = await this.handleTransferEmployeeServices(
+              businessId,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'summarize_utilization':
+            result = await this.handleSummarizeUtilization(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+            );
+            break;
+          case 'summarize_customers':
+            result = await this.handleSummarizeCustomers(
+              businessId,
+              effectivePrompt,
+              params,
+            );
+            break;
+          case 'setup_week_schedule':
+            result = await this.scheduleHandlers.handleTemplateCascade(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'swap_schedules':
+            result = await this.scheduling.handleSwapSchedules(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'rebalance_capacity':
+            result = await this.scheduling.handleRebalanceCapacity(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'holiday_mode':
+            result = await this.scheduling.handleHolidayMode(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'onboard_provider_schedule':
+            result = await this.scheduling.handleOnboardProviderSchedule(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
+              userId,
+            );
+            break;
+          case 'optimize_schedule':
+            result = this.toCommandResult(
+              await this.orchestration.runOrchestrationIntent({
+                businessId,
+                intent: effectivePrompt,
+                agentType: AgentType.SCHEDULING_OPTIMIZATION,
+                userId,
+                date: params.date,
+                employeeId,
+              }),
+            );
+            break;
+          case 'resolve_conflicts':
+            result = this.toCommandResult(
+              await this.orchestration.runOrchestrationIntent({
+                businessId,
+                intent: effectivePrompt,
+                agentType: AgentType.CONFLICT_RESOLUTION,
+                userId,
+                date: params.date,
+                employeeId,
+              }),
+            );
+            break;
+          case 'reassign_cancelled':
+            result = this.toCommandResult(
+              await this.orchestration.runOrchestrationIntent({
+                businessId,
+                intent: effectivePrompt,
+                agentType: AgentType.CANCELLATION_RECOVERY,
+                userId,
+                date: params.date,
+                employeeId,
+              }),
+            );
+            break;
+          case 'reschedule_booking':
+            result = await this.handleRescheduleBooking(
+              businessId,
+              params,
+              employeeId,
+              userId,
+            );
+            break;
+          default:
+            result = buildUnwiredDashboardIntentResult(parsed.action, {
+              reasoning: parsed.reasoning,
+              parsed: parsed as unknown as Record<string, unknown>,
+            });
+            break;
         }
-        break;
-      }
-      case 'create_services': {
-        const bulkCreateParams = { ...params };
-        enrichCreateServicesParamsFromPrompt(bulkCreateParams, effectivePrompt);
-        result = await this.handleCreateServices(
-          businessId,
-          bulkCreateParams,
-          services,
-          userId,
-          effectivePrompt,
-        );
-        break;
-      }
-      case 'cancel_bookings':
-        if (
-          /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(
-            effectivePrompt,
-          ) ||
-          params.notifyCustomers ||
-          params.reason
-        ) {
-          result = await this.handleBulkSmartCancel(
-            businessId,
-            effectivePrompt,
-            params,
-            catalog.services,
-            catalog.employees,
-            employeeId,
-            userId,
-            { notifyOnly: !/waitlist|rebook/i.test(effectivePrompt) },
-          );
-        } else {
-          result = await this.handleCancelBookings(
-            businessId,
-            effectivePrompt,
-            params,
-            catalog.services,
-            catalog.employees,
-            employeeId,
-            userId,
-          );
-        }
-        break;
-      case 'bulk_smart_cancel':
-        result = await this.handleBulkSmartCancel(
-          businessId,
-          effectivePrompt,
-          params,
-          catalog.services,
-          catalog.employees,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'hide_appointments_from_calendar':
-        result = await this.handleHideAppointmentsFromCalendar(
-          businessId,
-          params,
-          catalog.services,
-          catalog.employees,
-          catalog.customers,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'unhide_appointments_from_calendar':
-        result = await this.handleUnhideAppointmentsFromCalendar(
-          businessId,
-          params,
-          catalog.services,
-          catalog.employees,
-          catalog.customers,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'fill_slot_from_waitlist':
-        result = await this.handleFillSlotFromWaitlist(
-          businessId,
-          params,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'list_bookings':
-      case 'show_appointments':
-        result = await this.handleListBookings(
-          businessId,
-          effectivePrompt,
-          params,
-          employeeId,
-          resolvedEmployee?.name,
-          services,
-        );
-        break;
-      case 'check_availability':
-        result = await this.handleCheckAvailability(
-          businessId,
-          params,
-          employeeId,
-          resolvedEmployee?.name,
-          effectivePrompt,
-        );
-        break;
-      case 'summarize_day':
-        result = await this.handleSummarizeDay(
-          businessId,
-          params,
-          employeeId,
-          resolvedEmployee?.name,
-        );
-        break;
-      case 'summarize_bookings':
-        result = await this.handleSummarizeBookings(
-          businessId,
-          effectivePrompt,
-          params,
-          employeeId,
-          resolvedEmployee?.name,
-        );
-        break;
-      case 'analyze_appointments':
-        result = await this.handleAnalyzeAppointments(
-          businessId,
-          effectivePrompt,
-          params,
-          employeeId,
-          resolvedEmployee?.name,
-        );
-        break;
-      case 'list_services':
-        result = await this.handleListServices(
-          businessId,
-          services,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'analyze_services':
-        result = await this.handleAnalyzeServices(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'summarize_staff':
-        result = await this.handleSummarizeStaff(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-        );
-        break;
-      case 'lookup_customer':
-        result = await this.handleLookupCustomer(
-          businessId,
-          params,
-          customers,
-          (session?.context?._accessTier as string | undefined) ??
-            (session?.context?._actorRole as string | undefined),
-        );
-        break;
-      case 'summarize_waitlist':
-        result = await this.handleSummarizeWaitlist(businessId, params);
-        break;
-      case 'lookup_service_assignment':
-        result = await this.handleLookupServiceAssignment(
-          businessId,
-          employees,
-          services,
-          params,
-          effectivePrompt,
-        );
-        break;
-      case 'list_employees':
-        result = this.handleListEmployees(employees, params);
-        break;
-      case 'list_templates':
-        result = this.handleListTemplates(templates);
-        break;
-      case 'create_schedule_template':
-        result = await this.scheduleHandlers.handleCreateScheduleTemplate(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'mark_no_shows':
-        result = await this.handleMarkNoShows(
-          businessId,
-          effectivePrompt,
-          params,
-          catalog.services,
-          catalog.employees,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'no_show_recovery':
-        result = await this.handleNoShowRecovery(
-          businessId,
-          effectivePrompt,
-          params,
-          catalog.services,
-          catalog.employees,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'payment_sweep':
-        result = await this.handlePaymentSweep(
-          businessId,
-          effectivePrompt,
-          params,
-          catalog.services,
-          catalog.employees,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'update_bookings':
-        result = await this.handleUpdateBookings(
-          businessId,
-          effectivePrompt,
-          params,
-          catalog.services,
-          catalog.employees,
-          employeeId,
-          userId,
-        );
-        break;
-      case 'day_replan':
-        result = await this.handleDayReplan(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          timeZone,
-          userId,
-        );
-        break;
-      case 'sick_day_replan':
-        result = await this.operations.handleSickDayReplan(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          timeZone,
-          userId,
-        );
-        break;
-      case 'import_services_from_menu':
-        result = await this.operations.handleImportServicesFromMenu(
-          businessId,
-          effectivePrompt,
-          params,
-          userId,
-        );
-        break;
-      case 'update_service_prices':
-        result = await this.operations.handleUpdateServicePrices(
-          businessId,
-          effectivePrompt,
-          params,
-          services,
-          userId,
-        );
-        break;
-      case 'staff_service_matrix':
-        result = await this.operations.handleStaffServiceMatrix(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'check_schedule_compliance':
-        result = await this.operations.handleCheckScheduleCompliance(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'revenue_forecast':
-        result = await this.operations.handleRevenueForecast(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'create_employee':
-        result = await this.operations.handleCreateEmployee(
-          businessId,
-          params,
-          effectivePrompt,
-          userId,
-        );
-        break;
-      case 'update_employee':
-        result = await this.operations.handleUpdateEmployee(
-          businessId,
-          params,
-          effectivePrompt,
-          userId,
-        );
-        break;
-      case 'invite_staff_member':
-        result = await this.operations.handleInviteStaffMember(
-          businessId,
-          params,
-          effectivePrompt,
-          userId,
-        );
-        break;
-      case 'deactivate_employee':
-        result = await this.operations.handleDeactivateEmployee(
-          businessId,
-          params,
-          effectivePrompt,
-          userId,
-        );
-        break;
-      case 'list_waitlist_entries':
-        result = await handleListWaitlistEntriesLogic(
-          { customerRepo: this.customerRepo },
-          businessId,
-          params,
-        );
-        break;
-      case 'offer_waitlist_slot':
-        result = await handleOfferWaitlistSlotLogic(
-          { customerRepo: this.customerRepo },
-          businessId,
-          enrichOfferWaitlistSlotParams(effectivePrompt, params),
-        );
-        break;
-      case 'fill_unused_slots':
-        result = await this.scheduleHandlers.handleFillScheduleGaps(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'list_schedule_gaps':
-        result = await this.scheduleHandlers.handleListScheduleGaps(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-        );
-        break;
-      case 'apply_schedule':
-        result = await this.scheduleHandlers.handleApplySchedule(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          userId,
-        );
-        break;
-      case 'block_schedule':
-        result = await this.scheduleHandlers.handleBlockSchedule(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          userId,
-        );
-        break;
-      case 'list_time_off_requests':
-      case 'approve_time_off_request':
-      case 'deny_time_off_request':
-        result =
-          (await this.providerTimeOff.handleIntent(
-            businessId,
-            userId!,
-            parsed.action,
-            params,
-            'dashboard',
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: 'Could not process time-off request.',
-            details: { clarify: true },
-          };
-        break;
-      case 'clear_schedule':
-        result = await this.scheduleHandlers.handleClearSchedule(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          userId,
-        );
-        break;
-      case 'create_direct_schedule':
-        result = await this.scheduleHandlers.handleCreateDirectSchedule(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'assign_employee_services':
-        result = await this.handleAssignEmployeeServices(
-          businessId,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'unassign_employee_services':
-        result = await this.handleUnassignEmployeeServices(
-          businessId,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'transfer_employee_services':
-        result = await this.handleTransferEmployeeServices(
-          businessId,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'summarize_utilization':
-        result = await this.handleSummarizeUtilization(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-        );
-        break;
-      case 'summarize_customers':
-        result = await this.handleSummarizeCustomers(
-          businessId,
-          effectivePrompt,
-          params,
-        );
-        break;
-      case 'setup_week_schedule':
-        result = await this.scheduleHandlers.handleTemplateCascade(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'swap_schedules':
-        result = await this.scheduling.handleSwapSchedules(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          userId,
-        );
-        break;
-      case 'rebalance_capacity':
-        result = await this.scheduling.handleRebalanceCapacity(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'holiday_mode':
-        result = await this.scheduling.handleHolidayMode(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          userId,
-        );
-        break;
-      case 'onboard_provider_schedule':
-        result = await this.scheduling.handleOnboardProviderSchedule(
-          businessId,
-          effectivePrompt,
-          params,
-          employees,
-          services,
-          userId,
-        );
-        break;
-      case 'optimize_schedule':
-        result = this.toCommandResult(
-          await this.orchestration.runOrchestrationIntent({
-            businessId,
-            intent: effectivePrompt,
-            agentType: AgentType.SCHEDULING_OPTIMIZATION,
-            userId,
-            date: params.date,
-            employeeId,
-          }),
-        );
-        break;
-      case 'resolve_conflicts':
-        result = this.toCommandResult(
-          await this.orchestration.runOrchestrationIntent({
-            businessId,
-            intent: effectivePrompt,
-            agentType: AgentType.CONFLICT_RESOLUTION,
-            userId,
-            date: params.date,
-            employeeId,
-          }),
-        );
-        break;
-      case 'reassign_cancelled':
-        result = this.toCommandResult(
-          await this.orchestration.runOrchestrationIntent({
-            businessId,
-            intent: effectivePrompt,
-            agentType: AgentType.CANCELLATION_RECOVERY,
-            userId,
-            date: params.date,
-            employeeId,
-          }),
-        );
-        break;
-      case 'reschedule_booking':
-        result = await this.handleRescheduleBooking(
-          businessId,
-          params,
-          employeeId,
-          userId,
-        );
-        break;
-      default:
-        result = buildUnwiredDashboardIntentResult(parsed.action, {
-          reasoning: parsed.reasoning,
-          parsed: parsed as unknown as Record<string, unknown>,
-        });
-        break;
-    }
     }
 
     result.details = {
@@ -4634,7 +4808,7 @@ export class AiCommandService {
     const schemaHeader = isNarrow
       ? buildNarrowClassifierSchema(surface, narrowShortlist!)
       : DASHBOARD_INTENT_SCHEMA;
-        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: `${schemaHeader}\n\n${CLASSIFIER_MULTILINGUAL_RULES}\n\n${this.promptSecurity.getClassifierSecurityRules()}\n\n${context}${intelligenceBlock}${sessionBlock}${routeHintBlock}`,
@@ -4946,7 +5120,8 @@ export class AiCommandService {
 
       const pick = firstAvailable.pick;
       resolvedEmployee =
-        employees.find((entry) => entry.id === pick.employeeId) ?? resolvedEmployee;
+        employees.find((entry) => entry.id === pick.employeeId) ??
+        resolvedEmployee;
       timeSlot = this.snapTo10min(pick.timeSlot);
       params.date = pick.isoDay;
       params.employeeName = pick.employeeName;
@@ -5128,7 +5303,9 @@ export class AiCommandService {
       params,
       (name) => {
         const found = this.resolveService(services, name);
-        return found ? catalog.find((entry) => entry.id === found.id) : undefined;
+        return found
+          ? catalog.find((entry) => entry.id === found.id)
+          : undefined;
       },
     );
     if (resolved.noMatchSummary) {
@@ -5684,7 +5861,10 @@ export class AiCommandService {
     prompt: string,
   ): Promise<CommandResult> {
     const withBudgetAndRank = enrichServiceDiscoveryFromPrompt(params, prompt);
-    const enriched = enrichListServicesParamsFromPrompt(prompt, withBudgetAndRank);
+    const enriched = enrichListServicesParamsFromPrompt(
+      prompt,
+      withBudgetAndRank,
+    );
 
     if (services.length === 0) {
       return {
@@ -5720,7 +5900,10 @@ export class AiCommandService {
     };
 
     if (enriched.serviceName) {
-      const target = this.resolveService(services, String(enriched.serviceName));
+      const target = this.resolveService(
+        services,
+        String(enriched.serviceName),
+      );
       if (target) {
         const composed = composeDashboardListServicesBudgetResponse({
           matchedServices: [toCatalogRow(target)],
@@ -5731,7 +5914,7 @@ export class AiCommandService {
           header: `${target.name}:`,
         });
         if (composed.services.length === 1) {
-          const service = composed.services[0]!;
+          const service = composed.services[0];
           const currency = service.currency || 'USD';
           return {
             success: true,
@@ -5775,9 +5958,15 @@ export class AiCommandService {
       };
     }
 
-    const paymentFilter = parseListServicesPaymentFilterFromPrompt(prompt, enriched);
+    const paymentFilter = parseListServicesPaymentFilterFromPrompt(
+      prompt,
+      enriched,
+    );
     if (hasListServicesPaymentFilter(paymentFilter)) {
-      matched = filterServicesByListServicesPaymentPolicy(matched, paymentFilter);
+      matched = filterServicesByListServicesPaymentPolicy(
+        matched,
+        paymentFilter,
+      );
       if (matched.length === 0) {
         return {
           success: false,
@@ -6362,7 +6551,10 @@ export class AiCommandService {
       };
     }
 
-    const discoveryNote = formatLookupAssignmentDiscoveryNote(params, service.name);
+    const discoveryNote = formatLookupAssignmentDiscoveryNote(
+      params,
+      service.name,
+    );
     const active = employees.filter((e) => e.isActive);
 
     if (params.date) {
@@ -7128,7 +7320,11 @@ export class AiCommandService {
         return this.planBuilder.buildCreateServicePlan({
           businessId,
           ...parsed.draft,
-          ...buildCreateServicePrepaymentFields(params, prompt, parsed.draft.price),
+          ...buildCreateServicePrepaymentFields(
+            params,
+            prompt,
+            parsed.draft.price,
+          ),
           userId,
         });
       }
@@ -7619,7 +7815,8 @@ export class AiCommandService {
 
       const pick = firstAvailable.pick;
       resolvedEmployee =
-        employees.find((entry) => entry.id === pick.employeeId) ?? resolvedEmployee;
+        employees.find((entry) => entry.id === pick.employeeId) ??
+        resolvedEmployee;
       timeSlot = this.snapTo10min(pick.timeSlot);
       params.date = pick.isoDay;
       params.employeeName = pick.employeeName;
@@ -9207,13 +9404,14 @@ export class AiCommandService {
       };
     }
 
-    const localizedNames = await this.resolveCreateServiceLocalizedNamesForDraft(
-      businessId,
-      userId,
-      draft,
-      params,
-      prompt,
-    );
+    const localizedNames =
+      await this.resolveCreateServiceLocalizedNamesForDraft(
+        businessId,
+        userId,
+        draft,
+        params,
+        prompt,
+      );
 
     const plan = this.planBuilder.buildCreateServicePlan({
       businessId,
@@ -10117,7 +10315,7 @@ export class AiCommandService {
           service.id,
           isoDay,
         );
-        let windowSlots = timeOfDay
+        const windowSlots = timeOfDay
           ? filterSlotsByTimeOfDay(row.openSlots, timeOfDay)
           : row.openSlots;
 

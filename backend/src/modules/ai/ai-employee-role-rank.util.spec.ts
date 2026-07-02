@@ -20,7 +20,11 @@ describe('ai-employee-role-rank.util', () => {
     expect(isEmployeeRoleRankPrompt(prompt)).toBe(true);
     expect(extractEmployeeRoleFromPrompt(prompt)).toBe('cosmetologist');
     expect(
-      rescueServiceRankDiscoveryIntent(prompt, 'check_providers_for_service', 'customer'),
+      rescueServiceRankDiscoveryIntent(
+        prompt,
+        'check_providers_for_service',
+        'customer',
+      ),
     ).toEqual({
       action: 'recommend_specialists',
       rescueReason: 'rank_provider_specialists',
@@ -33,7 +37,11 @@ describe('ai-employee-role-rank.util', () => {
       employeeRoleMatchesHint('Cosmetologist', undefined, 'cosmetologist'),
     ).toBe(true);
     expect(
-      employeeRoleMatchesHint(undefined, 'Massage specialist', 'massage specialist'),
+      employeeRoleMatchesHint(
+        undefined,
+        'Massage specialist',
+        'massage specialist',
+      ),
     ).toBe(true);
     expect(employeeRoleMatchesHint('Barber', undefined, 'stylist')).toBe(false);
   });

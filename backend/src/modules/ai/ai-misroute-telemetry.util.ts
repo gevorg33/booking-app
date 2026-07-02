@@ -1,6 +1,9 @@
 import type { AiCommandSurface } from './ai-platform.util.js';
 import type { AiEventsService } from './ai-events.service.js';
-import type { PipelineStage, PipelineTrace } from './command-completion.types.js';
+import type {
+  PipelineStage,
+  PipelineTrace,
+} from './command-completion.types.js';
 import type {
   IntentCandidate,
   PipelineUnderstandResult,

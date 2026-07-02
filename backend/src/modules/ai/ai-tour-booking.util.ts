@@ -269,12 +269,49 @@ function isDashboardBookingRecordLikePrompt(prompt: string): boolean {
   );
 }
 
+function isTourNearestDepartureBookingCompoundLike(prompt: string): boolean {
+  return (
+    /\b(?:book|reserve|schedule|get|buy|purchase|order)\b/i.test(prompt) &&
+    /\b(?:tours?|treks?|excursions?|hikes?)\b/i.test(prompt) &&
+    /\b(?:earliest|soonest|nearest|first\s+available|asap|next\s+available)\b/i.test(
+      prompt,
+    )
+  );
+}
+
+function isTourGroupCheckoutCompoundLike(prompt: string): boolean {
+  return (
+    /\b(?:book|reserve)\s+if\s+(?:enough|there\s+are\s+enough)\s+(?:seats?|spots?)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:only\s+)?if\s+(?:enough|there\s+are\s+enough)\s+(?:seats?|spots?)\b/i.test(
+      prompt,
+    ) ||
+    /\bwhen\s+capacity\s+allows?\b/i.test(prompt) ||
+    /(?:եթե|միայն\s+եթե).{0,20}(?:տեղ|բավական)/i.test(prompt) ||
+    /(?:если|только\s+если).{0,20}(?:мест|хватит)/i.test(prompt)
+  );
+}
+
 export function isExplainTourBookingPrompt(prompt: string): boolean {
+  if (isTourGroupCheckoutCompoundLike(prompt)) return false;
+  if (isTourNearestDepartureBookingCompoundLike(prompt)) return false;
   if (isExplainStripeCheckoutCurrencyPrompt(prompt)) return false;
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
   if (isDashboardTourCatalogMaxGroupPrompt(prompt)) return false;
   if (isDashboardBookingRecordLikePrompt(prompt)) return false;
   if (hasPackageOrGiftCardContext(prompt)) return false;
+  if (
+    /\b(?:where\s+do\s+we\s+meet|meeting\s+point|pickup\s+(?:point|location)|what\s+time\s+should\s+i\s+arrive|when\s+should\s+i\s+arrive|where\s+is\s+the\s+(?:meeting|pickup)|where\s+should\s+i\s+arrive|when\s+do\s+we\s+leave(?:\s+for|\?))\b/i.test(
+      prompt,
+    ) ||
+    /(?:որտեղ.*հանդիպ|հանդիպման\s+կետ|ժամը\s+քանի.*հասն)/iu.test(prompt) ||
+    /(?:где.*встреч|точк.*встреч|место\s+сбора|во\s+сколько\s+приех|когда\s+приех|время\s+отправ)/iu.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
 
   if (isSingleTourBookingDetailPrompt(prompt)) {
     if (
@@ -321,7 +358,11 @@ export function parseExplainTourBookingFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedExplainTourBooking | null {
-  if (!isExplainTourBookingPrompt(prompt)) return null;
+  const fromCompound =
+    params.tourGroupCheckout === true &&
+    typeof params.serviceName === 'string' &&
+    params.serviceName.trim().length > 0;
+  if (!isExplainTourBookingPrompt(prompt) && !fromCompound) return null;
 
   const serviceId =
     typeof params.serviceId === 'string' ? params.serviceId.trim() : undefined;

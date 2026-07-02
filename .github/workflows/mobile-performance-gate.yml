@@ -28,6 +28,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch comparison base
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref || 'main' }}"
+          git fetch origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}" || \
+            git fetch origin "${BASE_REF}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,6 +63,7 @@ jobs:
         run: node scripts/adoption-ai-isolation-gate.mjs
         env:
           ADOPTION_AI_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          ADOPTION_AI_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
 
       - name: Backend mobile config tests
         working-directory: backend

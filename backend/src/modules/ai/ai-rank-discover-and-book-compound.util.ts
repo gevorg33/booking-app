@@ -89,7 +89,9 @@ function extractRankDiscoverServiceCategory(
 
   const bookMatch = prompt.match(RANK_BOOK_SERVICE_CATEGORY_PATTERN);
   const rankMatch = prompt.match(RANK_CUE_SERVICE_CATEGORY_PATTERN);
-  const fromRankCue = (bookMatch?.[1] ?? rankMatch?.[1])?.trim().replace(/[,.]$/, '');
+  const fromRankCue = (bookMatch?.[1] ?? rankMatch?.[1])
+    ?.trim()
+    .replace(/[,.]$/, '');
   if (fromRankCue && fromRankCue.length >= 3) {
     const normalized = fromRankCue.toLowerCase();
     if (!SERVICE_CATEGORY_BLOCKLIST.has(normalized)) return fromRankCue;

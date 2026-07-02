@@ -1,5 +1,5 @@
 import { IonButton, IonSpinner, useIonToast } from '@ionic/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { downloadCustomerDataExport } from '../lib/consumer-privacy-data.util.js';
 import {
@@ -12,15 +12,18 @@ export function ConsumerPrivacyDataSection({
   businessName,
   copy,
   onDeleted,
+  autoAction,
 }: {
   slug: string;
   businessName: string;
   copy: ConsumerCopy;
   onDeleted: () => void;
+  autoAction?: 'export' | 'delete';
 }) {
   const [presentToast] = useIonToast();
   const [loading, setLoading] = useState<'export' | 'delete' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [autoHandled, setAutoHandled] = useState(false);
 
   const onExport = async () => {
     setLoading('export');
@@ -57,6 +60,16 @@ export function ConsumerPrivacyDataSection({
       setLoading(null);
     }
   };
+
+  useEffect(() => {
+    if (!autoAction || autoHandled) return;
+    setAutoHandled(true);
+    if (autoAction === 'export') {
+      void onExport();
+      return;
+    }
+    void onDelete();
+  }, [autoAction, autoHandled]);
 
   return (
     <div className="salon-card ion-margin-top">

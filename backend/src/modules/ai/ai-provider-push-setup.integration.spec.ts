@@ -26,14 +26,16 @@ describe('Sprint adopt-6.7 — provider push setup AI scenarios', () => {
     service = moduleRef.get(AiProviderPushSetupService);
   });
 
-  it.each(PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS.map((scenario) => [scenario.id, scenario]))(
-    'rescues classifier action for $0',
-    (_id, scenario) => {
-      expect(rescueProviderPushSetupIntent(scenario.prompt, 'unknown')?.action).toBe(
-        scenario.expectedAction,
-      );
-    },
-  );
+  it.each(
+    PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS.map((scenario) => [
+      scenario.id,
+      scenario,
+    ]),
+  )('rescues classifier action for $0', (_id, scenario) => {
+    expect(
+      rescueProviderPushSetupIntent(scenario.prompt, 'unknown')?.action,
+    ).toBe(scenario.expectedAction);
+  });
 
   it('returns profile navigation for enable_push_notifications', async () => {
     const result = await service.handleIntent(

@@ -32,7 +32,9 @@ export {
 };
 export type { ResolvedGuideCorpusTopic } from './ai-guide-corpus.types.js';
 
-export function isGuideCorpusTopicId(value: string): value is GuideCorpusTopicId {
+export function isGuideCorpusTopicId(
+  value: string,
+): value is GuideCorpusTopicId {
   return TOPIC_BY_ID.has(value);
 }
 
@@ -110,8 +112,7 @@ export function resolveGuideCorpusTopic(
     .filter(Boolean) as ResolvedGuideCorpusTopic['content'];
 
   const title =
-    resolvedContent.find((row) => row.kind === 'title')?.text ??
-    topic.topicId;
+    resolvedContent.find((row) => row.kind === 'title')?.text ?? topic.topicId;
   const summary = resolvedContent.find((row) => row.kind === 'summary')?.text;
   const body = resolvedContent.find((row) => row.kind === 'body')?.text;
   const steps = resolvedContent
@@ -157,7 +158,9 @@ export function assertGuideCorpusIntegrity(): void {
     }
   }
 
-  const tocTopicIds = DASHBOARD_GUIDE_CORPUS_TOC.flatMap((group) => group.topicIds);
+  const tocTopicIds = DASHBOARD_GUIDE_CORPUS_TOC.flatMap(
+    (group) => group.topicIds,
+  );
   if (tocTopicIds.length !== DASHBOARD_GUIDE_CORPUS_TOPICS.length) {
     throw new Error('guide corpus TOC does not cover every topic');
   }

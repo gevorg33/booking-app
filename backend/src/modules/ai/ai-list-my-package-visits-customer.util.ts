@@ -4,7 +4,7 @@ import {
   rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
 
-export const CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES = `- list_my_package_visits: READ — logged-in customer views purchased package bundles (spa day / multi-visit packages): visits remaining, scheduled package appointments, and next visit in the bundle. Triggers: how many package visits left, visits left on my package, list my package visits, when is my next facial in the bundle, package visit progress. Requires session customerId. NOT list_my_appointments (single non-package appointments), NOT list_package_bookings (dashboard admin), NOT check_package_availability (open slots before purchase), NOT cancel_package_visit_self / reschedule_package_visit_self (mutate), NOT discover_packages (browse catalog before buying).`;
+export const CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES = `- list_my_package_visits: READ — logged-in customer views purchased package bundles (spa day / multi-visit packages): visits remaining, scheduled package appointments, and next visit in the bundle. Triggers: how many package visits left, visits left on my package, list my package visits, when is my next facial in the bundle, package visit progress. Requires session customerId. NOT list_my_appointments (single non-package appointments), NOT list_package_bookings (dashboard admin), NOT check_package_availability (open slots before purchase), NOT cancel_package_visit_self / reschedule_package_visit_self (mutate), NOT explain_package_visit_rules (read terms/expiry), NOT discover_packages (browse catalog before buying).`;
 
 export type ListMyPackageVisitsCustomerPromptFixture = {
   id: string;

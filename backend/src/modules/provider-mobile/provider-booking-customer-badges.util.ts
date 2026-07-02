@@ -46,7 +46,10 @@ export function isFirstVisitCustomer(completedVisitCount: number): boolean {
 export function isWinBackCustomer(
   input: Pick<
     ResolveProviderCustomerSnapshotBadgesInput,
-    'completedVisitCount' | 'lastCompletedVisitAt' | 'inactiveDaysThreshold' | 'referenceDate'
+    | 'completedVisitCount'
+    | 'lastCompletedVisitAt'
+    | 'inactiveDaysThreshold'
+    | 'referenceDate'
   >,
 ): boolean {
   if (input.completedVisitCount <= 0 || !input.lastCompletedVisitAt) {

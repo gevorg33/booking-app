@@ -12,7 +12,10 @@ describe('ProviderMobileService today timeline (prov-exp-3.3)', () => {
     findOne: jest.fn(),
   };
   const bookingService = { update: jest.fn(), cancel: jest.fn() };
-  const bookingSlotResolver = { checkSlotAvailability: jest.fn(), describeUnavailable: jest.fn() };
+  const bookingSlotResolver = {
+    checkSlotAvailability: jest.fn(),
+    describeUnavailable: jest.fn(),
+  };
   const retailPosService = { getBookingRetailSales: jest.fn() };
   const llm = { isAvailableForBusiness: jest.fn(), completeJson: jest.fn() };
   const clinicTestOrderService = { listLabQueue: jest.fn() };
@@ -140,9 +143,9 @@ describe('ProviderMobileService today timeline (prov-exp-3.3)', () => {
     const summary = await service.getScheduleSummary('biz-1', 'user-1', 14);
 
     expect(summary.todayTimeline?.enabled).toBe(true);
-    expect(summary.todayTimeline?.segments.some((segment) => segment.kind === 'gap')).toBe(
-      true,
-    );
+    expect(
+      summary.todayTimeline?.segments.some((segment) => segment.kind === 'gap'),
+    ).toBe(true);
     expect(summary.todayTimeline?.activeBookingId).toBe('bk-1');
     expect(summary.todayTimeline?.nextClient?.bookingId).toBe('bk-2');
     expect(summary.todayTimeline?.nextClient?.minutesUntilStart).toBe(90);

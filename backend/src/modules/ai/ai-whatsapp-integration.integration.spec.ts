@@ -25,9 +25,9 @@ describe('ai-whatsapp-integration integration (ai-cmd-ext-2.20)', () => {
 
   it('utility rescue matches intent rescue', () => {
     const prompt = 'Configure WhatsApp integration for the salon';
-    expect(rescueConfigureWhatsappIntegrationIntent(prompt, 'unknown')?.action).toBe(
-      'configure_whatsapp_integration',
-    );
+    expect(
+      rescueConfigureWhatsappIntegrationIntent(prompt, 'unknown')?.action,
+    ).toBe('configure_whatsapp_integration');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('configure_whatsapp_integration');

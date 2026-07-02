@@ -30,7 +30,9 @@ describe('ai-notification-settings.util', () => {
   it.each(CONFIGURE_NOTIFICATION_SETTINGS_PROMPTS)(
     'rescues unknown action to configure_notification_settings for $id',
     ({ prompt, expectedAction }) => {
-      expect(rescueConfigureNotificationSettingsIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueConfigureNotificationSettingsIntent(prompt, 'unknown'),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });
@@ -39,13 +41,17 @@ describe('ai-notification-settings.util', () => {
 
   it('does not treat customer enable notifications as salon settings', () => {
     expect(
-      isConfigureNotificationSettingsPrompt('Enable notifications for my account'),
+      isConfigureNotificationSettingsPrompt(
+        'Enable notifications for my account',
+      ),
     ).toBe(false);
   });
 
   it('does not treat push recipients as notification settings', () => {
     expect(
-      isConfigureNotificationSettingsPrompt('Configure push recipients for Maria'),
+      isConfigureNotificationSettingsPrompt(
+        'Configure push recipients for Maria',
+      ),
     ).toBe(false);
   });
 
@@ -67,14 +73,20 @@ describe('ai-notification-settings.util', () => {
 
   it('resolves access tier for configure_notification_settings only', () => {
     expect(
-      resolveNotificationSettingsAccessTier(CONFIGURE_NOTIFICATION_SETTINGS_INTENT),
+      resolveNotificationSettingsAccessTier(
+        CONFIGURE_NOTIFICATION_SETTINGS_INTENT,
+      ),
     ).toBe('M');
-    expect(resolveNotificationSettingsAccessTier('enable_notifications')).toBeNull();
+    expect(
+      resolveNotificationSettingsAccessTier('enable_notifications'),
+    ).toBeNull();
   });
 
   it('detects confirmation settings without explicit business scope', () => {
     expect(
-      isConfigureNotificationSettingsPrompt('Configure send confirmation email'),
+      isConfigureNotificationSettingsPrompt(
+        'Configure send confirmation email',
+      ),
     ).toBe(true);
   });
 

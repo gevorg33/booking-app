@@ -50,7 +50,11 @@ export type AppAdoptionStartType = 'cold' | 'warm';
 export type AppAdoptionUserType = 'first_open' | 'returning';
 
 @Entity('app_event')
-@Index('idx_app_event_business_event_created', ['businessId', 'event', 'createdAt'])
+@Index('idx_app_event_business_event_created', [
+  'businessId',
+  'event',
+  'createdAt',
+])
 @Index('idx_app_event_platform', ['platform'])
 @Index('idx_app_event_anon_id', ['anonId'])
 @Index('idx_app_event_business_created', ['businessId', 'createdAt'])

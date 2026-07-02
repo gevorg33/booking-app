@@ -62,8 +62,12 @@ describe('ai-command-eval.report (acc-2.8)', () => {
     ];
     const results = cases.map((c) => evaluateDeterministicEvalCase(c));
     const stats = buildIntentAccuracyStats(cases, results);
-    expect(stats.find((row) => row.intent === 'route:read_only')?.passed).toBe(1);
-    expect(stats.find((row) => row.intent === 'route:compound')?.failed).toBe(1);
+    expect(stats.find((row) => row.intent === 'route:read_only')?.passed).toBe(
+      1,
+    );
+    expect(stats.find((row) => row.intent === 'route:compound')?.failed).toBe(
+      1,
+    );
   });
 
   it('formats report with accuracy and per-intent rows', () => {

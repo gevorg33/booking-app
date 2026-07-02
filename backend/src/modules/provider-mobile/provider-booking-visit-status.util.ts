@@ -57,7 +57,9 @@ export function readProviderVisitStatus(
 
   const minutesLate =
     kind === 'running_late'
-      ? normalizeProviderRunningLateMinutes(raw.minutesLate as number | undefined)
+      ? normalizeProviderRunningLateMinutes(
+          raw.minutesLate as number | undefined,
+        )
       : undefined;
 
   return {
@@ -109,7 +111,10 @@ export function buildProviderVisitStatusEligibility(
     return { allowed: false, reason: 'Visit already completed' };
   }
   if (booking.status === BookingStatus.CANCELLED) {
-    return { allowed: false, reason: 'Cancelled appointments cannot be updated' };
+    return {
+      allowed: false,
+      reason: 'Cancelled appointments cannot be updated',
+    };
   }
   if (booking.status === BookingStatus.NO_SHOW) {
     return { allowed: false, reason: 'No-show appointments cannot be updated' };

@@ -68,8 +68,16 @@ describe('category assignment handler flows', () => {
       serviceIds: ['s-1-1', 's-1-2', 's-2-1', 's-2-2', 's-4-1', 's-4-2'],
     },
     { id: 'e4', name: 'Mary Torgomyan', serviceIds: ['s-2-1', 's-2-2'] },
-    { id: 'e5', name: 'Gevorg', serviceIds: ['s-4-1', 's-4-2', 's-5-1', 's-5-2', 's-6-1', 's-6-2'] },
-    { id: 'e6', name: 'James', serviceIds: ['s-2-1', 's-2-2', 's-3-1', 's-3-2'] },
+    {
+      id: 'e5',
+      name: 'Gevorg',
+      serviceIds: ['s-4-1', 's-4-2', 's-5-1', 's-5-2', 's-6-1', 's-6-2'],
+    },
+    {
+      id: 'e6',
+      name: 'James',
+      serviceIds: ['s-2-1', 's-2-2', 's-3-1', 's-3-2'],
+    },
   ];
 
   beforeEach(() => {
@@ -160,15 +168,19 @@ describe('category assignment handler flows', () => {
 
   describe('unassign_employee_services plan', () => {
     it.each(
-      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter((s) => s.categoryName).map(
-        (s) => [s.id, s],
-      ),
+      CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.filter(
+        (s) => s.categoryName,
+      ).map((s) => [s.id, s]),
     )('builds unassign plan for %s', (_id, scenario) => {
-      const resolved = resolveUnassignEmployeeServicesInput(employees, services, {
-        employeeName: scenario.employeeName,
-        categoryName: scenario.categoryName,
-        unassignFromCategory: true,
-      });
+      const resolved = resolveUnassignEmployeeServicesInput(
+        employees,
+        services,
+        {
+          employeeName: scenario.employeeName,
+          categoryName: scenario.categoryName,
+          unassignFromCategory: true,
+        },
+      );
       expect(resolved.ok).toBe(true);
       if (!resolved.ok) return;
 
@@ -189,38 +201,41 @@ describe('category assignment handler flows', () => {
   });
 
   describe('transfer_employee_services plan', () => {
-    it.each(TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]))(
-      'builds transfer plan for %s',
-      (_id, scenario) => {
-        const resolved = resolveTransferEmployeeServicesInput(employees, services, {
+    it.each(
+      TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS.map((s) => [s.id, s]),
+    )('builds transfer plan for %s', (_id, scenario) => {
+      const resolved = resolveTransferEmployeeServicesInput(
+        employees,
+        services,
+        {
           fromEmployeeName: scenario.fromEmployeeName,
           toEmployeeName: scenario.toEmployeeName,
           categoryName: scenario.categoryName,
           serviceName: scenario.serviceName,
           transferFromCategory: scenario.categoryName != null,
           unassignAllServices: scenario.unassignAllServices,
-        });
-        expect(resolved.ok).toBe(true);
-        if (!resolved.ok) return;
+        },
+      );
+      expect(resolved.ok).toBe(true);
+      if (!resolved.ok) return;
 
-        const plan = planBuilder.buildTransferEmployeeServicesPlan({
-          businessId: 'biz-1',
-          fromEmployeeId: resolved.fromEmployeeId,
-          fromEmployeeName: resolved.fromEmployeeName,
-          fromServiceIds: resolved.fromServiceIds,
-          toEmployeeId: resolved.toEmployeeId,
-          toEmployeeName: resolved.toEmployeeName,
-          toServiceIds: resolved.toServiceIds,
-          serviceNames: resolved.serviceNames,
-          userId: 'user-1',
-        });
+      const plan = planBuilder.buildTransferEmployeeServicesPlan({
+        businessId: 'biz-1',
+        fromEmployeeId: resolved.fromEmployeeId,
+        fromEmployeeName: resolved.fromEmployeeName,
+        fromServiceIds: resolved.fromServiceIds,
+        toEmployeeId: resolved.toEmployeeId,
+        toEmployeeName: resolved.toEmployeeName,
+        toServiceIds: resolved.toServiceIds,
+        serviceNames: resolved.serviceNames,
+        userId: 'user-1',
+      });
 
-        expect(plan.intent).toBe('transfer_employee_services');
-        expect(plan.steps).toHaveLength(2);
-        expect(plan.steps[0].action).toBe('unassign_employee_services');
-        expect(plan.steps[1].action).toBe('assign_employee_services');
-        expect(plan.steps[1].dependsOn).toEqual([plan.steps[0].id]);
-      },
-    );
+      expect(plan.intent).toBe('transfer_employee_services');
+      expect(plan.steps).toHaveLength(2);
+      expect(plan.steps[0].action).toBe('unassign_employee_services');
+      expect(plan.steps[1].action).toBe('assign_employee_services');
+      expect(plan.steps[1].dependsOn).toEqual([plan.steps[0].id]);
+    });
   });
 });

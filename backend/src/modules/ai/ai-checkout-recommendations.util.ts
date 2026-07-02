@@ -4,6 +4,8 @@ import {
   isExplainConsumerCheckoutSuccessPrompt,
 } from './ai-consumer-checkout-success.util.js';
 import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
+import { isConfigureRecommendationProductPrompt } from './ai-recommendation-product.util.js';
+import { isSummarizeRecommendationPerformancePrompt } from './ai-recommendation-performance.util.js';
 import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 
 export const CHECKOUT_RECOMMENDATIONS_INTENTS = [
@@ -55,9 +57,7 @@ export function hasCheckoutSuccessVisitorContext(prompt: string): boolean {
     /\bafter\s+(?:i\s+)?(?:confirm|booked)\b/i.test(prompt) ||
     /\bon\s+checkout\s+success\b/i.test(prompt) ||
     /\bafter\s+booking\s+in\s+the\s+app\b/i.test(prompt) ||
-    /(?:запис|бронир|подтвержден|после\s+оплаты|забронирован)/i.test(
-      prompt,
-    ) ||
+    /(?:запис|бронир|подтвержден|после\s+оплаты|забронирован)/i.test(prompt) ||
     /(?:success screen|checkout success|հաստատման\s+էկրան|ամրագրումից\s+հետո|ամրագրած)/i.test(
       prompt,
     ) ||
@@ -181,11 +181,26 @@ function extractServiceName(prompt: string): string | undefined {
   return undefined;
 }
 
+function isPostBookingAccountSignInCue(prompt: string): boolean {
+  return (
+    /\b(?:save (?:this )?booking to (?:my )?account|save (?:my )?appointment on the confirmation|sign in with google|continue with (?:google|apple)|guest booking merge|maybe later on save|skip saving this booking)\b/i.test(
+      prompt,
+    ) &&
+    /\b(?:account|after (?:my )?booking|merge|sign in|confirmation)/i.test(
+      prompt,
+    )
+  );
+}
+
 export function isExplainCheckoutRecommendationsPrompt(
   prompt: string,
 ): boolean {
   if (isExplainTenantCurrencyPrompt(prompt)) return false;
   if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
+  if (isConfigureRecommendationProductPrompt(prompt)) return false;
+  if (isSummarizeRecommendationPerformancePrompt(prompt)) return false;
+  if (isExplainRecommendationSetupPrompt(prompt)) return false;
+  if (isPostBookingAccountSignInCue(prompt)) return false;
   if (isExplainConsumerCheckoutSuccessPrompt(prompt)) return false;
   if (
     /\b(?:dismiss|hide|close)\b/i.test(prompt) &&

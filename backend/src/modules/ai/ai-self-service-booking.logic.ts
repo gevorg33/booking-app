@@ -3,9 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import type { NotificationsService } from '../notifications/notifications.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
+import type { PublicCustomerWaitlistService } from '../public-booking/public-customer-waitlist.service.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import type { PublicConsumerSupportService } from '../public-booking/public-consumer-support.service.js';
 import type { PublicCustomerBookingItem } from '../public-booking/public-customer-auth.types.js';
 import type { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import type { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
@@ -30,6 +33,52 @@ import {
   buildRescheduleOwnedBookingMatchParams,
   enrichRescheduleMyBookingParamsFromPrompt,
 } from './ai-reschedule-my-booking.util.js';
+import { handleConfirmMyBookingDetailsLogic } from './ai-confirm-my-booking-details.logic.js';
+import { handleAddBookingToCalendarLogic } from './ai-add-booking-to-calendar.logic.js';
+import { handleExplainPreparationNotesLogic } from './ai-explain-preparation-notes.logic.js';
+import { handleExplainCancelPolicyLogic } from './ai-explain-cancel-policy.logic.js';
+import { handleExplainDepositForfeitureLogic } from './ai-explain-deposit-forfeiture.logic.js';
+import { handleGetManageLinkLogic } from './ai-get-manage-link.logic.js';
+import { handleRecoverLostManageLinkLogic } from './ai-recover-lost-manage-link.logic.js';
+import { handleSignInToManageBookingLogic } from './ai-sign-in-to-manage-booking.logic.js';
+import { handleExplainManageBookingPageLogic } from './ai-explain-manage-booking-page.logic.js';
+import { handleNotifyRunningLateLogic } from './ai-notify-running-late.logic.js';
+import { handleLeaveVisitReviewLogic } from './ai-leave-visit-review.logic.js';
+import { handleExplainPostVisitReviewPromptLogic } from './ai-explain-post-visit-review-prompt.logic.js';
+import { handleReportBookingProblemLogic } from './ai-report-booking-problem.logic.js';
+import { handleSignInAfterBookingLogic } from './ai-sign-in-after-booking.logic.js';
+import {
+  handleCheckWaitlistStatusLogic,
+  handleJoinWaitlistLogic,
+} from './ai-customer-waitlist.logic.js';
+
+export { handleExplainCancelPolicyLogic } from './ai-explain-cancel-policy.logic.js';
+export { handleExplainPackageVisitRulesLogic } from './ai-explain-package-visit-rules.logic.js';
+export { handleGetManageLinkLogic } from './ai-get-manage-link.logic.js';
+export { handleRecoverLostManageLinkLogic } from './ai-recover-lost-manage-link.logic.js';
+export { handleNotifyRunningLateLogic } from './ai-notify-running-late.logic.js';
+export { handleLeaveVisitReviewLogic } from './ai-leave-visit-review.logic.js';
+export { handleExplainPostVisitReviewPromptLogic } from './ai-explain-post-visit-review-prompt.logic.js';
+export { handleReportBookingProblemLogic } from './ai-report-booking-problem.logic.js';
+export { handleSignInAfterBookingLogic } from './ai-sign-in-after-booking.logic.js';
+export { handleSignInToManageBookingLogic } from './ai-sign-in-to-manage-booking.logic.js';
+export { handleExplainManageBookingPageLogic } from './ai-explain-manage-booking-page.logic.js';
+export { handleConfirmMyBookingDetailsLogic } from './ai-confirm-my-booking-details.logic.js';
+export { handleAddBookingToCalendarLogic } from './ai-add-booking-to-calendar.logic.js';
+export { handleListMyUpcomingAppointmentsLogic } from './ai-list-my-upcoming-appointments.logic.js';
+export {
+  handleJoinWaitlistLogic,
+  handleCheckWaitlistStatusLogic,
+} from './ai-customer-waitlist.logic.js';
+import { handleCancelPackageVisitSelfLogic } from './ai-cancel-package-visit-self.logic.js';
+import { handleReschedulePackageVisitSelfLogic } from './ai-reschedule-package-visit-self.logic.js';
+import { handleListMyUpcomingAppointmentsLogic } from './ai-list-my-upcoming-appointments.logic.js';
+import { handleBookAnotherServiceLogic } from './ai-book-another-service.logic.js';
+import { handleExplainMultiServiceCartLogic } from './ai-explain-multi-service-cart.logic.js';
+import { handleExplainPackageSavingsLogic } from './ai-explain-package-savings.logic.js';
+import { handleExplainSubscriptionVsOneTimeLogic } from './ai-explain-subscription-vs-one-time.logic.js';
+import { handleExplainPackageVisitRulesLogic } from './ai-explain-package-visit-rules.logic.js';
+import { handleBookWithGiftCardLogic } from './ai-book-with-gift-card.logic.js';
 import {
   groupCustomerPackageVisits,
   type CustomerPackageVisitSummary,
@@ -43,7 +92,10 @@ import {
   getDateKeyInTimezone,
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
-import { formatDateDisplay, formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+} from '../../common/utils/date-format.util.js';
 import { PUBLIC_AVAILABILITY_SCAN_DAYS } from './ai-orchestration.helpers.js';
 import type { TimeOfDayWindow } from './ai-operations.util.js';
 import {
@@ -62,10 +114,19 @@ import {
 export interface SelfServiceBookingLogicDeps {
   publicBookingService: PublicBookingService;
   publicCustomerBookingService: PublicCustomerBookingService;
+  publicCustomerWaitlistService?: Pick<
+    PublicCustomerWaitlistService,
+    'joinWaitlist' | 'getWaitlistStatus'
+  >;
   publicCustomerAuthService: PublicCustomerAuthService;
+  publicConsumerSupportService?: Pick<
+    PublicConsumerSupportService,
+    'createPostBookingSupportTicket'
+  >;
   packagesService: ServicePackagesService;
   subscriptionsService: ServiceSubscriptionsService;
   multiServiceBookingsService: MultiServiceBookingsService;
+  notificationsService: Pick<NotificationsService, 'sendBookingConfirmation'>;
   bookingRepo: Repository<Booking>;
   businessRepo: Repository<Business>;
   serviceRepo: Repository<Service>;
@@ -199,6 +260,43 @@ export async function handleBookPackageLogic(
   const packages = await deps.packagesService.listPublicPackages(businessId);
   const pkg = packages.find((p) => p.id === packageId);
   if (!pkg) return failure('book_package', 'Package not found.');
+
+  if (
+    params.bookingFirstAvailable &&
+    !params.date &&
+    !params.blockStartTime &&
+    !params.lines
+  ) {
+    try {
+      const block = await deps.publicBookingService.suggestPackageBlock(
+        slug,
+        packageId,
+      );
+      return success(
+        'book_package',
+        `Found the earliest "${pkg.name}" block — continue at checkout.`,
+        {
+          packageId,
+          packageName: pkg.name,
+          blockStartTime: block.startTime,
+          date: block.dateKey,
+          employeeId: block.employeeId,
+          employeeName: block.employeeName,
+          navigate: {
+            path: 'checkout',
+            query: { packageId, startTime: block.startTime },
+          },
+          sessionContext: {
+            packageId,
+            packageName: pkg.name,
+            blockStartTime: block.startTime,
+          },
+        },
+      );
+    } catch {
+      // Fall through to manual slot selection on the package page.
+    }
+  }
 
   if (!params.date && !params.blockStartTime && !params.lines) {
     return success(
@@ -440,11 +538,10 @@ export async function handleCheckMultiServiceAvailabilityLogic(
     const summary = dateLabel
       ? `Next available block: ${timeLabel} on ${dateLabel} with ${block.employeeName}.`
       : `Next available block: ${timeLabel} with ${block.employeeName}.`;
-    return success(
-      'check_multi_service_availability',
-      summary,
-      { block, serviceIds },
-    );
+    return success('check_multi_service_availability', summary, {
+      block,
+      serviceIds,
+    });
   } catch (err: any) {
     return failure(
       'check_multi_service_availability',
@@ -779,130 +876,8 @@ export async function handleRescheduleMyBookingLogic(
   }
 }
 
-export async function handleCancelPackageVisitSelfLogic(
-  deps: SelfServiceBookingLogicDeps,
-  businessId: string,
-  params: Record<string, any>,
-): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId)
-    return failure(
-      'cancel_package_visit_self',
-      'Sign in to cancel your package visit.',
-      { clarify: true },
-    );
-
-  const slug = await resolveBusinessSlug(deps, businessId);
-  if (!slug) return failure('cancel_package_visit_self', 'Business not found.');
-
-  const { booking } = await resolveOwnedBooking(
-    deps,
-    businessId,
-    customerId,
-    params,
-    '',
-    { allowFirstWhenUnspecified: true, intent: 'default' },
-  );
-  if (!booking) {
-    return failure('cancel_package_visit_self', 'No package visit found.', {
-      clarify: true,
-    });
-  }
-
-  try {
-    const { bookings } =
-      await deps.publicCustomerBookingService.cancelPackageVisit(
-        slug,
-        customerId,
-        booking.id,
-      );
-    return success(
-      'cancel_package_visit_self',
-      `Cancelled package visit (${bookings.length} appointment(s)).`,
-      { bookingIds: bookings.map((b) => b.id) },
-    );
-  } catch (err: any) {
-    return failure(
-      'cancel_package_visit_self',
-      err?.message ?? 'Could not cancel package visit.',
-      {
-        bookingId: booking.id,
-      },
-    );
-  }
-}
-
-export async function handleReschedulePackageVisitSelfLogic(
-  deps: SelfServiceBookingLogicDeps,
-  businessId: string,
-  params: Record<string, any>,
-): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  if (!customerId) {
-    return failure(
-      'reschedule_package_visit_self',
-      'Sign in to reschedule your package visit.',
-      { clarify: true },
-    );
-  }
-
-  const slug = await resolveBusinessSlug(deps, businessId);
-  if (!slug)
-    return failure('reschedule_package_visit_self', 'Business not found.');
-
-  const { booking } = await resolveOwnedBooking(
-    deps,
-    businessId,
-    customerId,
-    params,
-    '',
-    { allowFirstWhenUnspecified: true, intent: 'default' },
-  );
-  if (!booking) {
-    return failure('reschedule_package_visit_self', 'No package visit found.', {
-      clarify: true,
-    });
-  }
-
-  if (!params.lines && !params.blockStartTime) {
-    return success(
-      'reschedule_package_visit_self',
-      'Choose a new time block for your package visit.',
-      {
-        bookingId: booking.id,
-        clarify: true,
-        navigate: { path: 'account', query: { reschedulePackage: booking.id } },
-      },
-    );
-  }
-
-  try {
-    const { bookings } =
-      await deps.publicCustomerBookingService.reschedulePackageVisit(
-        slug,
-        customerId,
-        booking.id,
-        {
-          lines: params.lines,
-        },
-      );
-    return success(
-      'reschedule_package_visit_self',
-      'Package visit rescheduled.',
-      {
-        bookingIds: bookings.map((b) => b.id),
-      },
-    );
-  } catch (err: any) {
-    return failure(
-      'reschedule_package_visit_self',
-      err?.message ?? 'Could not reschedule package visit.',
-      {
-        bookingId: booking.id,
-      },
-    );
-  }
-}
+export { handleCancelPackageVisitSelfLogic } from './ai-cancel-package-visit-self.logic.js';
+export { handleReschedulePackageVisitSelfLogic } from './ai-reschedule-package-visit-self.logic.js';
 
 export async function handleListMyPackageVisitsLogic(
   deps: SelfServiceBookingLogicDeps,
@@ -928,9 +903,7 @@ export async function handleListMyPackageVisitsLogic(
     slug,
     customerId,
   );
-  let packageVisits = groupCustomerPackageVisits(
-    bookings as PublicCustomerBookingItem[],
-  );
+  let packageVisits = groupCustomerPackageVisits(bookings);
 
   const packageName =
     (params.packageName as string | undefined) ??
@@ -1015,108 +988,6 @@ export async function handleListMyAppointmentsLogic(
   );
 }
 
-export async function handleGetManageLinkLogic(
-  deps: SelfServiceBookingLogicDeps,
-  businessId: string,
-  params: Record<string, any>,
-): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
-  const slug = await resolveBusinessSlug(deps, businessId);
-  if (!slug) return failure('get_manage_link', 'Business not found.');
-
-  let booking: Booking | null = null;
-  if (params.bookingId) {
-    booking = await deps.bookingRepo.findOne({
-      where: {
-        id: params.bookingId as string,
-        businessId,
-        ...(customerId ? { customerId } : {}),
-      },
-    });
-  } else if (customerId) {
-    ({ booking } = await resolveOwnedBooking(
-      deps,
-      businessId,
-      customerId,
-      params,
-      '',
-      { allowFirstWhenUnspecified: true, intent: 'default' },
-    ));
-  }
-
-  if (!booking) {
-    return failure(
-      'get_manage_link',
-      'Specify which booking you need a manage link for.',
-      {
-        clarify: true,
-        missing: ['bookingId'],
-      },
-    );
-  }
-
-  const token = await ensureBookingManageToken(deps.bookingRepo, booking.id);
-  const frontendUrl =
-    deps.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-  const manageUrl = buildBookingManageUrl(frontendUrl, slug, booking.id, token);
-
-  return success('get_manage_link', 'Here is your booking manage link.', {
-    bookingId: booking.id,
-    manageUrl,
-    manageToken: token,
-  });
-}
-
-export async function handleExplainCancelPolicyLogic(
-  deps: SelfServiceBookingLogicDeps,
-  businessId: string,
-  params: Record<string, any>,
-): Promise<CommandResult> {
-  const business = await deps.businessRepo.findOne({
-    where: { id: businessId },
-  });
-  if (!business) return failure('explain_cancel_policy', 'Business not found.');
-
-  const settings = resolveCustomerSelfServiceSettings(business.settings);
-  const parts = [
-    settings.allowCancel
-      ? 'Online cancellation is allowed.'
-      : 'Online cancellation is disabled.',
-    settings.allowReschedule
-      ? 'Online rescheduling is allowed.'
-      : 'Online rescheduling is disabled.',
-    `Minimum notice: ${settings.minimumNoticeHours} hours before the appointment.`,
-    `Maximum reschedules per booking: ${settings.maxReschedulesPerBooking}.`,
-    settings.allowProviderChangeOnReschedule
-      ? 'You may change provider when rescheduling.'
-      : 'Provider cannot be changed when rescheduling.',
-  ];
-
-  let bookingPolicy: Record<string, unknown> | undefined;
-  const customerId = resolveSessionCustomerId(params);
-  if (customerId && params.bookingId) {
-    const booking = await deps.bookingRepo.findOne({
-      where: { id: params.bookingId as string, businessId, customerId },
-    });
-    if (booking) {
-      bookingPolicy = {
-        cancel: evaluateCustomerBookingPolicy(booking, settings, 'cancel'),
-        reschedule: evaluateCustomerBookingPolicy(
-          booking,
-          settings,
-          'reschedule',
-        ),
-      };
-    }
-  }
-
-  return success('explain_cancel_policy', parts.join(' '), {
-    settings,
-    bookingPolicy,
-    policyLines: parts,
-  });
-}
-
 export async function handleBookWithCashLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
@@ -1142,34 +1013,6 @@ export async function handleBookWithCashLogic(
       paymentMethod: 'cash',
       sessionContext: { paymentMethod: 'cash', markPaid: 'false' },
       navigate: { path: 'checkout', query: { payment: 'cash' } },
-    },
-  );
-}
-
-export async function handleBookWithGiftCardLogic(
-  deps: SelfServiceBookingLogicDeps,
-  _businessId: string,
-  params: Record<string, any>,
-): Promise<CommandResult> {
-  const code = (params.giftCardCode as string | undefined)?.trim();
-  if (!code) {
-    return failure(
-      'book_with_gift_card',
-      'Provide your gift card code to pay with it.',
-      {
-        clarify: true,
-        missing: ['giftCardCode'],
-      },
-    );
-  }
-
-  return success(
-    'book_with_gift_card',
-    'Gift card will be applied at checkout.',
-    {
-      giftCardCode: code,
-      sessionContext: { giftCardCode: code, paymentMethod: 'gift_card' },
-      navigate: { path: 'checkout', query: { giftCard: code } },
     },
   );
 }
@@ -1472,6 +1315,7 @@ export async function handleCustomerBookingCompoundLogic(
           deps,
           businessId,
           stepParams,
+          String(stepParams._prompt ?? prompt),
         );
         break;
       case 'reschedule_package_visit_self':
@@ -1479,6 +1323,7 @@ export async function handleCustomerBookingCompoundLogic(
           deps,
           businessId,
           stepParams,
+          String(stepParams._prompt ?? prompt),
         );
         break;
       case 'list_my_package_visits':
@@ -1496,14 +1341,78 @@ export async function handleCustomerBookingCompoundLogic(
           stepParams,
         );
         break;
+      case 'list_my_upcoming_appointments':
+        result = await handleListMyUpcomingAppointmentsLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
+      case 'confirm_my_booking_details':
+        result = await handleConfirmMyBookingDetailsLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
+      case 'add_booking_to_calendar':
+        result = await handleAddBookingToCalendarLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
+      case 'explain_preparation_notes':
+        result = await handleExplainPreparationNotesLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
+      case 'book_another_service':
+        result = await handleBookAnotherServiceLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
       case 'get_manage_link':
         result = await handleGetManageLinkLogic(deps, businessId, stepParams);
+        break;
+      case 'recover_lost_manage_link':
+        result = await handleRecoverLostManageLinkLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
         break;
       case 'explain_cancel_policy':
         result = await handleExplainCancelPolicyLogic(
           deps,
           businessId,
           stepParams,
+        );
+        break;
+      case 'explain_deposit_forfeiture':
+        result = await handleExplainDepositForfeitureLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
+        );
+        break;
+      case 'explain_package_visit_rules':
+        result = await handleExplainPackageVisitRulesLogic(
+          deps,
+          businessId,
+          stepParams,
+          String(stepParams._prompt ?? prompt),
         );
         break;
       case 'book_with_cash':
@@ -1542,6 +1451,30 @@ export async function handleCustomerBookingCompoundLogic(
           deps,
           businessId,
           stepParams,
+        );
+        break;
+      case 'explain_multi_service_cart':
+        result = await handleExplainMultiServiceCartLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'explain_package_savings':
+        result = await handleExplainPackageSavingsLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
+        );
+        break;
+      case 'explain_subscription_vs_one_time':
+        result = await handleExplainSubscriptionVsOneTimeLogic(
+          deps,
+          businessId,
+          stepParams,
+          step.segment,
         );
         break;
       default:

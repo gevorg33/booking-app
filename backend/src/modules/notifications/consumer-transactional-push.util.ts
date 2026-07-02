@@ -222,10 +222,14 @@ export function buildConsumerBookingConfirmedPushPayload(input: {
       serviceName,
       scheduleLabel: input.scheduleLabel,
     }),
-    foregroundHint: t(input.locale, 'email.bookingConfirmedPushForegroundHint', {
-      serviceName,
-      scheduleLabel: input.scheduleLabel,
-    }),
+    foregroundHint: t(
+      input.locale,
+      'email.bookingConfirmedPushForegroundHint',
+      {
+        serviceName,
+        scheduleLabel: input.scheduleLabel,
+      },
+    ),
   };
 }
 
@@ -356,9 +360,13 @@ export function buildConsumerProviderVisitStatusPushPayload(input: {
         providerName,
         serviceName,
       }),
-      foregroundHint: t(input.locale, 'email.providerReadyNowPushForegroundHint', {
-        providerName,
-      }),
+      foregroundHint: t(
+        input.locale,
+        'email.providerReadyNowPushForegroundHint',
+        {
+          providerName,
+        },
+      ),
     };
   }
 
@@ -408,9 +416,13 @@ export function buildConsumerGiftCardReceivedPushPayload(input: {
     body: t(input.locale, 'email.giftCardReceivedPushBody', {
       senderName: input.senderName,
     }),
-    foregroundHint: t(input.locale, 'email.giftCardReceivedPushForegroundHint', {
-      senderName: input.senderName,
-    }),
+    foregroundHint: t(
+      input.locale,
+      'email.giftCardReceivedPushForegroundHint',
+      {
+        senderName: input.senderName,
+      },
+    ),
   };
 }
 

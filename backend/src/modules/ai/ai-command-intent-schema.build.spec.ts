@@ -15,10 +15,12 @@ describe('ai-command-intent-schema.build (ai-cmd-ext-0.1)', () => {
   });
 
   it('keeps the union string stable and sorted', () => {
-    const ids = [...DASHBOARD_CLASSIFIER_ACTION_UNION.matchAll(/"([a-z0-9_]+)"/g)].map(
-      (match) => match[1]!,
+    const ids = [
+      ...DASHBOARD_CLASSIFIER_ACTION_UNION.matchAll(/"([a-z0-9_]+)"/g),
+    ].map((match) => match[1]);
+    expect(ids).toEqual(
+      [...ids].sort((left, right) => left.localeCompare(right)),
     );
-    expect(ids).toEqual([...ids].sort((left, right) => left.localeCompare(right)));
     expect(ids.length).toBe(DASHBOARD_INTENTS.length);
   });
 });

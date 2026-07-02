@@ -1,7 +1,5 @@
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
-import {
-  formatProviderCustomerSnapshotBadgesText,
-} from '../provider-mobile/provider-booking-customer-badges.util.js';
+import { formatProviderCustomerSnapshotBadgesText } from '../provider-mobile/provider-booking-customer-badges.util.js';
 import { formatProviderLoyaltyQuickViewSummary } from '../provider-mobile/provider-booking-customer-loyalty.util.js';
 import type { ProviderBookingCustomerContextView } from '../provider-mobile/provider-booking-customer-context.util.js';
 import type { ProviderBookingCompletedVisitView } from '../provider-mobile/provider-booking-visit-history.util.js';
@@ -48,7 +46,9 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
       lower,
     ) ||
     (containsArmenianScript(prompt) &&
-      /(ամփոփ|պատմ|հաճախորդ|\u056b\u0574\u0561\u0576|snapshot|no-show|\u0584\u0561\u0576\u056b\s+\u0561\u0576\u0563\u0561\u0574)/i.test(prompt)) ||
+      /(ամփոփ|պատմ|հաճախորդ|\u056b\u0574\u0561\u0576|snapshot|no-show|\u0584\u0561\u0576\u056b\s+\u0561\u0576\u0563\u0561\u0574)/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
       /(кратко|расскаж|об этом клиент|клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
         prompt,
@@ -63,15 +63,15 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
     /([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)-\u056b(?=\s)/i.test(prompt) ||
     /([A-Z][\w'.-]+)-\u043d(?=\s)/i.test(prompt) ||
     /([A-Z][\w'.-]+)-\u0576(?=\s)/i.test(prompt) ||
-    (containsArmenianScript(prompt) && /(հաճախորդ|լոյալ|այց|referral)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(հաճախորդ|լոյալ|այց|referral)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(клиент|лояльн|визит|referral|no-show)/i.test(prompt));
 
   const marketingSnapshot =
     /\b(marketing|opted in|opt in|referral|loyalty|no[\s-]?shows?)\b/i.test(
       lower,
-    ) &&
-    /\b(client|customer|this customer|guest)\b/i.test(lower);
+    ) && /\b(client|customer|this customer|guest)\b/i.test(lower);
 
   if (
     marketingSnapshot &&
@@ -236,7 +236,10 @@ export function rescueProviderClientContextIntent(
     return { action: 'add_client_note', rescueReason: 'add_client_note' };
   }
   if (isShowClientHistoryPrompt(prompt)) {
-    return { action: 'show_client_history', rescueReason: 'show_client_history' };
+    return {
+      action: 'show_client_history',
+      rescueReason: 'show_client_history',
+    };
   }
   if (isSummarizeClientPrompt(prompt)) {
     return { action: 'summarize_client', rescueReason: 'summarize_client' };
@@ -254,7 +257,10 @@ export function rescueProviderClientContextIntent(
     action === 'list_bookings' &&
     /\b(history|past visits?|previous)\b/i.test(prompt)
   ) {
-    return { action: 'show_client_history', rescueReason: 'show_client_history' };
+    return {
+      action: 'show_client_history',
+      rescueReason: 'show_client_history',
+    };
   }
 
   if (
@@ -284,7 +290,9 @@ export function formatProviderClientSummaryText(
     parts.push(`last visit ${formatDateDisplay(context.lastCompletedVisitAt)}`);
   }
   if (context.noShowCount > 0) {
-    parts.push(`${context.noShowCount} no-show${context.noShowCount === 1 ? '' : 's'}`);
+    parts.push(
+      `${context.noShowCount} no-show${context.noShowCount === 1 ? '' : 's'}`,
+    );
   }
   if (context.loyaltyQuickView) {
     parts.push(formatProviderLoyaltyQuickViewSummary(context.loyaltyQuickView));
@@ -294,7 +302,9 @@ export function formatProviderClientSummaryText(
     );
   }
   parts.push(formatMarketingOptInLabel(context.marketingOptIn));
-  const badgeText = formatProviderCustomerSnapshotBadgesText(context.badges ?? []);
+  const badgeText = formatProviderCustomerSnapshotBadgesText(
+    context.badges ?? [],
+  );
   if (badgeText) {
     parts.push(badgeText);
   }

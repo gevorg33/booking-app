@@ -48,7 +48,10 @@ describe('Catalog notify AI integration (catalog-notify-1.9)', () => {
           useValue: { findAll: jest.fn().mockResolvedValue(services) },
         },
         { provide: ServicePackagesService, useValue: packagesService },
-        { provide: ServiceSubscriptionsService, useValue: subscriptionsService },
+        {
+          provide: ServiceSubscriptionsService,
+          useValue: subscriptionsService,
+        },
       ],
     }).compile();
 

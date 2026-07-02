@@ -1,4 +1,5 @@
-import { CONSUMER_ADOPTION_PROMPT_SCENARIOS } from './ai-consumer-adoption.fixtures.js';
+import { FIND_MY_SAVED_SALONS_MULTILINGUAL_SCENARIOS } from './ai-find-my-saved-salons-multilingual.fixtures.js';
+import { SWITCH_SALON_TENANT_MULTILINGUAL_SCENARIOS } from './ai-switch-salon-tenant-multilingual.fixtures.js';
 import { CONSUMER_ADOPTION_INTENTS } from './ai-consumer-adoption.util.js';
 import { CUSTOMER_INTENT_COVERAGE_DEFERRED } from './ai-customer-intent-coverage.util.js';
 import { SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-self-service-booking-multilingual.fixtures.js';
@@ -25,7 +26,10 @@ import {
 import { listConsumerClinicTestResultsDeferredEvalLocaleParityGaps } from './ai-consumer-clinic-test-results-deferred-multilingual.eval.util.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
 import { CUSTOMER_MARKETING_GROWTH_INTENTS } from './ai-marketing-growth.util.js';
-import type { AiCommandEvalCase, AiEvalLocale } from './eval/ai-command-eval.types.js';
+import type {
+  AiCommandEvalCase,
+  AiEvalLocale,
+} from './eval/ai-command-eval.types.js';
 
 export type CustomerDeferredLocaleParityGap = {
   domain: string;
@@ -66,7 +70,10 @@ function listEnLocaleSiblingGaps(
 
 /** acc-2.4 — every EN consumer-adoption row needs HY + RU siblings. */
 export function listConsumerAdoptionLocaleParityGaps(
-  scenarios: readonly LocaleParityScenario[] = CONSUMER_ADOPTION_PROMPT_SCENARIOS,
+  scenarios: readonly LocaleParityScenario[] = [
+    ...FIND_MY_SAVED_SALONS_MULTILINGUAL_SCENARIOS,
+    ...SWITCH_SALON_TENANT_MULTILINGUAL_SCENARIOS,
+  ],
 ): CustomerDeferredLocaleParityGap[] {
   return listEnLocaleSiblingGaps('consumer-adoption', scenarios);
 }
@@ -91,7 +98,11 @@ export function listConsumerCheckoutSuccessDeferredLocaleParityGaps(): CustomerD
     { hy: boolean; ru: boolean; intent: string }
   >();
   for (const enId of CONSUMER_CHECKOUT_SUCCESS_EN_SCENARIO_IDS) {
-    byEnId.set(enId, { hy: false, ru: false, intent: 'explain_consumer_checkout_success' });
+    byEnId.set(enId, {
+      hy: false,
+      ru: false,
+      intent: 'explain_consumer_checkout_success',
+    });
   }
   for (const row of CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_SCENARIOS) {
     const slot = byEnId.get(row.enScenarioId);
@@ -122,7 +133,11 @@ export function listConsumerCheckoutTaxDeferredLocaleParityGaps(): CustomerDefer
     { hy: boolean; ru: boolean; intent: string }
   >();
   for (const enId of CONSUMER_CHECKOUT_TAX_EN_SCENARIO_IDS) {
-    byEnId.set(enId, { hy: false, ru: false, intent: 'explain_consumer_checkout_tax' });
+    byEnId.set(enId, {
+      hy: false,
+      ru: false,
+      intent: 'explain_consumer_checkout_tax',
+    });
   }
   for (const row of CONSUMER_CHECKOUT_TAX_MULTILINGUAL_SCENARIOS) {
     const slot = byEnId.get(row.enScenarioId);
@@ -190,19 +205,38 @@ export function listDeferredCustomerLocaleParityGaps(): CustomerDeferredLocalePa
   ];
 }
 
-export function consumerAdoptionEvalCaseId(scenarioId: string): string {
+/** Saved-salon i18n rows (ai-cmd-customer-4.17.4) — replaces empty CONSUMER_ADOPTION_PROMPT_SCENARIOS. */
+export const CONSUMER_ADOPTION_I18N_SCENARIOS: readonly LocaleParityScenario[] =
+  [
+    ...FIND_MY_SAVED_SALONS_MULTILINGUAL_SCENARIOS,
+    ...SWITCH_SALON_TENANT_MULTILINGUAL_SCENARIOS,
+  ];
+
+export function consumerAdoptionEvalCaseId(
+  scenarioId: string,
+  expectedAction?: string,
+): string {
+  if (expectedAction === 'find_my_saved_salons') {
+    return `find-saved-salons-${scenarioId}`;
+  }
+  if (expectedAction === 'switch_salon_tenant') {
+    return `switch-salon-${scenarioId}`;
+  }
   return `consumer-adoption-${scenarioId}`;
 }
 
 export function listConsumerAdoptionEvalLocaleParityGaps(
   evalCases: readonly AiCommandEvalCase[],
-  scenarios: readonly LocaleParityScenario[] = CONSUMER_ADOPTION_PROMPT_SCENARIOS,
+  scenarios: readonly LocaleParityScenario[] = CONSUMER_ADOPTION_I18N_SCENARIOS,
 ): string[] {
   const evalIds = new Set(evalCases.map((row) => row.id));
   const gaps: string[] = [];
 
   for (const scenario of scenarios) {
-    const evalId = consumerAdoptionEvalCaseId(scenario.id);
+    const evalId = consumerAdoptionEvalCaseId(
+      scenario.id,
+      scenario.expectedAction,
+    );
     if (!evalIds.has(evalId)) {
       gaps.push(`${evalId}: missing eval case`);
     }
@@ -245,7 +279,9 @@ export function registeredDeferredConsumerClinicTestResultsIntents(): string[] {
 export function assertDeferredIntentsTracked(
   intents: readonly string[],
 ): string[] {
-  return intents.filter((intent) => !CUSTOMER_INTENT_COVERAGE_DEFERRED.has(intent));
+  return intents.filter(
+    (intent) => !CUSTOMER_INTENT_COVERAGE_DEFERRED.has(intent),
+  );
 }
 
 export { listSelfServiceBookingLocaleParityGaps };

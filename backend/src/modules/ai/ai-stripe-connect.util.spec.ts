@@ -39,7 +39,9 @@ describe('ai-stripe-connect.util', () => {
 
   it('does not treat stripe status questions as configure', () => {
     expect(
-      isConfigureStripeConnectPrompt('Is Stripe Connect ready for online payments?'),
+      isConfigureStripeConnectPrompt(
+        'Is Stripe Connect ready for online payments?',
+      ),
     ).toBe(false);
     expect(
       isConfigureStripeConnectPrompt('Explain why Stripe is not connected'),
@@ -47,9 +49,9 @@ describe('ai-stripe-connect.util', () => {
   });
 
   it('does not treat subscription billing as stripe connect configure', () => {
-    expect(isConfigureStripeConnectPrompt('Manage subscription and billing portal')).toBe(
-      false,
-    );
+    expect(
+      isConfigureStripeConnectPrompt('Manage subscription and billing portal'),
+    ).toBe(false);
   });
 
   it('parses compound salon checkout stripe step via forced params', () => {

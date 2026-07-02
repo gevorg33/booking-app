@@ -32,7 +32,9 @@ describe('ai-list-services-payment-filters integration (ai-cmd-ext-5.1)', () => 
   const rescueService = new AiIntentRescueService();
 
   it('classifier rules include payment filter guidance', () => {
-    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain('prepaymentMode');
+    expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain(
+      'prepaymentMode',
+    );
     expect(BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES).toContain(
       'list_services payment filters',
     );
@@ -41,13 +43,17 @@ describe('ai-list-services-payment-filters integration (ai-cmd-ext-5.1)', () => 
   it.each(LIST_SERVICES_PAYMENT_FILTER_RESCUE_SCENARIOS.slice(0, 4))(
     'payments rescue routes $id to list_services',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(
-        rescuePaymentsIntent(prompt, misclassifiedAction)?.action,
-      ).toBe(expectedAction);
+      expect(rescuePaymentsIntent(prompt, misclassifiedAction)?.action).toBe(
+        expectedAction,
+      );
     },
   );
 
-  it.each(LIST_SERVICES_PAYMENT_FILTER_PROMPTS.filter((row) => row.surface === 'dashboard').slice(0, 4))(
+  it.each(
+    LIST_SERVICES_PAYMENT_FILTER_PROMPTS.filter(
+      (row) => row.surface === 'dashboard',
+    ).slice(0, 4),
+  )(
     'intent rescue enriches dashboard prompt $id',
     ({ prompt, paramsPartial }) => {
       const rescued = rescueService.rescue({
@@ -70,15 +76,17 @@ describe('ai-list-services-payment-filters integration (ai-cmd-ext-5.1)', () => 
       {},
     );
     expect(
-      filterServicesByListServicesPaymentPolicy(CATALOG, filter).map((row) => row.id),
+      filterServicesByListServicesPaymentPolicy(CATALOG, filter).map(
+        (row) => row.id,
+      ),
     ).toEqual(['c']);
   });
 
   it('utility rescue matches intent rescue for audit misroute', () => {
     const prompt = 'List services that require online payment';
-    expect(rescueListServicesPaymentFilterIntent(prompt, 'unknown')?.action).toBe(
-      'list_services',
-    );
+    expect(
+      rescueListServicesPaymentFilterIntent(prompt, 'unknown')?.action,
+    ).toBe('list_services');
     expect(
       rescueService.rescue({ prompt, action: 'unknown', params: {} })?.action,
     ).toBe('list_services');

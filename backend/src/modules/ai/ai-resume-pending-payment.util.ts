@@ -14,7 +14,7 @@ export interface PendingCheckoutPaymentContext {
   employeeId?: string;
 }
 
-export const CUSTOMER_RESUME_PENDING_PAYMENT_CLASSIFIER_RULES = `- resume_pending_payment: READ — customer app only: restore an in-progress Stripe checkout saved on this device (PendingCheckoutPayment) after the user closed the app or left mid-payment. Triggers: "Continue my payment", "I closed the app mid-checkout", "pick up where I left off", "restore my pending payment". Requires pendingCheckoutSessionId + pendingCheckoutServiceId + pendingCheckoutStartTime in session from device storage. Returns navigate back to checkout with session_id. NOT pay_online (start or continue card checkout explicitly), NOT explain_why_stripe_required, NOT explain_amount_due_now, and NOT public booking web (no device session restore).`;
+export const CUSTOMER_RESUME_PENDING_PAYMENT_CLASSIFIER_RULES = `- resume_pending_payment: READ — customer app only: restore an in-progress Stripe checkout saved on this device (PendingCheckoutPayment) after the user closed the app or left mid-payment. Triggers: "Continue my payment", "I closed the app mid-checkout", "pick up where I left off on payment", "restore my pending payment". Requires pendingCheckoutSessionId + pendingCheckoutServiceId + pendingCheckoutStartTime in session from device storage. Returns navigate back to checkout with session_id. NOT resume_booking_draft (mid-booking draft before payment — customer + public), NOT pay_online (start or continue card checkout explicitly), NOT explain_why_stripe_required, NOT explain_amount_due_now, and NOT public booking web (no device session restore).`;
 
 const RESUME_PAYMENT_CUE = new RegExp(
   String.raw`\b(resume|restore|pick\s+up\s+where|left\s+off|abandoned|incomplete|interrupted|did(?:n't| not)\s+finish|was\s+paying|mid[\s-]?checkout|closed\s+(?:the\s+)?app|left\s+during|take\s+me\s+back)\b|շարունակ.{0,20}վճար|կիսատ.{0,15}checkout|продолж.{0,20}оплат|закрыл.{0,15}приложен`,
@@ -76,6 +76,17 @@ export function isResumePendingPaymentIntent(
 }
 
 export function isResumePendingPaymentPrompt(prompt: string): boolean {
+  if (/\bcontinue\s+where\s+I\s+left\s+off\b/i.test(prompt)) return false;
+  if (/\brestore\s+my\s+half[\s-]?finished\s+booking\b/i.test(prompt)) {
+    return false;
+  }
+  if (
+    /\bcontinue\s+my\s+(?:unfinished|half[\s-]?finished)\s+booking\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (/\bcontinue\s+my\s+payment\b/i.test(prompt)) return true;
 
   if (
@@ -89,7 +100,10 @@ export function isResumePendingPaymentPrompt(prompt: string): boolean {
     return true;
   }
 
-  if (EXPLICIT_NEW_PAY_ONLINE.test(prompt) && !RESUME_PAYMENT_CUE.test(prompt)) {
+  if (
+    EXPLICIT_NEW_PAY_ONLINE.test(prompt) &&
+    !RESUME_PAYMENT_CUE.test(prompt)
+  ) {
     return false;
   }
   if (isExplicitPayOnlinePrompt(prompt) && !RESUME_PAYMENT_CUE.test(prompt)) {

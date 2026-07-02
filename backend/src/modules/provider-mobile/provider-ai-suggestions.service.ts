@@ -64,7 +64,7 @@ export class ProviderAiSuggestionsService {
     );
     const wallClockTz = resolveBusinessWallClockTimezone(
       business?.timezone,
-      getBusinessDefaultLocale(settings as Record<string, unknown> | undefined),
+      getBusinessDefaultLocale(settings),
     );
     const wallNow = getWallClockNow(wallClockTz);
     const todayKey = getDateKeyInTimezone(new Date(), wallClockTz);

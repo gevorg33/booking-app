@@ -171,7 +171,9 @@ export function extractRegistryNlBindingsFromRow(
   return bindings;
 }
 
-export function isNlPromptFixtureRow(row: unknown): row is Record<string, unknown> {
+export function isNlPromptFixtureRow(
+  row: unknown,
+): row is Record<string, unknown> {
   if (!isRecord(row)) return false;
   return typeof row.prompt === 'string' && row.prompt.trim().length > 0;
 }

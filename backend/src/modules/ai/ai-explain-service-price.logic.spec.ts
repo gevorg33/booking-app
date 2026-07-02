@@ -27,7 +27,9 @@ const services = [
   },
 ] as const;
 
-function buildDeps(overrides: Partial<PaymentsLogicDeps> = {}): PaymentsLogicDeps {
+function buildDeps(
+  overrides: Partial<PaymentsLogicDeps> = {},
+): PaymentsLogicDeps {
   return {
     giftCardsService: {} as PaymentsLogicDeps['giftCardsService'],
     giftCardPurchaseService: {} as PaymentsLogicDeps['giftCardPurchaseService'],
@@ -86,7 +88,9 @@ describe('ai-explain-service-price.logic (ai-cmd-customer-4.1.1)', () => {
     expect(result.summary).toContain('Massage');
     expect(result.summary).toContain('incl. 20% VAT');
     expect(result.summary).toContain('deposit');
-    expect((result.details as { depositDueNow: number }).depositDueNow).toBe(40);
+    expect((result.details as { depositDueNow: number }).depositDueNow).toBe(
+      40,
+    );
   });
 
   it('explains no-deposit services', async () => {

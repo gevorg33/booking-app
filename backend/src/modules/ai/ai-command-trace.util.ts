@@ -3,7 +3,10 @@ import {
   redactEmbeddedPhiFromPrompt,
   redactPhiFromValue,
 } from '../../common/utils/phi-ai-guard.util.js';
-import type { CommandResult, PipelineTrace } from './command-completion.types.js';
+import type {
+  CommandResult,
+  PipelineTrace,
+} from './command-completion.types.js';
 import type { IntentCandidateSource } from './command-understanding.types.js';
 import type {
   AiCommandTraceOutcome,
@@ -86,7 +89,10 @@ export function resolveCommandTraceSource(
 
 export function buildAiCommandTraceRow(
   input: RecordAiCommandTraceInput,
-): Omit<import('./entities/ai-command-trace.entity.js').AiCommandTrace, 'id' | 'createdAt'> {
+): Omit<
+  import('./entities/ai-command-trace.entity.js').AiCommandTrace,
+  'id' | 'createdAt'
+> {
   const traceId = input.traceId ?? randomUUID();
   const promptNormalized = input.promptNormalized ?? input.promptRaw;
 
@@ -100,8 +106,7 @@ export function buildAiCommandTraceRow(
     promptNormalized: redactCommandTracePrompt(promptNormalized),
     locale: input.locale ?? null,
     action: input.action,
-    confidence:
-      typeof input.confidence === 'number' ? input.confidence : null,
+    confidence: typeof input.confidence === 'number' ? input.confidence : null,
     params: redactCommandTraceParams(input.params),
     routingTier: input.routingTier ?? null,
     source: resolveCommandTraceSource(input.candidateSource, input.source),

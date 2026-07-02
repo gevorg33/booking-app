@@ -24,7 +24,9 @@ describe('ai-explain-payment-options-for-service.util (ai-cmd-customer-4.1.2)', 
   });
 
   it.each(
-    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects explain-payment-options prompt $id', (_id, row) => {
     expect(isExplainPaymentOptionsForServicePrompt(row.prompt)).toBe(true);
     expect(detectExplainPaymentOptionsForServiceAction(row.prompt)).toBe(
@@ -39,12 +41,15 @@ describe('ai-explain-payment-options-for-service.util (ai-cmd-customer-4.1.2)', 
   )('detects multilingual explain-payment-options prompt $id', (_id, row) => {
     expect(isExplainPaymentOptionsForServicePrompt(row.prompt)).toBe(true);
     expect(
-      rescueExplainPaymentOptionsForServiceIntent(row.prompt, 'unknown')?.action,
+      rescueExplainPaymentOptionsForServiceIntent(row.prompt, 'unknown')
+        ?.action,
     ).toBe('explain_payment_options_for_service');
   });
 
   it.each(
-    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map((row) => [row.id, row] as const),
+    EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues explain-payment-options prompt $id from unknown', (_id, row) => {
     const rescued = rescueExplainPaymentOptionsForServiceIntent(
       row.prompt,
@@ -59,9 +64,9 @@ describe('ai-explain-payment-options-for-service.util (ai-cmd-customer-4.1.2)', 
   });
 
   it('extracts service names from payment-options phrasing', () => {
-    expect(extractServiceNameForPaymentOptionsPrompt('Do I pay online for color?')).toBe(
-      'color',
-    );
+    expect(
+      extractServiceNameForPaymentOptionsPrompt('Do I pay online for color?'),
+    ).toBe('color');
     expect(
       extractServiceNameForPaymentOptionsPrompt('Can I pay cash for massage?'),
     ).toBe('massage');
@@ -75,19 +80,26 @@ describe('ai-explain-payment-options-for-service.util (ai-cmd-customer-4.1.2)', 
 
   it('disambiguates why prepayment and checkout-wide payment options', () => {
     expect(
-      isExplainPaymentOptionsForServicePrompt('Why must I pay online for color?'),
+      isExplainPaymentOptionsForServicePrompt(
+        'Why must I pay online for color?',
+      ),
     ).toBe(false);
     expect(
-      isExplainPaymentOptionsForServicePrompt('What payment options do I have?'),
+      isExplainPaymentOptionsForServicePrompt(
+        'What payment options do I have?',
+      ),
     ).toBe(false);
-    expect(
-      isExplainPaymentOptionsForServicePrompt('Pay cash at visit'),
-    ).toBe(false);
+    expect(isExplainPaymentOptionsForServicePrompt('Pay cash at visit')).toBe(
+      false,
+    );
   });
 
   it('requires clarify for deictic service prompts without catalog context', () => {
     expect(
-      needsPaymentOptionsServiceClarify('Do I pay online for this service?', {}),
+      needsPaymentOptionsServiceClarify(
+        'Do I pay online for this service?',
+        {},
+      ),
     ).toBe(true);
     expect(
       needsPaymentOptionsServiceClarify('Do I pay online for this service?', {
@@ -117,7 +129,9 @@ describe('ai-explain-payment-options-for-service.util (ai-cmd-customer-4.1.2)', 
         (row) => row.surface === 'public',
       ).length,
     ).toBeGreaterThanOrEqual(10);
-    expect(AI_COMMAND_EVAL_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CASES.length).toBe(
+    expect(
+      AI_COMMAND_EVAL_EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_CASES.length,
+    ).toBe(
       EXPLAIN_PAYMENT_OPTIONS_FOR_SERVICE_PROMPTS.length +
         EXPLAIN_PAYMENT_OPTIONS_MULTILINGUAL_SCENARIOS.length,
     );

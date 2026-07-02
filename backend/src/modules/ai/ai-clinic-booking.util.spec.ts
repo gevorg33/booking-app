@@ -29,16 +29,22 @@ describe('ai-clinic-booking.util', () => {
       ),
     ).toBe('referralNotes');
     expect(
-      extractClinicBookingAspectFromPrompt('Do I need to fast before this blood draw?'),
+      extractClinicBookingAspectFromPrompt(
+        'Do I need to fast before this blood draw?',
+      ),
     ).toBe('preparation');
   });
 
   it('extracts service names when present', () => {
     expect(
-      extractServiceNameFromClinicBookingPrompt('Explain the lab prep for Lipid panel'),
+      extractServiceNameFromClinicBookingPrompt(
+        'Explain the lab prep for Lipid panel',
+      ),
     ).toBe('Lipid panel');
     expect(
-      extractServiceNameFromClinicBookingPrompt('Does CBC require fasting on this booking page?'),
+      extractServiceNameFromClinicBookingPrompt(
+        'Does CBC require fasting on this booking page?',
+      ),
     ).toBe('CBC');
     expect(
       extractServiceNameFromClinicBookingPrompt(
@@ -48,17 +54,26 @@ describe('ai-clinic-booking.util', () => {
   });
 
   it('rejects non-clinic checkout topics', () => {
-    expect(isExplainClinicBookingPrompt('What is the max group size for City Tour?')).toBe(
+    expect(
+      isExplainClinicBookingPrompt('What is the max group size for City Tour?'),
+    ).toBe(false);
+    expect(isExplainClinicBookingPrompt('Show my lab test results')).toBe(
       false,
     );
-    expect(isExplainClinicBookingPrompt('Show my lab test results')).toBe(false);
-    expect(isExplainClinicBookingPrompt('Explain GDPR data rights')).toBe(false);
+    expect(isExplainClinicBookingPrompt('Explain GDPR data rights')).toBe(
+      false,
+    );
+    expect(
+      isExplainClinicBookingPrompt('Do I need to fast for blood work?'),
+    ).toBe(false);
   });
 
   it.each(CLINIC_BOOKING_RESCUE_SCENARIOS)(
     'rescues $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
-      expect(rescueExplainClinicBookingIntent(prompt, misclassifiedAction)).toEqual({
+      expect(
+        rescueExplainClinicBookingIntent(prompt, misclassifiedAction),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });
@@ -76,9 +91,12 @@ describe('ai-clinic-booking.util', () => {
 
   it('uses aspect from params when prompt is generic', () => {
     expect(
-      parseExplainClinicBookingFromPrompt('Explain the clinic checkout fields on this page', {
-        aspect: 'all',
-      }),
+      parseExplainClinicBookingFromPrompt(
+        'Explain the clinic checkout fields on this page',
+        {
+          aspect: 'all',
+        },
+      ),
     ).toEqual({
       aspect: 'all',
       serviceName: undefined,
@@ -87,6 +105,8 @@ describe('ai-clinic-booking.util', () => {
   });
 
   it('exports fixture expectations helper', () => {
-    expect(buildClinicBookingFixtureExpectations().length).toBeGreaterThanOrEqual(12);
+    expect(
+      buildClinicBookingFixtureExpectations().length,
+    ).toBeGreaterThanOrEqual(12);
   });
 });

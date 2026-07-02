@@ -22,6 +22,10 @@ import {
   buildBookingManageUrl,
   validateBookingManageToken,
 } from '../../common/utils/booking-manage-token.util.js';
+import {
+  buildBookingCalendarEventInput,
+  buildIcsEventContent,
+} from '../../common/utils/booking-calendar.util.js';
 import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
 import { PublicCustomerReschedulePackageVisitDto } from './dto/public-customer-package-visit.dto.js';
 import type {
@@ -41,6 +45,14 @@ import {
   toPackageLineInputs,
   toPackageServiceLines,
 } from './public-customer-package-visit.util.js';
+import {
+  applyCustomerRunningLateToMetadata,
+  buildCustomerRunningLateEligibility,
+  buildCustomerRunningLateSnapshot,
+  normalizeCustomerRunningLateMinutes,
+  readCustomerRunningLate,
+} from '../../common/utils/customer-running-late.util.js';
+import type { PublicCustomerNotifyRunningLateDto } from './dto/public-customer-running-late.dto.js';
 
 export interface PublicBookingManageContext {
   bookingId: string;
@@ -189,6 +201,54 @@ export class PublicCustomerBookingService {
     return this.reschedulePackageVisitInternal(slug, bookingId, dto, { token });
   }
 
+  async notifyRunningLate(
+    slug: string,
+    customerId: string,
+    bookingId: string,
+    dto: PublicCustomerNotifyRunningLateDto = {},
+  ): Promise<{
+    bookingId: string;
+    minutesLate: number;
+    notifiedAt: string;
+    staffNotified: boolean;
+    customerRunningLate: ReturnType<typeof readCustomerRunningLate>;
+  }> {
+    const { booking } = await this.loadBookingForAction(slug, bookingId, {
+      customerId,
+    });
+    const eligibility = buildCustomerRunningLateEligibility(booking);
+    if (!eligibility.allowed) {
+      throw new ForbiddenException(
+        eligibility.reason ?? 'Running-late alert is not available',
+      );
+    }
+
+    const minutesLate = normalizeCustomerRunningLateMinutes(dto.minutesLate);
+    const snapshot = buildCustomerRunningLateSnapshot({
+      minutesLate,
+      customerId,
+    });
+    booking.metadata = applyCustomerRunningLateToMetadata(
+      booking.metadata,
+      snapshot,
+    );
+    await this.bookingRepo.save(booking);
+
+    const staffNotification =
+      await this.notificationsService.sendBusinessCustomerRunningLate(
+        booking.id,
+        minutesLate,
+      );
+
+    return {
+      bookingId: booking.id,
+      minutesLate,
+      notifiedAt: snapshot.notifiedAt,
+      staffNotified: staffNotification.emailSent,
+      customerRunningLate: readCustomerRunningLate(booking.metadata),
+    };
+  }
+
   async getPackageVisitSummary(
     slug: string,
     bookingId: string,
@@ -261,6 +321,37 @@ export class PublicCustomerBookingService {
       rescheduleCount: readRescheduleCount(booking.metadata),
       maxReschedules: settings.maxReschedulesPerBooking,
       packageVisit,
+    };
+  }
+
+  async getCalendarIcs(
+    slug: string,
+    bookingId: string,
+    token: string,
+  ): Promise<{ filename: string; content: string }> {
+    const business = await this.resolveBusiness(slug);
+    const booking = await this.bookingRepo.findOne({
+      where: { id: bookingId, businessId: business.id },
+      relations: { employee: true, service: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (!validateBookingManageToken(booking, token)) {
+      throw new ForbiddenException('Invalid or expired manage link');
+    }
+
+    const event = buildBookingCalendarEventInput({
+      bookingId: booking.id,
+      serviceName: booking.service?.name ?? 'Appointment',
+      providerName: booking.employee?.name ?? null,
+      businessName: business.name ?? null,
+      businessAddress: business.address ?? null,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    });
+
+    return {
+      filename: `booking-${booking.id}.ics`,
+      content: buildIcsEventContent(event),
     };
   }
 

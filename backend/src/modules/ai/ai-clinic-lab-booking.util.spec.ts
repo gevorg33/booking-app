@@ -9,8 +9,10 @@ import {
   PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS,
   STAFF_BOOK_LAB_COLLECTION_PROMPTS,
 } from './ai-clinic-lab-booking.fixtures.js';
+import { BOOK_LAB_COLLECTION_NEAREST_PROMPTS } from './ai-book-lab-collection-nearest.fixtures.js';
 import {
   isBookLabCollectionPrompt,
+  isLabCollectionNearestCompoundPrompt,
   isListMyLabBookingRequestsPrompt,
   isListPatientPendingLabRequestsPrompt,
   isPushLabBookingToPatientPrompt,
@@ -67,6 +69,17 @@ describe('ai-clinic-lab-booking.util', () => {
     'detects book lab collection prompt $id',
     ({ prompt }) => {
       expect(isBookLabCollectionPrompt(prompt)).toBe(true);
+      expect(parseBookLabCollectionFromPrompt(prompt)).not.toBeNull();
+    },
+  );
+
+  it.each(BOOK_LAB_COLLECTION_NEAREST_PROMPTS)(
+    'routes nearest compound away from plain list/book detectors $id',
+    ({ prompt }) => {
+      expect(isLabCollectionNearestCompoundPrompt(prompt)).toBe(true);
+      expect(isListMyLabBookingRequestsPrompt(prompt)).toBe(false);
+      expect(isBookLabCollectionPrompt(prompt)).toBe(false);
+      expect(parseListMyLabBookingRequestsFromPrompt(prompt)).not.toBeNull();
       expect(parseBookLabCollectionFromPrompt(prompt)).not.toBeNull();
     },
   );

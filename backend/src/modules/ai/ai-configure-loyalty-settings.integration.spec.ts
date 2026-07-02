@@ -44,8 +44,14 @@ describe('configure_loyalty_settings AI scenarios', () => {
         { provide: LoyaltyService, useValue: { getSettings: jest.fn() } },
         { provide: PromoCodesService, useValue: { create: jest.fn() } },
         { provide: StripeService, useValue: { isConfigured: false } },
-        { provide: StripeIntegrationService, useValue: { getSettings: jest.fn() } },
-        { provide: ConfigService, useValue: { get: jest.fn(() => 'https://app.test') } },
+        {
+          provide: StripeIntegrationService,
+          useValue: { getSettings: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn(() => 'https://app.test') },
+        },
         {
           provide: TenantAppInstallService,
           useValue: {

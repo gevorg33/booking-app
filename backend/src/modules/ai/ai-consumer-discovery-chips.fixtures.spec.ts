@@ -1,6 +1,8 @@
 import { SIMILAR_BUDGET_SERVICE_PROMPTS } from './ai-budget-service-discovery.fixtures.js';
 import { CONSUMER_DISCOVERY_CHIP_FIXTURES } from './ai-consumer-discovery-chips.fixtures.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import { isFindServicesUnderBudgetPrompt } from './ai-find-services-under-budget.util.js';
+import { isFindEveningWeekendSlotsPrompt } from './ai-find-evening-weekend-slots.util.js';
 import { SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS } from './ai-flexible-availability.fixtures.js';
 import { SIMILAR_SERVICE_RANK_PROMPTS } from './ai-service-rank-discovery.fixtures.js';
 
@@ -40,6 +42,7 @@ describe('ai-consumer-discovery-chips.fixtures (discover-1.4)', () => {
     const chip = CONSUMER_DISCOVERY_CHIP_FIXTURES.find(
       (row) => row.id === 'discover-chip-under-50-en',
     )!;
+    expect(isFindServicesUnderBudgetPrompt(chip.prompt)).toBe(true);
     expect(enrichDiscoveryParamsFromPrompt({}, chip.prompt)).toEqual({
       maxPrice: 50,
     });
@@ -67,6 +70,7 @@ describe('ai-consumer-discovery-chips.fixtures (discover-1.4)', () => {
       { timeOfDay: 'evening' },
       { weekdays: ['saturday', 'sunday'] },
     ]);
+    expect(isFindEveningWeekendSlotsPrompt(chip.prompt)).toBe(true);
     expect(enrichDiscoveryParamsFromPrompt({}, chip.prompt)).toMatchObject(
       fixture?.expectedParams ?? {},
     );

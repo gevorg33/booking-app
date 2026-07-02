@@ -97,11 +97,11 @@ describe('Service localized names integration', () => {
   );
 
   const publicBookingService = createPublicBookingServiceHarness({
-    businessService: businessService as any,
+    businessService: businessService,
     stripeIntegrationService: stripeIntegrationService as any,
-    subscriptionsService: subscriptionsService as any,
-    serviceRepo: serviceRepo as any,
-    employeeRepo: employeeRepo as any,
+    subscriptionsService: subscriptionsService,
+    serviceRepo: serviceRepo,
+    employeeRepo: employeeRepo,
     configService: { get: jest.fn() } as any,
   });
 

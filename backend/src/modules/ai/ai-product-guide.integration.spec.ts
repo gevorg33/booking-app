@@ -59,7 +59,11 @@ describe('ai-product-guide integration (ai-guide-1.2.1–1.2.3)', () => {
     isAvailableForBusiness: jest.fn(async () => false),
     embedText: jest.fn(async () => null),
   };
-  const guide = new AiProductGuideService(llm as any, openAi as any, createMockGuideTelemetryService());
+  const guide = new AiProductGuideService(
+    llm as any,
+    openAi as any,
+    createMockGuideTelemetryService(),
+  );
 
   it('registers app guide intents on AiProductGuideService (dashboard + customer + public)', () => {
     expect(REGISTRY_VALIDATION_ERRORS).toEqual([]);

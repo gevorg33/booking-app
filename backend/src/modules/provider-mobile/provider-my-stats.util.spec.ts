@@ -1,4 +1,7 @@
-import { BookingStatus, PaymentStatus } from '../booking/entities/booking.entity.js';
+import {
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
 import {
   PROVIDER_MY_STATS_PERIOD_SCENARIOS,
@@ -59,7 +62,11 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
     const end = new Date('2026-06-09T12:00:00.000Z');
     expect(
       sumBookableSchedulingPeriodMinutes([
-        { startTime: start, endTime: end, type: TemplatePeriodType.SERVICE_BLOCK },
+        {
+          startTime: start,
+          endTime: end,
+          type: TemplatePeriodType.SERVICE_BLOCK,
+        },
         {
           startTime: start,
           endTime: end,
@@ -191,8 +198,20 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
   it('counts completed bookings and paid revenue independently', () => {
     expect(
       countCompletedBookings([
-        { status: BookingStatus.COMPLETED, paymentStatus: PaymentStatus.PAID, startTime: new Date(), endTime: new Date(), service: { price: 10 } },
-        { status: BookingStatus.NO_SHOW, paymentStatus: PaymentStatus.UNPAID, startTime: new Date(), endTime: new Date(), service: { price: 10 } },
+        {
+          status: BookingStatus.COMPLETED,
+          paymentStatus: PaymentStatus.PAID,
+          startTime: new Date(),
+          endTime: new Date(),
+          service: { price: 10 },
+        },
+        {
+          status: BookingStatus.NO_SHOW,
+          paymentStatus: PaymentStatus.UNPAID,
+          startTime: new Date(),
+          endTime: new Date(),
+          service: { price: 10 },
+        },
       ]),
     ).toBe(1);
     expect(
@@ -217,10 +236,12 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
   });
 
   it('counts inclusive days and fallback scheduled minutes', () => {
-    expect(countDaysInclusive({ from: '2026-06-08', to: '2026-06-14' })).toBe(7);
-    expect(fallbackScheduledMinutes({ from: '2026-06-08', to: '2026-06-14' }, 2)).toBe(
-      7 * 8 * 60 * 2,
+    expect(countDaysInclusive({ from: '2026-06-08', to: '2026-06-14' })).toBe(
+      7,
     );
+    expect(
+      fallbackScheduledMinutes({ from: '2026-06-08', to: '2026-06-14' }, 2),
+    ).toBe(7 * 8 * 60 * 2);
   });
 
   it('falls back to capacity hours when no schedule periods exist', () => {

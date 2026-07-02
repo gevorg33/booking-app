@@ -198,7 +198,9 @@ describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
     expect(view.publicDelegatedIntents).toEqual([
       ...CUSTOMER_PUBLIC_DELEGATED_INTENTS,
     ]);
-    expect(view.customerNativeIntents).toEqual(getCustomerNativeIntents('client'));
+    expect(view.customerNativeIntents).toEqual(
+      getCustomerNativeIntents('client'),
+    );
 
     expect(isIntentAllowed('customer', 'staff', 'book_package')).toBe(false);
     expect(getAllowedIntents('customer', 'manager')).toEqual(['unknown']);
@@ -216,7 +218,9 @@ describe('ai-capability.matrix integration (ai-cmd-0.2)', () => {
     }
 
     expect(getCustomerNativeIntents('client')).toContain('book_package');
-    expect(getCustomerNativeIntents('client')).not.toContain('book_appointment');
+    expect(getCustomerNativeIntents('client')).not.toContain(
+      'book_appointment',
+    );
   });
 
   it('audits shipped customer intents for fixture + eval coverage (ai-cmd-customer-2.6)', () => {

@@ -1,10 +1,34 @@
 /** prov-exp-2.1 — provider mobile personal stats scenarios. */
 
 export const PROVIDER_MY_STATS_PERIOD_SCENARIOS = [
-  { id: 'week-monday-start', period: 'week' as const, todayKey: '2026-06-09', start: '2026-06-08', end: '2026-06-14' },
-  { id: 'week-sunday-today', period: 'week' as const, todayKey: '2026-06-14', start: '2026-06-08', end: '2026-06-14' },
-  { id: 'month-mid', period: 'month' as const, todayKey: '2026-06-15', start: '2026-06-01', end: '2026-06-30' },
-  { id: 'month-end', period: 'month' as const, todayKey: '2026-06-30', start: '2026-06-01', end: '2026-06-30' },
+  {
+    id: 'week-monday-start',
+    period: 'week' as const,
+    todayKey: '2026-06-09',
+    start: '2026-06-08',
+    end: '2026-06-14',
+  },
+  {
+    id: 'week-sunday-today',
+    period: 'week' as const,
+    todayKey: '2026-06-14',
+    start: '2026-06-08',
+    end: '2026-06-14',
+  },
+  {
+    id: 'month-mid',
+    period: 'month' as const,
+    todayKey: '2026-06-15',
+    start: '2026-06-01',
+    end: '2026-06-30',
+  },
+  {
+    id: 'month-end',
+    period: 'month' as const,
+    todayKey: '2026-06-30',
+    start: '2026-06-01',
+    end: '2026-06-30',
+  },
 ] as const;
 
 export const PROVIDER_MY_STATS_UTILIZATION_SCENARIOS = [

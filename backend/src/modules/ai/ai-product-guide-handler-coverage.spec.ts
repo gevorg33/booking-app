@@ -93,7 +93,9 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
       expect(resolveHandlerForSurface(intent, 'provider')).toBe(
         'AiProductGuideService',
       );
-      expect(COMMAND_REGISTRY_BY_ID.get(intent)?.surfaces).toEqual(['provider']);
+      expect(COMMAND_REGISTRY_BY_ID.get(intent)?.surfaces).toEqual([
+        'provider',
+      ]);
       expect(PROVIDER_PRODUCT_GUIDE_TOPIC_BY_INTENT[intent]).toBeTruthy();
     }
   });
@@ -109,23 +111,39 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
 
   it('allows guide intents on their surfaces via access-control matrix', () => {
     for (const intent of APP_GUIDE_INTENTS) {
-      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(true);
-      expect(isProductGuideIntentAllowed('client', 'customer', intent)).toBe(true);
-      expect(isProductGuideIntentAllowed('client', 'public', intent)).toBe(true);
-      expect(isProductGuideIntentAllowed('staff', 'provider', intent)).toBe(false);
+      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(
+        true,
+      );
+      expect(isProductGuideIntentAllowed('client', 'customer', intent)).toBe(
+        true,
+      );
+      expect(isProductGuideIntentAllowed('client', 'public', intent)).toBe(
+        true,
+      );
+      expect(isProductGuideIntentAllowed('staff', 'provider', intent)).toBe(
+        false,
+      );
     }
     for (const intent of PROVIDER_PRODUCT_GUIDE_INTENTS) {
-      expect(isProductGuideIntentAllowed('staff', 'provider', intent)).toBe(true);
-      expect(isProductGuideIntentAllowed('client', 'dashboard', intent)).toBe(false);
+      expect(isProductGuideIntentAllowed('staff', 'provider', intent)).toBe(
+        true,
+      );
+      expect(isProductGuideIntentAllowed('client', 'dashboard', intent)).toBe(
+        false,
+      );
     }
     for (const intent of META_PRODUCT_GUIDE_INTENTS) {
-      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(true);
+      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(
+        true,
+      );
       expect(isProductGuideIntentAllowed('staff', 'provider', intent)).toBe(
         intent !== 'explain_ai_settings',
       );
     }
     for (const intent of EMPTY_STATE_GUIDE_INTENTS) {
-      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(true);
+      expect(isProductGuideIntentAllowed('owner', 'dashboard', intent)).toBe(
+        true,
+      );
       expect(isProductGuideIntentAllowed('client', 'customer', intent)).toBe(
         intent !== 'explain_visibility_block',
       );
@@ -156,8 +174,12 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
       expect(AI_COMMAND_SERVICE_SOURCE).toContain(`case '${intent}':`);
     }
     expect(AI_COMMAND_SERVICE_SOURCE).toContain('dispatchProductGuideIntent');
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('dispatchMetaProductGuideIntent');
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('dispatchEmptyStateGuideIntent');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'dispatchMetaProductGuideIntent',
+    );
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'dispatchEmptyStateGuideIntent',
+    );
   });
 
   it('wires provider guide intents through ProviderAiCommandService switch cases', () => {
@@ -170,20 +192,34 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
     for (const intent of PROVIDER_EMPTY_STATE_GUIDE_INTENTS) {
       expect(PROVIDER_SERVICE_SOURCE).toContain(`case '${intent}':`);
     }
-    expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderProductGuideIntent');
-    expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderMetaGuideIntent');
-    expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderEmptyStateGuideIntent');
+    expect(PROVIDER_SERVICE_SOURCE).toContain(
+      'dispatchProviderProductGuideIntent',
+    );
+    expect(PROVIDER_SERVICE_SOURCE).toContain(
+      'dispatchProviderMetaGuideIntent',
+    );
+    expect(PROVIDER_SERVICE_SOURCE).toContain(
+      'dispatchProviderEmptyStateGuideIntent',
+    );
     expect(PROVIDER_SERVICE_SOURCE).toContain('dispatchProviderAppGuideIntent');
-    expect(PROVIDER_SERVICE_SOURCE).toContain('isAppGuideIntent(parsed.action)');
+    expect(PROVIDER_SERVICE_SOURCE).toContain(
+      'isAppGuideIntent(parsed.action)',
+    );
   });
 
   it('wires customer and public empty-state guide dispatch helpers', () => {
     expect(CUSTOMER_SERVICE_SOURCE).toContain('dispatchCustomerAppGuideIntent');
-    expect(CUSTOMER_SERVICE_SOURCE).toContain('dispatchCustomerEmptyStateGuideIntent');
+    expect(CUSTOMER_SERVICE_SOURCE).toContain(
+      'dispatchCustomerEmptyStateGuideIntent',
+    );
     expect(CUSTOMER_SERVICE_SOURCE).toContain('isAppGuideIntent(action)');
     expect(PUBLIC_ASSISTANT_SOURCE).toContain('dispatchPublicAppGuideIntent');
-    expect(PUBLIC_ASSISTANT_SOURCE).toContain('dispatchPublicEmptyStateGuideIntent');
-    expect(PUBLIC_ASSISTANT_SOURCE).toContain('isAppGuideIntent(parsed.action)');
+    expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+      'dispatchPublicEmptyStateGuideIntent',
+    );
+    expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+      'isAppGuideIntent(parsed.action)',
+    );
   });
 
   it('wires ai-unavailable static guide fallback on all surfaces (ai-guide-1.8.10)', () => {
@@ -196,8 +232,12 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
     ]) {
       expect(source).toContain('runAiUnavailableStaticGuideFallback');
     }
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain('buildAiUnavailableErrorWithGuideLink');
-    expect(CUSTOMER_SERVICE_SOURCE).toContain('buildAiUnavailableErrorWithGuideLink');
+    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
+      'buildAiUnavailableErrorWithGuideLink',
+    );
+    expect(CUSTOMER_SERVICE_SOURCE).toContain(
+      'buildAiUnavailableErrorWithGuideLink',
+    );
     expect(GATEWAY_SERVICE_SOURCE).toContain('quota_exceeded');
     expect(GATEWAY_SERVICE_SOURCE).toContain('PlanLimitExceededException');
   });

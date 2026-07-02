@@ -47,7 +47,9 @@ export function resolveServiceCatalogPrice(
 }
 
 export function isValidMaxPrice(maxPrice: unknown): maxPrice is number {
-  return typeof maxPrice === 'number' && Number.isFinite(maxPrice) && maxPrice >= 0;
+  return (
+    typeof maxPrice === 'number' && Number.isFinite(maxPrice) && maxPrice >= 0
+  );
 }
 
 /** Keep services with a known display price <= maxPrice (inclusive ceiling). */
@@ -286,10 +288,9 @@ export function resolveServiceDiscoveryParams(
 }
 
 /** Budget + rank intersection on catalog — category → ceiling → rank/limit (discover-1.1). */
-export function applyServiceDiscoveryToCatalog<T extends ServiceCatalogPriceEntry>(
-  catalog: readonly T[],
-  params: Record<string, unknown>,
-): T[] {
+export function applyServiceDiscoveryToCatalog<
+  T extends ServiceCatalogPriceEntry,
+>(catalog: readonly T[], params: Record<string, unknown>): T[] {
   const resolved = resolveServiceDiscoveryParams(params);
 
   if (resolved.hasRank) {
@@ -322,7 +323,10 @@ export function applyServiceDiscoveryToCatalog<T extends ServiceCatalogPriceEntr
   return applyRankLimit(categorized, resolved.limit);
 }
 
-function applyRankLimit<T>(services: readonly T[], limit: number | null | undefined): T[] {
+function applyRankLimit<T>(
+  services: readonly T[],
+  limit: number | null | undefined,
+): T[] {
   if (limit == null || !Number.isFinite(limit) || limit <= 0) {
     return [...services];
   }
@@ -369,9 +373,9 @@ export function sortServicesByPriceDesc<T extends ServiceCatalogPriceEntry>(
 }
 
 /** Descending by booking count; tie-break duration desc, then name, then id (rank-1.9). */
-export function sortServicesByPopularityDesc<T extends ServiceCatalogPriceEntry>(
-  services: readonly T[],
-): T[] {
+export function sortServicesByPopularityDesc<
+  T extends ServiceCatalogPriceEntry,
+>(services: readonly T[]): T[] {
   return [...services].sort(compareServiceCatalogPopularity);
 }
 

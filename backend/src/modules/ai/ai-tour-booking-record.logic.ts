@@ -1,4 +1,5 @@
 import type { Booking } from '../booking/entities/booking.entity.js';
+import { BookingStatus } from '../booking/entities/booking.entity.js';
 import type { BookingService } from '../booking/booking.service.js';
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import {
@@ -62,17 +63,42 @@ async function loadBookingById(
   }
 }
 
+function resolveSessionCustomerId(
+  params: Record<string, unknown>,
+): string | undefined {
+  return (
+    (params.sessionCustomerId as string | undefined) ??
+    (params.customerId as string | undefined)
+  );
+}
+
 async function resolveBooking(
   deps: TourBookingRecordLogicDeps,
   businessId: string,
   parsed: ParsedExplainTourBookingRecord,
+  sessionCustomerId?: string,
 ): Promise<Booking | null> {
   if (parsed.bookingId) {
-    return loadBookingById(deps, businessId, parsed.bookingId);
+    const booking = await loadBookingById(deps, businessId, parsed.bookingId);
+    if (!booking) return null;
+    if (
+      sessionCustomerId &&
+      booking.customerId &&
+      booking.customerId !== sessionCustomerId
+    ) {
+      return null;
+    }
+    return booking;
   }
 
   const bookings = await deps.bookingService.findAll(businessId);
-  const tourBookings = bookings.filter(isTourBooking);
+  let tourBookings = bookings.filter(isTourBooking);
+
+  if (sessionCustomerId) {
+    tourBookings = tourBookings.filter(
+      (booking) => booking.customerId === sessionCustomerId,
+    );
+  }
 
   if (parsed.customerName) {
     const needle = parsed.customerName.toLowerCase();
@@ -87,7 +113,7 @@ async function resolveBooking(
       );
       if (narrowed.length === 1) return narrowed[0];
     }
-    if (matches.length > 0) return matches[0];
+    if (matches.length > 0) return pickPreferredTourBooking(matches);
   }
 
   if (parsed.serviceName) {
@@ -96,9 +122,20 @@ async function resolveBooking(
       (booking.service?.name ?? '').toLowerCase().includes(serviceNeedle),
     );
     if (matches.length === 1) return matches[0];
+    if (matches.length > 1) return pickPreferredTourBooking(matches);
   }
 
-  return tourBookings.length === 1 ? tourBookings[0] : null;
+  return tourBookings.length === 1
+    ? tourBookings[0]
+    : pickPreferredTourBooking(tourBookings);
+}
+
+function pickPreferredTourBooking(bookings: Booking[]): Booking | null {
+  if (bookings.length === 0) return null;
+  const upcoming = bookings
+    .filter((booking) => booking.status === BookingStatus.CONFIRMED)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  return upcoming[0] ?? bookings[0] ?? null;
 }
 
 function formatDateRange(start: string, end: string): string {
@@ -120,6 +157,11 @@ function buildAspectSummary(
 ): string {
   const label = booking.service?.name ?? 'Tour booking';
   const customer = booking.customer?.name ?? 'the customer';
+
+  if (aspect === 'confirmationNumber') {
+    return `Your tour confirmation number is ${booking.id} for "${label}".`;
+  }
+
   const parts: string[] = [];
 
   if (aspect === 'all' || aspect === 'paxCount') {
@@ -172,7 +214,7 @@ export async function handleExplainTourBookingRecordLogic(
   if (!parsed) {
     return failure(
       'explain_tour_booking_record',
-      'Ask about one tour booking record (e.g. "Explain pax and tour dates on booking bk-1" or "Why does this tour span multiple days on the calendar?").',
+      'Ask about one tour booking record (e.g. "Explain pax and tour dates on booking bk-1" or "Summarize my group booking").',
       {
         clarify: true,
         missing: ['bookingId', 'customerName', 'aspect'],
@@ -180,13 +222,21 @@ export async function handleExplainTourBookingRecordLogic(
     );
   }
 
-  const booking = await resolveBooking(deps, businessId, parsed);
+  const sessionCustomerId = resolveSessionCustomerId(params);
+  const booking = await resolveBooking(
+    deps,
+    businessId,
+    parsed,
+    sessionCustomerId,
+  );
   if (!booking) {
     return failure(
       'explain_tour_booking_record',
       parsed.bookingId
         ? `Could not find tour booking "${parsed.bookingId}".`
-        : 'Specify which tour booking to explain (booking ID, or customer name when unambiguous).',
+        : sessionCustomerId
+          ? 'Could not find a tour booking on your account to summarize.'
+          : 'Specify which tour booking to explain (booking ID, or customer name when unambiguous).',
       {
         clarify: !parsed.bookingId,
         bookingId: parsed.bookingId ?? null,

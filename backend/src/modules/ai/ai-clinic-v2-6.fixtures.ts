@@ -53,6 +53,7 @@ export const CLINIC_V2_CONSUMER_CLASSIFIER_RULES =
 /** Consumer app phrasing appendix (ai-cmd-clinic-v2-6). */
 export const CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX = `- Customer app lab results (logged-in My Results tab):
   - list_my_test_results: "Show my lab results in the app", "Open My Results", "What did the clinic release to my account?"
+  - track_lab_order_status: "Are my results ready?", "Track my lab order", "Where is my blood work?"
   - explain_result_status: "Why is my CBC still pending in the app?", "What does released mean in My Results?"
   - clinic compounds: "Book lipid panel and notify me when results are ready" → book_nearest_slot then explain_result_status (NOT notify_patient_result_ready)`;
 
@@ -60,7 +61,7 @@ export const CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX = `- Customer app 
 export const PUBLIC_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX = `- Public booking page lab results (signed-in visitor or general FAQ):
   - list_my_test_results: "Where do I see my lab results on this page?", "Are my test results ready on the booking site?", "Show results after my clinic visit"
   - explain_result_status: "What does released mean for lab results?", "Why are my lab results not showing after my visit?", "When will results appear on this page?"
-  - clinic compounds: "Book lipid panel and tell me when results are ready" → book_appointment then explain_result_status`;
+  - clinic compounds: "Book lipid panel and tell me when results are ready" → book_nearest_slot then notify_when_results_ready`;
 
 export const CLINIC_V2_CROSS_SURFACE_CLASSIFIER_RULES = `- Clinic v2 surface routing:
   - dashboard: create_test_order, list_test_orders, enter_test_result, release_test_result, explain_patient_chart — staff/admin only

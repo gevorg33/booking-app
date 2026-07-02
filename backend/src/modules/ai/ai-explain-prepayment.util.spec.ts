@@ -119,19 +119,22 @@ describe('ai-explain-prepayment.util (ai-cmd-ext-7.1)', () => {
       rescuePaymentsIntent('Do I pay online for this service?', 'unknown')
         ?.action,
     ).toBe('explain_payment_options_for_service');
-    expect(
-      rescuePaymentsIntent('Why must I pay now?', 'unknown')?.action,
-    ).toBe('explain_why_stripe_required');
+    expect(rescuePaymentsIntent('Why must I pay now?', 'unknown')?.action).toBe(
+      'explain_why_stripe_required',
+    );
   });
 
   it.each(
     PUBLIC_CATALOG_PREPAYMENT_PROMPTS.filter(
       (row) => row.expectedAction === 'explain_payment_options_for_service',
     ).map((row) => [row.id, row] as const),
-  )('rescues public catalog payment-options prompt $id from unknown', (_id, row) => {
-    const rescued = rescuePaymentsIntent(row.prompt, 'unknown');
-    expect(rescued?.action).toBe('explain_payment_options_for_service');
-  });
+  )(
+    'rescues public catalog payment-options prompt $id from unknown',
+    (_id, row) => {
+      const rescued = rescuePaymentsIntent(row.prompt, 'unknown');
+      expect(rescued?.action).toBe('explain_payment_options_for_service');
+    },
+  );
 
   it.each(
     PUBLIC_CATALOG_PREPAYMENT_PROMPTS.map((row) => [row.id, row] as const),
@@ -160,22 +163,18 @@ describe('ai-explain-prepayment.util (ai-cmd-ext-7.1)', () => {
   it.each(
     PUBLIC_CATALOG_PREPAYMENT_PROMPTS.map((row) => [row.id, row] as const),
   )('enriches catalog service from session for $id', (_id, row) => {
-    const enriched = enrichPrepaymentParamsFromCatalogContext(
-      {},
-      row.prompt,
-      {
-        serviceId: row.sessionServiceId,
-        serviceName: row.sessionServiceName,
-      },
-    );
+    const enriched = enrichPrepaymentParamsFromCatalogContext({}, row.prompt, {
+      serviceId: row.sessionServiceId,
+      serviceName: row.sessionServiceName,
+    });
     expect(enriched.serviceId).toBe(row.sessionServiceId);
     expect(enriched.serviceName).toBe(row.sessionServiceName);
   });
 
   it('maps explain_why_stripe fixtures to passing eval golden cases', () => {
-    expect(AI_COMMAND_EVAL_EXPLAIN_WHY_STRIPE_REQUIRED_CASES.length).toBeGreaterThanOrEqual(
-      20,
-    );
+    expect(
+      AI_COMMAND_EVAL_EXPLAIN_WHY_STRIPE_REQUIRED_CASES.length,
+    ).toBeGreaterThanOrEqual(20);
     for (const evalCase of AI_COMMAND_EVAL_EXPLAIN_WHY_STRIPE_REQUIRED_CASES) {
       expect(evaluateDeterministicEvalCase(evalCase).errors).toEqual([]);
     }

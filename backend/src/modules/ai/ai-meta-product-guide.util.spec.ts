@@ -82,9 +82,9 @@ describe('ai-meta-product-guide.util (ai-guide-1.8.7)', () => {
       'explain_ai_suggestions',
       'explain_assistant_approval',
     ] as const) {
-      expect(
-        rescueMetaProductGuideIntent('help', intent, 'dashboard'),
-      ).toBe(intent);
+      expect(rescueMetaProductGuideIntent('help', intent, 'dashboard')).toBe(
+        intent,
+      );
     }
   });
 });

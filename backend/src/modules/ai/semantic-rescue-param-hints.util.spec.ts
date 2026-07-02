@@ -1,6 +1,4 @@
-import {
-  SEMANTIC_RESCUE_PARAM_HINTS_SCENARIOS,
-} from './semantic-rescue-param-hints.fixtures.js';
+import { SEMANTIC_RESCUE_PARAM_HINTS_SCENARIOS } from './semantic-rescue-param-hints.fixtures.js';
 import {
   applySemanticParamHintsToRescueInput,
   enrichRescueResultWithSemanticParamHints,

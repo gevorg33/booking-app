@@ -10,7 +10,10 @@ import { Service } from '../service/entities/service.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import type { CommandResult } from './command-completion.types.js';
-import { buildUtcStartTimeFromDayAndTime, toIsoDay } from '../../common/utils/date-format.util.js';
+import {
+  buildUtcStartTimeFromDayAndTime,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
 import {
   filterBookingsByTimeConstraints,
   fuzzyMatchByName,
@@ -588,11 +591,13 @@ async function queryMarkPaidBookings(
     where.startTime = Between(dayStart, dayEnd);
   }
 
-  return deps.bookingRepo.find({
-    where,
-    relations: { employee: true, customer: true },
-    order: { startTime: 'ASC' },
-  }).then((rows) => rows ?? []);
+  return deps.bookingRepo
+    .find({
+      where,
+      relations: { employee: true, customer: true },
+      order: { startTime: 'ASC' },
+    })
+    .then((rows) => rows ?? []);
 }
 
 async function findBookingsForMarkPaid(
@@ -605,15 +610,10 @@ async function findBookingsForMarkPaid(
   const customers = ctx.customers ?? [];
   const prompt = ctx.prompt;
   const tz = params._timeZone ?? ctx.timeZone ?? 'UTC';
-  let enriched = enrichMarkPaidParamsFromPrompt(
-    prompt ?? '',
-    params,
-    tz,
-    {
-      employees,
-      customers,
-    },
-  ) as Record<string, any>;
+  let enriched = enrichMarkPaidParamsFromPrompt(prompt ?? '', params, tz, {
+    employees,
+    customers,
+  }) as Record<string, any>;
 
   const range = resolveDateRange(enriched, prompt, tz);
   if (range && !enriched.date) {
@@ -643,11 +643,7 @@ async function findBookingsForMarkPaid(
       ? fuzzyMatchByName(customers, enriched.customerName)
       : undefined;
 
-  if (
-    !bookings.length &&
-    customerResolved &&
-    employeeIds?.length
-  ) {
+  if (!bookings.length && customerResolved && employeeIds?.length) {
     bookings = await queryMarkPaidBookings(
       deps,
       businessId,
@@ -662,11 +658,7 @@ async function findBookingsForMarkPaid(
 
   bookings = filterBookingsByTimeConstraints(bookings, enriched, prompt);
 
-  if (
-    !bookings.length &&
-    enriched.date &&
-    enriched.timeSlot
-  ) {
+  if (!bookings.length && enriched.date && enriched.timeSlot) {
     const bySlot = filterBookingsByTimeConstraints(
       await queryMarkPaidBookings(deps, businessId, enriched, undefined, tz),
       enriched,
@@ -688,13 +680,10 @@ function resolveMarkPaidBookingIds(
   params: Record<string, any>,
 ): string[] {
   if (!matches.length) return [];
-  if (matches.length === 1) return [matches[0]!.id];
+  if (matches.length === 1) return [matches[0].id];
 
-  const groupId = matches[0]!.multiServiceGroupId;
-  if (
-    groupId &&
-    matches.every((b) => b.multiServiceGroupId === groupId)
-  ) {
+  const groupId = matches[0].multiServiceGroupId;
+  if (groupId && matches.every((b) => b.multiServiceGroupId === groupId)) {
     return matches.map((b) => b.id);
   }
 
@@ -714,17 +703,12 @@ export async function handleMarkPaidLogic(
 ): Promise<CommandResult> {
   const tz = params._timeZone ?? ctx?.timeZone ?? 'UTC';
   const workingParams = ctx?.prompt
-    ? (enrichMarkPaidParamsFromPrompt(
-        ctx.prompt,
-        params,
-        tz,
-        {
-          employees: ctx.employees,
-          customers: ctx.customers,
-          sessionDate: ctx.sessionDate,
-          calendarRoute: ctx.calendarRoute,
-        },
-      ) as Record<string, any>)
+    ? (enrichMarkPaidParamsFromPrompt(ctx.prompt, params, tz, {
+        employees: ctx.employees,
+        customers: ctx.customers,
+        sessionDate: ctx.sessionDate,
+        calendarRoute: ctx.calendarRoute,
+      }) as Record<string, any>)
     : params;
 
   let bookingIds: string[] = workingParams.bookingId

@@ -74,7 +74,11 @@ function installRowForUser(
   rows: AppEventAnalyticsRow[],
   anonId: string,
 ): AppEventAnalyticsRow | null {
-  return rows.find((row) => row.anonId === anonId && row.event === 'app_installed') ?? null;
+  return (
+    rows.find(
+      (row) => row.anonId === anonId && row.event === 'app_installed',
+    ) ?? null
+  );
 }
 
 function readVariantFromRow(
@@ -108,7 +112,8 @@ export function scoreActivationPathAbVariant(
   minSample = N99_ACTIVATION_PATH_AB_MIN_SAMPLE,
 ): ActivationPathAbVariantScore {
   const anonIds = uniqueAnonIds(rows).filter(
-    (anonId) => resolveAnonActivationPathVariant(rows, anonId, dimension) === variant,
+    (anonId) =>
+      resolveAnonActivationPathVariant(rows, anonId, dimension) === variant,
   );
 
   let qualifiedInstalls = 0;
@@ -137,8 +142,12 @@ export function computeActivationPathAbScores(
 ): ActivationPathAbVariantScore[] {
   const scores: ActivationPathAbVariantScore[] = [];
   for (const dimension of N99_ACTIVATION_PATH_AB_DIMENSIONS) {
-    for (const variant of N99_ACTIVATION_PATH_AB_VARIANTS_BY_DIMENSION[dimension]) {
-      scores.push(scoreActivationPathAbVariant(rows, dimension, variant, minSample));
+    for (const variant of N99_ACTIVATION_PATH_AB_VARIANTS_BY_DIMENSION[
+      dimension
+    ]) {
+      scores.push(
+        scoreActivationPathAbVariant(rows, dimension, variant, minSample),
+      );
     }
   }
   return scores;
@@ -148,7 +157,9 @@ export function pickBestActivationPathVariant(
   scores: ActivationPathAbVariantScore[],
 ): { winner: ActivationPathAbVariantScore; tieBreakApplied: boolean } {
   if (scores.length === 0) {
-    throw new Error('pickBestActivationPathVariant requires at least one score');
+    throw new Error(
+      'pickBestActivationPathVariant requires at least one score',
+    );
   }
 
   const sorted = [...scores].sort((left, right) => {
@@ -226,11 +237,17 @@ export function readPromotedActivationPathFromEnv(
 ): Partial<N99ActivationPathVariants> {
   const promoted: Partial<N99ActivationPathVariants> = {};
   const signIn = env.N99_ACTIVATION_PATH_AB_SIGN_IN_PLACEMENT?.trim();
-  if (signIn && N99_SIGN_IN_PLACEMENT_VARIANTS.includes(signIn as N99SignInPlacementVariant)) {
+  if (
+    signIn &&
+    N99_SIGN_IN_PLACEMENT_VARIANTS.includes(signIn as N99SignInPlacementVariant)
+  ) {
     promoted.signInPlacement = signIn as N99SignInPlacementVariant;
   }
   const slot = env.N99_ACTIVATION_PATH_AB_SLOT_PRESELECTION?.trim();
-  if (slot && N99_SLOT_PRESELECTION_VARIANTS.includes(slot as N99SlotPreselectionVariant)) {
+  if (
+    slot &&
+    N99_SLOT_PRESELECTION_VARIANTS.includes(slot as N99SlotPreselectionVariant)
+  ) {
     promoted.slotPreselection = slot as N99SlotPreselectionVariant;
   }
   const payment = env.N99_ACTIVATION_PATH_AB_PAYMENT_TIMING?.trim();
@@ -249,7 +266,8 @@ export function resolveEffectivePromotedActivationPath(
 ): N99ActivationPathVariants {
   return {
     signInPlacement: envOverrides.signInPlacement ?? computed.signInPlacement,
-    slotPreselection: envOverrides.slotPreselection ?? computed.slotPreselection,
+    slotPreselection:
+      envOverrides.slotPreselection ?? computed.slotPreselection,
     paymentTiming: envOverrides.paymentTiming ?? computed.paymentTiming,
   };
 }

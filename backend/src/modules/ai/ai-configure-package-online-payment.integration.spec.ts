@@ -50,8 +50,10 @@ describe('configure_package_online_payment AI scenarios', () => {
 
   it('disambiguates package payment from service online payment', () => {
     expect(
-      rescueCatalogIntent('Require 50% online prepayment for Spa Day package', 'unknown')
-        ?.action,
+      rescueCatalogIntent(
+        'Require 50% online prepayment for Spa Day package',
+        'unknown',
+      )?.action,
     ).toBe('configure_package_online_payment');
     expect(
       rescueCatalogIntent(

@@ -32,7 +32,9 @@ describe('ai-compare-services.util (ai-cmd-customer-4.1.4)', () => {
   );
 
   it.each(
-    COMPARE_SERVICES_MULTILINGUAL_SCENARIOS.map((row) => [row.id, row] as const),
+    COMPARE_SERVICES_MULTILINGUAL_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects multilingual compare-services prompt $id', (_id, row) => {
     expect(isCompareServicesPrompt(row.prompt)).toBe(true);
     expect(rescueCompareServicesIntent(row.prompt, 'unknown')?.action).toBe(

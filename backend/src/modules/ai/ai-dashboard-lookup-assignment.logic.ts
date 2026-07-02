@@ -21,7 +21,9 @@ export function enrichDashboardLookupAssignmentParams(
   return enrichDiscoveryParamsFromPrompt(params, prompt);
 }
 
-export function resolveLookupAssignmentService<T extends LookupAssignmentCatalogService>(
+export function resolveLookupAssignmentService<
+  T extends LookupAssignmentCatalogService,
+>(
   catalog: readonly T[],
   params: Record<string, unknown>,
   resolveByName: (name: string) => T | undefined,
@@ -35,12 +37,17 @@ export function resolveLookupAssignmentService<T extends LookupAssignmentCatalog
 
   if (!hasDiscovery) {
     if (!serviceName) {
-      return { service: null, noMatchSummary: 'Which service should I look up?' };
+      return {
+        service: null,
+        noMatchSummary: 'Which service should I look up?',
+      };
     }
     const direct = resolveByName(serviceName);
     return {
       service: direct ?? null,
-      noMatchSummary: direct ? null : `No service found matching "${serviceName}".`,
+      noMatchSummary: direct
+        ? null
+        : `No service found matching "${serviceName}".`,
     };
   }
 
@@ -50,7 +57,7 @@ export function resolveLookupAssignmentService<T extends LookupAssignmentCatalog
     if (direct) {
       pool = [direct];
     } else {
-      pool = resolveServicesFromCatalogParams([...catalog], params) as T[];
+      pool = resolveServicesFromCatalogParams([...catalog], params);
     }
   }
 
@@ -60,7 +67,8 @@ export function resolveLookupAssignmentService<T extends LookupAssignmentCatalog
   });
 
   if (discovered.length === 0) {
-    const maxPrice = typeof params.maxPrice === 'number' ? params.maxPrice : null;
+    const maxPrice =
+      typeof params.maxPrice === 'number' ? params.maxPrice : null;
     return {
       service: null,
       noMatchSummary:
@@ -71,7 +79,7 @@ export function resolveLookupAssignmentService<T extends LookupAssignmentCatalog
     };
   }
 
-  return { service: discovered[0] as T, noMatchSummary: null };
+  return { service: discovered[0], noMatchSummary: null };
 }
 
 export function formatLookupAssignmentDiscoveryNote(

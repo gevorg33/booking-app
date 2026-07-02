@@ -21,9 +21,7 @@ import {
   GUIDE_MULTITURN_NEXT_PROMPTS,
   GUIDE_MULTITURN_RESTART_PROMPTS,
 } from './ai-product-guide-multiturn.fixtures.js';
-import {
-  buildGuideResponseFromCorpus,
-} from './ai-product-guide-corpus-response.util.js';
+import { buildGuideResponseFromCorpus } from './ai-product-guide-corpus-response.util.js';
 import type { ProductGuideRetrieveQuery } from './ai-product-guide-ranking.util.js';
 import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
 import type { GuideFlowSurface } from './guide/guide-flow.types.js';
@@ -54,7 +52,10 @@ function normalizeGuidePrompt(text: string): string {
     .trim();
 }
 
-function matchesAnyPrompt(prompt: string, candidates: readonly string[]): boolean {
+function matchesAnyPrompt(
+  prompt: string,
+  candidates: readonly string[],
+): boolean {
   const norm = normalizeGuidePrompt(prompt);
   if (!norm) return false;
   return candidates.some((candidate) => {
@@ -66,7 +67,8 @@ function matchesAnyPrompt(prompt: string, candidates: readonly string[]): boolea
 export function detectGuideNavigationIntent(
   prompt: string,
 ): GuideNavigationIntent | null {
-  if (matchesAnyPrompt(prompt, GUIDE_MULTITURN_RESTART_PROMPTS)) return 'restart';
+  if (matchesAnyPrompt(prompt, GUIDE_MULTITURN_RESTART_PROMPTS))
+    return 'restart';
   if (matchesAnyPrompt(prompt, GUIDE_MULTITURN_BACK_PROMPTS)) return 'back';
   if (matchesAnyPrompt(prompt, GUIDE_MULTITURN_NEXT_PROMPTS)) return 'next';
   return null;
@@ -191,8 +193,12 @@ export function applyGuideNavigation(
   };
 }
 
-export function resolveGuideFlowIdFromGuide(guide: GuideResponse): string | undefined {
-  return guide.topicId?.trim() || guide.sources?.[0]?.topicId?.trim() || undefined;
+export function resolveGuideFlowIdFromGuide(
+  guide: GuideResponse,
+): string | undefined {
+  return (
+    guide.topicId?.trim() || guide.sources?.[0]?.topicId?.trim() || undefined
+  );
 }
 
 export type GuideMultiTurnLogicInput = {
@@ -238,9 +244,9 @@ export function resolveStoredGuideContent(
     );
   }
 
-  const topic = getGuideCorpusTopic(guideFlowId as GuideCorpusTopicId);
+  const topic = getGuideCorpusTopic(guideFlowId);
   if (!topic) return null;
-  const resolved = resolveGuideCorpusTopic(guideFlowId as GuideCorpusTopicId, messages);
+  const resolved = resolveGuideCorpusTopic(guideFlowId, messages);
   if (!resolved) return null;
   return buildGuideResponseFromCorpus(resolved, topic);
 }
@@ -260,8 +266,11 @@ export function buildGuideResponseForMultiTurnStep(
   return {
     ...fullGuide,
     summary: progressSummary,
-    voiceSummary: currentStep?.voiceSummary ?? currentStep?.body ?? progressSummary,
-    steps: fullGuide.steps.map((step, index) => annotateGuideStep(step, index, currentIndex)),
+    voiceSummary:
+      currentStep?.voiceSummary ?? currentStep?.body ?? progressSummary,
+    steps: fullGuide.steps.map((step, index) =>
+      annotateGuideStep(step, index, currentIndex),
+    ),
     guideSession: {
       guideFlowId: session.guideFlowId,
       guideStepIndex: session.guideStepIndex,
@@ -292,7 +301,10 @@ export function attachGuideMultiTurnSessionToResult(
   sessionContext?: Record<string, unknown>,
 ): CommandResult {
   if (!session) {
-    const clearedContext = mergeGuideMultiTurnSessionIntoContext(sessionContext, null);
+    const clearedContext = mergeGuideMultiTurnSessionIntoContext(
+      sessionContext,
+      null,
+    );
     return {
       ...result,
       details: {
@@ -302,7 +314,10 @@ export function attachGuideMultiTurnSessionToResult(
     };
   }
 
-  const mergedContext = mergeGuideMultiTurnSessionIntoContext(sessionContext, session);
+  const mergedContext = mergeGuideMultiTurnSessionIntoContext(
+    sessionContext,
+    session,
+  );
   const guide =
     result.guide != null
       ? {
@@ -364,7 +379,11 @@ export function tryHandleGuideMultiTurnNavigation(
     return null;
   }
 
-  const fullGuide = resolveStoredGuideContent(activeSession.guideFlowId, input, locale);
+  const fullGuide = resolveStoredGuideContent(
+    activeSession.guideFlowId,
+    input,
+    locale,
+  );
   if (!fullGuide?.steps.length) {
     return {
       success: false,
@@ -422,11 +441,18 @@ export function initializeGuideMultiTurnResult(
       ? existing
       : createInitialGuideMultiTurnSession(flowId);
 
-  const positionedGuide = buildGuideResponseForMultiTurnStep(result.guide, session);
+  const positionedGuide = buildGuideResponseForMultiTurnStep(
+    result.guide,
+    session,
+  );
   const nextResult = {
     ...result,
     guide: positionedGuide,
     summary: positionedGuide.summary,
   };
-  return attachGuideMultiTurnSessionToResult(nextResult, session, sessionContext);
+  return attachGuideMultiTurnSessionToResult(
+    nextResult,
+    session,
+    sessionContext,
+  );
 }

@@ -69,7 +69,9 @@ describe('ai-nearest-slot-resolver.util OR windows (avail-1.6)', () => {
       );
       expect(queries).toHaveLength(expectedWindowCount);
       for (let index = 0; index < expectedQueries.length; index++) {
-        expect(queries[index]?.timeOfDay).toBe(expectedQueries[index]?.timeOfDay);
+        expect(queries[index]?.timeOfDay).toBe(
+          expectedQueries[index]?.timeOfDay,
+        );
         expect(queries[index]?.dateKeys.length).toBe(
           expectedQueries[index]?.dateKeyCount,
         );

@@ -116,8 +116,7 @@ export function formatNearestSlotStartTimeLabel(
     day: 'numeric',
     timeZone: 'UTC',
   }).format(d);
-  const datePart =
-    locale === 'ru' ? `${day} ${month}` : `${month} ${day}`;
+  const datePart = locale === 'ru' ? `${day} ${month}` : `${month} ${day}`;
   const connector = NEAREST_SLOT_AT_CONNECTOR[locale] ?? 'at';
   return `${datePart} ${connector} ${formatTimeDisplay(startTime)}`;
 }

@@ -4,7 +4,10 @@ import {
   resolveServiceTierParam,
   type ServiceTier,
 } from '../../common/utils/service-rank-metadata.util.js';
-import { PrepaymentMode, type Service } from '../service/entities/service.entity.js';
+import {
+  PrepaymentMode,
+  type Service,
+} from '../service/entities/service.entity.js';
 import { resolveServices } from './ai-orchestration.helpers.js';
 import { resolveServicesByCategoryHint } from './ai-operations.util.js';
 import { filterServicesByTier } from './ai-service-catalog-rank.util.js';
@@ -162,8 +165,7 @@ const CHECKOUT_DEFAULTS_SCOPE =
 const DISABLE_DEPOSIT =
   /\b(decline|disable|turn\s+off|stop|reject|remove|refuse|no\s+online\s+payment)\b/i;
 
-const MUTATE_DEPOSIT_VERB =
-  /\b(set|configure|require|update|change|apply)\b/i;
+const MUTATE_DEPOSIT_VERB = /\b(set|configure|require|update|change|apply)\b/i;
 
 function hasTierOrFeaturedScope(prompt: string): boolean {
   return (
@@ -193,7 +195,10 @@ export function isConfigureServiceDepositPolicyPrompt(prompt: string): boolean {
   if (CHECKOUT_DEFAULTS_SCOPE.test(text)) return false;
   if (isExplainServiceOnlinePaymentSetupPrompt(text)) return false;
   if (DISABLE_DEPOSIT.test(text)) return false;
-  if (/\bfull\s+prepayment\b/i.test(text) || /\bpay\s+in\s+full\b/i.test(text)) {
+  if (
+    /\bfull\s+prepayment\b/i.test(text) ||
+    /\bpay\s+in\s+full\b/i.test(text)
+  ) {
     return false;
   }
 
@@ -225,10 +230,7 @@ function readServiceRankFields(service: Service): {
     isFeatured?: boolean;
     serviceTier?: ServiceTier | null;
   };
-  if (
-    enriched.isFeatured !== undefined ||
-    enriched.serviceTier !== undefined
-  ) {
+  if (enriched.isFeatured !== undefined || enriched.serviceTier !== undefined) {
     return {
       isFeatured: enriched.isFeatured === true,
       serviceTier: enriched.serviceTier ?? null,
@@ -265,7 +267,7 @@ function parseDepositPolicyScopeFromPrompt(prompt: string): {
     /\b(?:standard|premium)\s+tier\s+([A-Za-z][\w&'-]+)\s+services\b/i,
   );
   if (tierCategory) {
-    scope.categoryName = tierCategory[1]!.trim();
+    scope.categoryName = tierCategory[1].trim();
     return scope;
   }
 
@@ -274,11 +276,15 @@ function parseDepositPolicyScopeFromPrompt(prompt: string): {
   );
   if (featuredCategory) {
     scope.featuredOnly = true;
-    scope.categoryName = featuredCategory[1]!.trim();
+    scope.categoryName = featuredCategory[1].trim();
     return scope;
   }
 
-  if (/\b(?:all|every|each)\s+(?:premium|standard)\s+tier\s+services\b/i.test(prompt)) {
+  if (
+    /\b(?:all|every|each)\s+(?:premium|standard)\s+tier\s+services\b/i.test(
+      prompt,
+    )
+  ) {
     scope.allServices = true;
     return scope;
   }
@@ -292,15 +298,15 @@ function parseDepositPolicyScopeFromPrompt(prompt: string): {
     /\b(?:all|every)\s+([A-Za-z][\w&'-]+)\s+services\b/i,
   );
   if (allCategory) {
-    scope.categoryName = allCategory[1]!.trim();
+    scope.categoryName = allCategory[1].trim();
     return scope;
   }
 
   const forCategory = prompt.match(
     /\bfor\s+(?:all\s+)?([A-Za-z][\w&'-]+)\s+services\b/i,
   );
-  if (forCategory && forCategory[1]!.toLowerCase() !== 'featured') {
-    scope.categoryName = forCategory[1]!.trim();
+  if (forCategory && forCategory[1].toLowerCase() !== 'featured') {
+    scope.categoryName = forCategory[1].trim();
     return scope;
   }
 
@@ -309,7 +315,7 @@ function parseDepositPolicyScopeFromPrompt(prompt: string): {
   );
   if (featuredNamed) {
     scope.featuredOnly = true;
-    scope.serviceNames = [featuredNamed[1]!.trim(), featuredNamed[2]!.trim()];
+    scope.serviceNames = [featuredNamed[1].trim(), featuredNamed[2].trim()];
     return scope;
   }
 
@@ -364,15 +370,13 @@ export function parseServiceDepositPolicyConfig(
 
   const scopeFromPrompt = parseDepositPolicyScopeFromPrompt(prompt);
   const serviceTier =
-    resolveServiceTierParam(params.serviceTier) ??
-    scopeFromPrompt.serviceTier;
+    resolveServiceTierParam(params.serviceTier) ?? scopeFromPrompt.serviceTier;
   const featuredOnly =
     params.featuredOnly === true || scopeFromPrompt.featuredOnly === true;
 
   return {
     prepaymentMode: PrepaymentMode.DEPOSIT,
-    depositPercent:
-      depositPercent === undefined ? undefined : depositPercent,
+    depositPercent: depositPercent === undefined ? undefined : depositPercent,
     depositAmount: depositAmount ?? undefined,
     allServices:
       params.allServices === true || scopeFromPrompt.allServices === true,
@@ -381,7 +385,9 @@ export function parseServiceDepositPolicyConfig(
       scopeFromPrompt.serviceName,
     serviceNames:
       (Array.isArray(params.serviceNames) &&
-        params.serviceNames.filter((n): n is string => typeof n === 'string')) ||
+        params.serviceNames.filter(
+          (n): n is string => typeof n === 'string',
+        )) ||
       scopeFromPrompt.serviceNames,
     categoryName:
       (typeof params.categoryName === 'string' && params.categoryName) ||
@@ -406,24 +412,26 @@ export function resolveTargetServicesForDepositPolicy<
       const rank = readServiceRankFields(service);
       return { ...service, serviceTier: rank.serviceTier };
     });
-    active = filterServicesByTier(withTier, config.serviceTier) as T[];
+    active = filterServicesByTier(withTier, config.serviceTier);
   }
 
   if (config.featuredOnly) {
-    active = active.filter((service) => readServiceRankFields(service).isFeatured);
+    active = active.filter(
+      (service) => readServiceRankFields(service).isFeatured,
+    );
   }
 
   if (config.allServices) return active;
 
   if (config.serviceNames?.length) {
-    const matched = resolveServices(active as unknown as Service[], {
+    const matched = resolveServices(active, {
       serviceNames: config.serviceNames,
     });
     if (matched.length) return matched as unknown as T[];
   }
 
   if (config.serviceName) {
-    const matched = resolveServices(active as unknown as Service[], {
+    const matched = resolveServices(active, {
       serviceName: config.serviceName,
     });
     if (matched.length) return matched as unknown as T[];
@@ -447,7 +455,9 @@ export function resolveTargetServicesForDepositPolicy<
   return [];
 }
 
-export function describeServiceDepositPolicy(config: ParsedServiceDepositPolicyConfig): string {
+export function describeServiceDepositPolicy(
+  config: ParsedServiceDepositPolicyConfig,
+): string {
   if (config.depositAmount != null && config.depositAmount > 0) {
     return `$${config.depositAmount} deposit`;
   }

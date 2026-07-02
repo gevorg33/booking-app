@@ -145,6 +145,37 @@ describe('ai-clinic-lab-booking.logic', () => {
     expect(result.details?.bookUrl).toBe('https://example.com/book');
   });
 
+  it('appends bookingFirstAvailable to book link for nearest compound step', async () => {
+    const deps = buildDeps();
+    const result = await handleBookLabCollectionLogic(
+      deps,
+      'biz-1',
+      {
+        sessionCustomerId: 'cust-1',
+        bookingFirstAvailable: true,
+        timeSlot: null,
+      },
+      'Book lab draw earliest slot',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.bookingFirstAvailable).toBe(true);
+    expect(result.details?.bookUrl).toBe(
+      'https://example.com/book?bookingFirstAvailable=1',
+    );
+  });
+
+  it('lists pending requests for nearest compound step one', async () => {
+    const deps = buildDeps();
+    const result = await handleListMyLabBookingRequestsLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Book lab draw earliest slot',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.count).toBe(1);
+  });
+
   it('lists provider pending patient lab requests', async () => {
     const deps = buildDeps({
       clinicTestOrderService: {

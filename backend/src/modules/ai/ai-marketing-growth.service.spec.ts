@@ -125,8 +125,10 @@ describe('AiMarketingGrowthService', () => {
       ),
     ).toHaveLength(2);
     expect(
-      service.rescueMarketingGrowthIntent('Connect Stripe for client payments', 'unknown')
-        ?.action,
+      service.rescueMarketingGrowthIntent(
+        'Connect Stripe for client payments',
+        'unknown',
+      )?.action,
     ).toBe('configure_stripe_connect');
   });
 

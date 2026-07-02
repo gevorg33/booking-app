@@ -75,7 +75,8 @@ describe('ai implication corpus eval (pipe-1.11.2)', () => {
       for (const intent of IMPLICATION_SURFACE_TOP_INTENTS[surface]) {
         const labeled = AI_COMMAND_EVAL_IMPLICATION_CASES.filter(
           (row) =>
-            row.surface === surface && row.expect.implicationTopIntent === intent,
+            row.surface === surface &&
+            row.expect.implicationTopIntent === intent,
         );
         expect(labeled.length).toBe(counts[surface][intent]);
         expect(labeled.length).toBeGreaterThanOrEqual(
@@ -104,15 +105,22 @@ describe('ai implication corpus eval (pipe-1.11.2)', () => {
         (row) => row.expect.implicationTopIntent === 'availability',
       ).length,
     };
-    expect(byIntent.booking).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
-    expect(byIntent.schedule).toBeGreaterThanOrEqual(MIN_IMPLICATION_PROMPTS_PER_INTENT);
+    expect(byIntent.booking).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
+    expect(byIntent.schedule).toBeGreaterThanOrEqual(
+      MIN_IMPLICATION_PROMPTS_PER_INTENT,
+    );
     expect(byIntent.availability).toBeGreaterThanOrEqual(
       MIN_IMPLICATION_PROMPTS_PER_INTENT,
     );
   });
 
   it.each(
-    AI_IMPLICATION_CORPUS_EVAL_SCENARIOS.map((scenario) => [scenario.id, scenario]),
+    AI_IMPLICATION_CORPUS_EVAL_SCENARIOS.map((scenario) => [
+      scenario.id,
+      scenario,
+    ]),
   )('passes implication corpus eval case %s', (_id, scenario) => {
     const evalCase = AI_COMMAND_EVAL_IMPLICATION_CASES.find(
       (row) => row.id === implicationCorpusEvalCaseId(scenario),

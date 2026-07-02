@@ -24,6 +24,7 @@ import {
 } from '../services/public-api.js';
 import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js';
 import { buildConsumerAssistantExamples } from '../lib/consumer-assistant-examples.util.js';
+import { buildConsumerPageSuggestions } from '../lib/consumer-ai-page-suggestions.util.js';
 import {
   mapPublicProvidersForAssistantExamples,
   mapPublicServicesForAssistantExamples,
@@ -60,11 +61,25 @@ import {
 } from './ConsumerAiVoiceControls.js';
 import {
   isSpeechSynthesisSupported,
+  localeToSpeechLang,
+  speakText,
   type SpeechRecognitionErrorCode,
 } from '../lib/use-speech-recognition.js';
 import { loadRecentSalons } from '../lib/recent-salons.js';
 import { loadPendingCheckoutPayment } from '../lib/checkout-payment.util.js';
 import { buildConsumerAssistantPageContext } from '../lib/public-booking-assistant-context.util.js';
+import {
+  enableConsumerNativePush,
+  readConsumerPushPermissionState,
+} from '../services/native-push.js';
+import { openNotificationSettings } from '../lib/push-reachability.util.js';
+import { Capacitor } from '@capacitor/core';
+import { CONSUMER_OFFLINE_QUEUE_CHANGED_EVENT } from '../lib/consumer-api-offline.util.js';
+import { loadQueue } from '../lib/offline-queue.js';
+import { dispatchDismissConsumerAppUpdateNudge } from '../lib/app-version-gate.util.js';
+import { dispatchDismissConsumerCheckoutRecommendations } from '../lib/consumer-checkout-recommendations-dismiss.util.js';
+import { readAnalyticsConsent, declineConsumerAnalyticsConsent } from '../lib/app-analytics.js';
+import { handleAssistantFeedbackClientAction } from '../lib/assistant-feedback.util.js';
 
 interface Message {
   id: string;
@@ -80,6 +95,8 @@ interface SessionContext {
   employeeName?: string | null;
   date?: string | null;
   serviceName?: string | null;
+  serviceId?: string | null;
+  bookingId?: string | null;
   timeSlot?: string | null;
   customerName?: string | null;
   screen?: string | null;
@@ -108,6 +125,10 @@ export function ConsumerBookingAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [guideMode, setGuideMode] = useState(false);
   const [sessionContext, setSessionContext] = useState<SessionContext>({});
+  const [offlineSnapshot, setOfflineSnapshot] = useState(() => ({
+    online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    offlineQueueCount: 0,
+  }));
   const { data: services = [] } = useCachedTenantServices(slug);
   const { data: providers = [] } = useQuery({
     queryKey: ['providers', slug, locale, 'assistant-examples'],
@@ -122,10 +143,36 @@ export function ConsumerBookingAssistant({
     }),
     [providers, services],
   );
-  const examples = useMemo(
-    () => buildConsumerAssistantExamples(copy, guideMode, exampleTenant),
-    [copy, exampleTenant, guideMode],
+  const pageSuggestions = useMemo(
+    () => buildConsumerPageSuggestions(copy, location.pathname, location.search),
+    [copy, location.pathname, location.search],
   );
+  const examples = useMemo(() => {
+    if (guideMode) {
+      return buildConsumerAssistantExamples(copy, true, exampleTenant);
+    }
+    if (pageSuggestions.length) return pageSuggestions;
+    return buildConsumerAssistantExamples(copy, false, exampleTenant);
+  }, [copy, exampleTenant, guideMode, pageSuggestions]);
+
+  useEffect(() => {
+    const refresh = () => {
+      setOfflineSnapshot({
+        online: navigator.onLine,
+        offlineQueueCount: loadQueue().length,
+      });
+    };
+    refresh();
+    window.addEventListener(CONSUMER_OFFLINE_QUEUE_CHANGED_EVENT, refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('offline', refresh);
+    return () => {
+      window.removeEventListener(CONSUMER_OFFLINE_QUEUE_CHANGED_EVENT, refresh);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('offline', refresh);
+    };
+  }, []);
+
   const assistantContext = useMemo(
     () => {
       const pendingCheckout = loadPendingCheckoutPayment(slug);
@@ -145,9 +192,21 @@ export function ConsumerBookingAssistant({
               pendingCheckoutStartTime: pendingCheckout.startTime,
             }
           : {}),
+        ...(Capacitor.isNativePlatform()
+          ? {
+              nativePlatform: Capacitor.getPlatform(),
+              pushPermissionState: readConsumerPushPermissionState(),
+              appVersion: import.meta.env.VITE_APP_VERSION?.trim() || '1.0.0',
+              analyticsConsent: readAnalyticsConsent(),
+              analyticsConsentPending: readAnalyticsConsent() == null,
+              homeScreenWidgetSupported: true,
+            }
+          : { homeScreenWidgetSupported: false }),
+        online: offlineSnapshot.online,
+        offlineQueueCount: offlineSnapshot.offlineQueueCount,
       };
     },
-    [location.pathname, sessionContext, open, slug],
+    [location.pathname, offlineSnapshot, sessionContext, open, slug],
   );
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -269,6 +328,48 @@ export function ConsumerBookingAssistant({
         ) {
           followNavigate(result.navigate);
         }
+
+        if (result.details?.clientAction === 'enableConsumerNativePush') {
+          void enableConsumerNativePush(slug);
+        }
+        if (result.details?.clientAction === 'openConsumerNotificationSettings') {
+          void openNotificationSettings();
+        }
+        if (result.details?.clientAction === 'dismissConsumerAppUpdateNudge') {
+          dispatchDismissConsumerAppUpdateNudge();
+        }
+        if (
+          result.details?.clientAction === 'dismissConsumerCheckoutRecommendations'
+        ) {
+          dispatchDismissConsumerCheckoutRecommendations({
+            slug,
+            bookingId:
+              typeof result.details?.bookingId === 'string'
+                ? result.details.bookingId
+                : typeof sessionContext.bookingId === 'string'
+                  ? sessionContext.bookingId
+                  : undefined,
+            serviceId:
+              typeof result.details?.serviceId === 'string'
+                ? result.details.serviceId
+                : typeof sessionContext.serviceId === 'string'
+                  ? sessionContext.serviceId
+                  : undefined,
+          });
+        }
+        if (result.details?.clientAction === 'declineConsumerAnalyticsConsent') {
+          declineConsumerAnalyticsConsent();
+        }
+        if (result.details?.clientAction === 'speakAssistantReply') {
+          const speakTextValue =
+            typeof result.details?.speakText === 'string'
+              ? result.details.speakText
+              : undefined;
+          if (speakTextValue && isSpeechSynthesisSupported()) {
+            speakText(speakTextValue, localeToSpeechLang(locale));
+          }
+        }
+        handleAssistantFeedbackClientAction(result.details);
       } catch (err: unknown) {
         setMessages((prev) => [
           ...prev,
@@ -561,6 +662,21 @@ export function ConsumerBookingAssistant({
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {!guideMode && pageSuggestions.length > 0 ? (
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        color: '#9ca3af',
+                        marginBottom: 4,
+                        textAlign: 'left',
+                      }}
+                    >
+                      {copy.assistantPageSuggestionsTitle}
+                    </p>
+                  ) : null}
                   {examples.map((example) => (
                     <button
                       key={example}

@@ -41,7 +41,9 @@ export function enrichDashboardCreateBookingParams(
   return enrichDiscoveryParamsFromPrompt(params, prompt);
 }
 
-export function resolveDashboardCreateBookingService<T extends DashboardCatalogService>(
+export function resolveDashboardCreateBookingService<
+  T extends DashboardCatalogService,
+>(
   catalog: readonly T[],
   params: Record<string, unknown>,
   resolveByName?: (name: string) => T | undefined,
@@ -137,7 +139,7 @@ export async function findDashboardFirstAvailableAcrossWindows(
   const candidates: DashboardFirstAvailablePick[] = [];
 
   for (let windowIndex = 0; windowIndex < windows.length; windowIndex++) {
-    const window = windows[windowIndex]!;
+    const window = windows[windowIndex];
     for (const isoDay of window.dateKeys) {
       const pick = await findOnDay({
         isoDay,

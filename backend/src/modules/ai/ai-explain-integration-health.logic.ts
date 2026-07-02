@@ -12,9 +12,10 @@ import {
   parseIntegrationHealthFocusFromPrompt,
 } from './ai-explain-integration-health.util.js';
 
-export type ExplainIntegrationHealthLogicDeps = IntegrationHealthSnapshotDeps & {
-  integrationsDocsService?: { buildDocs: (businessId: string) => unknown };
-};
+export type ExplainIntegrationHealthLogicDeps =
+  IntegrationHealthSnapshotDeps & {
+    integrationsDocsService?: { buildDocs: (businessId: string) => unknown };
+  };
 
 function success(
   action: string,

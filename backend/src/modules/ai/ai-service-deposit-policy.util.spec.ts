@@ -54,7 +54,9 @@ describe('ai-service-deposit-policy.util', () => {
   it.each(CONFIGURE_SERVICE_DEPOSIT_POLICY_PROMPTS)(
     'rescues unknown action to configure_service_deposit_policy for $id',
     ({ prompt, expectedAction }) => {
-      expect(rescueConfigureServiceDepositPolicyIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueConfigureServiceDepositPolicyIntent(prompt, 'unknown'),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });

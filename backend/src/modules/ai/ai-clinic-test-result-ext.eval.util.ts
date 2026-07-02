@@ -32,7 +32,9 @@ export function resolveClinicTestResultAccessTier(
     (CLINIC_TEST_RESULT_CORE_MUTATE_INTENTS as readonly string[]).includes(
       action,
     ) ||
-    (CLINIC_TEST_RESULT_EXT_MUTATE_INTENTS as readonly string[]).includes(action)
+    (CLINIC_TEST_RESULT_EXT_MUTATE_INTENTS as readonly string[]).includes(
+      action,
+    )
   ) {
     return 'M';
   }
@@ -97,16 +99,16 @@ export function assertClinicTestResultExtAccessTierMatchesMatrix(
 }
 
 export function buildClinicTestResultExtEvalExpectation(
-  rescuedAction: (typeof CLINIC_TEST_RESULT_EXT_MUTATE_INTENTS)[number] |
-    (typeof CLINIC_TEST_RESULT_EXT_READ_INTENTS)[number],
-  partial: Omit<
-    AiCommandEvalExpectation,
-    'accessTier' | 'rescuedAction'
-  > = {},
+  rescuedAction:
+    | (typeof CLINIC_TEST_RESULT_EXT_MUTATE_INTENTS)[number]
+    | (typeof CLINIC_TEST_RESULT_EXT_READ_INTENTS)[number],
+  partial: Omit<AiCommandEvalExpectation, 'accessTier' | 'rescuedAction'> = {},
 ): AiCommandEvalExpectation {
   const accessTier = resolveClinicTestResultExtAccessTier(rescuedAction);
   if (!accessTier) {
-    throw new Error(`Unknown clinic ext intent for access tier: ${rescuedAction}`);
+    throw new Error(
+      `Unknown clinic ext intent for access tier: ${rescuedAction}`,
+    );
   }
   return {
     rescuedAction,
@@ -119,7 +121,10 @@ export function buildClinicTestResultExtClassifierEvalExpectation(
   action: ClinicTestResultExtIntent,
   partial: Omit<
     AiCommandEvalExpectation,
-    'action' | 'accessTier' | 'useClinicTestResultExtClassifierDetect' | 'rescuedAction'
+    | 'action'
+    | 'accessTier'
+    | 'useClinicTestResultExtClassifierDetect'
+    | 'rescuedAction'
   > = {},
 ): AiCommandEvalExpectation {
   const accessTier = resolveClinicTestResultExtAccessTier(action);

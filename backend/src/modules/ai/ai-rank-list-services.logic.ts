@@ -111,9 +111,7 @@ export function buildRankListServicesHeader(input: {
 
   if (input.limit === 1) {
     if (input.serviceRank === 'highest_price') {
-      return category
-        ? `Our top${categorySuffix} option:`
-        : 'Our top option:';
+      return category ? `Our top${categorySuffix} option:` : 'Our top option:';
     }
     if (input.serviceRank === 'lowest_price') {
       return category
@@ -193,7 +191,9 @@ export function buildTierFilterListServicesHeader(input: {
   const tierLabel =
     input.serviceTier === 'premium' ? 'Premium tier' : 'Standard tier';
   const category = input.serviceCategory?.trim();
-  return category ? `${tierLabel} ${category} services:` : `${tierLabel} services:`;
+  return category
+    ? `${tierLabel} ${category} services:`
+    : `${tierLabel} services:`;
 }
 
 export function applyRankToMatchedServices<T extends BudgetCatalogService>(
@@ -269,10 +269,10 @@ export function composePublicListServicesRankResponse(input: {
               budgetMax,
               input.serviceCategory,
             )
-          : buildBudgetListServicesNoMatchSummary(
+          : (buildBudgetListServicesNoMatchSummary(
               input.matchedServices,
               budgetMax,
-            ) ?? `Nothing found under $${budgetMax}.`,
+            ) ?? `Nothing found under $${budgetMax}.`),
     };
   }
 

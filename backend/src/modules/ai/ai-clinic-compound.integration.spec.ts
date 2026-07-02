@@ -50,17 +50,17 @@ describe('ai-clinic-compound integration (ai-cmd-clinic-v2-7)', () => {
     const steps = decomposeClinicCompoundPrompt(prompt, 'customer');
     const deps = {
       payments: {
-        handleBookNearestSlot: jest.fn(async () => ({
+        dispatchIntent: jest.fn(async ({ action }: { action: string }) => ({
           success: true,
-          action: 'book_nearest_slot',
+          action,
           summary: 'Booked',
           details: { serviceName: 'lipid panel' },
         })),
       },
       consumerClinicTestResults: {
-        handleExplainResultStatus: jest.fn(async () => ({
+        handleNotifyWhenResultsReady: jest.fn(async () => ({
           success: true,
-          action: 'explain_result_status',
+          action: 'notify_when_results_ready',
           summary: 'Explained',
           details: {},
         })),
@@ -77,9 +77,9 @@ describe('ai-clinic-compound integration (ai-cmd-clinic-v2-7)', () => {
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('compound_intent');
-    expect(deps.payments.handleBookNearestSlot).toHaveBeenCalled();
+    expect(deps.payments.dispatchIntent).toHaveBeenCalled();
     expect(
-      deps.consumerClinicTestResults.handleExplainResultStatus,
+      deps.consumerClinicTestResults.handleNotifyWhenResultsReady,
     ).toHaveBeenCalled();
   });
 });

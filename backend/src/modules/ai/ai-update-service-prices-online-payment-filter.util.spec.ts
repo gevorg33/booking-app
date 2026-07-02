@@ -34,15 +34,19 @@ const catalog = [
 
 describe('ai-update-service-prices-online-payment-filter.util', () => {
   it('exports classifier rules', () => {
-    expect(UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CLASSIFIER_RULES).toContain(
-      'onlyWithOnlinePayment',
-    );
+    expect(
+      UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CLASSIFIER_RULES,
+    ).toContain('onlyWithOnlinePayment');
   });
 
-  it.each(UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
-    (row) => row.paramsPartial?.onlyWithOnlinePayment,
-  ))('detects online payment scope for $id', ({ prompt }) => {
-    expect(isUpdateServicePricesOnlinePaymentScopePrompt(prompt, {})).toBe(true);
+  it.each(
+    UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
+      (row) => row.paramsPartial?.onlyWithOnlinePayment,
+    ),
+  )('detects online payment scope for $id', ({ prompt }) => {
+    expect(isUpdateServicePricesOnlinePaymentScopePrompt(prompt, {})).toBe(
+      true,
+    );
     expect(isUpdateServicePricesOnlinePaymentFilterPrompt(prompt)).toBe(true);
   });
 
@@ -70,9 +74,11 @@ describe('ai-update-service-prices-online-payment-filter.util', () => {
     },
   );
 
-  it.each(UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
-    (row) => row.paramsPartial?.onlyWithOnlinePayment,
-  ))('enriches params for $id', ({ prompt, paramsPartial }) => {
+  it.each(
+    UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_PROMPTS.filter(
+      (row) => row.paramsPartial?.onlyWithOnlinePayment,
+    ),
+  )('enriches params for $id', ({ prompt, paramsPartial }) => {
     const enriched = enrichUpdateServicePricesParamsFromPrompt({}, prompt);
     expect(enriched.onlyWithOnlinePayment).toBe(true);
     const adjustment = parsePriceAdjustment(prompt, enriched);
@@ -89,16 +95,18 @@ describe('ai-update-service-prices-online-payment-filter.util', () => {
   });
 
   it('rescues via operations intent with enriched params', () => {
-    const prompt =
-      'Raise prices 10% for services with online payment only';
-    const rescued = rescueOperationsIntent(prompt, 'configure_service_online_payment', {});
+    const prompt = 'Raise prices 10% for services with online payment only';
+    const rescued = rescueOperationsIntent(
+      prompt,
+      'configure_service_online_payment',
+      {},
+    );
     expect(rescued?.action).toBe('update_service_prices');
     expect(rescued?.params.onlyWithOnlinePayment).toBe(true);
   });
 
   it('enriches existing update_service_prices action params', () => {
-    const prompt =
-      'Raise prices 10% for services with online payment only';
+    const prompt = 'Raise prices 10% for services with online payment only';
     const rescued = rescueOperationsIntent(prompt, 'update_service_prices', {
       percentChange: 10,
     });

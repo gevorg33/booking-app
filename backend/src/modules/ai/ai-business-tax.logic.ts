@@ -47,6 +47,10 @@ import { parseExplainAppointmentTaxFromPrompt } from './ai-appointment-tax.util.
 import { parseQuoteStaffBookingTaxFromPrompt } from './ai-quote-staff-booking-tax.util.js';
 import { parseSummarizeCustomerTaxPaidFromPrompt } from './ai-summarize-customer-tax-paid.util.js';
 import {
+  parseExplainCheckoutTaxFromPrompt,
+  type CheckoutTaxAspect,
+} from './ai-checkout-tax.util.js';
+import {
   parseExplainConsumerCheckoutTaxFromPrompt,
   type ConsumerCheckoutTaxAspect,
 } from './ai-consumer-checkout-tax.util.js';
@@ -421,10 +425,82 @@ export async function handleSetServiceTaxRateLogic(
   );
 }
 
+function formatPublicCheckoutTaxAspectSummary(
+  aspect: CheckoutTaxAspect,
+  publicTax: ReturnType<typeof toPublicBusinessTaxSettings>,
+  inclusiveBadge: string | null,
+  example: string,
+): string {
+  if (!publicTax) return '';
+
+  const stackedNote =
+    publicTax.rules && publicTax.rules.length > 1
+      ? ` Stacked rules (${publicTax.rules.map((rule) => `${rule.name} ${rule.rate}%`).join(' + ')}) appear as separate lines when multiple rates apply.`
+      : '';
+
+  switch (aspect) {
+    case 'service_list':
+      return publicTax.model === 'inclusive'
+        ? [
+            `On the booking page service catalog, tax-inclusive pricing shows an "${inclusiveBadge ?? 'incl.'}" badge on each service card when tax is embedded in the listed price.`,
+            `The badge reflects ${publicTax.name} at ${publicTax.rate}% — listed prices already include tax.`,
+          ].join(' ')
+        : [
+            'On the booking page service catalog, tax-exclusive pricing shows the net service price without an incl. badge.',
+            `Tax is added later on the checkout payment summary (${publicTax.name} ${publicTax.rate}%).`,
+          ].join(' ');
+    case 'checkout':
+      return publicTax.model === 'inclusive'
+        ? [
+            'During checkout on this booking page, the payment summary shows the service total with tax already included.',
+            inclusiveBadge
+              ? `Service cards used an "${inclusiveBadge}" badge; checkout should not add tax again.${stackedNote}`
+              : `Checkout should not add tax again on top of the listed price.${stackedNote}`,
+          ].join(' ')
+        : [
+            `During checkout on this booking page, the payment summary adds a ${publicTax.name} ${publicTax.rate}% tax line before you pay.`,
+            example,
+            stackedNote.trim(),
+          ]
+            .filter(Boolean)
+            .join(' ');
+    case 'confirmation':
+      return [
+        'On the booking confirmation step before payment, the summary repeats the tax breakdown from checkout.',
+        publicTax.model === 'inclusive'
+          ? `Tax-inclusive total already includes ${publicTax.name} (${publicTax.rate}%).`
+          : `Tax-exclusive checkout shows net service amount plus ${publicTax.name} tax.${stackedNote}`,
+        'This matches the tax lines shown on the checkout payment summary.',
+      ].join(' ');
+    default:
+      return [
+        `On this booking page, ${publicTax.name} at ${publicTax.rate}% uses ${modelLabel(publicTax.model)} pricing.`,
+        publicTax.model === 'inclusive'
+          ? inclusiveBadge
+            ? `Service cards may show "${inclusiveBadge}"; checkout and confirmation summaries show the gross total without adding tax again.`
+            : 'Service cards may show an incl. badge; checkout totals match listed prices.'
+          : `Service cards show net prices; checkout and confirmation add a tax line before payment. ${example}`,
+        stackedNote.trim(),
+      ]
+        .filter(Boolean)
+        .join(' ');
+  }
+}
+
 export async function handleExplainCheckoutTaxLogic(
   deps: BusinessTaxLogicDeps,
   businessId: string,
+  params: Record<string, unknown> = {},
+  prompt?: string,
 ): Promise<CommandResult> {
+  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  const parsed = parseExplainCheckoutTaxFromPrompt(effectivePrompt);
+  const aspect =
+    (typeof params.aspect === 'string' &&
+    ['checkout', 'confirmation', 'service_list', 'all'].includes(params.aspect)
+      ? params.aspect
+      : parsed?.aspect) ?? 'all';
+
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
@@ -449,35 +525,29 @@ export async function handleExplainCheckoutTaxLogic(
       {
         taxEnabled: false,
         publicTax: null,
+        aspect,
         samplePrice,
       },
     );
   }
 
-  const modelExplanation =
-    publicTax.model === 'inclusive'
-      ? [
-          `Prices use tax-inclusive pricing: listed service amounts already include ${publicTax.name} (${publicTax.rate}%).`,
-          inclusiveBadge
-            ? `Service cards may show a badge like "${inclusiveBadge}" to indicate tax is included in the displayed price.`
-            : 'Service cards may show an "incl." badge when tax is included in the displayed price.',
-          'Checkout totals should match the listed price — tax is not added again at payment.',
-        ].join(' ')
-      : [
-          `Prices use tax-exclusive pricing: service cards show the net amount before ${publicTax.name}.`,
-          `At checkout, ${publicTax.name} ${publicTax.rate}% is added as a separate tax line before you pay.`,
-          example,
-        ].join(' ');
+  const aspectSummary = formatPublicCheckoutTaxAspectSummary(
+    aspect as CheckoutTaxAspect,
+    publicTax,
+    inclusiveBadge,
+    example,
+  );
 
   const summary = [
     `This booking page uses ${publicTax.name} at ${publicTax.rate}% (${publicTax.model} pricing).`,
-    modelExplanation,
+    aspectSummary,
   ].join(' ');
 
   return success('explain_checkout_tax', summary, {
     taxEnabled: true,
     publicTax,
     inclusiveBadge,
+    aspect,
     samplePrice,
     exampleBreakdown: calculateTaxBreakdown(
       samplePrice,

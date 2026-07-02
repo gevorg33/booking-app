@@ -10,6 +10,7 @@ describe('ai-tour-booking-record.logic (ai-cmd-tour-7)', () => {
   const tourBooking = {
     id: 'bk-tour-1',
     businessId: 'biz-1',
+    customerId: 'cust-1',
     serviceId: 'svc-2',
     status: BookingStatus.CONFIRMED,
     startTime: new Date(`${tourStartDate}T08:00:00.000Z`),
@@ -91,6 +92,40 @@ describe('ai-tour-booking-record.logic (ai-cmd-tour-7)', () => {
     expect(result.success).toBe(true);
     expect(result.summary).toContain('provider calendar');
     expect(result.details?.aspect).toBe('calendarSpan');
+  });
+
+  it('returns confirmation number for customer self-service prompt', async () => {
+    const result = await handleExplainTourBookingRecordLogic(
+      deps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      "What's my tour confirmation number?",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('bk-tour-1');
+    expect(result.details?.aspect).toBe('confirmationNumber');
+  });
+
+  it('scopes customer lookup to session customer bookings', async () => {
+    bookingService.findAll.mockResolvedValueOnce([
+      tourBooking,
+      {
+        ...tourBooking,
+        id: 'bk-tour-other',
+        customerId: 'cust-2',
+      },
+    ]);
+
+    const result = await handleExplainTourBookingRecordLogic(
+      deps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Summarize my group booking',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.details?.bookingId).toBe('bk-tour-1');
   });
 
   it('fails when booking is not a tour', async () => {

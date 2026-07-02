@@ -13,6 +13,7 @@ import {
   isRequestGiftCardCancelPrompt,
   isRequestGiftCardModifyPrompt,
 } from './ai-customer-crm.util.js';
+import { isReportBookingProblemPrompt } from './ai-report-booking-problem.util.js';
 
 export const DASHBOARD_INTEGRATIONS_MUTATE_INTENTS = [
   'create_webhook',
@@ -200,6 +201,7 @@ export function isListIntegrationHealthPrompt(prompt: string): boolean {
 }
 
 export function isContactSupportPrompt(prompt: string): boolean {
+  if (isReportBookingProblemPrompt(prompt)) return false;
   return (
     /\b(contact|reach|message)\b/i.test(prompt) &&
     /\bsupport\b/i.test(prompt) &&
@@ -451,7 +453,10 @@ export function rescueIntegrationsIntent(
       rescueReason: 'marketing_email',
     };
   }
-  const openaiIntegration = rescueConfigureOpenaiIntegrationIntent(prompt, action);
+  const openaiIntegration = rescueConfigureOpenaiIntegrationIntent(
+    prompt,
+    action,
+  );
   if (openaiIntegration) return openaiIntegration;
   if (isSyncCustomerToZendeskPrompt(prompt)) {
     return { action: 'sync_customer_to_zendesk', rescueReason: 'sync_zendesk' };

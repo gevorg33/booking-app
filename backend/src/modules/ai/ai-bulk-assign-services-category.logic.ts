@@ -177,9 +177,7 @@ export async function handleBulkAssignServicesCategoryLogic(
     .map((service) => `"${service.name}"`)
     .join(', ');
   const extra =
-    updatedServices.length > 3
-      ? ` and ${updatedServices.length - 3} more`
-      : '';
+    updatedServices.length > 3 ? ` and ${updatedServices.length - 3} more` : '';
   const summary = `Moved ${updatedServices.length} service(s) (${names}${extra}) under category "${category.name}".`;
 
   return success('bulk_assign_services_category', summary, {

@@ -15,7 +15,8 @@ export const TENANT_APP_INSTALL_URL_SCENARIOS: TenantAppInstallScenario[] = [
     slug: 'glow-nails',
     campaign: 'venue_qr',
     rootDomain: 'test',
-    expectedUrl: 'https://app.test/get-app/glow-nails?src=qr&utm_campaign=venue_qr',
+    expectedUrl:
+      'https://app.test/get-app/glow-nails?src=qr&utm_campaign=venue_qr',
   },
   {
     id: 'confirmation-with-service',
@@ -33,7 +34,8 @@ export const TENANT_APP_INSTALL_URL_SCENARIOS: TenantAppInstallScenario[] = [
     slug: 'salon-a',
     campaign: 'receipt_qr',
     rootDomain: 'test',
-    expectedUrl: 'https://app.test/get-app/salon-a?src=qr&utm_campaign=receipt_qr',
+    expectedUrl:
+      'https://app.test/get-app/salon-a?src=qr&utm_campaign=receipt_qr',
   },
 ];
 

@@ -80,9 +80,7 @@ import {
   resolveStatusFilter,
   shouldUseAfternoonAvailability,
 } from './provider-ai-sprint19.util.js';
-import {
-  buildTeamWhosNextSummary,
-} from './provider-team-whos-next.util.js';
+import { buildTeamWhosNextSummary } from './provider-team-whos-next.util.js';
 import {
   applyProviderEntityMemory,
   buildCoordinateWaitlistConfirmation,
@@ -101,9 +99,7 @@ import { AiBusinessCurrencyService } from '../ai/ai-business-currency.service.js
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
 import { AiBusinessTaxService } from '../ai/ai-business-tax.service.js';
 import { AiBusinessComplianceService } from '../ai/ai-business-compliance.service.js';
-import {
-  parseExplainAppointmentTaxFromPrompt,
-} from '../ai/ai-appointment-tax.util.js';
+import { parseExplainAppointmentTaxFromPrompt } from '../ai/ai-appointment-tax.util.js';
 import { AiProviderClinicCollectionService } from '../ai/ai-provider-clinic-collection.service.js';
 import { AiClinicLabBookingService } from '../ai/ai-clinic-lab-booking.service.js';
 import { PROVIDER_MOBILE_CLASSIFIER_RULES } from '../ai/ai-provider-mobile.fixtures.js';
@@ -118,6 +114,10 @@ import { ProviderPushActionService } from './provider-push-action.service.js';
 import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
 import { AiProviderClientContextService } from '../ai/ai-provider-client-context.service.js';
+import {
+  extractClientNoteBodyFromPrompt,
+  extractCustomerNameFromClientPrompt,
+} from '../ai/ai-provider-client-context.util.js';
 import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
@@ -454,7 +454,7 @@ export class ProviderAiCommandService {
           businessId,
           userId,
           prompt,
-          guideMatch.intent as AppGuideIntent,
+          guideMatch.intent,
           context,
           access,
           actorTier,
@@ -611,7 +611,7 @@ export class ProviderAiCommandService {
       );
     }
 
-    let parsed = pipelineResultToClassifiedIntent(understood);
+    const parsed = pipelineResultToClassifiedIntent(understood);
     const classifierCandidate = findClassifierCandidate(understood);
     const classifierAction = classifierCandidate?.action ?? parsed.action;
     let rescueReason: string | undefined = pipelineRescueReason(understood);
@@ -639,6 +639,35 @@ export class ProviderAiCommandService {
       rescueReason = 'provider_heuristic';
     }
 
+    const clientContextRescue =
+      this.providerClientContext.rescueProviderClientContextIntent(
+        prompt,
+        parsed.action,
+      );
+    if (clientContextRescue && clientContextRescue.action !== parsed.action) {
+      parsed.action = clientContextRescue.action;
+      rescueReason = clientContextRescue.rescueReason;
+      if (clientContextRescue.action === 'add_client_note') {
+        const noteBody = extractClientNoteBodyFromPrompt(prompt);
+        if (noteBody) {
+          (parsed.params as Record<string, unknown>).clientNote = noteBody;
+        }
+      }
+      const customerName = extractCustomerNameFromClientPrompt(prompt);
+      if (customerName) {
+        (parsed.params as Record<string, unknown>).customerName = customerName;
+      }
+    }
+
+    const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
+      prompt,
+      parsed.action,
+    );
+    if (providerExp2Rescue && providerExp2Rescue.action !== parsed.action) {
+      parsed.action = providerExp2Rescue.action;
+      rescueReason = providerExp2Rescue.rescueReason;
+    }
+
     const voiceSummarizeRescue = rescueVoiceSummarizeNextClientIntent(
       prompt,
       parsed.action,
@@ -648,15 +677,20 @@ export class ProviderAiCommandService {
       rescueReason = 'voice_summarize_next_client';
     }
 
-    const providerGuideRescue = rescueProductGuideIntent(prompt, parsed.action, {
-      surface: 'provider',
-      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
-      route: mapProviderMobileGuideRoute(context),
-      context,
-    });
+    const providerGuideRescue = rescueProductGuideIntent(
+      prompt,
+      parsed.action,
+      {
+        surface: 'provider',
+        assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+        route: mapProviderMobileGuideRoute(context),
+        context,
+      },
+    );
     if (providerGuideRescue.action !== parsed.action) {
       parsed.action = providerGuideRescue.action;
-      rescueReason = providerGuideRescue.rescueReason ?? 'provider_product_guide';
+      rescueReason =
+        providerGuideRescue.rescueReason ?? 'provider_product_guide';
     }
 
     const coordination = rescueCoordinationIntent(prompt, parsed.action);
@@ -928,53 +962,50 @@ export class ProviderAiCommandService {
       case 'send_client_message':
       case 'block_my_time':
       case 'request_time_off':
-        result =
-          (await this.providerExp3.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            parsed.params,
-            prompt,
-            context,
-            access.employee?.id,
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: `Could not complete "${parsed.action}". Try rephrasing or use the booking detail screen.`,
-            details: { clarify: true },
-          };
+        result = (await this.providerExp3.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          prompt,
+          context,
+          access.employee?.id,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Could not complete "${parsed.action}". Try rephrasing or use the booking detail screen.`,
+          details: { clarify: true },
+        };
         break;
       case 'list_my_time_off_requests':
-        result =
-          (await this.providerTimeOff.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            parsed.params,
-            'provider',
-            access.employee?.id,
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: 'Could not load your time-off requests.',
-            details: { clarify: true },
-          };
+        result = (await this.providerTimeOff.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          'provider',
+          access.employee?.id,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: 'Could not load your time-off requests.',
+          details: { clarify: true },
+        };
         break;
       case 'suggest_waitlist_for_gap':
-        result =
-          (await this.providerOpenShifts.handleIntent(
-            businessId,
-            parsed.action,
-            prompt,
-            parsed.params,
-            access.employee?.id,
-          )) ?? {
-            success: false,
-            action: 'suggest_waitlist_for_gap',
-            summary:
-              'Could not suggest waitlist customers for this gap. Open your provider calendar and tap Fill this gap.',
-            details: { clarify: true },
-          };
+        result = (await this.providerOpenShifts.handleIntent(
+          businessId,
+          parsed.action,
+          prompt,
+          parsed.params,
+          access.employee?.id,
+        )) ?? {
+          success: false,
+          action: 'suggest_waitlist_for_gap',
+          summary:
+            'Could not suggest waitlist customers for this gap. Open your provider calendar and tap Fill this gap.',
+          details: { clarify: true },
+        };
         break;
       case 'summarize_utilization':
         result = await this.handleSummarizeUtilization(
@@ -1045,74 +1076,71 @@ export class ProviderAiCommandService {
         break;
       case 'explain_push_setup':
       case 'enable_push_notifications':
-        result =
-          (await this.providerPushSetup.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            {
-              ...parsed.params,
-              nativePlatform: context?.nativePlatform ?? parsed.params.nativePlatform,
-            },
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
-            details: { clarify: true },
-          };
+        result = (await this.providerPushSetup.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          {
+            ...parsed.params,
+            nativePlatform:
+              context?.nativePlatform ?? parsed.params.nativePlatform,
+          },
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+          details: { clarify: true },
+        };
         break;
       case 'summarize_my_appointments':
       case 'summarize_my_revenue':
-        result =
-          (await this.providerEarnings.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            parsed.params,
-            prompt,
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
-            details: { clarify: true },
-          };
+        result = (await this.providerEarnings.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          prompt,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+          details: { clarify: true },
+        };
         break;
       case 'summarize_client':
       case 'show_client_history':
       case 'add_client_note':
-        result =
-          (await this.providerClientContext.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            parsed.params,
-            prompt,
-            context,
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
-            details: { clarify: true },
-          };
+        result = (await this.providerClientContext.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          prompt,
+          context,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+          details: { clarify: true },
+        };
         break;
       case 'my_stats':
       case 'team_floor_status':
       case 'check_in_client':
       case 'mark_running_late':
-        result =
-          (await this.providerExp2.handleIntent(
-            businessId,
-            userId,
-            parsed.action,
-            parsed.params,
-            prompt,
-            context,
-          )) ?? {
-            success: false,
-            action: parsed.action,
-            summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
-            details: { clarify: true },
-          };
+        result = (await this.providerExp2.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          prompt,
+          context,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Provider assistant does not support "${parsed.action}" yet. Try rephrasing.`,
+          details: { clarify: true },
+        };
         break;
       case 'confirm_booking_from_push':
         result = await this.handleConfirmBookingFromPush(
@@ -1322,7 +1350,7 @@ export class ProviderAiCommandService {
         mergeProviderMobileGuideContext(context),
         'provider',
       ),
-    ) as ProviderCommandResult;
+    );
   }
 
   private async handleProviderMobileCompound(
@@ -2052,7 +2080,10 @@ export class ProviderAiCommandService {
     actorTier: AccessTier,
     params: Record<string, unknown> = {},
   ): Promise<ProviderCommandResult> {
-    if (!isEmptyStateGuideIntent(action) || action === 'explain_stripe_not_connected') {
+    if (
+      !isEmptyStateGuideIntent(action) ||
+      action === 'explain_stripe_not_connected'
+    ) {
       return {
         success: false,
         action,

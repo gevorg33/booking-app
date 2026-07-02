@@ -70,7 +70,11 @@ const EXPLAIN_I18N: Record<
 
 const CONFIGURE_I18N: Record<
   string,
-  { hy: string; ru: string; expectedAction: 'configure_provider_push_date_format' }
+  {
+    hy: string;
+    ru: string;
+    expectedAction: 'configure_provider_push_date_format';
+  }
 > = {
   'push-12-hour-format': {
     hy: 'Set provider push booking times-ը 12-hour format',

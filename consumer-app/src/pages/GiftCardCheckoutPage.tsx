@@ -32,6 +32,7 @@ import {
   resolveGiftCardDeliveryOptions,
   type GiftCardCheckoutFormState,
 } from '../lib/gift-card-purchase.util.js';
+import { parseGiftCardAssistantPrefill } from '../lib/consumer-gift-card-assistant-prefill.util.js';
 import {
   confirmPublicBookingPayment,
   createPublicGiftCardCheckout,
@@ -68,6 +69,10 @@ export default function GiftCardCheckoutPage() {
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const assistantPrefill = useMemo(
+    () => parseGiftCardAssistantPrefill(params),
+    [params],
+  );
   const paymentSessionId = params.get('session_id')?.trim() ?? '';
 
   const catalogQuery = useQuery({
@@ -96,12 +101,20 @@ export default function GiftCardCheckoutPage() {
     [settings],
   );
 
-  const [buyForSelf, setBuyForSelf] = useState(true);
+  const [buyForSelf, setBuyForSelf] = useState(() => !assistantPrefill.buyAsGift);
   const [deliveryMethod, setDeliveryMethod] = useState<'digital' | 'physical'>(
-    deliveryOptions[0] ?? 'digital',
+    assistantPrefill.deliveryMethod ?? deliveryOptions[0] ?? 'digital',
   );
   const [shippingMethodId] = useState(settings?.shippingMethods[0]?.id ?? 'standard');
-  const [form, setForm] = useState<GiftCardCheckoutFormState>(emptyForm);
+  const [form, setForm] = useState<GiftCardCheckoutFormState>(() => ({
+    ...emptyForm(),
+    ...(assistantPrefill.recipientName
+      ? { recipientName: assistantPrefill.recipientName }
+      : {}),
+    ...(assistantPrefill.recipientEmail
+      ? { recipientEmail: assistantPrefill.recipientEmail }
+      : {}),
+  }));
   const [quote, setQuote] = useState<PublicGiftCardPurchaseQuote | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -117,11 +130,15 @@ export default function GiftCardCheckoutPage() {
       ...prev,
       purchaserName: prev.purchaserName || customer.name || '',
       purchaserEmail: prev.purchaserEmail || customer.email || '',
-      recipientName: prev.recipientName || customer.name,
-      recipientEmail: prev.recipientEmail || customer.email || '',
-      recipientPhone: prev.recipientPhone || customer.phone || '',
+      ...(assistantPrefill.buyAsGift
+        ? {}
+        : {
+            recipientName: prev.recipientName || customer.name,
+            recipientEmail: prev.recipientEmail || customer.email || '',
+            recipientPhone: prev.recipientPhone || customer.phone || '',
+          }),
     }));
-  }, [customer]);
+  }, [assistantPrefill.buyAsGift, customer]);
 
   useEffect(() => {
     if (!paymentSessionId || success) return;

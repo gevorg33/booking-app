@@ -9,9 +9,7 @@ import {
 import { extractServiceTierFromPrompt } from '../../common/utils/service-rank-metadata.util.js';
 import { enrichRankSessionParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import { extractMaxPriceFromBudgetPrompt } from './ai-budget-service-discovery.util.js';
-import {
-  RANK_SESSION_SCENARIOS,
-} from './ai-service-rank-discovery.fixtures.js';
+import { RANK_SESSION_SCENARIOS } from './ai-service-rank-discovery.fixtures.js';
 import {
   buildServiceRankDiscoveryRescueParams,
   enrichServiceRankFromPrompt,
@@ -45,7 +43,9 @@ describe('ai-service-rank-discovery.util (rank-1.3)', () => {
     },
   );
 
-  it.each(SERVICE_RANK_EXTRACTION_SCENARIOS.filter((scenario) => scenario.blocked))(
+  it.each(
+    SERVICE_RANK_EXTRACTION_SCENARIOS.filter((scenario) => scenario.blocked),
+  )(
     'enrichServiceRankFromPrompt strips serviceRank for blocked $id',
     ({ prompt }) => {
       expect(
@@ -84,10 +84,13 @@ describe('ai-service-rank-discovery.util (rank-1.3)', () => {
     SERVICE_RANK_EXTRACTION_SCENARIOS.filter(
       (scenario) => scenario.id === 'rank-not-package-en',
     ),
-  )('isServiceRankEnrichmentBlockedPrompt blocks package catalog $id', ({ prompt }) => {
-    expect(isServiceRankEnrichmentBlockedPrompt(prompt)).toBe(true);
-    expect(isServiceCatalogRankPrompt(prompt)).toBe(false);
-  });
+  )(
+    'isServiceRankEnrichmentBlockedPrompt blocks package catalog $id',
+    ({ prompt }) => {
+      expect(isServiceRankEnrichmentBlockedPrompt(prompt)).toBe(true);
+      expect(isServiceCatalogRankPrompt(prompt)).toBe(false);
+    },
+  );
 });
 
 describe('ai-service-rank-discovery.util recommend_specialists guard (rank-1.5)', () => {
@@ -109,17 +112,20 @@ describe('ai-service-rank-discovery.util recommend_specialists guard (rank-1.5)'
     SERVICE_RANK_EXTRACTION_SCENARIOS.filter(
       (scenario) => scenario.id === 'rank-not-specialist-en',
     ),
-  )('rescueServiceRankFromRecommendSpecialistsIntent rescues $id', ({ prompt }) => {
-    expect(
-      rescueServiceRankFromRecommendSpecialistsIntent(
-        prompt,
-        'recommend_specialists',
-      ),
-    ).toEqual({
-      action: 'list_services',
-      rescueReason: 'rank_recommend_specialists',
-    });
-  });
+  )(
+    'rescueServiceRankFromRecommendSpecialistsIntent rescues $id',
+    ({ prompt }) => {
+      expect(
+        rescueServiceRankFromRecommendSpecialistsIntent(
+          prompt,
+          'recommend_specialists',
+        ),
+      ).toEqual({
+        action: 'list_services',
+        rescueReason: 'rank_recommend_specialists',
+      });
+    },
+  );
 
   it('keeps recommend_specialists for provider-rated prompts', () => {
     expect(
@@ -144,16 +150,19 @@ describe('ai-service-rank-discovery.util admin analytics guard (rank-not-analyze
         scenario.id === 'rank-not-analyze-appt-en' ||
         scenario.id === 'rank-not-analyze-services-admin-en',
     ),
-  )('extractServiceRankFromPrompt returns null for $id', ({ prompt, serviceRank }) => {
-    expect(serviceRank).toBeNull();
-    expect(extractServiceRankFromPrompt(prompt)).toBeNull();
-    expect(isServiceCatalogRankPrompt(prompt)).toBe(false);
-  });
+  )(
+    'extractServiceRankFromPrompt returns null for $id',
+    ({ prompt, serviceRank }) => {
+      expect(serviceRank).toBeNull();
+      expect(extractServiceRankFromPrompt(prompt)).toBeNull();
+      expect(isServiceCatalogRankPrompt(prompt)).toBe(false);
+    },
+  );
 
   it('isAdminServiceAnalyticsRankPrompt blocks catalog rank enrichment', () => {
-    expect(isAdminServiceAnalyticsRankPrompt('Most booked service this month')).toBe(
-      true,
-    );
+    expect(
+      isAdminServiceAnalyticsRankPrompt('Most booked service this month'),
+    ).toBe(true);
     expect(
       enrichServiceRankFromPrompt(
         { serviceRank: 'most_popular' },
@@ -166,14 +175,17 @@ describe('ai-service-rank-discovery.util admin analytics guard (rank-not-analyze
     SERVICE_RANK_EXTRACTION_SCENARIOS.filter(
       (scenario) => scenario.id === 'rank-not-analyze-appt-en',
     ),
-  )('isAdminAppointmentAnalyticsRankPrompt blocks catalog rank for $id', ({ prompt }) => {
-    expect(isAdminAppointmentAnalyticsRankPrompt(prompt)).toBe(true);
-    expect(extractServiceRankFromPrompt(prompt)).toBeNull();
-    expect(
-      enrichServiceRankFromPrompt({ serviceRank: 'highest_price' }, prompt)
-        .serviceRank,
-    ).toBeUndefined();
-  });
+  )(
+    'isAdminAppointmentAnalyticsRankPrompt blocks catalog rank for $id',
+    ({ prompt }) => {
+      expect(isAdminAppointmentAnalyticsRankPrompt(prompt)).toBe(true);
+      expect(extractServiceRankFromPrompt(prompt)).toBeNull();
+      expect(
+        enrichServiceRankFromPrompt({ serviceRank: 'highest_price' }, prompt)
+          .serviceRank,
+      ).toBeUndefined();
+    },
+  );
 
   it.each(SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS)(
     'rescueServiceRankDiscoveryIntent dashboard $id',
@@ -250,14 +262,17 @@ describe('ai-service-rank-discovery.util provider budget (discover-best-provider
   it('extracts haircut from stylist-for-a-cut provider rank prompt', () => {
     const prompt = 'Best rated stylist for a cut under $60 this week';
     expect(isProviderRankDiscoveryPrompt(prompt)).toBe(true);
-    expect(extractProviderRankServiceCategoryFromPrompt(prompt)).toBe('haircut');
+    expect(extractProviderRankServiceCategoryFromPrompt(prompt)).toBe(
+      'haircut',
+    );
     expect(extractServiceRankFromPrompt(prompt)).toBeNull();
   });
 });
 
 describe('ai-service-rank-discovery.util affordability browse (discover-flagship-question-en)', () => {
   it('lists facials in budget without catalog rank', () => {
-    const prompt = 'Can I afford a deluxe facial tomorrow or Sunday under $100?';
+    const prompt =
+      'Can I afford a deluxe facial tomorrow or Sunday under $100?';
     expect(isAffordabilityListPrompt(prompt)).toBe(true);
     expect(extractServiceRankFromPrompt(prompt)).toBeNull();
     expect(
@@ -389,9 +404,9 @@ describe('ai-service-rank-discovery.util session flows (rank-session-upgrade-en 
     expect(
       isRankSessionBudgetRefinePrompt('anything like that under $120?'),
     ).toBe(true);
-    expect(extractMaxPriceFromBudgetPrompt('anything like that under $120?')).toBe(
-      120,
-    );
+    expect(
+      extractMaxPriceFromBudgetPrompt('anything like that under $120?'),
+    ).toBe(120);
     expect(
       extractServiceRankFromPrompt('anything like that under $120?'),
     ).toBeNull();
@@ -400,8 +415,12 @@ describe('ai-service-rank-discovery.util session flows (rank-session-upgrade-en 
 
 describe('ai-service-rank-discovery.util premium journey (discover-journey-premium-en)', () => {
   it('does not treat options as a service category on premium options', () => {
-    expect(extractServiceRankFromPrompt('premium options')).toBe('highest_price');
-    expect(extractServiceRankServiceCategoryFromPrompt('premium options')).toBeNull();
+    expect(extractServiceRankFromPrompt('premium options')).toBe(
+      'highest_price',
+    );
+    expect(
+      extractServiceRankServiceCategoryFromPrompt('premium options'),
+    ).toBeNull();
   });
 
   it('treats too much — under $90 as rank session budget refine', () => {
@@ -445,7 +464,9 @@ describe('ai-service-rank-discovery.util subjective rank (rank-best-for-me-en)',
       ),
     ).toBe(true);
     expect(
-      isSubjectiveServiceRankPrompt("What's the best premium service for lashes?"),
+      isSubjectiveServiceRankPrompt(
+        "What's the best premium service for lashes?",
+      ),
     ).toBe(false);
     expect(
       extractServiceRankFromPrompt(
@@ -499,7 +520,9 @@ describe('ai-service-rank-discovery.util provider rank rescue (rank-specialist-s
       isProviderRankDiscoveryPrompt('Best rated deep tissue massage'),
     ).toBe(true);
     expect(
-      isProviderRankDiscoveryPrompt("What's the best premium service for lashes?"),
+      isProviderRankDiscoveryPrompt(
+        "What's the best premium service for lashes?",
+      ),
     ).toBe(false);
   });
 

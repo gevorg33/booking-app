@@ -3,10 +3,19 @@ import type { DashboardOpenSlot } from './ai-dashboard-create-booking.logic.js';
 export const DASHBOARD_CREATE_BOOKING_SERVICE_SCENARIOS = [
   {
     id: 'dash-book-budget-cheapest-haircut',
-    params: { serviceCategory: 'haircut', maxPrice: 50, serviceRank: 'lowest_price' },
+    params: {
+      serviceCategory: 'haircut',
+      maxPrice: 50,
+      serviceRank: 'lowest_price',
+    },
     catalog: [
       { id: 'h-30', name: 'Basic cut', price: 30, serviceCategory: 'haircut' },
-      { id: 'h-60', name: 'Premium cut', price: 60, serviceCategory: 'haircut' },
+      {
+        id: 'h-60',
+        name: 'Premium cut',
+        price: 60,
+        serviceCategory: 'haircut',
+      },
     ],
     expectedServiceId: 'h-30',
   },
@@ -14,8 +23,18 @@ export const DASHBOARD_CREATE_BOOKING_SERVICE_SCENARIOS = [
     id: 'dash-book-rank-premium-massage',
     params: { serviceCategory: 'massage', serviceRank: 'highest_price' },
     catalog: [
-      { id: 'm-55', name: 'Massage basic', price: 55, serviceCategory: 'massage' },
-      { id: 'm-95', name: 'Massage premium', price: 95, serviceCategory: 'massage' },
+      {
+        id: 'm-55',
+        name: 'Massage basic',
+        price: 55,
+        serviceCategory: 'massage',
+      },
+      {
+        id: 'm-95',
+        name: 'Massage premium',
+        price: 95,
+        serviceCategory: 'massage',
+      },
     ],
     expectedServiceId: 'm-95',
   },

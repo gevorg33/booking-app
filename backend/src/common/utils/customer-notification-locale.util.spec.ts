@@ -25,9 +25,7 @@ describe('customer-notification-locale.util (catalog-notify-1.2)', () => {
 
   describe('applyCustomerPreferredLocale', () => {
     it('sets preferredLocale and preserves other metadata', () => {
-      expect(
-        applyCustomerPreferredLocale({ pushNews: true }, 'ru'),
-      ).toEqual({
+      expect(applyCustomerPreferredLocale({ pushNews: true }, 'ru')).toEqual({
         pushNews: true,
         preferredLocale: 'ru',
       });

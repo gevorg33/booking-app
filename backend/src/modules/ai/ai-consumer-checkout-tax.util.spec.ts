@@ -47,8 +47,7 @@ describe('ai-consumer-checkout-tax.util', () => {
   });
 
   it('detects lowercase and whitespace typo variants', () => {
-    const original =
-      'Why is there a tax line on checkout in the consumer app?';
+    const original = 'Why is there a tax line on checkout in the consumer app?';
     const lowercase = original.toLowerCase();
     const noPunctuation = original.replace(/\?+$/, '');
     const doubleSpaced = original.replace(/\s+/g, '  ');
@@ -58,7 +57,9 @@ describe('ai-consumer-checkout-tax.util', () => {
     expect(isExplainConsumerCheckoutTaxPrompt(lowercase)).toBe(true);
     expect(isExplainConsumerCheckoutTaxPrompt(noPunctuation)).toBe(true);
     expect(
-      /\b(?:tax\s+line|tax\s+breakdown|payment\s+summary)\b/i.test(doubleSpaced),
+      /\b(?:tax\s+line|tax\s+breakdown|payment\s+summary)\b/i.test(
+        doubleSpaced,
+      ),
     ).toBe(true);
     expect(hasConsumerAppContext(doubleSpaced)).toBe(true);
     expect(isExplainConsumerCheckoutSuccessPrompt(doubleSpaced)).toBe(false);

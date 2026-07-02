@@ -43,7 +43,7 @@ describe('intent-decomposition.util', () => {
     expect(result?.recipeId).toBe('customer_self_service_compound');
     expect(result?.steps.map((step) => step.action)).toEqual([
       'book_package',
-      'promo_code_help',
+      'apply_promo_code_checkout',
     ]);
     expect(result?.steps[1].params.promoCode).toBe('SAVE10');
   });
@@ -80,7 +80,9 @@ describe('intent-decomposition.util', () => {
     );
     expect(steps.length).toBeGreaterThanOrEqual(2);
     expect(steps.map((step) => step.action)).toContain('book_package');
-    expect(steps.map((step) => step.action)).toContain('promo_code_help');
+    expect(steps.map((step) => step.action)).toContain(
+      'apply_promo_code_checkout',
+    );
 
     const payment = decomposeCustomerSelfServiceCompound(
       'Book package id pkg-spa-1 and pay cash at visit',
@@ -122,9 +124,9 @@ describe('intent-decomposition.util', () => {
         [
           { action: 'book_package', params: { packageId: 'pkg-1' } },
           { action: 'not_allowed_intent', params: {} },
-          { action: 'promo_code_help', params: {} },
+          { action: 'apply_promo_code_checkout', params: {} },
         ],
-        ['book_package', 'promo_code_help'],
+        ['book_package', 'apply_promo_code_checkout'],
       ),
     ).toHaveLength(2);
 
@@ -132,9 +134,9 @@ describe('intent-decomposition.util', () => {
       validateStepsAgainstRecipe(
         [
           { action: 'book_package', params: {}, reasoning: 'a' },
-          { action: 'promo_code_help', params: {}, reasoning: 'b' },
+          { action: 'apply_promo_code_checkout', params: {}, reasoning: 'b' },
         ],
-        ['book_package', 'promo_code_help'],
+        ['book_package', 'apply_promo_code_checkout'],
       ),
     ).toBe(true);
     expect(
@@ -247,16 +249,16 @@ describe('intent-decomposition.util', () => {
     recipesSpy.mockRestore();
   });
 
-  it('builds customer promo help steps with and without explicit codes', () => {
+  it('builds customer promo apply steps with and without explicit codes', () => {
     expect(buildCustomerPromoHelpStep('apply promo at checkout')).toMatchObject(
       {
-        action: 'promo_code_help',
+        action: 'apply_promo_code_checkout',
         params: {},
       },
     );
     expect(buildCustomerPromoHelpStep('apply promo code SAVE10')).toMatchObject(
       {
-        action: 'promo_code_help',
+        action: 'apply_promo_code_checkout',
         params: { promoCode: 'SAVE10' },
       },
     );
@@ -296,13 +298,13 @@ describe('intent-decomposition.util', () => {
           { action: 'book_package', params: {}, reasoning: 'a' },
           { action: 'hack', params: {}, reasoning: 'b' },
         ],
-        ['book_package', 'promo_code_help'],
+        ['book_package', 'apply_promo_code_checkout'],
       ),
     ).toBe(false);
     expect(decomposeCustomerSelfServiceCompound('')).toEqual([]);
     expect(
       decomposeCustomerSelfServiceCompound('apply promo at checkout'),
-    ).toMatchObject([{ action: 'promo_code_help' }]);
+    ).toMatchObject([{ action: 'apply_promo_code_checkout' }]);
   });
 
   it('orchestrates compound decomposition with parameter defaults', async () => {
@@ -387,7 +389,7 @@ describe('intent-decomposition.util', () => {
     );
     expect(result?.steps.map((step) => step.action)).toEqual([
       'book_package',
-      'promo_code_help',
+      'apply_promo_code_checkout',
     ]);
     expect(result?.steps[0].params.promoCode).toBe('WELCOME');
     expect(result?.steps[1].params.promoCode).toBe('WELCOME');

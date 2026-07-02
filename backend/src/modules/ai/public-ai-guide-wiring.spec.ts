@@ -13,7 +13,9 @@ describe('PublicBookingAssistantService guide wiring (ai-guide-1.5.3 / 1.6.3)', 
     expect(PUBLIC_ASSISTANT_SOURCE).toContain('enrichGuideTopicFromPrompt');
     expect(PUBLIC_ASSISTANT_SOURCE).toContain('mergePublicBookingGuideContext');
     expect(PUBLIC_ASSISTANT_SOURCE).toContain('resolveProductGuidePromptMatch');
-    expect(PUBLIC_ASSISTANT_SOURCE).toContain('isAppGuideIntent(parsed.action)');
+    expect(PUBLIC_ASSISTANT_SOURCE).toContain(
+      'isAppGuideIntent(parsed.action)',
+    );
     expect(PUBLIC_ASSISTANT_SOURCE).toContain('bookingStep');
   });
 });

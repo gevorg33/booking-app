@@ -18,7 +18,11 @@ describe('ai-provider-guide-context.util (ai-guide-1.4.2)', () => {
     {
       id: 'calendar-tab',
       context: {
-        screenContext: { route: '/tabs/calendar', tab: 'calendar', mobileRoute: 'schedule' },
+        screenContext: {
+          route: '/tabs/calendar',
+          tab: 'calendar',
+          mobileRoute: 'schedule',
+        },
       },
       route: '/tabs/calendar',
       tab: 'calendar',

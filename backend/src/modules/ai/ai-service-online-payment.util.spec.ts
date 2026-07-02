@@ -140,9 +140,9 @@ describe('ai-service-online-payment.util', () => {
       'Accept online payment on public booking for all services with 50% prepayment',
       {},
     )!;
-    expect(resolveTargetServicesForOnlinePayment([...catalog], parsed)).toHaveLength(
-      3,
-    );
+    expect(
+      resolveTargetServicesForOnlinePayment([...catalog], parsed),
+    ).toHaveLength(3);
   });
 
   it('resolves named services and category scope', () => {
@@ -150,9 +150,11 @@ describe('ai-service-online-payment.util', () => {
       'Require online payment on public booking for Haircut and Blowdry with half prepayment',
       {},
     )!;
-    expect(resolveTargetServicesForOnlinePayment([...catalog], named).map((s) => s.name)).toEqual(
-      ['Haircut', 'Blowdry'],
-    );
+    expect(
+      resolveTargetServicesForOnlinePayment([...catalog], named).map(
+        (s) => s.name,
+      ),
+    ).toEqual(['Haircut', 'Blowdry']);
 
     const category = parseServiceOnlinePaymentConfig(
       'Accept online payment on public booking for massage services with full prepayment',

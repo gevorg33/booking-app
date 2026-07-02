@@ -35,7 +35,9 @@ export class CustomerRebookingCadenceService {
     return learnCustomerServiceCadenceDaysFromCompletedBookings(completed);
   }
 
-  async persistLearnedCadenceForCompletedBooking(bookingId: string): Promise<void> {
+  async persistLearnedCadenceForCompletedBooking(
+    bookingId: string,
+  ): Promise<void> {
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId },
       select: {

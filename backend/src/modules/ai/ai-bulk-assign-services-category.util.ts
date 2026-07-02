@@ -144,8 +144,7 @@ export const BULK_ASSIGN_SERVICES_CATEGORY_PROMPTS: BulkAssignServicesCategoryPr
     },
   ];
 
-const BULK_MOVE_VERB =
-  /\b(move|assign|reassign|relocate|put|place|bulk)\b/i;
+const BULK_MOVE_VERB = /\b(move|assign|reassign|relocate|put|place|bulk)\b/i;
 
 export type ParsedBulkAssignServicesCategory = {
   targetCategoryName?: string;
@@ -221,17 +220,17 @@ function extractSourceCategoryNameFromPrompt(prompt: string): string | null {
 }
 
 function extractSourceCategoryHintFromPrompt(prompt: string): string | null {
-  const match = prompt.match(
-    /\ball\s+([A-Za-z][\w&'-]+)\s+services?\b/i,
-  );
-  if (match) return match[1]!.trim();
+  const match = prompt.match(/\ball\s+([A-Za-z][\w&'-]+)\s+services?\b/i);
+  if (match) return match[1].trim();
   return null;
 }
 
 const CATEGORY_TARGET_TAIL =
-  '(?:under|in(?:to)?|to)\\s+(?:the\\s+)?(?:(?:service\\s+)?category\\s*:?\\s*[A-Za-z][\\w\\s&\'-]+|[A-Za-z][\\w\\s&\'-]+\\s+(?:service\\s+)?category)';
+  "(?:under|in(?:to)?|to)\\s+(?:the\\s+)?(?:(?:service\\s+)?category\\s*:?\\s*[A-Za-z][\\w\\s&'-]+|[A-Za-z][\\w\\s&'-]+\\s+(?:service\\s+)?category)";
 
-function extractBulkServiceNamesFromPrompt(prompt: string): string[] | undefined {
+function extractBulkServiceNamesFromPrompt(
+  prompt: string,
+): string[] | undefined {
   const listMatch = prompt.match(
     new RegExp(
       `\\b(?:move|assign|place|relocate)\\s+(.+?)\\s+${CATEGORY_TARGET_TAIL}\\b`,
@@ -239,7 +238,7 @@ function extractBulkServiceNamesFromPrompt(prompt: string): string[] | undefined
     ),
   );
   if (!listMatch) return undefined;
-  const segment = listMatch[1]!.trim();
+  const segment = listMatch[1].trim();
   if (!/\band\b|,/i.test(segment)) return undefined;
   return segment
     .split(/\s*,\s*|\s+and\s+/i)
@@ -256,7 +255,9 @@ export function isBulkAssignServicesCategoryPrompt(prompt: string): boolean {
 
   const hasCategoryTarget =
     /\bcategory\b/i.test(text) ||
-    /\b(?:under|in(?:to)?|to)\s+(?:the\s+)?(?:service\s+)?category\b/i.test(text);
+    /\b(?:under|in(?:to)?|to)\s+(?:the\s+)?(?:service\s+)?category\b/i.test(
+      text,
+    );
   if (!hasCategoryTarget || !BULK_MOVE_VERB.test(text)) return false;
 
   const hasBulkScope =
@@ -291,7 +292,8 @@ export function parseBulkAssignServicesCategoryFromPrompt(
     (readStringArrayParam(params, 'serviceNames')?.length ?? 0) > 0 ||
     params.allServices === true;
 
-  if (!isBulkAssignServicesCategoryPrompt(prompt) && !hasParamSignal) return null;
+  if (!isBulkAssignServicesCategoryPrompt(prompt) && !hasParamSignal)
+    return null;
 
   const targetCategoryName =
     readStringParam(params, 'targetCategoryName', 'categoryName') ??

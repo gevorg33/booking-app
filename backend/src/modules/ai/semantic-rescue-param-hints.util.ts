@@ -1,4 +1,7 @@
-import type { IntentRescueInput, IntentRescueResult } from './ai-intent-rescue.service.js';
+import type {
+  IntentRescueInput,
+  IntentRescueResult,
+} from './ai-intent-rescue.service.js';
 import type { IntentCandidate } from './command-understanding.types.js';
 
 /** pipe-1.5.2 — semantic winner feeds rescue param hints only (never action). */

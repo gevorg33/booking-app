@@ -215,8 +215,7 @@ async function resolveWebhookTarget(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<
-  | { target: WebhookSubscriptionSummary }
-  | { clarify: CommandResult['details'] }
+  { target: WebhookSubscriptionSummary } | { clarify: CommandResult['details'] }
 > {
   const subscriptions = (await deps.webhooksService.listSubscriptions(
     businessId,
@@ -615,7 +614,9 @@ export async function handleCreateSupportTicketLogic(
     extractTicketBodyFromPrompt(promptText) ??
     (promptText.slice(0, 500) || 'Support ticket created via AI assistant.');
   const tags =
-    (params.tags as string[] | undefined) ?? ticketFromSnapshot?.tags ?? undefined;
+    (params.tags as string[] | undefined) ??
+    ticketFromSnapshot?.tags ??
+    undefined;
 
   try {
     const customer =
@@ -638,7 +639,12 @@ export async function handleCreateSupportTicketLogic(
         requesterName: params.requesterName as string | undefined,
         tags: tags ? [...tags] : undefined,
         ...(guideSnapshot
-          ? { guideSnapshot: guideSnapshot as unknown as Record<string, unknown> }
+          ? {
+              guideSnapshot: guideSnapshot as unknown as Record<
+                string,
+                unknown
+              >,
+            }
           : {}),
       },
       actorEmail,

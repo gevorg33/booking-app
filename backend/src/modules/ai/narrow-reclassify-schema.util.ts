@@ -64,14 +64,17 @@ function availabilityRulesForSurface(
   );
   if (!hasBookingAvailability) return '';
 
-  if (surface === 'dashboard') return DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES;
+  if (surface === 'dashboard')
+    return DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES;
   if (surface === 'customer') return CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES;
   if (surface === 'public') return PUBLIC_AVAILABILITY_DISAMBIGUATION_RULES;
   return '';
 }
 
 function scheduleRulesForActions(actions: readonly string[]): string {
-  const hasSchedule = actions.some((action) => SCHEDULE_OPS_ACTIONS.has(action));
+  const hasSchedule = actions.some((action) =>
+    SCHEDULE_OPS_ACTIONS.has(action),
+  );
   if (!hasSchedule) return '';
 
   return `- Schedule ops disambiguation:

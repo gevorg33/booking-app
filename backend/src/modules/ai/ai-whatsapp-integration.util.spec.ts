@@ -17,7 +17,9 @@ describe('ai-whatsapp-integration.util', () => {
   );
 
   it.each(
-    CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS.filter(({ paramsPartial }) => paramsPartial),
+    CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS.filter(
+      ({ paramsPartial }) => paramsPartial,
+    ),
   )(
     'parses configure whatsapp integration fixture $id',
     ({ prompt, paramsPartial }) => {
@@ -32,7 +34,9 @@ describe('ai-whatsapp-integration.util', () => {
   it.each(CONFIGURE_WHATSAPP_INTEGRATION_PROMPTS)(
     'rescues unknown action to configure_whatsapp_integration for $id',
     ({ prompt, expectedAction }) => {
-      expect(rescueConfigureWhatsappIntegrationIntent(prompt, 'unknown')).toEqual({
+      expect(
+        rescueConfigureWhatsappIntegrationIntent(prompt, 'unknown'),
+      ).toEqual({
         action: expectedAction,
         rescueReason: expectedAction,
       });
@@ -55,7 +59,9 @@ describe('ai-whatsapp-integration.util', () => {
 
   it('resolves access tier for configure_whatsapp_integration only', () => {
     expect(
-      resolveWhatsappIntegrationAccessTier(CONFIGURE_WHATSAPP_INTEGRATION_INTENT),
+      resolveWhatsappIntegrationAccessTier(
+        CONFIGURE_WHATSAPP_INTEGRATION_INTENT,
+      ),
     ).toBe('M');
     expect(resolveWhatsappIntegrationAccessTier('test_push')).toBeNull();
   });

@@ -132,9 +132,21 @@ function isConfigureMultiServiceSchedulingModeMutate(prompt: string): boolean {
 export function isExplainMultiServiceSettingsPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (
+    /\b(list|show)\b/i.test(text) &&
+    /\b(?:groups?|bookings?|appointments?|visits?)\b/i.test(text) &&
+    !/\b(?:settings?|limits?|configuration|scheduling\s+mode|buffer|pairs?)\b/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
   if (isConfigureMultiServiceSettingsPrompt(text)) return false;
   if (isConfigureMultiServiceSchedulingModeMutate(text)) return false;
-  if (/\b(block|prevent|incompatible|cannot)\b/i.test(text) && /\btogether\b/i.test(text)) {
+  if (
+    /\b(block|prevent|incompatible|cannot)\b/i.test(text) &&
+    /\btogether\b/i.test(text)
+  ) {
     return false;
   }
   if (!hasExplainReadCue(text)) return false;

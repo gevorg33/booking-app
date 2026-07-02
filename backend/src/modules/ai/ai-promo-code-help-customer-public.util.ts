@@ -4,7 +4,7 @@ import {
   rescueMarketingGrowthIntent,
 } from './ai-marketing-growth.util.js';
 
-export const CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES = `- promo_code_help: READ — explain how promo/discount codes work at checkout and optionally validate a named code. Triggers: how do promo codes work, where enter promo code, why discount didn't apply, coupon not working, validate SAVE10, apply code at checkout. Sets promoCode when user names a code. NOT create_promo_code (salon admin), NOT refer_a_friend (referral program), NOT apply_gift_card_code (gift card), NOT list_services with maxPrice+budget (catalog filter — promo applied later at checkout), NOT explain_checkout_total (line-item math).`;
+export const CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES = `- promo_code_help: READ — explain how promo/discount codes work at checkout and optionally validate a named code. Triggers: how do promo codes work, where enter promo code, why discount didn't apply, coupon not working, validate SAVE10, is SAVE10 valid. Sets promoCode when user names a code for validation context. NOT apply_promo_code_checkout (mutate apply to session), NOT create_promo_code (salon admin), NOT refer_a_friend (referral program), NOT apply_gift_card_code (gift card), NOT list_services with maxPrice+budget (catalog filter — promo applied later at checkout), NOT explain_checkout_total (line-item math).`;
 
 export type PromoCodeHelpPromptFixture = {
   id: string;
@@ -50,14 +50,6 @@ export const PROMO_CODE_HELP_PROMPTS: readonly PromoCodeHelpPromptFixture[] = [
     surface: 'customer',
     expectedAction: 'promo_code_help',
     promoCode: 'SAVE10',
-    rescueReason: 'promo_help',
-  },
-  {
-    id: 'apply-code-checkout-customer',
-    prompt: 'Apply code WELCOME at checkout',
-    surface: 'customer',
-    expectedAction: 'promo_code_help',
-    promoCode: 'WELCOME',
     rescueReason: 'promo_help',
   },
   {
@@ -133,14 +125,6 @@ export const PROMO_CODE_HELP_PROMPTS: readonly PromoCodeHelpPromptFixture[] = [
     rescueReason: 'promo_help',
   },
   {
-    id: 'apply-code-checkout-public',
-    prompt: 'Apply code SPRING15 at checkout',
-    surface: 'public',
-    expectedAction: 'promo_code_help',
-    promoCode: 'SPRING15',
-    rescueReason: 'promo_help',
-  },
-  {
     id: 'why-full-price-public',
     prompt: 'Why is checkout still full price after the code?',
     surface: 'public',
@@ -191,7 +175,9 @@ export function rescuePromoCodeHelpCustomerPublicIntent(
 export function detectPromoCodeHelpCustomerPublicAction(
   prompt: string,
 ): 'promo_code_help' | null {
-  return rescuePromoCodeHelpCustomerPublicIntent(prompt, 'unknown')?.action ?? null;
+  return (
+    rescuePromoCodeHelpCustomerPublicIntent(prompt, 'unknown')?.action ?? null
+  );
 }
 
 export function enrichPromoCodeHelpParamsFromPrompt(

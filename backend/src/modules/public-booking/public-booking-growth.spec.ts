@@ -25,7 +25,7 @@ describe('PublicBookingService growth profile fields', () => {
     stripeIntegrationService:
       stripeIntegrationService as unknown as StripeIntegrationService,
     configService: config as unknown as ConfigService,
-    multiServiceBookingsService: multiServiceBookingsService as any,
+    multiServiceBookingsService: multiServiceBookingsService,
   });
 
   const baseBusiness: Business = {

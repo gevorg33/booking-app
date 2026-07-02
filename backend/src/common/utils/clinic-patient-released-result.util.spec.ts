@@ -28,7 +28,10 @@ describe('clinic-patient-released-result.util', () => {
       '$id',
       ({ measurementFlag, abnormalFlags, expected }) => {
         expect(
-          resolvePatientReleasedMeasurementFlag({ measurementFlag, abnormalFlags }),
+          resolvePatientReleasedMeasurementFlag({
+            measurementFlag,
+            abnormalFlags,
+          }),
         ).toBe(expected);
       },
     );

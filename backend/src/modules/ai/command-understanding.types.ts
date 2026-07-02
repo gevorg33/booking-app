@@ -1,6 +1,9 @@
 import type { CommandSurface } from './ai-command-registry.types.js';
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
-import type { PipelineStage, PipelineTrace } from './command-completion.types.js';
+import type {
+  PipelineStage,
+  PipelineTrace,
+} from './command-completion.types.js';
 import type {
   PromptNormalizationMethod,
   PromptNormalizationResult,
@@ -176,8 +179,7 @@ export function classifiedIntentToCandidate(
 ): IntentCandidate {
   return {
     action: parsed.action,
-    confidence:
-      typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+    confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
     source,
     params: parsed.params ?? {},
     reasoning: parsed.reasoning,

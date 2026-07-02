@@ -1,6 +1,8 @@
-import { parseBusinessHoursWindow } from './ai-operations.util.js';
+import { parseBusinessHoursWindow, isComplianceCheckPrompt } from './ai-operations.util.js';
+import { isExplainBusinessLanguagesPrompt } from './ai-business-languages.util.js';
+import { isApplyClinicPlaybookPrompt } from './ai-clinic-service.util.js';
 
-export const CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — explain salon opening hours (including a named weekday), street address, Google Maps link from the profile embed, and optional parking copy. Triggers: "When are you open Saturday?", "Where are you located?", "What are your hours?", "Is there parking?", "What's the address?". Set aspect to hours|location|parking|hours_and_location when clear; set weekday for a named day. Navigate to profile when sharing map/address. NOT business_info (general salon description/contact dump), NOT booking_help (how to book), and NOT check_availability (slot search).`;
+export const CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — explain salon opening hours (including a named weekday), street address, Google Maps link from the profile embed, and optional parking amenity copy. Triggers: "When are you open Saturday?", "Where are you located?", "What are your hours?", "Is there parking?", "What's the address?". Set aspect to hours|location|parking|hours_and_location when clear; set weekday for a named day. Navigate to profile when sharing map/address. NOT explain_salon_profile (general salon profile page / photos / social), NOT get_directions_to_salon (navigation/directions URL or visit parking guidance), NOT business_info (general salon description/contact dump), NOT booking_help (how to book), and NOT check_availability (slot search).`;
 
 export type BusinessHoursLocationAspect =
   | 'hours'
@@ -70,14 +72,6 @@ export const EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS: readonly ExplainBusine
       rescueReason: 'business_hours_location',
     },
     {
-      id: 'directions-customer',
-      prompt: 'How do I get to the salon?',
-      surface: 'customer',
-      expectedAction: 'explain_business_hours_and_location',
-      aspect: 'location',
-      rescueReason: 'business_hours_location',
-    },
-    {
       id: 'hours-and-address-customer',
       prompt: 'What are your hours and where are you located?',
       surface: 'customer',
@@ -100,14 +94,6 @@ export const EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS: readonly ExplainBusine
       surface: 'customer',
       expectedAction: 'explain_business_hours_and_location',
       aspect: 'location',
-      rescueReason: 'business_hours_location',
-    },
-    {
-      id: 'parking-nearby-customer',
-      prompt: 'Where can I park nearby?',
-      surface: 'customer',
-      expectedAction: 'explain_business_hours_and_location',
-      aspect: 'parking',
       rescueReason: 'business_hours_location',
     },
     {
@@ -169,14 +155,6 @@ export const EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS: readonly ExplainBusine
       rescueReason: 'business_hours_location',
     },
     {
-      id: 'directions-public',
-      prompt: 'How do I get to the salon?',
-      surface: 'public',
-      expectedAction: 'explain_business_hours_and_location',
-      aspect: 'location',
-      rescueReason: 'business_hours_location',
-    },
-    {
       id: 'hours-and-address-public',
       prompt: 'What are your hours and where are you located?',
       surface: 'public',
@@ -199,14 +177,6 @@ export const EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS: readonly ExplainBusine
       surface: 'public',
       expectedAction: 'explain_business_hours_and_location',
       aspect: 'location',
-      rescueReason: 'business_hours_location',
-    },
-    {
-      id: 'parking-nearby-public',
-      prompt: 'Where can I park nearby?',
-      surface: 'public',
-      expectedAction: 'explain_business_hours_and_location',
-      aspect: 'parking',
       rescueReason: 'business_hours_location',
     },
     {
@@ -254,23 +224,33 @@ function hasHoursCue(prompt: string): boolean {
   );
 }
 
+function hasSalonDirectionsCue(prompt: string): boolean {
+  return (
+    /\b(?:directions?|navigate|how\s+do\s+i\s+(?:get|drive)|get\s+there|where\s+(?:can\s+i|do\s+i|should\s+i)\s+park|where\s+to\s+park|google\s+maps\s+directions?)\b/i.test(
+      prompt,
+    ) ||
+    /(?:ուղղություն|որտեղ\s+կայան|ինչպես\s+գալ|ինչպես\s+հասն)/iu.test(prompt) ||
+    /(?:как\s+добраться|как\s+проехать|где\s+(?:при)?парков|где\s+парковаться|навигац)/iu.test(
+      prompt,
+    )
+  );
+}
+
 function hasLocationCue(prompt: string): boolean {
   return (
-    /\b(?:where\s+are\s+you|located|location|address|directions|how\s+do\s+i\s+get|map\s+link|find\s+you)\b/i.test(
+    /\b(?:where\s+are\s+you|located|location|address|map\s+link|find\s+you)\b/i.test(
       prompt,
     ) ||
     /(?:որտեղ|հասցե|տեղադր)/iu.test(prompt) ||
-    /(?:где\s+(?:вы\s+)?находитесь|адрес|как\s+добраться|карта)/iu.test(prompt)
+    /(?:где\s+(?:вы\s+)?находитесь|адрес|карта)/iu.test(prompt)
   );
 }
 
 function hasParkingCue(prompt: string): boolean {
   return (
-    /\b(?:parking|park\s+nearby|where\s+(?:can\s+i|do\s+i)\s+park)\b/i.test(
-      prompt,
-    ) ||
-    /(?:կայանատեղ|կայանել)/iu.test(prompt) ||
-    /(?:парковк|где\s+припарков)/iu.test(prompt)
+    /\b(?:parking|is\s+there\s+parking)\b/i.test(prompt) ||
+    /(?:կայանատեղ|կայանատեղի)/iu.test(prompt) ||
+    /(?:есть\s+ли\s+парков|парковк)/iu.test(prompt)
   );
 }
 
@@ -298,7 +278,30 @@ export function inferBusinessHoursLocationAspect(
 export function isExplainBusinessHoursAndLocationPrompt(
   prompt: string,
 ): boolean {
-  if (/\b(?:book|reserve|schedule)\b/i.test(prompt) && /\b(?:slot|appointment)\b/i.test(prompt)) {
+  if (isComplianceCheckPrompt(prompt)) return false;
+  if (isExplainBusinessLanguagesPrompt(prompt)) return false;
+  if (isApplyClinicPlaybookPrompt(prompt)) return false;
+  if (
+    /(ամսաթվ|ժամ.{0,12}(?:ձևաչափ|կարգավոր)|date\s*format|time\s*format)/i.test(
+      prompt,
+    ) &&
+    /(բացատրիր|ինչ|որ|կարգավոր|explain|settings)/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /(?:բացիր|открой).*(?:պրոֆիլ|profile|ծառայություն|услуг|маснագիր|специалист)/iu.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (hasSalonDirectionsCue(prompt)) return false;
+
+  if (
+    /\b(?:book|reserve|schedule)\b/i.test(prompt) &&
+    /\b(?:slot|appointment)\b/i.test(prompt)
+  ) {
     return false;
   }
 

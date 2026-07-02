@@ -443,7 +443,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         {},
         'Accept online payment on public booking for all services with 50% prepayment',
-        services as any[],
+        services,
       );
       expect(result.success).toBe(true);
       expect(result.details?.updatedCount).toBe(2);
@@ -453,7 +453,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         {},
         'Accept online payment on public booking for Massage with full prepayment',
-        services as any[],
+        services,
       );
       expect(single.success).toBe(true);
 
@@ -462,7 +462,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         { prepaymentMode: 'full' },
         'Enable online payment',
-        services as any[],
+        services,
       );
       expect(missingScope.success).toBe(false);
 
@@ -479,7 +479,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         {},
         'Accept online payment on public booking for all services with full prepayment',
-        services as any[],
+        services,
       );
       expect(stripeFail.success).toBe(false);
 
@@ -488,7 +488,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         {},
         'Decline online payment on public booking for all services',
-        services as any[],
+        services,
       );
       expect(declineAll.success).toBe(true);
       expect(declineAll.summary).toContain('disabled');
@@ -498,7 +498,7 @@ describe('ai-payments.logic', () => {
         'biz-1',
         {},
         'Decline online payment on public booking for Massage',
-        services as any[],
+        services,
       );
       expect(declineOne.success).toBe(true);
       expect(declineOne.details?.prepaymentMode).toBe('none');
@@ -919,7 +919,10 @@ describe('ai-payments.logic', () => {
     });
 
     it('resolves payment methods and subscription checkout', async () => {
-      const methods = await handleChoosePaymentMethodLogic(buildDeps(), 'biz-1');
+      const methods = await handleChoosePaymentMethodLogic(
+        buildDeps(),
+        'biz-1',
+      );
       expect(methods.success).toBe(true);
       expect(methods.summary).toContain('Payment options');
       const noMethods = await handleChoosePaymentMethodLogic(
@@ -941,11 +944,15 @@ describe('ai-payments.logic', () => {
       const payOnlineNoSlot = await handlePayOnlineLogic(buildDeps(), 'biz-1');
       expect(payOnlineNoSlot.success).toBe(false);
       expect(payOnlineNoSlot.summary).toContain('Pick a time slot first');
-      const payOnlineWithSlot = await handlePayOnlineLogic(buildDeps(), 'biz-1', {
-        serviceId: 's1',
-        employeeId: 'e1',
-        startTime: '2026-06-06T18:00:00Z',
-      });
+      const payOnlineWithSlot = await handlePayOnlineLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+        },
+      );
       expect(payOnlineWithSlot.success).toBe(true);
       expect(payOnlineWithSlot.details?.navigate).toEqual({
         path: 'checkout',
@@ -1109,7 +1116,9 @@ describe('ai-payments.logic', () => {
         'Why prepayment for haircut?',
       );
       expect(noPrepayment.success).toBe(true);
-      expect(noPrepayment.summary).toContain('does not require online prepayment');
+      expect(noPrepayment.summary).toContain(
+        'does not require online prepayment',
+      );
       const noPrepaymentCheckout = await handleExplainCheckoutTotalLogic(
         buildDeps(),
         'biz-1',
@@ -1152,9 +1161,14 @@ describe('ai-payments.logic', () => {
       ).toBe(false);
       expect(
         (
-          await handleExplainCheckoutTotalLogic(buildDeps(), 'biz-1', {
-            _prompt: 'How much do I pay today for this service?',
-          }, { serviceId: 's1', serviceName: 'Massage' })
+          await handleExplainCheckoutTotalLogic(
+            buildDeps(),
+            'biz-1',
+            {
+              _prompt: 'How much do I pay today for this service?',
+            },
+            { serviceId: 's1', serviceName: 'Massage' },
+          )
         ).success,
       ).toBe(true);
       expect(
@@ -2167,9 +2181,13 @@ describe('ai-payments.logic', () => {
           )
         ).success,
       ).toBe(false);
-      const nearestBooked = await handleBookNearestSlotLogic(buildDeps(), 'biz-1', {
-        serviceId: 's1',
-      });
+      const nearestBooked = await handleBookNearestSlotLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          serviceId: 's1',
+        },
+      );
       expect(nearestBooked.success).toBe(true);
       expect(nearestBooked.details?.navigate).toEqual({
         path: 'checkout',
