@@ -14,6 +14,7 @@ import { AccountingIntegrationService } from '../integrations/accounting/account
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServiceService } from '../service/service.service.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposePaymentsCompoundPrompt,
@@ -50,6 +51,10 @@ import {
   handleExportCommissionsLogic,
   handleExtendGiftCardExpiryLogic,
   handleListSubscriptionRevenueLogic,
+  handleConfirmStripePaymentLogic,
+  handleGetBookingQuoteLogic,
+  handleGetMultiServiceQuoteLogic,
+  handleGetPackageQuoteLogic,
   handlePayCashAtVisitLogic,
   handlePayOnlineLogic,
   handlePurchaseSubscriptionCheckoutLogic,
@@ -77,6 +82,7 @@ export class AiPaymentsService {
     commissionsService: CommissionsService,
     subscriptionsService: ServiceSubscriptionsService,
     serviceService: ServiceService,
+    bookingPaymentService: BookingPaymentService,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Service) serviceRepo: Repository<Service>,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
@@ -96,6 +102,7 @@ export class AiPaymentsService {
       serviceRepo,
       giftCardRepo,
       serviceService,
+      bookingPaymentService,
     };
   }
 
@@ -449,6 +456,28 @@ export class AiPaymentsService {
     prompt = '',
   ) {
     return handlePayOnlineLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleGetBookingQuote(businessId: string, params: Record<string, any> = {}) {
+    return handleGetBookingQuoteLogic(this.deps, businessId, params);
+  }
+
+  handleGetPackageQuote(businessId: string, params: Record<string, any> = {}) {
+    return handleGetPackageQuoteLogic(this.deps, businessId, params);
+  }
+
+  handleGetMultiServiceQuote(
+    businessId: string,
+    params: Record<string, any> = {},
+  ) {
+    return handleGetMultiServiceQuoteLogic(this.deps, businessId, params);
+  }
+
+  handleConfirmStripePayment(
+    businessId: string,
+    params: Record<string, any> = {},
+  ) {
+    return handleConfirmStripePaymentLogic(this.deps, businessId, params);
   }
 
   handlePayCashAtVisit(

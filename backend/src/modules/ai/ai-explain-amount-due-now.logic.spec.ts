@@ -39,6 +39,7 @@ function buildDeps(
     serviceService: {
       findByBusiness: jest.fn(async () => [massageService]),
     } as unknown as PaymentsLogicDeps['serviceService'],
+    bookingPaymentService: {} as PaymentsLogicDeps['bookingPaymentService'],
     ...overrides,
   };
 }

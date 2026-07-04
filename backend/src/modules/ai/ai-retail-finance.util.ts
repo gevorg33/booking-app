@@ -1,4 +1,5 @@
 import { isExportCommissionsPrompt } from './ai-payments.util.js';
+import { isMarkPaidPrompt } from './ai-booking-depth.util.js';
 
 export const DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS = [
   'create_product',
@@ -8,6 +9,7 @@ export const DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS = [
   'remove_retail_line',
   'record_expense',
   'payout_export',
+  'set_retail_sales_lines',
 ] as const;
 
 export const DASHBOARD_RETAIL_FINANCE_READ_INTENTS = [
@@ -31,16 +33,16 @@ export const RETAIL_FINANCE_INTENTS = [
 export type RetailFinanceIntent = (typeof RETAIL_FINANCE_INTENTS)[number];
 
 export interface RetailFinanceCompoundStep {
-  action: RetailFinanceIntent;
+  action: RetailFinanceIntent | 'mark_paid';
   params: Record<string, unknown>;
   segment: string;
 }
 
 const RETAIL_FINANCE_VERB =
-  /\b(list|create|link|adjust|add|remove|record|summarize|commission|payout|export|product|products|inventory|stock|retail|expense|expenses|upsell|p\s*&\s*l|profit|loss)\b/i;
+  /\b(list|create|link|adjust|add|remove|record|summarize|commission|payout|export|product|products|inventory|stock|retail|expense|expenses|upsell|p\s*&\s*l|profit|loss|set|replace|mark|paid)\b/i;
 
 const COMPOUND_NEXT =
-  '(?:list|create|link|adjust|add|remove|record|summarize|commission|payout|export|product|products|inventory|stock|retail|expense|expenses|upsell|profit|loss)';
+  '(?:list|create|link|adjust|add|remove|record|summarize|commission|payout|export|product|products|inventory|stock|retail|expense|expenses|upsell|profit|loss|set|replace|mark|paid)';
 
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*|\\s+and\\s+(?=${COMPOUND_NEXT}\\b)|\\s+then\\s+(?=${COMPOUND_NEXT}\\b)`,
@@ -199,6 +201,14 @@ export function isAddRetailToMyBookingPrompt(prompt: string): boolean {
     /\b(my\s+booking|my\s+appointment)\b/i.test(prompt) &&
     (/\b(retail|product)\b/i.test(prompt) || /\badd\s+[A-Za-z]/i.test(prompt))
   );
+}
+
+export function isSetRetailSalesLinesPrompt(prompt: string): boolean {
+  const replaceCue =
+    /\b(set|replace|update)\b/i.test(prompt) &&
+    /\b(retail\s+)?(?:sales?\s+)?(cart|lines?)\b/i.test(prompt);
+  if (!replaceCue) return false;
+  return parseRetailSalesLinesFromPrompt(prompt).length > 0;
 }
 
 export function isRetailFinanceCompoundPrompt(prompt: string): boolean {
@@ -362,6 +372,12 @@ export function rescueRetailFinanceIntent(
       rescueReason: 'add_retail_to_my_booking',
     };
   }
+  if (isSetRetailSalesLinesPrompt(prompt)) {
+    return {
+      action: 'set_retail_sales_lines',
+      rescueReason: 'set_retail_sales_lines',
+    };
+  }
 
   if (isCommissionReportPrompt(prompt)) {
     return { action: 'commission_report', rescueReason: 'commission_report' };
@@ -449,6 +465,16 @@ function classifyRetailFinanceSegment(
   if (isAdjustInventoryPrompt(text)) {
     return { action: 'adjust_inventory', params: base, segment: text };
   }
+  if (isSetRetailSalesLinesPrompt(text)) {
+    return {
+      action: 'set_retail_sales_lines',
+      params: { ...base, lines: parseRetailSalesLinesFromPrompt(text) },
+      segment: text,
+    };
+  }
+  if (isMarkPaidPrompt(text)) {
+    return { action: 'mark_paid', params: base, segment: text };
+  }
   if (isAddRetailSaleToBookingPrompt(text)) {
     return {
       action: 'add_retail_sale_to_booking',
@@ -504,4 +530,43 @@ export function decomposeRetailFinanceCompoundPrompt(
     if (step) steps.push(step);
   }
   return steps;
+}
+
+export interface ParsedRetailSalesLine {
+  productName: string;
+  quantity: number;
+}
+
+/** Parses multiple "N product" lines from a bulk retail cart replace command,
+ *  e.g. "set retail cart to 2 shampoo, 1 conditioner and 3 candles". */
+export function parseRetailSalesLinesFromPrompt(
+  prompt: string,
+): ParsedRetailSalesLine[] {
+  const clause =
+    prompt.match(
+      /\b(?:set|replace|update)\s+(?:the\s+)?(?:retail\s+)?(?:sales?\s+)?(?:cart|lines?)\s+(?:to|with)\s+(.+)$/i,
+    )?.[1] ?? prompt.match(/\bcart\s+(?:to|with)\s+(.+)$/i)?.[1];
+  if (!clause) return [];
+
+  const segments = clause
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  const lines: ParsedRetailSalesLine[] = [];
+  for (const segment of segments) {
+    const withQty = segment.match(/^(\d+)\s*(?:x\s*)?([A-Za-z][\w\s'-]*)$/i);
+    if (withQty) {
+      lines.push({
+        quantity: parseInt(withQty[1], 10),
+        productName: withQty[2].trim(),
+      });
+      continue;
+    }
+    const nameOnly = segment.match(/^([A-Za-z][\w\s'-]*)$/i);
+    if (nameOnly) {
+      lines.push({ quantity: 1, productName: nameOnly[1].trim() });
+    }
+  }
+  return lines;
 }

@@ -75,6 +75,7 @@ const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
   customer_guest_pay_cash_manage:
     'Book as guest, pay at visit, email manage link',
   customer_guest_book_and_manage: 'Book as guest and email me the manage link',
+  customer_guest_manage_visit: 'Cancel my haircut, my email is john@example.com',
   customer_physical_gift_card_handoff:
     'Buy physical gift card $100 and track my order',
   dashboard_clinic_order_notify:

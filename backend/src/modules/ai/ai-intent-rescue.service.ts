@@ -469,6 +469,11 @@ import {
   rescueProviderClinicCollectionIntent,
 } from './ai-provider-clinic-collection.util.js';
 import {
+  extractBookingIdForLabSummariesFromPrompt,
+  extractClinicTaskIdFromPrompt,
+  rescueProviderClinicTasksAndResultsIntent,
+} from './ai-provider-clinic-tasks-and-results.util.js';
+import {
   parseBookLabCollectionFromPrompt,
   parseListMyLabBookingRequestsFromPrompt,
   parsePushLabBookingFromPrompt,
@@ -504,6 +509,8 @@ import {
 } from './ai-business-compliance.util.js';
 import { rescueProviderSessionTimeoutIntent } from './ai-provider-session-timeout.util.js';
 import { rescueProviderPushSetupIntent } from './ai-provider-push-setup.util.js';
+import { rescueExplainProviderContextIntent } from './ai-explain-provider-context.util.js';
+import { rescueProviderScheduleReadsIntent } from './ai-provider-schedule-reads.util.js';
 import {
   extractClientNoteBodyFromPrompt,
   extractCustomerNameFromClientPrompt,
@@ -513,6 +520,7 @@ import {
 import { rescueProviderEarningsIntent } from './ai-provider-earnings.util.js';
 import {
   extractBookingActionCustomerName,
+  extractReassignEmployeeName,
   extractRunningLateMinutesFromPrompt,
   inferMyStatsPeriodFromPrompt,
   inferMyStatsScopeFromPrompt,
@@ -1041,6 +1049,10 @@ export class AiIntentRescueService {
     const providerClinicCollectionEarly =
       this.tryRescueProviderClinicCollection(prompt, action);
     if (providerClinicCollectionEarly) return providerClinicCollectionEarly;
+    const providerClinicTasksAndResultsEarly =
+      this.tryRescueProviderClinicTasksAndResults(prompt, action);
+    if (providerClinicTasksAndResultsEarly)
+      return providerClinicTasksAndResultsEarly;
     const providerClinicLabBookingEarly =
       this.tryRescueProviderClinicLabBooking(prompt, action);
     if (providerClinicLabBookingEarly) return providerClinicLabBookingEarly;
@@ -1397,6 +1409,11 @@ export class AiIntentRescueService {
     const providerClinicCollectionUnknown =
       this.tryRescueProviderClinicCollection(prompt, action);
     if (providerClinicCollectionUnknown) return providerClinicCollectionUnknown;
+
+    const providerClinicTasksAndResultsUnknown =
+      this.tryRescueProviderClinicTasksAndResults(prompt, action);
+    if (providerClinicTasksAndResultsUnknown)
+      return providerClinicTasksAndResultsUnknown;
 
     const providerClinicLabBookingUnknown =
       this.tryRescueProviderClinicLabBooking(prompt, action);
@@ -2678,7 +2695,10 @@ export class AiIntentRescueService {
     }
     if (
       rescued.action === 'check_in_client' ||
-      rescued.action === 'mark_running_late'
+      rescued.action === 'mark_running_late' ||
+      rescued.action === 'mark_ready_now' ||
+      rescued.action === 'suggest_cancel_note' ||
+      rescued.action === 'request_client_review'
     ) {
       const customerName = extractBookingActionCustomerName(prompt, params);
       if (customerName) params.customerName = customerName;
@@ -2686,6 +2706,10 @@ export class AiIntentRescueService {
     if (rescued.action === 'mark_running_late') {
       const minutesLate = extractRunningLateMinutesFromPrompt(prompt, params);
       if (minutesLate != null) params.minutesLate = minutesLate;
+    }
+    if (rescued.action === 'reassign_booking_same_day') {
+      const employeeName = extractReassignEmployeeName(prompt, params);
+      if (employeeName) params.employeeName = employeeName;
     }
     return {
       action: rescued.action,
@@ -3993,6 +4017,31 @@ export class AiIntentRescueService {
         reasoning: `Provider session timeout rescue → ${providerSessionTimeout.action}`,
         rescued: true,
         rescueReason: providerSessionTimeout.rescueReason,
+      };
+    }
+
+    const providerContext = rescueExplainProviderContextIntent(prompt, action);
+    if (providerContext) {
+      return {
+        action: providerContext.action,
+        params: {},
+        reasoning: `Provider context rescue → ${providerContext.action}`,
+        rescued: true,
+        rescueReason: providerContext.rescueReason,
+      };
+    }
+
+    const providerScheduleReads = rescueProviderScheduleReadsIntent(
+      prompt,
+      action,
+    );
+    if (providerScheduleReads) {
+      return {
+        action: providerScheduleReads.action,
+        params: {},
+        reasoning: `Provider schedule reads rescue → ${providerScheduleReads.action}`,
+        rescued: true,
+        rescueReason: providerScheduleReads.rescueReason,
       };
     }
 
@@ -6191,6 +6240,35 @@ export class AiIntentRescueService {
       action: rescued.action,
       params,
       reasoning: `Provider clinic collection rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderClinicTasksAndResults(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderClinicTasksAndResultsIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (
+      rescued.action === 'claim_clinic_task' ||
+      rescued.action === 'complete_clinic_task'
+    ) {
+      const taskId = extractClinicTaskIdFromPrompt(prompt);
+      if (taskId) params.taskId = taskId;
+    }
+    if (rescued.action === 'list_booking_lab_summaries') {
+      const bookingId = extractBookingIdForLabSummariesFromPrompt(prompt);
+      if (bookingId) params.bookingId = bookingId;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider clinic tasks/results rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };

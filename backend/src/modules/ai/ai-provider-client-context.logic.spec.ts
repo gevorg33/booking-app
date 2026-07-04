@@ -2,6 +2,8 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   dispatchProviderClientContextIntent,
   handleAddClientNoteLogic,
+  handleExplainClientIntakeLogic,
+  handleListClientStaffNotesLogic,
   handleShowClientHistoryLogic,
   handleSummarizeClientLogic,
 } from './ai-provider-client-context.logic.js';
@@ -14,6 +16,8 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     getBookingDetail: jest.fn(),
     getBookingCustomerContext: jest.fn(),
     createBookingCustomerStaffNote: jest.fn(),
+    listBookingCustomerStaffNotes: jest.fn(),
+    getBookingPreVisitIntakeSummary: jest.fn(),
   };
 
   const deps = {
@@ -58,6 +62,37 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     providerMobile.createBookingCustomerStaffNote.mockResolvedValue({
       note: { id: 'note-1', body: 'Allergic to latex' },
       maxLength: 500,
+    });
+    providerMobile.listBookingCustomerStaffNotes.mockResolvedValue({
+      notes: [
+        {
+          id: 'note-1',
+          body: 'Allergic to latex',
+          authorEmployeeId: 'emp-1',
+          authorName: 'Alex',
+          bookingId: 'bk-1',
+          createdAt: '2026-05-01T11:00:00.000Z',
+        },
+      ],
+      canCreate: true,
+      maxLength: 500,
+    });
+    providerMobile.getBookingPreVisitIntakeSummary.mockResolvedValue({
+      visible: true,
+      intakeId: 'intake-1',
+      questionnaireTitle: 'New Client Intake',
+      status: 'completed',
+      completedAt: '2026-05-01T11:00:00.000Z',
+      answers: [
+        {
+          questionId: 'q1',
+          questionText: 'Any allergies?',
+          answerText: 'Latex',
+        },
+      ],
+      totalAnswerCount: 1,
+      bookingId: 'bk-1',
+      canOpenDashboard: false,
     });
   });
 
@@ -181,6 +216,143 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     expect(result.summary).toContain('No upcoming appointment');
   });
 
+  it('lists staff notes for booking customer', async () => {
+    const result = await handleListClientStaffNotesLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Show staff notes for this client',
+      { bookingId: 'bk-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('list_client_staff_notes');
+    expect(result.summary).toContain('Allergic to latex');
+    expect(providerMobile.listBookingCustomerStaffNotes).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      'bk-1',
+    );
+  });
+
+  it('reports no staff notes on file yet', async () => {
+    providerMobile.listBookingCustomerStaffNotes.mockResolvedValue({
+      notes: [],
+      canCreate: true,
+      maxLength: 500,
+    });
+
+    const result = await handleListClientStaffNotesLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Any notes on this client?',
+      { bookingId: 'bk-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('No staff notes on file');
+  });
+
+  it('clarifies list_client_staff_notes when booking cannot be resolved', async () => {
+    const result = await handleListClientStaffNotesLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Show staff notes',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details?.missing).toEqual(['bookingId', 'customerName']);
+  });
+
+  it('explains client intake summary for booking', async () => {
+    const result = await handleExplainClientIntakeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      "What does their pre-visit intake say?",
+      { bookingId: 'bk-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_client_intake');
+    expect(result.summary).toContain('New Client Intake');
+    expect(result.summary).toContain('Latex');
+    expect(
+      providerMobile.getBookingPreVisitIntakeSummary,
+    ).toHaveBeenCalledWith('biz-1', 'user-1', 'bk-1');
+  });
+
+  it('reports no intake submitted yet', async () => {
+    providerMobile.getBookingPreVisitIntakeSummary.mockResolvedValue({
+      visible: true,
+      intakeId: null,
+      questionnaireTitle: null,
+      status: 'none',
+      completedAt: null,
+      answers: [],
+      totalAnswerCount: 0,
+      bookingId: 'bk-1',
+      canOpenDashboard: false,
+    });
+
+    const result = await handleExplainClientIntakeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Did they fill out the intake questionnaire?',
+      { bookingId: 'bk-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('No pre-visit intake has been submitted');
+  });
+
+  it('reports intake not applicable to this booking', async () => {
+    providerMobile.getBookingPreVisitIntakeSummary.mockResolvedValue({
+      visible: false,
+      intakeId: null,
+      questionnaireTitle: null,
+      status: 'none',
+      completedAt: null,
+      answers: [],
+      totalAnswerCount: 0,
+      bookingId: 'bk-1',
+      canOpenDashboard: false,
+    });
+
+    const result = await handleExplainClientIntakeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'What does their intake say?',
+      { bookingId: 'bk-1' },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('No pre-visit intake applies');
+  });
+
+  it('clarifies explain_client_intake when booking cannot be resolved', async () => {
+    const result = await handleExplainClientIntakeLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'What does their intake say?',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details?.missing).toEqual(['bookingId', 'customerName']);
+  });
+
   it('dispatches provider client context intents', async () => {
     await expect(
       dispatchProviderClientContextIntent(
@@ -193,6 +365,36 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
         { bookingId: 'bk-1' },
       ),
     ).resolves.toMatchObject({ success: true, action: 'summarize_client' });
+
+    await expect(
+      dispatchProviderClientContextIntent(
+        deps,
+        'biz-1',
+        'user-1',
+        'list_client_staff_notes',
+        {},
+        'Show staff notes',
+        { bookingId: 'bk-1' },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      action: 'list_client_staff_notes',
+    });
+
+    await expect(
+      dispatchProviderClientContextIntent(
+        deps,
+        'biz-1',
+        'user-1',
+        'explain_client_intake',
+        {},
+        'What does their intake say?',
+        { bookingId: 'bk-1' },
+      ),
+    ).resolves.toMatchObject({
+      success: true,
+      action: 'explain_client_intake',
+    });
 
     expect(
       await dispatchProviderClientContextIntent(

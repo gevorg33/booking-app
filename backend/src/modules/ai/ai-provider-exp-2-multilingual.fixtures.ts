@@ -117,6 +117,78 @@ const RUNNING_LATE_I18N: Record<
   },
 };
 
+const READY_NOW_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'ready-now-client-en': {
+    hy: 'Նշիր Maria-ին որպես պատրաստ հիմա',
+    ru: 'Отметь готовность клиента Maria',
+    paramsPartial: { customerName: 'Maria' },
+  },
+  'ready-now-self-en': {
+    hy: 'Ես պատրաստ եմ հաջորդ հաճախորդի համար',
+    ru: 'Я готов к следующему клиенту',
+  },
+  'ready-to-be-seen-en': {
+    hy: 'Պատրաստ եմ ընդունվելու',
+    ru: 'Готов к приёму',
+  },
+};
+
+const SUGGEST_CANCEL_NOTE_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'suggest-cancel-note-en': {
+    hy: 'Կազմիր չեղարկման նշում Jane-ի համար',
+    ru: 'Составь заметку об отмене для Jane',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  'suggest-cancel-note-generic-en': {
+    hy: 'Առաջարկիր չեղարկման պատճառ այս ամրագրման համար',
+    ru: 'Предложи причину отмены для этой записи',
+  },
+};
+
+const REQUEST_CLIENT_REVIEW_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'request-client-review-en': {
+    hy: 'Խնդրիր Jane-ին թողնել կարծիք',
+    ru: 'Попроси отзыв у Jane',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  'request-review-generic-en': {
+    hy: 'Խնդրիր հաճախորդից կարծիք թողնել',
+    ru: 'Попроси клиента оставить отзыв',
+  },
+};
+
+const LIST_REASSIGN_OPTIONS_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'list-reassign-options-en': {
+      hy: 'Ո՞վ է ազատ ստանձնելու այս ամրագրումը փոխարենը',
+      ru: 'Кто ещё свободен принять эту запись вместо меня?',
+    },
+    'reassign-options-generic-en': {
+      hy: 'Վերանշանակման տարբերակներ այս ամրագրման համար',
+      ru: 'Варианты переназначения для этой записи',
+    },
+  };
+
+const REASSIGN_BOOKING_SAME_DAY_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'reassign-booking-same-day-en': {
+    hy: 'Վերանշանակիր սա Maria-ին',
+    ru: 'Переназначь это на Maria',
+    paramsPartial: { employeeName: 'Maria' },
+  },
+};
+
 function pushExp2MultilingualRows(
   rows: ProviderExp2MultilingualScenario[],
   enScenarioId: string,
@@ -150,6 +222,39 @@ function buildProviderExp2MultilingualScenarios(): ProviderExp2MultilingualScena
   }
   for (const [enScenarioId, i18n] of Object.entries(RUNNING_LATE_I18N)) {
     pushExp2MultilingualRows(rows, enScenarioId, 'mark_running_late', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(READY_NOW_I18N)) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'mark_ready_now', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    SUGGEST_CANCEL_NOTE_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'suggest_cancel_note', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    REQUEST_CLIENT_REVIEW_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'request_client_review',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    LIST_REASSIGN_OPTIONS_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'list_reassign_options', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    REASSIGN_BOOKING_SAME_DAY_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'reassign_booking_same_day',
+      i18n,
+    );
   }
 
   return rows;

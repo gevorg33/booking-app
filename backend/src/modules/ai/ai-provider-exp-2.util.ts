@@ -15,6 +15,11 @@ export const PROVIDER_EXP_2_INTENTS = [
   'team_floor_status',
   'check_in_client',
   'mark_running_late',
+  'mark_ready_now',
+  'suggest_cancel_note',
+  'request_client_review',
+  'list_reassign_options',
+  'reassign_booking_same_day',
 ] as const;
 
 export type ProviderExp2Intent = (typeof PROVIDER_EXP_2_INTENTS)[number];
@@ -129,6 +134,48 @@ export function isMarkRunningLatePrompt(prompt: string): boolean {
       /(ուշ եմ|ուշաց|ուշացող)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) && /(опазды|задерж)/i.test(prompt))
   );
+}
+
+export function isMarkReadyNowPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\b(check in|checked in|running late)\b/i.test(lower)) return false;
+  if (/\b(note|staff note|client note)\b/i.test(lower)) return false;
+
+  return /\b(ready\s+now|mark .+ ready|i'?m ready for|ready to (?:be )?seen)\b/i.test(
+    lower,
+  );
+}
+
+export function isSuggestCancelNotePrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(suggest|draft|write|help me write)\b.*\b(cancel(?:lation)?)\b.*\b(note|reason|message)\b/i.test(
+      lower,
+    ) || /\bcancel(?:lation)?\s+note\b/i.test(lower)
+  );
+}
+
+export function isRequestClientReviewPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(request|ask|send)\b.*\breview\b/i.test(lower) &&
+    !/\bmy\s+reviews?\b/i.test(lower)
+  );
+}
+
+export function isListReassignOptionsPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(who|which providers?)\b.*\b(available|free|can\s+take)\b.*\b(reassign|instead|cover)\b/i.test(
+      lower,
+    ) || /\breassign\s+options\b/i.test(lower)
+  );
+}
+
+export function isReassignBookingSameDayPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (isListReassignOptionsPrompt(prompt)) return false;
+  return /\breassign\b/i.test(lower) || /\bgive\s+this\s+to\b/i.test(lower);
 }
 
 export function extractRunningLateMinutesFromPrompt(
@@ -268,19 +315,49 @@ export function extractBookingActionCustomerName(
   return null;
 }
 
+export function extractReassignEmployeeName(
+  prompt: string,
+  params: Record<string, unknown>,
+): string | null {
+  const fromParams =
+    (typeof params.employeeName === 'string' && params.employeeName.trim()) ||
+    null;
+  if (fromParams) return fromParams;
+
+  const toMatch = prompt.match(/(?:^|[\s,])(?:to|на)\s+([A-Z][A-Za-z]+)\b/);
+  if (toMatch?.[1]?.trim()) return toMatch[1].trim();
+
+  const hyNameMatch = prompt.match(
+    /([A-Z][A-Za-z]+)-(?:ին|ի|ը)(?=[\s,]|$)/,
+  );
+  if (hyNameMatch?.[1]?.trim()) return hyNameMatch[1].trim();
+
+  return null;
+}
+
 /** Mirrors provider exp-2 rescue param enrichment when harness skips full rescue pipeline. */
 export function enrichProviderExp2ActionParams(
   action: string,
   params: Record<string, unknown>,
   prompt: string,
 ): void {
-  if (action === 'check_in_client' || action === 'mark_running_late') {
+  if (
+    action === 'check_in_client' ||
+    action === 'mark_running_late' ||
+    action === 'mark_ready_now' ||
+    action === 'suggest_cancel_note' ||
+    action === 'request_client_review'
+  ) {
     const customerName = extractBookingActionCustomerName(prompt, params);
     if (customerName) params.customerName = customerName;
   }
   if (action === 'mark_running_late') {
     const minutesLate = extractRunningLateMinutesFromPrompt(prompt, params);
     if (minutesLate != null) params.minutesLate = minutesLate;
+  }
+  if (action === 'reassign_booking_same_day') {
+    const employeeName = extractReassignEmployeeName(prompt, params);
+    if (employeeName) params.employeeName = employeeName;
   }
 }
 
@@ -302,6 +379,33 @@ export function rescueProviderExp2Intent(
 
   if (isMarkRunningLatePrompt(prompt)) {
     return { action: 'mark_running_late', rescueReason: 'mark_running_late' };
+  }
+  if (isMarkReadyNowPrompt(prompt)) {
+    return { action: 'mark_ready_now', rescueReason: 'mark_ready_now' };
+  }
+  if (isSuggestCancelNotePrompt(prompt)) {
+    return {
+      action: 'suggest_cancel_note',
+      rescueReason: 'suggest_cancel_note',
+    };
+  }
+  if (isRequestClientReviewPrompt(prompt)) {
+    return {
+      action: 'request_client_review',
+      rescueReason: 'request_client_review',
+    };
+  }
+  if (isListReassignOptionsPrompt(prompt)) {
+    return {
+      action: 'list_reassign_options',
+      rescueReason: 'list_reassign_options',
+    };
+  }
+  if (isReassignBookingSameDayPrompt(prompt)) {
+    return {
+      action: 'reassign_booking_same_day',
+      rescueReason: 'reassign_booking_same_day',
+    };
   }
   if (isCheckInClientPrompt(prompt)) {
     return { action: 'check_in_client', rescueReason: 'check_in_client' };

@@ -90,6 +90,7 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
     deps.customerPrivacyService as any,
     deps.subscriptionsService as any,
     deps.giftCardOrderService as any,
+    {} as any,
     deps.packagesService as any,
     deps.zendeskService as any,
     deps.bookingRepo as any,
@@ -98,6 +99,10 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
     deps.changeRequestRepo as any,
     deps.giftCardRepo as any,
     deps.businessRepo as any,
+    {
+      getPreferredLocale: jest.fn(),
+      updatePreferredLocale: jest.fn(),
+    } as any,
   );
 
   const customers = [

@@ -15,6 +15,12 @@ describe('ai-explain-public-intake-form.logic (ai-cmd-customer-4.14.1)', () => {
       serviceService: {
         findAll: jest.fn().mockResolvedValue([]),
       },
+      publicPreVisitIntakeService: {
+        ensureCustomerDraft: jest.fn(),
+        getCustomerFlow: jest.fn(),
+        startCustomerIntake: jest.fn(),
+        submitCustomerAnswers: jest.fn(),
+      },
     };
   }
 

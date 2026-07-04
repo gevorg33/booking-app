@@ -12,6 +12,7 @@ import {
   handlePayoutExportLogic,
   handleSuggestRetailUpsellLogic,
   handleAddRetailToMyBookingLogic,
+  handleSetRetailSalesLinesLogic,
   handleRetailFinanceCompoundLogic,
   mergeRetailFinanceCompoundContext,
   type RetailFinanceLogicDeps,
@@ -170,6 +171,14 @@ function buildDeps(
       find: jest.fn(async () => [
         { id: 'e1', name: 'Alex', businessId: 'biz-1', isActive: true },
       ]),
+    } as any,
+    bookingDepth: {
+      handleMarkPaid: jest.fn(async () => ({
+        success: true,
+        action: 'mark_paid',
+        summary: 'ok',
+        details: {},
+      })),
     } as any,
     ...overrides,
   };
@@ -646,6 +655,177 @@ describe('ai-retail-finance.logic', () => {
     ).toBe(false);
   });
 
+  describe('handleSetRetailSalesLinesLogic', () => {
+    const conditioner = {
+      id: 'prod-2',
+      businessId: 'biz-1',
+      name: 'Conditioner',
+      sku: 'CO-01',
+      retailPrice: 18,
+      quantityOnHand: 5,
+      isActive: true,
+    };
+
+    function buildTwoProductDeps(
+      overrides: Partial<RetailFinanceLogicDeps> = {},
+    ) {
+      return buildDeps({
+        inventoryService: {
+          ...buildDeps().inventoryService,
+          listProducts: jest.fn(async () => [product, conditioner]),
+        } as any,
+        ...overrides,
+      });
+    }
+
+    it('replaces the retail cart with explicit structured lines[]', async () => {
+      const deps = buildTwoProductDeps();
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'b1',
+          lines: [
+            { productId: 'prod-1', quantity: 2 },
+            { productName: 'Conditioner', quantity: 1 },
+          ],
+        },
+        'u1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('set_retail_sales_lines');
+      expect(deps.retailPosService.setBookingRetailSales).toHaveBeenCalledWith(
+        'biz-1',
+        'b1',
+        'u1',
+        {
+          lines: [
+            { productId: 'prod-1', quantity: 2 },
+            { productId: 'prod-2', quantity: 1 },
+          ],
+        },
+      );
+    });
+
+    it('parses lines from prompt when params.lines is absent', async () => {
+      const deps = buildTwoProductDeps();
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        { bookingId: 'b1' },
+        'u1',
+        'Set retail cart to 2 shampoo and 1 conditioner',
+      );
+
+      expect(result.success).toBe(true);
+      expect(deps.retailPosService.setBookingRetailSales).toHaveBeenCalledWith(
+        'biz-1',
+        'b1',
+        'u1',
+        {
+          lines: [
+            { productId: 'prod-1', quantity: 2 },
+            { productId: 'prod-2', quantity: 1 },
+          ],
+        },
+      );
+    });
+
+    it('falls back to the provider own active booking when no bookingId/customerName given', async () => {
+      const deps = buildTwoProductDeps();
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        { sessionEmployeeId: 'e1' },
+        'u1',
+        'Set retail cart to 1 shampoo',
+      );
+
+      expect(result.success).toBe(true);
+      expect(deps.retailPosService.setBookingRetailSales).toHaveBeenCalledWith(
+        'biz-1',
+        'b1',
+        'u1',
+        { lines: [{ productId: 'prod-1', quantity: 1 }] },
+      );
+    });
+
+    it('clarifies when no booking can be resolved', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          findOne: jest.fn(async () => null),
+          find: jest.fn(async () => []),
+        } as any,
+      });
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        {},
+        'u1',
+        'Set retail cart to 1 shampoo',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({
+        clarify: true,
+        missing: ['bookingId'],
+      });
+    });
+
+    it('clarifies when no lines can be resolved', async () => {
+      const deps = buildTwoProductDeps();
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        { bookingId: 'b1' },
+        'u1',
+        'Set retail cart to',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({
+        clarify: true,
+        missing: ['lines'],
+      });
+    });
+
+    it('reports unresolved product names', async () => {
+      const deps = buildTwoProductDeps();
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        { bookingId: 'b1' },
+        'u1',
+        'Set retail cart to 2 unicorn dust',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('unicorn dust');
+    });
+
+    it('surfaces errors from setBookingRetailSales', async () => {
+      const deps = buildTwoProductDeps({
+        retailPosService: {
+          ...buildDeps().retailPosService,
+          setBookingRetailSales: jest.fn(async () => {
+            throw new Error('cart update failed');
+          }),
+        } as any,
+      });
+      const result = await handleSetRetailSalesLinesLogic(
+        deps,
+        'biz-1',
+        { bookingId: 'b1' },
+        'u1',
+        'Set retail cart to 1 shampoo',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.summary).toBe('cart update failed');
+    });
+  });
+
   it('resolves bookings and products via ids and partial matches', async () => {
     const deps = buildDeps({
       bookingRepo: {
@@ -749,6 +929,23 @@ describe('ai-retail-finance.logic', () => {
       {},
     );
     expect(linkAdjust.success).toBe(true);
+
+    const retailCheckout = await handleRetailFinanceCompoundLogic(
+      deps,
+      'biz-1',
+      'For booking b1, set retail cart to 2 shampoo and mark it paid',
+      {},
+      'u1',
+    );
+    expect(retailCheckout.success).toBe(true);
+    expect(
+      (retailCheckout.details as any).steps.map((s: any) => s.action),
+    ).toEqual(['set_retail_sales_lines', 'mark_paid']);
+    expect(deps.bookingDepth.handleMarkPaid).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ bookingId: 'b1' }),
+      'u1',
+    );
 
     const stopped = await handleRetailFinanceCompoundLogic(
       buildDeps({

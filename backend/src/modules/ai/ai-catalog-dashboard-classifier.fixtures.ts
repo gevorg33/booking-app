@@ -8,7 +8,9 @@ export const CATALOG_DASHBOARD_CLASSIFIER_RULES = `- For adding a new service ty
 - Do not use create_service when booking an appointment — that is create_booking.
 - bulk_create_catalog: create a category AND multiple services in one command (e.g. "Create category Hair with Women's cut 60m $65, Men's cut 30m $35").
 - create_service_category: add a single category; optional placeholderCount for stub services.
-- create_package / update_package / deactivate_package / duplicate_package: service package CRUD (NOT package visit booking — use create_package_booking for appointments).
+- update_service_category: rename or edit an existing category (categoryName to identify it, newName/description/sortOrder to change). NOT create_service_category (new row), NOT update_service (moves a service between categories).
+- delete_service_category: remove a category (categoryName). Soft-deletes (deactivates) the category, same as the dashboard's delete button. NOT deactivate_service (services, not categories).
+- create_package / update_package / deactivate_package / activate_package / duplicate_package: service package CRUD (NOT package visit booking — use create_package_booking for appointments). activate_package re-enables a previously deactivated package (packageName or packageId).
 - create_subscription_plan / update_subscription_plan / deactivate_subscription_plan: membership plan CRUD for a service.
 - assign_subscription_to_customer: admin enrolls a customer on a plan (customerName + planName).
 - configure_gift_card_products: enable presets and purchasable service cards (presetAmounts, serviceName).

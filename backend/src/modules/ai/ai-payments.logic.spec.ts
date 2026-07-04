@@ -22,6 +22,7 @@ import {
   handleApplyGiftCardCodeLogic,
   handleCheckGiftCardBalanceLogic,
   handleBuyGiftCardLogic,
+  handleGetGiftCardQuoteLogic,
   handleChoosePaymentMethodLogic,
   handlePayOnlineLogic,
   handlePayCashAtVisitLogic,
@@ -229,6 +230,9 @@ function buildDeps(
           depositAmount: dto.depositAmount ?? null,
         };
       }),
+    } as any,
+    bookingPaymentService: {
+      confirmCheckoutSession: jest.fn(async () => ({ booking: {} })),
     } as any,
     ...overrides,
   };
@@ -916,6 +920,66 @@ describe('ai-payments.logic', () => {
         false,
       );
       expect(quoteFail.success).toBe(false);
+    });
+
+    it('quotes a gift card without buying it', async () => {
+      const quote = await handleGetGiftCardQuoteLogic(buildDeps(), 'biz-1', {
+        amount: 50,
+      });
+      expect(quote.success).toBe(true);
+      expect(quote.action).toBe('get_gift_card_quote');
+      expect((quote.details as any).quote.total).toBe(55);
+
+      const nonMonetary = await handleGetGiftCardQuoteLogic(buildDeps(), 'biz-1', {
+        cardType: 'package',
+        packageId: 'pkg-1',
+        deliveryMethod: 'digital',
+      });
+      expect(nonMonetary.success).toBe(true);
+
+      const disabled = await handleGetGiftCardQuoteLogic(
+        buildDeps({
+          giftCardPurchaseService: {
+            getPublicCatalog: jest.fn(async () => ({ purchaseEnabled: false })),
+          } as any,
+        }),
+        'biz-1',
+        { amount: 50 },
+      );
+      expect(disabled.success).toBe(false);
+
+      const missingAmount = await handleGetGiftCardQuoteLogic(
+        buildDeps({
+          giftCardPurchaseService: {
+            getPublicCatalog: jest.fn(async () => ({
+              purchaseEnabled: true,
+              settings: { presetAmounts: [] },
+            })),
+            quotePurchase: jest.fn(),
+          } as any,
+        }),
+        'biz-1',
+        {},
+      );
+      expect(missingAmount.success).toBe(false);
+      expect(missingAmount.details?.clarify).toBe(true);
+
+      const quoteFailure = await handleGetGiftCardQuoteLogic(
+        buildDeps({
+          giftCardPurchaseService: {
+            getPublicCatalog: jest.fn(async () => ({
+              purchaseEnabled: true,
+              settings: { presetAmounts: [50] },
+            })),
+            quotePurchase: jest.fn(async () => {
+              throw new Error('quote fail');
+            }),
+          } as any,
+        }),
+        'biz-1',
+        { amount: 50 },
+      );
+      expect(quoteFailure.success).toBe(false);
     });
 
     it('resolves payment methods and subscription checkout', async () => {

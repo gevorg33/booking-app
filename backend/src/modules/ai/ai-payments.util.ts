@@ -120,12 +120,17 @@ export const CUSTOMER_PAYMENTS_INTENTS = [
   'buy_gift_card',
   'buy_gift_card_physical',
   'buy_gift_card_for_someone',
+  'get_gift_card_quote',
   'choose_payment_method',
   'pay_online',
   'pay_cash_at_visit',
   'purchase_subscription_checkout',
   'explain_why_stripe_required',
   'receipt_status',
+  'get_booking_quote',
+  'get_package_quote',
+  'get_multi_service_quote',
+  'confirm_stripe_payment',
 ] as const;
 
 export const PAYMENTS_INTENTS = [

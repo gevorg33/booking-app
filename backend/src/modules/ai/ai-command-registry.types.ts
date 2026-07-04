@@ -41,7 +41,11 @@ export type CommandApiModule =
   | 'provider-exp-2'
   | 'provider-time-off'
   | 'provider-open-shifts'
-  | 'provider-exp-3';
+  | 'provider-exp-3'
+  | 'agent-ops'
+  | 'business-profile'
+  | 'onboarding'
+  | 'clinic-pre-visit-intake';
 
 export interface CommandRegistryEntry {
   /** Stable intent id (classifier action). */

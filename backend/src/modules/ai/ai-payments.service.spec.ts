@@ -119,6 +119,9 @@ describe('AiPaymentsService', () => {
       commissionsService as any,
       subscriptionsService as any,
       { update: jest.fn(async (id, dto) => ({ id, ...dto })) } as any,
+      {
+        confirmCheckoutSession: jest.fn(async () => ({ booking: {} })),
+      } as any,
       businessRepo as any,
       serviceRepo as any,
       bookingRepo as any,

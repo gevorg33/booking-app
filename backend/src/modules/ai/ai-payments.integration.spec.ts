@@ -15,6 +15,7 @@ import { AccountingIntegrationService } from '../integrations/accounting/account
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServiceService } from '../service/service.service.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { attachPublicBookingNearestAcrossWindowsMock } from './ai-nearest-slot-resolver.util.js';
 
@@ -181,6 +182,12 @@ describe('Sprint 30 payments AI scenarios', () => {
         {
           provide: ServiceService,
           useValue: { update: jest.fn(async (id, dto) => ({ id, ...dto })) },
+        },
+        {
+          provide: BookingPaymentService,
+          useValue: {
+            confirmCheckoutSession: jest.fn(async () => ({ booking: {} })),
+          },
         },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },

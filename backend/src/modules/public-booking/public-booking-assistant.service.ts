@@ -1042,6 +1042,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'business_info':
         result = this.handleBusinessInfo(business);
         break;
+      case 'list_public_promotions':
+        result = await this.handleListPublicPromotions(slug);
+        break;
       case 'book_appointment':
         result = await this.handleBookAppointment(
           slug,
@@ -1295,6 +1298,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           prompt,
         );
         break;
+      case 'list_provider_reviews':
+        result = await this.handleListProviderReviews(business.id, {
+          ...(parsed.params ?? {}),
+          slug,
+        });
+        break;
+      case 'submit_provider_review':
+        result = await this.handleSubmitProviderReview(business.id, {
+          ...(parsed.params ?? {}),
+          slug,
+        });
+        break;
       case 'choose_payment_method':
         result = await this.handleChoosePaymentMethod(
           business.id,
@@ -1317,6 +1332,36 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           orchestratedSession,
         );
         break;
+      case 'get_booking_quote':
+        result = await this.handleGetBookingQuote(business.id, {
+          ...orchestratedSession,
+          ...(parsed.params ?? {}),
+        });
+        break;
+      case 'get_package_quote':
+        result = await this.handleGetPackageQuote(business.id, {
+          ...(parsed.params ?? {}),
+          packageId: parsed.params?.packageId ?? orchestratedSession.packageId,
+          packageName:
+            parsed.params?.packageName ?? orchestratedSession.packageName,
+        });
+        break;
+      case 'get_multi_service_quote':
+        result = await this.handleGetMultiServiceQuote(
+          business.id,
+          this.mergeMultiServiceSessionParams(
+            parsed.params ?? {},
+            orchestratedSession,
+            prompt,
+          ),
+        );
+        break;
+      case 'confirm_stripe_payment':
+        result = await this.handleConfirmStripePayment(business.id, {
+          ...(parsed.params ?? {}),
+          sessionId: parsed.params?.sessionId ?? orchestratedSession.sessionId,
+        });
+        break;
       case 'book_multi_service':
         result = await this.handleBookMultiService(
           business.id,
@@ -1335,6 +1380,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         break;
       case 'add_services_to_cart':
         result = await this.handleAddServicesToCart(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'preview_multi_service_cart':
+        result = await this.handlePreviewMultiServiceCart(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'suggest_package_block':
+        result = await this.handleSuggestPackageBlock(
           business.id,
           parsed.params ?? {},
           prompt,
@@ -1710,6 +1771,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         '\n',
       ),
       navigate: { path: 'professionals', query: {} },
+    };
+  }
+
+  private async handleListPublicPromotions(
+    slug: string,
+  ): Promise<PublicAssistantResult> {
+    const { promotions } =
+      await this.publicBookingService.getPublicPromotions(slug);
+    return {
+      success: true,
+      action: 'list_public_promotions',
+      summary: promotions.length
+        ? `${promotions.length} active promotion(s) right now.`
+        : 'No active promotions right now.',
+      details: { promotions },
     };
   }
 
@@ -3122,6 +3198,28 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return commandResultToPublicAssistantResult(result);
   }
 
+  private async handleListProviderReviews(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.providerSpecialty.handleListProviderReviews(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleSubmitProviderReview(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.providerSpecialty.handleSubmitProviderReview(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
   private async handleExplainProviderAvailability(
     slug: string,
     params: Record<string, unknown>,
@@ -3336,6 +3434,50 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return commandResultToPublicAssistantResult(result);
   }
 
+  private async handleGetBookingQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetBookingQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleGetPackageQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetPackageQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleGetMultiServiceQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetMultiServiceQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleConfirmStripePayment(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleConfirmStripePayment(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
   private async handleApplyPromoCodeCheckout(
     businessId: string,
     params: Record<string, unknown>,
@@ -3464,6 +3606,39 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         this.mergeMultiServiceSessionParams(params, session, prompt),
         prompt,
       );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handlePreviewMultiServiceCart(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handlePreviewMultiServiceCart(
+      businessId,
+      this.mergeMultiServiceSessionParams(params, session, prompt),
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleSuggestPackageBlock(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const merged = {
+      ...params,
+      packageId: params.packageId ?? session.packageId,
+      packageName: params.packageName ?? session.packageName,
+      _prompt: prompt,
+    };
+    const result = await this.selfServiceBooking.handleSuggestPackageBlock(
+      businessId,
+      merged,
+    );
     return commandResultToPublicAssistantResult(result);
   }
 

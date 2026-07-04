@@ -135,6 +135,10 @@ import type { LocalizedNamesMap } from '../../common/i18n/service-localized-name
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
+import { AiAgentOpsService } from './ai-agent-ops.service.js';
+import { AiBusinessProfileService } from './ai-business-profile.service.js';
+import { AiOnboardingService } from './ai-onboarding.service.js';
+import { AiClinicPreVisitIntakeService } from './ai-clinic-pre-visit-intake.service.js';
 import { AiPaymentsService } from './ai-payments.service.js';
 import { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
 import { AiIntegrationsService } from './ai-integrations.service.js';
@@ -443,6 +447,10 @@ export class AiCommandService {
     private dashboardCore: AiDashboardCoreService,
     private customerCrm: AiCustomerCrmService,
     private scheduleResources: AiScheduleResourcesService,
+    private agentOps: AiAgentOpsService,
+    private businessProfile: AiBusinessProfileService,
+    private onboarding: AiOnboardingService,
+    private clinicPreVisitIntake: AiClinicPreVisitIntakeService,
     private payments: AiPaymentsService,
     private giftFulfillment: AiGiftFulfillmentService,
     private integrations: AiIntegrationsService,
@@ -2086,6 +2094,86 @@ export class AiCommandService {
               params,
             );
             break;
+          case 'list_agent_tasks':
+            result = await this.agentOps.handleListAgentTasks(
+              businessId,
+              params,
+            );
+            break;
+          case 'rebook_all_from_agent_task':
+            result = await this.agentOps.handleRebookAllFromAgentTask(
+              businessId,
+              params,
+              userId ?? '',
+            );
+            break;
+          case 'undo_latest_agent_task':
+            result = await this.agentOps.handleUndoLatestAgentTask(
+              businessId,
+              userId ?? '',
+              params.confirmed === true,
+            );
+            break;
+          case 'get_dashboard_overview':
+            result =
+              await this.businessProfile.handleGetDashboardOverview(
+                businessId,
+              );
+            break;
+          case 'update_business_profile':
+            result = await this.businessProfile.handleUpdateBusinessProfile(
+              businessId,
+              params,
+            );
+            break;
+          case 'explain_onboarding_status':
+            result =
+              await this.onboarding.handleExplainOnboardingStatus(
+                businessId,
+              );
+            break;
+          case 'set_business_type':
+            result = await this.onboarding.handleSetBusinessType(
+              businessId,
+              params,
+            );
+            break;
+          case 'recommend_catalog':
+            result = await this.onboarding.handleRecommendCatalog(businessId);
+            break;
+          case 'apply_onboarding_catalog':
+            result = await this.onboarding.handleApplyOnboardingCatalog(
+              businessId,
+              params,
+            );
+            break;
+          case 'apply_onboarding_schedule':
+            result = await this.onboarding.handleApplyOnboardingSchedule(
+              businessId,
+              userId ?? '',
+            );
+            break;
+          case 'skip_onboarding_schedule':
+            result =
+              await this.onboarding.handleSkipOnboardingSchedule(businessId);
+            break;
+          case 'apply_onboarding_playbook':
+            result = await this.onboarding.handleApplyOnboardingPlaybook(
+              businessId,
+              userId ?? '',
+            );
+            break;
+          case 'complete_onboarding':
+            result = await this.onboarding.handleCompleteOnboarding(businessId);
+            break;
+          case 'assign_pre_visit_intake_to_booking':
+            result =
+              await this.clinicPreVisitIntake.handleAssignPreVisitIntakeToBooking(
+                businessId,
+                userId ?? '',
+                params,
+              );
+            break;
           case 'list_products':
             result = await this.retailFinance.handleListProducts(
               businessId,
@@ -2763,6 +2851,14 @@ export class AiCommandService {
             break;
           case 'remove_retail_line':
             result = await this.retailFinance.handleRemoveRetailLine(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'set_retail_sales_lines':
+            result = await this.retailFinance.handleSetRetailSalesLines(
               businessId,
               params,
               userId,
@@ -4120,6 +4216,28 @@ export class AiCommandService {
               userId,
             );
             break;
+          case 'update_schedule_template':
+            result = await this.scheduleHandlers.handleUpdateScheduleTemplate(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'delete_schedule_templates':
+            result = await this.scheduleHandlers.handleDeleteScheduleTemplates(
+              businessId,
+              params,
+              userId,
+            );
+            break;
+          case 'duplicate_schedule_template':
+            result =
+              await this.scheduleHandlers.handleDuplicateScheduleTemplate(
+                businessId,
+                params,
+                userId,
+              );
+            break;
           case 'mark_no_shows':
             result = await this.handleMarkNoShows(
               businessId,
@@ -4305,6 +4423,25 @@ export class AiCommandService {
               effectivePrompt,
               params,
               employees,
+              userId,
+            );
+            break;
+          case 'delete_schedule_block':
+            result = await this.scheduleHandlers.handleDeleteScheduleBlock(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              userId,
+            );
+            break;
+          case 'apply_and_fill':
+            result = await this.scheduleHandlers.handleApplyAndFill(
+              businessId,
+              effectivePrompt,
+              params,
+              employees,
+              services,
               userId,
             );
             break;

@@ -27,8 +27,20 @@ describe('Provider AI client context (prov-exp-1.6)', () => {
             rescueReason: 'show_client_history',
           };
         }
+        if (/show staff notes/i.test(prompt)) {
+          return {
+            action: 'list_client_staff_notes',
+            rescueReason: 'list_client_staff_notes',
+          };
+        }
         if (/staff note/i.test(prompt)) {
           return { action: 'add_client_note', rescueReason: 'add_client_note' };
+        }
+        if (/pre-visit intake/i.test(prompt)) {
+          return {
+            action: 'explain_client_intake',
+            rescueReason: 'explain_client_intake',
+          };
         }
         return null;
       }),
@@ -94,6 +106,46 @@ describe('Provider AI client context (prov-exp-1.6)', () => {
       'add_client_note',
       expect.objectContaining({ clientNote: 'prefers quiet chair' }),
       'Add staff note: prefers quiet chair',
+      expect.objectContaining({ bookingId }),
+    );
+  });
+
+  it('executes list_client_staff_notes via rescue', async () => {
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Show staff notes for this client',
+      [],
+      { bookingId },
+    );
+
+    expect(result.action).toBe('list_client_staff_notes');
+    expect(providerClientContext.handleIntent).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      'list_client_staff_notes',
+      expect.any(Object),
+      'Show staff notes for this client',
+      expect.objectContaining({ bookingId }),
+    );
+  });
+
+  it('executes explain_client_intake via rescue', async () => {
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'What does their pre-visit intake say?',
+      [],
+      { bookingId },
+    );
+
+    expect(result.action).toBe('explain_client_intake');
+    expect(providerClientContext.handleIntent).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      'explain_client_intake',
+      expect.any(Object),
+      'What does their pre-visit intake say?',
       expect.objectContaining({ bookingId }),
     );
   });

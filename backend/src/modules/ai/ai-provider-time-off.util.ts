@@ -19,7 +19,10 @@ export const PROVIDER_TIME_OFF_READ_INTENTS = [
   'list_my_time_off_requests',
 ] as const;
 
-export const PROVIDER_TIME_OFF_MUTATE_INTENTS = ['request_time_off'] as const;
+export const PROVIDER_TIME_OFF_MUTATE_INTENTS = [
+  'request_time_off',
+  'cancel_time_off_request',
+] as const;
 
 export const DASHBOARD_TIME_OFF_INTENTS = [
   ...DASHBOARD_TIME_OFF_READ_INTENTS,
@@ -59,7 +62,34 @@ export function matchProviderTimeOffListScenario(
   return null;
 }
 
+export function isCancelTimeOffRequestPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (
+    /\b(cancel|withdraw|revoke|remove)\b.*\b(time\s*off|pto|vacation)\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (
+    containsArmenianScript(prompt) &&
+    /(չեղարկ).*(time\s*off|pto|vacation|արձակուրդ)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(отмен).*(time\s*off|pto|отпуск)/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function isListMyTimeOffRequestsPrompt(prompt: string): boolean {
+  if (isCancelTimeOffRequestPrompt(prompt)) return false;
   const normalized = prompt.toLowerCase();
   if (
     /my\s+time\s*off|did\s+my\s+(?:vacation|pto)|time\s*off\s+status|vacation\s+get\s+approved|pending\s+(?:pto|time\s*off)|my\s+(?:pending\s+)?(?:pto|time\s*off)\s+requests?/.test(
@@ -84,6 +114,7 @@ export function isListMyTimeOffRequestsPrompt(prompt: string): boolean {
 export function isRequestTimeOffPrompt(prompt: string): boolean {
   const normalized = prompt.toLowerCase();
   if (isListMyTimeOffRequestsPrompt(prompt)) return false;
+  if (isCancelTimeOffRequestPrompt(prompt)) return false;
 
   if (
     containsArmenianScript(prompt) &&
@@ -184,6 +215,12 @@ export function rescueProviderTimeOffIntent(
   const exact = matchProviderTimeOffScenario(prompt);
   if (exact) return exact;
 
+  if (isCancelTimeOffRequestPrompt(prompt)) {
+    return {
+      action: 'cancel_time_off_request',
+      rescueReason: 'cancel_time_off_request',
+    };
+  }
   if (isListMyTimeOffRequestsPrompt(prompt)) {
     return {
       action: 'list_my_time_off_requests',

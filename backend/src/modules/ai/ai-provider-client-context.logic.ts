@@ -6,6 +6,8 @@ import type { CommandResult } from './command-completion.types.js';
 import {
   formatProviderClientHistoryText,
   formatProviderClientSummaryText,
+  formatProviderClientStaffNotesText,
+  formatProviderClientIntakeText,
   extractCustomerNameFromClientPrompt,
   resolveClientNoteBody,
 } from './ai-provider-client-context.util.js';
@@ -250,6 +252,75 @@ export async function handleAddClientNoteLogic(
   );
 }
 
+export async function handleListClientStaffNotesLogic(
+  deps: ProviderClientContextLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingIdForClientIntent(
+    deps,
+    businessId,
+    userId,
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) {
+    return { ...resolved.error, action: 'list_client_staff_notes' };
+  }
+
+  const notes = await deps.providerMobile.listBookingCustomerStaffNotes(
+    businessId,
+    userId,
+    resolved.bookingId,
+  );
+
+  return success(
+    'list_client_staff_notes',
+    formatProviderClientStaffNotesText(resolved.customerName, notes),
+    {
+      bookingId: resolved.bookingId,
+      notes: notes.notes,
+      canCreate: notes.canCreate,
+    },
+  );
+}
+
+export async function handleExplainClientIntakeLogic(
+  deps: ProviderClientContextLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingIdForClientIntent(
+    deps,
+    businessId,
+    userId,
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) {
+    return { ...resolved.error, action: 'explain_client_intake' };
+  }
+
+  const summary = await deps.providerMobile.getBookingPreVisitIntakeSummary(
+    businessId,
+    userId,
+    resolved.bookingId,
+  );
+
+  return success('explain_client_intake', formatProviderClientIntakeText(summary), {
+    bookingId: resolved.bookingId,
+    intake: summary,
+  });
+}
+
 export async function dispatchProviderClientContextIntent(
   deps: ProviderClientContextLogicDeps,
   businessId: string,
@@ -280,6 +351,24 @@ export async function dispatchProviderClientContextIntent(
       );
     case 'add_client_note':
       return handleAddClientNoteLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'list_client_staff_notes':
+      return handleListClientStaffNotesLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'explain_client_intake':
+      return handleExplainClientIntakeLogic(
         deps,
         businessId,
         userId,

@@ -105,6 +105,10 @@ export async function dispatchDashboardCoreIntent(
   switch (action) {
     case 'create_service_category':
       return deps.catalog.handleCreateServiceCategory(businessId, params);
+    case 'update_service_category':
+      return deps.catalog.handleUpdateServiceCategory(businessId, params);
+    case 'delete_service_category':
+      return deps.catalog.handleDeleteServiceCategory(businessId, params);
     case 'bulk_create_catalog':
       return deps.catalog.handleBulkCreateCatalog(
         businessId,
@@ -171,6 +175,8 @@ export async function dispatchDashboardCoreIntent(
       return deps.catalog.handleUpdatePackage(businessId, params);
     case 'deactivate_package':
       return deps.catalog.handleDeactivatePackage(businessId, params);
+    case 'activate_package':
+      return deps.catalog.handleActivatePackage(businessId, params);
     case 'duplicate_package':
       return deps.catalog.handleDuplicatePackage(businessId, params);
     case 'list_subscription_plans':

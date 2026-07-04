@@ -15,6 +15,7 @@ import { GiftCardOrderService } from '../gift-cards/gift-card-order.service.js';
 import { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
+import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 
 describe('Sprint 28 customer account & CRM AI scenarios', () => {
   const customers = [
@@ -149,6 +150,13 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           useValue: changeRequestRepo,
         },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
+        {
+          provide: PublicCustomerAuthService,
+          useValue: {
+            getPreferredLocale: jest.fn(),
+            updatePreferredLocale: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

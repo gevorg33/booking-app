@@ -551,6 +551,103 @@ export async function handleCheckMultiServiceAvailabilityLogic(
   }
 }
 
+export async function handlePreviewMultiServiceCartLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug)
+    return failure('preview_multi_service_cart', 'Business not found.');
+
+  const services = await resolveServices(deps, businessId, {
+    ...params,
+    _prompt: prompt ?? params._prompt,
+  });
+  if (!services.length) {
+    return failure(
+      'preview_multi_service_cart',
+      'Add services to your cart first, or name the services to preview.',
+      { clarify: true, missing: ['serviceNames'] },
+    );
+  }
+
+  const serviceIds = services.map((s) => s.id);
+  try {
+    const preview = await deps.publicBookingService.previewMultiServiceSelection(
+      slug,
+      serviceIds,
+    );
+    const totalMinutes = preview.totals?.blockDurationMinutes;
+    const totalPrice = preview.totals?.totalPrice;
+    const summary =
+      totalMinutes != null && totalPrice != null
+        ? `${services.length} service(s) — about ${totalMinutes} minutes, ${totalPrice} ${preview.totals?.currency ?? ''}`.trim()
+        : `${services.length} service(s) previewed.`;
+    return success('preview_multi_service_cart', summary, {
+      serviceIds,
+      serviceNames: services.map((s) => s.name),
+      preview,
+    });
+  } catch (err: any) {
+    return failure(
+      'preview_multi_service_cart',
+      err?.message ?? 'Could not preview this multi-service selection.',
+      { serviceIds, reason: 'invalid_selection' },
+    );
+  }
+}
+
+export async function handleSuggestPackageBlockLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('suggest_package_block', 'Business not found.');
+
+  const packageId = await resolvePackageId(deps, businessId, params);
+  if (!packageId) {
+    return failure(
+      'suggest_package_block',
+      'Name which package to suggest a block for.',
+      {
+        clarify: true,
+        missing: ['packageName'],
+      },
+    );
+  }
+
+  try {
+    const block = await deps.publicBookingService.suggestPackageBlock(
+      slug,
+      packageId,
+    );
+    const dateLabel = block.dateKey
+      ? formatDateDisplay(block.dateKey)
+      : undefined;
+    const timeLabel = formatTimeDisplay(block.startTime);
+    const summary = dateLabel
+      ? `Suggested block: ${timeLabel} on ${dateLabel} with ${block.employeeName}.`
+      : `Suggested block: ${timeLabel} with ${block.employeeName}.`;
+    return success('suggest_package_block', summary, {
+      packageId,
+      block,
+      navigate: {
+        path: 'checkout',
+        query: { packageId, startTime: block.startTime },
+      },
+    });
+  } catch (err: any) {
+    return failure(
+      'suggest_package_block',
+      err?.message ?? 'No package block available right now.',
+      { packageId, reason: 'no_blocks' },
+    );
+  }
+}
+
 export async function handleSelectSubscriptionPlanLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,

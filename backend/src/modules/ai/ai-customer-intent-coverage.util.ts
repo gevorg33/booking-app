@@ -50,6 +50,7 @@ import { EXPLAIN_LAB_PREP_MULTILINGUAL_SCENARIOS } from './ai-explain-lab-prep-m
 import { TRACK_LAB_ORDER_STATUS_PROMPTS } from './ai-track-lab-order-status.fixtures.js';
 import { TRACK_LAB_ORDER_STATUS_MULTILINGUAL_SCENARIOS } from './ai-track-lab-order-status-multilingual.fixtures.js';
 import { CONSUMER_DISCOVERY_CHIP_FIXTURES } from './ai-consumer-discovery-chips.fixtures.js';
+import { CUSTOMER_PUBLIC_API_AI_PARITY } from './customer-public-api-ai-parity.fixtures.js';
 import {
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS,
   type FlexibleAvailabilityPromptFixture,
@@ -174,7 +175,28 @@ export type CustomerIntentCoverageRow = {
   intent: string;
   hasEval: boolean;
   hasFixture: boolean;
+  hasApiBinding: boolean;
 };
+
+/** Customer/public intents with ≥1 row in customer-public-api-ai-parity.fixtures.ts (ai-cmd-customer-6.13.3). */
+const API_BOUND_CUSTOMER_INTENTS = new Set(
+  CUSTOMER_PUBLIC_API_AI_PARITY.flatMap((entry) =>
+    entry.coverage.kind === 'customer-ai' || entry.coverage.kind === 'public-ai'
+      ? entry.coverage.intents
+      : [],
+  ),
+);
+
+export function hasCustomerApiBinding(intent: string): boolean {
+  return API_BOUND_CUSTOMER_INTENTS.has(intent);
+}
+
+/** Mutating customer intents missing an API binding row (ai-cmd-customer-6.13.3). */
+export function listMutatingCustomerIntentsMissingApiBinding(
+  mutateIntents: readonly string[],
+): string[] {
+  return mutateIntents.filter((intent) => !hasCustomerApiBinding(intent));
+}
 
 export function acceptableCustomerEvalActions(
   intent: string,
@@ -570,6 +592,7 @@ export function auditCustomerIntentCoverage(
       intent,
       hasEval: hasCustomerEvalCoverage(intent, evalIntents),
       hasFixture: hasCustomerFixtureCoverage(intent, fixtureIntents),
+      hasApiBinding: hasCustomerApiBinding(intent),
     }));
 }
 

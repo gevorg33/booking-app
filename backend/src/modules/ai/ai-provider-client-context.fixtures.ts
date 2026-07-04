@@ -2,11 +2,15 @@
 export const PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES = `- summarize_client: READ — provider mobile only: brief client snapshot before the visit — loyalty balance with last earn/redeem (read-only on mobile), completed visits, last visit, no-shows, marketing opt-in, referral, first-visit / win-back badges, recent visit highlights. Requires bookingId (session) and/or customerName. Triggers: summarize this client, what should I know about Jane, client overview, is this a first visit, loyalty balance for Jane. NOT show_client_history (visit list only), NOT show_appointments (today's schedule), NOT dashboard summarize_customers, NOT adjust_loyalty (dashboard/AI only).
 - show_client_history: READ — provider mobile only: list recent completed visits for the client on this booking (service, provider, date). Requires bookingId and/or customerName. Triggers: show visit history, past appointments for John, when did they last visit. NOT summarize_client (narrative snapshot), NOT list_bookings (all bookings admin-style).
 - add_client_note: MUTATE — provider mobile only: add an internal staff note on the customer linked to this booking (max 500 chars). Requires clientNote body plus bookingId and/or customerName. Triggers: add note, remember that, staff note. NOT update_bookings (appointment status), NOT dashboard add_customer_note.
+- list_client_staff_notes: READ — provider mobile only: list existing internal staff notes on the customer linked to this booking. Requires bookingId and/or customerName. Triggers: show staff notes, what notes do we have on Jane, any notes for this client. NOT add_client_note (writes a new note), NOT summarize_client (narrative snapshot).
+- explain_client_intake: READ — provider mobile only: read the client's submitted pre-visit intake questionnaire answers for this booking (status, questionnaire title, answers). Requires bookingId and/or customerName. Triggers: what does their intake say, show pre-visit intake answers, did they fill out the questionnaire. NOT summarize_client (narrative snapshot without intake detail), NOT explain_clinic_booking (checkout form fields).
 - Examples:
   - "Summarize this client" → summarize_client (inherit bookingId from session)
   - "What should I know about Jane before her color appointment?" → summarize_client, customerName=Jane
   - "Show Jane's visit history" → show_client_history, customerName=Jane
-  - "Add note: prefers window seat" → add_client_note, clientNote=prefers window seat`;
+  - "Add note: prefers window seat" → add_client_note, clientNote=prefers window seat
+  - "Show staff notes for this client" → list_client_staff_notes
+  - "What does their pre-visit intake say?" → explain_client_intake`;
 
 export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
   {
@@ -214,5 +218,44 @@ export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
     prompt: 'Добавь заметку: аллергия на латекс',
     surface: 'provider' as const,
     expectedAction: 'add_client_note',
+  },
+  {
+    id: 'staff-notes-show-en',
+    prompt: 'Show staff notes for this client',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+  },
+  {
+    id: 'staff-notes-any-en',
+    prompt: 'Any notes on Jane?',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'staff-notes-list-en',
+    prompt: 'List the customer notes for John',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+    paramsPartial: { customerName: 'John' },
+  },
+  {
+    id: 'intake-what-say-en',
+    prompt: 'What does their pre-visit intake say?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-show-answers-en',
+    prompt: "Show Jane's pre-visit intake answers",
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'intake-fill-out-en',
+    prompt: 'Did they fill out the intake questionnaire?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
   },
 ] as const;

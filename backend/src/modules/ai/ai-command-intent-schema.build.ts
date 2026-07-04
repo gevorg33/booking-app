@@ -94,6 +94,9 @@ and extract structured parameters. Return a JSON object with:
     "status": "completed | in_progress | no_show | confirmed | pending | cancelled | null — for update_bookings",
     "paymentStatus": "paid | pending | refunded | not_applicable | null — for update_bookings",
     "allAppointments": boolean or null — true when user says all/every/any appointment(s) for the day (do NOT set serviceName/serviceNames)
+    "taskId": "string or null — agent task id for list_agent_tasks (preview) / rebook_all_from_agent_task",
+    "scope": "pending | all | null — for list_agent_tasks (default all)",
+    "confirmed": "boolean or null — true only after the user has explicitly confirmed undo_latest_agent_task; omit/false to preview only"
   },
   "reasoning": "one sentence explaining your interpretation",
   "confidence": number from 0.0 to 1.0 — how certain you are about action and extracted params

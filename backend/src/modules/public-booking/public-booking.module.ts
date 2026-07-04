@@ -112,6 +112,7 @@ import { PublicCustomerWaitlistService } from './public-customer-waitlist.servic
     PublicCustomerBookingService,
     PublicCustomerWaitlistService,
     PublicConsumerSupportService,
+    PublicPreVisitIntakeService,
   ],
 })
 export class PublicBookingModule {}

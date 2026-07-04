@@ -17,6 +17,15 @@ describe('AiPushNotificationsService', () => {
     sendToUser: jest.fn(async () => 1),
   };
   const providerMobileService = {};
+  const pushHistoryService = {
+    listNotificationCenter: jest.fn(async () => ({
+      days: 3,
+      unreadCount: 0,
+      items: [],
+    })),
+    markAllNotificationsRead: jest.fn(async () => ({ updated: 0 })),
+    markLatestBookingNotificationRead: jest.fn(async () => undefined),
+  };
   const bookingRepo = {
     findOne: jest.fn(async () => null),
     find: jest.fn(async () => []),
@@ -38,6 +47,7 @@ describe('AiPushNotificationsService', () => {
       whatsappIntegrationService as any,
       pushService as any,
       providerMobileService as any,
+      pushHistoryService as any,
       bookingRepo as any,
       businessRepo as any,
       customerRepo as any,

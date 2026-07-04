@@ -39,8 +39,18 @@ function buildDeps(
         previousStartTime: packageBooking.startTime,
       }),
     },
+    serviceRepo: {
+      find: jest.fn().mockResolvedValue([]),
+    },
+    multiServiceBookingsService: {
+      resolveSettingsFromBusiness: jest.fn(() => ({
+        maxServiceCount: 5,
+        turnoverBufferMinutes: 5,
+        schedulingMode: 'same_visit',
+      })),
+    },
     ...overrides,
-  } satisfies ReschedulePackageVisitSelfLogicDeps;
+  } as ReschedulePackageVisitSelfLogicDeps;
 }
 
 describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () => {

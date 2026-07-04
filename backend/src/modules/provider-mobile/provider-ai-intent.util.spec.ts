@@ -30,6 +30,9 @@ describe('rescueProviderAiIntent', () => {
     expect(
       rescueProviderAiIntent('Mark no-shows for today', 'list_bookings'),
     ).toBe('mark_no_shows');
+    expect(
+      rescueProviderAiIntent('No-shows today', 'list_bookings'),
+    ).toBe('mark_no_shows');
   });
 
   it('preserves classified actions when no rescue match', () => {

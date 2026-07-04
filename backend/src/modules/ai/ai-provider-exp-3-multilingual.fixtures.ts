@@ -86,6 +86,21 @@ const TIME_OFF_I18N: Record<string, { hy: string; ru: string }> = {
   },
 };
 
+const SET_RETAIL_LINES_I18N: Record<string, { hy: string; ru: string }> = {
+  'set-retail-lines-two-en': {
+    hy: 'Դիր retail cart-ը 2 shampoo և 1 conditioner',
+    ru: 'Установи retail cart на 2 shampoo и 1 conditioner',
+  },
+  'set-retail-lines-replace-en': {
+    hy: 'Փոխարինիր retail cart-ը 3 candles-ով',
+    ru: 'Замени retail cart на 3 candles',
+  },
+  'set-retail-lines-update-en': {
+    hy: 'Թարմացրու retail lines-ը 1 shampoo-ի',
+    ru: 'Обнови retail lines на 1 shampoo',
+  },
+};
+
 function exp3RescueReason(action: ProviderExp3Intent): string {
   return action === 'add_retail_to_booking' ? 'add_retail_booking' : action;
 }
@@ -123,6 +138,14 @@ function buildProviderExp3MultilingualScenarios(): ProviderExp3MultilingualScena
   }
   for (const [enScenarioId, i18n] of Object.entries(TIME_OFF_I18N)) {
     pushExp3MultilingualRows(rows, enScenarioId, 'request_time_off', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(SET_RETAIL_LINES_I18N)) {
+    pushExp3MultilingualRows(
+      rows,
+      enScenarioId,
+      'set_retail_sales_lines',
+      i18n,
+    );
   }
 
   return rows;

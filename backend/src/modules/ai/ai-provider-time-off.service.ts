@@ -4,6 +4,7 @@ import { ProviderTimeOffService } from '../provider-mobile/provider-time-off.ser
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleApproveTimeOffRequestLogic,
+  handleCancelTimeOffRequestLogic,
   handleDenyTimeOffRequestLogic,
   handleListMyTimeOffRequestsLogic,
   handleListTimeOffRequestsLogic,
@@ -94,6 +95,13 @@ export class AiProviderTimeOffService {
           this.deps,
           businessId,
           employeeId,
+        );
+      case 'cancel_time_off_request':
+        return handleCancelTimeOffRequestLogic(
+          this.deps,
+          businessId,
+          employeeId,
+          params,
         );
       default:
         return null;

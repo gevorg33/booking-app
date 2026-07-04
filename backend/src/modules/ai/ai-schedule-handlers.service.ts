@@ -40,6 +40,8 @@ import {
   enhanceSmartBlockParams,
 } from './ai-scheduling.util.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
+import { ScheduleService } from '../schedule/schedule.service.js';
+import { BlockScheduleService } from '../schedule/services/block-schedule.service.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
@@ -52,6 +54,8 @@ export class AiScheduleHandlersService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private scheduling: AiSchedulingService,
+    private scheduleService: ScheduleService,
+    private blockScheduleService: BlockScheduleService,
   ) {}
 
   private async resolveBusinessLocale(businessId: string): Promise<AppLocale> {
@@ -1064,6 +1068,256 @@ export class AiScheduleHandlersService {
       timePeriods,
       userId,
     });
+  }
+
+  async handleUpdateScheduleTemplate(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) {
+      return {
+        success: false,
+        action: 'update_schedule_template',
+        summary: `No schedule template found${params.templateName ? ` matching "${params.templateName}"` : ''}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const newName = (params.newName as string | undefined)?.trim();
+    if (!newName) {
+      return {
+        success: false,
+        action: 'update_schedule_template',
+        summary: 'What should the template be renamed to?',
+        details: { clarify: true, missing: ['newName'] },
+      };
+    }
+
+    const updated = await this.scheduleService.updateTemplate(
+      businessId,
+      template.id,
+      { name: newName },
+      userId,
+    );
+    return {
+      success: true,
+      action: 'update_schedule_template',
+      summary: `Renamed template to "${updated.name}".`,
+      details: { templateId: updated.id, templateName: updated.name },
+    };
+  }
+
+  async handleDeleteScheduleTemplates(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const requestedNames: string[] = Array.isArray(params.templateNames)
+      ? params.templateNames
+      : params.templateName
+        ? [params.templateName]
+        : [];
+    if (!requestedNames.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_templates',
+        summary: 'Specify which template(s) to delete.',
+        details: { clarify: true, missing: ['templateName'] },
+      };
+    }
+
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const matched: ScheduleTemplate[] = [];
+    const notFound: string[] = [];
+    for (const name of requestedNames) {
+      const template = resolveTemplate(templates, name);
+      if (template) matched.push(template);
+      else notFound.push(name);
+    }
+
+    if (!matched.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_templates',
+        summary: `No template(s) found matching: ${requestedNames.join(', ')}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const result = await this.scheduleService.deleteTemplates(
+      businessId,
+      { templateIds: matched.map((t) => t.id) },
+      userId,
+    );
+    return {
+      success: true,
+      action: 'delete_schedule_templates',
+      summary: `Deleted ${result.deleted} template(s): ${matched.map((t) => t.name).join(', ')}.`,
+      details: {
+        deleted: result.deleted,
+        templateIds: matched.map((t) => t.id),
+        notFound,
+      },
+    };
+  }
+
+  async handleDuplicateScheduleTemplate(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) {
+      return {
+        success: false,
+        action: 'duplicate_schedule_template',
+        summary: `No schedule template found${params.templateName ? ` matching "${params.templateName}"` : ''}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const duplicated = await this.scheduleService.duplicateTemplate(
+      businessId,
+      template.id,
+      userId,
+    );
+    return {
+      success: true,
+      action: 'duplicate_schedule_template',
+      summary: `Duplicated template "${template.name}" as "${duplicated.name}".`,
+      details: { templateId: duplicated.id, templateName: duplicated.name },
+    };
+  }
+
+  async handleDeleteScheduleBlock(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employee = targets[0];
+    if (!employee) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary: 'Specify which provider\'s block to delete.',
+        details: { clarify: true, missing: ['employeeName'] },
+      };
+    }
+
+    const blocks = await this.blockScheduleService.list(
+      businessId,
+      employee.id,
+    );
+    if (!blocks.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary: `${employee.name} has no schedule blocks.`,
+        details: {},
+      };
+    }
+
+    const date = (params.date as string | undefined) ?? undefined;
+    const candidates = date
+      ? blocks.filter(
+          (b: any) =>
+            b.startDay === date ||
+            (b.startDay <= date && (!b.endDay || b.endDay >= date)),
+        )
+      : blocks;
+
+    if (candidates.length !== 1) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary:
+          candidates.length > 1
+            ? `${employee.name} has ${candidates.length} matching blocks — specify a date to narrow it down.`
+            : `No matching block found for ${employee.name}${date ? ` on ${date}` : ''}.`,
+        details: { clarify: true, missing: ['date'] },
+      };
+    }
+
+    const block = candidates[0] as any;
+    await this.blockScheduleService.remove(businessId, block.id, userId);
+    return {
+      success: true,
+      action: 'delete_schedule_block',
+      summary: `Deleted schedule block for ${employee.name}.`,
+      details: { blockId: block.id, employeeId: employee.id },
+    };
+  }
+
+  isApplyAndFillPrompt(prompt: string): boolean {
+    return (
+      /\bapply\b/i.test(prompt) &&
+      /\b(fill|filling)\b/i.test(prompt) &&
+      /\b(gap|gaps|unused\s+slots?)\b/i.test(prompt)
+    );
+  }
+
+  /** ai-cmd-dashboard-6.5.3 — apply a template then fill any remaining unused slots in one command. */
+  async handleApplyAndFill(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const applyResult = await this.handleApplySchedule(
+      businessId,
+      prompt,
+      params,
+      employees,
+      userId,
+    );
+    if (!applyResult.success) {
+      return {
+        success: false,
+        action: 'apply_and_fill',
+        summary: `Stopped at apply_schedule: ${applyResult.summary}`,
+        details: { steps: [applyResult], failedStep: 'apply_schedule' },
+      };
+    }
+
+    const fillResult = await this.handleFillScheduleGaps(
+      businessId,
+      prompt,
+      params,
+      employees,
+      services,
+      userId,
+    );
+
+    return {
+      success: fillResult.success,
+      action: 'apply_and_fill',
+      summary: `${applyResult.summary} Then: ${fillResult.summary}`,
+      details: {
+        steps: [
+          { action: 'apply_schedule', summary: applyResult.summary },
+          { action: 'fill_unused_slots', summary: fillResult.summary },
+        ],
+        failedStep: fillResult.success ? undefined : 'fill_unused_slots',
+      },
+    };
   }
 
   private applyDaysToTemplateFlags(applyDays: number[]) {

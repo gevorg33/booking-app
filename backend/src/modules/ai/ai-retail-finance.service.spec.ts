@@ -133,6 +133,7 @@ describe('AiRetailFinanceService', () => {
       serviceRepo as any,
       productRepo as any,
       employeeRepo as any,
+      { handleMarkPaid: jest.fn(async () => ({ success: true, action: 'mark_paid', summary: 'ok', details: {} })) } as any,
     );
   });
 

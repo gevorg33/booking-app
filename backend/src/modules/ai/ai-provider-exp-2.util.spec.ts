@@ -7,8 +7,13 @@ import {
   inferMyStatsPeriodFromPrompt,
   inferMyStatsScopeFromPrompt,
   isCheckInClientPrompt,
+  isListReassignOptionsPrompt,
+  isMarkReadyNowPrompt,
   isMarkRunningLatePrompt,
   isMyStatsPrompt,
+  isReassignBookingSameDayPrompt,
+  isRequestClientReviewPrompt,
+  isSuggestCancelNotePrompt,
   isTeamFloorStatusPrompt,
   rescueProviderExp2Intent,
 } from './ai-provider-exp-2.util.js';
@@ -44,6 +49,46 @@ describe('ai-provider-exp-2.util', () => {
     ).map((s) => [s.id, s.prompt]),
   )('detects mark_running_late prompt %s', (_id, prompt) => {
     expect(isMarkRunningLatePrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'mark_ready_now',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects mark_ready_now prompt %s', (_id, prompt) => {
+    expect(isMarkReadyNowPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'suggest_cancel_note',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects suggest_cancel_note prompt %s', (_id, prompt) => {
+    expect(isSuggestCancelNotePrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'request_client_review',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects request_client_review prompt %s', (_id, prompt) => {
+    expect(isRequestClientReviewPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'list_reassign_options',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects list_reassign_options prompt %s', (_id, prompt) => {
+    expect(isListReassignOptionsPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'reassign_booking_same_day',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects reassign_booking_same_day prompt %s', (_id, prompt) => {
+    expect(isReassignBookingSameDayPrompt(prompt)).toBe(true);
   });
 
   it.each(PROVIDER_EXP_2_PROMPT_SCENARIOS.map((s) => [s.id, s]))(

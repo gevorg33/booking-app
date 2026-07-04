@@ -106,8 +106,8 @@ describe('ai provider exp-3 locale parity (acc-2.4)', () => {
       ),
     ];
 
-    expect(hyCases.length).toBe(12);
-    expect(ruCases.length).toBe(12);
+    expect(hyCases.length).toBe(15);
+    expect(ruCases.length).toBe(15);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(

@@ -16,7 +16,9 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
     return 'payment_sweep';
   }
   if (
-    /mark\s+no[\s-]?shows?|no[\s-]?shows?\s+for/.test(lower) &&
+    /mark\s+no[\s-]?shows?|no[\s-]?shows?\s+for|no[\s-]?shows?\s+today/.test(
+      lower,
+    ) &&
     !/cancel/.test(lower)
   ) {
     return 'mark_no_shows';

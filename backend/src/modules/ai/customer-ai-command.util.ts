@@ -5,6 +5,7 @@ import { mergeCheckProvidersHandoffIntoContext } from './ai-check-book-handoff.u
 import { CLASSIFIER_MULTILINGUAL_RULES } from './ai-prompt-i18n.js';
 import { CHECKOUT_CURRENCY_CLASSIFIER_RULES } from './ai-checkout-currency.fixtures.js';
 import { CHECKOUT_TAX_CLASSIFIER_RULES } from './ai-checkout-tax.fixtures.js';
+import { CHECKOUT_QUOTE_AND_CONFIRM_CLASSIFIER_RULES } from './ai-checkout-quote-and-confirm.fixtures.js';
 import { NOTIFICATION_CURRENCY_CLASSIFIER_RULES } from './ai-notification-currency.fixtures.js';
 import { STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES } from './ai-stripe-checkout-currency.fixtures.js';
 import { TENANT_CURRENCY_CLASSIFIER_RULES } from './ai-tenant-currency.fixtures.js';
@@ -36,6 +37,7 @@ import { CUSTOMER_ENABLE_PUSH_NOTIFICATIONS_CLASSIFIER_RULES } from './ai-custom
 import { CUSTOMER_ENABLE_PUSH_NOTIFICATIONS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-customer-enable-push-notifications-multilingual.fixtures.js';
 import { CUSTOMER_EXPLAIN_PUSH_PERMISSION_CLASSIFIER_RULES } from './ai-explain-push-permission.util.js';
 import { EXPLAIN_PUSH_PERMISSION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-push-permission-multilingual.fixtures.js';
+import { PUSH_REGISTRATION_ACTIONS_CLASSIFIER_RULES } from './ai-push-registration-actions.fixtures.js';
 import { CUSTOMER_EXPLAIN_OFFLINE_MODE_CLASSIFIER_RULES } from './ai-explain-offline-mode.util.js';
 import { EXPLAIN_OFFLINE_MODE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-offline-mode-multilingual.fixtures.js';
 import { CUSTOMER_EXPLAIN_APP_UPDATE_REQUIRED_CLASSIFIER_RULES } from './ai-explain-app-update-required.util.js';
@@ -63,6 +65,7 @@ import { CUSTOMER_BOOK_WITH_GIFT_CARD_CLASSIFIER_RULES } from './ai-book-with-gi
 import { BOOK_WITH_GIFT_CARD_MULTILINGUAL_CLASSIFIER_RULES } from './ai-book-with-gift-card-multilingual.fixtures.js';
 import { CUSTOMER_CANCEL_MY_BOOKING_CLASSIFIER_RULES } from './ai-cancel-my-booking.util.js';
 import { CUSTOMER_GET_MANAGE_LINK_CLASSIFIER_RULES } from './ai-get-manage-link.util.js';
+import { MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES } from './ai-manage-booking-with-token.util.js';
 import { CUSTOMER_PUBLIC_RECOVER_LOST_MANAGE_LINK_CLASSIFIER_RULES } from './ai-recover-lost-manage-link.util.js';
 import { RECOVER_LOST_MANAGE_LINK_MULTILINGUAL_CLASSIFIER_RULES } from './ai-recover-lost-manage-link-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_SIGN_IN_TO_MANAGE_BOOKING_CLASSIFIER_RULES } from './ai-sign-in-to-manage-booking.util.js';
@@ -75,6 +78,10 @@ import { CUSTOMER_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES } from './ai-leave-visit-r
 import { LEAVE_VISIT_REVIEW_MULTILINGUAL_CLASSIFIER_RULES } from './ai-leave-visit-review-multilingual.fixtures.js';
 import { CUSTOMER_EXPLAIN_POST_VISIT_REVIEW_PROMPT_CLASSIFIER_RULES } from './ai-explain-post-visit-review-prompt.util.js';
 import { EXPLAIN_POST_VISIT_REVIEW_PROMPT_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-post-visit-review-prompt-multilingual.fixtures.js';
+import {
+  SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES,
+  SUBMIT_REVIEW_WITH_TOKEN_CLASSIFIER_RULES,
+} from './ai-submit-review-actions.fixtures.js';
 import { CUSTOMER_EXPLAIN_SHARE_REWARD_CLASSIFIER_RULES } from './ai-explain-share-reward.util.js';
 import { EXPLAIN_SHARE_REWARD_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-share-reward-multilingual.fixtures.js';
 import { CUSTOMER_REPORT_BOOKING_PROBLEM_CLASSIFIER_RULES } from './ai-report-booking-problem.util.js';
@@ -100,6 +107,7 @@ import { CUSTOMER_EXPLAIN_MY_SUBSCRIPTION_CLASSIFIER_RULES } from './ai-explain-
 import { EXPLAIN_MY_SUBSCRIPTION_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-my-subscription-multilingual.fixtures.js';
 import { CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES } from './ai-update-my-profile.fixtures.js';
 import { UPDATE_MY_PROFILE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-update-my-profile-multilingual.fixtures.js';
+import { MY_LOCALE_CLASSIFIER_RULES } from './ai-my-locale.util.js';
 import { CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES } from './ai-apply-promo-code-checkout.util.js';
 import { CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES } from './ai-promo-code-help-customer-public.util.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES } from './ai-explain-service-price.util.js';
@@ -112,6 +120,7 @@ import { FILTER_SERVICES_NO_PREPAYMENT_MULTILINGUAL_CLASSIFIER_RULES } from './a
 import { CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES } from './ai-explain-amount-due-now.util.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES } from './ai-explain-guest-checkout-fields.util.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_WHY_SIGN_IN_CLASSIFIER_RULES } from './ai-explain-why-sign-in.util.js';
+import { SIGN_IN_WITH_PROVIDER_CLASSIFIER_RULES } from './ai-sign-in-with-provider.util.js';
 import { EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-why-sign-in-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_FIX_CHECKOUT_VALIDATION_ERROR_CLASSIFIER_RULES } from './ai-fix-checkout-validation-error.util.js';
 import { CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES } from './ai-confirm-my-booking-details.util.js';
@@ -174,16 +183,19 @@ import {
   CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES,
   GROWTH_LOOPS_MULTILINGUAL_CLASSIFIER_RULES,
 } from './ai-growth-loops-customer.util.js';
+import { REWARDS_AND_REFERRAL_CLAIM_CLASSIFIER_RULES } from './ai-rewards-and-referral-claim.fixtures.js';
 import { CUSTOMER_PRIVACY_GDPR_CLASSIFIER_RULES } from './ai-privacy-gdpr-customer.util.js';
 import { CUSTOMER_GIFT_CARD_CANCEL_CLASSIFIER_RULES } from './ai-gift-card-cancel-customer.util.js';
 import { CUSTOMER_TRACK_PHYSICAL_GIFT_CARD_ORDER_CLASSIFIER_RULES } from './ai-track-physical-gift-card-order.fixtures.js';
 import { TRACK_PHYSICAL_GIFT_CARD_ORDER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-track-physical-gift-card-order-multilingual.fixtures.js';
 import { CUSTOMER_CLAIM_GIFT_CARD_BALANCE_CLASSIFIER_RULES } from './ai-claim-gift-card-balance.fixtures.js';
 import { CLAIM_GIFT_CARD_BALANCE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-claim-gift-card-balance-multilingual.fixtures.js';
+import { GIFT_CARD_QUOTE_AND_ORDER_CLASSIFIER_RULES } from './ai-gift-card-quote-and-order.fixtures.js';
 import { CUSTOMER_CANCEL_PACKAGE_VISIT_SELF_CLASSIFIER_RULES } from './ai-cancel-package-visit-self.util.js';
 import { CANCEL_PACKAGE_VISIT_SELF_MULTILINGUAL_CLASSIFIER_RULES } from './ai-cancel-package-visit-self-multilingual.fixtures.js';
 import { CUSTOMER_RESCHEDULE_PACKAGE_VISIT_SELF_CLASSIFIER_RULES } from './ai-reschedule-package-visit-self.util.js';
 import { RESCHEDULE_PACKAGE_VISIT_SELF_MULTILINGUAL_CLASSIFIER_RULES } from './ai-reschedule-package-visit-self-multilingual.fixtures.js';
+import { CUSTOMER_RESCHEDULE_PACKAGE_LINES_CLASSIFIER_RULES } from './ai-reschedule-package-lines.util.js';
 import { CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES } from './ai-list-my-package-visits-customer.util.js';
 import { CUSTOMER_EXPLAIN_PACKAGE_VISIT_RULES_CLASSIFIER_RULES } from './ai-explain-package-visit-rules.util.js';
 import { EXPLAIN_PACKAGE_VISIT_RULES_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-package-visit-rules-multilingual.fixtures.js';
@@ -205,6 +217,7 @@ import { EXPLAIN_CLINIC_BOOKING_FIELDS_MULTILINGUAL_CLASSIFIER_RULES } from './a
 import { CUSTOMER_PUBLIC_EXPLAIN_PUBLIC_INTAKE_FORM_CLASSIFIER_RULES } from './ai-explain-public-intake-form.fixtures.js';
 import { EXPLAIN_PUBLIC_INTAKE_FORM_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-public-intake-form-multilingual.fixtures.js';
 import { CUSTOMER_COMPLETE_INTAKE_AND_BOOK_CLASSIFIER_RULES } from './ai-complete-intake-and-book.fixtures.js';
+import { INTAKE_MUTATE_CHAIN_CLASSIFIER_RULES } from './ai-intake-mutate-chain.fixtures.js';
 import { COMPLETE_INTAKE_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES } from './ai-complete-intake-and-book-multilingual.fixtures.js';
 import { INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES } from './ai-intake-lab-book-pay-compound.fixtures.js';
 import { INTAKE_LAB_BOOK_PAY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-intake-lab-book-pay-compound-multilingual.fixtures.js';
@@ -220,6 +233,7 @@ import { CUSTOMER_EXPLAIN_ABNORMAL_RESULT_FLAG_CLASSIFIER_RULES } from './ai-exp
 import { EXPLAIN_ABNORMAL_RESULT_FLAG_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-abnormal-result-flag-multilingual.fixtures.js';
 import { CUSTOMER_NOTIFY_WHEN_RESULTS_READY_CLASSIFIER_RULES } from './ai-notify-when-results-ready.fixtures.js';
 import { NOTIFY_WHEN_RESULTS_READY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-notify-when-results-ready-multilingual.fixtures.js';
+import { CLINIC_DOCUMENT_AND_ALERT_ACTIONS_CLASSIFIER_RULES } from './ai-clinic-document-and-alert-actions.fixtures.js';
 import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-discovery.fixtures.js';
 import { CUSTOMER_PUBLIC_FIND_SERVICES_UNDER_BUDGET_CLASSIFIER_RULES } from './ai-find-services-under-budget.fixtures.js';
 import { FIND_SERVICES_UNDER_BUDGET_MULTILINGUAL_CLASSIFIER_RULES } from './ai-find-services-under-budget-multilingual.fixtures.js';
@@ -263,6 +277,10 @@ export const PUBLIC_ONLY_ASSISTANT_ACTIONS = [
   'business_info',
   'book_appointment',
   'booking_help',
+  'preview_multi_service_cart',
+  'list_public_promotions',
+  'list_provider_reviews',
+  'suggest_package_block',
 ] as const;
 
 export type PublicOnlyAssistantAction =
@@ -384,8 +402,17 @@ Classify the user's message and extract parameters. Return JSON:
     "packageName": "string or null",
     "packageId": "string or null",
     "bookingId": "string or null",
+    "manageToken": "string or null — guest manage-link token for cancel_booking_with_token / reschedule_booking_with_token / cancel_package_visit_with_token / reschedule_package_visit_with_token (from session or a pasted manage-link URL)",
+    "intakeId": "string or null — pre-visit intake id for get_intake_flow_status / start_pre_visit_intake / submit_intake_answers (from session, set by create_intake_draft)",
+    "answers": ["string"] or null — one or more free-text intake answers to submit in order for submit_intake_answers (answered against the questionnaire's own next-question sequence, no question id needed),
+    "preferredLocale": "en | hy | ru | null — requested language for update_my_locale",
+    "referralCode": "string or null — a friend's referral code to redeem for claim_referral_code",
+    "channel": "booking | salon | null — what was shared, for claim_share_reward",
     "promoCode": "string or null",
     "loyaltyPointsToRedeem": "number or null — loyalty points to apply at checkout when user names an amount",
+    "paxCount": "number or null — party size for get_booking_quote",
+    "purchasePlanId": "string or null — subscription purchase plan id for get_booking_quote",
+    "sessionId": "string or null — Stripe checkout session id for confirm_stripe_payment",
     "giftCardCode": "string or null",
     "date": "DD/MM/YYYY or null",
     "timeSlot": "HH:MM or null — omit when bookingFirstAvailable=true",
@@ -436,6 +463,7 @@ ${FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES}
 ${SERVICE_RANK_DISCOVERY_CLASSIFIER_RULES}
 ${CHECKOUT_CURRENCY_CLASSIFIER_RULES}
 ${CHECKOUT_TAX_CLASSIFIER_RULES}
+${CHECKOUT_QUOTE_AND_CONFIRM_CLASSIFIER_RULES}
 ${TENANT_CURRENCY_CLASSIFIER_RULES}
 ${NOTIFICATION_CURRENCY_CLASSIFIER_RULES}
 ${STRIPE_CHECKOUT_CURRENCY_CLASSIFIER_RULES}
@@ -476,6 +504,7 @@ ${CUSTOMER_PUBLIC_EXPLAIN_PUBLIC_INTAKE_FORM_CLASSIFIER_RULES}
 ${EXPLAIN_PUBLIC_INTAKE_FORM_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_COMPLETE_INTAKE_AND_BOOK_CLASSIFIER_RULES}
 ${COMPLETE_INTAKE_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES}
+${INTAKE_MUTATE_CHAIN_CLASSIFIER_RULES}
 ${INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES}
 ${INTAKE_LAB_BOOK_PAY_MULTILINGUAL_CLASSIFIER_RULES}
 ${TOUR_GROUP_CHECKOUT_CLASSIFIER_RULES}
@@ -488,6 +517,7 @@ ${CUSTOMER_EXPLAIN_ABNORMAL_RESULT_FLAG_CLASSIFIER_RULES}
 ${EXPLAIN_ABNORMAL_RESULT_FLAG_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_NOTIFY_WHEN_RESULTS_READY_CLASSIFIER_RULES}
 ${NOTIFY_WHEN_RESULTS_READY_MULTILINGUAL_CLASSIFIER_RULES}
+${CLINIC_DOCUMENT_AND_ALERT_ACTIONS_CLASSIFIER_RULES}
 ${CUSTOMER_CLINIC_TEST_RESULTS_CLASSIFIER_APPENDIX}
 ${CUSTOMER_PACKAGE_BOOKING_CLASSIFIER_RULES}
 ${CONSUMER_ADOPTION_CLASSIFIER_RULES}
@@ -499,6 +529,7 @@ ${CUSTOMER_REBOOK_LAST_APPOINTMENT_CLASSIFIER_RULES}
 ${REBOOK_LAST_APPOINTMENT_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES}
 ${GROWTH_LOOPS_MULTILINGUAL_CLASSIFIER_RULES}
+${REWARDS_AND_REFERRAL_CLAIM_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_MY_NOTIFICATIONS_CLASSIFIER_RULES}
 ${EXPLAIN_MY_NOTIFICATIONS_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_MANAGE_NOTIFICATION_PREFERENCES_CLASSIFIER_RULES}
@@ -507,6 +538,7 @@ ${CUSTOMER_ENABLE_PUSH_NOTIFICATIONS_CLASSIFIER_RULES}
 ${CUSTOMER_ENABLE_PUSH_NOTIFICATIONS_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_PUSH_PERMISSION_CLASSIFIER_RULES}
 ${EXPLAIN_PUSH_PERMISSION_MULTILINGUAL_CLASSIFIER_RULES}
+${PUSH_REGISTRATION_ACTIONS_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_OFFLINE_MODE_CLASSIFIER_RULES}
 ${EXPLAIN_OFFLINE_MODE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_APP_UPDATE_REQUIRED_CLASSIFIER_RULES}
@@ -560,6 +592,7 @@ ${CUSTOMER_EXPLAIN_MY_SUBSCRIPTION_CLASSIFIER_RULES}
 ${EXPLAIN_MY_SUBSCRIPTION_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES}
 ${UPDATE_MY_PROFILE_MULTILINGUAL_CLASSIFIER_RULES}
+${MY_LOCALE_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES}
@@ -573,6 +606,7 @@ ${CUSTOMER_PUBLIC_EXPLAIN_AMOUNT_DUE_NOW_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_WHY_SIGN_IN_CLASSIFIER_RULES}
 ${EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_CLASSIFIER_RULES}
+${SIGN_IN_WITH_PROVIDER_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_FIX_CHECKOUT_VALIDATION_ERROR_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES}
@@ -616,10 +650,12 @@ ${CUSTOMER_CLAIM_GIFT_CARD_BALANCE_CLASSIFIER_RULES}
 ${CLAIM_GIFT_CARD_BALANCE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_TRACK_PHYSICAL_GIFT_CARD_ORDER_CLASSIFIER_RULES}
 ${TRACK_PHYSICAL_GIFT_CARD_ORDER_MULTILINGUAL_CLASSIFIER_RULES}
+${GIFT_CARD_QUOTE_AND_ORDER_CLASSIFIER_RULES}
 ${CUSTOMER_CANCEL_PACKAGE_VISIT_SELF_CLASSIFIER_RULES}
 ${CANCEL_PACKAGE_VISIT_SELF_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_RESCHEDULE_PACKAGE_VISIT_SELF_CLASSIFIER_RULES}
 ${RESCHEDULE_PACKAGE_VISIT_SELF_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_RESCHEDULE_PACKAGE_LINES_CLASSIFIER_RULES}
 ${CUSTOMER_LIST_MY_PACKAGE_VISITS_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_PACKAGE_VISIT_RULES_CLASSIFIER_RULES}
 ${EXPLAIN_PACKAGE_VISIT_RULES_MULTILINGUAL_CLASSIFIER_RULES}
@@ -628,6 +664,7 @@ ${HOW_TO_DOWNLOAD_APP_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_CANCEL_MY_BOOKING_CLASSIFIER_RULES}
 ${CUSTOMER_GET_MANAGE_LINK_CLASSIFIER_RULES}
 ${GET_MANAGE_LINK_MULTILINGUAL_CLASSIFIER_RULES}
+${MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_RECOVER_LOST_MANAGE_LINK_CLASSIFIER_RULES}
 ${RECOVER_LOST_MANAGE_LINK_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_SIGN_IN_TO_MANAGE_BOOKING_CLASSIFIER_RULES}
@@ -638,6 +675,8 @@ ${CUSTOMER_NOTIFY_RUNNING_LATE_CLASSIFIER_RULES}
 ${NOTIFY_RUNNING_LATE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES}
 ${LEAVE_VISIT_REVIEW_MULTILINGUAL_CLASSIFIER_RULES}
+${SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES}
+${SUBMIT_REVIEW_WITH_TOKEN_CLASSIFIER_RULES}
 ${CUSTOMER_EXPLAIN_POST_VISIT_REVIEW_PROMPT_CLASSIFIER_RULES}
 ${EXPLAIN_POST_VISIT_REVIEW_PROMPT_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_REPORT_BOOKING_PROBLEM_CLASSIFIER_RULES}
@@ -670,6 +709,8 @@ export function mergeCustomerCompoundContext(
     'packageId',
     'packageName',
     'manageUrl',
+    'manageToken',
+    'intakeId',
     'promoCode',
     'loyaltyPointsToRedeem',
     'giftCardCode',

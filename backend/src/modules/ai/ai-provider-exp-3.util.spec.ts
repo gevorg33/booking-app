@@ -8,6 +8,7 @@ import {
   isBlockMyTimePrompt,
   isProviderExp3Intent,
   isSendClientMessagePrompt,
+  isSetRetailSalesLinesPrompt,
   PROVIDER_EXP_3_INTENTS,
   rescueProviderExp3Intent,
 } from './ai-provider-exp-3.util.js';
@@ -19,6 +20,7 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       'send_client_message',
       'block_my_time',
       'request_time_off',
+      'set_retail_sales_lines',
     ]);
   });
 
@@ -38,6 +40,24 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
     expect(isSendClientMessagePrompt('Text Jane running late')).toBe(true);
     expect(isBlockMyTimePrompt('Block my lunch today')).toBe(true);
     expect(isProviderExp3Intent('send_client_message')).toBe(true);
+  });
+
+  it('detects set_retail_sales_lines bulk cart prompts', () => {
+    expect(
+      isSetRetailSalesLinesPrompt(
+        'Set retail cart to 2 shampoo and 1 conditioner',
+      ),
+    ).toBe(true);
+    expect(
+      isSetRetailSalesLinesPrompt('Replace the retail cart with 3 candles'),
+    ).toBe(true);
+    expect(isSetRetailSalesLinesPrompt('Update retail lines to 1 shampoo')).toBe(
+      true,
+    );
+    expect(isSetRetailSalesLinesPrompt('Add shampoo to this booking')).toBe(
+      false,
+    );
+    expect(isSetRetailSalesLinesPrompt('Set retail cart to')).toBe(false);
   });
 
   it('extracts helpers', () => {

@@ -16,6 +16,7 @@ import {
   isPayoutExportPrompt,
   isSuggestRetailUpsellPrompt,
   isAddRetailToMyBookingPrompt,
+  isSetRetailSalesLinesPrompt,
   extractProductNameFromPrompt,
   extractSkuFromPrompt,
   extractRetailPriceFromPrompt,
@@ -29,6 +30,7 @@ import {
   extractExpenseDescriptionFromPrompt,
   extractProductIdFromPrompt,
   parseFirstProduct,
+  parseRetailSalesLinesFromPrompt,
   RETAIL_FINANCE_INTENTS,
   isRetailFinanceIntent,
 } from './ai-retail-finance.util.js';
@@ -62,6 +64,12 @@ describe('ai-retail-finance.util', () => {
       expect(isCommissionReportPrompt('Export commissions CSV')).toBe(false);
       expect(isPayoutExportPrompt('Payout export this month')).toBe(true);
       expect(isPayoutExportPrompt('Export payout csv for May')).toBe(true);
+      expect(
+        isSetRetailSalesLinesPrompt(
+          'Set retail cart to 2 shampoo, 1 conditioner for booking b1',
+        ),
+      ).toBe(true);
+      expect(isSetRetailSalesLinesPrompt('Set the business name')).toBe(false);
     });
 
     it('detects provider retail prompts', () => {
@@ -270,10 +278,21 @@ describe('ai-retail-finance.util', () => {
         'suggest_retail_upsell',
         'add_retail_to_my_booking',
       ]);
+
+      const retailCheckout = decomposeRetailFinanceCompoundPrompt(
+        'For booking b1, set retail cart to 2 shampoo and mark it paid',
+      );
+      expect(retailCheckout.map((s) => s.action)).toEqual([
+        'set_retail_sales_lines',
+        'mark_paid',
+      ]);
+      expect(retailCheckout[0].params).toMatchObject({
+        lines: [{ productName: 'shampoo', quantity: 2 }],
+      });
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(RETAIL_FINANCE_INTENTS.length).toBe(13);
+      expect(RETAIL_FINANCE_INTENTS.length).toBe(14);
       expect(isRetailFinanceIntent('list_products')).toBe(true);
       expect(isRetailFinanceIntent('not_real')).toBe(false);
       expect(decomposeRetailFinanceCompoundPrompt('')).toEqual([]);
@@ -345,6 +364,37 @@ describe('ai-retail-finance.util', () => {
           'create product link item quantity 3',
         )[0].action,
       ).toBe('create_product');
+    });
+  });
+
+  describe('parseRetailSalesLinesFromPrompt', () => {
+    it('parses multiple quantity+product lines from a bulk cart replace prompt', () => {
+      expect(
+        parseRetailSalesLinesFromPrompt(
+          'Set retail cart to 2 shampoo and 1 conditioner',
+        ),
+      ).toEqual([
+        { quantity: 2, productName: 'shampoo' },
+        { quantity: 1, productName: 'conditioner' },
+      ]);
+    });
+
+    it('parses a single-line replace prompt', () => {
+      expect(
+        parseRetailSalesLinesFromPrompt('Replace the retail cart with 3 candles'),
+      ).toEqual([{ quantity: 3, productName: 'candles' }]);
+    });
+
+    it('defaults to quantity 1 when no number is given', () => {
+      expect(
+        parseRetailSalesLinesFromPrompt('Set retail cart to shampoo'),
+      ).toEqual([{ quantity: 1, productName: 'shampoo' }]);
+    });
+
+    it('returns empty array when prompt has no replace clause', () => {
+      expect(parseRetailSalesLinesFromPrompt('Add shampoo to this booking')).toEqual(
+        [],
+      );
     });
   });
 });

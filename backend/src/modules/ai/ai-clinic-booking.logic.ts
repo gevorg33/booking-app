@@ -1,6 +1,7 @@
 import type { Repository } from 'typeorm';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ServiceService } from '../service/service.service.js';
+import type { PublicPreVisitIntakeService } from '../public-booking/public-pre-visit-intake.service.js';
 import {
   clinicLabTestOffersPreVisitIntake,
   isClinicLabTestService,
@@ -21,6 +22,13 @@ import {
 export interface ClinicBookingLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne'>;
   serviceService: Pick<ServiceService, 'findAll'>;
+  publicPreVisitIntakeService: Pick<
+    PublicPreVisitIntakeService,
+    | 'ensureCustomerDraft'
+    | 'getCustomerFlow'
+    | 'startCustomerIntake'
+    | 'submitCustomerAnswers'
+  >;
 }
 
 function failure(

@@ -62,6 +62,7 @@ import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engi
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveDateRange } from '../ai/ai-orchestration.helpers.js';
 import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
+import { extractDaysFromPrompt } from '../ai/ai-provider-schedule-reads.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import {
   buildAfternoonAvailabilityResult,
@@ -122,6 +123,9 @@ import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
 import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
+import { AiProviderClinicTasksAndResultsService } from '../ai/ai-provider-clinic-tasks-and-results.service.js';
+import { AiGiftFulfillmentService } from '../ai/ai-gift-fulfillment.service.js';
+import { AiRetailFinanceService } from '../ai/ai-retail-finance.service.js';
 import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
 import {
@@ -198,7 +202,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "voice_summarize_next_client" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "explain_staff_invite" | "explain_provider_app_tabs" | "explain_team_view_scope" | "explain_profile_settings" | "explain_assistant_confirm_swipe" | "explain_provider_compound_steps" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "voice_summarize_next_client" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "explain_staff_invite" | "explain_provider_app_tabs" | "explain_team_view_scope" | "explain_profile_settings" | "update_provider_profile" | "explain_assistant_confirm_swipe" | "explain_provider_compound_steps" | "explain_provider_context" | "list_upcoming_bookings" | "get_schedule_summary" | "mark_ready_now" | "suggest_cancel_note" | "request_client_review" | "list_reassign_options" | "reassign_booking_same_day" | "list_client_staff_notes" | "explain_client_intake" | "set_retail_sales_lines" | "cancel_time_off_request" | "list_push_notifications" | "mark_all_notifications_read" | "mark_booking_notifications_read" | "list_lab_results_queue" | "claim_clinic_task" | "complete_clinic_task" | "list_booking_lab_summaries" | "gift_card_creation_queue" | "start_card_preparation" | "mark_card_ready" | "delivery_queue" | "accept_delivery" | "mark_out_for_delivery" | "mark_delivered" | "capture_delivery_proof" | "notify_delay" | "suggest_retail_upsell" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -216,6 +220,10 @@ Classify the user's command and extract parameters. Return JSON:
     "paymentStatus": "paid | pending | refunded | not_applicable | null",
     "reason": "string or null — cancellation reason or note",
     "clientNote": "string or null — internal staff note body for add_client_note",
+    "draft": "string or null — provider's rough draft to refine for suggest_cancel_note",
+    "days": "number or null — 1-30, for list_upcoming_bookings (default 7) / get_schedule_summary (default 14)",
+    "title": "string or null — new profile title for update_provider_profile",
+    "avatarUrl": "string or null — new profile avatar URL for update_provider_profile",
     "period": "week | month | null — for my_stats",
     "scope": "mine | team | null — for my_stats (team requires manager)",
     "minutesLate": "number or null — minutes late for mark_running_late (default 10)",
@@ -243,6 +251,7 @@ Rules:
 - add_client_note: MUTATE — save internal staff note on booking customer (clientNote body, max 500 chars). Requires bookingId and/or customerName. NOT update_bookings.
 - check_availability: READ-ONLY — open slots and schedule blocks for own calendar (managers may query team when scoped).
 - add_retail_to_booking: MUTATE — add retail product line to own active booking (productName, bookingId, and/or customerName). NOT suggest_retail_upsell (read-only suggestions).
+- suggest_retail_upsell: READ — list sellable retail products for this booking's service (or your active appointment), ranked with products linked to the service first. Triggers: what should I upsell, suggest retail for this client, what products go with this service. NOT add_retail_to_booking (actually adds a line to the cart).
 - send_client_message: READ — open SMS/WhatsApp with canned template for booking client (templateId, channel=sms|whatsapp). NOT add_client_note (internal note).
 - block_my_time: MUTATE — instant lunch/break block on own calendar (date, timeFrom/timeTo). NOT request_time_off (needs approval).
 - block_schedule: block lunch/break on own calendar only for providers; managers may block team when allowed.
@@ -328,6 +337,12 @@ export class ProviderAiCommandService {
     private providerOpenShifts: AiProviderOpenShiftsService,
     @Inject(forwardRef(() => AiProviderExp3Service))
     private providerExp3: AiProviderExp3Service,
+    @Inject(forwardRef(() => AiProviderClinicTasksAndResultsService))
+    private providerClinicTasksAndResults: AiProviderClinicTasksAndResultsService,
+    @Inject(forwardRef(() => AiGiftFulfillmentService))
+    private giftFulfillment: AiGiftFulfillmentService,
+    @Inject(forwardRef(() => AiRetailFinanceService))
+    private retailFinance: AiRetailFinanceService,
     private pushActions: ProviderPushActionService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
@@ -514,6 +529,25 @@ export class ProviderAiCommandService {
         );
       if (compound.success || compound.details?.failedStep) {
         return compound;
+      }
+    }
+
+    if (this.giftFulfillment.isFulfillmentCompound(prompt)) {
+      const giftFulfillmentCompound =
+        await this.giftFulfillment.handleFulfillmentCompound(
+          businessId,
+          prompt,
+          {
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+            ...context,
+          },
+          userId,
+        );
+      if (
+        giftFulfillmentCompound.success ||
+        giftFulfillmentCompound.details?.failedStep
+      ) {
+        return giftFulfillmentCompound;
       }
     }
 
@@ -709,6 +743,11 @@ export class ProviderAiCommandService {
       rescueReason = mobileFix.rescueReason;
     }
 
+    if ((parsed.action as string) === 'add_retail_to_my_booking') {
+      parsed.action = 'add_retail_to_booking';
+      rescueReason = 'retail_action_alias';
+    }
+
     recordMisrouteTelemetry(this.aiEvents, businessId, {
       surface: 'provider',
       prompt,
@@ -864,6 +903,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'update_bookings':
@@ -872,6 +912,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'mark_no_shows':
@@ -880,6 +921,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'payment_sweep':
@@ -888,6 +930,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'list_bookings':
@@ -959,6 +1002,7 @@ export class ProviderAiCommandService {
         );
         break;
       case 'add_retail_to_booking':
+      case 'set_retail_sales_lines':
       case 'send_client_message':
       case 'block_my_time':
       case 'request_time_off':
@@ -977,6 +1021,13 @@ export class ProviderAiCommandService {
           details: { clarify: true },
         };
         break;
+      case 'suggest_retail_upsell':
+        result = await this.retailFinance.handleSuggestRetailUpsell(
+          businessId,
+          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+          prompt,
+        );
+        break;
       case 'list_my_time_off_requests':
         result = (await this.providerTimeOff.handleIntent(
           businessId,
@@ -989,6 +1040,21 @@ export class ProviderAiCommandService {
           success: false,
           action: parsed.action,
           summary: 'Could not load your time-off requests.',
+          details: { clarify: true },
+        };
+        break;
+      case 'cancel_time_off_request':
+        result = (await this.providerTimeOff.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          'provider',
+          access.employee?.id,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: 'Could not cancel your time-off request.',
           details: { clarify: true },
         };
         break;
@@ -1074,6 +1140,30 @@ export class ProviderAiCommandService {
       case 'new_booking_push_actions':
         result = await this.pushNotifications.handleNewBookingPushActions();
         break;
+      case 'list_push_notifications':
+        result = await this.pushNotifications.handleListPushNotifications(
+          businessId,
+          userId,
+        );
+        break;
+      case 'mark_all_notifications_read':
+        result = await this.pushNotifications.handleMarkAllNotificationsRead(
+          businessId,
+          userId,
+        );
+        break;
+      case 'mark_booking_notifications_read':
+        result =
+          await this.pushNotifications.handleMarkBookingNotificationsRead(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              lastPush: parsed.params.lastPush ?? context?.lastPush,
+            },
+            prompt,
+          );
+        break;
       case 'explain_push_setup':
       case 'enable_push_notifications':
         result = (await this.providerPushSetup.handleIntent(
@@ -1110,6 +1200,8 @@ export class ProviderAiCommandService {
       case 'summarize_client':
       case 'show_client_history':
       case 'add_client_note':
+      case 'list_client_staff_notes':
+      case 'explain_client_intake':
         result = (await this.providerClientContext.handleIntent(
           businessId,
           userId,
@@ -1128,6 +1220,11 @@ export class ProviderAiCommandService {
       case 'team_floor_status':
       case 'check_in_client':
       case 'mark_running_late':
+      case 'mark_ready_now':
+      case 'suggest_cancel_note':
+      case 'request_client_review':
+      case 'list_reassign_options':
+      case 'reassign_booking_same_day':
         result = (await this.providerExp2.handleIntent(
           businessId,
           userId,
@@ -1281,6 +1378,32 @@ export class ProviderAiCommandService {
           parsed.params,
         );
         break;
+      case 'explain_provider_context':
+        result = await this.handleExplainProviderContext(businessId, userId);
+        break;
+      case 'list_upcoming_bookings':
+        result = await this.handleListUpcomingBookings(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'get_schedule_summary':
+        result = await this.handleGetScheduleSummary(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'update_provider_profile':
+        result = await this.handleUpdateProviderProfile(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
       case 'list_my_collection_queue':
         result =
           await this.providerClinicCollection.handleListMyCollectionQueue(
@@ -1316,6 +1439,102 @@ export class ProviderAiCommandService {
               sessionEmployeeId: scopedEmployeeId ?? undefined,
             },
           );
+        break;
+      case 'list_lab_results_queue':
+        result =
+          await this.providerClinicTasksAndResults.handleListLabResultsQueue(
+            businessId,
+            userId,
+          );
+        break;
+      case 'claim_clinic_task':
+        result = await this.providerClinicTasksAndResults.handleClaimClinicTask(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'complete_clinic_task':
+        result =
+          await this.providerClinicTasksAndResults.handleCompleteClinicTask(
+            businessId,
+            userId,
+            parsed.params,
+            prompt,
+          );
+        break;
+      case 'list_booking_lab_summaries':
+        result =
+          await this.providerClinicTasksAndResults.handleListBookingLabSummaries(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              bookingId: parsed.params.bookingId ?? context?.bookingId,
+            },
+            prompt,
+          );
+        break;
+      case 'gift_card_creation_queue':
+        result = await this.giftFulfillment.handleGiftCardCreationQueue(
+          businessId,
+        );
+        break;
+      case 'start_card_preparation':
+        result = await this.giftFulfillment.handleStartCardPreparation(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'mark_card_ready':
+        result = await this.giftFulfillment.handleMarkCardReady(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'delivery_queue':
+        result = await this.giftFulfillment.handleDeliveryQueue(businessId);
+        break;
+      case 'accept_delivery':
+        result = await this.giftFulfillment.handleAcceptDelivery(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'mark_out_for_delivery':
+        result = await this.giftFulfillment.handleMarkOutForDelivery(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'mark_delivered':
+        result = await this.giftFulfillment.handleMarkDelivered(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'capture_delivery_proof':
+        result = await this.giftFulfillment.handleCaptureDeliveryProof(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'notify_delay':
+        result = await this.giftFulfillment.handleNotifyDelay(
+          businessId,
+          parsed.params,
+          prompt,
+        );
         break;
       default:
         result = {
@@ -1421,6 +1640,24 @@ export class ProviderAiCommandService {
             summary: markPaid.summary,
             details: markPaid.details as Record<string, unknown>,
           };
+          break;
+        }
+        case 'set_retail_sales_lines': {
+          const cartResult = (await this.providerExp3.handleIntent(
+            businessId,
+            userId,
+            'set_retail_sales_lines',
+            stepParams,
+            step.segment,
+            compoundContext,
+            scopedEmployeeId,
+          )) ?? {
+            success: false,
+            action: 'set_retail_sales_lines',
+            summary: 'Could not update retail cart.',
+            details: { clarify: true },
+          };
+          stepResult = cartResult;
           break;
         }
         case 'explain_last_push':
@@ -1818,6 +2055,125 @@ export class ProviderAiCommandService {
     throw new BadRequestException('Unsupported action');
   }
 
+  private async handleExplainProviderContext(
+    businessId: string,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const ctx = await this.providerMobile.getContext(businessId, userId);
+    const viewLabel = ctx.viewMode === 'team' ? 'team view' : 'your own view';
+    const enabledFeatures = [
+      ctx.labFeaturesEnabled ? 'clinic lab' : null,
+      ctx.retailPosEnabled ? 'retail POS' : null,
+      ctx.whatsappContactEnabled ? 'WhatsApp contact' : null,
+    ].filter((feature): feature is string => Boolean(feature));
+
+    const summaryParts = [
+      `You're in ${viewLabel} as ${ctx.membershipRole}${ctx.employee ? ` (${ctx.employee.name})` : ''}`,
+      enabledFeatures.length
+        ? `${enabledFeatures.join(', ')} enabled`
+        : 'no extra features enabled for this business',
+    ];
+
+    return {
+      success: true,
+      action: 'explain_provider_context',
+      summary: `${summaryParts.join(' — ')}.`,
+      details: { context: ctx },
+    };
+  }
+
+  private async handleListUpcomingBookings(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<ProviderCommandResult> {
+    const days =
+      typeof params.days === 'number'
+        ? params.days
+        : (extractDaysFromPrompt(prompt) ?? 7);
+    const view = await this.providerMobile.getUpcomingBookings(
+      businessId,
+      userId,
+      days,
+    );
+    return {
+      success: true,
+      action: 'list_upcoming_bookings',
+      summary: view.bookings.length
+        ? `${view.bookings.length} upcoming booking(s) from ${view.from} to ${view.to}.`
+        : `No upcoming bookings from ${view.from} to ${view.to}.`,
+      details: { ...view },
+    };
+  }
+
+  private async handleGetScheduleSummary(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<ProviderCommandResult> {
+    const days =
+      typeof params.days === 'number'
+        ? params.days
+        : (extractDaysFromPrompt(prompt) ?? 14);
+    const summary = await this.providerMobile.getScheduleSummary(
+      businessId,
+      userId,
+      days,
+    );
+    const totalAvailable = summary.days.reduce(
+      (sum, d) => sum + d.available,
+      0,
+    );
+    const totalBooked = summary.days.reduce((sum, d) => sum + d.booked, 0);
+    return {
+      success: true,
+      action: 'get_schedule_summary',
+      summary: `Next ${days} day(s): ${totalBooked} booked, ${totalAvailable} available slot(s).`,
+      details: { ...summary },
+    };
+  }
+
+  private async handleUpdateProviderProfile(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const title =
+      typeof params.title === 'string' ? params.title.trim() : undefined;
+    const avatarUrl =
+      typeof params.avatarUrl === 'string'
+        ? params.avatarUrl.trim()
+        : undefined;
+    if (title === undefined && avatarUrl === undefined) {
+      return {
+        success: false,
+        action: 'update_provider_profile',
+        summary:
+          'What should I update on your profile — title or avatar URL?',
+        details: { clarify: true, missing: ['title', 'avatarUrl'] },
+      };
+    }
+
+    const profile = await this.providerMobile.updateProviderProfile(
+      businessId,
+      userId,
+      { title, avatarUrl },
+    );
+    const updatedFields = [
+      title !== undefined ? 'title' : null,
+      avatarUrl !== undefined ? 'avatar' : null,
+    ].filter((field): field is string => Boolean(field));
+
+    return {
+      success: true,
+      action: 'update_provider_profile',
+      summary: `Updated your ${updatedFields.join(' and ')}.`,
+      details: { profile },
+    };
+  }
+
   private async classifyIntent(
     businessId: string,
     userId: string,
@@ -1854,6 +2210,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
@@ -1877,7 +2234,7 @@ export class ProviderAiCommandService {
 
     const reason = String(params.reason ?? 'Cancelled by provider');
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'cancel_bookings',
@@ -1897,6 +2254,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
@@ -1936,7 +2294,7 @@ export class ProviderAiCommandService {
       paymentStatus ? `payment → ${paymentStatus}` : null,
     ].filter(Boolean);
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'update_bookings',
@@ -2209,6 +2567,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date && !params.dateFrom)
       params.date = toIsoDay(todayDisplay());
@@ -2228,7 +2587,7 @@ export class ProviderAiCommandService {
       };
     }
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'mark_no_shows',
@@ -2253,6 +2612,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date && !params.dateFrom)
       params.date = toIsoDay(todayDisplay());
@@ -2272,7 +2632,7 @@ export class ProviderAiCommandService {
       };
     }
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'payment_sweep',
@@ -2816,9 +3176,15 @@ export class ProviderAiCommandService {
       where.status = Not(In([BookingStatus.CANCELLED]));
     }
 
-    const dateRange = this.resolveDateRange(params);
-    if (dateRange) {
-      where.startTime = Between(dateRange.start, dateRange.end);
+    const hasExplicitBookingId =
+      typeof params.bookingId === 'string' && params.bookingId.trim().length > 0;
+    if (hasExplicitBookingId) {
+      where.id = params.bookingId;
+    } else {
+      const dateRange = this.resolveDateRange(params);
+      if (dateRange) {
+        where.startTime = Between(dateRange.start, dateRange.end);
+      }
     }
 
     let bookings = await this.bookingRepo.find({
@@ -2826,6 +3192,10 @@ export class ProviderAiCommandService {
       relations: { customer: true, service: true },
       order: { startTime: 'ASC' },
     });
+
+    if (hasExplicitBookingId) {
+      return bookings;
+    }
 
     if (params.customerName) {
       const name = String(params.customerName).toLowerCase();

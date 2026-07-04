@@ -13,6 +13,10 @@ describe('Provider AI exp-3 intents (prov-exp-5.3)', () => {
     ['Text Jane running late', 'send_client_message'],
     ['Block my break 3-3:15', 'block_my_time'],
     ['Request next Friday off', 'request_time_off'],
+    [
+      'Set retail cart to 2 shampoo and 1 conditioner',
+      'set_retail_sales_lines',
+    ],
   ])('rescues "%s" → %s', (prompt, expected) => {
     expect(rescueProviderExp3Intent(prompt, 'unknown')?.action).toBe(expected);
   });

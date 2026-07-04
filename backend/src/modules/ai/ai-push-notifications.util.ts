@@ -25,6 +25,8 @@ export const DASHBOARD_PUSH_NOTIFICATIONS_READ_INTENTS = [
 export const PROVIDER_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'retry_offline_action',
   'dismiss_push',
+  'mark_all_notifications_read',
+  'mark_booking_notifications_read',
 ] as const;
 
 export const PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS = [
@@ -33,6 +35,7 @@ export const PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS = [
   'offline_queue_status',
   'end_of_day_summary',
   'new_booking_push_actions',
+  'list_push_notifications',
 ] as const;
 
 export const CUSTOMER_PUSH_NOTIFICATIONS_INTENTS = [
@@ -156,12 +159,55 @@ export function isRetryOfflineActionPrompt(prompt: string): boolean {
   );
 }
 
+export function isMarkAllNotificationsReadPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (!/\bread\b/.test(normalized)) return false;
+  return (
+    /\bmark\b.*\b(all|everything)\b.*\b(notifications?|push(?:es)?)\b/.test(
+      normalized,
+    ) ||
+    /\b(all|everything)\b.*\bnotifications?\b.*\bread\b/.test(normalized) ||
+    /\bmark\b.*\b(all|everything)\b.*\bread\b/.test(normalized)
+  );
+}
+
+export function isMarkBookingNotificationsReadPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  return (
+    /\bmark\b/.test(normalized) &&
+    /\bread\b/.test(normalized) &&
+    /\b(notifications?|push(?:es)?)\b/.test(normalized) &&
+    /\b(this\s+booking|booking|appointment|for\s+[a-z])/.test(normalized)
+  );
+}
+
+export function isListPushNotificationsPrompt(prompt: string): boolean {
+  if (isNotificationHistoryPrompt(prompt)) return false;
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
+  if (isOpenBookingFromPushPrompt(prompt)) return false;
+  if (isExplainLastPushPrompt(prompt)) return false;
+  if (/\b(booking|appointment)\b/i.test(prompt)) return false;
+  const normalized = prompt.toLowerCase();
+  return (
+    /\b(show|open|list|view|check|see)\b.*\b(my\s+)?(notifications?|notification\s+center|push\s+notifications?)\b/.test(
+      normalized,
+    ) ||
+    /\bwhat\s+notifications?\s+do\s+i\s+have\b/.test(normalized) ||
+    /\bnotification\s+center\b/.test(normalized)
+  );
+}
+
 export function isDismissPushPrompt(prompt: string): boolean {
   if (/\b(patient|clinic)\s+alert\b/i.test(prompt)) return false;
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
   return (
     /\b(dismiss|clear|ignore|close)\b/i.test(prompt) &&
     /\b(push|notification|alert|banner)\b/i.test(prompt) &&
-    !/\bhistory\b/i.test(prompt)
+    !/\bhistory\b/i.test(prompt) &&
+    !/\bread\b/i.test(prompt)
   );
 }
 
@@ -437,6 +483,20 @@ export function buildNewBookingPushActionsGuide(): {
   };
 }
 
+export function summarizeProviderPushNotificationCenter(view: {
+  unreadCount: number;
+  items: Array<{ title: string; body: string; isRead: boolean }>;
+}): string {
+  if (!view.items.length) {
+    return 'No notifications in your inbox right now.';
+  }
+  const preview = view.items
+    .slice(0, 3)
+    .map((item) => `${item.isRead ? '' : '● '}${item.title}`)
+    .join('; ');
+  return `${view.unreadCount} unread of ${view.items.length} notification${view.items.length === 1 ? '' : 's'}: ${preview}${view.items.length > 3 ? '…' : ''}.`;
+}
+
 export function buildOfflineQueueStatusSummary(input: {
   online: boolean;
   queuedCount: number;
@@ -549,6 +609,24 @@ export function rescuePushNotificationsIntent(
   if (isEndOfDaySummaryPrompt(prompt)) {
     return { action: 'end_of_day_summary', rescueReason: 'end_of_day_summary' };
   }
+  if (isMarkAllNotificationsReadPrompt(prompt)) {
+    return {
+      action: 'mark_all_notifications_read',
+      rescueReason: 'mark_all_notifications_read',
+    };
+  }
+  if (isMarkBookingNotificationsReadPrompt(prompt)) {
+    return {
+      action: 'mark_booking_notifications_read',
+      rescueReason: 'mark_booking_notifications_read',
+    };
+  }
+  if (isListPushNotificationsPrompt(prompt)) {
+    return {
+      action: 'list_push_notifications',
+      rescueReason: 'list_push_notifications',
+    };
+  }
   if (isDismissPushPrompt(prompt)) {
     return { action: 'dismiss_push', rescueReason: 'dismiss_push' };
   }
@@ -585,7 +663,10 @@ export function isPushNotificationsDomainPrompt(prompt: string): boolean {
     isNotificationHistoryPrompt(text) ||
     isToggleBusinessEmailOnCustomerChangePrompt(text) ||
     isConfigureNotificationSettingsPrompt(text) ||
-    isConfigureWhatsappIntegrationPrompt(text)
+    isConfigureWhatsappIntegrationPrompt(text) ||
+    isMarkAllNotificationsReadPrompt(text) ||
+    isMarkBookingNotificationsReadPrompt(text) ||
+    isListPushNotificationsPrompt(text)
   );
 }
 

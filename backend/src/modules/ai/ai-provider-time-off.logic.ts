@@ -219,3 +219,55 @@ export async function handleListMyTimeOffRequestsLogic(
     { requests },
   );
 }
+
+export async function handleCancelTimeOffRequestLogic(
+  deps: ProviderTimeOffLogicDeps,
+  businessId: string,
+  employeeId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  let requestId =
+    (typeof params.requestId === 'string' && params.requestId.trim()) || null;
+
+  if (!requestId) {
+    const requests = await deps.timeOffService.listForEmployee(
+      businessId,
+      employeeId,
+      10,
+    );
+    const pending = requests.filter((r) => r.status === 'pending');
+    if (pending.length === 1) {
+      requestId = pending[0].id;
+    } else if (pending.length > 1) {
+      return failure(
+        'cancel_time_off_request',
+        'You have more than one pending time-off request — specify which one (dates or request id).',
+        { clarify: true, requests: pending },
+      );
+    } else {
+      return failure(
+        'cancel_time_off_request',
+        'No pending time-off request found to cancel.',
+      );
+    }
+  }
+
+  try {
+    const cancelled = await deps.timeOffService.cancelRequest(
+      businessId,
+      employeeId,
+      requestId,
+    );
+    return success(
+      'cancel_time_off_request',
+      `Cancelled time-off request for ${cancelled.startDate}${cancelled.endDate !== cancelled.startDate ? ` – ${cancelled.endDate}` : ''}.`,
+      { request: cancelled },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not cancel time-off request';
+    return failure('cancel_time_off_request', message);
+  }
+}

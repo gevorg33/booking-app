@@ -11,6 +11,7 @@ import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import { ExpensesService } from '../expenses/expenses.service.js';
 import { AnalyticsService } from '../analytics/analytics.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
+import { AiBookingDepthService } from './ai-booking-depth.service.js';
 
 describe('Sprint 33 retail/finance AI scenarios', () => {
   const product = {
@@ -174,6 +175,17 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Product), useValue: productRepo },
         { provide: getRepositoryToken(Employee), useValue: employeeRepo },
+        {
+          provide: AiBookingDepthService,
+          useValue: {
+            handleMarkPaid: jest.fn(async () => ({
+              success: true,
+              action: 'mark_paid',
+              summary: 'ok',
+              details: {},
+            })),
+          },
+        },
       ],
     }).compile();
 

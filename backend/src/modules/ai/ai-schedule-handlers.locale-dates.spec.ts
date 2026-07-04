@@ -33,6 +33,8 @@ describe('AiScheduleHandlersService locale dates', () => {
     {} as any,
     {} as any,
     scheduling as any,
+    {} as any,
+    {} as any,
   );
 
   it('localizes weekday and date in schedule gap summaries', async () => {

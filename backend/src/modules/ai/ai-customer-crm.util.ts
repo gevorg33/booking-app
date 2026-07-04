@@ -35,10 +35,12 @@ export const CUSTOMER_ACCOUNT_MUTATE_INTENTS = [
   'privacy_export',
   'privacy_delete',
   'update_my_profile',
+  'update_my_locale',
 ] as const;
 
 export const CUSTOMER_ACCOUNT_READ_INTENTS = [
   'my_profile',
+  'get_my_locale',
   'my_appointments',
   'explain_my_subscription',
   'my_subscriptions',
@@ -47,6 +49,7 @@ export const CUSTOMER_ACCOUNT_READ_INTENTS = [
   'gift_card_balance',
   'gift_card_redemption_history',
   'track_physical_gift_card_order',
+  'explain_gift_card_order',
 ] as const;
 
 export const DISCOVERY_INTENTS = [

@@ -10,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import { PushService } from '../provider-mobile/push.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import { ProviderPushHistoryService } from '../provider-mobile/provider-push-history.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposePushNotificationsCompoundPrompt,
@@ -23,6 +24,9 @@ import {
   handleEnableNotificationsLogic,
   handleEndOfDaySummaryLogic,
   handleExplainLastPushLogic,
+  handleListPushNotificationsLogic,
+  handleMarkAllNotificationsReadLogic,
+  handleMarkBookingNotificationsReadLogic,
   handleNewBookingPushActionsLogic,
   handleNotificationHistoryLogic,
   handleOfflineQueueStatusLogic,
@@ -43,6 +47,7 @@ export class AiPushNotificationsService {
     whatsappIntegrationService: WhatsAppIntegrationService,
     pushService: PushService,
     providerMobileService: ProviderMobileService,
+    pushHistoryService: ProviderPushHistoryService,
     @InjectRepository(Booking) bookingRepo: Repository<Booking>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Customer) customerRepo: Repository<Customer>,
@@ -55,6 +60,7 @@ export class AiPushNotificationsService {
       whatsappIntegrationService,
       pushService,
       providerMobileService,
+      pushHistoryService,
       bookingRepo,
       businessRepo,
       customerRepo,
@@ -102,6 +108,29 @@ export class AiPushNotificationsService {
 
   handleDismissPush(params: Record<string, any>) {
     return handleDismissPushLogic(this.deps, params);
+  }
+
+  handleListPushNotifications(businessId: string, userId: string) {
+    return handleListPushNotificationsLogic(this.deps, businessId, userId);
+  }
+
+  handleMarkAllNotificationsRead(businessId: string, userId: string) {
+    return handleMarkAllNotificationsReadLogic(this.deps, businessId, userId);
+  }
+
+  handleMarkBookingNotificationsRead(
+    businessId: string,
+    userId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleMarkBookingNotificationsReadLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+      prompt,
+    );
   }
 
   handleEndOfDaySummary(businessId: string, params: Record<string, any>) {

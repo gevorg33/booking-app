@@ -147,6 +147,42 @@ const NOTE_I18N: Record<
   },
 };
 
+const STAFF_NOTES_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'staff-notes-show-en': {
+    hy: 'Ցույց տուր այս հաճախորդի staff notes-ը',
+    ru: 'Покажи staff notes этого клиента',
+  },
+  'staff-notes-any-en': {
+    hy: 'Կա՞ն նշումներ Jane-ի մասին',
+    ru: 'Есть какие-нибудь заметки о Jane?',
+  },
+  'staff-notes-list-en': {
+    hy: 'Ցուցակագրիր John-ի հաճախորդի նշումները',
+    ru: 'Покажи список заметок клиента John',
+  },
+};
+
+const CLIENT_INTAKE_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'intake-what-say-en': {
+    hy: 'Ի՞նչ է ասում նրանց pre-visit intake-ը',
+    ru: 'Что говорит их pre-visit intake?',
+  },
+  'intake-show-answers-en': {
+    hy: 'Ցույց տուր Jane-ի pre-visit intake պատասխանները',
+    ru: 'Покажи ответы Jane на pre-visit intake',
+  },
+  'intake-fill-out-en': {
+    hy: 'Նրանք լրացրե՞լ են intake հարցաշարը',
+    ru: 'Они заполнили анкету intake?',
+  },
+};
+
 function pushClientContextMultilingualRows(
   rows: ProviderClientContextMultilingualScenario[],
   enScenarioId: string,
@@ -190,6 +226,22 @@ function buildProviderClientContextMultilingualScenarios(): ProviderClientContex
       rows,
       enScenarioId,
       'add_client_note',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(STAFF_NOTES_I18N)) {
+    pushClientContextMultilingualRows(
+      rows,
+      enScenarioId,
+      'list_client_staff_notes',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(CLIENT_INTAKE_I18N)) {
+    pushClientContextMultilingualRows(
+      rows,
+      enScenarioId,
+      'explain_client_intake',
       i18n,
     );
   }

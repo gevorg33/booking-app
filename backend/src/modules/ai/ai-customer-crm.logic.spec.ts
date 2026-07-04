@@ -21,6 +21,7 @@ import {
   handleRequestGiftCardCancelLogic,
   handleRequestGiftCardModifyLogic,
   handleTrackPhysicalGiftCardOrderLogic,
+  handleExplainGiftCardOrderLogic,
   handlePrivacyExportLogic,
   handlePrivacyDeleteLogic,
   handleDiscoverPackagesLogic,
@@ -140,6 +141,10 @@ function buildDeps(
           giftCards: { purchaseEnabled: true, presetAmounts: [50, 100] },
         },
       })),
+    } as any,
+    publicCustomerAuthService: {
+      getPreferredLocale: jest.fn(),
+      updatePreferredLocale: jest.fn(),
     } as any,
     ...overrides,
   };
@@ -645,6 +650,50 @@ describe('ai-customer-crm.logic', () => {
           )
         ).success,
       ).toBe(false);
+    });
+
+    it('explains a single gift card order', async () => {
+      expect(
+        (
+          await handleExplainGiftCardOrderLogic(buildDeps(), 'biz-1', {})
+        ).success,
+      ).toBe(false);
+      expect(
+        (
+          await handleExplainGiftCardOrderLogic(buildDeps(), 'biz-1', {
+            sessionCustomerId: 'c1',
+          })
+        ).details?.clarify,
+      ).toBe(true);
+      const found = await handleExplainGiftCardOrderLogic(
+        buildDeps({
+          giftCardOrderService: {
+            getCustomerOrder: jest.fn(async () => ({
+              id: 'gc-1',
+              cardType: 'monetary',
+              balance: 25,
+              deliveryMethod: 'digital',
+              fulfillmentStatus: 'delivered',
+            })),
+          } as any,
+        }),
+        'biz-1',
+        { sessionCustomerId: 'c1', giftCardId: 'gc-1' },
+      );
+      expect(found.success).toBe(true);
+      expect(found.summary).toContain('25.00');
+      const notFound = await handleExplainGiftCardOrderLogic(
+        buildDeps({
+          giftCardOrderService: {
+            getCustomerOrder: jest.fn(async () => {
+              throw new Error('Gift card not found');
+            }),
+          } as any,
+        }),
+        'biz-1',
+        { sessionCustomerId: 'c1', giftCardId: 'missing' },
+      );
+      expect(notFound.success).toBe(false);
     });
 
     it('handles gift card cancel/modify and privacy', async () => {

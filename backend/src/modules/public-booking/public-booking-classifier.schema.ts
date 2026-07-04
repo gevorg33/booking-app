@@ -8,6 +8,7 @@ import { EXPLAIN_DEPOSIT_FORFEITURE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/
 import { BOOKING_LANGUAGES_CLASSIFIER_RULES } from '../ai/ai-booking-languages.fixtures.js';
 import { BOOKING_DATE_FORMAT_CLASSIFIER_RULES } from '../ai/ai-booking-date-format.fixtures.js';
 import { PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES } from '../ai/ai-package-display-name.fixtures.js';
+import { SUGGEST_PACKAGE_BLOCK_CLASSIFIER_RULES } from '../ai/ai-suggest-package-block.fixtures.js';
 import { TOUR_BOOKING_CLASSIFIER_RULES } from '../ai/ai-tour-booking.fixtures.js';
 import { TOUR_DAY_SLOTS_CLASSIFIER_RULES } from '../ai/ai-tour-day-slots.fixtures.js';
 import { TOUR_MEETING_POINT_CLASSIFIER_RULES } from '../ai/ai-tour-meeting-point.fixtures.js';
@@ -35,6 +36,7 @@ import { CUSTOMER_PUBLIC_EXPLAIN_PUBLIC_INTAKE_FORM_CLASSIFIER_RULES } from '../
 import { EXPLAIN_PUBLIC_INTAKE_FORM_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-public-intake-form-multilingual.fixtures.js';
 import { PUBLIC_COMPLETE_INTAKE_AND_BOOK_CLASSIFIER_RULES } from '../ai/ai-complete-intake-and-book.fixtures.js';
 import { COMPLETE_INTAKE_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-complete-intake-and-book-multilingual.fixtures.js';
+import { INTAKE_MUTATE_CHAIN_CLASSIFIER_RULES } from '../ai/ai-intake-mutate-chain.fixtures.js';
 import { INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES } from '../ai/ai-intake-lab-book-pay-compound.fixtures.js';
 import { INTAKE_LAB_BOOK_PAY_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-intake-lab-book-pay-compound-multilingual.fixtures.js';
 import { TOUR_GROUP_CHECKOUT_CLASSIFIER_RULES } from '../ai/ai-tour-group-checkout-compound.fixtures.js';
@@ -56,6 +58,7 @@ import { PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from '../ai/ai-product-guid
 import { CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES } from '../ai/ai-explain-prepayment.util.js';
 import { CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES } from '../ai/ai-cash-payment-checkout.util.js';
 import { CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES } from '../ai/ai-pay-online-checkout.util.js';
+import { CHECKOUT_QUOTE_AND_CONFIRM_CLASSIFIER_RULES } from '../ai/ai-checkout-quote-and-confirm.fixtures.js';
 import { CUSTOMER_PUBLIC_DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES } from '../ai/ai-diagnose-stripe-checkout-failure.util.js';
 import { DIAGNOSE_STRIPE_CHECKOUT_FAILURE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-diagnose-stripe-checkout-failure-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_PAY_AT_VENUE_FALLBACK_CLASSIFIER_RULES } from '../ai/ai-pay-at-venue-fallback.util.js';
@@ -96,6 +99,7 @@ import { EXPLAIN_AMOUNT_DUE_NOW_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-e
 import { CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES } from '../ai/ai-explain-guest-checkout-fields.util.js';
 import { EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-guest-checkout-fields-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_WHY_SIGN_IN_CLASSIFIER_RULES } from '../ai/ai-explain-why-sign-in.util.js';
+import { SIGN_IN_WITH_PROVIDER_CLASSIFIER_RULES } from '../ai/ai-sign-in-with-provider.util.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_MANAGE_BOOKING_PAGE_CLASSIFIER_RULES } from '../ai/ai-explain-manage-booking-page.fixtures.js';
 import { EXPLAIN_MANAGE_BOOKING_PAGE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-manage-booking-page-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_SIGN_IN_TO_MANAGE_BOOKING_CLASSIFIER_RULES } from '../ai/ai-sign-in-to-manage-booking.util.js';
@@ -131,6 +135,8 @@ import { SWITCH_PROVIDER_SAME_TIME_CLASSIFIER_RULES } from '../ai/ai-switch-prov
 import { SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-switch-provider-same-time-multilingual.fixtures.js';
 import { EXPLAIN_PROFESSIONAL_PROFILE_CLASSIFIER_RULES } from '../ai/ai-explain-professional-profile.fixtures.js';
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-professional-profile-multilingual.fixtures.js';
+import { LIST_PROVIDER_REVIEWS_CLASSIFIER_RULES } from '../ai/ai-list-provider-reviews.fixtures.js';
+import { SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES } from '../ai/ai-submit-review-actions.fixtures.js';
 import { CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES } from '../ai/ai-how-to-download-app.fixtures.js';
 import { HOW_TO_DOWNLOAD_APP_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-how-to-download-app-multilingual.fixtures.js';
 
@@ -139,7 +145,7 @@ export function buildPublicClassifierSchema(): string {
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "find_services_under_budget" | "find_evening_weekend_slots" | "check_availability" | "explain_provider_availability" | "recommend_specialists" | "business_info" | "explain_salon_profile" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_checkout_tax" | "explain_deposit_forfeiture" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "explain_tour_meeting_point" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "explain_lab_prep" | "explain_clinic_booking_fields" | "explain_public_intake_form" | "complete_intake_and_book" | "explain_guest_checkout_fields" | "explain_why_sign_in" | "explain_manage_booking_page" | "sign_in_to_manage_booking" | "recover_lost_manage_link" | "fix_checkout_validation_error" | "confirm_my_booking_details" | "add_booking_to_calendar" | "book_another_service" | "explain_preparation_notes" | "get_directions_to_salon" | "explain_why_stripe_required" | "diagnose_stripe_checkout_failure" | "pay_at_venue_fallback" | "resume_booking_draft" | "explain_slot_no_longer_available" | "explain_voice_input" | "speak_assistant_reply" | "give_ai_feedback" | "explain_rtl_layout" | "explain_checkout_total" | "explain_amount_due_now" | "explain_service_price" | "explain_payment_options_for_service" | "find_soonest_appointment" | "join_waitlist" | "check_waitlist_status" | "compare_services" | "explain_package_savings" | "explain_subscription_vs_one_time" | "filter_services_no_prepayment" | "explain_business_hours_and_location" | "explain_provider_specialty" | "explain_professional_profile" | "explain_any_provider_option" | "pick_provider_for_service" | "switch_provider_same_time" | "choose_payment_method" | "pay_cash_at_visit" | "pay_online" | "book_multi_service" | "check_multi_service_availability" | "add_services_to_cart" | "how_to_download_app" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
+  "action": "list_providers" | "list_services" | "find_services_under_budget" | "find_evening_weekend_slots" | "check_availability" | "explain_provider_availability" | "recommend_specialists" | "business_info" | "list_public_promotions" | "explain_salon_profile" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_checkout_tax" | "explain_deposit_forfeiture" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "explain_tour_meeting_point" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "explain_lab_prep" | "explain_clinic_booking_fields" | "explain_public_intake_form" | "complete_intake_and_book" | "create_intake_draft" | "get_intake_flow_status" | "start_pre_visit_intake" | "submit_intake_answers" | "explain_guest_checkout_fields" | "explain_why_sign_in" | "sign_in_with_google" | "sign_in_with_apple" | "sign_in_with_phone" | "get_my_locale" | "update_my_locale" | "explain_manage_booking_page" | "sign_in_to_manage_booking" | "recover_lost_manage_link" | "fix_checkout_validation_error" | "confirm_my_booking_details" | "add_booking_to_calendar" | "book_another_service" | "explain_preparation_notes" | "get_directions_to_salon" | "explain_why_stripe_required" | "diagnose_stripe_checkout_failure" | "pay_at_venue_fallback" | "resume_booking_draft" | "explain_slot_no_longer_available" | "explain_voice_input" | "speak_assistant_reply" | "give_ai_feedback" | "explain_rtl_layout" | "explain_checkout_total" | "explain_amount_due_now" | "explain_service_price" | "explain_payment_options_for_service" | "find_soonest_appointment" | "join_waitlist" | "check_waitlist_status" | "compare_services" | "explain_package_savings" | "explain_subscription_vs_one_time" | "filter_services_no_prepayment" | "explain_business_hours_and_location" | "explain_provider_specialty" | "explain_professional_profile" | "list_provider_reviews" | "submit_provider_review" | "explain_any_provider_option" | "pick_provider_for_service" | "switch_provider_same_time" | "choose_payment_method" | "pay_cash_at_visit" | "pay_online" | "get_booking_quote" | "get_package_quote" | "get_multi_service_quote" | "confirm_stripe_payment" | "book_multi_service" | "check_multi_service_availability" | "add_services_to_cart" | "preview_multi_service_cart" | "suggest_package_block" | "how_to_download_app" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "employeeRole": "string or null — specialist role/title from the Providers list (e.g. cosmetologist, massage specialist) when the user asks for top/best rated by job title",
@@ -162,13 +168,24 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "serviceRank": "highest_price" | "lowest_price" | "most_popular" | null — rank catalog services for list_services (premium/cheapest/popular service, not specialist ratings),
     "packageName": "string or null — named package/bundle/spa day for explain_package_savings or package booking",
     "aspect": "named_provider | specialty_match | what_it_means | assignment | picker | hours | location | parking | hours_and_location | directions | fasting | preparation | what_to_bring | meeting_point | checkout | confirmation | service_list | all | null — explain_provider_specialty, explain_any_provider_option, explain_business_hours_and_location, get_directions_to_salon, explain_preparation_notes, or explain_checkout_tax when clear",
-    "providerName": "string or null — named provider for explain_provider_specialty (Tell me about Anna)",
+    "providerName": "string or null — named provider for explain_provider_specialty (Tell me about Anna) or submit_provider_review",
+    "rating": "number or null — 1 to 5 star rating for submit_provider_review",
+    "comment": "string or null — free-text comment for submit_provider_review",
+    "idToken": "string or null — Google idToken for an anonymous customer submitting submit_provider_review (usually carried in session, not typed by the user)",
     "specialtyTopic": "string or null — hair/skin/service topic for explain_provider_specialty (curly hair, balayage)",
     "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color)",
     "customerName": "string or null",
     "customerEmail": "string or null",
     "customerPhone": "string or null",
-    "topicId": "string or null — optional public guide playbook id (public-booking-professionals, public-booking-services, public-checkout) for explain_app_feature / guide_user_flow / explain_current_screen; bookingStep in session selects playbook when omitted"
+    "topicId": "string or null — optional public guide playbook id (public-booking-professionals, public-booking-services, public-checkout) for explain_app_feature / guide_user_flow / explain_current_screen; bookingStep in session selects playbook when omitted",
+    "promoCode": "string or null — promo code to apply for get_booking_quote / get_package_quote / get_multi_service_quote",
+    "loyaltyPointsToRedeem": "number or null — loyalty points to redeem for get_booking_quote / get_package_quote / get_multi_service_quote",
+    "paxCount": "number or null — party size for get_booking_quote",
+    "purchasePlanId": "string or null — subscription purchase plan id for get_booking_quote",
+    "sessionId": "string or null — Stripe checkout session id for confirm_stripe_payment (usually from return-url/session context, not typed by the user)",
+    "intakeId": "string or null — pre-visit intake id for get_intake_flow_status / start_pre_visit_intake / submit_intake_answers (from session, set by create_intake_draft)",
+    "answers": ["string"] or null — one or more free-text intake answers to submit in order for submit_intake_answers,
+    "preferredLocale": "en | hy | ru | null — requested language for update_my_locale"
   },
   "reasoning": "one short sentence"
 }
@@ -202,6 +219,7 @@ ${PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_CASH_PAYMENT_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES}
+${CHECKOUT_QUOTE_AND_CONFIRM_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES}
 ${DIAGNOSE_STRIPE_CHECKOUT_FAILURE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_PAY_AT_VENUE_FALLBACK_CLASSIFIER_RULES}
@@ -219,6 +237,7 @@ ${GIVE_AI_FEEDBACK_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_RTL_LAYOUT_CLASSIFIER_RULES}
 ${EXPLAIN_RTL_LAYOUT_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES}
+${SUGGEST_PACKAGE_BLOCK_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_PROMO_CODE_HELP_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_SERVICE_PRICE_CLASSIFIER_RULES}
@@ -243,6 +262,7 @@ ${CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES}
 ${EXPLAIN_GUEST_CHECKOUT_FIELDS_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_WHY_SIGN_IN_CLASSIFIER_RULES}
 ${EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_CLASSIFIER_RULES}
+${SIGN_IN_WITH_PROVIDER_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_EXPLAIN_MANAGE_BOOKING_PAGE_CLASSIFIER_RULES}
 ${EXPLAIN_MANAGE_BOOKING_PAGE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_SIGN_IN_TO_MANAGE_BOOKING_CLASSIFIER_RULES}
@@ -275,6 +295,8 @@ ${SWITCH_PROVIDER_SAME_TIME_CLASSIFIER_RULES}
 ${SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_CLASSIFIER_RULES}
 ${EXPLAIN_PROFESSIONAL_PROFILE_CLASSIFIER_RULES}
 ${EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_CLASSIFIER_RULES}
+${LIST_PROVIDER_REVIEWS_CLASSIFIER_RULES}
+${SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES}
 ${HOW_TO_DOWNLOAD_APP_MULTILINGUAL_CLASSIFIER_RULES}
 
@@ -330,6 +352,7 @@ ${CUSTOMER_PUBLIC_EXPLAIN_PUBLIC_INTAKE_FORM_CLASSIFIER_RULES}
 ${EXPLAIN_PUBLIC_INTAKE_FORM_MULTILINGUAL_CLASSIFIER_RULES}
 ${PUBLIC_COMPLETE_INTAKE_AND_BOOK_CLASSIFIER_RULES}
 ${COMPLETE_INTAKE_AND_BOOK_MULTILINGUAL_CLASSIFIER_RULES}
+${INTAKE_MUTATE_CHAIN_CLASSIFIER_RULES}
 ${INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES}
 ${INTAKE_LAB_BOOK_PAY_MULTILINGUAL_CLASSIFIER_RULES}
 ${TOUR_GROUP_CHECKOUT_CLASSIFIER_RULES}

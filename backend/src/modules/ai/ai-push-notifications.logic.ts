@@ -8,6 +8,7 @@ import type { NotificationsService } from '../notifications/notifications.servic
 import type { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import type { PushService } from '../provider-mobile/push.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import type { ProviderPushHistoryService } from '../provider-mobile/provider-push-history.service.js';
 import {
   aggregateEodSummaries,
   buildEodPushPayload,
@@ -31,6 +32,7 @@ import {
   extractReminderHoursFromPrompt,
   resolveCommandPromptText,
   parseProviderLastPushPayload,
+  summarizeProviderPushNotificationCenter,
   type PushNotificationsCompoundStep,
   type ProviderLastPushPayload,
 } from './ai-push-notifications.util.js';
@@ -40,6 +42,7 @@ export interface PushNotificationsLogicDeps {
   whatsappIntegrationService: WhatsAppIntegrationService;
   pushService: PushService;
   providerMobileService: ProviderMobileService;
+  pushHistoryService: ProviderPushHistoryService;
   bookingRepo: Repository<Booking>;
   businessRepo: Repository<Business>;
   customerRepo: Repository<Customer>;
@@ -239,6 +242,74 @@ export async function handleDismissPushLogic(
       pushType: payload?.pushType ?? null,
       bookingId: payload?.bookingId ?? null,
     },
+  );
+}
+
+export async function handleListPushNotificationsLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const view = await deps.pushHistoryService.listNotificationCenter(
+    businessId,
+    userId,
+  );
+  return success(
+    'list_push_notifications',
+    summarizeProviderPushNotificationCenter(view),
+    { ...view },
+  );
+}
+
+export async function handleMarkAllNotificationsReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const { updated } = await deps.pushHistoryService.markAllNotificationsRead(
+    businessId,
+    userId,
+  );
+  return success(
+    'mark_all_notifications_read',
+    updated
+      ? `Marked ${updated} notification${updated === 1 ? '' : 's'} as read.`
+      : 'No unread notifications to mark as read.',
+    { updated },
+  );
+}
+
+export async function handleMarkBookingNotificationsReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const promptText = resolveCommandPromptText(prompt, params);
+  const payload = resolveLastPush(params);
+  const bookingId =
+    (params.bookingId as string | undefined) ??
+    payload?.bookingId ??
+    extractBookingIdFromPushPrompt(promptText);
+
+  if (!bookingId) {
+    return failure(
+      'mark_booking_notifications_read',
+      "Specify which booking's notifications to mark as read.",
+      { clarify: true, missing: ['bookingId'] },
+    );
+  }
+
+  await deps.pushHistoryService.markLatestBookingNotificationRead(
+    businessId,
+    userId,
+    bookingId,
+  );
+  return success(
+    'mark_booking_notifications_read',
+    'Marked notifications for that booking as read.',
+    { bookingId },
   );
 }
 

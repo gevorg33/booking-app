@@ -91,11 +91,16 @@ export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
   'join_waitlist',
   'cancel_package_visit_self',
   'reschedule_package_visit_self',
+  'reschedule_package_lines',
   'book_with_cash',
   'book_with_gift_card',
   'change_provider_on_reschedule',
   'add_services_to_cart',
   'remove_service_from_cart',
+  'cancel_booking_with_token',
+  'reschedule_booking_with_token',
+  'cancel_package_visit_with_token',
+  'reschedule_package_visit_with_token',
 ] as const;
 
 export const SELF_SERVICE_BOOKING_READ_INTENTS = [
@@ -126,6 +131,8 @@ export const SELF_SERVICE_BOOKING_READ_INTENTS = [
   'explain_clinic_booking_fields',
   'show_cart_total_duration',
   'share_my_booking',
+  'preview_multi_service_cart',
+  'suggest_package_block',
 ] as const;
 
 export const SELF_SERVICE_BOOKING_INTENTS = [

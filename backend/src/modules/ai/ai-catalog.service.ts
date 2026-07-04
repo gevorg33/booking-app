@@ -24,9 +24,12 @@ import {
   handleCreateServiceCategoryLogic,
   handleCreateSubscriptionPlanLogic,
   handleCatalogCompoundLogic,
+  handleActivatePackageLogic,
   handleDeactivatePackageLogic,
   handleDeactivateServiceLogic,
   handleUpdateServiceLogic,
+  handleUpdateServiceCategoryLogic,
+  handleDeleteServiceCategoryLogic,
   resolveCategoryByName,
   handleDeactivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
@@ -76,6 +79,14 @@ export class AiCatalogService {
 
   handleCreateServiceCategory(businessId: string, params: Record<string, any>) {
     return handleCreateServiceCategoryLogic(this.deps, businessId, params);
+  }
+
+  handleUpdateServiceCategory(businessId: string, params: Record<string, any>) {
+    return handleUpdateServiceCategoryLogic(this.deps, businessId, params);
+  }
+
+  handleDeleteServiceCategory(businessId: string, params: Record<string, any>) {
+    return handleDeleteServiceCategoryLogic(this.deps, businessId, params);
   }
 
   handleBulkCreateCatalog(
@@ -155,6 +166,10 @@ export class AiCatalogService {
 
   handleDeactivatePackage(businessId: string, params: Record<string, any>) {
     return handleDeactivatePackageLogic(this.deps, businessId, params);
+  }
+
+  handleActivatePackage(businessId: string, params: Record<string, any>) {
+    return handleActivatePackageLogic(this.deps, businessId, params);
   }
 
   handleDuplicatePackage(businessId: string, params: Record<string, any>) {

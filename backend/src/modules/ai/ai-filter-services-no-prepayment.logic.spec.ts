@@ -69,6 +69,7 @@ function buildDeps(
     } as unknown as PaymentsLogicDeps['serviceRepo'],
     giftCardRepo: {} as PaymentsLogicDeps['giftCardRepo'],
     serviceService: {} as PaymentsLogicDeps['serviceService'],
+    bookingPaymentService: {} as PaymentsLogicDeps['bookingPaymentService'],
     ...overrides,
   };
 }

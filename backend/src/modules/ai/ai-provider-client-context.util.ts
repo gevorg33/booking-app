@@ -3,6 +3,8 @@ import { formatProviderCustomerSnapshotBadgesText } from '../provider-mobile/pro
 import { formatProviderLoyaltyQuickViewSummary } from '../provider-mobile/provider-booking-customer-loyalty.util.js';
 import type { ProviderBookingCustomerContextView } from '../provider-mobile/provider-booking-customer-context.util.js';
 import type { ProviderBookingCompletedVisitView } from '../provider-mobile/provider-booking-visit-history.util.js';
+import type { ProviderBookingCustomerStaffNotesListView } from '../provider-mobile/provider-booking-customer-staff-notes.util.js';
+import type { ProviderPreVisitIntakeSummaryView } from '../provider-mobile/provider-booking-pre-visit-intake.util.js';
 import { isCatalogMutateCommandPrompt } from './ai-catalog.util.js';
 import { isSubscriptionUsageHistoryPrompt } from './ai-customer-crm.util.js';
 import { PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS } from './ai-provider-client-context.fixtures.js';
@@ -15,6 +17,8 @@ export const PROVIDER_CLIENT_CONTEXT_INTENTS = [
   'summarize_client',
   'show_client_history',
   'add_client_note',
+  'list_client_staff_notes',
+  'explain_client_intake',
 ] as const;
 
 export type ProviderClientContextIntent =
@@ -31,6 +35,8 @@ function containsCyrillicScript(text: string): boolean {
 export function isSummarizeClientPrompt(prompt: string): boolean {
   if (isShowClientHistoryPrompt(prompt)) return false;
   if (isAddClientNotePrompt(prompt)) return false;
+  if (isListClientStaffNotesPrompt(prompt)) return false;
+  if (isExplainClientIntakePrompt(prompt)) return false;
   if (isSummarizeMyAppointmentsPrompt(prompt)) return false;
   if (isCatalogMutateCommandPrompt(prompt)) return false;
   if (isSummarizeLoyaltyProgramPrompt(prompt)) return false;
@@ -124,6 +130,7 @@ export function isShowClientHistoryPrompt(prompt: string): boolean {
 
 export function isAddClientNotePrompt(prompt: string): boolean {
   if (isCatalogMutateCommandPrompt(prompt)) return false;
+  if (isListClientStaffNotesPrompt(prompt)) return false;
 
   const lower = prompt.toLowerCase();
   return (
@@ -140,6 +147,44 @@ export function isAddClientNotePrompt(prompt: string): boolean {
       /(\u0437\u0430\u043c\u0435\u0442\u043a|\u0434\u043e\u0431\u0430\u0432\u044c|\u0437\u0430\u043f\u043e\u043c\u043d\u0438|staff note|client note|save client note|log staff note|add note)/i.test(
         prompt,
       ))
+  );
+}
+
+export function isListClientStaffNotesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(show|list|view|read|any|what|see|check)\b.*\b(staff )?notes?\b/i.test(
+      lower,
+    ) ||
+    /\bnotes?\s+(do we have|on|about|for)\b/i.test(lower) ||
+    (containsArmenianScript(prompt) &&
+      /(\u0581\u0578\u0582\u0575\u0581\s+\u057f\u0578\u0582\u0580.*\u0576\u0577\u0578\u0576|\u0576\u0577\u0578\u0576\u0576\u0565\u0580\u0568|\u056b\u055e\u0576\u0579\s+\u0576\u0577\u0578\u0576)/i.test(
+        prompt,
+      )) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u043f\u043e\u043a\u0430\u0436\u0438.*\u0437\u0430\u043c\u0435\u0442\u043a|\u043a\u0430\u043a\u0438\u0435\s+\u0437\u0430\u043c\u0435\u0442\u043a|\u0437\u0430\u043c\u0435\u0442\u043a\u0438\s+\u043e)/i.test(prompt))
+  );
+}
+
+export function isExplainClientIntakePrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const intakeCue =
+    /\b(intake|pre-?visit (?:form|questionnaire|answers)|questionnaire)\b/i.test(
+      lower,
+    ) ||
+    (containsArmenianScript(prompt) && /(\u0570\u0561\u0580\u0581\u0561\u0577\u0561\u0580|intake)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u0430\u043d\u043a\u0435\u0442|\u043e\u043f\u0440\u043e\u0441\u043d\u0438\u043a|intake)/i.test(prompt));
+  if (!intakeCue) return false;
+
+  return (
+    /\b(what|show|explain|summarize|did (?:they|he|she) fill|answers?|says?)\b/i.test(
+      lower,
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(\u056b\u0576\u0579|\u0581\u0578\u0582\u0575\u0581\s+\u057f\u0578\u0582\u0580|\u0562\u0561\u0581\u0561\u057f\u0580\u056b\u0580|\u057a\u0561\u057f\u0561\u057d\u056d\u0561\u0576)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(\u0447\u0442\u043e|\u043f\u043e\u043a\u0430\u0436\u0438|\u043e\u0431\u044a\u044f\u0441\u043d\u0438|\u043e\u0442\u0432\u0435\u0442)/i.test(prompt))
   );
 }
 
@@ -232,6 +277,18 @@ export function rescueProviderClientContextIntent(
   const exact = matchProviderClientContextScenario(prompt);
   if (exact) return exact;
 
+  if (isListClientStaffNotesPrompt(prompt)) {
+    return {
+      action: 'list_client_staff_notes',
+      rescueReason: 'list_client_staff_notes',
+    };
+  }
+  if (isExplainClientIntakePrompt(prompt)) {
+    return {
+      action: 'explain_client_intake',
+      rescueReason: 'explain_client_intake',
+    };
+  }
   if (isAddClientNotePrompt(prompt)) {
     return { action: 'add_client_note', rescueReason: 'add_client_note' };
   }
@@ -355,4 +412,44 @@ export function resolveClientNoteBody(
     return fromParams.trim();
   }
   return extractClientNoteBodyFromPrompt(prompt);
+}
+
+export function formatProviderClientStaffNotesText(
+  customerName: string,
+  view: ProviderBookingCustomerStaffNotesListView,
+): string {
+  if (!view.notes.length) {
+    return `No staff notes on file for ${customerName} yet.`;
+  }
+
+  const lines = view.notes.map(
+    (note) =>
+      `${formatDateDisplay(note.createdAt)}${note.authorName ? ` (${note.authorName})` : ''} — ${note.body ?? '(hidden)'}`,
+  );
+
+  return `${customerName} — ${view.notes.length} staff note${view.notes.length === 1 ? '' : 's'}:\n${lines.join('\n')}`;
+}
+
+export function formatProviderClientIntakeText(
+  view: ProviderPreVisitIntakeSummaryView,
+): string {
+  if (!view.visible) {
+    return 'No pre-visit intake applies to this appointment.';
+  }
+  if (view.status === 'none') {
+    return 'No pre-visit intake has been submitted for this booking yet.';
+  }
+  if (!view.answers.length) {
+    return `Pre-visit intake "${view.questionnaireTitle ?? 'questionnaire'}" is ${view.status}${view.completedAt ? ` (completed ${formatDateDisplay(view.completedAt)})` : ''} — no answers recorded yet.`;
+  }
+
+  const lines = view.answers.map(
+    (row) => `${row.questionText}: ${row.answerText}`,
+  );
+  const more =
+    view.totalAnswerCount > view.answers.length
+      ? ` (+${view.totalAnswerCount - view.answers.length} more on the dashboard)`
+      : '';
+
+  return `${view.questionnaireTitle ?? 'Pre-visit intake'} (${view.status}):\n${lines.join('\n')}${more}`;
 }

@@ -3,8 +3,12 @@ import {
   extractClientNoteBodyFromPrompt,
   extractCustomerNameFromClientPrompt,
   formatProviderClientHistoryText,
+  formatProviderClientIntakeText,
+  formatProviderClientStaffNotesText,
   formatProviderClientSummaryText,
   isAddClientNotePrompt,
+  isExplainClientIntakePrompt,
+  isListClientStaffNotesPrompt,
   isShowClientHistoryPrompt,
   isSummarizeClientPrompt,
   rescueProviderClientContextIntent,
@@ -26,6 +30,89 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
     expect(isShowClientHistoryPrompt("Show Jane's visit history")).toBe(true);
     expect(isAddClientNotePrompt('Add staff note: latex allergy')).toBe(true);
     expect(isSummarizeClientPrompt("Show Jane's visit history")).toBe(false);
+  });
+
+  it('detects list_client_staff_notes vs explain_client_intake prompts', () => {
+    expect(isListClientStaffNotesPrompt('Show staff notes for this client')).toBe(
+      true,
+    );
+    expect(isListClientStaffNotesPrompt('Any notes on Jane?')).toBe(true);
+    expect(isListClientStaffNotesPrompt('List the customer notes for John')).toBe(
+      true,
+    );
+    expect(isAddClientNotePrompt('Show staff notes for this client')).toBe(
+      false,
+    );
+
+    expect(
+      isExplainClientIntakePrompt('What does their pre-visit intake say?'),
+    ).toBe(true);
+    expect(
+      isExplainClientIntakePrompt("Show Jane's pre-visit intake answers"),
+    ).toBe(true);
+    expect(
+      isExplainClientIntakePrompt('Did they fill out the intake questionnaire?'),
+    ).toBe(true);
+    expect(isSummarizeClientPrompt('What does their pre-visit intake say?')).toBe(
+      false,
+    );
+  });
+
+  it('formats staff notes list and intake summary text', () => {
+    expect(
+      formatProviderClientStaffNotesText('Jane', {
+        notes: [],
+        canCreate: true,
+        maxLength: 500,
+      }),
+    ).toContain('No staff notes on file');
+
+    expect(
+      formatProviderClientStaffNotesText('Jane', {
+        notes: [
+          {
+            id: 'n1',
+            body: 'Prefers quiet chair',
+            authorEmployeeId: 'e1',
+            authorName: 'Alex',
+            bookingId: 'bk-1',
+            createdAt: '2026-05-01T11:00:00.000Z',
+          },
+        ],
+        canCreate: true,
+        maxLength: 500,
+      }),
+    ).toContain('Prefers quiet chair');
+
+    expect(
+      formatProviderClientIntakeText({
+        visible: false,
+        intakeId: null,
+        questionnaireTitle: null,
+        status: 'none',
+        completedAt: null,
+        answers: [],
+        totalAnswerCount: 0,
+        bookingId: 'bk-1',
+        canOpenDashboard: false,
+      } as any),
+    ).toContain('No pre-visit intake applies');
+
+    expect(
+      formatProviderClientIntakeText({
+        visible: true,
+        intakeId: 'i1',
+        questionnaireTitle: 'New Client Intake',
+        status: 'completed',
+        completedAt: '2026-05-01T11:00:00.000Z',
+        answers: [
+          { questionId: 'q1', questionText: 'Allergies?', answerText: 'Latex' },
+        ],
+        totalAnswerCount: 1,
+        bookingId: 'bk-1',
+        canOpenDashboard: false,
+      } as any),
+    ).toContain('Allergies?: Latex');
   });
 
   it('does not treat dashboard booking overview as summarize_client', () => {

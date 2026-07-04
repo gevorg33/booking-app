@@ -30,6 +30,7 @@ import {
 } from './ai-privacy-delete.logic.js';
 import type { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
 import { handleClaimGiftCardBalanceLogic as handleClaimGiftCardBalanceLogicImpl } from './ai-claim-gift-card-balance.logic.js';
+import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 
 export interface CustomerCrmLogicDeps
   extends PrivacyExportLogicDeps, PrivacyDeleteLogicDeps {
@@ -46,6 +47,10 @@ export interface CustomerCrmLogicDeps
   changeRequestRepo: Repository<GiftCardChangeRequest>;
   giftCardRepo: Repository<GiftCard>;
   businessRepo: Repository<Business>;
+  publicCustomerAuthService: Pick<
+    PublicCustomerAuthService,
+    'getPreferredLocale' | 'updatePreferredLocale'
+  >;
 }
 
 function failure(
@@ -881,6 +886,48 @@ export async function handleTrackPhysicalGiftCardOrderLogic(
     `Order status: ${order.fulfillmentStatus ?? 'processing'}.`,
     { order },
   );
+}
+
+export async function handleExplainGiftCardOrderLogic(
+  deps: CustomerCrmLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  const giftCardId = params.giftCardId as string | undefined;
+  if (!customerId) {
+    return failure(
+      'explain_gift_card_order',
+      'Sign in to view your gift card order.',
+      { clarify: true },
+    );
+  }
+  if (!giftCardId) {
+    return failure(
+      'explain_gift_card_order',
+      'Specify which gift card order you mean.',
+      { clarify: true, missing: ['giftCardId'] },
+    );
+  }
+
+  try {
+    const order = await deps.giftCardOrderService.getCustomerOrder(
+      businessId,
+      customerId,
+      giftCardId,
+    );
+    return success(
+      'explain_gift_card_order',
+      `${order.cardType} gift card — balance $${order.balance.toFixed(2)}, ${order.deliveryMethod} delivery, status ${order.fulfillmentStatus ?? 'active'}.`,
+      { order },
+    );
+  } catch (err: any) {
+    return failure(
+      'explain_gift_card_order',
+      err?.message ?? 'Gift card order not found.',
+      { giftCardId },
+    );
+  }
 }
 
 export async function handlePrivacyExportLogic(

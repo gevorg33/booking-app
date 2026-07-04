@@ -20,6 +20,7 @@ import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.j
 import { AiProductGuideService } from './ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from './ai-product-guide-empty-state.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
+import { AiProviderClinicTasksAndResultsService } from './ai-provider-clinic-tasks-and-results.service.js';
 import { AiPackageLocalizedNamesService } from './ai-package-localized-names.service.js';
 import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
@@ -30,6 +31,10 @@ import { AiCatalogService } from './ai-catalog.service.js';
 import { AiDashboardCoreService } from './ai-dashboard-core.service.js';
 import { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
+import { AiAgentOpsService } from './ai-agent-ops.service.js';
+import { AiBusinessProfileService } from './ai-business-profile.service.js';
+import { AiOnboardingService } from './ai-onboarding.service.js';
+import { AiClinicPreVisitIntakeService } from './ai-clinic-pre-visit-intake.service.js';
 import { AiPaymentsService } from './ai-payments.service.js';
 import { AiGiftFulfillmentService } from './ai-gift-fulfillment.service.js';
 import { AiIntegrationsService } from './ai-integrations.service.js';
@@ -68,6 +73,7 @@ import { AiClinicServiceService } from './ai-clinic-service.service.js';
 import { PublicBookingModule } from '../public-booking/public-booking.module.js';
 import { ServiceModule } from '../service/service.module.js';
 import { OnboardingModule } from '../onboarding/onboarding.module.js';
+import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
@@ -90,6 +96,7 @@ import { Business } from '../business/entities/business.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
 import { BookingModule } from '../booking/booking.module.js';
 import { EmployeeModule } from '../employee/employee.module.js';
+import { ScheduleModule } from '../schedule/schedule.module.js';
 import { InvitationsModule } from '../invitations/invitations.module.js';
 import { AgentModule } from '../../engine/agent/agent.module.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
@@ -200,6 +207,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     ]),
     forwardRef(() => BookingModule),
     EmployeeModule,
+    ScheduleModule,
     InvitationsModule,
     forwardRef(() => AgentModule),
     SchedulingEngineModule,
@@ -232,6 +240,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     forwardRef(() => PublicBookingModule),
     ServiceModule,
     OnboardingModule,
+    ClinicPreVisitIntakesModule,
     forwardRef(() => GiftCardsModule),
     ZendeskModule,
   ],
@@ -257,6 +266,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiProductGuideEmptyStateService,
     GuideTelemetryService,
     AiConsumerClinicTestResultsService,
+    AiProviderClinicTasksAndResultsService,
     AiPackageLocalizedNamesService,
     AiTourServiceService,
     AiRecommendationProductService,
@@ -267,6 +277,10 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiDashboardCoreService,
     AiCustomerCrmService,
     AiScheduleResourcesService,
+    AiAgentOpsService,
+    AiBusinessProfileService,
+    AiOnboardingService,
+    AiClinicPreVisitIntakeService,
     AiPaymentsService,
     AiGiftFulfillmentService,
     AiIntegrationsService,
@@ -339,6 +353,8 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
   exports: [
     AiPlatformService,
     AiPushNotificationsService,
+    AiGiftFulfillmentService,
+    AiRetailFinanceService,
     AiProviderBookingService,
     AiProviderClinicCollectionService,
     AiClinicLabBookingService,
@@ -360,6 +376,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiBusinessTaxService,
     AiBusinessComplianceService,
     AiConsumerClinicTestResultsService,
+    AiProviderClinicTasksAndResultsService,
     AiConsumerAdoptionService,
     AiProviderPushSetupService,
     AiProviderEarningsService,

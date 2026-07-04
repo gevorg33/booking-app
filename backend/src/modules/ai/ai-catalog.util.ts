@@ -36,6 +36,8 @@ import {
 
 export const CATALOG_MUTATE_INTENTS = [
   'create_service_category',
+  'update_service_category',
+  'delete_service_category',
   'bulk_create_catalog',
   'update_service',
   'update_service_duration_buffer',
@@ -43,6 +45,7 @@ export const CATALOG_MUTATE_INTENTS = [
   'create_package',
   'update_package',
   'deactivate_package',
+  'activate_package',
   'duplicate_package',
   'create_subscription_plan',
   'update_subscription_plan',

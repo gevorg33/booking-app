@@ -4,9 +4,12 @@ import {
   collectCustomerFixtureIntents,
   CUSTOMER_INTENT_COVERAGE_DEFERRED,
   CUSTOMER_INTENT_COVERAGE_REQUIRED,
+  hasCustomerApiBinding,
   listCustomerIntentCoverageGaps,
+  listMutatingCustomerIntentsMissingApiBinding,
   prioritizeDeferredCustomerIntents,
 } from './ai-customer-intent-coverage.util.js';
+import { SELF_SERVICE_BOOKING_MUTATE_INTENTS } from './ai-self-service-booking.util.js';
 import {
   assertPromotionQueuePrioritizesP0,
   auditCustomerIntentPromotionQueue,
@@ -30,6 +33,29 @@ describe('ai customer intent coverage util (ai-cmd-customer-2.6)', () => {
     expect(fixtureIntents.has('book_package')).toBe(true);
     expect(fixtureIntents.has('list_services')).toBe(true);
     expect(fixtureIntents.has('check_providers_for_service')).toBe(true);
+  });
+
+  it('cross-checks mutating intents against the customer/public API parity fixtures (ai-cmd-customer-6.13.3)', () => {
+    expect(hasCustomerApiBinding('cancel_my_booking')).toBe(true);
+    expect(hasCustomerApiBinding('reschedule_package_lines')).toBe(true);
+    expect(hasCustomerApiBinding('not_a_real_intent')).toBe(false);
+
+    // Known, documented exceptions — not a coverage gap:
+    // - add/remove_service_from_cart: pure client-side cart session state, no REST call.
+    // - join_waitlist / notify_running_late: backend routes exist
+    //   (POST me/waitlist, POST me/bookings/:id/running-late) but neither public-api.ts
+    //   client (web widget or consumer app) exports a wrapper for them yet — a real
+    //   product gap to track, distinct from an AI-mapping gap.
+    const knownExceptions = new Set([
+      'add_services_to_cart',
+      'remove_service_from_cart',
+      'join_waitlist',
+      'notify_running_late',
+    ]);
+    const missing = listMutatingCustomerIntentsMissingApiBinding(
+      SELF_SERVICE_BOOKING_MUTATE_INTENTS,
+    ).filter((intent) => !knownExceptions.has(intent));
+    expect(missing).toEqual([]);
   });
 });
 

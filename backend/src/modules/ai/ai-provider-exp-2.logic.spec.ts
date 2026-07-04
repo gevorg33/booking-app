@@ -2,8 +2,13 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   dispatchProviderExp2Intent,
   handleCheckInClientLogic,
+  handleListReassignOptionsLogic,
+  handleMarkReadyNowLogic,
   handleMarkRunningLateLogic,
   handleMyStatsLogic,
+  handleReassignBookingSameDayLogic,
+  handleRequestClientReviewLogic,
+  handleSuggestCancelNoteLogic,
   handleTeamFloorStatusLogic,
 } from './ai-provider-exp-2.logic.js';
 
@@ -18,6 +23,11 @@ describe('ai-provider-exp-2.logic', () => {
     getBookingDetail: jest.fn(),
     checkInBooking: jest.fn(),
     markBookingRunningLate: jest.fn(),
+    markBookingReadyNow: jest.fn(),
+    suggestCancelNote: jest.fn(),
+    requestBookingReview: jest.fn(),
+    getBookingReassignOptions: jest.fn(),
+    reassignBooking: jest.fn(),
   };
 
   const deps = {
@@ -553,5 +563,257 @@ describe('ai-provider-exp-2.logic', () => {
       'user-1',
       'bk-afternoon',
     );
+  });
+
+  it('marks a booking ready now', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.markBookingReadyNow.mockResolvedValue({
+      bookingId: 'bk-1',
+      visitStatus: { kind: 'ready_now' },
+      floorStatus: 'ready',
+      notifications: null,
+    });
+
+    const result = await handleMarkReadyNowLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Mark ready now',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('mark_ready_now');
+    expect(result.summary).toContain('Jane Doe');
+    expect(providerMobile.markBookingReadyNow).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      'bk-1',
+    );
+  });
+
+  it('surfaces a mark ready now failure', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.markBookingReadyNow.mockRejectedValue(
+      new Error('Visit status cannot be updated for this booking'),
+    );
+
+    const result = await handleMarkReadyNowLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Mark ready now',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Visit status cannot be updated');
+  });
+
+  it('suggests a cancel note', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.suggestCancelNote.mockResolvedValue({
+      suggestion: 'Jane cancelled her haircut scheduled for today.',
+      aiAvailable: true,
+    });
+
+    const result = await handleSuggestCancelNoteLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Draft a cancellation note',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('suggest_cancel_note');
+    expect(result.summary).toBe(
+      'Jane cancelled her haircut scheduled for today.',
+    );
+    expect(providerMobile.suggestCancelNote).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      'bk-1',
+      { draft: undefined, prompt: 'Draft a cancellation note' },
+    );
+  });
+
+  it('requests a client review', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.requestBookingReview.mockResolvedValue({
+      sent: true,
+      bookingId: 'bk-1',
+    });
+
+    const result = await handleRequestClientReviewLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Ask Jane for a review',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('Jane Doe');
+    expect(result.details?.sent).toBe(true);
+  });
+
+  it('surfaces a request review failure', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.requestBookingReview.mockRejectedValue(
+      new Error('Review request is not allowed for this booking'),
+    );
+
+    const result = await handleRequestClientReviewLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Ask Jane for a review',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('not allowed');
+  });
+
+  it('lists reassign options', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.getBookingReassignOptions.mockResolvedValue({
+      allowed: true,
+      reason: null,
+      date: '2026-06-09',
+      timeSlot: '14:00',
+      serviceName: 'Haircut',
+      currentEmployee: { id: 'emp-1', name: 'Alex' },
+      options: [
+        { id: 'emp-2', name: 'Maria' },
+        { id: 'emp-3', name: 'James' },
+      ],
+    });
+
+    const result = await handleListReassignOptionsLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Who else is free to take this?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('Maria');
+    expect(result.summary).toContain('James');
+  });
+
+  it('reports when reassign is not allowed', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.getBookingReassignOptions.mockResolvedValue({
+      allowed: false,
+      reason: 'Only managers can reassign bookings',
+      options: [],
+    });
+
+    const result = await handleListReassignOptionsLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Reassign options for this booking',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Only managers');
+  });
+
+  it('reassigns a booking to the named provider', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.getBookingReassignOptions.mockResolvedValue({
+      allowed: true,
+      reason: null,
+      date: '2026-06-09',
+      timeSlot: '14:00',
+      serviceName: 'Haircut',
+      currentEmployee: { id: 'emp-1', name: 'Alex' },
+      options: [{ id: 'emp-2', name: 'Maria' }],
+    });
+    providerMobile.reassignBooking.mockResolvedValue({
+      id: 'bk-1',
+      employee: { id: 'emp-2', name: 'Maria' },
+    });
+
+    const result = await handleReassignBookingSameDayLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1', employeeName: 'Maria' },
+      'Reassign this to Maria',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('Maria');
+    expect(providerMobile.reassignBooking).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      'bk-1',
+      { employeeId: 'emp-2' },
+    );
+  });
+
+  it('clarifies when no target provider is named for reassign', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+
+    const result = await handleReassignBookingSameDayLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1' },
+      'Reassign this appointment',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.details?.clarify).toBe(true);
+  });
+
+  it('reports when the named provider is not free for reassign', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      customer: { name: 'Jane Doe' },
+    });
+    providerMobile.getBookingReassignOptions.mockResolvedValue({
+      allowed: true,
+      reason: null,
+      date: '2026-06-09',
+      timeSlot: '14:00',
+      serviceName: 'Haircut',
+      currentEmployee: { id: 'emp-1', name: 'Alex' },
+      options: [{ id: 'emp-3', name: 'James' }],
+    });
+
+    const result = await handleReassignBookingSameDayLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'bk-1', employeeName: 'Maria' },
+      'Reassign this to Maria',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain("isn't free");
   });
 });

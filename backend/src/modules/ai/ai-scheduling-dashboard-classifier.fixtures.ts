@@ -19,6 +19,10 @@ export const SCHEDULING_DASHBOARD_CLASSIFIER_RULES = `- "Who has a X schedule to
 - list_employees: READ-ONLY — list active providers/team members.
 - list_templates: READ-ONLY — list schedule template names.
 - create_schedule_template: create a reusable schedule template (name + hours + weekday flags + optional services). Example: "Create template Weekday 9-17 with facemassage Mon-Fri" → templateName, periods or timeFrom/timeTo, applyDays.
+- update_schedule_template: rename an existing template (templateName to find it, newName for the new title). NOT create_schedule_template (new template), NOT apply_schedule (applying to providers).
+- delete_schedule_templates: delete one or more schedule templates (templateName or templateNames array). "Delete the Weekday and Weekend templates" → templateNames=[Weekday, Weekend].
+- duplicate_schedule_template: copy an existing template under a new auto-generated name (templateName to identify the source). "Duplicate the Weekday template".
+- delete_schedule_block: remove a schedule block for a provider (employeeName, optional date to disambiguate when they have multiple blocks). NOT clear_schedule (removes the whole applied schedule, not a specific block), NOT block_schedule (creates a block).
 - mark_no_shows: mark past missed appointments as no-show. Requires date or date range; optional employeeName, customerName, timeSlot filters. Only appointments that already started and are not cancelled.
 - no_show_recovery: mark no-shows AND release slots with waitlist rebooking proposals. Use when user also wants "release slots", "suggest rebooking messages", or waitlist recovery.
 - payment_sweep: mark unpaid completed/in-progress appointments as paid. Use for "payment sweep", "collect outstanding payments", "mark unpaid as paid". Optional date range and employeeName filters. "except walk-ins" → excludeWalkIns=true; "completed today" → statusFilter=COMPLETED.
@@ -44,6 +48,7 @@ export const SCHEDULING_DASHBOARD_CLASSIFIER_RULES = `- "Who has a X schedule to
 - unassign_employee_services: remove provider skills only (never deletes catalog services). Single: "Remove Neck Massage from Maria" → serviceName, employeeName. Category: "Unassign all Color category services from Gevorg" → categoryName=Color, employeeName=Gevorg, unassignFromCategory=true. All skills: "Remove all services from James" → employeeName=James, unassignAllServices=true. NOT deactivate_service, NOT update_service.
 - transfer_employee_services: move skills from one provider to another (unassign source + merge onto target). "Move all Massage services from Maria to Anna" → fromEmployeeName=Maria, toEmployeeName=Anna, categoryName=Massage, transferFromCategory=true. "Transfer Spa Service A from Gevorg to Maria" → fromEmployeeName, toEmployeeName, serviceName. NOT rebalance_capacity (booked appointment slots with slotCount).
 - apply_schedule: apply a schedule template to provider(s) for a date range or "this week". Set templateName when mentioned.
+- apply_and_fill: apply a schedule template AND fill any remaining unused slots in one command — same params as apply_schedule (templateName, employeeName/allProviders, dateFrom/dateTo) plus fill_unused_slots' service/time-window params. "Apply the Weekday template to Gevorg this week and fill the gaps" → apply_and_fill. NOT setup_week_schedule (that's a broader team-onboarding orchestration combo).
 - setup_week_schedule: apply templates + fill gaps for the team this week (orchestration combo).
 - bulk_smart_cancel: cancel bookings AND notify customers AND propose waitlist recovery (use when user mentions notify/waitlist/rebook).
 - fill_slot_from_waitlist: fill a specific cancelled/freed slot from waitlist (employee + date + timeSlot).

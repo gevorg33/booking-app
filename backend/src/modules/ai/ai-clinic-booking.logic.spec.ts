@@ -3,10 +3,17 @@ import { handleExplainClinicBookingLogic } from './ai-clinic-booking.logic.js';
 describe('ai-clinic-booking.logic', () => {
   const businessRepo = { findOne: jest.fn() };
   const serviceService = { findAll: jest.fn() };
+  const publicPreVisitIntakeService = {
+    ensureCustomerDraft: jest.fn(),
+    getCustomerFlow: jest.fn(),
+    startCustomerIntake: jest.fn(),
+    submitCustomerAnswers: jest.fn(),
+  };
 
   const deps = {
     businessRepo,
     serviceService,
+    publicPreVisitIntakeService,
   };
 
   beforeEach(() => {

@@ -288,6 +288,266 @@ export async function handleMarkRunningLateLogic(
   }
 }
 
+export async function handleMarkReadyNowLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForProviderAction(
+    deps,
+    businessId,
+    userId,
+    'mark_ready_now',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  try {
+    const result = await deps.providerMobile.markBookingReadyNow(
+      businessId,
+      userId,
+      resolved.bookingId,
+    );
+    return success(
+      'mark_ready_now',
+      `Marked ${resolved.customerName} as ready now.`,
+      {
+        bookingId: resolved.bookingId,
+        visitStatus: result.visitStatus,
+        floorStatus: result.floorStatus,
+        notifications: result.notifications,
+      },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not update visit status for this booking.';
+    return failure('mark_ready_now', message, {
+      bookingId: resolved.bookingId,
+    });
+  }
+}
+
+export async function handleSuggestCancelNoteLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForProviderAction(
+    deps,
+    businessId,
+    userId,
+    'suggest_cancel_note',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  const draft = typeof params.draft === 'string' ? params.draft : undefined;
+
+  try {
+    const result = await deps.providerMobile.suggestCancelNote(
+      businessId,
+      userId,
+      resolved.bookingId,
+      { draft, prompt },
+    );
+    return success('suggest_cancel_note', result.suggestion, {
+      bookingId: resolved.bookingId,
+      suggestion: result.suggestion,
+      aiAvailable: result.aiAvailable,
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not draft a cancellation note for this booking.';
+    return failure('suggest_cancel_note', message, {
+      bookingId: resolved.bookingId,
+    });
+  }
+}
+
+export async function handleRequestClientReviewLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForProviderAction(
+    deps,
+    businessId,
+    userId,
+    'request_client_review',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  try {
+    const result = await deps.providerMobile.requestBookingReview(
+      businessId,
+      userId,
+      resolved.bookingId,
+    );
+    return success(
+      'request_client_review',
+      `Review request sent to ${resolved.customerName}.`,
+      { bookingId: resolved.bookingId, sent: result.sent },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not request a review for this booking.';
+    return failure('request_client_review', message, {
+      bookingId: resolved.bookingId,
+    });
+  }
+}
+
+export async function handleListReassignOptionsLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForProviderAction(
+    deps,
+    businessId,
+    userId,
+    'list_reassign_options',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  const result = await deps.providerMobile.getBookingReassignOptions(
+    businessId,
+    userId,
+    resolved.bookingId,
+  );
+  if (!result.allowed) {
+    return failure(
+      'list_reassign_options',
+      result.reason ?? 'Reassign is not available for this booking.',
+      { bookingId: resolved.bookingId },
+    );
+  }
+
+  const names = result.options.map((option) => option.name);
+  return success(
+    'list_reassign_options',
+    names.length
+      ? `Available providers for ${resolved.customerName}'s ${result.serviceName} at ${result.timeSlot}: ${names.join(', ')}.`
+      : 'No other providers are free for this slot.',
+    { bookingId: resolved.bookingId, ...result },
+  );
+}
+
+export async function handleReassignBookingSameDayLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForProviderAction(
+    deps,
+    businessId,
+    userId,
+    'reassign_booking_same_day',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  const employeeName =
+    typeof params.employeeName === 'string' ? params.employeeName.trim() : '';
+  if (!employeeName && typeof params.employeeId !== 'string') {
+    return failure(
+      'reassign_booking_same_day',
+      'Say which provider to reassign this appointment to.',
+      { clarify: true, missing: ['employeeName'], bookingId: resolved.bookingId },
+    );
+  }
+
+  const options = await deps.providerMobile.getBookingReassignOptions(
+    businessId,
+    userId,
+    resolved.bookingId,
+  );
+  if (!options.allowed) {
+    return failure(
+      'reassign_booking_same_day',
+      options.reason ?? 'Reassign is not available for this booking.',
+      { bookingId: resolved.bookingId },
+    );
+  }
+
+  const availableOptions = options.options as Array<{
+    id: string;
+    name: string;
+  }>;
+
+  let employeeId =
+    typeof params.employeeId === 'string' ? params.employeeId : undefined;
+  if (!employeeId) {
+    const needle = employeeName.toLowerCase();
+    const match =
+      availableOptions.find((o) => o.name.toLowerCase() === needle) ??
+      availableOptions.find((o) => o.name.toLowerCase().includes(needle));
+    if (!match) {
+      return failure(
+        'reassign_booking_same_day',
+        `${employeeName} isn't free for this slot. Available: ${availableOptions.map((o) => o.name).join(', ') || 'no one'}.`,
+        { bookingId: resolved.bookingId, options: availableOptions },
+      );
+    }
+    employeeId = match.id;
+  }
+
+  try {
+    const result = await deps.providerMobile.reassignBooking(
+      businessId,
+      userId,
+      resolved.bookingId,
+      { employeeId },
+    );
+    return success(
+      'reassign_booking_same_day',
+      `Reassigned ${resolved.customerName}'s appointment to ${result.employee?.name ?? 'the new provider'}.`,
+      { bookingId: resolved.bookingId, booking: result },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not reassign this appointment.';
+    return failure('reassign_booking_same_day', message, {
+      bookingId: resolved.bookingId,
+    });
+  }
+}
+
 export async function dispatchProviderExp2Intent(
   deps: ProviderExp2LogicDeps,
   businessId: string,
@@ -313,6 +573,51 @@ export async function dispatchProviderExp2Intent(
       );
     case 'mark_running_late':
       return handleMarkRunningLateLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'mark_ready_now':
+      return handleMarkReadyNowLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'suggest_cancel_note':
+      return handleSuggestCancelNoteLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'request_client_review':
+      return handleRequestClientReviewLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'list_reassign_options':
+      return handleListReassignOptionsLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'reassign_booking_same_day':
+      return handleReassignBookingSameDayLogic(
         deps,
         businessId,
         userId,

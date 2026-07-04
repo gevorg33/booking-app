@@ -25,6 +25,12 @@ import {
   handleExplainProfessionalProfileLogic,
   type ExplainProfessionalProfileLogicDeps,
 } from './ai-explain-professional-profile.logic.js';
+import {
+  handleListProviderReviewsLogic,
+  type ListProviderReviewsLogicDeps,
+} from './ai-list-provider-reviews.logic.js';
+import { handleSubmitProviderReviewLogic } from './ai-submit-provider-review.logic.js';
+import { handleSubmitReviewWithTokenLogic } from './ai-submit-review-with-token.logic.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 
@@ -128,6 +134,46 @@ export class AiProviderSpecialtyService {
       businessId,
       params,
       prompt,
+    );
+  }
+
+  handleListProviderReviews(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleListProviderReviewsLogic(
+      {
+        employeeRepo: this.deps.employeeRepo,
+        serviceRepo: this.deps.serviceRepo,
+        reviewsService: this.reviewsService,
+      },
+      businessId,
+      params,
+    );
+  }
+
+  handleSubmitProviderReview(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleSubmitProviderReviewLogic(
+      {
+        employeeRepo: this.deps.employeeRepo,
+        reviewsService: this.reviewsService,
+      },
+      businessId,
+      params,
+    );
+  }
+
+  handleSubmitReviewWithToken(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleSubmitReviewWithTokenLogic(
+      { reviewsService: this.reviewsService },
+      businessId,
+      params,
     );
   }
 }

@@ -50,10 +50,16 @@ import {
   handleSubscriptionUsageLogic,
   handleTagCustomerLogic,
   handleTrackPhysicalGiftCardOrderLogic,
+  handleExplainGiftCardOrderLogic,
   type CustomerCrmLogicDeps,
 } from './ai-customer-crm.logic.js';
 import { handleExplainMySubscriptionLogic } from './ai-explain-my-subscription.logic.js';
 import { handleUpdateMyProfileLogic } from './ai-update-my-profile.logic.js';
+import {
+  handleGetMyLocaleLogic,
+  handleUpdateMyLocaleLogic,
+} from './ai-my-locale.logic.js';
+import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 
 @Injectable()
 export class AiCustomerCrmService {
@@ -75,6 +81,7 @@ export class AiCustomerCrmService {
     changeRequestRepo: Repository<GiftCardChangeRequest>,
     @InjectRepository(GiftCard) giftCardRepo: Repository<GiftCard>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
+    publicCustomerAuthService: PublicCustomerAuthService,
   ) {
     this.deps = {
       customerService,
@@ -90,6 +97,7 @@ export class AiCustomerCrmService {
       changeRequestRepo,
       giftCardRepo,
       businessRepo,
+      publicCustomerAuthService,
     };
   }
 
@@ -289,6 +297,18 @@ export class AiCustomerCrmService {
     return handleMyProfileLogic(this.deps, businessId, params);
   }
 
+  handleGetMyLocale(businessId: string, params: Record<string, any>) {
+    return handleGetMyLocaleLogic(this.deps, businessId, params);
+  }
+
+  handleUpdateMyLocale(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleUpdateMyLocaleLogic(this.deps, businessId, params, prompt);
+  }
+
   handleMyAppointments(businessId: string, params: Record<string, any>) {
     return handleMyAppointmentsLogic(this.deps, businessId, params);
   }
@@ -350,6 +370,10 @@ export class AiCustomerCrmService {
     params: Record<string, any>,
   ) {
     return handleTrackPhysicalGiftCardOrderLogic(this.deps, businessId, params);
+  }
+
+  handleExplainGiftCardOrder(businessId: string, params: Record<string, any>) {
+    return handleExplainGiftCardOrderLogic(this.deps, businessId, params);
   }
 
   handlePrivacyExport(

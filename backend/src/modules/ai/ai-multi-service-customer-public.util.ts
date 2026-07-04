@@ -12,6 +12,7 @@ export const PUBLIC_MULTI_SERVICE_BOOKING_INTENTS = [
   'book_multi_service',
   'check_multi_service_availability',
   'add_services_to_cart',
+  'preview_multi_service_cart',
 ] as const;
 
 export type PublicMultiServiceBookingIntent =
@@ -19,7 +20,8 @@ export type PublicMultiServiceBookingIntent =
 
 export const CUSTOMER_PUBLIC_MULTI_SERVICE_CLASSIFIER_RULES = `- book_multi_service: MUTATE — book multiple catalog services in one visit (multi-service / same-day block). Triggers: book|reserve|schedule + two or more service names (massage and facial), multi-service, multiple treatments, spa day with named treatments (not a fixed package SKU). Sets cartServiceIds and navigates to multi-service checkout. Requires serviceNames (≥2) or cartServiceIds from session. NOT book_package (bundled package SKU), NOT book_appointment (single service), NOT create_multi_service_booking (staff dashboard).
 - check_multi_service_availability: READ — find open multi-service time blocks for services in cart or named in the prompt (same afternoon, together, find a time). Uses suggestMultiServiceBlock or day slots. Requires serviceNames or cartServiceIds. NOT check_availability (single service), NOT check_multi_service_block_availability (staff block tool), NOT check_package_availability (package lines).
-- add_services_to_cart: MUTATE — add named services to the multi-service cart before checking availability or booking. Triggers: add X and Y to cart, put massage and facial in cart. NOT remove_service_from_cart, NOT list_services.`;
+- add_services_to_cart: MUTATE — add named services to the multi-service cart before checking availability or booking. Triggers: add X and Y to cart, put massage and facial in cart. NOT remove_service_from_cart, NOT list_services.
+- preview_multi_service_cart: READ — preview the total price and duration for services in the cart or named in the prompt, without checking a specific time slot. Triggers: what would this cost, how long would massage and facial take together, preview my cart, total for these services. Requires serviceNames or cartServiceIds. NOT show_cart_total_duration (duration only, no price), NOT check_multi_service_availability (time slots), NOT get_multi_service_quote (checkout pricing with promo/loyalty).`;
 
 export type MultiServiceCustomerPublicPromptFixture = {
   id: string;
@@ -28,7 +30,8 @@ export type MultiServiceCustomerPublicPromptFixture = {
   expectedAction:
     | 'book_multi_service'
     | 'check_multi_service_availability'
-    | 'add_services_to_cart';
+    | 'add_services_to_cart'
+    | 'preview_multi_service_cart';
   serviceNames?: string[];
   rescueReason?: string;
 };

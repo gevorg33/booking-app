@@ -105,11 +105,27 @@ export async function handleCompleteIntakeAndBookLogic(
   }
 
   const bookingFirstAvailable = parsed?.bookingFirstAvailable === true;
+  const navigate = buildCompleteIntakeAndBookNavigate(service.id);
+
+  let intakeId: string | undefined;
+  let intakeStatus: string | undefined;
+  try {
+    const draft = await deps.publicPreVisitIntakeService.ensureCustomerDraft(
+      business.slug,
+      customerId,
+      { serviceId: service.id },
+    );
+    intakeId = draft.id;
+    intakeStatus = draft.status;
+  } catch {
+    // Fall back to a navigate-only handoff — the client can still start
+    // intake manually on the booking page (ai-cmd-customer-6.4.2).
+  }
+
   const summary = formatCompleteIntakeAndBookSummary(
     service.name,
     bookingFirstAvailable,
   );
-  const navigate = buildCompleteIntakeAndBookNavigate(service.id);
 
   return success('complete_intake_and_book', summary, {
     serviceId: service.id,
@@ -120,6 +136,7 @@ export async function handleCompleteIntakeAndBookLogic(
     bookingFirstAvailable,
     clientAction: 'startConsumerPreVisitIntake',
     navigate,
+    ...(intakeId ? { intakeId, intakeStatus } : {}),
     sessionContext: {
       serviceId: service.id,
       serviceName: service.name,
@@ -127,6 +144,7 @@ export async function handleCompleteIntakeAndBookLogic(
       completeIntakeAndBook: true,
       preVisitIntakeRequired: true,
       ...(bookingFirstAvailable ? { bookingFirstAvailable: true } : {}),
+      ...(intakeId ? { intakeId } : {}),
     },
   });
 }

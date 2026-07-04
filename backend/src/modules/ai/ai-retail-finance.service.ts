@@ -10,6 +10,7 @@ import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import { ExpensesService } from '../expenses/expenses.service.js';
 import { AnalyticsService } from '../analytics/analytics.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
+import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeRetailFinanceCompoundPrompt,
@@ -29,6 +30,7 @@ import {
   handleRecordExpenseLogic,
   handleRemoveRetailLineLogic,
   handleRetailFinanceCompoundLogic,
+  handleSetRetailSalesLinesLogic,
   handleSuggestRetailUpsellLogic,
   handleSummarizePlLogic,
   type RetailFinanceLogicDeps,
@@ -48,6 +50,7 @@ export class AiRetailFinanceService {
     @InjectRepository(Service) serviceRepo: Repository<Service>,
     @InjectRepository(Product) productRepo: Repository<Product>,
     @InjectRepository(Employee) employeeRepo: Repository<Employee>,
+    bookingDepth: AiBookingDepthService,
   ) {
     this.deps = {
       inventoryService,
@@ -59,6 +62,7 @@ export class AiRetailFinanceService {
       serviceRepo,
       productRepo,
       employeeRepo,
+      bookingDepth,
     };
   }
 
@@ -193,6 +197,21 @@ export class AiRetailFinanceService {
     prompt?: string,
   ) {
     return handleAddRetailToMyBookingLogic(
+      this.deps,
+      businessId,
+      params,
+      userId,
+      prompt,
+    );
+  }
+
+  handleSetRetailSalesLines(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+    prompt?: string,
+  ) {
+    return handleSetRetailSalesLinesLogic(
       this.deps,
       businessId,
       params,

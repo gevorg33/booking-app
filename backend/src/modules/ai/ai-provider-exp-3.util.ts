@@ -1,6 +1,9 @@
 /** prov-exp-5.3 — provider mobile chair-side actions AI helpers. */
 
-import { extractProductNameFromPrompt } from './ai-retail-finance.util.js';
+import {
+  extractProductNameFromPrompt,
+  parseRetailSalesLinesFromPrompt,
+} from './ai-retail-finance.util.js';
 import { rescueProviderTimeOffIntent } from './ai-provider-time-off.util.js';
 import { PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS } from './ai-provider-exp-3-multilingual.fixtures.js';
 import { PROVIDER_EXP_3_PROMPT_SCENARIOS } from './ai-provider-exp-3.fixtures.js';
@@ -10,12 +13,14 @@ export const PROVIDER_EXP_3_INTENTS = [
   'send_client_message',
   'block_my_time',
   'request_time_off',
+  'set_retail_sales_lines',
 ] as const;
 
 export const PROVIDER_EXP_3_MUTATE_INTENTS = [
   'add_retail_to_booking',
   'block_my_time',
   'request_time_off',
+  'set_retail_sales_lines',
 ] as const;
 
 export type ProviderExp3Intent = (typeof PROVIDER_EXP_3_INTENTS)[number];
@@ -61,6 +66,15 @@ export function isAddRetailToBookingPrompt(prompt: string): boolean {
         prompt,
       ))
   );
+}
+
+export function isSetRetailSalesLinesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const replaceCue =
+    /\b(set|replace|update)\b/i.test(lower) &&
+    /\b(retail\s+)?(?:sales?\s+)?(cart|lines?)\b/i.test(lower);
+  if (!replaceCue) return false;
+  return parseRetailSalesLinesFromPrompt(prompt).length > 0;
 }
 
 export function isSendClientMessagePrompt(prompt: string): boolean {
@@ -185,6 +199,12 @@ export function rescueProviderExp3Intent(
   const exact = matchProviderExp3Scenario(prompt);
   if (exact) return exact;
 
+  if (isSetRetailSalesLinesPrompt(prompt)) {
+    return {
+      action: 'set_retail_sales_lines',
+      rescueReason: 'set_retail_sales_lines',
+    };
+  }
   if (isAddRetailToBookingPrompt(prompt)) {
     return {
       action: 'add_retail_to_booking',

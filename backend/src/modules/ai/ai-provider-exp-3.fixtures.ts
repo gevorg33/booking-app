@@ -1,6 +1,7 @@
 /** prov-exp-5.3 — provider mobile retail, messaging, block time, time-off AI. */
 
-export const PROVIDER_EXP_3_CLASSIFIER_RULES = `- add_retail_to_booking: MUTATE — add retail product to own active booking (bookingId or customerName + session). Triggers: add shampoo to this booking, sell product on my appointment. NOT add_retail_sale_to_booking (dashboard admin).
+export const PROVIDER_EXP_3_CLASSIFIER_RULES = `- add_retail_to_booking: MUTATE — add one retail product to own active booking (bookingId or customerName + session). Triggers: add shampoo to this booking, sell product on my appointment. NOT add_retail_sale_to_booking (dashboard admin), NOT set_retail_sales_lines (bulk cart replace).
+- set_retail_sales_lines: MUTATE — bulk-replace the entire retail cart on a booking with one or more product+quantity lines in one call (lines[]: {productName or productId, quantity}). Requires bookingId or customerName plus lines. Triggers: set retail cart to 2 shampoo and 1 conditioner, replace the cart with 3 candles, update retail lines to 1 shampoo. NOT add_retail_to_booking (adds one product without replacing the rest of the cart).
 - send_client_message: READ — open SMS/WhatsApp with canned template for booking client. Requires bookingId and/or customerName; optional templateId/template label, channel=sms|whatsapp. Triggers: text client running late, send confirming tomorrow message. NOT add_client_note (internal staff note).
 - block_my_time: MUTATE — block lunch/break on own calendar (instant, not approval). Requires date + start/end times. Triggers: block my lunch 12-1, block my break. NOT block_schedule (manager/team), NOT request_time_off (needs approval).
 - request_time_off: MUTATE — submit unavailable date range for manager approval. Triggers: request Friday off, PTO next week. NOT block_my_time (instant block).`;
@@ -77,5 +78,23 @@ export const PROVIDER_EXP_3_PROMPT_SCENARIOS = [
     prompt: 'I need next week off',
     surface: 'provider' as const,
     expectedAction: 'request_time_off',
+  },
+  {
+    id: 'set-retail-lines-two-en',
+    prompt: 'Set retail cart to 2 shampoo and 1 conditioner',
+    surface: 'provider' as const,
+    expectedAction: 'set_retail_sales_lines',
+  },
+  {
+    id: 'set-retail-lines-replace-en',
+    prompt: 'Replace the retail cart with 3 candles',
+    surface: 'provider' as const,
+    expectedAction: 'set_retail_sales_lines',
+  },
+  {
+    id: 'set-retail-lines-update-en',
+    prompt: 'Update retail lines to 1 shampoo',
+    surface: 'provider' as const,
+    expectedAction: 'set_retail_sales_lines',
   },
 ] as const;

@@ -39,6 +39,7 @@ import { AccountingIntegrationService } from '../integrations/accounting/account
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
 import { ServiceService } from '../service/service.service.js';
+import { BookingPaymentService } from '../booking/booking-payment.service.js';
 
 const services = [
   {
@@ -130,6 +131,12 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
         { provide: CommissionsService, useValue: {} },
         { provide: ServiceSubscriptionsService, useValue: {} },
         { provide: ServiceService, useValue: { update: jest.fn() } },
+        {
+          provide: BookingPaymentService,
+          useValue: {
+            confirmCheckoutSession: jest.fn(async () => ({ booking: {} })),
+          },
+        },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Booking), useValue: {} },

@@ -16,6 +16,9 @@ import {
   isEnableNotificationsPrompt,
   isAppointmentReminderPreferencesPrompt,
   isSummarizeDayOnlyPrompt,
+  isMarkAllNotificationsReadPrompt,
+  isMarkBookingNotificationsReadPrompt,
+  isListPushNotificationsPrompt,
   resolveCommandPromptText,
   extractBookingIdFromPushPrompt,
   extractPushRecipientNamesFromPrompt,
@@ -28,6 +31,7 @@ import {
   buildNewBookingPushActionsGuide,
   buildOfflineQueueStatusSummary,
   buildRetryOfflineActionGuidance,
+  summarizeProviderPushNotificationCenter,
   PUSH_NOTIFICATIONS_INTENTS,
   isPushNotificationsIntent,
 } from './ai-push-notifications.util.js';
@@ -58,6 +62,60 @@ describe('ai-push-notifications.util', () => {
       ).toBe(true);
       expect(isSummarizeDayOnlyPrompt('Summarize my day today')).toBe(true);
       expect(isEndOfDaySummaryPrompt('Summarize my day today')).toBe(false);
+    });
+
+    it('detects mark_all/mark_booking/list_push_notifications prompts (ai-cmd-provider-6.8)', () => {
+      expect(
+        isMarkAllNotificationsReadPrompt('Mark all notifications as read'),
+      ).toBe(true);
+      expect(
+        isMarkAllNotificationsReadPrompt('Mark everything as read'),
+      ).toBe(true);
+      expect(isMarkAllNotificationsReadPrompt('Clear all notifications')).toBe(
+        false,
+      );
+
+      expect(
+        isMarkBookingNotificationsReadPrompt(
+          "Mark this booking's notifications as read",
+        ),
+      ).toBe(true);
+      expect(
+        isMarkBookingNotificationsReadPrompt(
+          'Mark all notifications as read',
+        ),
+      ).toBe(false);
+
+      expect(isListPushNotificationsPrompt('Show my notifications')).toBe(
+        true,
+      );
+      expect(isListPushNotificationsPrompt('Open notification center')).toBe(
+        true,
+      );
+      expect(
+        isListPushNotificationsPrompt('What notifications do I have?'),
+      ).toBe(true);
+      expect(
+        isListPushNotificationsPrompt('Open booking from push notification'),
+      ).toBe(false);
+      expect(
+        isListPushNotificationsPrompt('Explain the last push notification'),
+      ).toBe(false);
+    });
+
+    it('formats provider push notification center summary', () => {
+      expect(
+        summarizeProviderPushNotificationCenter({ unreadCount: 0, items: [] }),
+      ).toContain('No notifications');
+      expect(
+        summarizeProviderPushNotificationCenter({
+          unreadCount: 1,
+          items: [
+            { title: 'New booking', body: 'Anna — Cut', isRead: false },
+            { title: 'Confirmed', body: 'Sam — Color', isRead: true },
+          ],
+        }),
+      ).toContain('1 unread of 2 notifications');
     });
 
     it('detects dashboard and customer notification prompts', () => {
@@ -248,6 +306,22 @@ describe('ai-push-notifications.util', () => {
           'unknown',
         )?.action,
       ).toBe('appointment_reminder_preferences');
+      expect(
+        rescuePushNotificationsIntent(
+          'Mark all notifications as read',
+          'unknown',
+        )?.action,
+      ).toBe('mark_all_notifications_read');
+      expect(
+        rescuePushNotificationsIntent(
+          "Mark this booking's notifications as read",
+          'unknown',
+        )?.action,
+      ).toBe('mark_booking_notifications_read');
+      expect(
+        rescuePushNotificationsIntent('Show my notifications', 'unknown')
+          ?.action,
+      ).toBe('list_push_notifications');
     });
 
     it('skips rescue for compounds and collisions', () => {
@@ -310,7 +384,7 @@ describe('ai-push-notifications.util', () => {
         'new_booking_push_actions',
       ]);
 
-      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(15);
+      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(18);
       expect(isPushNotificationsIntent('test_push')).toBe(true);
       expect(isPushNotificationsIntent('not_real')).toBe(false);
       expect(decomposePushNotificationsCompoundPrompt('')).toEqual([]);

@@ -411,6 +411,34 @@ export async function handleAddRetailToBookingLogic(
   };
 }
 
+export async function handleSetRetailSalesLinesLogic(
+  deps: ProviderExp3LogicDeps,
+  businessId: string,
+  userId: string,
+  employeeId: string | undefined,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const mergedParams: Record<string, unknown> = {
+    ...params,
+    ...context,
+    sessionEmployeeId: employeeId,
+  };
+
+  const result = await deps.retailFinance.handleSetRetailSalesLines(
+    businessId,
+    mergedParams as Record<string, any>,
+    userId,
+    prompt,
+  );
+
+  return {
+    ...result,
+    action: 'set_retail_sales_lines',
+  };
+}
+
 export async function dispatchProviderExp3Intent(
   deps: ProviderExp3LogicDeps,
   businessId: string,
@@ -426,6 +454,16 @@ export async function dispatchProviderExp3Intent(
   switch (action) {
     case 'add_retail_to_booking':
       return handleAddRetailToBookingLogic(
+        deps,
+        businessId,
+        userId,
+        employeeId,
+        params,
+        prompt,
+        context,
+      );
+    case 'set_retail_sales_lines':
+      return handleSetRetailSalesLinesLogic(
         deps,
         businessId,
         userId,

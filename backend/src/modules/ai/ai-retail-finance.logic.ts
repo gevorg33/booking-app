@@ -8,6 +8,7 @@ import type { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import type { ExpensesService } from '../expenses/expenses.service.js';
 import type { AnalyticsService } from '../analytics/analytics.service.js';
 import type { CommissionsService } from '../commissions/commissions.service.js';
+import type { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
 import {
@@ -25,6 +26,7 @@ import {
   extractServiceNameFromPrompt,
   extractSkuFromPrompt,
   parseFirstProduct,
+  parseRetailSalesLinesFromPrompt,
   type RetailFinanceCompoundStep,
 } from './ai-retail-finance.util.js';
 
@@ -38,6 +40,7 @@ export interface RetailFinanceLogicDeps {
   serviceRepo: Repository<Service>;
   productRepo: Repository<Product>;
   employeeRepo: Repository<Employee>;
+  bookingDepth: AiBookingDepthService;
 }
 
 function failure(
@@ -784,6 +787,98 @@ export async function handleAddRetailToMyBookingLogic(
   );
 }
 
+export async function handleSetRetailSalesLinesLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  userId?: string,
+  prompt?: string,
+): Promise<CommandResult> {
+  const booking =
+    (await resolveBooking(deps, businessId, params, prompt)) ??
+    (await resolveProviderBooking(deps, businessId, params));
+  if (!booking) {
+    return failure(
+      'set_retail_sales_lines',
+      'Specify booking (id, customer, or your active appointment).',
+      { clarify: true, missing: ['bookingId'] },
+    );
+  }
+
+  const rawLines: Array<{
+    productId?: string;
+    productName?: string;
+    quantity?: number;
+  }> =
+    (params.lines as
+      | Array<{ productId?: string; productName?: string; quantity?: number }>
+      | undefined) ??
+    parseRetailSalesLinesFromPrompt(
+      prompt ?? (params._prompt as string) ?? '',
+    );
+
+  if (!rawLines || !rawLines.length) {
+    return failure(
+      'set_retail_sales_lines',
+      'Specify the retail products and quantities for this cart (e.g. "set cart to 2 shampoo, 1 conditioner").',
+      { clarify: true, missing: ['lines'] },
+    );
+  }
+
+  const products = await deps.inventoryService.listProducts(businessId);
+  const resolvedLines: Array<{ productId: string; quantity: number }> = [];
+  const unresolved: string[] = [];
+
+  for (const line of rawLines) {
+    const quantity = Math.max(1, Number(line.quantity) || 1);
+    if (line.productId) {
+      resolvedLines.push({ productId: line.productId, quantity });
+      continue;
+    }
+    if (!line.productName) continue;
+    const match = resolveByName(products, line.productName);
+    if (match) {
+      resolvedLines.push({ productId: match.id, quantity });
+    } else {
+      unresolved.push(line.productName);
+    }
+  }
+
+  if (unresolved.length) {
+    return failure(
+      'set_retail_sales_lines',
+      `Could not find product(s): ${unresolved.join(', ')}.`,
+      { clarify: true, unresolved },
+    );
+  }
+  if (!resolvedLines.length) {
+    return failure(
+      'set_retail_sales_lines',
+      'Specify the retail products and quantities for this cart (e.g. "set cart to 2 shampoo, 1 conditioner").',
+      { clarify: true, missing: ['lines'] },
+    );
+  }
+
+  try {
+    const checkout = await deps.retailPosService.setBookingRetailSales(
+      businessId,
+      booking.id,
+      userId ?? 'system',
+      { lines: resolvedLines },
+    );
+    return success(
+      'set_retail_sales_lines',
+      `Retail cart updated — ${resolvedLines.length} line(s), retail total ${checkout.retailTotal}.`,
+      { bookingId: booking.id, checkout },
+    );
+  } catch (err: any) {
+    return failure(
+      'set_retail_sales_lines',
+      err?.message ?? 'Could not update retail cart.',
+    );
+  }
+}
+
 export function mergeRetailFinanceCompoundContext(
   context: Record<string, unknown>,
   step: RetailFinanceCompoundStep,
@@ -941,6 +1036,22 @@ export async function handleRetailFinanceCompoundLogic(
           stepParams,
           userId,
           step.segment,
+        );
+        break;
+      case 'set_retail_sales_lines':
+        result = await handleSetRetailSalesLinesLogic(
+          deps,
+          businessId,
+          stepParams,
+          userId,
+          step.segment,
+        );
+        break;
+      case 'mark_paid':
+        result = await deps.bookingDepth.handleMarkPaid(
+          businessId,
+          stepParams,
+          userId,
         );
         break;
       default:

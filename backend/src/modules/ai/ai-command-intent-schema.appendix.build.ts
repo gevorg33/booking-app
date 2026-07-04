@@ -57,6 +57,10 @@ import { SERVICE_ONLINE_PAYMENT_SETUP_CLASSIFIER_RULES } from './ai-service-onli
 import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import { DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from './ai-flexible-availability.fixtures.js';
 import { DASHBOARD_SUMMARIZE_BOOKINGS_CURRENCY_CLASSIFIER_RULES } from './ai-dashboard-summarize-bookings.fixtures.js';
+import { AGENT_OPS_CLASSIFIER_RULES } from './ai-agent-ops.fixtures.js';
+import { BUSINESS_PROFILE_CLASSIFIER_RULES } from './ai-business-profile.fixtures.js';
+import { ONBOARDING_CLASSIFIER_RULES } from './ai-onboarding.fixtures.js';
+import { CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES } from './ai-clinic-pre-visit-intake.fixtures.js';
 import {
   STAFF_OPERATIONS_CLASSIFIER_RULES,
   STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES,
@@ -191,6 +195,10 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES,
   REPORTS_CURRENCY_CLASSIFIER_RULES,
   REVENUE_KPIS_CLASSIFIER_RULES,
+  AGENT_OPS_CLASSIFIER_RULES,
+  BUSINESS_PROFILE_CLASSIFIER_RULES,
+  ONBOARDING_CLASSIFIER_RULES,
+  CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES,
 ] as const;
 
 export function buildDashboardIntentSchemaAppendix(): string {
