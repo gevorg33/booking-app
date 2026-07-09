@@ -17,6 +17,7 @@ import {
 import {
   isCreatePromoCodePrompt,
   rescueCreatePromoCodeIntent,
+  rescueDeactivatePromoCodeIntent,
 } from './ai-create-promo-code.util.js';
 import { isApplyPromoCodeCheckoutPrompt } from './ai-apply-promo-code-checkout.util.js';
 import {
@@ -49,13 +50,17 @@ export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
   'toggle_annual_billing',
   'regenerate_tenant_app_install_qr',
   'create_promo_code',
+  'deactivate_promo_code',
   'configure_loyalty_settings',
+  'start_billing_checkout',
+  'confirm_billing_checkout',
 ] as const;
 
 export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'summarize_automation_performance',
   'list_inactive_customers',
   'explain_plan_limits',
+  'explain_plan_entitlements',
   'suggest_upgrade',
   'summarize_new_registrations',
   'open_billing_settings',
@@ -205,6 +210,7 @@ export function isPromoCodeHelpPrompt(prompt: string): boolean {
   if (isApplyPromoCodeCheckoutPrompt(prompt)) return false;
   if (isCreatePromoCodePrompt(prompt)) return false;
   if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
+  if (/\bgift\s*card\b/i.test(prompt)) return false;
   if (
     /\bunder\s+\$?\d+/i.test(prompt) &&
     /\bcode\s+[A-Z0-9_-]{3,}\b/i.test(prompt) &&
@@ -445,6 +451,21 @@ export function rescueMarketingGrowthIntent(
 ): { action: MarketingGrowthIntent; rescueReason: string } | null {
   const billingLoyalty = rescueBillingLoyaltyDashboardIntent(prompt, action);
   if (billingLoyalty) return billingLoyalty;
+  const regenerateTenantQrBeforeIntentCheck =
+    rescueRegenerateTenantAppInstallQrIntent(prompt, action);
+  if (regenerateTenantQrBeforeIntentCheck) {
+    return regenerateTenantQrBeforeIntentCheck;
+  }
+  const downloadAppBeforeIntentCheck = rescueHowToDownloadAppIntent(
+    prompt,
+    action,
+  );
+  if (downloadAppBeforeIntentCheck) return downloadAppBeforeIntentCheck;
+  const applyLoyaltyBeforeIntentCheck = rescueApplyLoyaltyAtCheckoutIntent(
+    prompt,
+    action,
+  );
+  if (applyLoyaltyBeforeIntentCheck) return applyLoyaltyBeforeIntentCheck;
 
   if (isMarketingGrowthIntent(action)) return null;
   if (isMarketingGrowthCompoundPrompt(prompt)) return null;
@@ -461,8 +482,6 @@ export function rescueMarketingGrowthIntent(
 
   const explainLoyalty = rescueExplainLoyaltyPointsIntent(prompt, action);
   if (explainLoyalty) return explainLoyalty;
-  const applyLoyalty = rescueApplyLoyaltyAtCheckoutIntent(prompt, action);
-  if (applyLoyalty) return applyLoyalty;
   if (isLoyaltyPointsBalancePrompt(prompt)) {
     return {
       action: 'loyalty_points_balance',
@@ -477,6 +496,8 @@ export function rescueMarketingGrowthIntent(
   }
   const createPromo = rescueCreatePromoCodeIntent(prompt, action);
   if (createPromo) return createPromo;
+  const deactivatePromo = rescueDeactivatePromoCodeIntent(prompt, action);
+  if (deactivatePromo) return deactivatePromo;
   const configureLoyalty = rescueConfigureLoyaltySettingsIntent(prompt, action);
   if (configureLoyalty) return configureLoyalty;
   if (isPromoCodeHelpPrompt(prompt)) {
@@ -485,13 +506,6 @@ export function rescueMarketingGrowthIntent(
   if (isSwitchToConsumerAppPrompt(prompt)) {
     return { action: 'switch_to_consumer_app', rescueReason: 'switch_app' };
   }
-  const regenerateTenantQr = rescueRegenerateTenantAppInstallQrIntent(
-    prompt,
-    action,
-  );
-  if (regenerateTenantQr) return regenerateTenantQr;
-  const downloadApp = rescueHowToDownloadAppIntent(prompt, action);
-  if (downloadApp) return downloadApp;
   const tenantAppInstall = rescueExplainTenantAppInstallIntent(prompt, action);
   if (tenantAppInstall) return tenantAppInstall;
 

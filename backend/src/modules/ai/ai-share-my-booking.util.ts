@@ -2,6 +2,7 @@ import {
   SHARE_MY_BOOKING_PROMPTS,
   type ShareMyBookingPromptFixture,
 } from './ai-share-my-booking.fixtures.js';
+import { isRequestClientReviewPrompt } from './ai-provider-exp-2.util.js';
 
 export const SHARE_MY_BOOKING_INTENTS = ['share_my_booking'] as const;
 
@@ -67,6 +68,7 @@ export function isShareMyBookingIntent(
 }
 
 export function isShareMyBookingPrompt(prompt: string): boolean {
+  if (isRequestClientReviewPrompt(prompt)) return false;
   if (EXPLAIN_ONLY.test(prompt)) return false;
   if (
     /\b(?:ics|\.ics|google\s+calendar|outlook|add\s+to\s+calendar|calendar\s+file|download\s+calendar)\b/i.test(

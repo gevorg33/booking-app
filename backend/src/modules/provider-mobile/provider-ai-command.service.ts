@@ -126,6 +126,8 @@ import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
 import { AiProviderClinicTasksAndResultsService } from '../ai/ai-provider-clinic-tasks-and-results.service.js';
 import { AiGiftFulfillmentService } from '../ai/ai-gift-fulfillment.service.js';
 import { AiRetailFinanceService } from '../ai/ai-retail-finance.service.js';
+import { AiScheduleResourcesService } from '../ai/ai-schedule-resources.service.js';
+import { AiPaymentsService } from '../ai/ai-payments.service.js';
 import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
 import {
@@ -343,6 +345,10 @@ export class ProviderAiCommandService {
     private giftFulfillment: AiGiftFulfillmentService,
     @Inject(forwardRef(() => AiRetailFinanceService))
     private retailFinance: AiRetailFinanceService,
+    @Inject(forwardRef(() => AiScheduleResourcesService))
+    private scheduleResources: AiScheduleResourcesService,
+    @Inject(forwardRef(() => AiPaymentsService))
+    private payments: AiPaymentsService,
     private pushActions: ProviderPushActionService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
@@ -1027,6 +1033,33 @@ export class ProviderAiCommandService {
           { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
           prompt,
         );
+        break;
+      case 'my_resource_assignments':
+        result = await this.scheduleResources.handleMyResourceAssignments(
+          businessId,
+          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+        );
+        break;
+      case 'block_resource_unavailable':
+        result = await this.scheduleResources.handleBlockResourceUnavailable(
+          businessId,
+          parsed.params,
+        );
+        break;
+      case 'explain_payment_status':
+      case 'collect_cash_confirm':
+        result = (await this.payments.dispatchIntent({
+          businessId,
+          action: parsed.action,
+          params: parsed.params,
+          prompt,
+          userId,
+        })) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Could not complete "${parsed.action}".`,
+          details: { clarify: true },
+        };
         break;
       case 'list_my_time_off_requests':
         result = (await this.providerTimeOff.handleIntent(

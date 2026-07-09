@@ -12,6 +12,7 @@ import {
   isProviderBookingIntent,
   rescueProviderBookingIntent,
 } from './ai-provider-booking.util.js';
+import { PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS } from './ai-provider-list-my-multi-service-groups.fixtures.js';
 
 describe('ai-provider-booking.util', () => {
   it('registers provider booking intents', () => {
@@ -161,4 +162,19 @@ describe('ai-provider-booking.util', () => {
       ),
     ).toBeNull();
   });
+
+  it.each(
+    PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
+  )(
+    'detects list_my_multi_service_groups prompt %s (ai-cmd-provider-5.18.1)',
+    (_id, prompt) => {
+      expect(isListMyMultiServiceGroupsPrompt(prompt)).toBe(true);
+      expect(rescueProviderBookingIntent(prompt, 'unknown')?.action).toBe(
+        'list_my_multi_service_groups',
+      );
+    },
+  );
 });

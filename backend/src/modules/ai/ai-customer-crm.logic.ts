@@ -397,6 +397,70 @@ export async function handleTagCustomerLogic(
   });
 }
 
+export async function handleUpdateCustomerLogic(
+  deps: CustomerCrmLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  customers: Customer[],
+  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+): Promise<CommandResult> {
+  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  if (!customer) {
+    return failure(
+      'update_customer',
+      'Specify which customer to update (customerName or customerId).',
+      { clarify: true, missing: ['customerName'] },
+    );
+  }
+
+  const name =
+    typeof params.newName === 'string' ? params.newName.trim() : undefined;
+  const email =
+    typeof params.email === 'string' ? params.email.trim() : undefined;
+  const phone =
+    typeof params.phone === 'string' ? params.phone.trim() : undefined;
+  const isVip = typeof params.isVip === 'boolean' ? params.isVip : undefined;
+
+  if (
+    name === undefined &&
+    email === undefined &&
+    phone === undefined &&
+    isVip === undefined
+  ) {
+    return failure(
+      'update_customer',
+      `What should I change for ${customer.name}? Provide a new name, email, phone, or VIP status.`,
+    );
+  }
+
+  try {
+    const updated = await deps.customerService.update(customer.id, {
+      ...(name !== undefined ? { name } : {}),
+      ...(email !== undefined ? { email } : {}),
+      ...(phone !== undefined ? { phone } : {}),
+      ...(isVip !== undefined ? { isVip } : {}),
+    });
+    const changes = [
+      name !== undefined ? `name → ${name}` : null,
+      email !== undefined ? `email → ${email}` : null,
+      phone !== undefined ? `phone → ${phone}` : null,
+      isVip !== undefined ? `VIP → ${isVip}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return success(
+      'update_customer',
+      `Updated ${updated.name}: ${changes}.`,
+      { customerId: updated.id, customerName: updated.name },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_customer',
+      err?.message ?? 'Could not update the customer.',
+    );
+  }
+}
+
 export async function handleExportCustomerDataLogic(
   deps: CustomerCrmLogicDeps,
   businessId: string,

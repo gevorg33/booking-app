@@ -799,7 +799,8 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
       isCheckProvidersForServicePrompt(prompt) &&
       isBookNearestSlotPrompt(prompt) &&
       !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
-      !isDiscoverBookAndPayCompoundPrompt(prompt),
+      !isDiscoverBookAndPayCompoundPrompt(prompt) &&
+      !isBookLabCollectionNearestCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {

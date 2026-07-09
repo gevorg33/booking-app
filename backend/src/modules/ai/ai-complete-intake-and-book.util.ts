@@ -87,7 +87,12 @@ export function extractLabServiceNameFromIntakeBookPrompt(
   if (named?.[1]) return named[1].trim();
 
   if (/\bblood\b/i.test(prompt)) return 'blood draw';
+  if (/\blab\s+draw\b/i.test(prompt)) return 'blood draw';
   if (/\blab\b/i.test(prompt)) return 'lab test';
+  if (/արյան/iu.test(prompt)) return 'blood draw';
+  if (/լաբ/iu.test(prompt)) return 'lab test';
+  if (/кров/iu.test(prompt)) return 'blood draw';
+  if (/лаб/iu.test(prompt)) return 'lab test';
 
   return undefined;
 }

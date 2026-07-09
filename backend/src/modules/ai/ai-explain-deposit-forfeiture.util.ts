@@ -8,6 +8,7 @@ import {
 } from './ai-explain-deposit-forfeiture.fixtures.js';
 import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
 import { isListServicesPaymentFilterPrompt } from './ai-list-services-payment-filters.util.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
 
 export const EXPLAIN_DEPOSIT_FORFEITURE_INTENTS = [
   'explain_deposit_forfeiture',
@@ -63,14 +64,23 @@ function matchDepositForfeitureMultilingualScenario(
 }
 
 const PAYMENT_SETUP_MUTATE_CUE = new RegExp(
-  String.raw`\b(?:accept|enable|require|configure|set\s+up|turn\s+on|decline|disable|turn\s+off|stop|reject|remove|refuse)\b.{0,80}\b(?:online\s+payment|prepayment|public\s+booking)\b|\b(?:online\s+payment|prepayment).{0,60}\b(?:for|on)\s+(?:all\s+)?(?:services?|massage|haircut|facial|category)\b`,
+  String.raw`\b(?:accept|enable|require|configure|set\s+up|turn\s+on|decline|disable|turn\s+off|stop|reject|remove|refuse)\b.{0,80}\b(?:online\s+payment|prepayment|public\s+booking)\b|\b(?:online\s+payment|prepayment).{0,60}\b(?:for|on)\s+.{0,20}\bservices?\b|ընդուն|միացն|պահանջ|կարգավոր|անջատ|դադարեցն|прин|включ|требов|настро|отключ|прекрат`,
   'iu',
 );
 
 export function isExplainDepositForfeiturePrompt(prompt: string): boolean {
   if (isConfigureServiceDepositPolicyPrompt(prompt)) return false;
   if (isListServicesPaymentFilterPrompt(prompt)) return false;
+  if (isExplainPublicBookingCheckoutPrompt(prompt)) return false;
   if (PAYMENT_SETUP_MUTATE_CUE.test(prompt)) return false;
+  if (
+    /\b(?:raise|increase|lower|decrease|reduce|adjust|change)\b.{0,20}\bprice/i.test(
+      prompt,
+    ) ||
+    (/\d+\s*%/.test(prompt) && /\bprice/i.test(prompt))
+  ) {
+    return false;
+  }
   if (
     /\b(package\s+visit|spa\s+day|package\s+bundle|package\s+appointment)\b/i.test(
       prompt,

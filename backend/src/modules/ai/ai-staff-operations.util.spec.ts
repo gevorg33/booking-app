@@ -14,6 +14,7 @@ import {
   isCreateEmployeePrompt,
   isDeactivateEmployeePrompt,
   isInviteStaffMemberPrompt,
+  isUpdateTeamMemberRolePrompt,
   parseOnlineBookingEnabledFromPrompt,
   rescueStaffOperationsIntent,
 } from './ai-staff-operations.util.js';
@@ -125,6 +126,27 @@ describe('ai-staff-operations.util (ai-cmd-ext-2.5–2.8)', () => {
     expect(extractEmployeeNameFromPrompt('Add stylist Anna to the team')).toBe(
       'Anna',
     );
+  });
+
+  it('isUpdateTeamMemberRolePrompt detects role-change phrasing', () => {
+    expect(isUpdateTeamMemberRolePrompt("Make Maria's role manager")).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Set Jake\'s role to admin')).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Promote Anna to manager')).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Rename Anna to Maria')).toBe(false);
+  });
+
+  it('rescueStaffOperationsIntent rescues update_team_member_role from unknown', () => {
+    const rescued = rescueStaffOperationsIntent(
+      'Make Maria a manager role',
+      'unknown',
+    );
+    expect(rescued?.action).toBe('update_team_member_role');
   });
 
   it('detection helpers match fixtures', () => {

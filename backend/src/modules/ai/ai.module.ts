@@ -9,6 +9,8 @@ import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
 import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import { AiReferralStaffTemplatesService } from './ai-referral-staff-templates.service.js';
+import { AiExternalDoctorsService } from './ai-external-doctors.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
 import { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-location.service.js';
 import { AiProviderSpecialtyService } from './ai-explain-provider-specialty.service.js';
@@ -16,7 +18,11 @@ import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
+import { AiClinicTestCatalogService } from './ai-clinic-test-catalog.service.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
+import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
+import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
+import { AiLocationsService } from './ai-locations.service.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from './ai-product-guide-empty-state.service.js';
 import { AiConsumerClinicTestResultsService } from './ai-consumer-clinic-test-results.service.js';
@@ -74,6 +80,8 @@ import { PublicBookingModule } from '../public-booking/public-booking.module.js'
 import { ServiceModule } from '../service/service.module.js';
 import { OnboardingModule } from '../onboarding/onboarding.module.js';
 import { ClinicPreVisitIntakesModule } from '../clinic-pre-visit-intakes/clinic-pre-visit-intakes.module.js';
+import { ClinicQuestionnairesModule } from '../clinic-questionnaires/clinic-questionnaires.module.js';
+import { LocationsModule } from '../locations/locations.module.js';
 import { GiftCardsModule } from '../gift-cards/gift-cards.module.js';
 import { ZendeskModule } from '../integrations/zendesk/zendesk.module.js';
 import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
@@ -168,6 +176,9 @@ import { ClinicTestResultsModule } from '../clinic-test-results/clinic-test-resu
 import { PatientClinicalProfilesModule } from '../patient-clinical-profiles/patient-clinical-profiles.module.js';
 import { ComplianceModule } from '../compliance/compliance.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
+import { EnterpriseTrustModule } from '../enterprise-trust/enterprise-trust.module.js';
+import { StrategyEvalModule } from '../strategy-eval/strategy-eval.module.js';
+import { ExternalDoctorsModule } from '../external-doctors/external-doctors.module.js';
 import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
 import { AiGuideTelemetry } from './entities/ai-guide-telemetry.entity.js';
@@ -235,12 +246,17 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     NotificationsModule,
     ComplianceModule,
     ReviewsModule,
+    EnterpriseTrustModule,
+    StrategyEvalModule,
+    ExternalDoctorsModule,
     ClinicTestResultsModule,
     PatientClinicalProfilesModule,
     forwardRef(() => PublicBookingModule),
     ServiceModule,
     OnboardingModule,
     ClinicPreVisitIntakesModule,
+    ClinicQuestionnairesModule,
+    LocationsModule,
     forwardRef(() => GiftCardsModule),
     ZendeskModule,
   ],
@@ -254,6 +270,8 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiOperationsService,
     AiBusinessCurrencyService,
     AiBusinessLanguagesService,
+    AiReferralStaffTemplatesService,
+    AiExternalDoctorsService,
     AiBusinessDateFormatService,
     AiBusinessHoursLocationService,
     AiProviderSpecialtyService,
@@ -261,7 +279,11 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiBusinessComplianceService,
     AiClinicTestOrderService,
     AiClinicTestResultService,
+    AiClinicTestCatalogService,
     AiClinicPatientChartService,
+    AiPatientClinicalMutationsService,
+    AiClinicQuestionnaireService,
+    AiLocationsService,
     AiProductGuideService,
     AiProductGuideEmptyStateService,
     GuideTelemetryService,
@@ -363,6 +385,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiEventsService,
     AiSuggestionsService,
     AiScheduleHandlersService,
+    AiScheduleResourcesService,
     OperationalPlanBuilderService,
     CommandOrchestrationService,
     AiSettingsService,
@@ -370,6 +393,8 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     CustomerAiCommandService,
     AiBusinessCurrencyService,
     AiBusinessLanguagesService,
+    AiReferralStaffTemplatesService,
+    AiExternalDoctorsService,
     AiBusinessDateFormatService,
     AiBusinessHoursLocationService,
     AiProviderSpecialtyService,

@@ -8,8 +8,10 @@ import {
   isUndoLatestAgentTaskPrompt,
 } from './ai-agent-ops.util.js';
 import {
+  handleApproveAgentTaskLogic,
   handleListAgentTasksLogic,
   handleRebookAllFromAgentTaskLogic,
+  handleRetryAgentStepLogic,
   handleUndoLatestAgentTaskLogic,
   type AgentOpsLogicDeps,
 } from './ai-agent-ops.logic.js';
@@ -69,5 +71,21 @@ export class AiAgentOpsService {
       userId,
       confirmed,
     );
+  }
+
+  handleApproveAgentTask(
+    businessId: string,
+    params: Record<string, any>,
+    userId: string,
+  ) {
+    return handleApproveAgentTaskLogic(this.deps, businessId, params, userId);
+  }
+
+  handleRetryAgentStep(
+    businessId: string,
+    params: Record<string, any>,
+    userId: string,
+  ) {
+    return handleRetryAgentStepLogic(this.deps, businessId, params, userId);
   }
 }

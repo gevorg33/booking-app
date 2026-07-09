@@ -30,6 +30,7 @@ import {
   handleMyResourceAssignmentsLogic,
   handleProvidersAvailableLaterDaysLogic,
   handleScheduleResourceCompoundLogic,
+  handleSetServiceResourceRequirementsLogic,
   handleUpdateResourceLogic,
   type Sprint29ScheduleResourceLogicDeps,
 } from './ai-schedule-resources.logic.js';
@@ -94,6 +95,19 @@ export class AiScheduleResourcesService {
     services: Service[],
   ) {
     return handleAssignResourceHoursLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+    );
+  }
+
+  handleSetServiceResourceRequirements(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+  ) {
+    return handleSetServiceResourceRequirementsLogic(
       this.deps,
       businessId,
       params,

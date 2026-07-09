@@ -34,7 +34,7 @@ export const EXPLAIN_LAB_PREP_MULTILINGUAL_SCENARIOS: ExplainLabPrepMultilingual
     {
       id: 'which-fasting-hy-public',
       locale: 'hy',
-      prompt: 'Որ լաբ թեստերն են ծոմավոր պահանջող',
+      prompt: 'Ես պետք է ծոմավորվե՞մ լաբորատոր թեստերիս համար',
       surface: 'public',
       expectedAction: 'explain_lab_prep',
       rescueReason: 'lab_prep',

@@ -44,6 +44,8 @@ import {
   DASHBOARD_ONBOARDING_MUTATE_INTENTS,
 } from './ai-onboarding.util.js';
 import { DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS } from './ai-clinic-pre-visit-intake.util.js';
+import { DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS } from './ai-clinic-questionnaire.util.js';
+import { DASHBOARD_LOCATIONS_MUTATE_INTENTS } from './ai-locations.util.js';
 import {
   DASHBOARD_PAYMENTS_MUTATE_INTENTS,
   DASHBOARD_PAYMENTS_READ_INTENTS,
@@ -100,6 +102,14 @@ import {
   BUSINESS_LANGUAGES_MUTATE_INTENTS,
 } from './ai-business-languages.util.js';
 import {
+  REFERRAL_STAFF_TEMPLATES_INTENTS,
+  REFERRAL_STAFF_TEMPLATES_MUTATE_INTENTS,
+} from './ai-referral-staff-templates.util.js';
+import {
+  EXTERNAL_DOCTORS_INTENTS,
+  EXTERNAL_DOCTORS_MUTATE_INTENTS,
+} from './ai-external-doctors.util.js';
+import {
   BUSINESS_DATE_FORMAT_INTENTS,
   BUSINESS_DATE_FORMAT_MUTATE_INTENTS,
 } from './ai-business-date-format.util.js';
@@ -119,7 +129,12 @@ import {
   CLINIC_TEST_RESULT_INTENTS,
   CLINIC_TEST_RESULT_MUTATE_INTENTS,
 } from './ai-clinic-test-result.util.js';
+import { DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS } from './ai-clinic-test-catalog.util.js';
 import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
+import {
+  PATIENT_CLINICAL_MUTATIONS_INTENTS,
+  PATIENT_CLINICAL_MUTATIONS_MUTATE_INTENTS,
+} from './ai-patient-clinical-mutations.util.js';
 import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
 import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
 import {
@@ -426,12 +441,28 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: [...CLINIC_TEST_RESULT_MUTATE_INTENTS],
   },
   {
+    intents: [...DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiClinicTestCatalogService',
+    sprint: 'clinicTestResults',
+    mutateIntents: [...DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS],
+  },
+  {
     intents: [...CLINIC_PATIENT_CHART_INTENTS],
     surfaces: ['dashboard'],
     apiModule: 'patient-clinical-profiles',
     handler: 'AiClinicPatientChartService',
     sprint: 'clinicPatientChart',
     mutateIntents: [],
+  },
+  {
+    intents: [...PATIENT_CLINICAL_MUTATIONS_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'patient-clinical-profiles',
+    handler: 'AiPatientClinicalMutationsService',
+    sprint: 'clinicPatientChart',
+    mutateIntents: [...PATIENT_CLINICAL_MUTATIONS_MUTATE_INTENTS],
   },
   {
     intents: [...APP_GUIDE_INTENTS],
@@ -603,6 +634,22 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     handler: 'AiBusinessLanguagesService',
     sprint: 'businessLanguages',
     mutateIntents: BUSINESS_LANGUAGES_MUTATE_INTENTS,
+  },
+  {
+    intents: REFERRAL_STAFF_TEMPLATES_INTENTS,
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiReferralStaffTemplatesService',
+    sprint: 'dashboardAuditFollowUp',
+    mutateIntents: REFERRAL_STAFF_TEMPLATES_MUTATE_INTENTS,
+  },
+  {
+    intents: EXTERNAL_DOCTORS_INTENTS,
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiExternalDoctorsService',
+    sprint: 'dashboardAuditFollowUp',
+    mutateIntents: EXTERNAL_DOCTORS_MUTATE_INTENTS,
   },
   {
     intents: BUSINESS_DATE_FORMAT_INTENTS,
@@ -1140,6 +1187,22 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: [...DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS],
   },
   {
+    intents: [...DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'clinic-questionnaires',
+    handler: 'AiClinicQuestionnaireService',
+    sprint: 'clinicPreVisitIntake',
+    mutateIntents: [...DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS],
+  },
+  {
+    intents: [...DASHBOARD_LOCATIONS_MUTATE_INTENTS],
+    surfaces: ['dashboard'],
+    apiModule: 'locations',
+    handler: 'AiLocationsService',
+    sprint: 'operations',
+    mutateIntents: [...DASHBOARD_LOCATIONS_MUTATE_INTENTS],
+  },
+  {
     intents: [
       ...DASHBOARD_PAYMENTS_MUTATE_INTENTS,
       ...DASHBOARD_PAYMENTS_READ_INTENTS,
@@ -1327,7 +1390,7 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
   },
   {
     intents: PROVIDER_GIFT_FULFILLMENT_INTENTS,
-    surfaces: ['provider'],
+    surfaces: ['dashboard', 'provider'],
     apiModule: 'gift-fulfillment',
     handler: 'AiGiftFulfillmentService',
     sprint: 'giftFulfillment',
@@ -1482,12 +1545,22 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: [...PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS],
   },
   {
-    intents: [...PROVIDER_CLINIC_TASKS_AND_RESULTS_INTENTS],
+    intents: PROVIDER_CLINIC_TASKS_AND_RESULTS_INTENTS.filter(
+      (id) => id !== 'list_booking_lab_summaries',
+    ),
     surfaces: ['provider'],
     apiModule: 'clinic-test-results',
     handler: 'AiProviderClinicTasksAndResultsService',
     sprint: 'providerClinicTasksAndResults',
     mutateIntents: [...PROVIDER_CLINIC_TASKS_AND_RESULTS_MUTATE_INTENTS],
+  },
+  {
+    intents: ['list_booking_lab_summaries'],
+    surfaces: ['provider', 'dashboard'],
+    apiModule: 'clinic-test-results',
+    handler: 'AiProviderClinicTasksAndResultsService',
+    sprint: 'dashboardAuditFollowUp',
+    mutateIntents: [],
   },
   {
     intents: PROVIDER_PAYMENTS_INTENTS,

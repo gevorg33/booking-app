@@ -5,6 +5,7 @@ import {
 } from './ai-explain-multi-service-cart.fixtures.js';
 import { EXPLAIN_MULTI_SERVICE_CART_MULTILINGUAL_SCENARIOS } from './ai-explain-multi-service-cart-multilingual.fixtures.js';
 import { isAddServicesToCartPrompt } from './ai-self-service-booking.util.js';
+import { isExplainMultiServiceSettingsPrompt } from './ai-explain-multi-service-settings.util.js';
 
 export type MultiServiceCartLine = {
   id: string;
@@ -72,6 +73,7 @@ const HY_RU_EXPLAIN_CART_CUE =
 export function isExplainMultiServiceCartPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isExplainMultiServiceSettingsPrompt(text)) return false;
   if (
     /\bpackage\s+visits?\b/i.test(text) &&
     /\b(status|progress|left|remaining|still\s+have|how\s+many|list|show)\b/i.test(

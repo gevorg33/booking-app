@@ -20,7 +20,7 @@ export type NotifyRunningLateIntent =
 export { CUSTOMER_NOTIFY_RUNNING_LATE_CLASSIFIER_RULES } from './ai-notify-running-late.fixtures.js';
 
 const PROVIDER_RUNNING_LATE_CUE =
-  /\b(mark .+ running late|tell the client|text .+ running late|sms .+ running late|whatsapp .+ running late|client .+ running late|customer .+ running late|mark .+ late)\b/i;
+  /\b(mark .+ running late|tell the client|text .+ running late|sms .+ running late|whatsapp .+ running late|client .+ running late|customer .+ running late|mark .+ late|for\s+my\b.*\bclient\b)\b|հաճախորդ|клиент/i;
 
 const RESCHEDULE_CUE =
   /\b(reschedule|move my|change my appointment to|shift my|перенес|перенести|վերամրագր)\b/i;
@@ -100,6 +100,16 @@ export function isNotifyRunningLatePrompt(prompt: string): boolean {
   if (CANCEL_CUE.test(prompt)) return false;
 
   if (matchNotifyRunningLateScenario(prompt)) return true;
+
+  // A capitalized Latin name alongside Armenian/Cyrillic text signals a provider
+  // naming a specific client (e.g. "Jane-ի համար" / "к Jane"), not a customer
+  // reporting their own lateness — mirrors the English `for [Name]` exclusion below.
+  if (
+    /\b[A-Z][a-z]+\b/.test(prompt) &&
+    (containsArmenianScript(prompt) || containsCyrillicScript(prompt))
+  ) {
+    return false;
+  }
 
   if (
     (containsArmenianScript(prompt) &&

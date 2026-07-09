@@ -623,6 +623,127 @@ export async function handleOpenBillingSettingsLogic(
   }
 }
 
+export async function handleStartBillingCheckoutLogic(
+  deps: MarketingGrowthLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  if (!business)
+    return failure('start_billing_checkout', 'Business not found.');
+
+  const planId =
+    typeof params.planId === 'string' && params.planId.trim()
+      ? params.planId.trim()
+      : undefined;
+  const planName =
+    typeof params.planName === 'string' && params.planName.trim()
+      ? params.planName.trim()
+      : undefined;
+
+  const plan = planId
+    ? getPlan(planId)
+    : planName
+      ? getActivePlans().find(
+          (p) => p.name.toLowerCase() === planName.toLowerCase(),
+        ) ??
+        getActivePlans().find((p) =>
+          p.name.toLowerCase().includes(planName.toLowerCase()),
+        )
+      : undefined;
+
+  if (!plan) {
+    return failure(
+      'start_billing_checkout',
+      'Which plan would you like to check out? Provide planName or planId.',
+      { clarify: true, missing: ['planName'] },
+    );
+  }
+
+  const billingInterval = params.billingInterval === 'year' ? 'year' : 'month';
+
+  try {
+    const session = await deps.billingService.createCheckoutSession(
+      businessId,
+      plan.id,
+      business.email ?? '',
+      billingInterval,
+    );
+    return success(
+      'start_billing_checkout',
+      `Opening checkout for the ${plan.name} plan (billed ${billingInterval}ly): ${session.url}`,
+      {
+        checkoutUrl: session.url,
+        planId: plan.id,
+        billingInterval,
+        navigate: { url: session.url },
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'start_billing_checkout',
+      err?.message ?? 'Could not start billing checkout.',
+    );
+  }
+}
+
+export async function handleConfirmBillingCheckoutLogic(
+  deps: MarketingGrowthLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const sessionId =
+    typeof params.sessionId === 'string' ? params.sessionId.trim() : '';
+  if (!sessionId) {
+    return failure(
+      'confirm_billing_checkout',
+      'Provide the Stripe checkout sessionId to confirm (returned in the redirect URL after checkout).',
+      { clarify: true, missing: ['sessionId'] },
+    );
+  }
+
+  try {
+    const subscription = await deps.billingService.confirmCheckoutSession(
+      businessId,
+      sessionId,
+    );
+    return success(
+      'confirm_billing_checkout',
+      subscription.isActive
+        ? `Checkout confirmed — subscribed to ${subscription.plan?.name ?? subscription.planId} (${subscription.status}).`
+        : `Checkout session processed, but the subscription is not active yet (status: ${subscription.status}).`,
+      { subscription },
+    );
+  } catch (err: any) {
+    return failure(
+      'confirm_billing_checkout',
+      err?.message ?? 'Could not confirm the billing checkout.',
+    );
+  }
+}
+
+export async function handleExplainPlanEntitlementsLogic(
+  deps: MarketingGrowthLogicDeps,
+  businessId: string,
+): Promise<CommandResult> {
+  try {
+    const entitlements =
+      await deps.planEntitlementsService.getEntitlements(businessId);
+    return success(
+      'explain_plan_entitlements',
+      formatEntitlementsSummary(entitlements),
+      { entitlements },
+    );
+  } catch (err: any) {
+    return failure(
+      'explain_plan_entitlements',
+      err?.message ?? 'Could not read plan entitlements.',
+    );
+  }
+}
+
 export async function handleSummarizeLoyaltyProgramLogic(
   deps: MarketingGrowthLogicDeps,
   businessId: string,

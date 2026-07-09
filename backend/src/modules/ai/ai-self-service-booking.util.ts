@@ -510,7 +510,14 @@ export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
       /\b(visit|appointment|bundle)\b/i.test(prompt)) ||
     /\bmy\s+package\b/i.test(prompt) ||
     (/\bbundle\b/i.test(prompt) &&
-      /\b(my|next|facial|spa\s+day)\b/i.test(prompt));
+      /\b(my|next|facial|spa\s+day)\b/i.test(prompt)) ||
+    (/այց/i.test(prompt) && /\bbundle\b/i.test(prompt)) ||
+    (/визит/i.test(prompt) && (/пакет/i.test(prompt) || /\bbundle\b/i.test(prompt)));
+
+  // Armenian/Cyrillic script alone implies self-scope here: this domain has no
+  // dashboard-admin equivalent phrased in those scripts, and the earlier
+  // hasDashboardCustomerReference bail-out already screens out admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
 
   const selfScope =
     /\bmy\b/i.test(prompt) ||
@@ -519,12 +526,16 @@ export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
       (/\bpackage\b/i.test(prompt) ||
         /\bspa\s+day\b/i.test(prompt) ||
         /\bbundle\b/i.test(prompt)) &&
-      !hasDashboardCustomerReference(prompt));
+      !hasDashboardCustomerReference(prompt)) ||
+    hasNonLatinScript;
 
   const readCue =
     /\b(list|show|view|see|what|when|how\s+many|status|progress)\b/i.test(
       prompt,
-    ) || /\b(visits?\s+left|remaining|still\s+have|next)\b/i.test(prompt);
+    ) ||
+    /\b(visits?\s+left|remaining|still\s+have|next)\b/i.test(prompt) ||
+    /ցույց|մնաց/i.test(prompt) ||
+    /покажи|показать|осталось/i.test(prompt);
 
   return packageContext && selfScope && readCue;
 }

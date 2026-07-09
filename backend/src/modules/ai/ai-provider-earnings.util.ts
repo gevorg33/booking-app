@@ -15,6 +15,8 @@ import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from './ai-provider-earnings.fixtu
 import { PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS } from './ai-provider-earnings-multilingual.fixtures.js';
 import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
 import { isExplainProviderPaymentCurrencyPrompt } from './ai-provider-payment-currency.util.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
+import { isExplainMultiServiceSettingsPrompt } from './ai-explain-multi-service-settings.util.js';
 import {
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
@@ -147,6 +149,8 @@ export function buildPeriodLabel(range: DateRange, prompt?: string): string {
 export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isExplainPublicBookingCheckoutPrompt(prompt)) return false;
+  if (isExplainMultiServiceSettingsPrompt(prompt)) return false;
   if (
     isBookNearestSlotPrompt(prompt) ||
     isCheckProvidersForServicePrompt(prompt)

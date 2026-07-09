@@ -35,6 +35,8 @@ import {
   PUSH_NOTIFICATIONS_INTENTS,
   isPushNotificationsIntent,
 } from './ai-push-notifications.util.js';
+import { PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-open-booking-from-push.fixtures.js';
+import { PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS } from './ai-provider-dismiss-push.fixtures.js';
 
 describe('ai-push-notifications.util', () => {
   describe('prompt classifiers', () => {
@@ -579,6 +581,39 @@ describe('ai-push-notifications.util', () => {
         parseProviderLastPushPayload({ actions: [{ id: 'x' }] })?.actions?.[0]
           .label,
       ).toBe('');
+    });
+  });
+
+  describe('open_booking_from_push (ai-cmd-provider-5.10.2)', () => {
+    it.each(
+      PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isOpenBookingFromPushPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'open_booking_from_push',
+        rescueReason: 'open_from_push',
+      });
+    });
+  });
+
+  describe('dismiss_push (ai-cmd-provider-5.10.4)', () => {
+    it.each(
+      PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isDismissPushPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'dismiss_push',
+        rescueReason: 'dismiss_push',
+      });
+    });
+
+    it('does not treat mark-as-read prompts as dismiss', () => {
+      expect(isDismissPushPrompt('Mark all notifications as read')).toBe(
+        false,
+      );
     });
   });
 });

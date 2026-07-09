@@ -1,6 +1,8 @@
 /** Dashboard classifier rules for clinic lab result entry and release (ai-cmd-clinic-v2-2). */
 export const CLINIC_TEST_RESULT_CLASSIFIER_RULES = `- enter_test_result: MUTATE — clinic only: record a manual lab measurement value on a test order/result (WBC, CBC, glucose, etc.). Triggers: enter/record/log/set + {measurementCode} + numeric value + for order|result + optional orderId/resultId. Requires measurementCode, value, and orderId or resultId. NOT create_test_order (place order), NOT release_test_result (patient release), NOT notify_patient_result_ready (notification).
 - release_test_result: MUTATE — clinic only: release reviewed lab results to the patient chart. Triggers: release/publish/make available + results|lab results + optional customerName, orderId, resultId. NOT notify_patient_result_ready (email/WhatsApp notification), NOT enter_test_result (value entry), NOT list_test_orders (read queue).
+- transition_specimen: MUTATE — clinic only: move a specimen to a new lab tracking status (Collected, ReadyForTransport, InTransit, ReceivedInLab, Completed, RecollectRequired, RetestRequired, Rejected). Requires toStatus, plus specimenId or orderId or customerName. NOT enter_test_result (values on the result, not specimen tracking), NOT mark_specimen_collected (provider-mobile self-scope collection queue).
+- explain_lab_result_history: READ — clinic only: show the change/audit history for a lab result (who changed what, when). Requires resultId.
 - Examples:
   - "Enter WBC 12.5 for order #abc123" → enter_test_result, measurementCode=WBC, value=12.5, orderId=abc123
   - "Release results to patient Maria" → release_test_result, customerName=Maria

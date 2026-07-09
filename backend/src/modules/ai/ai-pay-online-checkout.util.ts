@@ -327,6 +327,23 @@ export function isExplicitPayOnlinePrompt(prompt: string): boolean {
 
   if (/\b(ready to pay online|pay online now)\b/i.test(prompt)) return true;
 
+  if (/վճարել?\s*օնլայն|оплатить\s*онлайн/iu.test(prompt)) return true;
+
+  if (
+    /(ավարտել|շարունակել)/iu.test(prompt) &&
+    /(checkout|վճարում)/iu.test(prompt) &&
+    /քարտ/iu.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /(завершить|продолжить)/iu.test(prompt) &&
+    /(checkout|оплат)/iu.test(prompt) &&
+    /карт/iu.test(prompt)
+  ) {
+    return true;
+  }
+
   return false;
 }
 

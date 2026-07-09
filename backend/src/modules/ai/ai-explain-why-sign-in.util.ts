@@ -3,6 +3,12 @@ import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
+import { isExplainProviderDateDisplayPrompt } from './ai-provider-date-format.util.js';
+import {
+  isExplainDateInputFormatPrompt,
+  isPreviewDateInputParsePrompt,
+} from './ai-date-input-format.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import { EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_SCENARIOS } from './ai-explain-why-sign-in-multilingual.fixtures.js';
 import {
   EXPLAIN_WHY_SIGN_IN_PROMPTS,
@@ -119,6 +125,10 @@ export function isExplainWhySignInPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isExplainCheckoutRecommendationsPrompt(text)) return false;
   if (isExplainConsumerCheckoutSuccessPrompt(text)) return false;
+  if (isExplainProviderDateDisplayPrompt(text)) return false;
+  if (isExplainDateInputFormatPrompt(text)) return false;
+  if (isPreviewDateInputParsePrompt(text)) return false;
+  if (isExplainNotificationCurrencyPrompt(text)) return false;
   if (matchExplainWhySignInScenario(text)) return true;
   if (POST_BOOKING_SAVE_CUE.test(text)) return false;
   if (MANAGE_LINK_SIGN_IN_CUE.test(text) || hasSignInToManageBookingCue(text)) {

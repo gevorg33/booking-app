@@ -5,6 +5,9 @@ import {
   handleToggleWebhookLogic,
   handleTestWebhookLogic,
   handleRotateApiKeyLogic,
+  handleCreateApiKeyLogic,
+  handleRevokeApiKeyLogic,
+  handleConfigureDistributionChannelsLogic,
   handleListZapierTriggersLogic,
   handleConfigureZapierLogic,
   handleRunAccountingExportLogic,
@@ -106,6 +109,16 @@ function buildDeps(
         configured: true,
         usingPlatformDefault: false,
         phoneNumberId: '15551234567',
+      })),
+    } as any,
+    distributionIntegrationService: {
+      updateSettings: jest.fn(async () => ({
+        googleReserve: { enabled: true },
+        metaBooking: { enabled: false, bookingUrl: 'https://example.com' },
+        messaging: {
+          telegramEnabled: false,
+          whatsappBookingEnabled: false,
+        },
       })),
     } as any,
     accountingIntegrationService: {
@@ -420,6 +433,106 @@ describe('ai-integrations.logic', () => {
     });
     expect(
       (await handleRotateApiKeyLogic(failDeps, 'biz-1', {}, 'u1')).success,
+    ).toBe(false);
+  });
+
+  it('creates a new api key without revoking any existing key', async () => {
+    const deps = buildDeps();
+    const result = await handleCreateApiKeyLogic(
+      deps,
+      'biz-1',
+      { apiKeyName: 'New key' },
+      'u1',
+    );
+    expect(result.success).toBe(true);
+    expect(deps.apiKeyService.revokeKey).not.toHaveBeenCalled();
+    expect(deps.apiKeyService.createKey).toHaveBeenCalledWith('biz-1', 'u1', {
+      name: 'New key',
+    });
+
+    const failDeps = buildDeps({
+      apiKeyService: {
+        createKey: jest.fn(async () => {
+          throw new Error('key fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleCreateApiKeyLogic(failDeps, 'biz-1', {}, 'u1')).success,
+    ).toBe(false);
+  });
+
+  it('revokes an existing api key by id', async () => {
+    const deps = buildDeps();
+    const result = await handleRevokeApiKeyLogic(deps, 'biz-1', {
+      keyId: 'k1',
+    });
+    expect(result.success).toBe(true);
+    expect(deps.apiKeyService.revokeKey).toHaveBeenCalledWith('biz-1', 'k1');
+    expect(deps.apiKeyService.createKey).not.toHaveBeenCalled();
+
+    expect(
+      (await handleRevokeApiKeyLogic(deps, 'biz-1', {})).success,
+    ).toBe(false);
+
+    const noMatchDeps = buildDeps({
+      apiKeyService: {
+        listKeys: jest.fn(async () => [{ id: 'k1', name: 'Main' }]),
+        revokeKey: jest.fn(),
+      } as any,
+    });
+    expect(
+      (
+        await handleRevokeApiKeyLogic(noMatchDeps, 'biz-1', {
+          apiKeyName: 'Nonexistent',
+        })
+      ).success,
+    ).toBe(false);
+
+    const failDeps = buildDeps({
+      apiKeyService: {
+        revokeKey: jest.fn(async () => {
+          throw new Error('revoke fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleRevokeApiKeyLogic(failDeps, 'biz-1', { keyId: 'k1' }))
+        .success,
+    ).toBe(false);
+  });
+
+  it('configures distribution channels', async () => {
+    const deps = buildDeps();
+    const result = await handleConfigureDistributionChannelsLogic(
+      deps,
+      'biz-1',
+      { googleReserveEnabled: true, telegramEnabled: true },
+    );
+    expect(result.success).toBe(true);
+    expect(deps.distributionIntegrationService.updateSettings).toHaveBeenCalledWith(
+      'biz-1',
+      { googleReserveEnabled: true, telegramEnabled: true },
+    );
+
+    expect(
+      (await handleConfigureDistributionChannelsLogic(deps, 'biz-1', {}))
+        .success,
+    ).toBe(false);
+
+    const failDeps = buildDeps({
+      distributionIntegrationService: {
+        updateSettings: jest.fn(async () => {
+          throw new Error('distribution fail');
+        }),
+      } as any,
+    });
+    expect(
+      (
+        await handleConfigureDistributionChannelsLogic(failDeps, 'biz-1', {
+          telegramEnabled: true,
+        })
+      ).success,
     ).toBe(false);
   });
 

@@ -292,7 +292,7 @@ describe('ai-retail-finance.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(RETAIL_FINANCE_INTENTS.length).toBe(14);
+      expect(RETAIL_FINANCE_INTENTS.length).toBe(24);
       expect(isRetailFinanceIntent('list_products')).toBe(true);
       expect(isRetailFinanceIntent('not_real')).toBe(false);
       expect(decomposeRetailFinanceCompoundPrompt('')).toEqual([]);

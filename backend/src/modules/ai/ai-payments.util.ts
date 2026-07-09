@@ -16,6 +16,7 @@ import {
 
 export { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import { isExplainIntegrationHealthPrompt } from './ai-explain-integration-health.util.js';
 import {
   isConfigureCheckoutDefaultsPrompt,
   rescueConfigureCheckoutDefaultsIntent,
@@ -181,6 +182,7 @@ export function isValidateGiftCardPrompt(prompt: string): boolean {
 }
 
 export function isExportAccountingPrompt(prompt: string): boolean {
+  if (isExplainIntegrationHealthPrompt(prompt)) return false;
   return (
     /\b(export|generate|run|download)\b/i.test(prompt) &&
     /\b(accounting|books|ledger)\b/i.test(prompt)
@@ -392,6 +394,7 @@ export function isChoosePaymentMethodPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  if (isExplainPublicBookingCheckoutPrompt(prompt)) return false;
   if (
     /\b(explain|describe|show|summarize|how)\b/i.test(prompt) &&
     /\b(?:public\s+booking|booking\s+page)\b/i.test(prompt)
@@ -443,10 +446,7 @@ export function isReceiptStatusPrompt(prompt: string): boolean {
 export function isPaymentsCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 20 || !PAYMENTS_VERB.test(trimmed)) return false;
-  return (
-    COMPOUND_SPLIT.test(trimmed) ||
-    decomposePaymentsCompoundPrompt(trimmed).length > 1
-  );
+  return decomposePaymentsCompoundPrompt(trimmed).length > 1;
 }
 
 export function extractGiftCardCodeFromPrompt(prompt: string): string | null {

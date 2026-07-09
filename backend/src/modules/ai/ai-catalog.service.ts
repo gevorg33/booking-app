@@ -31,6 +31,7 @@ import {
   handleUpdateServiceCategoryLogic,
   handleDeleteServiceCategoryLogic,
   resolveCategoryByName,
+  handleActivateSubscriptionPlanLogic,
   handleDeactivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
@@ -214,6 +215,13 @@ export class AiCatalogService {
     params: Record<string, any>,
   ) {
     return handleDeactivateSubscriptionPlanLogic(this.deps, businessId, params);
+  }
+
+  handleActivateSubscriptionPlan(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleActivateSubscriptionPlanLogic(this.deps, businessId, params);
   }
 
   handleAssignSubscription(

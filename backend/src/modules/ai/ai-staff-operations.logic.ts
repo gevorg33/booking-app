@@ -1,6 +1,9 @@
 import type { Repository } from 'typeorm';
 import type { EmployeeService } from '../employee/employee.service.js';
 import type { InvitationsService } from '../invitations/invitations.service.js';
+import type { TeamMembersService } from '../business/team-members.service.js';
+import type { AssignableMemberRole } from '../business/dto/update-member-role.dto.js';
+import { ASSIGNABLE_MEMBER_ROLES } from '../business/dto/update-member-role.dto.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -15,6 +18,7 @@ import {
 export interface StaffOperationsLogicDeps {
   employeeService: EmployeeService;
   invitationsService: InvitationsService;
+  teamMembersService: TeamMembersService;
   businessRepo: Repository<Business>;
   serviceRepo: Repository<Service>;
 }
@@ -137,11 +141,13 @@ export async function handleUpdateEmployeeLogic(
     (typeof params.title === 'string' && params.title.trim()) ||
     extracted.title ||
     undefined;
+  const serviceNames = params.serviceNames;
+  const serviceIds = await resolveServiceIds(deps, businessId, serviceNames);
 
-  if (!newName && !email && !phone && !title) {
+  if (!newName && !email && !phone && !title && !serviceIds.length) {
     return failure(
       'update_employee',
-      `What should I change for ${employeeName}? Provide a new name, email, phone, or title.`,
+      `What should I change for ${employeeName}? Provide a new name, email, phone, title, or services.`,
     );
   }
 
@@ -164,6 +170,7 @@ export async function handleUpdateEmployeeLogic(
         ...(email ? { email } : {}),
         ...(phone ? { phone } : {}),
         ...(title ? { title } : {}),
+        ...(serviceIds.length ? { serviceIds } : {}),
       },
       userId,
     );
@@ -172,6 +179,7 @@ export async function handleUpdateEmployeeLogic(
       email ? `email → ${email}` : null,
       phone ? `phone → ${phone}` : null,
       title ? `title → ${title}` : null,
+      serviceIds.length ? `services → ${serviceIds.length} assigned` : null,
     ]
       .filter(Boolean)
       .join(', ');
@@ -302,6 +310,63 @@ export async function handleDeactivateEmployeeLogic(
     return failure(
       'deactivate_employee',
       err?.message ?? 'Could not deactivate employee.',
+    );
+  }
+}
+
+export async function handleUpdateTeamMemberRoleLogic(
+  deps: StaffOperationsLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+  userId?: string,
+): Promise<CommandResult> {
+  const employeeName =
+    typeof params.employeeName === 'string' ? params.employeeName.trim() : '';
+  if (!employeeName) {
+    return failure(
+      'update_team_member_role',
+      'Please specify which team member\'s role to change (employeeName).',
+    );
+  }
+
+  const role =
+    typeof params.role === 'string'
+      ? (params.role.toLowerCase() as AssignableMemberRole)
+      : undefined;
+  if (!role || !ASSIGNABLE_MEMBER_ROLES.includes(role)) {
+    return failure(
+      'update_team_member_role',
+      `Specify the new role (one of: ${ASSIGNABLE_MEMBER_ROLES.join(', ')}).`,
+    );
+  }
+
+  const employees = await deps.employeeService.findAll(businessId);
+  const match = employees.find((e) =>
+    e.name.toLowerCase().includes(employeeName.toLowerCase()),
+  );
+  if (!match) {
+    return failure(
+      'update_team_member_role',
+      `No active employee found matching "${employeeName}".`,
+    );
+  }
+
+  try {
+    const updated = await deps.teamMembersService.updateRoleByEmployeeId(
+      businessId,
+      match.id,
+      role,
+      userId ?? '',
+    );
+    return success(
+      'update_team_member_role',
+      `Set ${match.name}'s role to ${role}.`,
+      { employeeId: match.id, employeeName: match.name, role: updated.role },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_team_member_role',
+      err?.message ?? 'Could not update the team member role.',
     );
   }
 }

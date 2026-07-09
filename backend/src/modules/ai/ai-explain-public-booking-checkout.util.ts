@@ -162,8 +162,7 @@ function hasCheckoutPaymentInteractionContext(prompt: string): boolean {
   if (hasPublicBookingCheckoutSurface(prompt) && methodHits >= 1) return true;
   if (
     /\bpayment\s+(?:options?|methods?|flow)\b/i.test(prompt) &&
-    (hasPublicBookingCheckoutSurface(prompt) ||
-      /\bpublic\s+booking\b/i.test(prompt))
+    hasPublicBookingCheckoutSurface(prompt)
   ) {
     return true;
   }

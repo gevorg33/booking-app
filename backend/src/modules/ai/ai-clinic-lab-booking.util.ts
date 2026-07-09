@@ -104,6 +104,11 @@ const STAFF_BOOK_VERB = new RegExp(
   String.raw`\b(book|schedule|reserve)\b|(?:\p{L}*ամրագր${UNICODE_WORD_SUFFIX}|ամրագր${UNICODE_WORD_SUFFIX}|\p{L}*գրանց${UNICODE_WORD_SUFFIX}|գրանց${UNICODE_WORD_SUFFIX})|(?:[Зз]апиш${UNICODE_WORD_SUFFIX}|[Зз]абронир${UNICODE_WORD_SUFFIX}|[Зз]арезервир${UNICODE_WORD_SUFFIX}|[Нн]азнач${UNICODE_WORD_SUFFIX}|[Зз]апланир${UNICODE_WORD_SUFFIX})|(?:կարո[՞?]ղ\s+եք|можете)`,
   'iu',
 );
+const STAFF_BOOK_LAB_ORDER_TIME_CUE = new RegExp(
+  String.raw`\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening|\d{1,2}\s*(?:am|pm)|\d{1,2}:\d{2})\b`,
+  'i',
+);
+
 const STAFF_BOOK_TARGET = new RegExp(
   String.raw`\b(lab\s+collection|blood\s+draw|collection\s+appointment|collection\s+slot|draw\s+slot|draw\s+visit|collection\s+for)\b|(?:լաբ(?:որատոր)?\s*հավաք|արյան\s*վերց|հավաքման\s*այց|հավաքման\s*սլոթ|հավաքում)|(?:лабораторн${UNICODE_WORD_SUFFIX}\s+заказ${UNICODE_WORD_SUFFIX}|лабораторн${UNICODE_WORD_SUFFIX}\s+забор|забор\s+крови|сбор\s+образц|лабораторн${UNICODE_WORD_SUFFIX}\s+сбор|при[её]м\s+на\s+забор)`,
   'iu',
@@ -208,6 +213,12 @@ export function isPushLabBookingToPatientPrompt(prompt: string): boolean {
 }
 
 export function isStaffBookLabCollectionPrompt(prompt: string): boolean {
+  if (
+    BOOK_LAB_FROM_ORDER_BLOCK.test(prompt) &&
+    !STAFF_BOOK_LAB_ORDER_TIME_CUE.test(prompt)
+  ) {
+    return false;
+  }
   if (
     LIST_QUERY_VERB.test(prompt) &&
     LIST_LAB_BOOKING_STATUS_CONTEXT.test(prompt) &&

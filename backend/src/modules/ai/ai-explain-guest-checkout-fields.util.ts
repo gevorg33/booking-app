@@ -1,4 +1,7 @@
 import { isExplainDataRightsPrompt } from './ai-data-rights.util.js';
+import { isCreateEmployeePrompt } from './ai-staff-operations.util.js';
+import { isConfigureTourServicePrompt } from './ai-tour-service.util.js';
+import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 import { isExplainWhySignInPrompt } from './ai-explain-why-sign-in.util.js';
 import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
@@ -155,6 +158,9 @@ export function extractGuestCheckoutFieldsAspectFromPrompt(
 }
 
 export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
+  if (isCreateEmployeePrompt(prompt)) return false;
+  if (isConfigureTourServicePrompt(prompt)) return false;
+  if (isExplainTenantAppInstallPrompt(prompt)) return false;
   if (isConfigureGranularConsentPrompt(prompt)) return false;
   if (isConfigureStripeConnectPrompt(prompt)) return false;
   if (isExplainProviderDateDisplayPrompt(prompt)) return false;

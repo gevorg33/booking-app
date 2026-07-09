@@ -105,7 +105,9 @@ export function hasRebookLastAppointmentCoreCue(prompt: string): boolean {
   if (isArmenianRebookCue(prompt)) return true;
   if (
     containsCyrillicScript(prompt) &&
-    /(повторн|прошл|как\s+в\s+прошлый|снова\s+как)/i.test(prompt)
+    /(повтор|как\s+в\s+прошлый|снова\s+как|прошл.{0,20}визит|визит.{0,20}прошл)/i.test(
+      prompt,
+    )
   ) {
     return true;
   }

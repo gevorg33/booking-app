@@ -150,6 +150,9 @@ function hasTourMeetingPointContext(prompt: string): boolean {
   if (/\b(?:set|configure|update)\s+meeting\s+point\b/i.test(prompt)) {
     return false;
   }
+  if (/փոխ|измени/iu.test(prompt) && hasTourMeetingPointTopic(prompt)) {
+    return false;
+  }
   return (
     MY_TOUR_BOOKING.test(prompt) ||
     (TOUR_TOPIC.test(prompt) && hasTourMeetingPointTopic(prompt)) ||

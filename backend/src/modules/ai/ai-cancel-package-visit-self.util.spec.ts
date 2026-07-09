@@ -77,7 +77,7 @@ describe('ai-cancel-package-visit-self.util (ai-cmd-customer-4.15.2)', () => {
       {
         id: 'b1',
         status: 'confirmed',
-        startTime: '2026-07-01T10:00:00Z',
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         packagePurchaseId: 'p1',
         packageName: 'Spa Day',
         serviceName: 'Massage',
@@ -85,7 +85,7 @@ describe('ai-cancel-package-visit-self.util (ai-cmd-customer-4.15.2)', () => {
       {
         id: 'b2',
         status: 'confirmed',
-        startTime: '2026-07-08T10:00:00Z',
+        startTime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         packagePurchaseId: 'p1',
         packageName: 'Spa Day',
         serviceName: 'Facial',

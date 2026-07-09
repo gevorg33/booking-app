@@ -195,6 +195,8 @@ export async function dispatchDashboardCoreIntent(
       return deps.catalog.handleUpdateSubscriptionPlan(businessId, params);
     case 'deactivate_subscription_plan':
       return deps.catalog.handleDeactivateSubscriptionPlan(businessId, params);
+    case 'activate_subscription_plan':
+      return deps.catalog.handleActivateSubscriptionPlan(businessId, params);
     case 'assign_subscription_to_customer':
       return deps.catalog.handleAssignSubscription(
         businessId,

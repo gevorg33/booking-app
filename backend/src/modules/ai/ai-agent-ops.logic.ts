@@ -136,3 +136,74 @@ export async function handleUndoLatestAgentTaskLogic(
     );
   }
 }
+
+export async function handleApproveAgentTaskLogic(
+  deps: AgentOpsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  userId: string,
+): Promise<CommandResult> {
+  const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
+  if (!taskId) {
+    return failure(
+      'approve_agent_task',
+      'Which agent task should I approve? Provide the task ID.',
+      { clarify: true, missing: ['taskId'] },
+    );
+  }
+
+  try {
+    const task = await deps.agentOrchestrator.approveAndExecute(taskId, userId);
+    return success(
+      'approve_agent_task',
+      `Approved agent task ${taskId} (status: ${task.status}).`,
+      { taskId, task },
+    );
+  } catch (err: any) {
+    return failure(
+      'approve_agent_task',
+      err?.message ?? 'Could not approve the agent task.',
+      { taskId },
+    );
+  }
+}
+
+export async function handleRetryAgentStepLogic(
+  deps: AgentOpsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  userId: string,
+): Promise<CommandResult> {
+  const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
+  const stepId = typeof params.stepId === 'string' ? params.stepId.trim() : '';
+  if (!taskId || !stepId) {
+    return failure(
+      'retry_agent_step',
+      'Which agent task and step should I retry? Provide taskId and stepId.',
+      {
+        clarify: true,
+        missing: [!taskId && 'taskId', !stepId && 'stepId'].filter(Boolean),
+      },
+    );
+  }
+
+  try {
+    const task = await deps.agentOrchestrator.retryFailedStep(
+      taskId,
+      stepId,
+      userId,
+      businessId,
+    );
+    return success(
+      'retry_agent_step',
+      `Retried step ${stepId} of agent task ${taskId} (status: ${task.status}).`,
+      { taskId, stepId, task },
+    );
+  } catch (err: any) {
+    return failure(
+      'retry_agent_step',
+      err?.message ?? 'Could not retry the agent step.',
+      { taskId, stepId },
+    );
+  }
+}

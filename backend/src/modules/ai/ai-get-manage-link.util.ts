@@ -3,6 +3,8 @@ import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
 import { isGuestPayCashManageCompoundCandidate } from './ai-guest-pay-cash-manage-cue.util.js';
+import { isConfigureOnlineBookingPrompt } from './ai-staff-operations.util.js';
+import { isPushLabBookingToPatientPrompt } from './ai-clinic-lab-booking.util.js';
 import {
   GET_MANAGE_LINK_PROMPTS,
   type GetManageLinkDelivery,
@@ -114,6 +116,13 @@ export function shouldResendManageLinkNotification(
 
 export function isGetManageLinkPrompt(prompt: string): boolean {
   if (isGuestPayCashManageCompoundCandidate(prompt)) return false;
+  if (isConfigureOnlineBookingPrompt(prompt)) return false;
+  if (
+    /\bpatient\b|հիվանդ|пациент/iu.test(prompt) &&
+    isPushLabBookingToPatientPrompt(prompt)
+  ) {
+    return false;
+  }
   if (hasSignInToManageBookingCue(prompt)) return false;
   if (hasGuestManageLinkRecoveryStealCue(prompt)) return false;
   if (isSignInAfterBookingPrompt(prompt)) return false;

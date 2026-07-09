@@ -2,6 +2,7 @@ import {
   extractSharedEntityParamsFromPrompt,
   propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
+import { PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS } from './ai-provider-list-my-multi-service-groups.fixtures.js';
 
 export const PROVIDER_BOOKING_MUTATE_INTENTS = ['mark_paid'] as const;
 
@@ -93,6 +94,13 @@ export function isListMyPackageVisitsPrompt(prompt: string): boolean {
 }
 
 export function isListMyMultiServiceGroupsPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   return (
     isProviderSelfScopePrompt(prompt) &&
     /\b(list|show)\b/i.test(prompt) &&

@@ -886,6 +886,11 @@ import { AI_COMMAND_EVAL_PROVIDER_DATE_FORMAT_MULTILINGUAL_CASES } from '../ai-p
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from '../ai-provider-push-setup.fixtures.js';
 import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from '../ai-provider-earnings.fixtures.js';
 import { PROVIDER_EXP_2_PROMPT_SCENARIOS } from '../ai-provider-exp-2.fixtures.js';
+import { PROVIDER_SUMMARIZE_DAY_PROMPT_SCENARIOS } from '../ai-provider-summarize-day.fixtures.js';
+import { PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS } from '../ai-provider-summarize-utilization.fixtures.js';
+import { PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS } from '../ai-provider-list-my-multi-service-groups.fixtures.js';
+import { PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from '../ai-provider-open-booking-from-push.fixtures.js';
+import { PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS } from '../ai-provider-dismiss-push.fixtures.js';
 import { PROVIDER_EXP_3_PROMPT_SCENARIOS } from '../ai-provider-exp-3.fixtures.js';
 import { SIMILAR_PROVIDER_OPEN_SHIFTS_PROMPTS } from '../../provider-mobile/provider-open-shifts.fixtures.js';
 import { SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS } from '../../provider-mobile/provider-team-whos-next.fixtures.js';
@@ -7706,6 +7711,106 @@ export const AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES: AiCommandEvalCase[] =
     },
   }));
 
+/** Map provider summarize_day prompts (prov-exp-1 / ai-cmd-provider-5.1.1) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_SUMMARIZE_DAY_CASES: AiCommandEvalCase[] =
+  PROVIDER_SUMMARIZE_DAY_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-summarize-day-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
+    },
+  }));
+
+/** Map provider summarize_utilization prompts (prov-exp-1 / ai-cmd-provider-5.1.6) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_SUMMARIZE_UTILIZATION_CASES: AiCommandEvalCase[] =
+  PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-summarize-utilization-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: entry.expectedAction,
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
+    },
+  }));
+
+/** Map provider list_my_multi_service_groups prompts (prov-exp-1 / ai-cmd-provider-5.18.1) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_CASES: AiCommandEvalCase[] =
+  PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-list-my-multi-service-groups-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'my_multi_groups',
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
+    },
+  }));
+
+/** Map provider open_booking_from_push prompts (prov-exp-1 / ai-cmd-provider-5.10.2) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_OPEN_BOOKING_FROM_PUSH_CASES: AiCommandEvalCase[] =
+  PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-open-booking-from-push-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'open_from_push',
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
+    },
+  }));
+
+/** Map provider dismiss_push prompts (prov-exp-1 / ai-cmd-provider-5.10.4) to eval golden cases. */
+export const AI_COMMAND_EVAL_PROVIDER_DISMISS_PUSH_CASES: AiCommandEvalCase[] =
+  PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS.map((entry) => ({
+    id: `provider-dismiss-push-${entry.id}`,
+    prompt: entry.prompt,
+    surface: 'provider',
+    locale: entry.id.endsWith('-hy')
+      ? 'hy'
+      : entry.id.endsWith('-ru')
+        ? 'ru'
+        : 'en',
+    expect: {
+      rescuedAction: entry.expectedAction,
+      rescueReason: 'dismiss_push',
+      ...(entry.id.endsWith('-hy') || entry.id.endsWith('-ru')
+        ? { needsMultilingual: true }
+        : {}),
+    },
+  }));
+
 /** Map provider exp-3 prompts (prov-exp-5.3) to eval golden cases. */
 export const AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES: AiCommandEvalCase[] =
   PROVIDER_EXP_3_PROMPT_SCENARIOS.map((entry) => ({
@@ -10126,6 +10231,11 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_PROVIDER_EARNINGS_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EXP_2_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EXP_2_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_SUMMARIZE_DAY_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_SUMMARIZE_UTILIZATION_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_OPEN_BOOKING_FROM_PUSH_CASES,
+  ...AI_COMMAND_EVAL_PROVIDER_DISMISS_PUSH_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_CASES,
   ...AI_COMMAND_EVAL_PROVIDER_EXP_3_CASES,

@@ -345,9 +345,14 @@ export function enrichCreateServicesPrepaymentParamsFromPrompt(
 
   return {
     ...params,
-    ...(globalParsed?.prepaymentMode &&
-    enrichedRows.every((row) => !row.prepaymentMode)
+    ...(globalParsed?.prepaymentMode
       ? { prepaymentMode: globalParsed.prepaymentMode }
+      : {}),
+    ...(globalParsed?.depositPercent !== undefined
+      ? { depositPercent: globalParsed.depositPercent }
+      : {}),
+    ...(globalParsed?.depositAmount != null
+      ? { depositAmount: globalParsed.depositAmount }
       : {}),
     services: enrichedRows,
   };
@@ -403,19 +408,49 @@ export function isCreateServicePrepaymentPrompt(prompt: string): boolean {
   return !!parseCreateServicePrepaymentFromPrompt(text, {})?.prepaymentMode;
 }
 
+const CREATE_SERVICE_LINE_WITH_PRICE = new RegExp(
+  String.raw`\b(?:create|add|register|list|offer|introduce|set\s+up)\s+(?:a\s+)?(?:new\s+)?(?:(?:service|offering|treatment)s?\s+(?:called\s+|named\s+)?)?([a-z][\w'\s-]*?)\s+(\d+)\s*(?:m|min(?:ute)?s?)\s*(?:\$|usd\s*)?(\d+(?:\.\d{1,2})?)`,
+  'i',
+);
+
+function extractCreateServiceLineFromPrompt(prompt: string): {
+  serviceName?: string;
+  durationMinutes?: number;
+  price?: number;
+} | null {
+  const match = prompt.match(CREATE_SERVICE_LINE_WITH_PRICE);
+  if (!match) return null;
+  const serviceName = match[1]?.trim();
+  return {
+    ...(serviceName ? { serviceName } : {}),
+    durationMinutes: Math.max(10, Number.parseInt(match[2], 10)),
+    price: Number.parseFloat(match[3]),
+  };
+}
+
 export function enrichCreateServicePrepaymentParamsFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
 ): Record<string, unknown> {
   const parsed = parseCreateServicePrepaymentFromPrompt(prompt, params);
-  if (!parsed) return params;
+  const line = extractCreateServiceLineFromPrompt(prompt);
+  if (!parsed && !line) return params;
   return {
     ...params,
-    ...(parsed.prepaymentMode ? { prepaymentMode: parsed.prepaymentMode } : {}),
-    ...(parsed.depositPercent !== undefined
+    ...(line?.serviceName && !params.serviceName
+      ? { serviceName: line.serviceName }
+      : {}),
+    ...(line?.durationMinutes != null && params.durationMinutes == null
+      ? { durationMinutes: line.durationMinutes }
+      : {}),
+    ...(line?.price != null && params.price == null
+      ? { price: line.price }
+      : {}),
+    ...(parsed?.prepaymentMode ? { prepaymentMode: parsed.prepaymentMode } : {}),
+    ...(parsed?.depositPercent !== undefined
       ? { depositPercent: parsed.depositPercent }
       : {}),
-    ...(parsed.depositAmount != null
+    ...(parsed?.depositAmount != null
       ? { depositAmount: parsed.depositAmount }
       : {}),
   };

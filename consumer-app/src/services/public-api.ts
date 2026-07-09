@@ -691,6 +691,82 @@ export async function submitPublicPreVisitIntakeAnswer(
   return unwrap<import('../lib/clinic-pre-visit-intake-types.js').PreVisitIntakeFlowView>(data);
 }
 
+export interface PublicCustomerWaitlistRequest {
+  status: 'active' | 'cancelled' | 'fulfilled';
+  joinedAt: string;
+  updatedAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  employeeId?: string;
+  employeeName?: string;
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  timeSlot?: string;
+  timeOfDay?: 'morning' | 'afternoon' | 'evening';
+  notes?: string;
+}
+
+export interface PublicCustomerWaitlistStatus {
+  onWaitlist: boolean;
+  request: PublicCustomerWaitlistRequest | null;
+}
+
+export async function joinMyWaitlist(
+  slug: string,
+  body: {
+    serviceId?: string;
+    serviceName?: string;
+    employeeId?: string;
+    employeeName?: string;
+    date?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    timeSlot?: string;
+    timeOfDay?: 'morning' | 'afternoon' | 'evening';
+    notes?: string;
+  } = {},
+): Promise<PublicCustomerWaitlistStatus> {
+  const { data } = await http.post(`/public/${slug}/me/waitlist`, body, publicConfig(slug));
+  return unwrap<PublicCustomerWaitlistStatus>(data);
+}
+
+export async function fetchMyWaitlistStatus(
+  slug: string,
+): Promise<PublicCustomerWaitlistStatus> {
+  const { data } = await http.get(`/public/${slug}/me/waitlist`, publicConfig(slug));
+  return unwrap<PublicCustomerWaitlistStatus>(data);
+}
+
+export async function leaveMyWaitlist(
+  slug: string,
+): Promise<PublicCustomerWaitlistStatus> {
+  const { data } = await http.post(
+    `/public/${slug}/me/waitlist/leave`,
+    {},
+    publicConfig(slug),
+  );
+  return unwrap<PublicCustomerWaitlistStatus>(data);
+}
+
+export async function notifyBookingRunningLate(
+  slug: string,
+  bookingId: string,
+  minutesLate?: number,
+): Promise<{
+  bookingId: string;
+  minutesLate: number;
+  notifiedAt: string;
+  staffNotified: boolean;
+}> {
+  const { data } = await http.post(
+    `/public/${slug}/me/bookings/${bookingId}/running-late`,
+    minutesLate != null ? { minutesLate } : {},
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
 export async function fetchNearestBookableSlot(
   slug: string,
   serviceId: string,
@@ -700,13 +776,13 @@ export async function fetchNearestBookableSlot(
   startTime: string;
   employeeId?: string | null;
 } | null> {
-  const params = new URLSearchParams({ serviceId });
+  const params = new URLSearchParams();
   if (employeeId) params.set('employeeId', employeeId);
-  const { data } = await http.get(`/public/${slug}/nearest-slot?${params.toString()}`);
-  const body = unwrap<{ nearest: { dateKey: string; startTime: string; employeeId?: string | null } | null }>(
-    data,
+  const qs = params.toString();
+  const { data } = await http.get(
+    `/public/${slug}/services/${serviceId}/nearest-slot${qs ? `?${qs}` : ''}`,
   );
-  return body.nearest ?? null;
+  return unwrap<{ dateKey: string; startTime: string; employeeId?: string | null } | null>(data);
 }
 
 export async function createPublicBookingCheckout(

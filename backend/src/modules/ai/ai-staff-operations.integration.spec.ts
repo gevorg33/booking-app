@@ -103,10 +103,22 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
       })),
       update: jest.fn(async () => undefined),
     };
-    const serviceRepo = { find: jest.fn(async () => []) };
+    const serviceRepo = {
+      find: jest.fn(async () => [
+        { id: 'svc-1', name: 'Massage Therapy' },
+        { id: 'svc-2', name: 'Haircut' },
+      ]),
+    };
     const bookingRepo = { find: jest.fn(async () => []) };
     const orchestration = { executePlan: jest.fn() };
     const planBuilder = { wrapOperationsPlan: jest.fn() };
+    const teamMembersService = {
+      updateRoleByEmployeeId: jest.fn(
+        async (_biz: string, _employeeId: string, role: string) => ({
+          role,
+        }),
+      ),
+    };
 
     const service = new AiOperationsService(
       bookingRepo as any,
@@ -116,6 +128,7 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
       planBuilder as any,
       employeeService as any,
       invitationsService as any,
+      teamMembersService as any,
     );
 
     it('delegates create_employee through service', async () => {
@@ -143,6 +156,67 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
         { email: 'maria.new@salon.com' },
         'user-1',
       );
+    });
+
+    it('update_employee resolves and replaces serviceIds', async () => {
+      const result = await service.handleUpdateEmployee(
+        'biz-1',
+        { employeeName: 'Maria', serviceNames: ['Massage Therapy'] },
+        undefined,
+        'user-1',
+      );
+      expect(result.success).toBe(true);
+      expect(employeeService.update).toHaveBeenCalledWith(
+        'emp-1',
+        { serviceIds: ['svc-1'] },
+        'user-1',
+      );
+    });
+
+    it('delegates update_team_member_role through service', async () => {
+      const result = await service.handleUpdateTeamMemberRole('biz-1', {
+        employeeName: 'Maria',
+        role: 'manager',
+      });
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('update_team_member_role');
+      expect(teamMembersService.updateRoleByEmployeeId).toHaveBeenCalledWith(
+        'biz-1',
+        'emp-1',
+        'manager',
+        '',
+      );
+    });
+
+    it('rejects update_team_member_role without employeeName or a valid role', async () => {
+      const missingEmployee = await service.handleUpdateTeamMemberRole(
+        'biz-1',
+        { role: 'manager' },
+      );
+      expect(missingEmployee.success).toBe(false);
+
+      const missingRole = await service.handleUpdateTeamMemberRole('biz-1', {
+        employeeName: 'Maria',
+      });
+      expect(missingRole.success).toBe(false);
+
+      const invalidRole = await service.handleUpdateTeamMemberRole('biz-1', {
+        employeeName: 'Maria',
+        role: 'owner',
+      });
+      expect(invalidRole.success).toBe(false);
+    });
+
+    it('surfaces errors from the team members service (e.g. owner role change attempt)', async () => {
+      teamMembersService.updateRoleByEmployeeId.mockRejectedValueOnce(
+        new Error('The business owner role cannot be changed'),
+      );
+      const result = await service.handleUpdateTeamMemberRole('biz-1', {
+        employeeName: 'Maria',
+        role: 'admin',
+      });
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('owner role cannot be changed');
     });
 
     it('rejects update_employee without a target or fields', async () => {

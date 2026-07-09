@@ -1,7 +1,9 @@
-/** ai-cmd-dashboard-6.3.3 — assign a pre-visit intake questionnaire to a booking (dashboard admin). */
+/** ai-cmd-dashboard-6.3.3 — assign a pre-visit intake questionnaire to a booking (dashboard admin).
+ *  ai-cmd-dashboard-6.8.2 — staff proxy answer submission (e.g. patient answers over the phone). */
 
 export const DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS = [
   'assign_pre_visit_intake_to_booking',
+  'staff_submit_intake_answers',
 ] as const;
 
 export type ClinicPreVisitIntakeIntent =

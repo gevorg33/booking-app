@@ -3,6 +3,7 @@ import { isExplainProviderSpecialtyPrompt } from './ai-explain-provider-specialt
 import { isPackageBookingPrompt } from './ai-booking-depth.util.js';
 import { hasRebookLastAppointmentCoreCue } from './ai-rebook-last-appointment.util.js';
 import { isProviderSameDayMultiCompoundPrompt } from './ai-provider-same-day-multi-compound.util.js';
+import { isBookLabFromOrderPrompt } from './ai-book-lab-from-order.util.js';
 import { PICK_PROVIDER_FOR_SERVICE_MULTILINGUAL_SCENARIOS } from './ai-pick-provider-for-service-multilingual.fixtures.js';
 import {
   PICK_PROVIDER_FOR_SERVICE_PROMPTS,
@@ -139,6 +140,7 @@ export function isPickProviderForServiceIntent(
 
 export function isPickProviderForServicePrompt(prompt: string): boolean {
   if (matchPickProviderScenario(prompt)) return true;
+  if (isBookLabFromOrderPrompt(prompt)) return false;
   if (isPackageBookingPrompt(prompt)) return false;
   if (isProviderSameDayMultiCompoundPrompt(prompt)) return false;
   if (SWITCH_SAME_TIME_BLOCK.test(prompt)) return false;

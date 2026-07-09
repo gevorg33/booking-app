@@ -439,6 +439,12 @@ export function isExplainWhyPrepaymentPrompt(prompt: string): boolean {
   }
   if (/\bwhy\s+pay\s+online\b/i.test(prompt)) return true;
   if (/\bwhy\s+pay\s+(?:by\s+)?(?:card|online)\b/i.test(prompt)) return true;
+  if (/ինչու/i.test(prompt) && /վճար|պահանջ|deposit/i.test(prompt)) {
+    return true;
+  }
+  if (/почему|зачем/i.test(prompt) && /плат|треб|депозит/i.test(prompt)) {
+    return true;
+  }
   return (
     /\b(why|explain)\b/i.test(prompt) &&
     /\b(prepayment|prepay|deposit|pay\s+now|pay\s+online|online\s+payment|pay\s+before|pay\s+by\s+card|upfront|due\s+upfront|hold\s+the\s+slot|card\s+payment|before\s+(?:my\s+)?(?:appointment|visit)|when\s+booking|online\s+when\s+booking)\b/i.test(

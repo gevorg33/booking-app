@@ -1,0 +1,8 @@
+/** ai-cmd-dashboard-6.8.1 — clinic questionnaire CRUD + publish classifier rules. */
+export const CLINIC_QUESTIONNAIRE_CLASSIFIER_RULES = `- create_questionnaire: MUTATE — clinic only, manager+: create a new pre-visit intake questionnaire as a draft. Requires code, internalName, title; optional introTitle, introBody. "Create a questionnaire called 'New Patient Intake', code NEW_PATIENT" → create_questionnaire, code=NEW_PATIENT, internalName="New Patient Intake", title="New Patient Intake".
+- update_questionnaire: MUTATE — clinic only, manager+: rename or edit a questionnaire's title/intro text, or toggle it active/inactive. Requires questionnaireId or questionnaireCode/questionnaireName plus at least one field to change. Editing a published questionnaire moves it back to draft. NOT publish_questionnaire (status change only), NOT the customer-facing intake answer flow.
+- publish_questionnaire: MUTATE — clinic only, manager+: publish a draft questionnaire so it becomes assignable to patients (requires at least one question already defined). Requires questionnaireId or questionnaireCode/questionnaireName. "Publish the New Patient Intake questionnaire" → publish_questionnaire, questionnaireName="New Patient Intake".
+- Examples:
+  - "Create a draft questionnaire code INTAKE1 named Intake Form" → create_questionnaire, code=INTAKE1, internalName="Intake Form", title="Intake Form"
+  - "Rename the INTAKE1 questionnaire title to 'New Patient Form'" → update_questionnaire, questionnaireCode=INTAKE1, title="New Patient Form"
+  - "Publish INTAKE1" → publish_questionnaire, questionnaireCode=INTAKE1`;

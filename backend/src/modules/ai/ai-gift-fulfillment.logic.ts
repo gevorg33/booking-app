@@ -453,6 +453,191 @@ export async function handleExtendCancelWindowLogic(
   );
 }
 
+export async function handleUpdateGiftCardSettingsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  if (!business)
+    return failure('update_gift_card_settings', 'Business not found.');
+
+  const current = readBusinessGiftCardSettings(business.settings);
+  const defaultExpiryMonths =
+    typeof params.defaultExpiryMonths === 'number'
+      ? params.defaultExpiryMonths
+      : undefined;
+  const digitalDeliveryEnabled =
+    typeof params.digitalDeliveryEnabled === 'boolean'
+      ? params.digitalDeliveryEnabled
+      : undefined;
+  const physicalDeliveryEnabled =
+    typeof params.physicalDeliveryEnabled === 'boolean'
+      ? params.physicalDeliveryEnabled
+      : undefined;
+  const cancelModifyEnabled =
+    typeof params.cancelModifyEnabled === 'boolean'
+      ? params.cancelModifyEnabled
+      : undefined;
+  const physicalCancelBeforeReady =
+    typeof params.physicalCancelBeforeReady === 'boolean'
+      ? params.physicalCancelBeforeReady
+      : undefined;
+
+  if (
+    defaultExpiryMonths === undefined &&
+    digitalDeliveryEnabled === undefined &&
+    physicalDeliveryEnabled === undefined &&
+    cancelModifyEnabled === undefined &&
+    physicalCancelBeforeReady === undefined
+  ) {
+    return failure(
+      'update_gift_card_settings',
+      'What gift card setting should I change? Provide defaultExpiryMonths, digitalDeliveryEnabled, physicalDeliveryEnabled, cancelModifyEnabled, or physicalCancelBeforeReady.',
+    );
+  }
+
+  const next = mergeGiftCardSettings({
+    ...current,
+    ...(defaultExpiryMonths !== undefined ? { defaultExpiryMonths } : {}),
+    ...(digitalDeliveryEnabled !== undefined ? { digitalDeliveryEnabled } : {}),
+    ...(physicalDeliveryEnabled !== undefined
+      ? { physicalDeliveryEnabled }
+      : {}),
+    ...(cancelModifyEnabled !== undefined ? { cancelModifyEnabled } : {}),
+    ...(physicalCancelBeforeReady !== undefined
+      ? { physicalCancelBeforeReady }
+      : {}),
+  });
+  business.settings = { ...(business.settings ?? {}), giftCards: next };
+  await deps.businessRepo.save(business);
+
+  return success('update_gift_card_settings', 'Gift card settings updated.', {
+    settings: next,
+  });
+}
+
+export async function handleListGiftCardChangeRequestsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const status =
+    typeof params.status === 'string' && params.status.trim()
+      ? params.status.trim()
+      : undefined;
+  const requests = await deps.giftCardOrderService.listChangeRequests(
+    businessId,
+    status,
+  );
+  return success(
+    'list_gift_card_change_requests',
+    requests.length
+      ? `${requests.length} gift card change request${requests.length === 1 ? '' : 's'} found.`
+      : 'No gift card change requests found.',
+    { requests },
+  );
+}
+
+export async function handleResolveGiftCardChangeRequestLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const requestId =
+    typeof params.requestId === 'string' && params.requestId.trim()
+      ? params.requestId.trim()
+      : undefined;
+  const resolution = params.resolution as
+    | 'approve'
+    | 'deny'
+    | 'needs_info'
+    | undefined;
+  if (!requestId || !resolution) {
+    return failure(
+      'resolve_gift_card_change_request',
+      'Specify the change request and a resolution (approve, deny, or needs_info).',
+      { clarify: true, missing: ['requestId', 'resolution'] },
+    );
+  }
+
+  const specialistNotes =
+    typeof params.specialistNotes === 'string'
+      ? params.specialistNotes
+      : undefined;
+
+  try {
+    const resolved = await deps.giftCardOrderService.resolveChangeRequest(
+      businessId,
+      requestId,
+      resolution,
+      specialistNotes,
+    );
+    return success(
+      'resolve_gift_card_change_request',
+      `Change request ${resolution === 'approve' ? 'approved' : resolution === 'deny' ? 'denied' : 'marked as needing more info'}.`,
+      { request: resolved },
+    );
+  } catch (err: any) {
+    return failure(
+      'resolve_gift_card_change_request',
+      err?.message ?? 'Could not resolve the change request.',
+    );
+  }
+}
+
+export async function handleGiftFulfillBatchLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const count =
+    typeof params.count === 'number' && params.count > 0
+      ? Math.min(Math.floor(params.count), 25)
+      : 5;
+
+  const queue = await deps.fulfillmentService.listDashboardOrders(businessId, {
+    status: 'ready_for_delivery' as any,
+    pageSize: count,
+  });
+  const orders = queue.orders.slice(0, count);
+  if (orders.length === 0) {
+    return success(
+      'gift_fulfill_batch',
+      'No gift card orders are ready to ship.',
+      { shipped: [] },
+    );
+  }
+
+  const shipped: Array<{ giftCardId: string; trackingNumber: string }> = [];
+  const failed: Array<{ giftCardId: string; error: string }> = [];
+  for (const order of orders) {
+    const trackingNumber = `TRK-${Date.now()}-${shipped.length}`;
+    try {
+      await deps.fulfillmentService.markShipped(
+        businessId,
+        order.id,
+        'Carrier',
+        trackingNumber,
+      );
+      shipped.push({ giftCardId: order.id, trackingNumber });
+    } catch (err: any) {
+      failed.push({
+        giftCardId: order.id,
+        error: err?.message ?? 'Could not ship order.',
+      });
+    }
+  }
+
+  return success(
+    'gift_fulfill_batch',
+    `Shipped ${shipped.length} of ${orders.length} ready gift card order(s).${failed.length ? ` ${failed.length} failed.` : ''}`,
+    { shipped, failed },
+  );
+}
+
 export async function handlePrintPackingSlipLogic(
   deps: GiftFulfillmentLogicDeps,
   businessId: string,

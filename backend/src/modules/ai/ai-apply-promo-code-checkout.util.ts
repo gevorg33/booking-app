@@ -295,6 +295,20 @@ export function extractApplyPromoCodeFromPrompt(prompt: string): string | null {
     return bareCode;
   }
 
+  const ruLabeled = prompt.match(/(?:промокод|код)\s+([A-Z0-9_-]{3,})\b/iu);
+  const ruLabeledCode = ruLabeled?.[1]?.trim();
+  if (ruLabeledCode && !APPLY_PROMO_CODE_STOP_WORDS.test(ruLabeledCode)) {
+    return ruLabeledCode;
+  }
+
+  const hyLabeled = prompt.match(
+    /\b([A-Z0-9_-]{3,})\b\s+(?:promo\s+code|կոդ)/iu,
+  );
+  const hyLabeledCode = hyLabeled?.[1]?.trim();
+  if (hyLabeledCode && !APPLY_PROMO_CODE_STOP_WORDS.test(hyLabeledCode)) {
+    return hyLabeledCode;
+  }
+
   return null;
 }
 

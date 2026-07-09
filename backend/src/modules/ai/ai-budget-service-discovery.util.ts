@@ -25,6 +25,10 @@ import type {
 import { isProviderOrAnyoneBudgetLeadPrompt } from './ai-flexible-availability.util.js';
 import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payment.util.js';
 import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
+import { isCreatePromoCodePrompt } from './ai-create-promo-code.util.js';
+import { isConfigureCheckoutDefaultsPrompt } from './ai-checkout-defaults.util.js';
+import { isConfigurePackageOnlinePaymentPrompt } from './ai-configure-package-online-payment.util.js';
 
 const WORD_NUMBER_MAP: Record<string, number> = {
   zero: 0,
@@ -248,6 +252,9 @@ export function isBudgetPackageDiscoveryPrompt(prompt: string): boolean {
 export function isBudgetDepositQuestion(prompt: string): boolean {
   if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
   if (isConfigureServiceDepositPolicyPrompt(prompt)) return false;
+  if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
+  if (isConfigureCheckoutDefaultsPrompt(prompt)) return false;
+  if (isConfigurePackageOnlinePaymentPrompt(prompt)) return false;
   return /\bdeposit\b/i.test(prompt);
 }
 
@@ -644,7 +651,7 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
   if (
     /\bfree\s+(?:consultation|options?|services?)\b/i.test(prompt) ||
     (/\bfree\b/i.test(prompt) &&
-      !/\b(?:who(?:'s| is|ever)|anyone|anybody|providers?|specialists?|stylist|therapist|which)\b[^.?!]{0,40}\bfree\b/i.test(
+      !/\b(?:who(?:'s| (?:\w+\s+)?is|ever)|anyone|anybody|providers?|specialists?|stylist|therapist|which)\b[^.?!]{0,40}\bfree\b/i.test(
         prompt,
       ) &&
       !/\b(?:nearest|earliest|next|soonest)\s+free\b/i.test(prompt) &&
@@ -1040,6 +1047,8 @@ export function rescueBudgetServiceDiscoveryIntent(
   if (isConfigureServiceOnlinePaymentPrompt(prompt)) return null;
   if (isConfigureServiceDepositPolicyPrompt(prompt)) return null;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return null;
+  if (isCreatePromoCodePrompt(prompt)) return null;
+  if (isConfigurePackageOnlinePaymentPrompt(prompt)) return null;
 
   const misroute = surface
     ? resolveBudgetMisrouteActionForSurface(prompt, surface)

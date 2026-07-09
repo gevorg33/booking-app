@@ -50,6 +50,7 @@ export const CATALOG_MUTATE_INTENTS = [
   'create_subscription_plan',
   'update_subscription_plan',
   'deactivate_subscription_plan',
+  'activate_subscription_plan',
   'assign_subscription_to_customer',
   'configure_gift_card_products',
   'create_gift_card_bundle',
@@ -456,6 +457,12 @@ export function isDeactivateSubscriptionPlanPrompt(prompt: string): boolean {
   );
 }
 
+export function isActivateSubscriptionPlanPrompt(prompt: string): boolean {
+  return /\b(activate|enable|reactivate|re-activate|turn\s+back\s+on)\s+(the\s+)?\w*\s*(subscription|membership)\s+plan\b/i.test(
+    prompt,
+  );
+}
+
 export function isListSubscriptionPlansPrompt(prompt: string): boolean {
   return (
     /\b(list|show)\b/i.test(prompt) &&
@@ -586,6 +593,12 @@ export function rescueCatalogIntent(
     return {
       action: 'deactivate_subscription_plan',
       rescueReason: 'deactivate_subscription_plan',
+    };
+  }
+  if (isActivateSubscriptionPlanPrompt(prompt)) {
+    return {
+      action: 'activate_subscription_plan',
+      rescueReason: 'activate_subscription_plan',
     };
   }
   if (isUpdateSubscriptionPlanPrompt(prompt)) {

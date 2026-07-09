@@ -1,5 +1,6 @@
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-explain-professional-profile-multilingual.fixtures.js';
 import { isExplainRecommendationSetupPrompt } from './ai-recommendation-product.util.js';
+import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
 import {
   EXPLAIN_PROFESSIONAL_PROFILE_PROMPTS,
   type ExplainProfessionalProfilePromptFixture,
@@ -140,6 +141,7 @@ export function isExplainProfessionalProfileIntent(
 
 export function isExplainProfessionalProfilePrompt(prompt: string): boolean {
   if (isExplainRecommendationSetupPrompt(prompt)) return false;
+  if (isExplainTourServicesPrompt(prompt)) return false;
   if (matchExplainProfessionalProfileScenario(prompt)) return true;
   if (SPECIALTY_MATCH_BLOCK.test(prompt)) return false;
   if (TELL_ME_ABOUT_BLOCK.test(prompt)) return false;

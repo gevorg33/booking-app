@@ -1,4 +1,6 @@
 import { isTeamWhosNextPrompt } from './provider-team-whos-next.util.js';
+import { isSummarizeDayPrompt } from '../ai/ai-provider-summarize-day.util.js';
+import { isSummarizeUtilizationPrompt } from '../ai/ai-provider-summarize-utilization.util.js';
 
 /** Heuristic intent rescue for provider mobile commands (Sprint 19). */
 export function rescueProviderAiIntent(prompt: string, action: string): string {
@@ -30,7 +32,7 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'show_appointments';
   }
-  if (/utilization|utilisation|how\s+busy|booked\s+percent/.test(lower)) {
+  if (isSummarizeUtilizationPrompt(prompt)) {
     return 'summarize_utilization';
   }
   if (
@@ -93,6 +95,9 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
     )
   ) {
     return 'summarize_my_revenue';
+  }
+  if (isSummarizeDayPrompt(prompt)) {
+    return 'summarize_day';
   }
 
   return action;

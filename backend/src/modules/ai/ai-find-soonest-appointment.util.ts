@@ -324,7 +324,8 @@ export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
   if (
     /\bfind\b/i.test(prompt) &&
     SOONEST_CUE.test(prompt) &&
-    !/\b(book|reserve|schedule)\b/i.test(prompt)
+    !/\b(book|reserve|schedule)\b/i.test(prompt) &&
+    !/\b(haircut|massage|facial|cut|color|service)\b/i.test(prompt)
   ) {
     return true;
   }

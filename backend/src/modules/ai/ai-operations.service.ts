@@ -7,6 +7,7 @@ import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { EmployeeService } from '../employee/employee.service.js';
 import { InvitationsService } from '../invitations/invitations.service.js';
+import { TeamMembersService } from '../business/team-members.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandResult } from './ai-command.service.js';
@@ -33,6 +34,7 @@ import {
   handleCreateEmployeeLogic,
   handleDeactivateEmployeeLogic,
   handleUpdateEmployeeLogic,
+  handleUpdateTeamMemberRoleLogic,
   handleInviteStaffMemberLogic,
   type StaffOperationsLogicDeps,
 } from './ai-staff-operations.logic.js';
@@ -50,9 +52,11 @@ export class AiOperationsService {
     planBuilder: OperationalPlanBuilderService,
     employeeService: EmployeeService,
     invitationsService: InvitationsService,
+    teamMembersService: TeamMembersService,
   ) {
     this.deps = { bookingRepo, businessRepo, orchestration, planBuilder };
     this.staffDeps = {
+      teamMembersService,
       employeeService,
       invitationsService,
       businessRepo,
@@ -292,6 +296,19 @@ export class AiOperationsService {
       businessId,
       params,
       prompt,
+      userId,
+    );
+  }
+
+  handleUpdateTeamMemberRole(
+    businessId: string,
+    params: Record<string, unknown>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleUpdateTeamMemberRoleLogic(
+      this.staffDeps,
+      businessId,
+      params,
       userId,
     );
   }

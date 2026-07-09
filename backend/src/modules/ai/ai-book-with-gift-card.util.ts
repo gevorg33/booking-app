@@ -13,6 +13,7 @@ import {
   BOOK_WITH_GIFT_CARD_PROMPTS,
   type BookWithGiftCardPromptFixture,
 } from './ai-book-with-gift-card.fixtures.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
 import { BOOK_WITH_GIFT_CARD_MULTILINGUAL_SCENARIOS } from './ai-book-with-gift-card-multilingual.fixtures.js';
 import { isGiftCardCheckoutCompoundPrompt as isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
 import { isGiftCardCheckoutCompoundPrompt } from './ai-gift-card-payments-hints.util.js';
@@ -57,6 +58,7 @@ export function isBookWithGiftCardPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (matchBookWithGiftCardScenario(text)) return true;
+  if (isExplainPublicBookingCheckoutPrompt(text)) return false;
   if (isBookWithGiftCardBudgetMisroute(text)) return false;
   if (isBuyGiftCardPrompt(text)) return false;
   if (isCheckGiftCardBalancePrompt(text)) return false;

@@ -34,7 +34,7 @@ export interface ParsedTrackLabOrderStatusRequest {
 }
 
 const PUBLIC_SURFACE = new RegExp(
-  String.raw`\b(page|booking|portal|visit|here|site|section)\b|էջ|կայք|այս|այստեղ|այցելություն|գրանցման|страниц|сайт|записи|визит|здесь|этой`,
+  String.raw`\b(page|booking|portal|visit|here|site|section|app|application)\b|էջ|կայք|այս|այստեղ|այցելություն|գրանցման|հավելված|страниц|сайт|записи|визит|здесь|этой|приложени`,
   'iu',
 );
 

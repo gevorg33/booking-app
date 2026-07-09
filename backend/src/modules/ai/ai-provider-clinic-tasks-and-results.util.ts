@@ -1,5 +1,7 @@
 /** ai-cmd-provider-6.9 — provider mobile clinic tasks, lab results queue & booking lab summaries. */
 
+import { isExplainResultStatusPrompt } from './ai-consumer-clinic-test-results.util.js';
+
 export const PROVIDER_CLINIC_TASKS_AND_RESULTS_READ_INTENTS = [
   'list_lab_results_queue',
   'list_booking_lab_summaries',
@@ -42,14 +44,24 @@ export function isListLabResultsQueuePrompt(prompt: string): boolean {
   if (
     /\b(show|list|what'?s?|any|check|see)\b/.test(normalized) &&
     /\b(lab\s+results?|test\s+results?)\b/.test(normalized) &&
-    /\b(queue|waiting|pending|review|assigned|inbox)\b/.test(normalized)
+    /\b(queue|waiting|pending|review|assigned|inbox)\b/.test(normalized) &&
+    !/\b(?:mean|means)\b/.test(normalized)
   ) {
     return true;
   }
-  if (containsArmenianScript(prompt) && /(լաբորատոր|արդյունք).*(հերթ|սպասող)/i.test(prompt)) {
+  if (isExplainResultStatusPrompt(prompt)) return false;
+  if (
+    containsArmenianScript(prompt) &&
+    /(լաբորատոր|արդյունք).*(հերթ|սպասող)/i.test(prompt) &&
+    !/ինչու/iu.test(prompt)
+  ) {
     return true;
   }
-  if (containsCyrillicScript(prompt) && /(результат|лаборатор).*(очеред|ожида)/i.test(prompt)) {
+  if (
+    containsCyrillicScript(prompt) &&
+    /(результат|лаборатор).*(очеред|ожида)/i.test(prompt) &&
+    !/почему/iu.test(prompt)
+  ) {
     return true;
   }
   return false;
@@ -76,6 +88,9 @@ export function isCompleteClinicTaskPrompt(prompt: string): boolean {
 
 export function isListBookingLabSummariesPrompt(prompt: string): boolean {
   const normalized = prompt.toLowerCase();
+  if (/\bbooking\s+(?:site|page|portal|website)\b/.test(normalized)) {
+    return false;
+  }
   return (
     /\b(flagged|abnormal)\b.*\bresults?\b/.test(normalized) ||
     (/\b(lab|test)\s+results?\b/.test(normalized) &&

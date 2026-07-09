@@ -10,6 +10,7 @@ export const STAFF_OPERATIONS_MUTATE_INTENTS = [
   'invite_staff_member',
   'deactivate_employee',
   'configure_online_booking',
+  'update_team_member_role',
 ] as const;
 
 export const STAFF_OPERATIONS_INTENTS = [
@@ -22,6 +23,7 @@ export const STAFF_OPERATIONS_CLASSIFIER_RULES = `- create_employee: MUTATE — 
 - update_employee: MUTATE — edit an existing team member's profile: rename, change email, phone, or job title. Requires employeeName (who to edit) plus at least one of newName, email, phone, title. Use for "rename Anna to Maria", "change Maria's email to m@salon.com", "update Jake's phone", "set Anna's title to Senior Stylist". NOT create_employee (new roster row), NOT deactivate_employee (removal), NOT assign_employee_services (skills), NOT update_service_prices (catalog prices).
 - invite_staff_member: MUTATE — send dashboard or provider-app invitation email. Requires email OR employeeName of an existing employee without app access. Optional role (contributor/manager). Use for "invite Maria to the provider app", "send staff invite to anna@salon.com". NOT create_employee (creates roster row first).
 - deactivate_employee: MUTATE — remove/deactivate a provider from active roster (soft delete). Requires employeeName. Use for "deactivate Gevorg", "remove Maria from the team". NOT cancel_bookings (cancels appointments), NOT block_schedule.
+- update_team_member_role: MUTATE — owner-only: change a team member's dashboard access role (admin, manager, staff, or contributor — NOT owner, which cannot be reassigned or self-changed). Requires employeeName and role. Use for "make Maria a manager", "set Jake's role to admin", "promote Anna to manager". NOT update_employee (profile fields, not access role), NOT invite_staff_member (first-time app access), NOT assign_employee_services (catalog skills).
 - configure_online_booking: MUTATE — toggle or explain public booking page settings (enable/disable online booking). Optional enabled boolean. Use for "enable online booking", "turn off public booking page", "configure our booking website". NOT create_direct_schedule (staff hours).`;
 
 export const STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian dashboard staff operations (ai-cmd-ext-2.5–2.8):
@@ -220,6 +222,17 @@ export function isInviteStaffMemberPrompt(prompt: string): boolean {
   );
 }
 
+export function isUpdateTeamMemberRolePrompt(prompt: string): boolean {
+  const hasRoleTarget = /\b(manager|admin|staff|contributor|owner)\b/i.test(
+    prompt,
+  );
+  if (!hasRoleTarget) return false;
+  if (/\b(promote|demote)\b/i.test(prompt)) return true;
+  return (
+    /\brole\b/i.test(prompt) && /\b(make|set|change)\b/i.test(prompt)
+  );
+}
+
 export function isDeactivateEmployeePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (
@@ -317,6 +330,15 @@ export function rescueStaffOperationsIntent(
     return {
       action: 'deactivate_employee',
       rescueReason: 'deactivate_employee',
+    };
+  }
+  if (
+    isUpdateTeamMemberRolePrompt(prompt) &&
+    action !== 'update_team_member_role'
+  ) {
+    return {
+      action: 'update_team_member_role',
+      rescueReason: 'update_team_member_role',
     };
   }
   if (

@@ -7,10 +7,13 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Product } from '../inventory/entities/inventory.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { InventoryService } from '../inventory/inventory.service.js';
+import { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
 import { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import { ExpensesService } from '../expenses/expenses.service.js';
 import { AnalyticsService } from '../analytics/analytics.service.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
+import { AppEventService } from '../analytics/app-event.service.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 
 describe('Sprint 33 retail/finance AI scenarios', () => {
@@ -60,6 +63,12 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
       },
     ]),
     adjustStock: jest.fn(async () => ({ ...product, quantityOnHand: 20 })),
+    updateProduct: jest.fn(async () => product),
+    unlinkServiceProduct: jest.fn(async () => ({ removed: true })),
+  };
+  const productRecommendationService = {
+    setServiceRecommendations: jest.fn(async () => ['prod-1']),
+    setCategoryRecommendations: jest.fn(async () => ['prod-1']),
   };
   const retailPosService = {
     listSellableProducts: jest.fn(async () => [
@@ -105,6 +114,7 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
       { id: 'exp-1', category: 'Supplies', amount: 50 },
     ]),
     create: jest.fn(async (_, dto) => ({ id: 'exp-2', ...dto })),
+    remove: jest.fn(async () => undefined),
   };
   const analyticsService = {
     profitAndLoss: jest.fn(async () => ({
@@ -135,10 +145,38 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
     list: jest.fn(async () => [
       { id: 'rule-1', employeeId: 'e1', type: 'percent', value: 10 },
     ]),
+    create: jest.fn(async (_biz: string, dto: any) => ({ id: 'rule-2', ...dto })),
+    remove: jest.fn(async () => undefined),
     exportPayoutCsv: jest.fn(async () => ({
       filename: 'payout.csv',
       content: 'employeeName\nAlex',
       rowCount: 1,
+    })),
+  };
+  const reviewsService = {
+    summary: jest.fn(async () => [
+      { employeeId: 'e1', employeeName: 'Alex', avgRating: 4.5, reviewCount: 2 },
+    ]),
+    list: jest.fn(async () => [
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Great!',
+        employeeId: 'e1',
+        createdAt: new Date('2024-01-01'),
+      },
+    ]),
+  };
+  const appEventService = {
+    getAdoptionDashboard: jest.fn(async () => ({
+      periodDays: 30,
+      funnel: {
+        steps: [
+          { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
+          { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+        ],
+        breakdowns: [],
+      },
     })),
   };
   const bookingRepo = {
@@ -167,10 +205,16 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
         AiRetailFinanceService,
         AiIntentRescueService,
         { provide: InventoryService, useValue: inventoryService },
+        {
+          provide: ProductRecommendationService,
+          useValue: productRecommendationService,
+        },
         { provide: RetailPosService, useValue: retailPosService },
         { provide: ExpensesService, useValue: expensesService },
         { provide: AnalyticsService, useValue: analyticsService },
         { provide: CommissionsService, useValue: commissionsService },
+        { provide: ReviewsService, useValue: reviewsService },
+        { provide: AppEventService, useValue: appEventService },
         { provide: getRepositoryToken(Booking), useValue: bookingRepo },
         { provide: getRepositoryToken(Service), useValue: serviceRepo },
         { provide: getRepositoryToken(Product), useValue: productRepo },

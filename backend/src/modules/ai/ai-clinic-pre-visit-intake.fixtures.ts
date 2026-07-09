@@ -1,4 +1,6 @@
 /** ai-cmd-dashboard-6.3.3 — assign pre-visit intake to booking classifier appendix. */
 export const CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES = `- assign_pre_visit_intake_to_booking: MUTATE — clinic only: assign a pre-visit intake questionnaire to a booking (auto-picks the default questionnaire when questionnaireId is omitted). Requires bookingId. Triggers: assign a pre-visit intake to this booking, send the intake form for this appointment. NOT create_intake_draft/start_pre_visit_intake (customer-facing draft flow before booking exists).
+- staff_submit_intake_answers: MUTATE — clinic only: staff fills in a pre-visit intake answer on the patient's behalf (e.g. reading answers off a phone call). Requires bookingId and values (array of answer strings); optional questionId when the intake has more than one open question. "Record that the patient answered 'no' to the allergy question for booking b1" → staff_submit_intake_answers, bookingId=b1, values=["no"]. NOT assign_pre_visit_intake_to_booking (that assigns the form, this fills it in).
 - Examples:
-  - "Assign a pre-visit intake to booking b1" → assign_pre_visit_intake_to_booking, bookingId=b1`;
+  - "Assign a pre-visit intake to booking b1" → assign_pre_visit_intake_to_booking, bookingId=b1
+  - "Submit 'yes' as the answer for booking b1's intake" → staff_submit_intake_answers, bookingId=b1, values=["yes"]`;

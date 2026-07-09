@@ -1,6 +1,7 @@
 import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
 import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
 import { isExplainDataRightsPrompt } from './ai-data-rights.util.js';
+import { isDiagnoseTourCapacityPrompt } from './ai-tour-capacity.util.js';
 
 export const FIX_CHECKOUT_VALIDATION_ERROR_INTENTS = [
   'fix_checkout_validation_error',
@@ -102,6 +103,14 @@ export function extractCheckoutValidationErrorAspectFromPrompt(
 export function isFixCheckoutValidationErrorPrompt(prompt: string): boolean {
   if (isExplainDataRightsPrompt(prompt)) return false;
   if (isExplainClinicBookingPrompt(prompt)) return false;
+  if (
+    /\b(pax|group\s+size|tour|trek|excursion|\d{1,2}[/.]\d{1,2}[/.]\d{2,4})\b/i.test(
+      prompt,
+    ) &&
+    isDiagnoseTourCapacityPrompt(prompt)
+  ) {
+    return false;
+  }
   if (PROACTIVE_HELP_CUE.test(prompt) && !VALIDATION_CUE.test(prompt)) {
     return false;
   }

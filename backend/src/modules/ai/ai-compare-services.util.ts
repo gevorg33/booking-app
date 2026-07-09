@@ -1,3 +1,6 @@
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
+
 export const CUSTOMER_PUBLIC_COMPARE_SERVICES_CLASSIFIER_RULES = `- compare_services: READ — side-by-side catalog comparison of two or more named services (price, duration, optional tax badge). Triggers: "Haircut vs blowdry price and duration", compare haircut and blowdry, difference between massage and facial, which is cheaper manicure or pedicure. Set serviceNames to every catalog service the user names (2+). Summarize listed card prices and durations; optional navigate to the services catalog. NOT explain_service_price (single-service price), NOT list_services (catalog browse or budget filters), NOT discover_packages (bundles), and NOT explain_checkout_total (checkout amount math).`;
 
 export type CompareServicesPromptFixture = {
@@ -289,6 +292,8 @@ function hasCompareCue(prompt: string): boolean {
 }
 
 export function isCompareServicesPrompt(prompt: string): boolean {
+  if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
+  if (isExplainPublicBookingCheckoutPrompt(prompt)) return false;
   if (!hasCompareCue(prompt)) return false;
 
   if (

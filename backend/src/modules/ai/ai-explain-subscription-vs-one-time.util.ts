@@ -1,4 +1,5 @@
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import { isExplainMultiServiceSettingsPrompt } from './ai-explain-multi-service-settings.util.js';
 import { EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_MULTILINGUAL_SCENARIOS } from './ai-explain-subscription-vs-one-time-multilingual.fixtures.js';
 import {
   EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_PROMPTS,
@@ -32,7 +33,9 @@ function isBareUseSubscriptionCreditMutatePrompt(prompt: string): boolean {
     (/\b(book|pay)\b/i.test(prompt) &&
       /\b(?:with\s+)?my\s+(subscription|membership|plan)\b/i.test(prompt)) ||
     /\bpay\s+with\s+membership\b/i.test(prompt) ||
-    /\buse\s+my\s+membership\b/i.test(prompt)
+    /\buse\s+my\s+membership\b/i.test(prompt) ||
+    (/(использов|примен|списать|использ)/iu.test(prompt) &&
+      /(подписк|кредит|абонемент|визит)/iu.test(prompt))
   );
 }
 
@@ -60,7 +63,7 @@ export {
 export { EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-subscription-vs-one-time-multilingual.fixtures.js';
 
 const HY_RU_SUBSCRIPTION_CHECKOUT_CUE =
-  /բաժանորդագրվել|մեկանգամյա|абонемент|разов|подписк|один\s+визит|subscribe.{0,12}save|one[\s-]?time|single\s+visit/iu;
+  /բաժանորդագրվել|մեկանգամյա|разов|один\s+визит|subscribe.{0,12}save|one[\s-]?time|single\s+visit/iu;
 
 function matchExplainSubscriptionVsOneTimeScenario(
   prompt: string,
@@ -163,6 +166,7 @@ export function isExplainSubscriptionVsOneTimeIntent(
 export function isExplainSubscriptionVsOneTimePrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
+  if (isExplainMultiServiceSettingsPrompt(text)) return false;
   if (matchExplainSubscriptionVsOneTimeScenario(text)) return true;
   if (isBareUseSubscriptionCreditMutatePrompt(text)) {
     return false;

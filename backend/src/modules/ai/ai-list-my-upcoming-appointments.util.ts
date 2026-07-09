@@ -31,7 +31,7 @@ const THIS_WEEK_CUE = new RegExp(
 );
 
 const UPCOMING_CUE = new RegExp(
-  String.raw`\b(?:upcoming|coming\s+up|future)\b.*\b(?:appointment|visit|booking)s?\b|\b(?:appointment|visit|booking)s?\b.*\b(?:upcoming|coming\s+up)\b|list\s+my\s+upcoming|առաջիկա\s+(?:amr|ամr|այց)|предстоящ(?:ие|ий|ую)|ближайш`,
+  String.raw`\b(?:upcoming|coming\s+up|future)\b.*\b(?:appointment|visit|booking)s?\b|\b(?:appointment|visit|booking)s?\b.*\b(?:upcoming|coming\s+up)\b|list\s+my\s+upcoming|առաջիկա\s+(?:amr|ամr|այց)|предстоящ(?:ие|ий|ую)`,
   'iu',
 );
 
@@ -112,6 +112,7 @@ export function isListMyUpcomingAppointmentsPrompt(prompt: string): boolean {
   if (PACKAGE_VISITS_CUE.test(prompt)) return false;
   if (CONFIRM_SINGLE_CUE.test(prompt)) return false;
   if (/\bcancel\b/i.test(prompt)) return false;
+  if (/\b(?:reschedule|move|shift)\b/i.test(prompt)) return false;
   if (
     /\bwho\s+is\s+free\b/i.test(prompt) &&
     /\b(?:massage|facial|manicure|pedicure|haircut|color|blowdry|peel|beard|trim)\b/i.test(

@@ -53,6 +53,7 @@ import { enrichConfigureServiceFeaturedParamsFromPrompt } from './ai-configure-s
 import { enrichBulkAssignServicesCategoryParamsFromPrompt } from './ai-bulk-assign-services-category.util.js';
 import { enrichConfigurePackageOnlinePaymentParamsFromPrompt } from './ai-configure-package-online-payment.util.js';
 import { enrichDeactivateServiceCategoryScopeParamsFromPrompt } from './ai-deactivate-service-category-scope.util.js';
+import { enrichServiceDurationBufferParamsFromPrompt } from './ai-service-duration-buffer.util.js';
 import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
@@ -101,12 +102,24 @@ import { rescueCancelAndRebookCompoundIntent } from './ai-cancel-and-rebook-comp
 import { rescueCancelPackageRebookSingleCompoundIntent } from './ai-cancel-package-rebook-single-compound.util.js';
 import { rescueProviderBookingIntent } from './ai-provider-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
+import { parseCreatePromoCodeFromPrompt } from './ai-create-promo-code.util.js';
+import { parseConfigureLoyaltySettingsFromPrompt } from './ai-configure-loyalty-settings.util.js';
+import { enrichConfigureStripeConnectParamsFromPrompt } from './ai-stripe-connect.util.js';
+import { enrichApplyLoyaltyAtCheckoutParamsFromPrompt } from './ai-apply-loyalty-at-checkout.util.js';
+import { parseConfigureCheckoutDefaultsFromPrompt } from './ai-checkout-defaults.util.js';
+import { parseExplainPushPermissionFromPrompt } from './ai-explain-push-permission.util.js';
+import { enrichNotificationSettingsParamsFromPrompt } from './ai-notification-settings.util.js';
+import { parseExplainIntegrationHealthFromPrompt } from './ai-explain-integration-health.util.js';
+import { enrichOpenaiIntegrationParamsFromPrompt } from './ai-openai-integration.util.js';
+import { enrichWhatsappIntegrationParamsFromPrompt } from './ai-whatsapp-integration.util.js';
 import { rescueRetailFinanceIntent } from './ai-retail-finance.util.js';
 import {
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
   rescuePaymentsIntent,
 } from './ai-payments.util.js';
+import { parseExplainServiceOnlinePaymentSetupFromPrompt } from './ai-service-online-payment-setup.util.js';
+import { parseAuditServicesMissingOnlinePaymentFromPrompt } from './ai-audit-services-missing-online-payment.util.js';
 import {
   enrichFindServicesUnderBudgetParamsFromPrompt,
   parseFindServicesUnderBudgetFromPrompt,
@@ -197,7 +210,10 @@ import {
   enrichExplainProfessionalProfileParamsFromPrompt,
   rescueExplainProfessionalProfileIntent,
 } from './ai-explain-professional-profile.util.js';
-import { rescueExplainAnyProviderOptionIntent } from './ai-explain-any-provider-option.util.js';
+import {
+  parseExplainAnyProviderOptionFromPrompt,
+  rescueExplainAnyProviderOptionIntent,
+} from './ai-explain-any-provider-option.util.js';
 import {
   enrichPickProviderForServiceParamsFromPrompt,
   rescuePickProviderForServiceIntent,
@@ -526,6 +542,8 @@ import {
   inferMyStatsScopeFromPrompt,
   rescueProviderExp2Intent,
 } from './ai-provider-exp-2.util.js';
+import { rescueSummarizeDayIntent } from './ai-provider-summarize-day.util.js';
+import { rescueSummarizeUtilizationIntent } from './ai-provider-summarize-utilization.util.js';
 import {
   extractBlockWindowFromPrompt,
   extractMessageTemplateHint,
@@ -806,6 +824,13 @@ export class AiIntentRescueService {
       input.assistantMode,
     );
     if (productGuideMisroute) return productGuideMisroute;
+    const summarizeDayEarly = this.tryRescueSummarizeDay(prompt, action);
+    if (summarizeDayEarly) return summarizeDayEarly;
+    const summarizeUtilizationEarly = this.tryRescueSummarizeUtilization(
+      prompt,
+      action,
+    );
+    if (summarizeUtilizationEarly) return summarizeUtilizationEarly;
     const createServicePrepaymentEarly = this.tryRescueCreateServicePrepayment(
       prompt,
       action,
@@ -1233,6 +1258,13 @@ export class AiIntentRescueService {
     const { prompt, action, params, reasoning } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
 
+    const summarizeDayUnknownEarly = this.tryRescueSummarizeDay(prompt, action);
+    if (summarizeDayUnknownEarly) return summarizeDayUnknownEarly;
+    const summarizeUtilizationUnknownEarly = this.tryRescueSummarizeUtilization(
+      prompt,
+      action,
+    );
+    if (summarizeUtilizationUnknownEarly) return summarizeUtilizationUnknownEarly;
     const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
       prompt,
       action,
@@ -1605,7 +1637,7 @@ export class AiIntentRescueService {
     if (anyProviderOptionUnknown) {
       return {
         action: anyProviderOptionUnknown.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOptionUnknown.action}`,
         rescued: true,
         rescueReason: anyProviderOptionUnknown.rescueReason,
@@ -1741,7 +1773,7 @@ export class AiIntentRescueService {
     if (anyProviderOptionBeforeCustomerContext) {
       return {
         action: anyProviderOptionBeforeCustomerContext.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOptionBeforeCustomerContext.action}`,
         rescued: true,
         rescueReason: anyProviderOptionBeforeCustomerContext.rescueReason,
@@ -2447,7 +2479,7 @@ export class AiIntentRescueService {
       action: rescued.action,
       params: rescued.params,
       rescued: true,
-      rescueReason: 'operations_booking_ops',
+      rescueReason: rescued.rescueReason ?? 'operations_booking_ops',
     };
   }
 
@@ -2681,6 +2713,36 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueSummarizeDay(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueSummarizeDayIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider summarize-day rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueSummarizeUtilization(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueSummarizeUtilizationIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider summarize-utilization rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueProviderExp2(
     prompt: string,
     action: string,
@@ -2726,9 +2788,13 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const rescued = rescueConsumerAdoptionIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    const params: Record<string, unknown> =
+      rescued.action === 'explain_push_permission'
+        ? { ...(parseExplainPushPermissionFromPrompt(prompt) ?? {}) }
+        : {};
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Consumer adoption rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3033,9 +3099,15 @@ export class AiIntentRescueService {
 
     const rescued = rescuePushNotificationsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if ((rescued.action as string) === 'configure_notification_settings') {
+      params = enrichNotificationSettingsParamsFromPrompt({}, prompt);
+    } else if ((rescued.action as string) === 'configure_whatsapp_integration') {
+      params = enrichWhatsappIntegrationParamsFromPrompt({}, prompt);
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Push/notifications rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3063,9 +3135,19 @@ export class AiIntentRescueService {
 
     const rescued = rescueMarketingGrowthIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if (rescued.action === 'create_promo_code') {
+      params = parseCreatePromoCodeFromPrompt(prompt) ?? {};
+    } else if (rescued.action === 'configure_loyalty_settings') {
+      params = parseConfigureLoyaltySettingsFromPrompt(prompt) ?? {};
+    } else if (rescued.action === 'configure_stripe_connect') {
+      params = enrichConfigureStripeConnectParamsFromPrompt({}, prompt);
+    } else if ((rescued.action as string) === 'apply_loyalty_at_checkout') {
+      params = enrichApplyLoyaltyAtCheckoutParamsFromPrompt({}, prompt);
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Marketing/growth rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3588,9 +3670,15 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const rescued = rescueIntegrationsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if ((rescued.action as string) === 'explain_integration_health') {
+      params = { ...(parseExplainIntegrationHealthFromPrompt(prompt) ?? {}) };
+    } else if ((rescued.action as string) === 'configure_openai_integration') {
+      params = enrichOpenaiIntegrationParamsFromPrompt({}, prompt);
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Integrations rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3808,7 +3896,7 @@ export class AiIntentRescueService {
     if (anyProviderOption) {
       return {
         action: anyProviderOption.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOption.action}`,
         rescued: true,
         rescueReason: anyProviderOption.rescueReason,
@@ -4605,6 +4693,12 @@ export class AiIntentRescueService {
         enrichServiceDepositPolicyParamsFromPrompt(rescuedParams, prompt),
       );
     }
+    if ((rescued.action as string) === 'configure_checkout_defaults') {
+      Object.assign(
+        rescuedParams,
+        parseConfigureCheckoutDefaultsFromPrompt(prompt, rescuedParams) ?? {},
+      );
+    }
     if (rescued.action === 'explain_service_price') {
       Object.assign(
         rescuedParams,
@@ -4633,6 +4727,22 @@ export class AiIntentRescueService {
       Object.assign(
         rescuedParams,
         enrichFilterServicesNoPrepaymentParamsFromPrompt(rescuedParams, prompt),
+      );
+    }
+    if ((rescued.action as string) === 'explain_service_online_payment_setup') {
+      Object.assign(
+        rescuedParams,
+        parseExplainServiceOnlinePaymentSetupFromPrompt(prompt, rescuedParams) ??
+          {},
+      );
+    }
+    if ((rescued.action as string) === 'audit_services_missing_online_payment') {
+      Object.assign(
+        rescuedParams,
+        parseAuditServicesMissingOnlinePaymentFromPrompt(
+          prompt,
+          rescuedParams,
+        ) ?? {},
       );
     }
     if ((rescued.action as string) === 'get_directions_to_salon') {
@@ -5783,6 +5893,12 @@ export class AiIntentRescueService {
       Object.assign(
         params,
         enrichDeactivateServiceCategoryScopeParamsFromPrompt(params, prompt),
+      );
+    }
+    if (rescued.action === 'update_service_duration_buffer') {
+      Object.assign(
+        params,
+        enrichServiceDurationBufferParamsFromPrompt(params, prompt),
       );
     }
     return {

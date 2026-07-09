@@ -11,12 +11,16 @@ export const DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS = [
   'mark_delivered',
   'cancel_gift_card_order',
   'extend_cancel_window',
+  'update_gift_card_settings',
+  'resolve_gift_card_change_request',
+  'gift_fulfill_batch',
 ] as const;
 
 export const DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS = [
   'list_gift_card_orders',
   'filter_awaiting_creation',
   'print_packing_slip',
+  'list_gift_card_change_requests',
 ] as const;
 
 export const PROVIDER_GIFT_FULFILLMENT_INTENTS = [

@@ -12,7 +12,14 @@ import type { ClinicTestCatalogService } from '../clinic-test-results/catalog/cl
 import type { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.entity.js';
 import type { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
 import type { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
+import type { ClinicLabChangeHistoryService } from '../clinic-test-results/shared/clinic-lab-change-history.service.js';
 import type { ClinicTestResultService } from '../clinic-test-results/test-result/clinic-test-result.service.js';
+import type {
+  ClinicSpecimenQueueItem,
+  ClinicSpecimenService,
+} from '../clinic-test-results/specimen/clinic-specimen.service.js';
+import type { ClinicSpecimenStatusService } from '../clinic-test-results/specimen/clinic-specimen-status.service.js';
+import { isClinicSpecimenStatus } from '../../common/utils/clinic-lab-state.util.js';
 import { formatClinicTestTypeReferenceRange } from '../clinic-test-results/catalog/clinic-test-catalog.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -31,7 +38,19 @@ export interface ClinicTestResultExtLogicDeps {
     ClinicTestCatalogService,
     'updateReferenceRangeByCode'
   >;
-  clinicLabAccessService: Pick<ClinicLabAccessService, 'resolveStaffContext'>;
+  clinicLabAccessService: Pick<
+    ClinicLabAccessService,
+    'resolveStaffContext' | 'assertResultLabAccess' | 'assertSpecimenLabAccess'
+  >;
+  clinicLabChangeHistoryService: Pick<
+    ClinicLabChangeHistoryService,
+    'listResultChangeHistory'
+  >;
+  specimenService: Pick<ClinicSpecimenService, 'listSpecimens'>;
+  specimenStatusService: Pick<
+    ClinicSpecimenStatusService,
+    'transitionSpecimenStatus'
+  >;
 }
 
 function success(
@@ -42,8 +61,12 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
-function failure(action: string, summary: string): CommandResult {
-  return { success: false, action, summary, details: {} };
+function failure(
+  action: string,
+  summary: string,
+  details?: Record<string, unknown>,
+): CommandResult {
+  return { success: false, action, summary, details: details ?? {} };
 }
 
 async function resolveCustomerIdByName(
@@ -337,4 +360,133 @@ export async function handleListAbnormalResultsLogic(
       customerName: customerName || undefined,
     },
   );
+}
+
+async function resolveSpecimenForTransition(
+  deps: ClinicTestResultExtLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<ClinicSpecimenQueueItem | undefined> {
+  const specimens = await deps.specimenService.listSpecimens(businessId, {});
+
+  const specimenId =
+    typeof params.specimenId === 'string' && params.specimenId.trim()
+      ? params.specimenId.trim()
+      : undefined;
+  if (specimenId) return specimens.find((s) => s.id === specimenId);
+
+  const orderId =
+    typeof params.orderId === 'string' && params.orderId.trim()
+      ? params.orderId.trim()
+      : undefined;
+  if (orderId) return specimens.find((s) => orderIdMatches(s.orderId, orderId));
+
+  const customerName =
+    typeof params.customerName === 'string' && params.customerName.trim()
+      ? params.customerName.trim()
+      : undefined;
+  if (!customerName) return undefined;
+  const needle = customerName.toLowerCase();
+  return specimens.find((s) => s.customerName?.toLowerCase().includes(needle));
+}
+
+export async function handleTransitionSpecimenLogic(
+  deps: ClinicTestResultExtLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const action = 'transition_specimen';
+  const toStatus = params.toStatus;
+  if (!isClinicSpecimenStatus(toStatus)) {
+    return failure(
+      action,
+      'Which specimen status should I set (e.g. Collected, InTransit, ReceivedInLab, Rejected)?',
+    );
+  }
+
+  const specimen = await resolveSpecimenForTransition(deps, businessId, params);
+  if (!specimen) {
+    return failure(
+      action,
+      'Which specimen is this? Provide specimenId, orderId, or customerName.',
+    );
+  }
+
+  try {
+    const access = await deps.clinicLabAccessService.assertSpecimenLabAccess(
+      businessId,
+      userId,
+      specimen.id,
+    );
+    const note = typeof params.note === 'string' ? params.note : undefined;
+    const updated = await deps.specimenStatusService.transitionSpecimenStatus({
+      businessId,
+      specimenId: specimen.id,
+      toStatus,
+      employeeId: access.employeeId,
+      note,
+      v1ShortPath: true,
+    });
+    return success(
+      action,
+      `Moved the specimen for order ${specimen.orderId} to "${updated.status}".`,
+      { specimen: updated },
+    );
+  } catch (err: any) {
+    return failure(action, err?.message ?? 'Could not transition the specimen.');
+  }
+}
+
+export async function handleExplainLabResultHistoryLogic(
+  deps: ClinicTestResultExtLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const action = 'explain_lab_result_history';
+  const resultId =
+    typeof params.resultId === 'string' && params.resultId.trim()
+      ? params.resultId.trim()
+      : undefined;
+  if (!resultId) {
+    return failure(action, 'Which lab result should I show the change history for? Provide resultId.', {
+      clarify: true,
+      missing: ['resultId'],
+    });
+  }
+
+  try {
+    const access = await deps.clinicLabAccessService.assertResultLabAccess(
+      businessId,
+      userId,
+      resultId,
+    );
+    const history = await deps.clinicLabChangeHistoryService.listResultChangeHistory(
+      businessId,
+      resultId,
+      access.ctx,
+      access.bookingAccess,
+    );
+    if (history.length === 0) {
+      return success(action, `No change history recorded for result ${resultId} yet.`, {
+        resultId,
+        count: 0,
+        history: [],
+      });
+    }
+    const lines = history
+      .slice(0, 10)
+      .map((entry) => `• ${entry.action} by ${entry.editedBy?.fullName ?? 'staff'} (${entry.date})`);
+    return success(
+      action,
+      `Change history for result ${resultId} (${history.length}):\n${lines.join('\n')}`,
+      { resultId, count: history.length, history },
+    );
+  } catch (err: any) {
+    return failure(
+      action,
+      err?.message ?? 'Could not load the lab result change history.',
+    );
+  }
 }

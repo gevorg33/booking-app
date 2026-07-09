@@ -3,6 +3,8 @@ import {
   isConfigureBusinessCurrencyPrompt,
 } from './ai-business-currency.util.js';
 import { isExplainWhyStripeRequiredPrompt } from './ai-payments.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
+import { isConfigureStripeConnectPrompt } from './ai-stripe-connect.util.js';
 
 export const STRIPE_CURRENCY_WARNING_INTENTS = [
   'explain_stripe_currency_warning',
@@ -145,6 +147,18 @@ function hasStripeCheckoutFailureTroubleshootContext(prompt: string): boolean {
 
 export function isExplainStripeCurrencyWarningPrompt(prompt: string): boolean {
   if (isConfigureBusinessCurrencyPrompt(prompt)) return false;
+  if (
+    isConfigureStripeConnectPrompt(prompt) &&
+    !/\b(currency|currencies|warning|mean|means)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    isExplainServiceOnlinePaymentSetupPrompt(prompt) &&
+    !/\b(currency|currencies|warning)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (isBulkUpdateServiceCurrencyPrompt(prompt)) return false;
   if (hasStripeCheckoutFailureTroubleshootContext(prompt)) return false;
   if (hasCustomerStripeChargeContext(prompt)) return false;

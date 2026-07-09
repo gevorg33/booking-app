@@ -25,7 +25,10 @@ import {
   handleListInactiveCustomersLogic,
   handleLoyaltyPointsBalanceLogic,
   handleMarketingGrowthCompoundLogic,
+  handleConfirmBillingCheckoutLogic,
+  handleExplainPlanEntitlementsLogic,
   handleOpenBillingSettingsLogic,
+  handleStartBillingCheckoutLogic,
   handlePromoCodeHelpLogic,
   handleSummarizeLoyaltyProgramLogic,
   handleSuggestUpgradeLogic,
@@ -39,7 +42,10 @@ import {
 import { handleConfigureStripeConnectLogic } from './ai-stripe-connect.logic.js';
 import { handleExplainTenantAppInstallLogic } from './ai-tenant-app-install.logic.js';
 import { handleRegenerateTenantAppInstallQrLogic } from './ai-tenant-app-install.logic.js';
-import { handleCreatePromoCodeLogic } from './ai-create-promo-code.logic.js';
+import {
+  handleCreatePromoCodeLogic,
+  handleDeactivatePromoCodeLogic,
+} from './ai-create-promo-code.logic.js';
 import { handleApplyPromoCodeCheckoutLogic } from './ai-apply-promo-code-checkout.logic.js';
 import { handleApplyLoyaltyAtCheckoutLogic } from './ai-apply-loyalty-at-checkout.logic.js';
 import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
@@ -224,6 +230,18 @@ export class AiMarketingGrowthService {
     return handleOpenBillingSettingsLogic(this.deps, businessId);
   }
 
+  handleStartBillingCheckout(businessId: string, params: Record<string, any>) {
+    return handleStartBillingCheckoutLogic(this.deps, businessId, params);
+  }
+
+  handleConfirmBillingCheckout(businessId: string, params: Record<string, any>) {
+    return handleConfirmBillingCheckoutLogic(this.deps, businessId, params);
+  }
+
+  handleExplainPlanEntitlements(businessId: string) {
+    return handleExplainPlanEntitlementsLogic(this.deps, businessId);
+  }
+
   handleSummarizeLoyaltyProgram(businessId: string) {
     return handleSummarizeLoyaltyProgramLogic(this.deps, businessId);
   }
@@ -242,6 +260,10 @@ export class AiMarketingGrowthService {
     prompt?: string,
   ) {
     return handleCreatePromoCodeLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleDeactivatePromoCode(businessId: string, params: Record<string, any>) {
+    return handleDeactivatePromoCodeLogic(this.deps, businessId, params);
   }
 
   handleConfigureLoyaltySettings(

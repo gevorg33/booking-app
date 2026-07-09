@@ -26,6 +26,8 @@ import {
   handleFilterAwaitingCreationLogic,
   handleFulfillmentCompoundLogic,
   handleGiftCardCreationQueueLogic,
+  handleGiftFulfillBatchLogic,
+  handleListGiftCardChangeRequestsLogic,
   handleListGiftCardOrdersLogic,
   handleMarkCardReadyLogic,
   handleMarkDeliveredLogic,
@@ -34,9 +36,11 @@ import {
   handleNotifyDelayLogic,
   handleOrderStatusNotificationsLogic,
   handlePrintPackingSlipLogic,
+  handleResolveGiftCardChangeRequestLogic,
   handleShippingMethodQuoteLogic,
   handleStartCardPreparationLogic,
   handleTrackGiftCardShipmentLogic,
+  handleUpdateGiftCardSettingsLogic,
   type GiftFulfillmentLogicDeps,
 } from './ai-gift-fulfillment.logic.js';
 
@@ -143,6 +147,32 @@ export class AiGiftFulfillmentService {
     prompt?: string,
   ) {
     return handleExtendCancelWindowLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleUpdateGiftCardSettings(businessId: string, params: Record<string, any>) {
+    return handleUpdateGiftCardSettingsLogic(this.deps, businessId, params);
+  }
+
+  handleListGiftCardChangeRequests(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleListGiftCardChangeRequestsLogic(this.deps, businessId, params);
+  }
+
+  handleResolveGiftCardChangeRequest(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleResolveGiftCardChangeRequestLogic(
+      this.deps,
+      businessId,
+      params,
+    );
+  }
+
+  handleGiftFulfillBatch(businessId: string, params: Record<string, any>) {
+    return handleGiftFulfillBatchLogic(this.deps, businessId, params);
   }
 
   handlePrintPackingSlip(

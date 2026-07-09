@@ -4,8 +4,11 @@ import {
   handleConfigurePrivacyRetentionLogic,
   handleEnableHipaaModeLogic,
   handleExplainComplianceStatusLogic,
+  handleExplainEnterpriseTrustLogic,
   handleExplainGdprChecklistLogic,
+  handleExplainStrategyEvalLogic,
   handleListSubProcessorsLogic,
+  handleUpdateStrategyEvalLogic,
   handleViewPhiAccessAuditLogic,
 } from './ai-business-compliance.logic.js';
 import type { Business } from '../business/entities/business.entity.js';
@@ -43,6 +46,77 @@ describe('ai-business-compliance.logic', () => {
     ensureOwner: jest.fn(async () => undefined),
   };
 
+  const enterpriseTrustService = {
+    getSettings: jest.fn(async () => ({
+      legalBusinessName: 'Salon LLC',
+      registeredAddress: null,
+      country: 'US',
+      dpoEmail: null,
+      euRepresentative: null,
+      privacyPolicyEffectiveDate: null,
+      dpaEffectiveDate: null,
+      customDataProcessingNotes: null,
+    })),
+    updateSettings: jest.fn(),
+    renderDocuments: jest.fn(async () => [
+      { id: 'dpa', title: 'Data Processing Agreement (DPA)', markdown: '...', placeholdersFilled: [] },
+      { id: 'privacy_policy', title: 'Privacy Policy (EU template)', markdown: '...', placeholdersFilled: [] },
+    ]),
+    getSecurityOnePager: jest.fn(() => ({
+      title: 'Security One-Pager',
+      lastUpdated: '2026-01-01',
+      summary: 'We take security seriously.',
+      sections: [],
+      contactEmail: 'security@example.com',
+    })),
+  };
+
+  const strategyEvalService = {
+    getSummary: jest.fn(async () => ({
+      hipaa: {
+        answers: {},
+        handlesPhi: true,
+        readinessPercent: 40,
+        blockers: ['diagnosis_documentation'],
+        recommendation: 'defer',
+        recommendationKey: 'strategyEval.hipaa.defer',
+        notes: null,
+        decidedAt: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      marketplace: null,
+      medicalVerticalBlocked: true,
+      marketplaceDecisionLocked: false,
+    })),
+    getHipaaFramework: jest.fn(),
+    getMarketplaceFramework: jest.fn(),
+    submitHipaaEval: jest.fn(async () => ({
+      answers: { handles_phi: 'yes' },
+      handlesPhi: true,
+      readinessPercent: 40,
+      blockers: [],
+      recommendation: 'pursue_baa',
+      recommendationKey: 'strategyEval.hipaa.pursue_baa',
+      notes: null,
+      decidedAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })),
+    submitMarketplaceEval: jest.fn(async () => ({
+      criterionWeights: { tenant_autonomy: 4 },
+      optionScores: {
+        software_only: 10,
+        partner_directory: 8,
+        full_marketplace: 6,
+      },
+      recommendation: 'software_only',
+      recommendationKey: 'strategyEval.marketplace.software_only',
+      directoryOptIn: false,
+      notes: null,
+      decidedAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })),
+  };
+
   const deps = () => ({
     businessRepo,
     customerRepo,
@@ -50,9 +124,12 @@ describe('ai-business-compliance.logic', () => {
     complianceBreachService: {
       reportBreach: jest.fn(),
       listIncidents: jest.fn(),
+      sendBreachNotification: jest.fn(),
     },
     phiAccessAuditService: { listForOwner: jest.fn() },
     businessService,
+    enterpriseTrustService,
+    strategyEvalService,
   });
 
   beforeEach(() => {
@@ -300,5 +377,148 @@ describe('ai-business-compliance.logic', () => {
     expect(result.summary).toContain('lab result comments');
     expect(result.summary).toContain('lab result/result-1');
     expect(result.details?.itemCount).toBe(1);
+  });
+
+  it('explains enterprise trust settings, documents, and security one-pager', async () => {
+    const settingsResult = await handleExplainEnterpriseTrustLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'What is our enterprise trust status?',
+    );
+    expect(settingsResult.success).toBe(true);
+    expect(settingsResult.details?.aspect).toBe('settings');
+
+    const docsResult = await handleExplainEnterpriseTrustLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'Show our DPA',
+    );
+    expect(docsResult.success).toBe(true);
+    expect(docsResult.details?.aspect).toBe('documents');
+    expect((docsResult.details as any).documents).toHaveLength(2);
+
+    const securityResult = await handleExplainEnterpriseTrustLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'Show our security one-pager',
+    );
+    expect(securityResult.success).toBe(true);
+    expect(securityResult.details?.aspect).toBe('security');
+
+    expect(
+      (await handleExplainEnterpriseTrustLogic(deps(), 'biz-1', undefined, {}))
+        .success,
+    ).toBe(false);
+    expect(
+      (
+        await handleExplainEnterpriseTrustLogic(
+          deps(),
+          'biz-1',
+          'owner-1',
+          {},
+          'unrelated prompt',
+        )
+      ).success,
+    ).toBe(false);
+  });
+
+  it('explains strategy eval status for hipaa, marketplace, and all', async () => {
+    const hipaaResult = await handleExplainStrategyEvalLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'What is our HIPAA decision?',
+    );
+    expect(hipaaResult.success).toBe(true);
+    expect(hipaaResult.summary).toContain('defer');
+
+    const marketplaceResult = await handleExplainStrategyEvalLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'Show our marketplace positioning eval',
+    );
+    expect(marketplaceResult.success).toBe(true);
+    expect(marketplaceResult.summary).toContain(
+      'No marketplace positioning evaluation has been submitted',
+    );
+
+    const allResult = await handleExplainStrategyEvalLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {},
+      'strategy eval summary',
+    );
+    expect(allResult.success).toBe(true);
+    expect(allResult.details?.aspect).toBe('all');
+
+    expect(
+      (await handleExplainStrategyEvalLogic(deps(), 'biz-1', undefined, {}))
+        .success,
+    ).toBe(false);
+  });
+
+  it('submits hipaa and marketplace strategy evaluations', async () => {
+    const hipaaResult = await handleUpdateStrategyEvalLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {
+        evalType: 'hipaa',
+        answers: { handles_phi: 'yes' },
+        decision: 'pursue_baa',
+      },
+    );
+    expect(hipaaResult.success).toBe(true);
+    expect(strategyEvalService.submitHipaaEval).toHaveBeenCalledWith('biz-1', {
+      answers: { handles_phi: 'yes' },
+      notes: undefined,
+      decision: 'pursue_baa',
+    });
+
+    const marketplaceResult = await handleUpdateStrategyEvalLogic(
+      deps(),
+      'biz-1',
+      'owner-1',
+      {
+        evalType: 'marketplace',
+        criterionWeights: { tenant_autonomy: 4 },
+        decision: 'software_only',
+      },
+    );
+    expect(marketplaceResult.success).toBe(true);
+    expect(strategyEvalService.submitMarketplaceEval).toHaveBeenCalled();
+
+    expect(
+      (await handleUpdateStrategyEvalLogic(deps(), 'biz-1', undefined, {}))
+        .success,
+    ).toBe(false);
+    expect(
+      (await handleUpdateStrategyEvalLogic(deps(), 'biz-1', 'owner-1', {}))
+        .success,
+    ).toBe(false);
+    expect(
+      (
+        await handleUpdateStrategyEvalLogic(deps(), 'biz-1', 'owner-1', {
+          evalType: 'hipaa',
+        })
+      ).success,
+    ).toBe(false);
+    expect(
+      (
+        await handleUpdateStrategyEvalLogic(deps(), 'biz-1', 'owner-1', {
+          evalType: 'marketplace',
+        })
+      ).success,
+    ).toBe(false);
   });
 });

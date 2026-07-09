@@ -46,4 +46,28 @@ describe('rescueProviderAiIntent', () => {
       rescueProviderAiIntent("What's on my schedule today?", 'unknown'),
     ).toBe('show_appointments');
   });
+
+  it('maps day-status phrases to summarize_day (prov-exp-1 / ai-cmd-provider-5.1.1)', () => {
+    expect(rescueProviderAiIntent("How's today looking?", 'unknown')).toBe(
+      'summarize_day',
+    );
+    expect(
+      rescueProviderAiIntent('Give me a rundown of today', 'unknown'),
+    ).toBe('summarize_day');
+    expect(
+      rescueProviderAiIntent('Any no-shows yet today?', 'unknown'),
+    ).toBe('summarize_day');
+  });
+
+  it('maps utilization phrases to summarize_utilization (prov-exp-1 / ai-cmd-provider-5.1.6)', () => {
+    expect(rescueProviderAiIntent('How full is my week?', 'unknown')).toBe(
+      'summarize_utilization',
+    );
+    expect(
+      rescueProviderAiIntent(
+        'What percent of my slots are booked?',
+        'unknown',
+      ),
+    ).toBe('summarize_utilization');
+  });
 });

@@ -7,6 +7,8 @@ import { CustomerPrivacyService } from '../customer/customer-privacy.service.js'
 import { ComplianceBreachService } from '../compliance/compliance-breach.service.js';
 import { PhiAccessAuditService } from '../compliance/phi-access-audit.service.js';
 import { BusinessService } from '../business/business.service.js';
+import { EnterpriseTrustService } from '../enterprise-trust/enterprise-trust.service.js';
+import { StrategyEvalService } from '../strategy-eval/strategy-eval.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleAcceptHipaaBaaLogic,
@@ -16,7 +18,9 @@ import {
   handleConfigureHipaaSessionTimeoutLogic,
   handleEnableHipaaModeLogic,
   handleExplainComplianceStatusLogic,
+  handleExplainEnterpriseTrustLogic,
   handleExplainGdprChecklistLogic,
+  handleExplainStrategyEvalLogic,
   handleOpenComplianceDashboardLogic,
   handleExplainDataRightsLogic,
   handleExplainHipaaSessionTimeoutLogic,
@@ -27,6 +31,7 @@ import {
   handleListSubProcessorsLogic,
   handleReportDataBreachLogic,
   handleSendBreachNotificationLogic,
+  handleUpdateStrategyEvalLogic,
   handleViewPhiAccessAuditLogic,
   type BusinessComplianceLogicDeps,
 } from './ai-business-compliance.logic.js';
@@ -42,6 +47,8 @@ export class AiBusinessComplianceService {
     complianceBreachService: ComplianceBreachService,
     phiAccessAuditService: PhiAccessAuditService,
     businessService: BusinessService,
+    enterpriseTrustService: EnterpriseTrustService,
+    strategyEvalService: StrategyEvalService,
   ) {
     this.deps = {
       businessRepo,
@@ -50,6 +57,8 @@ export class AiBusinessComplianceService {
       complianceBreachService,
       phiAccessAuditService,
       businessService,
+      enterpriseTrustService,
+      strategyEvalService,
     };
   }
 
@@ -246,6 +255,51 @@ export class AiBusinessComplianceService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleAcceptHipaaBaaLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainEnterpriseTrust(
+    businessId: string,
+    userId: string | undefined,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainEnterpriseTrustLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainStrategyEval(
+    businessId: string,
+    userId: string | undefined,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainStrategyEvalLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+      prompt,
+    );
+  }
+
+  handleUpdateStrategyEval(
+    businessId: string,
+    userId: string | undefined,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleUpdateStrategyEvalLogic(
       this.deps,
       businessId,
       userId,

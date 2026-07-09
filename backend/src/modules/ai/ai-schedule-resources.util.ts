@@ -8,6 +8,7 @@ export const DASHBOARD_RESOURCE_MUTATE_INTENTS = [
   'update_resource',
   'deactivate_resource',
   'assign_resource_hours',
+  'set_service_resource_requirements',
   'configure_multi_service_scheduling_mode',
   'block_resource_unavailable',
 ] as const;

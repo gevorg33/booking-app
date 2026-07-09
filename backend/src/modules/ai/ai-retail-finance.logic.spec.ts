@@ -2,14 +2,24 @@ import {
   handleListProductsLogic,
   handleCreateProductLogic,
   handleLinkProductToServiceLogic,
+  handleUpdateInventoryProductLogic,
+  handleDeleteInventoryProductLogic,
+  handleUnlinkInventoryProductLogic,
+  handleSetRecommendedProductsLogic,
   handleAdjustInventoryLogic,
   handleAddRetailSaleToBookingLogic,
   handleRemoveRetailLineLogic,
   handleRecordExpenseLogic,
+  handleDeleteExpenseLogic,
   handleListExpensesLogic,
   handleSummarizePlLogic,
   handleCommissionReportLogic,
+  handleCreateCommissionRuleLogic,
+  handleDeleteCommissionRuleLogic,
   handlePayoutExportLogic,
+  handleExportAnalyticsReportLogic,
+  handleSummarizeAdoptionFunnelLogic,
+  handleSummarizeReviewsLogic,
   handleSuggestRetailUpsellLogic,
   handleAddRetailToMyBookingLogic,
   handleSetRetailSalesLinesLogic,
@@ -71,6 +81,12 @@ function buildDeps(
         },
       ]),
       adjustStock: jest.fn(async () => ({ ...product, quantityOnHand: 20 })),
+      updateProduct: jest.fn(async () => product),
+      unlinkServiceProduct: jest.fn(async () => ({ removed: true })),
+    } as any,
+    productRecommendationService: {
+      setServiceRecommendations: jest.fn(async () => ['prod-1']),
+      setCategoryRecommendations: jest.fn(async () => ['prod-1']),
     } as any,
     retailPosService: {
       listSellableProducts: jest.fn(async () => [
@@ -116,6 +132,7 @@ function buildDeps(
         { id: 'exp-1', category: 'Supplies', amount: 50 },
       ]),
       create: jest.fn(async (_, dto) => ({ id: 'exp-2', ...dto })),
+      remove: jest.fn(async () => undefined),
     } as any,
     analyticsService: {
       profitAndLoss: jest.fn(async () => ({
@@ -146,10 +163,41 @@ function buildDeps(
       list: jest.fn(async () => [
         { id: 'rule-1', employeeId: 'e1', type: 'percent', value: 10 },
       ]),
+      create: jest.fn(async (_biz: string, dto: any) => ({
+        id: 'rule-2',
+        ...dto,
+      })),
+      remove: jest.fn(async () => undefined),
       exportPayoutCsv: jest.fn(async () => ({
         filename: 'payout.csv',
         content: 'rows',
         rowCount: 2,
+      })),
+    } as any,
+    reviewsService: {
+      summary: jest.fn(async () => [
+        { employeeId: 'e1', employeeName: 'Anna', avgRating: 4.5, reviewCount: 2 },
+      ]),
+      list: jest.fn(async () => [
+        {
+          id: 'rev-1',
+          rating: 5,
+          comment: 'Great!',
+          employeeId: 'e1',
+          createdAt: new Date('2024-01-01'),
+        },
+      ]),
+    } as any,
+    appEventService: {
+      getAdoptionDashboard: jest.fn(async () => ({
+        periodDays: 30,
+        funnel: {
+          steps: [
+            { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
+            { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+          ],
+          breakdowns: [],
+        },
       })),
     } as any,
     bookingRepo: {
@@ -569,6 +617,120 @@ describe('ai-retail-finance.logic', () => {
           {},
         )
       ).success,
+    ).toBe(false);
+  });
+
+  it('exports analytics reports as csv or pdf', async () => {
+    const deps = buildDeps({
+      analyticsService: {
+        profitAndLoss: jest.fn(async () => ({
+          revenue: 1000,
+          expenses: 200,
+          commissions: 100,
+          netProfit: 700,
+          currency: 'USD',
+        })),
+        staffPerformance: jest.fn(async () => ({
+          currency: 'USD',
+          rows: [],
+        })),
+        exportCsv: jest.fn(async () => 'Section,Key,Value1,Value2,Value3\nP&L,Revenue,1000,,'),
+        exportPdfHtml: jest.fn(async () => '<html>report</html>'),
+      } as any,
+    });
+    const csvResult = await handleExportAnalyticsReportLogic(deps, 'biz-1', {});
+    expect(csvResult.success).toBe(true);
+    expect((csvResult.details as any).export.format).toBe('csv');
+    expect((csvResult.details as any).export.rowCount).toBe(1);
+
+    const pdfResult = await handleExportAnalyticsReportLogic(deps, 'biz-1', {
+      format: 'pdf',
+    });
+    expect(pdfResult.success).toBe(true);
+    expect((pdfResult.details as any).export.format).toBe('pdf');
+    expect((pdfResult.details as any).export.content).toContain('<html>');
+
+    const failDeps = buildDeps({
+      analyticsService: {
+        exportCsv: jest.fn(async () => {
+          throw new Error('export fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleExportAnalyticsReportLogic(failDeps, 'biz-1', {})).success,
+    ).toBe(false);
+  });
+
+  it('summarizes reviews overall and per employee', async () => {
+    const deps = buildDeps();
+    const result = await handleSummarizeReviewsLogic(deps, 'biz-1', {});
+    expect(result.success).toBe(true);
+    expect((result.details as any).totalReviews).toBe(2);
+    expect((result.details as any).overallAvg).toBe(4.5);
+
+    const scoped = await handleSummarizeReviewsLogic(deps, 'biz-1', {
+      employeeId: 'e1',
+    });
+    expect(scoped.success).toBe(true);
+
+    const emptyDeps = buildDeps({
+      reviewsService: {
+        summary: jest.fn(async () => []),
+        list: jest.fn(async () => []),
+      } as any,
+    });
+    const emptyResult = await handleSummarizeReviewsLogic(
+      emptyDeps,
+      'biz-1',
+      {},
+    );
+    expect(emptyResult.success).toBe(true);
+    expect(emptyResult.summary).toContain('No reviews');
+
+    const failDeps = buildDeps({
+      reviewsService: {
+        summary: jest.fn(async () => {
+          throw new Error('reviews fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleSummarizeReviewsLogic(failDeps, 'biz-1', {})).success,
+    ).toBe(false);
+  });
+
+  it('summarizes the adoption funnel', async () => {
+    const deps = buildDeps();
+    const result = await handleSummarizeAdoptionFunnelLogic(deps, 'biz-1', {});
+    expect(result.success).toBe(true);
+    expect((result.details as any).overallConversion).toBe(50);
+
+    const emptyDeps = buildDeps({
+      appEventService: {
+        getAdoptionDashboard: jest.fn(async () => ({
+          periodDays: 30,
+          funnel: { steps: [], breakdowns: [] },
+        })),
+      } as any,
+    });
+    const emptyResult = await handleSummarizeAdoptionFunnelLogic(
+      emptyDeps,
+      'biz-1',
+      {},
+    );
+    expect(emptyResult.success).toBe(true);
+    expect(emptyResult.summary).toContain('No adoption funnel activity');
+
+    const failDeps = buildDeps({
+      appEventService: {
+        getAdoptionDashboard: jest.fn(async () => {
+          throw new Error('adoption fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleSummarizeAdoptionFunnelLogic(failDeps, 'biz-1', {})).success,
     ).toBe(false);
   });
 
@@ -1607,5 +1769,215 @@ describe('ai-retail-finance.logic', () => {
         { success: true, action: 'list_products', summary: '', details: {} },
       ).productId,
     ).toBeUndefined();
+  });
+
+  describe('ai-cmd-dashboard-6.12 inventory/expense/commission mutates', () => {
+    it('updates an inventory product', async () => {
+      const deps = buildDeps();
+      expect(
+        (await handleUpdateInventoryProductLogic(deps, 'biz-1', {})).success,
+      ).toBe(false);
+      expect(
+        (
+          await handleUpdateInventoryProductLogic(deps, 'biz-1', {
+            productName: 'Shampoo',
+          })
+        ).success,
+      ).toBe(false);
+      const updated = await handleUpdateInventoryProductLogic(deps, 'biz-1', {
+        productName: 'Shampoo',
+        retailPrice: 30,
+      });
+      expect(updated.success).toBe(true);
+      expect(deps.inventoryService.updateProduct).toHaveBeenCalledWith(
+        'prod-1',
+        'biz-1',
+        { retailPrice: 30 },
+      );
+    });
+
+    it('deletes (deactivates) an inventory product', async () => {
+      const deps = buildDeps();
+      expect(
+        (await handleDeleteInventoryProductLogic(deps, 'biz-1', {})).success,
+      ).toBe(false);
+      const result = await handleDeleteInventoryProductLogic(deps, 'biz-1', {
+        productName: 'Shampoo',
+      });
+      expect(result.success).toBe(true);
+      expect(deps.inventoryService.updateProduct).toHaveBeenCalledWith(
+        'prod-1',
+        'biz-1',
+        { isActive: false },
+      );
+    });
+
+    it('unlinks a product from a service', async () => {
+      const deps = buildDeps();
+      const byLinkId = await handleUnlinkInventoryProductLogic(deps, 'biz-1', {
+        linkId: 'link-1',
+      });
+      expect(byLinkId.success).toBe(true);
+      expect(deps.inventoryService.unlinkServiceProduct).toHaveBeenCalledWith(
+        'link-1',
+        'biz-1',
+      );
+
+      const missing = await handleUnlinkInventoryProductLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(missing.success).toBe(false);
+
+      const byNames = await handleUnlinkInventoryProductLogic(
+        buildDeps(),
+        'biz-1',
+        { productName: 'Shampoo', serviceName: 'Haircut' },
+      );
+      expect(byNames.success).toBe(true);
+
+      const noLinkFound = await handleUnlinkInventoryProductLogic(
+        buildDeps({
+          inventoryService: {
+            listProducts: jest.fn(async () => [product]),
+            listServiceLinks: jest.fn(async () => []),
+          } as any,
+        }),
+        'biz-1',
+        { productName: 'Shampoo', serviceName: 'Haircut' },
+      );
+      expect(noLinkFound.success).toBe(false);
+    });
+
+    it('sets recommended products for a service', async () => {
+      const deps = buildDeps();
+      expect(
+        (await handleSetRecommendedProductsLogic(deps, 'biz-1', {})).success,
+      ).toBe(false);
+      expect(
+        (
+          await handleSetRecommendedProductsLogic(deps, 'biz-1', {
+            serviceName: 'Haircut',
+          })
+        ).success,
+      ).toBe(false);
+
+      const byIds = await handleSetRecommendedProductsLogic(deps, 'biz-1', {
+        serviceName: 'Haircut',
+        productIds: ['prod-1'],
+      });
+      expect(byIds.success).toBe(true);
+      expect(
+        deps.productRecommendationService.setServiceRecommendations,
+      ).toHaveBeenCalledWith('biz-1', 'svc-1', ['prod-1']);
+
+      const byCategory = await handleSetRecommendedProductsLogic(deps, 'biz-1', {
+        categoryId: 'cat-1',
+        productNames: ['Shampoo'],
+      });
+      expect(byCategory.success).toBe(true);
+      expect(
+        deps.productRecommendationService.setCategoryRecommendations,
+      ).toHaveBeenCalledWith('biz-1', 'cat-1', ['prod-1']);
+
+      const noMatch = await handleSetRecommendedProductsLogic(deps, 'biz-1', {
+        serviceName: 'Haircut',
+        productNames: ['Nonexistent'],
+      });
+      expect(noMatch.success).toBe(false);
+    });
+
+    it('deletes an expense', async () => {
+      const deps = buildDeps();
+      expect(
+        (await handleDeleteExpenseLogic(deps, 'biz-1', {})).success,
+      ).toBe(false);
+      const byId = await handleDeleteExpenseLogic(deps, 'biz-1', {
+        expenseId: 'exp-1',
+      });
+      expect(byId.success).toBe(true);
+      expect(deps.expensesService.remove).toHaveBeenCalledWith(
+        'exp-1',
+        'biz-1',
+      );
+      const byCategory = await handleDeleteExpenseLogic(deps, 'biz-1', {
+        category: 'Supplies',
+      });
+      expect(byCategory.success).toBe(true);
+      const noMatch = await handleDeleteExpenseLogic(
+        buildDeps({
+          expensesService: {
+            list: jest.fn(async () => []),
+            remove: jest.fn(),
+          } as any,
+        }),
+        'biz-1',
+        { category: 'Nonexistent' },
+      );
+      expect(noMatch.success).toBe(false);
+    });
+
+    it('creates a commission rule', async () => {
+      const deps = buildDeps();
+      expect(
+        (await handleCreateCommissionRuleLogic(deps, 'biz-1', {})).success,
+      ).toBe(false);
+      const created = await handleCreateCommissionRuleLogic(deps, 'biz-1', {
+        employeeName: 'Alex',
+        serviceName: 'Haircut',
+        value: 15,
+      });
+      expect(created.success).toBe(true);
+      expect(deps.commissionsService.create).toHaveBeenCalledWith('biz-1', {
+        employeeId: 'e1',
+        serviceId: 'svc-1',
+        type: 'percent',
+        value: 15,
+      });
+
+      const unknownEmployee = await handleCreateCommissionRuleLogic(
+        buildDeps(),
+        'biz-1',
+        { employeeName: 'Nonexistent', value: 10 },
+      );
+      expect(unknownEmployee.success).toBe(false);
+    });
+
+    it('deletes a commission rule', async () => {
+      const deps = buildDeps();
+      const byId = await handleDeleteCommissionRuleLogic(deps, 'biz-1', {
+        ruleId: 'rule-1',
+      });
+      expect(byId.success).toBe(true);
+      expect(deps.commissionsService.remove).toHaveBeenCalledWith(
+        'rule-1',
+        'biz-1',
+      );
+
+      const byEmployee = await handleDeleteCommissionRuleLogic(deps, 'biz-1', {
+        employeeName: 'Alex',
+      });
+      expect(byEmployee.success).toBe(true);
+
+      const missing = await handleDeleteCommissionRuleLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(missing.success).toBe(false);
+
+      const noMatch = await handleDeleteCommissionRuleLogic(
+        buildDeps({
+          commissionsService: {
+            list: jest.fn(async () => []),
+            remove: jest.fn(),
+          } as any,
+        }),
+        'biz-1',
+        { employeeName: 'Nobody' },
+      );
+      expect(noMatch.success).toBe(false);
+    });
   });
 });

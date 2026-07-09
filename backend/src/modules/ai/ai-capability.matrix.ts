@@ -122,11 +122,35 @@ export const CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS: readonly ClinicTestResultEx
     },
   ] as const;
 
+/** Dashboard-only clinic lab intents added in ai-cmd-dashboard-6.9.3 (specimen state machine + change history). */
+export const CLINIC_TEST_RESULT_ADDITIONAL_CAPABILITY_ROWS: readonly ClinicTestResultCapabilityRow[] =
+  [
+    {
+      id: 'transition_specimen',
+      surfaces: ['dashboard'],
+      tier: 'M',
+      mutating: true,
+      sprint: '54',
+    },
+    {
+      id: 'explain_lab_result_history',
+      surfaces: ['dashboard'],
+      tier: 'R',
+      mutating: false,
+      sprint: '54',
+    },
+  ] as const;
+
 /** Full clinic test-result intent family — core enter/release + ext (ai-cmd-clinic-6-gap-4.3). */
 export const CLINIC_TEST_RESULT_CAPABILITY_ROWS: readonly ClinicTestResultCapabilityRow[] =
   [
     ...CLINIC_TEST_RESULT_CORE_CAPABILITY_ROWS,
-    ...CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS,
+    CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS[0],
+    CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS[1],
+    CLINIC_TEST_RESULT_ADDITIONAL_CAPABILITY_ROWS[0],
+    CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS[2],
+    CLINIC_TEST_RESULT_EXT_CAPABILITY_ROWS[3],
+    CLINIC_TEST_RESULT_ADDITIONAL_CAPABILITY_ROWS[1],
   ] as const;
 
 export function getClinicTestResultCapabilityRow(

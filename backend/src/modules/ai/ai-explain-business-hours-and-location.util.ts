@@ -219,8 +219,8 @@ function hasHoursCue(prompt: string): boolean {
     /\b(?:open(?:ing)?\s+hours?|business\s+hours?|operating\s+hours?|what\s+time|when\s+are\s+you\s+open|are\s+you\s+open|close|closing|hours?\s+on|your\s+hours|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+hours?)\b/i.test(
       prompt,
     ) ||
-    /(?:աշխատանքային|բաց|ժամեր|երբ)/iu.test(prompt) ||
-    /(?:часы|открыт|работаете|когда|закрыва|сколько)/iu.test(prompt)
+    /(?:աշխատանքային|բաց(?!իր|ատրիր)|ժամեր|երբ)/iu.test(prompt) ||
+    /(?:часы|открыт|работаете|закрыва)/iu.test(prompt)
   );
 }
 

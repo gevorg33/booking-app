@@ -832,6 +832,45 @@ export async function handleDeactivateSubscriptionPlanLogic(
   );
 }
 
+export async function handleActivateSubscriptionPlanLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const plans = await deps.subscriptionsService.listPlans(
+    businessId,
+    undefined,
+    true,
+  );
+  const plan = params.planId
+    ? plans.find((p) => p.id === params.planId)
+    : resolveByName(plans, (params.planName as string) ?? '');
+  if (!plan) {
+    return failure(
+      'activate_subscription_plan',
+      'Specify which plan to activate.',
+      {
+        clarify: true,
+        missing: ['planName'],
+      },
+    );
+  }
+
+  try {
+    await deps.subscriptionsService.activatePlan(businessId, plan.id);
+    return success(
+      'activate_subscription_plan',
+      `Activated plan "${plan.name}".`,
+      { planId: plan.id },
+    );
+  } catch (err: any) {
+    return failure(
+      'activate_subscription_plan',
+      err?.message ?? 'Could not activate the subscription plan.',
+    );
+  }
+}
+
 export async function handleAssignSubscriptionToCustomerLogic(
   deps: CatalogLogicDeps,
   businessId: string,

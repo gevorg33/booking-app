@@ -16,6 +16,7 @@ import {
   handleDeactivateServiceLogic,
   handleUpdateServiceLogic,
   handleDeactivateSubscriptionPlanLogic,
+  handleActivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
   handleListSubscriptionPlansLogic,
@@ -106,6 +107,7 @@ function buildDeps(
       createPlan: jest.fn(async () => ({ id: 'plan-1', name: 'Nail Plan' })),
       updatePlan: jest.fn(async (p) => p),
       deactivatePlan: jest.fn(),
+      activatePlan: jest.fn(async () => ({ id: 'plan-1', isActive: true })),
       assignSubscription: jest.fn(async () => ({ id: 'sub-1' })),
     } as any,
     ...overrides,
@@ -988,6 +990,61 @@ describe('ai-catalog.logic', () => {
           })
         ).success,
       ).toBe(true);
+    });
+
+    it('activates a subscription plan (ai-cmd-dashboard-6.11.3)', async () => {
+      expect(
+        (
+          await handleActivateSubscriptionPlanLogic(
+            {
+              subscriptionsService: {
+                listPlans: jest.fn().mockResolvedValue([]),
+              } as any,
+            } as any,
+            'biz-1',
+            { planName: 'X' },
+          )
+        ).success,
+      ).toBe(false);
+
+      const activateDeps = buildDeps();
+      const activated = await handleActivateSubscriptionPlanLogic(
+        activateDeps,
+        'biz-1',
+        { planName: 'Nail' },
+      );
+      expect(activated.success).toBe(true);
+      expect(activateDeps.subscriptionsService.activatePlan).toHaveBeenCalledWith(
+        'biz-1',
+        'plan-1',
+      );
+
+      const byPlanId = buildDeps();
+      expect(
+        (
+          await handleActivateSubscriptionPlanLogic(byPlanId, 'biz-1', {
+            planId: 'plan-1',
+          })
+        ).success,
+      ).toBe(true);
+
+      const errorDeps = buildDeps({
+        subscriptionsService: {
+          listPlans: jest
+            .fn()
+            .mockResolvedValue([{ id: 'plan-1', name: 'Nail Plan' }]),
+          activatePlan: jest.fn(async () => {
+            throw new Error('Subscription plan is already active');
+          }),
+        } as any,
+      });
+      const errored = await handleActivateSubscriptionPlanLogic(
+        errorDeps,
+        'biz-1',
+        { planId: 'plan-1' },
+      );
+      expect(errored.success).toBe(false);
+      expect(errored.summary).toContain('already active');
     });
 
     it('assigns subscription to customer', async () => {

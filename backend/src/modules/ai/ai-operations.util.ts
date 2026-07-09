@@ -28,6 +28,7 @@ export const OPERATIONS_STAFF_INTENTS = [
   'invite_staff_member',
   'deactivate_employee',
   'configure_online_booking',
+  'update_team_member_role',
 ] as const;
 
 export const OPERATIONS_INTENTS = [
@@ -263,10 +264,7 @@ export function isStaffServiceMatrixPrompt(prompt: string): boolean {
       return false;
     }
   }
-  return (
-    /\bassign\b.+\b(?:senior|junior|only|matrix)\b/i.test(prompt) ||
-    /\ball\b.+\b(?:services?|color|massage|stylist)/i.test(prompt)
-  );
+  return /\bassign\b.+\b(?:senior|junior|only|matrix)\b/i.test(prompt);
 }
 
 export function resolveEmployeesBySeniority<
@@ -469,7 +467,11 @@ export function rescueOperationsIntent(
   prompt: string,
   action: string,
   params: Record<string, unknown>,
-): { action: string; params: Record<string, unknown> } | null {
+): {
+  action: string;
+  params: Record<string, unknown>;
+  rescueReason?: string;
+} | null {
   if (isNoShowRecoveryPrompt(prompt) && action !== 'no_show_recovery') {
     return { action: 'no_show_recovery', params };
   }
@@ -491,15 +493,34 @@ export function rescueOperationsIntent(
     action,
   );
   if (priceOnlinePayment) {
+    const adjustment = parsePriceAdjustment(prompt, params);
     return {
       action: priceOnlinePayment.action,
-      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+      params: {
+        ...enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+        ...(adjustment?.percentChange != null
+          ? { percentChange: adjustment.percentChange }
+          : {}),
+        ...(adjustment?.categoryHint
+          ? { categoryName: adjustment.categoryHint }
+          : {}),
+      },
+      rescueReason: priceOnlinePayment.rescueReason,
     };
   }
   if (isPricingAdjustmentPrompt(prompt) && action !== 'update_service_prices') {
+    const adjustment = parsePriceAdjustment(prompt, params);
     return {
       action: 'update_service_prices',
-      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+      params: {
+        ...enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+        ...(adjustment?.percentChange != null
+          ? { percentChange: adjustment.percentChange }
+          : {}),
+        ...(adjustment?.categoryHint
+          ? { categoryName: adjustment.categoryHint }
+          : {}),
+      },
     };
   }
   const transfer = rescueTransferServicesBetweenProvidersIntent(

@@ -4,6 +4,7 @@ import {
   SUPPORTED_BUSINESS_CURRENCIES,
   type SupportedBusinessCurrency,
 } from '../../common/utils/business-currency.util.js';
+import { isConfigureStripeConnectPrompt } from './ai-stripe-connect.util.js';
 
 export const BUSINESS_CURRENCY_INTENTS = [
   'configure_business_currency',
@@ -197,6 +198,7 @@ export function isBulkUpdateServiceCurrencyPrompt(prompt: string): boolean {
 
 export function isExplainBusinessCurrencyPrompt(prompt: string): boolean {
   if (isBulkUpdateServiceCurrencyPrompt(prompt)) return false;
+  if (isConfigureStripeConnectPrompt(prompt)) return false;
   if (
     isConfigureBusinessCurrencyPrompt(prompt) &&
     parseCurrencyFromPrompt(prompt)

@@ -13,7 +13,17 @@ export const LIST_SERVICES_PAYMENT_FILTER_CLASSIFIER_RULES = `- list_services pa
 export type ListServicesPaymentFilter = {
   prepaymentMode?: 'none' | 'full' | 'deposit';
   onlinePaymentEnabled?: boolean;
+  serviceCategory?: string;
 };
+
+function extractServiceCategoryFromListPaymentFilterPrompt(
+  prompt: string,
+): string | undefined {
+  const match = prompt.match(
+    /\b(?:list|show)\s+(?!our\b|the\b|all\b|my\b|services?\b)([a-z][\w-]{2,30}?)\s+services?\b/i,
+  );
+  return match?.[1]?.trim() || undefined;
+}
 
 export type ParsedListServicesPaymentFilter = ListServicesPaymentFilter;
 
@@ -57,6 +67,9 @@ export function parseListServicesPaymentFilterFromPrompt(
   if (prepaymentFromParams) fromParams.prepaymentMode = prepaymentFromParams;
   if (typeof params.onlinePaymentEnabled === 'boolean') {
     fromParams.onlinePaymentEnabled = params.onlinePaymentEnabled;
+  }
+  if (typeof params.serviceCategory === 'string' && params.serviceCategory) {
+    fromParams.serviceCategory = params.serviceCategory;
   }
 
   const text = prompt.trim();
@@ -108,6 +121,12 @@ export function parseListServicesPaymentFilterFromPrompt(
     return Object.keys(fromParams).length ? fromParams : null;
   }
 
+  if (!parsed.serviceCategory) {
+    const serviceCategory =
+      extractServiceCategoryFromListPaymentFilterPrompt(text);
+    if (serviceCategory) parsed.serviceCategory = serviceCategory;
+  }
+
   return parsed;
 }
 
@@ -140,11 +159,24 @@ export function isListServicesPaymentFilterPrompt(prompt: string): boolean {
   if (!hasListFilterCue) return false;
 
   if (
-    /\b(?:accept|enable|configure|decline|disable|turn\s+on|turn\s+off)\b/i.test(
+    (/\b(?:accept|enable|configure|decline|disable|turn\s+on|turn\s+off|require)\b/i.test(
       text,
-    ) &&
-    !/\b(?:list|show)\s+services?\b/i.test(text) &&
+    ) ||
+      /(ընդուն|միացն|պահանջ|կարգավոր|անջատ|դադարեցն|прин|включ|требов|настро|отключ|прекрат)/iu.test(
+        text,
+      )) &&
+    !/\b(?:list|show)\b.{0,40}\bservices?\b/i.test(text) &&
+    !/\bwhat\s+services?\s+require\b/i.test(text) &&
     /\b(?:online\s+payment|online\s+prepayment|prepayment)\b/i.test(text)
+  ) {
+    return false;
+  }
+
+  if (
+    /\b(?:raise|increase|lower|decrease|reduce|adjust|change)\b.{0,20}\bprice/i.test(
+      text,
+    ) ||
+    (/\d+\s*%/.test(text) && /\bprice/i.test(text))
   ) {
     return false;
   }
@@ -176,6 +208,9 @@ export function enrichListServicesPaymentFilterParamsFromPrompt(
     ...(parsed.prepaymentMode ? { prepaymentMode: parsed.prepaymentMode } : {}),
     ...(parsed.onlinePaymentEnabled !== undefined
       ? { onlinePaymentEnabled: parsed.onlinePaymentEnabled }
+      : {}),
+    ...(parsed.serviceCategory
+      ? { serviceCategory: parsed.serviceCategory }
       : {}),
   };
 }

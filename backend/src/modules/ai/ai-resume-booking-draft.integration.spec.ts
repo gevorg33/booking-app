@@ -38,7 +38,7 @@ describe('ai resume booking draft integration (ai-cmd-customer-4.18.3)', () => {
           serviceId: 'svc-1',
           date: '2026-06-10',
           slot: '2026-06-10T14:00:00.000Z',
-          updatedAt: '2026-06-28T12:00:00.000Z',
+          updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
         },
       },
       'Continue where I left off',

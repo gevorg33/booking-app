@@ -7,6 +7,7 @@ import {
   handleListCustomerBookingsLogic,
   handleCustomerNoShowHistoryLogic,
   handleTagCustomerLogic,
+  handleUpdateCustomerLogic,
   handleExportCustomerDataLogic,
   handleDeleteCustomerDataLogic,
   handleSendReengagementMessageLogic,
@@ -430,6 +431,57 @@ describe('ai-customer-crm.logic', () => {
             }),
             'biz-1',
             { customerName: 'Anna' },
+            customers,
+            resolveCustomer,
+          )
+        ).success,
+      ).toBe(false);
+    });
+
+    it('updates customer profile fields', async () => {
+      expect(
+        (
+          await handleUpdateCustomerLogic(
+            buildDeps(),
+            'biz-1',
+            {},
+            customers,
+            resolveCustomer,
+          )
+        ).success,
+      ).toBe(false);
+      expect(
+        (
+          await handleUpdateCustomerLogic(
+            buildDeps(),
+            'biz-1',
+            { customerName: 'Anna' },
+            customers,
+            resolveCustomer,
+          )
+        ).success,
+      ).toBe(false);
+      const updated = await handleUpdateCustomerLogic(
+        buildDeps(),
+        'biz-1',
+        { customerName: 'Anna', email: 'anna@new.com', isVip: true },
+        customers,
+        resolveCustomer,
+      );
+      expect(updated.success).toBe(true);
+      expect(updated.details.customerId).toBe('c1');
+      expect(
+        (
+          await handleUpdateCustomerLogic(
+            buildDeps({
+              customerService: {
+                update: jest.fn(async () => {
+                  throw new Error('update failed');
+                }),
+              } as any,
+            }),
+            'biz-1',
+            { customerName: 'Anna', phone: '555-0100' },
             customers,
             resolveCustomer,
           )

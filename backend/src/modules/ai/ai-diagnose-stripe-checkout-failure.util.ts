@@ -96,7 +96,7 @@ export function isConsumerDiagnoseStripeCheckoutFailurePrompt(
       /\b(pay|payment|checkout|card|stripe)\b/i.test(prompt)) ||
     (containsArmenianScript(prompt) &&
       /(վճար|checkout|stripe|քart|card)/i.test(prompt) &&
-      /(ձախող|մերժ|չի\s+ավարտ|սխալ|help|ինչ)/i.test(prompt)) ||
+      /(ձախող|մերժ|չի\s+ավարտ|սխալ|help)/i.test(prompt)) ||
     (containsCyrillicScript(prompt) &&
       /(оплат|checkout|stripe|карт|плат)/i.test(prompt) &&
       /(не\s+прош|отклон|ошибк|сбой|что\s+делать|help)/i.test(prompt));

@@ -20,6 +20,8 @@ export type ProviderAiCommandHarnessOverrides = {
   providerClinicTasksAndResults?: Record<string, unknown>;
   giftFulfillment?: Record<string, unknown>;
   retailFinance?: Record<string, unknown>;
+  scheduleResources?: Record<string, unknown>;
+  payments?: Record<string, unknown>;
   pushActions?: Record<string, unknown>;
   pushNotifications?: Record<string, unknown>;
   providerBooking?: Record<string, unknown>;
@@ -307,6 +309,15 @@ export function createProviderAiCommandHarness(
     {
       handleSuggestRetailUpsell: jest.fn(noopAsync),
       ...overrides.retailFinance,
+    } as any,
+    {
+      handleMyResourceAssignments: jest.fn(noopAsync),
+      handleBlockResourceUnavailable: jest.fn(noopAsync),
+      ...overrides.scheduleResources,
+    } as any,
+    {
+      dispatchIntent: jest.fn(noopAsync),
+      ...overrides.payments,
     } as any,
     {
       handleAction: jest.fn(),

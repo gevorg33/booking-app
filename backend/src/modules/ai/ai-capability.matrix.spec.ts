@@ -361,8 +361,8 @@ describe('ai-capability.matrix (Sprint 15)', () => {
   });
 
   describe('clinic test-result family registry parity (ai-cmd-clinic-6-gap-4.3)', () => {
-    it('documents six dashboard clinic test-result intents with zero drift', () => {
-      expect(CLINIC_TEST_RESULT_CAPABILITY_ROWS).toHaveLength(6);
+    it('documents eight dashboard clinic test-result intents with zero drift', () => {
+      expect(CLINIC_TEST_RESULT_CAPABILITY_ROWS).toHaveLength(8);
       expect(CLINIC_TEST_RESULT_CAPABILITY_ROWS.map((row) => row.id)).toEqual([
         ...CLINIC_TEST_RESULT_INTENTS,
       ]);

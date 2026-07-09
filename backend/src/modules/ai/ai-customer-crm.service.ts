@@ -49,6 +49,7 @@ import {
   handleSubscriptionUsageHistoryLogic,
   handleSubscriptionUsageLogic,
   handleTagCustomerLogic,
+  handleUpdateCustomerLogic,
   handleTrackPhysicalGiftCardOrderLogic,
   handleExplainGiftCardOrderLogic,
   type CustomerCrmLogicDeps,
@@ -225,6 +226,21 @@ export class AiCustomerCrmService {
     resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
   ) {
     return handleTagCustomerLogic(
+      this.deps,
+      businessId,
+      params,
+      customers,
+      resolveCustomer,
+    );
+  }
+
+  handleUpdateCustomer(
+    businessId: string,
+    params: Record<string, any>,
+    customers: Customer[],
+    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  ) {
+    return handleUpdateCustomerLogic(
       this.deps,
       businessId,
       params,

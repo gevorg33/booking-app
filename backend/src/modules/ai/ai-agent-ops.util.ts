@@ -5,6 +5,8 @@ export const DASHBOARD_AGENT_OPS_READ_INTENTS = ['list_agent_tasks'] as const;
 export const DASHBOARD_AGENT_OPS_MUTATE_INTENTS = [
   'rebook_all_from_agent_task',
   'undo_latest_agent_task',
+  'approve_agent_task',
+  'retry_agent_step',
 ] as const;
 
 export const DASHBOARD_AGENT_OPS_INTENTS = [

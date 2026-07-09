@@ -11,6 +11,7 @@ import { isExplainWhySignInPrompt } from './ai-explain-why-sign-in.util.js';
 import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
 import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
+import { isListMyTestResultsPrompt } from './ai-consumer-clinic-test-results.util.js';
 
 export const SIGN_IN_AFTER_BOOKING_INTENTS = ['sign_in_after_booking'] as const;
 
@@ -93,6 +94,7 @@ export function isSignInAfterBookingPrompt(prompt: string): boolean {
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
   if (isExplainConsumerCheckoutSuccessPrompt(prompt)) return false;
+  if (isListMyTestResultsPrompt(prompt)) return false;
   if (matchSignInAfterBookingScenario(prompt)) return true;
   if (
     MANAGE_LINK_ONLY_CUE.test(prompt) &&
@@ -108,6 +110,7 @@ export function isSignInAfterBookingPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  if (isExplainWhySignInPrompt(prompt)) return false;
 
   if (
     (containsArmenianScript(prompt) &&
@@ -125,7 +128,6 @@ export function isSignInAfterBookingPrompt(prompt: string): boolean {
   if (!POST_BOOKING_SIGN_IN_CUE.test(prompt)) return false;
   if (isExplainNotificationCurrencyPrompt(prompt)) return false;
   if (hasSignInToManageBookingCue(prompt)) return false;
-  if (isExplainWhySignInPrompt(prompt)) return false;
   if (isExplainGuestCheckoutFieldsPrompt(prompt)) return false;
   return true;
 }

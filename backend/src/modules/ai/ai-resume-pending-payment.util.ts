@@ -89,16 +89,25 @@ export function isResumePendingPaymentPrompt(prompt: string): boolean {
   }
   if (/\bcontinue\s+my\s+payment\b/i.test(prompt)) return true;
 
+  const hasCardMention = /քարտ|карт/iu.test(prompt);
   if (
-    /(?:շարունակ.{0,20}վճարում|վերականգն.{0,20}վճար|կիսատ.{0,15}checkout|закрыл.{0,20}приложени|продолжить\s+оплату)/iu.test(
+    /(?:վերականգն.{0,20}վճար|կիսատ.{0,15}checkout|закрыл.{0,20}приложени)/iu.test(
       prompt,
     )
+  ) {
+    return true;
+  }
+  if (
+    !hasCardMention &&
+    /(?:շարունակ.{0,20}վճարում|продолжить\s+оплату)/iu.test(prompt)
   ) {
     return true;
   }
   if (/не\s+закончил/iu.test(prompt) && /оплат/iu.test(prompt)) {
     return true;
   }
+
+  if (hasCardMention && isExplicitPayOnlinePrompt(prompt)) return false;
 
   if (
     EXPLICIT_NEW_PAY_ONLINE.test(prompt) &&

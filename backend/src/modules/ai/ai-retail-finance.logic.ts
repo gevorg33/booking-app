@@ -4,10 +4,13 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Product } from '../inventory/entities/inventory.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import type { InventoryService } from '../inventory/inventory.service.js';
+import type { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
 import type { RetailPosService } from '../retail-pos/retail-pos.service.js';
 import type { ExpensesService } from '../expenses/expenses.service.js';
 import type { AnalyticsService } from '../analytics/analytics.service.js';
+import type { AppEventService } from '../analytics/app-event.service.js';
 import type { CommissionsService } from '../commissions/commissions.service.js';
+import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
@@ -32,10 +35,16 @@ import {
 
 export interface RetailFinanceLogicDeps {
   inventoryService: InventoryService;
+  productRecommendationService: Pick<
+    ProductRecommendationService,
+    'setServiceRecommendations' | 'setCategoryRecommendations'
+  >;
   retailPosService: RetailPosService;
   expensesService: ExpensesService;
   analyticsService: AnalyticsService;
   commissionsService: CommissionsService;
+  reviewsService: Pick<ReviewsService, 'summary' | 'list'>;
+  appEventService: Pick<AppEventService, 'getAdoptionDashboard'>;
   bookingRepo: Repository<Booking>;
   serviceRepo: Repository<Service>;
   productRepo: Repository<Product>;
@@ -322,6 +331,245 @@ export async function handleLinkProductToServiceLogic(
   }
 }
 
+export async function handleUpdateInventoryProductLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const product = await resolveProduct(deps, businessId, params, prompt);
+  if (!product) {
+    return failure(
+      'update_inventory_product',
+      'Specify which product to update.',
+      { clarify: true, missing: ['productName'] },
+    );
+  }
+
+  const name =
+    typeof params.newName === 'string' ? params.newName : undefined;
+  const sku = typeof params.sku === 'string' ? params.sku : undefined;
+  const retailPrice =
+    typeof params.retailPrice === 'number' ? params.retailPrice : undefined;
+  const unitCost =
+    typeof params.unitCost === 'number' ? params.unitCost : undefined;
+  const reorderLevel =
+    typeof params.reorderLevel === 'number' ? params.reorderLevel : undefined;
+  const isActive =
+    typeof params.isActive === 'boolean' ? params.isActive : undefined;
+
+  if (
+    name === undefined &&
+    sku === undefined &&
+    retailPrice === undefined &&
+    unitCost === undefined &&
+    reorderLevel === undefined &&
+    isActive === undefined
+  ) {
+    return failure(
+      'update_inventory_product',
+      `What should I change on "${product.name}"? Provide a new name, SKU, retail price, unit cost, reorder level, or active status.`,
+    );
+  }
+
+  try {
+    const updated = await deps.inventoryService.updateProduct(
+      product.id,
+      businessId,
+      {
+        ...(name !== undefined ? { name } : {}),
+        ...(sku !== undefined ? { sku } : {}),
+        ...(retailPrice !== undefined ? { retailPrice } : {}),
+        ...(unitCost !== undefined ? { unitCost } : {}),
+        ...(reorderLevel !== undefined ? { reorderLevel } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
+      },
+    );
+    return success(
+      'update_inventory_product',
+      `Updated product "${updated.name}".`,
+      { product: updated, productId: updated.id },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_inventory_product',
+      err?.message ?? 'Could not update the product.',
+    );
+  }
+}
+
+export async function handleDeleteInventoryProductLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const product = await resolveProduct(deps, businessId, params, prompt);
+  if (!product) {
+    return failure(
+      'delete_inventory_product',
+      'Specify which product to remove.',
+      { clarify: true, missing: ['productName'] },
+    );
+  }
+
+  try {
+    const updated = await deps.inventoryService.updateProduct(
+      product.id,
+      businessId,
+      { isActive: false },
+    );
+    return success(
+      'delete_inventory_product',
+      `Removed "${updated.name}" from the active catalog.`,
+      { productId: updated.id },
+    );
+  } catch (err: any) {
+    return failure(
+      'delete_inventory_product',
+      err?.message ?? 'Could not remove the product.',
+    );
+  }
+}
+
+export async function handleUnlinkInventoryProductLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const linkId =
+    typeof params.linkId === 'string' && params.linkId.trim()
+      ? params.linkId.trim()
+      : undefined;
+
+  let resolvedLinkId = linkId;
+  if (!resolvedLinkId) {
+    const product = await resolveProduct(deps, businessId, params, prompt);
+    const service = await resolveService(deps, businessId, params, prompt);
+    if (!product || !service) {
+      return failure(
+        'unlink_inventory_product',
+        'Specify the product and service to unlink (or a linkId).',
+        { clarify: true, missing: ['productName', 'serviceName'] },
+      );
+    }
+    const links = await deps.inventoryService.listServiceLinks(businessId, {
+      serviceId: service.id,
+      productId: product.id,
+    });
+    resolvedLinkId = links[0]?.id;
+    if (!resolvedLinkId) {
+      return failure(
+        'unlink_inventory_product',
+        `No link found between "${product.name}" and "${service.name}".`,
+      );
+    }
+  }
+
+  try {
+    await deps.inventoryService.unlinkServiceProduct(
+      resolvedLinkId,
+      businessId,
+    );
+    return success(
+      'unlink_inventory_product',
+      'Unlinked the product from the service.',
+      { linkId: resolvedLinkId },
+    );
+  } catch (err: any) {
+    return failure(
+      'unlink_inventory_product',
+      err?.message ?? 'Could not unlink the product.',
+    );
+  }
+}
+
+export async function handleSetRecommendedProductsLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const service = await resolveService(deps, businessId, params, prompt);
+  const categoryId =
+    typeof params.categoryId === 'string' && params.categoryId.trim()
+      ? params.categoryId.trim()
+      : undefined;
+
+  if (!service && !categoryId) {
+    return failure(
+      'set_recommended_products',
+      'Specify the service or category these recommendations apply to.',
+      { clarify: true, missing: ['serviceName', 'categoryId'] },
+    );
+  }
+
+  const productNames = Array.isArray(params.productNames)
+    ? params.productNames.filter(
+        (name): name is string => typeof name === 'string',
+      )
+    : [];
+  const productIdsParam = Array.isArray(params.productIds)
+    ? params.productIds.filter(
+        (id): id is string => typeof id === 'string',
+      )
+    : [];
+
+  if (productNames.length === 0 && productIdsParam.length === 0) {
+    return failure(
+      'set_recommended_products',
+      'Which products should be recommended? Provide productIds or productNames.',
+      { clarify: true, missing: ['productIds', 'productNames'] },
+    );
+  }
+
+  let resolvedProductIds = productIdsParam;
+  if (resolvedProductIds.length === 0) {
+    const products = await deps.inventoryService.listProducts(businessId);
+    resolvedProductIds = productNames
+      .map((name) => {
+        const needle = name.toLowerCase();
+        return (
+          products.find((p) => p.name.toLowerCase() === needle) ??
+          products.find((p) => p.name.toLowerCase().includes(needle))
+        )?.id;
+      })
+      .filter((id): id is string => !!id);
+
+    if (resolvedProductIds.length === 0) {
+      return failure(
+        'set_recommended_products',
+        'None of the given product names matched the catalog.',
+      );
+    }
+  }
+
+  try {
+    const productIds = service
+      ? await deps.productRecommendationService.setServiceRecommendations(
+          businessId,
+          service.id,
+          resolvedProductIds,
+        )
+      : await deps.productRecommendationService.setCategoryRecommendations(
+          businessId,
+          categoryId!,
+          resolvedProductIds,
+        );
+    return success(
+      'set_recommended_products',
+      `Set ${productIds.length} recommended product${productIds.length === 1 ? '' : 's'} for ${service ? service.name : 'the category'}.`,
+      { productIds, serviceId: service?.id, categoryId },
+    );
+  } catch (err: any) {
+    return failure(
+      'set_recommended_products',
+      err?.message ?? 'Could not set recommended products.',
+    );
+  }
+}
+
 export async function handleAdjustInventoryLogic(
   deps: RetailFinanceLogicDeps,
   businessId: string,
@@ -584,6 +832,56 @@ export async function handleListExpensesLogic(
   );
 }
 
+export async function handleDeleteExpenseLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const expenseId =
+    typeof params.expenseId === 'string' && params.expenseId.trim()
+      ? params.expenseId.trim()
+      : undefined;
+
+  let resolvedId = expenseId;
+  if (!resolvedId) {
+    const category =
+      typeof params.category === 'string' ? params.category.trim() : undefined;
+    const description =
+      typeof params.description === 'string'
+        ? params.description.trim().toLowerCase()
+        : undefined;
+    if (!category && !description) {
+      return failure(
+        'delete_expense',
+        'Specify which expense to delete (expenseId, category, or description).',
+        { clarify: true, missing: ['expenseId'] },
+      );
+    }
+    const expenses = await deps.expensesService.list(businessId);
+    const match = expenses.find(
+      (e) =>
+        (!category || e.category === category) &&
+        (!description || e.description?.toLowerCase().includes(description)),
+    );
+    if (!match) {
+      return failure('delete_expense', 'No matching expense was found.');
+    }
+    resolvedId = match.id;
+  }
+
+  try {
+    await deps.expensesService.remove(resolvedId, businessId);
+    return success('delete_expense', 'Expense deleted.', {
+      expenseId: resolvedId,
+    });
+  } catch (err: any) {
+    return failure(
+      'delete_expense',
+      err?.message ?? 'Could not delete the expense.',
+    );
+  }
+}
+
 export async function handleSummarizePlLogic(
   deps: RetailFinanceLogicDeps,
   businessId: string,
@@ -663,6 +961,126 @@ export async function handleCommissionReportLogic(
   }
 }
 
+export async function handleCreateCommissionRuleLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const employeeName =
+    typeof params.employeeName === 'string' ? params.employeeName : undefined;
+  const employees = employeeName
+    ? await deps.employeeRepo.find({ where: { businessId, isActive: true } })
+    : [];
+  const resolvedEmployee = employeeName
+    ? resolveByName(employees, employeeName)
+    : undefined;
+
+  const service = await resolveService(deps, businessId, params, prompt);
+
+  const type =
+    params.type === 'flat' || params.type === 'percent'
+      ? params.type
+      : 'percent';
+  const value = typeof params.value === 'number' ? params.value : undefined;
+
+  if (value === undefined) {
+    return failure(
+      'create_commission_rule',
+      'Specify the commission value (percent or flat amount).',
+      { clarify: true, missing: ['value'] },
+    );
+  }
+  if (employeeName && !resolvedEmployee) {
+    return failure(
+      'create_commission_rule',
+      `Employee "${employeeName}" was not found.`,
+    );
+  }
+
+  try {
+    const rule = await deps.commissionsService.create(businessId, {
+      employeeId: resolvedEmployee?.id,
+      serviceId: service?.id,
+      type,
+      value,
+    });
+    const scope = [
+      resolvedEmployee ? resolvedEmployee.name : null,
+      service ? service.name : null,
+    ]
+      .filter(Boolean)
+      .join(' / ');
+    return success(
+      'create_commission_rule',
+      `Created a ${type === 'percent' ? `${value}%` : `$${value}`} commission rule${scope ? ` for ${scope}` : ''}.`,
+      { rule },
+    );
+  } catch (err: any) {
+    return failure(
+      'create_commission_rule',
+      err?.message ?? 'Could not create the commission rule.',
+    );
+  }
+}
+
+export async function handleDeleteCommissionRuleLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const ruleId =
+    typeof params.ruleId === 'string' && params.ruleId.trim()
+      ? params.ruleId.trim()
+      : undefined;
+
+  let resolvedId = ruleId;
+  if (!resolvedId) {
+    const employeeName =
+      typeof params.employeeName === 'string' ? params.employeeName : undefined;
+    const service = await resolveService(deps, businessId, params, prompt);
+    if (!employeeName && !service) {
+      return failure(
+        'delete_commission_rule',
+        'Specify which commission rule to delete (ruleId, employeeName, or serviceName).',
+        { clarify: true, missing: ['ruleId'] },
+      );
+    }
+    const rules = await deps.commissionsService.list(businessId);
+    const employees = employeeName
+      ? await deps.employeeRepo.find({ where: { businessId, isActive: true } })
+      : [];
+    const employee = employeeName
+      ? resolveByName(employees, employeeName)
+      : undefined;
+    const match = rules.find(
+      (r) =>
+        (!employee || r.employeeId === employee.id) &&
+        (!service || r.serviceId === service.id),
+    );
+    if (!match) {
+      return failure(
+        'delete_commission_rule',
+        'No matching commission rule was found.',
+      );
+    }
+    resolvedId = match.id;
+  }
+
+  try {
+    await deps.commissionsService.remove(resolvedId, businessId);
+    return success('delete_commission_rule', 'Commission rule deleted.', {
+      ruleId: resolvedId,
+    });
+  } catch (err: any) {
+    return failure(
+      'delete_commission_rule',
+      err?.message ?? 'Could not delete the commission rule.',
+    );
+  }
+}
+
 export async function handlePayoutExportLogic(
   deps: RetailFinanceLogicDeps,
   businessId: string,
@@ -687,6 +1105,131 @@ export async function handlePayoutExportLogic(
     );
   } catch (err: any) {
     return failure('payout_export', err?.message ?? 'Payout export failed.');
+  }
+}
+
+export async function handleExportAnalyticsReportLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const { from, to } = resolveDateRange(
+    params,
+    prompt ?? (params._prompt as string),
+  );
+  const format =
+    (params.format as string | undefined)?.toLowerCase() === 'pdf'
+      ? 'pdf'
+      : 'csv';
+  const query = { from, to, locationId: params.locationId as string | undefined };
+
+  try {
+    if (format === 'pdf') {
+      const html = await deps.analyticsService.exportPdfHtml(businessId, query);
+      return success(
+        'export_analytics_report',
+        'Analytics report ready (printable HTML).',
+        { export: { format, content: html }, from, to },
+      );
+    }
+    const csv = await deps.analyticsService.exportCsv(businessId, query);
+    const rowCount = csv.split('\n').length - 1;
+    return success(
+      'export_analytics_report',
+      `Analytics export ready — ${rowCount} row(s) (csv).`,
+      { export: { format, content: csv, rowCount }, from, to },
+    );
+  } catch (err: any) {
+    return failure(
+      'export_analytics_report',
+      err?.message ?? 'Analytics export failed.',
+    );
+  }
+}
+
+export async function handleSummarizeReviewsLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  try {
+    const perEmployee = await deps.reviewsService.summary(businessId);
+    const employeeId = params.employeeId as string | undefined;
+    const filtered = employeeId
+      ? perEmployee.filter((r) => r.employeeId === employeeId)
+      : perEmployee;
+
+    const totalReviews = filtered.reduce((sum, r) => sum + r.reviewCount, 0);
+    const overallAvg =
+      totalReviews > 0
+        ? Math.round(
+            (filtered.reduce((sum, r) => sum + r.avgRating * r.reviewCount, 0) /
+              totalReviews) *
+              10,
+          ) / 10
+        : 0;
+
+    const recent = (await deps.reviewsService.list(businessId, employeeId))
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        employeeId: r.employeeId,
+        createdAt: r.createdAt,
+      }));
+
+    return success(
+      'summarize_reviews',
+      totalReviews > 0
+        ? `${totalReviews} review(s), average rating ${overallAvg}/5.`
+        : 'No reviews yet.',
+      { perEmployee: filtered, overallAvg, totalReviews, recentReviews: recent },
+    );
+  } catch (err: any) {
+    return failure(
+      'summarize_reviews',
+      err?.message ?? 'Could not summarize reviews.',
+    );
+  }
+}
+
+export async function handleSummarizeAdoptionFunnelLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const periodDays =
+    typeof params.periodDays === 'number' ? params.periodDays : 30;
+
+  try {
+    const dashboard = await deps.appEventService.getAdoptionDashboard(
+      businessId,
+      periodDays,
+    );
+    const steps = dashboard.funnel.steps;
+    const first = steps[0];
+    const last = steps[steps.length - 1];
+    const overallConversion =
+      first && last && first.count > 0
+        ? Math.round((last.count / first.count) * 1000) / 10
+        : null;
+
+    return success(
+      'summarize_adoption_funnel',
+      steps.length
+        ? `Adoption funnel (last ${dashboard.periodDays} days): ${steps
+            .map((s) => `${s.step} ${s.count}`)
+            .join(' → ')}${overallConversion != null ? ` — ${overallConversion}% overall conversion` : ''}.`
+        : `No adoption funnel activity in the last ${dashboard.periodDays} days.`,
+      { dashboard, overallConversion },
+    );
+  } catch (err: any) {
+    return failure(
+      'summarize_adoption_funnel',
+      err?.message ?? 'Could not summarize the adoption funnel.',
+    );
   }
 }
 

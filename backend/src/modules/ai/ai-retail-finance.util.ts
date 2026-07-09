@@ -4,12 +4,20 @@ import { isMarkPaidPrompt } from './ai-booking-depth.util.js';
 export const DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS = [
   'create_product',
   'link_product_to_service',
+  'update_inventory_product',
+  'delete_inventory_product',
+  'unlink_inventory_product',
+  'set_recommended_products',
   'adjust_inventory',
   'add_retail_sale_to_booking',
   'remove_retail_line',
   'record_expense',
+  'delete_expense',
+  'create_commission_rule',
+  'delete_commission_rule',
   'payout_export',
   'set_retail_sales_lines',
+  'export_analytics_report',
 ] as const;
 
 export const DASHBOARD_RETAIL_FINANCE_READ_INTENTS = [
@@ -17,6 +25,8 @@ export const DASHBOARD_RETAIL_FINANCE_READ_INTENTS = [
   'list_expenses',
   'summarize_pl',
   'commission_report',
+  'summarize_reviews',
+  'summarize_adoption_funnel',
 ] as const;
 
 export const PROVIDER_RETAIL_FINANCE_INTENTS = [

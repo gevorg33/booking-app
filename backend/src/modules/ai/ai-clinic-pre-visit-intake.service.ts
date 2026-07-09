@@ -6,6 +6,7 @@ import {
 } from './ai-clinic-pre-visit-intake.util.js';
 import {
   handleAssignPreVisitIntakeToBookingLogic,
+  handleStaffSubmitIntakeAnswersLogic,
   type ClinicPreVisitIntakeLogicDeps,
 } from './ai-clinic-pre-visit-intake.logic.js';
 
@@ -31,6 +32,19 @@ export class AiClinicPreVisitIntakeService {
     params: Record<string, any>,
   ) {
     return handleAssignPreVisitIntakeToBookingLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
+  }
+
+  handleStaffSubmitIntakeAnswers(
+    businessId: string,
+    userId: string,
+    params: Record<string, any>,
+  ) {
+    return handleStaffSubmitIntakeAnswersLogic(
       this.deps,
       businessId,
       userId,

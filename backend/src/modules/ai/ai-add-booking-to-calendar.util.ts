@@ -2,6 +2,7 @@ import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
+import { isRequestClientReviewPrompt } from './ai-provider-exp-2.util.js';
 import type { AddBookingToCalendarFormat } from './ai-add-booking-to-calendar.fixtures.js';
 
 export const ADD_BOOKING_TO_CALENDAR_INTENTS = [
@@ -84,6 +85,7 @@ export function isAddBookingToCalendarPrompt(prompt: string): boolean {
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isShareMyBookingPrompt(prompt)) return false;
   if (isSignInAfterBookingPrompt(prompt)) return false;
+  if (isRequestClientReviewPrompt(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;
 
   if (!CALENDAR_CUE.test(prompt)) return false;

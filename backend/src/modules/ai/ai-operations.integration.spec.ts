@@ -288,6 +288,7 @@ describe('Sprint 24 AI booking & business ops', () => {
       planBuilder,
       { findByBusiness: jest.fn() } as any,
       { createInvitation: jest.fn() } as any,
+      { updateRoleByEmployeeId: jest.fn() } as any,
     );
 
     it('prepares and executes booking ops plans', async () => {

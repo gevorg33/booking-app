@@ -6,13 +6,19 @@ describe('AiRetailFinanceService', () => {
       { id: 'prod-1', name: 'Shampoo', quantityOnHand: 10 },
     ]),
     createProduct: jest.fn(async () => ({ id: 'prod-1', name: 'Shampoo' })),
+    updateProduct: jest.fn(async () => ({ id: 'prod-1', name: 'Shampoo' })),
     linkToService: jest.fn(async () => ({ id: 'link-1' })),
     listServiceLinks: jest.fn(async () => []),
+    unlinkServiceProduct: jest.fn(async () => ({ removed: true })),
     adjustStock: jest.fn(async () => ({
       id: 'prod-1',
       name: 'Shampoo',
       quantityOnHand: 20,
     })),
+  };
+  const productRecommendationService = {
+    setServiceRecommendations: jest.fn(async () => ['prod-1']),
+    setCategoryRecommendations: jest.fn(async () => ['prod-1']),
   };
   const retailPosService = {
     listSellableProducts: jest.fn(async () => [
@@ -67,6 +73,32 @@ describe('AiRetailFinanceService', () => {
       filename: 'payout.csv',
       content: 'rows',
       rowCount: 1,
+    })),
+  };
+  const reviewsService = {
+    summary: jest.fn(async () => [
+      { employeeId: 'e1', employeeName: 'Alex', avgRating: 4.5, reviewCount: 2 },
+    ]),
+    list: jest.fn(async () => [
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Great!',
+        employeeId: 'e1',
+        createdAt: new Date('2024-01-01'),
+      },
+    ]),
+  };
+  const appEventService = {
+    getAdoptionDashboard: jest.fn(async () => ({
+      periodDays: 30,
+      funnel: {
+        steps: [
+          { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
+          { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+        ],
+        breakdowns: [],
+      },
     })),
   };
   const bookingRepo = {
@@ -125,10 +157,13 @@ describe('AiRetailFinanceService', () => {
     ]);
     service = new AiRetailFinanceService(
       inventoryService as any,
+      productRecommendationService as any,
       retailPosService as any,
       expensesService as any,
       analyticsService as any,
       commissionsService as any,
+      reviewsService as any,
+      appEventService as any,
       bookingRepo as any,
       serviceRepo as any,
       productRepo as any,

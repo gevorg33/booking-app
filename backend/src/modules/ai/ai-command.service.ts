@@ -46,17 +46,24 @@ import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
 import { AiBusinessLanguagesService } from './ai-business-languages.service.js';
+import { AiReferralStaffTemplatesService } from './ai-referral-staff-templates.service.js';
+import { AiExternalDoctorsService } from './ai-external-doctors.service.js';
+import { AiProviderClinicTasksAndResultsService } from './ai-provider-clinic-tasks-and-results.service.js';
 import { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
 import { AiBusinessTaxService } from './ai-business-tax.service.js';
 import { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
+import { AiClinicTestCatalogService } from './ai-clinic-test-catalog.service.js';
 import {
   coerceClinicTestResultExtIntent,
   dispatchClinicTestResultExtIntent,
 } from './ai-clinic-test-result-ext-dispatch.util.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
+import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
+import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
+import { AiLocationsService } from './ai-locations.service.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
@@ -66,8 +73,10 @@ import {
   parseConfigureHipaaSessionTimeoutFromPrompt,
   parseEnableHipaaModeFromPrompt,
   parseExplainComplianceStatusFromPrompt,
+  parseExplainEnterpriseTrustFromPrompt,
   parseExplainGdprChecklistFromPrompt,
   parseExplainHipaaSessionTimeoutFromPrompt,
+  parseExplainStrategyEvalFromPrompt,
   parseListSubProcessorsFromPrompt,
   parseOpenComplianceDashboardFromPrompt,
   parseExplainMinimumNecessaryPhiAccessFromPrompt,
@@ -428,13 +437,20 @@ export class AiCommandService {
     private operations: AiOperationsService,
     private businessCurrency: AiBusinessCurrencyService,
     private businessLanguages: AiBusinessLanguagesService,
+    private referralStaffTemplates: AiReferralStaffTemplatesService,
+    private externalDoctors: AiExternalDoctorsService,
+    private providerClinicTasksAndResults: AiProviderClinicTasksAndResultsService,
     private businessDateFormat: AiBusinessDateFormatService,
     private businessTax: AiBusinessTaxService,
     private businessCompliance: AiBusinessComplianceService,
     private clinicTestOrder: AiClinicTestOrderService,
     private clinicLabBooking: AiClinicLabBookingService,
     private clinicTestResult: AiClinicTestResultService,
+    private clinicTestCatalog: AiClinicTestCatalogService,
     private clinicPatientChart: AiClinicPatientChartService,
+    private patientClinicalMutations: AiPatientClinicalMutationsService,
+    private clinicQuestionnaire: AiClinicQuestionnaireService,
+    private locations: AiLocationsService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
@@ -1845,6 +1861,14 @@ export class AiCommandService {
               (list, name) => this.resolveCustomer(list, name),
             );
             break;
+          case 'update_customer':
+            result = await this.customerCrm.handleUpdateCustomer(
+              businessId,
+              params,
+              customers,
+              (list, name) => this.resolveCustomer(list, name),
+            );
+            break;
           case 'export_customer_data':
             result = await this.customerCrm.handleExportCustomerData(
               businessId,
@@ -2018,6 +2042,14 @@ export class AiCommandService {
               services,
             );
             break;
+          case 'set_service_resource_requirements':
+            result =
+              await this.scheduleResources.handleSetServiceResourceRequirements(
+                businessId,
+                params,
+                services,
+              );
+            break;
           case 'list_resource_conflicts':
             result = await this.scheduleResources.handleListResourceConflicts(
               businessId,
@@ -2114,6 +2146,20 @@ export class AiCommandService {
               params.confirmed === true,
             );
             break;
+          case 'approve_agent_task':
+            result = await this.agentOps.handleApproveAgentTask(
+              businessId,
+              params,
+              userId ?? '',
+            );
+            break;
+          case 'retry_agent_step':
+            result = await this.agentOps.handleRetryAgentStep(
+              businessId,
+              params,
+              userId ?? '',
+            );
+            break;
           case 'get_dashboard_overview':
             result =
               await this.businessProfile.handleGetDashboardOverview(
@@ -2174,6 +2220,46 @@ export class AiCommandService {
                 params,
               );
             break;
+          case 'staff_submit_intake_answers':
+            result = await this.clinicPreVisitIntake.handleStaffSubmitIntakeAnswers(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'create_questionnaire':
+            result = await this.clinicQuestionnaire.handleCreateQuestionnaire(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'update_questionnaire':
+            result = await this.clinicQuestionnaire.handleUpdateQuestionnaire(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'publish_questionnaire':
+            result = await this.clinicQuestionnaire.handlePublishQuestionnaire(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'create_location':
+            result = await this.locations.handleCreateLocation(
+              businessId,
+              params,
+            );
+            break;
+          case 'update_location':
+            result = await this.locations.handleUpdateLocation(
+              businessId,
+              params,
+            );
+            break;
           case 'list_products':
             result = await this.retailFinance.handleListProducts(
               businessId,
@@ -2222,6 +2308,24 @@ export class AiCommandService {
             result =
               await this.marketingGrowth.handleOpenBillingSettings(businessId);
             break;
+          case 'start_billing_checkout':
+            result = await this.marketingGrowth.handleStartBillingCheckout(
+              businessId,
+              params,
+            );
+            break;
+          case 'confirm_billing_checkout':
+            result = await this.marketingGrowth.handleConfirmBillingCheckout(
+              businessId,
+              params,
+            );
+            break;
+          case 'explain_plan_entitlements':
+            result =
+              await this.marketingGrowth.handleExplainPlanEntitlements(
+                businessId,
+              );
+            break;
           case 'summarize_loyalty_program':
             result =
               await this.marketingGrowth.handleSummarizeLoyaltyProgram(
@@ -2245,6 +2349,12 @@ export class AiCommandService {
               businessId,
               params,
               effectivePrompt,
+            );
+            break;
+          case 'deactivate_promo_code':
+            result = await this.marketingGrowth.handleDeactivatePromoCode(
+              businessId,
+              params,
             );
             break;
           case 'how_to_download_app':
@@ -2834,6 +2944,34 @@ export class AiCommandService {
               effectivePrompt,
             );
             break;
+          case 'update_inventory_product':
+            result = await this.retailFinance.handleUpdateInventoryProduct(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'delete_inventory_product':
+            result = await this.retailFinance.handleDeleteInventoryProduct(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'unlink_inventory_product':
+            result = await this.retailFinance.handleUnlinkInventoryProduct(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'set_recommended_products':
+            result = await this.retailFinance.handleSetRecommendedProducts(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
           case 'adjust_inventory':
             result = await this.retailFinance.handleAdjustInventory(
               businessId,
@@ -2878,6 +3016,12 @@ export class AiCommandService {
               params,
             );
             break;
+          case 'delete_expense':
+            result = await this.retailFinance.handleDeleteExpense(
+              businessId,
+              params,
+            );
+            break;
           case 'summarize_pl':
             result = await this.retailFinance.handleSummarizePl(
               businessId,
@@ -2892,11 +3036,44 @@ export class AiCommandService {
               effectivePrompt,
             );
             break;
+          case 'create_commission_rule':
+            result = await this.retailFinance.handleCreateCommissionRule(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'delete_commission_rule':
+            result = await this.retailFinance.handleDeleteCommissionRule(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
           case 'payout_export':
             result = await this.retailFinance.handlePayoutExport(
               businessId,
               params,
               effectivePrompt,
+            );
+            break;
+          case 'export_analytics_report':
+            result = await this.retailFinance.handleExportAnalyticsReport(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'summarize_reviews':
+            result = await this.retailFinance.handleSummarizeReviews(
+              businessId,
+              params,
+            );
+            break;
+          case 'summarize_adoption_funnel':
+            result = await this.retailFinance.handleSummarizeAdoptionFunnel(
+              businessId,
+              params,
             );
             break;
           case 'suggest_retail_upsell':
@@ -2964,6 +3141,28 @@ export class AiCommandService {
               userId,
               effectivePrompt,
             );
+            break;
+          case 'create_api_key':
+            result = await this.integrations.handleCreateApiKey(
+              businessId,
+              params,
+              userId,
+              effectivePrompt,
+            );
+            break;
+          case 'revoke_api_key':
+            result = await this.integrations.handleRevokeApiKey(
+              businessId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'configure_distribution_channels':
+            result =
+              await this.integrations.handleConfigureDistributionChannels(
+                businessId,
+                params,
+              );
             break;
           case 'list_zapier_triggers':
             result =
@@ -3107,6 +3306,32 @@ export class AiCommandService {
               businessId,
               params,
               effectivePrompt,
+            );
+            break;
+          case 'update_gift_card_settings':
+            result = await this.giftFulfillment.handleUpdateGiftCardSettings(
+              businessId,
+              params,
+            );
+            break;
+          case 'list_gift_card_change_requests':
+            result =
+              await this.giftFulfillment.handleListGiftCardChangeRequests(
+                businessId,
+                params,
+              );
+            break;
+          case 'resolve_gift_card_change_request':
+            result =
+              await this.giftFulfillment.handleResolveGiftCardChangeRequest(
+                businessId,
+                params,
+              );
+            break;
+          case 'gift_fulfill_batch':
+            result = await this.giftFulfillment.handleGiftFulfillBatch(
+              businessId,
+              params,
             );
             break;
           case 'print_packing_slip':
@@ -3281,6 +3506,92 @@ export class AiCommandService {
             );
             break;
           }
+          case 'explain_enterprise_trust': {
+            const parsedEnterpriseTrust = parseExplainEnterpriseTrustFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleExplainEnterpriseTrust(
+              businessId,
+              userId,
+              parsedEnterpriseTrust
+                ? {
+                    ...params,
+                    ...parsedEnterpriseTrust,
+                    _prompt: effectivePrompt,
+                  }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'explain_strategy_eval': {
+            const parsedStrategyEval = parseExplainStrategyEvalFromPrompt(
+              effectivePrompt,
+              params,
+            );
+            result = await this.businessCompliance.handleExplainStrategyEval(
+              businessId,
+              userId,
+              parsedStrategyEval
+                ? { ...params, ...parsedStrategyEval, _prompt: effectivePrompt }
+                : params,
+              effectivePrompt,
+            );
+            break;
+          }
+          case 'update_strategy_eval':
+            result = await this.businessCompliance.handleUpdateStrategyEval(
+              businessId,
+              userId,
+              params,
+              effectivePrompt,
+            );
+            break;
+          case 'configure_referral_program':
+            result =
+              await this.referralStaffTemplates.handleConfigureReferralProgram(
+                businessId,
+                params,
+              );
+            break;
+          case 'configure_staff_message_templates':
+            result =
+              await this.referralStaffTemplates.handleConfigureStaffMessageTemplates(
+                businessId,
+                params,
+              );
+            break;
+          case 'create_external_doctor':
+            result = await this.externalDoctors.handleCreateExternalDoctor(
+              businessId,
+              userId,
+              params,
+            );
+            break;
+          case 'update_external_doctor':
+            result = await this.externalDoctors.handleUpdateExternalDoctor(
+              businessId,
+              userId,
+              params,
+            );
+            break;
+          case 'list_external_doctors':
+            result = await this.externalDoctors.handleListExternalDoctors(
+              businessId,
+              userId,
+              params,
+            );
+            break;
+          case 'list_booking_lab_summaries':
+            result =
+              await this.providerClinicTasksAndResults.handleListBookingLabSummaries(
+                businessId,
+                userId ?? '',
+                params,
+                effectivePrompt,
+              );
+            break;
           case 'open_compliance_dashboard': {
             const parsedOpenCompliance = parseOpenComplianceDashboardFromPrompt(
               effectivePrompt,
@@ -3651,12 +3962,124 @@ export class AiCommandService {
               },
             );
             break;
+          case 'transition_specimen':
+            result = await this.clinicTestResult.handleTransitionSpecimen(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'explain_lab_result_history':
+            result = await this.clinicTestResult.handleExplainLabResultHistory(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'create_test_type':
+            result = await this.clinicTestCatalog.handleCreateTestType(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'update_test_type':
+            result = await this.clinicTestCatalog.handleUpdateTestType(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'delete_test_type':
+            result = await this.clinicTestCatalog.handleDeleteTestType(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'create_test_panel':
+            result = await this.clinicTestCatalog.handleCreateTestPanel(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'update_test_panel':
+            result = await this.clinicTestCatalog.handleUpdateTestPanel(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'set_test_panel_items':
+            result = await this.clinicTestCatalog.handleSetTestPanelItems(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'import_clinic_catalog_csv':
+            result = await this.clinicTestCatalog.handleImportClinicCatalogCsv(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
           case 'explain_patient_chart':
             result = await this.clinicPatientChart.handleExplainPatientChart(
               businessId,
               userId ?? '',
               { ...params, _prompt: effectivePrompt },
               effectivePrompt,
+            );
+            break;
+          case 'update_clinical_profile':
+            result = await this.patientClinicalMutations.handleUpdateClinicalProfile(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'dismiss_patient_alert':
+            result = await this.patientClinicalMutations.handleDismissPatientAlert(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'release_patient_document':
+            result = await this.patientClinicalMutations.handleReleasePatientDocument(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'create_encounter_addendum':
+            result = await this.patientClinicalMutations.handleCreateEncounterAddendum(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'update_encounter_by_booking':
+            result = await this.patientClinicalMutations.handleUpdateEncounterByBooking(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'list_customer_staff_notes':
+            result = await this.patientClinicalMutations.handleListCustomerStaffNotes(
+              businessId,
+              userId ?? '',
+              params,
+            );
+            break;
+          case 'add_customer_staff_note':
+            result = await this.patientClinicalMutations.handleAddCustomerStaffNote(
+              businessId,
+              userId ?? '',
+              params,
             );
             break;
           case 'explain_app_feature':
@@ -4357,6 +4780,13 @@ export class AiCommandService {
               businessId,
               params,
               effectivePrompt,
+              userId,
+            );
+            break;
+          case 'update_team_member_role':
+            result = await this.operations.handleUpdateTeamMemberRole(
+              businessId,
+              params,
               userId,
             );
             break;

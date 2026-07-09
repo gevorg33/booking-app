@@ -15,6 +15,21 @@ import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js
 import { isConfigureProviderPushDateFormatPrompt } from './ai-provider-date-format.util.js';
 import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 import { isExplainBookingDateFormatPrompt } from './ai-booking-date-format.util.js';
+import { isOpenBookingFromPushPrompt } from './ai-push-notifications.util.js';
+import {
+  isListReassignOptionsPrompt,
+  isRequestClientReviewPrompt,
+  hasMyStatsKeywordCue,
+} from './ai-provider-exp-2.util.js';
+import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
+import { isSuggestRetailUpsellPrompt } from './ai-retail-finance.util.js';
+import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
+import { isExplainClinicBookingPrompt } from './ai-clinic-booking.util.js';
+import { isExplainPackageCurrencyPrompt } from './ai-package-currency.util.js';
+import { isExplainProviderPaymentCurrencyPrompt } from './ai-provider-payment-currency.util.js';
+import { isExplainStripeCheckoutCurrencyPrompt } from './ai-stripe-checkout-currency.util.js';
+import { isExplainBookingLanguagesPrompt } from './ai-booking-languages.util.js';
+import { isExplainTourDaySlotsPrompt } from './ai-tour-day-slots.util.js';
 import type { ConfirmMyBookingDetailsAspect } from './ai-confirm-my-booking-details.fixtures.js';
 
 export const CONFIRM_MY_BOOKING_DETAILS_INTENTS = [
@@ -68,7 +83,7 @@ const LOCATION_TOPIC = new RegExp(
 );
 
 const BLOCK_TOPIC = new RegExp(
-  String.raw`\b(?:list\s+my|show\s+all|all\s+my|cancel|reschedule|manage\s+link|share\s+my\s+booking|success\s+screen|view\s+appointments|book\s+another)\b|ցուցակ|отмен|перенес`,
+  String.raw`\b(?:list\s+my|show\s+all|all\s+my|cancel|reschedule|move|shift|manage\s+link|share\s+my\s+booking|success\s+screen|view\s+appointments|book\s+another)\b|\bchange\b.{0,30}\b(?:to|for)\b.{0,20}\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(?:am|pm)|\d{1,2}:\d{2})\b|\b(?:use|apply|redeem)\b.{0,30}\b(?:membership|subscription|loyalty|reward|points?)\b|\b(?:membership|subscription|loyalty|reward|points?)\b.{0,30}\b(?:use|apply|redeem)\b|ցուցակ|отмен|перенес`,
   'iu',
 );
 
@@ -134,6 +149,14 @@ function isServicePaymentOptionsQuestionPrompt(prompt: string): boolean {
 }
 
 export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
+  if (isExplainGuestCheckoutFieldsPrompt(prompt)) return false;
+  if (isExplainClinicBookingPrompt(prompt)) return false;
+  if (isOpenBookingFromPushPrompt(prompt)) return false;
+  if (isListReassignOptionsPrompt(prompt)) return false;
+  if (isRequestClientReviewPrompt(prompt)) return false;
+  if (hasMyStatsKeywordCue(prompt)) return false;
+  if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isSuggestRetailUpsellPrompt(prompt)) return false;
   if (isConfigureProviderPushDateFormatPrompt(prompt)) return false;
   if (isExplainCheckoutRecommendationsPrompt(prompt)) return false;
   if (isExplainBookingDateFormatPrompt(prompt)) return false;
@@ -155,6 +178,11 @@ export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
   if (isExplainNotificationCurrencyPrompt(prompt)) return false;
   if (isExplainTenantCurrencyPrompt(prompt)) return false;
+  if (isExplainPackageCurrencyPrompt(prompt)) return false;
+  if (isExplainProviderPaymentCurrencyPrompt(prompt)) return false;
+  if (isExplainStripeCheckoutCurrencyPrompt(prompt)) return false;
+  if (isExplainBookingLanguagesPrompt(prompt)) return false;
+  if (isExplainTourDaySlotsPrompt(prompt)) return false;
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isBookAnotherServicePrompt(prompt)) return false;
   if (isShareMyBookingPrompt(prompt)) return false;

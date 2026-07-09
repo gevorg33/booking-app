@@ -45,7 +45,10 @@ import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-d
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
 import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtures.js';
 import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
+import { CLINIC_TEST_CATALOG_CLASSIFIER_RULES } from './ai-clinic-test-catalog.fixtures.js';
+import { LOCATIONS_CLASSIFIER_RULES } from './ai-locations.fixtures.js';
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
+import { PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES } from './ai-patient-clinical-mutations.fixtures.js';
 import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 import { META_PRODUCT_GUIDE_CLASSIFIER_RULES } from './ai-meta-product-guide.fixtures.js';
 import { DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
@@ -61,6 +64,9 @@ import { AGENT_OPS_CLASSIFIER_RULES } from './ai-agent-ops.fixtures.js';
 import { BUSINESS_PROFILE_CLASSIFIER_RULES } from './ai-business-profile.fixtures.js';
 import { ONBOARDING_CLASSIFIER_RULES } from './ai-onboarding.fixtures.js';
 import { CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES } from './ai-clinic-pre-visit-intake.fixtures.js';
+import { CLINIC_QUESTIONNAIRE_CLASSIFIER_RULES } from './ai-clinic-questionnaire.fixtures.js';
+import { REFERRAL_STAFF_TEMPLATES_CLASSIFIER_RULES } from './ai-referral-staff-templates.fixtures.js';
+import { EXTERNAL_DOCTORS_CLASSIFIER_RULES } from './ai-external-doctors.fixtures.js';
 import {
   STAFF_OPERATIONS_CLASSIFIER_RULES,
   STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES,
@@ -171,7 +177,10 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   BUSINESS_COMPLIANCE_CLASSIFIER_RULES,
   CLINIC_TEST_ORDER_CLASSIFIER_RULES,
   CLINIC_TEST_RESULT_CLASSIFIER_RULES,
+  CLINIC_TEST_CATALOG_CLASSIFIER_RULES,
+  LOCATIONS_CLASSIFIER_RULES,
   CLINIC_PATIENT_CHART_CLASSIFIER_RULES,
+  PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES,
   DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES,
   CLINIC_SERVICE_CLASSIFIER_RULES,
   QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES,
@@ -199,6 +208,9 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   BUSINESS_PROFILE_CLASSIFIER_RULES,
   ONBOARDING_CLASSIFIER_RULES,
   CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES,
+  CLINIC_QUESTIONNAIRE_CLASSIFIER_RULES,
+  REFERRAL_STAFF_TEMPLATES_CLASSIFIER_RULES,
+  EXTERNAL_DOCTORS_CLASSIFIER_RULES,
 ] as const;
 
 export function buildDashboardIntentSchemaAppendix(): string {

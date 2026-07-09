@@ -21,6 +21,7 @@ import {
   isListAbnormalResultsPrompt,
   isUploadPatientResultPrompt,
   rescueClinicTestResultExtIntent,
+  type ClinicTestResultExtIntent,
 } from './ai-clinic-test-result-ext.util.js';
 
 export const CLINIC_TEST_RESULT_MUTATE_INTENTS = [
@@ -28,11 +29,13 @@ export const CLINIC_TEST_RESULT_MUTATE_INTENTS = [
   'release_test_result',
   'upload_patient_result',
   'configure_test_reference_range',
+  'transition_specimen',
 ] as const;
 
 export const CLINIC_TEST_RESULT_READ_INTENTS = [
   'explain_patient_results',
   'list_abnormal_results',
+  'explain_lab_result_history',
 ] as const;
 
 export const CLINIC_TEST_RESULT_INTENTS = [
@@ -414,7 +417,10 @@ export function extractReleaseCustomerNameFromPrompt(
 export function rescueClinicTestResultIntent(
   prompt: string,
   action: string,
-): { action: ClinicTestResultIntent; rescueReason: string } | null {
+): {
+  action: ClinicTestResultExtIntent | 'enter_test_result' | 'release_test_result';
+  rescueReason: string;
+} | null {
   const extMisclassified =
     (action === 'enter_test_result' && isUploadPatientResultPrompt(prompt)) ||
     (action === 'explain_patient_chart' &&

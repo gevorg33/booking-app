@@ -9,6 +9,8 @@ import {
   enrichWhatsappIntegrationParamsFromPrompt,
   rescueConfigureWhatsappIntegrationIntent,
 } from './ai-whatsapp-integration.util.js';
+import { PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-open-booking-from-push.fixtures.js';
+import { PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS } from './ai-provider-dismiss-push.fixtures.js';
 
 export const DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'configure_notification_settings',
@@ -109,6 +111,13 @@ export function isExplainLastPushPrompt(prompt: string): boolean {
 }
 
 export function isOpenBookingFromPushPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   return (
     (/\b(open|view|go\s+to|show|navigate)\b/i.test(prompt) &&
       /\b(booking|appointment)\b/i.test(prompt) &&
@@ -188,6 +197,7 @@ export function isListPushNotificationsPrompt(prompt: string): boolean {
   if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
   if (isOpenBookingFromPushPrompt(prompt)) return false;
   if (isExplainLastPushPrompt(prompt)) return false;
+  if (/\bnotification\s+settings?\b/i.test(prompt)) return false;
   if (/\b(booking|appointment)\b/i.test(prompt)) return false;
   const normalized = prompt.toLowerCase();
   return (
@@ -200,6 +210,13 @@ export function isListPushNotificationsPrompt(prompt: string): boolean {
 }
 
 export function isDismissPushPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   if (/\b(patient|clinic)\s+alert\b/i.test(prompt)) return false;
   if (isMarkAllNotificationsReadPrompt(prompt)) return false;
   if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
@@ -324,6 +341,7 @@ export function isPushNotificationsCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 20 || !PUSH_NOTIFICATIONS_VERB.test(trimmed))
     return false;
+  if (isConfigureWhatsappIntegrationPrompt(trimmed)) return false;
   return (
     COMPOUND_SPLIT.test(trimmed) ||
     decomposePushNotificationsCompoundPrompt(trimmed).length > 1

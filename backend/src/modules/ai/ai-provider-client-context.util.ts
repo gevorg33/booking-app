@@ -12,6 +12,9 @@ import { PROVIDER_CLIENT_CONTEXT_MULTILINGUAL_SCENARIOS } from './ai-provider-cl
 import { isSummarizeLoyaltyProgramPrompt } from './ai-billing-loyalty-dashboard.util.js';
 import { isSummarizeAutomationPerformancePrompt } from './ai-marketing-growth.util.js';
 import { isSummarizeMyAppointmentsPrompt } from './ai-provider-earnings.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
+import { isConfigureLoyaltySettingsPrompt } from './ai-configure-loyalty-settings.util.js';
+import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 
 export const PROVIDER_CLIENT_CONTEXT_INTENTS = [
   'summarize_client',
@@ -33,6 +36,9 @@ function containsCyrillicScript(text: string): boolean {
 }
 
 export function isSummarizeClientPrompt(prompt: string): boolean {
+  if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
+  if (isConfigureLoyaltySettingsPrompt(prompt)) return false;
+  if (isExplainTenantAppInstallPrompt(prompt)) return false;
   if (isShowClientHistoryPrompt(prompt)) return false;
   if (isAddClientNotePrompt(prompt)) return false;
   if (isListClientStaffNotesPrompt(prompt)) return false;
@@ -233,6 +239,7 @@ export function extractCustomerNameFromClientPrompt(
   prompt: string,
 ): string | null {
   const patterns = [
+    /\b([A-Z][a-z]+)'s\b/,
     /(?:about|for|on)\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/,
     /(?:client|customer)\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/i,
     /(?:note for|history for|visits for)\s+([A-Z][\w'.-]+)/i,

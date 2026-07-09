@@ -15,6 +15,7 @@ import {
   isServiceCatalogRankPrompt,
 } from './ai-service-rank-discovery.util.js';
 import { hasDiscoverBookAndPayPaymentCue } from './ai-discover-book-and-pay-compound.util.js';
+import { isBookPackageWithNearestSlotCompoundPrompt } from './ai-book-package-with-nearest-slot.util.js';
 
 export type RankCompoundStep = {
   action: string;
@@ -89,6 +90,7 @@ function hasRankCompoundCheckStepCue(prompt: string): boolean {
 
 export function isServiceRankDiscoveryCompoundPrompt(prompt: string): boolean {
   if (hasDiscoverBookAndPayPaymentCue(prompt)) return false;
+  if (isBookPackageWithNearestSlotCompoundPrompt(prompt)) return false;
   if (!hasRankCompoundBookStepCue(prompt)) return false;
   if (!isServiceCatalogRankPrompt(prompt)) return false;
   if (hasRankCompoundCheckStepCue(prompt)) return false;

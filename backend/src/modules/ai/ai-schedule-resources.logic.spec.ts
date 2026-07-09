@@ -4,6 +4,7 @@ import {
   handleUpdateResourceLogic,
   handleDeactivateResourceLogic,
   handleAssignResourceHoursLogic,
+  handleSetServiceResourceRequirementsLogic,
   handleListResourceConflictsLogic,
   handleExplainResourceConflictLogic,
   handleConfigureMultiServiceSchedulingModeLogic,
@@ -300,6 +301,69 @@ describe('ai-schedule-resources.logic', () => {
           )
         ).success,
       ).toBe(true);
+    });
+
+    it('sets bulk service resource requirements (ai-cmd-dashboard-6.12)', async () => {
+      const noService = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        services,
+      );
+      expect(noService.success).toBe(false);
+
+      const noResources = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage' },
+        services,
+      );
+      expect(noResources.success).toBe(false);
+
+      const deps = buildDeps();
+      const byIds = await handleSetServiceResourceRequirementsLogic(
+        deps,
+        'biz-1',
+        { serviceId: 's1', resourceIds: ['r1', 'r2'] },
+        services,
+      );
+      expect(byIds.success).toBe(true);
+      expect(deps.resourcesService.setServiceRequirements).toHaveBeenCalledWith(
+        'biz-1',
+        's1',
+        ['r1', 'r2'],
+      );
+
+      const byNames = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage', resourceNames: ['Room 1', 'Chair A'] },
+        services,
+      );
+      expect(byNames.success).toBe(true);
+
+      const noMatch = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage', resourceNames: ['Nonexistent'] },
+        services,
+      );
+      expect(noMatch.success).toBe(false);
+
+      const errored = await handleSetServiceResourceRequirementsLogic(
+        buildDeps({
+          resourcesService: {
+            setServiceRequirements: jest.fn(async () => {
+              throw new Error('One or more resources are invalid');
+            }),
+          } as any,
+        }),
+        'biz-1',
+        { serviceId: 's1', resourceIds: ['r1'] },
+        services,
+      );
+      expect(errored.success).toBe(false);
+      expect(errored.summary).toContain('invalid');
     });
 
     it('configures multi-service scheduling mode', async () => {

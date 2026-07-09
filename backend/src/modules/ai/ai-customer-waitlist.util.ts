@@ -146,6 +146,12 @@ export function isCheckWaitlistStatusPrompt(prompt: string): boolean {
 export function isJoinWaitlistPrompt(prompt: string): boolean {
   if (isStaffWaitlistPrompt(prompt)) return false;
   if (isCheckWaitlistStatusPrompt(prompt)) return false;
+  if (
+    /\bonline\s+payment\b/i.test(prompt) &&
+    /\bpublic\s+booking\b/i.test(prompt)
+  ) {
+    return false;
+  }
 
   const scenario = matchWaitlistScenario(prompt);
   if (scenario?.expectedAction === 'join_waitlist') return true;

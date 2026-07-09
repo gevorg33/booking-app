@@ -69,6 +69,7 @@ describe('AiOperationsService (thin wrapper)', () => {
     planBuilder as any,
     employeeService as any,
     invitationsService as any,
+    { updateRoleByEmployeeId: jest.fn() } as any,
   );
 
   beforeEach(() => {

@@ -18,6 +18,7 @@ export const DASHBOARD_CRM_MUTATE_INTENTS = [
   'delete_customer_data',
   'send_reengagement_message',
   'tag_customer',
+  'update_customer',
 ] as const;
 
 export const DASHBOARD_CRM_READ_INTENTS = [
@@ -238,10 +239,17 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  const mentionsMembership = /\b(subscription|membership|plan)s?\b/i.test(
-    prompt,
-  );
+  const mentionsMembership =
+    /\b(subscription|membership|plan)s?\b/i.test(prompt) ||
+    /բաժանորդագր|պլան/i.test(prompt) ||
+    /подписк|план/i.test(prompt);
   if (!mentionsMembership) return false;
+
+  // Armenian/Cyrillic script alone implies self-scope + read-intent here: this
+  // domain has no dashboard-admin equivalent phrased in those scripts, and the
+  // earlier hasDashboardCustomerReference bail-out already screens out
+  // admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
 
   return (
     (/\bmy\b/i.test(prompt) &&
@@ -252,7 +260,8 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
     ) ||
     /\bwhat\s+memberships?\s+do\s+i\s+have\b/i.test(prompt) ||
     /\bwhat\s+(?:are\s+)?my\s+active\s+subscriptions?\b/i.test(prompt) ||
-    /\bwhat\s+is\s+on\s+my\s+subscription\b/i.test(prompt)
+    /\bwhat\s+is\s+on\s+my\s+subscription\b/i.test(prompt) ||
+    hasNonLatinScript
   );
 }
 
@@ -305,22 +314,31 @@ export function isRequestGiftCardCancelPrompt(prompt: string): boolean {
     return false;
   }
 
+  // Armenian/Cyrillic script alone implies self-scope here: this domain has no
+  // dashboard-admin equivalent phrased in those scripts, and the earlier
+  // hasDashboardCustomerReference bail-out already screens out admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
+
   const selfScope =
     /\bmy\b/i.test(prompt) ||
     /\brequest\b/i.test(prompt) ||
     /\b(i\s+)?bought\b/i.test(prompt) ||
-    (/\b(this|the)\b/i.test(prompt) && /\bregret\b/i.test(prompt));
+    (/\b(this|the)\b/i.test(prompt) && /\bregret\b/i.test(prompt)) ||
+    hasNonLatinScript;
 
   const cancelIntent =
     /\b(cancel|refund|return|undo|void|stop)\b/i.test(prompt) ||
-    /\b(regret|buyer'?s?\s+remorse)\b/i.test(prompt);
+    /\b(regret|buyer'?s?\s+remorse)\b/i.test(prompt) ||
+    /չեղարկ|վերադարձ/i.test(prompt) ||
+    /отмен|верну/i.test(prompt);
 
   const giftTarget =
     /\b(gift\s*card|gift\s*card\s+order|gift\s*card\s+purchase)\b/i.test(
       prompt,
     ) ||
     (/\border\b/i.test(prompt) &&
-      /\b(gift|purchase|bought|card)\b/i.test(prompt));
+      /\b(gift|purchase|bought|card)\b/i.test(prompt)) ||
+    (/подарочн/i.test(prompt) && /карт/i.test(prompt));
 
   return selfScope && cancelIntent && giftTarget;
 }

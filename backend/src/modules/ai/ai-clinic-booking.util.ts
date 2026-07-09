@@ -88,6 +88,11 @@ const CONSUMER_LAB_PREP_EXPLAIN = new RegExp(
   'iu',
 );
 
+const THIS_TEST_BOOKING_REFERENCE = new RegExp(
+  String.raw`\bthis\s+(?:test|lab|blood\s+draw|panel)\b|այս\s+(?:թեստ${UNICODE_WORD_SUFFIX}|լաբ${UNICODE_WORD_SUFFIX})|этим?\s+(?:анализ${UNICODE_WORD_SUFFIX}|тест${UNICODE_WORD_SUFFIX})`,
+  'iu',
+);
+
 function containsArmenianScript(text: string): boolean {
   return /[\u0530-\u058F]/.test(text);
 }
@@ -192,7 +197,8 @@ export function isExplainClinicBookingPrompt(prompt: string): boolean {
   if (CLINIC_CATALOG_FASTING_EXPLAIN.test(prompt)) return false;
   if (
     CONSUMER_LAB_PREP_EXPLAIN.test(prompt) &&
-    !CHECKOUT_CONTEXT.test(prompt)
+    !CHECKOUT_CONTEXT.test(prompt) &&
+    !THIS_TEST_BOOKING_REFERENCE.test(prompt)
   ) {
     return false;
   }

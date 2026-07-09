@@ -19,12 +19,7 @@ const ALIAS_HANDLED_PROVIDER_INTENTS = new Set([
  *  codebase (no logic function, no service method) — discovered by this gate in
  *  ai-cmd-provider-6.14. Deep, undeveloped gaps (resource/room scheduling and cash-
  *  collection concepts don't exist yet as domains) — tracked, not silently dropped. */
-const KNOWN_UNWIRED_PROVIDER_INTENTS = new Set([
-  'block_resource_unavailable',
-  'my_resource_assignments',
-  'explain_payment_status',
-  'collect_cash_confirm',
-]);
+const KNOWN_UNWIRED_PROVIDER_INTENTS = new Set<string>([]);
 
 const PROVIDER_AI_COMMAND_SOURCE = readFileSync(
   join(__dirname, 'provider-ai-command.service.ts'),

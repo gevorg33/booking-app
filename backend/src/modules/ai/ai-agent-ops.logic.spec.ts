@@ -1,7 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import {
+  handleApproveAgentTaskLogic,
   handleListAgentTasksLogic,
   handleRebookAllFromAgentTaskLogic,
+  handleRetryAgentStepLogic,
   handleUndoLatestAgentTaskLogic,
   type AgentOpsLogicDeps,
 } from './ai-agent-ops.logic.js';
@@ -17,6 +19,8 @@ function buildDeps(overrides: Record<string, any> = {}): AgentOpsLogicDeps {
         success: false,
         message: 'No rebooking proposals available',
       })),
+      approveAndExecute: jest.fn(async () => ({ id: 't1', status: 'processing' })),
+      retryFailedStep: jest.fn(async () => ({ id: 't1', status: 'processing' })),
       ...overrides.agentOrchestrator,
     },
     agentTaskUndo: {
@@ -207,6 +211,97 @@ describe('ai-agent-ops.logic (ai-cmd-dashboard-6.1)', () => {
       );
       expect(result.success).toBe(false);
       expect(result.summary).toContain('No completed AI command');
+    });
+  });
+
+  describe('handleApproveAgentTaskLogic', () => {
+    it('approves a task', async () => {
+      const deps = buildDeps();
+      const result = await handleApproveAgentTaskLogic(
+        deps,
+        'biz-1',
+        { taskId: 't1' },
+        'user-1',
+      );
+      expect(result.success).toBe(true);
+      expect(deps.agentOrchestrator.approveAndExecute).toHaveBeenCalledWith(
+        't1',
+        'user-1',
+      );
+    });
+
+    it('clarifies when taskId is missing', async () => {
+      const deps = buildDeps();
+      const result = await handleApproveAgentTaskLogic(deps, 'biz-1', {}, 'user-1');
+      expect(result.success).toBe(false);
+      expect(result.details?.clarify).toBe(true);
+    });
+
+    it('handles approval errors', async () => {
+      const deps = buildDeps({
+        agentOrchestrator: {
+          approveAndExecute: jest.fn(async () => {
+            throw new Error('Task is in Completed state, cannot execute');
+          }),
+        },
+      });
+      const result = await handleApproveAgentTaskLogic(
+        deps,
+        'biz-1',
+        { taskId: 't1' },
+        'user-1',
+      );
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('cannot execute');
+    });
+  });
+
+  describe('handleRetryAgentStepLogic', () => {
+    it('retries a failed step', async () => {
+      const deps = buildDeps();
+      const result = await handleRetryAgentStepLogic(
+        deps,
+        'biz-1',
+        { taskId: 't1', stepId: 's1' },
+        'user-1',
+      );
+      expect(result.success).toBe(true);
+      expect(deps.agentOrchestrator.retryFailedStep).toHaveBeenCalledWith(
+        't1',
+        's1',
+        'user-1',
+        'biz-1',
+      );
+    });
+
+    it('clarifies when taskId or stepId is missing', async () => {
+      const deps = buildDeps();
+      const result = await handleRetryAgentStepLogic(
+        deps,
+        'biz-1',
+        { taskId: 't1' },
+        'user-1',
+      );
+      expect(result.success).toBe(false);
+      expect(result.details?.clarify).toBe(true);
+    });
+
+    it('handles retry errors', async () => {
+      const deps = buildDeps({
+        agentOrchestrator: {
+          retryFailedStep: jest.fn(async () => {
+            throw new Error('Step s1 not found in plan');
+          }),
+        },
+      });
+      const result = await handleRetryAgentStepLogic(
+        deps,
+        'biz-1',
+        { taskId: 't1', stepId: 's1' },
+        'user-1',
+      );
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('not found in plan');
     });
   });
 });

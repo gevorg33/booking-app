@@ -3,11 +3,13 @@ import { PromoDiscountType } from '../promo-codes/entities/promo-code.entity.js'
 /** Dashboard mutate intent (ai-cmd-ext-2.24). */
 export const CREATE_PROMO_CODE_INTENT = 'create_promo_code' as const;
 
-export const CREATE_PROMO_CODE_CLASSIFIER_RULES = `- create_promo_code: MUTATE — admin creates a promo/discount code on Monetization → Promo codes. Params: code (string), discountType (percent|fixed), discountValue (number), optional minOrderAmount, maxUses, expiresAt, description. Use for "create promo code SAVE10 for 20% off", "add a new discount code WELCOME15". NOT promo_code_help (customer validate/how-to), NOT deactivate_promo_code (future).
+export const CREATE_PROMO_CODE_CLASSIFIER_RULES = `- create_promo_code: MUTATE — admin creates a promo/discount code on Monetization → Promo codes. Params: code (string), discountType (percent|fixed), discountValue (number), optional minOrderAmount, maxUses, expiresAt, description. Use for "create promo code SAVE10 for 20% off", "add a new discount code WELCOME15". NOT promo_code_help (customer validate/how-to), NOT deactivate_promo_code (turning an existing code off).
+- deactivate_promo_code: MUTATE — admin turns off an existing promo/discount code so it can no longer be redeemed. Requires code (or promoId). "Deactivate promo code SAVE10", "Turn off the WELCOME15 discount code" → code=SAVE10 / WELCOME15. NOT create_promo_code (making a new one).
 - Examples:
   - "Create promo code SAVE10 for 20% off" → code=SAVE10, discountType=percent, discountValue=20
   - "Add a new discount code WELCOME15 — 15 percent" → code=WELCOME15, discountType=percent, discountValue=15
   - "Make coupon SUMMER25 with $10 off" → code=SUMMER25, discountType=fixed, discountValue=10
+  - "Deactivate promo code SAVE10" → deactivate_promo_code, code=SAVE10
   - NOT "How do promo codes work" → promo_code_help (customer)`;
 
 export type CreatePromoCodePromptFixture = {
@@ -348,5 +350,34 @@ export function rescueCreatePromoCodeIntent(
   return {
     action: CREATE_PROMO_CODE_INTENT,
     rescueReason: 'create_promo_code',
+  };
+}
+
+export const DEACTIVATE_PROMO_CODE_INTENT = 'deactivate_promo_code' as const;
+
+const DEACTIVATE_VERB = /\b(deactivate|disable|turn\s+off|cancel|remove|delete|expire)\b/i;
+
+export function isDeactivatePromoCodePrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (!text || !DEACTIVATE_VERB.test(text)) return false;
+  return (
+    PROMO_SIGNAL.test(text) ||
+    /\bcode\s+"?[A-Z0-9_-]{3,}"?\b/i.test(text) ||
+    /\bcoupon\s+[A-Z0-9_-]{3,}\b/i.test(text)
+  );
+}
+
+export function rescueDeactivatePromoCodeIntent(
+  prompt: string,
+  action: string,
+): {
+  action: typeof DEACTIVATE_PROMO_CODE_INTENT;
+  rescueReason: string;
+} | null {
+  if (action === DEACTIVATE_PROMO_CODE_INTENT) return null;
+  if (!isDeactivatePromoCodePrompt(prompt)) return null;
+  return {
+    action: DEACTIVATE_PROMO_CODE_INTENT,
+    rescueReason: 'deactivate_promo_code',
   };
 }

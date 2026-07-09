@@ -45,7 +45,9 @@ export type CommandApiModule =
   | 'agent-ops'
   | 'business-profile'
   | 'onboarding'
-  | 'clinic-pre-visit-intake';
+  | 'clinic-pre-visit-intake'
+  | 'clinic-questionnaires'
+  | 'locations';
 
 export interface CommandRegistryEntry {
   /** Stable intent id (classifier action). */

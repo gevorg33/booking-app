@@ -70,14 +70,7 @@ export function isMyStatsPrompt(prompt: string): boolean {
     return true;
   }
 
-  const statsCue =
-    /\b(my stats|my statistics|my performance|week stats|month stats|my utilization|utilization and revenue|performance this)\b/i.test(
-      lower,
-    ) ||
-    (containsArmenianScript(prompt) &&
-      /(ցուցանիշ|կատարողական|օգտագործումը|աշխատանքի)/i.test(prompt)) ||
-    (containsCyrillicScript(prompt) &&
-      /(статистик|показател|как у меня|загрузка|выручка)/i.test(prompt));
+  const statsCue = hasMyStatsKeywordCue(prompt);
 
   const selfCue =
     /\b(my|mine)\b/i.test(lower) ||
@@ -85,6 +78,24 @@ export function isMyStatsPrompt(prompt: string): boolean {
     (containsCyrillicScript(prompt) && /(моя|мои|коман)/i.test(prompt));
 
   return statsCue && selfCue;
+}
+
+/**
+ * Explicit "stats/performance" vocabulary cue, without the fragile short
+ * Armenian substring heuristics in `isMyStatsPrompt` (which can false-positive
+ * on unrelated prompts) — used where a stricter, standalone signal is needed.
+ */
+export function hasMyStatsKeywordCue(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(my stats|my statistics|my performance|week stats|month stats|my utilization|utilization and revenue|performance this)\b/i.test(
+      lower,
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(ցուցանիշ|կատարողական|օգտագործումը|աշխատանքի)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(статистик|показател|как у меня|загрузка|выручка)/i.test(prompt))
+  );
 }
 
 export function isTeamFloorStatusPrompt(prompt: string): boolean {
@@ -306,6 +317,16 @@ export function extractBookingActionCustomerName(
     /\bmark\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s+running\s+late/i,
   );
   if (markRunningLateMatch?.[1]?.trim()) return markRunningLateMatch[1].trim();
+
+  const markReadyNowMatch = prompt.match(
+    /\bmark\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s+ready\s+now/i,
+  );
+  if (markReadyNowMatch?.[1]?.trim()) return markReadyNowMatch[1].trim();
+
+  const requestReviewMatch = prompt.match(
+    /\b(?:ask|request\s+a\s+review\s+from)\s+([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)\s+for\s+a\s+review/i,
+  );
+  if (requestReviewMatch?.[1]?.trim()) return requestReviewMatch[1].trim();
 
   const runningLateMatch = prompt.match(
     /\b(?:running\s+(?:\d+\s*(?:m|min(?:ute)?s?\s*)?late\s+)?for\s+|late\s+for\s+)([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+)?)/i,
