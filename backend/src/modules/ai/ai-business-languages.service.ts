@@ -13,6 +13,8 @@ import {
   handleBulkStripDisabledLocaleTranslationsLogic,
   type BusinessLanguagesLogicDeps,
 } from './ai-business-languages.logic.js';
+import { dispatchBusinessLanguagesLogicIntent } from './ai-business-languages-dispatch.util.js';
+import type { BusinessLanguagesDispatchContext } from './ai-business-languages-dispatch.build.js';
 
 @Injectable()
 export class AiBusinessLanguagesService {
@@ -69,5 +71,12 @@ export class AiBusinessLanguagesService {
       prompt,
       confirmed,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-languages intent. */
+  dispatchIntent(
+    ctx: BusinessLanguagesDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchBusinessLanguagesLogicIntent(this.deps, ctx);
   }
 }

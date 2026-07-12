@@ -435,6 +435,7 @@ Classify the user's message and extract parameters. Return JSON:
 Rules:
 - Use public assistant actions (list_providers, check_availability, book_appointment, etc.) for anonymous discovery/booking on the public page.
 - Use customer self-service actions (book_package, list_my_appointments, cancel_my_booking, promo_code_help, etc.) for logged-in account flows.
+- cancel_all_upcoming_bookings: MUTATE — logged-in customer cancels ALL of their upcoming confirmed bookings at once (NOT a single booking — use cancel_my_booking for "cancel my booking"/"cancel my appointment"). Triggers: "cancel all my upcoming appointments", "cancel all my bookings", "cancel every visit I have". This is a two-step confirm flow: on the FIRST ask, do NOT set params.confirm — the assistant will show a preview list and ask the customer to confirm. Only set params.confirm=true when the customer has ALREADY explicitly agreed to cancel all of them in this conversation (e.g. they replied "yes"/"confirm"/"go ahead" to the preview). Never set confirm=true on the first turn.
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — classify the first step as check_providers_for_service when only listing providers, or book_nearest_slot when only booking flexibly; never return create_booking/book_appointment with a missing timeSlot unless bookingFirstAvailable=true.
 - Never invent catalog names; use context when provided.
 - Default to "unknown" when unclear.

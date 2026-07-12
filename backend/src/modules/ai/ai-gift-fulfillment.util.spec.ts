@@ -18,6 +18,8 @@ import {
   isAcceptDeliveryPrompt,
   isMarkOutForDeliveryPrompt,
   isCaptureDeliveryProofPrompt,
+  isExplainGiftCardOrderDetailsPrompt,
+  formatGiftCardOrderDetailsText,
   isNotifyDelayPrompt,
   isTrackGiftCardShipmentPrompt,
   isEnterShippingAddressPrompt,
@@ -85,6 +87,70 @@ describe('ai-gift-fulfillment.util', () => {
         true,
       );
       expect(isNotifyDelayPrompt('Notify customer about delay')).toBe(true);
+    });
+
+    it('detects GiftCardQueuesPage label phrasing (ai-cmd-provider-5.12.4)', () => {
+      expect(isGiftCardCreationQueuePrompt('Physical cards to fulfill')).toBe(
+        true,
+      );
+      expect(isGiftCardCreationQueuePrompt('Cards to fulfill')).toBe(true);
+      expect(isDeliveryQueuePrompt('Gift card pickup queue')).toBe(true);
+      expect(isDeliveryQueuePrompt('Pickup queue')).toBe(true);
+    });
+
+    it('detects ai-cmd-provider-5.20 canonical examples', () => {
+      expect(isGiftCardCreationQueuePrompt('Physical cards to print')).toBe(
+        true,
+      );
+      expect(isGiftCardCreationQueuePrompt('Creation queue')).toBe(true);
+
+      expect(
+        isMarkCardReadyPrompt('Mark card GC-123 ready for pickup'),
+      ).toBe(true);
+      expect(isMarkCardReadyPrompt('Card printed — ready')).toBe(true);
+      expect(extractGiftCardIdFromPrompt('Mark card GC-123 ready for pickup')).toBe(
+        'GC-123',
+      );
+
+      expect(isDeliveryQueuePrompt('Cards to ship today')).toBe(true);
+      expect(isDeliveryQueuePrompt('Delivery queue')).toBe(true);
+
+      expect(
+        isMarkOutForDeliveryPrompt('Shipped to Anna — out for delivery'),
+      ).toBe(true);
+      expect(isMarkDeliveredPrompt('Mark delivered')).toBe(true);
+    });
+
+    it('detects explain_gift_card_order_details prompts (ai-cmd-provider-5.20.5)', () => {
+      expect(
+        isExplainGiftCardOrderDetailsPrompt("What's on this gift order?"),
+      ).toBe(true);
+      expect(
+        isExplainGiftCardOrderDetailsPrompt('Service credits on card'),
+      ).toBe(true);
+      expect(isExplainGiftCardOrderDetailsPrompt('Mark card ready')).toBe(
+        false,
+      );
+      expect(
+        isExplainGiftCardOrderDetailsPrompt('Cancel gift card order'),
+      ).toBe(false);
+    });
+
+    it('formats gift card order details text', () => {
+      expect(
+        formatGiftCardOrderDetailsText({
+          id: 'abcdefgh1234',
+          cardType: 'service',
+          purchaseAmount: 100,
+          balance: 100,
+          currency: 'USD',
+          recipientName: 'Anna',
+          deliveryMethod: 'physical',
+          fulfillmentStatus: 'awaiting_card_creation',
+        }),
+      ).toBe(
+        'Order abcdefgh — service gift card, USD 100.00 (USD 100.00 remaining), for Anna, delivery: physical, status: awaiting_card_creation.',
+      );
     });
 
     it('detects customer fulfillment prompts', () => {

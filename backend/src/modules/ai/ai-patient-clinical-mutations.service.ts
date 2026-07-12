@@ -20,6 +20,8 @@ import {
   handleUpdateEncounterByBookingLogic,
   type PatientClinicalMutationsLogicDeps,
 } from './ai-patient-clinical-mutations.logic.js';
+import { dispatchPatientClinicalMutationsLogicIntent } from './ai-patient-clinical-mutations-dispatch.util.js';
+import type { PatientClinicalMutationsDispatchContext } from './ai-patient-clinical-mutations-dispatch.build.js';
 
 @Injectable()
 export class AiPatientClinicalMutationsService {
@@ -101,5 +103,12 @@ export class AiPatientClinicalMutationsService {
     params: Record<string, any>,
   ): Promise<CommandResult> {
     return handleAddCustomerStaffNoteLogic(this.deps, businessId, userId, params);
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a patient-clinical-mutations intent. */
+  dispatchIntent(
+    ctx: PatientClinicalMutationsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchPatientClinicalMutationsLogicIntent(this.deps, ctx);
   }
 }

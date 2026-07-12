@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { BusinessService } from '../business/business.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   dispatchProviderExp2Intent,
@@ -19,11 +21,15 @@ export class AiProviderExp2Service {
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
     private businessService: BusinessService,
     private providerMobile: ProviderMobileService,
+    private reviewsService: ReviewsService,
+    private configService: ConfigService,
   ) {
     this.deps = {
       bookingRepo: this.bookingRepo,
       businessService: this.businessService,
       providerMobile: this.providerMobile,
+      reviewsService: this.reviewsService,
+      configService: this.configService,
     };
   }
 

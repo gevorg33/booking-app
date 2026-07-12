@@ -37,6 +37,8 @@ import {
   handlePayoutExportLogic,
   handleRecordExpenseLogic,
   handleRemoveRetailLineLogic,
+  handleRemoveRetailFromMyBookingLogic,
+  handleSearchRetailSkuLogic,
   handleRetailFinanceCompoundLogic,
   handleSetRecommendedProductsLogic,
   handleSetRetailSalesLinesLogic,
@@ -48,6 +50,8 @@ import {
   handleUpdateInventoryProductLogic,
   type RetailFinanceLogicDeps,
 } from './ai-retail-finance.logic.js';
+import { dispatchRetailFinanceLogicIntent } from './ai-retail-finance-dispatch.util.js';
+import type { RetailFinanceDispatchContext } from './ai-retail-finance-dispatch.build.js';
 
 @Injectable()
 export class AiRetailFinanceService {
@@ -212,6 +216,21 @@ export class AiRetailFinanceService {
     );
   }
 
+  handleRemoveRetailFromMyBooking(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+    prompt?: string,
+  ) {
+    return handleRemoveRetailFromMyBookingLogic(
+      this.deps,
+      businessId,
+      params,
+      userId,
+      prompt,
+    );
+  }
+
   handleRecordExpense(
     businessId: string,
     params: Record<string, any>,
@@ -315,6 +334,14 @@ export class AiRetailFinanceService {
     );
   }
 
+  handleSearchRetailSku(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleSearchRetailSkuLogic(this.deps, businessId, params, prompt);
+  }
+
   handleAddRetailToMyBooking(
     businessId: string,
     params: Record<string, any>,
@@ -358,5 +385,12 @@ export class AiRetailFinanceService {
       params,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a retail-finance intent. */
+  dispatchIntent(
+    ctx: RetailFinanceDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchRetailFinanceLogicIntent(this.deps, ctx);
   }
 }

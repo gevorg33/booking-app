@@ -14,6 +14,7 @@ describe('ai clinic booking integration (ai-cmd-clinic-5)', () => {
     getCustomerFlow: jest.fn(),
     startCustomerIntake: jest.fn(),
     submitCustomerAnswers: jest.fn(),
+    getCheckoutConfig: jest.fn(),
   };
 
   const deps = { businessRepo, serviceService, publicPreVisitIntakeService };

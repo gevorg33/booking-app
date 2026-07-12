@@ -28,6 +28,7 @@ import {
   handleBookPackageLogic,
   handleBookWithCashLogic,
   handleCancelMyBookingLogic,
+  handleCancelAllUpcomingBookingsLogic,
   handleCancelPackageVisitSelfLogic,
   handleChangeProviderOnRescheduleLogic,
   handleCheckMultiServiceAvailabilityLogic,
@@ -71,9 +72,12 @@ import { handleReschedulePackageLinesLogic } from './ai-reschedule-package-lines
 import {
   handleCancelBookingWithTokenLogic,
   handleCancelPackageVisitWithTokenLogic,
+  handleExplainManageBookingContextLogic,
   handleRescheduleBookingWithTokenLogic,
   handleReschedulePackageVisitWithTokenLogic,
 } from './ai-manage-booking-with-token.logic.js';
+import { dispatchSelfServiceBookingIntent } from './ai-self-service-booking-dispatch.util.js';
+import type { SelfServiceBookingDispatchContext } from './ai-self-service-booking-dispatch.build.js';
 
 @Injectable()
 export class AiSelfServiceBookingService {
@@ -205,6 +209,13 @@ export class AiSelfServiceBookingService {
     prompt = '',
   ) {
     return handleCancelMyBookingLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleCancelAllUpcomingBookings(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleCancelAllUpcomingBookingsLogic(this.deps, businessId, params);
   }
 
   handleRescheduleMyBooking(
@@ -342,6 +353,19 @@ export class AiSelfServiceBookingService {
     prompt = '',
   ) {
     return handleGetManageLinkLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainManageBookingContext(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainManageBookingContextLogic(
       this.deps,
       businessId,
       params,
@@ -632,5 +656,12 @@ export class AiSelfServiceBookingService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a self-service-booking intent. */
+  dispatchIntent(
+    ctx: SelfServiceBookingDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchSelfServiceBookingIntent(this, ctx);
   }
 }

@@ -2,6 +2,7 @@ import {
   PROVIDER_BOOKING_INTENTS,
   decomposeProviderBookingCompoundPrompt,
   extractBookingIdFromPrompt,
+  isCollectRemainingBalancePrompt,
   isDashboardPackageMultiScopePrompt,
   isListMyMultiServiceGroupsPrompt,
   isListMyPackageVisitsPrompt,
@@ -13,6 +14,8 @@ import {
   rescueProviderBookingIntent,
 } from './ai-provider-booking.util.js';
 import { PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS } from './ai-provider-list-my-multi-service-groups.fixtures.js';
+import { PROVIDER_MARK_PAID_PROMPT_SCENARIOS } from './ai-provider-mark-paid.fixtures.js';
+import { PROVIDER_COLLECT_REMAINING_BALANCE_PROMPT_SCENARIOS } from './ai-provider-collect-remaining-balance.fixtures.js';
 
 describe('ai-provider-booking.util', () => {
   it('registers provider booking intents', () => {
@@ -31,6 +34,9 @@ describe('ai-provider-booking.util', () => {
       isListPackageAppointmentsTodayPrompt(
         'Show my package appointments today',
       ),
+    ).toBe(true);
+    expect(
+      isListPackageAppointmentsTodayPrompt('Package visits this afternoon'),
     ).toBe(true);
     expect(
       isListMyPackageVisitsPrompt('List my package visits this week'),
@@ -72,6 +78,40 @@ describe('ai-provider-booking.util', () => {
     expect(
       extractBookingIdFromPrompt('mark appointment abcdef123456 paid'),
     ).toBe('abcdef123456');
+  });
+
+  it.each(PROVIDER_MARK_PAID_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]))(
+    'detects mark_paid prompt %s (ai-cmd-provider-5.3.1)',
+    (_id, prompt) => {
+      expect(isProviderMarkPaidPrompt(prompt)).toBe(true);
+      expect(rescueProviderBookingIntent(prompt, 'unknown')?.action).toBe(
+        'mark_paid',
+      );
+    },
+  );
+
+  it.each(
+    PROVIDER_COLLECT_REMAINING_BALANCE_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
+  )(
+    'detects collect_remaining_balance prompt %s (ai-cmd-provider-5.3.6)',
+    (_id, prompt) => {
+      expect(isCollectRemainingBalancePrompt(prompt)).toBe(true);
+      expect(rescueProviderBookingIntent(prompt, 'unknown')?.action).toBe(
+        'collect_remaining_balance',
+      );
+    },
+  );
+
+  it('does not let collect_remaining_balance steal mark_paid or payment_sweep prompts', () => {
+    expect(isCollectRemainingBalancePrompt('Mark this booking paid')).toBe(
+      false,
+    );
+    expect(
+      isCollectRemainingBalancePrompt('Sweep all unpaid bookings today'),
+    ).toBe(false);
   });
 
   it('decomposes compound provider booking prompts', () => {

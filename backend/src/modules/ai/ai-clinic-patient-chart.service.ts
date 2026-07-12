@@ -9,6 +9,8 @@ import {
   handleExplainPatientChartLogic,
   type ClinicPatientChartLogicDeps,
 } from './ai-clinic-patient-chart.logic.js';
+import { dispatchClinicPatientChartLogicIntent } from './ai-clinic-patient-chart-dispatch.util.js';
+import type { ClinicPatientChartDispatchContext } from './ai-clinic-patient-chart-dispatch.build.js';
 
 @Injectable()
 export class AiClinicPatientChartService {
@@ -39,5 +41,12 @@ export class AiClinicPatientChartService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-patient-chart intent. */
+  dispatchIntent(
+    ctx: ClinicPatientChartDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicPatientChartLogicIntent(this.deps, ctx);
   }
 }

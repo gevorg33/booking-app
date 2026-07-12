@@ -19,6 +19,7 @@ export const LIST_MY_TEST_RESULTS_PROMPTS = [
   { id: 'see-test-results', prompt: 'Can I see my test results?' },
   { id: 'lab-results-account', prompt: 'My lab results on my account' },
   { id: 'check-my-results', prompt: 'Check my lab test results' },
+  { id: 'where-find-results', prompt: 'Where can I find my lab results?' },
 ] as const;
 
 export const EXPLAIN_RESULT_STATUS_PROMPTS = [

@@ -166,6 +166,35 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     expect(result.visitStatus.minutesLate).toBeUndefined();
   });
 
+  it('clears the running-late flag when marked ready now (ai-cmd-provider-5.2.6)', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...bookingRecord,
+      metadata: {
+        providerVisitStatus: {
+          kind: 'running_late',
+          minutesLate: 15,
+          markedAt: '2026-06-09T09:50:00.000Z',
+        },
+      },
+    });
+
+    const result = await service.markBookingReadyNow('biz-1', 'user-1', 'bk-1');
+
+    expect(result.visitStatus.kind).toBe('ready_now');
+    expect(result.visitStatus.minutesLate).toBeUndefined();
+    expect(bookingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          providerVisitStatus: expect.objectContaining({
+            kind: 'ready_now',
+          }),
+        }),
+      }),
+    );
+    const savedMetadata = bookingRepo.save.mock.calls[0][0].metadata;
+    expect(savedMetadata.providerVisitStatus.minutesLate).toBeUndefined();
+  });
+
   it('exposes visit status on today bookings', async () => {
     bookingRepo.find.mockResolvedValue([
       {

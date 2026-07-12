@@ -128,6 +128,8 @@ export interface ProviderAiScreenContext {
   route?: string;
   tab?: string;
   mobileRoute?: ProviderMobileRoute;
+  /** ai-cmd-provider-5.15.2 — the currently open BookingDetailModal's booking id, when any. */
+  bookingId?: string | null;
 }
 
 interface ProviderAiAssistantProps {

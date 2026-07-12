@@ -1,7 +1,9 @@
 import {
   handleClaimClinicTaskLogic,
   handleCompleteClinicTaskLogic,
+  handleExplainClinicTaskLogic,
   handleListBookingLabSummariesLogic,
+  handleListClinicTasksLogic,
   handleListLabResultsQueueLogic,
   type ProviderClinicTasksAndResultsLogicDeps,
 } from './ai-provider-clinic-tasks-and-results.logic.js';
@@ -63,6 +65,152 @@ function buildDeps(
 }
 
 describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () => {
+  describe('handleListClinicTasksLogic (ai-cmd-provider-5.11.6)', () => {
+    it('lists outstanding clinic tasks', async () => {
+      const deps = buildDeps();
+
+      const result = await handleListClinicTasksLogic(deps, 'biz-1', 'user-1');
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('list_clinic_tasks');
+      expect(result.summary).toContain('Follow-up call');
+      expect(result.details?.count).toBe(1);
+    });
+
+    it('fails gracefully when clinic features are disabled', async () => {
+      const deps = buildDeps({
+        providerMobile: {
+          getProviderClinicTaskInbox: jest.fn(async () => ({
+            viewMode: 'provider',
+            labFeaturesEnabled: false,
+            employee: null,
+            tasks: [],
+          })),
+        },
+      });
+
+      const result = await handleListClinicTasksLogic(deps, 'biz-1', 'user-1');
+
+      expect(result.success).toBe(false);
+      expect(result.details?.clinicOnly).toBe(true);
+    });
+  });
+
+  describe('handleExplainClinicTaskLogic (ai-cmd-provider-5.19.5)', () => {
+    it('explains a single task detail, including who assigned it', async () => {
+      const deps = buildDeps({
+        providerMobile: {
+          getProviderClinicTaskInbox: jest.fn(async () => ({
+            viewMode: 'provider',
+            labFeaturesEnabled: true,
+            employee: { id: 'emp-1', name: 'Alex' },
+            tasks: [
+              {
+                id: 'task-1',
+                taskType: 'follow_up_call',
+                status: 'open',
+                title: 'Follow-up call',
+                notes: 'Call about missed appointment',
+                priority: 'high',
+                dueAt: '2026-06-05T00:00:00.000Z',
+                customerId: 'c1',
+                customerName: 'Jane',
+                bookingId: null,
+                assigneeEmployeeId: 'emp-1',
+                assigneeName: 'Alex',
+                createdByEmployeeId: 'emp-2',
+                createdByName: 'Sam',
+                isAutoManaged: false,
+                canClaim: false,
+                canComplete: true,
+                createdAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          })),
+        },
+      });
+
+      const result = await handleExplainClinicTaskLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+        'What is this follow-up task?',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('explain_clinic_task');
+      expect(result.summary).toContain('Follow-up call');
+      expect(result.summary).toContain('assigned by Sam');
+      expect(result.summary).toContain('Call about missed appointment');
+    });
+
+    it('clarifies when multiple tasks match and none is specified', async () => {
+      const deps = buildDeps({
+        providerMobile: {
+          getProviderClinicTaskInbox: jest.fn(async () => ({
+            viewMode: 'provider',
+            labFeaturesEnabled: true,
+            employee: { id: 'emp-1', name: 'Alex' },
+            tasks: [
+              {
+                id: 'task-1',
+                taskType: 'follow_up_call',
+                status: 'open',
+                title: 'Follow-up call',
+                notes: null,
+                priority: 'normal',
+                dueAt: null,
+                customerId: 'c1',
+                customerName: 'Jane',
+                bookingId: null,
+                assigneeEmployeeId: null,
+                assigneeName: null,
+                createdByEmployeeId: null,
+                createdByName: null,
+                isAutoManaged: false,
+                canClaim: true,
+                canComplete: true,
+                createdAt: '2026-06-01T00:00:00.000Z',
+              },
+              {
+                id: 'task-2',
+                taskType: 'lab_review',
+                status: 'open',
+                title: 'Review CBC',
+                notes: null,
+                priority: 'normal',
+                dueAt: null,
+                customerId: 'c2',
+                customerName: 'John',
+                bookingId: null,
+                assigneeEmployeeId: null,
+                assigneeName: null,
+                createdByEmployeeId: null,
+                createdByName: null,
+                isAutoManaged: false,
+                canClaim: true,
+                canComplete: true,
+                createdAt: '2026-06-01T00:00:00.000Z',
+              },
+            ],
+          })),
+        },
+      });
+
+      const result = await handleExplainClinicTaskLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+        'What is this task?',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.details?.clarify).toBe(true);
+    });
+  });
+
   describe('handleListLabResultsQueueLogic', () => {
     it('lists the assigned lab results queue', async () => {
       const deps = buildDeps({

@@ -253,8 +253,14 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     id: 'dapi-schedule-reads',
     restPath: 'GET schedules/templates, block-schedules, provider-calendar',
     apiModule: 'schedule',
-    coverage: { kind: 'dashboard-ai', intents: ['list_templates'] },
-    notes: 'Schedule reads sparse relative to the mutate surface',
+    coverage: {
+      kind: 'dashboard-ai',
+      intents: [
+        'list_templates',
+        'list_schedule_blocks',
+        'get_provider_calendar',
+      ],
+    },
   },
   {
     id: 'dapi-schedule-create',

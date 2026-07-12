@@ -29,6 +29,18 @@ const TEAM_WHOS_NEXT_I18N: Record<string, { hy: string; ru: string }> = {
     hy: 'Ո՞վ է հաջորդը բոլոր provider-ների համար',
     ru: 'Покажи кто следующий у всех провайдеров',
   },
+  'team-queue': {
+    hy: 'Թիմը — ո՞վ է հաջորդը հերթում',
+    ru: 'Команда — кто следующий в очереди',
+  },
+  'next-2-hours': {
+    hy: 'Ո՞վ է հաջորդը հաջորդ 2 ժամում թիմի համար',
+    ru: 'Кто следующий в ближайшие 2 часа для команды',
+  },
+  'every-provider': {
+    hy: 'Ցույց տուր ո՞վ է հաջորդը բոլոր provider-ների համար',
+    ru: 'Кто следующий среди всех провайдеров',
+  },
 };
 
 function buildProviderTeamWhosNextMultilingualScenarios(): ProviderTeamWhosNextMultilingualScenario[] {

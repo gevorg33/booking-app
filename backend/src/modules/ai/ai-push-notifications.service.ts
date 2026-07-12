@@ -27,16 +27,21 @@ import {
   handleListPushNotificationsLogic,
   handleMarkAllNotificationsReadLogic,
   handleMarkBookingNotificationsReadLogic,
+  handleMarkNotificationReadLogic,
   handleNewBookingPushActionsLogic,
   handleNotificationHistoryLogic,
   handleOfflineQueueStatusLogic,
   handleOpenBookingFromPushLogic,
+  handleProviderExplainAppUpdateGateLogic,
+  handleProviderExplainOfflineModeLogic,
   handlePushNotificationsCompoundLogic,
   handleRetryOfflineActionLogic,
   handleTestPushLogic,
   handleToggleBusinessEmailOnCustomerChangeLogic,
   type PushNotificationsLogicDeps,
 } from './ai-push-notifications.logic.js';
+import { dispatchPushNotificationsLogicIntent } from './ai-push-notifications-dispatch.util.js';
+import type { PushNotificationsDispatchContext } from './ai-push-notifications-dispatch.build.js';
 
 @Injectable()
 export class AiPushNotificationsService {
@@ -106,6 +111,14 @@ export class AiPushNotificationsService {
     return handleRetryOfflineActionLogic(this.deps, params);
   }
 
+  handleProviderExplainOfflineMode(params: Record<string, any>) {
+    return handleProviderExplainOfflineModeLogic(this.deps, params);
+  }
+
+  handleProviderExplainAppUpdateGate(params: Record<string, any>) {
+    return handleProviderExplainAppUpdateGateLogic(this.deps, params);
+  }
+
   handleDismissPush(params: Record<string, any>) {
     return handleDismissPushLogic(this.deps, params);
   }
@@ -131,6 +144,14 @@ export class AiPushNotificationsService {
       params,
       prompt,
     );
+  }
+
+  handleMarkNotificationRead(
+    businessId: string,
+    userId: string,
+    params: Record<string, any>,
+  ) {
+    return handleMarkNotificationReadLogic(this.deps, businessId, userId, params);
   }
 
   handleEndOfDaySummary(businessId: string, params: Record<string, any>) {
@@ -212,5 +233,12 @@ export class AiPushNotificationsService {
       prompt,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a push-notifications intent. */
+  dispatchIntent(
+    ctx: PushNotificationsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchPushNotificationsLogicIntent(this.deps, ctx);
   }
 }

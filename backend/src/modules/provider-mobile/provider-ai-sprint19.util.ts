@@ -5,10 +5,12 @@ import {
   todayDisplay,
 } from '../../common/utils/date-format.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { isWhoIsNextPrompt } from '../ai/ai-provider-who-is-next.util.js';
 
 export type ScheduleGapLabel = { start: string; end: string };
 
 export type ProviderListBooking = {
+  id?: string;
   startTime: Date;
   status: string;
   service?: { name?: string } | null;
@@ -36,7 +38,10 @@ export function mapScheduleGapLabels(
 }
 
 export function isWhosNextPrompt(prompt: string): boolean {
-  return /who'?s\s+next|next\s+appointment/i.test(prompt);
+  return (
+    /who'?s\s+next|next\s+appointment/i.test(prompt) ||
+    isWhoIsNextPrompt(prompt)
+  );
 }
 
 export function mergeShowAppointmentsParams(
@@ -46,8 +51,14 @@ export function mergeShowAppointmentsParams(
   const merged = { ...params };
   if (isWhosNextPrompt(prompt)) {
     merged.statusFilter = 'upcoming';
-    if (!merged.date) merged.date = toIsoDay(todayDisplay());
+    if (merged.nextOnly === undefined) merged.nextOnly = true;
   }
+  // show_appointments is documented (see list_upcoming_bookings's own
+  // classifier rule: "NOT show_appointments (today's list)") as always
+  // being today's list unless the caller/LLM supplied an explicit date —
+  // default here so a bare "show my appointments" can't silently fall
+  // through to an unbounded, all-time query (ai-cmd-provider-6.2.5).
+  if (!merged.date) merged.date = toIsoDay(todayDisplay());
   return merged;
 }
 
@@ -134,6 +145,7 @@ export function buildProviderBookingsListResult<
       matchedCount: bookings.length,
       bookings: bookings.map((b) => formatLabel(b)),
       serviceFilter: params.serviceName ?? null,
+      ...(bookings.length === 1 ? { bookingId: bookings[0].id ?? null } : {}),
     },
   };
 }

@@ -32,6 +32,7 @@ export const PROVIDER_GIFT_FULFILLMENT_INTENTS = [
   'mark_out_for_delivery',
   'capture_delivery_proof',
   'notify_delay',
+  'explain_gift_card_order_details',
 ] as const;
 
 export const CUSTOMER_GIFT_FULFILLMENT_INTENTS = [
@@ -112,11 +113,10 @@ export function isMarkShippedPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.20.4 — bare "Mark delivered" (no gift card/order noun) is still unambiguous on its own. */
 export function isMarkDeliveredPrompt(prompt: string): boolean {
   return (
-    /\bmark\b/i.test(prompt) &&
-    /\b(delivered|delivery\s+complete)\b/i.test(prompt) &&
-    /\b(gift\s*card|order)\b/i.test(prompt)
+    /\bmark\b/i.test(prompt) && /\b(delivered|delivery\s+complete)\b/i.test(prompt)
   );
 }
 
@@ -145,7 +145,10 @@ export function isPrintPackingSlipPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.12.4/5.20.1 — "Physical cards to fulfill/print" and bare "Creation queue" are GiftCardQueuesPage labels, not verb phrases. */
 export function isGiftCardCreationQueuePrompt(prompt: string): boolean {
+  if (/\bcards?\s+to\s+(?:fulfill|print)\b/i.test(prompt)) return true;
+  if (/\bcreation\s+queue\b/i.test(prompt)) return true;
   return (
     /\b(show|list|open)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -160,14 +163,25 @@ export function isStartCardPreparationPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.20.2 — supports "mark card GC-123 ready for pickup" (id breaks card/ready adjacency) and "Card printed — ready" (no "mark" verb). */
 export function isMarkCardReadyPrompt(prompt: string): boolean {
+  const hasCardAndReady =
+    /\bcard\b/i.test(prompt) && /\bready\b/i.test(prompt);
+  if (/\bmark\b/i.test(prompt) && hasCardAndReady) return true;
+  if (/\bprinted\b/i.test(prompt) && hasCardAndReady) return true;
   return (
     /\bmark\b/i.test(prompt) &&
-    /\b(card\s+ready|ready\s+for\s+delivery)\b/i.test(prompt)
+    /\b(card\s+ready|ready\s+for\s+delivery|ready\s+for\s+pickup)\b/i.test(
+      prompt,
+    )
   );
 }
 
+/** ai-cmd-provider-5.12.4/5.20.3 — "Gift card pickup queue" / bare "Delivery queue" / "Cards to ship" are GiftCardQueuesPage labels for the delivery/pickup tab. */
 export function isDeliveryQueuePrompt(prompt: string): boolean {
+  if (/\bpickup\s+queue\b/i.test(prompt)) return true;
+  if (/\bdelivery\s+queue\b/i.test(prompt)) return true;
+  if (/\bcards?\s+to\s+ship\b/i.test(prompt)) return true;
   return (
     /\b(show|list|open)\b/i.test(prompt) &&
     /\b(delivery\s+queue|out\s+for\s+delivery)\b/i.test(prompt) &&
@@ -182,8 +196,10 @@ export function isAcceptDeliveryPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.20.4 — "Shipped to Anna — out for delivery" has no "mark" verb; "shipped" + "out for delivery" together is an equally explicit signal. */
 export function isMarkOutForDeliveryPrompt(prompt: string): boolean {
-  return /\bmark\b/i.test(prompt) && /\b(out\s+for\s+delivery)\b/i.test(prompt);
+  if (!/\b(out\s+for\s+delivery)\b/i.test(prompt)) return false;
+  return /\bmark\b/i.test(prompt) || /\bshipped\b/i.test(prompt);
 }
 
 export function isCaptureDeliveryProofPrompt(prompt: string): boolean {
@@ -198,6 +214,23 @@ export function isNotifyDelayPrompt(prompt: string): boolean {
     /\b(notify|alert|inform)\b/i.test(prompt) &&
     /\b(delay|late|behind\s+schedule)\b/i.test(prompt)
   );
+}
+
+/** ai-cmd-provider-5.20.5 — read-only order detail (amount, service credits, recipient) for the provider fulfillment queue, distinct from the customer-surface explain_gift_card_order. */
+export function isExplainGiftCardOrderDetailsPrompt(prompt: string): boolean {
+  if (/\bwhat'?s\s+on\s+this\s+gift\s+order\b/i.test(prompt)) return true;
+  if (/\bservice\s+credits?\s+on\s+(?:this\s+)?card\b/i.test(prompt)) {
+    return true;
+  }
+  if (
+    /\b(explain|show|what'?s)\b/i.test(prompt) &&
+    /\bgift\s*card\b/i.test(prompt) &&
+    /\border\b/i.test(prompt) &&
+    !/\b(mark|cancel|assign|print|start|extend)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function isTrackGiftCardShipmentPrompt(prompt: string): boolean {
@@ -269,8 +302,34 @@ export function extractGiftCardIdFromPrompt(prompt: string): string | null {
     /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i,
   );
   if (uuid) return uuid[1];
+  const shortCode = prompt.match(/\bcard\s+(GC-[A-Za-z0-9]+)\b/i);
+  if (shortCode) return shortCode[1].toUpperCase();
   const orderWord = prompt.match(/\border\s+([0-9a-f-]{8,})\b/i);
   return orderWord?.[1] ?? null;
+}
+
+/** ai-cmd-provider-5.20.5 — narrate a gift card order's contents for the provider fulfillment view. */
+export function formatGiftCardOrderDetailsText(order: {
+  id: string;
+  cardType: string;
+  purchaseAmount: number | null;
+  balance: number | null;
+  currency: string;
+  recipientName: string | null;
+  deliveryMethod: string | null;
+  fulfillmentStatus: string | null;
+}): string {
+  const money = (value: number | null) =>
+    `${order.currency} ${(value ?? 0).toFixed(2)}`;
+  const parts = [
+    `Order ${order.id.slice(0, 8)} — ${order.cardType} gift card, ${money(order.purchaseAmount)} (${money(order.balance)} remaining)`,
+  ];
+  if (order.recipientName) parts.push(`for ${order.recipientName}`);
+  if (order.deliveryMethod) parts.push(`delivery: ${order.deliveryMethod}`);
+  if (order.fulfillmentStatus) {
+    parts.push(`status: ${order.fulfillmentStatus}`);
+  }
+  return `${parts.join(', ')}.`;
 }
 
 export function resolveShippingCity(
@@ -467,6 +526,12 @@ export function rescueGiftFulfillmentIntent(
   }
   if (isNotifyDelayPrompt(prompt)) {
     return { action: 'notify_delay', rescueReason: 'notify_delay' };
+  }
+  if (isExplainGiftCardOrderDetailsPrompt(prompt)) {
+    return {
+      action: 'explain_gift_card_order_details',
+      rescueReason: 'order_details',
+    };
   }
 
   if (isFilterAwaitingCreationPrompt(prompt)) {

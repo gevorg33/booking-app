@@ -38,6 +38,7 @@ describe('complete_intake_and_book integration (ai-cmd-customer-4.14.2)', () => 
         getCustomerFlow: jest.fn(),
         startCustomerIntake: jest.fn(),
         submitCustomerAnswers: jest.fn(),
+        getCheckoutConfig: jest.fn(),
       },
     };
   }

@@ -26,6 +26,7 @@ describe('ai-cmd eval integration (ai-cmd-t2)', () => {
           action: scenario.action ?? 'unknown',
           params: {},
           employees,
+          surface: scenario.surface,
         });
         expect(result?.rescued).toBe(true);
         expect(result?.action).toBe(scenario.expectedAction);

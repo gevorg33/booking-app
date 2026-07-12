@@ -1,16 +1,25 @@
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import type { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { BusinessService } from '../business/business.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import type { ReviewsService } from '../reviews/reviews.service.js';
+import type { Review } from '../reviews/entities/review.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
+  buildDraftReviewResponseText,
+  buildExplainRequestReviewFlowText,
   extractBookingActionCustomerName,
   extractRunningLateMinutesFromPrompt,
+  formatExplainReviewsInboxSummary,
+  formatListTeamUnpaidTodaySummary,
   formatProviderMyStatsSummary,
   formatTeamFloorStatusSummary,
   inferMyStatsPeriodFromPrompt,
   inferMyStatsScopeFromPrompt,
+  inferReviewsInboxPeriodFromPrompt,
+  inferReviewsInboxRatingFilterFromPrompt,
 } from './ai-provider-exp-2.util.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 
@@ -18,6 +27,8 @@ export interface ProviderExp2LogicDeps {
   bookingRepo: Repository<Booking>;
   businessService: BusinessService;
   providerMobile: ProviderMobileService;
+  reviewsService: ReviewsService;
+  configService: ConfigService;
 }
 
 function failure(
@@ -161,6 +172,227 @@ export async function handleMyStatsLogic(
   return success('my_stats', formatProviderMyStatsSummary(stats, settings), {
     ...stats,
   });
+}
+
+function reviewsInboxDateRange(
+  period: 'today' | 'yesterday' | 'week' | 'month',
+  now: Date,
+): { start: Date; end: Date } {
+  const todayStart = new Date(now);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const end = new Date(todayStart);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  if (period === 'today') {
+    return { start: todayStart, end };
+  }
+  if (period === 'yesterday') {
+    const start = new Date(todayStart);
+    start.setUTCDate(start.getUTCDate() - 1);
+    return { start, end: todayStart };
+  }
+  if (period === 'week') {
+    const start = new Date(todayStart);
+    start.setUTCDate(start.getUTCDate() - 7);
+    return { start, end };
+  }
+  const start = new Date(todayStart);
+  start.setUTCDate(start.getUTCDate() - 30);
+  return { start, end };
+}
+
+export async function handleExplainReviewsInboxLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
+  const scope: 'mine' | 'team' = access.viewMode === 'team' ? 'team' : 'mine';
+  const employeeId =
+    scope === 'mine' ? deps.providerMobile.getScopedEmployeeId(access) : undefined;
+  const period = inferReviewsInboxPeriodFromPrompt(prompt ?? '', params);
+  const ratingFilter = inferReviewsInboxRatingFilterFromPrompt(
+    prompt ?? '',
+    params,
+  );
+
+  const allReviews = await deps.reviewsService.list(businessId, employeeId);
+  const { start, end } = reviewsInboxDateRange(period, new Date());
+  const reviews = allReviews.filter((review) => {
+    if (review.createdAt < start || review.createdAt >= end) return false;
+    if (ratingFilter?.minRating != null && review.rating < ratingFilter.minRating) {
+      return false;
+    }
+    if (ratingFilter?.maxRating != null && review.rating > ratingFilter.maxRating) {
+      return false;
+    }
+    return true;
+  });
+
+  const reviewCount = reviews.length;
+  const averageRating =
+    reviewCount === 0
+      ? null
+      : Math.round(
+          (reviews.reduce((sum, review) => sum + review.rating, 0) /
+            reviewCount) *
+            10,
+        ) / 10;
+
+  const view = {
+    scope,
+    period,
+    ratingLabel: ratingFilter?.ratingLabel,
+    averageRating,
+    reviewCount,
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment ?? null,
+      customerName: review.customerName ?? review.customer?.name ?? null,
+      employeeName: review.employee?.name ?? 'Unknown',
+      createdAt: review.createdAt,
+    })),
+  };
+
+  return success(
+    'explain_reviews_inbox',
+    formatExplainReviewsInboxSummary(view),
+    {
+      scope: view.scope,
+      period: view.period,
+      ratingFilter: ratingFilter
+        ? { minRating: ratingFilter.minRating, maxRating: ratingFilter.maxRating }
+        : undefined,
+      averageRating: view.averageRating,
+      reviewCount: view.reviewCount,
+      reviews: view.reviews,
+    },
+  );
+}
+
+async function resolveTargetReviewForDraftResponse(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  employeeId: string | undefined,
+  params: Record<string, unknown>,
+  prompt: string,
+  context?: Record<string, unknown>,
+): Promise<{ review: Review } | { error: CommandResult }> {
+  const reviews = await deps.reviewsService.list(businessId, employeeId);
+  if (reviews.length === 0) {
+    return {
+      error: failure('draft_review_response', 'No reviews found yet.', {}),
+    };
+  }
+
+  const explicitId =
+    (typeof params.reviewId === 'string' && params.reviewId.trim()) ||
+    (typeof context?.reviewId === 'string' && context.reviewId.trim()) ||
+    null;
+  if (explicitId) {
+    const match = reviews.find((review) => review.id === explicitId);
+    if (match) return { review: match };
+  }
+
+  const customerName = extractBookingActionCustomerName(prompt, params);
+  if (customerName) {
+    const lower = customerName.toLowerCase();
+    const match = reviews.find((review) =>
+      (review.customerName ?? review.customer?.name ?? '')
+        .toLowerCase()
+        .includes(lower),
+    );
+    if (match) return { review: match };
+    return {
+      error: failure(
+        'draft_review_response',
+        `No review found for "${customerName}".`,
+        { clarify: true, customerName },
+      ),
+    };
+  }
+
+  return { review: reviews[0] };
+}
+
+export async function handleDraftReviewResponseLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
+  const employeeId =
+    access.viewMode === 'team'
+      ? undefined
+      : deps.providerMobile.getScopedEmployeeId(access);
+
+  const resolved = await resolveTargetReviewForDraftResponse(
+    deps,
+    businessId,
+    employeeId,
+    params,
+    prompt ?? '',
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  const draft = buildDraftReviewResponseText({
+    rating: resolved.review.rating,
+    comment: resolved.review.comment ?? null,
+    customerName:
+      resolved.review.customerName ?? resolved.review.customer?.name ?? null,
+  });
+
+  return success('draft_review_response', draft, {
+    reviewId: resolved.review.id,
+    rating: resolved.review.rating,
+    draft,
+  });
+}
+
+export function handleExplainRequestReviewFlowLogic(): CommandResult {
+  return success(
+    'explain_request_review_flow',
+    buildExplainRequestReviewFlowText(),
+    {},
+  );
+}
+
+export function handleOpenDashboardDeepLinkLogic(
+  deps: ProviderExp2LogicDeps,
+  params: Record<string, unknown>,
+  prompt?: string,
+): CommandResult {
+  const customerName = extractBookingActionCustomerName(prompt ?? '', params);
+  if (!customerName) {
+    return failure(
+      'open_dashboard_deep_link',
+      'Name the client to open their dashboard page (e.g. "Open CRM for Jane").',
+      { clarify: true },
+    );
+  }
+
+  const frontendUrl =
+    deps.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+  const url = `${frontendUrl.replace(/\/$/, '')}/dashboard/customers?search=${encodeURIComponent(customerName)}`;
+
+  return success(
+    'open_dashboard_deep_link',
+    `Opening ${customerName}'s dashboard profile in a new tab.`,
+    { url, customerName },
+  );
 }
 
 export async function handleTeamFloorStatusLogic(
@@ -548,6 +780,37 @@ export async function handleReassignBookingSameDayLogic(
   }
 }
 
+export async function handleListTeamUnpaidTodayLogic(
+  deps: ProviderExp2LogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const access = await deps.providerMobile.resolveMobileAccess(
+    businessId,
+    userId,
+  );
+  if (access.viewMode !== 'team') {
+    return failure(
+      'list_team_unpaid_today',
+      'Team unpaid view is available to managers only.',
+      { viewMode: access.viewMode },
+    );
+  }
+
+  const view = await deps.providerMobile.getTeamUnpaidToday(
+    businessId,
+    userId,
+  );
+  const business = await deps.businessService.findOne(businessId);
+  const settings = (business?.settings ?? {}) as Record<string, unknown>;
+
+  return success(
+    'list_team_unpaid_today',
+    formatListTeamUnpaidTodaySummary(view, settings),
+    { date: view.date, totalUnpaid: view.totalUnpaid, bookings: view.bookings },
+  );
+}
+
 export async function dispatchProviderExp2Intent(
   deps: ProviderExp2LogicDeps,
   businessId: string,
@@ -562,6 +825,29 @@ export async function dispatchProviderExp2Intent(
       return handleMyStatsLogic(deps, businessId, userId, params, prompt);
     case 'team_floor_status':
       return handleTeamFloorStatusLogic(deps, businessId, userId);
+    case 'list_team_unpaid_today':
+      return handleListTeamUnpaidTodayLogic(deps, businessId, userId);
+    case 'explain_reviews_inbox':
+      return handleExplainReviewsInboxLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+      );
+    case 'explain_request_review_flow':
+      return handleExplainRequestReviewFlowLogic();
+    case 'open_dashboard_deep_link':
+      return handleOpenDashboardDeepLinkLogic(deps, params, prompt);
+    case 'draft_review_response':
+      return handleDraftReviewResponseLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
     case 'check_in_client':
       return handleCheckInClientLogic(
         deps,

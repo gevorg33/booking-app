@@ -61,6 +61,72 @@ function requireCredentials(
   return { bookingId, manageToken };
 }
 
+function formatManageContextTime(startTime: string): string {
+  const date = new Date(startTime);
+  if (Number.isNaN(date.getTime())) return startTime;
+  return date.toISOString().slice(0, 16).replace('T', ' ');
+}
+
+export async function handleExplainManageBookingContextLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any> = {},
+  prompt = '',
+): Promise<CommandResult> {
+  const effectivePrompt = prompt || String(params._prompt ?? '');
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug)
+    return failure('explain_manage_booking_context', 'Business not found.');
+
+  const creds = requireCredentials(
+    'explain_manage_booking_context',
+    params,
+    effectivePrompt,
+  );
+  if ('success' in creds) return creds;
+
+  try {
+    const context = await deps.publicCustomerBookingService.getManageContext(
+      slug,
+      creds.bookingId,
+      creds.manageToken,
+    );
+    const when = formatManageContextTime(context.startTime);
+    const actions: string[] = [];
+    if (context.canCancel) actions.push('cancel');
+    if (context.canReschedule) actions.push('reschedule');
+    const actionsLine = actions.length
+      ? `You can ${actions.join(' or ')} this booking.`
+      : "This booking can't be cancelled or rescheduled from here anymore.";
+    const summary = [
+      `${context.serviceName} with ${context.employeeName} — ${when}.`,
+      actionsLine,
+      ...(context.policyMessage ? [context.policyMessage] : []),
+    ].join(' ');
+
+    return success('explain_manage_booking_context', summary, {
+      bookingId: context.bookingId,
+      startTime: context.startTime,
+      endTime: context.endTime,
+      status: context.status,
+      paymentStatus: context.paymentStatus,
+      serviceName: context.serviceName,
+      employeeName: context.employeeName,
+      canCancel: context.canCancel,
+      canReschedule: context.canReschedule,
+      policyMessage: context.policyMessage,
+      manageUrl: context.manageUrl,
+      isPackageVisit: Boolean(context.packageVisit),
+    });
+  } catch (err: any) {
+    return failure(
+      'explain_manage_booking_context',
+      err?.message ?? 'Could not find this booking.',
+      { bookingId: creds.bookingId },
+    );
+  }
+}
+
 export async function handleCancelBookingWithTokenLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,

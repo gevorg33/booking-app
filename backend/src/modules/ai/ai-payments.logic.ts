@@ -910,6 +910,11 @@ export async function handleCollectCashConfirmLogic(
     );
   }
 
+  const amount =
+    typeof params.amount === 'number'
+      ? params.amount
+      : extractAmountFromPrompt((params._prompt as string) ?? '');
+
   booking.paymentStatus = PaymentStatus.PAID;
   booking.status = BookingStatus.COMPLETED;
   booking.metadata = {
@@ -917,14 +922,18 @@ export async function handleCollectCashConfirmLogic(
     paidVia: 'cash',
     paidAt: new Date().toISOString(),
     cashConfirmedByUserId: userId,
+    ...(amount != null ? { cashCollectedAmount: amount } : {}),
   };
   await deps.bookingRepo.save(booking);
 
   return success(
     'collect_cash_confirm',
-    'Cash payment confirmed and booking marked paid.',
+    amount != null
+      ? `Cash payment of $${amount.toFixed(2)} confirmed and booking marked paid.`
+      : 'Cash payment confirmed and booking marked paid.',
     {
       bookingId: booking.id,
+      ...(amount != null ? { amount } : {}),
     },
   );
 }

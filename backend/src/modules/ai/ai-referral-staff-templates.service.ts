@@ -8,6 +8,8 @@ import {
   handleConfigureStaffMessageTemplatesLogic,
   type ReferralStaffTemplatesLogicDeps,
 } from './ai-referral-staff-templates.logic.js';
+import { dispatchReferralStaffTemplatesLogicIntent } from './ai-referral-staff-templates-dispatch.util.js';
+import type { ReferralStaffTemplatesDispatchContext } from './ai-referral-staff-templates-dispatch.build.js';
 
 @Injectable()
 export class AiReferralStaffTemplatesService {
@@ -35,5 +37,12 @@ export class AiReferralStaffTemplatesService {
       businessId,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a referral-staff-templates intent. */
+  dispatchIntent(
+    ctx: ReferralStaffTemplatesDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchReferralStaffTemplatesLogicIntent(this.deps, ctx);
   }
 }

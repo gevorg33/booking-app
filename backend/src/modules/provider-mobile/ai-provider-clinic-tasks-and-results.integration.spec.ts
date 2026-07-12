@@ -12,9 +12,13 @@ describe('provider AI clinic tasks & lab results (ai-cmd-provider-6.9)', () => {
   let providerClinicTasksAndResults: {
     rescueProviderClinicTasksAndResultsIntent: jest.Mock<any>;
     handleListLabResultsQueue: jest.Mock<any>;
+    handleListClinicTasks: jest.Mock<any>;
     handleClaimClinicTask: jest.Mock<any>;
     handleCompleteClinicTask: jest.Mock<any>;
     handleListBookingLabSummaries: jest.Mock<any>;
+  };
+  let clinicPatientChart: {
+    handleExplainPatientChart: jest.Mock<any>;
   };
 
   const staffAccess = {
@@ -36,6 +40,12 @@ describe('provider AI clinic tasks & lab results (ai-cmd-provider-6.9)', () => {
         summary: '1 result in your queue.',
         details: { count: 1 },
       })),
+      handleListClinicTasks: jest.fn(async () => ({
+        success: true,
+        action: 'list_clinic_tasks',
+        summary: '1 outstanding task.',
+        details: { count: 1 },
+      })),
       handleClaimClinicTask: jest.fn(async () => ({
         success: true,
         action: 'claim_clinic_task',
@@ -55,13 +65,25 @@ describe('provider AI clinic tasks & lab results (ai-cmd-provider-6.9)', () => {
         details: { bookingId: 'b1' },
       })),
     };
+    clinicPatientChart = {
+      handleExplainPatientChart: jest.fn(async () => ({
+        success: true,
+        action: 'explain_patient_chart',
+        summary: "Jane's chart summary.",
+        details: { customerId: 'cust-1' },
+      })),
+    };
     service = createProviderAiCommandHarness({
       llm,
       providerMobile: {
         resolveMobileAccess: jest.fn(async () => staffAccess),
         getScopedEmployeeId: jest.fn(() => employeeId),
+        getBookingDetail: jest.fn(async () => ({
+          customer: { id: 'cust-1', name: 'Jane' },
+        })),
       },
       providerClinicTasksAndResults,
+      clinicPatientChart,
     });
   });
 
@@ -146,6 +168,61 @@ describe('provider AI clinic tasks & lab results (ai-cmd-provider-6.9)', () => {
       userId,
       expect.objectContaining({ bookingId: 'b1' }),
       'Any flagged results on this visit?',
+    );
+  });
+
+  it('dispatches list_clinic_tasks with businessId and userId (ai-cmd-provider-5.11.6)', async () => {
+    mockIntent('list_clinic_tasks', {});
+
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'My tasks today',
+      [],
+    );
+
+    expect(result.action).toBe('list_clinic_tasks');
+    expect(
+      providerClinicTasksAndResults.handleListClinicTasks,
+    ).toHaveBeenCalledWith(businessId, userId);
+  });
+
+  it('dispatches open_patient_chart with an explicit customerName (ai-cmd-provider-5.11.4)', async () => {
+    mockIntent('open_patient_chart', { customerName: 'Jane' });
+
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Open chart for Jane',
+      [],
+    );
+
+    expect(result.action).toBe('open_patient_chart');
+    expect(clinicPatientChart.handleExplainPatientChart).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      expect.objectContaining({ customerName: 'Jane' }),
+      'Open chart for Jane',
+    );
+  });
+
+  it('resolves open_patient_chart customerId from the session bookingId when no name is given', async () => {
+    mockIntent('open_patient_chart', {});
+
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Open this patient chart',
+      [],
+      { bookingId: 'b1' },
+    );
+
+    expect(result.action).toBe('open_patient_chart');
+    expect(clinicPatientChart.handleExplainPatientChart).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      expect.objectContaining({ customerId: 'cust-1' }),
+      'Open this patient chart',
     );
   });
 });

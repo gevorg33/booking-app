@@ -39,7 +39,10 @@ import {
   parseServiceIdsQuery,
 } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
-import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
+import {
+  PublicCustomerRescheduleBookingDto,
+  PublicCustomerBulkCancelBookingsDto,
+} from './dto/public-customer-booking.dto.js';
 import { PublicCustomerNotifyRunningLateDto } from './dto/public-customer-running-late.dto.js';
 import { PublicJoinWaitlistDto } from './dto/public-customer-waitlist.dto.js';
 import {
@@ -77,6 +80,7 @@ import { PublicCustomerWaitlistService } from './public-customer-waitlist.servic
 import { PublicConsumerSupportTicketDto } from './dto/public-consumer-support-ticket.dto.js';
 import { UpdatePublicConsumerNotificationPreferencesDto } from './dto/public-consumer-notification-preferences.dto.js';
 import { UpdatePublicCustomerPreferredLocaleDto } from './dto/public-customer-preferred-locale.dto.js';
+import { PublicCustomerUpdateProfileDto } from './dto/public-customer-profile.dto.js';
 import { ClaimReferralCodeDto } from './dto/claim-referral.dto.js';
 import { ClaimShareRewardDto } from './dto/claim-share-reward.dto.js';
 import { SubmitCustomerReviewDto } from './dto/submit-customer-review.dto.js';
@@ -881,6 +885,20 @@ export class PublicBookingController {
     );
   }
 
+  @Post('me/bookings/bulk-cancel')
+  @UseGuards(PublicCustomerAuthGuard)
+  bulkCancelMyUpcomingBookings(
+    @Param('slug') slug: string,
+    @Body() dto: PublicCustomerBulkCancelBookingsDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.bulkCancelUpcomingBookings(
+      slug,
+      user.customerId,
+      dto,
+    );
+  }
+
   @Post('me/bookings/:bookingId/reschedule')
   @UseGuards(PublicCustomerAuthGuard)
   rescheduleMyBooking(
@@ -1309,6 +1327,20 @@ export class PublicBookingController {
       slug,
       user.customerId,
       dto.preferredLocale,
+    );
+  }
+
+  @Patch('me/profile')
+  @UseGuards(PublicCustomerAuthGuard)
+  updateMyProfile(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Body() dto: PublicCustomerUpdateProfileDto,
+  ) {
+    return this.publicCustomerAuthService.updateMyProfile(
+      slug,
+      user.customerId,
+      dto,
     );
   }
 

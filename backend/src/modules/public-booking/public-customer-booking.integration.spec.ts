@@ -289,6 +289,7 @@ describe('Public customer booking self-service integration', () => {
     jwtService,
     { isReady: false } as any,
     publicCustomerBookingService,
+    {} as any,
     giftCardPurchaseService as any,
     eventEmitter as any,
     customerRepo as any,

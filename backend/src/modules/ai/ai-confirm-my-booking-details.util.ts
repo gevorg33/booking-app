@@ -166,9 +166,18 @@ export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (isBookNearestSlotPrompt(prompt)) return false;
   if (
-    /\b(?:tax|vat|gst|payment\s+breakdown|marked\s+paid|collected|walk\s+me\s+through)\b/i.test(
+    /\b(?:tax|vat|gst|payment\s+breakdown|marked\s+paid|collected|walk\s+me\s+through|payment\s+status)\b/i.test(
       prompt,
     )
+  ) {
+    return false;
+  }
+  if (/\bmark\b.{0,30}\bpaid\b/i.test(prompt)) return false;
+  if (
+    /\b(mark|set)\b.{0,30}\b(in[\s-]?progress|confirmed|pending|complete|completed|done|no[\s-]?show)\b/i.test(
+      prompt,
+    ) ||
+    /\b(start|begin)\b.{0,20}\b(service|appointment|visit)\b/i.test(prompt)
   ) {
     return false;
   }

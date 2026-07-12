@@ -50,6 +50,8 @@ import { handleApplyPromoCodeCheckoutLogic } from './ai-apply-promo-code-checkou
 import { handleApplyLoyaltyAtCheckoutLogic } from './ai-apply-loyalty-at-checkout.logic.js';
 import { handleConfigureLoyaltySettingsLogic } from './ai-configure-loyalty-settings.logic.js';
 import { handleExplainLoyaltyPointsLogic } from './ai-explain-loyalty-points.logic.js';
+import { dispatchMarketingGrowthLogicIntent } from './ai-marketing-growth-dispatch.util.js';
+import type { MarketingGrowthDispatchContext } from './ai-marketing-growth-dispatch.build.js';
 
 @Injectable()
 export class AiMarketingGrowthService {
@@ -292,5 +294,12 @@ export class AiMarketingGrowthService {
       params,
       userEmail,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a marketing-growth intent. */
+  dispatchIntent(
+    ctx: MarketingGrowthDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchMarketingGrowthLogicIntent(this.deps, ctx);
   }
 }

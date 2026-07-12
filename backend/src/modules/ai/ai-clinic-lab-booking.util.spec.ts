@@ -5,6 +5,7 @@ import {
   DASHBOARD_LAB_BOOKING_RESCUE_SCENARIOS,
   LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
   LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS,
+  NOTIFY_PATIENT_BOOK_LAB_PROMPTS,
   PROVIDER_LAB_BOOKING_RESCUE_SCENARIOS,
   PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS,
   STAFF_BOOK_LAB_COLLECTION_PROMPTS,
@@ -15,6 +16,7 @@ import {
   isLabCollectionNearestCompoundPrompt,
   isListMyLabBookingRequestsPrompt,
   isListPatientPendingLabRequestsPrompt,
+  isNotifyPatientBookLabPrompt,
   isPushLabBookingToPatientPrompt,
   isStaffBookLabCollectionPrompt,
   parseBookLabCollectionFromPrompt,
@@ -131,4 +133,30 @@ describe('ai-clinic-lab-booking.util', () => {
       expect(rescued?.action).toBe(expectedAction);
     },
   );
+
+  it.each(NOTIFY_PATIENT_BOOK_LAB_PROMPTS)(
+    'resolves notify_patient_book_lab on the provider surface for $id (ai-cmd-provider-5.19.4)',
+    ({ prompt, customerName }) => {
+      expect(isNotifyPatientBookLabPrompt(prompt)).toBe(true);
+      const rescued = rescueProviderClinicLabBookingIntent(prompt, 'unknown');
+      expect(rescued?.action).toBe('notify_patient_book_lab');
+      if (customerName) {
+        const parsed = parsePushLabBookingFromPrompt(prompt);
+        expect(parsed?.customerName?.toLowerCase()).toContain(
+          customerName.toLowerCase(),
+        );
+      }
+    },
+  );
+
+  it('does not let isNotifyPatientBookLabPrompt steal dashboard push/send/notify phrasing', () => {
+    expect(
+      isNotifyPatientBookLabPrompt(
+        'Push lab collection booking to Maria for her CBC order',
+      ),
+    ).toBe(false);
+    expect(
+      isNotifyPatientBookLabPrompt("Send Maria a link to book her blood draw"),
+    ).toBe(false);
+  });
 });

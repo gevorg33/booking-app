@@ -6,7 +6,16 @@ export type ProviderQuickChip = {
   prompt: string;
 };
 
-export type ProviderMobileRoute = 'today' | 'schedule' | 'profile' | 'gift-cards';
+export type ProviderMobileRoute =
+  | 'today'
+  | 'schedule'
+  | 'profile'
+  | 'gift-cards'
+  | 'calendar'
+  | 'lab-collection'
+  | 'lab-results'
+  | 'clinic-tasks'
+  | 'patients';
 
 function chip(t: ProviderAiTranslateFn, labelKey: string, promptKey: string): ProviderQuickChip {
   return {
@@ -47,7 +56,39 @@ export function getProviderQuickChips(
         ...(isManager ? [chip(t, 'utilizationWeek', 'utilizationWeek')] : [chip(t, 'myWeekStats', 'myWeekStats')]),
       ];
     case 'gift-cards':
-      return [chip(t, 'summarizeToday', 'summarizeToday')];
+      return [
+        chip(t, 'summarizeToday', 'summarizeToday'),
+        chip(t, 'giftCardsToCreate', 'giftCardsToCreate'),
+        chip(t, 'giftCardMarkReady', 'giftCardMarkReady'),
+      ];
+    case 'calendar':
+      return [
+        ...(isManager
+          ? [chip(t, 'gapsWeekTeam', 'gapsWeekTeam')]
+          : [chip(t, 'gapsWeek', 'gapsWeek')]),
+        chip(t, 'fillGap', 'fillGap'),
+        ...(isManager ? [chip(t, 'utilizationWeek', 'utilizationWeek')] : [chip(t, 'howFullAmI', 'howFullAmI')]),
+      ];
+    case 'lab-collection':
+      return [
+        chip(t, 'collectionQueueToday', 'collectionQueueToday'),
+        chip(t, 'markSpecimenCollected', 'markSpecimenCollected'),
+      ];
+    case 'lab-results':
+      return [
+        chip(t, 'resultsWaitingReview', 'resultsWaitingReview'),
+        chip(t, 'abnormalResultBooking', 'abnormalResultBooking'),
+      ];
+    case 'clinic-tasks':
+      return [
+        chip(t, 'tasksDueToday', 'tasksDueToday'),
+        chip(t, 'markIntakeFollowUpDone', 'markIntakeFollowUpDone'),
+      ];
+    case 'patients':
+      return [
+        chip(t, 'findPatient', 'findPatient'),
+        chip(t, 'openChartForDob', 'openChartForDob'),
+      ];
     default:
       return [];
   }
@@ -55,9 +96,32 @@ export function getProviderQuickChips(
 
 export function providerQuickChipI18nKeys(): string[] {
   const keys = new Set<string>();
-  const labelKeys = ['markAllPaid', 'whosNext', 'teamWhosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
-  const promptKeys = ['markAllPaid', 'whosNext', 'teamWhosNext', 'gapsAfternoon', 'summarizeToday', 'checkTomorrow', 'blockLunch', 'utilizationWeek', 'myWeekStats'];
-  labelKeys.forEach((k) => keys.add(`provider.quickChip.${k}`));
-  promptKeys.forEach((k) => keys.add(`provider.quickPrompt.${k}`));
+  const chipKeys = [
+    'markAllPaid',
+    'whosNext',
+    'teamWhosNext',
+    'gapsAfternoon',
+    'summarizeToday',
+    'checkTomorrow',
+    'blockLunch',
+    'utilizationWeek',
+    'myWeekStats',
+    'giftCardsToCreate',
+    'giftCardMarkReady',
+    'gapsWeek',
+    'gapsWeekTeam',
+    'fillGap',
+    'howFullAmI',
+    'collectionQueueToday',
+    'markSpecimenCollected',
+    'resultsWaitingReview',
+    'abnormalResultBooking',
+    'tasksDueToday',
+    'markIntakeFollowUpDone',
+    'findPatient',
+    'openChartForDob',
+  ];
+  chipKeys.forEach((k) => keys.add(`provider.quickChip.${k}`));
+  chipKeys.forEach((k) => keys.add(`provider.quickPrompt.${k}`));
   return [...keys];
 }

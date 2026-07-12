@@ -9,6 +9,8 @@ import {
   handleExplainPackageDisplayNameLogic,
   type PackageLocalizedNamesLogicDeps,
 } from './ai-package-localized-names.logic.js';
+import { dispatchPackageLocalizedNamesLogicIntent } from './ai-package-localized-names-dispatch.util.js';
+import type { PackageLocalizedNamesDispatchContext } from './ai-package-localized-names-dispatch.build.js';
 
 @Injectable()
 export class AiPackageLocalizedNamesService {
@@ -47,5 +49,12 @@ export class AiPackageLocalizedNamesService {
       prompt,
       visitorLocale,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a package-localized-names intent. */
+  dispatchIntent(
+    ctx: PackageLocalizedNamesDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchPackageLocalizedNamesLogicIntent(this.deps, ctx);
   }
 }

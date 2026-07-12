@@ -5,6 +5,7 @@ import { AiCommandController } from './ai-command.controller.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { AiBookingCoreService } from './ai-booking-core.service.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
@@ -266,6 +267,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     CommandOrchestrationService,
     OperationalPlanBuilderService,
     AiScheduleHandlersService,
+    AiBookingCoreService,
     AiSchedulingService,
     AiOperationsService,
     AiBusinessCurrencyService,
@@ -402,6 +404,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiBusinessComplianceService,
     AiConsumerClinicTestResultsService,
     AiProviderClinicTasksAndResultsService,
+    AiClinicPatientChartService,
     AiConsumerAdoptionService,
     AiProviderPushSetupService,
     AiProviderEarningsService,

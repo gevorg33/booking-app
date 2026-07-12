@@ -267,11 +267,22 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
 
 export function isSubscriptionUsagePrompt(prompt: string): boolean {
   if (isExplainMySubscriptionPrompt(prompt)) return false;
-  return (
+  if (
     /\bmy\b/i.test(prompt) &&
     /\b(subscription|membership|plan)\b/i.test(prompt) &&
     /\b(usage|visits?|remaining|credits?)\b/i.test(prompt)
-  );
+  ) {
+    return true;
+  }
+  const hasHyUsageCue =
+    /իմ/i.test(prompt) &&
+    /պլան|բաժանորդագր|membership/i.test(prompt) &&
+    /օգտագործ/i.test(prompt);
+  const hasRuUsageCue =
+    /мо(?:й|я|его|ей)/i.test(prompt) &&
+    /план|подписк/i.test(prompt) &&
+    /использован/i.test(prompt);
+  return hasHyUsageCue || hasRuUsageCue;
 }
 
 export function isMyGiftCardsPrompt(prompt: string): boolean {
@@ -344,11 +355,22 @@ export function isRequestGiftCardCancelPrompt(prompt: string): boolean {
 }
 
 export function isRequestGiftCardModifyPrompt(prompt: string): boolean {
-  return (
+  if (
     /\b(change|modify|update|edit)\b/i.test(prompt) &&
     /\b(gift\s*card|order)\b/i.test(prompt) &&
     (/\bmy\b/i.test(prompt) || /\brequest\b/i.test(prompt))
-  );
+  ) {
+    return true;
+  }
+  const hasHyModifyCue =
+    /փոխ|փոփոխ/i.test(prompt) &&
+    /նվեր\s*քարտ|պատվեր/i.test(prompt) &&
+    /իմ/i.test(prompt);
+  const hasRuModifyCue =
+    /измен/i.test(prompt) &&
+    /подарочн|заказ/i.test(prompt) &&
+    /мо(?:й|я|его|ей)/i.test(prompt);
+  return hasHyModifyCue || hasRuModifyCue;
 }
 
 export function isTrackPhysicalGiftCardPrompt(prompt: string): boolean {
@@ -436,6 +458,18 @@ export function isDiscoverPackagesPrompt(prompt: string): boolean {
 
 export function isDiscoverSubscriptionPlansPrompt(prompt: string): boolean {
   if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
+  if (
+    /(ինչ|ի՞նչ|ցույց|ցուցակ)/i.test(prompt) &&
+    /(բաժանորդագր|անդամակցությ)\S*\s*պլան/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /(какие|покажи|список|доступны)/i.test(prompt) &&
+    /(план[а-я]*\s*подписк|абонемент)/i.test(prompt)
+  ) {
+    return true;
+  }
   return (
     /\b(what|which|show|list|discover|available|membership)\b/i.test(prompt) &&
     /\b(subscription|membership)\s+plans?\b/i.test(prompt) &&

@@ -1,4 +1,10 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class PublicCustomerRescheduleBookingDto {
   @IsDateString()
@@ -31,4 +37,15 @@ export class PublicBookingManageRescheduleDto extends PublicCustomerRescheduleBo
 
   @IsString()
   token: string;
+}
+
+export class PublicCustomerBulkCancelBookingsDto {
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  bookingIds?: string[];
 }

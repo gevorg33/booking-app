@@ -7,6 +7,7 @@ import { ClinicSpecimenStatusService } from '../clinic-test-results/specimen/cli
 import { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
+  handleExplainSpecimenRecollectLogic,
   handleListMyCollectionQueueLogic,
   handleMarkSpecimenCollectedLogic,
   type ProviderClinicCollectionLogicDeps,
@@ -36,6 +37,19 @@ export class AiProviderClinicCollectionService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleListMyCollectionQueueLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainSpecimenRecollect(
+    businessId: string,
+    params: Record<string, unknown> = {},
+    prompt?: string,
+  ): Promise<CommandResult> {
+    return handleExplainSpecimenRecollectLogic(
       this.deps,
       businessId,
       params,

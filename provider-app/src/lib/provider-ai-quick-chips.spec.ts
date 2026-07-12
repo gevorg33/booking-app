@@ -38,8 +38,51 @@ describe('provider-ai-quick-chips', () => {
 
   it('returns gift-cards and default routes', () => {
     const gift = getProviderQuickChips('gift-cards', t);
-    expect(gift).toHaveLength(1);
+    expect(gift).toHaveLength(3);
+    expect(gift.some((c) => c.id === 'giftCardsToCreate')).toBe(true);
+    expect(gift.some((c) => c.id === 'giftCardMarkReady')).toBe(true);
     expect(getProviderQuickChips('unknown' as 'today', t)).toEqual([]);
+  });
+
+  it('returns calendar chips with manager vs stylist gap wording (ai-cmd-provider-5.15.4)', () => {
+    const staff = getProviderQuickChips('calendar', t, { isManager: false });
+    const manager = getProviderQuickChips('calendar', t, { isManager: true });
+    expect(staff.some((c) => c.id === 'gapsWeek')).toBe(true);
+    expect(staff.some((c) => c.id === 'gapsWeekTeam')).toBe(false);
+    expect(manager.some((c) => c.id === 'gapsWeekTeam')).toBe(true);
+    expect(manager.some((c) => c.id === 'gapsWeek')).toBe(false);
+    expect(staff.some((c) => c.id === 'fillGap')).toBe(true);
+    expect(manager.some((c) => c.id === 'utilizationWeek')).toBe(true);
+    expect(staff.some((c) => c.id === 'howFullAmI')).toBe(true);
+  });
+
+  it('returns lab-collection chips (ai-cmd-provider-5.15.4)', () => {
+    const chips = getProviderQuickChips('lab-collection', t);
+    expect(chips.map((c) => c.id)).toEqual([
+      'collectionQueueToday',
+      'markSpecimenCollected',
+    ]);
+  });
+
+  it('returns lab-results chips (ai-cmd-provider-5.15.4)', () => {
+    const chips = getProviderQuickChips('lab-results', t);
+    expect(chips.map((c) => c.id)).toEqual([
+      'resultsWaitingReview',
+      'abnormalResultBooking',
+    ]);
+  });
+
+  it('returns clinic-tasks chips (ai-cmd-provider-5.15.4)', () => {
+    const chips = getProviderQuickChips('clinic-tasks', t);
+    expect(chips.map((c) => c.id)).toEqual([
+      'tasksDueToday',
+      'markIntakeFollowUpDone',
+    ]);
+  });
+
+  it('returns patients chips (ai-cmd-provider-5.15.4)', () => {
+    const chips = getProviderQuickChips('patients', t);
+    expect(chips.map((c) => c.id)).toEqual(['findPatient', 'openChartForDob']);
   });
 
   it('registers quick chip i18n keys in en', () => {

@@ -9,6 +9,9 @@ import {
   handleStaffSubmitIntakeAnswersLogic,
   type ClinicPreVisitIntakeLogicDeps,
 } from './ai-clinic-pre-visit-intake.logic.js';
+import type { CommandResult } from './command-completion.types.js';
+import { dispatchClinicPreVisitIntakeLogicIntent } from './ai-clinic-pre-visit-intake-dispatch.util.js';
+import type { ClinicPreVisitIntakeDispatchContext } from './ai-clinic-pre-visit-intake-dispatch.build.js';
 
 @Injectable()
 export class AiClinicPreVisitIntakeService {
@@ -50,5 +53,12 @@ export class AiClinicPreVisitIntakeService {
       userId,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-pre-visit-intake intent. */
+  dispatchIntent(
+    ctx: ClinicPreVisitIntakeDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicPreVisitIntakeLogicIntent(this.deps, ctx);
   }
 }

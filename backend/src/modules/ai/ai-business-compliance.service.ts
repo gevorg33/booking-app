@@ -35,6 +35,8 @@ import {
   handleViewPhiAccessAuditLogic,
   type BusinessComplianceLogicDeps,
 } from './ai-business-compliance.logic.js';
+import { dispatchBusinessComplianceLogicIntent } from './ai-business-compliance-dispatch.util.js';
+import type { BusinessComplianceDispatchContext } from './ai-business-compliance-dispatch.build.js';
 
 @Injectable()
 export class AiBusinessComplianceService {
@@ -351,5 +353,12 @@ export class AiBusinessComplianceService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-compliance intent. */
+  dispatchIntent(
+    ctx: BusinessComplianceDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchBusinessComplianceLogicIntent(this.deps, ctx);
   }
 }

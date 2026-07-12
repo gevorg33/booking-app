@@ -23,6 +23,8 @@ import {
 } from './ai-business-currency.logic.js';
 import { DashboardService } from '../business/dashboard.service.js';
 import { AnalyticsService } from '../analytics/analytics.service.js';
+import { dispatchBusinessCurrencyLogicIntent } from './ai-business-currency-dispatch.util.js';
+import type { BusinessCurrencyDispatchContext } from './ai-business-currency-dispatch.build.js';
 
 @Injectable()
 export class AiBusinessCurrencyService {
@@ -133,5 +135,12 @@ export class AiBusinessCurrencyService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-currency intent. */
+  dispatchIntent(
+    ctx: BusinessCurrencyDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchBusinessCurrencyLogicIntent(this.deps, ctx);
   }
 }

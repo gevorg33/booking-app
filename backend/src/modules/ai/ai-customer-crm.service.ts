@@ -61,6 +61,8 @@ import {
   handleUpdateMyLocaleLogic,
 } from './ai-my-locale.logic.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import { dispatchCustomerCrmLogicIntent } from './ai-customer-crm-dispatch.util.js';
+import type { CustomerCrmDispatchContext } from './ai-customer-crm-dispatch.build.js';
 
 @Injectable()
 export class AiCustomerCrmService {
@@ -453,5 +455,12 @@ export class AiCustomerCrmService {
       resolveCustomer,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a customer-crm intent. */
+  dispatchIntent(
+    ctx: CustomerCrmDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchCustomerCrmLogicIntent(this.deps, ctx);
   }
 }

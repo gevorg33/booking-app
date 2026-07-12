@@ -27,6 +27,8 @@ import {
   handleUploadPatientResultLogic,
   type ClinicTestResultExtLogicDeps,
 } from './ai-clinic-test-result-ext.logic.js';
+import { dispatchClinicTestResultIntent } from './ai-clinic-test-result-dispatch.util.js';
+import type { ClinicTestResultDispatchContext } from './ai-clinic-test-result-dispatch.build.js';
 
 @Injectable()
 export class AiClinicTestResultService {
@@ -173,5 +175,12 @@ export class AiClinicTestResultService {
       userId,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-test-result intent. */
+  dispatchIntent(
+    ctx: ClinicTestResultDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicTestResultIntent(this, ctx);
   }
 }

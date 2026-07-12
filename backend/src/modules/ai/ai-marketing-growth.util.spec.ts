@@ -208,7 +208,38 @@ describe('ai-marketing-growth.util', () => {
         businessSlug: 'salon',
       });
       expect(switchGuide.deepLink).toBe('https://app.test/book/salon');
+      expect(switchGuide.customSchemeUrl).toBeNull();
       expect(switchGuide.steps.length).toBe(3);
+
+      const switchGuideWithView = buildConsumerAppSwitchGuidance({
+        frontendUrl: 'https://app.test',
+        businessSlug: 'salon',
+        view: {
+          slug: 'salon',
+          landingUrl:
+            'https://app.test/get-app/salon?src=qr&utm_campaign=venue_qr',
+          qrDataUrl: 'data:image/png;base64,abc',
+          customSchemeUrl: 'optischedule://book/salon',
+          generatedAt: '2026-06-01T00:00:00.000Z',
+        },
+      });
+      expect(switchGuideWithView.deepLink).toBe(
+        'https://app.test/get-app/salon?src=qr&utm_campaign=venue_qr',
+      );
+      expect(switchGuideWithView.customSchemeUrl).toBe(
+        'optischedule://book/salon',
+      );
+      expect(switchGuideWithView.summary).toContain(
+        'https://app.test/get-app/salon?src=qr&utm_campaign=venue_qr',
+      );
+      expect(switchGuideWithView.summary).toContain(
+        "salon's Growth QR",
+      );
+      expect(
+        switchGuideWithView.steps.some((step) =>
+          step.includes('optischedule://book/salon'),
+        ),
+      ).toBe(true);
     });
   });
 

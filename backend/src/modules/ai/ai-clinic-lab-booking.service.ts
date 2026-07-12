@@ -15,6 +15,8 @@ import {
   handleStaffBookLabCollectionLogic,
   type ClinicLabBookingLogicDeps,
 } from './ai-clinic-lab-booking.logic.js';
+import { dispatchClinicLabBookingLogicIntent } from './ai-clinic-lab-booking-dispatch.util.js';
+import type { ClinicLabBookingDispatchContext } from './ai-clinic-lab-booking-dispatch.build.js';
 
 @Injectable()
 export class AiClinicLabBookingService {
@@ -108,5 +110,12 @@ export class AiClinicLabBookingService {
       userId,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-lab-booking intent. */
+  dispatchIntent(
+    ctx: ClinicLabBookingDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicLabBookingLogicIntent(this.deps, ctx);
   }
 }

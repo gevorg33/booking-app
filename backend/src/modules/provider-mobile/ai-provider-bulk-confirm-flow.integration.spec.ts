@@ -143,6 +143,25 @@ describe('provider AI bulk-booking confirm→execute flow (ai-cmd-provider-6.4.2
     expect(bookingService.update).toHaveBeenCalledTimes(2);
   });
 
+  it('mark_visit_complete (ai-cmd-provider-5.2.7): forces status=completed and relabels the result action', async () => {
+    bookingRepo.find.mockResolvedValue([bookingRow('bk-solo')]);
+    mockIntent('mark_visit_complete', { date: '2026-08-01' });
+
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Mark done',
+      [],
+    );
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('mark_visit_complete');
+    expect(bookingService.update).toHaveBeenCalledWith(
+      'bk-solo',
+      { status: BookingStatus.COMPLETED },
+      userId,
+    );
+  });
+
   it('payment_sweep ("mark all today paid"): asks for confirmation first, then executes once confirmed', async () => {
     resolveMobileAccess.mockResolvedValue(ownerAccess);
     mockIntent('payment_sweep', { date: '2026-08-01' });

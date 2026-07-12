@@ -17,6 +17,8 @@ import {
   rescueDashboardTimeOffIntent,
   rescueProviderTimeOffIntent,
 } from './ai-provider-time-off.util.js';
+import { dispatchProviderTimeOffIntent } from './ai-provider-time-off-dispatch.util.js';
+import type { ProviderTimeOffDispatchContext } from './ai-provider-time-off-dispatch.build.js';
 
 @Injectable()
 export class AiProviderTimeOffService {
@@ -106,5 +108,12 @@ export class AiProviderTimeOffService {
       default:
         return null;
     }
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a dashboard-surface time-off intent. */
+  dispatchIntent(
+    ctx: ProviderTimeOffDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchProviderTimeOffIntent(this, ctx);
   }
 }

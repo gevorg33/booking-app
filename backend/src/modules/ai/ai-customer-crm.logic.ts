@@ -49,7 +49,7 @@ export interface CustomerCrmLogicDeps
   businessRepo: Repository<Business>;
   publicCustomerAuthService: Pick<
     PublicCustomerAuthService,
-    'getPreferredLocale' | 'updatePreferredLocale'
+    'getPreferredLocale' | 'updatePreferredLocale' | 'updateMyProfile'
   >;
 }
 

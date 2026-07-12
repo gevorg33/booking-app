@@ -16,8 +16,10 @@ import {
   isPayoutExportPrompt,
   isSuggestRetailUpsellPrompt,
   isAddRetailToMyBookingPrompt,
+  isSearchRetailSkuPrompt,
   isSetRetailSalesLinesPrompt,
   extractProductNameFromPrompt,
+  extractRetailSearchQuery,
   extractSkuFromPrompt,
   extractRetailPriceFromPrompt,
   extractQuantityFromPrompt,
@@ -79,6 +81,28 @@ describe('ai-retail-finance.util', () => {
       expect(isAddRetailToMyBookingPrompt('Add shampoo to my booking')).toBe(
         true,
       );
+    });
+
+    it('detects search_retail_sku prompts (ai-cmd-provider-5.4.5)', () => {
+      expect(isSearchRetailSkuPrompt('Find SKU 12345')).toBe(true);
+      expect(isSearchRetailSkuPrompt('Do we carry bond builder?')).toBe(true);
+      expect(isSearchRetailSkuPrompt('Do we have olaplex in stock?')).toBe(
+        true,
+      );
+      expect(isSearchRetailSkuPrompt('Search inventory for hair serum')).toBe(
+        true,
+      );
+      expect(extractRetailSearchQuery('Find SKU 12345')).toBe('12345');
+      expect(extractRetailSearchQuery('Do we carry bond builder?')).toBe(
+        'bond builder',
+      );
+    });
+
+    it('does not let search_retail_sku steal integration/settings queries', () => {
+      expect(isSearchRetailSkuPrompt('Do we have API keys set up?')).toBe(
+        false,
+      );
+      expect(isSearchRetailSkuPrompt('Are webhooks configured?')).toBe(false);
     });
   });
 
@@ -292,7 +316,7 @@ describe('ai-retail-finance.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(RETAIL_FINANCE_INTENTS.length).toBe(24);
+      expect(RETAIL_FINANCE_INTENTS.length).toBe(25);
       expect(isRetailFinanceIntent('list_products')).toBe(true);
       expect(isRetailFinanceIntent('not_real')).toBe(false);
       expect(decomposeRetailFinanceCompoundPrompt('')).toEqual([]);

@@ -30,11 +30,16 @@ export function resolveProviderTabId(pathname: string): ProviderTabId {
   return 'today';
 }
 
-/** AI quick-chip route (ai-m3 / ai-m6). */
+/** AI quick-chip route (ai-m3 / ai-m6 / ai-cmd-provider-5.15.4). */
 export function providerRouteFromPath(pathname: string): ProviderMobileRoute {
   const tab = resolveProviderTabId(pathname);
-  if (tab === 'calendar' || tab === 'schedule') return 'schedule';
+  if (tab === 'calendar') return 'calendar';
+  if (tab === 'schedule') return 'schedule';
   if (tab === 'profile') return 'profile';
   if (tab === 'gift-cards') return 'gift-cards';
+  if (tab === 'lab-collection') return 'lab-collection';
+  if (tab === 'lab-results') return 'lab-results';
+  if (tab === 'clinic-tasks') return 'clinic-tasks';
+  if (tab === 'patients') return 'patients';
   return 'today';
 }

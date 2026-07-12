@@ -51,6 +51,7 @@ export function isOpenBillingSettingsPrompt(prompt: string): boolean {
   if (isSuggestUpgradePrompt(prompt) || isToggleAnnualBillingPrompt(prompt)) {
     return false;
   }
+  if (/(?:собери|сбор|зачист|հավաքիր|ավլիր)/iu.test(prompt)) return false;
 
   if (
     matchLocale(

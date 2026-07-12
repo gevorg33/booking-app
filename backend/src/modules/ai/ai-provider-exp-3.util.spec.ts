@@ -7,6 +7,7 @@ import {
   isAddRetailToBookingPrompt,
   isBlockMyTimePrompt,
   isProviderExp3Intent,
+  isRemoveRetailFromBookingPrompt,
   isSendClientMessagePrompt,
   isSetRetailSalesLinesPrompt,
   PROVIDER_EXP_3_INTENTS,
@@ -21,6 +22,10 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       'block_my_time',
       'request_time_off',
       'set_retail_sales_lines',
+      'remove_retail_from_booking',
+      'explain_message_templates',
+      'notify_client_ready',
+      'extend_my_block',
     ]);
   });
 
@@ -58,6 +63,29 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       false,
     );
     expect(isSetRetailSalesLinesPrompt('Set retail cart to')).toBe(false);
+  });
+
+  it('detects remove_retail_from_booking prompts (ai-cmd-provider-5.4.4)', () => {
+    expect(isRemoveRetailFromBookingPrompt('Remove the serum from cart')).toBe(
+      true,
+    );
+    expect(isRemoveRetailFromBookingPrompt('Undo product add')).toBe(true);
+    expect(
+      isRemoveRetailFromBookingPrompt('Remove shampoo from this booking'),
+    ).toBe(true);
+    expect(
+      rescueProviderExp3Intent('Remove the serum from cart', 'unknown')
+        ?.action,
+    ).toBe('remove_retail_from_booking');
+  });
+
+  it('does not let remove_retail_from_booking steal the dashboard remove_retail_line intent', () => {
+    expect(
+      isRemoveRetailFromBookingPrompt('Remove retail line from booking b1'),
+    ).toBe(false);
+    expect(isRemoveRetailFromBookingPrompt('Add shampoo to this booking')).toBe(
+      false,
+    );
   });
 
   it('extracts helpers', () => {

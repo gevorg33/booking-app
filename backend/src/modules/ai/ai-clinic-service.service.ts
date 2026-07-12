@@ -12,6 +12,8 @@ import {
   type ClinicPlaybookLogicDeps,
   type ClinicServiceLogicDeps,
 } from './ai-clinic-service.logic.js';
+import { dispatchClinicServiceIntent } from './ai-clinic-service-dispatch.util.js';
+import type { ClinicServiceDispatchContext } from './ai-clinic-service-dispatch.build.js';
 
 @Injectable()
 export class AiClinicServiceService {
@@ -66,5 +68,12 @@ export class AiClinicServiceService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-service intent. */
+  dispatchIntent(
+    ctx: ClinicServiceDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicServiceIntent(this, ctx);
   }
 }

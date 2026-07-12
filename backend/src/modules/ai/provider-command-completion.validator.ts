@@ -48,6 +48,7 @@ const PROVIDER_VALIDATED_ACTIONS = new Set([
   'block_my_time',
   'request_time_off',
   'set_retail_sales_lines',
+  'remove_retail_from_booking',
   ...PROVIDER_PRODUCT_GUIDE_INTENTS,
   ...PROVIDER_META_GUIDE_INTENTS,
   ...PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
@@ -330,6 +331,18 @@ const PROVIDER_ACTION_RULES: Record<
             label: 'Product',
             message: 'Name the product and booking',
             example: 'Add shampoo to Jane booking',
+          },
+        ],
+
+  remove_retail_from_booking: (params) =>
+    params.bookingId || params.customerName || params.productName
+      ? []
+      : [
+          {
+            field: 'productName',
+            label: 'Product',
+            message: 'Name the product and booking to remove it from',
+            example: 'Remove shampoo from Jane booking',
           },
         ],
 

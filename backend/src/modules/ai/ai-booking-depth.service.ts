@@ -32,6 +32,8 @@ import {
   type MarkPaidResolveContext,
 } from './ai-booking-depth.logic.js';
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
+import { dispatchBookingDepthIntent } from './ai-booking-depth-dispatch.util.js';
+import type { BookingDepthDispatchContext } from './ai-booking-depth-dispatch.build.js';
 
 @Injectable()
 export class AiBookingDepthService {
@@ -265,5 +267,12 @@ export class AiBookingDepthService {
       resolvePackage,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a booking-depth intent. */
+  dispatchIntent(
+    ctx: BookingDepthDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchBookingDepthIntent(this, ctx);
   }
 }

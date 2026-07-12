@@ -24,6 +24,7 @@ import { PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-
 import { PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES } from './ai-provider-voice-next-client.util.js';
 import { PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES } from './ai-explain-provider-context.fixtures.js';
 import { PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES } from './ai-provider-schedule-reads.fixtures.js';
+import { PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES } from './ai-provider-open-booking-detail.fixtures.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
 export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: same outcome as tapping Confirm on a new-booking push — requires bookingId (from lastPush or prompt). Triggers: "confirm this booking from the push", "confirm appointment from notification". NOT update_bookings unless user names status explicitly without push context.
@@ -63,4 +64,5 @@ ${PROVIDER_META_GUIDE_CLASSIFIER_RULES}
 ${PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
 ${PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES}
 ${PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES}
-${PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES}`;
+${PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES}
+${PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES}`;

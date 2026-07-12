@@ -26,7 +26,10 @@ import {
   buildBookingCalendarEventInput,
   buildIcsEventContent,
 } from '../../common/utils/booking-calendar.util.js';
-import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
+import {
+  PublicCustomerRescheduleBookingDto,
+  PublicCustomerBulkCancelBookingsDto,
+} from './dto/public-customer-booking.dto.js';
 import { PublicCustomerReschedulePackageVisitDto } from './dto/public-customer-package-visit.dto.js';
 import type {
   PublicCustomerBookingItem,
@@ -74,6 +77,23 @@ export interface PublicBookingManageContext {
   maxReschedules: number;
   packageVisit?: PublicPackageVisitSummary;
 }
+
+export interface PublicCustomerBulkCancelPreview {
+  requiresConfirmation: true;
+  count: number;
+  bookings: PublicCustomerBookingItem[];
+}
+
+export interface PublicCustomerBulkCancelOutcome {
+  requiresConfirmation: false;
+  cancelled: number;
+  failed: number;
+  results: Array<{ bookingId: string; success: boolean; reason?: string }>;
+}
+
+export type PublicCustomerBulkCancelResult =
+  | PublicCustomerBulkCancelPreview
+  | PublicCustomerBulkCancelOutcome;
 
 @Injectable()
 export class PublicCustomerBookingService {
@@ -137,6 +157,71 @@ export class PublicCustomerBookingService {
     bookingId: string,
   ): Promise<{ booking: Booking }> {
     return this.cancelBookingInternal(slug, bookingId, { customerId });
+  }
+
+  /**
+   * Two-step bulk cancel: without `confirm: true` this only previews the
+   * customer's upcoming confirmed bookings (no mutation); with `confirm: true`
+   * it cancels each one, reusing the same per-booking policy/notification
+   * path as a single cancel, and collects per-booking success/failure rather
+   * than failing the whole batch on one item.
+   */
+  async bulkCancelUpcomingBookings(
+    slug: string,
+    customerId: string,
+    dto: PublicCustomerBulkCancelBookingsDto,
+  ): Promise<PublicCustomerBulkCancelResult> {
+    const business = await this.resolveBusiness(slug);
+    const settings = resolveCustomerSelfServiceSettings(business.settings);
+
+    const now = new Date();
+    let candidates = (
+      await this.bookingRepo.find({
+        where: {
+          businessId: business.id,
+          customerId,
+          status: BookingStatus.CONFIRMED,
+        },
+        relations: { employee: true, service: true },
+        order: { startTime: 'ASC' },
+      })
+    ).filter((booking) => booking.startTime >= now);
+
+    if (dto.bookingIds?.length) {
+      const requested = new Set(dto.bookingIds);
+      candidates = candidates.filter((booking) => requested.has(booking.id));
+    }
+
+    if (!dto.confirm) {
+      return {
+        requiresConfirmation: true,
+        count: candidates.length,
+        bookings: candidates.map((booking) =>
+          this.enrichBookingItem(booking, settings, new Set()),
+        ),
+      };
+    }
+
+    const results: PublicCustomerBulkCancelOutcome['results'] = [];
+    for (const booking of candidates) {
+      try {
+        await this.cancelBooking(slug, customerId, booking.id);
+        results.push({ bookingId: booking.id, success: true });
+      } catch (err: any) {
+        results.push({
+          bookingId: booking.id,
+          success: false,
+          reason: err?.message ?? 'Could not cancel this booking',
+        });
+      }
+    }
+
+    return {
+      requiresConfirmation: false,
+      cancelled: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
+    };
   }
 
   async cancelBookingWithToken(

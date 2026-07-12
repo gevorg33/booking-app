@@ -102,8 +102,8 @@ describe('ai provider client context locale parity (acc-2.4)', () => {
       ),
     ];
 
-    expect(hyCases.length).toBe(34);
-    expect(ruCases.length).toBe(34);
+    expect(hyCases.length).toBe(120);
+    expect(ruCases.length).toBe(120);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(

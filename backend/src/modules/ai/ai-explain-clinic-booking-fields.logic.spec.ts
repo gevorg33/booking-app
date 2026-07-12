@@ -20,6 +20,7 @@ describe('ai-explain-clinic-booking-fields.logic (ai-cmd-customer-4.7.4)', () =>
         getCustomerFlow: jest.fn(),
         startCustomerIntake: jest.fn(),
         submitCustomerAnswers: jest.fn(),
+        getCheckoutConfig: jest.fn(),
       },
     };
   }

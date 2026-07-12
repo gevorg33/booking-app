@@ -26,6 +26,7 @@ import {
   extractProductNameFromPrompt,
   extractQuantityFromPrompt,
   extractRetailPriceFromPrompt,
+  extractRetailSearchQuery,
   extractServiceNameFromPrompt,
   extractSkuFromPrompt,
   parseFirstProduct,
@@ -761,6 +762,49 @@ export async function handleRemoveRetailLineLogic(
   }
 }
 
+/** ai-cmd-provider-5.4.4 — provider mobile: remove one retail line from own booking. */
+export async function handleRemoveRetailFromMyBookingLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  userId?: string,
+  prompt?: string,
+): Promise<CommandResult> {
+  const booking =
+    (await resolveBooking(deps, businessId, params, prompt)) ??
+    (await resolveProviderBooking(deps, businessId, params));
+  if (!booking) {
+    return failure(
+      'remove_retail_from_booking',
+      'Specify booking (id, customer, or your active appointment).',
+      { clarify: true, missing: ['bookingId'] },
+    );
+  }
+
+  const employeeId =
+    (params.sessionEmployeeId as string | undefined) ??
+    (params.employeeId as string | undefined);
+  if (employeeId && booking.employeeId !== employeeId) {
+    return failure(
+      'remove_retail_from_booking',
+      'That booking is not assigned to you.',
+      { bookingId: booking.id },
+    );
+  }
+
+  return handleRemoveRetailLineLogic(
+    deps,
+    businessId,
+    {
+      ...params,
+      bookingId: booking.id,
+      _prompt: prompt ?? (params._prompt as string),
+    },
+    userId,
+    prompt,
+  );
+}
+
 export async function handleRecordExpenseLogic(
   deps: RetailFinanceLogicDeps,
   businessId: string,
@@ -1282,6 +1326,43 @@ export async function handleSuggestRetailUpsellLogic(
       bookingId: booking?.id,
       serviceId: booking?.serviceId,
     },
+  );
+}
+
+/** ai-cmd-provider-5.4.5 — navigate/search sellable retail products by name or SKU. */
+export async function handleSearchRetailSkuLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const query =
+    (params.query as string | undefined) ??
+    (params.productName as string | undefined) ??
+    extractRetailSearchQuery(prompt ?? (params._prompt as string) ?? '');
+
+  if (!query) {
+    return failure(
+      'search_retail_sku',
+      'Specify a product name or SKU to search for.',
+      { clarify: true, missing: ['query'] },
+    );
+  }
+
+  const sellable = await deps.retailPosService.listSellableProducts(businessId);
+  const needle = query.toLowerCase();
+  const matches = sellable.filter(
+    (p) =>
+      p.name.toLowerCase().includes(needle) ||
+      (p.sku != null && p.sku.toLowerCase() === needle),
+  );
+
+  return success(
+    'search_retail_sku',
+    matches.length
+      ? `Found ${matches.length} product(s) matching "${query}".`
+      : `No sellable products match "${query}".`,
+    { query, matches },
   );
 }
 

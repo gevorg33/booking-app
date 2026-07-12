@@ -22,6 +22,8 @@ import {
   type TourPlaybookLogicDeps,
   type TourServiceLogicDeps,
 } from './ai-tour-service.logic.js';
+import { dispatchTourServiceIntent } from './ai-tour-service-dispatch.util.js';
+import type { TourServiceDispatchContext } from './ai-tour-service-dispatch.build.js';
 
 @Injectable()
 export class AiTourServiceService {
@@ -188,5 +190,12 @@ export class AiTourServiceService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a tour-service intent. */
+  dispatchIntent(
+    ctx: TourServiceDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchTourServiceIntent(this, ctx);
   }
 }

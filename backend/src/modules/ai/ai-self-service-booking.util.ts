@@ -84,6 +84,7 @@ export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
   'select_subscription_plan',
   'use_subscription_credit',
   'cancel_my_booking',
+  'cancel_all_upcoming_bookings',
   'reschedule_my_booking',
   'notify_running_late',
   'leave_visit_review',
@@ -117,6 +118,7 @@ export const SELF_SERVICE_BOOKING_READ_INTENTS = [
   'recover_lost_manage_link',
   'sign_in_to_manage_booking',
   'explain_manage_booking_page',
+  'explain_manage_booking_context',
   'check_waitlist_status',
   'explain_cancel_policy',
   'explain_deposit_forfeiture',
@@ -419,6 +421,23 @@ export function isCancelMyBookingPrompt(prompt: string): boolean {
   if (shouldDeferToCancelAndRebookCompound(prompt)) return false;
   if (isCancelPackageVisitSelfPrompt(prompt)) return false;
   return hasCancelMyBookingCoreCue(prompt);
+}
+
+export function isCancelAllUpcomingBookingsPrompt(prompt: string): boolean {
+  if (isCancelPackageVisitSelfPrompt(prompt)) return false;
+  return (
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(all|every)\b/i.test(prompt) &&
+      /\b(bookings?|appointments?|upcoming|visits?|reservations?)\b/i.test(
+        prompt,
+      )) ||
+    (/(չեղարկ|չեղարկել)/i.test(prompt) &&
+      /(բոլոր|ամեն)/i.test(prompt) &&
+      /(ամրագր|այց|հանդիպ)/i.test(prompt)) ||
+    (/(отмен|отменить|отмени)/i.test(prompt) &&
+      /(все|всех|каждую|каждый)/i.test(prompt) &&
+      /(запис|визит|бронирован)/i.test(prompt))
+  );
 }
 
 export function isRescheduleMyBookingPrompt(prompt: string): boolean {
@@ -1266,6 +1285,12 @@ export function rescueSelfServiceBookingIntent(
   if (isJoinWaitlistPrompt(prompt)) {
     return { action: 'join_waitlist', rescueReason: 'join_waitlist' };
   }
+  if (isCancelAllUpcomingBookingsPrompt(prompt)) {
+    return {
+      action: 'cancel_all_upcoming_bookings',
+      rescueReason: 'cancel_all_upcoming_bookings',
+    };
+  }
   if (isCancelMyBookingPrompt(prompt)) {
     return { action: 'cancel_my_booking', rescueReason: 'cancel_my' };
   }
@@ -1391,6 +1416,13 @@ function classifyCustomerBookingSegment(
   }
   if (isRescheduleMyBookingPrompt(text)) {
     return { action: 'reschedule_my_booking', params: base, segment: text };
+  }
+  if (isCancelAllUpcomingBookingsPrompt(text)) {
+    return {
+      action: 'cancel_all_upcoming_bookings',
+      params: base,
+      segment: text,
+    };
   }
   if (isCancelMyBookingPrompt(text)) {
     return { action: 'cancel_my_booking', params: base, segment: text };

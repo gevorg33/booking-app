@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { CommandResult } from './command-completion.types.js';
 import { OnboardingService } from '../onboarding/onboarding.service.js';
 import {
   rescueOnboardingIntent,
@@ -22,6 +23,8 @@ import {
   handleCompleteOnboardingLogic,
   type OnboardingLogicDeps,
 } from './ai-onboarding.logic.js';
+import { dispatchOnboardingLogicIntent } from './ai-onboarding-dispatch.util.js';
+import type { OnboardingDispatchContext } from './ai-onboarding-dispatch.build.js';
 
 @Injectable()
 export class AiOnboardingService {
@@ -100,5 +103,10 @@ export class AiOnboardingService {
 
   handleCompleteOnboarding(businessId: string) {
     return handleCompleteOnboardingLogic(this.deps, businessId);
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an onboarding intent. */
+  dispatchIntent(ctx: OnboardingDispatchContext): Promise<CommandResult | null> {
+    return dispatchOnboardingLogicIntent(this.deps, ctx);
   }
 }

@@ -12,6 +12,8 @@ import {
   handleUpdateTestTypeLogic,
   type ClinicTestCatalogLogicDeps,
 } from './ai-clinic-test-catalog.logic.js';
+import { dispatchClinicTestCatalogLogicIntent } from './ai-clinic-test-catalog-dispatch.util.js';
+import type { ClinicTestCatalogDispatchContext } from './ai-clinic-test-catalog-dispatch.build.js';
 
 @Injectable()
 export class AiClinicTestCatalogService {
@@ -83,5 +85,12 @@ export class AiClinicTestCatalogService {
       userId,
       params,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-test-catalog intent. */
+  dispatchIntent(
+    ctx: ClinicTestCatalogDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicTestCatalogLogicIntent(this.deps, ctx);
   }
 }

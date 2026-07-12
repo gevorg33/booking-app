@@ -17,14 +17,15 @@ import {
 import { AI_COMMAND_EVAL_DETERMINISTIC_CASES } from './eval/ai-command-eval.cases.js';
 
 describe('ai-customer-intent-promotion.util (ai-cmd-customer-4.0.1)', () => {
-  it('defines shipped promotion queue with P0 before P1/P2/P3', () => {
+  it('defines shipped promotion queue with P0 before P1/P2/P3/P4', () => {
     const tiers = CUSTOMER_INTENT_PROMOTION_QUEUE.map((group) => group.tier);
     expect(tiers.indexOf('P0')).toBeLessThan(tiers.indexOf('P1'));
     expect(tiers.indexOf('P1')).toBeLessThan(tiers.indexOf('P2'));
     expect(tiers.indexOf('P2')).toBeLessThan(tiers.indexOf('P3'));
+    expect(tiers.indexOf('P3')).toBeLessThan(tiers.indexOf('P4'));
   });
 
-  it('lists every shipped 4.0 promotion intent exactly once', () => {
+  it('lists every shipped 4.0+ promotion intent exactly once', () => {
     const flattened = flattenCustomerIntentPromotionIntents();
     expect(flattened).toEqual([
       'cancel_my_booking',
@@ -51,6 +52,25 @@ describe('ai-customer-intent-promotion.util (ai-cmd-customer-4.0.1)', () => {
       'explain_checkout_recommendations',
       'refer_a_friend',
       'share_salon_link',
+      'select_subscription_plan',
+      'discover_subscription_plans',
+      'change_provider_on_reschedule',
+      'manage_notification_preferences',
+      'explain_my_notifications',
+      'explain_data_rights',
+      'explain_loyalty_points',
+      'share_my_booking',
+      'explain_share_reward',
+      'subscription_usage',
+      'request_gift_card_modify',
+      'list_my_test_results',
+      'explain_result_status',
+      'list_my_lab_booking_requests',
+      'book_lab_collection',
+      'explain_patient_alert',
+      'explain_app_update_required',
+      'cancel_all_upcoming_bookings',
+      'update_my_profile',
     ]);
     expect(listCustomerIntentPromotionRegistryGaps()).toEqual([]);
   });
@@ -91,8 +111,8 @@ describe('ai-customer-intent-promotion.util (ai-cmd-customer-4.0.1)', () => {
     expect(listCustomerIntentPromotionRegistryGaps()).toEqual([]);
 
     const summary = summarizeCustomerIntentPromotionAudit(rows);
-    expect(summary.total).toBe(24);
-    expect(summary.required).toBe(24);
+    expect(summary.total).toBe(43);
+    expect(summary.required).toBe(43);
     expect(summary.deferred).toBe(0);
     expect(summary.readyForRequiredPromotion).toBe(0);
     expect(summary.p0Deferred).toBe(0);

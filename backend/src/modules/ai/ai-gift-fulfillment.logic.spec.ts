@@ -1,4 +1,5 @@
 import {
+  handleExplainGiftCardOrderDetailsLogic,
   handleListGiftCardOrdersLogic,
   handleFilterAwaitingCreationLogic,
   handleAssignCardCreatorLogic,
@@ -398,6 +399,38 @@ describe('ai-gift-fulfillment.logic', () => {
     expect(
       (await handleDeliveryQueueLogic(emptyQueue, 'biz-1')).summary,
     ).toContain('empty');
+  });
+
+  it('explains a gift card order detail (ai-cmd-provider-5.20.5)', async () => {
+    const deps = buildDeps({
+      fulfillmentService: {
+        getDashboardOrder: jest.fn(async () => ({
+          ...physicalCard,
+          cardType: 'service',
+          purchaseAmount: 100,
+          balance: 100,
+          currency: 'USD',
+        })),
+      } as any,
+    });
+
+    const result = await handleExplainGiftCardOrderDetailsLogic(deps, 'biz-1', {
+      giftCardId: 'gc-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_gift_card_order_details');
+    expect(result.summary).toContain('service gift card');
+    expect(result.summary).toContain('Jane');
+    expect(result.details?.cardType).toBe('service');
+
+    const clarify = await handleExplainGiftCardOrderDetailsLogic(
+      deps,
+      'biz-1',
+      {},
+    );
+    expect(clarify.success).toBe(false);
+    expect(clarify.details?.clarify).toBe(true);
   });
 
   it('handles card preparation and ready states', async () => {

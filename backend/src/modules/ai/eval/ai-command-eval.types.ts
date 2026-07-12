@@ -32,6 +32,8 @@ export interface AiCommandEvalExpectation {
   useSurfaceSelfServiceRescue?: boolean;
   /** When true, eval uses customer membership/subscription rescue (use_subscription_credit + my_subscriptions). */
   useSurfaceMembershipCustomerRescue?: boolean;
+  /** When true, eval uses customer CRM rescue directly (subscription_usage raw usage ledger). */
+  useSurfaceCustomerCrmRescue?: boolean;
   /** When true, eval uses customer GDPR self-service rescue (privacy_export + privacy_delete). */
   useSurfacePrivacyGdprCustomerRescue?: boolean;
   /** When true, eval uses customer gift card cancel-request rescue (request_gift_card_cancel). */

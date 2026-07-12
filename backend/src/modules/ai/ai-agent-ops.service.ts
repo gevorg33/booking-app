@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { CommandResult } from './command-completion.types.js';
 import { AgentOrchestratorService } from '../../engine/agent/agent-orchestrator.service.js';
 import { AgentTaskUndoService } from '../../engine/agent/agent-task-undo.service.js';
 import {
@@ -15,6 +16,8 @@ import {
   handleUndoLatestAgentTaskLogic,
   type AgentOpsLogicDeps,
 } from './ai-agent-ops.logic.js';
+import { dispatchAgentOpsLogicIntent } from './ai-agent-ops-dispatch.util.js';
+import type { AgentOpsDispatchContext } from './ai-agent-ops-dispatch.build.js';
 
 @Injectable()
 export class AiAgentOpsService {
@@ -87,5 +90,10 @@ export class AiAgentOpsService {
     userId: string,
   ) {
     return handleRetryAgentStepLogic(this.deps, businessId, params, userId);
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an agent-ops intent. */
+  dispatchIntent(ctx: AgentOpsDispatchContext): Promise<CommandResult | null> {
+    return dispatchAgentOpsLogicIntent(this.deps, ctx);
   }
 }

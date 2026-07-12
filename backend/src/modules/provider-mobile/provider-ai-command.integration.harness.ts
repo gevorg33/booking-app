@@ -18,6 +18,9 @@ export type ProviderAiCommandHarnessOverrides = {
   providerOpenShifts?: Record<string, unknown>;
   providerExp3?: Record<string, unknown>;
   providerClinicTasksAndResults?: Record<string, unknown>;
+  clinicPatientChart?: Record<string, unknown>;
+  providerClinicCollection?: Record<string, unknown>;
+  clinicLabBooking?: Record<string, unknown>;
   giftFulfillment?: Record<string, unknown>;
   retailFinance?: Record<string, unknown>;
   scheduleResources?: Record<string, unknown>;
@@ -240,8 +243,16 @@ export function createProviderAiCommandHarness(
       rescueProviderBookingIntent: jest.fn(() => null),
       ...overrides.providerBooking,
     } as any,
-    {} as any,
-    {} as any,
+    {
+      handleListMyCollectionQueue: jest.fn(noopAsync),
+      handleMarkSpecimenCollected: jest.fn(noopAsync),
+      ...overrides.providerClinicCollection,
+    } as any,
+    {
+      handleListPatientPendingLabRequests: jest.fn(noopAsync),
+      handlePushLabBookingToPatient: jest.fn(noopAsync),
+      ...overrides.clinicLabBooking,
+    } as any,
     { handleExplainProviderPaymentCurrency: jest.fn() } as any,
     {
       handleExplainProviderDateDisplay: jest.fn(),
@@ -285,10 +296,15 @@ export function createProviderAiCommandHarness(
     {
       rescueProviderClinicTasksAndResultsIntent: jest.fn(() => null),
       handleListLabResultsQueue: jest.fn(noopAsync),
+      handleListClinicTasks: jest.fn(noopAsync),
       handleClaimClinicTask: jest.fn(noopAsync),
       handleCompleteClinicTask: jest.fn(noopAsync),
       handleListBookingLabSummaries: jest.fn(noopAsync),
       ...overrides.providerClinicTasksAndResults,
+    } as any,
+    {
+      handleExplainPatientChart: jest.fn(noopAsync),
+      ...overrides.clinicPatientChart,
     } as any,
     {
       rescueFulfillmentIntent: jest.fn(() => null),
@@ -297,6 +313,7 @@ export function createProviderAiCommandHarness(
       handleFulfillmentCompound: jest.fn(noopAsync),
       handleGiftCardCreationQueue: jest.fn(noopAsync),
       handleStartCardPreparation: jest.fn(noopAsync),
+      handleExplainGiftCardOrderDetails: jest.fn(noopAsync),
       handleMarkCardReady: jest.fn(noopAsync),
       handleDeliveryQueue: jest.fn(noopAsync),
       handleAcceptDelivery: jest.fn(noopAsync),

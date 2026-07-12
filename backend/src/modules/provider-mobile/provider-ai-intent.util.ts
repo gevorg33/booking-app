@@ -1,6 +1,35 @@
 import { isTeamWhosNextPrompt } from './provider-team-whos-next.util.js';
 import { isSummarizeDayPrompt } from '../ai/ai-provider-summarize-day.util.js';
 import { isSummarizeUtilizationPrompt } from '../ai/ai-provider-summarize-utilization.util.js';
+import { isShowAppointmentsPrompt } from '../ai/ai-provider-show-appointments.util.js';
+import { isWhoIsNextPrompt } from '../ai/ai-provider-who-is-next.util.js';
+import { isExplainTodayTimelinePrompt } from '../ai/ai-provider-explain-today-timeline.util.js';
+import { isEndOfDaySummaryPrompt } from '../ai/ai-provider-end-of-day-summary.util.js';
+import { isMarkVisitCompletePrompt } from '../ai/ai-provider-mark-visit-complete.util.js';
+import { isMarkVisitInProgressPrompt } from '../ai/ai-provider-mark-visit-in-progress.util.js';
+import { isConfirmPendingBookingPrompt } from '../ai/ai-provider-confirm-pending-booking.util.js';
+import { isMarkMultiServiceStepDonePrompt } from '../ai/ai-provider-mark-multi-service-step-done.util.js';
+import { isSearchPatientPrompt } from '../ai/ai-provider-search-patient.util.js';
+import { isShowProviderProfilePrompt } from '../ai/ai-provider-show-profile.util.js';
+import { isHandoffToDashboardPhiPrompt } from '../ai/ai-provider-handoff-to-dashboard-phi.util.js';
+import {
+  isExplainBookingStatusBadgePrompt,
+  isExplainFloorStatusPrompt,
+} from '../ai/ai-provider-visit-status-explainers.util.js';
+import {
+  isExplainBlockVsTimeOffPrompt,
+  isExplainCalendarUtilizationBandsPrompt,
+} from '../ai/ai-provider-calendar-scheduling-explainers.util.js';
+import {
+  isExplainAccessibilitySettingsPrompt,
+  isExplainOfflineSuggestionsPrompt,
+} from '../ai/ai-provider-assistant-ux-explainers.util.js';
+import { isGiveProviderAiFeedbackPrompt } from '../ai/ai-provider-give-ai-feedback.util.js';
+import {
+  isExplainDashboardOnlyActionPrompt,
+  isExplainReassignLimitPrompt,
+  isExplainTimeOffApprovalPrompt,
+} from '../ai/ai-provider-dashboard-handoff.util.js';
 
 /** Heuristic intent rescue for provider mobile commands (Sprint 19). */
 export function rescueProviderAiIntent(prompt: string, action: string): string {
@@ -25,15 +54,70 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'mark_no_shows';
   }
+  if (isMarkVisitCompletePrompt(prompt)) {
+    return 'mark_visit_complete';
+  }
+  if (isMarkVisitInProgressPrompt(prompt)) {
+    return 'mark_visit_in_progress';
+  }
+  if (isMarkMultiServiceStepDonePrompt(prompt)) {
+    return 'mark_multi_service_step_done';
+  }
+  if (isSearchPatientPrompt(prompt)) {
+    return 'search_patient';
+  }
+  if (isShowProviderProfilePrompt(prompt)) {
+    return 'show_provider_profile';
+  }
+  if (isHandoffToDashboardPhiPrompt(prompt)) {
+    return 'handoff_to_dashboard_phi';
+  }
+  if (isConfirmPendingBookingPrompt(prompt)) {
+    return 'confirm_pending_booking';
+  }
+  if (isExplainBookingStatusBadgePrompt(prompt)) {
+    return 'explain_booking_status_badge';
+  }
+  if (isExplainFloorStatusPrompt(prompt)) {
+    return 'explain_floor_status';
+  }
+  if (isExplainCalendarUtilizationBandsPrompt(prompt)) {
+    return 'explain_calendar_utilization_bands';
+  }
+  if (isExplainBlockVsTimeOffPrompt(prompt)) {
+    return 'explain_block_vs_time_off';
+  }
+  if (isExplainOfflineSuggestionsPrompt(prompt)) {
+    return 'explain_offline_suggestions';
+  }
+  if (isExplainAccessibilitySettingsPrompt(prompt)) {
+    return 'explain_accessibility_settings';
+  }
+  if (isGiveProviderAiFeedbackPrompt(prompt)) {
+    return 'give_provider_ai_feedback';
+  }
+  if (isExplainReassignLimitPrompt(prompt)) {
+    return 'explain_reassign_limit';
+  }
+  if (isExplainTimeOffApprovalPrompt(prompt)) {
+    return 'explain_time_off_approval';
+  }
+  if (isExplainDashboardOnlyActionPrompt(prompt)) {
+    return 'explain_dashboard_only_action';
+  }
   if (
     /who'?s\s+next|who\s+is\s+next|next\s+(?:appointment|client|booking)/.test(
       lower,
-    )
+    ) ||
+    isWhoIsNextPrompt(prompt)
   ) {
     return 'show_appointments';
   }
   if (isSummarizeUtilizationPrompt(prompt)) {
     return 'summarize_utilization';
+  }
+  if (isExplainTodayTimelinePrompt(prompt)) {
+    return 'explain_today_timeline';
   }
   if (
     /\b(block\s+my\b|my\s+lunch\b|block\s+my\s+(?:break|lunch|time))\b/.test(
@@ -75,7 +159,8 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   if (
     /show\s+(?:my\s+)?appointments|list\s+(?:my\s+)?appointments|what'?s\s+on\s+(?:my\s+)?schedule/.test(
       lower,
-    )
+    ) ||
+    isShowAppointmentsPrompt(prompt)
   ) {
     return 'show_appointments';
   }
@@ -96,6 +181,9 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'summarize_my_revenue';
   }
+  if (isEndOfDaySummaryPrompt(prompt)) {
+    return 'end_of_day_summary';
+  }
   if (isSummarizeDayPrompt(prompt)) {
     return 'summarize_day';
   }
@@ -113,4 +201,6 @@ export const PROVIDER_MOBILE_READ_ACTIONS = new Set([
   'check_availability',
   'summarize_utilization',
   'suggest_waitlist_for_gap',
+  'explain_today_timeline',
+  'end_of_day_summary',
 ]);

@@ -127,6 +127,7 @@ import {
 } from '../ai-explain-package-visit-rules.util.js';
 import { rescueExplainLoyaltyPointsIntent } from '../ai-explain-loyalty-points.util.js';
 import { rescueExplainMySubscriptionIntent } from '../ai-explain-my-subscription.util.js';
+import { rescueCustomerCrmIntent } from '../ai-customer-crm.util.js';
 import { rescueUpdateMyProfileIntent } from '../ai-update-my-profile.util.js';
 import {
   rescueGetManageLinkIntent,
@@ -580,6 +581,9 @@ export function evaluateDeterministicEvalCase(
     const useSurfaceMembershipCustomerRescue =
       expect.useSurfaceMembershipCustomerRescue === true &&
       evalCase.surface === 'customer';
+    const useSurfaceCustomerCrmRescue =
+      expect.useSurfaceCustomerCrmRescue === true &&
+      evalCase.surface === 'customer';
     const useSurfacePrivacyGdprCustomerRescue =
       expect.useSurfacePrivacyGdprCustomerRescue === true &&
       evalCase.surface === 'customer';
@@ -775,6 +779,9 @@ export function evaluateDeterministicEvalCase(
       : null;
     const membershipCustomerRescued = useSurfaceMembershipCustomerRescue
       ? rescueMembershipCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const customerCrmRescued = useSurfaceCustomerCrmRescue
+      ? rescueCustomerCrmIntent(prompt, misclassifiedAction)
       : null;
     const privacyGdprCustomerRescued = useSurfacePrivacyGdprCustomerRescue
       ? rescuePrivacyGdprCustomerIntent(prompt, misclassifiedAction)
@@ -1259,7 +1266,17 @@ export function evaluateDeterministicEvalCase(
                                     explainMySubscriptionRescued.rescueReason,
                                 }
                               : null
-                            : useSurfaceExplainLoyaltyPointsRescue
+                            : useSurfaceCustomerCrmRescue
+                              ? customerCrmRescued
+                                ? {
+                                    action: customerCrmRescued.action,
+                                    params: {},
+                                    rescued: true,
+                                    rescueReason:
+                                      customerCrmRescued.rescueReason,
+                                  }
+                                : null
+                              : useSurfaceExplainLoyaltyPointsRescue
                               ? explainLoyaltyPointsRescued
                                 ? {
                                     action: explainLoyaltyPointsRescued.action,

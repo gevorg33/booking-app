@@ -37,6 +37,7 @@ describe('PublicCustomerAuthService preferred locale (catalog-notify-1.1)', () =
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
     customerRepo as any,
     {} as any,
     {} as any,

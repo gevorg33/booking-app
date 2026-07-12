@@ -42,6 +42,8 @@ import {
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
 import { BlockScheduleService } from '../schedule/services/block-schedule.service.js';
+import { dispatchScheduleHandlersIntent } from './ai-schedule-handlers-dispatch.util.js';
+import type { ScheduleHandlersDispatchContext } from './ai-schedule-handlers-dispatch.build.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
@@ -1264,6 +1266,97 @@ export class AiScheduleHandlersService {
     };
   }
 
+  /** ai-cmd-dashboard-6.5.4 — GET …/block-schedules read (previously only queried internally by delete_schedule_block). */
+  async handleListScheduleBlocks(
+    businessId: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employeeId = targets.length === 1 ? targets[0].id : undefined;
+    const blocks: any[] = await this.blockScheduleService.list(
+      businessId,
+      employeeId,
+    );
+
+    if (!blocks.length) {
+      return {
+        success: true,
+        action: 'list_schedule_blocks',
+        summary: employeeId
+          ? `${targets[0].name} has no schedule blocks.`
+          : 'No schedule blocks found.',
+        details: { blocks: [] },
+      };
+    }
+
+    const lines = blocks
+      .slice(0, 10)
+      .map(
+        (b) =>
+          `• ${b.employee?.name ?? 'Unassigned'}: ${b.placeholderLabel ?? 'Block'} (${b.startDay}${b.endDay && b.endDay !== b.startDay ? `–${b.endDay}` : ''}, ${b.blockStartTime}-${b.blockEndTime})`,
+      );
+    return {
+      success: true,
+      action: 'list_schedule_blocks',
+      summary: [`${blocks.length} schedule block(s):`, ...lines].join('\n'),
+      details: { blocks },
+    };
+  }
+
+  /** ai-cmd-dashboard-6.5.5 — GET …/provider-calendar read (previously called by zero AI intents). */
+  async handleGetProviderCalendar(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employee = targets[0];
+    if (!employee) {
+      return {
+        success: false,
+        action: 'get_provider_calendar',
+        summary: 'Specify which provider\'s calendar to show.',
+        details: { clarify: true, missing: ['employeeName'] },
+      };
+    }
+
+    const range = resolveDateRange(params, prompt) ?? {
+      start: new Date().toISOString().slice(0, 10),
+      end: new Date().toISOString().slice(0, 10),
+    };
+    const { periods } = await this.scheduleService.getProviderCalendar(
+      businessId,
+      employee.id,
+      range.start,
+      range.end,
+    );
+
+    if (!periods.length) {
+      return {
+        success: true,
+        action: 'get_provider_calendar',
+        summary: `${employee.name} has no scheduled periods from ${range.start} to ${range.end}.`,
+        details: { periods: [], range },
+      };
+    }
+
+    const byType = new Map<string, number>();
+    for (const p of periods as any[]) {
+      byType.set(p.type, (byType.get(p.type) ?? 0) + 1);
+    }
+    const typeSummary = [...byType.entries()]
+      .map(([type, count]) => `${count} ${type}`)
+      .join(', ');
+    return {
+      success: true,
+      action: 'get_provider_calendar',
+      summary: `${employee.name}'s calendar (${range.start} to ${range.end}): ${periods.length} period(s) — ${typeSummary}.`,
+      details: { periods, range },
+    };
+  }
+
   isApplyAndFillPrompt(prompt: string): boolean {
     return (
       /\bapply\b/i.test(prompt) &&
@@ -1331,5 +1424,12 @@ export class AiScheduleHandlersService {
       isActiveOnFriday: set.has(5),
       isActiveOnSaturday: set.has(6),
     };
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a schedule-handlers intent. */
+  dispatchIntent(
+    ctx: ScheduleHandlersDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchScheduleHandlersIntent(this, ctx);
   }
 }

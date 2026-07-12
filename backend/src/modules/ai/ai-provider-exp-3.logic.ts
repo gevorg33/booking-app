@@ -7,6 +7,7 @@ import type { AiProviderTimeOffService } from './ai-provider-time-off.service.js
 import type { CommandResult } from './command-completion.types.js';
 import {
   extractBlockWindowFromPrompt,
+  extractExtendBlockParams,
   extractMessageTemplateHint,
   extractRetailProductName,
   extractSendMessageChannel,
@@ -280,6 +281,135 @@ export async function handleSendClientMessageLogic(
   );
 }
 
+/** ai-cmd-provider-5.5.4 — list configured canned SMS/WhatsApp templates (read-only; editing stays dashboard). */
+export async function handleExplainMessageTemplatesLogic(
+  deps: ProviderExp3LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForExp3(
+    deps,
+    businessId,
+    userId,
+    'explain_message_templates',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  const detail = await deps.providerMobile.getBookingDetail(
+    businessId,
+    userId,
+    resolved.bookingId,
+  );
+  const templates = detail.staffMessageTemplates ?? [];
+
+  if (templates.length === 0) {
+    return success(
+      'explain_message_templates',
+      'No canned message templates are enabled. Ask your manager to turn them on in Settings.',
+      { templates: [] },
+    );
+  }
+
+  const lines = templates.map((t) => `${t.label}: ${t.body}`);
+  return success(
+    'explain_message_templates',
+    `${templates.length} message template(s) available:\n${lines.join('\n')}`,
+    { bookingId: resolved.bookingId, templates },
+  );
+}
+
+/** ai-cmd-provider-5.5.5 — tell the client their chair/turn is ready now (optional configured template, else a default). */
+export async function handleNotifyClientReadyLogic(
+  deps: ProviderExp3LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await resolveBookingForExp3(
+    deps,
+    businessId,
+    userId,
+    'notify_client_ready',
+    params,
+    prompt,
+    context,
+  );
+  if ('error' in resolved) return resolved.error;
+
+  if (!resolved.customerPhone) {
+    return failure(
+      'notify_client_ready',
+      `${resolved.customerName} has no phone number on file. Add it in CRM or call from the booking detail screen.`,
+      { bookingId: resolved.bookingId },
+    );
+  }
+
+  const business = await deps.businessService.findOne(businessId);
+  const settings = (business?.settings ?? {}) as Record<string, unknown>;
+  const notificationSettings = mergeBusinessNotificationSettings(
+    settings.notifications as Record<string, unknown> | undefined,
+  );
+  const providerStatus = deps.notificationsService.getProviderStatus(settings);
+  const channel = extractSendMessageChannel(prompt ?? '', params);
+  if (
+    channel === 'whatsapp' &&
+    (!notificationSettings.whatsappEnabled ||
+      !providerStatus.whatsappConfigured)
+  ) {
+    return failure(
+      'notify_client_ready',
+      'WhatsApp is not configured for this business. Try SMS instead.',
+      { channel },
+    );
+  }
+
+  const templateSettings = readStaffMessageTemplatesSettings(settings);
+  const readyTemplate = listActiveStaffMessageTemplates(templateSettings).find(
+    (t) => /ready|your turn/i.test(t.label) || /ready|your turn/i.test(t.body),
+  );
+
+  const body = readyTemplate
+    ? resolveStaffMessageTemplateBody(readyTemplate.body, {
+        customerName: resolved.customerName,
+        businessName: business?.name,
+        appointmentTime: `${formatDateDisplay(resolved.startTime)} ${formatTimeDisplay(resolved.startTime)}`,
+      })
+    : `Hi ${resolved.customerName}, we're ready for you now!`;
+
+  const link =
+    channel === 'whatsapp'
+      ? buildCustomerWhatsAppLinkWithBody(resolved.customerPhone, body)
+      : buildCustomerSmsLinkWithBody(resolved.customerPhone, body);
+
+  if (!link) {
+    return failure(
+      'notify_client_ready',
+      'Could not build a message link for this client.',
+    );
+  }
+
+  return success(
+    'notify_client_ready',
+    `Open ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to tell ${resolved.customerName} their chair is ready.`,
+    {
+      bookingId: resolved.bookingId,
+      customerName: resolved.customerName,
+      channel,
+      templateId: readyTemplate?.id ?? null,
+      messageBody: body,
+      openLink: link,
+    },
+  );
+}
+
 function resolveBlockMyTimeWindow(
   prompt: string,
   params: Record<string, unknown>,
@@ -381,6 +511,43 @@ export async function handleBlockMyTimeLogic(
   }
 }
 
+/** ai-cmd-provider-5.6.6 — extend/push the end time of the provider's own most-recent block. */
+export async function handleExtendMyBlockLogic(
+  deps: ProviderExp3LogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt: string,
+): Promise<CommandResult> {
+  const extracted = extractExtendBlockParams(prompt);
+  const extendMinutes =
+    typeof params.extendMinutes === 'number'
+      ? params.extendMinutes
+      : extracted.extendMinutes;
+  const newEndTime =
+    (typeof params.newEndTime === 'string' && params.newEndTime) ||
+    extracted.newEndTime;
+
+  try {
+    const block = await deps.providerMobile.extendProviderSelfBlock(
+      businessId,
+      userId,
+      { extendMinutes, newEndTime },
+    );
+    return success(
+      'extend_my_block',
+      `Extended your block to end at ${block.endTime}.`,
+      { block },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Could not extend your block.';
+    return failure('extend_my_block', message);
+  }
+}
+
 export async function handleAddRetailToBookingLogic(
   deps: ProviderExp3LogicDeps,
   businessId: string,
@@ -439,6 +606,37 @@ export async function handleSetRetailSalesLinesLogic(
   };
 }
 
+/** ai-cmd-provider-5.4.4 — thin wrapper over the shared retail-finance remove-line mutation. */
+export async function handleRemoveRetailFromBookingLogic(
+  deps: ProviderExp3LogicDeps,
+  businessId: string,
+  userId: string,
+  employeeId: string | undefined,
+  params: Record<string, unknown>,
+  prompt?: string,
+  context?: Record<string, unknown>,
+): Promise<CommandResult> {
+  const productName = extractRetailProductName(prompt ?? '', params);
+  const mergedParams: Record<string, unknown> = {
+    ...params,
+    ...context,
+    sessionEmployeeId: employeeId,
+  };
+  if (productName) mergedParams.productName = productName;
+
+  const result = await deps.retailFinance.handleRemoveRetailFromMyBooking(
+    businessId,
+    mergedParams as Record<string, any>,
+    userId,
+    prompt,
+  );
+
+  return {
+    ...result,
+    action: 'remove_retail_from_booking',
+  };
+}
+
 export async function dispatchProviderExp3Intent(
   deps: ProviderExp3LogicDeps,
   businessId: string,
@@ -472,6 +670,16 @@ export async function dispatchProviderExp3Intent(
         prompt,
         context,
       );
+    case 'remove_retail_from_booking':
+      return handleRemoveRetailFromBookingLogic(
+        deps,
+        businessId,
+        userId,
+        employeeId,
+        params,
+        prompt,
+        context,
+      );
     case 'send_client_message':
       return handleSendClientMessageLogic(
         deps,
@@ -481,8 +689,34 @@ export async function dispatchProviderExp3Intent(
         prompt,
         context,
       );
+    case 'explain_message_templates':
+      return handleExplainMessageTemplatesLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
+    case 'notify_client_ready':
+      return handleNotifyClientReadyLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
     case 'block_my_time':
       return handleBlockMyTimeLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt ?? '',
+      );
+    case 'extend_my_block':
+      return handleExtendMyBlockLogic(
         deps,
         businessId,
         userId,

@@ -34,6 +34,7 @@ describe('provider-ai-sprint19.util', () => {
     const merged = mergeShowAppointmentsParams("Who's next?", {});
     expect(merged.statusFilter).toBe('upcoming');
     expect(merged.date).toBeTruthy();
+    expect(merged.nextOnly).toBe(true);
     const kept = mergeShowAppointmentsParams("Who's next?", {
       date: '2026-06-01',
     });
@@ -43,6 +44,11 @@ describe('provider-ai-sprint19.util', () => {
     ).toEqual({
       date: '2026-06-01',
     });
+    expect(isWhosNextPrompt("Who's my next client?")).toBe(true);
+    expect(isWhosNextPrompt("Who's up next?")).toBe(true);
+    expect(
+      mergeShowAppointmentsParams("Who's my next client?", {}).nextOnly,
+    ).toBe(true);
     expect(
       resolveStatusFilter({ statusFilter: 'upcoming', status: 'pending' }),
     ).toBe('upcoming');
@@ -54,6 +60,16 @@ describe('provider-ai-sprint19.util', () => {
     expect(
       filterBookingsForProviderList([], 'null', 0, () => undefined),
     ).toEqual([]);
+  });
+
+  it('defaults show_appointments to today when no date is given (ai-cmd-provider-6.2.5)', () => {
+    const bare = mergeShowAppointmentsParams('Show my confirmed bookings', {});
+    expect(bare.date).toBeTruthy();
+
+    const explicit = mergeShowAppointmentsParams('List all for tomorrow', {
+      date: '2026-06-02',
+    });
+    expect(explicit.date).toBe('2026-06-02');
   });
 
   it('filters upcoming and status-specific bookings', () => {
@@ -128,6 +144,7 @@ describe('provider-ai-sprint19.util', () => {
     const single = buildProviderBookingsListResult({
       bookings: [
         {
+          id: 'booking-next-1',
           startTime: future,
           status: BookingStatus.CONFIRMED,
           service: { name: 'Spa' },
@@ -140,6 +157,7 @@ describe('provider-ai-sprint19.util', () => {
       formatLabel: () => '10:00 Client',
     });
     expect(single.summary).toMatch(/Next up:.*\(Spa\)/);
+    expect(single.details.bookingId).toBe('booking-next-1');
 
     const singleNoService = buildProviderBookingsListResult({
       bookings: [

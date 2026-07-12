@@ -164,6 +164,12 @@ export const SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS = [
     expectedAction: 'list_my_time_off_requests' as const,
   },
   {
+    id: 'my-time-off-requests',
+    prompt: 'Show my time off requests',
+    surface: 'provider' as const,
+    expectedAction: 'list_my_time_off_requests' as const,
+  },
+  {
     id: 'time-off-status',
     prompt: 'What is my time off request status?',
     surface: 'provider' as const,

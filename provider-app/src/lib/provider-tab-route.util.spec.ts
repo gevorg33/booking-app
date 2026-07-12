@@ -18,8 +18,16 @@ describe('provider-tab-route.util', () => {
 
   it('maps AI quick-chip routes', () => {
     expect(providerRouteFromPath('/tabs/today')).toBe('today');
-    expect(providerRouteFromPath('/tabs/calendar')).toBe('schedule');
+    expect(providerRouteFromPath('/tabs/calendar')).toBe('calendar');
+    expect(providerRouteFromPath('/tabs/schedule')).toBe('schedule');
     expect(providerRouteFromPath('/tabs/profile/settings')).toBe('profile');
     expect(providerRouteFromPath('/tabs/gift-cards/list')).toBe('gift-cards');
+  });
+
+  it('maps AI quick-chip routes for clinic vertical tabs (ai-cmd-provider-5.15.4)', () => {
+    expect(providerRouteFromPath('/tabs/lab-collection')).toBe('lab-collection');
+    expect(providerRouteFromPath('/tabs/lab-results')).toBe('lab-results');
+    expect(providerRouteFromPath('/tabs/clinic-tasks')).toBe('clinic-tasks');
+    expect(providerRouteFromPath('/tabs/patients/c1')).toBe('patients');
   });
 });

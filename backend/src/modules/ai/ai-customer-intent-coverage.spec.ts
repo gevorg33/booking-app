@@ -46,11 +46,17 @@ describe('ai customer intent coverage util (ai-cmd-customer-2.6)', () => {
     //   (POST me/waitlist, POST me/bookings/:id/running-late) but neither public-api.ts
     //   client (web widget or consumer app) exports a wrapper for them yet — a real
     //   product gap to track, distinct from an AI-mapping gap.
+    // - cancel_all_upcoming_bookings (ai-cmd-customer-6.12.7): backend route
+    //   (POST me/bookings/bulk-cancel) and the AI intent both ship in this change, but
+    //   there is no consumer-app/web-widget UI button for it yet — the AI orchestrator
+    //   calls PublicCustomerBookingService directly, so no public-api.ts client wrapper
+    //   exists to bind to. Same shape as join_waitlist/notify_running_late above.
     const knownExceptions = new Set([
       'add_services_to_cart',
       'remove_service_from_cart',
       'join_waitlist',
       'notify_running_late',
+      'cancel_all_upcoming_bookings',
     ]);
     const missing = listMutatingCustomerIntentsMissingApiBinding(
       SELF_SERVICE_BOOKING_MUTATE_INTENTS,

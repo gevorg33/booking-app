@@ -14,7 +14,8 @@ export type ProviderPushSetupMultilingualScenario = {
 /** Classifier guidance for hy/ru provider push setup (acc-2.4). */
 export const PROVIDER_PUSH_SETUP_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian provider push setup (provider mobile app only):
   - explain_push_setup: hy «ինչպես են աշխատում push-ը provider app-ում», «օգնիր կարգավորել booking alerts-ը»; ru «как работают push в приложении провайдера», «где включить push-оповещения о записях». NOT explain_last_push.
-  - enable_push_notifications: hy «միացնել push-ը նոր ամրագրումների համար»; ru «включить push о новых записях», «активировать оповещения на телефоне». NOT explain_push_setup.`;
+  - enable_push_notifications: hy «միացնել push-ը նոր ամրագրումների համար»; ru «включить push о новых записях», «активировать оповещения на телефоне». NOT explain_push_setup.
+  - explain_push_registration_status: hy «push ծանուցումների կարգավիճակը իմ provider հաշվում», «ստուգիր push գրանցման կարգավիճակը»; ru «какой статус push-уведомлений в приложении провайдера», «я зарегистрирован на push-уведомления». NOT enable_push_notifications.`;
 
 /** EN rows that already ship HY/RU siblings in the main adopt-6.7 fixture table. */
 export const PROVIDER_PUSH_SETUP_LEGACY_LOCALE_SIBLING_IDS: Record<
@@ -61,6 +62,21 @@ const ENABLE_I18N: Record<string, { hy: string; ru: string }> = {
   },
 };
 
+const STATUS_I18N: Record<string, { hy: string; ru: string }> = {
+  'push-status-en': {
+    hy: 'Ասա՛ push ծանուցումների կարգավիճակը իմ provider հաշվում',
+    ru: 'Какой статус push-уведомлений в моём аккаунте провайдера?',
+  },
+  'push-status-en-2': {
+    hy: 'Push գրանցման կարգավիճակը ստուգիր provider հավելվածում',
+    ru: 'Я зарегистрирован на push-уведомления в приложении провайдера?',
+  },
+  'push-status-en-3': {
+    hy: 'Ստուգիր իմ provider push ծանուցումների կարգավիճակը',
+    ru: 'Проверь статус моих push-уведомлений провайдера',
+  },
+};
+
 function buildProviderPushSetupMultilingualScenarios(): ProviderPushSetupMultilingualScenario[] {
   const rows: ProviderPushSetupMultilingualScenario[] = [];
 
@@ -86,6 +102,19 @@ function buildProviderPushSetupMultilingualScenarios(): ProviderPushSetupMultili
         prompt: locale === 'hy' ? i18n.hy : i18n.ru,
         expectedAction: 'enable_push_notifications',
         rescueReason: 'enable_push_notifications',
+      });
+    }
+  }
+
+  for (const [enScenarioId, i18n] of Object.entries(STATUS_I18N)) {
+    for (const locale of ['hy', 'ru'] as const) {
+      rows.push({
+        id: `${enScenarioId}-${locale}`,
+        enScenarioId,
+        locale,
+        prompt: locale === 'hy' ? i18n.hy : i18n.ru,
+        expectedAction: 'explain_push_registration_status',
+        rescueReason: 'explain_push_registration_status',
       });
     }
   }

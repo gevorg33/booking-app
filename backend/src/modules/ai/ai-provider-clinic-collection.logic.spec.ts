@@ -1,4 +1,5 @@
 import {
+  handleExplainSpecimenRecollectLogic,
   handleListMyCollectionQueueLogic,
   handleMarkSpecimenCollectedLogic,
 } from './ai-provider-clinic-collection.logic.js';
@@ -143,6 +144,102 @@ describe('ai-provider-clinic-collection.logic', () => {
       'Mark specimen collected for John',
     );
     expect(result.success).toBe(false);
+  });
+
+  describe('handleExplainSpecimenRecollectLogic (ai-cmd-provider-5.19.3)', () => {
+    it('explains why a specimen needs recollection by customer name', async () => {
+      clinicSpecimenService.listSpecimens.mockResolvedValueOnce([
+        {
+          id: 'spec-1',
+          status: 'RecollectRequired',
+          specimenIdentifier: 'SP-001',
+          orderId: 'order-1',
+          orderDisplayNames: 'CBC',
+          bookingId: 'booking-1',
+          customerName: 'Maria Lopez',
+          bookingStartTime: '2026-06-08T10:00:00.000Z',
+          employeeName: 'Dr. Smith',
+          department: 'Lab',
+          collectedAt: null,
+          storageLocationName: null,
+          transportFolderCode: null,
+          createdAt: new Date('2026-06-08T09:00:00.000Z'),
+        },
+      ]);
+      clinicSpecimenService.getSpecimenForBusiness.mockResolvedValueOnce({
+        id: 'spec-1',
+        status: 'RecollectRequired',
+        incompletionReason: 'Sample hemolyzed',
+        orderId: 'order-1',
+        bookingId: 'booking-1',
+        specimenIdentifier: 'SP-001',
+        collectedAt: null,
+        createdAt: new Date('2026-06-08T09:00:00.000Z'),
+      });
+
+      const result = await handleExplainSpecimenRecollectLogic(
+        deps,
+        'biz-1',
+        { sessionEmployeeId: 'emp-1', customerName: 'Maria' },
+        'Why recollect required for Maria?',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('explain_specimen_recollect');
+      expect(result.summary).toContain('Sample hemolyzed');
+      expect(result.details?.status).toBe('RecollectRequired');
+    });
+
+    it('explains by explicit specimen id', async () => {
+      const specimen = {
+        id: 'spec-abc123',
+        status: 'RecollectRequired',
+        incompletionReason: null,
+        orderId: 'order-abc123',
+        bookingId: 'booking-1',
+        specimenIdentifier: 'SP-ABC',
+        collectedAt: null,
+        createdAt: new Date('2026-06-08T09:00:00.000Z'),
+      };
+      clinicSpecimenService.getSpecimenForBusiness
+        .mockResolvedValueOnce(specimen)
+        .mockResolvedValueOnce(specimen);
+
+      const result = await handleExplainSpecimenRecollectLogic(
+        deps,
+        'biz-1',
+        { sessionEmployeeId: 'emp-1', specimenId: 'abc123' },
+        'Why redraw specimen #abc123?',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('No reason was recorded');
+    });
+
+    it('fails when no matching specimen is found', async () => {
+      clinicSpecimenService.listSpecimens.mockResolvedValueOnce([]);
+
+      const result = await handleExplainSpecimenRecollectLogic(
+        deps,
+        'biz-1',
+        { sessionEmployeeId: 'emp-1', customerName: 'Unknown' },
+        'Why recollect required for Unknown?',
+      );
+
+      expect(result.success).toBe(false);
+    });
+
+    it('clarifies when no specimen or customer is specified', async () => {
+      const result = await handleExplainSpecimenRecollectLogic(
+        deps,
+        'biz-1',
+        {},
+        'not a matching prompt',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.details?.clarify).toBe(true);
+    });
   });
 
   it('falls back to queue prefix when specimen id lookup fails', async () => {

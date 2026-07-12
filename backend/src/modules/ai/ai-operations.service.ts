@@ -38,6 +38,8 @@ import {
   handleInviteStaffMemberLogic,
   type StaffOperationsLogicDeps,
 } from './ai-staff-operations.logic.js';
+import { dispatchOperationsIntent } from './ai-operations-dispatch.util.js';
+import type { OperationsDispatchContext } from './ai-operations-dispatch.build.js';
 
 @Injectable()
 export class AiOperationsService {
@@ -354,5 +356,10 @@ export class AiOperationsService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an operations intent. */
+  dispatchIntent(ctx: OperationsDispatchContext): Promise<CommandResult | null> {
+    return dispatchOperationsIntent(this, ctx);
   }
 }

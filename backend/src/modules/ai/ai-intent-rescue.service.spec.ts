@@ -1,4 +1,27 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS } from './ai-provider-payment-sweep.fixtures.js';
+import { PROVIDER_UPDATE_BOOKINGS_STATUS_PROMPT_SCENARIOS } from './ai-provider-update-bookings-status.fixtures.js';
+import { PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS } from './ai-provider-mark-visit-in-progress.fixtures.js';
+import { PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_PROMPT_SCENARIOS } from './ai-provider-mark-multi-service-step-done.fixtures.js';
+import { PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS } from './ai-provider-confirm-pending-booking.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS,
+} from './ai-provider-visit-status-explainers.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_CALENDAR_UTILIZATION_BANDS_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_BLOCK_VS_TIME_OFF_PROMPT_SCENARIOS,
+} from './ai-provider-calendar-scheduling-explainers.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_OFFLINE_SUGGESTIONS_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_ACCESSIBILITY_SETTINGS_PROMPT_SCENARIOS,
+} from './ai-provider-assistant-ux-explainers.fixtures.js';
+import { PROVIDER_GIVE_AI_FEEDBACK_PROMPTS } from './ai-provider-give-ai-feedback.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_TIME_OFF_APPROVAL_PROMPT_SCENARIOS,
+} from './ai-provider-dashboard-handoff.fixtures.js';
 
 describe('AiIntentRescueService', () => {
   const rescue = new AiIntentRescueService();
@@ -51,6 +74,23 @@ describe('AiIntentRescueService', () => {
     });
     expect(result?.action).toBe('payment_sweep');
   });
+
+  it.each(
+    PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+  )(
+    'rescues payment_sweep prompt %s (ai-cmd-provider-5.3.2)',
+    (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('payment_sweep');
+      expect(result?.rescueReason).toBe('payment_sweep_pattern');
+    },
+  );
 
   it('rescues day replan to day_replan action', () => {
     const result = rescue.rescue({
@@ -285,5 +325,309 @@ describe('AiIntentRescueService', () => {
       employees,
     });
     expect(result).toBeNull();
+  });
+
+  describe('update_bookings status branches (ai-cmd-provider-5.16.1)', () => {
+    it.each(
+      PROVIDER_UPDATE_BOOKINGS_STATUS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+        s.expectedStatus,
+      ]),
+    )('rescues %s to update_bookings with status=%s', (_id, prompt, expectedStatus) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('update_bookings');
+      expect(result?.params.status).toBe(expectedStatus);
+    });
+
+    it('does not misroute mark_visit_complete phrasing to confirm_my_booking_details', () => {
+      // Note: at this general (dashboard-shared) rescue layer, "mark this visit
+      // complete" legitimately falls through to ai-booking-depth's bare
+      // mark+done/complete heuristic (mark_paid) — matching the established,
+      // separately-tested "mark the visit as done" → mark_paid behavior. The
+      // provider-mobile flow overrides this correctly via the dedicated
+      // rescueProviderAiIntent → isMarkVisitCompletePrompt check, which runs
+      // after this general pipeline (see provider-ai-intent.util.ts).
+      const result = rescue.rescue({
+        prompt: 'Mark this visit complete',
+        action: 'unknown',
+        params: {},
+        employees,
+      });
+      expect(result?.action).not.toBe('confirm_my_booking_details');
+    });
+  });
+
+  describe('mark_visit_in_progress (ai-cmd-provider-5.16.2)', () => {
+    it.each(
+      PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to mark_visit_in_progress', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('mark_visit_in_progress');
+      expect(result?.params.status).toBe('in_progress');
+    });
+  });
+
+  describe('mark_multi_service_step_done (ai-cmd-provider-5.18.3)', () => {
+    it.each(
+      PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to mark_multi_service_step_done', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('mark_multi_service_step_done');
+    });
+
+    it('extracts stepIndex from "Finish step 1 of spa day"', () => {
+      const result = rescue.rescue({
+        prompt: 'Finish step 1 of spa day',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.params.stepIndex).toBe(1);
+    });
+
+    it('extracts serviceName from "Complete blowdry leg"', () => {
+      const result = rescue.rescue({
+        prompt: 'Complete blowdry leg',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.params.serviceName).toBe('blowdry');
+    });
+  });
+
+  describe('confirm_pending_booking (ai-cmd-provider-5.16.4)', () => {
+    it.each(
+      PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to confirm_pending_booking', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('confirm_pending_booking');
+    });
+  });
+
+  describe('visit status explainers (ai-cmd-provider-5.16.5 / 5.16.6)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to explain_booking_status_badge', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_booking_status_badge');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to explain_floor_status', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_floor_status');
+    });
+  });
+
+  describe('calendar scheduling explainers (ai-cmd-provider-5.23.2 / 5.23.4)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_CALENDAR_UTILIZATION_BANDS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_calendar_utilization_bands', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_calendar_utilization_bands');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_BLOCK_VS_TIME_OFF_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_block_vs_time_off', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_block_vs_time_off');
+    });
+  });
+
+  describe('assistant UX explainers (ai-cmd-provider-5.24.1 / 5.24.6)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_OFFLINE_SUGGESTIONS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_offline_suggestions', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_offline_suggestions');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_ACCESSIBILITY_SETTINGS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_accessibility_settings', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_accessibility_settings');
+    });
+  });
+
+  describe('give_provider_ai_feedback (ai-cmd-provider-5.24.3)', () => {
+    it.each(
+      PROVIDER_GIVE_AI_FEEDBACK_PROMPTS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to give_provider_ai_feedback on provider surface', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('give_provider_ai_feedback');
+    });
+
+    it('does not rescue to give_provider_ai_feedback on customer surface', () => {
+      const result = rescue.rescue({
+        prompt: 'Wrong client picked',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'customer',
+      });
+      expect(result?.action).not.toBe('give_provider_ai_feedback');
+    });
+  });
+
+  describe('dashboard handoff (ai-cmd-provider-5.25.1 / 5.25.2 / 5.25.3)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_reassign_limit', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_reassign_limit');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_TIME_OFF_APPROVAL_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_time_off_approval', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_time_off_approval');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_dashboard_only_action', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_dashboard_only_action');
+    });
+  });
+
+  describe('open_dashboard_deep_link (ai-cmd-provider-5.25.4)', () => {
+    it('rescues "Open CRM for Jane" to open_dashboard_deep_link', () => {
+      const result = rescue.rescue({
+        prompt: 'Open CRM for Jane',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('open_dashboard_deep_link');
+      expect(result?.params.customerName).toBe('Jane');
+    });
+
+    it('rescues "Full intake on web" to open_dashboard_deep_link', () => {
+      const result = rescue.rescue({
+        prompt: 'Full intake on web',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('open_dashboard_deep_link');
+    });
   });
 });

@@ -58,19 +58,62 @@ export function isGetScheduleSummaryPrompt(prompt: string): boolean {
   );
 }
 
+export function isGetCalendarMonthPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\bcalendar\s+(?:for|view)\b/.test(lower) ||
+    /\bwhich\s+days?\s+this\s+month\b/.test(lower) ||
+    /\bhow\s+(?:does|is)\s+(?:next\s+month|this\s+month)\b.{0,20}\bcalendar\b/.test(
+      lower,
+    ) ||
+    /\bmonth\s+view\b/.test(lower)
+  );
+}
+
+export function isListScheduleGapsPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\b(?:fill|suggest|waitlist)\b/.test(lower)) return false;
+  return (
+    /\bwhich\s+days?\b.{0,20}\bgaps?\b/.test(lower) ||
+    /\b(?:list|show)\b.{0,20}\b(?:schedule\s+)?gaps?\b/.test(lower) ||
+    /\bopen\s+time\s+windows?\s+by\s+day\b/.test(lower)
+  );
+}
+
 export function rescueProviderScheduleReadsIntent(
   prompt: string,
   action: string,
 ): {
-  action: 'list_upcoming_bookings' | 'get_schedule_summary';
+  action:
+    | 'list_upcoming_bookings'
+    | 'get_schedule_summary'
+    | 'get_calendar_month'
+    | 'list_schedule_gaps';
   rescueReason: string;
 } | null {
-  if (action === 'list_upcoming_bookings' || action === 'get_schedule_summary')
+  if (
+    action === 'list_upcoming_bookings' ||
+    action === 'get_schedule_summary' ||
+    action === 'get_calendar_month' ||
+    action === 'list_schedule_gaps'
+  )
     return null;
   if (isListUpcomingBookingsPrompt(prompt)) {
     return {
       action: 'list_upcoming_bookings',
       rescueReason: 'list_upcoming_bookings',
+    };
+  }
+  if (isGetCalendarMonthPrompt(prompt)) {
+    return {
+      action: 'get_calendar_month',
+      rescueReason: 'get_calendar_month',
+    };
+  }
+  if (isListScheduleGapsPrompt(prompt)) {
+    return {
+      action: 'list_schedule_gaps',
+      rescueReason: 'list_schedule_gaps',
     };
   }
   if (isGetScheduleSummaryPrompt(prompt)) {

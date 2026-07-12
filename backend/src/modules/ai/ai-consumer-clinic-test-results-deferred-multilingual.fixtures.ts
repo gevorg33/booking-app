@@ -57,6 +57,10 @@ const LIST_I18N: Record<string, { hy: string; ru: string }> = {
     hy: 'Ստուգիր իմ լաբ թեստի արդյունքները',
     ru: 'Проверь мои лабораторные результаты анализов',
   },
+  'where-find-results': {
+    hy: 'Որտե՞ղ կարող եմ գտնել իմ լաբորատոր արդյունքները',
+    ru: 'Где я могу найти свои лабораторные результаты',
+  },
 };
 
 const EXPLAIN_I18N: Record<string, { hy: string; ru: string }> = {

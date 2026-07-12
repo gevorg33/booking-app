@@ -8,6 +8,7 @@ describe('ai-clinic-booking.logic', () => {
     getCustomerFlow: jest.fn(),
     startCustomerIntake: jest.fn(),
     submitCustomerAnswers: jest.fn(),
+    getCheckoutConfig: jest.fn(),
   };
 
   const deps = {

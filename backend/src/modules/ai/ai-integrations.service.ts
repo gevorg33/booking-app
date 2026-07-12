@@ -44,6 +44,8 @@ import {
 } from './ai-integrations.logic.js';
 import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
 import { handleExplainIntegrationHealthLogic } from './ai-explain-integration-health.logic.js';
+import { dispatchIntegrationsLogicIntent } from './ai-integrations-dispatch.util.js';
+import type { IntegrationsDispatchContext } from './ai-integrations-dispatch.build.js';
 
 @Injectable()
 export class AiIntegrationsService {
@@ -327,5 +329,12 @@ export class AiIntegrationsService {
       actorEmail,
       actorName,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an integrations intent. */
+  dispatchIntent(
+    ctx: IntegrationsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchIntegrationsLogicIntent(this.deps, ctx);
   }
 }

@@ -280,3 +280,62 @@ export function providerMobileShowTodayTimeline(
   if (raw.showTodayTimeline === false) return false;
   return true;
 }
+
+export interface ProviderTodayTimelineGapChip {
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  label: string;
+}
+
+/** ai-cmd-provider-5.1.5 — narrate a day's timeline segments, calling out gaps between clients. */
+export function buildExplainTodayTimelineSummary(
+  timeline: ProviderTodayTimelineView,
+  formatTime: (iso: string) => string,
+): string {
+  const bookingSegments = timeline.segments.filter(
+    (segment): segment is ProviderTodayTimelineBookingSegment =>
+      segment.kind === 'booking',
+  );
+  if (bookingSegments.length === 0) {
+    return 'No appointments scheduled today.';
+  }
+
+  const lines = timeline.segments.map((segment) =>
+    segment.kind === 'booking'
+      ? `• ${formatTime(segment.startTime)}–${formatTime(segment.endTime)} ${segment.customerName ?? 'Walk-in'}`
+      : `  (gap — ${formatProviderTimelineDurationMinutes(segment.durationMinutes)})`,
+  );
+
+  const gaps = timeline.segments.filter(
+    (segment): segment is ProviderTodayTimelineGapSegment =>
+      segment.kind === 'gap',
+  );
+  const gapSummary = gaps.length
+    ? `\nGaps: ${gaps
+        .map(
+          (gap) =>
+            `${formatTime(gap.startTime)}–${formatTime(gap.endTime)} (${formatProviderTimelineDurationMinutes(gap.durationMinutes)})`,
+        )
+        .join(', ')}`
+    : '\nNo gaps — back-to-back day.';
+
+  return `${bookingSegments.length} appointment${bookingSegments.length === 1 ? '' : 's'} today:\n${lines.join('\n')}${gapSummary}`;
+}
+
+export function buildExplainTodayTimelineGapChips(
+  timeline: ProviderTodayTimelineView,
+  formatTime: (iso: string) => string,
+): ProviderTodayTimelineGapChip[] {
+  return timeline.segments
+    .filter(
+      (segment): segment is ProviderTodayTimelineGapSegment =>
+        segment.kind === 'gap',
+    )
+    .map((gap) => ({
+      startTime: gap.startTime,
+      endTime: gap.endTime,
+      durationMinutes: gap.durationMinutes,
+      label: `${formatTime(gap.startTime)}–${formatTime(gap.endTime)} (${formatProviderTimelineDurationMinutes(gap.durationMinutes)})`,
+    }));
+}

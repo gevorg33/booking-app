@@ -28,6 +28,7 @@ describe('AiScheduleHandlersService template/block CRUD (ai-cmd-dashboard-6.5)',
         id: `${id}-copy`,
         name: 'Weekday (Copy)',
       })),
+      getProviderCalendar: jest.fn().mockResolvedValue({ periods: [] }),
       ...overrides.scheduleService,
     };
     const blockScheduleService = {
@@ -197,6 +198,138 @@ describe('AiScheduleHandlersService template/block CRUD (ai-cmd-dashboard-6.5)',
       );
       expect(result.success).toBe(false);
       expect(result.details).toMatchObject({ clarify: true });
+    });
+  });
+
+  describe('handleListScheduleBlocks', () => {
+    it('reports no blocks for a specific employee', async () => {
+      const { service } = buildService();
+      const result = await service.handleListScheduleBlocks(
+        'biz-1',
+        { employeeName: 'Alex' },
+        [employee],
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('Alex has no schedule blocks.');
+      expect((result.details as any).blocks).toEqual([]);
+    });
+
+    it('reports no blocks for the whole team when no employee is named', async () => {
+      const { service } = buildService();
+      const result = await service.handleListScheduleBlocks('biz-1', {}, [
+        employee,
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('No schedule blocks found.');
+    });
+
+    it('lists blocks for a resolved employee', async () => {
+      const { service, blockScheduleService } = buildService({
+        blockScheduleService: {
+          list: jest.fn().mockResolvedValue([
+            {
+              id: 'block-1',
+              employee: { id: 'emp-1', name: 'Alex' },
+              placeholderLabel: 'Lunch',
+              startDay: 'MON',
+              endDay: 'MON',
+              blockStartTime: '12:00',
+              blockEndTime: '13:00',
+            },
+          ]),
+        },
+      });
+      const result = await service.handleListScheduleBlocks(
+        'biz-1',
+        { employeeName: 'Alex' },
+        [employee],
+      );
+      expect(result.success).toBe(true);
+      expect(blockScheduleService.list).toHaveBeenCalledWith('biz-1', 'emp-1');
+      expect(result.summary).toContain('1 schedule block(s):');
+      expect(result.summary).toContain('Alex: Lunch (MON, 12:00-13:00)');
+    });
+
+    it('lists blocks across all employees when none is named', async () => {
+      const { service, blockScheduleService } = buildService({
+        blockScheduleService: {
+          list: jest.fn().mockResolvedValue([
+            {
+              id: 'block-1',
+              employee: { id: 'emp-1', name: 'Alex' },
+              placeholderLabel: 'Lunch',
+              startDay: 'MON',
+              endDay: 'TUE',
+              blockStartTime: '12:00',
+              blockEndTime: '13:00',
+            },
+          ]),
+        },
+      });
+      const result = await service.handleListScheduleBlocks('biz-1', {}, [
+        employee,
+      ]);
+      expect(blockScheduleService.list).toHaveBeenCalledWith(
+        'biz-1',
+        undefined,
+      );
+      expect(result.summary).toContain('MON–TUE');
+    });
+  });
+
+  describe('handleGetProviderCalendar', () => {
+    it('asks for clarification when no employee resolved', async () => {
+      const { service } = buildService();
+      const result = await service.handleGetProviderCalendar(
+        'biz-1',
+        'show the calendar',
+        {},
+        [employee],
+      );
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({ clarify: true });
+    });
+
+    it('reports no scheduled periods for the resolved range', async () => {
+      const { service } = buildService();
+      const result = await service.handleGetProviderCalendar(
+        'biz-1',
+        "Show Alex's calendar",
+        { employeeName: 'Alex', date: '2026-07-13' },
+        [employee],
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('Alex has no scheduled periods');
+    });
+
+    it('summarizes periods by type for a resolved employee and range', async () => {
+      const { service, scheduleService } = buildService({
+        scheduleService: {
+          getProviderCalendar: jest.fn().mockResolvedValue({
+            periods: [
+              { id: 'p1', type: 'SERVICE' },
+              { id: 'p2', type: 'SERVICE' },
+              { id: 'p3', type: 'BLOCKED' },
+            ],
+          }),
+        },
+      });
+      const result = await service.handleGetProviderCalendar(
+        'biz-1',
+        "Show Alex's calendar",
+        { employeeName: 'Alex', date: '2026-07-13' },
+        [employee],
+      );
+      expect(result.success).toBe(true);
+      expect(scheduleService.getProviderCalendar).toHaveBeenCalledWith(
+        'biz-1',
+        'emp-1',
+        '2026-07-13',
+        '2026-07-13',
+      );
+      expect(result.summary).toContain('3 period(s)');
+      expect(result.summary).toContain('2 SERVICE');
+      expect(result.summary).toContain('1 BLOCKED');
     });
   });
 

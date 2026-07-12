@@ -7,6 +7,8 @@ import {
   handleUpdateExternalDoctorLogic,
   type ExternalDoctorsLogicDeps,
 } from './ai-external-doctors.logic.js';
+import { dispatchExternalDoctorsLogicIntent } from './ai-external-doctors-dispatch.util.js';
+import type { ExternalDoctorsDispatchContext } from './ai-external-doctors-dispatch.build.js';
 
 @Injectable()
 export class AiExternalDoctorsService {
@@ -38,5 +40,12 @@ export class AiExternalDoctorsService {
     params: Record<string, any>,
   ): Promise<CommandResult> {
     return handleListExternalDoctorsLogic(this.deps, businessId, userId, params);
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an external-doctors intent. */
+  dispatchIntent(
+    ctx: ExternalDoctorsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchExternalDoctorsLogicIntent(this.deps, ctx);
   }
 }

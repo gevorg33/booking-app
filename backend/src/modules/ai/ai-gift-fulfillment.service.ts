@@ -27,6 +27,7 @@ import {
   handleFulfillmentCompoundLogic,
   handleGiftCardCreationQueueLogic,
   handleGiftFulfillBatchLogic,
+  handleExplainGiftCardOrderDetailsLogic,
   handleListGiftCardChangeRequestsLogic,
   handleListGiftCardOrdersLogic,
   handleMarkCardReadyLogic,
@@ -43,6 +44,8 @@ import {
   handleUpdateGiftCardSettingsLogic,
   type GiftFulfillmentLogicDeps,
 } from './ai-gift-fulfillment.logic.js';
+import { dispatchGiftFulfillmentLogicIntent } from './ai-gift-fulfillment-dispatch.util.js';
+import type { GiftFulfillmentDispatchContext } from './ai-gift-fulfillment-dispatch.build.js';
 
 @Injectable()
 export class AiGiftFulfillmentService {
@@ -200,6 +203,19 @@ export class AiGiftFulfillmentService {
     );
   }
 
+  handleExplainGiftCardOrderDetails(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainGiftCardOrderDetailsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
   handleMarkCardReady(
     businessId: string,
     params: Record<string, any>,
@@ -311,5 +327,12 @@ export class AiGiftFulfillmentService {
       params,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a gift-fulfillment intent. */
+  dispatchIntent(
+    ctx: GiftFulfillmentDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchGiftFulfillmentLogicIntent(this.deps, ctx);
   }
 }

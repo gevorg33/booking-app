@@ -261,17 +261,31 @@ export function isRefundGiftCardOrderPrompt(prompt: string): boolean {
 }
 
 export function isExplainPaymentStatusPrompt(prompt: string): boolean {
-  return (
+  if (
     /\b(explain|what(?:'s| is)|status)\b/i.test(prompt) &&
     /\b(payment)\b/i.test(prompt) &&
     !/\b(stripe|checkout\s+total|subscription\s+revenue)\b/i.test(prompt)
-  );
+  ) {
+    return true;
+  }
+  if (
+    /\bwhy\b/i.test(prompt) &&
+    /\b(still\s+pending|cash\s+due)\b/i.test(prompt) &&
+    !/\b(checkout\s+total|subscription\s+revenue)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (/\bprepaid\b/i.test(prompt) && /\bcharge\s+again\b/i.test(prompt)) {
+    return true;
+  }
+  return false;
 }
 
 export function isCollectCashConfirmPrompt(prompt: string): boolean {
   return (
-    /\b(collect|confirm|received|took)\b/i.test(prompt) &&
-    /\b(cash)\b/i.test(prompt)
+    /\b(collect(?:ed)?|confirm(?:ed)?|received|took|record(?:ed)?)\b/i.test(
+      prompt,
+    ) && /\b(cash)\b/i.test(prompt)
   );
 }
 
@@ -428,6 +442,9 @@ export function isExplainWhyStripeRequiredPrompt(prompt: string): boolean {
   if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isExplainWhyPrepaymentPrompt(prompt)) return true;
+  if (/\b(still\s+)?pending\b/i.test(prompt) && !/\brequired\b/i.test(prompt)) {
+    return false;
+  }
   return (
     /\b(why|explain)\b/i.test(prompt) &&
     /\b(stripe|online\s+payment|card\s+required|card\s+payment|pay\s+by\s+card)\b/i.test(

@@ -41,6 +41,11 @@ import {
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import {
+  readBusinessPrivacySettings,
+  toPublicBusinessPrivacySettings,
+} from '../../common/utils/business-compliance.util.js';
+import { readTenantAppInstallSettings } from '../../common/utils/tenant-app-install-settings.util.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
@@ -4207,12 +4212,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     phone?: string;
     email?: string;
     address?: string;
+    settings?: Record<string, any> | null;
   }): PublicAssistantResult {
     const parts = [`${business.name}`];
     if (business.description) parts.push(business.description);
     if (business.address) parts.push(`Address: ${business.address}`);
     if (business.phone) parts.push(`Phone: ${business.phone}`);
     if (business.email) parts.push(`Email: ${business.email}`);
+
+    const privacy = toPublicBusinessPrivacySettings(
+      readBusinessPrivacySettings(business.settings ?? undefined),
+    );
+    parts.push(
+      `Privacy: policy v${privacy.privacyPolicyVersion}` +
+        (privacy.requireAiProcessingConsent
+          ? ' · AI-processing consent required'
+          : '') +
+        (privacy.dataResidencyRegion !== 'other'
+          ? ` · data hosted in ${privacy.dataResidencyRegion.toUpperCase()}`
+          : ''),
+    );
+
+    const appInstall = readTenantAppInstallSettings(business.settings);
+    if (appInstall) {
+      parts.push(`Get our app: ${appInstall.landingUrl}`);
+    }
 
     return {
       success: true,

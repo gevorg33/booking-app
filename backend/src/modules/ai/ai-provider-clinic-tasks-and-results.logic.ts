@@ -7,6 +7,8 @@ import {
   extractBookingIdForLabSummariesFromPrompt,
   extractClinicTaskIdFromPrompt,
   formatBookingLabSummariesText,
+  formatClinicTaskDetailText,
+  formatClinicTasksListSummary,
   formatLabResultsQueueSummary,
 } from './ai-provider-clinic-tasks-and-results.util.js';
 
@@ -138,6 +140,30 @@ export async function handleListLabResultsQueueLogic(
   );
 }
 
+/** ai-cmd-provider-5.11.6 — list the provider's own outstanding clinic tasks. */
+export async function handleListClinicTasksLogic(
+  deps: ProviderClinicTasksAndResultsLogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const inbox = await deps.providerMobile.getProviderClinicTaskInbox(
+    businessId,
+    userId,
+  );
+  if (!inbox.labFeaturesEnabled) {
+    return failure(
+      'list_clinic_tasks',
+      'Clinic tasks are only available for clinic businesses.',
+      { clinicOnly: true },
+    );
+  }
+  return success(
+    'list_clinic_tasks',
+    formatClinicTasksListSummary(inbox.tasks),
+    { tasks: inbox.tasks, count: inbox.tasks.length },
+  );
+}
+
 export async function handleClaimClinicTaskLogic(
   deps: ProviderClinicTasksAndResultsLogicDeps,
   businessId: string,
@@ -230,6 +256,31 @@ export async function handleCompleteClinicTaskLogic(
       taskId: resolved.task.id,
     });
   }
+}
+
+/** ai-cmd-provider-5.19.5 — single-task detail view (what it is, who assigned it). */
+export async function handleExplainClinicTaskLogic(
+  deps: ProviderClinicTasksAndResultsLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const resolved = await resolveClinicTask(
+    deps,
+    businessId,
+    userId,
+    'explain_clinic_task',
+    params,
+    prompt ?? '',
+  );
+  if ('error' in resolved) return resolved.error;
+
+  return success(
+    'explain_clinic_task',
+    formatClinicTaskDetailText(resolved.task),
+    { task: resolved.task },
+  );
 }
 
 export async function handleListBookingLabSummariesLogic(

@@ -377,7 +377,11 @@ export const CUSTOMER_PUBLIC_API_AI_PARITY: readonly CustomerPublicApiParityEntr
       apiModule: 'public-booking',
       coverage: {
         kind: 'customer-ai',
-        intents: ['get_manage_link', 'explain_manage_booking_page'],
+        intents: [
+          'get_manage_link',
+          'explain_manage_booking_page',
+          'explain_manage_booking_context',
+        ],
       },
     },
     {

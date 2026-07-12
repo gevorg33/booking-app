@@ -7,6 +7,8 @@ import {
   handleUpdateQuestionnaireLogic,
   type ClinicQuestionnaireLogicDeps,
 } from './ai-clinic-questionnaire.logic.js';
+import { dispatchClinicQuestionnaireLogicIntent } from './ai-clinic-questionnaire-dispatch.util.js';
+import type { ClinicQuestionnaireDispatchContext } from './ai-clinic-questionnaire-dispatch.build.js';
 
 @Injectable()
 export class AiClinicQuestionnaireService {
@@ -38,5 +40,12 @@ export class AiClinicQuestionnaireService {
     params: Record<string, any>,
   ): Promise<CommandResult> {
     return handlePublishQuestionnaireLogic(this.deps, businessId, userId, params);
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-questionnaire intent. */
+  dispatchIntent(
+    ctx: ClinicQuestionnaireDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicQuestionnaireLogicIntent(this.deps, ctx);
   }
 }

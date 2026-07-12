@@ -20,6 +20,7 @@ import {
   extractGiftCardIdFromPrompt,
   extractProofFromPrompt,
   extractShippingAddressFromPrompt,
+  formatGiftCardOrderDetailsText,
   isPhysicalGiftCardOrder,
   isShippedFulfillmentStatus,
   parseCancelModifyWindowHours,
@@ -728,6 +729,48 @@ export async function handleStartCardPreparationLogic(
     return failure(
       'start_card_preparation',
       err?.message ?? 'Could not start card preparation.',
+    );
+  }
+}
+
+/** ai-cmd-provider-5.20.5 — read-only order detail (amount, service credits, recipient) for the provider fulfillment queue. */
+export async function handleExplainGiftCardOrderDetailsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const giftCardId = await resolveGiftCardId(deps, businessId, params, prompt);
+  if (!giftCardId) {
+    return failure(
+      'explain_gift_card_order_details',
+      'Specify which gift card order to explain.',
+      {
+        clarify: true,
+        missing: ['giftCardId'],
+      },
+    );
+  }
+  try {
+    const card = await deps.fulfillmentService.getDashboardOrder(
+      businessId,
+      giftCardId,
+    );
+    return success(
+      'explain_gift_card_order_details',
+      formatGiftCardOrderDetailsText(card),
+      {
+        giftCardId: card.id,
+        cardType: card.cardType,
+        amount: card.purchaseAmount,
+        balance: card.balance,
+        fulfillmentStatus: card.fulfillmentStatus,
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'explain_gift_card_order_details',
+      err?.message ?? 'Could not find that gift card order.',
     );
   }
 }

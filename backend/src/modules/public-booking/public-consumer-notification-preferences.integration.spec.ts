@@ -40,6 +40,7 @@ describe('PublicCustomerAuthService notification preferences (adopt-4.8)', () =>
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
     customerRepo as any,
     {} as any,
     {} as any,

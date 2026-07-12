@@ -52,8 +52,13 @@ export const PROVIDER_CLINIC_LAB_BOOKING_READ_INTENTS = [
   'list_patient_pending_lab_requests',
 ] as const;
 
+export const PROVIDER_CLINIC_LAB_BOOKING_MUTATE_INTENTS = [
+  'notify_patient_book_lab',
+] as const;
+
 export const PROVIDER_CLINIC_LAB_BOOKING_INTENTS = [
   ...PROVIDER_CLINIC_LAB_BOOKING_READ_INTENTS,
+  ...PROVIDER_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
 ] as const;
 
 export type DashboardClinicLabBookingIntent =
@@ -212,6 +217,11 @@ export function isPushLabBookingToPatientPrompt(prompt: string): boolean {
   return PUSH_VERB.test(prompt) && PUSH_TARGET.test(prompt);
 }
 
+/** ai-cmd-provider-5.19.4 — provider mobile: remind/nudge a patient to self-book pending lab collection. Deliberately narrower than isPushLabBookingToPatientPrompt (which also matches dashboard's push/send/notify verbs) so it doesn't steal that shared vocabulary from push_lab_booking_to_patient on other surfaces. */
+export function isNotifyPatientBookLabPrompt(prompt: string): boolean {
+  return /\b(remind|nudge)\b/i.test(prompt) && PUSH_TARGET.test(prompt);
+}
+
 export function isStaffBookLabCollectionPrompt(prompt: string): boolean {
   if (
     BOOK_LAB_FROM_ORDER_BLOCK.test(prompt) &&
@@ -365,7 +375,7 @@ function extractLabBookingPatientNameFromPrompt(prompt: string): string | null {
   if (patientNamed?.[1]) return patientNamed[1].trim();
 
   const haveSelfBook = prompt.match(
-    /\b(?:have|let|ask)\s+([A-Za-z][\w-]*)\s+(?:self[- ]?book|to\s+book)\b/i,
+    /\b(?:have|let|ask|remind|nudge)\s+([A-Za-z][\w-]*)\s+(?:self[- ]?book|to\s+book)\b/i,
   );
   if (haveSelfBook?.[1]) return haveSelfBook[1].trim();
 
@@ -638,7 +648,12 @@ export function parsePushLabBookingFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedPushLabBookingRequest | null {
-  if (!isPushLabBookingToPatientPrompt(prompt)) return null;
+  if (
+    !isPushLabBookingToPatientPrompt(prompt) &&
+    !isNotifyPatientBookLabPrompt(prompt)
+  ) {
+    return null;
+  }
 
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
@@ -969,6 +984,13 @@ export function rescueProviderClinicLabBookingIntent(
     return {
       action: 'list_patient_pending_lab_requests',
       rescueReason: 'list_patient_pending_lab_requests',
+    };
+  }
+
+  if (isNotifyPatientBookLabPrompt(prompt)) {
+    return {
+      action: 'notify_patient_book_lab',
+      rescueReason: 'notify_patient_book_lab',
     };
   }
 

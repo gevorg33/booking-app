@@ -2,10 +2,15 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   dispatchProviderExp2Intent,
   handleCheckInClientLogic,
+  handleDraftReviewResponseLogic,
+  handleExplainRequestReviewFlowLogic,
+  handleExplainReviewsInboxLogic,
   handleListReassignOptionsLogic,
+  handleListTeamUnpaidTodayLogic,
   handleMarkReadyNowLogic,
   handleMarkRunningLateLogic,
   handleMyStatsLogic,
+  handleOpenDashboardDeepLinkLogic,
   handleReassignBookingSameDayLogic,
   handleRequestClientReviewLogic,
   handleSuggestCancelNoteLogic,
@@ -28,12 +33,20 @@ describe('ai-provider-exp-2.logic', () => {
     requestBookingReview: jest.fn(),
     getBookingReassignOptions: jest.fn(),
     reassignBooking: jest.fn(),
+    getTeamUnpaidToday: jest.fn(),
   };
+  const reviewsService = {
+    list: jest.fn(),
+  };
+
+  const configService = { get: jest.fn() };
 
   const deps = {
     bookingRepo: bookingRepo as any,
     businessService: businessService as any,
     providerMobile: providerMobile as any,
+    reviewsService: reviewsService as any,
+    configService: configService as any,
   };
 
   beforeEach(() => {
@@ -117,6 +130,292 @@ describe('ai-provider-exp-2.logic', () => {
     expect(result.success).toBe(true);
     expect(result.action).toBe('team_floor_status');
     expect(result.summary).toContain('Team floor today');
+  });
+
+  it('denies list_team_unpaid_today for non-managers', async () => {
+    const result = await handleListTeamUnpaidTodayLogic(deps, 'biz-1', 'user-1');
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('managers only');
+  });
+
+  it('returns unpaid-today summary for managers', async () => {
+    providerMobile.resolveMobileAccess.mockResolvedValue({
+      viewMode: 'team',
+      employee: { id: 'emp-1', name: 'Alex' },
+    });
+    providerMobile.getTeamUnpaidToday.mockResolvedValue({
+      date: '2026-07-10',
+      totalUnpaid: 1,
+      bookings: [
+        {
+          id: 'bk-1',
+          customerName: 'Jane Doe',
+          employeeName: 'Sam',
+          serviceName: 'Haircut',
+          startTime: new Date('2026-07-10T14:00:00.000Z'),
+          servicePrice: 45,
+        },
+      ],
+    });
+
+    const result = await handleListTeamUnpaidTodayLogic(deps, 'biz-1', 'user-1');
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('list_team_unpaid_today');
+    expect(result.summary).toContain('1 unpaid appointment today');
+    expect(providerMobile.getTeamUnpaidToday).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+    );
+  });
+
+  it('returns own reviews inbox summary for a provider', async () => {
+    reviewsService.list.mockResolvedValue([
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Great service!',
+        customerName: 'Jane Doe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+      {
+        id: 'rev-2',
+        rating: 2,
+        comment: 'Not happy',
+        customerName: 'John Roe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await handleExplainReviewsInboxLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'My rating this month',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_reviews_inbox');
+    expect(result.summary).toContain('Your reviews this month: 2 reviews');
+    expect(result.summary).toContain('(low)');
+    expect(reviewsService.list).toHaveBeenCalledWith('biz-1', 'emp-1');
+    expect(result.details?.scope).toBe('mine');
+  });
+
+  it('returns team-wide reviews inbox for managers', async () => {
+    providerMobile.resolveMobileAccess.mockResolvedValue({
+      viewMode: 'team',
+      employee: { id: 'emp-1', name: 'Alex' },
+    });
+    reviewsService.list.mockResolvedValue([]);
+
+    const result = await handleExplainReviewsInboxLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Team reviews this month',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('Team reviews this month: no reviews yet.');
+    expect(reviewsService.list).toHaveBeenCalledWith('biz-1', undefined);
+    expect(result.details?.scope).toBe('team');
+  });
+
+  it('filters reviews inbox to the requested period', async () => {
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const lastMonth = new Date();
+    lastMonth.setUTCDate(lastMonth.getUTCDate() - 45);
+    reviewsService.list.mockResolvedValue([
+      {
+        id: 'rev-old',
+        rating: 5,
+        comment: null,
+        customerName: 'Old Customer',
+        employee: { name: 'Alex' },
+        createdAt: lastMonth,
+      },
+      {
+        id: 'rev-yesterday',
+        rating: 1,
+        comment: 'Bad',
+        customerName: 'Angry Customer',
+        employee: { name: 'Alex' },
+        createdAt: yesterday,
+      },
+    ]);
+
+    const result = await handleExplainReviewsInboxLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Bad review yesterday — show it',
+    );
+
+    expect(result.details?.reviewCount).toBe(1);
+    expect(result.summary).toContain('Angry Customer');
+    expect(result.summary).not.toContain('Old Customer');
+  });
+
+  it('filters the reviews inbox to a specific star rating', async () => {
+    reviewsService.list.mockResolvedValue([
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Amazing!',
+        customerName: 'Jane Doe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+      {
+        id: 'rev-2',
+        rating: 2,
+        comment: 'Not happy',
+        customerName: 'John Roe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await handleExplainReviewsInboxLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Latest 5-star reviews',
+    );
+
+    expect(result.details?.reviewCount).toBe(1);
+    expect(result.summary).toContain('Jane Doe');
+    expect(result.summary).not.toContain('John Roe');
+    expect(result.summary).toContain('5★ reviews');
+  });
+
+  it('returns the explain_request_review_flow policy text', async () => {
+    const result = await handleExplainRequestReviewFlowLogic();
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_request_review_flow');
+    expect(result.summary).toContain('Request review');
+  });
+
+  it('drafts a review response for the most recent review', async () => {
+    reviewsService.list.mockResolvedValue([
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Amazing!',
+        customerName: 'Jane Doe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await handleDraftReviewResponseLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Draft professional response',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('draft_review_response');
+    expect(result.details?.reviewId).toBe('rev-1');
+    expect(result.summary).toContain('Jane Doe');
+    expect(result.summary).toContain('thank you');
+  });
+
+  it('drafts a review response for a named customer', async () => {
+    reviewsService.list.mockResolvedValue([
+      {
+        id: 'rev-1',
+        rating: 5,
+        comment: 'Amazing!',
+        customerName: 'Jane Doe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+      {
+        id: 'rev-2',
+        rating: 1,
+        comment: 'Terrible',
+        customerName: 'John Roe',
+        employee: { name: 'Alex' },
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await handleDraftReviewResponseLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { customerName: 'John Roe' },
+      'Help reply to this review',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.details?.reviewId).toBe('rev-2');
+    expect(result.summary).toContain('sorry');
+  });
+
+  it('fails to draft a review response when there are no reviews yet', async () => {
+    reviewsService.list.mockResolvedValue([]);
+
+    const result = await handleDraftReviewResponseLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Draft professional response',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('draft_review_response');
+  });
+
+  it('builds a dashboard deep link for a named customer', () => {
+    configService.get.mockReturnValue('https://app.example.com');
+
+    const result = handleOpenDashboardDeepLinkLogic(
+      deps,
+      {},
+      'Open CRM for Jane',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('open_dashboard_deep_link');
+    expect(result.details?.url).toBe(
+      'https://app.example.com/dashboard/customers?search=Jane',
+    );
+  });
+
+  it('falls back to localhost when FRONTEND_URL is unset', () => {
+    configService.get.mockReturnValue(undefined);
+
+    const result = handleOpenDashboardDeepLinkLogic(
+      deps,
+      {},
+      'Open CRM for Jane',
+    );
+
+    expect(result.details?.url).toBe(
+      'http://localhost:3000/dashboard/customers?search=Jane',
+    );
+  });
+
+  it('fails to build a dashboard deep link with no customer name', () => {
+    const result = handleOpenDashboardDeepLinkLogic(deps, {}, 'Full intake on web');
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('open_dashboard_deep_link');
   });
 
   it('checks in client by bookingId from session context', async () => {

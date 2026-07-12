@@ -32,6 +32,7 @@ export const DASHBOARD_RETAIL_FINANCE_READ_INTENTS = [
 export const PROVIDER_RETAIL_FINANCE_INTENTS = [
   'suggest_retail_upsell',
   'add_retail_to_my_booking',
+  'search_retail_sku',
 ] as const;
 
 export const RETAIL_FINANCE_INTENTS = [
@@ -205,6 +206,68 @@ export function isSuggestRetailUpsellPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.4.5 — navigate/search sellable retail products by name or SKU. */
+export function isSearchRetailSkuPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  // "Do we have X set up/configured/enabled?" is an integration/settings query
+  // (explain_integration_health etc.), not a retail product lookup.
+  if (
+    /\b(set\s*up|configured|enabled|connected|integration|api\s*key|webhook)\b/i.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    /\bsku\b/i.test(lower) &&
+    /\b(find|search|look\s*up|check)\b/i.test(lower)
+  ) {
+    return true;
+  }
+  if (/\bcarry\b/i.test(lower) && /\b(we|you)\b/i.test(lower)) return true;
+  if (/\b(do\s+we\s+have|do\s+you\s+have)\b/i.test(lower)) return true;
+  if (/\bin\s+stock\b/i.test(lower) && /\b(is|do|have)\b/i.test(lower)) {
+    return true;
+  }
+  if (/\bsearch\b/i.test(lower) && /\b(inventory|for)\b/i.test(lower)) {
+    return true;
+  }
+
+  if (
+    /[԰-֏]/.test(prompt) &&
+    /(ունե|փնտրիր|կա)/i.test(prompt) &&
+    /(sku|ապրանք)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /[Ѐ-ӿ]/.test(prompt) &&
+    /(есть|найди|ищем|поищи)/i.test(prompt) &&
+    /(sku|наличии|товар)/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function extractRetailSearchQuery(prompt: string): string | null {
+  const sku = extractSkuFromPrompt(prompt);
+  if (sku) return sku;
+  const skuNumber = prompt.match(/\bsku\s*[:#]?\s*([A-Za-z0-9-]+)\b/i);
+  if (skuNumber) return skuNumber[1].trim();
+  const carry = prompt.match(
+    /\b(?:carry|do\s+(?:we|you)\s+have|find|search\s+(?:for|inventory\s+for)|look\s*up|check\s+if\s+we\s+carry)\s+(?:the\s+)?([A-Za-z][\w\s'-]{1,40}?)(?:\s+in\s+stock|\?|$)/i,
+  );
+  if (carry) return carry[1].trim();
+  const isInStock = prompt.match(
+    /\bis\s+(?:the\s+)?([A-Za-z][\w\s'-]{1,40}?)\s+in\s+stock\b/i,
+  );
+  if (isInStock) return isInStock[1].trim();
+  return null;
+}
+
 export function isAddRetailToMyBookingPrompt(prompt: string): boolean {
   return (
     /\badd\b/i.test(prompt) &&
@@ -374,6 +437,12 @@ export function rescueRetailFinanceIntent(
     return {
       action: 'suggest_retail_upsell',
       rescueReason: 'suggest_retail_upsell',
+    };
+  }
+  if (isSearchRetailSkuPrompt(prompt)) {
+    return {
+      action: 'search_retail_sku',
+      rescueReason: 'search_retail_sku',
     };
   }
   if (isAddRetailToMyBookingPrompt(prompt)) {

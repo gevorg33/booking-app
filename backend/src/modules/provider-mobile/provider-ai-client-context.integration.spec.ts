@@ -42,6 +42,18 @@ describe('Provider AI client context (prov-exp-1.6)', () => {
             rescueReason: 'explain_client_intake',
           };
         }
+        if (/which visit is this in her package/i.test(prompt)) {
+          return {
+            action: 'explain_package_visit_context',
+            rescueReason: 'explain_package_visit_context',
+          };
+        }
+        if (/what's next after this/i.test(prompt)) {
+          return {
+            action: 'explain_multi_service_timeline',
+            rescueReason: 'explain_multi_service_timeline',
+          };
+        }
         return null;
       }),
       handleIntent: jest.fn(async (_biz, _user, action) => ({
@@ -146,6 +158,46 @@ describe('Provider AI client context (prov-exp-1.6)', () => {
       'explain_client_intake',
       expect.any(Object),
       'What does their pre-visit intake say?',
+      expect.objectContaining({ bookingId }),
+    );
+  });
+
+  it('executes explain_package_visit_context via rescue (ai-cmd-provider-5.2.8)', async () => {
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      'Which visit is this in her package?',
+      [],
+      { bookingId },
+    );
+
+    expect(result.action).toBe('explain_package_visit_context');
+    expect(providerClientContext.handleIntent).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      'explain_package_visit_context',
+      expect.any(Object),
+      'Which visit is this in her package?',
+      expect.objectContaining({ bookingId }),
+    );
+  });
+
+  it('executes explain_multi_service_timeline via rescue (ai-cmd-provider-5.2.9)', async () => {
+    const result = await service.executeCommand(
+      businessId,
+      userId,
+      "What's next after this blowdry?",
+      [],
+      { bookingId },
+    );
+
+    expect(result.action).toBe('explain_multi_service_timeline');
+    expect(providerClientContext.handleIntent).toHaveBeenCalledWith(
+      businessId,
+      userId,
+      'explain_multi_service_timeline',
+      expect.any(Object),
+      "What's next after this blowdry?",
       expect.objectContaining({ bookingId }),
     );
   });

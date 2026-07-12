@@ -1,4 +1,5 @@
 import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import type { TenantAppInstallView } from '../../common/utils/tenant-app-install-settings.util.js';
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
 import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
@@ -412,20 +413,42 @@ export function buildConsumerAppDownloadGuidance(input: {
 export function buildConsumerAppSwitchGuidance(input: {
   frontendUrl: string;
   businessSlug?: string | null;
-}): { summary: string; deepLink: string; steps: string[] } {
+  view?: TenantAppInstallView | null;
+}): {
+  summary: string;
+  deepLink: string;
+  customSchemeUrl: string | null;
+  steps: string[];
+} {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
-  const deepLink = input.businessSlug
+  const bookingUrl = input.businessSlug
     ? buildTenantPublicUrl({
         slug: input.businessSlug,
         frontendUrl: input.frontendUrl,
       })
     : frontendUrl;
+
+  if (input.view) {
+    const { view } = input;
+    return {
+      summary: `Open ${view.customSchemeUrl} to jump straight into the app for this salon. Not installed yet? The same /get-app link as the salon's Growth QR (${view.landingUrl}) detects your phone and installs or opens it automatically.`,
+      deepLink: view.landingUrl,
+      customSchemeUrl: view.customSchemeUrl,
+      steps: [
+        `Tap ${view.customSchemeUrl} to open the app directly if it's already installed.`,
+        `If nothing happens, open ${view.landingUrl} — the same get-app link as the salon's Growth QR — it detects iOS or Android and installs or opens the app automatically.`,
+        'Once open, use My appointments / My profile for account actions.',
+      ],
+    };
+  }
+
   return {
     summary:
       'Open the consumer booking experience to manage appointments and loyalty.',
-    deepLink,
+    deepLink: bookingUrl,
+    customSchemeUrl: null,
     steps: [
-      `Open ${deepLink} in your phone browser or home-screen shortcut.`,
+      `Open ${bookingUrl} in your phone browser or home-screen shortcut.`,
       'Sign in with the same email or phone you used when booking.',
       'Use My appointments / My profile for account actions.',
     ],

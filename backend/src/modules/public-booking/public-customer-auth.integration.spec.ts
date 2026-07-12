@@ -147,6 +147,7 @@ describe('Public customer auth integration', () => {
     jwtService,
     firebase as any,
     publicCustomerBookingService as unknown as PublicCustomerBookingService,
+    {} as any,
     giftCardPurchaseService as any,
     eventEmitter as any,
     customerRepo as any,

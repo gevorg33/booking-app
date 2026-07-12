@@ -875,6 +875,76 @@ export async function handleCancelMyBookingLogic(
   }
 }
 
+export async function handleCancelAllUpcomingBookingsLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure(
+      'cancel_all_upcoming_bookings',
+      'Sign in to cancel your upcoming bookings.',
+      { clarify: true },
+    );
+  }
+
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug)
+    return failure('cancel_all_upcoming_bookings', 'Business not found.');
+
+  const confirm = params.confirm === true;
+  const bookingIds = Array.isArray(params.bookingIds)
+    ? (params.bookingIds as unknown[]).filter(
+        (id): id is string => typeof id === 'string',
+      )
+    : undefined;
+
+  const result = await deps.publicCustomerBookingService.bulkCancelUpcomingBookings(
+    slug,
+    customerId,
+    { confirm, bookingIds },
+  );
+
+  if (result.requiresConfirmation) {
+    if (result.count === 0) {
+      return success(
+        'cancel_all_upcoming_bookings',
+        "You don't have any upcoming bookings to cancel.",
+        { count: 0 },
+      );
+    }
+    const lines = result.bookings
+      .map(
+        (b) =>
+          `${b.serviceName} on ${new Date(b.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`,
+      )
+      .join('; ');
+    return failure(
+      'cancel_all_upcoming_bookings',
+      `This will cancel ${result.count} upcoming booking(s): ${lines}. Reply yes to confirm.`,
+      {
+        clarify: true,
+        requiresConfirmation: true,
+        count: result.count,
+        bookings: result.bookings,
+        bookingIds: result.bookings.map((b) => b.id),
+      },
+    );
+  }
+
+  const summary =
+    result.failed === 0
+      ? `Cancelled ${result.cancelled} upcoming booking(s) — you're all set.`
+      : `Cancelled ${result.cancelled} of ${result.cancelled + result.failed} upcoming booking(s); ${result.failed} could not be cancelled (see details).`;
+
+  return success('cancel_all_upcoming_bookings', summary, {
+    cancelled: result.cancelled,
+    failed: result.failed,
+    results: result.results,
+  });
+}
+
 export async function handleRescheduleMyBookingLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,

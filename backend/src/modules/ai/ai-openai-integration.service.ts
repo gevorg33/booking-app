@@ -3,6 +3,8 @@ import { OpenAiIntegrationService } from '../integrations/openai/openai-integrat
 import type { CommandResult } from './command-completion.types.js';
 import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
 import { rescueConfigureOpenaiIntegrationIntent } from './ai-openai-integration.util.js';
+import { dispatchOpenaiIntegrationIntent } from './ai-openai-integration-dispatch.util.js';
+import type { OpenaiIntegrationDispatchContext } from './ai-openai-integration-dispatch.build.js';
 
 @Injectable()
 export class AiOpenaiIntegrationService {
@@ -25,5 +27,12 @@ export class AiOpenaiIntegrationService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an openai-integration intent. */
+  dispatchIntent(
+    ctx: OpenaiIntegrationDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchOpenaiIntegrationIntent(this, ctx);
   }
 }

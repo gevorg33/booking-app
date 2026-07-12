@@ -28,6 +28,7 @@ export interface ClinicBookingLogicDeps {
     | 'getCustomerFlow'
     | 'startCustomerIntake'
     | 'submitCustomerAnswers'
+    | 'getCheckoutConfig'
   >;
 }
 

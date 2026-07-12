@@ -305,6 +305,7 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           prompt: 'Gift card balance left',
           action: 'unknown',
           params: {},
+          surface: 'customer',
         })?.action,
       ).toBe('gift_card_balance');
       expect(

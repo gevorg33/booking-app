@@ -93,6 +93,8 @@ const READ_ONLY_COMPOUND_ACTIONS = new Set([
   'list_services',
   'list_employees',
   'list_templates',
+  'list_schedule_blocks',
+  'get_provider_calendar',
   'list_schedule_gaps',
   'summarize_utilization',
   'summarize_customers',

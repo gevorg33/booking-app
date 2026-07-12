@@ -245,7 +245,12 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
     handleExplainPaymentStatusLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('collect_cash_confirm', (deps, ctx) =>
-    handleCollectCashConfirmLogic(deps, ctx.businessId, ctx.params, ctx.userId),
+    handleCollectCashConfirmLogic(
+      deps,
+      ctx.businessId,
+      withPromptParams(ctx.params, ctx.prompt),
+      ctx.userId,
+    ),
   );
   map.set('check_providers_for_service', (deps, ctx) =>
     handleCheckProvidersForServiceLogic(

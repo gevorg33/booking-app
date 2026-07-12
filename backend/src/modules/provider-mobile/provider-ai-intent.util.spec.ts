@@ -70,4 +70,52 @@ describe('rescueProviderAiIntent', () => {
       ),
     ).toBe('summarize_utilization');
   });
+
+  it('maps clock-time and day-part listing phrases to show_appointments (ai-cmd-provider-5.1.2)', () => {
+    expect(rescueProviderAiIntent('Who do I see at 2pm?', 'unknown')).toBe(
+      'show_appointments',
+    );
+    expect(rescueProviderAiIntent('List my afternoon', 'unknown')).toBe(
+      'show_appointments',
+    );
+    expect(
+      rescueProviderAiIntent('Show completed appointments today', 'unknown'),
+    ).toBe('show_appointments');
+  });
+
+  it('maps who-is-next phrases to show_appointments (ai-cmd-provider-5.1.4)', () => {
+    expect(
+      rescueProviderAiIntent("Who's my next client?", 'unknown'),
+    ).toBe('show_appointments');
+    expect(rescueProviderAiIntent("Who's up next?", 'unknown')).toBe(
+      'show_appointments',
+    );
+    expect(rescueProviderAiIntent('Who do I have next?', 'unknown')).toBe(
+      'show_appointments',
+    );
+  });
+
+  it('maps day-walkthrough phrases to explain_today_timeline (ai-cmd-provider-5.1.5)', () => {
+    expect(
+      rescueProviderAiIntent('Walk me through my day', 'unknown'),
+    ).toBe('explain_today_timeline');
+    expect(rescueProviderAiIntent('Gaps between clients?', 'unknown')).toBe(
+      'explain_today_timeline',
+    );
+    expect(
+      rescueProviderAiIntent('Any gaps this afternoon on my book', 'unknown'),
+    ).toBe('fill_unused_slots');
+  });
+
+  it('maps end-of-day wrap-up phrases to end_of_day_summary (ai-cmd-provider-5.1.7)', () => {
+    expect(rescueProviderAiIntent('Wrap up today', 'unknown')).toBe(
+      'end_of_day_summary',
+    );
+    expect(rescueProviderAiIntent('Anything still unpaid?', 'unknown')).toBe(
+      'end_of_day_summary',
+    );
+    expect(rescueProviderAiIntent("How's today looking?", 'unknown')).toBe(
+      'summarize_day',
+    );
+  });
 });

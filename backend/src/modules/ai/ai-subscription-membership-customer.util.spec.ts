@@ -88,7 +88,7 @@ describe('ai-subscription-membership-customer.util (ai-cmd-customer-4.0 P1)', ()
     });
   });
 
-  it('does not steal subscription usage or plan discovery prompts', () => {
+  it('does not steal subscription usage prompts', () => {
     expect(
       detectMembershipCustomerAction('How many visits left on my plan?'),
     ).toBeNull();
@@ -98,12 +98,15 @@ describe('ai-subscription-membership-customer.util (ai-cmd-customer-4.0 P1)', ()
         'unknown',
       ),
     ).toBeNull();
-    expect(
-      detectMembershipCustomerAction('What subscription plans do you offer?'),
-    ).toBeNull();
     expect(isMySubscriptionsPrompt('Use my membership for massage')).toBe(
       false,
     );
+  });
+
+  it('rescues plan discovery prompts as discover_subscription_plans (ai-cmd-customer-6.1 promotion)', () => {
+    expect(
+      detectMembershipCustomerAction('What subscription plans do you offer?'),
+    ).toBe('discover_subscription_plans');
   });
 
   it('maps membership fixtures to passing eval golden cases', () => {

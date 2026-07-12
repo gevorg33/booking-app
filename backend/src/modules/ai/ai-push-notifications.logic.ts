@@ -21,6 +21,8 @@ import { handleConfigureWhatsappIntegrationLogic } from './ai-whatsapp-integrati
 import {
   buildNewBookingPushActionsGuide,
   buildOfflineQueueStatusSummary,
+  buildProviderExplainAppUpdateGateSummary,
+  buildProviderExplainOfflineModeSummary,
   buildRetryOfflineActionGuidance,
   decomposePushNotificationsCompoundPrompt,
   explainLastPushSummary,
@@ -229,6 +231,38 @@ export async function handleRetryOfflineActionLogic(
   };
 }
 
+export async function handleProviderExplainOfflineModeLogic(
+  _deps: PushNotificationsLogicDeps,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const state = resolveOfflineState(params);
+  return success(
+    'explain_offline_mode',
+    buildProviderExplainOfflineModeSummary(state),
+    {
+      ...state,
+      providerOffline: true,
+    },
+  );
+}
+
+export async function handleProviderExplainAppUpdateGateLogic(
+  _deps: PushNotificationsLogicDeps,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  return success(
+    'explain_app_update_gate',
+    buildProviderExplainAppUpdateGateSummary({
+      currentVersion:
+        typeof params.currentVersion === 'string'
+          ? params.currentVersion
+          : undefined,
+      blocked: params.blocked === true,
+    }),
+    { providerAppGate: true },
+  );
+}
+
 export async function handleDismissPushLogic(
   _deps: PushNotificationsLogicDeps,
   params: Record<string, any>,
@@ -277,6 +311,53 @@ export async function handleMarkAllNotificationsReadLogic(
       : 'No unread notifications to mark as read.',
     { updated },
   );
+}
+
+export async function handleMarkNotificationReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  let notificationId =
+    typeof params.notificationId === 'string' && params.notificationId.trim()
+      ? params.notificationId.trim()
+      : undefined;
+
+  if (!notificationId) {
+    const view = await deps.pushHistoryService.listNotificationCenter(
+      businessId,
+      userId,
+    );
+    const target = view.items.find((item) => !item.isRead) ?? view.items[0];
+    if (!target) {
+      return failure(
+        'mark_notification_read',
+        'No notifications to mark as read.',
+        { clarify: true },
+      );
+    }
+    notificationId = target.id;
+  }
+
+  try {
+    const notification = await deps.pushHistoryService.markNotificationRead(
+      businessId,
+      userId,
+      notificationId,
+    );
+    return success(
+      'mark_notification_read',
+      `Marked "${notification.title}" as read.`,
+      { notificationId: notification.id, title: notification.title },
+    );
+  } catch {
+    return failure(
+      'mark_notification_read',
+      'Notification not found.',
+      { clarify: true },
+    );
+  }
 }
 
 export async function handleMarkBookingNotificationsReadLogic(
@@ -360,6 +441,7 @@ export async function handleEndOfDaySummaryLogic(
     employeeId,
     appointmentCount: 0,
     unpaidCount: 0,
+    noShowCount: 0,
     gapsTomorrow: 0,
   };
   const pushPayload = buildEodPushPayload(summary);
@@ -372,6 +454,7 @@ export async function handleEndOfDaySummaryLogic(
       pushPayload,
       appointmentCount: summary.appointmentCount,
       unpaidCount: summary.unpaidCount,
+      noShowCount: summary.noShowCount,
     },
   );
 }

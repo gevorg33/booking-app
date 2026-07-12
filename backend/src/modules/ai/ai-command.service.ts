@@ -42,6 +42,7 @@ import {
 } from '../../common/utils/timezone.util.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { AiBookingCoreService } from './ai-booking-core.service.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
 import { AiBusinessCurrencyService } from './ai-business-currency.service.js';
@@ -56,10 +57,6 @@ import { AiClinicTestOrderService } from './ai-clinic-test-order.service.js';
 import { AiClinicLabBookingService } from './ai-clinic-lab-booking.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
 import { AiClinicTestCatalogService } from './ai-clinic-test-catalog.service.js';
-import {
-  coerceClinicTestResultExtIntent,
-  dispatchClinicTestResultExtIntent,
-} from './ai-clinic-test-result-ext-dispatch.util.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
 import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
 import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
@@ -433,6 +430,7 @@ export class AiCommandService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private scheduleHandlers: AiScheduleHandlersService,
+    private bookingCore: AiBookingCoreService,
     private scheduling: AiSchedulingService,
     private operations: AiOperationsService,
     private businessCurrency: AiBusinessCurrencyService,
@@ -1588,2500 +1586,345 @@ export class AiCommandService {
       });
       if (paymentsResult != null) {
         result = paymentsResult;
-      } else
-        switch (parsed.action) {
-          case 'create_booking':
-            result = await this.handleCreateBooking(
+      } else {
+        const integrationsResult = await this.integrations.dispatchIntent({
+          businessId,
+          action: parsed.action,
+          params,
+          prompt: effectivePrompt,
+          userId,
+          actorEmail: session?.context?.userEmail as string | undefined,
+          actorName: session?.context?.userName as string | undefined,
+          sessionCustomerId: session?.context?.customerId as
+            | string
+            | undefined,
+        });
+        if (integrationsResult != null) {
+          result = integrationsResult;
+        } else {
+          const giftFulfillmentResult =
+            await this.giftFulfillment.dispatchIntent({
               businessId,
+              action: parsed.action,
               params,
-              employees,
-              services,
-              customers,
+              prompt: effectivePrompt,
               userId,
-              effectivePrompt,
-            );
-            break;
-          case 'create_booking_subscription_credit': {
-            const prepared =
-              await this.bookingDepth.prepareSubscriptionCreditParams(
+              sessionCustomerId: session?.context?.customerId as
+                | string
+                | undefined,
+            });
+          if (giftFulfillmentResult != null) {
+            result = giftFulfillmentResult;
+          } else {
+            const pushNotificationsResult =
+              await this.pushNotifications.dispatchIntent({
                 businessId,
+                action: parsed.action,
                 params,
-                customers,
-                services,
-                (list, name) => this.resolveCustomer(list, name),
-                (list, name) => this.resolveService(list, name) ?? undefined,
-              );
-            if (!prepared.ok) {
-              result = prepared.result;
-              break;
-            }
-            result = await this.handleCreateBooking(
-              businessId,
-              prepared.params,
-              employees,
-              services,
-              customers,
-              userId,
-              effectivePrompt,
-            );
-            if (result.action === 'create_booking') {
-              result = {
-                ...result,
-                action: 'create_booking_subscription_credit',
-              };
-            }
-            break;
-          }
-          case 'create_booking_cash': {
-            const businessRow = await this.businessRepo.findOne({
-              where: { id: businessId },
-              select: { settings: true },
-            });
-            const prepared = this.bookingDepth.prepareCashCreateParams(
-              params,
-              businessRow?.settings ?? null,
-            );
-            if (!prepared.ok) {
-              result = prepared.result;
-              break;
-            }
-            result = await this.handleCreateBooking(
-              businessId,
-              prepared.params,
-              employees,
-              services,
-              customers,
-              userId,
-              effectivePrompt,
-            );
-            if (result.action === 'create_booking') {
-              result = { ...result, action: 'create_booking_cash' };
-            }
-            break;
-          }
-          case 'create_package_booking': {
-            const businessRow = await this.businessRepo.findOne({
-              where: { id: businessId },
-            });
-            if (!businessRow) {
-              result = {
-                success: false,
-                action: 'create_package_booking',
-                summary: 'Business not found',
-                details: {},
-              };
-              break;
-            }
-            result = await this.bookingDepth.handleCreatePackageBooking(
-              businessId,
-              params,
-              businessRow,
-              employees,
-              services,
-              customers,
-              (list, name) => this.resolveEmployee(list, name),
-              (list, name) => this.resolveCustomer(list, name),
-              userId,
-            );
-            break;
-          }
-          case 'create_multi_service_booking': {
-            const businessRow = await this.businessRepo.findOne({
-              where: { id: businessId },
-            });
-            if (!businessRow) {
-              result = {
-                success: false,
-                action: 'create_multi_service_booking',
-                summary: 'Business not found',
-                details: {},
-              };
-              break;
-            }
-            result = await this.bookingDepth.handleCreateMultiServiceBooking(
-              businessId,
-              params,
-              businessRow,
-              employees,
-              services,
-              customers,
-              (list, name) => this.resolveEmployee(list, name),
-              (list, p) => this.resolveServices(list, p),
-              (list, name) => this.resolveCustomer(list, name),
-              userId,
-            );
-            break;
-          }
-          case 'cancel_package_visit':
-            result = await this.bookingDepth.handleCancelPackageVisit(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'cancel_multi_service_group':
-            result = await this.bookingDepth.handleCancelMultiServiceGroup(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'reschedule_package_visit':
-            result = await this.bookingDepth.handleReschedulePackageVisit(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'reschedule_multi_service_group':
-            result = await this.bookingDepth.handleRescheduleMultiServiceGroup(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'list_cash_pending_bookings':
-            result = await this.bookingDepth.handleListCashPending(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'list_package_bookings':
-            result = await this.bookingDepth.handleListPackageBookings(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'list_multi_service_bookings':
-            result = await this.bookingDepth.handleListMultiServiceBookings(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'mark_paid': {
-            const pageCtx = session?.context as
-              | Record<string, unknown>
-              | undefined;
-            result = await this.bookingDepth.handleMarkPaid(
-              businessId,
-              { ...params, _timeZone: timeZone },
-              userId,
-              {
                 prompt: effectivePrompt,
-                employees,
-                customers,
-                timeZone,
-                sessionDate:
-                  typeof pageCtx?.date === 'string' ? pageCtx.date : undefined,
-                calendarRoute:
-                  typeof pageCtx?.route === 'string'
-                    ? pageCtx.route
-                    : undefined,
-              },
-            );
-            break;
-          }
-          case 'assign_booking_resource':
-            result = await this.bookingDepth.handleAssignResource(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'explain_booking_policy':
-            result = await this.bookingDepth.handleExplainPolicy(
-              businessId,
-              params,
-            );
-            break;
-          case 'list_customer_subscriptions':
-            result = await this.customerCrm.handleListCustomerSubscriptions(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'subscription_usage_history':
-            result = await this.customerCrm.handleSubscriptionUsageHistory(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'extend_subscription':
-            result = await this.customerCrm.handleExtendSubscription(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'cancel_subscription_admin':
-            result = await this.customerCrm.handleCancelSubscriptionAdmin(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'list_customer_gift_cards':
-            result = await this.customerCrm.handleListCustomerGiftCards(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'list_customer_bookings':
-            result = await this.customerCrm.handleListCustomerBookings(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'customer_no_show_history':
-            result = await this.customerCrm.handleCustomerNoShowHistory(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'tag_customer':
-            result = await this.customerCrm.handleTagCustomer(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'update_customer':
-            result = await this.customerCrm.handleUpdateCustomer(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'export_customer_data':
-            result = await this.customerCrm.handleExportCustomerData(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'delete_customer_data':
-            result = await this.customerCrm.handleDeleteCustomerData(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'send_reengagement_message':
-            result = await this.customerCrm.handleSendReengagementMessage(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'merge_customers':
-            result = await this.customerCrm.handleMergeCustomers(
-              businessId,
-              params,
-              customers,
-              (list, name) => this.resolveCustomer(list, name),
-            );
-            break;
-          case 'my_profile':
-            result = await this.customerCrm.handleMyProfile(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'my_appointments':
-            result = await this.customerCrm.handleMyAppointments(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'my_subscriptions':
-            result = await this.customerCrm.handleMySubscriptions(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'explain_my_subscription':
-            result = await this.customerCrm.handleExplainMySubscription(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'subscription_usage':
-            result = await this.customerCrm.handleSubscriptionUsage(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-            );
-            break;
-          case 'my_gift_cards':
-            result = await this.customerCrm.handleMyGiftCards(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'gift_card_balance':
-            result = await this.customerCrm.handleGiftCardBalance(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'gift_card_redemption_history':
-            result = await this.customerCrm.handleGiftCardRedemptionHistory(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-            );
-            break;
-          case 'request_gift_card_cancel':
-            result = await this.customerCrm.handleRequestGiftCardCancel(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-            );
-            break;
-          case 'request_gift_card_modify':
-            result = await this.customerCrm.handleRequestGiftCardModify(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-            );
-            break;
-          case 'track_physical_gift_card_order':
-            result = await this.customerCrm.handleTrackPhysicalGiftCardOrder(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId,
-              },
-            );
-            break;
-          case 'privacy_export':
-            result = await this.customerCrm.handlePrivacyExport(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'privacy_delete':
-            result = await this.customerCrm.handlePrivacyDelete(businessId, {
-              ...params,
-              sessionCustomerId: session?.context?.customerId,
-            });
-            break;
-          case 'discover_packages':
-            result = await this.customerCrm.handleDiscoverPackages(businessId);
-            break;
-          case 'discover_subscription_plans':
-            result = await this.customerCrm.handleDiscoverSubscriptionPlans(
-              businessId,
-              params,
-            );
-            break;
-          case 'discover_gift_card_products':
-            result =
-              await this.customerCrm.handleDiscoverGiftCardProducts(businessId);
-            break;
-          case 'list_scheduling_resources':
-            result =
-              await this.scheduleResources.handleListSchedulingResources(
-                businessId,
-              );
-            break;
-          case 'create_resource':
-            result = await this.scheduleResources.handleCreateResource(
-              businessId,
-              params,
-            );
-            break;
-          case 'update_resource':
-            result = await this.scheduleResources.handleUpdateResource(
-              businessId,
-              params,
-            );
-            break;
-          case 'deactivate_resource':
-            result = await this.scheduleResources.handleDeactivateResource(
-              businessId,
-              params,
-            );
-            break;
-          case 'assign_resource_hours':
-            result = await this.scheduleResources.handleAssignResourceHours(
-              businessId,
-              params,
-              services,
-            );
-            break;
-          case 'set_service_resource_requirements':
-            result =
-              await this.scheduleResources.handleSetServiceResourceRequirements(
-                businessId,
-                params,
-                services,
-              );
-            break;
-          case 'list_resource_conflicts':
-            result = await this.scheduleResources.handleListResourceConflicts(
-              businessId,
-              params,
-            );
-            break;
-          case 'explain_resource_conflict':
-            result = await this.scheduleResources.handleExplainResourceConflict(
-              businessId,
-              params,
-            );
-            break;
-          case 'explain_multi_service_settings':
-            result =
-              await this.scheduleResources.handleExplainMultiServiceSettings(
-                businessId,
-                params,
-                effectivePrompt,
-              );
-            break;
-          case 'configure_multi_service_scheduling_mode':
-            result =
-              await this.scheduleResources.handleConfigureMultiServiceSchedulingMode(
-                businessId,
-                params,
-              );
-            break;
-          case 'my_resource_assignments':
-            result = await this.scheduleResources.handleMyResourceAssignments(
-              businessId,
-              {
-                ...params,
-                sessionEmployeeId: employeeId,
-              },
-            );
-            break;
-          case 'block_resource_unavailable':
-            result =
-              await this.scheduleResources.handleBlockResourceUnavailable(
-                businessId,
-                params,
-              );
-            break;
-          case 'check_multi_service_block_availability':
-            result =
-              await this.scheduleResources.handleCheckMultiServiceBlockAvailability(
-                businessId,
-                params,
-              );
-            break;
-          case 'check_package_line_availability':
-            result =
-              await this.scheduleResources.handleCheckPackageLineAvailability(
-                businessId,
-                params,
-              );
-            break;
-          case 'earliest_slot_all_services':
-            result = await this.scheduleResources.handleEarliestSlotAllServices(
-              businessId,
-              params,
-            );
-            break;
-          case 'providers_available_later_days':
-            result =
-              await this.scheduleResources.handleProvidersAvailableLaterDays(
-                businessId,
-                params,
-              );
-            break;
-          case 'explain_why_no_slots':
-            result = await this.scheduleResources.handleExplainWhyNoSlots(
-              businessId,
-              params,
-            );
-            break;
-          case 'list_agent_tasks':
-            result = await this.agentOps.handleListAgentTasks(
-              businessId,
-              params,
-            );
-            break;
-          case 'rebook_all_from_agent_task':
-            result = await this.agentOps.handleRebookAllFromAgentTask(
-              businessId,
-              params,
-              userId ?? '',
-            );
-            break;
-          case 'undo_latest_agent_task':
-            result = await this.agentOps.handleUndoLatestAgentTask(
-              businessId,
-              userId ?? '',
-              params.confirmed === true,
-            );
-            break;
-          case 'approve_agent_task':
-            result = await this.agentOps.handleApproveAgentTask(
-              businessId,
-              params,
-              userId ?? '',
-            );
-            break;
-          case 'retry_agent_step':
-            result = await this.agentOps.handleRetryAgentStep(
-              businessId,
-              params,
-              userId ?? '',
-            );
-            break;
-          case 'get_dashboard_overview':
-            result =
-              await this.businessProfile.handleGetDashboardOverview(
-                businessId,
-              );
-            break;
-          case 'update_business_profile':
-            result = await this.businessProfile.handleUpdateBusinessProfile(
-              businessId,
-              params,
-            );
-            break;
-          case 'explain_onboarding_status':
-            result =
-              await this.onboarding.handleExplainOnboardingStatus(
-                businessId,
-              );
-            break;
-          case 'set_business_type':
-            result = await this.onboarding.handleSetBusinessType(
-              businessId,
-              params,
-            );
-            break;
-          case 'recommend_catalog':
-            result = await this.onboarding.handleRecommendCatalog(businessId);
-            break;
-          case 'apply_onboarding_catalog':
-            result = await this.onboarding.handleApplyOnboardingCatalog(
-              businessId,
-              params,
-            );
-            break;
-          case 'apply_onboarding_schedule':
-            result = await this.onboarding.handleApplyOnboardingSchedule(
-              businessId,
-              userId ?? '',
-            );
-            break;
-          case 'skip_onboarding_schedule':
-            result =
-              await this.onboarding.handleSkipOnboardingSchedule(businessId);
-            break;
-          case 'apply_onboarding_playbook':
-            result = await this.onboarding.handleApplyOnboardingPlaybook(
-              businessId,
-              userId ?? '',
-            );
-            break;
-          case 'complete_onboarding':
-            result = await this.onboarding.handleCompleteOnboarding(businessId);
-            break;
-          case 'assign_pre_visit_intake_to_booking':
-            result =
-              await this.clinicPreVisitIntake.handleAssignPreVisitIntakeToBooking(
-                businessId,
-                userId ?? '',
-                params,
-              );
-            break;
-          case 'staff_submit_intake_answers':
-            result = await this.clinicPreVisitIntake.handleStaffSubmitIntakeAnswers(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'create_questionnaire':
-            result = await this.clinicQuestionnaire.handleCreateQuestionnaire(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'update_questionnaire':
-            result = await this.clinicQuestionnaire.handleUpdateQuestionnaire(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'publish_questionnaire':
-            result = await this.clinicQuestionnaire.handlePublishQuestionnaire(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'create_location':
-            result = await this.locations.handleCreateLocation(
-              businessId,
-              params,
-            );
-            break;
-          case 'update_location':
-            result = await this.locations.handleUpdateLocation(
-              businessId,
-              params,
-            );
-            break;
-          case 'list_products':
-            result = await this.retailFinance.handleListProducts(
-              businessId,
-              params,
-            );
-            break;
-          case 'summarize_automation_performance':
-            result =
-              await this.marketingGrowth.handleSummarizeAutomationPerformance(
-                businessId,
-              );
-            break;
-          case 'trigger_reengagement':
-            result =
-              await this.marketingGrowth.handleTriggerReengagement(businessId);
-            break;
-          case 'list_inactive_customers':
-            result =
-              await this.marketingGrowth.handleListInactiveCustomers(
-                businessId,
-              );
-            break;
-          case 'explain_plan_limits':
-            result =
-              await this.marketingGrowth.handleExplainPlanLimits(businessId);
-            break;
-          case 'suggest_upgrade':
-            result =
-              await this.marketingGrowth.handleSuggestUpgrade(businessId);
-            break;
-          case 'toggle_annual_billing':
-            result = await this.marketingGrowth.handleToggleAnnualBilling(
-              businessId,
-              params,
-              session?.context?.userEmail as string | undefined,
-            );
-            break;
-          case 'summarize_new_registrations':
-            result = await this.marketingGrowth.handleSummarizeNewRegistrations(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'open_billing_settings':
-            result =
-              await this.marketingGrowth.handleOpenBillingSettings(businessId);
-            break;
-          case 'start_billing_checkout':
-            result = await this.marketingGrowth.handleStartBillingCheckout(
-              businessId,
-              params,
-            );
-            break;
-          case 'confirm_billing_checkout':
-            result = await this.marketingGrowth.handleConfirmBillingCheckout(
-              businessId,
-              params,
-            );
-            break;
-          case 'explain_plan_entitlements':
-            result =
-              await this.marketingGrowth.handleExplainPlanEntitlements(
-                businessId,
-              );
-            break;
-          case 'summarize_loyalty_program':
-            result =
-              await this.marketingGrowth.handleSummarizeLoyaltyProgram(
-                businessId,
-              );
-            break;
-          case 'explain_tenant_app_install':
-            result =
-              await this.marketingGrowth.handleExplainTenantAppInstall(
-                businessId,
-              );
-            break;
-          case 'regenerate_tenant_app_install_qr':
-            result =
-              await this.marketingGrowth.handleRegenerateTenantAppInstallQr(
-                businessId,
-              );
-            break;
-          case 'create_promo_code':
-            result = await this.marketingGrowth.handleCreatePromoCode(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'deactivate_promo_code':
-            result = await this.marketingGrowth.handleDeactivatePromoCode(
-              businessId,
-              params,
-            );
-            break;
-          case 'how_to_download_app':
-            result =
-              await this.marketingGrowth.handleHowToDownloadApp(businessId);
-            break;
-          case 'switch_to_consumer_app':
-            result =
-              await this.marketingGrowth.handleSwitchToConsumerApp(businessId);
-            break;
-          case 'promo_code_help':
-            result = await this.marketingGrowth.handlePromoCodeHelp(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'loyalty_points_balance':
-            result = await this.marketingGrowth.handleLoyaltyPointsBalance(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'explain_loyalty_points':
-            result = await this.marketingGrowth.handleExplainLoyaltyPoints(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'explain_last_push':
-            result = await this.pushNotifications.handleExplainLastPush({
-              ...params,
-              lastPush: params.lastPush ?? session?.context?.lastPush,
-            });
-            break;
-          case 'open_booking_from_push':
-            result = await this.pushNotifications.handleOpenBookingFromPush(
-              businessId,
-              {
-                ...params,
-                lastPush: params.lastPush ?? session?.context?.lastPush,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'offline_queue_status':
-            result = await this.pushNotifications.handleOfflineQueueStatus({
-              ...params,
-              offlineQueueCount:
-                params.offlineQueueCount ?? session?.context?.offlineQueueCount,
-              online: params.online ?? session?.context?.online,
-            });
-            break;
-          case 'retry_offline_action':
-            result = await this.pushNotifications.handleRetryOfflineAction({
-              ...params,
-              offlineQueueCount:
-                params.offlineQueueCount ?? session?.context?.offlineQueueCount,
-              online: params.online ?? session?.context?.online,
-            });
-            break;
-          case 'dismiss_push':
-            result = await this.pushNotifications.handleDismissPush({
-              ...params,
-              lastPush: params.lastPush ?? session?.context?.lastPush,
-            });
-            break;
-          case 'end_of_day_summary':
-            result = await this.pushNotifications.handleEndOfDaySummary(
-              businessId,
-              {
-                ...params,
-                sessionEmployeeId:
-                  (params.sessionEmployeeId as string | undefined) ??
-                  (session?.context?.scopedEmployeeId as string | undefined) ??
-                  employeeId,
-              },
-            );
-            break;
-          case 'new_booking_push_actions':
-            result = await this.pushNotifications.handleNewBookingPushActions();
-            break;
-          case 'test_push':
-            result = await this.pushNotifications.handleTestPush(businessId, {
-              ...params,
-              userId,
-            });
-            break;
-          case 'notification_history':
-            result = await this.pushNotifications.handleNotificationHistory(
-              businessId,
-              params,
-            );
-            break;
-          case 'toggle_business_email_on_customer_change':
-            result =
-              await this.pushNotifications.handleToggleBusinessEmailOnCustomerChange(
-                businessId,
-                params,
-                effectivePrompt,
-              );
-            break;
-          case 'enable_notifications':
-            result = await this.pushNotifications.handleEnableNotifications(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'appointment_reminder_preferences':
-            result =
-              await this.pushNotifications.handleAppointmentReminderPreferences(
-                businessId,
-                {
-                  ...params,
-                  sessionCustomerId: session?.context?.customerId as
-                    | string
-                    | undefined,
-                },
-                effectivePrompt,
-              );
-            break;
-          case 'book_package':
-            result = await this.selfServiceBooking.handleBookPackage(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'book_multi_service':
-            result = await this.selfServiceBooking.handleBookMultiService(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                cartServiceIds:
-                  session?.context?.cartServiceIds ?? params.cartServiceIds,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'check_package_availability':
-            result =
-              await this.selfServiceBooking.handleCheckPackageAvailability(
-                businessId,
-                {
-                  ...params,
-                  _prompt: effectivePrompt,
-                },
-              );
-            break;
-          case 'check_multi_service_availability':
-            result =
-              await this.selfServiceBooking.handleCheckMultiServiceAvailability(
-                businessId,
-                {
-                  ...params,
-                  cartServiceIds:
-                    session?.context?.cartServiceIds ?? params.cartServiceIds,
-                  _prompt: effectivePrompt,
-                },
-              );
-            break;
-          case 'select_subscription_plan':
-            result = await this.selfServiceBooking.handleSelectSubscriptionPlan(
-              businessId,
-              {
-                ...params,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'use_subscription_credit':
-            result = await this.selfServiceBooking.handleUseSubscriptionCredit(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'cancel_my_booking':
-            result = await this.selfServiceBooking.handleCancelMyBooking(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                bookingId: params.bookingId ?? session?.context?.bookingId,
-              },
-            );
-            break;
-          case 'reschedule_my_booking':
-            result = await this.selfServiceBooking.handleRescheduleMyBooking(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                bookingId: params.bookingId ?? session?.context?.bookingId,
-              },
-            );
-            break;
-          case 'cancel_package_visit_self':
-            result = await this.selfServiceBooking.handleCancelPackageVisitSelf(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                bookingId: params.bookingId ?? session?.context?.bookingId,
-              },
-            );
-            break;
-          case 'reschedule_package_visit_self':
-            result =
-              await this.selfServiceBooking.handleReschedulePackageVisitSelf(
-                businessId,
-                {
-                  ...params,
-                  sessionCustomerId: session?.context?.customerId as
-                    | string
-                    | undefined,
-                  bookingId: params.bookingId ?? session?.context?.bookingId,
-                },
-              );
-            break;
-          case 'list_my_appointments':
-            result = await this.selfServiceBooking.handleListMyAppointments(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'list_my_package_visits':
-            result = await this.selfServiceBooking.handleListMyPackageVisits(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'get_manage_link':
-            result = await this.selfServiceBooking.handleGetManageLink(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                bookingId: params.bookingId ?? session?.context?.bookingId,
-              },
-            );
-            break;
-          case 'explain_cancel_policy':
-            result = await this.selfServiceBooking.handleExplainCancelPolicy(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'explain_package_visit_rules':
-            result =
-              await this.selfServiceBooking.handleExplainPackageVisitRules(
-                businessId,
-                {
-                  ...params,
-                  sessionCustomerId: session?.context?.customerId as
-                    | string
-                    | undefined,
-                },
-                effectivePrompt,
-              );
-            break;
-          case 'book_with_cash':
-            result = await this.selfServiceBooking.handleBookWithCash(
-              businessId,
-              params,
-            );
-            break;
-          case 'book_with_gift_card':
-            result = await this.selfServiceBooking.handleBookWithGiftCard(
-              businessId,
-              {
-                ...params,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'change_provider_on_reschedule':
-            result =
-              await this.selfServiceBooking.handleChangeProviderOnReschedule(
-                businessId,
-                {
-                  ...params,
-                  _prompt: effectivePrompt,
-                },
-              );
-            break;
-          case 'add_services_to_cart':
-            result = await this.selfServiceBooking.handleAddServicesToCart(
-              businessId,
-              {
-                ...params,
-                cartServiceIds:
-                  session?.context?.cartServiceIds ?? params.cartServiceIds,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'remove_service_from_cart':
-            result = await this.selfServiceBooking.handleRemoveServiceFromCart(
-              businessId,
-              {
-                ...params,
-                cartServiceIds:
-                  session?.context?.cartServiceIds ?? params.cartServiceIds,
-                _prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'show_cart_total_duration':
-            result = await this.selfServiceBooking.handleShowCartTotalDuration(
-              businessId,
-              {
-                ...params,
-                cartServiceIds:
-                  session?.context?.cartServiceIds ?? params.cartServiceIds,
-              },
-            );
-            break;
-          case 'explain_multi_service_cart':
-            result =
-              await this.selfServiceBooking.handleExplainMultiServiceCart(
-                businessId,
-                {
-                  ...params,
-                  cartServiceIds:
-                    session?.context?.cartServiceIds ?? params.cartServiceIds,
-                  _prompt: effectivePrompt,
-                },
-                effectivePrompt,
-              );
-            break;
-          case 'explain_package_savings':
-            result = await this.selfServiceBooking.handleExplainPackageSavings(
-              businessId,
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          case 'explain_subscription_vs_one_time':
-            result =
-              await this.selfServiceBooking.handleExplainSubscriptionVsOneTime(
-                businessId,
-                { ...params, _prompt: effectivePrompt },
-                effectivePrompt,
-              );
-            break;
-          case 'explain_recommendation_setup': {
-            const parsedExplainSetup =
-              parseExplainRecommendationSetupFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.recommendationProduct.handleExplainRecommendationSetup(
-                businessId,
-                parsedExplainSetup
-                  ? {
-                      ...params,
-                      ...(parsedExplainSetup.serviceId
-                        ? { serviceId: parsedExplainSetup.serviceId }
-                        : {}),
-                      ...(parsedExplainSetup.serviceName
-                        ? { serviceName: parsedExplainSetup.serviceName }
-                        : {}),
-                      ...(parsedExplainSetup.categoryId
-                        ? { categoryId: parsedExplainSetup.categoryId }
-                        : {}),
-                      ...(parsedExplainSetup.categoryName
-                        ? { categoryName: parsedExplainSetup.categoryName }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'explain_recommendation_analytics': {
-            const parsedAnalytics =
-              parseExplainRecommendationAnalyticsFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.recommendationProduct.handleExplainRecommendationAnalytics(
-                businessId,
-                parsedAnalytics
-                  ? {
-                      ...params,
-                      ...(parsedAnalytics.aspect
-                        ? { aspect: parsedAnalytics.aspect }
-                        : {}),
-                      ...(parsedAnalytics.surface
-                        ? { surface: parsedAnalytics.surface }
-                        : {}),
-                      ...(parsedAnalytics.productName
-                        ? { productName: parsedAnalytics.productName }
-                        : {}),
-                      ...(parsedAnalytics.daysAhead
-                        ? { daysAhead: parsedAnalytics.daysAhead }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'summarize_recommendation_performance': {
-            const parsedPerformance =
-              parseSummarizeRecommendationPerformanceFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.recommendationProduct.handleSummarizeRecommendationPerformance(
-                businessId,
-                parsedPerformance
-                  ? {
-                      ...params,
-                      ...(parsedPerformance.aspect
-                        ? { aspect: parsedPerformance.aspect }
-                        : {}),
-                      ...(parsedPerformance.surface
-                        ? { surface: parsedPerformance.surface }
-                        : {}),
-                      ...(parsedPerformance.serviceName
-                        ? { serviceName: parsedPerformance.serviceName }
-                        : {}),
-                      ...(parsedPerformance.productName
-                        ? { productName: parsedPerformance.productName }
-                        : {}),
-                      ...(parsedPerformance.daysAhead
-                        ? { daysAhead: parsedPerformance.daysAhead }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'configure_recommendation_product': {
-            const parsedRecommendation =
-              parseConfigureRecommendationProductFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.recommendationProduct.handleConfigureRecommendationProduct(
-                businessId,
-                parsedRecommendation
-                  ? {
-                      ...params,
-                      ...(parsedRecommendation.productId
-                        ? { productId: parsedRecommendation.productId }
-                        : {}),
-                      ...(parsedRecommendation.productName
-                        ? {
-                            productName: parsedRecommendation.productName,
-                            name: parsedRecommendation.productName,
-                          }
-                        : {}),
-                      ...(parsedRecommendation.description
-                        ? { description: parsedRecommendation.description }
-                        : {}),
-                      ...(parsedRecommendation.imageUrl
-                        ? { imageUrl: parsedRecommendation.imageUrl }
-                        : {}),
-                      ...(parsedRecommendation.externalLink
-                        ? { externalLink: parsedRecommendation.externalLink }
-                        : {}),
-                      ...(parsedRecommendation.retailPrice !== undefined
-                        ? { retailPrice: parsedRecommendation.retailPrice }
-                        : {}),
-                      ...(parsedRecommendation.wantsImage
-                        ? { wantsImage: true }
-                        : {}),
-                      ...(parsedRecommendation.wantsLink
-                        ? { wantsLink: true }
-                        : {}),
-                      ...(parsedRecommendation.isUpdate
-                        ? { isUpdate: true }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'link_recommended_products': {
-            const parsedLinks = parseLinkRecommendedProductsFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.recommendationProduct.handleLinkRecommendedProducts(
-                businessId,
-                parsedLinks
-                  ? {
-                      ...params,
-                      ...(parsedLinks.productNames.length > 0
-                        ? { productNames: parsedLinks.productNames }
-                        : {}),
-                      ...(parsedLinks.productIds
-                        ? { productIds: parsedLinks.productIds }
-                        : {}),
-                      ...(parsedLinks.serviceId
-                        ? { serviceId: parsedLinks.serviceId }
-                        : {}),
-                      ...(parsedLinks.serviceName
-                        ? { serviceName: parsedLinks.serviceName }
-                        : {}),
-                      ...(parsedLinks.categoryId
-                        ? { categoryId: parsedLinks.categoryId }
-                        : {}),
-                      ...(parsedLinks.categoryName
-                        ? { categoryName: parsedLinks.categoryName }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'create_product':
-            result = await this.retailFinance.handleCreateProduct(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'link_product_to_service':
-            result = await this.retailFinance.handleLinkProductToService(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'update_inventory_product':
-            result = await this.retailFinance.handleUpdateInventoryProduct(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'delete_inventory_product':
-            result = await this.retailFinance.handleDeleteInventoryProduct(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'unlink_inventory_product':
-            result = await this.retailFinance.handleUnlinkInventoryProduct(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'set_recommended_products':
-            result = await this.retailFinance.handleSetRecommendedProducts(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'adjust_inventory':
-            result = await this.retailFinance.handleAdjustInventory(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'add_retail_sale_to_booking':
-            result = await this.retailFinance.handleAddRetailSaleToBooking(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'remove_retail_line':
-            result = await this.retailFinance.handleRemoveRetailLine(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'set_retail_sales_lines':
-            result = await this.retailFinance.handleSetRetailSalesLines(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'record_expense':
-            result = await this.retailFinance.handleRecordExpense(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'list_expenses':
-            result = await this.retailFinance.handleListExpenses(
-              businessId,
-              params,
-            );
-            break;
-          case 'delete_expense':
-            result = await this.retailFinance.handleDeleteExpense(
-              businessId,
-              params,
-            );
-            break;
-          case 'summarize_pl':
-            result = await this.retailFinance.handleSummarizePl(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'commission_report':
-            result = await this.retailFinance.handleCommissionReport(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'create_commission_rule':
-            result = await this.retailFinance.handleCreateCommissionRule(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'delete_commission_rule':
-            result = await this.retailFinance.handleDeleteCommissionRule(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'payout_export':
-            result = await this.retailFinance.handlePayoutExport(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'export_analytics_report':
-            result = await this.retailFinance.handleExportAnalyticsReport(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'summarize_reviews':
-            result = await this.retailFinance.handleSummarizeReviews(
-              businessId,
-              params,
-            );
-            break;
-          case 'summarize_adoption_funnel':
-            result = await this.retailFinance.handleSummarizeAdoptionFunnel(
-              businessId,
-              params,
-            );
-            break;
-          case 'suggest_retail_upsell':
-            result = await this.retailFinance.handleSuggestRetailUpsell(
-              businessId,
-              {
-                ...params,
-                sessionEmployeeId: session?.context?.employeeId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'add_retail_to_my_booking':
-            result = await this.retailFinance.handleAddRetailToMyBooking(
-              businessId,
-              {
-                ...params,
-                sessionEmployeeId: session?.context?.employeeId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'list_webhooks':
-            result = await this.integrations.handleListWebhooks(businessId);
-            break;
-          case 'create_webhook':
-            result = await this.integrations.handleCreateWebhook(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'delete_webhook':
-            result = await this.integrations.handleDeleteWebhook(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'toggle_webhook':
-            result = await this.integrations.handleToggleWebhook(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'test_webhook':
-            result = await this.integrations.handleTestWebhook(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'rotate_api_key':
-            result = await this.integrations.handleRotateApiKey(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'create_api_key':
-            result = await this.integrations.handleCreateApiKey(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'revoke_api_key':
-            result = await this.integrations.handleRevokeApiKey(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'configure_distribution_channels':
-            result =
-              await this.integrations.handleConfigureDistributionChannels(
-                businessId,
-                params,
-              );
-            break;
-          case 'list_zapier_triggers':
-            result =
-              await this.integrations.handleListZapierTriggers(businessId);
-            break;
-          case 'configure_zapier':
-            result = await this.integrations.handleConfigureZapier(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'configure_openai_integration':
-            result =
-              await this.openaiIntegration.handleConfigureOpenaiIntegration(
-                businessId,
-                params,
-                effectivePrompt,
-              );
-            break;
-          case 'run_accounting_export':
-            result = await this.integrations.handleRunAccountingExport(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'configure_zendesk':
-            result = await this.integrations.handleConfigureZendesk(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'create_support_ticket':
-            result = await this.integrations.handleCreateSupportTicket(
-              businessId,
-              params,
-              effectivePrompt,
-              session?.context?.userEmail as string | undefined,
-              session?.context?.userName as string | undefined,
-            );
-            break;
-          case 'sync_customer_to_zendesk':
-            result = await this.integrations.handleSyncCustomerToZendesk(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'list_integration_health':
-            result =
-              await this.integrations.handleListIntegrationHealth(businessId);
-            break;
-          case 'explain_integration_health':
-            result = await this.integrations.handleExplainIntegrationHealth(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'contact_support':
-            result = await this.integrations.handleContactSupport(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-              effectivePrompt,
-              session?.context?.userEmail as string | undefined,
-              session?.context?.userName as string | undefined,
-            );
-            break;
-          case 'open_ticket_for_order':
-            result = await this.integrations.handleOpenTicketForOrder(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-              effectivePrompt,
-              session?.context?.userEmail as string | undefined,
-              session?.context?.userName as string | undefined,
-            );
-            break;
-          case 'list_gift_card_orders':
-            result = await this.giftFulfillment.handleListGiftCardOrders(
-              businessId,
-              params,
-            );
-            break;
-          case 'filter_awaiting_creation':
-            result = await this.giftFulfillment.handleFilterAwaitingCreation(
-              businessId,
-              params,
-            );
-            break;
-          case 'assign_card_creator':
-            result = await this.giftFulfillment.handleAssignCardCreator(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'assign_delivery_staff':
-            result = await this.giftFulfillment.handleAssignDeliveryStaff(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'mark_shipped':
-            result = await this.giftFulfillment.handleMarkShipped(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'mark_delivered':
-            result = await this.giftFulfillment.handleMarkDelivered(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'cancel_gift_card_order':
-            result = await this.giftFulfillment.handleCancelGiftCardOrder(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'extend_cancel_window':
-            result = await this.giftFulfillment.handleExtendCancelWindow(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'update_gift_card_settings':
-            result = await this.giftFulfillment.handleUpdateGiftCardSettings(
-              businessId,
-              params,
-            );
-            break;
-          case 'list_gift_card_change_requests':
-            result =
-              await this.giftFulfillment.handleListGiftCardChangeRequests(
-                businessId,
-                params,
-              );
-            break;
-          case 'resolve_gift_card_change_request':
-            result =
-              await this.giftFulfillment.handleResolveGiftCardChangeRequest(
-                businessId,
-                params,
-              );
-            break;
-          case 'gift_fulfill_batch':
-            result = await this.giftFulfillment.handleGiftFulfillBatch(
-              businessId,
-              params,
-            );
-            break;
-          case 'print_packing_slip':
-            result = await this.giftFulfillment.handlePrintPackingSlip(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'gift_card_creation_queue':
-            result =
-              await this.giftFulfillment.handleGiftCardCreationQueue(
-                businessId,
-              );
-            break;
-          case 'start_card_preparation':
-            result = await this.giftFulfillment.handleStartCardPreparation(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'mark_card_ready':
-            result = await this.giftFulfillment.handleMarkCardReady(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'delivery_queue':
-            result = await this.giftFulfillment.handleDeliveryQueue(businessId);
-            break;
-          case 'accept_delivery':
-            result = await this.giftFulfillment.handleAcceptDelivery(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'mark_out_for_delivery':
-            result = await this.giftFulfillment.handleMarkOutForDelivery(
-              businessId,
-              params,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          case 'capture_delivery_proof':
-            result = await this.giftFulfillment.handleCaptureDeliveryProof(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'notify_delay':
-            result = await this.giftFulfillment.handleNotifyDelay(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'track_gift_card_shipment':
-            result = await this.giftFulfillment.handleTrackGiftCardShipment(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'enter_shipping_address':
-            result = await this.giftFulfillment.handleEnterShippingAddress(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-                _prompt: effectivePrompt,
-              },
-              effectivePrompt,
-            );
-            break;
-          case 'shipping_method_quote':
-            result = await this.giftFulfillment.handleShippingMethodQuote(
-              businessId,
-              params,
-            );
-            break;
-          case 'order_status_notifications':
-            result = await this.giftFulfillment.handleOrderStatusNotifications(
-              businessId,
-              {
-                ...params,
-                sessionCustomerId: session?.context?.customerId as
-                  | string
-                  | undefined,
-              },
-            );
-            break;
-          case 'accept_hipaa_baa': {
-            const parsedBaa = parseAcceptHipaaBaaFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleAcceptHipaaBaa(
-              businessId,
-              userId,
-              parsedBaa
-                ? { ...params, ...parsedBaa, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_compliance_status': {
-            const parsedComplianceStatus =
-              parseExplainComplianceStatusFromPrompt(effectivePrompt, params);
-            result =
-              await this.businessCompliance.handleExplainComplianceStatus(
-                businessId,
-                parsedComplianceStatus
-                  ? {
-                      ...params,
-                      ...parsedComplianceStatus,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'list_sub_processors': {
-            const parsedSubProcessors = parseListSubProcessorsFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleListSubProcessors(
-              businessId,
-              userId,
-              parsedSubProcessors
-                ? {
-                    ...params,
-                    ...parsedSubProcessors,
-                    _prompt: effectivePrompt,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_gdpr_checklist': {
-            const parsedGdprChecklist = parseExplainGdprChecklistFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleExplainGdprChecklist(
-              businessId,
-              userId,
-              parsedGdprChecklist
-                ? {
-                    ...params,
-                    ...parsedGdprChecklist,
-                    _prompt: effectivePrompt,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_enterprise_trust': {
-            const parsedEnterpriseTrust = parseExplainEnterpriseTrustFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleExplainEnterpriseTrust(
-              businessId,
-              userId,
-              parsedEnterpriseTrust
-                ? {
-                    ...params,
-                    ...parsedEnterpriseTrust,
-                    _prompt: effectivePrompt,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_strategy_eval': {
-            const parsedStrategyEval = parseExplainStrategyEvalFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleExplainStrategyEval(
-              businessId,
-              userId,
-              parsedStrategyEval
-                ? { ...params, ...parsedStrategyEval, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'update_strategy_eval':
-            result = await this.businessCompliance.handleUpdateStrategyEval(
-              businessId,
-              userId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'configure_referral_program':
-            result =
-              await this.referralStaffTemplates.handleConfigureReferralProgram(
-                businessId,
-                params,
-              );
-            break;
-          case 'configure_staff_message_templates':
-            result =
-              await this.referralStaffTemplates.handleConfigureStaffMessageTemplates(
-                businessId,
-                params,
-              );
-            break;
-          case 'create_external_doctor':
-            result = await this.externalDoctors.handleCreateExternalDoctor(
-              businessId,
-              userId,
-              params,
-            );
-            break;
-          case 'update_external_doctor':
-            result = await this.externalDoctors.handleUpdateExternalDoctor(
-              businessId,
-              userId,
-              params,
-            );
-            break;
-          case 'list_external_doctors':
-            result = await this.externalDoctors.handleListExternalDoctors(
-              businessId,
-              userId,
-              params,
-            );
-            break;
-          case 'list_booking_lab_summaries':
-            result =
-              await this.providerClinicTasksAndResults.handleListBookingLabSummaries(
-                businessId,
-                userId ?? '',
-                params,
-                effectivePrompt,
-              );
-            break;
-          case 'open_compliance_dashboard': {
-            const parsedOpenCompliance = parseOpenComplianceDashboardFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.businessCompliance.handleOpenComplianceDashboard(
-                businessId,
                 userId,
-                parsedOpenCompliance
-                  ? {
-                      ...params,
-                      ...parsedOpenCompliance,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
+                employeeId,
+                sessionLastPush: session?.context?.lastPush,
+                sessionOfflineQueueCount:
+                  session?.context?.offlineQueueCount,
+                sessionOnline: session?.context?.online,
+                sessionScopedEmployeeId: session?.context
+                  ?.scopedEmployeeId as string | undefined,
+                sessionCustomerId: session?.context?.customerId as
+                  | string
+                  | undefined,
+              });
+            if (pushNotificationsResult != null) {
+              result = pushNotificationsResult;
+            } else {
+              const bookingCoreResult = await this.bookingCore.dispatchIntent(
+                {
+                  businessId,
+                  action: parsed.action,
+                  params,
+                  prompt: effectivePrompt,
+                  userId,
+                  employeeId,
+                  resolvedEmployeeName: resolvedEmployee?.name,
+                  employees,
+                  services,
+                  customers,
+                  templates,
+                  timeZone,
+                  lookupCustomerAccessContext:
+                    (session?.context?._accessTier as string | undefined) ??
+                    (session?.context?._actorRole as string | undefined),
+                },
               );
-            break;
-          }
-          case 'admin_delete_customer_data': {
-            const parsedAdminDelete = parseAdminDeleteCustomerDataFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.businessCompliance.handleAdminDeleteCustomerData(
-                businessId,
-                parsedAdminDelete
-                  ? {
-                      ...params,
-                      ...parsedAdminDelete,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'report_data_breach': {
-            const parsedBreach = parseReportDataBreachFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleReportDataBreach(
-              businessId,
-              userId,
-              parsedBreach
-                ? { ...params, ...parsedBreach, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'send_breach_notification': {
-            const parsedSendBreach = parseSendBreachNotificationFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleSendBreachNotification(
-              businessId,
-              userId,
-              parsedSendBreach
-                ? { ...params, ...parsedSendBreach, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'list_breach_incidents': {
-            const parsedBreachList = parseListBreachIncidentsFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleListBreachIncidents(
-              businessId,
-              userId,
-              parsedBreachList
-                ? { ...params, ...parsedBreachList, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'view_phi_access_audit': {
-            const parsedPhiAudit = parseViewPhiAccessAuditFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessCompliance.handleViewPhiAccessAudit(
-              businessId,
-              userId,
-              parsedPhiAudit
-                ? { ...params, ...parsedPhiAudit, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_phi_encryption_status': {
-            const parsedPhiEncryption =
-              parseExplainPhiEncryptionStatusFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.businessCompliance.handleExplainPhiEncryptionStatus(
-                businessId,
-                parsedPhiEncryption
-                  ? {
-                      ...params,
-                      ...parsedPhiEncryption,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'explain_minimum_necessary_phi_access': {
-            const parsedMinimumNecessary =
-              parseExplainMinimumNecessaryPhiAccessFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.businessCompliance.handleExplainMinimumNecessaryPhiAccess(
-                businessId,
-                parsedMinimumNecessary
-                  ? {
-                      ...params,
-                      ...parsedMinimumNecessary,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'explain_hipaa_session_timeout': {
-            const parsedHipaaTimeoutExplain =
-              parseExplainHipaaSessionTimeoutFromPrompt(
-                effectivePrompt,
-                params,
-              );
-            result =
-              await this.businessCompliance.handleExplainHipaaSessionTimeout(
-                businessId,
-                parsedHipaaTimeoutExplain
-                  ? {
-                      ...params,
-                      ...parsedHipaaTimeoutExplain,
-                      _prompt: effectivePrompt,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'explain_business_tax':
-            result = await this.businessTax.handleExplainBusinessTax(
-              businessId,
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          case 'explain_stacked_tax':
-            result = await this.businessTax.handleExplainStackedTax(
-              businessId,
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          case 'explain_stripe_tax_charge': {
-            const parsedStripeTax = parseExplainStripeTaxChargeFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessTax.handleExplainStripeTaxCharge(
-              businessId,
-              parsedStripeTax
-                ? { ...params, ...parsedStripeTax, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'quote_staff_booking_tax': {
-            const parsedQuoteTax = parseQuoteStaffBookingTaxFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessTax.handleQuoteStaffBookingTax(
-              businessId,
-              parsedQuoteTax
-                ? { ...params, ...parsedQuoteTax, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'summarize_customer_tax_paid': {
-            const parsedCustomerTax = parseSummarizeCustomerTaxPaidFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessTax.handleSummarizeCustomerTaxPaid(
-              businessId,
-              parsedCustomerTax
-                ? { ...params, ...parsedCustomerTax, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'lookup_booking_tax_metadata': {
-            const parsedLookupTax = parseLookupBookingTaxMetadataFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessTax.handleLookupBookingTaxMetadata(
-              businessId,
-              parsedLookupTax
-                ? { ...params, ...parsedLookupTax, _prompt: effectivePrompt }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_business_languages':
-            result =
-              await this.businessLanguages.handleExplainBusinessLanguages(
-                businessId,
-              );
-            break;
-          case 'explain_business_date_format':
-            result =
-              await this.businessDateFormat.handleExplainBusinessDateFormat(
-                businessId,
-              );
-            break;
-          case 'preview_business_date_format': {
-            const parsedPreview = parseBusinessDateFormatFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.businessDateFormat.handlePreviewBusinessDateFormat(
-                businessId,
-                parsedPreview
-                  ? {
-                      ...params,
-                      ...(parsedPreview.dateFormat
-                        ? { dateFormat: parsedPreview.dateFormat }
-                        : {}),
-                      ...(parsedPreview.timeFormat
-                        ? { timeFormat: parsedPreview.timeFormat }
-                        : {}),
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'audit_dashboard_date_surfaces':
-            result =
-              await this.businessDateFormat.handleAuditDashboardDateSurfaces(
-                businessId,
-              );
-            break;
-          case 'explain_notification_date_format':
-            result =
-              await this.businessDateFormat.handleExplainNotificationDateFormat(
-                businessId,
-              );
-            break;
-          case 'preview_notification_datetime': {
-            const messageKind =
-              typeof params.messageKind === 'string'
-                ? params.messageKind
-                : undefined;
-            result =
-              await this.businessDateFormat.handlePreviewNotificationDatetime(
-                businessId,
-                messageKind ? { ...params, messageKind } : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'notify_patient_result_ready':
-            result =
-              await this.businessDateFormat.handleNotifyPatientResultReady(
-                businessId,
-                { ...params, _prompt: effectivePrompt },
-                effectivePrompt,
-                isExecutionConfirmed(session),
-              );
-            break;
-          case 'create_test_order':
-          case 'create_catalog_test_order': {
-            result = await this.clinicTestOrder.handleCreateTestOrder(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-              isExecutionConfirmed(session),
-            );
-            break;
-          }
-          case 'push_lab_booking_to_patient':
-            result = await this.clinicLabBooking.handlePushLabBookingToPatient(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-              isExecutionConfirmed(session),
-            );
-            break;
-          case 'staff_book_lab_collection':
-            result = await this.clinicLabBooking.handleStaffBookLabCollection(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-              isExecutionConfirmed(session),
-            );
-            break;
-          case 'list_test_orders':
-            result = await this.clinicTestOrder.handleListTestOrders(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          case 'enter_test_result': {
-            result = await this.clinicTestResult.handleEnterTestResult(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-              isExecutionConfirmed(session),
-            );
-            break;
-          }
-          case 'release_test_result': {
-            result = await this.clinicTestResult.handleReleaseTestResult(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-              isExecutionConfirmed(session),
-            );
-            break;
-          }
-          case 'upload_patient_result':
-          case 'explain_patient_results':
-          case 'configure_test_reference_range':
-          case 'list_abnormal_results':
-            result = await dispatchClinicTestResultExtIntent(
-              coerceClinicTestResultExtIntent(parsed.action),
-              this.clinicTestResult,
-              {
-                businessId,
-                userId: userId ?? '',
-                params,
-                prompt: effectivePrompt,
-              },
-            );
-            break;
-          case 'transition_specimen':
-            result = await this.clinicTestResult.handleTransitionSpecimen(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'explain_lab_result_history':
-            result = await this.clinicTestResult.handleExplainLabResultHistory(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'create_test_type':
-            result = await this.clinicTestCatalog.handleCreateTestType(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'update_test_type':
-            result = await this.clinicTestCatalog.handleUpdateTestType(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'delete_test_type':
-            result = await this.clinicTestCatalog.handleDeleteTestType(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'create_test_panel':
-            result = await this.clinicTestCatalog.handleCreateTestPanel(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'update_test_panel':
-            result = await this.clinicTestCatalog.handleUpdateTestPanel(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'set_test_panel_items':
-            result = await this.clinicTestCatalog.handleSetTestPanelItems(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'import_clinic_catalog_csv':
-            result = await this.clinicTestCatalog.handleImportClinicCatalogCsv(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'explain_patient_chart':
-            result = await this.clinicPatientChart.handleExplainPatientChart(
-              businessId,
-              userId ?? '',
-              { ...params, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          case 'update_clinical_profile':
-            result = await this.patientClinicalMutations.handleUpdateClinicalProfile(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'dismiss_patient_alert':
-            result = await this.patientClinicalMutations.handleDismissPatientAlert(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'release_patient_document':
-            result = await this.patientClinicalMutations.handleReleasePatientDocument(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'create_encounter_addendum':
-            result = await this.patientClinicalMutations.handleCreateEncounterAddendum(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'update_encounter_by_booking':
-            result = await this.patientClinicalMutations.handleUpdateEncounterByBooking(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'list_customer_staff_notes':
-            result = await this.patientClinicalMutations.handleListCustomerStaffNotes(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
-          case 'add_customer_staff_note':
-            result = await this.patientClinicalMutations.handleAddCustomerStaffNote(
-              businessId,
-              userId ?? '',
-              params,
-            );
-            break;
+              if (bookingCoreResult != null) {
+                result = bookingCoreResult;
+              } else {
+                const bookingDepthResult =
+                  await this.bookingDepth.dispatchIntent({
+                    businessId,
+                    action: parsed.action,
+                    params,
+                    prompt: effectivePrompt,
+                    userId,
+                    employees,
+                    services,
+                    customers,
+                    timeZone,
+                    sessionDate:
+                      typeof (session?.context as Record<string, unknown> | undefined)
+                        ?.date === 'string'
+                        ? ((session?.context as Record<string, unknown>).date as string)
+                        : undefined,
+                    calendarRoute:
+                      typeof (session?.context as Record<string, unknown> | undefined)
+                        ?.route === 'string'
+                        ? ((session?.context as Record<string, unknown>).route as string)
+                        : undefined,
+                    resolveEmployee: (list, name) =>
+                      this.resolveEmployee(list, name),
+                    resolveServices: (list, p) =>
+                      this.resolveServices(list, p),
+                    resolveCustomer: (list, name) =>
+                      this.resolveCustomer(list, name),
+                    resolveBusinessRow: () =>
+                      this.businessRepo.findOne({ where: { id: businessId } }),
+                  });
+                if (bookingDepthResult != null) {
+                  result = bookingDepthResult;
+                } else {
+                  const scheduleResourcesResult =
+                    await this.scheduleResources.dispatchIntent({
+                      businessId,
+                      action: parsed.action,
+                      params,
+                      prompt: effectivePrompt,
+                      services,
+                      employeeId,
+                    });
+                  if (scheduleResourcesResult != null) {
+                    result = scheduleResourcesResult;
+                  } else {
+                    const retailFinanceResult =
+                      await this.retailFinance.dispatchIntent({
+                        businessId,
+                        action: parsed.action,
+                        params,
+                        prompt: effectivePrompt,
+                        userId,
+                        sessionEmployeeId: session?.context?.employeeId as
+                          | string
+                          | undefined,
+                      });
+                    if (retailFinanceResult != null) {
+                      result = retailFinanceResult;
+                    } else {
+                      const customerCrmResult =
+                        await this.customerCrm.dispatchIntent({
+                          businessId,
+                          action: parsed.action,
+                          params,
+                          prompt: effectivePrompt,
+                          customers,
+                          resolveCustomer: (list, name) =>
+                            this.resolveCustomer(list, name),
+                          sessionCustomerId: session?.context?.customerId,
+                        });
+                      if (customerCrmResult != null) {
+                        result = customerCrmResult;
+                      } else {
+                        const marketingGrowthResult =
+                          await this.marketingGrowth.dispatchIntent({
+                            businessId,
+                            action: parsed.action,
+                            params,
+                            prompt: effectivePrompt,
+                            userEmail: session?.context?.userEmail as
+                              | string
+                              | undefined,
+                            sessionCustomerId: session?.context?.customerId as
+                              | string
+                              | undefined,
+                          });
+                        if (marketingGrowthResult != null) {
+                          result = marketingGrowthResult;
+                        } else {
+                          const selfServiceBookingResult =
+                            await this.selfServiceBooking.dispatchIntent({
+                              businessId,
+                              action: parsed.action,
+                              params,
+                              prompt: effectivePrompt,
+                              sessionCustomerId: session?.context
+                                ?.customerId as string | undefined,
+                              sessionCartServiceIds:
+                                session?.context?.cartServiceIds,
+                              sessionBookingId: session?.context?.bookingId,
+                            });
+                          if (selfServiceBookingResult != null) {
+                            result = selfServiceBookingResult;
+                          } else {
+                            const businessComplianceResult =
+                              await this.businessCompliance.dispatchIntent({
+                                businessId,
+                                action: parsed.action,
+                                params,
+                                prompt: effectivePrompt,
+                                userId,
+                              });
+                            if (businessComplianceResult != null) {
+                              result = businessComplianceResult;
+                            } else {
+                              const scheduleHandlersResult =
+                                await this.scheduleHandlers.dispatchIntent({
+                                  businessId,
+                                  action: parsed.action,
+                                  params,
+                                  prompt: effectivePrompt,
+                                  employees,
+                                  services,
+                                  userId,
+                                });
+                              if (scheduleHandlersResult != null) {
+                                result = scheduleHandlersResult;
+                              } else {
+                                const operationsResult =
+                                  await this.operations.dispatchIntent({
+                                    businessId,
+                                    action: parsed.action,
+                                    params,
+                                    prompt: effectivePrompt,
+                                    employees,
+                                    services,
+                                    timeZone,
+                                    userId,
+                                  });
+                                if (operationsResult != null) {
+                                  result = operationsResult;
+                                } else {
+                                  const onboardingResult =
+                                    await this.onboarding.dispatchIntent({
+                                      businessId,
+                                      action: parsed.action,
+                                      params,
+                                      userId,
+                                    });
+                                  if (onboardingResult != null) {
+                                    result = onboardingResult;
+                                  } else {
+                                    const businessDateFormatResult =
+                                      await this.businessDateFormat.dispatchIntent(
+                                        {
+                                          businessId,
+                                          action: parsed.action,
+                                          params,
+                                          prompt: effectivePrompt,
+                                          confirmed:
+                                            isExecutionConfirmed(session),
+                                        },
+                                      );
+                                    if (businessDateFormatResult != null) {
+                                      result = businessDateFormatResult;
+                                    } else {
+                                      const clinicTestCatalogResult =
+                                        await this.clinicTestCatalog.dispatchIntent(
+                                          { businessId, action: parsed.action, params, userId },
+                                        );
+                                      if (clinicTestCatalogResult != null) {
+                                        result = clinicTestCatalogResult;
+                                      } else {
+                                        const patientClinicalMutationsResult =
+                                          await this.patientClinicalMutations.dispatchIntent(
+                                            {
+                                              businessId,
+                                              action: parsed.action,
+                                              params,
+                                              userId,
+                                            },
+                                          );
+                                        if (patientClinicalMutationsResult != null) {
+                                          result = patientClinicalMutationsResult;
+                                        } else {
+                                          const tourServiceResult =
+                                            await this.tourService.dispatchIntent(
+                                              {
+                                                businessId,
+                                                action: parsed.action,
+                                                params,
+                                                prompt: effectivePrompt,
+                                                userId,
+                                              },
+                                            );
+                                          if (tourServiceResult != null) {
+                                            result = tourServiceResult;
+                                          } else {
+                                            const businessTaxResult =
+                                              await this.businessTax.dispatchIntent(
+                                                {
+                                                  businessId,
+                                                  action: parsed.action,
+                                                  params,
+                                                  prompt: effectivePrompt,
+                                                },
+                                              );
+                                            if (businessTaxResult != null) {
+                                              result = businessTaxResult;
+                                            } else {
+                                              const businessCurrencyResult =
+                                                await this.businessCurrency.dispatchIntent(
+                                                  {
+                                                    businessId,
+                                                    action: parsed.action,
+                                                    params,
+                                                    prompt: effectivePrompt,
+                                                    confirmed:
+                                                      isExecutionConfirmed(
+                                                        session,
+                                                      ),
+                                                  },
+                                                );
+                                              if (businessCurrencyResult != null) {
+                                                result = businessCurrencyResult;
+                                              } else {
+                                                const agentOpsResult =
+                                                  await this.agentOps.dispatchIntent(
+                                                    {
+                                                      businessId,
+                                                      action: parsed.action,
+                                                      params,
+                                                      userId,
+                                                    },
+                                                  );
+                                                if (agentOpsResult != null) {
+                                                  result = agentOpsResult;
+                                                } else {
+                                                  const recommendationProductResult =
+                                                    await this.recommendationProduct.dispatchIntent(
+                                                      {
+                                                        businessId,
+                                                        action: parsed.action,
+                                                        params,
+                                                        prompt: effectivePrompt,
+                                                      },
+                                                    );
+                                                  if (recommendationProductResult != null) {
+                                                    result = recommendationProductResult;
+                                                  } else {
+                                                    const smallServicesResult =
+                                                      await this.dispatchSmallServices(
+                                                        businessId,
+                                                        parsed.action,
+                                                        params,
+                                                        effectivePrompt,
+                                                        userId,
+                                                        employees,
+                                                        services,
+                                                        customers,
+                                                        session,
+                                                      );
+                                                    if (smallServicesResult != null) {
+                                                      result = smallServicesResult;
+                                                    } else
+                                                      switch (parsed.action) {
           case 'explain_app_feature':
           case 'guide_user_flow':
           case 'explain_current_screen':
@@ -4115,308 +1958,6 @@ export class AiCommandService {
               effectivePrompt,
               session,
             );
-            break;
-          case 'explain_date_input_format':
-            result =
-              await this.businessDateFormat.handleExplainDateInputFormat(
-                businessId,
-              );
-            break;
-          case 'preview_date_input_parse': {
-            const dateStrings = parseDateStringsFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.businessDateFormat.handlePreviewDateInputParse(
-              businessId,
-              { ...params, dateStrings, _prompt: effectivePrompt },
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'configure_package_localized_names': {
-            const parsedPackageNames = parsePackageLocalizedNamesFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.packageLocalizedNames.handleConfigurePackageLocalizedNames(
-                businessId,
-                parsedPackageNames
-                  ? {
-                      ...params,
-                      operation: parsedPackageNames.operation,
-                      packageId: parsedPackageNames.packageId,
-                      packageName: parsedPackageNames.packageName,
-                      locale: parsedPackageNames.locale,
-                      displayName: parsedPackageNames.displayName,
-                    }
-                  : params,
-                effectivePrompt,
-              );
-            break;
-          }
-          case 'configure_tour_service': {
-            const parsedTour = parseConfigureTourServiceFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleConfigureTourService(
-              businessId,
-              parsedTour
-                ? {
-                    ...params,
-                    serviceId: parsedTour.serviceId,
-                    serviceName: parsedTour.serviceName,
-                    ...(parsedTour.enableTour
-                      ? { enableTour: true, serviceType: 'tour' }
-                      : {}),
-                    ...(parsedTour.maxGroupSize !== undefined
-                      ? { maxGroupSize: parsedTour.maxGroupSize }
-                      : {}),
-                    ...(parsedTour.difficulty
-                      ? { difficulty: parsedTour.difficulty }
-                      : {}),
-                    ...(parsedTour.coverImage
-                      ? { coverImage: parsedTour.coverImage }
-                      : {}),
-                    ...(parsedTour.meetingPoint
-                      ? { meetingPoint: parsedTour.meetingPoint }
-                      : {}),
-                    ...(parsedTour.includedItems
-                      ? { includedItems: parsedTour.includedItems }
-                      : {}),
-                    ...(parsedTour.durationDays !== undefined
-                      ? { durationDays: parsedTour.durationDays }
-                      : {}),
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_tour_services': {
-            const parsedExplainTours = parseExplainTourServicesFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleExplainTourServices(
-              businessId,
-              parsedExplainTours
-                ? {
-                    ...params,
-                    serviceId: parsedExplainTours.serviceId,
-                    serviceName: parsedExplainTours.serviceName,
-                    daysAhead: parsedExplainTours.daysAhead,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_tour_booking_record': {
-            const parsedRecord = parseExplainTourBookingRecordFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleExplainTourBookingRecord(
-              businessId,
-              parsedRecord
-                ? {
-                    ...params,
-                    bookingId: parsedRecord.bookingId,
-                    customerName: parsedRecord.customerName,
-                    serviceName: parsedRecord.serviceName,
-                    aspect: parsedRecord.aspect,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_tour_calendar_span': {
-            const parsedCalendarSpan = parseExplainTourCalendarSpanFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleExplainTourCalendarSpan(
-              businessId,
-              parsedCalendarSpan
-                ? {
-                    ...params,
-                    serviceId: parsedCalendarSpan.serviceId,
-                    serviceName: parsedCalendarSpan.serviceName,
-                    weekStartDate: parsedCalendarSpan.weekStartDate,
-                    aspect: parsedCalendarSpan.aspect,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'list_tour_calendar_week': {
-            const parsedCalendarWeek = parseListTourCalendarWeekFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleListTourCalendarWeek(
-              businessId,
-              parsedCalendarWeek
-                ? {
-                    ...params,
-                    employeeId: parsedCalendarWeek.employeeId,
-                    employeeName: parsedCalendarWeek.employeeName,
-                    serviceId: parsedCalendarWeek.serviceId,
-                    serviceName: parsedCalendarWeek.serviceName,
-                    weekStartDate: parsedCalendarWeek.weekStartDate,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'list_upcoming_tour_departures': {
-            const parsedDepartures = parseListUpcomingTourDeparturesFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.tourService.handleListUpcomingTourDepartures(
-              businessId,
-              parsedDepartures
-                ? {
-                    ...params,
-                    serviceId: parsedDepartures.serviceId,
-                    serviceName: parsedDepartures.serviceName,
-                    daysAhead: parsedDepartures.daysAhead,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'apply_tour_playbook':
-            result = await this.tourService.handleApplyTourPlaybook(
-              businessId,
-              userId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'configure_clinic_service': {
-            const parsedClinic = parseConfigureClinicServiceFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.clinicService.handleConfigureClinicService(
-              businessId,
-              parsedClinic
-                ? {
-                    ...params,
-                    serviceId: parsedClinic.serviceId,
-                    serviceName: parsedClinic.serviceName,
-                    ...(parsedClinic.serviceType
-                      ? { serviceType: parsedClinic.serviceType }
-                      : {}),
-                    ...(parsedClinic.requiresFasting !== undefined
-                      ? { requiresFasting: parsedClinic.requiresFasting }
-                      : {}),
-                    ...(parsedClinic.preparationNotes
-                      ? { preparationNotes: parsedClinic.preparationNotes }
-                      : {}),
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'explain_clinic_services': {
-            const parsedExplainClinic = parseExplainClinicServicesFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result = await this.clinicService.handleExplainClinicServices(
-              businessId,
-              parsedExplainClinic
-                ? {
-                    ...params,
-                    serviceId: parsedExplainClinic.serviceId,
-                    serviceName: parsedExplainClinic.serviceName,
-                  }
-                : params,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'apply_clinic_playbook':
-            result = await this.clinicService.handleApplyClinicPlaybook(
-              businessId,
-              userId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'explain_package_display_name': {
-            const parsedDisplayName = parsePackageDisplayNameExplainFromPrompt(
-              effectivePrompt,
-              params,
-            );
-            result =
-              await this.packageLocalizedNames.handleExplainPackageDisplayName(
-                businessId,
-                parsedDisplayName
-                  ? {
-                      ...params,
-                      packageId: parsedDisplayName.packageId,
-                      packageName: parsedDisplayName.packageName,
-                      locale: parsedDisplayName.queryLocale,
-                    }
-                  : params,
-                effectivePrompt,
-                typeof session?.context?.locale === 'string'
-                  ? session.context.locale
-                  : undefined,
-              );
-            break;
-          }
-          case 'explain_business_currency':
-            result =
-              await this.businessCurrency.handleExplainBusinessCurrency(
-                businessId,
-              );
-            break;
-          case 'explain_stripe_currency_warning':
-            result =
-              await this.businessCurrency.handleExplainStripeCurrencyWarning(
-                businessId,
-              );
-            break;
-          case 'diagnose_stripe_checkout_failure':
-            result =
-              await this.businessCurrency.handleDiagnoseStripeCheckoutFailure(
-                businessId,
-              );
-            break;
-          case 'explain_reports_currency':
-            result =
-              await this.businessCurrency.handleExplainReportsCurrency(
-                businessId,
-              );
-            break;
-          case 'summarize_revenue_kpis':
-            result = await this.businessCurrency.handleSummarizeRevenueKpis(
-              businessId,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'bulk_update_service_currency':
-            result =
-              await this.businessCurrency.handleBulkUpdateServiceCurrency(
-                businessId,
-                { ...params, _prompt: effectivePrompt },
-                effectivePrompt,
-                isExecutionConfirmed(session),
-              );
             break;
           case 'create_service': {
             const createParams = { ...params };
@@ -4462,544 +2003,6 @@ export class AiCommandService {
             );
             break;
           }
-          case 'cancel_bookings':
-            if (
-              /notify|waitlist|rebook|whatsapp|message|customer|text/i.test(
-                effectivePrompt,
-              ) ||
-              params.notifyCustomers ||
-              params.reason
-            ) {
-              result = await this.handleBulkSmartCancel(
-                businessId,
-                effectivePrompt,
-                params,
-                catalog.services,
-                catalog.employees,
-                employeeId,
-                userId,
-                { notifyOnly: !/waitlist|rebook/i.test(effectivePrompt) },
-              );
-            } else {
-              result = await this.handleCancelBookings(
-                businessId,
-                effectivePrompt,
-                params,
-                catalog.services,
-                catalog.employees,
-                employeeId,
-                userId,
-              );
-            }
-            break;
-          case 'bulk_smart_cancel':
-            result = await this.handleBulkSmartCancel(
-              businessId,
-              effectivePrompt,
-              params,
-              catalog.services,
-              catalog.employees,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'hide_appointments_from_calendar':
-            result = await this.handleHideAppointmentsFromCalendar(
-              businessId,
-              params,
-              catalog.services,
-              catalog.employees,
-              catalog.customers,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'unhide_appointments_from_calendar':
-            result = await this.handleUnhideAppointmentsFromCalendar(
-              businessId,
-              params,
-              catalog.services,
-              catalog.employees,
-              catalog.customers,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'fill_slot_from_waitlist':
-            result = await this.handleFillSlotFromWaitlist(
-              businessId,
-              params,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'list_bookings':
-          case 'show_appointments':
-            result = await this.handleListBookings(
-              businessId,
-              effectivePrompt,
-              params,
-              employeeId,
-              resolvedEmployee?.name,
-              services,
-            );
-            break;
-          case 'check_availability':
-            result = await this.handleCheckAvailability(
-              businessId,
-              params,
-              employeeId,
-              resolvedEmployee?.name,
-              effectivePrompt,
-            );
-            break;
-          case 'summarize_day':
-            result = await this.handleSummarizeDay(
-              businessId,
-              params,
-              employeeId,
-              resolvedEmployee?.name,
-            );
-            break;
-          case 'summarize_bookings':
-            result = await this.handleSummarizeBookings(
-              businessId,
-              effectivePrompt,
-              params,
-              employeeId,
-              resolvedEmployee?.name,
-            );
-            break;
-          case 'analyze_appointments':
-            result = await this.handleAnalyzeAppointments(
-              businessId,
-              effectivePrompt,
-              params,
-              employeeId,
-              resolvedEmployee?.name,
-            );
-            break;
-          case 'list_services':
-            result = await this.handleListServices(
-              businessId,
-              services,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'analyze_services':
-            result = await this.handleAnalyzeServices(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'summarize_staff':
-            result = await this.handleSummarizeStaff(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-            );
-            break;
-          case 'lookup_customer':
-            result = await this.handleLookupCustomer(
-              businessId,
-              params,
-              customers,
-              (session?.context?._accessTier as string | undefined) ??
-                (session?.context?._actorRole as string | undefined),
-            );
-            break;
-          case 'summarize_waitlist':
-            result = await this.handleSummarizeWaitlist(businessId, params);
-            break;
-          case 'lookup_service_assignment':
-            result = await this.handleLookupServiceAssignment(
-              businessId,
-              employees,
-              services,
-              params,
-              effectivePrompt,
-            );
-            break;
-          case 'list_employees':
-            result = this.handleListEmployees(employees, params);
-            break;
-          case 'list_templates':
-            result = this.handleListTemplates(templates);
-            break;
-          case 'create_schedule_template':
-            result = await this.scheduleHandlers.handleCreateScheduleTemplate(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'update_schedule_template':
-            result = await this.scheduleHandlers.handleUpdateScheduleTemplate(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'delete_schedule_templates':
-            result = await this.scheduleHandlers.handleDeleteScheduleTemplates(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'duplicate_schedule_template':
-            result =
-              await this.scheduleHandlers.handleDuplicateScheduleTemplate(
-                businessId,
-                params,
-                userId,
-              );
-            break;
-          case 'mark_no_shows':
-            result = await this.handleMarkNoShows(
-              businessId,
-              effectivePrompt,
-              params,
-              catalog.services,
-              catalog.employees,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'no_show_recovery':
-            result = await this.handleNoShowRecovery(
-              businessId,
-              effectivePrompt,
-              params,
-              catalog.services,
-              catalog.employees,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'payment_sweep':
-            result = await this.handlePaymentSweep(
-              businessId,
-              effectivePrompt,
-              params,
-              catalog.services,
-              catalog.employees,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'update_bookings':
-            result = await this.handleUpdateBookings(
-              businessId,
-              effectivePrompt,
-              params,
-              catalog.services,
-              catalog.employees,
-              employeeId,
-              userId,
-            );
-            break;
-          case 'day_replan':
-            result = await this.handleDayReplan(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              timeZone,
-              userId,
-            );
-            break;
-          case 'sick_day_replan':
-            result = await this.operations.handleSickDayReplan(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              timeZone,
-              userId,
-            );
-            break;
-          case 'import_services_from_menu':
-            result = await this.operations.handleImportServicesFromMenu(
-              businessId,
-              effectivePrompt,
-              params,
-              userId,
-            );
-            break;
-          case 'update_service_prices':
-            result = await this.operations.handleUpdateServicePrices(
-              businessId,
-              effectivePrompt,
-              params,
-              services,
-              userId,
-            );
-            break;
-          case 'staff_service_matrix':
-            result = await this.operations.handleStaffServiceMatrix(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'check_schedule_compliance':
-            result = await this.operations.handleCheckScheduleCompliance(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'revenue_forecast':
-            result = await this.operations.handleRevenueForecast(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'create_employee':
-            result = await this.operations.handleCreateEmployee(
-              businessId,
-              params,
-              effectivePrompt,
-              userId,
-            );
-            break;
-          case 'update_employee':
-            result = await this.operations.handleUpdateEmployee(
-              businessId,
-              params,
-              effectivePrompt,
-              userId,
-            );
-            break;
-          case 'update_team_member_role':
-            result = await this.operations.handleUpdateTeamMemberRole(
-              businessId,
-              params,
-              userId,
-            );
-            break;
-          case 'invite_staff_member':
-            result = await this.operations.handleInviteStaffMember(
-              businessId,
-              params,
-              effectivePrompt,
-              userId,
-            );
-            break;
-          case 'deactivate_employee':
-            result = await this.operations.handleDeactivateEmployee(
-              businessId,
-              params,
-              effectivePrompt,
-              userId,
-            );
-            break;
-          case 'list_waitlist_entries':
-            result = await handleListWaitlistEntriesLogic(
-              { customerRepo: this.customerRepo },
-              businessId,
-              params,
-            );
-            break;
-          case 'offer_waitlist_slot':
-            result = await handleOfferWaitlistSlotLogic(
-              { customerRepo: this.customerRepo },
-              businessId,
-              enrichOfferWaitlistSlotParams(effectivePrompt, params),
-            );
-            break;
-          case 'fill_unused_slots':
-            result = await this.scheduleHandlers.handleFillScheduleGaps(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'list_schedule_gaps':
-            result = await this.scheduleHandlers.handleListScheduleGaps(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-            );
-            break;
-          case 'apply_schedule':
-            result = await this.scheduleHandlers.handleApplySchedule(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'block_schedule':
-            result = await this.scheduleHandlers.handleBlockSchedule(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'delete_schedule_block':
-            result = await this.scheduleHandlers.handleDeleteScheduleBlock(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'apply_and_fill':
-            result = await this.scheduleHandlers.handleApplyAndFill(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'list_time_off_requests':
-          case 'approve_time_off_request':
-          case 'deny_time_off_request':
-            result = (await this.providerTimeOff.handleIntent(
-              businessId,
-              userId!,
-              parsed.action,
-              params,
-              'dashboard',
-            )) ?? {
-              success: false,
-              action: parsed.action,
-              summary: 'Could not process time-off request.',
-              details: { clarify: true },
-            };
-            break;
-          case 'clear_schedule':
-            result = await this.scheduleHandlers.handleClearSchedule(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'create_direct_schedule':
-            result = await this.scheduleHandlers.handleCreateDirectSchedule(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'assign_employee_services':
-            result = await this.handleAssignEmployeeServices(
-              businessId,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'unassign_employee_services':
-            result = await this.handleUnassignEmployeeServices(
-              businessId,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'transfer_employee_services':
-            result = await this.handleTransferEmployeeServices(
-              businessId,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'summarize_utilization':
-            result = await this.handleSummarizeUtilization(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-            );
-            break;
-          case 'summarize_customers':
-            result = await this.handleSummarizeCustomers(
-              businessId,
-              effectivePrompt,
-              params,
-            );
-            break;
-          case 'setup_week_schedule':
-            result = await this.scheduleHandlers.handleTemplateCascade(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'swap_schedules':
-            result = await this.scheduling.handleSwapSchedules(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'rebalance_capacity':
-            result = await this.scheduling.handleRebalanceCapacity(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
-          case 'holiday_mode':
-            result = await this.scheduling.handleHolidayMode(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              userId,
-            );
-            break;
-          case 'onboard_provider_schedule':
-            result = await this.scheduling.handleOnboardProviderSchedule(
-              businessId,
-              effectivePrompt,
-              params,
-              employees,
-              services,
-              userId,
-            );
-            break;
           case 'optimize_schedule':
             result = this.toCommandResult(
               await this.orchestration.runOrchestrationIntent({
@@ -5036,14 +2039,6 @@ export class AiCommandService {
               }),
             );
             break;
-          case 'reschedule_booking':
-            result = await this.handleRescheduleBooking(
-              businessId,
-              params,
-              employeeId,
-              userId,
-            );
-            break;
           default:
             result = buildUnwiredDashboardIntentResult(parsed.action, {
               reasoning: parsed.reasoning,
@@ -5051,6 +2046,29 @@ export class AiCommandService {
             });
             break;
         }
+                                                  }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+          }
+        }
+      }
     }
 
     result.details = {
@@ -5425,6 +2443,244 @@ export class AiCommandService {
     }
   }
 
+  /**
+   * Registry-driven dispatch (ai-cmd-ext-0.5) for the final batch of small,
+   * single/few-case services. Collapsed into a sequential try-loop rather than
+   * more nested if/else levels, per the nesting-depth concern flagged after
+   * slice 16.
+   */
+  private async dispatchSmallServices(
+    businessId: string,
+    action: string,
+    params: Record<string, any>,
+    prompt: string,
+    userId: string | undefined,
+    employees: Employee[],
+    services: Service[],
+    customers: Customer[],
+    session: CommandSessionOptions | undefined,
+  ): Promise<CommandResult | null> {
+    const confirmed = isExecutionConfirmed(session);
+    const uid = userId ?? '';
+
+    const clinicTestResultResult = await this.clinicTestResult.dispatchIntent({
+      businessId,
+      action,
+      params,
+      prompt,
+      userId,
+      confirmed,
+    });
+    if (clinicTestResultResult != null) return clinicTestResultResult;
+
+    const schedulingResult = await this.scheduling.dispatchIntent({
+      businessId,
+      action,
+      params,
+      prompt,
+      employees,
+      services,
+      userId,
+    });
+    if (schedulingResult != null) return schedulingResult;
+
+    const clinicServiceResult = await this.clinicService.dispatchIntent({
+      businessId,
+      action,
+      params,
+      prompt,
+      userId,
+    });
+    if (clinicServiceResult != null) return clinicServiceResult;
+
+    const clinicQuestionnaireResult =
+      await this.clinicQuestionnaire.dispatchIntent({
+        businessId,
+        action,
+        params,
+        userId: uid,
+      });
+    if (clinicQuestionnaireResult != null) return clinicQuestionnaireResult;
+
+    const externalDoctorsResult = await this.externalDoctors.dispatchIntent({
+      businessId,
+      action,
+      params,
+      userId,
+    });
+    if (externalDoctorsResult != null) return externalDoctorsResult;
+
+    const businessProfileResult = await this.businessProfile.dispatchIntent({
+      businessId,
+      action,
+      params,
+    });
+    if (businessProfileResult != null) return businessProfileResult;
+
+    const clinicPreVisitIntakeResult =
+      await this.clinicPreVisitIntake.dispatchIntent({
+        businessId,
+        action,
+        params,
+        userId: uid,
+      });
+    if (clinicPreVisitIntakeResult != null) return clinicPreVisitIntakeResult;
+
+    const locationsResult = await this.locations.dispatchIntent({
+      businessId,
+      action,
+      params,
+    });
+    if (locationsResult != null) return locationsResult;
+
+    const referralStaffTemplatesResult =
+      await this.referralStaffTemplates.dispatchIntent({
+        businessId,
+        action,
+        params,
+      });
+    if (referralStaffTemplatesResult != null)
+      return referralStaffTemplatesResult;
+
+    const clinicTestOrderResult = await this.clinicTestOrder.dispatchIntent({
+      businessId,
+      action,
+      params,
+      prompt,
+      userId: uid,
+      confirmed,
+    });
+    if (clinicTestOrderResult != null) return clinicTestOrderResult;
+
+    const clinicLabBookingResult = await this.clinicLabBooking.dispatchIntent({
+      businessId,
+      action,
+      params,
+      prompt,
+      userId: uid,
+      confirmed,
+    });
+    if (clinicLabBookingResult != null) return clinicLabBookingResult;
+
+    const packageLocalizedNamesResult =
+      await this.packageLocalizedNames.dispatchIntent({
+        businessId,
+        action,
+        params,
+        prompt,
+        sessionLocale:
+          typeof session?.context?.locale === 'string'
+            ? session.context.locale
+            : undefined,
+      });
+    if (packageLocalizedNamesResult != null)
+      return packageLocalizedNamesResult;
+
+    const openaiIntegrationResult = await this.openaiIntegration.dispatchIntent(
+      { businessId, action, params, prompt },
+    );
+    if (openaiIntegrationResult != null) return openaiIntegrationResult;
+
+    const providerClinicTasksAndResultsResult =
+      await this.providerClinicTasksAndResults.dispatchIntent({
+        businessId,
+        action,
+        params,
+        prompt,
+        userId: uid,
+      });
+    if (providerClinicTasksAndResultsResult != null)
+      return providerClinicTasksAndResultsResult;
+
+    const businessLanguagesResult = await this.businessLanguages.dispatchIntent(
+      { businessId, action },
+    );
+    if (businessLanguagesResult != null) return businessLanguagesResult;
+
+    const clinicPatientChartResult =
+      await this.clinicPatientChart.dispatchIntent({
+        businessId,
+        action,
+        params,
+        prompt,
+        userId: uid,
+      });
+    if (clinicPatientChartResult != null) return clinicPatientChartResult;
+
+    if (userId) {
+      const providerTimeOffResult = await this.providerTimeOff.dispatchIntent({
+        businessId,
+        action,
+        params,
+        userId,
+      });
+      if (providerTimeOffResult != null) return providerTimeOffResult;
+    }
+
+    switch (action) {
+      case 'list_waitlist_entries':
+        return handleListWaitlistEntriesLogic(
+          { customerRepo: this.customerRepo },
+          businessId,
+          params,
+        );
+      case 'offer_waitlist_slot':
+        return handleOfferWaitlistSlotLogic(
+          { customerRepo: this.customerRepo },
+          businessId,
+          enrichOfferWaitlistSlotParams(prompt, params),
+        );
+      case 'create_booking_subscription_credit': {
+        const prepared = await this.bookingDepth.prepareSubscriptionCreditParams(
+          businessId,
+          params,
+          customers,
+          services,
+          (list, name) => this.resolveCustomer(list, name),
+          (list, name) => this.resolveService(list, name) ?? undefined,
+        );
+        if (!prepared.ok) return prepared.result;
+        const bookingResult = await this.bookingCore.handleCreateBooking(
+          businessId,
+          prepared.params,
+          employees,
+          services,
+          customers,
+          userId,
+          prompt,
+        );
+        return bookingResult.action === 'create_booking'
+          ? { ...bookingResult, action: 'create_booking_subscription_credit' }
+          : bookingResult;
+      }
+      case 'create_booking_cash': {
+        const businessRow = await this.businessRepo.findOne({
+          where: { id: businessId },
+          select: { settings: true },
+        });
+        const prepared = this.bookingDepth.prepareCashCreateParams(
+          params,
+          businessRow?.settings ?? null,
+        );
+        if (!prepared.ok) return prepared.result;
+        const bookingResult = await this.bookingCore.handleCreateBooking(
+          businessId,
+          prepared.params,
+          employees,
+          services,
+          customers,
+          userId,
+          prompt,
+        );
+        return bookingResult.action === 'create_booking'
+          ? { ...bookingResult, action: 'create_booking_cash' }
+          : bookingResult;
+      }
+      default:
+        return null;
+    }
+  }
+
   private resolveEmployee(
     employees: Employee[],
     name: string,
@@ -5617,2002 +2873,6 @@ export class AiCommandService {
           details: {},
         };
     }
-  }
-
-  private async handleCreateBooking(
-    businessId: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    customers: Customer[],
-    userId?: string,
-    prompt?: string,
-  ): Promise<CommandResult> {
-    params = enrichDashboardCreateBookingParams({ ...params }, prompt);
-
-    const serviceResolved = await this.resolveCreateBookingServiceForParams(
-      businessId,
-      services,
-      params,
-    );
-    if (serviceResolved.noMatchSummary) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: serviceResolved.noMatchSummary,
-        details: { params },
-      };
-    }
-
-    const service = serviceResolved.service;
-    const customer = params.customerId
-      ? customers.find((c) => c.id === params.customerId)
-      : params.customerName
-        ? this.resolveCustomer(customers, params.customerName)
-        : undefined;
-
-    if (!service) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: 'Cannot book appointment — specify which service to book.',
-        details: { params },
-      };
-    }
-
-    let resolvedEmployee = params.employeeId
-      ? employees.find((e) => e.id === params.employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(employees, params.employeeName)
-        : undefined;
-    let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
-
-    if (params.bookingFirstAvailable) {
-      const firstAvailable = await this.pickCreateBookingFirstAvailable(
-        businessId,
-        service,
-        params,
-        employees,
-        resolvedEmployee,
-        prompt,
-      );
-      if (!firstAvailable.ok) {
-        return {
-          success: false,
-          action: 'create_booking',
-          summary: firstAvailable.summary,
-          details: firstAvailable.details ?? { params },
-        };
-      }
-
-      const pick = firstAvailable.pick;
-      resolvedEmployee =
-        employees.find((entry) => entry.id === pick.employeeId) ??
-        resolvedEmployee;
-      timeSlot = this.snapTo10min(pick.timeSlot);
-      params.date = pick.isoDay;
-      params.employeeName = pick.employeeName;
-      params.employeeId = pick.employeeId;
-    }
-
-    const wantsProviderFallback =
-      !params.bookingFirstAvailable &&
-      !!params.date &&
-      !!timeSlot &&
-      (params.fallbackAnyProvider === true ||
-        (Array.isArray(params.providerFallbackNames) &&
-          params.providerFallbackNames.length > 0) ||
-        (Array.isArray(params.employeeNames) &&
-          params.employeeNames.length >= 2));
-
-    if (wantsProviderFallback && timeSlot) {
-      const fixedTimeSlot = timeSlot;
-      const timeZone = params._timeZone ?? 'UTC';
-      const isoDay = toIsoDay(params.date, timeZone);
-      const priorityNames: string[] = Array.isArray(
-        params.providerFallbackNames,
-      )
-        ? params.providerFallbackNames
-        : Array.isArray(params.employeeNames) &&
-            params.employeeNames.length >= 2
-          ? params.employeeNames
-          : params.employeeName
-            ? [params.employeeName]
-            : resolvedEmployee
-              ? [resolvedEmployee.name]
-              : [];
-
-      const providerPriority = priorityNames
-        .map((name) => this.resolveEmployee(employees, name))
-        .filter((e): e is Employee => !!e)
-        .map((e) => ({ id: e.id, name: e.name }));
-
-      const pick = await this.slotResolver.resolveWithFallback({
-        businessId,
-        serviceId: service.id,
-        isoDay,
-        timeSlot: fixedTimeSlot,
-        timeZone,
-        providerPriority,
-        fallbackAnyProvider: params.fallbackAnyProvider === true,
-        allActiveProviders: employees
-          .filter((e) => e.isActive)
-          .map((e) => ({ id: e.id, name: e.name })),
-      });
-
-      if (!pick) {
-        const tried =
-          providerPriority.map((p) => p.name).join(', ') ||
-          'requested providers';
-        return {
-          success: false,
-          action: 'create_booking',
-          summary: `No one is available for ${service.name} at ${timeSlot} on ${formatDateDisplay(isoDay)}. Tried: ${tried}${
-            params.fallbackAnyProvider ? ' and other active providers' : ''
-          }.`,
-          details: { params, isoDay, timeSlot },
-        };
-      }
-
-      resolvedEmployee = employees.find((e) => e.id === pick.employeeId);
-      timeSlot = pick.timeSlot;
-      params.date = pick.isoDay;
-      params.employeeName = pick.employeeName;
-      params.employeeId = pick.employeeId;
-    }
-
-    if (!resolvedEmployee || !params.date || !timeSlot) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: 'Cannot book appointment — missing provider, date, or time.',
-        details: { params },
-      };
-    }
-
-    const timeZone = params._timeZone ?? 'UTC';
-    const isoDay = toIsoDay(params.date, timeZone);
-    const availability = await this.slotResolver.checkSlotAvailability(
-      businessId,
-      resolvedEmployee.id,
-      resolvedEmployee.name,
-      service.id,
-      isoDay,
-      timeSlot,
-      timeZone,
-    );
-    if (!availability.available) {
-      return {
-        success: false,
-        action: 'create_booking',
-        summary: this.slotResolver.describeUnavailable(
-          availability,
-          service.name,
-          timeSlot,
-          formatDateDisplay(isoDay),
-        ),
-        details: {
-          params,
-          availability,
-          isoDay,
-          timeSlot,
-        },
-      };
-    }
-
-    const startTime = buildUtcStartTimeFromDayAndTime(params.date, timeSlot);
-
-    const plan = this.planBuilder.buildCreateBookingPlan({
-      businessId,
-      employeeId: resolvedEmployee.id,
-      serviceId: service.id,
-      customerId: customer?.id,
-      startTime,
-      notes: params.notes || params.reason || undefined,
-      userId,
-      employeeName: resolvedEmployee.name,
-      serviceName: service.name,
-      customerName: customer?.name,
-      date: formatDateDisplay(params.date),
-      timeSlot,
-      useSubscriptionId: params.useSubscriptionId,
-      metadata: params._bookingMetadata,
-      paymentStatus: params._paymentStatus,
-      packagePurchaseId: params.packagePurchaseId,
-      multiServiceGroupId: params.multiServiceGroupId,
-      resourceIds: params.resourceIds,
-      sameVisitMultiService: params.sameVisitMultiService,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
-  }
-
-  private async resolveCreateBookingServiceForParams(
-    businessId: string,
-    services: Service[],
-    params: Record<string, unknown>,
-  ): Promise<{
-    service: Service | undefined;
-    noMatchSummary: string | null;
-  }> {
-    const serviceRank = resolveServiceRankParam(params.serviceRank);
-    const bookingCounts =
-      serviceRank === 'most_popular'
-        ? await loadServiceBookingCounts90d(
-            this.bookingRepo,
-            businessId,
-            services.map((entry) => entry.id),
-          )
-        : null;
-
-    const catalog = services.map((entry) => {
-      const rank = extractServiceRankMetadata(entry.metadata);
-      return {
-        id: entry.id,
-        name: entry.name,
-        price: Number(entry.price),
-        durationMinutes: entry.durationMinutes,
-        bookingCount: bookingCounts?.get(entry.id) ?? 0,
-        ...(rank.isFeatured ? { isFeatured: true } : {}),
-        ...(rank.serviceTier ? { serviceTier: rank.serviceTier } : {}),
-      };
-    });
-
-    const resolved = resolveDashboardCreateBookingService(
-      catalog,
-      params,
-      (name) => {
-        const found = this.resolveService(services, name);
-        return found
-          ? catalog.find((entry) => entry.id === found.id)
-          : undefined;
-      },
-    );
-    if (resolved.noMatchSummary) {
-      return { service: undefined, noMatchSummary: resolved.noMatchSummary };
-    }
-
-    const service = resolved.service
-      ? services.find((entry) => entry.id === resolved.service!.id)
-      : undefined;
-    return { service, noMatchSummary: null };
-  }
-
-  private async pickCreateBookingFirstAvailable(
-    businessId: string,
-    service: Service,
-    params: any,
-    employees: Employee[],
-    resolvedEmployee: Employee | undefined,
-    prompt?: string,
-  ): Promise<
-    | {
-        ok: true;
-        pick: {
-          employeeId: string;
-          employeeName: string;
-          timeSlot: string;
-          isoDay: string;
-        };
-      }
-    | {
-        ok: false;
-        summary: string;
-        details?: Record<string, unknown>;
-      }
-  > {
-    const timeZone = params._timeZone ?? 'UTC';
-    const searchTargets = params.allProviders
-      ? employees.filter((e) => e.isActive)
-      : resolvedEmployee
-        ? [resolvedEmployee]
-        : [];
-
-    if (searchTargets.length === 0) {
-      return {
-        ok: false,
-        summary: params.allProviders
-          ? 'No active providers found to search for availability.'
-          : 'Specify a provider or say "any provider" for first-available booking.',
-      };
-    }
-
-    const notBeforeTime = resolveFirstAvailableNotBeforeTime(params);
-    const windowQueries = buildDashboardFirstAvailableWindowQueries(
-      params,
-      prompt,
-      timeZone,
-    );
-
-    let pick: {
-      employeeId: string;
-      employeeName: string;
-      timeSlot: string;
-      isoDay: string;
-    } | null = null;
-
-    if (shouldScanExplicitAvailabilityWindows(params, windowQueries)) {
-      const orPick = await findDashboardFirstAvailableAcrossWindows(
-        windowQueries,
-        async ({ isoDay, timeOfDay, notBeforeTime: windowNotBefore }) =>
-          this.findFirstAvailableBookingSlotOnDay(
-            businessId,
-            service,
-            searchTargets,
-            isoDay,
-            timeZone,
-            timeOfDay,
-            windowNotBefore ?? notBeforeTime,
-          ),
-      );
-      if (orPick) {
-        pick = orPick;
-      }
-    } else {
-      const startIsoDay = params.date
-        ? toIsoDay(params.date, timeZone)
-        : toIsoDay(todayDisplay(timeZone), timeZone);
-      const legacyPick = await this.findFirstAvailableBookingSlot(
-        businessId,
-        service,
-        startIsoDay,
-        searchTargets,
-        timeZone,
-        notBeforeTime,
-      );
-      if (legacyPick) {
-        pick = {
-          employeeId: legacyPick.employee.id,
-          employeeName: legacyPick.employee.name,
-          timeSlot: legacyPick.timeSlot,
-          isoDay: legacyPick.isoDay,
-        };
-      }
-    }
-
-    if (!pick) {
-      const afterLabel = notBeforeTime ? ` after ${notBeforeTime}` : '';
-      return {
-        ok: false,
-        summary: `No upcoming open ${service.name} slots found${afterLabel}${
-          params.allProviders
-            ? ' for any provider'
-            : ` for ${resolvedEmployee?.name ?? 'that provider'}`
-        }${
-          shouldScanExplicitAvailabilityWindows(params, windowQueries)
-            ? ' in the requested time windows.'
-            : ' in the next two weeks.'
-        }`,
-        details: {
-          serviceName: service.name,
-          allProviders: !!params.allProviders,
-          timeFrom: params.timeFrom ?? null,
-          availabilityWindows: params.availabilityWindows ?? null,
-        },
-      };
-    }
-
-    return { ok: true, pick };
-  }
-
-  private static readonly FIRST_AVAILABLE_SCAN_DAYS = 14;
-
-  private async findFirstAvailableBookingSlot(
-    businessId: string,
-    service: Service,
-    startIsoDay: string,
-    providers: Employee[],
-    timeZone = 'UTC',
-    notBeforeTime?: string | null,
-  ): Promise<{ employee: Employee; timeSlot: string; isoDay: string } | null> {
-    let best: {
-      employee: Employee;
-      timeSlot: string;
-      isoDay: string;
-      sortKey: number;
-    } | null = null;
-
-    for (
-      let offset = 0;
-      offset < AiCommandService.FIRST_AVAILABLE_SCAN_DAYS;
-      offset++
-    ) {
-      const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
-
-      for (const provider of providers) {
-        const row = await this.getProviderAvailabilityForService(
-          businessId,
-          provider.id,
-          service.id,
-          isoDay,
-        );
-        if (!row.hasServiceBlock || row.openSlots.length === 0) continue;
-
-        for (const slot of row.openSlots) {
-          if (
-            !isWallClockSlotBookable(
-              isoDay,
-              slot.start,
-              timeZone,
-              notBeforeTime,
-            )
-          )
-            continue;
-
-          const sortKey = offset * 24 * 60 + timeToMinutes(slot.start);
-          if (!best || sortKey < best.sortKey) {
-            best = {
-              employee: provider,
-              timeSlot: slot.start,
-              isoDay,
-              sortKey,
-            };
-          }
-        }
-      }
-    }
-
-    return best
-      ? {
-          employee: best.employee,
-          timeSlot: best.timeSlot,
-          isoDay: best.isoDay,
-        }
-      : null;
-  }
-
-  private async findFirstAvailableBookingSlotOnDay(
-    businessId: string,
-    service: Service,
-    providers: Employee[],
-    isoDay: string,
-    timeZone: string,
-    timeOfDay: TimeOfDayWindow | null,
-    notBeforeTime: string | null,
-  ) {
-    const rows = await Promise.all(
-      providers.map(async (provider) => {
-        const row = await this.getProviderAvailabilityForService(
-          businessId,
-          provider.id,
-          service.id,
-          isoDay,
-        );
-        return {
-          id: provider.id,
-          name: provider.name,
-          hasServiceBlock: row.hasServiceBlock,
-          openSlots: row.openSlots,
-        };
-      }),
-    );
-
-    return findEarliestSlotOnDayForProviders({
-      isoDay,
-      timeZone,
-      timeOfDay,
-      notBeforeTime,
-      providers: rows,
-      isSlotBookable: isWallClockSlotBookable,
-    });
-  }
-
-  private async handleAssignEmployeeServices(
-    businessId: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    userId?: string,
-  ): Promise<CommandResult> {
-    const resolved = resolveAssignEmployeeServicesInput(
-      employees,
-      services,
-      params,
-    );
-    if (!resolved.ok) {
-      return {
-        success: false,
-        action: 'assign_employee_services',
-        summary: resolved.summary,
-        details: resolved.details ?? { params },
-      };
-    }
-
-    const plan = this.planBuilder.buildAssignEmployeeServicesPlan({
-      businessId,
-      employeeId: resolved.employeeId,
-      employeeName: resolved.employeeName,
-      serviceIds: resolved.serviceIds,
-      serviceNames: resolved.serviceNames,
-      userId,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
-  }
-
-  private async handleUnassignEmployeeServices(
-    businessId: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    userId?: string,
-  ): Promise<CommandResult> {
-    const resolved = resolveUnassignEmployeeServicesInput(
-      employees,
-      services,
-      params,
-    );
-    if (!resolved.ok) {
-      return {
-        success: false,
-        action: 'unassign_employee_services',
-        summary: resolved.summary,
-        details: resolved.details ?? { params },
-      };
-    }
-
-    const plan = this.planBuilder.buildUnassignEmployeeServicesPlan({
-      businessId,
-      employeeId: resolved.employeeId,
-      employeeName: resolved.employeeName,
-      serviceIds: resolved.serviceIds,
-      serviceNames: resolved.serviceNames,
-      removedServiceNames: resolved.serviceNames,
-      userId,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
-  }
-
-  private async handleTransferEmployeeServices(
-    businessId: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    userId?: string,
-  ): Promise<CommandResult> {
-    const resolved = resolveTransferEmployeeServicesInput(
-      employees,
-      services,
-      params,
-    );
-    if (!resolved.ok) {
-      return {
-        success: false,
-        action: 'transfer_employee_services',
-        summary: resolved.summary,
-        details: resolved.details ?? { params },
-      };
-    }
-
-    const plan = this.planBuilder.buildTransferEmployeeServicesPlan({
-      businessId,
-      fromEmployeeId: resolved.fromEmployeeId,
-      fromEmployeeName: resolved.fromEmployeeName,
-      fromServiceIds: resolved.fromServiceIds,
-      toEmployeeId: resolved.toEmployeeId,
-      toEmployeeName: resolved.toEmployeeName,
-      toServiceIds: resolved.toServiceIds,
-      serviceNames: resolved.serviceNames,
-      userId,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
-  }
-
-  private async handleSummarizeUtilization(
-    businessId: string,
-    prompt: string,
-    params: any,
-    employees: Employee[],
-  ): Promise<CommandResult> {
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const start = new Date();
-        start.setUTCHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setUTCDate(end.getUTCDate() + 6);
-        return {
-          start: start.toISOString().split('T')[0],
-          end: end.toISOString().split('T')[0],
-        };
-      })();
-
-    const start = new Date(range.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
-    end.setUTCHours(23, 59, 59, 999);
-
-    const util = await Promise.all(
-      employees.map(async (e) => ({
-        employeeName: e.name,
-        ...(await this.schedulingEngine.getEmployeeUtilization(
-          e.id,
-          start,
-          end,
-        )),
-      })),
-    );
-
-    const sorted = [...util].sort(
-      (a, b) => (a.utilizationPercent ?? 0) - (b.utilizationPercent ?? 0),
-    );
-    const lines = sorted.map(
-      (u) =>
-        `• ${u.employeeName}: ${u.utilizationPercent ?? 0}% utilized (${u.bookedMinutes ?? 0}/${u.totalMinutes ?? 0} min)`,
-    );
-
-    return {
-      success: true,
-      action: 'summarize_utilization',
-      summary: [`Utilization ${range.start} → ${range.end}:`, ...lines].join(
-        '\n',
-      ),
-      details: { range, utilization: sorted },
-    };
-  }
-
-  private async handleSummarizeCustomers(
-    businessId: string,
-    prompt: string,
-    params: Record<string, any>,
-  ): Promise<CommandResult> {
-    const metric = resolveCustomerMetric(params, prompt);
-    const limit =
-      typeof params.limit === 'number' && params.limit > 0
-        ? Math.min(params.limit, MAX_AI_CUSTOMER_ROWS)
-        : Math.min(extractLimitFromPrompt(prompt), MAX_AI_CUSTOMER_ROWS);
-
-    const insights = await this.customerService.getCustomerInsights(
-      businessId,
-      metric,
-      limit,
-    );
-    const { rows, summary } = insights;
-
-    const metricTitles: Record<CustomerInsightMetric, string> = {
-      most_no_shows: 'Customers with the most no-shows',
-      most_bookings: 'Customers with the most appointments',
-      most_cancellations: 'Customers with the most cancellations',
-      at_risk: 'At-risk customers (90+ days since last visit)',
-      high_no_show: 'High no-show segment customers',
-      vip: 'VIP customers',
-      top_spenders: 'Top customers by total paid',
-      new_customers: 'New customers (no appointments yet)',
-      overview: 'Customer overview',
-    };
-
-    const lines: string[] = [
-      metricTitles[metric] +
-        (metric === 'top_spenders' ? ` (top ${limit})` : '') +
-        ':',
-    ];
-
-    if (metric === 'overview') {
-      lines.push(
-        `• ${summary.totalCustomers} active customers`,
-        `• ${summary.totalNoShows} total no-shows across all customers`,
-        `• ${summary.atRiskCount} at-risk · ${summary.highNoShowCount} high no-show · ${summary.vipCount} VIP`,
-      );
-      if (rows.length > 0) {
-        lines.push('', 'Top no-shows:');
-      }
-    }
-
-    if (rows.length === 0) {
-      lines.push('• No matching customers found.');
-    } else {
-      for (const row of rows) {
-        const cancelled = row.stats.byStatus.cancelled ?? 0;
-        const completed = row.stats.byStatus.completed ?? 0;
-        let detail = `${row.stats.noShowCount} no-show(s), ${row.stats.total} total appt(s)`;
-        if (metric === 'most_cancellations')
-          detail = `${cancelled} cancellation(s)`;
-        if (metric === 'most_bookings')
-          detail = `${row.stats.total} appointment(s)`;
-        if (metric === 'at_risk' && row.stats.lastBookingAt) {
-          detail = `last visit ${formatDateDisplay(row.stats.lastBookingAt)}, ${completed} completed`;
-        }
-        if (metric === 'vip')
-          detail = `${completed} completed, ${row.stats.total} total`;
-        if (metric === 'top_spenders') {
-          const currency = row.currency ?? 'USD';
-          detail = `${currency} ${Number(row.paidTotal ?? 0).toFixed(2)} from ${row.paidCount ?? 0} paid appt(s)`;
-        }
-        if (metric === 'new_customers') {
-          detail =
-            row.stats.total === 0
-              ? 'no appointments yet'
-              : `${row.stats.total} appointment(s)`;
-        }
-        lines.push(
-          `• ${row.name}: ${detail}${metric === 'top_spenders' ? '' : ` · segment: ${row.segment}`}`,
-        );
-      }
-    }
-
-    return {
-      success: true,
-      action: 'summarize_customers',
-      summary: lines.join('\n'),
-      details: {
-        metric,
-        rowCount: rows.length,
-        summary,
-      },
-    };
-  }
-
-  private async handleSummarizeBookings(
-    businessId: string,
-    prompt: string,
-    params: Record<string, any>,
-    employeeId?: string,
-    employeeName?: string,
-  ): Promise<CommandResult> {
-    const business = await this.businessRepo.findOne({
-      where: { id: businessId },
-      select: { id: true, settings: true },
-    });
-    const businessSettings = business?.settings ?? {};
-
-    const metric = resolveBookingMetric(params, prompt) ?? 'overview';
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const iso = params.date ?? new Date().toISOString().split('T')[0];
-        return { start: iso, end: iso };
-      })();
-
-    const start = new Date(range.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
-    end.setUTCHours(23, 59, 59, 999);
-
-    const where: Record<string, unknown> = {
-      businessId,
-      startTime: Between(start, end),
-    };
-    if (employeeId) where.employeeId = employeeId;
-
-    const bookings = await this.bookingRepo.find({
-      where: where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    return composeSummarizeBookingsResult({
-      bookings,
-      businessSettings,
-      metric,
-      range,
-      employeeId,
-      employeeName,
-      statusFilter: params.statusFilter as string | undefined,
-    });
-  }
-
-  private async handleListServices(
-    businessId: string,
-    services: Service[],
-    params: Record<string, any>,
-    prompt: string,
-  ): Promise<CommandResult> {
-    const withBudgetAndRank = enrichServiceDiscoveryFromPrompt(params, prompt);
-    const enriched = enrichListServicesParamsFromPrompt(
-      prompt,
-      withBudgetAndRank,
-    );
-
-    if (services.length === 0) {
-      return {
-        success: true,
-        action: 'list_services',
-        summary:
-          'No services in catalog yet. Add one with "Add service facemassage 60min $50".',
-        details: { services: [] },
-      };
-    }
-
-    const bookingCounts = await loadServiceBookingCounts90d(
-      this.bookingRepo,
-      businessId,
-      services.map((service) => service.id),
-    );
-
-    const toCatalogRow = (service: Service) => {
-      const rank = extractServiceRankMetadata(service.metadata);
-      return {
-        id: service.id,
-        name: service.name,
-        price: Number(service.price),
-        durationMinutes: service.durationMinutes,
-        bufferMinutes: service.bufferMinutes,
-        currency: service.currency || 'USD',
-        description: service.description,
-        bookingCount: bookingCounts.get(service.id) ?? 0,
-        prepaymentMode: service.prepaymentMode,
-        ...(rank.isFeatured ? { isFeatured: true } : {}),
-        ...(rank.serviceTier ? { serviceTier: rank.serviceTier } : {}),
-      };
-    };
-
-    if (enriched.serviceName) {
-      const target = this.resolveService(
-        services,
-        String(enriched.serviceName),
-      );
-      if (target) {
-        const composed = composeDashboardListServicesBudgetResponse({
-          matchedServices: [toCatalogRow(target)],
-          maxPrice: withBudgetAndRank.maxPrice,
-          minPrice: withBudgetAndRank.minPrice,
-          preferShortDuration: withBudgetAndRank.preferShortDuration,
-          minDurationMinutes: withBudgetAndRank.minDurationMinutes,
-          header: `${target.name}:`,
-        });
-        if (composed.services.length === 1) {
-          const service = composed.services[0];
-          const currency = service.currency || 'USD';
-          return {
-            success: true,
-            action: 'list_services',
-            summary: [
-              `${service.name}:`,
-              `• Duration: ${service.durationMinutes} min${service.bufferMinutes ? ` (+${service.bufferMinutes} min buffer)` : ''}`,
-              `• Price: ${currency} ${Number(service.price).toFixed(2)}`,
-              service.description ? `• ${service.description}` : '',
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            details: { services: composed.detailsServices },
-          };
-        }
-        return {
-          success: composed.success,
-          action: 'list_services',
-          summary: composed.summary,
-          details: { services: composed.detailsServices },
-        };
-      }
-    }
-
-    const hasFilter = !!(
-      enriched.serviceCategory ||
-      (Array.isArray(enriched.serviceNames) && enriched.serviceNames.length)
-    );
-    const catalog = services.map(toCatalogRow);
-    let matched = hasFilter
-      ? resolveServicesFromCatalogParams(catalog, enriched)
-      : catalog;
-
-    if (hasFilter && matched.length === 0) {
-      const category = enriched.serviceCategory ?? enriched.serviceName;
-      return {
-        success: false,
-        action: 'list_services',
-        summary: buildRankEmptyCategorySummary(String(category), catalog),
-        details: { services: [] },
-      };
-    }
-
-    const paymentFilter = parseListServicesPaymentFilterFromPrompt(
-      prompt,
-      enriched,
-    );
-    if (hasListServicesPaymentFilter(paymentFilter)) {
-      matched = filterServicesByListServicesPaymentPolicy(
-        matched,
-        paymentFilter,
-      );
-      if (matched.length === 0) {
-        return {
-          success: false,
-          action: 'list_services',
-          summary: `No ${buildListServicesPaymentFilterHeader(paymentFilter).toLowerCase()} in the catalog right now.`,
-          details: { services: [] },
-        };
-      }
-    }
-
-    const serviceRank = resolveServiceRankParam(withBudgetAndRank.serviceRank);
-    if (serviceRank) {
-      const rankLimit = resolveListServicesRankLimitFromPrompt(
-        prompt,
-        withBudgetAndRank,
-      );
-      const composed = composeDashboardListServicesRankResponse({
-        matchedServices: matched,
-        serviceRank,
-        limit: rankLimit,
-        maxPrice: withBudgetAndRank.maxPrice,
-        serviceCategory: enriched.serviceCategory ?? null,
-        allCatalogServices: catalog,
-      });
-      return {
-        success: composed.success,
-        action: 'list_services',
-        summary: composed.summary,
-        details: { services: composed.detailsServices },
-      };
-    }
-
-    const paymentFilterHeader = hasListServicesPaymentFilter(paymentFilter)
-      ? `${buildListServicesPaymentFilterHeader(paymentFilter)}:`
-      : undefined;
-
-    const composed = composeDashboardListServicesBudgetResponse({
-      matchedServices: matched,
-      maxPrice: withBudgetAndRank.maxPrice,
-      minPrice: withBudgetAndRank.minPrice,
-      preferShortDuration: withBudgetAndRank.preferShortDuration,
-      minDurationMinutes: withBudgetAndRank.minDurationMinutes,
-      maxTotalPrice: withBudgetAndRank.maxTotalPrice,
-      serviceCount: withBudgetAndRank.serviceCount,
-      header:
-        paymentFilterHeader ??
-        (withBudgetAndRank.maxTotalPrice != null
-          ? 'Service combos within budget:'
-          : withBudgetAndRank.maxPrice != null
-            ? 'Services within budget:'
-            : `Service catalog (${matched.length}):`),
-    });
-
-    return {
-      success: composed.success,
-      action: 'list_services',
-      summary: composed.summary,
-      details: { services: composed.detailsServices },
-    };
-  }
-
-  private async handleAnalyzeServices(
-    businessId: string,
-    prompt: string,
-    params: Record<string, any>,
-  ): Promise<CommandResult> {
-    const metric = resolveServiceMetric(params, prompt);
-    const limit =
-      typeof params.limit === 'number' && params.limit > 0
-        ? Math.min(params.limit, 20)
-        : extractLimitFromPrompt(prompt);
-
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const start = new Date();
-        start.setUTCDate(start.getUTCDate() - 30);
-        const end = new Date();
-        return {
-          start: start.toISOString().split('T')[0],
-          end: end.toISOString().split('T')[0],
-        };
-      })();
-
-    const start = new Date(range.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
-    end.setUTCHours(23, 59, 59, 999);
-
-    const bookings = await this.bookingRepo.find({
-      where: {
-        businessId,
-        startTime: Between(start, end),
-        status: Not(BookingStatus.CANCELLED),
-      },
-      relations: { service: true },
-    });
-
-    const byService = new Map<
-      string,
-      { name: string; count: number; revenue: number; currency: string }
-    >();
-    for (const b of bookings) {
-      if (!b.service) continue;
-      const key = b.service.id;
-      const row = byService.get(key) ?? {
-        name: b.service.name,
-        count: 0,
-        revenue: 0,
-        currency: b.service.currency || 'USD',
-      };
-      row.count += 1;
-      row.revenue += Number(b.service.price ?? 0);
-      byService.set(key, row);
-    }
-
-    let rows = [...byService.values()];
-    const titles: Record<ServiceInsightMetric, string> = {
-      most_booked: 'Most booked services',
-      top_revenue: 'Top services by revenue',
-      least_booked: 'Least booked services',
-      overview: 'Service performance overview',
-    };
-
-    switch (metric) {
-      case 'top_revenue':
-        rows.sort((a, b) => b.revenue - a.revenue);
-        break;
-      case 'least_booked':
-        rows.sort((a, b) => a.count - b.count);
-        break;
-      case 'most_booked':
-      default:
-        rows.sort((a, b) => b.count - a.count);
-        break;
-    }
-
-    rows = rows.slice(0, limit);
-    const rangeLabel =
-      range.start === range.end
-        ? formatDateDisplay(range.start)
-        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
-
-    const lines = [`${titles[metric]} (${rangeLabel}):`];
-    if (rows.length === 0) {
-      lines.push('• No service bookings in this period.');
-    } else {
-      for (const row of rows) {
-        lines.push(
-          `• ${row.name}: ${row.count} booking(s) · ${row.currency} ${row.revenue.toFixed(2)} revenue`,
-        );
-      }
-    }
-
-    return {
-      success: true,
-      action: 'analyze_services',
-      summary: lines.join('\n'),
-      details: { metric, range, rows },
-    };
-  }
-
-  private async handleSummarizeStaff(
-    businessId: string,
-    prompt: string,
-    params: Record<string, any>,
-    employees: Employee[],
-  ): Promise<CommandResult> {
-    const metric = resolveStaffMetric(params, prompt);
-    const limit =
-      typeof params.limit === 'number' && params.limit > 0
-        ? Math.min(params.limit, 20)
-        : extractLimitFromPrompt(prompt);
-
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const iso = params.date ?? new Date().toISOString().split('T')[0];
-        return { start: iso, end: iso };
-      })();
-
-    const start = new Date(range.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
-    end.setUTCHours(23, 59, 59, 999);
-
-    const targetEmployees = params.employeeName
-      ? employees.filter((e) =>
-          e.name
-            .toLowerCase()
-            .includes(String(params.employeeName).toLowerCase()),
-        )
-      : employees;
-    const targetIds = new Set(targetEmployees.map((e) => e.id));
-
-    const bookings = await this.bookingRepo.find({
-      where: {
-        businessId,
-        startTime: Between(start, end),
-        status: Not(BookingStatus.CANCELLED),
-      },
-      relations: { employee: true, service: true },
-    });
-
-    const byEmployee = new Map<
-      string,
-      { name: string; count: number; revenue: number; currency: string }
-    >();
-    for (const e of targetEmployees) {
-      byEmployee.set(e.id, {
-        name: e.name,
-        count: 0,
-        revenue: 0,
-        currency: 'USD',
-      });
-    }
-    for (const b of bookings) {
-      if (targetIds.size > 0 && !targetIds.has(b.employeeId)) continue;
-      const row = byEmployee.get(b.employeeId);
-      if (!row) continue;
-      row.count += 1;
-      row.revenue += Number(b.service?.price ?? 0);
-      if (b.service?.currency) row.currency = b.service.currency;
-    }
-
-    let rows = [...byEmployee.values()].filter((r) => r.count > 0);
-    const titles: Record<StaffInsightMetric, string> = {
-      busiest: 'Busiest providers',
-      most_revenue: 'Top providers by revenue',
-      most_bookings: 'Providers with most bookings',
-      overview: 'Staff performance overview',
-    };
-
-    switch (metric) {
-      case 'most_revenue':
-        rows.sort((a, b) => b.revenue - a.revenue);
-        break;
-      case 'most_bookings':
-      case 'busiest':
-      default:
-        rows.sort((a, b) => b.count - a.count);
-        break;
-    }
-
-    rows = rows.slice(0, limit);
-    const rangeLabel =
-      range.start === range.end
-        ? formatDateDisplay(range.start)
-        : `${formatDateDisplay(range.start)} → ${formatDateDisplay(range.end)}`;
-
-    const lines = [`${titles[metric]} (${rangeLabel}):`];
-    if (rows.length === 0) {
-      lines.push('• No provider bookings in this period.');
-    } else {
-      for (const row of rows) {
-        lines.push(
-          `• ${row.name}: ${row.count} appt(s) · ${row.currency} ${row.revenue.toFixed(2)}`,
-        );
-      }
-    }
-
-    return {
-      success: true,
-      action: 'summarize_staff',
-      summary: lines.join('\n'),
-      details: { metric, range, rows },
-    };
-  }
-
-  private async handleLookupCustomer(
-    businessId: string,
-    params: Record<string, any>,
-    customers: Customer[],
-    accessTier?: string,
-  ): Promise<CommandResult> {
-    const name = params.customerName as string | undefined;
-    if (!name) {
-      return {
-        success: false,
-        action: 'lookup_customer',
-        summary: 'Which customer should I look up? Mention their name.',
-        details: {},
-      };
-    }
-
-    const customer = this.resolveCustomer(customers, name);
-    if (!customer) {
-      return {
-        success: false,
-        action: 'lookup_customer',
-        summary: `No customer found matching "${name}".`,
-        details: {},
-      };
-    }
-
-    const detail = await this.customerService.getCustomerDetail(
-      businessId,
-      customer.id,
-    );
-    const { stats, appointments } = detail;
-    const lastAppt = appointments[0];
-    const upcoming = appointments.filter(
-      (a) => new Date(a.startTime) > new Date() && a.status !== 'cancelled',
-    ).length;
-
-    const bookingContext = params.bookingContext === true;
-    const contextEmployee = params.employeeName as string | undefined;
-    const contextTime = params.timeSlot as string | undefined;
-    const contextDate = params.date as string | undefined;
-    let contextMatch: (typeof appointments)[number] | undefined;
-    if (bookingContext && (contextEmployee || contextTime || contextDate)) {
-      const range = resolveDateRange(
-        { date: contextDate },
-        contextDate ?? 'today',
-      ) ?? {
-        start: new Date().toISOString().split('T')[0],
-        end: new Date().toISOString().split('T')[0],
-      };
-      contextMatch = appointments.find((appt) => {
-        if (appt.status === 'cancelled') return false;
-        const day = new Date(appt.startTime).toISOString().split('T')[0];
-        if (day < range.start || day > range.end) return false;
-        if (contextEmployee && appt.employee?.name) {
-          const needle = contextEmployee.toLowerCase();
-          if (!appt.employee.name.toLowerCase().includes(needle)) return false;
-        }
-        if (contextTime) {
-          const slot = this.snapTo10min(contextTime);
-          if (formatTimeDisplay(appt.startTime) !== slot) return false;
-        }
-        return true;
-      });
-    }
-
-    const tier = normalizeActorRole(accessTier);
-    const limitedView = tier === 'staff';
-
-    const lines = [
-      `Customer: ${detail.customer.name}`,
-      ...(limitedView
-        ? [
-            `• Upcoming appointments: ${upcoming}`,
-            lastAppt
-              ? `• Most recent: ${formatDateDisplay(lastAppt.startTime)} ${formatTimeDisplay(lastAppt.startTime)} — ${lastAppt.service?.name ?? 'Service'}`
-              : null,
-          ].filter(Boolean)
-        : [
-            `• Segment: ${detail.customer.segment}${detail.customer.isVip ? ' (VIP)' : ''}`,
-            `• Total appointments: ${stats.total} · No-shows: ${stats.noShowCount} · Upcoming: ${upcoming}`,
-            stats.lastBookingAt
-              ? `• Last visit: ${formatDateDisplay(stats.lastBookingAt)}`
-              : null,
-            lastAppt
-              ? `• Most recent: ${formatDateDisplay(lastAppt.startTime)} ${formatTimeDisplay(lastAppt.startTime)} — ${lastAppt.service?.name ?? 'Service'} (${lastAppt.status})`
-              : null,
-            detail.customer.email ? `• Email: ${detail.customer.email}` : null,
-            detail.customer.phone ? `• Phone: ${detail.customer.phone}` : null,
-          ].filter(Boolean)),
-    ];
-
-    if (contextMatch) {
-      lines.push(
-        `• Booking match: ${formatDateDisplay(contextMatch.startTime)} ${formatTimeDisplay(contextMatch.startTime)} — ${contextMatch.service?.name ?? 'Service'} with ${contextMatch.employee?.name ?? 'provider'} (${contextMatch.status})`,
-      );
-    } else if (bookingContext && (contextEmployee || contextTime)) {
-      lines.push('• No matching booking found for the provider/time filter.');
-    }
-
-    return {
-      success: true,
-      action: 'lookup_customer',
-      summary: lines.join('\n'),
-      details: limitedView
-        ? {
-            customerId: detail.customer.id,
-            name: detail.customer.name,
-            upcoming,
-            contextBookingId: contextMatch?.id,
-          }
-        : {
-            customer: detail.customer,
-            stats,
-            recentAppointments: appointments.slice(0, 5),
-            contextBooking: contextMatch ?? null,
-          },
-    };
-  }
-
-  private async handleSummarizeWaitlist(
-    businessId: string,
-    params: Record<string, any>,
-  ): Promise<CommandResult> {
-    const limit = typeof params.limit === 'number' ? params.limit : 10;
-
-    const waitlist = await this.customerRepo
-      .createQueryBuilder('c')
-      .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .orderBy('c.name', 'ASC')
-      .getMany();
-
-    const cancelledWhere: Record<string, unknown> = {
-      businessId,
-      status: BookingStatus.CANCELLED,
-    };
-    if (params.date) {
-      const d = new Date(params.date);
-      const dayStart = new Date(d);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d);
-      dayEnd.setUTCHours(23, 59, 59, 999);
-      cancelledWhere.startTime = Between(dayStart, dayEnd);
-    }
-
-    const recoverableSlots = await this.bookingRepo.count({
-      where: cancelledWhere,
-    });
-
-    if (waitlist.length === 0) {
-      const lines = [
-        'No customers on the waitlist. Tag customers with "waitlist" in CRM.',
-      ];
-      if (recoverableSlots > 0) {
-        lines.push(
-          `Cancelled slots available for recovery: ${recoverableSlots}`,
-        );
-      }
-      return {
-        success: true,
-        action: 'summarize_waitlist',
-        summary: lines.join('\n'),
-        details: {
-          count: 0,
-          customers: [],
-          recoverableCancelledSlots: recoverableSlots,
-        },
-      };
-    }
-
-    const shown = waitlist.slice(0, limit);
-    const lines = [
-      `Waitlist: ${waitlist.length} customer(s)`,
-      ...shown.map((c) => `• ${c.name}`),
-    ];
-    if (waitlist.length > limit) {
-      lines.push(`… and ${waitlist.length - limit} more`);
-    }
-    if (recoverableSlots > 0) {
-      lines.push(`Cancelled slots available for recovery: ${recoverableSlots}`);
-    }
-
-    return {
-      success: true,
-      action: 'summarize_waitlist',
-      summary: lines.join('\n'),
-      details: {
-        count: waitlist.length,
-        customers: shown.map((c) => ({
-          id: c.id,
-          name: c.name,
-          phone: c.phone,
-          email: c.email,
-        })),
-        recoverableCancelledSlots: recoverableSlots,
-      },
-    };
-  }
-
-  private async handleLookupServiceAssignment(
-    businessId: string,
-    employees: Employee[],
-    services: Service[],
-    params: Record<string, any>,
-    prompt?: string,
-  ): Promise<CommandResult> {
-    params = enrichDashboardLookupAssignmentParams({ ...params }, prompt);
-
-    const lookup = params.assignmentLookup as
-      | 'providers_for_service'
-      | 'services_for_provider'
-      | undefined;
-
-    if (lookup === 'services_for_provider') {
-      const name = params.employeeName as string | undefined;
-      if (!name) {
-        return {
-          success: false,
-          action: 'lookup_service_assignment',
-          summary: 'Which provider should I look up? Mention their name.',
-          details: {},
-        };
-      }
-
-      const employee = this.resolveEmployee(employees, name);
-      if (!employee) {
-        return {
-          success: false,
-          action: 'lookup_service_assignment',
-          summary: `No provider found matching "${name}".`,
-          details: {},
-        };
-      }
-
-      const assigned = getEmployeeServices(employee, services);
-      if (assigned.length === 0 && employee.serviceIds?.length) {
-        return {
-          success: true,
-          action: 'lookup_service_assignment',
-          summary: `${employee.name} has no services assigned in the catalog.`,
-          details: { employeeName: employee.name, services: [] },
-        };
-      }
-
-      if (assigned.length === 0) {
-        return {
-          success: true,
-          action: 'lookup_service_assignment',
-          summary: `${employee.name} can perform all catalog services (no restriction set).`,
-          details: {
-            employeeName: employee.name,
-            services: services.map((s) => ({ id: s.id, name: s.name })),
-            unrestricted: true,
-          },
-        };
-      }
-
-      const lines = [
-        `Services ${employee.name} can perform (${assigned.length}):`,
-        ...assigned.map((s) => `• ${s.name}`),
-      ];
-      return {
-        success: true,
-        action: 'lookup_service_assignment',
-        summary: lines.join('\n'),
-        details: {
-          employeeName: employee.name,
-          services: assigned.map((s) => ({
-            id: s.id,
-            name: s.name,
-            durationMinutes: s.durationMinutes,
-          })),
-        },
-      };
-    }
-
-    const catalog = services.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      price: Number(entry.price),
-      durationMinutes: entry.durationMinutes,
-    }));
-
-    const serviceResolved = resolveLookupAssignmentService(
-      catalog,
-      params,
-      (name) => this.resolveService(services, name),
-    );
-
-    if (serviceResolved.noMatchSummary && !serviceResolved.service) {
-      const isMissingName =
-        serviceResolved.noMatchSummary === 'Which service should I look up?';
-      return {
-        success: false,
-        action: 'lookup_service_assignment',
-        summary: isMissingName
-          ? 'Which service should I look up? Mention the service name.'
-          : serviceResolved.noMatchSummary,
-        details: {},
-      };
-    }
-
-    const service = serviceResolved.service
-      ? services.find((entry) => entry.id === serviceResolved.service!.id)
-      : undefined;
-
-    if (!service) {
-      return {
-        success: false,
-        action: 'lookup_service_assignment',
-        summary: 'Which service should I look up? Mention the service name.',
-        details: {},
-      };
-    }
-
-    const discoveryNote = formatLookupAssignmentDiscoveryNote(
-      params,
-      service.name,
-    );
-    const active = employees.filter((e) => e.isActive);
-
-    if (params.date) {
-      const isoDay =
-        parseDateInput(params.date)?.toISOString().split('T')[0] ?? params.date;
-      const displayDay = formatDateDisplay(isoDay);
-
-      const availabilityRows = await Promise.all(
-        active.map(async (provider) => {
-          const row = await this.getProviderAvailabilityForService(
-            businessId,
-            provider.id,
-            service.id,
-            isoDay,
-          );
-          return { provider, ...row };
-        }),
-      );
-
-      const availableProviders = availabilityRows.filter(
-        (r) => r.hasServiceBlock && r.openSlots.length > 0,
-      );
-      const scheduledButFull = availabilityRows.filter(
-        (r) => r.hasServiceBlock && r.openSlots.length === 0,
-      );
-
-      if (availableProviders.length === 0) {
-        const lines = [
-          `No providers with open ${service.name} time on ${displayDay}.`,
-          scheduledButFull.length > 0
-            ? `${scheduledButFull.length} scheduled but fully booked: ${scheduledButFull.map((r) => r.provider.name).join(', ')}`
-            : `No applied ${service.name} service blocks on ${displayDay}.`,
-        ];
-        return {
-          success: true,
-          action: 'lookup_service_assignment',
-          summary: lines.join('\n'),
-          details: {
-            serviceName: service.name,
-            date: displayDay,
-            availableProviders: [],
-            scheduledButFull: scheduledButFull.map((r) => ({
-              name: r.provider.name,
-              blocks: r.scheduledBlocks,
-            })),
-            availability: availabilityRows
-              .filter((r) => r.hasServiceBlock)
-              .map((r) => ({
-                name: r.provider.name,
-                scheduledBlocks: r.scheduledBlocks,
-                openSlots: r.openSlots,
-              })),
-          },
-        };
-      }
-
-      const lines = [
-        `Providers scheduled for ${service.name} on ${displayDay} with open time (${availableProviders.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
-        ...availableProviders.map((r) => {
-          const blocks = r.scheduledBlocks
-            .map((b) => `${b.start}–${b.end}`)
-            .join(', ');
-          const open = r.openSlots.map((s) => `${s.start}–${s.end}`).join(', ');
-          return `• ${r.provider.name} — shift: ${blocks} | open: ${open}`;
-        }),
-        '',
-        'Reply with a provider and time to book, e.g. "Book Gevorg at 10:00".',
-      ];
-
-      return {
-        success: true,
-        action: 'lookup_service_assignment',
-        summary: lines.join('\n'),
-        details: {
-          serviceName: service.name,
-          date: displayDay,
-          availableProviders: availableProviders.map((r) => r.provider.name),
-          availability: availableProviders.map((r) => ({
-            name: r.provider.name,
-            scheduledBlocks: r.scheduledBlocks,
-            openSlots: r.openSlots,
-          })),
-        },
-      };
-    }
-
-    const providers = active.filter((e) => {
-      if (!e.serviceIds?.length) return true;
-      return e.serviceIds.includes(service.id);
-    });
-
-    if (providers.length === 0) {
-      return {
-        success: true,
-        action: 'lookup_service_assignment',
-        summary: `No providers assigned to "${service.name}".`,
-        details: { serviceName: service.name, providers: [] },
-      };
-    }
-
-    const lines = [
-      `Providers who can perform ${service.name} (${providers.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
-      ...providers.map((p) => `• ${p.name}`),
-    ];
-    return {
-      success: true,
-      action: 'lookup_service_assignment',
-      summary: lines.join('\n'),
-      details: {
-        serviceName: service.name,
-        maxPrice: params.maxPrice ?? null,
-        serviceRank: params.serviceRank ?? null,
-        providers: providers.map((p) => ({ id: p.id, name: p.name })),
-      },
-    };
-  }
-
-  private handleListEmployees(
-    employees: Employee[],
-    _params: Record<string, any>,
-  ): CommandResult {
-    const active = employees.filter((e) => e.isActive);
-    if (active.length === 0) {
-      return {
-        success: true,
-        action: 'list_employees',
-        summary: 'No active providers on the team yet.',
-        details: { employees: [] },
-      };
-    }
-
-    const lines = active.map((e) => `• ${e.name}`);
-    return {
-      success: true,
-      action: 'list_employees',
-      summary: [`Team (${active.length} providers):`, ...lines].join('\n'),
-      details: {
-        employees: active.map((e) => ({ id: e.id, name: e.name })),
-      },
-    };
-  }
-
-  private handleListTemplates(templates: ScheduleTemplate[]): CommandResult {
-    const active = templates.filter((t) => !t.isDeleted);
-    if (active.length === 0) {
-      return {
-        success: true,
-        action: 'list_templates',
-        summary:
-          'No schedule templates yet. Create one in Schedule → Templates.',
-        details: { templates: [] },
-      };
-    }
-
-    const lines = active.map((t) => `• ${t.name}`);
-    return {
-      success: true,
-      action: 'list_templates',
-      summary: [`Schedule templates (${active.length}):`, ...lines].join('\n'),
-      details: { templates: active.map((t) => ({ id: t.id, name: t.name })) },
-    };
-  }
-
-  private bookingDurationMinutes(booking: Booking): number {
-    return Math.round(
-      (booking.endTime.getTime() - booking.startTime.getTime()) / 60_000,
-    );
-  }
-
-  private formatServicePrice(service: Service | null | undefined): string {
-    if (!service) return '—';
-    const currency = service.currency || 'USD';
-    return `${currency} ${Number(service.price).toFixed(2)}`;
-  }
-
-  private formatAppointmentLine(booking: Booking): string {
-    const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
-    const duration = this.bookingDurationMinutes(booking);
-    const price = this.formatServicePrice(booking.service);
-    return `• ${time} | ${booking.service?.name || 'Service'} | ${booking.customer?.name || 'Walk-in'} | ${booking.employee?.name || 'Unknown'} | ${duration} min | ${price} | ${booking.status}`;
-  }
-
-  private async handleAnalyzeAppointments(
-    businessId: string,
-    prompt: string,
-    params: Record<string, any>,
-    employeeId?: string,
-    employeeName?: string,
-  ): Promise<CommandResult> {
-    const metric = resolveAppointmentMetric(params, prompt);
-    if (!metric) {
-      return {
-        success: false,
-        action: 'analyze_appointments',
-        summary:
-          'Specify what to analyze: most expensive, longest, shortest, earliest, or latest appointment.',
-        details: { params },
-      };
-    }
-
-    const range = resolveDateRange(params, prompt);
-    const isoDay =
-      range?.start ?? params.date ?? new Date().toISOString().split('T')[0];
-    const displayDay = formatDateDisplay(isoDay);
-    const d = new Date(isoDay);
-    const dayStart = new Date(d);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const where: Record<string, unknown> = {
-      businessId,
-      startTime: Between(dayStart, dayEnd),
-    };
-    if (employeeId) where.employeeId = employeeId;
-
-    const bookings = await this.bookingRepo.find({
-      where: where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    const active = bookings.filter((b) => b.status !== BookingStatus.CANCELLED);
-    const scopeLabel = employeeName || 'all providers';
-
-    if (active.length === 0) {
-      return {
-        success: true,
-        action: 'analyze_appointments',
-        summary: `No appointments found for ${scopeLabel} on ${displayDay}.`,
-        details: { metric, date: displayDay, count: 0 },
-      };
-    }
-
-    const metricTitles: Record<typeof metric, string> = {
-      most_expensive: 'Most expensive appointment',
-      longest: 'Longest appointment',
-      shortest: 'Shortest appointment',
-      earliest: 'Earliest appointment',
-      latest: 'Latest appointment',
-    };
-
-    let matches: Booking[] = [];
-
-    switch (metric) {
-      case 'most_expensive': {
-        const priced = active.filter(
-          (b) => b.service && Number(b.service.price) >= 0,
-        );
-        if (priced.length === 0) {
-          return {
-            success: true,
-            action: 'analyze_appointments',
-            summary: `No priced appointments found for ${scopeLabel} on ${displayDay}.`,
-            details: { metric, date: displayDay, count: 0 },
-          };
-        }
-        const maxPrice = Math.max(
-          ...priced.map((b) => Number(b.service.price)),
-        );
-        matches = priced.filter((b) => Number(b.service.price) === maxPrice);
-        break;
-      }
-      case 'longest': {
-        const maxDuration = Math.max(
-          ...active.map((b) => this.bookingDurationMinutes(b)),
-        );
-        matches = active.filter(
-          (b) => this.bookingDurationMinutes(b) === maxDuration,
-        );
-        break;
-      }
-      case 'shortest': {
-        const minDuration = Math.min(
-          ...active.map((b) => this.bookingDurationMinutes(b)),
-        );
-        matches = active.filter(
-          (b) => this.bookingDurationMinutes(b) === minDuration,
-        );
-        break;
-      }
-      case 'earliest':
-        matches = [active[0]];
-        break;
-      case 'latest':
-        matches = [active[active.length - 1]];
-        break;
-    }
-
-    const lines = [
-      `${metricTitles[metric]} on ${displayDay} (${scopeLabel}):`,
-      ...matches.map((b) => this.formatAppointmentLine(b)),
-    ];
-    if (matches.length > 1) {
-      lines.push(`(${matches.length} tied)`);
-    }
-
-    return {
-      success: true,
-      action: 'analyze_appointments',
-      summary: lines.join('\n'),
-      details: {
-        metric,
-        date: displayDay,
-        count: active.length,
-        matches: matches.map((b) => ({
-          id: b.id,
-          service: b.service?.name,
-          customer: b.customer?.name,
-          employee: b.employee?.name,
-          startTime: b.startTime.toISOString(),
-          endTime: b.endTime.toISOString(),
-          durationMinutes: this.bookingDurationMinutes(b),
-          price: b.service ? Number(b.service.price) : null,
-          currency: b.service?.currency ?? null,
-          status: b.status,
-        })),
-      },
-    };
-  }
-
-  private async handleBulkSmartCancel(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    employeeId?: string,
-    userId?: string,
-    options?: { notifyOnly?: boolean },
-  ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'bulk_smart_cancel',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
-
-    const bookings = await this.findBookingsForCancel(
-      businessId,
-      params,
-      services,
-      employees,
-      employeeId,
-      prompt,
-    );
-
-    if (bookings.length === 0) {
-      return {
-        success: true,
-        action: 'bulk_smart_cancel',
-        summary: 'No matching bookings to cancel.',
-        details: { matchedCount: 0 },
-      };
-    }
-
-    const reason = params.reason || 'Cancelled via AI command';
-    const dateRange =
-      params.dateFrom && params.dateTo
-        ? { start: toIsoDay(params.dateFrom), end: toIsoDay(params.dateTo) }
-        : params.date
-          ? { start: toIsoDay(params.date), end: toIsoDay(params.date) }
-          : undefined;
-
-    const plan = options?.notifyOnly
-      ? this.planBuilder.buildCancelBookingsPlan(
-          businessId,
-          bookings.map((b) => b.id),
-          reason,
-          userId,
-          {
-            employeeName: params.employeeName,
-            date: params.date ? formatDateDisplay(params.date) : undefined,
-            services: matchedServices.map((s) => s.name),
-            notifyCustomers: true,
-          },
-        )
-      : this.planBuilder.buildBulkSmartCancelPlan(
-          businessId,
-          bookings.map((b) => b.id),
-          reason,
-          userId,
-          {
-            employeeName: params.employeeName,
-            date: params.date ? formatDateDisplay(params.date) : undefined,
-            services: matchedServices.map((s) => s.name),
-            dateRange,
-          },
-        );
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: bookings.length <= 5,
-      }),
-    );
-  }
-
-  private async handleFillSlotFromWaitlist(
-    businessId: string,
-    params: any,
-    employeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const where: any = {
-      businessId,
-      status: BookingStatus.CANCELLED,
-    };
-    if (employeeId) where.employeeId = employeeId;
-
-    if (params.date) {
-      const d = new Date(params.date);
-      const dayStart = new Date(d);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(d);
-      dayEnd.setUTCHours(23, 59, 59, 999);
-      where.startTime = Between(dayStart, dayEnd);
-    }
-
-    const cancelled = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    let slot = cancelled[0] ?? null;
-    if (params.timeSlot && slot) {
-      const target = this.snapTo10min(params.timeSlot);
-      slot =
-        cancelled.find((b) => formatTimeDisplay(b.startTime) === target) ??
-        cancelled[0] ??
-        null;
-    }
-
-    if (!slot) {
-      return {
-        success: false,
-        action: 'fill_slot_from_waitlist',
-        summary:
-          'No cancelled slot found to fill. Specify provider, date, and time (e.g. "Fill cancelled 14:00 slot from waitlist").',
-        details: { params },
-      };
-    }
-
-    const waitlist = await this.customerRepo
-      .createQueryBuilder('c')
-      .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .getMany();
-
-    if (waitlist.length === 0) {
-      return {
-        success: false,
-        action: 'fill_slot_from_waitlist',
-        summary:
-          'No waitlist customers found. Tag customers with "waitlist" in CRM.',
-        details: { slotId: slot.id },
-      };
-    }
-
-    const candidate = waitlist[0];
-    const plan = this.planBuilder.buildFillSlotFromWaitlistPlan({
-      businessId,
-      slot: {
-        bookingId: slot.id,
-        employeeId: slot.employeeId,
-        serviceId: slot.serviceId,
-        startTime: slot.startTime.toISOString(),
-        customerName: slot.customer?.name,
-      },
-      candidate: { customerId: candidate.id, customerName: candidate.name },
-      userId,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
   }
 
   private async resolveCommandTimezone(
@@ -7865,7 +3125,7 @@ export class AiCommandService {
   ): Promise<AgentPlan | null> {
     switch (action) {
       case 'create_booking': {
-        const plan = await this.buildCreateBookingPlanOnly(
+        const plan = await this.bookingCore.buildCreateBookingPlanOnly(
           businessId,
           params,
           catalog.employees,
@@ -7994,7 +3254,7 @@ export class AiCommandService {
         );
       }
       case 'mark_no_shows': {
-        const bookings = await this.findBookingsForMarkNoShows(
+        const bookings = await this.bookingCore.findBookingsForMarkNoShows(
           businessId,
           params,
           catalog.services,
@@ -8021,7 +3281,7 @@ export class AiCommandService {
         });
       }
       case 'no_show_recovery': {
-        const bookings = await this.findBookingsForMarkNoShows(
+        const bookings = await this.bookingCore.findBookingsForMarkNoShows(
           businessId,
           params,
           catalog.services,
@@ -8039,7 +3299,7 @@ export class AiCommandService {
         );
       }
       case 'update_bookings': {
-        const bookings = await this.findBookingsForBulkUpdate(
+        const bookings = await this.bookingCore.findBookingsForBulkUpdate(
           businessId,
           params,
           catalog.services,
@@ -8066,7 +3326,7 @@ export class AiCommandService {
         });
       }
       case 'payment_sweep': {
-        const rawBookings = await this.findUnpaidBookingsForSweep(
+        const rawBookings = await this.bookingCore.findUnpaidBookingsForSweep(
           businessId,
           params,
           catalog.services,
@@ -8242,7 +3502,7 @@ export class AiCommandService {
     switch (action) {
       case 'list_bookings':
       case 'show_appointments':
-        return this.handleListBookings(
+        return this.bookingCore.handleListBookings(
           businessId,
           effectivePrompt,
           params,
@@ -8251,21 +3511,21 @@ export class AiCommandService {
           catalog.services,
         );
       case 'check_availability':
-        return this.handleCheckAvailability(
+        return this.bookingCore.handleCheckAvailability(
           businessId,
           params,
           employeeId,
           resolvedEmployee?.name,
         );
       case 'summarize_day':
-        return this.handleSummarizeDay(
+        return this.bookingCore.handleSummarizeDay(
           businessId,
           params,
           employeeId,
           resolvedEmployee?.name,
         );
       case 'summarize_bookings':
-        return this.handleSummarizeBookings(
+        return this.bookingCore.handleSummarizeBookings(
           businessId,
           effectivePrompt,
           params,
@@ -8273,7 +3533,7 @@ export class AiCommandService {
           resolvedEmployee?.name,
         );
       case 'analyze_appointments':
-        return this.handleAnalyzeAppointments(
+        return this.bookingCore.handleAnalyzeAppointments(
           businessId,
           effectivePrompt,
           params,
@@ -8281,20 +3541,20 @@ export class AiCommandService {
           resolvedEmployee?.name,
         );
       case 'analyze_services':
-        return this.handleAnalyzeServices(businessId, effectivePrompt, params);
+        return this.bookingCore.handleAnalyzeServices(businessId, effectivePrompt, params);
       case 'summarize_staff':
-        return this.handleSummarizeStaff(
+        return this.bookingCore.handleSummarizeStaff(
           businessId,
           effectivePrompt,
           params,
           catalog.employees,
         );
       case 'lookup_customer':
-        return this.handleLookupCustomer(businessId, params, catalog.customers);
+        return this.bookingCore.handleLookupCustomer(businessId, params, catalog.customers);
       case 'summarize_waitlist':
-        return this.handleSummarizeWaitlist(businessId, params);
+        return this.bookingCore.handleSummarizeWaitlist(businessId, params);
       case 'lookup_service_assignment':
-        return this.handleLookupServiceAssignment(
+        return this.bookingCore.handleLookupServiceAssignment(
           businessId,
           catalog.employees,
           catalog.services,
@@ -8302,16 +3562,16 @@ export class AiCommandService {
           effectivePrompt,
         );
       case 'list_services':
-        return this.handleListServices(
+        return this.bookingCore.handleListServices(
           businessId,
           catalog.services,
           params,
           effectivePrompt,
         );
       case 'list_employees':
-        return this.handleListEmployees(catalog.employees, params);
+        return this.bookingCore.handleListEmployees(catalog.employees, params);
       case 'list_templates':
-        return this.handleListTemplates(catalog.templates);
+        return this.bookingCore.handleListTemplates(catalog.templates);
       case 'list_schedule_gaps':
         return this.scheduleHandlers.handleListScheduleGaps(
           businessId,
@@ -8320,14 +3580,14 @@ export class AiCommandService {
           catalog.employees,
         );
       case 'summarize_utilization':
-        return this.handleSummarizeUtilization(
+        return this.bookingCore.handleSummarizeUtilization(
           businessId,
           effectivePrompt,
           params,
           catalog.employees,
         );
       case 'summarize_customers':
-        return this.handleSummarizeCustomers(
+        return this.bookingCore.handleSummarizeCustomers(
           businessId,
           effectivePrompt,
           params,
@@ -8335,128 +3595,6 @@ export class AiCommandService {
       default:
         return null;
     }
-  }
-
-  private async buildCreateBookingPlanOnly(
-    businessId: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    customers: Customer[],
-    userId?: string,
-    prompt?: string,
-  ): Promise<AgentPlan | null> {
-    params = enrichDashboardCreateBookingParams({ ...params }, prompt);
-
-    const serviceResolved = await this.resolveCreateBookingServiceForParams(
-      businessId,
-      services,
-      params,
-    );
-    const service = serviceResolved.service;
-    if (!service) return null;
-
-    const customer = params.customerId
-      ? customers.find((c) => c.id === params.customerId)
-      : params.customerName
-        ? this.resolveCustomer(customers, params.customerName)
-        : undefined;
-
-    let resolvedEmployee = params.employeeId
-      ? employees.find((e) => e.id === params.employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(employees, params.employeeName)
-        : undefined;
-    let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
-
-    if (params.bookingFirstAvailable) {
-      const firstAvailable = await this.pickCreateBookingFirstAvailable(
-        businessId,
-        service,
-        params,
-        employees,
-        resolvedEmployee,
-        prompt,
-      );
-      if (!firstAvailable.ok) return null;
-
-      const pick = firstAvailable.pick;
-      resolvedEmployee =
-        employees.find((entry) => entry.id === pick.employeeId) ??
-        resolvedEmployee;
-      timeSlot = this.snapTo10min(pick.timeSlot);
-      params.date = pick.isoDay;
-      params.employeeName = pick.employeeName;
-      params.employeeId = pick.employeeId;
-    }
-
-    const wantsProviderFallback =
-      !params.bookingFirstAvailable &&
-      !!params.date &&
-      !!timeSlot &&
-      (params.fallbackAnyProvider === true ||
-        (Array.isArray(params.providerFallbackNames) &&
-          params.providerFallbackNames.length > 0) ||
-        (Array.isArray(params.employeeNames) &&
-          params.employeeNames.length >= 2));
-
-    if (wantsProviderFallback && timeSlot) {
-      const fixedTimeSlot = timeSlot;
-      const timeZone = params._timeZone ?? 'UTC';
-      const isoDay = toIsoDay(params.date, timeZone);
-      const priorityNames: string[] = Array.isArray(
-        params.providerFallbackNames,
-      )
-        ? params.providerFallbackNames
-        : Array.isArray(params.employeeNames) &&
-            params.employeeNames.length >= 2
-          ? params.employeeNames
-          : params.employeeName
-            ? [params.employeeName]
-            : resolvedEmployee
-              ? [resolvedEmployee.name]
-              : [];
-
-      const providerPriority = priorityNames
-        .map((name) => this.resolveEmployee(employees, name))
-        .filter((e): e is Employee => !!e)
-        .map((e) => ({ id: e.id, name: e.name }));
-
-      const pick = await this.slotResolver.resolveWithFallback({
-        businessId,
-        serviceId: service.id,
-        isoDay,
-        timeSlot: fixedTimeSlot,
-        timeZone,
-        providerPriority,
-        fallbackAnyProvider: params.fallbackAnyProvider === true,
-        allActiveProviders: employees
-          .filter((e) => e.isActive)
-          .map((e) => ({ id: e.id, name: e.name })),
-      });
-      if (!pick) return null;
-      resolvedEmployee = employees.find((e) => e.id === pick.employeeId);
-      timeSlot = pick.timeSlot;
-      params.date = pick.isoDay;
-    }
-
-    if (!resolvedEmployee || !params.date || !timeSlot) return null;
-
-    const startTime = buildUtcStartTimeFromDayAndTime(params.date, timeSlot);
-    return this.planBuilder.buildCreateBookingPlan({
-      businessId,
-      employeeId: resolvedEmployee.id,
-      serviceId: service.id,
-      customerId: customer?.id,
-      startTime,
-      notes: params.notes || params.reason || undefined,
-      userId,
-      employeeName: resolvedEmployee.name,
-      serviceName: service.name,
-      customerName: customer?.name,
-      date: formatDateDisplay(params.date),
-      timeSlot,
-    });
   }
 
   private async dispatchMutatingIntent(
@@ -8660,7 +3798,7 @@ export class AiCommandService {
       }
       case 'cancel_bookings': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForCancel(
+          const bookings = await this.bookingCore.findBookingsForCancel(
             businessId,
             params,
             catalog.services,
@@ -8686,7 +3824,7 @@ export class AiCommandService {
           );
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleCancelBookings(
+        result = await this.bookingCore.handleCancelBookings(
           businessId,
           prompt,
           params,
@@ -8699,7 +3837,7 @@ export class AiCommandService {
       }
       case 'bulk_smart_cancel': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForCancel(
+          const bookings = await this.bookingCore.findBookingsForCancel(
             businessId,
             params,
             catalog.services,
@@ -8721,7 +3859,7 @@ export class AiCommandService {
           );
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleBulkSmartCancel(
+        result = await this.bookingCore.handleBulkSmartCancel(
           businessId,
           prompt,
           params,
@@ -8734,7 +3872,7 @@ export class AiCommandService {
       }
       case 'fill_slot_from_waitlist':
         if (options?.planOnly) {
-          const fillResult = await this.handleFillSlotFromWaitlist(
+          const fillResult = await this.bookingCore.handleFillSlotFromWaitlist(
             businessId,
             params,
             employeeId,
@@ -8742,7 +3880,7 @@ export class AiCommandService {
           );
           return { ...fillResult, details: { plan: fillResult.details?.plan } };
         }
-        result = await this.handleFillSlotFromWaitlist(
+        result = await this.bookingCore.handleFillSlotFromWaitlist(
           businessId,
           params,
           employeeId,
@@ -8751,7 +3889,7 @@ export class AiCommandService {
         break;
       case 'hide_appointments_from_calendar': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForHide(
+          const bookings = await this.bookingCore.findBookingsForHide(
             businessId,
             params,
             catalog.services,
@@ -8762,7 +3900,7 @@ export class AiCommandService {
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
           const statuses =
-            this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+            this.bookingCore.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
           const plan = this.planBuilder.buildHideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -8778,7 +3916,7 @@ export class AiCommandService {
           );
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleHideAppointmentsFromCalendar(
+        result = await this.bookingCore.handleHideAppointmentsFromCalendar(
           businessId,
           params,
           catalog.services,
@@ -8791,7 +3929,7 @@ export class AiCommandService {
       }
       case 'unhide_appointments_from_calendar': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForCalendarVisibility(
+          const bookings = await this.bookingCore.findBookingsForCalendarVisibility(
             businessId,
             params,
             catalog.services,
@@ -8802,7 +3940,7 @@ export class AiCommandService {
           );
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
-          const statuses = this.resolveCalendarVisibilityStatusFilters(
+          const statuses = this.bookingCore.resolveCalendarVisibilityStatusFilters(
             params,
             'unhide',
           );
@@ -8827,7 +3965,7 @@ export class AiCommandService {
           );
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleUnhideAppointmentsFromCalendar(
+        result = await this.bookingCore.handleUnhideAppointmentsFromCalendar(
           businessId,
           params,
           catalog.services,
@@ -8863,7 +4001,7 @@ export class AiCommandService {
       }
       case 'mark_no_shows': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForMarkNoShows(
+          const bookings = await this.bookingCore.findBookingsForMarkNoShows(
             businessId,
             params,
             catalog.services,
@@ -8882,7 +4020,7 @@ export class AiCommandService {
           });
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleMarkNoShows(
+        result = await this.bookingCore.handleMarkNoShows(
           businessId,
           prompt,
           params,
@@ -8895,7 +4033,7 @@ export class AiCommandService {
       }
       case 'payment_sweep': {
         if (options?.planOnly) {
-          const bookings = await this.findUnpaidBookingsForSweep(
+          const bookings = await this.bookingCore.findUnpaidBookingsForSweep(
             businessId,
             params,
             catalog.services,
@@ -8913,7 +4051,7 @@ export class AiCommandService {
           });
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handlePaymentSweep(
+        result = await this.bookingCore.handlePaymentSweep(
           businessId,
           prompt,
           params,
@@ -8926,7 +4064,7 @@ export class AiCommandService {
       }
       case 'update_bookings': {
         if (options?.planOnly) {
-          const bookings = await this.findBookingsForBulkUpdate(
+          const bookings = await this.bookingCore.findBookingsForBulkUpdate(
             businessId,
             params,
             catalog.services,
@@ -8957,7 +4095,7 @@ export class AiCommandService {
           });
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleUpdateBookings(
+        result = await this.bookingCore.handleUpdateBookings(
           businessId,
           prompt,
           params,
@@ -8990,7 +4128,7 @@ export class AiCommandService {
           });
           return { success: true, action, summary: '', details: { plan } };
         }
-        result = await this.handleDayReplan(
+        result = await this.bookingCore.handleDayReplan(
           businessId,
           prompt,
           params,
@@ -9011,877 +4149,6 @@ export class AiCommandService {
     }
 
     return result;
-  }
-
-  private async handleNoShowRecovery(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId: string | undefined,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const bookings = await this.findBookingsForMarkNoShows(
-      businessId,
-      params,
-      services,
-      employees,
-      scopedEmployeeId,
-      prompt,
-    );
-    return this.operations.handleNoShowRecovery(
-      businessId,
-      prompt,
-      params,
-      bookings.map((b) => b.id),
-      userId,
-    );
-  }
-
-  private async handleMarkNoShows(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId: string | undefined,
-    userId?: string,
-  ): Promise<CommandResult> {
-    if (isNoShowRecoveryPrompt(prompt)) {
-      return this.handleNoShowRecovery(
-        businessId,
-        prompt,
-        params,
-        services,
-        employees,
-        scopedEmployeeId,
-        userId,
-      );
-    }
-
-    const bookings = await this.findBookingsForMarkNoShows(
-      businessId,
-      params,
-      services,
-      employees,
-      scopedEmployeeId,
-      prompt,
-    );
-
-    if (!bookings.length) {
-      return {
-        success: false,
-        action: 'mark_no_shows',
-        summary: 'No eligible past appointments found to mark as no-show.',
-        details: { params },
-      };
-    }
-
-    const plan = this.planBuilder.buildUpdateBookingsPlan({
-      businessId,
-      bookingIds: bookings.map((b) => b.id),
-      status: BookingStatus.NO_SHOW,
-      userId,
-      label: `Mark ${bookings.length} appointment(s) as no-show`,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: resolveAutoExecute({
-          action: 'mark_no_shows',
-          stepCount: 1,
-          providerCount: 1,
-          confidence: 0.9,
-        }),
-      }),
-    );
-  }
-
-  private async handlePaymentSweep(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId: string | undefined,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const rawBookings = await this.findUnpaidBookingsForSweep(
-      businessId,
-      params,
-      services,
-      employees,
-      scopedEmployeeId,
-    );
-    const { params: sweepParams, bookings } =
-      this.operations.applyPaymentSweepFilters(prompt, params, rawBookings);
-
-    if (!bookings.length) {
-      return {
-        success: false,
-        action: 'payment_sweep',
-        summary: 'No unpaid appointments found for the given filters.',
-        details: { params: sweepParams },
-      };
-    }
-
-    const preview = bookings
-      .slice(0, 8)
-      .map(
-        (b) =>
-          `• ${b.customer?.name ?? 'Walk-in'} — ${b.service?.name ?? 'Service'} (${formatDateDisplay(b.startTime)} ${formatTimeDisplay(b.startTime)})`,
-      )
-      .join('\n');
-
-    const plan = this.planBuilder.buildUpdateBookingsPlan({
-      businessId,
-      bookingIds: bookings.map((b) => b.id),
-      paymentStatus: PaymentStatus.PAID,
-      userId,
-      label: `Mark ${bookings.length} unpaid appointment(s) as paid`,
-    });
-
-    const orch = await this.orchestration.executePlan({
-      plan,
-      businessId,
-      userId,
-      autoExecute: resolveAutoExecute({
-        action: 'payment_sweep',
-        stepCount: 1,
-        providerCount: 1,
-        confidence: 0.9,
-      }),
-    });
-
-    const result = this.toCommandResult(orch);
-    if (bookings.length <= 8) {
-      result.summary = `${result.summary}\n\n${preview}`;
-    }
-    result.details = {
-      ...result.details,
-      unpaidCount: bookings.length,
-      bookingIds: bookings.map((b) => b.id),
-    };
-    return result;
-  }
-
-  private async handleDayReplan(
-    businessId: string,
-    prompt: string,
-    params: any,
-    employees: Employee[],
-    services: Service[],
-    timeZone: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    params._timeZone = timeZone;
-    const range = resolveDateRange(params, prompt, timeZone);
-    if (!range) {
-      return {
-        success: false,
-        action: 'day_replan',
-        summary: 'Specify which day to replan (today, tomorrow, or a date).',
-        details: { params },
-      };
-    }
-    const targets = resolveEmployees(employees, params);
-    const plans: AgentPlan[] = [];
-
-    plans.push(
-      this.planBuilder.buildDayReplanPlan({
-        businessId,
-        date:
-          params.date ?? (range.start === range.end ? range.start : undefined),
-        dateFrom: range.start !== range.end ? range.start : undefined,
-        dateTo: range.start !== range.end ? range.end : undefined,
-        employeeIds: targets.length ? targets.map((e) => e.id) : undefined,
-        userId,
-      }),
-    );
-
-    const fillPlan = await this.scheduleHandlers.prepareFillGapsPlan(
-      businessId,
-      prompt,
-      {
-        ...params,
-        date: params.date ?? range.start,
-        dateFrom: range.start,
-        dateTo: range.end,
-      },
-      employees,
-      services,
-      userId,
-    );
-    if (fillPlan) plans.push(fillPlan);
-
-    const merged =
-      plans.length === 1
-        ? plans[0]
-        : this.planBuilder.mergePlans(businessId, 'day_replan', plans);
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan: merged,
-        businessId,
-        userId,
-        autoExecute: false,
-      }),
-    );
-  }
-
-  private applyEmployeeScopeToWhere(
-    where: Record<string, unknown>,
-    params: Record<string, any>,
-    employees: Employee[],
-    scopedEmployeeId?: string,
-  ): boolean {
-    if (params.allProviders === true) return true;
-
-    if (params.employeeNames?.length) {
-      const resolved = resolveEmployees(employees, params);
-      if (resolved.length === 0) return false;
-      where.employeeId = In(resolved.map((e) => e.id));
-      return true;
-    }
-
-    if (params.employeeName) {
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (!employee) return false;
-      where.employeeId = employee.id;
-      return true;
-    }
-
-    if (scopedEmployeeId) {
-      where.employeeId = scopedEmployeeId;
-    }
-    return true;
-  }
-
-  private applyServiceScopeToWhere(
-    where: Record<string, unknown>,
-    params: Record<string, any>,
-    matchedServices: Service[],
-  ): void {
-    if (params.allAppointments === true) return;
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-  }
-
-  private applyDateScopeToWhere(
-    where: Record<string, unknown>,
-    params: Record<string, any>,
-  ): void {
-    if (params.date) {
-      const isoDay = toIsoDay(params.date, params._timeZone);
-      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
-      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(
-        `${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`,
-      );
-      const to = new Date(
-        `${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`,
-      );
-      where.startTime = Between(from, to);
-    }
-  }
-
-  private async findBookingsForBulkUpdate(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId?: string,
-    prompt?: string,
-  ): Promise<Booking[]> {
-    const matchedServices = this.resolveServices(services, params);
-    const where: Record<string, unknown> = {
-      businessId,
-      status: Not(BookingStatus.CANCELLED),
-    };
-
-    if (
-      !this.applyEmployeeScopeToWhere(
-        where,
-        params,
-        employees,
-        scopedEmployeeId,
-      )
-    ) {
-      return [];
-    }
-    this.applyServiceScopeToWhere(where, params, matchedServices);
-    this.applyDateScopeToWhere(where, params);
-
-    const bookings = await this.bookingRepo.find({
-      where: where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    return filterBookingsByTimeConstraints(bookings, params, prompt);
-  }
-
-  private async handleUpdateBookings(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const status = normalizeBookingStatusValue(params.status);
-    const paymentStatus = normalizePaymentStatusValue(params.paymentStatus);
-
-    if (status === BookingStatus.CANCELLED) {
-      return this.handleCancelBookings(
-        businessId,
-        prompt,
-        params,
-        services,
-        employees,
-        scopedEmployeeId,
-        userId,
-      );
-    }
-
-    if (!status && !paymentStatus) {
-      return {
-        success: false,
-        action: 'update_bookings',
-        summary:
-          'Tell me what to change — e.g. mark as done, set payment to paid or N/A.',
-        details: { params },
-      };
-    }
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'update_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
-
-    const bookings = await this.findBookingsForBulkUpdate(
-      businessId,
-      params,
-      services,
-      employees,
-      scopedEmployeeId,
-      prompt,
-    );
-
-    if (!bookings.length) {
-      return {
-        success: false,
-        action: 'update_bookings',
-        summary: this.buildBulkBookingNoMatchMessage(
-          'update',
-          params,
-          services,
-          prompt,
-        ),
-        details: { matchedCount: 0, params },
-      };
-    }
-
-    const changeParts = [
-      status ? `status → ${status}` : null,
-      paymentStatus ? `payment → ${paymentStatus}` : null,
-    ].filter(Boolean);
-
-    const plan = this.planBuilder.buildUpdateBookingsPlan({
-      businessId,
-      bookingIds: bookings.map((b) => b.id),
-      status,
-      paymentStatus,
-      userId,
-      planAction: 'update_bookings',
-      label: `Update ${bookings.length} appointment(s) (${changeParts.join(', ')})`,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: resolveAutoExecute({
-          action: 'update_bookings',
-          stepCount: 1,
-          providerCount: 1,
-          confidence: 0.9,
-        }),
-      }),
-    );
-  }
-
-  private buildBulkBookingNoMatchMessage(
-    verb: string,
-    params: any,
-    services: Service[],
-    prompt?: string,
-  ): string {
-    const matchedServices = params.allAppointments
-      ? []
-      : this.resolveServices(services, params);
-    const serviceFilter =
-      !params.allAppointments && matchedServices.length
-        ? ` for ${matchedServices.map((s) => s.name).join(', ')}`
-        : '';
-    const empFilter = params.employeeName ? ` for ${params.employeeName}` : '';
-    const dateFilter = params.date
-      ? ` on ${formatDateDisplay(params.date)}`
-      : '';
-    const timeFilter = hasExplicitTimeWindow(params, prompt)
-      ? ` between ${params.timeFrom}–${params.timeTo}`
-      : params.timeSlot
-        ? ` at ${this.snapTo10min(params.timeSlot)}`
-        : '';
-    return `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}, so there was nothing to ${verb}.`;
-  }
-
-  private async findBookingsForMarkNoShows(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId?: string,
-    prompt?: string,
-  ): Promise<Booking[]> {
-    const matchedServices = this.resolveServices(services, params);
-    const where: any = {
-      businessId,
-      status: In([
-        BookingStatus.PENDING,
-        BookingStatus.CONFIRMED,
-        BookingStatus.IN_PROGRESS,
-      ]) as any,
-    };
-
-    if (
-      !this.applyEmployeeScopeToWhere(
-        where,
-        params,
-        employees,
-        scopedEmployeeId,
-      )
-    ) {
-      return [];
-    }
-    this.applyServiceScopeToWhere(where, params, matchedServices);
-    this.applyDateScopeToWhere(where, params);
-    if (!params.date && !params.dateFrom) {
-      where.startTime = Between(new Date(0), new Date()) as any;
-    }
-
-    const bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    const now = new Date();
-    return filterBookingsByTimeConstraints(
-      bookings.filter((b) => b.startTime.getTime() <= now.getTime()),
-      params,
-      prompt,
-    );
-  }
-
-  private async findUnpaidBookingsForSweep(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId?: string,
-  ): Promise<Booking[]> {
-    const matchedServices = this.resolveServices(services, params);
-    const where: any = {
-      businessId,
-      paymentStatus: PaymentStatus.PENDING,
-      status: In([
-        BookingStatus.CONFIRMED,
-        BookingStatus.IN_PROGRESS,
-        BookingStatus.COMPLETED,
-      ]) as any,
-    };
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return [];
-    }
-    if (
-      !this.applyEmployeeScopeToWhere(
-        where,
-        params,
-        employees,
-        scopedEmployeeId,
-      )
-    ) {
-      return [];
-    }
-    this.applyServiceScopeToWhere(where, params, matchedServices);
-    this.applyDateScopeToWhere(where, params);
-
-    return this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-      take: 100,
-    });
-  }
-
-  private async findBookingsForCancel(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    scopedEmployeeId?: string,
-    prompt?: string,
-  ): Promise<Booking[]> {
-    const matchedServices = this.resolveServices(services, params);
-    const where: any = {
-      businessId,
-      status: Not(
-        In([BookingStatus.CANCELLED, BookingStatus.COMPLETED]),
-      ) as any,
-    };
-
-    if (
-      !this.applyEmployeeScopeToWhere(
-        where,
-        params,
-        employees,
-        scopedEmployeeId,
-      )
-    ) {
-      return [];
-    }
-    this.applyServiceScopeToWhere(where, params, matchedServices);
-    this.applyDateScopeToWhere(where, params);
-
-    const bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    return filterBookingsByTimeConstraints(bookings, params, prompt);
-  }
-
-  private resolveCalendarVisibilityStatusFilters(
-    params: any,
-    mode: 'hide' | 'unhide',
-  ): BookingStatus[] | null {
-    const raw: string[] = [];
-    if (Array.isArray(params.statusFilters)) raw.push(...params.statusFilters);
-    else if (params.statusFilter) raw.push(params.statusFilter);
-
-    const allowed = new Set(Object.values(BookingStatus));
-    const resolved = raw.filter((s): s is BookingStatus =>
-      allowed.has(s as BookingStatus),
-    );
-    if (resolved.length > 0) return resolved;
-
-    if (mode === 'hide') {
-      return [
-        BookingStatus.CANCELLED,
-        BookingStatus.NO_SHOW,
-        BookingStatus.COMPLETED,
-      ];
-    }
-    return null;
-  }
-
-  private async findBookingsForCalendarVisibility(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    customers: Customer[],
-    scopedEmployeeId: string | undefined,
-    mode: 'hide' | 'unhide',
-  ): Promise<Booking[]> {
-    const matchedServices = this.resolveServices(services, params);
-    const statuses = this.resolveCalendarVisibilityStatusFilters(params, mode);
-    const where: any = {
-      businessId,
-      hiddenFromCalendar: mode === 'unhide',
-    };
-    if (statuses) {
-      where.status = In(statuses);
-    }
-
-    if (params.allProviders) {
-      // no employee filter
-    } else if (params.employeeNames?.length) {
-      const resolved = resolveEmployees(employees, params);
-      if (resolved.length === 0) return [];
-      where.employeeId = In(resolved.map((e) => e.id));
-    } else if (params.employeeName) {
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (!employee) return [];
-      where.employeeId = employee.id;
-    } else if (scopedEmployeeId) {
-      where.employeeId = scopedEmployeeId;
-    }
-
-    if (matchedServices.length > 0) {
-      where.serviceId = In(matchedServices.map((s) => s.id));
-    }
-
-    if (params.date) {
-      const isoDay = toIsoDay(params.date, params._timeZone);
-      const dayStart = new Date(`${isoDay}T00:00:00.000Z`);
-      const dayEnd = new Date(`${isoDay}T23:59:59.999Z`);
-      where.startTime = Between(dayStart, dayEnd);
-    } else if (params.dateFrom && params.dateTo) {
-      const from = new Date(
-        `${toIsoDay(params.dateFrom, params._timeZone)}T00:00:00.000Z`,
-      );
-      const to = new Date(
-        `${toIsoDay(params.dateTo, params._timeZone)}T23:59:59.999Z`,
-      );
-      where.startTime = Between(from, to);
-    }
-
-    let bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    if (params.customerName) {
-      const customer = this.resolveCustomer(customers, params.customerName);
-      if (!customer) return [];
-      bookings = bookings.filter((b) => b.customerId === customer.id);
-    }
-
-    bookings = filterBookingsByTimeConstraints(bookings, params);
-
-    if (typeof params.limit === 'number' && params.limit > 0) {
-      bookings = bookings.slice(0, params.limit);
-    }
-
-    return bookings;
-  }
-
-  private async findBookingsForHide(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    customers: Customer[],
-    scopedEmployeeId?: string,
-  ): Promise<Booking[]> {
-    return this.findBookingsForCalendarVisibility(
-      businessId,
-      params,
-      services,
-      employees,
-      customers,
-      scopedEmployeeId,
-      'hide',
-    );
-  }
-
-  private formatCalendarVisibilityPeriod(params: any): string {
-    if (params.dateFrom && params.dateTo) {
-      const from = formatDateDisplay(params.dateFrom);
-      const to = formatDateDisplay(params.dateTo);
-      return from === to ? from : `${from} → ${to}`;
-    }
-    if (params.date) return formatDateDisplay(params.date);
-    return '';
-  }
-
-  private async handleHideAppointmentsFromCalendar(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    customers: Customer[],
-    employeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-    const statuses =
-      this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'hide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
-
-    const bookings = await this.findBookingsForHide(
-      businessId,
-      params,
-      services,
-      employees,
-      customers,
-      employeeId,
-    );
-
-    if (bookings.length === 0) {
-      const statusLabel = statuses.join(', ');
-      const empFilter = params.allProviders
-        ? ' for all providers'
-        : params.employeeName
-          ? ` for ${params.employeeName}`
-          : '';
-      const dateFilter = this.formatCalendarVisibilityPeriod(params);
-      const dateLabel = dateFilter ? ` on ${dateFilter}` : '';
-      return {
-        success: true,
-        action: 'hide_appointments_from_calendar',
-        summary: `No matching ${statusLabel} appointments found${empFilter}${dateLabel}. Nothing to hide from calendar.`,
-        details: {
-          matchedCount: 0,
-          filters: {
-            statuses,
-            employee:
-              params.employeeName ?? (params.allProviders ? 'all' : null),
-            services: matchedServices.map((s) => s.name),
-            date: params.date ? formatDateDisplay(params.date) : null,
-          },
-        },
-      };
-    }
-
-    const plan = this.planBuilder.buildHideAppointmentsPlan(
-      businessId,
-      bookings.map((b) => b.id),
-      userId,
-      {
-        employeeName: params.employeeName,
-        date: params.date ? formatDateDisplay(params.date) : undefined,
-        services: matchedServices.map((s) => s.name),
-        statuses,
-      },
-    );
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: bookings.length <= 10,
-      }),
-    );
-  }
-
-  private async handleUnhideAppointmentsFromCalendar(
-    businessId: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    customers: Customer[],
-    employeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-    const statuses = this.resolveCalendarVisibilityStatusFilters(
-      params,
-      'unhide',
-    );
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'unhide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
-
-    const bookings = await this.findBookingsForCalendarVisibility(
-      businessId,
-      params,
-      services,
-      employees,
-      customers,
-      employeeId,
-      'unhide',
-    );
-
-    if (bookings.length === 0) {
-      const statusLabel = statuses?.length ? statuses.join(', ') : 'hidden';
-      const empFilter = params.allProviders
-        ? ' for all providers'
-        : params.employeeName
-          ? ` for ${params.employeeName}`
-          : '';
-      const dateLabel = this.formatCalendarVisibilityPeriod(params);
-      const periodFilter = dateLabel ? ` on ${dateLabel}` : '';
-      return {
-        success: true,
-        action: 'unhide_appointments_from_calendar',
-        summary: `No matching ${statusLabel} hidden appointments found${empFilter}${periodFilter}. Nothing to restore on calendar.`,
-        details: {
-          matchedCount: 0,
-          filters: {
-            statuses: statuses ?? null,
-            employee:
-              params.employeeName ?? (params.allProviders ? 'all' : null),
-            services: matchedServices.map((s) => s.name),
-            date: params.date ? formatDateDisplay(params.date) : null,
-            dateFrom: params.dateFrom
-              ? formatDateDisplay(params.dateFrom)
-              : null,
-            dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : null,
-          },
-        },
-      };
-    }
-
-    const plan = this.planBuilder.buildUnhideAppointmentsPlan(
-      businessId,
-      bookings.map((b) => b.id),
-      userId,
-      {
-        employeeName: params.employeeName,
-        date: params.date ? formatDateDisplay(params.date) : undefined,
-        dateFrom: params.dateFrom
-          ? formatDateDisplay(params.dateFrom)
-          : undefined,
-        dateTo: params.dateTo ? formatDateDisplay(params.dateTo) : undefined,
-        services: matchedServices.map((s) => s.name),
-        statuses: statuses ?? undefined,
-      },
-    );
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: bookings.length <= 10,
-      }),
-    );
   }
 
   private async resolveCreateServiceCategoryId(
@@ -10196,1248 +4463,4 @@ export class AiCommandService {
     return undefined;
   }
 
-  private async handleCancelBookings(
-    businessId: string,
-    prompt: string,
-    params: any,
-    services: Service[],
-    employees: Employee[],
-    employeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-    const requestedServiceLabels = [
-      ...(params.serviceNames ?? []),
-      ...(params.serviceName && !params.serviceNames?.length
-        ? [params.serviceName]
-        : []),
-    ].filter(Boolean);
-
-    if (
-      requestedServiceLabels.length > 0 &&
-      matchedServices.length === 0 &&
-      !params.allAppointments
-    ) {
-      return {
-        success: false,
-        action: 'cancel_bookings',
-        summary: `No matching service type(s) found for: ${requestedServiceLabels.join(', ')}. Available: ${services.map((s) => s.name).join(', ')}`,
-        details: {
-          requestedServiceLabels,
-          availableServices: services.map((s) => s.name),
-        },
-      };
-    }
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'cancel_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
-
-    const bookings = await this.findBookingsForCancel(
-      businessId,
-      params,
-      services,
-      employees,
-      employeeId,
-      prompt,
-    );
-
-    if (bookings.length === 0) {
-      return {
-        success: true,
-        action: 'cancel_bookings',
-        summary: this.buildBulkBookingNoMatchMessage(
-          'cancel',
-          params,
-          services,
-          prompt,
-        ),
-        details: {
-          matchedCount: 0,
-          filters: {
-            employee: params.employeeName ?? null,
-            services: params.allAppointments
-              ? []
-              : matchedServices.map((s) => s.name),
-            date: params.date ? formatDateDisplay(params.date) : null,
-            timeFrom: params.timeFrom ?? null,
-            timeTo: params.timeTo ?? null,
-            timeSlot: params.timeSlot ?? null,
-            allAppointments: params.allAppointments ?? false,
-          },
-        },
-      };
-    }
-
-    const reason = params.reason || 'Cancelled via AI command';
-    const plan = this.planBuilder.buildCancelBookingsPlan(
-      businessId,
-      bookings.map((b) => b.id),
-      reason,
-      userId,
-      {
-        employeeName: params.employeeName,
-        date: params.date ? formatDateDisplay(params.date) : undefined,
-        services: matchedServices.map((s) => s.name),
-        notifyCustomers: Boolean(params.notifyCustomers),
-      },
-    );
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: bookings.length <= 5,
-      }),
-    );
-  }
-
-  private formatBookingTime(start: Date, end: Date): string {
-    return formatTimeRangeDisplay(start, end);
-  }
-
-  private formatBookingLines(
-    bookings: Booking[],
-    options: { includeProvider?: boolean } = {},
-  ): string[] {
-    return bookings.map((b) => {
-      const time = this.formatBookingTime(b.startTime, b.endTime);
-      const providerPart = options.includeProvider
-        ? ` | ${b.employee?.name || 'Unknown'}`
-        : '';
-      return `  • ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'}${providerPart} | ${b.status}`;
-    });
-  }
-
-  private async describeProvidersOnServiceSchedule(
-    businessId: string,
-    params: Record<string, any>,
-    catalogServices: Service[],
-    range: { start: string; end: string },
-  ): Promise<string | null> {
-    if (!params.serviceName && !params.timeSlot) return null;
-
-    const dayStart = new Date(range.start);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(range.end);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const periods = await this.periodRepo.find({
-      where: {
-        businessId,
-        startTime: Between(dayStart, dayEnd),
-      },
-      relations: { employee: true },
-      order: { startTime: 'ASC' },
-    });
-
-    const matchedServices = params.serviceName
-      ? this.resolveServices(catalogServices, params)
-      : [];
-    const serviceIds = new Set<string>();
-    if (matchedServices.length > 0) {
-      matchedServices.forEach((s) => serviceIds.add(s.id));
-    } else if (params.serviceName) {
-      const needle = String(params.serviceName).toLowerCase();
-      catalogServices
-        .filter((s) => s.name.toLowerCase().includes(needle))
-        .forEach((s) => serviceIds.add(s.id));
-    }
-
-    const targetTime = params.timeSlot
-      ? this.snapTo10min(params.timeSlot)
-      : null;
-    const targetMs = targetTime
-      ? (() => {
-          const [h, m] = targetTime.split(':').map(Number);
-          const t = new Date(range.start);
-          t.setUTCHours(h, m, 0, 0);
-          return t.getTime();
-        })()
-      : null;
-
-    const providers = new Map<string, string[]>();
-    for (const period of periods) {
-      if (period.type !== TemplatePeriodType.SERVICE_BLOCK) continue;
-      if (serviceIds.size > 0) {
-        const ids = period.serviceIds ?? [];
-        if (ids.length > 0 && !ids.some((id) => serviceIds.has(id))) continue;
-      }
-      if (targetMs != null) {
-        if (
-          period.startTime.getTime() > targetMs ||
-          period.endTime.getTime() <= targetMs
-        ) {
-          continue;
-        }
-      }
-      const name = period.employee?.name ?? 'Unknown provider';
-      const block = `${formatTimeDisplay(period.startTime)}–${formatTimeDisplay(period.endTime)}`;
-      if (!providers.has(name)) providers.set(name, []);
-      providers.get(name)!.push(block);
-    }
-
-    if (providers.size === 0) return null;
-
-    const serviceLabel = params.serviceName
-      ? String(params.serviceName)
-      : 'service';
-    const timeLabel = targetTime ? ` at ${targetTime}` : '';
-    const dateLabel = formatDateDisplay(range.start);
-    const lines = [
-      `Providers on ${serviceLabel} schedule${timeLabel} on ${dateLabel} (shift blocks, not bookings):`,
-      ...[...providers.entries()].map(
-        ([name, blocks]) => `• ${name} — ${[...new Set(blocks)].join(', ')}`,
-      ),
-    ];
-    return lines.join('\n');
-  }
-
-  private async handleListBookings(
-    businessId: string,
-    prompt: string,
-    params: any,
-    employeeId?: string,
-    employeeName?: string,
-    catalogServices?: Service[],
-  ): Promise<CommandResult> {
-    const where: any = { businessId };
-    if (employeeId) where.employeeId = employeeId;
-    if (params.customerId) where.customerId = params.customerId;
-
-    const upcomingOnly = params.upcomingOnly === true;
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const iso = params.date || new Date().toISOString().split('T')[0];
-        if (upcomingOnly) {
-          const end = new Date(iso);
-          end.setUTCDate(end.getUTCDate() + 14);
-          return { start: iso, end: end.toISOString().split('T')[0] };
-        }
-        return { start: iso, end: iso };
-      })();
-
-    const clamped = clampReadDateRangeDays(
-      range.start,
-      range.end,
-      MAX_AI_READ_DATE_RANGE_DAYS,
-    );
-
-    const start = new Date(clamped.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(clamped.end);
-    end.setUTCHours(23, 59, 59, 999);
-    where.startTime = Between(start, end);
-
-    const bookings = await this.bookingRepo.find({
-      where,
-      relations: { employee: true, service: true, customer: true },
-      order: { startTime: 'ASC' },
-    });
-
-    const statusFilter = params.statusFilter as string | undefined;
-    let scopedBookings = statusFilter
-      ? bookings.filter((b) => b.status === statusFilter)
-      : bookings;
-
-    if (upcomingOnly) {
-      const now = new Date();
-      scopedBookings = scopedBookings.filter(
-        (b) =>
-          new Date(b.startTime) >= now && b.status !== BookingStatus.CANCELLED,
-      );
-    }
-
-    if (
-      Array.isArray(params.employeeNames) &&
-      params.employeeNames.length > 0 &&
-      !employeeId
-    ) {
-      const needles = params.employeeNames.map((n: string) => n.toLowerCase());
-      scopedBookings = scopedBookings.filter((b) =>
-        needles.some((needle) =>
-          b.employee?.name?.toLowerCase().includes(needle),
-        ),
-      );
-    }
-
-    const matchedServices = params.serviceName
-      ? this.resolveServices(catalogServices ?? [], params)
-      : [];
-    if (
-      params.serviceName &&
-      matchedServices.length === 0 &&
-      catalogServices?.length
-    ) {
-      const needle = String(params.serviceName).toLowerCase();
-      const partialIds = new Set(
-        catalogServices
-          .filter((s) => s.name.toLowerCase().includes(needle))
-          .map((s) => s.id),
-      );
-      if (partialIds.size > 0) {
-        scopedBookings = scopedBookings.filter(
-          (b) => b.serviceId && partialIds.has(b.serviceId),
-        );
-      } else {
-        scopedBookings = scopedBookings.filter((b) =>
-          b.service?.name?.toLowerCase().includes(needle),
-        );
-      }
-    } else if (matchedServices.length > 0) {
-      const ids = new Set(matchedServices.map((s) => s.id));
-      scopedBookings = scopedBookings.filter(
-        (b) => b.serviceId && ids.has(b.serviceId),
-      );
-    }
-
-    if (params.timeSlot) {
-      const target = this.snapTo10min(params.timeSlot);
-      scopedBookings = scopedBookings.filter(
-        (b) => formatTimeDisplay(b.startTime) === target,
-      );
-    }
-
-    const rangeLabel =
-      clamped.start === clamped.end
-        ? formatDateDisplay(clamped.start)
-        : `${formatDateDisplay(clamped.start)} → ${formatDateDisplay(clamped.end)}`;
-    const scopeLabel = employeeName || 'all service providers';
-    const customerLabel = params.customerName
-      ? ` for ${params.customerName}`
-      : '';
-    const statusLabel = statusFilter ? ` (${statusFilter})` : '';
-
-    const activeBookings = scopedBookings.filter(
-      (b) => b.status !== BookingStatus.CANCELLED,
-    );
-    const cancelledBookings = scopedBookings.filter(
-      (b) => b.status === BookingStatus.CANCELLED,
-    );
-    let displayBookings = statusFilter ? scopedBookings : activeBookings;
-    const totalMatched = displayBookings.length;
-    if (displayBookings.length > MAX_AI_LIST_BOOKINGS) {
-      displayBookings = displayBookings.slice(0, MAX_AI_LIST_BOOKINGS);
-    }
-    const truncatedNote =
-      totalMatched > MAX_AI_LIST_BOOKINGS
-        ? `\n(Showing first ${MAX_AI_LIST_BOOKINGS} of ${totalMatched} appointments.)`
-        : clamped.truncated
-          ? `\n(Date range limited to ${MAX_AI_READ_DATE_RANGE_DAYS} days for security.)`
-          : '';
-
-    let summaryBody: string;
-    if (scopedBookings.length === 0) {
-      const scheduleHint = await this.describeProvidersOnServiceSchedule(
-        businessId,
-        params,
-        catalogServices ?? [],
-        range,
-      );
-      const serviceLabel = params.serviceName
-        ? ` for ${params.serviceName}`
-        : '';
-      const timeLabel = params.timeSlot
-        ? ` at ${this.snapTo10min(params.timeSlot)}`
-        : '';
-      summaryBody = scheduleHint
-        ? scheduleHint
-        : `No appointments found for ${scopeLabel}${customerLabel}${serviceLabel}${timeLabel} on ${rangeLabel}${statusLabel}.`;
-    } else if (employeeId || params.customerId) {
-      const lines = this.formatBookingLines(displayBookings);
-      const cancelledNote =
-        !statusFilter && cancelledBookings.length > 0
-          ? `\n(${cancelledBookings.length} cancelled — hidden)`
-          : '';
-      summaryBody = [
-        `${displayBookings.length} appointment(s) for ${scopeLabel}${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}${truncatedNote}`,
-        ...lines,
-      ].join('\n');
-    } else {
-      const byProvider = new Map<string, Booking[]>();
-      for (const booking of displayBookings) {
-        const name = booking.employee?.name || 'Unknown provider';
-        if (!byProvider.has(name)) byProvider.set(name, []);
-        byProvider.get(name)!.push(booking);
-      }
-
-      const groupedLines: string[] = [];
-      for (const [name, providerBookings] of [...byProvider.entries()].sort(
-        (a, b) => a[0].localeCompare(b[0]),
-      )) {
-        groupedLines.push(`\n${name} (${providerBookings.length}):`);
-        groupedLines.push(...this.formatBookingLines(providerBookings));
-      }
-
-      const cancelledNote =
-        !statusFilter && cancelledBookings.length > 0
-          ? `\n(${cancelledBookings.length} cancelled across all providers — hidden)`
-          : '';
-      summaryBody = [
-        `${displayBookings.length} appointment(s) for all service providers${customerLabel} on ${rangeLabel}${statusLabel}:${cancelledNote}${truncatedNote}`,
-        ...groupedLines,
-      ].join('\n');
-    }
-
-    return {
-      success: true,
-      action: 'show_appointments',
-      summary: summaryBody,
-      details: {
-        count: totalMatched,
-        activeCount: activeBookings.length,
-        cancelledCount: cancelledBookings.length,
-        date:
-          clamped.start === clamped.end
-            ? formatDateDisplay(clamped.start)
-            : null,
-        range: { start: clamped.start, end: clamped.end },
-        statusFilter: statusFilter ?? null,
-        customer: params.customerName ?? null,
-        scope: employeeId
-          ? 'provider'
-          : params.customerId
-            ? 'customer'
-            : 'all_providers',
-        employee: employeeName ?? null,
-        truncated: totalMatched > MAX_AI_LIST_BOOKINGS || clamped.truncated,
-        bookings: displayBookings.map((b) => ({
-          id: b.id,
-          service: b.service?.name,
-          customer: b.customer?.name,
-          employee: b.employee?.name,
-          startTime: formatTimeDisplay(b.startTime),
-          endTime: formatTimeDisplay(b.endTime),
-          status: b.status,
-        })),
-      },
-    };
-  }
-
-  private async serviceNameMap(
-    businessId: string,
-    serviceIds: string[],
-  ): Promise<Map<string, string>> {
-    const unique = [...new Set(serviceIds.filter(Boolean))];
-    if (unique.length === 0) return new Map();
-
-    const services = await this.serviceRepo.find({
-      where: { businessId, id: In(unique) },
-    });
-    return new Map(services.map((s) => [s.id, s.name]));
-  }
-
-  private formatPeriodServices(
-    serviceIds: string[] | null | undefined,
-    nameMap: Map<string, string>,
-  ): string {
-    if (!serviceIds?.length) return 'any service';
-    return serviceIds.map((id) => nameMap.get(id) || id).join(', ');
-  }
-
-  private formatNonServicePeriod(p: SchedulingPeriod): string {
-    const from = formatTimeDisplay(p.startTime);
-    const to = formatTimeDisplay(p.endTime);
-    const note = p.placeholderLabel?.trim();
-
-    if (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK) {
-      return `• ${from}–${to} — Unavailable${note ? `: ${note}` : ''}`;
-    }
-    if (p.type === TemplatePeriodType.BLOCKED_TIME) {
-      return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
-    }
-    return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
-  }
-
-  private timesOverlap(
-    startA: Date,
-    endA: Date,
-    startB: Date,
-    endB: Date,
-  ): boolean {
-    return startA < endB && endA > startB;
-  }
-
-  private mergeOpenSlotRanges(
-    slots: Array<{ startTime: Date; endTime: Date }>,
-  ): Array<{ start: string; end: string }> {
-    if (slots.length === 0) return [];
-
-    const sorted = [...slots].sort(
-      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
-    );
-    const merged: Array<{ start: Date; end: Date }> = [
-      { start: sorted[0].startTime, end: sorted[0].endTime },
-    ];
-
-    for (let i = 1; i < sorted.length; i++) {
-      const slot = sorted[i];
-      const last = merged[merged.length - 1];
-      if (slot.startTime.getTime() <= last.end.getTime()) {
-        if (slot.endTime > last.end) last.end = slot.endTime;
-      } else {
-        merged.push({ start: slot.startTime, end: slot.endTime });
-      }
-    }
-
-    return merged.map((r) => ({
-      start: formatTimeDisplay(r.start),
-      end: formatTimeDisplay(r.end),
-    }));
-  }
-
-  private async getProviderAvailabilityForService(
-    businessId: string,
-    employeeId: string,
-    serviceId: string,
-    isoDay: string,
-  ): Promise<{
-    hasSchedule: boolean;
-    hasServiceBlock: boolean;
-    scheduledBlocks: Array<{ start: string; end: string }>;
-    openSlots: Array<{ start: string; end: string }>;
-  }> {
-    const d = parseDateInput(isoDay) ?? new Date(isoDay);
-    const dayStart = new Date(d);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const service = await this.serviceRepo.findOne({
-      where: { id: serviceId, businessId },
-    });
-    const minGapMinutes =
-      service?.durationMinutes && service.durationMinutes > 0
-        ? service.durationMinutes
-        : 10;
-
-    const [periods, bookings] = await Promise.all([
-      this.periodRepo.find({
-        where: {
-          businessId,
-          employeeId,
-          startTime: Between(dayStart, dayEnd) as any,
-        },
-        order: { startTime: 'ASC' },
-      }),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          employeeId,
-          startTime: Between(dayStart, dayEnd) as any,
-          status: Not(BookingStatus.CANCELLED) as any,
-        },
-        order: { startTime: 'ASC' },
-      }),
-    ]);
-
-    const serviceBlocks = periods.filter(
-      (p) =>
-        p.type === TemplatePeriodType.SERVICE_BLOCK &&
-        (!p.serviceIds?.length || p.serviceIds.includes(serviceId)),
-    );
-
-    if (serviceBlocks.length === 0) {
-      return {
-        hasSchedule: periods.length > 0,
-        hasServiceBlock: false,
-        scheduledBlocks: [],
-        openSlots: [],
-      };
-    }
-
-    const scheduledBlocks = serviceBlocks.map((block) => ({
-      start: formatTimeDisplay(block.startTime),
-      end: formatTimeDisplay(block.endTime),
-    }));
-
-    const openSlotCandidates: Array<{ startTime: Date; endTime: Date }> = [];
-    for (const block of serviceBlocks) {
-      const occupied = bookings
-        .filter((b) =>
-          this.timesOverlap(
-            block.startTime,
-            block.endTime,
-            b.startTime,
-            b.endTime,
-          ),
-        )
-        .map((b) => ({ startTime: b.startTime, endTime: b.endTime }));
-
-      const gaps = findScheduleGapsInWindow(
-        d,
-        formatTimeDisplay(block.startTime),
-        formatTimeDisplay(block.endTime),
-        occupied,
-        minGapMinutes,
-      );
-
-      for (const gap of gaps) {
-        const [sh, sm] = gap.startTime.split(':').map(Number);
-        const [eh, em] = gap.endTime.split(':').map(Number);
-        const startTime = new Date(d);
-        startTime.setUTCHours(sh, sm, 0, 0);
-        const endTime = new Date(d);
-        endTime.setUTCHours(eh, em, 0, 0);
-        openSlotCandidates.push({ startTime, endTime });
-      }
-    }
-
-    return {
-      hasSchedule: true,
-      hasServiceBlock: true,
-      scheduledBlocks,
-      openSlots: this.mergeOpenSlotRanges(openSlotCandidates),
-    };
-  }
-
-  private async handleCheckAvailability(
-    businessId: string,
-    params: any,
-    employeeId?: string,
-    employeeName?: string,
-    prompt?: string,
-    skipMultiWindow = false,
-  ): Promise<CommandResult> {
-    const timeZone = params._timeZone ?? 'UTC';
-    const enriched = enrichDashboardCheckAvailabilityParams(
-      { ...params },
-      prompt,
-    );
-
-    if (!skipMultiWindow) {
-      const windows = resolveDashboardCheckAvailabilityWindows(
-        enriched,
-        prompt,
-        timeZone,
-      );
-      if (shouldGroupDashboardAvailabilityByWindow(windows, enriched)) {
-        const todayKey = dashboardAvailabilityTodayKey(timeZone);
-        const sections: string[] = [];
-        for (const window of windows) {
-          if (window.dateKeys.length === 0) continue;
-          const singleParams = buildSingleWindowCheckParams(enriched, window);
-          const part = await this.handleCheckAvailability(
-            businessId,
-            singleParams,
-            employeeId,
-            employeeName,
-            prompt,
-            true,
-          );
-          const label = buildDashboardAvailabilityWindowLabel(
-            window,
-            timeZone,
-            todayKey,
-          );
-          sections.push(`${label}:\n${part.summary}`);
-        }
-        if (sections.length > 0) {
-          return {
-            success: true,
-            action: 'check_availability',
-            summary: sections.join('\n\n'),
-            details: { windows: windows.length, multiWindow: true },
-          };
-        }
-      }
-      params = enriched;
-    }
-
-    const isoDay = params.date || new Date().toISOString().split('T')[0];
-    const displayDay = formatDateDisplay(isoDay);
-    const explicitTimeWindow = hasExplicitTimeWindow(params, prompt)
-      ? parseTimeWindow(params, prompt)
-      : null;
-    if (explicitTimeWindow) {
-      params.timeFrom = explicitTimeWindow.timeFrom;
-      params.timeTo = explicitTimeWindow.timeTo;
-      delete params.timeSlot;
-      delete params.timeOfDay;
-    }
-    const timeOfDay = parseTimeOfDayWindow('', params);
-
-    if (
-      employeeId &&
-      employeeName &&
-      params.serviceName &&
-      (params.timeSlot || timeOfDay || explicitTimeWindow)
-    ) {
-      const services = await this.serviceRepo.find({ where: { businessId } });
-      const service = this.resolveService(services, params.serviceName);
-      if (service) {
-        const row = await this.getProviderAvailabilityForService(
-          businessId,
-          employeeId,
-          service.id,
-          isoDay,
-        );
-        const windowSlots = timeOfDay
-          ? filterSlotsByTimeOfDay(row.openSlots, timeOfDay)
-          : row.openSlots;
-
-        if (explicitTimeWindow) {
-          const rangeSlots = filterOpenSlotsByTimeRange(
-            windowSlots,
-            explicitTimeWindow.timeFrom,
-            explicitTimeWindow.timeTo,
-          );
-          const rangeLabel = `${explicitTimeWindow.timeFrom}–${explicitTimeWindow.timeTo}`;
-          let summary: string;
-          if (!row.hasSchedule) {
-            summary = `${employeeName} has no schedule on ${displayDay}.`;
-          } else if (rangeSlots.length === 0) {
-            summary = `No — ${employeeName} has no open ${service.name} slots on ${displayDay} between ${rangeLabel}.`;
-          } else {
-            summary = `Yes — ${employeeName} is available for ${service.name} on ${displayDay} between ${rangeLabel}: ${rangeSlots.map((s) => `${s.start}–${s.end}`).join(', ')}.`;
-          }
-
-          return {
-            success: true,
-            action: 'check_availability',
-            summary,
-            details: {
-              date: displayDay,
-              employee: employeeName,
-              serviceName: service.name,
-              timeFrom: explicitTimeWindow.timeFrom,
-              timeTo: explicitTimeWindow.timeTo,
-              available: rangeSlots.length > 0,
-              openSlots: rangeSlots,
-              hasSchedule: row.hasSchedule,
-            },
-          };
-        }
-
-        if (params.timeSlot) {
-          const targetTime = this.snapTo10min(params.timeSlot);
-          const slotOpen = windowSlots.some(
-            (s) => targetTime >= s.start && targetTime < s.end,
-          );
-
-          let summary: string;
-          if (!row.hasSchedule) {
-            summary = `${employeeName} has no schedule on ${displayDay}.`;
-          } else if (windowSlots.length === 0) {
-            summary = `${employeeName} is scheduled for ${service.name} on ${displayDay}, but has no open bookable slots${timeOfDay ? ` in the ${formatTimeOfDayLabel(timeOfDay)}` : ''}.`;
-          } else if (slotOpen) {
-            summary = `Yes — ${employeeName} has an open slot for ${service.name} on ${displayDay} at ${targetTime}.`;
-          } else {
-            summary = `No — ${employeeName} is not available for ${service.name} at ${targetTime} on ${displayDay}. Open slots: ${windowSlots.map((s) => `${s.start}–${s.end}`).join(', ') || 'none'}.`;
-          }
-
-          return {
-            success: true,
-            action: 'check_availability',
-            summary,
-            details: {
-              date: displayDay,
-              employee: employeeName,
-              serviceName: service.name,
-              timeSlot: targetTime,
-              timeOfDay,
-              available: slotOpen,
-              openSlots: windowSlots,
-              hasSchedule: row.hasSchedule,
-            },
-          };
-        }
-
-        const windowLabel = timeOfDay
-          ? formatTimeOfDayLabel(timeOfDay)
-          : 'the day';
-        const summary = !row.hasSchedule
-          ? `${employeeName} has no schedule on ${displayDay}.`
-          : windowSlots.length === 0
-            ? `No ${service.name} slots for ${employeeName} on ${displayDay} during ${windowLabel}.`
-            : `${employeeName} has ${windowSlots.length} open ${service.name} slot(s) on ${displayDay} during ${windowLabel}: ${windowSlots.map((s) => `${s.start}–${s.end}`).join(', ')}.`;
-
-        return {
-          success: true,
-          action: 'check_availability',
-          summary,
-          details: {
-            date: displayDay,
-            employee: employeeName,
-            serviceName: service.name,
-            timeOfDay,
-            available: windowSlots.length > 0,
-            openSlots: windowSlots,
-            hasSchedule: row.hasSchedule,
-          },
-        };
-      }
-    }
-
-    const d = new Date(isoDay);
-    const dayStart = new Date(d);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const where: any = {
-      businessId,
-      startTime: Between(dayStart, dayEnd) as any,
-    };
-    if (employeeId) where.employeeId = employeeId;
-
-    const [periods, bookings, openSlots] = await Promise.all([
-      this.periodRepo.find({ where, order: { startTime: 'ASC' } }),
-      this.bookingRepo.find({
-        where: {
-          businessId,
-          ...(employeeId ? { employeeId } : {}),
-          startTime: Between(dayStart, dayEnd) as any,
-          status: Not(BookingStatus.CANCELLED) as any,
-        },
-        relations: { service: true, customer: true },
-        order: { startTime: 'ASC' },
-      }),
-      employeeId
-        ? this.slotRepo
-            .createQueryBuilder('slot')
-            .where('slot.business_id = :businessId', { businessId })
-            .andWhere('slot.employee_id = :employeeId', { employeeId })
-            .andWhere('slot.startTime >= :dayStart', { dayStart })
-            .andWhere('slot.startTime <= :dayEnd', { dayEnd })
-            .andWhere('slot.status = :status', { status: SlotStatus.AVAILABLE })
-            .andWhere('slot.appointmentCount < slot.maxAppointmentCount')
-            .orderBy('slot.startTime', 'ASC')
-            .getMany()
-        : Promise.resolve([]),
-    ]);
-
-    const serviceBlocks = periods.filter(
-      (p) => p.type === TemplatePeriodType.SERVICE_BLOCK,
-    );
-    const nonService = periods.filter(
-      (p) => p.type !== TemplatePeriodType.SERVICE_BLOCK,
-    );
-
-    const nameMap = await this.serviceNameMap(businessId, [
-      ...periods.flatMap((p) => p.serviceIds ?? []),
-      ...bookings.map((b) => b.serviceId).filter(Boolean),
-    ]);
-
-    const scopeLabel = employeeName || 'all service providers';
-
-    if (periods.length === 0) {
-      return {
-        success: true,
-        action: 'check_availability',
-        summary: `No schedule applied for ${scopeLabel} on ${displayDay}.`,
-        details: {
-          date: displayDay,
-          employee: employeeName ?? null,
-          periods: [],
-          bookings: [],
-          openSlots: [],
-        },
-      };
-    }
-
-    const scheduleLines = [
-      ...serviceBlocks.map((p) => {
-        const from = formatTimeDisplay(p.startTime);
-        const to = formatTimeDisplay(p.endTime);
-        const services = this.formatPeriodServices(p.serviceIds, nameMap);
-        return `• ${from}–${to} — ${services}`;
-      }),
-      ...nonService.map((p) => this.formatNonServicePeriod(p)),
-    ];
-
-    const bookingLines =
-      bookings.length > 0 ? this.formatBookingLines(bookings) : ['  (none)'];
-
-    let openSlotRanges = this.mergeOpenSlotRanges(openSlots);
-    if (timeOfDay) {
-      openSlotRanges = filterSlotsByTimeOfDay(openSlotRanges, timeOfDay);
-    }
-    const timeOfDayLabel = timeOfDay
-      ? ` (${formatTimeOfDayLabel(timeOfDay)})`
-      : '';
-    const openSlotLines =
-      openSlotRanges.length > 0
-        ? openSlotRanges.map((r) => `• ${r.start}–${r.end}`)
-        : [
-            `  (none — all bookable time is taken or no open micro-slots${timeOfDayLabel})`,
-          ];
-
-    const blockAvailabilityLines = serviceBlocks.map((block) => {
-      const from = formatTimeDisplay(block.startTime);
-      const to = formatTimeDisplay(block.endTime);
-      const services = this.formatPeriodServices(block.serviceIds, nameMap);
-      const blockBookings = bookings.filter((b) =>
-        this.timesOverlap(
-          block.startTime,
-          block.endTime,
-          b.startTime,
-          b.endTime,
-        ),
-      );
-      const blockOpen = openSlots.filter(
-        (s) => s.startTime >= block.startTime && s.startTime < block.endTime,
-      );
-      const blockOpenRanges = this.mergeOpenSlotRanges(blockOpen);
-      const openSummary =
-        blockOpenRanges.length > 0
-          ? blockOpenRanges.map((r) => `${r.start}–${r.end}`).join(', ')
-          : 'fully booked or no open micro-slots';
-
-      return `• ${from}–${to} — ${services} | ${blockBookings.length} booked | open: ${openSummary}`;
-    });
-
-    const summaryParts = [
-      `Available slots for ${scopeLabel} on ${displayDay}${timeOfDayLabel}:`,
-      '',
-      'Applied schedule:',
-      ...scheduleLines,
-      '',
-      `Already booked (${bookings.length}):`,
-      ...bookingLines,
-      '',
-      'Open bookable slots:',
-      ...openSlotLines,
-      '',
-      'Availability by service block:',
-      ...blockAvailabilityLines,
-    ];
-
-    return {
-      success: true,
-      action: 'check_availability',
-      summary: summaryParts.join('\n'),
-      details: {
-        date: displayDay,
-        employee: employeeName ?? null,
-        serviceBlocks: serviceBlocks.length,
-        blockedPeriods: nonService.length,
-        periods: periods.map((p) => ({
-          type: p.type,
-          startTime: formatTimeDisplay(p.startTime),
-          endTime: formatTimeDisplay(p.endTime),
-          services:
-            p.type === TemplatePeriodType.SERVICE_BLOCK
-              ? this.formatPeriodServices(p.serviceIds, nameMap)
-              : null,
-          label:
-            p.type !== TemplatePeriodType.SERVICE_BLOCK
-              ? p.placeholderLabel ||
-                (p.type === TemplatePeriodType.UNAVAILABLE_BLOCK
-                  ? 'Unavailable'
-                  : 'Blocked')
-              : p.placeholderLabel,
-          serviceIds: p.serviceIds ?? [],
-        })),
-        bookings: bookings.map((b) => ({
-          service: b.service?.name || 'Service',
-          customer: b.customer?.name || 'Walk-in',
-          startTime: formatTimeDisplay(b.startTime),
-          endTime: formatTimeDisplay(b.endTime),
-          status: b.status,
-        })),
-        openSlots: openSlotRanges,
-        blockAvailability: blockAvailabilityLines,
-      },
-    };
-  }
-
-  private async handleSummarizeDay(
-    businessId: string,
-    params: any,
-    employeeId?: string,
-    employeeName?: string,
-  ): Promise<CommandResult> {
-    const isoDay = params.date || new Date().toISOString().split('T')[0];
-    const displayDay = formatDateDisplay(isoDay);
-
-    const [bookingsResult, availResult] = await Promise.all([
-      this.handleListBookings(
-        businessId,
-        '',
-        { ...params, date: isoDay },
-        employeeId,
-        employeeName,
-      ),
-      this.handleCheckAvailability(
-        businessId,
-        { ...params, date: isoDay },
-        employeeId,
-        employeeName,
-      ),
-    ]);
-
-    const bookings = bookingsResult.details.bookings || [];
-    const active = bookings.filter((b: any) => b.status !== 'cancelled');
-    const cancelled = bookings.filter((b: any) => b.status === 'cancelled');
-    const scopeLabel = employeeName || 'all service providers';
-
-    return {
-      success: true,
-      action: 'summarize_day',
-      summary: [
-        `Day summary for ${scopeLabel} on ${displayDay}:`,
-        `  Schedule: ${availResult.details.serviceBlocks || 0} service blocks, ${availResult.details.blockedPeriods || 0} blocked periods`,
-        `  Appointments: ${active.length} active, ${cancelled.length} cancelled`,
-        active.length > 0 ? `  Active appointments:` : '',
-        ...active.map(
-          (b: any) =>
-            `    • ${formatTimeRangeDisplay(b.startTime, b.endTime)} | ${b.service || 'Service'} | ${b.customer || 'Walk-in'}${employeeName ? '' : ` | ${b.employee || 'Unknown'}`}`,
-        ),
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      details: {
-        date: displayDay,
-        scope: employeeId ? 'provider' : 'all_providers',
-        employee: employeeName ?? null,
-        schedule: availResult.details,
-        bookings: bookingsResult.details,
-      },
-    };
-  }
-
-  private pickBookingForReschedule(
-    bookings: Booking[],
-    params: any,
-  ): Booking | null {
-    if (!bookings.length) return null;
-
-    const timeZone = params._timeZone ?? 'UTC';
-    const isoDay = params.fromDate ? toIsoDay(params.fromDate, timeZone) : null;
-    const slot = params.fromTimeSlot
-      ? this.snapTo10min(params.fromTimeSlot)
-      : null;
-
-    const active = bookings.filter(
-      (b) =>
-        b.status !== BookingStatus.CANCELLED &&
-        b.status !== BookingStatus.COMPLETED,
-    );
-
-    const filtered = active.filter((b) => {
-      if (isoDay && !b.startTime.toISOString().startsWith(isoDay)) return false;
-      if (slot && formatTimeDisplay(b.startTime) !== slot) return false;
-      return true;
-    });
-
-    if (filtered.length === 1) return filtered[0];
-    if (filtered.length > 1) {
-      const now = new Date();
-      const upcoming = filtered
-        .filter((b) => b.startTime >= now)
-        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-      return upcoming[0] ?? filtered[0];
-    }
-
-    const now = new Date();
-    const todayKey = getTodayDateKey(timeZone);
-    const candidates = active
-      .filter((b) => {
-        const dayKey = b.startTime.toISOString().split('T')[0];
-        return b.startTime >= now || dayKey === todayKey;
-      })
-      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-    if (candidates.length >= 1) return candidates[0];
-
-    return (
-      active.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ??
-      null
-    );
-  }
-
-  private async handleRescheduleBooking(
-    businessId: string,
-    params: any,
-    employeeId?: string,
-    userId?: string,
-  ): Promise<CommandResult> {
-    const services = await this.serviceRepo.find({
-      where: { businessId, isActive: true },
-    });
-    let booking: Booking | null = null;
-
-    if (params.bookingId) {
-      booking = await this.bookingRepo.findOne({
-        where: { id: params.bookingId, businessId },
-        relations: { employee: true, service: true, customer: true },
-      });
-    } else if (params.employeeName) {
-      const employees = await this.employeeRepo.find({
-        where: { businessId, isActive: true },
-      });
-      const employee = this.resolveEmployee(employees, params.employeeName);
-      if (employee) {
-        const bookings = await this.bookingRepo.find({
-          where: {
-            businessId,
-            employeeId: employee.id,
-            status: Not(BookingStatus.CANCELLED),
-          },
-          relations: { employee: true, service: true, customer: true },
-          order: { startTime: 'ASC' },
-        });
-        booking = this.pickBookingForReschedule(bookings, params);
-      }
-    } else if (params.customerName) {
-      const customers = await this.customerRepo.find({
-        where: { businessId, isActive: true },
-      });
-      const customer = this.resolveCustomer(customers, params.customerName);
-      if (customer) {
-        const bookings = await this.bookingRepo.find({
-          where: {
-            businessId,
-            customerId: customer.id,
-            ...(employeeId ? { employeeId } : {}),
-            status: Not(BookingStatus.CANCELLED),
-          },
-          relations: { employee: true, service: true, customer: true },
-          order: { startTime: 'ASC' },
-        });
-        booking = this.pickBookingForReschedule(bookings, params);
-      }
-    }
-
-    if (!booking) {
-      return {
-        success: false,
-        action: 'reschedule_booking',
-        summary:
-          'Could not find the booking to update. Specify bookingId, customer name, or provider + date/time.',
-        details: { params },
-      };
-    }
-
-    let targetService = booking.service;
-    if (params.serviceName) {
-      const resolved = this.resolveService(services, params.serviceName);
-      if (!resolved) {
-        return {
-          success: false,
-          action: 'reschedule_booking',
-          summary: `No service found matching "${params.serviceName}".`,
-          details: { params, bookingId: booking.id },
-        };
-      }
-      targetService = resolved;
-    }
-
-    const hasNewTime = !!(
-      params.date ||
-      params.timeSlot ||
-      params.bookingFirstAvailable
-    );
-    const hasServiceChange = targetService.id !== booking.serviceId;
-
-    if (!hasNewTime && !hasServiceChange) {
-      return {
-        success: false,
-        action: 'reschedule_booking',
-        summary: 'Specify a new service type and/or a new date/time.',
-        details: {
-          bookingId: booking.id,
-          currentService: booking.service?.name,
-        },
-      };
-    }
-
-    const timeZone = params._timeZone ?? 'UTC';
-    let isoDay = params.date
-      ? toIsoDay(params.date, timeZone)
-      : booking.startTime.toISOString().split('T')[0];
-    let timeSlot = params.timeSlot
-      ? this.snapTo10min(params.timeSlot)
-      : formatTimeDisplay(booking.startTime);
-
-    if (params.bookingFirstAvailable && params.date) {
-      const provider =
-        booking.employee ??
-        (await this.employeeRepo.findOne({
-          where: { id: booking.employeeId, businessId, isActive: true },
-        }));
-      if (!provider) {
-        return {
-          success: false,
-          action: 'reschedule_booking',
-          summary: 'Could not resolve the provider for this appointment.',
-          details: { bookingId: booking.id },
-        };
-      }
-
-      const pick = await this.findFirstAvailableBookingSlot(
-        businessId,
-        targetService,
-        toIsoDay(params.date, timeZone),
-        [provider],
-        timeZone,
-        resolveFirstAvailableNotBeforeTime(params),
-      );
-
-      if (!pick) {
-        return {
-          success: false,
-          action: 'reschedule_booking',
-          summary: buildRescheduleFirstAvailableNoSlotMessage(
-            targetService.name,
-            provider.name,
-            params,
-            '',
-          ),
-          details: {
-            bookingId: booking.id,
-            serviceName: targetService.name,
-            employeeName: provider.name,
-            date: formatDateDisplay(toIsoDay(params.date, timeZone)),
-            timeOfDay: params.timeOfDay ?? null,
-            reason: 'no_slots',
-          },
-        };
-      }
-
-      isoDay = pick.isoDay;
-      timeSlot = this.snapTo10min(pick.timeSlot);
-    }
-
-    const startTime = buildUtcStartTimeFromDayAndTime(isoDay, timeSlot);
-
-    const customerLabel = booking.customer?.name ?? 'walk-in';
-    let label: string;
-    if (hasServiceChange && hasNewTime) {
-      label = `Change ${customerLabel}'s appointment to ${targetService.name} on ${formatDateDisplay(isoDay)} ${timeSlot}`;
-    } else if (hasServiceChange) {
-      label = `Change ${customerLabel}'s service to ${targetService.name}`;
-    } else {
-      label = `Reschedule ${customerLabel} to ${formatDateDisplay(isoDay)} ${timeSlot}`;
-    }
-
-    const plan = this.planBuilder.buildRescheduleBookingPlan({
-      businessId,
-      bookingId: booking.id,
-      startTime,
-      employeeId: employeeId ?? booking.employeeId,
-      serviceId: targetService.id,
-      userId,
-      label,
-    });
-
-    return this.toCommandResult(
-      await this.orchestration.executePlan({
-        plan,
-        businessId,
-        userId,
-        autoExecute: true,
-      }),
-    );
-  }
 }

@@ -745,6 +745,11 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'cancel_all_upcoming_bookings':
+      return deps.selfServiceBooking.handleCancelAllUpcomingBookings(
+        businessId,
+        p,
+      );
     case 'reschedule_my_booking':
       return deps.selfServiceBooking.handleRescheduleMyBooking(
         businessId,
@@ -853,6 +858,12 @@ export async function dispatchCustomerIntent(
           sessionCustomerId:
             (p.sessionCustomerId as string | undefined) ?? session.customerId,
         },
+        prompt,
+      );
+    case 'explain_manage_booking_context':
+      return deps.selfServiceBooking.handleExplainManageBookingContext(
+        businessId,
+        p,
         prompt,
       );
     case 'notify_running_late':

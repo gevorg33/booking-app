@@ -5,6 +5,7 @@ import {
 import {
   rescueCustomerCrmIntent,
   isMySubscriptionsPrompt,
+  isDiscoverSubscriptionPlansPrompt,
 } from './ai-customer-crm.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import {
@@ -209,33 +210,67 @@ export const SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS: readonly SubscriptionMemb
 const MEMBERSHIP_CUSTOMER_RESCUE_ACTIONS = new Set<string>([
   'use_subscription_credit',
   'my_subscriptions',
+  'select_subscription_plan',
+]);
+
+const MEMBERSHIP_CRM_RESCUE_ACTIONS = new Set<string>([
+  'my_subscriptions',
+  'discover_subscription_plans',
 ]);
 
 export function rescueMembershipCustomerIntent(
   prompt: string,
   action: string,
 ): {
-  action: 'use_subscription_credit' | 'my_subscriptions' | 'compound_intent';
+  action:
+    | 'use_subscription_credit'
+    | 'my_subscriptions'
+    | 'select_subscription_plan'
+    | 'discover_subscription_plans'
+    | 'compound_intent';
   rescueReason: string;
 } | null {
   const compound = rescueSubscriptionFirstVisitCompoundIntent(prompt, action);
   if (compound) return compound;
 
+  // Checked ahead of self-service/my_subscriptions: discover_subscription_plans
+  // catalog-browse prompts ("show/list your plans") otherwise fall through to
+  // my_subscriptions' broad "mentions membership" catch-all, and some RU
+  // discovery phrasing ("планы подписки") overlaps select_subscription_plan's
+  // "подпис*" cue. Excludes possessive phrasing ("show MY plans") so it
+  // doesn't shadow my_subscriptions.
+  const isPossessive = /\b(my|mine)\b|мои|моя|моих|իմ/i.test(prompt);
+  if (!isPossessive && isDiscoverSubscriptionPlansPrompt(prompt)) {
+    return {
+      action: 'discover_subscription_plans',
+      rescueReason: 'discover_subscriptions',
+    };
+  }
+
+  // Also checked ahead of self-service: select_subscription_plan's RU cue
+  // ("подпис*") is a bare fragment that also matches "подписки" (plural noun
+  // in "мои подписки"/"активные подписки"), so my_subscriptions prompts must
+  // win that overlap.
+  if (isMySubscriptionsPrompt(prompt)) {
+    return { action: 'my_subscriptions', rescueReason: 'my_subscriptions' };
+  }
+
   const selfService = rescueSelfServiceBookingIntent(prompt, action);
   if (
     selfService &&
-    selfService.action === 'use_subscription_credit' &&
     MEMBERSHIP_CUSTOMER_RESCUE_ACTIONS.has(selfService.action)
   ) {
     return {
-      action: 'use_subscription_credit',
+      action: selfService.action as
+        | 'use_subscription_credit'
+        | 'select_subscription_plan',
       rescueReason: selfService.rescueReason,
     };
   }
   const crm = rescueCustomerCrmIntent(prompt, action);
-  if (crm?.action === 'my_subscriptions') {
+  if (crm && MEMBERSHIP_CRM_RESCUE_ACTIONS.has(crm.action)) {
     return {
-      action: 'my_subscriptions',
+      action: crm.action as 'my_subscriptions' | 'discover_subscription_plans',
       rescueReason: crm.rescueReason,
     };
   }
@@ -246,6 +281,8 @@ export function detectMembershipCustomerAction(
   prompt: string,
 ):
   | SubscriptionMembershipCustomerPromptFixture['expectedAction']
+  | 'select_subscription_plan'
+  | 'discover_subscription_plans'
   | 'compound_intent'
   | null {
   return rescueMembershipCustomerIntent(prompt, 'unknown')?.action ?? null;

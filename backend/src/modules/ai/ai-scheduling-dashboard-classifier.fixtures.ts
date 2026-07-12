@@ -18,6 +18,8 @@ export const SCHEDULING_DASHBOARD_CLASSIFIER_RULES = `- "Who has a X schedule to
 - Example follow-up: after "who can do facemassage tomorrow", "book Gevorg at 10:00" or "at 10:00" → create_booking with inherited serviceName, date, employeeName, timeSlot.
 - list_employees: READ-ONLY — list active providers/team members.
 - list_templates: READ-ONLY — list schedule template names.
+- list_schedule_blocks: READ-ONLY — list schedule blocks (e.g. "show Gevorg's schedule blocks", "what blocks does Maria have"). Optional employeeName to filter to one provider; omit for all.
+- get_provider_calendar: READ-ONLY — show a provider's scheduling periods (working/service/blocked windows) for a date or range. Requires employeeName. Use for "show Gevorg's calendar this week", "what's on Maria's calendar for July". NOT show_appointments (bookings, not schedule periods).
 - create_schedule_template: create a reusable schedule template (name + hours + weekday flags + optional services). Example: "Create template Weekday 9-17 with facemassage Mon-Fri" → templateName, periods or timeFrom/timeTo, applyDays.
 - update_schedule_template: rename an existing template (templateName to find it, newName for the new title). NOT create_schedule_template (new template), NOT apply_schedule (applying to providers).
 - delete_schedule_templates: delete one or more schedule templates (templateName or templateNames array). "Delete the Weekday and Weekend templates" → templateNames=[Weekday, Weekend].

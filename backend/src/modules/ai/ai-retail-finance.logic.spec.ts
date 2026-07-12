@@ -22,6 +22,8 @@ import {
   handleSummarizeReviewsLogic,
   handleSuggestRetailUpsellLogic,
   handleAddRetailToMyBookingLogic,
+  handleRemoveRetailFromMyBookingLogic,
+  handleSearchRetailSkuLogic,
   handleSetRetailSalesLinesLogic,
   handleRetailFinanceCompoundLogic,
   mergeRetailFinanceCompoundContext,
@@ -801,6 +803,73 @@ describe('ai-retail-finance.logic', () => {
     expect(
       (
         await handleAddRetailToMyBookingLogic(
+          buildDeps({
+            bookingRepo: {
+              find: jest.fn(async () => [{ ...booking, employeeId: 'other' }]),
+              findOne: jest.fn(async () => ({
+                ...booking,
+                employeeId: 'other',
+              })),
+            } as any,
+          }),
+          'biz-1',
+          { sessionEmployeeId: 'e1', productName: 'Shampoo' },
+        )
+      ).success,
+    ).toBe(false);
+  });
+
+  it('searches sellable retail products by name or sku (ai-cmd-provider-5.4.5)', async () => {
+    const deps = buildDeps();
+    const byName = await handleSearchRetailSkuLogic(
+      deps,
+      'biz-1',
+      {},
+      'Do we carry shampoo?',
+    );
+    expect(byName.success).toBe(true);
+    expect(byName.details?.matches).toHaveLength(1);
+
+    const bySku = await handleSearchRetailSkuLogic(
+      deps,
+      'biz-1',
+      {},
+      'Find SKU SH-01',
+    );
+    expect(bySku.success).toBe(true);
+    expect(bySku.details?.matches).toHaveLength(1);
+
+    const noMatch = await handleSearchRetailSkuLogic(
+      deps,
+      'biz-1',
+      {},
+      'Do we carry bond builder?',
+    );
+    expect(noMatch.success).toBe(true);
+    expect(noMatch.details?.matches).toHaveLength(0);
+
+    const noQuery = await handleSearchRetailSkuLogic(deps, 'biz-1', {});
+    expect(noQuery.success).toBe(false);
+  });
+
+  it('handles remove_retail_from_booking with ownership scoping (ai-cmd-provider-5.4.4)', async () => {
+    const deps = buildDeps();
+    expect(
+      (
+        await handleRemoveRetailFromMyBookingLogic(
+          deps,
+          'biz-1',
+          { sessionEmployeeId: 'e1', productName: 'Shampoo' },
+          'u1',
+        )
+      ).success,
+    ).toBe(true);
+    expect(
+      (await handleRemoveRetailFromMyBookingLogic(deps, 'biz-1', {})).success,
+    ).toBe(false);
+    expect(
+      (
+        await handleRemoveRetailFromMyBookingLogic(
           buildDeps({
             bookingRepo: {
               find: jest.fn(async () => [{ ...booking, employeeId: 'other' }]),

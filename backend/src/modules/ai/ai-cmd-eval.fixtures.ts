@@ -249,6 +249,14 @@ export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [
     prompt: 'Confirm cash payment received',
     expectedAction: 'collect_cash_confirm',
   },
+  {
+    id: 'payments-collect-cash-amount',
+    domain: 'payments',
+    surface: 'provider',
+    prompt: 'Record cash collected $80',
+    expectedAction: 'collect_cash_confirm',
+    paramsPartial: { amount: 80 },
+  },
   // Sprint 31 — gift fulfillment
   {
     id: 'gift-creation-queue',
@@ -256,6 +264,21 @@ export const AI_CMD_RESCUE_SCENARIOS: AiCmdRescueScenario[] = [
     surface: 'provider',
     prompt: 'Show gift card creation queue',
     expectedAction: 'gift_card_creation_queue',
+  },
+  // ai-cmd-provider-5.12.4 — GiftCardQueuesPage label phrasing (covered under existing intents)
+  {
+    id: 'gift-creation-queue-cards-to-fulfill',
+    domain: 'gift',
+    surface: 'provider',
+    prompt: 'Physical cards to fulfill',
+    expectedAction: 'gift_card_creation_queue',
+  },
+  {
+    id: 'gift-delivery-pickup-queue',
+    domain: 'gift',
+    surface: 'provider',
+    prompt: 'Gift card pickup queue',
+    expectedAction: 'delivery_queue',
   },
   {
     id: 'gift-track-order',

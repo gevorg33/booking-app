@@ -450,16 +450,6 @@ export async function handleSummarizeNewRegistrationsLogic(
   }
 }
 
-async function resolveBusinessSlug(
-  deps: MarketingGrowthLogicDeps,
-  businessId: string,
-): Promise<string | null> {
-  const business = await deps.businessRepo.findOne({
-    where: { id: businessId },
-    select: { slug: true },
-  });
-  return business?.slug ?? null;
-}
 
 export async function handleHowToDownloadAppLogic(
   deps: MarketingGrowthLogicDeps,
@@ -499,10 +489,16 @@ export async function handleSwitchToConsumerAppLogic(
 ): Promise<CommandResult> {
   const frontendUrl =
     deps.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-  const businessSlug = await resolveBusinessSlug(deps, businessId);
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  const view = business
+    ? await deps.tenantAppInstallService.ensureForBusiness(business)
+    : null;
   const guidance = buildConsumerAppSwitchGuidance({
     frontendUrl,
-    businessSlug,
+    businessSlug: business?.slug ?? null,
+    view,
   });
   return success('switch_to_consumer_app', guidance.summary, { guidance });
 }

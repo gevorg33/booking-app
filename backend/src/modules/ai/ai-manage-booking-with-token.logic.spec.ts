@@ -1,6 +1,7 @@
 import {
   handleCancelBookingWithTokenLogic,
   handleCancelPackageVisitWithTokenLogic,
+  handleExplainManageBookingContextLogic,
   handleRescheduleBookingWithTokenLogic,
   handleReschedulePackageVisitWithTokenLogic,
 } from './ai-manage-booking-with-token.logic.js';
@@ -37,6 +38,15 @@ function buildDeps(
         serviceId: 'svc-1',
         employeeId: 'emp-1',
         startTime: '2026-07-03T10:00:00.000Z',
+        endTime: '2026-07-03T11:00:00.000Z',
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        serviceName: 'Haircut',
+        employeeName: 'Maria',
+        canCancel: true,
+        canReschedule: true,
+        policyMessage: null,
+        manageUrl: 'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
         packageVisit: {
           appointments: [
             {
@@ -88,6 +98,91 @@ describe('ai-manage-booking-with-token.logic', () => {
 
   beforeEach(() => {
     deps = buildDeps();
+  });
+
+  describe('handleExplainManageBookingContextLogic', () => {
+    it('summarizes a booking that can still be cancelled or rescheduled', async () => {
+      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
+        bookingId: 'book-1',
+        manageToken: 'tok-123',
+      });
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('explain_manage_booking_context');
+      expect(result.summary).toContain('Haircut with Maria');
+      expect(result.summary).toContain('cancel or reschedule');
+      expect(result.details).toMatchObject({
+        bookingId: 'book-1',
+        canCancel: true,
+        canReschedule: true,
+      });
+      expect(
+        deps.publicCustomerBookingService.getManageContext,
+      ).toHaveBeenCalledWith('salon', 'book-1', 'tok-123');
+    });
+
+    it('explains why a booking can no longer be changed', async () => {
+      (
+        deps.publicCustomerBookingService.getManageContext as jest.Mock
+      ).mockResolvedValueOnce({
+        bookingId: 'book-1',
+        startTime: '2026-07-03T10:00:00.000Z',
+        endTime: '2026-07-03T11:00:00.000Z',
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        serviceName: 'Haircut',
+        employeeName: 'Maria',
+        canCancel: false,
+        canReschedule: false,
+        policyMessage: 'Too close to the appointment time to change online.',
+        manageUrl: 'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
+      });
+      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
+        bookingId: 'book-1',
+        manageToken: 'tok-123',
+      });
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain("can't be cancelled or rescheduled");
+      expect(result.summary).toContain('Too close to the appointment time');
+      expect(result.details).toMatchObject({
+        canCancel: false,
+        canReschedule: false,
+      });
+    });
+
+    it('extracts bookingId/token from a pasted manage link', async () => {
+      const result = await handleExplainManageBookingContextLogic(
+        deps,
+        'biz-1',
+        {},
+        'What can I still do with https://app.test/salon/manage?bookingId=book-1&token=tok-123',
+      );
+      expect(result.success).toBe(true);
+      expect(
+        deps.publicCustomerBookingService.getManageContext,
+      ).toHaveBeenCalledWith('salon', 'book-1', 'tok-123');
+    });
+
+    it('clarifies when credentials are missing', async () => {
+      const result = await handleExplainManageBookingContextLogic(
+        deps,
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(false);
+      expect(result.details?.clarify).toBe(true);
+    });
+
+    it('fails gracefully when the manage token is invalid', async () => {
+      (
+        deps.publicCustomerBookingService.getManageContext as jest.Mock
+      ).mockRejectedValueOnce(new Error('Invalid or expired manage link'));
+      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
+        bookingId: 'book-1',
+        manageToken: 'bad-token',
+      });
+      expect(result.success).toBe(false);
+      expect(result.summary).toBe('Invalid or expired manage link');
+    });
   });
 
   describe('handleCancelBookingWithTokenLogic', () => {
