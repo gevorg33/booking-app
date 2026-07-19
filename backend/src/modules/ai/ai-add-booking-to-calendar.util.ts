@@ -3,6 +3,7 @@ import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import { isRequestClientReviewPrompt } from './ai-provider-exp-2.util.js';
+import { hasSubscriptionCheckoutCompareCue } from './ai-explain-subscription-vs-one-time.util.js';
 import type { AddBookingToCalendarFormat } from './ai-add-booking-to-calendar.fixtures.js';
 
 export const ADD_BOOKING_TO_CALENDAR_INTENTS = [
@@ -18,7 +19,7 @@ export interface ParsedAddBookingToCalendar {
   serviceName?: string;
 }
 
-export const CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES = `- add_booking_to_calendar: READ — return calendar links for the visitor's current or most recent booking: Google Calendar deep link, Outlook compose link, and downloadable .ics URL when supported. Triggers: "Add to my calendar", "Send me an ICS", "Put my booking in Google Calendar", "Save my appointment to calendar". Set format when clear (google|outlook|ics|all). Uses session bookingId when present; otherwise next matching upcoming visit for signed-in customers. NOT confirm_my_booking_details (summary only), NOT get_manage_link|share_my_booking (manage/share links only), NOT list_my_appointments, NOT cancel_my_booking|reschedule_my_booking.`;
+export const CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES = `- add_booking_to_calendar: READ — return calendar links for the visitor's current or most recent booking: Google Calendar deep link, Outlook compose link, and downloadable .ics URL when supported. Triggers: "Add to my calendar", "Send me an ICS", "Put my booking in Google Calendar", "Save my appointment to calendar". Set format when clear (google|outlook|ics|all). Uses session bookingId when present; otherwise next matching upcoming visit for signed-in customers. NOT confirm_my_booking_details (summary only), NOT get_manage_link|share_my_booking (manage/share links only), NOT list_my_appointments, NOT cancel_my_booking|reschedule_my_booking, NOT explain_subscription_vs_one_time (subscribe vs pay-per-visit / "should I get the subscription or just pay per visit?" — bare "get"+"visit" is not calendar).`;
 
 const CALENDAR_CUE = new RegExp(
   String.raw`\b(?:add|save|put|create|export|download|send|get|open|calendar|ics|invite|event)\b|օրացույց|календар|ics|google\s+calendar|outlook`,
@@ -86,6 +87,9 @@ export function isAddBookingToCalendarPrompt(prompt: string): boolean {
   if (isShareMyBookingPrompt(prompt)) return false;
   if (isSignInAfterBookingPrompt(prompt)) return false;
   if (isRequestClientReviewPrompt(prompt)) return false;
+  // e2e-bug.79 — "should I get the subscription or just pay per visit?" matched
+  // bare get + just…visit and stole before explain_subscription_vs_one_time.
+  if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;
 
   if (!CALENDAR_CUE.test(prompt)) return false;

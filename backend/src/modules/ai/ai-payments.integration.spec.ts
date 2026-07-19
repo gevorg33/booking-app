@@ -333,6 +333,7 @@ describe('Sprint 30 payments AI scenarios', () => {
         (
           await payments.handleRefundGiftCardOrder('biz-1', {
             giftCardId: 'gc-1',
+            reason: 'Customer changed their mind',
           })
         ).success,
       ).toBe(true);

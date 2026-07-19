@@ -49,14 +49,18 @@ export function GiftCardCheckoutClient({
 
   const cardType = (searchParams.get('cardType') ?? 'monetary') as PublicGiftCardType;
   const amount = searchParams.get('amount') ?? String(settings.presetAmounts[0] ?? 50);
+  // Depend on primitive query/default ids — not searchParams / array object identity
+  // (avoids the consumer-app e2e-bug.6 class of quote storms).
+  const serviceIdsParam = searchParams.get('serviceIds');
+  const serviceIdParam = searchParams.get('serviceId');
+  const defaultServiceId = settings.purchasableServices[0]?.serviceId ?? '';
   const serviceIdsFromUrl = useMemo(() => {
-    const raw = searchParams.get('serviceIds');
-    if (raw) {
-      return raw.split(',').map((id) => id.trim()).filter(Boolean);
+    if (serviceIdsParam) {
+      return serviceIdsParam.split(',').map((id) => id.trim()).filter(Boolean);
     }
-    const single = searchParams.get('serviceId') ?? settings.purchasableServices[0]?.serviceId ?? '';
+    const single = serviceIdParam ?? defaultServiceId;
     return single ? [single] : [];
-  }, [searchParams, settings.purchasableServices]);
+  }, [defaultServiceId, serviceIdParam, serviceIdsParam]);
   const bundleId = searchParams.get('bundleId') ?? settings.bundles[0]?.id ?? '';
   const packageId =
     searchParams.get('packageId') ?? settings.purchasablePackages?.[0]?.packageId ?? '';
@@ -103,15 +107,34 @@ export function GiftCardCheckoutClient({
 
   useEffect(() => {
     if (authLoading || !customer) return;
+    // Identity-stable prefill: only setForm when a blank field would change
+    // (customer from usePublicCustomerAuth is already useState-stable; this
+    // mirrors consumer-app's e2e-bug.6 hardening).
     queueMicrotask(() =>
-      setForm((prev) => ({
-        ...prev,
-        purchaserName: prev.purchaserName || customer.name || '',
-        purchaserEmail: prev.purchaserEmail || customer.email || '',
-        recipientName: prev.recipientName || customer.name,
-        recipientEmail: prev.recipientEmail || customer.email || '',
-        recipientPhone: prev.recipientPhone || customer.phone || undefined,
-      })),
+      setForm((prev) => {
+        const purchaserName = prev.purchaserName || customer.name || '';
+        const purchaserEmail = prev.purchaserEmail || customer.email || '';
+        const recipientName = prev.recipientName || customer.name || '';
+        const recipientEmail = prev.recipientEmail || customer.email || '';
+        const recipientPhone = prev.recipientPhone || customer.phone || undefined;
+        if (
+          purchaserName === prev.purchaserName &&
+          purchaserEmail === prev.purchaserEmail &&
+          recipientName === prev.recipientName &&
+          recipientEmail === prev.recipientEmail &&
+          recipientPhone === prev.recipientPhone
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          purchaserName,
+          purchaserEmail,
+          recipientName,
+          recipientEmail,
+          recipientPhone,
+        };
+      }),
     );
   }, [authLoading, customer]);
 

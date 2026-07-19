@@ -3,6 +3,7 @@ import {
   isScheduleResourceCompoundPrompt,
   decomposeScheduleResourceCompoundPrompt,
   isListSchedulingResourcesPrompt,
+  isListServiceResourceRequirementsPrompt,
   isCreateResourcePrompt,
   isUpdateResourcePrompt,
   isDeactivateResourcePrompt,
@@ -21,9 +22,12 @@ import {
   extractResourceTypeFromPrompt,
   extractSchedulingModeFromPrompt,
   extractServiceNamesFromPrompt,
+  extractServiceNameForResourceRequirements,
+  enrichListServiceResourceRequirementsParamsFromPrompt,
   SCHEDULE_RESOURCE_INTENTS,
   isScheduleResourceIntent,
 } from './ai-schedule-resources.util.js';
+import { LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS } from './ai-schedule-resources-dashboard-classifier.fixtures.js';
 
 describe('ai-schedule-resources.util', () => {
   describe('prompt classifiers', () => {
@@ -41,6 +45,11 @@ describe('ai-schedule-resources.util', () => {
         isListSchedulingResourcesPrompt('Show my resource assignments'),
       ).toBe(false);
       expect(
+        isListSchedulingResourcesPrompt(
+          'What equipment does the deep tissue massage service require?',
+        ),
+      ).toBe(false);
+      expect(
         isListResourceConflictsPrompt('List resource conflicts for tomorrow'),
       ).toBe(true);
       expect(
@@ -53,6 +62,25 @@ describe('ai-schedule-resources.util', () => {
         isExplainResourceConflictPrompt('Why resource conflict for room 2'),
       ).toBe(true);
     });
+
+    it.each(LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS)(
+      'e2e-bug.147 — detects list_service_resource_requirements for $id',
+      (row) => {
+        expect(isListServiceResourceRequirementsPrompt(row.prompt)).toBe(true);
+        expect(
+          extractServiceNameForResourceRequirements(row.prompt)?.toLowerCase(),
+        ).toBe(row.serviceName.toLowerCase());
+        expect(
+          enrichListServiceResourceRequirementsParamsFromPrompt(row.prompt, {})
+            .serviceName,
+        ).toEqual(expect.stringMatching(new RegExp(row.serviceName, 'i')));
+        expect(
+          isListServiceResourceRequirementsPrompt(
+            'Set resource requirements for massage to Room 1',
+          ),
+        ).toBe(false);
+      },
+    );
 
     it('detects dashboard resource mutate prompts', () => {
       expect(isCreateResourcePrompt('Create room Treatment 2')).toBe(true);
@@ -266,7 +294,32 @@ describe('ai-schedule-resources.util', () => {
           'unknown',
         )?.action,
       ).toBe('explain_multi_service_settings');
+      expect(
+        rescueScheduleResourceIntent(
+          'What equipment does the deep tissue massage service require?',
+          'unknown',
+        ),
+      ).toEqual(
+        expect.objectContaining({
+          action: 'list_service_resource_requirements',
+          rescueReason: 'list_service_resource_requirements',
+          params: expect.objectContaining({
+            serviceName: expect.stringMatching(/deep tissue massage/i),
+          }),
+        }),
+      );
     });
+
+    it.each(LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS)(
+      'e2e-bug.147 — rescues $id from unknown',
+      (row) => {
+        const rescued = rescueScheduleResourceIntent(row.prompt, 'unknown');
+        expect(rescued?.action).toBe('list_service_resource_requirements');
+        expect(String(rescued?.params?.serviceName)).toMatch(
+          new RegExp(row.serviceName, 'i'),
+        );
+      },
+    );
 
     it('skips rescue when action already matches or compound', () => {
       expect(

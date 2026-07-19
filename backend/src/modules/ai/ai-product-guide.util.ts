@@ -13,6 +13,7 @@ import {
 } from './ai-assistant-mode.util.js';
 import { isGrowthLoopsCustomerPrompt } from './ai-growth-loops-customer.util.js';
 import { isPromoCodeHelpPrompt } from './ai-marketing-growth.util.js';
+import { DASHBOARD_EXECUTION_CONFIRM_ACTIONS } from './ai-execution-confirm.util.js';
 
 /**
  * ai-guide-1.0.1 — Product guide vs domain explain vs action taxonomy.
@@ -608,31 +609,11 @@ export function lookupProductGuideDisambiguationRow(
 }
 
 /**
- * Bulk / multi-row mutates that require swipe confirm — must not execute on guide prompts (ai-guide-1.0.5).
- * Kept in sync with `bulkConfirmActions` in `ai-command.service.ts`.
+ * High-risk mutates that require confirm — must not execute on guide prompts (ai-guide-1.0.5).
+ * Same registry as `requiresDashboardExecutionConfirmation` (e2e-bug.161).
  */
-export const PRODUCT_GUIDE_BULK_MUTATE_ACTIONS = [
-  'cancel_bookings',
-  'update_bookings',
-  'bulk_smart_cancel',
-  'clear_schedule',
-  'hide_appointments_from_calendar',
-  'setup_week_schedule',
-  'create_services',
-  'mark_no_shows',
-  'no_show_recovery',
-  'payment_sweep',
-  'day_replan',
-  'sick_day_replan',
-  'import_services_from_menu',
-  'update_service_prices',
-  'staff_service_matrix',
-  'bulk_create_catalog',
-  'merge_customers',
-  'delete_customer_data',
-  'admin_delete_customer_data',
-  'privacy_delete',
-] as const;
+export const PRODUCT_GUIDE_BULK_MUTATE_ACTIONS =
+  DASHBOARD_EXECUTION_CONFIRM_ACTIONS;
 
 export type ProductGuideBulkMutateAction =
   (typeof PRODUCT_GUIDE_BULK_MUTATE_ACTIONS)[number];

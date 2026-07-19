@@ -5,6 +5,7 @@ import {
   isListPackagesPrompt,
   isListSubscriptionPlansPrompt,
 } from './ai-catalog.util.js';
+import { isExplainMySubscriptionPrompt } from './ai-explain-my-subscription.util.js';
 import {
   isSuggestUpgradePrompt,
   isToggleAnnualBillingPrompt,
@@ -23,7 +24,7 @@ export const BILLING_LOYALTY_DASHBOARD_INTENTS = [
 export type BillingLoyaltyDashboardIntent =
   (typeof BILLING_LOYALTY_DASHBOARD_INTENTS)[number];
 
-export const BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES = `- open_billing_settings: READ — explain current subscription plan, billing portal link, and seat limits. Use for "open billing settings", "what plan am I on", "manage subscription". NOT explain_plan_limits alone when user asks to open/manage billing UI.
+export const BILLING_LOYALTY_DASHBOARD_CLASSIFIER_RULES = `- open_billing_settings: READ — explain current subscription plan, billing portal link, and seat limits. Use for "open billing settings", "what plan am I on", "manage subscription". Dashboard/business SaaS billing only. NOT explain_my_subscription (customer "visits left on my plan" / membership credits), NOT explain_plan_limits alone when user asks to open/manage billing UI.
 - summarize_loyalty_program: READ — summarize business loyalty program settings and enrolled customer counts. Use for "how does loyalty work", "summarize loyalty program", "loyalty points overview". NOT loyalty_points_balance (customer self-service balance).`;
 
 export const BILLING_LOYALTY_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian dashboard billing + loyalty (ai-cmd-ext-2.9–2.10):
@@ -45,6 +46,9 @@ function matchLocale(prompt: string, pattern: RegExp): boolean {
 export function isOpenBillingSettingsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isSummarizeLoyaltyProgramPrompt(prompt)) return false;
+  // e2e-bug.129 — "How many visits left on my plan?" is customer membership
+  // explain, not dashboard billing portal ("my plan" alone is too broad).
+  if (isExplainMySubscriptionPrompt(prompt)) return false;
   if (isListSubscriptionPlansPrompt(prompt) || isListPackagesPrompt(prompt)) {
     return false;
   }
@@ -76,7 +80,14 @@ export function isOpenBillingSettingsPrompt(prompt: string): boolean {
   if (/\bwhat\s+plan\s+(?:am\s+I\s+on|are\s+we\s+on)\b/i.test(prompt)) {
     return true;
   }
-  if (/\b(?:current|my)\s+(?:subscription\s+)?plan\b/i.test(prompt)) {
+  // Business SaaS plan — require billing/portal context, not bare "my plan"
+  // (customer membership visits-left phrasing).
+  if (
+    /\b(?:current|my)\s+(?:subscription\s+)?plan\b/i.test(prompt) &&
+    /\b(?:billing|portal|seats?|invoice|saas|stripe|upgrade|downgrade|settings)\b/i.test(
+      prompt,
+    )
+  ) {
     return true;
   }
 

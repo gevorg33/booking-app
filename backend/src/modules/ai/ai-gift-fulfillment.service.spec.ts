@@ -171,8 +171,12 @@ describe('AiGiftFulfillmentService', () => {
         .success,
     ).toBe(true);
     expect(
-      (await service.handleCancelGiftCardOrder('biz-1', { giftCardId: 'gc-1' }))
-        .success,
+      (
+        await service.handleCancelGiftCardOrder('biz-1', {
+          giftCardId: 'gc-1',
+          reason: 'Customer requested cancellation',
+        })
+      ).success,
     ).toBe(true);
     expect(
       (

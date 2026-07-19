@@ -45,6 +45,9 @@ export interface PurchaseGiftCardInput {
   shippingMethodId?: string;
   purchaserCustomerId?: string;
   paymentMethod?: 'online' | 'cash';
+  /** e2e-bug.18 — which client started Stripe checkout (affects success/cancel URLs). */
+  clientSurface?: 'web' | 'consumer';
+  returnOrigin?: string;
 }
 
 export interface GiftCardPurchaseQuote {

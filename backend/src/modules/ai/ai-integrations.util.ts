@@ -14,6 +14,7 @@ import {
   isRequestGiftCardModifyPrompt,
 } from './ai-customer-crm.util.js';
 import { isReportBookingProblemPrompt } from './ai-report-booking-problem.util.js';
+import { rescueExplainSupportInboxIntent } from './ai-explain-support-inbox.util.js';
 
 export const DASHBOARD_INTEGRATIONS_MUTATE_INTENTS = [
   'create_webhook',
@@ -38,6 +39,7 @@ export const DASHBOARD_INTEGRATIONS_READ_INTENTS = [
   'list_zapier_triggers',
   'list_integration_health',
   'explain_integration_health',
+  'explain_support_inbox',
 ] as const;
 
 export const CUSTOMER_INTEGRATIONS_INTENTS = [
@@ -169,8 +171,12 @@ export function isConfigureZendeskPrompt(prompt: string): boolean {
 }
 
 export function isCreateSupportTicketPrompt(prompt: string): boolean {
+  // e2e-bug.139 — status asks ("any open support tickets?") are explain_support_inbox.
+  if (/\b(do\s+i\s+have|any|how\s+many|list|show|status)\b/i.test(prompt)) {
+    return false;
+  }
   return (
-    /\b(create|open|submit)\b/i.test(prompt) &&
+    /\b(create|submit|file|open\s+a)\b/i.test(prompt) &&
     /\b(support\s+ticket|ticket)\b/i.test(prompt) &&
     !/\b(gift\s*card|order|my)\b/i.test(prompt)
   );
@@ -464,6 +470,8 @@ export function rescueIntegrationsIntent(
   if (isSyncCustomerToZendeskPrompt(prompt)) {
     return { action: 'sync_customer_to_zendesk', rescueReason: 'sync_zendesk' };
   }
+  const supportInbox = rescueExplainSupportInboxIntent(prompt, action);
+  if (supportInbox) return supportInbox;
   if (isCreateSupportTicketPrompt(prompt)) {
     return { action: 'create_support_ticket', rescueReason: 'support_ticket' };
   }

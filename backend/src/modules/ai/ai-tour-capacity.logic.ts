@@ -7,6 +7,7 @@ import {
   extractTourMetadata,
   isTourService,
   resolveRemainingTourSpots,
+  resolveTourCatalogServiceByName,
   sumBookedTourPax,
 } from '../../common/utils/tour-service.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -42,17 +43,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 async function countTourPaxForDate(
@@ -241,7 +231,7 @@ export async function handleDiagnoseTourCapacityLogic(
   const service = parsed.serviceId
     ? tourServices.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(tourServices, parsed.serviceName)
+      ? resolveTourCatalogServiceByName(tourServices, parsed.serviceName)
       : tourServices.length === 1
         ? tourServices[0]
         : undefined;

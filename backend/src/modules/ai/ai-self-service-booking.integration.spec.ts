@@ -265,6 +265,7 @@ describe('Sprint 36 customer booking AI scenarios', () => {
           prompt: 'List my appointments',
           action: 'unknown',
           params: {},
+          surface: 'customer',
         })?.action,
       ).toBe('list_my_appointments');
     });
@@ -308,7 +309,12 @@ describe('Sprint 36 customer booking AI scenarios', () => {
       ];
       for (const prompt of intents) {
         expect(
-          rescue.rescue({ prompt, action: 'unknown', params: {} })?.action,
+          rescue.rescue({
+            prompt,
+            action: 'unknown',
+            params: {},
+            surface: 'customer',
+          })?.action,
         ).toBeTruthy();
       }
     });

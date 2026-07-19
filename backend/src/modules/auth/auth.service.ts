@@ -42,6 +42,7 @@ import {
   getBusinessDefaultLocale,
   getBusinessEnabledLocales,
 } from '../../common/utils/business-locale.util.js';
+import { buildAuthBusinessSettings } from './auth-business-settings.util.js';
 
 @Injectable()
 export class AuthService {
@@ -283,6 +284,7 @@ export class AuthService {
             dateFormat: summary.dateFormat,
             timeFormat: summary.timeFormat,
             currency: summary.currency,
+            settings: summary.settings,
             membershipRole: summary.membershipRole,
           }
         : null,
@@ -397,14 +399,16 @@ export class AuthService {
     membership: BusinessMember,
     employee: { id: string; name: string } | null,
   ): BusinessAuthSummary {
-    const localeFields = this.businessLocaleFields(
-      membership.business.settings as Record<string, unknown> | undefined,
-    );
+    const settings = membership.business.settings as
+      | Record<string, unknown>
+      | undefined;
+    const localeFields = this.businessLocaleFields(settings);
     return {
       id: membership.business.id,
       name: membership.business.name,
       slug: membership.business.slug,
       ...localeFields,
+      settings: buildAuthBusinessSettings(settings),
       membershipRole: membership.role,
       employee,
     };
@@ -417,15 +421,17 @@ export class AuthService {
     summaries: BusinessAuthSummary[],
     issueToken = true,
   ): AuthResponse {
+    const settings = membership.business.settings as
+      | Record<string, unknown>
+      | undefined;
     return {
       user: this.toPublicUser(user),
       business: {
         id: membership.business.id,
         name: membership.business.name,
         slug: membership.business.slug,
-        ...this.businessLocaleFields(
-          membership.business.settings as Record<string, unknown> | undefined,
-        ),
+        ...this.businessLocaleFields(settings),
+        settings: buildAuthBusinessSettings(settings),
         membershipRole: membership.role,
       },
       employee,

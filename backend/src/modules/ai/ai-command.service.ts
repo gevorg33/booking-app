@@ -42,6 +42,7 @@ import {
 } from '../../common/utils/timezone.util.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
+import { AiMetaOpsService } from './ai-meta-ops.service.js';
 import { AiBookingCoreService } from './ai-booking-core.service.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { AiOperationsService } from './ai-operations.service.js';
@@ -61,6 +62,7 @@ import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.j
 import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
 import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
 import { AiLocationsService } from './ai-locations.service.js';
+import { AiBusinessHoursLocationService } from './ai-explain-business-hours-and-location.service.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
@@ -313,6 +315,7 @@ import type { PlanTierId } from '../billing/plan-limits.js';
 import {
   buildExecutionConfirmationResult,
   isExecutionConfirmed,
+  requiresDashboardExecutionConfirmation,
 } from './ai-execution-confirm.util.js';
 import {
   isMetaProductGuideIntent,
@@ -430,6 +433,7 @@ export class AiCommandService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private scheduleHandlers: AiScheduleHandlersService,
+    private metaOps: AiMetaOpsService,
     private bookingCore: AiBookingCoreService,
     private scheduling: AiSchedulingService,
     private operations: AiOperationsService,
@@ -449,6 +453,7 @@ export class AiCommandService {
     private patientClinicalMutations: AiPatientClinicalMutationsService,
     private clinicQuestionnaire: AiClinicQuestionnaireService,
     private locations: AiLocationsService,
+    private businessHoursLocation: AiBusinessHoursLocationService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
     private packageLocalizedNames: AiPackageLocalizedNamesService,
@@ -985,6 +990,8 @@ export class AiCommandService {
     const guideFallbackInput = buildPostFailureGuideFallbackInput(
       session,
       'dashboard',
+      undefined,
+      effectivePrompt,
     );
     const traceStamp = (result: CommandResult) =>
       finalizeCommandTraceResult(
@@ -1203,6 +1210,10 @@ export class AiCommandService {
         confidence:
           typeof parsed.confidence === 'number' ? parsed.confidence : 0,
         trace: understandTrace,
+        locale:
+          typeof session?.context?.locale === 'string'
+            ? session.context.locale
+            : undefined,
       });
       this.aiEvents.emitClarify(businessId, {
         action: 'unknown',
@@ -1343,6 +1354,9 @@ export class AiCommandService {
       parsed.action,
       effectivePrompt,
       parsed.params,
+      typeof session?.context?.locale === 'string'
+        ? session.context.locale
+        : undefined,
     );
     if (securityDenied) {
       return traceStamp(securityDenied);
@@ -1469,15 +1483,6 @@ export class AiCommandService {
       });
     }
 
-    const autoExecuteFlag = resolveAutoExecute({
-      action: parsed.action,
-      stepCount: 1,
-      providerCount:
-        resolveEmployees(employees, resolved.enrichedParams).length || 1,
-      confidence,
-      thresholds: confidenceThresholds,
-    });
-
     const confirmed = isExecutionConfirmed(session);
     const handoffConfirmPrompt =
       typeof guideHandoff?.params?.prompt === 'string'
@@ -1509,35 +1514,11 @@ export class AiCommandService {
       return traceStamp(confirmResult);
     }
 
-    const bulkConfirmActions = new Set([
-      'cancel_bookings',
-      'update_bookings',
-      'bulk_smart_cancel',
-      'clear_schedule',
-      'hide_appointments_from_calendar',
-      'setup_week_schedule',
-      'create_services',
-      'mark_no_shows',
-      'no_show_recovery',
-      'payment_sweep',
-      'day_replan',
-      'sick_day_replan',
-      'import_services_from_menu',
-      'update_service_prices',
-      'configure_service_online_payment',
-      'staff_service_matrix',
-      'bulk_create_catalog',
-      'create_package',
-      'create_subscription_plan',
-      'merge_customers',
-      'delete_customer_data',
-      'privacy_delete',
-    ]);
+    // e2e-bug.161 / e2e-bug.164 — high-risk mutates always require confirmation
+    // when not yet confirmed (registry-driven policy, not ad hoc inline lists).
     if (
-      bulkConfirmActions.has(parsed.action) &&
-      !confirmed &&
-      autoExecuteFlag &&
-      confidence >= aiConfig.confidence.low
+      requiresDashboardExecutionConfirmation(parsed.action) &&
+      !confirmed
     ) {
       const confirmResult = buildExecutionConfirmationResult(
         parsed.action,
@@ -1787,6 +1768,19 @@ export class AiCommandService {
                               if (scheduleHandlersResult != null) {
                                 result = scheduleHandlersResult;
                               } else {
+                                const metaOpsResult =
+                                  await this.metaOps.dispatchIntent({
+                                    businessId,
+                                    action: parsed.action,
+                                    params,
+                                    membershipRole:
+                                      session?.context?._membershipRole as
+                                        | string
+                                        | undefined,
+                                  });
+                                if (metaOpsResult != null) {
+                                  result = metaOpsResult;
+                                } else {
                                 const operationsResult =
                                   await this.operations.dispatchIntent({
                                     businessId,
@@ -2008,6 +2002,8 @@ export class AiCommandService {
               await this.orchestration.runOrchestrationIntent({
                 businessId,
                 intent: effectivePrompt,
+                // e2e-bug.150 — canonical action, not the raw user prompt.
+                action: 'optimize_schedule',
                 agentType: AgentType.SCHEDULING_OPTIMIZATION,
                 userId,
                 date: params.date,
@@ -2020,6 +2016,7 @@ export class AiCommandService {
               await this.orchestration.runOrchestrationIntent({
                 businessId,
                 intent: effectivePrompt,
+                action: 'resolve_conflicts',
                 agentType: AgentType.CONFLICT_RESOLUTION,
                 userId,
                 date: params.date,
@@ -2032,6 +2029,7 @@ export class AiCommandService {
               await this.orchestration.runOrchestrationIntent({
                 businessId,
                 intent: effectivePrompt,
+                action: 'reassign_cancelled',
                 agentType: AgentType.CANCELLATION_RECOVERY,
                 userId,
                 date: params.date,
@@ -2065,6 +2063,7 @@ export class AiCommandService {
                     }
                   }
                 }
+              }
               }
           }
         }
@@ -2532,6 +2531,16 @@ export class AiCommandService {
       params,
     });
     if (locationsResult != null) return locationsResult;
+
+    const businessHoursLocationResult =
+      await this.businessHoursLocation.dispatchIntent({
+        businessId,
+        action,
+        params,
+        prompt,
+      });
+    if (businessHoursLocationResult != null)
+      return businessHoursLocationResult;
 
     const referralStaffTemplatesResult =
       await this.referralStaffTemplates.dispatchIntent({

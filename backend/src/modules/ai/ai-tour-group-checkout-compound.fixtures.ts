@@ -27,7 +27,7 @@ export type TourGroupCheckoutCompoundFixture = {
   misclassifiedAction?: string;
 };
 
-export const TOUR_GROUP_CHECKOUT_CLASSIFIER_RULES = `- tour_group_checkout (compound): customer/public multi-step group tour booking with capacity gate — decomposes to explain_tour_booking (groupSize + pax) → diagnose_tour_capacity (remaining spots for date) → book_nearest_slot|book_appointment when enough seats. Triggers: tour|trek|excursion + N people|guests|pax + date + book|reserve + if enough seats|when capacity allows|book if seats available. Example: "Wine tour for 6 next Saturday — book if enough seats", "Reserve city tour for 8 on 15/08/2026 only if spots remain". NOT diagnose_tour_capacity alone (checkout rejection why), NOT book_tour_nearest_departure (earliest/nearest/ASAP without capacity gate), NOT explain_tour_booking alone (read catalog), NOT book_nearest_slot without tour group + capacity check.`;
+export const TOUR_GROUP_CHECKOUT_CLASSIFIER_RULES = `- tour_group_checkout (compound): customer/public multi-step group tour booking with capacity gate — decomposes to explain_tour_booking (groupSize + pax) → diagnose_tour_capacity (remaining spots for date) → book_nearest_slot|book_appointment when enough seats. Triggers: tour|trek|excursion|hike|drive + N people|guests|pax + date + book|reserve + if enough seats|when capacity allows|book if seats available. Named catalog services without the word "tour" still match when guests/pax + seat capacity gate are present (e.g. "Sunset Coastal Drive for 5 guests — reserve when seats are available"). Example: "Wine tour for 6 next Saturday — book if enough seats", "Reserve city tour for 8 on 15/08/2026 only if spots remain". NOT diagnose_tour_capacity alone (checkout rejection why), NOT book_tour_nearest_departure (earliest/nearest/ASAP without capacity gate), NOT explain_tour_booking alone (read catalog), NOT book_nearest_slot without tour group + capacity check, NOT explain_result_status (clinic lab FAQ — never for seat/capacity booking).`;
 
 export const TOUR_GROUP_CHECKOUT_EN_PROMPTS = [
   {
@@ -52,6 +52,14 @@ export const TOUR_GROUP_CHECKOUT_EN_PROMPTS = [
     id: 'sunset-hike-5-seats',
     prompt: 'Sunset hike for 5 guests — reserve when seats are available',
     serviceName: 'Sunset hike',
+    paxCount: 5,
+  },
+  {
+    // e2e-bug.133 — real catalog name without the word "tour"
+    id: 'sunset-coastal-drive-5-seats',
+    prompt:
+      'Sunset Coastal Drive for 5 guests — reserve when seats are available',
+    serviceName: 'Sunset Coastal Drive',
     paxCount: 5,
   },
   {

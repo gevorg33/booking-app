@@ -13,6 +13,7 @@ import {
 import { sparkles } from 'ionicons/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
 import { ConsumerGuideStepList } from '../components/ConsumerGuideStepList.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
@@ -107,82 +108,88 @@ export default function GuidePage() {
   const primaryColor = profile.branding.primaryColor;
   const accountPath = buildSalonPath(slug, '/account');
 
+  // ConsumerAiShell mounts ConsumerBookingAssistant, which listens for
+  // mobile-guide:assistant-seed — required for "Ask about this section" (e2e-bug.47).
   return (
-    <IonPage className="consumer-guide-page">
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={accountPath} text={copy.guidePageBack} />
-          </IonButtons>
-          <IonTitle>{copy.guidePageTitle}</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent className="ion-padding">
-        <p className="consumer-guide-section__summary">{copy.guidePageSubtitle}</p>
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
+      <IonPage className="consumer-guide-page">
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref={accountPath} text={copy.guidePageBack} />
+            </IonButtons>
+            <IonTitle>{copy.guidePageTitle}</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <p className="consumer-guide-section__summary">{copy.guidePageSubtitle}</p>
 
-        <nav className="consumer-guide-toc" aria-label={copy.guidePageTopicsLabel}>
-          <p className="consumer-guide-toc__label">{copy.guidePageTopicsLabel}</p>
-          {topics.map((topic) => (
-            <button
-              key={topic.topicId}
-              type="button"
-              className={
-                activeTopicId === topic.topicId
-                  ? 'consumer-guide-toc__link consumer-guide-toc__link--active'
-                  : 'consumer-guide-toc__link'
-              }
-              onClick={() => scrollToTopic(topic.topicId)}
-            >
-              {topic.title}
-            </button>
-          ))}
-        </nav>
+          <nav className="consumer-guide-toc" aria-label={copy.guidePageTopicsLabel}>
+            <p className="consumer-guide-toc__label">{copy.guidePageTopicsLabel}</p>
+            {topics.map((topic) => (
+              <button
+                key={topic.topicId}
+                type="button"
+                className={
+                  activeTopicId === topic.topicId
+                    ? 'consumer-guide-toc__link consumer-guide-toc__link--active'
+                    : 'consumer-guide-toc__link'
+                }
+                onClick={() => scrollToTopic(topic.topicId)}
+              >
+                {topic.title}
+              </button>
+            ))}
+          </nav>
 
-        <div>
-          {topics.map((topic) => (
-            <section
-              key={topic.topicId}
-              id={consumerGuideTopicElementId(topic.topicId)}
-              className="consumer-guide-section"
-            >
-              <h2 className="consumer-guide-section__title">{topic.title}</h2>
-              {topic.summary ? (
-                <p className="consumer-guide-section__summary">{topic.summary}</p>
-              ) : null}
-              <ConsumerGuideStepList steps={topic.steps} primaryColor={primaryColor} />
-              <div className="consumer-guide-section__actions">
-                <IonButton
-                  size="small"
-                  fill="clear"
-                  className="consumer-guide-section__ask"
-                  onClick={() =>
-                    fireConsumerGuideAssistantSeed({
-                      topicId: topic.topicId,
-                      topicTitle: topic.title,
-                      walkThroughTemplate: copy.guideWalkThroughTopic,
-                    })
-                  }
-                >
-                  <IonIcon icon={sparkles} slot="start" aria-hidden="true" />
-                  {copy.guidePageAskSection}
-                </IonButton>
-                {topic.navigateTarget ? (
+          <div>
+            {topics.map((topic) => (
+              <section
+                key={topic.topicId}
+                id={consumerGuideTopicElementId(topic.topicId)}
+                className="consumer-guide-section"
+              >
+                <h2 className="consumer-guide-section__title">{topic.title}</h2>
+                {topic.summary ? (
+                  <p className="consumer-guide-section__summary">{topic.summary}</p>
+                ) : null}
+                <ConsumerGuideStepList steps={topic.steps} primaryColor={primaryColor} />
+                <div className="consumer-guide-section__actions">
                   <IonButton
                     size="small"
-                    fill="outline"
-                    onClick={() => {
-                      const href = resolveConsumerGuideNavigateHref(slug, topic.navigateTarget!);
-                      if (href) history.push(href);
-                    }}
+                    fill="clear"
+                    color="primary"
+                    className="consumer-guide-section__ask"
+                    onClick={() =>
+                      fireConsumerGuideAssistantSeed({
+                        topicId: topic.topicId,
+                        topicTitle: topic.title,
+                        walkThroughTemplate: copy.guideWalkThroughTopic,
+                      })
+                    }
                   >
-                    {copy.guidePageOpenInApp}
+                    <IonIcon icon={sparkles} slot="start" aria-hidden="true" />
+                    {copy.guidePageAskSection}
                   </IonButton>
-                ) : null}
-              </div>
-            </section>
-          ))}
-        </div>
-      </IonContent>
-    </IonPage>
+                  {topic.navigateTarget ? (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      color="primary"
+                      onClick={() => {
+                        const href = resolveConsumerGuideNavigateHref(slug, topic.navigateTarget!);
+                        if (href) history.push(href);
+                      }}
+                    >
+                      {copy.guidePageOpenInApp}
+                    </IonButton>
+                  ) : null}
+                </div>
+              </section>
+            ))}
+          </div>
+        </IonContent>
+      </IonPage>
+    </ConsumerAiShell>
   );
 }

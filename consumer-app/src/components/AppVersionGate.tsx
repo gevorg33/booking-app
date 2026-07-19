@@ -1,11 +1,17 @@
+import { useMemo } from 'react';
 import { consumerCopyForLocale } from '../lib/copy.js';
 import { useMobileAppVersionPolicy } from '../hooks/use-mobile-app-version-policy.js';
 import { AppUpdateNudgeBanner } from './AppUpdateNudgeBanner.js';
 
 /** Blocks broken builds and prompts for required updates (adopt-5.5). */
 export function AppVersionGate({ children }: { children: React.ReactNode }) {
-  const copy = consumerCopyForLocale(
-    typeof navigator !== 'undefined' ? navigator.language : 'en',
+  // Memoize so useMobileAppVersionPolicy effect deps stay referentially stable (e2e-bug.14).
+  const copy = useMemo(
+    () =>
+      consumerCopyForLocale(
+        typeof navigator !== 'undefined' ? navigator.language : 'en',
+      ),
+    [],
   );
   const { blocked, nudge, dismissNudge } = useMobileAppVersionPolicy({
     surface: 'consumer_app',

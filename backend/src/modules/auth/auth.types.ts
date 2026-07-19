@@ -19,6 +19,8 @@ export interface BusinessAuthSummary {
   dateFormat: string;
   timeFormat: string;
   currency: string;
+  /** Safe settings slice (e.g. businessType) — e2e-bug.61 */
+  settings: Record<string, unknown>;
   membershipRole: MemberRole;
   employee: { id: string; name: string } | null;
 }
@@ -42,6 +44,8 @@ export interface AuthResponse {
     dateFormat: string;
     timeFormat: string;
     currency: string;
+    /** Safe settings slice (e.g. businessType) — e2e-bug.61 */
+    settings: Record<string, unknown>;
     membershipRole: MemberRole;
   } | null;
   employee: { id: string; name: string } | null;

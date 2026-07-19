@@ -178,8 +178,8 @@ export class SchedulingResourcesService {
       .andWhere('booking.status != :cancelled', {
         cancelled: BookingStatus.CANCELLED,
       })
-      .andWhere('booking.start_time < :endTime', { endTime })
-      .andWhere('booking.end_time > :startTime', { startTime });
+      .andWhere('booking.startTime < :endTime', { endTime })
+      .andWhere('booking.endTime > :startTime', { startTime });
 
     if (excludeBookingId) {
       qb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
@@ -188,8 +188,8 @@ export class SchedulingResourcesService {
     const rows = await qb
       .select('br.resource_id', 'resourceId')
       .addSelect('booking.id', 'bookingId')
-      .addSelect('booking.start_time', 'startTime')
-      .addSelect('booking.end_time', 'endTime')
+      .addSelect('booking.startTime', 'startTime')
+      .addSelect('booking.endTime', 'endTime')
       .getRawMany<{
         resourceId: string;
         bookingId: string;

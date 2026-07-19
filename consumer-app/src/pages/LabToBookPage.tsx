@@ -14,6 +14,8 @@ import {
   getCustomerToken,
   getStoredCustomerProfile,
 } from '../lib/customer-auth.js';
+import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { fetchMyClinicLabBookingRequests } from '../services/public-api.js';
 import { ConsumerMyLabBookingRequestsList } from '../components/ConsumerMyLabBookingRequestsList.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
@@ -34,6 +36,7 @@ export default function LabToBookPage({
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
+  const clinicEnabled = shouldShowPatientResultsTab(profile.businessType);
   const { locale, copy } = useConsumerCopy(slug, profile);
 
   const navigateToAlertSection = (route: ConsumerPatientAlertRoute, anchorId: string) => {
@@ -46,10 +49,11 @@ export default function LabToBookPage({
     }, 150);
   };
 
+  // e2e-bug.43 — never hit clinic APIs for non-clinic businesses (avoids 403 retry storm).
   const labBookingRequestsQuery = useQuery({
     queryKey: ['clinic-lab-booking-requests', slug],
     queryFn: () => fetchMyClinicLabBookingRequests(slug),
-    enabled: authed,
+    enabled: clinicEnabled && authed,
   });
 
   return (
@@ -77,6 +81,7 @@ export default function LabToBookPage({
             <ConsumerPatientAlertsBanner
               slug={slug}
               copy={copy}
+              businessType={profile.businessType}
               onNavigate={navigateToAlertSection}
             />
             <div id="my-lab-requests">
@@ -86,9 +91,10 @@ export default function LabToBookPage({
                 loading={labBookingRequestsQuery.isLoading}
                 error={
                   labBookingRequestsQuery.isError
-                    ? labBookingRequestsQuery.error instanceof Error
-                      ? labBookingRequestsQuery.error.message
-                      : copy.myLabToBookLoadFailed
+                    ? formatFriendlyNetworkError(
+                        labBookingRequestsQuery.error,
+                        copy.myLabToBookLoadFailed,
+                      )
                     : null
                 }
                 locale={locale}

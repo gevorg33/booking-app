@@ -62,6 +62,12 @@ export function buildSelfServiceBookingDispatchMap(): ReadonlyMap<
       sessionCustomerId: ctx.sessionCustomerId,
     }),
   );
+  map.set('cancel_my_subscription', async (service, ctx) =>
+    service.handleCancelMySubscription(ctx.businessId, {
+      ...ctx.params,
+      sessionCustomerId: ctx.sessionCustomerId,
+    }),
+  );
   map.set('cancel_my_booking', async (service, ctx) =>
     service.handleCancelMyBooking(ctx.businessId, {
       ...ctx.params,
@@ -69,11 +75,26 @@ export function buildSelfServiceBookingDispatchMap(): ReadonlyMap<
       bookingId: ctx.params.bookingId ?? ctx.sessionBookingId,
     }),
   );
+  map.set('leave_visit_review', async (service, ctx) =>
+    service.handleLeaveVisitReview(
+      ctx.businessId,
+      {
+        ...ctx.params,
+        sessionCustomerId: ctx.sessionCustomerId,
+        bookingId: ctx.params.bookingId ?? ctx.sessionBookingId,
+      },
+      ctx.prompt,
+    ),
+  );
   map.set('cancel_all_upcoming_bookings', async (service, ctx) =>
-    service.handleCancelAllUpcomingBookings(ctx.businessId, {
-      ...ctx.params,
-      sessionCustomerId: ctx.sessionCustomerId,
-    }),
+    service.handleCancelAllUpcomingBookings(
+      ctx.businessId,
+      {
+        ...ctx.params,
+        sessionCustomerId: ctx.sessionCustomerId,
+      },
+      ctx.prompt,
+    ),
   );
   map.set('reschedule_my_booking', async (service, ctx) =>
     service.handleRescheduleMyBooking(ctx.businessId, {

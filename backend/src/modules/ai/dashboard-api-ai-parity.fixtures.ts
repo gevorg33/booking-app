@@ -39,18 +39,27 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     restPath:
       'GET ai/suggestions, ai/capabilities, ai/settings, ai/analytics, ai/audit, ai/briefing, ai/weekly-report',
     apiModule: 'ai-command',
-    coverage: { kind: 'dashboard-ai', intents: ['explain_ai_settings'] },
-    notes:
-      'Read helpers sparse — suggestions surface as chips, not a distinct AI command',
+    coverage: {
+      kind: 'dashboard-ai',
+      intents: [
+        'explain_ai_settings',
+        'summarize_ai_briefing',
+        'summarize_ai_weekly_report',
+        'explain_ai_audit_log',
+        'explain_ai_usage_analytics',
+        'explain_ai_capabilities',
+        'summarize_ai_settings',
+      ],
+    },
+    notes: 'ai/suggestions surfaces as chips, not a distinct AI command',
   },
   {
     id: 'dapi-ai-settings-put',
     restPath: 'PUT ai/settings',
     apiModule: 'ai-command',
     coverage: {
-      kind: 'no-ai',
-      reason:
-        'Autopilot/macros panel overlaps proposed configure_ai_autopilot (2.21), not yet a shipped intent',
+      kind: 'dashboard-ai',
+      intents: ['configure_ai_autopilot'],
     },
   },
   {
@@ -342,7 +351,7 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     apiModule: 'customer-crm',
     coverage: {
       kind: 'dashboard-ai',
-      intents: ['summarize_customers', 'lookup_customer'],
+      intents: ['summarize_customers', 'lookup_customer', 'list_customers'],
     },
   },
   {
@@ -402,7 +411,17 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     id: 'dapi-patient-results',
     restPath: 'GET orders, results (chart)',
     apiModule: 'clinic-test-results',
-    coverage: { kind: 'dashboard-ai', intents: ['explain_patient_results'] },
+    coverage: {
+      kind: 'dashboard-ai',
+      intents: [
+        'explain_patient_results',
+        'list_abnormal_results',
+        'explain_lab_result_history',
+        'list_test_orders',
+      ],
+    },
+    notes:
+      'Same reads as dapi-clinic-test-results-reads/dapi-specimen-label-history (ai-cmd-dashboard-6.9) — this row tracks the chart-view surface specifically',
   },
   {
     id: 'dapi-customer-data-gdpr',
@@ -570,6 +589,7 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
       kind: 'dashboard-ai',
       intents: ['refund_gift_card_order', 'cancel_gift_card_order'],
     },
+    notes: 'Both now clarify for a reason before executing the refund/cancel',
   },
 
   // ai-cmd-dashboard-6.11 — Subscriptions, loyalty & promos
@@ -616,7 +636,11 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     apiModule: 'marketing-growth',
     coverage: {
       kind: 'dashboard-ai',
-      intents: ['create_promo_code', 'deactivate_promo_code'],
+      intents: [
+        'list_promo_codes',
+        'create_promo_code',
+        'deactivate_promo_code',
+      ],
     },
   },
 
@@ -693,6 +717,7 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
         'create_resource',
         'assign_booking_resource',
         'deactivate_resource',
+        'list_service_resource_requirements',
         'set_service_resource_requirements',
       ],
     },

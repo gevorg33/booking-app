@@ -13,7 +13,7 @@ import {
 } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
-import { formatBookingDateTimeRange } from '@/lib/date-format';
+import { formatPublicReviewAppointmentRange } from '@/lib/public-review-appointment.util';
 
 function StarPicker({
   value,
@@ -110,8 +110,6 @@ export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
       );
     }
 
-    const when = new Date(ctx.appointmentDate);
-
     return (
       <form
         onSubmit={(e) => {
@@ -136,7 +134,11 @@ export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
             {ctx.serviceName}
           </p>
           <p>
-            {formatBookingDateTimeRange(when, when, locale)}
+            {formatPublicReviewAppointmentRange(
+              ctx.appointmentDate,
+              ctx.appointmentEndDate,
+              locale,
+            )}
           </p>
         </div>
 
@@ -151,7 +153,7 @@ export function ReviewClient({ tenant }: { tenant: PublicBusinessProfile }) {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={4}
-            className="input w-full mt-1 text-sm"
+            className="w-full mt-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder={t('public.reviewCommentPlaceholder')}
           />
         </label>

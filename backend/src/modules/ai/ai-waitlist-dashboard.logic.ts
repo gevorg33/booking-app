@@ -1,5 +1,9 @@
 import type { Repository } from 'typeorm';
 import type { Customer } from '../customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../customer/customer-tag-query.util.js';
 import type { CommandResult } from './command-completion.types.js';
 
 export interface WaitlistDashboardLogicDeps {
@@ -25,12 +29,12 @@ export async function handleListWaitlistEntriesLogic(
 ): Promise<CommandResult> {
   const limit = typeof params.limit === 'number' ? params.limit : 20;
 
-  const waitlist = await deps.customerRepo
+  const waitlistQb = deps.customerRepo
     .createQueryBuilder('c')
     .where('c.business_id = :businessId', { businessId })
-    .andWhere(`'waitlist' = ANY(c.tags)`)
-    .orderBy('c.name', 'ASC')
-    .getMany();
+    .orderBy('c.name', 'ASC');
+  andWhereSimpleArrayTag(waitlistQb, 'c', WAITLIST_CUSTOMER_TAG, 'waitlistTag');
+  const waitlist = await waitlistQb.getMany();
 
   if (waitlist.length === 0) {
     return success(
@@ -84,12 +88,12 @@ export async function handleOfferWaitlistSlotLogic(
     );
   }
 
-  const waitlist = await deps.customerRepo
+  const waitlistQb = deps.customerRepo
     .createQueryBuilder('c')
     .where('c.business_id = :businessId', { businessId })
-    .andWhere(`'waitlist' = ANY(c.tags)`)
-    .orderBy('c.name', 'ASC')
-    .getMany();
+    .orderBy('c.name', 'ASC');
+  andWhereSimpleArrayTag(waitlistQb, 'c', WAITLIST_CUSTOMER_TAG, 'waitlistTag');
+  const waitlist = await waitlistQb.getMany();
 
   if (waitlist.length === 0) {
     return failure(

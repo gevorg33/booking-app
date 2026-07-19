@@ -45,6 +45,13 @@ export function isExplainPackageSavingsPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (matchExplainPackageSavingsScenario(text)) return true;
+  // e2e-bug.132 — "whats the deal if i cancel" is cancel policy, not package pricing.
+  if (
+    /\b(cancel|cancellation|cancelation)\b/i.test(text) &&
+    !hasPackageTargetCue(text)
+  ) {
+    return false;
+  }
   if (isDiscoverPackagesPrompt(text) && !hasPackageSavingsCue(text))
     return false;
   if (isCheckPackageAvailabilityPrompt(text) && !hasPackageSavingsCue(text)) {
@@ -67,8 +74,9 @@ function hasPackageSavingsCue(prompt: string): boolean {
   );
 }
 
+/** Real package/bundle target — bare "deal" alone is colloquial ("what's the deal"), not a package. */
 function hasPackageTargetCue(prompt: string): boolean {
-  return /\b(package|bundle|deal|spa\s+day|spa\s+package)\b/i.test(prompt);
+  return /\b(package|bundle|spa\s+day|spa\s+package)\b/i.test(prompt);
 }
 
 export function enrichExplainPackageSavingsParamsFromPrompt(

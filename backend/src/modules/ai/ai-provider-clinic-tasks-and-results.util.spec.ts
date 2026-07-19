@@ -86,6 +86,26 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
     expect(isListClinicTasksPrompt('Show my lab results queue')).toBe(false);
   });
 
+  it('e2e-bug.152 — does not steal dashboard AI agent task prompts', () => {
+    expect(isListClinicTasksPrompt('Show me pending AI agent tasks')).toBe(
+      false,
+    );
+    expect(isListClinicTasksPrompt('show pending agent tasks')).toBe(false);
+    expect(isListClinicTasksPrompt('Show the agent task queue')).toBe(false);
+    expect(
+      rescueProviderClinicTasksAndResultsIntent(
+        'Show me pending AI agent tasks',
+        'list_agent_tasks',
+      ),
+    ).toBeNull();
+    expect(
+      rescueProviderClinicTasksAndResultsIntent(
+        'Show me pending AI agent tasks',
+        'unknown',
+      ),
+    ).toBeNull();
+  });
+
   it('detects explain_clinic_task prompts (ai-cmd-provider-5.19.5)', () => {
     expect(isExplainClinicTaskPrompt('What is this follow-up task?')).toBe(
       true,

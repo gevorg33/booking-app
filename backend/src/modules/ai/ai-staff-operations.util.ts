@@ -234,32 +234,57 @@ export function isUpdateTeamMemberRolePrompt(prompt: string): boolean {
 }
 
 export function isDeactivateEmployeePrompt(prompt: string): boolean {
-  const lower = prompt.toLowerCase();
+  // e2e-bug.144 — catalog service delete/remove is deactivate_service.
+  if (
+    /\b(?:delete|remove|deactivate|hide)\s+(?:the\s+)?service\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:catalog|service\s+menu|offering)\b/i.test(prompt) &&
+    /\bservices?\b/i.test(prompt) &&
+    !/\b(?:employee|provider|stylist|staff|team member|roster)\b/i.test(
+      prompt.replace(/\bnot\s+a\b[\w\s]*\bemployee\b/gi, ' '),
+    )
+  ) {
+    return false;
+  }
+  // "not a … employee action" must not count as an employee cue.
+  const withoutNegatedEmployee = prompt.replace(
+    /\bnot\s+(?:a\s+)?(?:cart\s+or\s+)?employee(?:\s+action)?\b/gi,
+    ' ',
+  );
+
+  const lower = withoutNegatedEmployee.toLowerCase();
   if (
     matchLocale(lower, /(?:ապաակտիվ|հեռացր|ջնջ|արխիվ|offboard)/u) &&
     (/(?:աշխատակից|provider|stylist|staff|team|employee|roster)/iu.test(
-      prompt,
+      withoutNegatedEmployee,
     ) ||
-      /թիմից/iu.test(prompt))
+      /թիմից/iu.test(withoutNegatedEmployee))
   ) {
     return true;
   }
   if (
     matchLocale(lower, /(?:деактив|удал|убер|архив|снять|offboard)/u) &&
     (/(?:сотрудник|provider|stylist|staff|команд|employee|roster)/iu.test(
-      prompt,
+      withoutNegatedEmployee,
     ) ||
-      /из\s+команд/i.test(prompt))
+      /из\s+команд/i.test(withoutNegatedEmployee))
   ) {
     return true;
   }
   return (
-    /\b(?:deactivate|remove|delete|offboard|archive)\b/i.test(prompt) &&
+    /\b(?:deactivate|remove|delete|offboard|archive)\b/i.test(
+      withoutNegatedEmployee,
+    ) &&
     (/\b(?:employee|provider|stylist|staff|team member|specialist|roster)\b/i.test(
-      prompt,
+      withoutNegatedEmployee,
     ) ||
-      /\bfrom\s+(?:the\s+)?(?:team|staff|roster)\b/i.test(prompt)) &&
-    !/\b(?:appointment|booking|schedule)\b/i.test(prompt)
+      /\bfrom\s+(?:the\s+)?(?:team|staff|roster)\b/i.test(
+        withoutNegatedEmployee,
+      )) &&
+    !/\b(?:appointment|booking|schedule)\b/i.test(withoutNegatedEmployee)
   );
 }
 

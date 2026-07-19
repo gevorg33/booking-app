@@ -36,6 +36,9 @@ describe('ai-explain-rtl-layout.logic', () => {
     );
     expect(result.success).toBe(true);
     expect(result.details?.aspect).toBe('logical_css');
-    expect(result.summary).toContain('adoption-a11y.css');
+    // e2e-bug.86 — customer summary must not name the stylesheet.
+    expect(result.summary).not.toContain('adoption-a11y.css');
+    expect(result.summary).toMatch(/direction-aware|reading direction/i);
+    expect(result.details?.adoptionA11yStylesheet).toBe(ADOPTION_A11Y_STYLESHEET);
   });
 });

@@ -38,6 +38,7 @@ import { TemplatePeriodType } from '../schedule/entities/scheduling-template-per
 import {
   buildBlockScheduleBlockPayloads,
   enhanceSmartBlockParams,
+  scheduleBlockMatchesIsoDay,
 } from './ai-scheduling.util.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
@@ -1235,13 +1236,14 @@ export class AiScheduleHandlersService {
       };
     }
 
-    const date = (params.date as string | undefined) ?? undefined;
+    // Prefer explicit date; fall back to dates parsed from the prompt (e2e-bug.136).
+    const rawDate =
+      (typeof params.date === 'string' && params.date.trim()) ||
+      resolveScheduleDates(params, prompt)[0] ||
+      undefined;
+    const date = rawDate ? toIsoDay(rawDate) : undefined;
     const candidates = date
-      ? blocks.filter(
-          (b: any) =>
-            b.startDay === date ||
-            (b.startDay <= date && (!b.endDay || b.endDay >= date)),
-        )
+      ? blocks.filter((b: any) => scheduleBlockMatchesIsoDay(b, date))
       : blocks;
 
     if (candidates.length !== 1) {
@@ -1261,8 +1263,12 @@ export class AiScheduleHandlersService {
     return {
       success: true,
       action: 'delete_schedule_block',
-      summary: `Deleted schedule block for ${employee.name}.`,
-      details: { blockId: block.id, employeeId: employee.id },
+      summary: `Deleted schedule block for ${employee.name}${date ? ` on ${formatDateDisplay(date)}` : ''}.`,
+      details: {
+        blockId: block.id,
+        employeeId: employee.id,
+        ...(date ? { date } : {}),
+      },
     };
   }
 

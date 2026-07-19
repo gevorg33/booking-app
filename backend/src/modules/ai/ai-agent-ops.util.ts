@@ -28,8 +28,21 @@ export function extractAgentTaskIdFromPrompt(prompt: string): string | null {
 }
 
 export function isListAgentTasksPrompt(prompt: string): boolean {
-  return /\b(agent\s+tasks?|pending\s+tasks?|task\s+queue)\b/i.test(prompt) &&
-    !/\b(rebook|undo)\b/i.test(prompt);
+  // e2e-bug.139 — support tickets / unread messages are not agent tasks.
+  if (
+    /\b(support\s+tickets?|zendesk\s+tickets?)\b/i.test(prompt) ||
+    (/\bunread\b/i.test(prompt) && /\bmessages?\b/i.test(prompt)) ||
+    /\bcustomer\s+messages?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  return (
+    (/\b(agent\s+tasks?|pending\s+tasks?|task\s+queue|ai\s+agent\s+tasks?)\b/i.test(
+      prompt,
+    ) ||
+      /\bpending\s+ai\s+agent\s+tasks?\b/i.test(prompt)) &&
+    !/\b(rebook|undo)\b/i.test(prompt)
+  );
 }
 
 export function isRebookAllFromAgentTaskPrompt(prompt: string): boolean {

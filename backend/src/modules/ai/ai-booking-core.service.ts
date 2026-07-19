@@ -14,6 +14,10 @@ import {
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../customer/customer-tag-query.util.js';
 import { Business } from '../business/entities/business.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import {
@@ -358,7 +362,10 @@ import { enrichServiceDepositPolicyParamsFromPrompt } from './ai-service-deposit
 import { enrichNotificationSettingsParamsFromPrompt } from './ai-notification-settings.util.js';
 import { enrichWhatsappIntegrationParamsFromPrompt } from './ai-whatsapp-integration.util.js';
 import { enrichOpenaiIntegrationParamsFromPrompt } from './ai-openai-integration.util.js';
-import { composeSummarizeBookingsResult } from './ai-dashboard-summarize-bookings.logic.js';
+import {
+  composeSummarizeBookingsResult,
+  isUnscopedBookingCountPrompt,
+} from './ai-dashboard-summarize-bookings.logic.js';
 import { enrichOfferWaitlistSlotParams } from './ai-waitlist-dashboard.util.js';
 import { parseUpdateServiceDurationBufferFromPrompt } from './ai-service-duration-buffer.util.js';
 import { enrichConfigureStripeConnectParamsFromPrompt } from './ai-stripe-connect.util.js';
@@ -1212,10 +1219,22 @@ export class AiBookingCoreService {
       lines.push(
         `• ${summary.totalCustomers} active customers`,
         `• ${summary.totalNoShows} total no-shows across all customers`,
+        // e2e-bug.155 — never imply "no cancellations" when the aggregate exists.
+        `• ${summary.totalCancellations} total cancellations across all customers`,
         `• ${summary.atRiskCount} at-risk · ${summary.highNoShowCount} high no-show · ${summary.vipCount} VIP`,
       );
       if (rows.length > 0) {
         lines.push('', 'Top no-shows:');
+      }
+    } else {
+      // e2e-bug.153 — ranked/segment lists must never be read as the roster total.
+      lines.push(
+        `• ${summary.totalCustomers} active customers in total (ranking below is filtered, not the full count)`,
+      );
+      if (metric === 'most_cancellations') {
+        lines.push(
+          `• ${summary.totalCancellations} total cancellations across all customers`,
+        );
       }
     }
 
@@ -1278,23 +1297,29 @@ export class AiBookingCoreService {
     const businessSettings = business?.settings ?? {};
 
     const metric = resolveBookingMetric(params, prompt) ?? 'overview';
-    const range =
-      resolveDateRange(params, prompt) ??
-      (() => {
-        const iso = params.date ?? new Date().toISOString().split('T')[0];
-        return { start: iso, end: iso };
-      })();
+    // e2e-bug.154 — unscoped "in total" must not silently default to today.
+    const allTime =
+      params.allTime === true || isUnscopedBookingCountPrompt(prompt);
+    const range = resolveDateRange(params, prompt);
+    const effectiveRange =
+      range ??
+      (allTime
+        ? null
+        : (() => {
+            const iso = params.date ?? new Date().toISOString().split('T')[0];
+            return { start: iso, end: iso };
+          })());
 
-    const start = new Date(range.start);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(range.end);
-    end.setUTCHours(23, 59, 59, 999);
-
-    const where: Record<string, unknown> = {
-      businessId,
-      startTime: Between(start, end),
-    };
+    const where: Record<string, unknown> = { businessId };
     if (employeeId) where.employeeId = employeeId;
+
+    if (effectiveRange) {
+      const start = new Date(effectiveRange.start);
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(effectiveRange.end);
+      end.setUTCHours(23, 59, 59, 999);
+      where.startTime = Between(start, end);
+    }
 
     const bookings = await this.bookingRepo.find({
       where: where,
@@ -1302,11 +1327,17 @@ export class AiBookingCoreService {
       order: { startTime: 'ASC' },
     });
 
+    const resolvedRange = effectiveRange ?? {
+      start: 'all-time',
+      end: 'all-time',
+    };
+
     return composeSummarizeBookingsResult({
       bookings,
       businessSettings,
       metric,
-      range,
+      range: resolvedRange,
+      allTime: allTime || !effectiveRange,
       employeeId,
       employeeName,
       statusFilter: params.statusFilter as string | undefined,
@@ -1825,12 +1856,17 @@ export class AiBookingCoreService {
   ): Promise<CommandResult> {
     const limit = typeof params.limit === 'number' ? params.limit : 10;
 
-    const waitlist = await this.customerRepo
+    const waitlistQb = this.customerRepo
       .createQueryBuilder('c')
       .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .orderBy('c.name', 'ASC')
-      .getMany();
+      .orderBy('c.name', 'ASC');
+    andWhereSimpleArrayTag(
+      waitlistQb,
+      'c',
+      WAITLIST_CUSTOMER_TAG,
+      'waitlistTag',
+    );
+    const waitlist = await waitlistQb.getMany();
 
     const cancelledWhere: Record<string, unknown> = {
       businessId,
@@ -2481,11 +2517,16 @@ export class AiBookingCoreService {
       };
     }
 
-    const waitlist = await this.customerRepo
+    const waitlistQb = this.customerRepo
       .createQueryBuilder('c')
-      .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .getMany();
+      .where('c.business_id = :businessId', { businessId });
+    andWhereSimpleArrayTag(
+      waitlistQb,
+      'c',
+      WAITLIST_CUSTOMER_TAG,
+      'waitlistTag',
+    );
+    const waitlist = await waitlistQb.getMany();
 
     if (waitlist.length === 0) {
       return {

@@ -4,6 +4,7 @@ import { Booking } from './entities/booking.entity.js';
 import { BookingCheckoutDraft } from './entities/booking-checkout-draft.entity.js';
 import { BookingService } from './booking.service.js';
 import { BookingPaymentService } from './booking-payment.service.js';
+import { BookingRefundService } from './booking-refund.service.js';
 import { BookingSlotResolverService } from './booking-slot-resolver.service.js';
 import { BookingController } from './booking.controller.js';
 import { BookingCreatedListener } from './listeners/booking-created.listener.js';
@@ -78,11 +79,17 @@ import { AppEvent } from '../analytics/entities/app-event.entity.js';
   providers: [
     BookingService,
     BookingPaymentService,
+    BookingRefundService,
     BookingSlotResolverService,
     BookingCreatedListener,
     BookingCompletedListener,
     BookingLifecycleListener,
   ],
-  exports: [BookingService, BookingPaymentService, BookingSlotResolverService],
+  exports: [
+    BookingService,
+    BookingPaymentService,
+    BookingRefundService,
+    BookingSlotResolverService,
+  ],
 })
 export class BookingModule {}

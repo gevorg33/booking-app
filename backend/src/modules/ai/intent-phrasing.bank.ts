@@ -1136,6 +1136,19 @@ export const CANONICAL_PHRASING_BANK: CanonicalPhrasingBankDocument = {
       ],
     },
     {
+      id: 'en-metric-customer-overview-count',
+      action: 'summarize_customers',
+      phrase: 'how many customers do i have',
+      locale: 'en',
+      surfaces: ['dashboard'],
+      paramHints: { customerMetric: 'overview' },
+      conceptGroups: [
+        ['how', 'many', 'count', 'total', 'number'],
+        ['customers', 'clients'],
+        ['have', 'got', 'altogether'],
+      ],
+    },
+    {
       id: 'en-metric-customer-no-shows',
       action: 'summarize_customers',
       phrase: 'customers with the most no shows',

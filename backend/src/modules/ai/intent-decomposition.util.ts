@@ -218,6 +218,10 @@ import {
   isGuestManageVisitCompoundPrompt,
   GUEST_MANAGE_VISIT_RECIPE_ID,
 } from './ai-guest-manage-visit-compound.util.js';
+import {
+  decomposePublicAssistantCompoundPrompt,
+  isPublicAssistantCompoundPrompt,
+} from './ai-public-assistant-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -290,6 +294,7 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeMultiServiceDayCompoundPrompt,
   decomposeGuestBookAndManageCompoundPrompt,
   decomposeGuestManageVisitCompoundPrompt,
+  decomposePublicAssistantCompoundPrompt,
 };
 
 function buildBookPackageWithNearestSlotGoldenSteps(
@@ -1308,6 +1313,7 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (isGuestPayCashManageCompoundPrompt(trimmed)) return true;
   if (isGuestBookAndManageCompoundPrompt(trimmed)) return true;
   if (isGuestManageVisitCompoundPrompt(trimmed)) return true;
+  if (isPublicAssistantCompoundPrompt(trimmed)) return true;
   if (isMultiServiceDayCompoundPrompt(trimmed)) return true;
   if (isProviderSameDayMultiCompoundPrompt(trimmed)) return true;
   if (isGiftCardCheckoutCompoundPrompt(trimmed)) return true;

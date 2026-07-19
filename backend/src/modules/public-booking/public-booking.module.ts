@@ -19,8 +19,10 @@ import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { SchedulingSlot } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
+import { PackagePurchase } from '../service-packages/entities/service-package.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
 import { SchedulingEngineModule } from '../../engine/scheduling/scheduling-engine.module.js';
 import { PlanEntitlementsModule } from '../billing/plan-entitlements.module.js';
@@ -53,8 +55,10 @@ import { PublicCustomerWaitlistService } from './public-customer-waitlist.servic
       Service,
       SchedulingSlot,
       SchedulingPeriod,
+      ScheduleTemplate,
       Customer,
       Booking,
+      PackagePurchase,
       Review,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),

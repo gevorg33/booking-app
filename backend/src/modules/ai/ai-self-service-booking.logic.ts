@@ -29,6 +29,12 @@ import {
   matchCustomerOwnedBooking,
 } from './ai-cancel-my-booking.util.js';
 import {
+  buildCancelAllUpcomingClearedSessionContext,
+  buildCancelAllUpcomingPendingSessionContext,
+  enrichCancelAllUpcomingConfirmFromPrompt,
+  isCancelAllUpcomingConfirmed,
+} from './ai-cancel-all-upcoming-bookings.util.js';
+import {
   buildRescheduleMyBookingAmbiguousSummary,
   buildRescheduleOwnedBookingMatchParams,
   enrichRescheduleMyBookingParamsFromPrompt,
@@ -740,6 +746,67 @@ export async function handleUseSubscriptionCreditLogic(
   );
 }
 
+export async function handleCancelMySubscriptionLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure(
+      'cancel_my_subscription',
+      'Sign in to cancel your subscription.',
+      { clarify: true },
+    );
+  }
+
+  const subs = await deps.subscriptionsService.listCustomerSubscriptions(
+    businessId,
+    customerId,
+  );
+  if (!subs.length) {
+    return failure(
+      'cancel_my_subscription',
+      'You have no subscription to cancel.',
+      { clarify: true },
+    );
+  }
+
+  const active = subs.filter((s) => s.status === 'active');
+  const sub = params.subscriptionId
+    ? subs.find((s) => s.id === params.subscriptionId)
+    : active[0];
+
+  if (!sub) {
+    return failure(
+      'cancel_my_subscription',
+      active.length > 1
+        ? 'You have multiple subscriptions — specify which one to cancel.'
+        : 'Subscription not found.',
+      { clarify: true, subscriptions: subs },
+    );
+  }
+
+  const { refundStatus } = await deps.subscriptionsService.cancelSubscription(
+    businessId,
+    sub.id,
+  );
+  const planLabel = (sub as any).plan?.name ?? 'membership';
+  const summary =
+    refundStatus === 'refunded'
+      ? `Cancelled your "${planLabel}" membership — we've refunded your payment to your original payment method.`
+      : refundStatus === 'failed'
+        ? `Cancelled your "${planLabel}" membership, but the automatic refund didn't go through — please contact the salon about your refund.`
+        : refundStatus === 'ineligible'
+          ? `Cancelled your "${planLabel}" membership. Since you've already used a visit on this membership, it isn't eligible for a refund.`
+          : `Cancelled your "${planLabel}" membership.`;
+
+  return success('cancel_my_subscription', summary, {
+    subscriptionId: sub.id,
+    refundStatus,
+  });
+}
+
 async function resolveOwnedBooking(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
@@ -848,22 +915,25 @@ export async function handleCancelMyBookingLogic(
   }
 
   try {
-    const { booking: cancelled } =
+    const { booking: cancelled, refundStatus } =
       await deps.publicCustomerBookingService.cancelBooking(
         slug,
         customerId,
         booking.id,
       );
     const serviceLabel = booking.service?.name ?? 'appointment';
-    return success(
-      'cancel_my_booking',
-      `Cancelled your ${serviceLabel} — you're all set, no need to call the salon.`,
-      {
-        bookingId: cancelled.id,
-        status: cancelled.status,
-        serviceName: booking.service?.name ?? null,
-      },
-    );
+    const summary =
+      refundStatus === 'refunded'
+        ? `Cancelled your ${serviceLabel} — you're all set, and we've refunded your payment to your original payment method.`
+        : refundStatus === 'failed'
+          ? `Cancelled your ${serviceLabel}, but the automatic refund didn't go through — please contact the salon about your refund.`
+          : `Cancelled your ${serviceLabel} — you're all set, no need to call the salon.`;
+    return success('cancel_my_booking', summary, {
+      bookingId: cancelled.id,
+      status: cancelled.status,
+      serviceName: booking.service?.name ?? null,
+      refundStatus,
+    });
   } catch (err: any) {
     return failure(
       'cancel_my_booking',
@@ -879,8 +949,19 @@ export async function handleCancelAllUpcomingBookingsLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt = '',
 ): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const history = Array.isArray(params.conversationHistory)
+    ? (params.conversationHistory as Array<{ role: string; content: string }>)
+    : undefined;
+  const merged = enrichCancelAllUpcomingConfirmFromPrompt(
+    textPrompt,
+    params,
+    history,
+  );
+
+  const customerId = resolveSessionCustomerId(merged);
   if (!customerId) {
     return failure(
       'cancel_all_upcoming_bookings',
@@ -893,9 +974,9 @@ export async function handleCancelAllUpcomingBookingsLogic(
   if (!slug)
     return failure('cancel_all_upcoming_bookings', 'Business not found.');
 
-  const confirm = params.confirm === true;
-  const bookingIds = Array.isArray(params.bookingIds)
-    ? (params.bookingIds as unknown[]).filter(
+  const confirm = isCancelAllUpcomingConfirmed(merged);
+  const bookingIds = Array.isArray(merged.bookingIds)
+    ? (merged.bookingIds as unknown[]).filter(
         (id): id is string => typeof id === 'string',
       )
     : undefined;
@@ -911,9 +992,13 @@ export async function handleCancelAllUpcomingBookingsLogic(
       return success(
         'cancel_all_upcoming_bookings',
         "You don't have any upcoming bookings to cancel.",
-        { count: 0 },
+        {
+          count: 0,
+          sessionContext: buildCancelAllUpcomingClearedSessionContext(),
+        },
       );
     }
+    const bookingIdList = result.bookings.map((b) => b.id);
     const lines = result.bookings
       .map(
         (b) =>
@@ -926,9 +1011,12 @@ export async function handleCancelAllUpcomingBookingsLogic(
       {
         clarify: true,
         requiresConfirmation: true,
+        cancelAllUpcomingPending: true,
+        pendingAction: 'cancel_all_upcoming_bookings',
         count: result.count,
         bookings: result.bookings,
-        bookingIds: result.bookings.map((b) => b.id),
+        bookingIds: bookingIdList,
+        sessionContext: buildCancelAllUpcomingPendingSessionContext(bookingIdList),
       },
     );
   }
@@ -942,6 +1030,7 @@ export async function handleCancelAllUpcomingBookingsLogic(
     cancelled: result.cancelled,
     failed: result.failed,
     results: result.results,
+    sessionContext: buildCancelAllUpcomingClearedSessionContext(),
   });
 }
 
@@ -1151,6 +1240,8 @@ export async function handleListMyAppointmentsLogic(
       bookings,
       upcomingCount: upcoming.length,
       summaryLines: lines,
+      // e2e-bug.52 — same Account handoff as my_appointments
+      navigate: { path: 'account', query: { tab: 'bookings' } },
     },
   );
 }

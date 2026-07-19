@@ -23,6 +23,7 @@ import {
   resolveEmployeeLabel,
   runReadTool,
   withResolvedEmployeeParams,
+  buildBlockScheduleParams,
   buildDirectScheduleProposalSteps,
   buildClearScheduleProposalSteps,
   buildApplyScheduleProposalSteps,
@@ -50,16 +51,39 @@ export class BookingToolRegistryService {
 
     return [
       tool(
-        async (input) =>
-          read('list_appointments', {
-            ...buildDateParams(input),
+        async (input) => {
+          // e2e-bug.154 — unscoped totals must not silently become an empty day.
+          const allTime = input.allTime === true;
+          const dateParams = allTime
+            ? {
+                dateFrom: new Date(
+                  Date.now() - 10 * 365.25 * 24 * 60 * 60 * 1000,
+                )
+                  .toISOString()
+                  .slice(0, 10),
+                dateTo: new Date().toISOString().slice(0, 10),
+                allTime: true,
+              }
+            : buildDateParams(input);
+          return read('list_appointments', {
+            ...dateParams,
             employeeId: input.employeeId,
-          }),
+            ...(allTime ? { allTime: true } : {}),
+          });
+        },
         {
           name: 'list_appointments',
           description:
-            'List appointments/bookings for a date or range. Read-only.',
-          schema: dateRangeSchema.extend({ employeeId: z.string().optional() }),
+            'List appointments/bookings for a date or range. Read-only. For "how many bookings in total" / all-time counts with no day/week/month, set allTime=true — never invent a single empty day.',
+          schema: dateRangeSchema.extend({
+            employeeId: z.string().optional(),
+            allTime: z
+              .boolean()
+              .optional()
+              .describe(
+                'True for unqualified all-time booking totals (no named period)',
+              ),
+          }),
         },
       ),
       tool(
@@ -73,6 +97,22 @@ export class BookingToolRegistryService {
           description:
             'Fetch schedule blocks and bookings for provider(s). Read-only.',
           schema: dateRangeSchema.extend({ employeeId: z.string().optional() }),
+        },
+      ),
+      tool(
+        async (input) =>
+          read('list_service_resource_requirements', {
+            serviceName: input.serviceName,
+            serviceId: input.serviceId,
+          }),
+        {
+          name: 'list_service_resource_requirements',
+          description:
+            'List this business\'s configured scheduling resources (rooms/chairs/stations) required for a named catalog service. Read-only. Never invent typical spa equipment — only return configured requirements (or empty).',
+          schema: z.object({
+            serviceName: z.string().optional(),
+            serviceId: z.string().optional(),
+          }),
         },
       ),
       tool(
@@ -839,28 +879,37 @@ export class BookingToolRegistryService {
         },
       ),
       tool(
-        async (input) =>
-          propose(
-            'create_block_schedule',
-            `Block time for ${resolveEmployeeLabel(ctx, input.employeeId, input.employeeName)}`,
-            withResolvedEmployeeParams(ctx, {
-              employeeId: input.employeeId,
-              employeeName: input.employeeName,
-              startTime: input.startTime,
-              endTime: input.endTime,
-              blockFullDay: input.blockFullDay,
-              userId: ctx.userId,
-              ...buildDateParams(input),
-            }),
-            { chainPrevious: input.chainPrevious ?? false },
-          ),
+        async (input) => {
+          try {
+            const params = buildBlockScheduleParams(ctx, input);
+            return propose(
+              'create_block_schedule',
+              `Block time for ${params.employeeName}`,
+              params,
+              { chainPrevious: input.chainPrevious ?? false },
+            );
+          } catch (err: any) {
+            return JSON.stringify({
+              error: err?.message ?? 'Failed to propose block schedule',
+            });
+          }
+        },
         {
           name: 'propose_block_schedule',
-          description: 'PROPOSE block time or full day for a provider.',
+          description:
+            'PROPOSE block time or full day for a provider. For a recurring weekly day off (e.g. "give them Sundays off" over a date range), set applyDays to the weekday number(s) to block (0=Sunday..6=Saturday) — omit applyDays for a single one-off block on `date`.',
           schema: dateRangeSchema.merge(employeeSchema).extend({
             startTime: z.string().optional(),
             endTime: z.string().optional(),
             blockFullDay: z.boolean().optional(),
+            applyDays: z
+              .array(z.number().min(0).max(6))
+              .optional()
+              .describe(
+                'Weekday numbers (0=Sunday..6=Saturday) to block repeatedly across dateFrom/dateTo — required for a recurring day off.',
+              ),
+            weeksCount: z.number().optional(),
+            placeholder: z.string().optional(),
             chainPrevious: z.boolean().optional(),
           }),
         },

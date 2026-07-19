@@ -21,11 +21,16 @@ describe('PublicBookingService growth profile fields', () => {
     })),
   };
 
+  const scheduleTemplateRepo = {
+    find: jest.fn(async () => []),
+  };
+
   const service = createPublicBookingServiceHarness({
     stripeIntegrationService:
       stripeIntegrationService as unknown as StripeIntegrationService,
     configService: config as unknown as ConfigService,
     multiServiceBookingsService: multiServiceBookingsService,
+    scheduleTemplateRepo,
   });
 
   const baseBusiness: Business = {
@@ -103,5 +108,77 @@ describe('PublicBookingService growth profile fields', () => {
       },
     });
     expect(profile.support).toBeUndefined();
+  });
+
+  it('strips XSS mapEmbedHtml on toPublicProfile (e2e-bug.49)', () => {
+    const profile = service.toPublicProfile({
+      ...baseBusiness,
+      settings: {
+        ...baseBusiness.settings,
+        location: {
+          mapEmbedHtml:
+            '<iframe src="https://www.google.com/maps/embed?pb=x" onload="alert(1)"></iframe>',
+        },
+      },
+    });
+    expect(profile.location?.mapEmbedHtml).toBeUndefined();
+  });
+
+  it('keeps sanitized Google Maps embed on toPublicProfile (e2e-bug.49)', () => {
+    const safe =
+      '<iframe src="https://www.google.com/maps/embed?pb=x" width="600" height="450"></iframe>';
+    const profile = service.toPublicProfile({
+      ...baseBusiness,
+      settings: {
+        ...baseBusiness.settings,
+        location: { mapEmbedHtml: safe },
+      },
+    });
+    expect(profile.location?.mapEmbedHtml).toBe(safe);
+  });
+
+  it('exposes openingHours from schedule templates on getProfile (e2e-bug.50)', async () => {
+    const hoursService = createPublicBookingServiceHarness({
+      stripeIntegrationService:
+        stripeIntegrationService as unknown as StripeIntegrationService,
+      configService: config as unknown as ConfigService,
+      multiServiceBookingsService,
+      businessService: {
+        findBySlug: jest.fn(async () => baseBusiness),
+      },
+      scheduleTemplateRepo: {
+        find: jest.fn(async () => [
+          {
+            isActive: true,
+            isDeleted: false,
+            periods: [
+              {
+                type: 'service_block',
+                startTime: '09:00',
+                endTime: '19:00',
+                isActiveOnMonday: true,
+                isActiveOnTuesday: true,
+                isActiveOnWednesday: true,
+                isActiveOnThursday: true,
+                isActiveOnFriday: true,
+              },
+              {
+                type: 'service_block',
+                startTime: '10:00',
+                endTime: '17:00',
+                isActiveOnSaturday: true,
+              },
+            ],
+          },
+        ]),
+      },
+    });
+
+    const profile = await hoursService.getProfile('salon');
+    expect(profile.openingHours?.summaryLines).toEqual([
+      'Mon–Fri 09:00–19:00',
+      'Sat 10:00–17:00',
+      'Sun Closed',
+    ]);
   });
 });

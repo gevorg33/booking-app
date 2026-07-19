@@ -63,6 +63,12 @@ describe('isGetScheduleSummaryPrompt', () => {
   it('does not match unrelated prompts', () => {
     expect(isGetScheduleSummaryPrompt('Mark this booking paid')).toBe(false);
   });
+
+  it('does not match single-date empty-today legacy prompt (e2e-bug.66)', () => {
+    expect(
+      isGetScheduleSummaryPrompt('Summarize my schedule for 15/07/2026'),
+    ).toBe(false);
+  });
 });
 
 describe('isGetCalendarMonthPrompt', () => {

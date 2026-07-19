@@ -93,4 +93,21 @@ describe('ProviderAiShell integration', () => {
     const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
     expect(assistant?.getAttribute('data-booking-id')).toBe('');
   });
+
+  it('renders assistant on standalone guide path with profile route context (e2e-bug.69)', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/tabs/profile/guide']}>
+          <Route path="/tabs/profile/guide">
+            <ProviderAiShell>
+              <div data-testid="guide-content" />
+            </ProviderAiShell>
+          </Route>
+        </MemoryRouter>,
+      );
+    });
+    const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
+    expect(assistant).toBeTruthy();
+    expect(assistant?.getAttribute('data-route')).toBe('profile');
+  });
 });

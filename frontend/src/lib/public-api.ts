@@ -87,6 +87,9 @@ export interface PublicCustomerBookingItem {
   packagePurchaseId?: string | null;
   packageId?: string | null;
   packageName?: string | null;
+  /** e2e-bug.34 — threaded for Account grouping */
+  multiServiceGroupId?: string | null;
+  multiServiceSchedulingMode?: 'same_visit' | 'per_service' | null;
 }
 
 export interface PublicPackageVisitAppointment {
@@ -108,6 +111,18 @@ export interface PublicPackageVisitSummary {
   packagePurchaseId: string;
   packageId: string | null;
   packageName: string;
+  appointments: PublicPackageVisitAppointment[];
+  canCancelAll: boolean;
+  canRescheduleAll: boolean;
+  policyMessage: string | null;
+  allowProviderChangeOnReschedule: boolean;
+}
+
+/** Grouped ad-hoc multi-service visit on Account (e2e-bug.34). */
+export interface PublicMultiServiceVisitSummary {
+  multiServiceGroupId: string;
+  schedulingMode: 'same_visit' | 'per_service' | null;
+  label: string;
   appointments: PublicPackageVisitAppointment[];
   canCancelAll: boolean;
   canRescheduleAll: boolean;
@@ -219,6 +234,22 @@ export interface PublicBusinessProfile {
     incompatibleCategoryPairs: Array<[string, string]>;
   };
   businessType?: string;
+  /** e2e-bug.50 — weekly open hours from schedule templates */
+  openingHours?: {
+    days: Array<{
+      day:
+        | 'monday'
+        | 'tuesday'
+        | 'wednesday'
+        | 'thursday'
+        | 'friday'
+        | 'saturday'
+        | 'sunday';
+      closed: boolean;
+      ranges: Array<{ open: string; close: string }>;
+    }>;
+    summaryLines: string[];
+  };
 }
 
 export interface PublicProviderReview {
@@ -787,6 +818,7 @@ export function quotePublicBooking(
   body: {
     serviceId: string;
     purchasePlanId?: string;
+    useSubscriptionId?: string;
     promoCode?: string;
     loyaltyPointsToRedeem?: number;
   },
@@ -815,7 +847,12 @@ export interface PublicReferralClaimResponse {
   referralCode?: string;
   referrerCustomerId?: string;
   refereePromoCode?: string | null;
-  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+  reason?:
+    | 'invalid_code'
+    | 'self_referral'
+    | 'already_attached'
+    | 'disabled'
+    | 'not_eligible_existing_customer';
 }
 
 export function getPublicCustomerReferralProgram(slug: string) {
@@ -1062,6 +1099,8 @@ export interface PublicReviewContext {
   serviceName: string;
   customerName: string;
   appointmentDate: string;
+  /** e2e-bug.59 — booking end; fall back to start only for legacy clients */
+  appointmentEndDate?: string;
   alreadySubmitted: boolean;
 }
 

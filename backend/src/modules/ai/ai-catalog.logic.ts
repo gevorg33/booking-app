@@ -989,7 +989,7 @@ export async function handleCreateGiftCardBundleLogic(
   if (!bundleName || serviceNames.length < 2) {
     return failure(
       'create_gift_card_bundle',
-      'Specify bundle name and at least two services (e.g. "haircut + beard + facial").',
+      'For a gift card product bundle, specify the gift card bundle name and at least two services (e.g. "Create gift card bundle Spa Trio with haircut + beard + facial"). To sell services together as a catalog package (not a gift card), say "Create a package called … combining …".',
       { clarify: true, missing: ['bundleName', 'serviceNames'] },
     );
   }

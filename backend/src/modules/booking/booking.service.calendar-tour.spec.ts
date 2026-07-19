@@ -34,7 +34,11 @@ function createFindAllHarness() {
     {} as any,
     {} as any,
     {} as any,
-  );
+    {} as any,
+    {} as any,
+    { refundBookingPayment: jest.fn().mockResolvedValue('skipped') } as any,
+      { restoreRedemptionForBooking: jest.fn().mockResolvedValue(false) } as any,
+    );
 
   return { service, bookingRepo, qb };
 }
@@ -42,6 +46,41 @@ function createFindAllHarness() {
 describe('BookingService.findAll — calendar week range (vert-tour-1.10)', () => {
   const weekStart = '2026-06-09';
   const weekEnd = '2026-06-15';
+
+  it.each([
+    {
+      id: 'e2e-bug-149-week-range',
+      startDate: weekStart,
+      endDate: weekEnd,
+    },
+    // e2e-bug.104 — tour_group_checkout / diagnose_tour_capacity call
+    // findAll(businessId, …, dateKey, dateKey) for a single departure day.
+    {
+      id: 'e2e-bug-104-same-day-tour-capacity',
+      startDate: '2026-08-15',
+      endDate: '2026-08-15',
+    },
+  ])(
+    '$id — never references nonexistent booking.start_time column',
+    async ({ startDate, endDate }) => {
+      const { service, qb } = createFindAllHarness();
+      await service.findAll(
+        'biz-1',
+        undefined,
+        undefined,
+        false,
+        startDate,
+        endDate,
+      );
+      const sqlChunks = [
+        ...qb.andWhere.mock.calls.map(([sql]) => String(sql)),
+        ...qb.orderBy.mock.calls.map(([sql]) => String(sql)),
+      ].join('\n');
+      expect(sqlChunks).not.toMatch(/booking\.start_time\b/);
+      expect(sqlChunks).not.toMatch(/booking\.end_time\b/);
+      expect(sqlChunks).toMatch(/booking\.startTime\b/);
+    },
+  );
 
   it('uses query builder with tour overlap SQL when startDate and endDate are provided', async () => {
     const { service, bookingRepo, qb } = createFindAllHarness();
@@ -75,7 +114,7 @@ describe('BookingService.findAll — calendar week range (vert-tour-1.10)', () =
       String(sql).includes("metadata->>'tourStartDate'"),
     );
     expect(overlapCall?.[0]).toContain(
-      'booking.start_time BETWEEN :weekStart AND :weekEnd',
+      'booking.startTime BETWEEN :weekStart AND :weekEnd',
     );
     expect(overlapCall?.[1]).toEqual({
       weekStart: new Date(`${weekStart}T00:00:00.000Z`),
@@ -83,7 +122,7 @@ describe('BookingService.findAll — calendar week range (vert-tour-1.10)', () =
       rangeStart: weekStart,
       rangeEnd: weekEnd,
     });
-    expect(qb.orderBy).toHaveBeenCalledWith('booking.start_time', 'ASC');
+    expect(qb.orderBy).toHaveBeenCalledWith('booking.startTime', 'ASC');
     expect(result).toBe(expected);
   });
 

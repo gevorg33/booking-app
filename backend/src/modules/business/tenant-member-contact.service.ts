@@ -47,12 +47,16 @@ export class TenantMemberContactService {
       }
     }
 
-    const employeesWithEmail = await this.employeeRepo
-      .createQueryBuilder('employee')
-      .where('employee.business_id = :businessId', { businessId })
-      .andWhere('employee.is_active = true')
-      .andWhere('LOWER(TRIM(employee.email)) = :email', { email: normalized })
-      .getMany();
+    // e2e-bug.62 / api-bug.8 — avoid raw QB column names (`employee.is_active`
+    // 500s; Postgres column is camelCase `"isActive"`). Match find() style below.
+    const employeesWithEmail = (
+      await this.employeeRepo.find({
+        where: { businessId, isActive: true },
+      })
+    ).filter(
+      (employee) =>
+        !!employee.email && this.normalizeEmail(employee.email) === normalized,
+    );
 
     if (employeesWithEmail.length > 1) {
       throw new ConflictException(

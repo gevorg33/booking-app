@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
 import { PublicBookingAssistantService } from '../public-booking/public-booking-assistant.service.js';
 import { AiPromptSecurityService } from './ai-prompt-security.service.js';
@@ -80,6 +81,10 @@ import { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
 import { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
+import {
+  enrichCancelAllUpcomingConfirmFromPrompt,
+  rescueCancelAllUpcomingConfirmIntent,
+} from './ai-cancel-all-upcoming-bookings.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import {
   mergePublicAssistantSessionParams,
@@ -273,6 +278,7 @@ export class CustomerAiCommandService {
       businessId,
       prompt,
       'customer',
+      typeof context?.locale === 'string' ? context.locale : undefined,
     );
     if (blocked) return blocked;
 
@@ -348,7 +354,7 @@ export class CustomerAiCommandService {
         understood,
         clarifyPayload,
       );
-      return this.withPostFailureGuideFallback(clarify, context);
+      return this.withPostFailureGuideFallback(clarify, context, prompt);
     }
 
     const parsed = pipelineResultToClassifiedIntent(understood);
@@ -384,10 +390,38 @@ export class CustomerAiCommandService {
       rescueReason = rescueReason ?? 'customer_check_availability_disambiguation';
     }
 
-    const action = parsed.action;
+    let action = parsed.action;
     let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
     params = applyPromptMentionedServiceOverrideToParams(prompt, params);
     params = mergePublicAssistantSessionParams(params, context, action);
+    if (history?.length) {
+      params = { ...params, conversationHistory: history };
+    }
+    // e2e-bug.78 — deterministic confirm after cancel-all preview (history/session).
+    const cancelAllConfirm = rescueCancelAllUpcomingConfirmIntent(
+      prompt,
+      action,
+      {
+        ...params,
+        cancelAllUpcomingPending: session.cancelAllUpcomingPending,
+        requiresConfirmation: session.requiresConfirmation,
+        pendingAction: session.pendingAction,
+      },
+      history,
+    );
+    if (cancelAllConfirm) {
+      action = cancelAllConfirm.action;
+      params = { ...params, ...cancelAllConfirm.params };
+      rescueReason = cancelAllConfirm.rescueReason;
+      parsed.action = action;
+    } else if (action === 'cancel_all_upcoming_bookings') {
+      params = enrichCancelAllUpcomingConfirmFromPrompt(prompt, {
+        ...params,
+        cancelAllUpcomingPending: session.cancelAllUpcomingPending,
+        requiresConfirmation: session.requiresConfirmation,
+        pendingAction: session.pendingAction,
+      }, history);
+    }
     if (history?.length && action === 'speak_assistant_reply') {
       params = { ...params, conversationHistory: history };
     }
@@ -425,17 +459,22 @@ export class CustomerAiCommandService {
           confidence:
             typeof parsed.confidence === 'number' ? parsed.confidence : 0,
           trace: understood.trace,
+          locale:
+            typeof context?.locale === 'string' ? context.locale : undefined,
         }),
         context,
+        prompt,
       );
     }
 
     if (!isIntentAllowed('customer', 'client', action)) {
+      const locale =
+        typeof context?.locale === 'string' ? context.locale : undefined;
       return (
-        this.platform.gateCustomerAction(action) ?? {
+        this.platform.gateCustomerAction(action, locale) ?? {
           success: false,
           action: 'security_blocked',
-          summary: `Action "${action}" is not allowed on the customer assistant.`,
+          summary: t(resolveLocale(locale), 'assistant.deniedCustomer'),
           details: { surface: 'customer', blockedAction: action },
         }
       );
@@ -475,16 +514,18 @@ export class CustomerAiCommandService {
         session,
       ),
       context,
+      prompt,
     );
   }
 
   private withPostFailureGuideFallback(
     result: CommandResult,
     context?: Record<string, unknown>,
+    prompt?: string,
   ): CommandResult {
     return appendPostFailureGuideFallback(
       result,
-      buildPostFailureGuideFallbackInput(context, 'customer'),
+      buildPostFailureGuideFallbackInput(context, 'customer', undefined, prompt),
     );
   }
 
@@ -587,6 +628,20 @@ export class CustomerAiCommandService {
       pendingCheckoutEmployeeId: context?.pendingCheckoutEmployeeId as
         | string
         | undefined,
+      privacyDeletePending:
+        context?.privacyDeletePending === true ||
+        context?.privacyDeletePending === 'true',
+      cancelAllUpcomingPending:
+        context?.cancelAllUpcomingPending === true ||
+        context?.cancelAllUpcomingPending === 'true',
+      requiresConfirmation:
+        context?.requiresConfirmation === true ||
+        context?.requiresConfirmation === 'true',
+      pendingAction:
+        typeof context?.pendingAction === 'string'
+          ? context.pendingAction
+          : undefined,
+      confirm: context?.confirm === true || context?.confirm === 'true',
       prompt,
     };
   }
@@ -859,10 +914,15 @@ export class CustomerAiCommandService {
       typeof mergedContext.activationStep === 'string'
         ? (mergedContext.activationStep as ConsumerActivationStep)
         : undefined;
+    const seededTopicId =
+      typeof mergedContext.guideTopicId === 'string' &&
+      mergedContext.guideTopicId.trim()
+        ? mergedContext.guideTopicId.trim()
+        : undefined;
     const topicId = enrichGuideTopicFromPrompt(prompt, {
       surface: 'customer',
       route,
-      topicId: params.topicId,
+      topicId: seededTopicId ?? params.topicId,
       activationStep,
     });
     const guideParams = topicId ? { ...params, topicId } : params;

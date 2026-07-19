@@ -42,6 +42,9 @@ export function extractDaysFromPrompt(prompt: string): number | undefined {
 
 export function isListUpcomingBookingsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.77 — "cancel all my upcoming bookings" is customer bulk-cancel, not
+  // a provider schedule read.
+  if (/\bcancel\b/.test(lower)) return false;
   return (
     /\b(?:what'?s|whats)\s+coming\s+up\b/.test(lower) ||
     /\bupcoming\s+bookings?\b/.test(lower) ||
@@ -51,6 +54,15 @@ export function isListUpcomingBookingsPrompt(prompt: string): boolean {
 
 export function isGetScheduleSummaryPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.66 — single calendar-date "summarize my schedule for DD/MM/YYYY"
+  // is a day status ask (summarize_day), not a multi-day schedule summary.
+  if (
+    /\bsummarize\s+my\s+schedule\s+for\s+(?:\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})\b/.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
   return (
     /\bsummarize\s+my\s+schedule\b/.test(lower) ||
     /\bschedule\s+overview\b/.test(lower) ||

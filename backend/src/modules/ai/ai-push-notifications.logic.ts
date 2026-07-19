@@ -27,6 +27,7 @@ import {
   decomposePushNotificationsCompoundPrompt,
   explainLastPushSummary,
   extractBookingIdFromPushPrompt,
+  extractBusinessEmailOnCustomerChangeToggleFromPrompt,
   extractNotificationToggleFromPrompt,
   resolveNotificationEnabledFromPrompt,
   resolveSmsRemindersWhenEnabling,
@@ -613,7 +614,7 @@ export async function handleToggleBusinessEmailOnCustomerChangeLogic(
   const toggle =
     params.enabled !== undefined
       ? Boolean(params.enabled)
-      : extractNotificationToggleFromPrompt(promptText);
+      : extractBusinessEmailOnCustomerChangeToggleFromPrompt(promptText);
 
   if (toggle === null) {
     const settings =
@@ -631,9 +632,13 @@ export async function handleToggleBusinessEmailOnCustomerChangeLogic(
       notifyBusinessOnCustomerBookingChange: toggle,
     },
   );
+  // e2e-bug.159 — clarify recipient (business/owner) + future events, not a
+  // one-off customer-facing message about an already-cancelled booking.
   return success(
     'toggle_business_email_on_customer_change',
-    `Business email on customer booking changes is now ${toggle ? 'enabled' : 'disabled'}.`,
+    toggle
+      ? 'Business email alerts are now enabled: you will be emailed when a customer cancels or reschedules online (ongoing preference for future events — this does not message the customer).'
+      : 'Business email on customer booking changes is now disabled.',
     { settings, notifyBusinessOnCustomerBookingChange: toggle },
   );
 }

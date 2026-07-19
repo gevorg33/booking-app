@@ -39,6 +39,17 @@ describe('ai-leave-visit-review.util (ai-cmd-customer-4.12.1)', () => {
     },
   );
 
+  it('e2e-bug.146 — does not steal sales tax / commission rate mutates', () => {
+    expect(
+      isLeaveVisitReviewPrompt('Set my sales tax rate to 8.5 percent'),
+    ).toBe(false);
+    expect(
+      isLeaveVisitReviewPrompt(
+        'Set commission rate for Gevorg Gasparyan to 20 percent',
+      ),
+    ).toBe(false);
+  });
+
   it.each(LEAVE_VISIT_REVIEW_RESCUE_SCENARIOS)(
     'rescues $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
@@ -66,6 +77,15 @@ describe('ai-leave-visit-review.util (ai-cmd-customer-4.12.1)', () => {
       {},
     );
     expect(parsed?.serviceName).toMatch(/haircut/i);
+  });
+
+  it('e2e-bug.111 — strips my/visit wrapper from service name + rating', () => {
+    const parsed = parseLeaveVisitReviewFromPrompt(
+      'leave a 5 star review for my facemassage visit',
+      {},
+    );
+    expect(parsed?.rating).toBe(5);
+    expect(parsed?.serviceName?.toLowerCase()).toBe('facemassage');
   });
 
   it('enriches params and matches reviewable bookings', () => {

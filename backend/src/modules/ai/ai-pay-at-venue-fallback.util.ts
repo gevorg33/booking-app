@@ -22,10 +22,26 @@ const SKIP_ONLINE_CUE = new RegExp(
   'iu',
 );
 
+/**
+ * e2e-bug.114 — bare `\binstead\b` stole cancel/rebook prompts ("…Friday instead").
+ * Require payment/venue/online context whenever "instead" / "rather" appears.
+ */
 const INSTEAD_CUE = new RegExp(
-  String.raw`\b(instead|rather\s+than|not\s+online|than\s+online)\b|\b(pay\s+at\s+(?:the\s+)?(?:salon|venue|visit)).{0,25}\b(instead|rather)\b|\b(instead|rather\s+than).{0,25}\b(pay\s+online|online|stripe|card)\b|\brather\b.{0,40}\b(?:pay\s+at\s+(?:the\s+)?venue|online)\b`,
+  String.raw`\bnot\s+online\b|\bthan\s+online\b|\b(pay\s+at\s+(?:the\s+)?(?:salon|venue|visit)).{0,25}\b(instead|rather)\b|\b(instead|rather\s+than).{0,25}\b(pay\s+online|online\s+pay|online|stripe|card)\b|\binstead\b.{0,40}\b(?:pay\s+(?:at\s+(?:the\s+)?(?:salon|venue|visit)|cash|online)|cash|stripe|card)\b|\brather\b.{0,40}\b(?:pay\s+at\s+(?:the\s+)?(?:salon|venue|visit)|online|cash|stripe|card)\b`,
   'iu',
 );
+
+/** Cancel/rebook/reschedule booking lifecycle — never pay-at-venue (e2e-bug.114). */
+function isBookingLifecycleManagePrompt(prompt: string): boolean {
+  if (/\bcancel\b/i.test(prompt) && /\brebook\b/i.test(prompt)) return true;
+  if (
+    /\b(cancel|rebook|reschedule)\b/i.test(prompt) &&
+    /\b(booking|appointment|visit|reservation)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  return false;
+}
 
 const CONFIRM_AT_VISIT = new RegExp(
   String.raw`\bconfirm.{0,20}(?:and\s+)?pay.{0,20}at\s+(?:the\s+)?(?:visit|venue|salon)\b|\b(pay\s+at\s+(?:the\s+)?(?:salon|venue|visit)).{0,20}\bwithout\b.{0,20}\bonline\b`,
@@ -61,12 +77,13 @@ export function isPayAtVenueFallbackPrompt(prompt: string): boolean {
       /\b(instead|without|skip|no\s+online)\b/i.test(text)) ||
     (containsArmenianScript(text) &&
       /(բաց\s+թող|առանց|instead)/i.test(text) &&
-      /(առցանց|online|stripe|salon|visit)/i.test(text)) ||
+      /(առցանց|online|stripe|salon|visit|այց|վճար)/i.test(text)) ||
     (containsCyrillicScript(text) &&
       /(пропуст|без|вместо|instead)/i.test(text) &&
-      /(онлайн|online|stripe|салон|визит|карт)/i.test(text));
+      /(онлайн|online|stripe|салон|визит|карт|оплат)/i.test(text));
 
   if (!isFallbackPrompt) return false;
+  if (isBookingLifecycleManagePrompt(text)) return false;
   if (isConsumerDiagnoseStripeCheckoutFailurePrompt(text)) return false;
   if (isExplainWhyStripeRequiredPrompt(text)) return false;
   if (isAskPaymentOptionsPrompt(text)) return false;

@@ -1,4 +1,5 @@
 import { isAiBusinessHoursLocationIntentForSurface } from './ai-business-hours-location-dispatch.util.js';
+import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
 import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS } from './ai-explain-business-hours-and-location.util.js';
 import { rescueExplainBusinessHoursAndLocationIntent } from './ai-explain-business-hours-and-location.util.js';
 
@@ -14,7 +15,13 @@ describe('customer-ai-command explain_business_hours_and_location integration (a
     ).toBe('explain_business_hours_and_location');
   });
 
-  it('is registered on customer and public surfaces', () => {
+  it('is registered on dashboard, customer, and public surfaces', () => {
+    expect(
+      isIntentAllowedOnSurface(
+        'explain_business_hours_and_location',
+        'dashboard',
+      ),
+    ).toBe(true);
     expect(
       isAiBusinessHoursLocationIntentForSurface(
         'explain_business_hours_and_location',
@@ -27,5 +34,8 @@ describe('customer-ai-command explain_business_hours_and_location integration (a
         'public',
       ),
     ).toBe(true);
+    expect(
+      isIntentAllowedOnSurface('get_directions_to_salon', 'dashboard'),
+    ).toBe(false);
   });
 });

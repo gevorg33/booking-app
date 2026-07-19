@@ -393,6 +393,14 @@ export function extractDelayReasonFromPrompt(prompt: string): string | null {
   return delay?.[1]?.trim() ?? null;
 }
 
+/** Free-text reason for a cancel/refund action (e.g. "cancel order X because the item arrived damaged"). */
+export function extractCancelReasonFromPrompt(prompt: string): string | null {
+  const because = prompt.match(
+    /\b(?:because|due\s+to|reason(?:\s+is)?:?)\s+(.+?)(?:\s+and|\s*$)/i,
+  );
+  return because?.[1]?.trim() || null;
+}
+
 export function extractCancelWindowHoursFromPrompt(
   prompt: string,
 ): number | null {

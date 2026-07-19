@@ -117,6 +117,9 @@ export function isExplainCancelPolicyPrompt(prompt: string): boolean {
     return true;
   }
 
+  // e2e-bug.132 — casual / slang cancel-policy questions without "policy/rules".
+  if (isCasualCancelPolicyPrompt(prompt)) return true;
+
   return (
     (/\b(explain|what\s+is|tell\s+me|describe)\b/i.test(prompt) &&
       /\b(cancel(?:lation)?|reschedule|self[\s-]?service)\b/i.test(prompt) &&
@@ -129,6 +132,35 @@ export function isExplainCancelPolicyPrompt(prompt: string): boolean {
     (/(объясн|расскаж|explain)/i.test(prompt) &&
       /(отмен|cancel|reschedule|перенос)/i.test(prompt) &&
       /(политик|правил|policy|rules?)/i.test(prompt))
+  );
+}
+
+/** "whats the deal if i cancel", "what happens if I cancel", typo cancelation rulz. */
+function isCasualCancelPolicyPrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (!text) return false;
+  if (
+    /\b(package|bundle|spa\s+day)\b/i.test(text) &&
+    /\b(save|saving|cheaper|worth|discount)\b/i.test(text)
+  ) {
+    return false;
+  }
+  const cancelCue =
+    /\b(cancel|cancellation|cancelation|reschedule)\b/i.test(text) ||
+    /\bcancelation\b/i.test(text) ||
+    /\brulz\b/i.test(text);
+  if (!cancelCue) return false;
+
+  return (
+    /\b(what'?s\s+the\s+deal|whats\s+the\s+deal|wut'?s\s+the\s+deal)\b/i.test(
+      text,
+    ) ||
+    /\bwhat\s+happens\b/i.test(text) ||
+    /\bwhat\s+if\s+i\s+cancel\b/i.test(text) ||
+    /\bif\s+i\s+cancel\b/i.test(text) ||
+    /\bdeal\s+if\s+i\s+cancel\b/i.test(text) ||
+    (/\b(wut|whats|what'?s)\b/i.test(text) &&
+      /\b(rulz|rules?|policy|cancelation|cancellation)\b/i.test(text))
   );
 }
 

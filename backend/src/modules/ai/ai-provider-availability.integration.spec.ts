@@ -564,6 +564,70 @@ describe('ai provider availability integration', () => {
       expect(openAi.completeJson).not.toHaveBeenCalled();
     });
 
+    it('e2e-bug.162: skips enrichment for grounded AI-quota / billing summaries', async () => {
+      const grounded =
+        'Plan: Business.\n• AI commands this month: 661 used of 5000 (4339 left)';
+      for (const action of [
+        'explain_ai_capabilities',
+        'open_billing_settings',
+        'explain_plan_limits',
+        'explain_plan_entitlements',
+      ] as const) {
+        openAi.completeJson.mockClear();
+        const result = await service.enrichResult('biz-1', 'how many left?', {
+          success: true,
+          action,
+          summary: grounded,
+          details: {
+            aiCommandsPerMonth: 5000,
+            allowedIntentCount: 382,
+          },
+        });
+        expect(result.summary).toBe(grounded);
+        expect(openAi.completeJson).not.toHaveBeenCalled();
+      }
+    });
+
+    it('e2e-bug.155: skips enrichment for grounded customer cancellation totals', async () => {
+      const grounded =
+        '• 22 active customers\n• 15 total cancellations across all customers';
+      const result = await service.enrichResult(
+        'biz-1',
+        'How many cancellations have I had in total?',
+        {
+          success: true,
+          action: 'summarize_customers',
+          summary: grounded,
+          details: {
+            metric: 'overview',
+            summary: { totalCancellations: 15, totalNoShows: 1 },
+          },
+        },
+      );
+      expect(result.summary).toBe(grounded);
+      expect(openAi.completeJson).not.toHaveBeenCalled();
+    });
+
+    it('e2e-bug.153: skips enrichment for grounded customer roster totals', async () => {
+      const grounded =
+        'Customer overview:\n• 22 active customers\n• 1 total no-shows across all customers';
+      const result = await service.enrichResult(
+        'biz-1',
+        'How many customers do I have?',
+        {
+          success: true,
+          action: 'summarize_customers',
+          summary: grounded,
+          details: {
+            metric: 'overview',
+            summary: { totalCustomers: 22, totalNoShows: 1 },
+          },
+        },
+      );
+      expect(result.summary).toBe(grounded);
+      expect(openAi.completeJson).not.toHaveBeenCalled();
+    });
+
     it('replaces summary while preserving provider details', async () => {
       openAi.completeJson.mockResolvedValueOnce({
         summary: 'Karo is available tomorrow at 14:00.',

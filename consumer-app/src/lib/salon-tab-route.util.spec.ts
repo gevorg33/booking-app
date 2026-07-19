@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildSalonTabHomePath, resolveSalonTabId } from './salon-tab-route.util.js';
+import {
+  buildSalonTabHomePath,
+  isClinicOnlySalonTab,
+  resolveSalonTabId,
+} from './salon-tab-route.util.js';
 
 describe('resolveSalonTabId', () => {
   const slug = 'glow-nails';
@@ -15,6 +19,30 @@ describe('resolveSalonTabId', () => {
     { path: `/s/${slug}/unknown`, expected: 'redirect-home' as const },
   ])('maps $path → $expected', ({ path, expected }) => {
     expect(resolveSalonTabId(path, slug)).toBe(expected);
+  });
+
+  it.each([
+    { path: `/s/${slug}/results`, businessType: 'salon', expected: 'redirect-home' as const },
+    { path: `/s/${slug}/lab-to-book`, businessType: 'hair_salon', expected: 'redirect-home' as const },
+    { path: `/s/${slug}/lab-requests`, businessType: 'tour_operator', expected: 'redirect-home' as const },
+    { path: `/s/${slug}/results`, businessType: 'clinic', expected: 'results' as const },
+    { path: `/s/${slug}/lab-to-book`, businessType: 'dental', expected: 'lab-to-book' as const },
+    { path: `/s/${slug}/account`, businessType: 'salon', expected: 'account' as const },
+  ])(
+    'e2e-bug.43: $path with businessType=$businessType → $expected',
+    ({ path, businessType, expected }) => {
+      expect(resolveSalonTabId(path, slug, { businessType })).toBe(expected);
+    },
+  );
+});
+
+describe('isClinicOnlySalonTab', () => {
+  it('flags clinic-only tabs', () => {
+    expect(isClinicOnlySalonTab('results')).toBe(true);
+    expect(isClinicOnlySalonTab('lab-to-book')).toBe(true);
+    expect(isClinicOnlySalonTab('lab-requests')).toBe(true);
+    expect(isClinicOnlySalonTab('home')).toBe(false);
+    expect(isClinicOnlySalonTab('account')).toBe(false);
   });
 });
 

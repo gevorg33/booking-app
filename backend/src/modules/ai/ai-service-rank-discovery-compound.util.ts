@@ -13,6 +13,7 @@ import { enrichBudgetFromPrompt } from './ai-budget-service-discovery.util.js';
 import {
   enrichServiceRankFromPrompt,
   isServiceCatalogRankPrompt,
+  scrubRankPollutedServiceNameParams,
 } from './ai-service-rank-discovery.util.js';
 import { hasDiscoverBookAndPayPaymentCue } from './ai-discover-book-and-pay-compound.util.js';
 import { isBookPackageWithNearestSlotCompoundPrompt } from './ai-book-package-with-nearest-slot.util.js';
@@ -23,11 +24,12 @@ export type RankCompoundStep = {
   segment: string;
 };
 
+/** e2e-bug.101 — most expensive / most premium must extract category like cheapest. */
 const RANK_BOOK_SERVICE_CATEGORY_PATTERN =
-  /\bbook(?:\s+(?:a|an|the|your))?\s+(?:(?:most|your)\s+)?(?:premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i;
+  /\bbook(?:\s+(?:a|an|the|your))?\s+(?:(?:most|your)\s+)?(?:expensive|premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|priciest|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i;
 
 const RANK_CUE_SERVICE_CATEGORY_PATTERN =
-  /\b(?:best\s+)?(?:premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:I can|under|below|for|with|tomorrow|today|nearest|soonest|and|,|$))/i;
+  /\b(?:best\s+)?(?:most\s+expensive|priciest|most\s+premium|premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|best(?:[\s-]?selling)?)\s+([a-z][\w-]{2,30})(?=\s*(?:I can|under|below|for|with|tomorrow|today|nearest|soonest|and|,|$))/i;
 
 const RANK_BEST_AND_BOOK_CATEGORY_PATTERN =
   /\bbest\s+([a-z][\w-]{2,30})(?=\s+and\s+book\b)/i;
@@ -112,9 +114,11 @@ export function buildRankCompoundSharedParams(
   enrichBookingTimeHintsFromPrompt(bookAction, shared, prompt);
   const enriched = extractRankCompoundServiceCategory(
     prompt,
-    enrichListServicesParamsFromPrompt(
-      prompt,
-      shared as Parameters<typeof enrichListServicesParamsFromPrompt>[1],
+    scrubRankPollutedServiceNameParams(
+      enrichListServicesParamsFromPrompt(
+        prompt,
+        shared as Parameters<typeof enrichListServicesParamsFromPrompt>[1],
+      ),
     ),
   );
   return enriched;

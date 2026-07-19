@@ -15,13 +15,20 @@ import {
 } from '@ionic/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { ConsumerProviderReviewSummary } from '../components/ConsumerProviderReviewSummary.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { formatScheduleTime, resolveNearestSlotDateLabel } from '../lib/date-format.js';
+import { applyOptimisticReviewSummary } from '../lib/provider-review-summary.util.js';
+import {
+  canLoadMoreProviderReviews,
+  mergeProviderReviewItems,
+  nextProviderReviewsPage,
+} from '../lib/provider-reviews-pagination.util.js';
 import type { PublicProviderReview } from '../lib/types.js';
 import { buildProfessionalServicesPath } from '../lib/provider-booking.util.js';
 import {
@@ -42,6 +49,7 @@ function formatReviewDate(iso: string): string {
 
 export default function ProviderProfilePage() {
   const history = useHistory();
+  const queryClient = useQueryClient();
   const { employeeId } = useParams<{ slug: string; employeeId: string }>();
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
@@ -67,6 +75,9 @@ export default function ProviderProfilePage() {
   const [reviewItems, setReviewItems] = useState<PublicProviderReview[]>([]);
   const [reviewCount, setReviewCount] = useState(0);
   const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsLoadingMore, setReviewsLoadingMore] = useState(false);
+  const [reviewsLoadMoreMessage, setReviewsLoadMoreMessage] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -79,10 +90,41 @@ export default function ProviderProfilePage() {
 
   useEffect(() => {
     if (!reviewsQuery.data) return;
+    // Reset to the first page whenever the query refreshes (initial load / invalidate).
     setReviewItems(reviewsQuery.data.items);
     setReviewCount(reviewsQuery.data.reviewCount);
     setAverageRating(reviewsQuery.data.averageRating);
+    setReviewsPage(reviewsQuery.data.page);
+    setReviewsLoadMoreMessage('');
   }, [reviewsQuery.data]);
+
+  const canLoadMoreReviews = canLoadMoreProviderReviews({
+    loadedCount: reviewItems.length,
+    reviewCount,
+  });
+
+  const loadMoreReviews = async () => {
+    if (!slug || !employeeId || reviewsLoadingMore || !canLoadMoreReviews) return;
+    setReviewsLoadingMore(true);
+    setReviewsLoadMoreMessage('');
+    try {
+      const page = await fetchPublicProviderReviews(
+        slug,
+        employeeId,
+        nextProviderReviewsPage(reviewsPage),
+      );
+      setReviewItems((prev) => mergeProviderReviewItems(prev, page.items));
+      setReviewCount(page.reviewCount);
+      setAverageRating(page.averageRating);
+      setReviewsPage(page.page);
+    } catch (err: unknown) {
+      setReviewsLoadMoreMessage(
+        formatFriendlyNetworkError(err, copy.providerReviewsLoadMoreFailed),
+      );
+    } finally {
+      setReviewsLoadingMore(false);
+    }
+  };
 
   const authed = slug ? !!getCustomerToken(slug) : false;
   const primary = profile?.branding.primaryColor || '#7c3aed';
@@ -116,20 +158,25 @@ export default function ProviderProfilePage() {
         rating,
         comment: comment.trim() || undefined,
       });
+      // e2e-bug.26 — compute from plain locals; never nest setAverageRating inside setReviewCount.
+      const summary = applyOptimisticReviewSummary({
+        currentAverage: averageRating,
+        previousCount: reviewCount,
+        newRating: review.rating,
+      });
       setReviewItems((prev) => [review, ...prev]);
-      setReviewCount((prev) => {
-        const next = prev + 1;
-        setAverageRating((current) => {
-          if (current == null) return review.rating;
-          return Math.round(((current * prev + review.rating) / next) * 10) / 10;
-        });
-        return next;
+      setReviewCount(summary.reviewCount);
+      setAverageRating(summary.averageRating);
+      void queryClient.invalidateQueries({
+        queryKey: ['public-provider-reviews', slug, employeeId],
       });
       setRating(0);
       setComment('');
       setReviewMessage(copy.reviewSubmitted);
     } catch (err: unknown) {
-      setReviewMessage(err instanceof Error ? err.message : copy.assistantErrorGeneric);
+      setReviewMessage(
+        formatFriendlyNetworkError(err, copy.assistantErrorGeneric),
+      );
     } finally {
       setReviewSubmitting(false);
     }
@@ -162,7 +209,7 @@ export default function ProviderProfilePage() {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/professionals')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/professionals')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{provider.name}</IonTitle>
         </IonToolbar>
@@ -291,22 +338,41 @@ export default function ProviderProfilePage() {
         {reviewItems.length === 0 ? (
           <p style={{ color: '#9ca3af' }}>{copy.noProviderReviews}</p>
         ) : (
-          <IonList>
-            {reviewItems.map((review) => (
-              <IonItem key={review.id} lines="full">
-                <IonLabel className="ion-text-wrap">
-                  <h3>
-                    {'★'.repeat(review.rating)}
-                    {review.customerName ? ` · ${review.customerName}` : ''}
-                  </h3>
-                  <p style={{ fontSize: 12, color: '#6b7280' }}>
-                    {formatReviewDate(review.createdAt)}
+          <>
+            <IonList>
+              {reviewItems.map((review) => (
+                <IonItem key={review.id} lines="full">
+                  <IonLabel className="ion-text-wrap">
+                    <h3>
+                      {'★'.repeat(review.rating)}
+                      {review.customerName ? ` · ${review.customerName}` : ''}
+                    </h3>
+                    <p style={{ fontSize: 12, color: '#6b7280' }}>
+                      {formatReviewDate(review.createdAt)}
+                    </p>
+                    {review.comment ? <p>{review.comment}</p> : null}
+                  </IonLabel>
+                </IonItem>
+              ))}
+            </IonList>
+            {canLoadMoreReviews ? (
+              <div style={{ marginTop: 12 }}>
+                {reviewsLoadMoreMessage ? (
+                  <p style={{ color: '#b45309', fontSize: 14 }} role="alert">
+                    {reviewsLoadMoreMessage}
                   </p>
-                  {review.comment ? <p>{review.comment}</p> : null}
-                </IonLabel>
-              </IonItem>
-            ))}
-          </IonList>
+                ) : null}
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  disabled={reviewsLoadingMore}
+                  onClick={() => void loadMoreReviews()}
+                >
+                  {reviewsLoadingMore ? <IonSpinner name="crescent" /> : copy.providerReviewsLoadMore}
+                </IonButton>
+              </div>
+            ) : null}
+          </>
         )}
 
         <IonButton

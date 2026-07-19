@@ -23,7 +23,10 @@ export class PatientStaffNotePhiService {
   ) {}
 
   async encryptNoteForStorage<
-    T extends PatientStaffNotePhiCarrier & { id: string; businessId: string },
+    T extends PatientStaffNotePhiCarrier & {
+      businessId: string;
+      id?: string;
+    },
   >(business: Business, note: T): Promise<T> {
     const businessKey =
       await this.phiFieldService.resolveBusinessEncryptionKey(business);

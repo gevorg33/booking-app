@@ -30,6 +30,7 @@ import {
   extractShippingAddressFromPrompt,
   extractCarrierTrackingFromPrompt,
   extractDelayReasonFromPrompt,
+  extractCancelReasonFromPrompt,
   extractCancelWindowHoursFromPrompt,
   extractProofFromPrompt,
   parseFirstCardFromQueue,
@@ -209,6 +210,14 @@ describe('ai-gift-fulfillment.util', () => {
       expect(extractDelayReasonFromPrompt('Notify delay because weather')).toBe(
         'weather',
       );
+      expect(
+        extractCancelReasonFromPrompt(
+          'Cancel gift card order gc-1 because the item arrived damaged',
+        ),
+      ).toBe('the item arrived damaged');
+      expect(
+        extractCancelReasonFromPrompt('cancel order gc-1'),
+      ).toBeNull();
       expect(
         extractCancelWindowHoursFromPrompt('extend cancel window 48 hours'),
       ).toBe(48);

@@ -137,7 +137,11 @@ export class PhiFieldService {
     before: BookingPhiCarrier | null | undefined,
     audit:
       | PhiStaffContext
-      | { role: 'public' | 'system'; userId?: null; ip?: string | null },
+      | {
+          role: 'public' | 'system' | 'customer';
+          userId?: null;
+          ip?: string | null;
+        },
   ): Promise<void> {
     if (!this.isHipaaActiveForBusiness(business)) return;
     const touched = listPhiFieldsTouched(before ?? null, booking);

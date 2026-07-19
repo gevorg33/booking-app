@@ -66,6 +66,30 @@ export function resolveCheckoutContactPrefill(
   });
 }
 
+/**
+ * Fill blank contact fields from profile/draft/remembered without overwriting edits.
+ * Returns `prev` when nothing changes (safe for effect-driven setState; e2e-bug.6/8).
+ */
+export function mergeCheckoutContactPrefill(
+  prev: GuestCheckoutContact,
+  sources: CheckoutContactSources,
+): GuestCheckoutContact {
+  const fromSources = resolveCheckoutContactPrefill(sources);
+  const next = normalizeGuestContact({
+    name: prev.name.trim() || fromSources.name,
+    email: prev.email.trim() || fromSources.email,
+    phone: prev.phone.trim() || fromSources.phone,
+  });
+  if (
+    next.name === prev.name &&
+    next.email === prev.email &&
+    next.phone === prev.phone
+  ) {
+    return prev;
+  }
+  return next;
+}
+
 /** Collapse contact fields only when values look fully entered (not after one keystroke). */
 export function shouldCompactCheckoutContact(contact: GuestCheckoutContact): boolean {
   const name = contact.name.trim();

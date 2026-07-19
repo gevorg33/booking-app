@@ -12,7 +12,7 @@ export type UpdateMyProfilePromptFixture = {
   email?: string;
 };
 
-export const CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES = `- update_my_profile: MUTATE — signed-in customer opens Account profile editing for name, phone, or email (UI handoff until PATCH me/profile ships). Triggers: "Change my phone number", "Update my name", "Edit my email", "Update my profile". Returns navigate to Account with section=profile and optional field hint. Requires session customerId. NOT my_profile (read-only view), NOT guide_user_flow (how do I update), NOT privacy_export/privacy_delete, NOT dashboard update_customer.`;
+export const CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES = `- update_my_profile: MUTATE — signed-in customer updates name or phone via PATCH me/profile when a new value is given. Email changes are not supported (say so plainly; do not navigate to Account profile editing — that UI does not exist). Triggers: "Change my phone number", "Update my name", "Edit my email", "Update my profile". Requires session customerId. NOT my_profile (read-only view), NOT guide_user_flow (how do I update), NOT privacy_export/privacy_delete, NOT dashboard update_customer.`;
 
 export const UPDATE_MY_PROFILE_PROMPTS: readonly UpdateMyProfilePromptFixture[] =
   [

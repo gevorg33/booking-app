@@ -141,6 +141,9 @@ export class PackagePurchase {
   @Column({ default: 'USD' })
   currency: string;
 
+  @Column({ type: 'jsonb', default: {} })
+  metadata: Record<string, unknown>;
+
   @CreateDateColumn()
   createdAt: Date;
 }

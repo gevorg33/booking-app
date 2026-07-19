@@ -5,6 +5,7 @@ import {
   handleCancelSubscriptionAdminLogic,
   handleListCustomerGiftCardsLogic,
   handleListCustomerBookingsLogic,
+  handleListCustomersLogic,
   handleCustomerNoShowHistoryLogic,
   handleTagCustomerLogic,
   handleUpdateCustomerLogic,
@@ -62,6 +63,43 @@ function buildDeps(
         tags: dto.tags,
       })),
       remove: jest.fn(),
+      searchDashboard: jest.fn(async () => ({
+        stats: {
+          totalCustomers: 2,
+          filteredCustomers: 2,
+          totalAppointments: 5,
+          appointmentsByStatus: {},
+        },
+        customers: [
+          {
+            id: 'c1',
+            name: 'Anna Lopez',
+            email: 'anna@test.com',
+            phone: null,
+            tags: [],
+            isVip: true,
+            segment: 'vip',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            stats: { total: 3, noShowCount: 0, byStatus: {} },
+          },
+          {
+            id: 'c2',
+            name: 'Bob Smith',
+            email: 'bob@test.com',
+            phone: null,
+            tags: ['waitlist'],
+            isVip: false,
+            segment: 'new',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            stats: { total: 0, noShowCount: 0, byStatus: {} },
+          },
+        ],
+        totalItems: 2,
+        page: 1,
+        pageSize: 20,
+      })),
     } as any,
     customerPrivacyService: {
       exportCustomerData: jest.fn(async () => ({ customer: 'data' })),
@@ -77,7 +115,10 @@ function buildDeps(
         usage: [{ id: 'u1' }],
         subscription: sub,
       })),
-      cancelSubscription: jest.fn(),
+      cancelSubscription: jest.fn(async () => ({
+        subscription: sub,
+        refundStatus: undefined,
+      })),
       listPlans: jest.fn(async () => [{ id: 'plan-1', name: 'Nail Plan' }]),
     } as any,
     giftCardOrderService: {
@@ -290,6 +331,59 @@ describe('ai-customer-crm.logic', () => {
           )
         ).success,
       ).toBe(false);
+    });
+
+    it('lists customers with filters and formats the summary', async () => {
+      const deps = buildDeps();
+      const result = await handleListCustomersLogic(deps, 'biz-1', {
+        searchTerm: 'anna',
+        isVip: true,
+        limit: 5,
+      });
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('list_customers');
+      expect(deps.customerService.searchDashboard).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({ search: 'anna', isVip: true, pageSize: 5 }),
+      );
+      expect(result.summary).toContain('2 customer(s) matching filters');
+      expect(result.summary).toContain('Anna Lopez (VIP) — vip');
+      expect(result.summary).toContain('Bob Smith — new, tags: waitlist');
+      expect((result.details as any).totalItems).toBe(2);
+    });
+
+    it('reports no matches without implying filters were applied', async () => {
+      const deps = buildDeps({
+        customerService: {
+          searchDashboard: jest.fn(async () => ({
+            stats: {
+              totalCustomers: 0,
+              filteredCustomers: 0,
+              totalAppointments: 0,
+              appointmentsByStatus: {},
+            },
+            customers: [],
+            totalItems: 0,
+            page: 1,
+            pageSize: 20,
+          })),
+        } as any,
+      });
+      const result = await handleListCustomersLogic(deps, 'biz-1', {});
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('No customers found.');
+    });
+
+    it('ignores an unrecognized tag/segment rather than passing it through', async () => {
+      const deps = buildDeps();
+      await handleListCustomersLogic(deps, 'biz-1', {
+        tags: 'not-a-real-tag',
+        segment: 'not-a-real-segment',
+      });
+      expect(deps.customerService.searchDashboard).toHaveBeenCalledWith(
+        'biz-1',
+        expect.objectContaining({ tags: undefined, segment: undefined }),
+      );
     });
   });
 
@@ -832,6 +926,7 @@ describe('ai-customer-crm.logic', () => {
         (
           await handlePrivacyDeleteLogic(buildDeps(), 'biz-1', {
             sessionCustomerId: 'c1',
+            confirm: true,
           })
         ).success,
       ).toBe(true);
@@ -1213,7 +1308,10 @@ describe('ai-customer-crm.logic', () => {
             buildDeps({
               subscriptionsService: {
                 listCustomerSubscriptions: jest.fn(async () => [subNoPlan]),
-                cancelSubscription: jest.fn(),
+                cancelSubscription: jest.fn(async () => ({
+                  subscription: subNoPlan,
+                  refundStatus: undefined,
+                })),
               } as any,
             }),
             'biz-1',

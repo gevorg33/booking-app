@@ -13,6 +13,7 @@ import {
   handleExplainWhyNoSlotsLogic,
   handleListResourceConflictsLogic,
   handleListSchedulingResourcesLogic,
+  handleListServiceResourceRequirementsLogic,
   handleMyResourceAssignmentsLogic,
   handleProvidersAvailableLaterDaysLogic,
   handleSetServiceResourceRequirementsLogic,
@@ -43,6 +44,14 @@ export function buildScheduleResourcesLogicDispatchMap(): ReadonlyMap<
 
   map.set('list_scheduling_resources', async (deps, ctx) =>
     handleListSchedulingResourcesLogic(deps, ctx.businessId),
+  );
+  map.set('list_service_resource_requirements', async (deps, ctx) =>
+    handleListServiceResourceRequirementsLogic(
+      deps,
+      ctx.businessId,
+      ctx.params,
+      ctx.services,
+    ),
   );
   map.set('create_resource', async (deps, ctx) =>
     handleCreateResourceLogic(deps, ctx.businessId, ctx.params),

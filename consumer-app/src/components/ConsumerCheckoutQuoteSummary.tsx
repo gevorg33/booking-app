@@ -19,7 +19,7 @@ export function ConsumerCheckoutQuoteSummary({
   const formatMoney = (amount: number) => formatPublicMoney(amount, currency, tenantCurrency);
   const taxLines = resolveCheckoutTaxDisplayLines(quote);
   const amountDue = quote.amountDue ?? quote.subtotal ?? 0;
-  const subtotal = quote.subtotal ?? amountDue;
+  const subtotal = quote.servicePrice ?? quote.subtotal ?? amountDue;
 
   return (
     <div

@@ -360,6 +360,85 @@ import {
   MULTILINGUAL_BUSINESS_TAX_EVAL_SCENARIOS,
   type BusinessTaxEvalScenario,
 } from '../ai-business-tax-multilingual.fixtures.js';
+import { LOCATIONS_RESCUE_SCENARIOS } from '../ai-locations.fixtures.js';
+import { RETAIL_FINANCE_E2E146_RESCUE_SCENARIOS } from '../ai-retail-finance-dashboard-classifier.fixtures.js';
+import { E2E137_ROUTING_RESCUE_SCENARIOS } from '../ai-e2e137-routing.fixtures.js';
+import { E2E136_DELETE_SCHEDULE_BLOCK_SCENARIOS } from '../ai-e2e136-clear-schedule.fixtures.js';
+import { E2E134_GUEST_MANAGE_LINK_CANCEL_SCENARIOS } from '../ai-e2e134-guest-manage-link.fixtures.js';
+import { E2E133_TOUR_VS_CLINIC_SCENARIOS } from '../ai-e2e133-tour-vs-clinic.fixtures.js';
+import { E2E132_CANCEL_POLICY_CASUAL_SCENARIOS } from '../ai-e2e132-cancel-policy-casual.fixtures.js';
+import { E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS } from '../ai-e2e131-cross-surface-hallucination.fixtures.js';
+import { E2E130_GIFT_CARD_PURCHASE_SCENARIOS } from '../ai-e2e130-gift-card-purchase-vs-multi.fixtures.js';
+import { E2E129_EXPLAIN_MY_SUBSCRIPTION_SCENARIOS } from '../ai-e2e129-explain-my-subscription.fixtures.js';
+import { E2E159_OWNER_CANCEL_ALERT_SCENARIOS } from '../ai-e2e159-owner-cancel-alert.fixtures.js';
+import { E2E157_CREATE_PACKAGE_SCENARIOS } from '../ai-e2e157-create-package.fixtures.js';
+import { LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS } from '../ai-schedule-resources-dashboard-classifier.fixtures.js';
+import { CATALOG_E2E144_DEACTIVATE_SERVICE_SCENARIOS } from '../ai-catalog-dashboard-classifier.fixtures.js';
+
+const E2E154_UNSCOPED_BOOKING_COUNT_SCENARIOS = [
+  {
+    id: 'e2e154-bookings-in-total',
+    prompt: 'How many bookings do I have in total?',
+  },
+  {
+    id: 'e2e154-appointments-altogether',
+    prompt: 'How many appointments do I have altogether?',
+  },
+] as const;
+
+const E2E153_UNSCOPED_CUSTOMER_COUNT_SCENARIOS = [
+  {
+    id: 'e2e153-how-many-customers',
+    prompt: 'How many customers do I have?',
+  },
+  {
+    id: 'e2e153-customers-in-total',
+    prompt: 'How many customers do I have in total?',
+  },
+  {
+    id: 'e2e153-total-number-of-customers',
+    prompt: 'What is my total number of customers?',
+  },
+] as const;
+
+const E2E152_PENDING_AI_AGENT_TASKS_SCENARIOS = [
+  {
+    id: 'e2e152-show-me-pending-ai-agent-tasks',
+    prompt: 'Show me pending AI agent tasks',
+  },
+  {
+    id: 'e2e152-show-pending-agent-tasks',
+    prompt: 'Show pending agent tasks',
+  },
+] as const;
+
+const E2E151_CREATE_SERVICE_CATEGORY_SCENARIOS = [
+  {
+    id: 'e2e151-add-new-service-category-called',
+    prompt: 'Add a new service category called Wellness',
+    categoryName: 'Wellness',
+  },
+  {
+    id: 'e2e151-create-service-category-named',
+    prompt: 'Create a service category named Spa',
+    categoryName: 'Spa',
+  },
+] as const;
+
+const E2E148_CREATE_PRODUCT_PRICE_SCENARIOS = [
+  {
+    id: 'e2e148-priced-at-dollars',
+    prompt: 'Add a retail product called QA Test Product priced at 5 dollars',
+    price: 5,
+    productName: 'QA Test Product',
+  },
+  {
+    id: 'e2e148-price-dollar-sign',
+    prompt: 'Add a retail product called QA Test Product 2, price $5',
+    price: 5,
+    productName: 'QA Test Product 2',
+  },
+] as const;
 import { EXPLAIN_CHECKOUT_TAX_PROMPTS } from '../ai-checkout-tax.fixtures.js';
 import {
   CONFIGURE_STACKED_TAX_RULES_PROMPTS,
@@ -2328,6 +2407,284 @@ export function businessTaxScenarioToEvalCase(
     expect,
   };
 }
+
+/** e2e-bug.144 — natural delete/remove service → deactivate_service soft-delete. */
+export const AI_COMMAND_EVAL_E2E144_DEACTIVATE_SERVICE_CASES: AiCommandEvalCase[] =
+  CATALOG_E2E144_DEACTIVATE_SERVICE_SCENARIOS.map((row) => ({
+    id: `e2e144-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: 'deactivate_service',
+      paramsPartial: { serviceName: row.serviceName },
+    },
+  }));
+
+/** e2e-bug.136 — unblock / remove block → delete_schedule_block (not clear_schedule). */
+export const AI_COMMAND_EVAL_E2E136_DELETE_SCHEDULE_BLOCK_CASES: AiCommandEvalCase[] =
+  E2E136_DELETE_SCHEDULE_BLOCK_SCENARIOS.map((row) => ({
+    id: `e2e136-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+    },
+  }));
+
+/** e2e-bug.134 — guest manage-link cancel → cancel_booking_with_token (not my_appointments). */
+export const AI_COMMAND_EVAL_E2E134_GUEST_MANAGE_LINK_CASES: AiCommandEvalCase[] =
+  E2E134_GUEST_MANAGE_LINK_CANCEL_SCENARIOS.map((row) => ({
+    id: `e2e134-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+      paramsPartial: {
+        bookingId: row.bookingId,
+        manageToken: row.manageToken,
+      },
+    },
+  }));
+
+/** e2e-bug.133 — tour capacity booking must not rescue to clinic explain_result_status. */
+export const AI_COMMAND_EVAL_E2E133_TOUR_VS_CLINIC_CASES: AiCommandEvalCase[] =
+  E2E133_TOUR_VS_CLINIC_SCENARIOS.map((row) => ({
+    id: `e2e133-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.expectedRescueReason,
+    },
+  }));
+
+/** e2e-bug.132 — casual cancel policy must not rescue to explain_package_savings. */
+export const AI_COMMAND_EVAL_E2E132_CANCEL_POLICY_CASUAL_CASES: AiCommandEvalCase[] =
+  E2E132_CANCEL_POLICY_CASUAL_SCENARIOS.map((row) => ({
+    id: `e2e132-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: 'cancel_policy',
+    },
+  }));
+
+/** e2e-bug.131 — wrong-surface hallucinations remapped to customer/public intents. */
+export const AI_COMMAND_EVAL_E2E131_CROSS_SURFACE_CASES: AiCommandEvalCase[] =
+  E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS.map((row) => ({
+    id: `e2e131-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+    },
+  }));
+
+/** e2e-bug.130 — gift-card purchase must not become multi-service / budget list. */
+/** e2e-bug.129 — explain_my_subscription must remap billing/AI-quota hallucinations. */
+export const AI_COMMAND_EVAL_E2E129_EXPLAIN_MY_SUBSCRIPTION_CASES: AiCommandEvalCase[] =
+  E2E129_EXPLAIN_MY_SUBSCRIPTION_SCENARIOS.map((row) => ({
+    id: `e2e129-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+    },
+  }));
+
+export const AI_COMMAND_EVAL_E2E130_GIFT_CARD_PURCHASE_CASES: AiCommandEvalCase[] =
+  E2E130_GIFT_CARD_PURCHASE_SCENARIOS.map((row) => ({
+    id: `e2e130-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: row.surface,
+    expect: {
+      rescuedAction: row.expectedAction,
+    },
+  }));
+
+/** e2e-bug.146 — real mutates must rescue instead of falling to react_agent. */
+export const AI_COMMAND_EVAL_E2E146_ROUTING_RESCUE_CASES: AiCommandEvalCase[] = [
+  ...LOCATIONS_RESCUE_SCENARIOS.map((row) => ({
+    id: `e2e146-locations-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.expectedAction,
+      paramsPartial: { ...row.paramsPartial },
+    },
+  })),
+  ...RETAIL_FINANCE_E2E146_RESCUE_SCENARIOS.map((row) => ({
+    id: `e2e146-retail-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.expectedAction,
+      paramsPartial: { ...row.paramsPartial },
+    },
+  })),
+  ...CONFIGURE_BUSINESS_TAX_PROMPTS.filter(
+    (row) => row.id === 'e2e146-set-sales-tax-rate-percent-word',
+  ).map((row) => ({
+    id: `e2e146-tax-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'configure_business_tax' as const,
+      rescueReason: 'configure_business_tax',
+      paramsPartial: {
+        rate: row.rate,
+        enabled: row.enabled,
+      },
+    },
+  })),
+];
+
+/** e2e-bug.137 — out-of-toolset domains must rescue to real dashboard actions. */
+export const AI_COMMAND_EVAL_E2E137_ROUTING_RESCUE_CASES: AiCommandEvalCase[] =
+  E2E137_ROUTING_RESCUE_SCENARIOS.map((row) => ({
+    id: `e2e137-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.rescueReason,
+    },
+  }));
+
+/** e2e-bug.159 — owner cancel alert → business email toggle, not customer notify. */
+export const AI_COMMAND_EVAL_E2E159_OWNER_CANCEL_ALERT_CASES: AiCommandEvalCase[] =
+  E2E159_OWNER_CANCEL_ALERT_SCENARIOS.map((row) => ({
+    id: `e2e159-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.rescueReason,
+      paramsPartial: { enabled: row.enabled },
+    },
+  }));
+
+/** e2e-bug.157 — multi-service package ≠ gift-card bundle. */
+export const AI_COMMAND_EVAL_E2E157_CREATE_PACKAGE_CASES: AiCommandEvalCase[] =
+  E2E157_CREATE_PACKAGE_SCENARIOS.map((row) => ({
+    id: `e2e157-${row.id}`,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: row.expectedAction,
+      rescueReason: row.rescueReason,
+      paramsPartial: {
+        packageName: row.packageName,
+        serviceNames: [...row.serviceNames],
+      },
+    },
+  }));
+
+/** e2e-bug.154 — unscoped booking totals → summarize_bookings count/all-time. */
+export const AI_COMMAND_EVAL_E2E154_UNSCOPED_BOOKING_COUNT_CASES: AiCommandEvalCase[] =
+  E2E154_UNSCOPED_BOOKING_COUNT_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'summarize_bookings',
+      rescueReason: 'unscoped_booking_count',
+      paramsPartial: { bookingMetric: 'count', allTime: true },
+    },
+  }));
+
+/** e2e-bug.153 — unscoped customer roster totals → summarize_customers overview. */
+export const AI_COMMAND_EVAL_E2E153_UNSCOPED_CUSTOMER_COUNT_CASES: AiCommandEvalCase[] =
+  E2E153_UNSCOPED_CUSTOMER_COUNT_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'summarize_customers',
+      rescueReason: 'unscoped_customer_count',
+      paramsPartial: { customerMetric: 'overview' },
+    },
+  }));
+
+/** e2e-bug.152 — pending AI agent tasks must not flip to clinic/react_agent. */
+export const AI_COMMAND_EVAL_E2E152_PENDING_AI_AGENT_TASKS_CASES: AiCommandEvalCase[] =
+  E2E152_PENDING_AI_AGENT_TASKS_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'list_agent_tasks',
+      rescueReason: 'list_tasks',
+      paramsPartial: { scope: 'pending' },
+    },
+  }));
+
+/** e2e-bug.151 — service category create ≠ promo code. */
+export const AI_COMMAND_EVAL_E2E151_CREATE_SERVICE_CATEGORY_CASES: AiCommandEvalCase[] =
+  E2E151_CREATE_SERVICE_CATEGORY_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'create_service_category',
+      rescueReason: 'service_category',
+      paramsPartial: { categoryName: row.categoryName },
+    },
+  }));
+
+/** e2e-bug.148 — natural "priced at N dollars" must populate create_product price. */
+export const AI_COMMAND_EVAL_E2E148_CREATE_PRODUCT_PRICE_CASES: AiCommandEvalCase[] =
+  E2E148_CREATE_PRODUCT_PRICE_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'create_product',
+      rescueReason: 'create_product',
+      paramsPartial: {
+        price: row.price,
+        retailPrice: row.price,
+        productName: row.productName,
+      },
+    },
+  }));
+
+/** e2e-bug.147 — service equipment/resource requirements must not invent via react_agent. */
+export const AI_COMMAND_EVAL_E2E147_SERVICE_RESOURCE_REQUIREMENTS_CASES: AiCommandEvalCase[] =
+  LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    locale: 'en' as const,
+    surface: 'dashboard' as const,
+    expect: {
+      rescuedAction: 'list_service_resource_requirements',
+      rescueReason: 'list_service_resource_requirements',
+      paramsPartial: { serviceName: row.serviceName },
+    },
+  }));
 
 /** Tax configuration phrasing for EN/HY/RU (ai-cmd-tax-4). */
 export const AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES: AiCommandEvalCase[] =
@@ -10604,6 +10961,24 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_SET_SERVICE_TAX_RATE_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_BUSINESS_TAX_CASES,
   ...AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES,
+  ...AI_COMMAND_EVAL_E2E146_ROUTING_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_E2E137_ROUTING_RESCUE_CASES,
+  ...AI_COMMAND_EVAL_E2E159_OWNER_CANCEL_ALERT_CASES,
+  ...AI_COMMAND_EVAL_E2E157_CREATE_PACKAGE_CASES,
+  ...AI_COMMAND_EVAL_E2E154_UNSCOPED_BOOKING_COUNT_CASES,
+  ...AI_COMMAND_EVAL_E2E153_UNSCOPED_CUSTOMER_COUNT_CASES,
+  ...AI_COMMAND_EVAL_E2E152_PENDING_AI_AGENT_TASKS_CASES,
+  ...AI_COMMAND_EVAL_E2E151_CREATE_SERVICE_CATEGORY_CASES,
+  ...AI_COMMAND_EVAL_E2E148_CREATE_PRODUCT_PRICE_CASES,
+  ...AI_COMMAND_EVAL_E2E147_SERVICE_RESOURCE_REQUIREMENTS_CASES,
+  ...AI_COMMAND_EVAL_E2E144_DEACTIVATE_SERVICE_CASES,
+  ...AI_COMMAND_EVAL_E2E136_DELETE_SCHEDULE_BLOCK_CASES,
+  ...AI_COMMAND_EVAL_E2E134_GUEST_MANAGE_LINK_CASES,
+  ...AI_COMMAND_EVAL_E2E133_TOUR_VS_CLINIC_CASES,
+  ...AI_COMMAND_EVAL_E2E132_CANCEL_POLICY_CASUAL_CASES,
+  ...AI_COMMAND_EVAL_E2E131_CROSS_SURFACE_CASES,
+  ...AI_COMMAND_EVAL_E2E129_EXPLAIN_MY_SUBSCRIPTION_CASES,
+  ...AI_COMMAND_EVAL_E2E130_GIFT_CARD_PURCHASE_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_TAX_CASES,
   ...AI_COMMAND_EVAL_CONFIGURE_STACKED_TAX_RULES_CASES,
   ...AI_COMMAND_EVAL_EXPLAIN_STACKED_TAX_CASES,

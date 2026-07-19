@@ -39,6 +39,11 @@ function buildIntakeLabBookPayCompoundStepParams(
       stepIndex: 2,
       paramsPartial: { paymentMethod: 'online' },
     });
+  } else if (fixture.paymentAction === 'pay_cash_at_visit') {
+    stepParams.push({
+      stepIndex: 2,
+      paramsPartial: { paymentMethod: 'cash' },
+    });
   }
 
   return stepParams;

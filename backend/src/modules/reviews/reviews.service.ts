@@ -1,4 +1,5 @@
 import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import { assertUuid } from '../../common/utils/uuid-param.util.js';
 import {
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { isUUID } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { Review } from './entities/review.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
@@ -26,6 +28,8 @@ export interface PublicReviewContext {
   serviceName: string;
   customerName: string;
   appointmentDate: string;
+  /** e2e-bug.59 — real end time so the review page can show a non-zero range */
+  appointmentEndDate: string;
   alreadySubmitted: boolean;
 }
 
@@ -159,6 +163,9 @@ export class ReviewsService {
     page = 1,
     limit = PUBLIC_PROVIDER_REVIEWS_PAGE_SIZE,
   ): Promise<PublicProviderReviewsPage> {
+    // api-bug.3 — reject non-UUID path params before Postgres uuid columns 500.
+    this.assertEmployeeIdUuid(employeeId);
+
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
@@ -205,6 +212,12 @@ export class ReviewsService {
       totalPages: reviewCount === 0 ? 0 : Math.ceil(reviewCount / safeLimit),
       items: reviews.map((r) => this.toPublicProviderReview(r)),
     };
+  }
+
+  private assertEmployeeIdUuid(employeeId: string): void {
+    if (!isUUID(employeeId)) {
+      throw new BadRequestException('employeeId must be a valid UUID');
+    }
   }
 
   private toPublicProviderReview(review: Review): PublicProviderReview {
@@ -339,12 +352,14 @@ export class ReviewsService {
       where: { businessId: booking.businessId, bookingId: booking.id },
     });
 
+    const endTime = booking.endTime ?? booking.startTime;
     return {
       businessName: booking.business.name,
       employeeName: booking.employee?.name ?? 'Provider',
       serviceName: booking.service?.name ?? 'Appointment',
       customerName: booking.customer?.name ?? 'Guest',
       appointmentDate: booking.startTime.toISOString(),
+      appointmentEndDate: endTime.toISOString(),
       alreadySubmitted: Boolean(
         existing || booking.metadata?.reviewSubmittedAt,
       ),
@@ -399,6 +414,9 @@ export class ReviewsService {
     dto: SubmitProviderPortalReviewDto,
     authenticatedCustomerId?: string,
   ): Promise<PublicProviderReview> {
+    // api-bug.3 — same UUID guard as listPublicProviderReviews.
+    this.assertEmployeeIdUuid(employeeId);
+
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
@@ -518,6 +536,9 @@ export class ReviewsService {
     bookingId: string,
     token: string,
   ): Promise<Booking> {
+    // e2e-bug.117 — reject non-UUID bookingId before Postgres uuid 500.
+    assertUuid(bookingId, 'bookingId');
+
     const business = await this.businessRepo.findOne({ where: { slug } });
     if (!business) throw new NotFoundException('Business not found');
 
@@ -532,15 +553,18 @@ export class ReviewsService {
     });
     if (!booking) throw new NotFoundException('Appointment not found');
 
+    // e2e-bug.118 — validate token before status so a guessed bookingId + wrong
+    // token cannot learn whether the appointment is completed (same ordering as
+    // guest manage-link auth).
+    const expected = booking.metadata?.reviewToken;
+    if (!expected || expected !== token) {
+      throw new BadRequestException('Invalid or expired review link');
+    }
+
     if (booking.status !== BookingStatus.COMPLETED) {
       throw new BadRequestException(
         'Reviews are available after your appointment is completed',
       );
-    }
-
-    const expected = booking.metadata?.reviewToken;
-    if (!expected || expected !== token) {
-      throw new BadRequestException('Invalid or expired review link');
     }
 
     return booking;

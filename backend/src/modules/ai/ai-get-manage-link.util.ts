@@ -36,6 +36,18 @@ const SHARE_CUE = new RegExp(
 
 const EMAIL_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/i;
 const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{7,}\d)/;
+const UUID_LIKE =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+const PHONE_CONTEXT_CUE =
+  /\b(?:phone|mobile|cell|call\s+me|text\s+me|sms|whatsapp|reach\s+me|number)\b/i;
+
+/** e2e-bug.102 — strip URLs/UUIDs so manage-link ids are not read as phones. */
+function stripNonPhoneContactNoise(prompt: string): string {
+  return prompt
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[?&](?:bookingId|token)=[^&\s]+/gi, ' ')
+    .replace(UUID_LIKE, ' ');
+}
 
 function matchGetManageLinkScenario(
   prompt: string,
@@ -63,11 +75,21 @@ export function extractGuestContactFromPrompt(prompt: string): {
   phone?: string;
 } {
   const email = prompt.match(EMAIL_PATTERN)?.[0]?.trim().toLowerCase();
-  const phoneRaw = prompt.match(PHONE_PATTERN)?.[0];
+  // e2e-bug.102 — never scan manage-link URLs / booking UUIDs for phone digits.
+  const scrubbed = stripNonPhoneContactNoise(prompt);
+  const phoneRaw = scrubbed.match(PHONE_PATTERN)?.[0];
   const phone = phoneRaw ? normalizeGuestContactPhone(phoneRaw) : undefined;
+  const plausiblePhone =
+    Boolean(phone) &&
+    phone!.length >= 10 &&
+    phone!.length <= 15 &&
+    (PHONE_CONTEXT_CUE.test(scrubbed) ||
+      // Allow bare international-looking numbers after scrubbing (no UUID noise).
+      /^\+?\d[\d\s().-]{8,}\d$/.test(phoneRaw!.trim()) ||
+      /\bat\s+\+?\d[\d\s().-]{7,}\d/i.test(scrubbed));
   return {
     ...(email ? { email } : {}),
-    ...(phone && phone.length >= 7 ? { phone } : {}),
+    ...(plausiblePhone ? { phone } : {}),
   };
 }
 
@@ -302,9 +324,13 @@ export function buildManageLinkResendSummary(input: {
   email?: string;
   phone?: string;
   resent: boolean;
+  /** e2e-bug.95 — include URL so chat UIs that only render summary still work. */
+  manageUrl?: string;
 }): string {
   if (!input.resent) {
-    return 'Here is your booking manage link.';
+    return input.manageUrl
+      ? `Here is your booking manage link: ${input.manageUrl}`
+      : 'Here is your booking manage link.';
   }
   if (input.delivery === 'sms' || (input.delivery === 'auto' && input.phone)) {
     return input.phone

@@ -46,8 +46,9 @@ const SUBJECTIVE_RANK_PATTERN =
 const RANK_BEST_SERVICE_CATEGORY_PATTERN =
   /\bbest\s+([a-z][\w-]{2,30})(?=\s*(?:and|under|below|for|with|tomorrow|today|nearest|soonest|service|services|not|,|$))/i;
 
+/** e2e-bug.101 — include most expensive / most premium (not only cheapest / bare premium). */
 const RANK_SERVICE_CATEGORY_PATTERN =
-  /\b(?:most\s+popular|best[\s-]?selling|premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|entry[\s-]?level|budget[\s-]?friendly|vip|signature|flagship)\s+([a-z][\w-]{2,30})(?=\s*(?:\?|$|under|below|for|with|option|service|services|treatment|treatments|you))/i;
+  /\b(?:most\s+popular|best[\s-]?selling|most\s+expensive|priciest|most\s+premium|premium|luxury|deluxe|top[\s-]?tier|cheapest|most\s+affordable|entry[\s-]?level|budget[\s-]?friendly|vip|signature|flagship|high[\s-]?end|upscale)\s+([a-z][\w-]{2,30})(?=\s*(?:\?|$|under|below|for|with|option|service|services|treatment|treatments|you|tomorrow|today|nearest|soonest|,))/i;
 
 const SERVICE_CATALOG_NOT_PROVIDER_PATTERN =
   /\bnot\s+(?:a\s+)?(?:person|people|provider|stylist|therapist|specialist|staff|employee)s?\b/i;
@@ -73,12 +74,45 @@ const RANK_SERVICE_CATEGORY_ALIASES: Record<string, string> = {
   massages: 'massage',
 };
 
+/** e2e-bug.101 — strip "most expensive" / "your most premium" the same as "cheapest". */
 const LEADING_SERVICE_RANK_ADJECTIVE_PATTERN =
-  /^(?:cheapest|most affordable|lowest[\s-]?priced?|least expensive|premium|luxury|deluxe|best(?:[\s-]?selling)?|top[\s-]?tier|most popular|budget[\s-]?friendly|entry[\s-]?level|mid[\s-]?range)\s+/i;
+  /^(?:(?:your|the|a|an)\s+)*(?:cheapest|most\s+affordable|lowest[\s-]?priced?|least\s+expensive|most\s+expensive|priciest|most\s+premium|premium|luxury|deluxe|best(?:[\s-]?selling)?|top[\s-]?tier|most\s+popular|budget[\s-]?friendly|entry[\s-]?level|mid[\s-]?range|high[\s-]?end|upscale|vip|signature|flagship)\s+/i;
 
 /** Strip catalog-rank adjectives before treating a token as serviceName (discover-flagship-book-en). */
 export function stripLeadingServiceRankAdjectives(name: string): string {
-  return name.replace(LEADING_SERVICE_RANK_ADJECTIVE_PATTERN, '').trim();
+  let next = name.trim();
+  for (let i = 0; i < 3; i += 1) {
+    const stripped = next
+      .replace(LEADING_SERVICE_RANK_ADJECTIVE_PATTERN, '')
+      .trim();
+    if (stripped === next) break;
+    next = stripped;
+  }
+  return next;
+}
+
+/** When rank adjectives polluted serviceName, prefer category (e2e-bug.101). */
+export function scrubRankPollutedServiceNameParams(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  if (typeof params.serviceName !== 'string' || !params.serviceName.trim()) {
+    return params;
+  }
+  const stripped = stripLeadingServiceRankAdjectives(params.serviceName);
+  if (stripped === params.serviceName.trim()) return params;
+
+  const next: Record<string, unknown> = { ...params };
+  const words = stripped.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    next.serviceName = null;
+    next.serviceNames = null;
+    if (!next.serviceCategory && words[0]) {
+      next.serviceCategory = words[0];
+    }
+  } else {
+    next.serviceName = stripped;
+  }
+  return next;
 }
 
 /** Generic catalog nouns — not a service category (discover-journey-premium-en T1). */
@@ -472,15 +506,20 @@ export function rescueServiceRankFromRecommendSpecialistsIntent(
 export function buildServiceRankDiscoveryRescueParams(
   prompt: string,
 ): Record<string, unknown> {
-  const enriched = enrichServiceTierFromPrompt(
-    enrichServiceRankFromPrompt(enrichBudgetFromPrompt({}, prompt), prompt),
-    prompt,
+  const enriched = scrubRankPollutedServiceNameParams(
+    enrichServiceTierFromPrompt(
+      enrichServiceRankFromPrompt(enrichBudgetFromPrompt({}, prompt), prompt),
+      prompt,
+    ),
   );
   const category = extractServiceRankServiceCategoryFromPrompt(prompt);
-  const withCategory = enrichListServicesParamsFromPrompt(prompt, {
-    ...enriched,
-    ...(category ? { serviceCategory: category } : {}),
-  });
+  const rankedParams: Record<string, unknown> = { ...enriched };
+  if (category) {
+    rankedParams.serviceCategory = category;
+    delete rankedParams.serviceName;
+    delete rankedParams.serviceNames;
+  }
+  const withCategory = enrichListServicesParamsFromPrompt(prompt, rankedParams);
   if (isMidRangeServiceListPrompt(prompt)) {
     return {
       ...withCategory,

@@ -612,9 +612,20 @@ describe('ai-payments.logic', () => {
         (
           await handleRefundGiftCardOrderLogic(buildDeps(), 'biz-1', {
             giftCardId: 'gc-1',
+            reason: 'Customer changed their mind',
           })
         ).success,
       ).toBe(true);
+      const refundNoReason = await handleRefundGiftCardOrderLogic(
+        buildDeps(),
+        'biz-1',
+        { giftCardId: 'gc-1' },
+      );
+      expect(refundNoReason.success).toBe(false);
+      expect(refundNoReason.details).toMatchObject({
+        clarify: true,
+        missing: ['reason'],
+      });
       expect(
         (await handleRefundGiftCardOrderLogic(buildDeps(), 'biz-1', {}))
           .success,
@@ -1395,7 +1406,7 @@ describe('ai-payments.logic', () => {
             },
             {
               action: 'refund_gift_card_order',
-              params: { giftCardId: 'gc-1' },
+              params: { giftCardId: 'gc-1', reason: 'Goodwill refund' },
               segment: 'd',
             },
           ],
@@ -1829,6 +1840,7 @@ describe('ai-payments.logic', () => {
         (
           await handleRefundGiftCardOrderLogic(buildDeps(), 'biz-1', {
             giftCardCode: 'GCM-ABCD1234',
+            reason: 'Duplicate purchase',
           })
         ).success,
       ).toBe(true);

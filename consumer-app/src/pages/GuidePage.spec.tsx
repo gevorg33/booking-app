@@ -74,6 +74,12 @@ vi.mock('../lib/consumer-guide-assistant-seed.util.js', () => ({
     fireConsumerGuideAssistantSeed(...args),
 }));
 
+vi.mock('../components/ConsumerBookingAssistant.js', () => ({
+  ConsumerBookingAssistant: () => (
+    <div data-testid="consumer-booking-assistant">Booking assistant</div>
+  ),
+}));
+
 function clinicTopicTitle(): string {
   const resolved = consumerMobileGuide.resolveGuidePlaybook(
     CONSUMER_CLINIC_GUIDE_TOPIC_ID,
@@ -203,6 +209,14 @@ describe('GuidePage (ai-guide-1.9.14)', () => {
     });
 
     expect(replace).toHaveBeenCalledWith(expect.stringMatching(/topicId=[^&]+/));
+  });
+
+  it('mounts booking assistant so ask-about-section seed is received (e2e-bug.47)', async () => {
+    render('/s/demo-salon/guide');
+
+    await flushEffects();
+
+    expect(container.querySelector('[data-testid="consumer-booking-assistant"]')).toBeTruthy();
   });
 
   it('seeds assistant from ask-about-section CTA with topicId', async () => {

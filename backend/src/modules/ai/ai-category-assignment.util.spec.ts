@@ -414,6 +414,33 @@ describe('ai-category-assignment.util', () => {
   });
 
   describe('unassign and transfer prompts', () => {
+    it('e2e-bug.144 — remove from catalog is not unassign_employee_services', () => {
+      expect(
+        isUnassignServicesFromProviderPrompt(
+          'Remove the QA Test Trim service from my catalog permanently',
+        ),
+      ).toBe(false);
+      expect(
+        isUnassignServicesFromProviderPrompt(
+          'Delete the service called QA Test Trim',
+        ),
+      ).toBe(false);
+    });
+
+    it.each([
+      ['Remove the manicure from my cart'],
+      ['Remove facial from cart'],
+      ['Take the facial out of my basket'],
+    ])(
+      'e2e-bug.131 — cart remove is not unassign_employee_services: %s',
+      (prompt) => {
+        expect(isUnassignServicesFromProviderPrompt(prompt)).toBe(false);
+        expect(
+          rescueUnassignServicesFromProviderIntent(prompt, 'unknown', {}),
+        ).toBeNull();
+      },
+    );
+
     it.each(
       CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS.map((s) => [s.id, s.prompt]),
     )('detects unassign %s', (_id, prompt) => {

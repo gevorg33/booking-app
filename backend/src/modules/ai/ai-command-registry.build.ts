@@ -941,6 +941,35 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     sprint: 'selfServiceBooking',
     mutateIntents: [],
   },
+  // e2e-bug.111 — signed-in public widget leave_visit_review (customer already via SELF_SERVICE_BOOKING_INTENTS)
+  {
+    intents: ['leave_visit_review'],
+    surfaces: ['customer', 'public'],
+    apiModule: 'public-booking',
+    handler: 'AiSelfServiceBookingService',
+    sprint: 'selfServiceBooking',
+    mutateIntents: ['leave_visit_review'],
+  },
+  // e2e-bug.106 — guest manage-page AI widget (URL bookingId+token) on public surface
+  {
+    intents: [
+      'explain_manage_booking_context',
+      'cancel_booking_with_token',
+      'reschedule_booking_with_token',
+      'cancel_package_visit_with_token',
+      'reschedule_package_visit_with_token',
+    ],
+    surfaces: ['customer', 'public'],
+    apiModule: 'public-booking',
+    handler: 'AiSelfServiceBookingService',
+    sprint: 'selfServiceBooking',
+    mutateIntents: [
+      'cancel_booking_with_token',
+      'reschedule_booking_with_token',
+      'cancel_package_visit_with_token',
+      'reschedule_package_visit_with_token',
+    ],
+  },
   {
     intents: ['explain_rtl_layout'],
     surfaces: ['customer', 'public'],
@@ -1327,11 +1356,15 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     sprint: 'businessProfile',
   },
   {
-    intents: [
-      'explain_business_hours_and_location',
-      'get_directions_to_salon',
-      'explain_salon_profile',
-    ],
+    // e2e-bug.137 — owner "What are my business hours?" must not fall to react_agent.
+    intents: ['explain_business_hours_and_location'],
+    surfaces: ['dashboard', 'customer', 'public'],
+    apiModule: 'ai-command',
+    handler: 'AiBusinessHoursLocationService',
+    sprint: 'businessProfile',
+  },
+  {
+    intents: ['get_directions_to_salon', 'explain_salon_profile'],
     surfaces: ['customer', 'public'],
     apiModule: 'ai-command',
     handler: 'AiBusinessHoursLocationService',
@@ -1706,6 +1739,7 @@ const LEGACY_CORE_BINDINGS: Array<{
       'analyze_services',
       'summarize_staff',
       'lookup_customer',
+      'list_customers',
       'summarize_waitlist',
       ...WAITLIST_DASHBOARD_READ_INTENTS,
       'lookup_service_assignment',
@@ -1719,11 +1753,24 @@ const LEGACY_CORE_BINDINGS: Array<{
       'summarize_customers',
       'check_schedule_compliance',
       'revenue_forecast',
+      'summarize_ai_briefing',
+      'summarize_ai_weekly_report',
+      'explain_ai_audit_log',
+      'explain_ai_usage_analytics',
+      'explain_ai_capabilities',
+      'summarize_ai_settings',
     ],
     surfaces: ['dashboard'],
     apiModule: 'ai-command',
     handler: 'AiCommandService',
     mutateIntents: [],
+  },
+  {
+    intents: ['configure_ai_autopilot'],
+    surfaces: ['dashboard'],
+    apiModule: 'ai-command',
+    handler: 'AiCommandService',
+    mutateIntents: ['configure_ai_autopilot'],
   },
   {
     intents: [...SHARED_PROVIDER_OPERATIONAL_INTENTS, 'mark_paid'],
@@ -2874,11 +2921,13 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'complete_intake_and_book',
         'book_nearest_slot',
         'pay_online',
+        'pay_cash_at_visit',
         'choose_payment_method',
       ],
       examplePrompts: [
         'Complete health form, book earliest blood draw, pay deposit',
         'Fill intake and book blood draw, pay online',
+        'fill my intake, book the soonest blood test slot, and pay cash at the visit',
       ],
       sprint: 'consumerClinicIntake',
     },
@@ -2893,6 +2942,7 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'complete_intake_and_book',
         'book_appointment',
         'pay_online',
+        'pay_cash_at_visit',
         'choose_payment_method',
       ],
       examplePrompts: [
@@ -2914,8 +2964,10 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'book_nearest_slot',
       ],
       examplePrompts: [
+        // e2e-bug.105 — short nicknames resolve via fuzzy catalog match
         'Wine tour for 6 next Saturday — book if enough seats',
         'City tour for 8 on 15/08/2026 — book only if enough spots',
+        'Private Wine Country Day for 6 next Saturday — book if enough seats',
       ],
       sprint: 'tourConsumer',
     },
@@ -2934,6 +2986,7 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
       examplePrompts: [
         'Wine tour for 6 next Saturday — book if enough seats',
         'Sunset hike for 5 guests — reserve when seats are available',
+        'Full Day City Tour for 8 on 15/08/2026 — book only if enough spots',
       ],
       sprint: 'tourConsumer',
     },
@@ -2950,8 +3003,10 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'book_nearest_slot',
       ],
       examplePrompts: [
+        // e2e-bug.105 — nicknames + realistic catalog-style names
         'Book the wine tour earliest date for 2 people',
         'Reserve mountain trek soonest departure for 4 guests',
+        'Book 3-Day Mountain Trek soonest departure for 4 guests',
       ],
       sprint: 'tourConsumer',
     },
@@ -2970,6 +3025,7 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
       examplePrompts: [
         'Book the wine tour earliest date for 2 people',
         'Reserve mountain trek soonest departure for 4 people',
+        'Book Private Wine Country Day earliest date for 2 people',
       ],
       sprint: 'tourConsumer',
     },
@@ -3005,6 +3061,7 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
       id: 'public_assistant_compound',
       surfaces: ['public'],
       handler: 'PublicBookingAssistantService.executeCommand',
+      decomposeUtil: 'decomposePublicAssistantCompoundPrompt',
       llmDecompose: false,
       maxSteps: 4,
       allowedStepIntentIds: publicSteps,

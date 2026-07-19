@@ -31,6 +31,10 @@ const DAY_CUE = new RegExp(
 );
 
 const NAMED_SCHEDULE_PATTERNS: ReadonlyArray<RegExp> = [
+  // e2e-bug.93 — "When is Mariam available this week?"
+  /\bwhen\s+(?:is|are)\s+([A-Za-z][\w.'-]{1,40})\s+available\b/i,
+  /\b(?:is|are)\s+([A-Za-z][\w.'-]{1,40})\s+available\b/i,
+  /\b([A-Za-z][\w.'-]{1,40})(?:'s|’s)?\s+availability\b/i,
   /\b(?:is|are)\s+([A-Za-z][\w.'-]{1,30})\s+(?:working|in|on\s+duty|scheduled)\b/i,
   /\b(?:does|do)\s+([A-Za-z][\w.'-]{1,30})\s+work\b/i,
   /(?:արդյո՞ք|արդյոք)\s+([A-Za-z][\w.'-]{1,30})-?ն?\s+աշխատում/i,

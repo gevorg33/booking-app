@@ -299,6 +299,41 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.92 — do not collapse reviews / rank / indifference / timed book / named schedule.
+  if (/\breviews?\b/i.test(prompt)) return false;
+  if (
+    /\b(?:don't\s+care\s+who|any\s+provider\s+works|whoever|any\s+(?:provider|stylist|specialist)\s+(?:is\s+)?fine)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:best|top|highest)\s+rated\b/i.test(prompt) ||
+    /\brecommend(?:\s+me)?\s+(?:a\s+)?(?:specialist|stylist|provider|therapist)/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // Timed book alone (not check-who / check-providers + book compounds).
+  if (
+    /\b(?:book|schedule|reserve)\b/i.test(prompt) &&
+    /\b(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(?::\d{2})?\s*(?:am|pm))\b/i.test(
+      prompt,
+    ) &&
+    !/\b(?:who|which|anyone|anybody|check\s+(?:who|providers?|availability)|providers?\s+(?:for|available|free))\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\bwhen\s+(?:is|are)\s+[A-Za-z]/i.test(prompt) &&
+    /\bavailable\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     (!/\bpackages?\b/i.test(prompt) &&
       !/\b(membership|subscription)\s+plans?\b/i.test(prompt) &&
@@ -352,6 +387,24 @@ export function isBookNearestSlotPrompt(prompt: string): boolean {
 
 export function isApplyGiftCardCodePrompt(prompt: string): boolean {
   if (/\bcurrency\s+code\b/i.test(prompt)) return false;
+  // e2e-bug.83 — "redeem referral code X" must not become apply_gift_card_code.
+  if (/\breferral\b/i.test(prompt)) return false;
+  if (
+    /\binvite\s+code\b/i.test(prompt) &&
+    !/\bgift\s*card\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.80 — purchase / price-quote prompts are not checkout redeem.
+  if (isGetGiftCardQuotePrompt(prompt)) return false;
+  if (
+    /\b(buy|purchase|order)\b/i.test(prompt) &&
+    /\bgift\s*card\b/i.test(prompt) &&
+    !/\b(GCM-|GCB-|GCS-)\b/i.test(prompt) &&
+    !/\b(apply|use|redeem)\b.+\b(code|checkout)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     /\b(redeem|claim|add|link|register|attach|activate)\b/i.test(prompt) &&
     /\b(gift\s*card|code)\b/i.test(prompt) &&
@@ -382,8 +435,26 @@ export function isCheckGiftCardBalancePrompt(prompt: string): boolean {
   );
 }
 
+/** e2e-bug.80 — price-only gift-card asks must not become apply/buy. */
+export function isGetGiftCardQuotePrompt(prompt: string): boolean {
+  if (!/\bgift\s*card\b/i.test(prompt)) return false;
+  if (/\b(GCM-|GCB-|GCS-)\b/i.test(prompt)) return false;
+  if (/\b(apply|redeem|use)\b.+\b(code|checkout)\b/i.test(prompt)) return false;
+  if (hasGiftCardForSomeoneCue(prompt)) return false;
+  const quoteCue =
+    /\b(how much|quote|cost|priced?|fees?|total\s+price|including any fees)\b/i.test(
+      prompt,
+    ) ||
+    /\bwhat would .{0,80}\b(cost|total|price|be)\b/i.test(prompt) ||
+    /\bwhat(?:'s| is)\s+the\s+total\b/i.test(prompt);
+  if (!quoteCue) return false;
+  // Hypothetical "if I buy … how much" is still a quote, not a purchase mutate.
+  return true;
+}
+
 export function isBuyGiftCardPrompt(prompt: string): boolean {
   if (hasGiftCardForSomeoneCue(prompt)) return false;
+  if (isGetGiftCardQuotePrompt(prompt)) return false;
   return (
     /\b(buy|purchase|order)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -394,6 +465,7 @@ export function isBuyGiftCardPrompt(prompt: string): boolean {
 
 export function isBuyGiftCardPhysicalPrompt(prompt: string): boolean {
   if (hasGiftCardForSomeoneCue(prompt)) return false;
+  if (isGetGiftCardQuotePrompt(prompt)) return false;
   return (
     /\b(buy|purchase|order)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -480,38 +552,69 @@ export function extractGiftCardCodeFromPrompt(prompt: string): string | null {
   return codeWord?.[1]?.trim().toUpperCase() ?? null;
 }
 
+/** Free-text reason for a gift card order refund (e.g. "refund GIFT1234 because the item arrived damaged"). */
+export function extractRefundReasonFromPrompt(prompt: string): string | null {
+  const because = prompt.match(
+    /\b(?:because|due\s+to|reason(?:\s+is)?:?)\s+(.+?)(?:\s+and|\s*$)/i,
+  );
+  return because?.[1]?.trim() || null;
+}
+
+/**
+ * e2e-bug.89 — "book the next available slot" must not yield serviceName
+ * "next available" (or similar availability filler) for cancel/book compounds.
+ */
+export function isAvailabilityFillerServiceName(
+  value: unknown,
+): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return true;
+  return /^(?:the|a|an|slot|time|appointment|appointments|opening|openings|available|free|open|next|first|soonest|nearest|upcoming|earliest|next\s+available|first\s+available|soonest\s+available|nearest\s+available|earliest\s+available)$/i.test(
+    trimmed,
+  );
+}
+
+function acceptExtractedServiceName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const trimmed = name.trim().replace(/[,.]$/, '');
+  if (!trimmed || isAvailabilityFillerServiceName(trimmed)) return null;
+  return trimmed;
+}
+
 export function extractServiceNameFromPrompt(prompt: string): string | null {
   const quoted = prompt.match(/"([^"]{1,60})"/);
-  if (quoted) return quoted[1].trim();
+  if (quoted) return acceptExtractedServiceName(quoted[1]);
+  const forNamedBooking = prompt.match(
+    /\bfor\s+(?:(?:a|an|my|the|this|upcoming)\s+)?([a-z][\w'-]{2,40})\s+(?:booking|appointment|visit|reservation)\b/i,
+  );
+  if (forNamedBooking) {
+    const name = acceptExtractedServiceName(forNamedBooking[1]);
+    if (name) return name;
+  }
   const forService = prompt.match(
-    /\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
+    /\bfor\s+(?:(?:a|an|my|the|this)\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
   );
   if (forService) {
-    const name = forService[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
-      return name;
-    }
+    const name = acceptExtractedServiceName(forService[1]);
+    if (name) return name;
   }
   const doesRequire = prompt.match(
     /\bdoes\s+([a-z][\w\s'-]{2,40}?)\s+require\b/i,
   );
   if (doesRequire) {
-    const name = doesRequire[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
-      return name;
-    }
+    const name = acceptExtractedServiceName(doesRequire[1]);
+    if (name) return name;
   }
   const takeService = prompt.match(
     /\b(?:take|do)\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
   );
   if (takeService) {
-    const name = takeService[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
-      return name;
-    }
+    const name = acceptExtractedServiceName(takeService[1]);
+    if (name) return name;
   }
   const bookNamedServiceNearest = prompt.match(
-    /\bbook\s+(?:a\s+|an\s+|the\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:nearest|soonest|first)\s+(?:available\s+)?(?:slot|appointment|opening|time)\b/i,
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:nearest|soonest|first|next)\s+(?:available\s+)?(?:slot|appointment|opening|time)\b/i,
   );
   if (bookNamedServiceNearest) {
     const name = bookNamedServiceNearest[1].trim().replace(/[,.]$/, '');
@@ -522,44 +625,30 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
       /\b(tomorrow|tonight|today|who|whom|which|when|where|free|available|open|this|next)\b/i.test(
         name,
       );
-    if (
-      name &&
-      !spansClause &&
-      !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
-        name,
-      )
-    ) {
-      return name;
-    }
+    const accepted = acceptExtractedServiceName(name);
+    if (accepted && !spansClause) return accepted;
   }
+  // Include "next available" — otherwise bookService captures "next available"
+  // as a fake serviceName (e2e-bug.89).
   const isFlexibleSlotOnlyBookPhrase =
-    /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:(?:first|nearest|soonest)\s+(?:available\s+)?(?:slot|appointment|opening|time)|(?:slot|appointment|opening|time))\b/i.test(
+    /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:(?:first|nearest|soonest|next|earliest)\s+(?:available\s+)?(?:slot|appointment|opening|time)|(?:slot|appointment|opening|time))\b/i.test(
       prompt,
     );
   if (!isFlexibleSlotOnlyBookPhrase) {
     const bookService = prompt.match(
-      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\b(?:slot|appointment|opening|time)\b|$))/i,
+      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+|next\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\b(?:slot|appointment|opening|time)\b|$))/i,
     );
     if (bookService) {
-      const name = bookService[1].trim().replace(/[,.]$/, '');
-      if (
-        name &&
-        !/^(the|a|an|slot|time|appointment|opening|available|free|open)$/i.test(
-          name,
-        )
-      ) {
-        return name;
-      }
+      const name = acceptExtractedServiceName(bookService[1]);
+      if (name) return name;
     }
   }
   const nearest = prompt.match(
     /\bnearest\s+(?:available\s+)?([\w\s'-]{2,40}?)(?:\s+(?:slot|appointment|opening|time)\b|\s+and\b|$)/i,
   );
   if (nearest) {
-    const name = nearest[1].trim();
-    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
-      return name;
-    }
+    const name = acceptExtractedServiceName(nearest[1]);
+    if (name) return name;
   }
   return null;
 }
@@ -569,6 +658,11 @@ export function extractAmountFromPrompt(prompt: string): number | null {
   if (dollar) return Number.parseFloat(dollar[1]);
   const amountWord = prompt.match(/\bamount\s+(\d+(?:\.\d{1,2})?)\b/i);
   if (amountWord) return Number.parseFloat(amountWord[1]);
+  // e2e-bug.80 — "50 dollar gift card" / "for 75 dollars"
+  const dollarsWord = prompt.match(
+    /\b(\d+(?:\.\d{1,2})?)\s*dollars?\b/i,
+  );
+  if (dollarsWord) return Number.parseFloat(dollarsWord[1]);
   return null;
 }
 
@@ -690,6 +784,24 @@ export function rescuePaymentsIntent(
   );
   if (buyGiftCardForSomeone) return buyGiftCardForSomeone;
 
+  // e2e-bug.80 — remap apply_gift_card_code (a payments intent) to purchase/quote
+  // before the payments early-return below.
+  if (isGetGiftCardQuotePrompt(prompt) && action !== 'get_gift_card_quote') {
+    return { action: 'get_gift_card_quote', rescueReason: 'gift_card_quote' };
+  }
+  if (
+    isBuyGiftCardPhysicalPrompt(prompt) &&
+    action !== 'buy_gift_card_physical'
+  ) {
+    return {
+      action: 'buy_gift_card_physical',
+      rescueReason: 'physical_gift_card',
+    };
+  }
+  if (isBuyGiftCardPrompt(prompt) && action !== 'buy_gift_card') {
+    return { action: 'buy_gift_card', rescueReason: 'buy_gift_card' };
+  }
+
   if (isPaymentsIntent(action)) return null;
 
   if (isExplainPaymentOptionsForServicePrompt(prompt)) {
@@ -792,6 +904,11 @@ export function rescuePaymentsIntent(
       action: 'buy_gift_card_for_someone',
       rescueReason: 'gift_card_for_someone',
     };
+  }
+  // e2e-bug.80 — quote before buy/apply so "how much would a $100 gift card cost?"
+  // never lands on apply_gift_card_code.
+  if (isGetGiftCardQuotePrompt(prompt)) {
+    return { action: 'get_gift_card_quote', rescueReason: 'gift_card_quote' };
   }
   if (isBuyGiftCardPhysicalPrompt(prompt)) {
     return {

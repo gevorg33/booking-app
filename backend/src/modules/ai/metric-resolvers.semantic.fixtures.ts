@@ -126,6 +126,13 @@ export const METRIC_RESOLVER_POSITIVE_SCENARIOS: MetricResolverSemanticScenario[
       mustDetect: true,
     },
     {
+      id: 'customer-overview-count',
+      prompt: 'How many customers do I have?',
+      kind: 'customer',
+      expectedMetric: 'overview',
+      mustDetect: true,
+    },
+    {
       id: 'customer-no-shows',
       prompt: 'Find customers with the most no-shows',
       kind: 'customer',

@@ -7,6 +7,8 @@ export interface BusinessSummary {
   locale?: string;
   dateFormat?: string;
   timeFormat?: string;
+  /** Safe settings slice from auth (e.g. businessType) — e2e-bug.61 */
+  settings?: Record<string, unknown>;
   membershipRole: TeamMemberRole;
   employee: { id: string; name: string } | null;
 }

@@ -126,4 +126,9 @@ export const CANCEL_AND_REBOOK_NEGATIVE_PROMPTS = [
     id: 'cancel-package-visit',
     prompt: 'Cancel my package visit and book nearest slot',
   },
+  {
+    id: 'e2e114-dated-cancel-rebook-is-reschedule',
+    prompt:
+      'cancel my facemassage booking and rebook it for next Friday instead',
+  },
 ] as const;

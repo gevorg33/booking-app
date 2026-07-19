@@ -42,6 +42,14 @@ describe('ai-guest-manage-visit-compound.util', () => {
         ),
       ).toBe(false);
     });
+
+    it('e2e-bug.103 does not match when manage-link credentials are already present', () => {
+      expect(
+        isGuestManageVisitCompoundPrompt(
+          'Cancel my package visit https://example.com/manage?bookingId=b1&token=t1',
+        ),
+      ).toBe(false);
+    });
   });
 
   describe('decomposeGuestManageVisitCompoundPrompt', () => {

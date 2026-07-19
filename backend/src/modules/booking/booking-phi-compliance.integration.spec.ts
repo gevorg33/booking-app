@@ -81,7 +81,9 @@ function createBookingPhiHarness() {
     {} as never,
     phiFieldService,
     businessService,
-  );
+    { refundBookingPayment: jest.fn() } as never,
+      { restoreRedemptionForBooking: jest.fn().mockResolvedValue(false) } as any,
+    );
 
   return {
     bookingService,
@@ -89,6 +91,9 @@ function createBookingPhiHarness() {
     businessRepo,
     auditRepo,
     phiFieldService,
+    businessService: businessService as unknown as {
+      ensureMember: jest.Mock;
+    },
   };
 }
 
@@ -220,6 +225,55 @@ describe('Sprint 37 — booking PHI compliance integration', () => {
 
     expect(result.appointments[0].notes).toBe('Dashboard note');
     expect(result.totalItems).toBe(1);
+  });
+
+  it('api-bug.1 / e2e-bug.30 / e2e-bug.97 — customer: actors skip ensureMember in audit + staff PHI', async () => {
+    const { bookingService, businessService } = createBookingPhiHarness();
+    const resolveAudit = (
+      bookingService as unknown as {
+        resolvePhiAuditActor: (
+          businessId: string,
+          userId?: string,
+        ) => Promise<unknown>;
+      }
+    ).resolvePhiAuditActor.bind(bookingService);
+    const resolveStaff = (
+      bookingService as unknown as {
+        resolveStaffPhiContext: (
+          businessId: string,
+          userId?: string,
+          ip?: string | null,
+        ) => Promise<unknown>;
+      }
+    ).resolveStaffPhiContext.bind(bookingService);
+
+    await expect(
+      resolveAudit(
+        'biz-clinic',
+        'customer:11111111-1111-1111-1111-111111111111',
+      ),
+    ).resolves.toEqual({ role: 'customer', userId: null });
+    await expect(
+      resolveStaff(
+        'biz-clinic',
+        'customer:11111111-1111-1111-1111-111111111111',
+      ),
+    ).resolves.toBeNull();
+    expect(businessService.ensureMember).not.toHaveBeenCalled();
+
+    await expect(resolveAudit('biz-clinic', undefined)).resolves.toEqual({
+      role: 'public',
+      userId: null,
+    });
+    await expect(
+      resolveAudit('biz-clinic', 'staff-not-a-uuid'),
+    ).resolves.toEqual({
+      role: 'public',
+      userId: null,
+    });
+    await expect(
+      resolveStaff('biz-clinic', 'staff-not-a-uuid'),
+    ).resolves.toBeNull();
   });
 
   it.each([

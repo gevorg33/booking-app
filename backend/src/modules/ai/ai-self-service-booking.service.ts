@@ -56,6 +56,7 @@ import {
   handleShowCartTotalDurationLogic,
   handleSuggestPackageBlockLogic,
   handleUseSubscriptionCreditLogic,
+  handleCancelMySubscriptionLogic,
   handleConfirmMyBookingDetailsLogic,
   handleAddBookingToCalendarLogic,
   type SelfServiceBookingLogicDeps,
@@ -203,6 +204,13 @@ export class AiSelfServiceBookingService {
     return handleUseSubscriptionCreditLogic(this.deps, businessId, params);
   }
 
+  handleCancelMySubscription(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleCancelMySubscriptionLogic(this.deps, businessId, params);
+  }
+
   handleCancelMyBooking(
     businessId: string,
     params: Record<string, any>,
@@ -214,8 +222,14 @@ export class AiSelfServiceBookingService {
   handleCancelAllUpcomingBookings(
     businessId: string,
     params: Record<string, any>,
+    prompt = '',
   ) {
-    return handleCancelAllUpcomingBookingsLogic(this.deps, businessId, params);
+    return handleCancelAllUpcomingBookingsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleRescheduleMyBooking(

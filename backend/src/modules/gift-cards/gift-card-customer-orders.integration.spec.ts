@@ -491,6 +491,12 @@ describe('Gift card customer orders integration', () => {
       );
       expect(detail.code).toBe('****');
 
+      await fulfillmentService.markCardReady('biz-1', card.id, 'user-creator');
+      await fulfillmentService.markOutForDelivery(
+        'biz-1',
+        card.id,
+        'user-driver',
+      );
       const delivered = await fulfillmentService.markDelivered(
         'biz-1',
         card.id,

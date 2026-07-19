@@ -17,8 +17,14 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
+import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
+import { ConsumerProviderAvatar } from '../components/ConsumerProviderAvatar.js';
 import { formatPublicMoney, resolveTenantPriceCurrency } from '../lib/business-currency.js';
-import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
+import { formatScheduleTime } from '../lib/date-format.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
+import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import type { PublicSlot, PublicServiceSlotProvider } from '../lib/types.js';
 import {
   buildMultiServiceCheckoutPath,
   buildMultiServicePickerPath,
@@ -28,6 +34,7 @@ import {
 import {
   fetchPublicServices,
   fetchServiceDaySlots,
+  fetchServiceSlotProviders,
   suggestPublicMultiServiceLines,
 } from '../services/public-api.js';
 
@@ -40,6 +47,169 @@ interface LineState {
   employeeName: string;
   startTime: string;
   dateKey: string;
+}
+
+function MultiServiceConfirmLineCard({
+  slug,
+  line,
+  index,
+  minDate,
+  primary,
+  copy,
+  locale,
+  onUpdate,
+}: {
+  slug: string;
+  line: LineState;
+  index: number;
+  minDate: string;
+  primary: string;
+  copy: ConsumerCopy;
+  locale: string;
+  onUpdate: (key: string, patch: Partial<LineState>) => void;
+}) {
+  const [slots, setSlots] = useState<PublicSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [providers, setProviders] = useState<PublicServiceSlotProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!line.dateKey) return;
+    let cancelled = false;
+    setSlotsLoading(true);
+    void (async () => {
+      try {
+        const { slots: result } = await fetchServiceDaySlots(slug, line.serviceId, line.dateKey);
+        if (cancelled) return;
+        setSlots(result);
+        const match =
+          result.find((slot) => slot.startTime === line.startTime) ?? result[0];
+        onUpdate(line.key, {
+          startTime: match?.startTime ?? '',
+          employeeId: match?.employeeId ?? '',
+          employeeName: match?.employeeName ?? '',
+        });
+      } catch {
+        if (!cancelled) {
+          setSlots([]);
+          onUpdate(line.key, { startTime: '', employeeId: '', employeeName: '' });
+        }
+      } finally {
+        if (!cancelled) setSlotsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [line.dateKey, line.key, line.serviceId, slug]);
+
+  useEffect(() => {
+    if (!line.startTime) {
+      setProviders([]);
+      return;
+    }
+    let cancelled = false;
+    setProvidersLoading(true);
+    fetchServiceSlotProviders(slug, line.serviceId, line.startTime)
+      .then((result) => {
+        if (!cancelled) setProviders(result);
+      })
+      .catch(() => {
+        if (!cancelled) setProviders([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProvidersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [line.serviceId, line.startTime, slug]);
+
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid #e5e7eb',
+      }}
+    >
+      <p style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>
+        Service {index + 1}
+      </p>
+      <h3 style={{ margin: '4px 0' }}>{line.serviceName}</h3>
+      <p style={{ color: '#6b7280', fontSize: 14 }}>{line.durationMinutes} min</p>
+
+      <IonItem lines="none">
+        <IonLabel position="stacked">Date</IonLabel>
+        <IonDatetime
+          className="consumer-booking-datetime"
+          presentation="date"
+          min={minDate}
+          value={line.dateKey}
+          onIonChange={(e) => {
+            const value = e.detail.value;
+            if (typeof value !== 'string') return;
+            onUpdate(line.key, { dateKey: value.slice(0, 10), startTime: '', employeeId: '', employeeName: '' });
+          }}
+        />
+      </IonItem>
+
+      {slotsLoading ? (
+        <IonSpinner className="ion-margin-top" />
+      ) : (
+        <ConsumerGroupedTimeSlotList
+          slots={slots}
+          selectedStartTime={line.startTime || null}
+          onSelect={(startTime) => {
+            const match = slots.find((slot) => slot.startTime === startTime);
+            onUpdate(line.key, {
+              startTime,
+              employeeId: match?.employeeId ?? '',
+              employeeName: match?.employeeName ?? '',
+            });
+          }}
+          copy={copy}
+          primaryColor={primary}
+          formatSlotLabel={(startTime) => formatScheduleTime(startTime, locale)}
+        />
+      )}
+
+      {!providersLoading && providers.length > 1 ? (
+        <ConsumerSlotSpecialistPicker
+          copy={copy}
+          primaryColor={primary}
+          providers={providers}
+          value={line.employeeId}
+          onChange={(employeeId) => {
+            const provider = providers.find((entry) => entry.id === employeeId);
+            onUpdate(line.key, { employeeId, employeeName: provider?.name ?? '' });
+          }}
+        />
+      ) : null}
+
+      {!providersLoading && providers.length === 1 ? (
+        <IonItem lines="none">
+          <div slot="start">
+            <ConsumerProviderAvatar
+              name={providers[0]!.name}
+              avatarUrl={providers[0]!.avatarUrl}
+              primaryColor={primary}
+              size={36}
+            />
+          </div>
+          <IonLabel>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>{copy.selectSpecialist}</p>
+            <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{providers[0]!.name}</p>
+            {providers[0]!.role ? (
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{providers[0]!.role}</p>
+            ) : null}
+          </IonLabel>
+        </IonItem>
+      ) : null}
+    </div>
+  );
 }
 
 export default function MultiServiceConfirmPage() {
@@ -127,7 +297,11 @@ export default function MultiServiceConfirmPage() {
           }),
         );
       } catch (err: unknown) {
-        if (!cancelled) setMessage((err as Error)?.message || copy.assistantErrorGeneric);
+        if (!cancelled) {
+          setMessage(
+            formatFriendlyNetworkError(err, copy.assistantErrorGeneric),
+          );
+        }
       } finally {
         if (!cancelled) setLoadingDefaults(false);
       }
@@ -140,30 +314,6 @@ export default function MultiServiceConfirmPage() {
   const updateLine = useCallback((key: string, patch: Partial<LineState>) => {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   }, []);
-
-  const loadSlotsForLine = useCallback(
-    async (line: LineState, nextDateKey: string) => {
-      if (!slug) return;
-      const { slots } = await fetchServiceDaySlots(slug, line.serviceId, nextDateKey);
-      const first = slots[0];
-      if (!first) {
-        updateLine(line.key, {
-          dateKey: nextDateKey,
-          startTime: '',
-          employeeId: '',
-          employeeName: '',
-        });
-        return;
-      }
-      updateLine(line.key, {
-        dateKey: nextDateKey,
-        startTime: first.startTime,
-        employeeId: first.employeeId ?? '',
-        employeeName: first.employeeName ?? '',
-      });
-    },
-    [slug, updateLine],
-  );
 
   const allScheduled = useMemo(
     () => lines.every((line) => line.startTime && line.employeeId),
@@ -217,7 +367,7 @@ export default function MultiServiceConfirmPage() {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildMultiServicePickerPath(slug, serviceIds)} />
+            <IonBackButton defaultHref={buildMultiServicePickerPath(slug, serviceIds)}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.multiServiceConfirmTitle}</IonTitle>
         </IonToolbar>
@@ -238,42 +388,17 @@ export default function MultiServiceConfirmPage() {
         {message ? <p style={{ color: '#b91c1c' }}>{message}</p> : null}
 
         {lines.map((line, index) => (
-          <div
+          <MultiServiceConfirmLineCard
             key={line.key}
-            style={{
-              marginBottom: 16,
-              padding: 12,
-              borderRadius: 12,
-              border: '1px solid #e5e7eb',
-            }}
-          >
-            <p style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>
-              Service {index + 1}
-            </p>
-            <h3 style={{ margin: '4px 0' }}>{line.serviceName}</h3>
-            <p style={{ color: '#6b7280', fontSize: 14 }}>{line.durationMinutes} min</p>
-
-            <IonItem lines="none">
-              <IonLabel position="stacked">Date</IonLabel>
-              <IonDatetime
-                presentation="date"
-                min={minDate}
-                value={line.dateKey}
-                onIonChange={(e) => {
-                  const value = e.detail.value;
-                  if (typeof value !== 'string') return;
-                  void loadSlotsForLine(line, value.slice(0, 10));
-                }}
-              />
-            </IonItem>
-
-            {line.startTime ? (
-              <p style={{ marginTop: 8, fontSize: 14 }}>
-                {formatDateDisplay(line.startTime, locale)} · {formatScheduleTime(line.startTime, locale)}
-                {line.employeeName ? ` · ${line.employeeName}` : ''}
-              </p>
-            ) : null}
-          </div>
+            slug={slug}
+            line={line}
+            index={index}
+            minDate={minDate}
+            primary={primary}
+            copy={copy}
+            locale={locale}
+            onUpdate={updateLine}
+          />
         ))}
 
         <IonButton

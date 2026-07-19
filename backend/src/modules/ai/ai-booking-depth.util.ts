@@ -76,6 +76,8 @@ export function isCashBookingPrompt(prompt: string): boolean {
 }
 
 export function isPackageBookingPrompt(prompt: string): boolean {
+  // e2e-bug.103 — cancel/reschedule package visit ≠ staff create_package_booking
+  if (/\b(cancel|reschedule|move|shift|skip)\b/i.test(prompt)) return false;
   return (
     /\bbook\s+(the\s+)?\w*\s*package\b/i.test(prompt) ||
     /\bpackage\s+(booking|visit|appointment)/i.test(prompt) ||

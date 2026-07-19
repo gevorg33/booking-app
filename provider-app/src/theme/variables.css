@@ -60,16 +60,27 @@ body.provider-tab-active ion-page {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: #111827;
   border-top: 1px solid #1f2937;
+  /* e2e-bug.65 — clinic verticals show 9 tabs; allow horizontal scroll instead of clipping Profile. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.provider-bottom-tab-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .provider-tab-btn {
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   height: var(--provider-tab-bar-core-height);
+  min-width: 3.25rem;
   min-height: var(--provider-tab-bar-core-height);
   max-height: var(--provider-tab-bar-core-height);
   margin: 0;

@@ -13,7 +13,10 @@ import {
   extractSingleIsoDayFromPrompt,
   parseEarliestBookingTimeFromPrompt,
 } from './ai-orchestration.helpers.js';
-import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import {
+  extractServiceNameFromPrompt,
+  isAvailabilityFillerServiceName,
+} from './ai-payments.util.js';
 
 function resolveTomorrowDateKey(now: Date = new Date()): string {
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -55,9 +58,6 @@ export const SHARED_BOOKING_CONTEXT_KEYS = [
 export type SharedBookingContextKey =
   (typeof SHARED_BOOKING_CONTEXT_KEYS)[number];
 
-const GENERIC_SERVICE_NAME =
-  /^(the|a|an|slot|time|appointment|appointments|opening|openings)$/i;
-
 export interface CompoundStepWithBookingParams {
   action: string;
   params: Record<string, unknown>;
@@ -77,7 +77,8 @@ function promptImpliesAllProviders(prompt: string): boolean {
 function isConcreteServiceName(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const trimmed = value.trim();
-  return trimmed.length > 0 && !GENERIC_SERVICE_NAME.test(trimmed);
+  // e2e-bug.89 — reject "next available" and other book-slot fillers.
+  return trimmed.length > 0 && !isAvailabilityFillerServiceName(trimmed);
 }
 
 /** Resolve date/time/service/provider hints once from the full prompt (or segment). */

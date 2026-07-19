@@ -343,6 +343,19 @@ describe('ai-push-notifications.logic', () => {
         )
       ).success,
     ).toBe(true);
+
+    // e2e-bug.159 — "Notify me whenever…" enables owner alert, not customer notify.
+    const notifyMe = await handleToggleBusinessEmailOnCustomerChangeLogic(
+      buildDeps(),
+      'biz-1',
+      {},
+      'Notify me whenever a customer cancels a booking today',
+    );
+    expect(notifyMe.success).toBe(true);
+    expect(notifyMe.details?.notifyBusinessOnCustomerBookingChange).toBe(true);
+    expect(notifyMe.summary).toMatch(/emailed when a customer cancels/i);
+    expect(notifyMe.summary).toMatch(/does not message the customer/i);
+    expect(notifyMe.summary).not.toMatch(/pending your approval/i);
   });
 
   it('handles customer notification preferences', async () => {

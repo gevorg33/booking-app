@@ -29,6 +29,7 @@ import type { AiExplainVoiceInputService } from './ai-explain-voice-input.servic
 import type { AiSpeakAssistantReplyService } from './ai-speak-assistant-reply.service.js';
 import type { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
 import type { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
+import { mergeExplainRtlLayoutRequestLocale } from './ai-explain-rtl-layout.util.js';
 import type { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
@@ -127,6 +128,12 @@ export interface CustomerIntentSession {
   pendingCheckoutStartTime?: string;
   pendingCheckoutEmployeeId?: string;
   prompt?: string;
+  privacyDeletePending?: boolean;
+  cancelAllUpcomingPending?: boolean;
+  requiresConfirmation?: boolean;
+  pendingAction?: string;
+  confirm?: boolean;
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 function withCustomerSession(
@@ -136,6 +143,10 @@ function withCustomerSession(
   return {
     ...params,
     sessionCustomerId: session.customerId,
+    // e2e-bug.125 — forward booking-page slug; handlers also resolve via businessId.
+    slug: (typeof params.slug === 'string' && params.slug.trim()
+      ? params.slug.trim()
+      : undefined) ?? session.slug,
     cartServiceIds: session.cartServiceIds ?? params.cartServiceIds,
     packageId: session.packageId ?? params.packageId,
     packageName: session.packageName ?? params.packageName,
@@ -176,6 +187,20 @@ function withCustomerSession(
     pendingCheckoutEmployeeId:
       session.pendingCheckoutEmployeeId ?? params.pendingCheckoutEmployeeId,
     _prompt: session.prompt,
+    // e2e-bug.84 — carry GDPR erasure preview pending into turn 2.
+    privacyDeletePending:
+      params.privacyDeletePending ?? session.privacyDeletePending,
+    // e2e-bug.78 — carry bulk-cancel preview pending into turn 2.
+    cancelAllUpcomingPending:
+      params.cancelAllUpcomingPending ?? session.cancelAllUpcomingPending,
+    requiresConfirmation:
+      params.requiresConfirmation ?? session.requiresConfirmation,
+    pendingAction: params.pendingAction ?? session.pendingAction,
+    confirm: params.confirm === true ? true : session.confirm === true,
+    conversationHistory:
+      (Array.isArray(params.conversationHistory)
+        ? params.conversationHistory
+        : undefined) ?? session.conversationHistory,
   };
 }
 
@@ -626,9 +651,10 @@ export async function dispatchCustomerIntent(
     case 'give_ai_feedback':
       return deps.giveAiFeedback.handleGiveAiFeedback(businessId, p, prompt);
     case 'explain_rtl_layout':
+      // e2e-bug.85 — locale is request/session context, not a classifier entity.
       return deps.explainRtlLayout.handleExplainRtlLayout(
         businessId,
-        p,
+        mergeExplainRtlLayoutRequestLocale(p, session.locale),
         prompt,
       );
     case 'explain_stripe_checkout_currency':
@@ -739,6 +765,11 @@ export async function dispatchCustomerIntent(
       );
     case 'use_subscription_credit':
       return deps.selfServiceBooking.handleUseSubscriptionCredit(businessId, p);
+    case 'cancel_my_subscription':
+      return deps.selfServiceBooking.handleCancelMySubscription(
+        businessId,
+        p,
+      );
     case 'cancel_my_booking':
       return deps.selfServiceBooking.handleCancelMyBooking(
         businessId,
@@ -749,6 +780,7 @@ export async function dispatchCustomerIntent(
       return deps.selfServiceBooking.handleCancelAllUpcomingBookings(
         businessId,
         p,
+        prompt,
       );
     case 'reschedule_my_booking':
       return deps.selfServiceBooking.handleRescheduleMyBooking(

@@ -21,6 +21,7 @@ import {
   type IntegrationsLogicDeps,
 } from './ai-integrations.logic.js';
 import { handleExplainIntegrationHealthLogic } from './ai-explain-integration-health.logic.js';
+import { handleExplainSupportInboxLogic } from './ai-explain-support-inbox.logic.js';
 
 export type IntegrationsDispatchContext = {
   businessId: string;
@@ -123,6 +124,14 @@ export function buildIntegrationsLogicDispatchMap(): ReadonlyMap<
   );
   map.set('explain_integration_health', (deps, ctx) =>
     handleExplainIntegrationHealthLogic(
+      deps,
+      ctx.businessId,
+      ctx.params,
+      ctx.prompt,
+    ),
+  );
+  map.set('explain_support_inbox', (deps, ctx) =>
+    handleExplainSupportInboxLogic(
       deps,
       ctx.businessId,
       ctx.params,

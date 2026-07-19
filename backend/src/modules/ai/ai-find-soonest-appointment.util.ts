@@ -212,7 +212,11 @@ export const FIND_SOONEST_APPOINTMENT_PROMPTS: readonly FindSoonestAppointmentPr
   ];
 
 const SOONEST_CUE =
-  /\b(soonest|earliest|nearest|first\s+available|asap|as\s+soon\s+as\s+possible)\b/i;
+  /\b(soonest|earliest|nearest|first\s+available|next\s+available|asap|as\s+soon\s+as\s+possible)\b/i;
+
+/** Reject sentence-filler captures like "I can get an" from soonestNamed. */
+const SOONEST_SERVICE_NAME_NOISE =
+  /\b(i|you|we|me|my|your|can|get|have|the|a|an|for|to|is|was|be|possible|available)\b/i;
 
 function hasMutateBookIntent(prompt: string): boolean {
   if (MULTILINGUAL_BOOK_VERBS.test(prompt)) return true;
@@ -269,7 +273,11 @@ function extractFindSoonestServiceNameFromPrompt(
   );
   if (soonestNamed) {
     const name = soonestNamed[1].trim().replace(/[,.]$/, '');
-    if (name && !/^(the|a|an|slot|time|appointment|opening)$/i.test(name)) {
+    if (
+      name &&
+      !/^(the|a|an|slot|time|appointment|opening)$/i.test(name) &&
+      !SOONEST_SERVICE_NAME_NOISE.test(name)
+    ) {
       return name;
     }
   }
@@ -332,6 +340,15 @@ export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
 
   if (
     /\b(earliest|soonest|nearest)\s+(slot|appointment|opening)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  // e2e-bug.94 — "when's your next available opening?" (no soonest/earliest word)
+  if (
+    /\b(when|what)\b/i.test(prompt) &&
+    /\bnext\s+available\b/i.test(prompt) &&
+    /\b(slot|appointment|opening|time)\b/i.test(prompt)
   ) {
     return true;
   }

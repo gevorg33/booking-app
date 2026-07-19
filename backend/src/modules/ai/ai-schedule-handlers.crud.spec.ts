@@ -199,6 +199,34 @@ describe('AiScheduleHandlersService template/block CRUD (ai-cmd-dashboard-6.5)',
       expect(result.success).toBe(false);
       expect(result.details).toMatchObject({ clarify: true });
     });
+
+    it('e2e-bug.136 — matches single-block rows by singleStartTime day', async () => {
+      const { service, blockScheduleService } = buildService({
+        blockScheduleService: {
+          list: jest.fn().mockResolvedValue([
+            {
+              id: 'block-single',
+              startDay: null,
+              endDay: null,
+              singleStartTime: '2026-07-18T00:00:00.000Z',
+              singleEndTime: '2026-07-18T23:59:59.000Z',
+            },
+          ]),
+        },
+      });
+      const result = await service.handleDeleteScheduleBlock(
+        'biz-1',
+        "Unblock Alex's schedule for 18/07/2026, remove the full-day block",
+        { employeeName: 'Alex', date: '18/07/2026' },
+        [employee],
+      );
+      expect(result.success).toBe(true);
+      expect(blockScheduleService.remove).toHaveBeenCalledWith(
+        'biz-1',
+        'block-single',
+        undefined,
+      );
+    });
   });
 
   describe('handleListScheduleBlocks', () => {

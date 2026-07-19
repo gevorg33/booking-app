@@ -240,6 +240,9 @@ export const EXPLAIN_PROVIDER_SPECIALTY_PROMPTS: readonly ExplainProviderSpecial
   ];
 
 const NAMED_PROVIDER_PATTERNS: ReadonlyArray<RegExp> = [
+  // e2e-bug.93 — "what does Karo specialize in?"
+  /\bwhat\s+does\s+([A-Za-z][\w.'-]{1,40})\s+specialize\s+in\b/i,
+  /\bwhat\s+is\s+([A-Za-z][\w.'-]{1,40})\s+speciali[sz]ed\s+in\b/i,
   /\btell me about\s+(.+?)(?:\?|$)/i,
   /\blearn(?: more)? about\s+(.+?)(?:\?|$)/i,
   /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b)(.+?)(?:\?|$)/i,
@@ -285,6 +288,9 @@ function hasNamedProviderCue(prompt: string): boolean {
     /\b(?:tell me about|learn(?: more)? about|what(?:'s| is)\s+\w+(?:'s)?\s+specialty|does\s+\w+\s+do)\b/i.test(
       prompt,
     ) ||
+    // e2e-bug.93 — "what does Karo specialize in?"
+    /\bwhat\s+does\s+\w+\s+specialize\s+in\b/i.test(prompt) ||
+    /\bwhat\s+is\s+\w+\s+speciali[sz]ed\s+in\b/i.test(prompt) ||
     /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b|free\b|available\b|open\b|working\b|busy\b)/i.test(
       prompt,
     ) ||

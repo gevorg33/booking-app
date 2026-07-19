@@ -1,4 +1,9 @@
-import type { PublicBusinessProfile, PublicCustomerSubscription, PublicService } from './types.js';
+import type {
+  PublicBusinessProfile,
+  PublicCheckoutQuote,
+  PublicCustomerSubscription,
+  PublicService,
+} from './types.js';
 import { prepaymentDue, type CheckoutPaymentMethod } from './checkout-payment.util.js';
 import { subscriptionCheckoutPayload } from './subscription-plans.util.js';
 
@@ -14,6 +19,24 @@ export function isUsingSubscriptionCredit(input: {
     input.useExistingSubscription &&
     input.purchaseType === 'one-time'
   );
+}
+
+/**
+ * e2e-bug.17 / e2e-bug.28 — defense-in-depth when quote API omitted useSubscriptionId.
+ * Prefer server quote with useSubscriptionId; this still zeros a stale full-price quote.
+ */
+export function resolveDisplayCheckoutQuote(
+  quote: PublicCheckoutQuote | null | undefined,
+  options: { usingSubscriptionCredit: boolean },
+): PublicCheckoutQuote | null {
+  if (!quote) return null;
+  if (!options.usingSubscriptionCredit || quote.amountDue === 0) return quote;
+  const covered = Math.max(quote.amountDue, 0);
+  return {
+    ...quote,
+    amountDue: 0,
+    totalDiscount: Math.max(quote.totalDiscount ?? 0, covered),
+  };
 }
 
 export function buildBookingSubscriptionFields(input: {

@@ -36,6 +36,7 @@ import {
 import {
   extractAmountFromPrompt,
   extractGiftCardCodeFromPrompt,
+  extractRefundReasonFromPrompt,
   extractServiceNameFromPrompt,
   notBeforeTimeFromWindow,
   parseCashPaymentsToggle,
@@ -820,14 +821,25 @@ export async function handleRefundGiftCardOrderLogic(
     );
   }
 
+  const reason =
+    (typeof params.reason === 'string' && params.reason.trim()) ||
+    extractRefundReasonFromPrompt(params._prompt ?? '');
+  if (!reason) {
+    return failure(
+      'refund_gift_card_order',
+      `What's the reason for refunding gift card order ${card.code}?`,
+      { clarify: true, missing: ['reason'], giftCardId: card.id },
+    );
+  }
+
   const refundStatus = await deps.giftCardRefundService.refundPurchase(
     business,
     card,
   );
   return success(
     'refund_gift_card_order',
-    `Gift card order refund status: ${refundStatus}.`,
-    { giftCardId: card.id, refundStatus },
+    `Gift card order refund status: ${refundStatus} (reason: ${reason}).`,
+    { giftCardId: card.id, refundStatus, reason },
   );
 }
 

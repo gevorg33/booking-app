@@ -1,14 +1,18 @@
+import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
+import type { CommandResult } from './command-completion.types.js';
+import { parseRebookLastAppointmentFromPrompt } from './ai-rebook-last-appointment.util.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   buildConsumerRebookAccountPath,
   deriveConsumerRebookQueryParams,
 } from '../../common/utils/consumer-rebook.util.js';
-import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
-import type { CommandResult } from './command-completion.types.js';
-import { parseRebookLastAppointmentFromPrompt } from './ai-rebook-last-appointment.util.js';
 
 export interface RebookLastAppointmentLogicDeps {
   publicCustomerAuthService: Pick<PublicCustomerAuthService, 'listBookings'>;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -71,7 +75,12 @@ export async function handleRebookLastAppointmentLogic(
     );
   }
 
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) return failure('rebook_last_appointment', 'Business not found.');
 
   const { bookings } = await deps.publicCustomerAuthService.listBookings(

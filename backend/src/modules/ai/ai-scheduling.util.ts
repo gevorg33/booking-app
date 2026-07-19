@@ -377,6 +377,37 @@ export function resolveHolidayDatesFromBusinessSettings(
   return parseIsoDatesList(settings.holidays ?? settings.holidayDates);
 }
 
+/**
+ * e2e-bug.136 — match a block_schedules row to an ISO day.
+ * Repetitive blocks use startDay/endDay; single blocks use singleStartTime day.
+ */
+export function scheduleBlockMatchesIsoDay(
+  block: {
+    startDay?: string | null;
+    endDay?: string | null;
+    singleStartTime?: Date | string | null;
+    singleEndTime?: Date | string | null;
+  },
+  isoDay: string,
+): boolean {
+  if (block.startDay) {
+    if (block.startDay === isoDay) return true;
+    const end = block.endDay || block.startDay;
+    return block.startDay <= isoDay && end >= isoDay;
+  }
+  if (block.singleStartTime) {
+    const start = new Date(block.singleStartTime);
+    if (Number.isNaN(start.getTime())) return false;
+    const startDay = start.toISOString().slice(0, 10);
+    if (!block.singleEndTime) return startDay === isoDay;
+    const end = new Date(block.singleEndTime);
+    if (Number.isNaN(end.getTime())) return startDay === isoDay;
+    const endDay = end.toISOString().slice(0, 10);
+    return startDay <= isoDay && endDay >= isoDay;
+  }
+  return false;
+}
+
 /** Build block payloads — supports ai-s2 propagated single blocks when skipHolidays is set. */
 export function buildBlockScheduleBlockPayloads(input: {
   targets: Array<{ id: string; name: string }>;

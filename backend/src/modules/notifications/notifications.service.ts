@@ -1,4 +1,5 @@
 import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import { isPostgresUniqueViolation } from '../../common/utils/postgres-error.util.js';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -1267,6 +1268,33 @@ export class NotificationsService {
     };
   }
 
+  /**
+   * api-bug.5 — UNIQUE (booking_id, kind, channel) can race under concurrent
+   * cancel/notify. Treat duplicate inserts as "already logged".
+   */
+  private async saveNotificationLog(entry: {
+    businessId: string;
+    bookingId: string;
+    channel: NotificationChannel;
+    kind: NotificationKind;
+    recipient: string;
+    status: 'sent' | 'failed' | 'skipped';
+    error?: string | null;
+  }): Promise<boolean> {
+    try {
+      await this.logRepo.save(this.logRepo.create(entry));
+      return true;
+    } catch (err: unknown) {
+      if (isPostgresUniqueViolation(err)) {
+        this.logger.debug(
+          `Notification log already exists for booking ${entry.bookingId} (${entry.kind}/${entry.channel})`,
+        );
+        return false;
+      }
+      throw err;
+    }
+  }
+
   private async dispatch(
     ctx: BookingNotificationContext,
     kind: NotificationKind,
@@ -1309,17 +1337,15 @@ export class NotificationsService {
       error = result.error;
     }
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId: ctx.booking.businessId,
-        bookingId: ctx.booking.id,
-        channel,
-        kind,
-        recipient,
-        status: ok ? 'sent' : 'failed',
-        error: error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId: ctx.booking.businessId,
+      bookingId: ctx.booking.id,
+      channel,
+      kind,
+      recipient,
+      status: ok ? 'sent' : 'failed',
+      error: error ?? null,
+    });
 
     if (!ok) {
       this.logger.warn(
@@ -1414,17 +1440,15 @@ export class NotificationsService {
       config,
     );
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId: ctx.booking.businessId,
-        bookingId: ctx.booking.id,
-        channel: 'whatsapp',
-        kind,
-        recipient: phone,
-        status: result.ok ? 'sent' : 'failed',
-        error: result.error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId: ctx.booking.businessId,
+      bookingId: ctx.booking.id,
+      channel: 'whatsapp',
+      kind,
+      recipient: phone,
+      status: result.ok ? 'sent' : 'failed',
+      error: result.error ?? null,
+    });
 
     if (!result.ok) {
       this.logger.warn(
@@ -1753,17 +1777,15 @@ export class NotificationsService {
       config,
     );
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId: ctx.booking.businessId,
-        bookingId: ctx.booking.id,
-        channel: 'whatsapp',
-        kind: 'confirmation',
-        recipient: customer.phone,
-        status: result.ok ? 'sent' : 'failed',
-        error: result.error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId: ctx.booking.businessId,
+      bookingId: ctx.booking.id,
+      channel: 'whatsapp',
+      kind: 'confirmation',
+      recipient: customer.phone,
+      status: result.ok ? 'sent' : 'failed',
+      error: result.error ?? null,
+    });
   }
 
   private async buildConfirmationEmail(
@@ -2141,17 +2163,15 @@ export class NotificationsService {
       error = result.error;
     }
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId,
-        bookingId: logBookingId,
-        channel,
-        kind,
-        recipient,
-        status: ok ? 'sent' : 'failed',
-        error: error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId,
+      bookingId: logBookingId,
+      channel,
+      kind,
+      recipient,
+      status: ok ? 'sent' : 'failed',
+      error: error ?? null,
+    });
 
     if (!ok) {
       this.logger.warn(
@@ -2215,17 +2235,15 @@ export class NotificationsService {
       config,
     );
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId: input.businessId,
-        bookingId: input.orderId,
-        channel: 'whatsapp',
-        kind: 'lab_booking_request',
-        recipient: input.phone,
-        status: result.ok ? 'sent' : 'failed',
-        error: result.error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId: input.businessId,
+      bookingId: input.orderId,
+      channel: 'whatsapp',
+      kind: 'lab_booking_request',
+      recipient: input.phone,
+      status: result.ok ? 'sent' : 'failed',
+      error: result.error ?? null,
+    });
 
     if (!result.ok) {
       this.logger.warn(
@@ -2296,17 +2314,15 @@ export class NotificationsService {
       config,
     );
 
-    await this.logRepo.save(
-      this.logRepo.create({
-        businessId: booking.businessId,
-        bookingId: booking.id,
-        channel: 'whatsapp',
-        kind,
-        recipient: phone,
-        status: result.ok ? 'sent' : 'failed',
-        error: result.error ?? null,
-      }),
-    );
+    await this.saveNotificationLog({
+      businessId: booking.businessId,
+      bookingId: booking.id,
+      channel: 'whatsapp',
+      kind,
+      recipient: phone,
+      status: result.ok ? 'sent' : 'failed',
+      error: result.error ?? null,
+    });
 
     if (!result.ok) {
       this.logger.warn(

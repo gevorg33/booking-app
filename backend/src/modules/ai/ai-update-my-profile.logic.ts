@@ -1,16 +1,12 @@
 import type { CommandResult } from './command-completion.types.js';
 import type { CustomerCrmLogicDeps } from './ai-customer-crm.logic.js';
 import {
-  buildUpdateMyProfileNavigate,
-  buildUpdateMyProfileSummary,
+  buildUpdateMyProfileEmailUnsupportedSummary,
+  buildUpdateMyProfileMissingValueSummary,
   enrichUpdateMyProfileParamsFromPrompt,
   parseUpdateMyProfileFromPrompt,
 } from './ai-update-my-profile.util.js';
-
-function resolveSlug(params: Record<string, unknown>): string | undefined {
-  const raw = params.slug;
-  return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-}
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 function failure(
   action: string,
@@ -37,7 +33,7 @@ function resolveSessionCustomerId(
 
 export async function handleUpdateMyProfileLogic(
   deps: CustomerCrmLogicDeps,
-  _businessId: string,
+  businessId: string,
   params: Record<string, unknown>,
   prompt = '',
 ): Promise<CommandResult> {
@@ -63,10 +59,15 @@ export async function handleUpdateMyProfileLogic(
     });
   }
 
-  // Name/phone have a real API (ai-cmd-customer-6.14.3); email changes still
-  // have no backend endpoint, so they fall back to the navigate handoff below.
+  // Name/phone have a real API (ai-cmd-customer-6.14.3). Email has none, and
+  // Account has no profile-edit UI — never navigate to ?section=profile (e2e-bug.40).
   if (parsed.name || parsed.phone) {
-    const slug = resolveSlug(enriched);
+    // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+    const slug = await resolveBusinessSlugFromParamsOrId(
+      deps.businessRepo,
+      businessId,
+      enriched,
+    );
     if (!slug) return failure('update_my_profile', 'Business not found.');
     try {
       const profile = await deps.publicCustomerAuthService.updateMyProfile(
@@ -91,11 +92,23 @@ export async function handleUpdateMyProfileLogic(
     }
   }
 
-  return success('update_my_profile', buildUpdateMyProfileSummary(parsed), {
-    uiOnly: true,
-    apiBlockedReason: 'PATCH me/profile only supports name/phone (email not shipped)',
-    field: parsed.field,
-    ...(parsed.email ? { email: parsed.email } : {}),
-    navigate: buildUpdateMyProfileNavigate(parsed),
-  });
+  if (parsed.field === 'email' || parsed.email) {
+    return failure(
+      'update_my_profile',
+      buildUpdateMyProfileEmailUnsupportedSummary(parsed),
+      {
+        apiBlockedReason:
+          'PATCH me/profile only supports name/phone (email not shipped)',
+        field: parsed.field,
+        emailUnsupported: true,
+        ...(parsed.email ? { email: parsed.email } : {}),
+      },
+    );
+  }
+
+  return failure(
+    'update_my_profile',
+    buildUpdateMyProfileMissingValueSummary(parsed),
+    { clarify: true, field: parsed.field },
+  );
 }

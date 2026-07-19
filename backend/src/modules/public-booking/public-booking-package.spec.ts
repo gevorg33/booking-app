@@ -230,6 +230,7 @@ describe('PublicBookingService package same-day block scheduling', () => {
       expect(harness.service.suggestMultiServiceBlock).toHaveBeenCalledWith(
         'salon',
         ['face-plasma', 'face-pilling'],
+        { skipDurationCap: true },
       );
     });
 
@@ -270,6 +271,7 @@ describe('PublicBookingService package same-day block scheduling', () => {
         'salon',
         ['face-plasma', 'face-pilling'],
         '2026-06-02',
+        { skipDurationCap: true },
       );
     });
   });
@@ -362,6 +364,11 @@ describe('PublicBookingService package same-day block scheduling', () => {
         markPaid: true,
       });
 
+      expect(
+        harness.multiServiceBookingsService.previewTotals,
+      ).toHaveBeenCalledWith('biz-1', ['face-plasma', 'face-pilling'], {
+        skipDurationCap: true,
+      });
       expect(harness.bookingService.create).toHaveBeenCalledTimes(2);
       expect(harness.bookingService.create).toHaveBeenNthCalledWith(
         1,
@@ -544,6 +551,24 @@ describe('PublicBookingService package same-day block scheduling', () => {
       ).rejects.toThrow('Online payment is required for this package');
     });
 
+    it('api-bug.7 — allows unpaid package book when Connect ready but amountDue is 0', async () => {
+      harness.stripeIntegrationService.isConnectReady.mockReturnValue(true);
+      harness.bookingPaymentService.resolvePackageCheckoutPricing.mockResolvedValue(
+        {
+          amountDue: 0,
+          subtotal: 100,
+        },
+      );
+
+      const result = await harness.service.bookPackage('salon', {
+        packageId: 'pkg-1',
+        lines: harness.validLines,
+        customer: { name: 'Alex', email: 'alex@example.com' },
+      });
+
+      expect(result.bookings.length).toBeGreaterThan(0);
+    });
+
     it('rejects mismatched bundled services', async () => {
       await expect(
         harness.service.bookPackage('salon', {
@@ -557,6 +582,76 @@ describe('PublicBookingService package same-day block scheduling', () => {
           customer: { name: 'Alex', email: 'alex@example.com' },
         }),
       ).rejects.toThrow('Package line count does not match included services');
+    });
+
+    it('e2e-bug.107 — packages skip maxDurationMinutes (curated bundles stay bookable)', async () => {
+      // Simulate an over-cap package: discovery/book still succeed because skipDurationCap is passed.
+      harness.multiServiceBookingsService.previewTotals.mockResolvedValue({
+        valid: true,
+        totals: {
+          blockDurationMinutes: 365,
+          totalPrice: 344.25,
+          currency: 'USD',
+          serviceCount: 5,
+          totalDurationMinutes: 365,
+        },
+        services: [],
+      });
+
+      const result = await harness.service.bookPackage('salon', {
+        packageId: 'pkg-1',
+        lines: harness.validLines,
+        customer: { name: 'Alex', email: 'alex@example.com' },
+        markPaid: true,
+      });
+
+      expect(result.bookings.length).toBeGreaterThan(0);
+      expect(
+        harness.multiServiceBookingsService.previewTotals,
+      ).toHaveBeenCalledWith('biz-1', ['face-plasma', 'face-pilling'], {
+        skipDurationCap: true,
+      });
+      expect(
+        harness.packagesService.createPackagePurchase,
+      ).toHaveBeenCalled();
+    });
+
+    it('e2e-bug.107 — resolvePackageBlockContext skips duration cap for discovery', async () => {
+      harness.multiServiceBookingsService.previewTotals.mockClear();
+      jest
+        .spyOn(harness.service as any, 'findQualifiedMultiServiceEmployees')
+        .mockResolvedValue([{ id: 'emp-1', name: 'Gevorg' }]);
+      jest
+        .spyOn(harness.service as any, 'loadOrderedMultiServiceLines')
+        .mockResolvedValue([
+          {
+            serviceId: 'face-plasma',
+            name: 'Face Plasma',
+            durationMinutes: 45,
+            bufferMinutes: 0,
+            price: 120,
+            currency: 'USD',
+          },
+          {
+            serviceId: 'face-pilling',
+            name: 'Face Pilling',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            price: 5,
+            currency: 'USD',
+          },
+        ]);
+
+      await (harness.service as any).resolvePackageBlockContext(
+        'salon',
+        'pkg-1',
+      );
+
+      expect(
+        harness.multiServiceBookingsService.previewTotals,
+      ).toHaveBeenCalledWith('biz-1', ['face-plasma', 'face-pilling'], {
+        skipDurationCap: true,
+      });
     });
   });
 });

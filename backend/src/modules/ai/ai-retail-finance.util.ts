@@ -153,7 +153,18 @@ export function isRemoveRetailLinePrompt(prompt: string): boolean {
   );
 }
 
+/** e2e-bug.141 — delete a recorded expense by id/description/category. */
+export function isDeleteExpensePrompt(prompt: string): boolean {
+  if (/\b(retail|product|line|inventory|commission)\b/i.test(prompt)) {
+    return false;
+  }
+  return (
+    /\b(delete|remove)\b/i.test(prompt) && /\bexpenses?\b/i.test(prompt)
+  );
+}
+
 export function isRecordExpensePrompt(prompt: string): boolean {
+  if (isDeleteExpensePrompt(prompt)) return false;
   return (
     /\b(record|log|add|enter)\b/i.test(prompt) && /\bexpense\b/i.test(prompt)
   );
@@ -163,7 +174,7 @@ export function isListExpensesPrompt(prompt: string): boolean {
   return (
     /\b(list|show)\b/i.test(prompt) &&
     /\bexpenses?\b/i.test(prompt) &&
-    !/\b(record|log|add)\b/i.test(prompt)
+    !/\b(record|log|add|delete|remove)\b/i.test(prompt)
   );
 }
 
@@ -175,12 +186,27 @@ export function isSummarizePlPrompt(prompt: string): boolean {
 }
 
 export function isCommissionReportPrompt(prompt: string): boolean {
+  if (/\b(export|download|csv|payout)\b/i.test(prompt)) return false;
+  if (isCreateCommissionRulePromptLoose(prompt)) return false;
   return (
     /\bcommission\s+report\b/i.test(prompt) ||
     /\bstaff\s+commissions?\s+summary\b/i.test(prompt) ||
-    (/\b(report|summary)\b/i.test(prompt) &&
-      /\bcommissions?\b/i.test(prompt) &&
-      !/\b(export|download|csv|payout)\b/i.test(prompt))
+    // e2e-bug.137 — "How much commission have my employees earned…"
+    (/\bcommissions?\b/i.test(prompt) &&
+      /\b(employees?|staff|providers?|earned|earn(?:ings?)?|how much)\b/i.test(
+        prompt,
+      )) ||
+    (/\b(report|summary)\b/i.test(prompt) && /\bcommissions?\b/i.test(prompt))
+  );
+}
+
+/** Detect set/create commission without requiring the report detector import cycle. */
+function isCreateCommissionRulePromptLoose(prompt: string): boolean {
+  return (
+    /\b(set|create|add|assign|configure)\b/i.test(prompt) &&
+    /\bcommission\b/i.test(prompt) &&
+    /\b(rate|percent|%|flat|rule)\b/i.test(prompt) &&
+    /\d+(?:\.\d+)?/.test(prompt)
   );
 }
 
@@ -189,6 +215,104 @@ export function isPayoutExportPrompt(prompt: string): boolean {
     /\bpayout\s+export\b/i.test(prompt) ||
     /\bexport\s+payout\s+csv\b/i.test(prompt)
   );
+}
+
+/** e2e-bug.146 — set/create commission rate for an employee/service. */
+export function isCreateCommissionRulePrompt(prompt: string): boolean {
+  if (isPayoutExportPrompt(prompt) || isExportCommissionsPrompt(prompt)) {
+    return false;
+  }
+  if (/\b(delete|remove|revoke)\b/i.test(prompt) && /\bcommission\b/i.test(prompt)) {
+    return false;
+  }
+  if (/\b(how much|earned|report|summary)\b/i.test(prompt) && !/\b(set|create|add)\b/i.test(prompt)) {
+    return false;
+  }
+  return isCreateCommissionRulePromptLoose(prompt);
+}
+
+/** e2e-bug.137 — reviews/ratings summary (dashboard). */
+export function isSummarizeReviewsPrompt(prompt: string): boolean {
+  if (/\b(write|leave|post|submit)\b/i.test(prompt) && /\breview\b/i.test(prompt)) {
+    return false;
+  }
+  return (
+    /\b(reviews?|ratings?)\b/i.test(prompt) &&
+    /\b(summarize|summary|show|list|average|overall|how\s+are|what\s+are|customer)\b/i.test(
+      prompt,
+    )
+  );
+}
+
+export function isDeleteCommissionRulePrompt(prompt: string): boolean {
+  if (isCommissionReportPrompt(prompt)) return false;
+  return (
+    /\b(delete|remove|revoke)\b/i.test(prompt) &&
+    /\bcommission(?:\s+rule)?\b/i.test(prompt)
+  );
+}
+
+/** e2e-bug.146 — export analytics report (not P&L narration / payout CSV). */
+export function isExportAnalyticsReportPrompt(prompt: string): boolean {
+  if (isPayoutExportPrompt(prompt) || isExportCommissionsPrompt(prompt)) {
+    return false;
+  }
+  if (isSummarizePlPrompt(prompt) && !/\bexport\b/i.test(prompt)) {
+    return false;
+  }
+  return (
+    /\bexport\b/i.test(prompt) &&
+    /\b(analytics|report|performance|utilization)\b/i.test(prompt)
+  );
+}
+
+export function parseCreateCommissionRuleFromPrompt(
+  prompt: string,
+): Record<string, unknown> | null {
+  if (!isCreateCommissionRulePrompt(prompt)) return null;
+
+  const percentMatch =
+    prompt.match(
+      /\b(?:to|at|of)\s+(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)?\b/i,
+    ) ??
+    prompt.match(/\b(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)\b/i) ??
+    prompt.match(/\b(\d+(?:\.\d+)?)\s*(?:flat|dollars?|usd)?\b/i);
+  if (!percentMatch?.[1]) return null;
+  const value = Number(percentMatch[1]);
+  if (!Number.isFinite(value)) return null;
+
+  const type: 'percent' | 'flat' = /\bflat\b/i.test(prompt)
+    ? 'flat'
+    : 'percent';
+
+  const forEmployee = prompt.match(
+    /\b(?:for|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/,
+  );
+  const employeeName = forEmployee?.[1]?.trim();
+
+  const serviceMatch = prompt.match(
+    /\b(?:on|for)\s+(?:the\s+)?([A-Za-z][\w\s'-]{1,40}?)\s+service\b/i,
+  );
+
+  return {
+    value,
+    type,
+    ...(employeeName ? { employeeName } : {}),
+    ...(serviceMatch?.[1] ? { serviceName: serviceMatch[1].trim() } : {}),
+  };
+}
+
+export function parseExportAnalyticsReportFromPrompt(
+  prompt: string,
+): Record<string, unknown> | null {
+  if (!isExportAnalyticsReportPrompt(prompt)) return null;
+  const params: Record<string, unknown> = {};
+  if (/\bpdf\b/i.test(prompt)) params.format = 'pdf';
+  if (/\bcsv\b/i.test(prompt)) params.format = 'csv';
+  if (/\bthis\s+quarter\b/i.test(prompt)) params.dateRange = 'this_quarter';
+  if (/\bthis\s+month\b/i.test(prompt)) params.dateRange = 'this_month';
+  if (/\bthis\s+year\b/i.test(prompt)) params.dateRange = 'this_year';
+  return params;
 }
 
 export function isSuggestRetailUpsellPrompt(prompt: string): boolean {
@@ -296,6 +420,11 @@ export function isRetailFinanceCompoundPrompt(prompt: string): boolean {
 export function extractProductNameFromPrompt(prompt: string): string | null {
   const named = prompt.match(/\bproduct\s+"([^"]+)"/i);
   if (named) return named[1].trim();
+  // e2e-bug.148 — "Add a retail product called QA Test Product priced at …"
+  const called = prompt.match(
+    /\b(?:retail\s+)?product\s+(?:called|named)\s+["']?([A-Za-z][\w\s'-]{1,40}?)["']?(?=\s*(?:,|\.|$|\bpriced\b|\bprice\b|\bretail\b|\bsku\b|\bfor\b|\bat\b|\bcost))/i,
+  );
+  if (called) return called[1].trim();
   const create = prompt.match(
     /\bcreate\s+product\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+sku|\s+retail|\s+quantity|\s+qty|\s+description|\s+and|\s*$)/i,
   );
@@ -322,11 +451,59 @@ export function extractSkuFromPrompt(prompt: string): string | null {
   return sku?.[1]?.trim() ?? null;
 }
 
+/**
+ * e2e-bug.148 — accept natural retail price phrasing, not only "price 5"/"retail 5".
+ * Prefer price-adjacent forms before bare "$X" / "X dollars".
+ */
 export function extractRetailPriceFromPrompt(prompt: string): number | null {
-  const retail = prompt.match(/\bretail\s+(\d+(?:\.\d{1,2})?)\b/i);
-  if (retail) return Number(retail[1]);
-  const price = prompt.match(/\bprice\s+(\d+(?:\.\d{1,2})?)\b/i);
-  return price ? Number(price[1]) : null;
+  const patterns = [
+    /\bretail(?:\s+price)?\s*(?:is\s+|of\s+|at\s+|:\s*)?\$?\s*(\d+(?:\.\d{1,2})?)\b/i,
+    /\bpric(?:e|ed)\s*(?:is\s+|of\s+|at\s+|:\s*)?\$?\s*(\d+(?:\.\d{1,2})?)\b/i,
+    /\b(?:costs?|costing)\s*(?:is\s+|at\s+)?\$?\s*(\d+(?:\.\d{1,2})?)\b/i,
+    /\$\s*(\d+(?:\.\d{1,2})?)\b/,
+    /\b(\d+(?:\.\d{1,2})?)\s*(?:dollars?|usd|eur|amd)\b/i,
+    /\bfor\s+\$?\s*(\d+(?:\.\d{1,2})?)\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    if (!match?.[1]) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value >= 0) return value;
+  }
+  return null;
+}
+
+/** Populate create_product params from NL (validator checks `price`; handler uses `retailPrice`). */
+export function enrichCreateProductParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+): Record<string, unknown> {
+  const next = { ...params };
+  const productName =
+    (typeof next.productName === 'string' && next.productName.trim()) ||
+    (typeof next.name === 'string' && next.name.trim()) ||
+    extractProductNameFromPrompt(prompt);
+  if (productName) {
+    next.productName = productName;
+    if (next.name == null) next.name = productName;
+  }
+  const sku =
+    (typeof next.sku === 'string' && next.sku.trim()) ||
+    extractSkuFromPrompt(prompt);
+  if (sku) next.sku = sku;
+
+  const fromParams =
+    typeof next.price === 'number'
+      ? next.price
+      : typeof next.retailPrice === 'number'
+        ? next.retailPrice
+        : null;
+  const price = fromParams ?? extractRetailPriceFromPrompt(prompt);
+  if (price != null) {
+    next.price = price;
+    next.retailPrice = price;
+  }
+  return next;
 }
 
 export function extractQuantityFromPrompt(prompt: string): number | null {
@@ -381,15 +558,122 @@ export function extractCustomerNameFromPrompt(prompt: string): string | null {
   return customerWord?.[1]?.trim() ?? null;
 }
 
+/** Date/filler tokens the LLM or regex must not treat as expense categories. */
+const EXPENSE_CATEGORY_STOPWORDS = new Set([
+  'today',
+  'tomorrow',
+  'yesterday',
+  'tonight',
+  'business',
+  'a',
+  'an',
+  'the',
+  'my',
+  'our',
+  'this',
+  'that',
+  'week',
+  'month',
+  'year',
+  'morning',
+  'afternoon',
+  'evening',
+  'now',
+  'just',
+  'added',
+  'new',
+  'for',
+  'and',
+  'with',
+  'from',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
+const EXPENSE_CATEGORY_HINTS: Array<{ re: RegExp; category: string }> = [
+  { re: /\b(supplies?|cleaning|cleaner|janitor)\b/i, category: 'supplies' },
+  { re: /\b(rent|lease)\b/i, category: 'rent' },
+  { re: /\b(utilit(?:y|ies)|electric|water|gas|internet)\b/i, category: 'utilities' },
+  { re: /\b(marketing|ads?|advertising|promo)\b/i, category: 'marketing' },
+  { re: /\b(payroll|salary|wages?)\b/i, category: 'payroll' },
+  { re: /\b(travel|transport|uber|taxi|flight)\b/i, category: 'travel' },
+  { re: /\b(software|saas|subscription)\b/i, category: 'software' },
+  { re: /\b(equipment|tools?|hardware)\b/i, category: 'equipment' },
+  { re: /\b(office|stationery)\b/i, category: 'office' },
+];
+
+/** e2e-bug.140 — reject date/filler categories; infer from description when needed. */
+export function normalizeExpenseCategory(
+  raw: string | null | undefined,
+  promptOrDescription = '',
+): string {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  const lower = trimmed.toLowerCase();
+  const usable =
+    trimmed.length >= 2 &&
+    trimmed.length <= 40 &&
+    !EXPENSE_CATEGORY_STOPWORDS.has(lower) &&
+    !/^\d+$/.test(trimmed);
+
+  if (usable) return trimmed;
+
+  const haystack = `${trimmed} ${promptOrDescription}`.trim();
+  for (const hint of EXPENSE_CATEGORY_HINTS) {
+    if (hint.re.test(haystack)) return hint.category;
+  }
+  return 'general';
+}
+
 export function extractExpenseCategoryFromPrompt(
   prompt: string,
 ): string | null {
-  const category = prompt.match(/\bcategory\s+"([^"]+)"/i);
-  if (category) return category[1].trim();
+  const quoted = prompt.match(/\bcategory\s+"([^"]+)"/i)?.[1]?.trim();
+  if (quoted && !EXPENSE_CATEGORY_STOPWORDS.has(quoted.toLowerCase())) {
+    return quoted;
+  }
+  const named = prompt.match(
+    /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s+for|\s*$|[.?!])/i,
+  )?.[1]?.trim();
+  if (named && !EXPENSE_CATEGORY_STOPWORDS.has(named.toLowerCase())) {
+    return named;
+  }
+  // "record expense supplies $45" — not "expense today for …"
   const expense = prompt.match(
-    /\bexpense\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s+for|\s*$)/i,
+    /\bexpense\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s*$)/i,
+  )?.[1]?.trim();
+  if (!expense) return null;
+  if (EXPENSE_CATEGORY_STOPWORDS.has(expense.toLowerCase())) return null;
+  return expense;
+}
+
+export function enrichRecordExpenseParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+): Record<string, unknown> {
+  const next = { ...params };
+  if (next.amount == null) {
+    const amount = extractExpenseAmountFromPrompt(prompt);
+    if (amount !== null) next.amount = amount;
+  }
+  if (!next.description) {
+    const description = extractExpenseDescriptionFromPrompt(prompt);
+    if (description) next.description = description;
+  }
+  const description =
+    typeof next.description === 'string' ? next.description : '';
+  const rawCategory =
+    typeof next.category === 'string' ? next.category : undefined;
+  const extracted = extractExpenseCategoryFromPrompt(prompt);
+  next.category = normalizeExpenseCategory(
+    rawCategory ?? extracted,
+    `${prompt} ${description}`,
   );
-  return expense?.[1]?.trim() ?? null;
+  return next;
 }
 
 export function extractExpenseAmountFromPrompt(prompt: string): number | null {
@@ -400,8 +684,76 @@ export function extractExpenseAmountFromPrompt(prompt: string): number | null {
 export function extractExpenseDescriptionFromPrompt(
   prompt: string,
 ): string | null {
-  const desc = prompt.match(/\bdescription\s+"([^"]+)"/i);
-  return desc?.[1]?.trim() ?? null;
+  const quoted = prompt.match(/\bdescription\s+"([^"]+)"/i);
+  if (quoted?.[1]?.trim()) return quoted[1].trim();
+
+  // e2e-bug.141 — "Delete the $20 QA test cleaning supplies expense I just added"
+  const beforeExpense = prompt.match(
+    /\b(?:delete|remove)\s+(?:the\s+)?(?:\$?\d+(?:\.\d{1,2})?\s+)?(.+?)\s+expense\b/i,
+  );
+  if (beforeExpense?.[1]) {
+    const cleaned = beforeExpense[1]
+      .replace(/\b(?:just\s+added|i\s+just\s+added)\b/gi, '')
+      .replace(/\b(?:business|today|yesterday)\b/gi, '')
+      .trim();
+    if (cleaned.length >= 3 && !/^(the|a|an|this|that|my)$/i.test(cleaned)) {
+      return cleaned;
+    }
+  }
+
+  // "expense for QA test cleaning supplies" / "expense called …"
+  const forDesc = prompt.match(
+    /\bexpense\s+(?:for|called|named)\s+["']?([^"'.,]+?)["']?(?:\s+I\s+just|\s*$|[.?!])/i,
+  );
+  if (forDesc?.[1]?.trim() && forDesc[1].trim().length >= 3) {
+    return forDesc[1].trim();
+  }
+
+  // record: "… for QA test cleaning supplies"
+  const recordFor = prompt.match(
+    /\b(?:expense|spent)\b[^.]{0,40}?\bfor\s+([A-Za-z][\w\s'-]{2,60}?)(?:\s*$|[.?!])/i,
+  );
+  if (recordFor?.[1]?.trim()) return recordFor[1].trim();
+
+  return null;
+}
+
+export function extractExpenseIdFromPrompt(prompt: string): string | null {
+  const uuid = prompt.match(
+    /\b(?:expense\s+)?(?:with\s+)?id\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i,
+  );
+  if (uuid) return uuid[1];
+  const bare = prompt.match(
+    /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i,
+  );
+  return bare?.[1] ?? null;
+}
+
+export function enrichDeleteExpenseParamsFromPrompt(
+  params: Record<string, unknown>,
+  prompt: string,
+): Record<string, unknown> {
+  const next = { ...params };
+  if (!next.expenseId) {
+    const expenseId = extractExpenseIdFromPrompt(prompt);
+    if (expenseId) next.expenseId = expenseId;
+  }
+  if (!next.description) {
+    const description = extractExpenseDescriptionFromPrompt(prompt);
+    if (description) next.description = description;
+  }
+  if (!next.category) {
+    // Only explicit "category …" — avoid "expense I just added" false category.
+    const quotedCategory = prompt.match(/\bcategory\s+"([^"]+)"/i)?.[1]?.trim();
+    const namedCategory = prompt.match(
+      /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+expense|\s*$|[.?!])/i,
+    )?.[1]?.trim();
+    const category = quotedCategory || namedCategory;
+    if (category && !/^(the|a|an|this|that|my|i)$/i.test(category)) {
+      next.category = category;
+    }
+  }
+  return next;
 }
 
 export function extractProductIdFromPrompt(prompt: string): string | null {
@@ -432,6 +784,24 @@ export function rescueRetailFinanceIntent(
   if (isExportCommissionsPrompt(prompt)) {
     return null;
   }
+  if (isExportAnalyticsReportPrompt(prompt)) {
+    return {
+      action: 'export_analytics_report',
+      rescueReason: 'export_analytics_report',
+    };
+  }
+  if (isCreateCommissionRulePrompt(prompt)) {
+    return {
+      action: 'create_commission_rule',
+      rescueReason: 'create_commission_rule',
+    };
+  }
+  if (isDeleteCommissionRulePrompt(prompt)) {
+    return {
+      action: 'delete_commission_rule',
+      rescueReason: 'delete_commission_rule',
+    };
+  }
 
   if (isSuggestRetailUpsellPrompt(prompt)) {
     return {
@@ -461,11 +831,17 @@ export function rescueRetailFinanceIntent(
   if (isCommissionReportPrompt(prompt)) {
     return { action: 'commission_report', rescueReason: 'commission_report' };
   }
+  if (isSummarizeReviewsPrompt(prompt)) {
+    return { action: 'summarize_reviews', rescueReason: 'summarize_reviews' };
+  }
   if (isSummarizePlPrompt(prompt)) {
     return { action: 'summarize_pl', rescueReason: 'summarize_pl' };
   }
   if (isListExpensesPrompt(prompt)) {
     return { action: 'list_expenses', rescueReason: 'list_expenses' };
+  }
+  if (isDeleteExpensePrompt(prompt)) {
+    return { action: 'delete_expense', rescueReason: 'delete_expense' };
   }
   if (isRecordExpensePrompt(prompt)) {
     return { action: 'record_expense', rescueReason: 'record_expense' };
@@ -507,7 +883,11 @@ function classifyRetailFinanceSegment(
   const sku = extractSkuFromPrompt(text);
   if (sku) base.sku = sku;
   const retailPrice = extractRetailPriceFromPrompt(text);
-  if (retailPrice !== null) base.retailPrice = retailPrice;
+  if (retailPrice !== null) {
+    base.retailPrice = retailPrice;
+    // e2e-bug.148 — entity validator requires `price`; handler reads `retailPrice`.
+    base.price = retailPrice;
+  }
   const quantity = extractQuantityFromPrompt(text);
   if (quantity !== null) base.quantityOnHand = quantity;
   const delta = extractInventoryDeltaFromPrompt(text);

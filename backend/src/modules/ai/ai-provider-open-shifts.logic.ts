@@ -2,6 +2,10 @@ import { Between, In, type Repository } from 'typeorm';
 import type { BusinessService } from '../business/business.service.js';
 import type { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../customer/customer-tag-query.util.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
@@ -15,7 +19,10 @@ import {
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { resolveAvailabilityDayBounds } from '../provider-mobile/provider-ai-sprint19.util.js';
 import { extractTimeSlotFromPrompt } from './ai-structural-extractors.js';
-import { fuzzyMatchServiceByName } from './ai-orchestration.helpers.js';
+import {
+  extractSingleIsoDayFromPrompt,
+  fuzzyMatchServiceByName,
+} from './ai-orchestration.helpers.js';
 import {
   formatCustomerWaitlistPreferenceSummary,
   readCustomerWaitlistRequest,
@@ -74,9 +81,12 @@ export async function handleSuggestWaitlistForGapLogic(
   }
 
   const rawDate = String(params.date ?? params.dateFrom ?? '').trim();
+  // e2e-bug.67 — "Fill this gap" UI sends ISO dates in the prompt; LLM often
+  // omits params.date, so fall back to deterministic prompt extraction.
   const dateKey =
     normalizeScheduleDateKey(rawDate) ??
-    (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate) ? toIsoDay(rawDate) : null);
+    (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate) ? toIsoDay(rawDate) : null) ??
+    extractSingleIsoDayFromPrompt(prompt);
   if (!dateKey) {
     return failure(
       'suggest_waitlist_for_gap',
@@ -129,12 +139,12 @@ export async function handleSuggestWaitlistForGapLogic(
     );
   }
 
-  const waitlist = await deps.customerRepo
+  const waitlistQb = deps.customerRepo
     .createQueryBuilder('c')
     .where('c.business_id = :businessId', { businessId })
-    .andWhere(`'waitlist' = ANY(c.tags)`)
-    .orderBy('c.name', 'ASC')
-    .getMany();
+    .orderBy('c.name', 'ASC');
+  andWhereSimpleArrayTag(waitlistQb, 'c', WAITLIST_CUSTOMER_TAG, 'waitlistTag');
+  const waitlist = await waitlistQb.getMany();
 
   const waitlistNames = waitlist.map((customer) => customer.name);
   const displayDay = formatDateDisplay(toIsoDay(dateKey));
@@ -220,12 +230,12 @@ async function findActiveWaitlistEntries(
   deps: ProviderOpenShiftsLogicDeps,
   businessId: string,
 ): Promise<ActiveWaitlistEntry[]> {
-  const waitlist = await deps.customerRepo
+  const waitlistQb = deps.customerRepo
     .createQueryBuilder('c')
     .where('c.business_id = :businessId', { businessId })
-    .andWhere(`'waitlist' = ANY(c.tags)`)
-    .orderBy('c.name', 'ASC')
-    .getMany();
+    .orderBy('c.name', 'ASC');
+  andWhereSimpleArrayTag(waitlistQb, 'c', WAITLIST_CUSTOMER_TAG, 'waitlistTag');
+  const waitlist = await waitlistQb.getMany();
 
   return waitlist
     .map((customer) => ({

@@ -140,6 +140,7 @@ import {
 import {
   buildProviderCheckInEligibility,
   buildProviderCheckInPushMessage,
+  claimProviderBookingCheckIn,
   providerMobileNotifyCustomerOnVisitStatus,
   providerMobileNotifyReceptionOnCheckIn,
   resolveProviderBookingFloorStatus,
@@ -1608,22 +1609,21 @@ export class ProviderMobileService {
   }
 
   async checkInBooking(businessId: string, userId: string, bookingId: string) {
-    const booking = await this.getAccessibleBooking(
-      businessId,
-      userId,
+    // Access check first (provider scope); claim serializes the write.
+    await this.getAccessibleBooking(businessId, userId, bookingId);
+
+    const claimed = await claimProviderBookingCheckIn(this.bookingRepo, {
       bookingId,
-    );
-    const eligibility = buildProviderCheckInEligibility(booking);
-    if (!eligibility.allowed) {
-      throw new BadRequestException(
-        eligibility.reason ?? 'Check-in is not allowed for this booking',
-      );
+      businessId,
+    });
+    if (!claimed.ok) {
+      if (claimed.code === 'not_found') {
+        throw new NotFoundException(claimed.reason);
+      }
+      throw new BadRequestException(claimed.reason);
     }
 
-    const checkedInAt = new Date();
-    booking.checkedInAt = checkedInAt;
-    const saved = await this.bookingRepo.save(booking);
-
+    const saved = claimed.booking;
     await this.maybeNotifyReceptionOnCheckIn(businessId, userId, saved);
 
     return {
@@ -2405,7 +2405,7 @@ export class ProviderMobileService {
     dto: CancelProviderBookingDto,
   ) {
     await this.getAccessibleBooking(businessId, userId, bookingId);
-    const cancelled = await this.bookingService.cancel(
+    const { booking: cancelled } = await this.bookingService.cancel(
       bookingId,
       dto.reason?.trim() || 'Cancelled by provider',
       userId,

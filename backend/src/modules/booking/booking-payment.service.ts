@@ -7,7 +7,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { BookingCheckoutDraft } from './entities/booking-checkout-draft.entity.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -59,30 +59,56 @@ import {
   type PurchaseGiftCardInput,
 } from '../gift-cards/gift-card-purchase.service.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
-import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
-
-function stripeTenantUrl(
-  frontendUrl: string,
-  slug: string,
-  pathSuffix: string,
-  query = '',
-): string {
-  const base = buildTenantPublicUrl({ slug, frontendUrl, pathSuffix });
-  if (!query) return base;
-  const joiner = base.includes('?') ? '&' : '?';
-  return `${base}${joiner}${query}`;
-}
+import {
+  buildCheckoutReturnUrls,
+  type CheckoutReturnKind,
+} from '../../common/utils/checkout-return-url.util.js';
 
 interface StripeCheckoutSession {
   id?: string;
   metadata?: Record<string, string> | null;
   status?: string | null;
   payment_status?: string | null;
+  payment_intent?: string | { id: string } | null;
 }
+
+function extractPaymentIntentId(
+  session: StripeCheckoutSession,
+): string | undefined {
+  const paymentIntent = session.payment_intent;
+  return typeof paymentIntent === 'string'
+    ? paymentIntent
+    : paymentIntent?.id;
+}
+
+/** e2e-bug.122 — never surface raw Stripe SDK text (keys, account ids) to clients. */
+export const SAFE_ONLINE_PAYMENT_UNAVAILABLE_MESSAGE =
+  'Online payment is temporarily unavailable. Please try again or contact the business.';
 
 @Injectable()
 export class BookingPaymentService {
   private readonly logger = new Logger(BookingPaymentService.name);
+
+  /** e2e-bug.18 — success/cancel URLs for the client that started checkout. */
+  private stripeReturnUrls(input: {
+    clientSurface?: string | null;
+    returnOrigin?: string | null;
+    slug: string;
+    kind: CheckoutReturnKind;
+    webPathSuffix: string;
+    successQuery: string;
+    cancelQuery: string;
+    serviceId?: string;
+    packageId?: string;
+  }): { success_url: string; cancel_url: string } {
+    const urls = buildCheckoutReturnUrls({
+      ...input,
+      frontendUrl: this.stripeService.frontendUrl,
+      consumerAppUrl: this.stripeService.consumerAppUrl,
+      allowLocalDevOrigins: process.env.NODE_ENV !== 'production',
+    });
+    return { success_url: urls.successUrl, cancel_url: urls.cancelUrl };
+  }
 
   constructor(
     @InjectRepository(BookingCheckoutDraft)
@@ -125,6 +151,50 @@ export class BookingPaymentService {
       service.prepaymentMode !== PrepaymentMode.NONE &&
       this.calculatePrepaymentAmount(service) > 0
     );
+  }
+
+  /** e2e-bug.122 — log Stripe failures server-side; return a generic client message. */
+  private async createConnectCheckoutSession(
+    sessionParams: Record<string, unknown>,
+    connectOpts: { stripeAccount?: string },
+    context: string,
+  ): Promise<{ id: string; url?: string | null }> {
+    try {
+      return (await this.stripeService.client.checkout.sessions.create(
+        sessionParams as never,
+        connectOpts,
+      )) as { id: string; url?: string | null };
+    } catch (err) {
+      this.logger.error(
+        `Stripe checkout.sessions.create failed (${context}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw new BadRequestException(SAFE_ONLINE_PAYMENT_UNAVAILABLE_MESSAGE);
+    }
+  }
+
+  private async retrieveConnectCheckoutSession(
+    sessionId: string,
+    connectOpts: { stripeAccount?: string },
+    context: string,
+  ): Promise<StripeCheckoutSession> {
+    try {
+      return (await this.stripeService.client.checkout.sessions.retrieve(
+        sessionId,
+        {},
+        connectOpts,
+      )) as StripeCheckoutSession;
+    } catch (err) {
+      this.logger.error(
+        `Stripe checkout.sessions.retrieve failed (${context}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw new BadRequestException(SAFE_ONLINE_PAYMENT_UNAVAILABLE_MESSAGE);
+    }
   }
 
   resolveFulfillmentCheckoutPricing(
@@ -207,11 +277,19 @@ export class BookingPaymentService {
       packageId,
     );
     const packagePrice = preview.pricing.packagePrice;
+    // api-bug.7 — online amount is sum of per-line prepayments, not full package price.
+    const prepaymentAmount = await this.sumServicesPrepaymentAmount(
+      businessId,
+      (preview.items ?? []).flatMap((item) =>
+        Array(Math.max(1, Number(item.quantity) || 1)).fill(item.serviceId),
+      ),
+      packagePrice,
+    );
 
     return this.checkoutPricingService.calculate({
       businessId,
       servicePrice: packagePrice,
-      prepaymentAmount: packagePrice,
+      prepaymentAmount,
       currency: preview.currency,
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
@@ -291,10 +369,19 @@ export class BookingPaymentService {
       }),
     );
 
-    const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       packageId: dto.packageId,
+    });
+    const returnUrls = this.stripeReturnUrls({
+      clientSurface: dto.clientSurface,
+      returnOrigin: dto.returnOrigin,
+      slug,
+      kind: 'package',
+      packageId: dto.packageId,
+      webPathSuffix: `/packages/${dto.packageId}/checkout`,
+      successQuery: `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelQuery: 'canceled=1',
     });
 
     const stripeCheckout = this.buildStripePaidCheckoutContext(pricing);
@@ -328,22 +415,17 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${stripeTenantUrl(frontendUrl, slug, `/packages/${dto.packageId}/checkout`, `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
-          cancel_url: stripeTenantUrl(
-            frontendUrl,
-            slug,
-            `/packages/${dto.packageId}/checkout`,
-            'canceled=1',
-          ),
+          ...returnUrls,
         },
         business.settings,
         stripeCheckout.amountCents,
         stripeCheckout.taxMetadata,
       );
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const session = await this.createConnectCheckoutSession(
       sessionParams,
       connectOpts,
+      `package slug=${slug}`,
     );
 
     if (!session.url) {
@@ -413,7 +495,6 @@ export class BookingPaymentService {
       }),
     );
 
-    const frontendUrl = this.stripeService.frontendUrl;
     const lineItems = [
       {
         price_data: {
@@ -435,6 +516,16 @@ export class BookingPaymentService {
       });
     }
 
+    const returnUrls = this.stripeReturnUrls({
+      clientSurface: dto.clientSurface,
+      returnOrigin: dto.returnOrigin,
+      slug,
+      kind: 'gift_card',
+      webPathSuffix: '/gift-cards/checkout',
+      successQuery: 'paid=1&session_id={CHECKOUT_SESSION_ID}',
+      cancelQuery: 'canceled=1',
+    });
+
     const [sessionParams, connectOpts] =
       this.stripeService.connectCheckoutSessionCreate(
         connectAccountId,
@@ -450,21 +541,16 @@ export class BookingPaymentService {
             connectAccountId,
             checkoutKind: 'gift_card_purchase',
           },
-          success_url: `${stripeTenantUrl(frontendUrl, slug, '/gift-cards/checkout', 'paid=1&session_id={CHECKOUT_SESSION_ID}')}`,
-          cancel_url: stripeTenantUrl(
-            frontendUrl,
-            slug,
-            '/gift-cards/checkout',
-            'canceled=1',
-          ),
+          ...returnUrls,
         },
         business.settings,
         Math.round(quote.total * 100),
       );
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const session = await this.createConnectCheckoutSession(
       sessionParams,
       connectOpts,
+      `gift_card slug=${slug}`,
     );
 
     if (!session.url)
@@ -500,11 +586,17 @@ export class BookingPaymentService {
       serviceId: svc.serviceId,
       amount: svc.price,
     }));
+    // api-bug.7 — charge only what each line's prepaymentMode requires (0 for none).
+    const prepaymentAmount = await this.sumServicesPrepaymentAmount(
+      businessId,
+      serviceIds,
+      totalPrice,
+    );
 
     return this.checkoutPricingService.calculate({
       businessId,
       servicePrice: totalPrice,
-      prepaymentAmount: totalPrice,
+      prepaymentAmount,
       currency,
       promoCode: dto.promoCode,
       loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
@@ -518,6 +610,33 @@ export class BookingPaymentService {
         business?.settings as Record<string, unknown> | undefined,
       ),
     });
+  }
+
+  /**
+   * api-bug.7 — sum `calculatePrepaymentAmount` per ordered service id.
+   * Caps at `maxAmount` so package discounts cannot force overpaying online.
+   */
+  private async sumServicesPrepaymentAmount(
+    businessId: string,
+    serviceIds: string[],
+    maxAmount?: number,
+  ): Promise<number> {
+    if (!serviceIds.length) return 0;
+    const uniqueIds = [...new Set(serviceIds)];
+    const entities = await this.serviceRepo.find({
+      where: { businessId, id: In(uniqueIds), isActive: true },
+    });
+    const byId = new Map(entities.map((svc) => [svc.id, svc]));
+    let total = 0;
+    for (const id of serviceIds) {
+      const svc = byId.get(id);
+      if (svc) total += this.calculatePrepaymentAmount(svc);
+    }
+    total = Math.round(total * 100) / 100;
+    if (maxAmount != null) {
+      total = Math.min(total, Math.max(0, Number(maxAmount)));
+    }
+    return total;
   }
 
   async createMultiServiceCheckoutSession(
@@ -585,10 +704,18 @@ export class BookingPaymentService {
       }),
     );
 
-    const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       services: dto.serviceIds.join(','),
+    });
+    const returnUrls = this.stripeReturnUrls({
+      clientSurface: dto.clientSurface,
+      returnOrigin: dto.returnOrigin,
+      slug,
+      kind: 'multi',
+      webPathSuffix: '/multi/checkout',
+      successQuery: `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelQuery: `canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
     });
 
     const stripeCheckout = this.buildStripePaidCheckoutContext(pricing);
@@ -622,22 +749,17 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${stripeTenantUrl(frontendUrl, slug, '/multi/checkout', `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
-          cancel_url: stripeTenantUrl(
-            frontendUrl,
-            slug,
-            '/multi/checkout',
-            `canceled=1&services=${encodeURIComponent(dto.serviceIds.join(','))}`,
-          ),
+          ...returnUrls,
         },
         business.settings,
         stripeCheckout.amountCents,
         stripeCheckout.taxMetadata,
       );
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const session = await this.createConnectCheckoutSession(
       sessionParams,
       connectOpts,
+      `multi_service slug=${slug}`,
     );
 
     if (!session.url) {
@@ -746,7 +868,7 @@ export class BookingPaymentService {
       }
     }
 
-    return this.checkoutPricingService.calculate({
+    const pricing = await this.checkoutPricingService.calculate({
       businessId,
       servicePrice,
       prepaymentAmount: chargeBase,
@@ -767,6 +889,21 @@ export class BookingPaymentService {
         service.metadata,
       ),
     });
+
+    // e2e-bug.28 — subscription credit covers the visit; quote/checkout preview must be $0.
+    if (dto.useSubscriptionId) {
+      const covered = Math.max(pricing.amountDue, 0);
+      return {
+        ...pricing,
+        amountDue: 0,
+        loyaltyPointsToRedeem: 0,
+        loyaltyDiscount: 0,
+        pointsToEarn: 0,
+        totalDiscount: Math.max(pricing.totalDiscount, covered),
+      };
+    }
+
+    return pricing;
   }
 
   async createCheckoutSession(
@@ -875,7 +1012,6 @@ export class BookingPaymentService {
       }),
     );
 
-    const frontendUrl = this.stripeService.frontendUrl;
     const checkoutQuery = new URLSearchParams({
       paid: '1',
       serviceId: dto.serviceId,
@@ -886,6 +1022,16 @@ export class BookingPaymentService {
     } else {
       checkoutQuery.set('autoAssign', '1');
     }
+    const returnUrls = this.stripeReturnUrls({
+      clientSurface: dto.clientSurface,
+      returnOrigin: dto.returnOrigin,
+      slug,
+      kind: 'single',
+      serviceId: dto.serviceId,
+      webPathSuffix: '/checkout',
+      successQuery: `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelQuery: `canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
+    });
 
     const [sessionParams, connectOpts] =
       this.stripeService.connectCheckoutSessionCreate(
@@ -917,22 +1063,17 @@ export class BookingPaymentService {
             },
             pricing,
           ),
-          success_url: `${stripeTenantUrl(frontendUrl, slug, '/checkout', `${checkoutQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`)}`,
-          cancel_url: stripeTenantUrl(
-            frontendUrl,
-            slug,
-            '/checkout',
-            `canceled=1&serviceId=${encodeURIComponent(dto.serviceId)}&startTime=${encodeURIComponent(dto.startTime)}${dto.employeeId ? `&employeeId=${encodeURIComponent(dto.employeeId)}` : '&autoAssign=1'}`,
-          ),
+          ...returnUrls,
         },
         business.settings,
         stripeCheckout.amountCents,
         stripeCheckout.taxMetadata,
       );
 
-    const session = await this.stripeService.client.checkout.sessions.create(
+    const session = await this.createConnectCheckoutSession(
       sessionParams,
       connectOpts,
+      `booking slug=${slug} kind=${checkoutKind}`,
     );
 
     if (!session.url) {
@@ -966,13 +1107,13 @@ export class BookingPaymentService {
       );
     }
 
-    const session = await this.stripeService.client.checkout.sessions.retrieve(
+    const session = await this.retrieveConnectCheckoutSession(
       sessionId,
-      {},
       this.stripeService.connectRequestOptions(
         connectAccountId,
         business.settings,
       ),
+      `confirm slug=${slug} session=${sessionId}`,
     );
     if (
       session.metadata?.type !== 'booking_payment' ||
@@ -985,7 +1126,11 @@ export class BookingPaymentService {
       throw new BadRequestException('Payment is not complete yet');
     }
 
-    return this.fulfillDraft(session.metadata.draftId, sessionId);
+    return this.fulfillDraft(
+      session.metadata.draftId,
+      sessionId,
+      extractPaymentIntentId(session),
+    );
   }
 
   async handleCheckoutCompleted(session: StripeCheckoutSession): Promise<void> {
@@ -1000,10 +1145,18 @@ export class BookingPaymentService {
       return;
     }
 
-    await this.fulfillDraft(session.metadata.draftId, session.id ?? 'unknown');
+    await this.fulfillDraft(
+      session.metadata.draftId,
+      session.id ?? 'unknown',
+      extractPaymentIntentId(session),
+    );
   }
 
-  private async fulfillDraft(draftId: string, sessionId: string) {
+  private async fulfillDraft(
+    draftId: string,
+    sessionId: string,
+    paymentIntentId?: string,
+  ) {
     const draft = await this.draftRepo.findOne({ where: { id: draftId } });
     if (!draft) {
       this.logger.warn(`Checkout draft ${draftId} not found`);
@@ -1034,7 +1187,15 @@ export class BookingPaymentService {
       const packageDto = dto as unknown as BookPublicPackageDto;
       const result = await this.publicBookingService.bookPackage(
         business.slug,
-        { ...packageDto, markPaid: true },
+        {
+          ...packageDto,
+          markPaid: true,
+          metadata: {
+            ...(packageDto.metadata || {}),
+            stripeConnectAccountId: draft.stripeConnectAccountId,
+            stripePaymentIntentId: paymentIntentId,
+          },
+        },
         authenticatedCustomerId,
       );
 
@@ -1067,9 +1228,19 @@ export class BookingPaymentService {
 
     if (checkoutKind === 'multi_service_booking') {
       const multiDto = dto as unknown as BookPublicMultiServiceDto;
+      // e2e-bug.35 — same Stripe metadata merge as package_purchase so cancel can refund.
       const result = await this.publicBookingService.bookMultiService(
         business.slug,
-        { ...multiDto, markPaid: true },
+        {
+          ...multiDto,
+          markPaid: true,
+          metadata: {
+            ...(multiDto.metadata || {}),
+            stripeConnectAccountId: draft.stripeConnectAccountId,
+            stripePaymentIntentId: paymentIntentId,
+            stripeSessionId: sessionId,
+          },
+        },
         authenticatedCustomerId,
       );
 
@@ -1129,6 +1300,7 @@ export class BookingPaymentService {
         ...(dto.metadata || {}),
         stripeSessionId: sessionId,
         stripeConnectAccountId: draft.stripeConnectAccountId,
+        stripePaymentIntentId: paymentIntentId,
         subscriptionPricePaid: dto.purchasePlanId
           ? Number(draft.amount)
           : undefined,

@@ -237,6 +237,15 @@ export function isSummarizeMyRevenuePrompt(prompt: string): boolean {
   if (/\b(mark paid|payment sweep|collect outstanding)\b/i.test(lower)) {
     return false;
   }
+  // e2e-bug.137 — business-owner "revenue have I made" is dashboard total, not
+  // provider personal earnings (unless cut/tips/take-home is explicit).
+  if (
+    /\bhave\s+i\s+made\b/i.test(lower) &&
+    /\b(revenue|sales|income)\b/i.test(lower) &&
+    !/\b(my\s+cut|take[- ]home|my\s+tips|my\s+share)\b/i.test(lower)
+  ) {
+    return false;
+  }
 
   const revenueCue =
     /\b(revenue|earnings?|income|made|make|earn(?:ed)?|net|cut|take[- ]home)\b/i.test(

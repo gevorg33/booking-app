@@ -23,10 +23,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js';
+import { resolveBookPageCatalogService } from '../lib/book-page-catalog.util.js';
 import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
+import {
+  checkoutSubmitFeedbackTone,
+  shouldShowCheckoutSubmitRetry,
+  type CheckoutSubmitFeedback,
+} from '../lib/checkout-submit-feedback.util.js';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { ConsumerNetworkErrorCard } from '../components/ConsumerNetworkErrorCard.js';
 import { ConsumerOfflineBanner } from '../components/ConsumerOfflineBanner.js';
+import { ConsumerWaitlistSection } from '../components/ConsumerWaitlistSection.js';
 import { ConsumerCheckoutDiscounts } from '../components/ConsumerCheckoutDiscounts.js';
 import { ConsumerCheckoutQuoteSummary } from '../components/ConsumerCheckoutQuoteSummary.js';
 import { ConsumerCheckoutSubscriptionOptions } from '../components/ConsumerCheckoutSubscriptionOptions.js';
@@ -83,6 +92,7 @@ import {
   shouldPromptPreConfirmSignIn,
 } from '../lib/activation-path-ab.util.js';
 import { loadActivationPathPromotedFromRemote } from '../lib/activation-path-ab-remote.util.js';
+import { formatCopy } from '../lib/copy.js';
 import { formatBookingDateTimeRange, formatScheduleTime } from '../lib/date-format.js';
 import { ConsumerCheckoutIntakeStep } from '../components/ConsumerCheckoutIntakeStep.js';
 import { ConsumerProductRecommendationCards } from '../components/ConsumerProductRecommendationCards.js';
@@ -132,7 +142,7 @@ import {
 } from '../lib/booking-draft-resume.util.js';
 import {
   loadRememberedCheckoutContact,
-  resolveCheckoutContactPrefill,
+  mergeCheckoutContactPrefill,
   saveRememberedCheckoutContact,
 } from '../lib/checkout-autofill.util.js';
 import {
@@ -146,6 +156,7 @@ import {
   buildBookingSubscriptionFields,
   isUsingSubscriptionCredit,
   requiresCheckoutOnlinePayment,
+  resolveDisplayCheckoutQuote,
   shouldShowSubscriptionCheckoutOptions,
   showCheckoutCashOption,
 } from '../lib/checkout-subscription.util.js';
@@ -221,6 +232,7 @@ function applyBookingSuccess(
     profile: { name: string; branding: { logoUrl?: string } };
     slot: string;
     checkoutQuote: PublicCheckoutQuote | null | undefined;
+    usingSubscriptionCredit?: boolean;
     customer: GuestCheckoutContact;
     queryClient: ReturnType<typeof useQueryClient>;
     clinicOrderToken?: string;
@@ -240,6 +252,7 @@ function applyBookingSuccess(
     profile,
     slot,
     checkoutQuote,
+    usingSubscriptionCredit = false,
     customer,
     queryClient,
     clinicOrderToken,
@@ -252,7 +265,8 @@ function applyBookingSuccess(
     bookingId,
     startTime: slot,
     endTime: computeBookingSuccessEndTime(slot, service.durationMinutes),
-    quote: checkoutQuote ?? null,
+    // e2e-bug.17 — confirmation must show $0 due when a subscription credit covered the visit.
+    quote: resolveDisplayCheckoutQuote(checkoutQuote, { usingSubscriptionCredit }),
   });
   track('completed_booking', { bookingId, serviceId: service.id });
   bookingCompletedRef.current = true;
@@ -372,10 +386,10 @@ export default function BookPage() {
   ]);
   const renderBookBackButton = () =>
     professionalsFirstBackHref ? (
-      <ConsumerBackButton defaultHref={professionalsFirstBackHref} />
+      <ConsumerBackButton defaultHref={professionalsFirstBackHref} text={copy.guidePageBack} />
     ) : slug ? (
       <IonButtons slot="start">
-        <SalonTabBackButton slug={slug} tab="services" />
+        <SalonTabBackButton slug={slug} tab="services" text={copy.guidePageBack} />
       </IonButtons>
     ) : null;
 
@@ -413,7 +427,8 @@ export default function BookPage() {
       skipSlotDiscovery,
   );
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [submitFeedback, setSubmitFeedback] =
+    useState<CheckoutSubmitFeedback | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<{
     bookingId: string;
     startTime: string;
@@ -436,7 +451,6 @@ export default function BookPage() {
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('online');
   const [awaitingPaymentReturn, setAwaitingPaymentReturn] = useState(false);
   const bookingCompletedRef = useRef(false);
-  const contactPrefilledRef = useRef(false);
   const rebookTrackedRef = useRef(false);
   const startedBookingTrackedRef = useRef(false);
   const confirmStepTrackedRef = useRef(false);
@@ -450,15 +464,26 @@ export default function BookPage() {
     isError: servicesError,
     refetch: refetchServices,
     isFetching: servicesFetching,
-  } = useCachedTenantServices(slug ?? '');
-  const catalogService = services.find((s) => s.id === serviceId);
-  const service =
-    catalogService ??
-    (professionalsFirstState.professionalsFirstService?.id === serviceId
-      ? professionalsFirstState.professionalsFirstService
-      : undefined);
+    isLoading: servicesLoading,
+    isFetched: servicesFetched,
+  } = useCachedTenantServices(slug ?? '', { authoritative: true });
+  // e2e-bug.29 — wait for authoritative catalog when online; do not book from warm cache alone.
+  const awaitingAuthoritativeCatalog = Boolean(slug) && servicesLoading && !servicesFetched;
+  const catalogResolution = resolveBookPageCatalogService({
+    serviceId,
+    services,
+    awaitingAuthoritativeCatalog,
+  });
+  const catalogService =
+    catalogResolution === 'found'
+      ? services.find((s) => s.id === serviceId)
+      : undefined;
+  // Catalog is source of truth for bookability (public list = active only).
+  const service = catalogService;
   const serviceDisplayName =
-    service?.name ?? professionalsFirstState.professionalsFirstService?.name ?? copy.checkoutBookingService;
+    service?.name ??
+    professionalsFirstState.professionalsFirstService?.name ??
+    copy.checkoutBookingService;
 
   const isTour = service ? isPublicTourService(service) : false;
   const isDayLevelTour = service ? isDayLevelTourService(service) : false;
@@ -560,7 +585,11 @@ export default function BookPage() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [useExistingSubscription, setUseExistingSubscription] = useState(true);
 
-  const profileStored = slug ? getStoredCustomerProfile(slug) : null;
+  // e2e-bug.6/8 — memoize; getStoredCustomerProfile returns a new object each call.
+  const profileStored = useMemo(
+    () => (slug ? getStoredCustomerProfile(slug) : null),
+    [slug],
+  );
   const authed = slug ? !!getCustomerToken(slug) : false;
 
   const { data: loyalty } = useQuery({
@@ -581,6 +610,12 @@ export default function BookPage() {
     enabled: Boolean(slug && serviceId && authed && !bookingSuccess),
   });
   const activeSubscription = activeSubscriptionData?.subscription ?? null;
+  // Computed before quote fetch so e2e-bug.28 can thread useSubscriptionId into /bookings/quote.
+  const usingSubscriptionCreditForQuote = isUsingSubscriptionCredit({
+    activeSubscription,
+    useExistingSubscription,
+    purchaseType,
+  });
 
   const fallbackSubtotal = service
     ? resolveTourFallbackSubtotal(service, paxCount)
@@ -609,6 +644,9 @@ export default function BookPage() {
           purchaseType,
           selectedPlanId,
           ...(isTour ? { paxCount } : {}),
+          ...(usingSubscriptionCreditForQuote && activeSubscription?.id
+            ? { useSubscriptionId: activeSubscription.id }
+            : {}),
           ...discounts,
         }),
       ),
@@ -616,7 +654,15 @@ export default function BookPage() {
     fallbackSubtotal,
     quoteFailedMessage: copy.networkLoadFailed,
     initialAppliedPromo: slug ? readRefereePromoCode(slug) : null,
-    deps: [slug, serviceId, purchaseType, selectedPlanId, isTour ? paxCount : null],
+    deps: [
+      slug,
+      serviceId,
+      purchaseType,
+      selectedPlanId,
+      isTour ? paxCount : null,
+      usingSubscriptionCreditForQuote,
+      activeSubscription?.id ?? null,
+    ],
   });
   const activationPathVariants = useMemo(
     () => resolveActivationPathVariants(getOrCreateAnonId()),
@@ -624,6 +670,7 @@ export default function BookPage() {
   );
 
   const postBookingOneTapSignIn = useConsumerOneTapSignIn(slug, {
+    copy,
     onSuccess: (result) => {
       if (!bookingSuccess) return;
       track('signed_in');
@@ -638,6 +685,7 @@ export default function BookPage() {
   });
 
   const preConfirmOneTapSignIn = useConsumerOneTapSignIn(slug, {
+    copy,
     onSuccess: () => {
       track('signed_in');
       setPreConfirmSignedIn(true);
@@ -760,18 +808,18 @@ export default function BookPage() {
     );
   }, [deferredResume.isResume, serviceId, slot]);
 
+  // e2e-bug.8 — prefill for signed-in customers too (was gated on !authed).
   useEffect(() => {
-    if (!slug || authed || contactPrefilledRef.current) return;
-    contactPrefilledRef.current = true;
+    if (!slug) return;
     const draft = loadBookingDraft();
-    setGuestContact(
-      resolveCheckoutContactPrefill({
+    setGuestContact((prev) =>
+      mergeCheckoutContactPrefill(prev, {
         profile: profileStored,
         draft: draft?.slug === slug ? draft.guestContact : null,
         remembered: loadRememberedCheckoutContact(slug),
       }),
     );
-  }, [slug, authed, profileStored]);
+  }, [slug, profileStored]);
 
   const confirmPendingPayment = useCallback(async () => {
     if (!slug || !serviceId) return false;
@@ -782,7 +830,7 @@ export default function BookPage() {
     if (pending && pending.serviceId !== serviceId) return false;
 
     setSubmitting(true);
-    setMessage('');
+    setSubmitFeedback(null);
     try {
       const result = await confirmPublicBookingPayment(slug, sessionId);
       guestBookingRef.current = bookingCompletedAsGuest(!!getCustomerToken(slug));
@@ -947,7 +995,7 @@ export default function BookPage() {
     setBookingSuccess(null);
     setAwaitingPaymentReturn(false);
     setCheckoutFailed(false);
-    setMessage('');
+    setSubmitFeedback(null);
     setSubmitting(false);
     bookingCompletedRef.current = false;
     guestBookingRef.current = false;
@@ -979,7 +1027,7 @@ export default function BookPage() {
       setBookingSuccess(null);
       setAwaitingPaymentReturn(false);
       setCheckoutFailed(false);
-      setMessage('');
+      setSubmitFeedback(null);
       setSubmitting(false);
       bookingCompletedRef.current = false;
       guestBookingRef.current = false;
@@ -1100,7 +1148,11 @@ export default function BookPage() {
     showBookingCalendar,
   ]);
 
-  if (loading || (servicesFetching && !service && services.length === 0)) {
+  if (
+    loading ||
+    catalogResolution === 'loading' ||
+    (servicesFetching && !service && services.length === 0)
+  ) {
     return (
       <IonPage>
         <IonContent className="ion-padding ion-text-center">
@@ -1116,7 +1168,7 @@ export default function BookPage() {
         <IonHeader>
           <IonToolbar>
           {renderBookBackButton()}
-          <IonTitle>Book</IonTitle>
+          <IonTitle>{copy.tabBook}</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
@@ -1138,7 +1190,7 @@ export default function BookPage() {
         <IonHeader>
           <IonToolbar>
           {renderBookBackButton()}
-          <IonTitle>Book</IonTitle>
+          <IonTitle>{copy.tabBook}</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
@@ -1151,7 +1203,7 @@ export default function BookPage() {
             />
           ) : (
             <>
-              <p>Service not found</p>
+              <p>{copy.serviceNotFound}</p>
               <IonButton expand="block" fill="outline" routerLink={buildSalonPath(slug, '/services')}>
                 {copy.bookAnotherService}
               </IonButton>
@@ -1254,16 +1306,22 @@ export default function BookPage() {
       ? validateGuestCheckoutContact(customer)
       : 'Enter your contact details to book.';
     if (!customer || validationError) {
-      setMessage(validationError ?? 'Enter your contact details to book.');
+      setSubmitFeedback({
+        message: validationError ?? 'Enter your contact details to book.',
+        kind: 'validation',
+      });
       return;
     }
     if (purchaseType === 'subscription' && !isSubscriptionCheckoutSelection(purchaseType, selectedPlanId)) {
-      setMessage(copy.checkoutSubscriptionPlanRequired);
+      setSubmitFeedback({
+        message: copy.checkoutSubscriptionPlanRequired,
+        kind: 'validation',
+      });
       return;
     }
     const method = options?.paymentOverride ?? paymentMethod;
     setSubmitting(true);
-    setMessage('');
+    setSubmitFeedback(null);
     try {
       guestBookingRef.current = bookingCompletedAsGuest(!!getCustomerToken(slug));
       const bookingBody = {
@@ -1303,7 +1361,11 @@ export default function BookPage() {
           setAwaitingPaymentReturn(true);
           setCheckoutFailed(false);
           openExternalCheckout(checkout.url);
-          setMessage('Complete payment in your browser, then return here to confirm your booking.');
+          setSubmitFeedback({
+            message:
+              'Complete payment in your browser, then return here to confirm your booking.',
+            kind: 'info',
+          });
           return;
         } catch (checkoutErr: unknown) {
           if (
@@ -1323,7 +1385,10 @@ export default function BookPage() {
                 fallbackReason: 'checkout_failed',
               }),
             );
-            setMessage(activationPaymentCopy.hiccupMessage);
+            setSubmitFeedback({
+              message: activationPaymentCopy.hiccupMessage,
+              kind: 'info',
+            });
             return submitBooking(linkedIntakeId, { paymentOverride: 'cash' });
           }
           throw checkoutErr;
@@ -1332,7 +1397,10 @@ export default function BookPage() {
 
       const result = await createBooking(slug, bookingBody);
       if (isOfflineQueuedPayload(result)) {
-        setMessage(copy.offlineMutationQueued);
+        setSubmitFeedback({
+          message: copy.offlineMutationQueued,
+          kind: 'info',
+        });
         return;
       }
       if (result.customer) {
@@ -1348,6 +1416,7 @@ export default function BookPage() {
           profile,
           slot,
           checkoutQuote,
+          usingSubscriptionCredit,
           customer,
           queryClient,
           clinicOrderToken,
@@ -1357,7 +1426,10 @@ export default function BookPage() {
         result.booking.id,
       );
     } catch (err: unknown) {
-      setMessage(formatFriendlyNetworkError(err, copy.networkLoadFailed));
+      setSubmitFeedback({
+        message: formatFriendlyNetworkError(err, copy.networkLoadFailed),
+        kind: 'network',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1596,8 +1668,11 @@ export default function BookPage() {
     );
   }
 
+  const primary = profile.branding.primaryColor || '#7c3aed';
+
   return (
-    <IonPage>
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
           {renderBookBackButton()}
@@ -1606,24 +1681,30 @@ export default function BookPage() {
       </IonHeader>
       <IonContent className="ion-padding">
         <ConsumerOfflineBanner copy={copy} fromCache={fromCache} />
-        <BookingProgressIndicator pathname={location.pathname} slotSelected={Boolean(slot)} />
+        <BookingProgressIndicator
+          pathname={location.pathname}
+          slotSelected={Boolean(slot)}
+          copy={copy}
+        />
 
         {!authed ? (
-          <>
-            <p style={{ color: '#6b7280', marginBottom: 8 }}>
-              {bookingResume.isResume
-                ? buildBookingDraftResumeCopy(bookingResume.abandonedStep, locale)
-                : deferredResume.isResume
-                  ? 'Your time is reserved — confirm your booking below.'
-                  : 'Book as a guest — sign in later and we will keep your appointments.'}
-            </p>
-            <ConsumerCheckoutContactForm value={guestContact} onChange={setGuestContact} />
-          </>
+          <p style={{ color: '#6b7280', marginBottom: 8 }}>
+            {bookingResume.isResume
+              ? buildBookingDraftResumeCopy(bookingResume.abandonedStep, locale)
+              : deferredResume.isResume
+                ? 'Your time is reserved — confirm your booking below.'
+                : 'Book as a guest — sign in later and we will keep your appointments.'}
+          </p>
         ) : bookingResume.isResume ? (
           <p style={{ color: '#6b7280', marginBottom: 8 }}>
             {buildBookingDraftResumeCopy(bookingResume.abandonedStep, locale)}
           </p>
         ) : null}
+        <ConsumerCheckoutContactForm
+          value={guestContact}
+          onChange={setGuestContact}
+          copy={copy}
+        />
 
         {collapseScheduleUi && slot ? (
           <ConsumerProfessionalsFirstCheckoutSummary
@@ -1682,6 +1763,24 @@ export default function BookPage() {
             retryLabel={copy.networkRetryAction}
             onRetry={() => void refetchSlots()}
           />
+        ) : slots.length === 0 ? (
+          <>
+            <p style={{ color: '#6b7280', marginTop: 12 }}>{copy.waitlistEmptySlotsHint}</p>
+            {authed ? (
+              <ConsumerWaitlistSection
+                slug={slug!}
+                copy={copy}
+                authed
+                joinDefaults={{
+                  serviceId: service?.id,
+                  serviceName: service?.name,
+                  employeeId: employeeId || undefined,
+                  employeeName: providerDisplayName || undefined,
+                  date: date || undefined,
+                }}
+              />
+            ) : null}
+          </>
         ) : (
           <ConsumerGroupedTimeSlotList
             slots={slots}
@@ -1765,7 +1864,9 @@ export default function BookPage() {
 
         {!authed ? null : (
           <p style={{ color: '#6b7280', marginTop: 16 }}>
-            Signed in as {profileStored?.name}. Your appointment will appear under Account.
+            {formatCopy(copy.bookingSignedInHint, {
+              name: profileStored?.name?.trim() || copy.tabAccount,
+            })}
           </p>
         )}
 
@@ -1822,7 +1923,10 @@ export default function BookPage() {
 
         {checkoutQuote ? (
           <ConsumerCheckoutQuoteSummary
-            quote={checkoutQuote}
+            quote={
+              resolveDisplayCheckoutQuote(checkoutQuote, { usingSubscriptionCredit }) ??
+              checkoutQuote
+            }
             tenantCurrency={profile.currency}
             copy={copy}
           />
@@ -1907,29 +2011,45 @@ export default function BookPage() {
           />
         ) : null}
 
-        <IonButton
-          expand="block"
-          className="ion-margin-top"
-          disabled={!slot || submitting}
-          onClick={() => {
-            if (showIntakeStep && bookingPhase === 'schedule') {
-              setBookingPhase('intake');
-              return;
-            }
-            void submit();
-          }}
-        >
-          {confirmButtonLabel}
-        </IonButton>
-        {message ? (
-          <ConsumerNetworkErrorCard
-            compact
-            message={message}
-            retryLabel={copy.networkRetryAction}
-            onRetry={() => void submit()}
-          />
+        {submitFeedback ? (
+          shouldShowCheckoutSubmitRetry(submitFeedback.kind) ? (
+            <ConsumerNetworkErrorCard
+              compact
+              message={submitFeedback.message}
+              retryLabel={copy.networkRetryAction}
+              onRetry={() => void submit()}
+            />
+          ) : (
+            <p
+              role="alert"
+              className="ion-margin-top"
+              style={{
+                color:
+                  checkoutSubmitFeedbackTone(submitFeedback.kind) === 'neutral'
+                    ? '#374151'
+                    : '#b91c1c',
+                fontSize: 14,
+                marginBottom: 0,
+              }}
+            >
+              {submitFeedback.message}
+            </p>
+          )
         ) : null}
       </IonContent>
+      <ConsumerFixedActionBar
+        label={confirmButtonLabel}
+        disabled={!slot || submitting}
+        primaryColor={primary}
+        onClick={() => {
+          if (showIntakeStep && bookingPhase === 'schedule') {
+            setBookingPhase('intake');
+            return;
+          }
+          void submit();
+        }}
+      />
     </IonPage>
+    </ConsumerAiShell>
   );
 }

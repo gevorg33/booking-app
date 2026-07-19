@@ -525,6 +525,23 @@ describe('ai-retail-finance.logic', () => {
         )
       ).success,
     ).toBe(false);
+
+    const e2e140Deps = buildDeps();
+    const e2e140 = await handleRecordExpenseLogic(
+      e2e140Deps,
+      'biz-1',
+      { category: 'today', amount: 20 },
+      'Add a $20 business expense today for QA test cleaning supplies',
+    );
+    expect(e2e140.success).toBe(true);
+    expect(e2e140Deps.expensesService.create).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({
+        category: 'supplies',
+        amount: 20,
+        description: 'QA test cleaning supplies',
+      }),
+    );
     expect((await handleListExpensesLogic(deps, 'biz-1', {})).success).toBe(
       true,
     );
@@ -1985,6 +2002,33 @@ describe('ai-retail-finance.logic', () => {
         { category: 'Nonexistent' },
       );
       expect(noMatch.success).toBe(false);
+    });
+
+    it('e2e-bug.141 — deletes expense by description from natural prompt', async () => {
+      const deps = buildDeps({
+        expensesService: {
+          list: jest.fn(async () => [
+            {
+              id: 'exp-qa',
+              category: 'supplies',
+              description: 'QA test cleaning supplies',
+              amount: 20,
+            },
+          ]),
+          remove: jest.fn(async () => undefined),
+        } as any,
+      });
+      const result = await handleDeleteExpenseLogic(
+        deps,
+        'biz-1',
+        {},
+        'Delete the $20 QA test cleaning supplies expense I just added',
+      );
+      expect(result.success).toBe(true);
+      expect(deps.expensesService.remove).toHaveBeenCalledWith(
+        'exp-qa',
+        'biz-1',
+      );
     });
 
     it('creates a commission rule', async () => {

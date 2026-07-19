@@ -88,6 +88,7 @@ const READ_ONLY_COMPOUND_ACTIONS = new Set([
   'analyze_services',
   'summarize_staff',
   'lookup_customer',
+  'list_customers',
   'summarize_waitlist',
   'lookup_service_assignment',
   'list_services',

@@ -1,12 +1,15 @@
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface SubmitProviderReviewLogicDeps {
   employeeRepo: Repository<Employee>;
   reviewsService: Pick<ReviewsService, 'submitProviderPortalReview'>;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -35,7 +38,12 @@ export async function handleSubmitProviderReviewLogic(
   businessId: string,
   params: Record<string, any> = {},
 ): Promise<CommandResult> {
-  const slug = params.slug as string | undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) return failure('Business not found.');
 
   const providerName =

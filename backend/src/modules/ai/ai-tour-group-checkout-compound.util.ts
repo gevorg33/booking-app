@@ -28,7 +28,7 @@ export type TourGroupCheckoutCompoundStep = {
 };
 
 const TOUR_BOOKING_TOPIC = new RegExp(
-  String.raw`\b(?:tours?|treks?|excursions?|hikes?|wine\s+country|mountain\s+trek|sunset\s+hike|city\s+tour)\b|(?:տուր|էքսկուրս)|(?:тур|экскурс)`,
+  String.raw`\b(?:tours?|treks?|excursions?|hikes?|drives?|wine\s+country|mountain\s+trek|sunset\s+hike|city\s+tour|coastal\s+drive)\b|(?:տուր|էքսկուրս)|(?:тур|экскурс)`,
   'iu',
 );
 
@@ -36,6 +36,9 @@ const TOUR_BOOK_MUTATE_CUE = new RegExp(
   String.raw`\b(?:book|reserve|schedule|get|buy|purchase|order)\b|ամրագր|պատվիր|(?:заброн|бронир|запиш)`,
   'iu',
 );
+
+/** Named catalog tours often omit the word "tour" (e.g. "Sunset Coastal Drive"). */
+const TOUR_GROUP_PAX_CUE = /\b(?:guests?|people|pax|travelers?)\b/i;
 
 function matchTourGroupCheckoutScenario(
   prompt: string,
@@ -58,7 +61,15 @@ function matchTourGroupCheckoutScenario(
 }
 
 export function hasTourGroupCheckoutTopic(prompt: string): boolean {
-  return TOUR_BOOKING_TOPIC.test(prompt) && TOUR_BOOK_MUTATE_CUE.test(prompt);
+  if (TOUR_BOOKING_TOPIC.test(prompt) && TOUR_BOOK_MUTATE_CUE.test(prompt)) {
+    return true;
+  }
+  // e2e-bug.133 — capacity-gated group reserve with pax, even without "tour"/"hike".
+  return (
+    TOUR_BOOK_MUTATE_CUE.test(prompt) &&
+    TOUR_GROUP_PAX_CUE.test(prompt) &&
+    hasTourGroupCheckoutCapacityGateCue(prompt)
+  );
 }
 
 export function isTourGroupCheckoutCompoundPrompt(prompt: string): boolean {

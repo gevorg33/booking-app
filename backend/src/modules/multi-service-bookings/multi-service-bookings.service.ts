@@ -89,7 +89,11 @@ export class MultiServiceBookingsService {
     }));
   }
 
-  async validateSelection(businessId: string, serviceIds: string[]) {
+  async validateSelection(
+    businessId: string,
+    serviceIds: string[],
+    options?: { skipDurationCap?: boolean },
+  ) {
     const settings = await this.resolveSettingsForBusiness(businessId);
     if (!settings.enabled) {
       throw new BadRequestException(
@@ -100,11 +104,24 @@ export class MultiServiceBookingsService {
       businessId,
       serviceIds,
     );
-    return validateMultiServiceSelection(serviceIds, services, settings);
+    return validateMultiServiceSelection(
+      serviceIds,
+      services,
+      settings,
+      options,
+    );
   }
 
-  async previewTotals(businessId: string, serviceIds: string[]) {
-    const validation = await this.validateSelection(businessId, serviceIds);
+  async previewTotals(
+    businessId: string,
+    serviceIds: string[],
+    options?: { skipDurationCap?: boolean },
+  ) {
+    const validation = await this.validateSelection(
+      businessId,
+      serviceIds,
+      options,
+    );
     if (!validation.valid || !validation.totals) {
       throw new BadRequestException(
         validation.errors[0] ?? 'Invalid service selection',

@@ -427,15 +427,42 @@ export function isNotificationHistoryPrompt(prompt: string): boolean {
   return !/\border\s+status\b/i.test(prompt);
 }
 
+/**
+ * Owner/business alert when customers cancel/reschedule (e2e-bug.159).
+ * Must NOT match customer-facing "notify the customer about their cancelled booking".
+ */
 export function isToggleBusinessEmailOnCustomerChangePrompt(
   prompt: string,
 ): boolean {
+  // Customer-outbound notify proposals — never treat as owner alert prefs.
+  if (
+    /\bnotify\s+(?:the\s+)?customers?\b/i.test(prompt) &&
+    !/\bnotify\s+me\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(send|message)\s+(?:a\s+)?(?:notification|message|sms|email)\s+to\s+(?:the\s+)?customers?\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+
+  const customerChangeCue =
+    /\b(customer\s+(?:cancel|reschedule|change)|booking\s+change|when\s+customers?\s+(?:cancel|reschedule)|a\s+customer\s+cancels?|customers?\s+cancel|customers?\s+reschedule)\b/i.test(
+      prompt,
+    );
+  const ownerAlertCue =
+    /\b(notify\s+me|alert\s+me|email\s+me|tell\s+me)\b/i.test(prompt) &&
+    /\b(whenever|when|if|each\s+time|every\s+time)\b/i.test(prompt);
+  const enableDisableCue =
+    /\b(toggle|enable|disable|turn\s+on|turn\s+off)\b/i.test(prompt) &&
+    /\b(email|notify|alert)\b/i.test(prompt);
+
   return (
-    (/\b(toggle|enable|disable|turn\s+on|turn\s+off)\b/i.test(prompt) &&
-      /\b(email|notify|alert)\b/i.test(prompt) &&
-      /\b(customer\s+(?:cancel|reschedule|change)|booking\s+change|when\s+customers?\s+(?:cancel|reschedule))\b/i.test(
-        prompt,
-      )) ||
+    (ownerAlertCue && customerChangeCue) ||
+    (enableDisableCue && customerChangeCue) ||
     /\bnotify\s+business\s+(?:by\s+)?email\s+when\s+customers?\b/i.test(prompt)
   );
 }
@@ -537,6 +564,31 @@ export function extractNotificationToggleFromPrompt(
 ): boolean | null {
   if (/\b(enable|turn\s+on|activate)\b/i.test(prompt)) return true;
   if (/\b(disable|turn\s+off|deactivate)\b/i.test(prompt)) return false;
+  return null;
+}
+
+/**
+ * e2e-bug.159 — "Notify me whenever a customer cancels…" implies enable for the
+ * business-email-on-customer-change setting (not a customer-outbound notify).
+ */
+export function extractBusinessEmailOnCustomerChangeToggleFromPrompt(
+  prompt: string,
+): boolean | null {
+  const base = extractNotificationToggleFromPrompt(prompt);
+  if (base !== null) return base;
+  if (
+    /\b(don'?t|do\s+not|stop|never)\s+(?:notify|alert|email|tell)\s+me\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(notify\s+me|alert\s+me|email\s+me|tell\s+me)\b/i.test(prompt) &&
+    /\b(whenever|when|if|each\s+time|every\s+time)\b/i.test(prompt)
+  ) {
+    return true;
+  }
   return null;
 }
 
@@ -947,9 +999,14 @@ export function classifyPushNotificationsSegment(
     return { action: 'enable_notifications', params: base, segment: text };
   }
   if (isToggleBusinessEmailOnCustomerChangePrompt(text)) {
+    const businessEmailToggle =
+      extractBusinessEmailOnCustomerChangeToggleFromPrompt(text);
     return {
       action: 'toggle_business_email_on_customer_change',
-      params: base,
+      params: {
+        ...base,
+        ...(businessEmailToggle !== null ? { enabled: businessEmailToggle } : {}),
+      },
       segment: text,
     };
   }

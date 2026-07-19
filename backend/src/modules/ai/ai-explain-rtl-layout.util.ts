@@ -75,10 +75,33 @@ export function resolveDocumentDirection(
   return 'ltr';
 }
 
+/**
+ * Prefer explicit params.locale (after request/session threading), then
+ * `_requestLocale` if a caller set it without overlapping update_my_locale.
+ * e2e-bug.85 — never rely on the classifier to invent locale from the prompt.
+ */
 export function resolveRtlLayoutLocale(
   params: Record<string, unknown> = {},
 ): string {
-  return readString(params.locale) ?? 'en';
+  return (
+    readString(params.locale) ??
+    readString(params._requestLocale) ??
+    'en'
+  );
+}
+
+/** Merge request/session locale into handler params (customer + public). */
+export function mergeExplainRtlLayoutRequestLocale(
+  params: Record<string, unknown> = {},
+  requestLocale?: string,
+): Record<string, unknown> {
+  return {
+    ...params,
+    locale:
+      readString(params.locale) ??
+      readString(requestLocale) ??
+      readString(params._requestLocale),
+  };
 }
 
 export function isExplainRtlLayoutIntent(
@@ -196,11 +219,11 @@ export function buildExplainRtlLayoutGuidance(
       summaryParts: [
         directionLabel,
         localeNote,
-        `${ADOPTION_A11Y_STYLESHEET} uses logical spacing so layouts stay readable in both directions.`,
+        'Spacing follows reading direction so layouts stay readable in both LTR and RTL.',
       ],
       nextSteps: [
         'Change language in app or browser settings if the direction looks unexpected.',
-        'Assistant bubbles mirror automatically when the page dir attribute is rtl.',
+        'Assistant bubbles mirror automatically when the page is in right-to-left mode.',
       ],
       hint: directionLabel,
     };
@@ -211,7 +234,7 @@ export function buildExplainRtlLayoutGuidance(
       ? 'In RTL mode, your messages align left and assistant replies align right so the thread reads naturally.'
       : 'In LTR mode, your messages align right and assistant replies align left.';
     nextSteps.push(
-      `Check document direction — ${ADOPTION_A11Y_STYLESHEET} swaps .consumer-ai-msg alignment under [dir="rtl"].`,
+      'Check language and reading-direction settings if chat bubbles look mirrored.',
       'Switch back to your preferred language if bubbles look mirrored by mistake.',
     );
     return {
@@ -224,13 +247,13 @@ export function buildExplainRtlLayoutGuidance(
   if (aspect === 'logical_css') {
     return {
       summaryParts: [
-        `${ADOPTION_A11Y_STYLESHEET} uses padding-inline and other logical properties so spacing follows reading direction.`,
+        'Spacing uses direction-aware margins and padding so layout follows reading direction.',
         directionLabel,
       ],
       nextSteps: [
-        'Resize text safely with dynamic type variables on the adoption-a11y root class.',
+        'Text size and touch targets stay usable when you change language or direction.',
       ],
-      hint: ADOPTION_A11Y_STYLESHEET,
+      hint: 'Direction-aware spacing follows reading direction.',
     };
   }
 
@@ -239,7 +262,7 @@ export function buildExplainRtlLayoutGuidance(
     : 'English, Armenian, and Russian read left-to-right — assistant text normally starts on the left. If everything looks right-aligned, your device or browser may have RTL direction enabled.';
   nextSteps.push(
     `Open language settings and confirm locale (${locale}) and direction (${documentDirection}).`,
-    `${ADOPTION_A11Y_STYLESHEET} keeps hit targets and focus rings accessible in both directions.`,
+    'Buttons and focus outlines stay easy to use in both reading directions.',
   );
 
   return {
@@ -247,4 +270,28 @@ export function buildExplainRtlLayoutGuidance(
     nextSteps,
     hint: alignmentHint,
   };
+}
+
+/** Customer-visible strings from RTL guidance (summary, hint, next steps). */
+export function collectExplainRtlLayoutCustomerFacingText(guidance: {
+  summaryParts: string[];
+  nextSteps: string[];
+  hint: string;
+}): string[] {
+  return [
+    ...guidance.summaryParts,
+    guidance.hint,
+    ...guidance.nextSteps,
+  ].filter((part) => typeof part === 'string' && part.trim().length > 0);
+}
+
+/** e2e-bug.86 — customer copy must never mention internal stylesheet/CSS selectors. */
+export function explainRtlLayoutCustomerTextLeaksInternalCss(
+  text: string,
+): boolean {
+  return (
+    /\badoption-a11y(?:\.css)?\b/i.test(text) ||
+    /\.consumer-ai-msg\b/i.test(text) ||
+    /\[dir=["']rtl["']\]/i.test(text)
+  );
 }

@@ -18,9 +18,11 @@ import {
   decomposeRetailFinanceCompoundPrompt,
   extractBookingIdFromPrompt,
   extractCustomerNameFromPrompt,
+  enrichDeleteExpenseParamsFromPrompt,
+  enrichRecordExpenseParamsFromPrompt,
   extractExpenseAmountFromPrompt,
-  extractExpenseCategoryFromPrompt,
   extractExpenseDescriptionFromPrompt,
+  normalizeExpenseCategory,
   extractInventoryDeltaFromPrompt,
   extractProductIdFromPrompt,
   extractProductNameFromPrompt,
@@ -812,18 +814,18 @@ export async function handleRecordExpenseLogic(
   prompt?: string,
 ): Promise<CommandResult> {
   const promptText = prompt ?? (params._prompt as string) ?? '';
-  const category =
-    (params.category as string | undefined) ??
-    extractExpenseCategoryFromPrompt(promptText);
+  const enriched = enrichRecordExpenseParamsFromPrompt(
+    { ...params },
+    promptText,
+  );
+  const category = normalizeExpenseCategory(
+    typeof enriched.category === 'string' ? enriched.category : undefined,
+    `${promptText} ${typeof enriched.description === 'string' ? enriched.description : ''}`,
+  );
   const amount =
-    (params.amount as number | undefined) ??
-    extractExpenseAmountFromPrompt(promptText);
-  if (!category) {
-    return failure('record_expense', 'Specify expense category.', {
-      clarify: true,
-      missing: ['category'],
-    });
-  }
+    typeof enriched.amount === 'number'
+      ? enriched.amount
+      : extractExpenseAmountFromPrompt(promptText);
   if (amount === undefined || amount === null) {
     return failure('record_expense', 'Specify expense amount.', {
       clarify: true,
@@ -831,14 +833,16 @@ export async function handleRecordExpenseLogic(
     });
   }
 
+  const description =
+    (typeof enriched.description === 'string' && enriched.description.trim()) ||
+    extractExpenseDescriptionFromPrompt(promptText) ||
+    category;
+
   try {
     const expense = await deps.expensesService.create(businessId, {
       category,
       amount,
-      description:
-        (params.description as string | undefined) ??
-        extractExpenseDescriptionFromPrompt(promptText) ??
-        category,
+      description,
       expenseDate:
         (params.expenseDate as string | undefined) ??
         new Date().toISOString().slice(0, 10),
@@ -880,19 +884,28 @@ export async function handleDeleteExpenseLogic(
   deps: RetailFinanceLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt?: string,
 ): Promise<CommandResult> {
+  const promptText = prompt ?? (params._prompt as string) ?? '';
+  const enriched = enrichDeleteExpenseParamsFromPrompt(
+    { ...params },
+    promptText,
+  );
+
   const expenseId =
-    typeof params.expenseId === 'string' && params.expenseId.trim()
-      ? params.expenseId.trim()
+    typeof enriched.expenseId === 'string' && enriched.expenseId.trim()
+      ? enriched.expenseId.trim()
       : undefined;
 
   let resolvedId = expenseId;
   if (!resolvedId) {
     const category =
-      typeof params.category === 'string' ? params.category.trim() : undefined;
+      typeof enriched.category === 'string'
+        ? enriched.category.trim()
+        : undefined;
     const description =
-      typeof params.description === 'string'
-        ? params.description.trim().toLowerCase()
+      typeof enriched.description === 'string'
+        ? enriched.description.trim().toLowerCase()
         : undefined;
     if (!category && !description) {
       return failure(
@@ -904,7 +917,7 @@ export async function handleDeleteExpenseLogic(
     const expenses = await deps.expensesService.list(businessId);
     const match = expenses.find(
       (e) =>
-        (!category || e.category === category) &&
+        (!category || e.category.toLowerCase() === category.toLowerCase()) &&
         (!description || e.description?.toLowerCase().includes(description)),
     );
     if (!match) {

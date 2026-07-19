@@ -14,7 +14,7 @@ import {
   EMPTY_STATE_GUIDE_INTENTS,
   PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
 } from './ai-product-guide-empty-state.fixtures.js';
-import { isEmptyStateGuideIntentOnSurface } from './ai-product-guide-empty-state.util.js';
+import { isEmptyStateGuideIntentOnSurface } from './ai-product-guide-empty-state-intent.util.js';
 import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
 
 /**
@@ -116,6 +116,58 @@ export function tierAccessSummary(tier: AccessTier): string {
   return labels[tier];
 }
 
+/**
+ * e2e-bug.163 — intents that contradict TIER_DATA_ACCESS.staff
+ * (no crm_insights / revenue_analytics / owner_operations).
+ * Kept as an explicit set so the deny-list stays auditable against the
+ * documented data-access model.
+ */
+export const STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS = [
+  // Full CRM / PII roster (crm_insights — not limited_customer_info)
+  'list_customers',
+  'lookup_customer',
+  'list_customer_subscriptions',
+  'subscription_usage_history',
+  'list_customer_gift_cards',
+  'list_customer_bookings',
+  'customer_no_show_history',
+  'extend_subscription',
+  'cancel_subscription_admin',
+  'merge_customers',
+  'export_customer_data',
+  'delete_customer_data',
+  'send_reengagement_message',
+  'tag_customer',
+  'update_customer',
+  'lookup_booking_tax_metadata',
+  'summarize_customer_tax_paid',
+  // Revenue / finance analytics
+  'revenue_forecast',
+  'commission_report',
+  'summarize_pl',
+  'export_commissions',
+  'export_accounting',
+  'list_subscription_revenue',
+  'summarize_unpaid',
+  'record_expense',
+  'delete_expense',
+  'list_expenses',
+  'create_commission_rule',
+  'delete_commission_rule',
+  'payout_export',
+  'export_analytics_report',
+  // Gift-card financial mutations / balance access
+  'adjust_gift_card_balance',
+  'extend_gift_card_expiry',
+  'refund_gift_card_order',
+  'cancel_gift_card_order',
+  'validate_gift_card',
+  'gift_card_balance',
+  'update_gift_card_settings',
+  'extend_cancel_window',
+  'resolve_gift_card_change_request',
+] as const;
+
 /** Dashboard AI intents blocked per tier (deny-list). */
 export const DASHBOARD_DENIED_BY_TIER: Record<
   AccessTier,
@@ -153,6 +205,7 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'analyze_services',
     'summarize_staff',
     'lookup_customer',
+    'list_customers',
     'lookup_booking_tax_metadata',
     'summarize_customer_tax_paid',
     'summarize_waitlist',
@@ -181,6 +234,13 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'transfer_employee_services',
     'summarize_utilization',
     'summarize_customers',
+    'summarize_ai_briefing',
+    'summarize_ai_weekly_report',
+    'explain_ai_audit_log',
+    'explain_ai_usage_analytics',
+    'explain_ai_capabilities',
+    'summarize_ai_settings',
+    'configure_ai_autopilot',
     'setup_week_schedule',
     'swap_schedules',
     'rebalance_capacity',
@@ -261,6 +321,11 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'start_billing_checkout',
     'confirm_billing_checkout',
     'explain_plan_entitlements',
+    'explain_ai_audit_log',
+    'explain_ai_usage_analytics',
+    'explain_ai_capabilities',
+    'summarize_ai_settings',
+    'configure_ai_autopilot',
     'summarize_loyalty_program',
     'create_services',
     'create_service',
@@ -348,6 +413,7 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'migrate_dashboard_date_display',
     'notify_patient_result_ready',
     'bulk_update_service_currency',
+    ...STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS,
   ]),
   manager: new Set(['optimize_schedule', 'update_team_member_role']),
   owner: new Set(),
@@ -422,13 +488,41 @@ export function isCustomerIntentAllowed(
   return tier === 'client';
 }
 
+const REVENUE_FINANCE_ACTIONS = new Set<string>([
+  'payment_sweep',
+  'summarize_utilization',
+  'revenue_forecast',
+  'commission_report',
+  'summarize_pl',
+  'export_commissions',
+  'export_accounting',
+  'list_subscription_revenue',
+  'summarize_unpaid',
+  'record_expense',
+  'delete_expense',
+  'list_expenses',
+  'create_commission_rule',
+  'delete_commission_rule',
+  'payout_export',
+  'export_analytics_report',
+  'adjust_gift_card_balance',
+  'extend_gift_card_expiry',
+  'refund_gift_card_order',
+  'cancel_gift_card_order',
+  'validate_gift_card',
+  'gift_card_balance',
+  'update_gift_card_settings',
+  'extend_cancel_window',
+  'resolve_gift_card_change_request',
+]);
+
 /** Revenue / financial intents or metrics — manager+ only. */
 export function isRevenueRelatedRequest(
   action: string,
   params: Record<string, unknown>,
   prompt: string,
 ): boolean {
-  if (['payment_sweep', 'summarize_utilization'].includes(action)) return true;
+  if (REVENUE_FINANCE_ACTIONS.has(action)) return true;
   if (action === 'summarize_bookings') {
     const metric = String(params.bookingMetric ?? '').toLowerCase();
     if (metric === 'revenue' || metric === 'unpaid') return true;
@@ -449,6 +543,32 @@ export function isRevenueRelatedRequest(
   if (action === 'summarize_staff') return true;
   if (action === 'summarize_customers') return true;
   return false;
+}
+
+const CRM_INSIGHTS_ACTIONS = new Set<string>([
+  'list_customers',
+  'lookup_customer',
+  'summarize_customers',
+  'list_customer_subscriptions',
+  'subscription_usage_history',
+  'list_customer_gift_cards',
+  'list_customer_bookings',
+  'customer_no_show_history',
+  'extend_subscription',
+  'cancel_subscription_admin',
+  'merge_customers',
+  'export_customer_data',
+  'delete_customer_data',
+  'send_reengagement_message',
+  'tag_customer',
+  'update_customer',
+  'lookup_booking_tax_metadata',
+  'summarize_customer_tax_paid',
+]);
+
+/** Full CRM / customer PII roster — manager+ only (e2e-bug.163). */
+export function isCrmInsightsRequest(action: string): boolean {
+  return CRM_INSIGHTS_ACTIONS.has(action);
 }
 
 /** Staff directory / cross-provider analytics — manager+ only. */

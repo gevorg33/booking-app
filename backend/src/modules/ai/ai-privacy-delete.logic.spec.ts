@@ -12,7 +12,7 @@ describe('ai-privacy-delete.logic (ai-cmd-customer-4.17.5)', () => {
     const result = await handlePrivacyDeleteLogic(
       deps(),
       'biz-1',
-      { sessionCustomerId: 'c1' },
+      { sessionCustomerId: 'c1', confirm: true },
       PRIVACY_DELETE_PROMPTS[0].prompt,
     );
     expect(result.success).toBe(true);
@@ -21,6 +21,19 @@ describe('ai-privacy-delete.logic (ai-cmd-customer-4.17.5)', () => {
       path: 'account',
       query: { section: 'privacy', privacyAction: 'delete' },
     });
+  });
+
+  it('previews without confirm and does not delete', async () => {
+    const d = deps();
+    const result = await handlePrivacyDeleteLogic(
+      d,
+      'biz-1',
+      { sessionCustomerId: 'c1' },
+      PRIVACY_DELETE_PROMPTS[0].prompt,
+    );
+    expect(result.success).toBe(false);
+    expect(result.details?.requiresConfirmation).toBe(true);
+    expect(d.customerPrivacyService.deleteCustomerData).not.toHaveBeenCalled();
   });
 
   it('requires sign-in with login navigate', async () => {

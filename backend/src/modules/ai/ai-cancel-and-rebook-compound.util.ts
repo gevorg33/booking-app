@@ -2,7 +2,10 @@ import {
   propagateSharedBookingContextAcrossSteps,
   buildSharedBookingContextFromPrompt,
 } from './ai-compound-booking-context.util.js';
-import { isBookNearestSlotPrompt } from './ai-payments.util.js';
+import {
+  isAvailabilityFillerServiceName,
+  isBookNearestSlotPrompt,
+} from './ai-payments.util.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 import { enrichCancelMyBookingParamsFromPrompt } from './ai-cancel-my-booking.util.js';
 import {
@@ -60,10 +63,26 @@ export function extractCancelSegmentFromCompoundPrompt(prompt: string): string {
   return prompt;
 }
 
+/**
+ * e2e-bug.114 — "cancel … and rebook it for next Friday" is dated reschedule,
+ * not cancel→book-nearest. Keep nearest compound and dated cancel+rebook disjoint.
+ */
+export function isDatedCancelAndRebookPrompt(prompt: string): boolean {
+  return (
+    /\bcancel\b/i.test(prompt) &&
+    /\brebook\b/i.test(prompt) &&
+    /\b(?:for|on|to)\b/i.test(prompt) &&
+    /\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+      prompt,
+    )
+  );
+}
+
 export function hasCancelAndRebookBookCue(prompt: string): boolean {
+  if (isDatedCancelAndRebookPrompt(prompt)) return false;
   if (isBookNearestSlotPrompt(prompt)) return true;
   return (
-    /\b(?:book|schedule|reserve|get)\b/i.test(prompt) &&
+    /\b(?:book|rebook|schedule|reserve|get)\b/i.test(prompt) &&
     /\b(?:nearest|soonest|next|earliest|first\s+available|asap|available\s+slot|opening)\b/i.test(
       prompt,
     )
@@ -81,6 +100,7 @@ export function hasCancelAndRebookCancelCue(prompt: string): boolean {
 }
 
 export function isCancelAndRebookCompoundPrompt(prompt: string): boolean {
+  if (isDatedCancelAndRebookPrompt(prompt)) return false;
   if (matchCancelAndRebookScenario(prompt)) return true;
   const text = prompt.trim();
   if (text.length < 20) return false;
@@ -93,11 +113,23 @@ export function buildCancelAndRebookCompoundParams(
   prompt: string,
 ): Record<string, unknown> {
   const cancelSegment = extractCancelSegmentFromCompoundPrompt(prompt);
-  const params = {
-    ...buildSharedBookingContextFromPrompt(prompt),
-    ...enrichCancelMyBookingParamsFromPrompt({}, cancelSegment),
+  const shared = buildSharedBookingContextFromPrompt(prompt);
+  // Prefer cancel-half service extraction so "book the next available slot"
+  // cannot overwrite a real service (or invent "next available") — e2e-bug.89.
+  const cancelHints = enrichCancelMyBookingParamsFromPrompt({}, cancelSegment);
+  const params: Record<string, unknown> = {
+    ...shared,
+    ...cancelHints,
     bookingFirstAvailable: true,
   };
+  if (cancelHints.serviceName) {
+    params.serviceName = cancelHints.serviceName;
+  } else if (
+    typeof shared.serviceName === 'string' &&
+    isAvailabilityFillerServiceName(shared.serviceName)
+  ) {
+    delete params.serviceName;
+  }
   enrichBookingTimeHintsFromPrompt('book_nearest_slot', params, prompt);
   return params;
 }
@@ -108,12 +140,17 @@ export function decomposeCancelAndRebookCompoundPrompt(
   if (!isCancelAndRebookCompoundPrompt(prompt)) return [];
 
   const base = buildCancelAndRebookCompoundParams(prompt);
+  const cancelSegment = extractCancelSegmentFromCompoundPrompt(prompt);
+  const cancelParams = enrichCancelMyBookingParamsFromPrompt(
+    { ...base },
+    cancelSegment,
+  );
 
   return propagateSharedBookingContextAcrossSteps([
     {
       action: 'cancel_my_booking',
-      params: { ...base },
-      segment: prompt,
+      params: cancelParams,
+      segment: cancelSegment,
     },
     {
       action: 'book_nearest_slot',

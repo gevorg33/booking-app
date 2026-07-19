@@ -4,10 +4,12 @@ import {
   isCreateGiftCardBundlePrompt,
 } from './ai-catalog.util.js';
 import { isExplainCheckoutCurrencyPrompt } from './ai-checkout-currency.util.js';
+import { isBuyGiftCardForSomeonePrompt } from './ai-buy-gift-card-for-someone.util.js';
 import {
   extractAmountFromPrompt,
   isBuyGiftCardPhysicalPrompt,
   isBuyGiftCardPrompt,
+  isGetGiftCardQuotePrompt,
 } from './ai-payments.util.js';
 import {
   filterServicesByMaxPrice,
@@ -170,8 +172,15 @@ export function isBudgetGiftCardMisroute(prompt: string): boolean {
   if (!/\bgift\s+card\b/i.test(prompt)) return false;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return false;
   if (isConfigureGiftCardProductsPrompt(prompt)) return false;
-  if (isBuyGiftCardPhysicalPrompt(prompt) || isBuyGiftCardPrompt(prompt)) {
-    return false;
+  // e2e-bug.130 / e2e-bug.80 — buy/quote must block budget list_services
+  // ($30 ≠ maxPrice). resolveBudgetMisrouteAction maps to buy_*/get_gift_card_quote.
+  if (
+    isBuyGiftCardForSomeonePrompt(prompt) ||
+    isGetGiftCardQuotePrompt(prompt) ||
+    isBuyGiftCardPhysicalPrompt(prompt) ||
+    isBuyGiftCardPrompt(prompt)
+  ) {
+    return true;
   }
   if (
     /\b(?:balance|check balance|gift card balance|track my|track the|track physical)\b/i.test(
@@ -232,6 +241,13 @@ export function isBudgetPackageDiscoveryPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.132 — "what's the deal if i cancel" is cancel policy, not package browse.
+  if (
+    /\b(cancel|cancellation|cancelation)\b/i.test(prompt) &&
+    !/\b(?:spa\s+)?packages?\b|\bbundles?\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (!/\b(?:spa\s+)?packages?\b|\bbundles?\b|\bdeals?\b/i.test(prompt)) {
     return false;
   }
@@ -242,9 +258,13 @@ export function isBudgetPackageDiscoveryPrompt(prompt: string): boolean {
     /\b(?:what packages|what bundles|what deals|show packages|browse packages|available packages|packages under|deals under|any packages|packages do you|packages are available)\b/i.test(
       prompt,
     ) ||
-    /\b(?:what|which|show)\b[^.?!]{0,30}\b(?:packages?|bundles?|deals?)\b/i.test(
+    /\b(?:what|which|show)\b[^.?!]{0,30}\b(?:packages?|bundles?)\b/i.test(
       prompt,
     ) ||
+    // "what deals" inventory — not colloquial "what's the deal if…"
+    (/\b(?:what|which|show)\b[^.?!]{0,30}\bdeals?\b/i.test(prompt) &&
+      !/\bif\s+i\b/i.test(prompt) &&
+      !/\bcancel/i.test(prompt)) ||
     /\b(?:under|below|cheapest|affordable)\b/i.test(prompt)
   );
 }
@@ -781,6 +801,14 @@ export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
 export function resolveBudgetMisrouteAction(prompt: string): string | null {
   if (isConfigureServiceOnlinePaymentPrompt(prompt)) return null;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return null;
+  // e2e-bug.130 / e2e-bug.124 / e2e-bug.80 — purchase/quote before redeem;
+  // never map "buy a gift card" / "how much would a gift card cost" to apply.
+  if (isBuyGiftCardForSomeonePrompt(prompt)) {
+    return 'buy_gift_card_for_someone';
+  }
+  if (isGetGiftCardQuotePrompt(prompt)) return 'get_gift_card_quote';
+  if (isBuyGiftCardPhysicalPrompt(prompt)) return 'buy_gift_card_physical';
+  if (isBuyGiftCardPrompt(prompt)) return 'buy_gift_card';
   if (isBudgetGiftCardMisroute(prompt)) return 'apply_gift_card_code';
   if (isBudgetPackageDiscoveryPrompt(prompt)) return 'discover_packages';
   if (isBudgetDepositQuestion(prompt)) return 'explain_checkout_currency';

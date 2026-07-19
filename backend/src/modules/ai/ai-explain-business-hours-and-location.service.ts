@@ -56,4 +56,35 @@ export class AiBusinessHoursLocationService {
       prompt,
     );
   }
+
+  /** Registry-driven dispatch. Returns null when action is not handled here. */
+  async dispatchIntent(ctx: {
+    businessId: string;
+    action: string;
+    params: Record<string, unknown>;
+    prompt?: string;
+  }): Promise<CommandResult | null> {
+    if (ctx.action === 'explain_business_hours_and_location') {
+      return this.handleExplainBusinessHoursAndLocation(
+        ctx.businessId,
+        ctx.params,
+        ctx.prompt ?? '',
+      );
+    }
+    if (ctx.action === 'get_directions_to_salon') {
+      return this.handleGetDirectionsToSalon(
+        ctx.businessId,
+        ctx.params,
+        ctx.prompt ?? '',
+      );
+    }
+    if (ctx.action === 'explain_salon_profile') {
+      return this.handleExplainSalonProfile(
+        ctx.businessId,
+        ctx.params,
+        ctx.prompt ?? '',
+      );
+    }
+    return null;
+  }
 }

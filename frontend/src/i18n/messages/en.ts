@@ -3792,6 +3792,7 @@ const en: MessageTree = {
     bookAppointment: 'Book an appointment',
     followUs: 'Follow us',
     location: 'Location',
+    hours: 'Hours',
     selectProviderInfo: 'Provider info',
     submitReviewWithGoogle: 'Submit review with Google',
     reviewGoogleHint: 'Sign in with Google to verify your visit before posting.',
@@ -3845,6 +3846,9 @@ const en: MessageTree = {
     validateServiceSelectionFailed: 'Could not validate service selection',
     loadAvailableTimesFailed: 'Could not load available times',
     findAvailableBlockFailed: 'Could not find an available block',
+    /** e2e-bug.56 — per_service confirm auto-suggest; never show raw backend English */
+    suggestMultiServiceLinesFailed:
+      "We couldn't suggest times automatically. Pick a date for each service below.",
     privacyConsent: 'I agree to the processing of my personal data',
     marketingOptIn: 'Send me offers and marketing messages (optional)',
     aiProcessingConsent: 'I consent to AI processing of my booking data',
@@ -3905,6 +3909,8 @@ const en: MessageTree = {
     packageScheduleEach: 'All included services are booked back-to-back on one visit the same day',
     packageIncludedServices: 'Included services',
     packageNoBlock: 'No available same-day visit found for this package',
+    packageCannotSchedule:
+      "This package can't be scheduled — it's longer than this business allows for a single visit. Please choose a shorter package or book services separately.",
     packageContinueCheckout: 'Continue to checkout',
     packageConfirmTitle: 'Confirm package',
     packageBookedTitle: 'Package booked',
@@ -3919,6 +3925,9 @@ const en: MessageTree = {
     multiServiceSelectHint: 'Select one service, or pick two or more to book together in one visit.',
     multiServiceCheckoutTitle: 'Confirm your visit',
     multiServiceConfirmTitle: 'Schedule your services',
+    /** e2e-bug.56 — per_service UI is independent date pickers, not one same-day visit */
+    multiServiceConfirmPerServiceHint:
+      'Choose a date and time for each service — they can be on different days.',
     multiServiceBookedTitle: 'Appointments booked',
     multiServiceBookedHint: 'Your multi-service visit is confirmed.',
     multiServiceWithProvider: 'with {name}',
@@ -4091,6 +4100,16 @@ const en: MessageTree = {
     reschedulePackageVisitHint: 'Pick a new day and start time — all services move together.',
     reschedulePackageVisitSummary:
       'Move all {count} services to {date} starting at {time}',
+    multiServiceVisitAppointmentCount: '{count} appointments in this visit',
+    cancelMultiServiceVisit: 'Cancel visit',
+    cancelMultiServiceVisitConfirm: 'Cancel all appointments in this visit?',
+    cancelMultiServiceVisitFailed: 'Could not cancel visit',
+    rescheduleMultiServiceVisit: 'Reschedule visit',
+    rescheduleMultiServiceVisitHint:
+      'Pick a new day and start time — all services in this visit move together.',
+    rescheduleMultiServiceVisitSummary:
+      'Move all {count} services to {date} starting at {time}',
+    multiServiceNoBlock: 'No available same-day visit found for these services',
     confirmReschedulePackageVisit: 'Confirm visit reschedule',
     reschedulePackageVisitFailed: 'Could not reschedule package visit',
     reschedulePackageVisitSuccess: 'Visit moved from {from} to {to}',
@@ -4134,6 +4153,8 @@ const en: MessageTree = {
     giftCards: {
       title: 'Buy a gift card',
       subtitle: 'Give the gift of self-care — digital or physical delivery.',
+      /** e2e-bug.58 — when physicalDeliveryEnabled is false */
+      subtitleDigitalOnly: 'Give the gift of self-care — delivered digitally.',
       chooseType: 'What would you like to gift?',
       type: {
         monetary: 'Amount',

@@ -6,7 +6,7 @@ export type CancelAllUpcomingBookingsPromptFixture = {
   rescueReason: 'cancel_all_upcoming_bookings';
 };
 
-export const CUSTOMER_CANCEL_ALL_UPCOMING_BOOKINGS_CLASSIFIER_RULES = `- cancel_all_upcoming_bookings: MUTATE — logged-in customer cancels ALL of their upcoming confirmed bookings at once, not a single booking. Triggers: "Cancel all my upcoming appointments", "Cancel all my bookings", "Cancel every visit I have". Two-step confirm flow: never set confirm=true on the first ask — the assistant previews the affected bookings and asks the customer to confirm; only set confirm=true once the customer has explicitly agreed in this conversation. NOT cancel_my_booking (single named/most-recent booking — "cancel my booking"/"cancel my appointment" without "all"/"every").`;
+export const CUSTOMER_CANCEL_ALL_UPCOMING_BOOKINGS_CLASSIFIER_RULES = `- cancel_all_upcoming_bookings: MUTATE — logged-in customer cancels ALL of their upcoming confirmed bookings at once, not a single booking. Triggers: "Cancel all my upcoming appointments", "Cancel all my bookings", "Cancel every visit I have". Two-step confirm flow: never set confirm=true on the first ask — the assistant previews the affected bookings and asks the customer to confirm. On the follow-up turn, when the customer replies "yes" / "yes, cancel them all" / "confirm" / "go ahead" after that preview, set params.confirm=true (and keep action cancel_all_upcoming_bookings). NOT cancel_my_booking (single named/most-recent booking — "cancel my booking"/"cancel my appointment" without "all"/"every").`;
 
 export const CANCEL_ALL_UPCOMING_BOOKINGS_PROMPTS: readonly CancelAllUpcomingBookingsPromptFixture[] =
   [

@@ -3,7 +3,7 @@ import { getPublicProfileResolved } from '@/lib/get-public-profile-resolved';
 import { getPublicGiftCardCatalog } from '@/lib/public-api';
 import { bookPath } from '@/lib/tenant-host';
 import { PublicHeader } from '@/components/public-booking/public-header';
-import { Globe, Mail, MapPin, Phone } from 'lucide-react';
+import { Clock, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { getMessages, translate } from '@/i18n';
 import { resolvePublicBookingLocale } from '@/lib/server-public-locale';
 import { resolvePublicImageUrl } from '@/lib/resolve-public-image-url';
@@ -90,6 +90,21 @@ export default async function TenantProfilePage({
                 <a href={`mailto:${tenant.email}`} className="hover:text-gray-900">{tenant.email}</a>
               </div>
             )}
+            {tenant.openingHours?.summaryLines?.length ? (
+              <div className="mt-2 text-sm text-gray-600">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <Clock className="w-4 h-4 shrink-0 text-gray-400" />
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    {t('public.hours')}
+                  </span>
+                </div>
+                <ul className="space-y-0.5 pl-7">
+                  {tenant.openingHours.summaryLines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
 
           {socialEntries.length > 0 && (

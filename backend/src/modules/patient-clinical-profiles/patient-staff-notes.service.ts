@@ -138,12 +138,14 @@ export class PatientStaffNotesService {
       body: dto.body.trim(),
     });
 
+    // e2e-bug.71 — never pass id: '' before TypeORM generates the UUID; only
+    // merge encrypted body (not identity fields) back onto the entity.
     const encrypted = await this.phiService.encryptNoteForStorage(business, {
-      ...note,
-      id: note.id ?? '',
       businessId,
+      body: note.body,
+      ...(note.id ? { id: note.id } : {}),
     });
-    Object.assign(note, encrypted);
+    note.body = encrypted.body ?? note.body;
     note = await this.noteRepo.save(note);
 
     await this.phiService.auditNotePhiWrite(

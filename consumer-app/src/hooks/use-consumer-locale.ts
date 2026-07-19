@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCustomerToken } from '../lib/customer-auth.js';
 import { updateMyPreferredLocale } from '../services/public-api.js';
 import {
+  CONSUMER_LOCALE_CHANGED_EVENT,
   readEnabledLocales,
   resolveConsumerLocale,
+  shouldApplyConsumerLocaleChange,
   writeStoredConsumerLocale,
   type ConsumerLocale,
+  type ConsumerLocaleChangedDetail,
 } from '../lib/tenant-locale.js';
 
 const LOCALE_LABELS: Record<ConsumerLocale, string> = {
@@ -22,14 +25,46 @@ export function useConsumerLocale(
     enabledLocales?: string[];
   },
 ) {
-  const enabledLocales = readEnabledLocales(profile);
+  const enabledKey = Array.isArray(profile.enabledLocales)
+    ? profile.enabledLocales.join(',')
+    : '';
+  const enabledLocales = useMemo(
+    () => readEnabledLocales(profile),
+    // profile.enabledLocales identity churns; key on contents (e2e-bug.14).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [enabledKey],
+  );
   const [locale, setLocale] = useState<ConsumerLocale>(() =>
     resolveConsumerLocale(slug, profile),
   );
 
   useEffect(() => {
-    setLocale(resolveConsumerLocale(slug, profile));
-  }, [slug, profile.defaultLocale, profile.enabledLocales, profile.locale]);
+    const next = resolveConsumerLocale(slug, profile);
+    setLocale((prev) => (prev === next ? prev : next));
+  }, [slug, profile.defaultLocale, enabledKey, profile.locale]);
+
+  // e2e-bug.22 — Ionic keeps sibling tabs mounted; sync when another picker writes locale.
+  useEffect(() => {
+    const onLocaleChanged = (event: Event) => {
+      const detail = (event as CustomEvent<ConsumerLocaleChangedDetail>).detail;
+      if (
+        !detail ||
+        !shouldApplyConsumerLocaleChange({
+          eventSlug: detail.slug,
+          hookSlug: slug,
+          nextLocale: detail.locale,
+          enabledLocales,
+        })
+      ) {
+        return;
+      }
+      setLocale((prev) => (prev === detail.locale ? prev : detail.locale));
+    };
+    window.addEventListener(CONSUMER_LOCALE_CHANGED_EVENT, onLocaleChanged);
+    return () => {
+      window.removeEventListener(CONSUMER_LOCALE_CHANGED_EVENT, onLocaleChanged);
+    };
+  }, [enabledLocales, slug]);
 
   const setConsumerLocale = (next: ConsumerLocale) => {
     if (!enabledLocales.includes(next)) return;

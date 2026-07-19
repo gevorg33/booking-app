@@ -16,6 +16,7 @@ export { STRUCTURAL_ENRICH_PIPE_MARKER };
 export const STRUCTURAL_DATE_RANGE_ACTIONS = new Set([
   'create_direct_schedule',
   'clear_schedule',
+  'delete_schedule_block',
   'apply_schedule',
   'block_schedule',
   'swap_schedules',

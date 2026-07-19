@@ -21,12 +21,18 @@ export interface ParsedExplainAnyProviderOption {
 }
 
 const ANY_OPTION_TOPIC = new RegExp(
-  String.raw`\b(?:any\s+(?:stylist|specialist|provider|staff|therapist)|any\s+available\s+specialist|don't\s+(?:pick|choose)\s+(?:a\s+)?(?:stylist|specialist|provider)|without\s+(?:picking|choosing)\s+(?:a\s+)?(?:stylist|specialist)|any\s+provider\s+option|any\s+specialist\s+option|specialist\s+picker)\b|(?:ցանկացած\s+մասնագետ|այն\s+մասնագետ)|(?:любой\s+специалист|любого\s+специалиста|вариант\s+люб)`,
+  String.raw`\b(?:any\s+(?:stylist|specialist|provider|staff|therapist)|any\s+available\s+specialist|don't\s+(?:pick|choose)\s+(?:a\s+)?(?:stylist|specialist|provider)|without\s+(?:picking|choosing)\s+(?:a\s+)?(?:stylist|specialist)|any\s+provider\s+option|any\s+specialist\s+option|specialist\s+picker|any\s+provider\s+works|don't\s+care\s+who)\b|(?:ցանկացած\s+մասնագետ|այն\s+մասնագետ)|(?:любой\s+специалист|любого\s+специалиста|вариант\s+люб)`,
   'iu',
 );
 
 const READ_CUE = new RegExp(
   String.raw`\b(?:what\s+(?:does|is|happens)|will\s+someone|who\s+gets|how\s+do\s+i|explain|show\s+me|mean|assigned|happen|see\s+which|where\s+is)\b|(?:ինչ\s+է|ինչպես|ով\s+կկց|բացատր)|(?:что\s+значит|кто\s+будет|как\s+выбрать|объясни)`,
+  'iu',
+);
+
+/** e2e-bug.92 — casual indifference ("I don't care who… works fine"). */
+const INDIFFERENCE_CUE = new RegExp(
+  String.raw`\b(?:don't\s+care\s+who|any\s+(?:provider|stylist|specialist)\s+works|any\s+(?:provider|stylist|specialist)\s+(?:is\s+)?fine|works\s+fine|whoever)\b`,
   'iu',
 );
 
@@ -73,7 +79,7 @@ export function inferAnyProviderOptionAspect(
       prompt,
     ) || /(?:ինչպես\s+ընտր|որտեղ\s+է)/iu.test(prompt);
   const assignment =
-    /\b(?:will\s+someone|who\s+gets|assigned|don't\s+(?:pick|choose)|without\s+(?:picking|choosing)|after\s+booking|see\s+which\s+stylist)\b/i.test(
+    /\b(?:will\s+someone|who\s+gets|assigned|don't\s+(?:pick|choose)|without\s+(?:picking|choosing)|after\s+booking|see\s+which\s+stylist|don't\s+care\s+who|any\s+(?:provider|stylist|specialist)\s+works|works\s+fine|whoever)\b/i.test(
       prompt,
     ) || /(?:ով\s+կկց|կնշանակ|назнач)/iu.test(prompt);
   const meaning =
@@ -98,11 +104,18 @@ export function isExplainAnyProviderOptionPrompt(prompt: string): boolean {
   if (matchExplainAnyProviderOptionScenario(prompt)) return true;
   if (BOOKING_MUTATE_BLOCK.test(prompt)) return false;
   if (isAnyProviderBookingPrompt(prompt)) return false;
-  if (isFlexibleAvailabilityAnyProviderPrompt(prompt)) return false;
+  // e2e-bug.92 — indifference ("don't care who / works fine") is explain, not flexible book.
+  if (
+    isFlexibleAvailabilityAnyProviderPrompt(prompt) &&
+    !INDIFFERENCE_CUE.test(prompt)
+  ) {
+    return false;
+  }
   if (RECOMMEND_BLOCK.test(prompt)) return false;
   if (ROSTER_BLOCK.test(prompt)) return false;
   if (!ANY_OPTION_TOPIC.test(prompt)) return false;
-  if (!READ_CUE.test(prompt)) return false;
+  // e2e-bug.92 — indifference phrasing does not need explain/what-does cues.
+  if (!READ_CUE.test(prompt) && !INDIFFERENCE_CUE.test(prompt)) return false;
   return true;
 }
 

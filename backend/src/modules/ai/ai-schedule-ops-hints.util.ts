@@ -1,8 +1,14 @@
-import { isClearSchedulePrompt } from './ai-orchestration.helpers.js';
+import {
+  isClearSchedulePrompt,
+  isDeleteScheduleBlockPrompt,
+} from './ai-orchestration.helpers.js';
+
+export { isDeleteScheduleBlockPrompt };
 
 /** Schedule actions that receive NL enrichment and session follow-up (ai-cmd-h3.2). */
 export const SCHEDULE_OPS_ACTIONS = [
   'clear_schedule',
+  'delete_schedule_block',
   'hide_appointments_from_calendar',
   'unhide_appointments_from_calendar',
   'apply_schedule',
@@ -71,10 +77,26 @@ export function isHideAppointmentsFromCalendarPrompt(prompt?: string): boolean {
   return false;
 }
 
+/** e2e-bug.136 — unblock / remove block must not land on clear_schedule. */
+export function disambiguateClearScheduleVsDeleteBlock(
+  prompt: string,
+  action: string,
+): { action: string; rescueReason: string } | null {
+  if (!isDeleteScheduleBlockPrompt(prompt)) return null;
+  if (action === 'delete_schedule_block') return null;
+  return {
+    action: 'delete_schedule_block',
+    rescueReason: 'clear_to_delete_schedule_block',
+  };
+}
+
 export function disambiguateClearScheduleVsHideCalendar(
   prompt: string,
   action: string,
 ): { action: string; rescueReason: string } | null {
+  const deleteBlock = disambiguateClearScheduleVsDeleteBlock(prompt, action);
+  if (deleteBlock) return deleteBlock;
+
   if (
     action === 'clear_schedule' &&
     isHideAppointmentsFromCalendarPrompt(prompt)

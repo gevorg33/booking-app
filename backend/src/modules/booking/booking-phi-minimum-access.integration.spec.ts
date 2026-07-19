@@ -75,7 +75,9 @@ function createHarness(staffEmployeeId: string | null) {
     {} as never,
     phiFieldService,
     businessService,
-  );
+    { refundBookingPayment: jest.fn() } as never,
+      { restoreRedemptionForBooking: jest.fn().mockResolvedValue(false) } as any,
+    );
 
   return {
     bookingService,

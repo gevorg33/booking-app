@@ -104,4 +104,41 @@ export const POST_FAILURE_GUIDE_FALLBACK_SCENARIOS = [
     },
     expectSnippet: false,
   },
+  // e2e-bug.53 — shouldAppend stays true, but weak routes must not attach a guide
+  {
+    id: 'skip-customer-default-tabs-route',
+    surface: 'customer' as CommandSurface,
+    route: '/s',
+    locale: 'en',
+    prompt: 'Hello',
+    result: {
+      success: false,
+      action: 'unknown',
+      summary: "I didn't fully understand that. What would you like to do?",
+      details: {
+        needsClarification: true,
+        pipelineStage: 'unknown_intent_clarify',
+      },
+    },
+    expectSnippet: true,
+    expectGuideAttached: false,
+  },
+  {
+    id: 'skip-public-overview-default-route',
+    surface: 'public' as CommandSurface,
+    route: '/book',
+    locale: 'en',
+    prompt: 'Hello',
+    result: {
+      success: false,
+      action: 'unknown',
+      summary: "I didn't fully understand that. What would you like to do?",
+      details: {
+        needsClarification: true,
+        pipelineStage: 'unknown_intent_clarify',
+      },
+    },
+    expectSnippet: true,
+    expectGuideAttached: false,
+  },
 ] as const;

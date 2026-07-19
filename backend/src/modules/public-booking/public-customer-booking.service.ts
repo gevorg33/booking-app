@@ -7,9 +7,22 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { BookingService } from '../booking/booking.service.js';
+import {
+  BookingRefundService,
+  type BookingRefundStatus,
+} from '../booking/booking-refund.service.js';
+import {
+  PackageRefundService,
+  type PackageRefundStatus,
+} from '../service-packages/package-refund.service.js';
+import { PackagePurchase } from '../service-packages/entities/service-package.entity.js';
 import { BusinessService } from '../business/business.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import {
@@ -22,6 +35,7 @@ import {
   buildBookingManageUrl,
   validateBookingManageToken,
 } from '../../common/utils/booking-manage-token.util.js';
+import { assertUuid } from '../../common/utils/uuid-param.util.js';
 import {
   buildBookingCalendarEventInput,
   buildIcsEventContent,
@@ -42,6 +56,7 @@ import {
   evaluatePackageVisitPolicy,
   isPackageVisitBooking,
   PACKAGE_VISIT_ACTIVE_STATUSES,
+  readMultiServiceSchedulingMode,
   readPackageIdFromMetadata,
   readPackageNameFromMetadata,
   sortPackageVisitBookings,
@@ -100,10 +115,14 @@ export class PublicCustomerBookingService {
   constructor(
     private businessService: BusinessService,
     private bookingService: BookingService,
+    private bookingRefundService: BookingRefundService,
+    private packageRefundService: PackageRefundService,
     private notificationsService: NotificationsService,
     private configService: ConfigService,
     private multiServiceBookingsService: MultiServiceBookingsService,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(PackagePurchase)
+    private packagePurchaseRepo: Repository<PackagePurchase>,
   ) {}
 
   enrichBookingItem(
@@ -148,6 +167,11 @@ export class PublicCustomerBookingService {
       packagePurchaseId: booking.packagePurchaseId,
       packageId: readPackageIdFromMetadata(booking.metadata),
       packageName: readPackageNameFromMetadata(booking.metadata),
+      // e2e-bug.34 — expose group id so Account can render one visit card.
+      multiServiceGroupId: booking.multiServiceGroupId ?? null,
+      multiServiceSchedulingMode: readMultiServiceSchedulingMode(
+        booking.metadata,
+      ),
     };
   }
 
@@ -155,7 +179,7 @@ export class PublicCustomerBookingService {
     slug: string,
     customerId: string,
     bookingId: string,
-  ): Promise<{ booking: Booking }> {
+  ): Promise<{ booking: Booking; refundStatus?: BookingRefundStatus }> {
     return this.cancelBookingInternal(slug, bookingId, { customerId });
   }
 
@@ -228,7 +252,7 @@ export class PublicCustomerBookingService {
     slug: string,
     bookingId: string,
     token: string,
-  ): Promise<{ booking: Booking }> {
+  ): Promise<{ booking: Booking; refundStatus?: BookingRefundStatus }> {
     return this.cancelBookingInternal(slug, bookingId, { token });
   }
 
@@ -254,7 +278,7 @@ export class PublicCustomerBookingService {
     slug: string,
     customerId: string,
     bookingId: string,
-  ): Promise<{ bookings: Booking[] }> {
+  ): Promise<{ bookings: Booking[]; refundStatus?: PackageRefundStatus }> {
     return this.cancelPackageVisitInternal(slug, bookingId, { customerId });
   }
 
@@ -262,7 +286,7 @@ export class PublicCustomerBookingService {
     slug: string,
     bookingId: string,
     token: string,
-  ): Promise<{ bookings: Booking[] }> {
+  ): Promise<{ bookings: Booking[]; refundStatus?: PackageRefundStatus }> {
     return this.cancelPackageVisitInternal(slug, bookingId, { token });
   }
 
@@ -353,6 +377,8 @@ export class PublicCustomerBookingService {
     bookingId: string,
     token: string,
   ): Promise<PublicBookingManageContext> {
+    // e2e-bug.117 — reject non-UUID bookingId before Postgres uuid 500.
+    assertUuid(bookingId, 'bookingId');
     const business = await this.resolveBusiness(slug);
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId: business.id },
@@ -444,12 +470,16 @@ export class PublicCustomerBookingService {
     slug: string,
     bookingId: string,
     auth: { customerId?: string; token?: string },
-  ): Promise<{ booking: Booking }> {
-    const { booking, settings } = await this.loadBookingForAction(
+  ): Promise<{ booking: Booking; refundStatus?: BookingRefundStatus }> {
+    const { booking, business, settings } = await this.loadBookingForAction(
       slug,
       bookingId,
       auth,
     );
+    // api-bug.5 — already-cancelled is a clean no-op (not 403 / not a re-notify).
+    if (booking.status === BookingStatus.CANCELLED) {
+      return { booking };
+    }
     const policy = evaluateCustomerBookingPolicy(booking, settings, 'cancel');
     if (!policy.allowed) {
       throw new ForbiddenException(
@@ -457,23 +487,53 @@ export class PublicCustomerBookingService {
       );
     }
 
+    const wasPaidOnline =
+      (booking.paymentStatus === PaymentStatus.PAID ||
+        booking.paymentStatus === PaymentStatus.PARTIALLY_PAID) &&
+      !!(booking.metadata as Record<string, any> | undefined)
+        ?.stripePaymentIntentId;
+
     const actorId = this.actorUserId(booking, auth.customerId);
-    const cancelled = await this.bookingService.cancel(
+    // e2e-bug.165 — BookingService.cancel() now issues the Stripe refund for
+    // all surfaces. Keep a defensive fallback + status mapping so customer API
+    // responses still report refundStatus when the shared path already refunded.
+    const { booking: cancelled, didCancel } = await this.bookingService.cancel(
       booking.id,
       'Cancelled by customer',
       actorId,
     );
 
-    await this.notificationsService.sendBookingCancellation(
-      booking.id,
-      'Cancelled by customer',
-    );
-    await this.notificationsService.sendBusinessCustomerBookingChange(
-      booking.id,
-      'cancelled',
-    );
+    let refundStatus: BookingRefundStatus | undefined;
+    if (wasPaidOnline) {
+      const cancelledMeta = (cancelled.metadata ?? {}) as Record<string, any>;
+      if (
+        cancelled.paymentStatus === PaymentStatus.REFUNDED ||
+        cancelledMeta.stripeRefundId
+      ) {
+        refundStatus = 'refunded';
+      } else {
+        refundStatus = await this.bookingRefundService.refundBookingPayment(
+          business,
+          cancelled,
+        );
+      }
+    }
 
-    return { booking: cancelled };
+    // e2e-bug.121 — concurrent manage/cancel losers must not re-notify (unique
+    // on notification_logs). Only the request that transitioned the row notifies;
+    // saveNotificationLog still treats 23505 as a no-op as a safety net.
+    if (didCancel) {
+      await this.notificationsService.sendBookingCancellation(
+        booking.id,
+        'Cancelled by customer',
+      );
+      await this.notificationsService.sendBusinessCustomerBookingChange(
+        booking.id,
+        'cancelled',
+      );
+    }
+
+    return { booking: cancelled, refundStatus };
   }
 
   private async rescheduleBookingInternal(
@@ -539,8 +599,8 @@ export class PublicCustomerBookingService {
     slug: string,
     bookingId: string,
     auth: { customerId?: string; token?: string },
-  ): Promise<{ bookings: Booking[] }> {
-    const { booking, settings } = await this.loadBookingForAction(
+  ): Promise<{ bookings: Booking[]; refundStatus?: PackageRefundStatus }> {
+    const { booking, business, settings } = await this.loadBookingForAction(
       slug,
       bookingId,
       auth,
@@ -553,28 +613,52 @@ export class PublicCustomerBookingService {
       );
     }
 
+    const wasUsed = visit.some((b) =>
+      [
+        BookingStatus.COMPLETED,
+        BookingStatus.IN_PROGRESS,
+        BookingStatus.NO_SHOW,
+      ].includes(b.status),
+    );
+
     const actorId = this.actorUserId(booking, auth.customerId);
     const cancelled: Booking[] = [];
     for (const item of visit.filter((b) =>
       PACKAGE_VISIT_ACTIVE_STATUSES.includes(b.status),
     )) {
-      const result = await this.bookingService.cancel(
+      const { booking: result, didCancel } = await this.bookingService.cancel(
         item.id,
         'Cancelled by customer (package visit)',
         actorId,
       );
-      await this.notificationsService.sendBookingCancellation(
-        item.id,
-        'Cancelled by customer (package visit)',
-      );
-      await this.notificationsService.sendBusinessCustomerBookingChange(
-        item.id,
-        'cancelled',
-      );
+      if (didCancel) {
+        await this.notificationsService.sendBookingCancellation(
+          item.id,
+          'Cancelled by customer (package visit)',
+        );
+        await this.notificationsService.sendBusinessCustomerBookingChange(
+          item.id,
+          'cancelled',
+        );
+      }
       cancelled.push(result);
     }
 
-    return { bookings: cancelled };
+    let refundStatus: PackageRefundStatus | undefined;
+    if (!wasUsed && booking.packagePurchaseId) {
+      const purchase = await this.packagePurchaseRepo.findOne({
+        where: { id: booking.packagePurchaseId },
+      });
+      const metadata = (purchase?.metadata ?? {}) as Record<string, any>;
+      if (purchase && metadata.stripePaymentIntentId) {
+        refundStatus = await this.packageRefundService.refundPackagePayment(
+          business,
+          purchase,
+        );
+      }
+    }
+
+    return { bookings: cancelled, refundStatus };
   }
 
   private async reschedulePackageVisitInternal(
@@ -758,6 +842,8 @@ export class PublicCustomerBookingService {
     business: Business;
     settings: CustomerSelfServiceSettings;
   }> {
+    // e2e-bug.117 — reject non-UUID bookingId before Postgres uuid 500.
+    assertUuid(bookingId, 'bookingId');
     const business = await this.resolveBusiness(slug);
     const booking = await this.bookingRepo.findOne({
       where: { id: bookingId, businessId: business.id },

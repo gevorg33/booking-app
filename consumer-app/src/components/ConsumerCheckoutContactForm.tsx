@@ -4,14 +4,20 @@ import {
   guestContactFieldAttrs,
   shouldCompactCheckoutContact,
 } from '../lib/checkout-autofill.util.js';
+import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 
 export function ConsumerCheckoutContactForm({
   value,
   onChange,
+  copy,
   compactWhenComplete = false,
 }: {
   value: GuestCheckoutContact;
   onChange: (next: GuestCheckoutContact) => void;
+  copy: Pick<
+    ConsumerCopy,
+    'checkoutContactName' | 'checkoutContactEmail' | 'checkoutContactPhone'
+  >;
   compactWhenComplete?: boolean;
 }) {
   const nameAttrs = guestContactFieldAttrs('name');
@@ -35,7 +41,7 @@ export function ConsumerCheckoutContactForm({
   return (
     <>
       <IonItem>
-        <IonLabel position="stacked">Your name</IonLabel>
+        <IonLabel position="stacked">{copy.checkoutContactName}</IonLabel>
         <IonInput
           value={value.name}
           name={nameAttrs.name}
@@ -49,7 +55,7 @@ export function ConsumerCheckoutContactForm({
         />
       </IonItem>
       <IonItem>
-        <IonLabel position="stacked">Email</IonLabel>
+        <IonLabel position="stacked">{copy.checkoutContactEmail}</IonLabel>
         <IonInput
           type="email"
           value={value.email}
@@ -64,7 +70,7 @@ export function ConsumerCheckoutContactForm({
         />
       </IonItem>
       <IonItem>
-        <IonLabel position="stacked">Phone</IonLabel>
+        <IonLabel position="stacked">{copy.checkoutContactPhone}</IonLabel>
         <IonInput
           type="tel"
           value={value.phone}

@@ -126,12 +126,12 @@ export class AiPlatformService {
     return enrichPublicSessionWithOrchestrationRules(session, plugin);
   }
 
-  gatePublicAction(action: string) {
-    return gatePublicAssistantActionLogic(action);
+  gatePublicAction(action: string, locale?: string | null) {
+    return gatePublicAssistantActionLogic(action, locale);
   }
 
-  gateCustomerAction(action: string) {
-    return gateCustomerAssistantActionLogic(action);
+  gateCustomerAction(action: string, locale?: string | null) {
+    return gateCustomerAssistantActionLogic(action, locale);
   }
 
   applyAbToSuggestions(

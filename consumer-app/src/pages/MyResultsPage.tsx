@@ -14,6 +14,8 @@ import {
   getCustomerToken,
   getStoredCustomerProfile,
 } from '../lib/customer-auth.js';
+import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import {
   fetchMyClinicTestResults,
   fetchMyClinicDocuments,
@@ -38,6 +40,7 @@ export default function MyResultsPage({
   const token = getCustomerToken(slug);
   const customer = getStoredCustomerProfile(slug);
   const authed = !!token;
+  const clinicEnabled = shouldShowPatientResultsTab(profile.businessType);
   const { locale, copy } = useConsumerCopy(slug, profile);
 
   const navigateToAlertSection = (route: ConsumerPatientAlertRoute, anchorId: string) => {
@@ -50,16 +53,17 @@ export default function MyResultsPage({
     }, 150);
   };
 
+  // e2e-bug.43 — never hit clinic APIs for non-clinic businesses (avoids 403 retry storm).
   const resultsQuery = useQuery({
     queryKey: ['clinic-results', slug],
     queryFn: () => fetchMyClinicTestResults(slug),
-    enabled: authed,
+    enabled: clinicEnabled && authed,
   });
 
   const documentsQuery = useQuery({
     queryKey: ['clinic-documents', slug],
     queryFn: () => fetchMyClinicDocuments(slug),
-    enabled: authed,
+    enabled: clinicEnabled && authed,
   });
 
   return (
@@ -88,6 +92,7 @@ export default function MyResultsPage({
             <ConsumerPatientAlertsBanner
               slug={slug}
               copy={copy}
+              businessType={profile.businessType}
               onNavigate={navigateToAlertSection}
             />
             <h2 id="my-results" style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 12 }}>
@@ -98,9 +103,10 @@ export default function MyResultsPage({
               loading={resultsQuery.isLoading}
               error={
                 resultsQuery.isError
-                  ? resultsQuery.error instanceof Error
-                    ? resultsQuery.error.message
-                    : copy.myResultsLoadFailed
+                  ? formatFriendlyNetworkError(
+                      resultsQuery.error,
+                      copy.myResultsLoadFailed,
+                    )
                   : null
               }
               locale={locale}
@@ -113,9 +119,10 @@ export default function MyResultsPage({
               loading={documentsQuery.isLoading}
               error={
                 documentsQuery.isError
-                  ? documentsQuery.error instanceof Error
-                    ? documentsQuery.error.message
-                    : copy.myDocumentsLoadFailed
+                  ? formatFriendlyNetworkError(
+                      documentsQuery.error,
+                      copy.myDocumentsLoadFailed,
+                    )
                   : null
               }
               locale={locale}

@@ -66,7 +66,13 @@ export function ConsumerCheckoutDiscounts({
           }}
           onIonInput={(e) => onPromoCodeChange((e.detail.value ?? '').toUpperCase())}
         />
-        <IonButton fill="outline" onClick={onApplyPromo} disabled={quoteLoading}>
+        <IonButton
+          fill="outline"
+          color="primary"
+          className="consumer-brand-outline-button"
+          onClick={onApplyPromo}
+          disabled={quoteLoading}
+        >
           {copy.checkoutApplyPromo}
         </IonButton>
       </div>
@@ -119,7 +125,13 @@ export function ConsumerCheckoutDiscounts({
                 onLoyaltyPointsChange(Math.max(0, parseFloat(e.detail.value ?? '') || 0))
               }
             />
-            <IonButton fill="outline" onClick={onUseMaxLoyalty} disabled={maxLoyalty <= 0}>
+            <IonButton
+              fill="outline"
+              color="primary"
+              className="consumer-brand-outline-button"
+              onClick={onUseMaxLoyalty}
+              disabled={maxLoyalty <= 0}
+            >
               {copy.checkoutUseMaxPoints}
             </IonButton>
           </div>

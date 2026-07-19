@@ -252,6 +252,7 @@ describe('Sprint 31 gift fulfillment AI scenarios', () => {
         (
           await giftFulfillment.handleCancelGiftCardOrder('biz-1', {
             giftCardId: 'gc-1',
+            reason: 'Customer requested cancellation',
           })
         ).success,
       ).toBe(true);

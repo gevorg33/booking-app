@@ -130,6 +130,8 @@ interface BookingItem {
   endTime: string;
   status: string;
   paymentStatus?: string;
+  /** ISO timestamp from API — used as optimistic-concurrency token on cancel. */
+  updatedAt?: string;
   notes?: string;
   description?: string;
   cancellationReason?: string;
@@ -655,7 +657,13 @@ export default function BookingsPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      return api.put(`/businesses/${business!.id}/bookings/${bookingId}/cancel`, { reason: cancelReason });
+      // e2e-bug.165 — always send last-fetched updatedAt so concurrent edits
+      // surface BOOKING_VERSION_CONFLICT instead of silently clobbering.
+      const booking = bookings.find((b) => b.id === bookingId);
+      return api.put(`/businesses/${business!.id}/bookings/${bookingId}/cancel`, {
+        reason: cancelReason,
+        ...(booking?.updatedAt ? { expectedUpdatedAt: booking.updatedAt } : {}),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });

@@ -63,6 +63,7 @@ import { CUSTOMER_PUBLIC_DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES } fro
 import { DIAGNOSE_STRIPE_CHECKOUT_FAILURE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-diagnose-stripe-checkout-failure-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_PAY_AT_VENUE_FALLBACK_CLASSIFIER_RULES } from '../ai/ai-pay-at-venue-fallback.util.js';
 import { PAY_AT_VENUE_FALLBACK_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-pay-at-venue-fallback-multilingual.fixtures.js';
+import { CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES } from '../ai/ai-reschedule-my-booking.util.js';
 import { CUSTOMER_PUBLIC_RESUME_BOOKING_DRAFT_CLASSIFIER_RULES } from '../ai/ai-resume-booking-draft.util.js';
 import { RESUME_BOOKING_DRAFT_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-resume-booking-draft-multilingual.fixtures.js';
 import { CUSTOMER_PUBLIC_EXPLAIN_SLOT_NO_LONGER_AVAILABLE_CLASSIFIER_RULES } from '../ai/ai-explain-slot-no-longer-available.util.js';
@@ -137,6 +138,8 @@ import { EXPLAIN_PROFESSIONAL_PROFILE_CLASSIFIER_RULES } from '../ai/ai-explain-
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-professional-profile-multilingual.fixtures.js';
 import { LIST_PROVIDER_REVIEWS_CLASSIFIER_RULES } from '../ai/ai-list-provider-reviews.fixtures.js';
 import { SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES } from '../ai/ai-submit-review-actions.fixtures.js';
+import { CUSTOMER_PUBLIC_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES } from '../ai/ai-leave-visit-review.util.js';
+import { PUBLIC_MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES } from '../ai/ai-manage-booking-with-token.util.js';
 import { CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES } from '../ai/ai-how-to-download-app.fixtures.js';
 import { HOW_TO_DOWNLOAD_APP_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-how-to-download-app-multilingual.fixtures.js';
 
@@ -145,7 +148,7 @@ export function buildPublicClassifierSchema(): string {
 Classify the user's message and extract ALL parameters needed to execute the request. Return JSON:
 
 {
-  "action": "list_providers" | "list_services" | "find_services_under_budget" | "find_evening_weekend_slots" | "check_availability" | "explain_provider_availability" | "recommend_specialists" | "business_info" | "list_public_promotions" | "explain_salon_profile" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_checkout_tax" | "explain_deposit_forfeiture" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "explain_tour_meeting_point" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "explain_lab_prep" | "explain_clinic_booking_fields" | "explain_public_intake_form" | "complete_intake_and_book" | "create_intake_draft" | "get_intake_flow_status" | "start_pre_visit_intake" | "submit_intake_answers" | "explain_guest_checkout_fields" | "explain_why_sign_in" | "sign_in_with_google" | "sign_in_with_apple" | "sign_in_with_phone" | "get_my_locale" | "update_my_locale" | "explain_manage_booking_page" | "sign_in_to_manage_booking" | "recover_lost_manage_link" | "fix_checkout_validation_error" | "confirm_my_booking_details" | "add_booking_to_calendar" | "book_another_service" | "explain_preparation_notes" | "get_directions_to_salon" | "explain_why_stripe_required" | "diagnose_stripe_checkout_failure" | "pay_at_venue_fallback" | "resume_booking_draft" | "explain_slot_no_longer_available" | "explain_voice_input" | "speak_assistant_reply" | "give_ai_feedback" | "explain_rtl_layout" | "explain_checkout_total" | "explain_amount_due_now" | "explain_service_price" | "explain_payment_options_for_service" | "find_soonest_appointment" | "join_waitlist" | "check_waitlist_status" | "compare_services" | "explain_package_savings" | "explain_subscription_vs_one_time" | "filter_services_no_prepayment" | "explain_business_hours_and_location" | "explain_provider_specialty" | "explain_professional_profile" | "list_provider_reviews" | "submit_provider_review" | "explain_any_provider_option" | "pick_provider_for_service" | "switch_provider_same_time" | "choose_payment_method" | "pay_cash_at_visit" | "pay_online" | "get_booking_quote" | "get_package_quote" | "get_multi_service_quote" | "confirm_stripe_payment" | "book_multi_service" | "check_multi_service_availability" | "add_services_to_cart" | "preview_multi_service_cart" | "suggest_package_block" | "how_to_download_app" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
+  "action": "list_providers" | "list_services" | "find_services_under_budget" | "find_evening_weekend_slots" | "check_availability" | "explain_provider_availability" | "recommend_specialists" | "business_info" | "list_public_promotions" | "explain_salon_profile" | "book_appointment" | "booking_help" | "explain_app_feature" | "guide_user_flow" | "explain_current_screen" | "explain_empty_catalog" | "explain_stripe_not_connected" | "explain_checkout_currency" | "explain_checkout_tax" | "explain_deposit_forfeiture" | "explain_stripe_checkout_currency" | "explain_package_currency" | "explain_booking_languages" | "explain_booking_date_format" | "explain_package_display_name" | "explain_tour_booking" | "explain_tour_day_slots" | "explain_tour_meeting_point" | "diagnose_tour_capacity" | "explain_checkout_recommendations" | "explain_data_rights" | "explain_clinic_booking" | "explain_lab_prep" | "explain_clinic_booking_fields" | "explain_public_intake_form" | "complete_intake_and_book" | "create_intake_draft" | "get_intake_flow_status" | "start_pre_visit_intake" | "submit_intake_answers" | "explain_guest_checkout_fields" | "explain_why_sign_in" | "sign_in_with_google" | "sign_in_with_apple" | "sign_in_with_phone" | "get_my_locale" | "update_my_locale" | "explain_manage_booking_page" | "sign_in_to_manage_booking" | "recover_lost_manage_link" | "fix_checkout_validation_error" | "confirm_my_booking_details" | "leave_visit_review" | "explain_manage_booking_context" | "cancel_booking_with_token" | "reschedule_booking_with_token" | "cancel_package_visit_with_token" | "reschedule_package_visit_with_token" | "reschedule_my_booking" | "cancel_my_booking" | "add_booking_to_calendar" | "book_another_service" | "explain_preparation_notes" | "get_directions_to_salon" | "explain_why_stripe_required" | "diagnose_stripe_checkout_failure" | "pay_at_venue_fallback" | "resume_booking_draft" | "explain_slot_no_longer_available" | "explain_voice_input" | "speak_assistant_reply" | "give_ai_feedback" | "explain_rtl_layout" | "explain_checkout_total" | "explain_amount_due_now" | "explain_service_price" | "explain_payment_options_for_service" | "find_soonest_appointment" | "join_waitlist" | "check_waitlist_status" | "compare_services" | "explain_package_savings" | "explain_subscription_vs_one_time" | "filter_services_no_prepayment" | "explain_business_hours_and_location" | "explain_provider_specialty" | "explain_professional_profile" | "list_provider_reviews" | "submit_provider_review" | "explain_any_provider_option" | "pick_provider_for_service" | "switch_provider_same_time" | "choose_payment_method" | "pay_cash_at_visit" | "pay_online" | "get_booking_quote" | "get_package_quote" | "get_multi_service_quote" | "confirm_stripe_payment" | "book_multi_service" | "check_multi_service_availability" | "add_services_to_cart" | "preview_multi_service_cart" | "suggest_package_block" | "how_to_download_app" | "list_my_test_results" | "explain_result_status" | "list_my_lab_booking_requests" | "book_lab_collection" | "unknown",
   "params": {
     "employeeName": "string or null — one specialist from the Providers list",
     "employeeRole": "string or null — specialist role/title from the Providers list (e.g. cosmetologist, massage specialist) when the user asks for top/best rated by job title",
@@ -169,8 +172,10 @@ Classify the user's message and extract ALL parameters needed to execute the req
     "packageName": "string or null — named package/bundle/spa day for explain_package_savings or package booking",
     "aspect": "named_provider | specialty_match | what_it_means | assignment | picker | hours | location | parking | hours_and_location | directions | fasting | preparation | what_to_bring | meeting_point | checkout | confirmation | service_list | all | null — explain_provider_specialty, explain_any_provider_option, explain_business_hours_and_location, get_directions_to_salon, explain_preparation_notes, or explain_checkout_tax when clear",
     "providerName": "string or null — named provider for explain_provider_specialty (Tell me about Anna) or submit_provider_review",
-    "rating": "number or null — 1 to 5 star rating for submit_provider_review",
-    "comment": "string or null — free-text comment for submit_provider_review",
+    "rating": "number or null — 1 to 5 star rating for leave_visit_review or submit_provider_review",
+    "comment": "string or null — free-text comment for leave_visit_review or submit_provider_review",
+    "bookingId": "string or null — completed booking id for leave_visit_review or guest manage-link intents when known from session/URL",
+    "manageToken": "string or null — guest manage-link token for cancel_booking_with_token / reschedule_booking_with_token / explain_manage_booking_context (from session or URL, usually not typed)",
     "idToken": "string or null — Google idToken for an anonymous customer submitting submit_provider_review (usually carried in session, not typed by the user)",
     "specialtyTopic": "string or null — hair/skin/service topic for explain_provider_specialty (curly hair, balayage)",
     "serviceTier": "standard" | "premium" | null — filter catalog rows by entity metadata tier (premium tier services for color)",
@@ -273,6 +278,7 @@ ${CUSTOMER_PUBLIC_FIX_CHECKOUT_VALIDATION_ERROR_CLASSIFIER_RULES}
 ${FIX_CHECKOUT_VALIDATION_ERROR_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES}
 ${CONFIRM_MY_BOOKING_DETAILS_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES}
 ${ADD_BOOKING_TO_CALENDAR_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_BOOK_ANOTHER_SERVICE_CLASSIFIER_RULES}
@@ -297,6 +303,8 @@ ${EXPLAIN_PROFESSIONAL_PROFILE_CLASSIFIER_RULES}
 ${EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_CLASSIFIER_RULES}
 ${LIST_PROVIDER_REVIEWS_CLASSIFIER_RULES}
 ${SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES}
+${CUSTOMER_PUBLIC_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES}
+${PUBLIC_MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_HOW_TO_DOWNLOAD_APP_CLASSIFIER_RULES}
 ${HOW_TO_DOWNLOAD_APP_MULTILINGUAL_CLASSIFIER_RULES}
 

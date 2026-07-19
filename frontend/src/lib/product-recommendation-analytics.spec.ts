@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildProductRecommendationEventBody,
   collectNewImpressionProductIds,
@@ -18,9 +18,33 @@ const context = {
   categoryId: 'cat-1',
   bookingId: 'bk-1',
   surface: 'web_checkout' as const,
+  cookieBannerEnabled: false as boolean | undefined,
 };
 
+function installLocalStorageMock(): void {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      clear: () => store.clear(),
+    },
+  });
+}
+
 describe('product-recommendation-analytics', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+    localStorage.clear();
+    vi.mocked(recordProductRecommendationEvent).mockClear();
+  });
+
   it('builds event bodies with optional checkout context', () => {
     expect(
       buildProductRecommendationEventBody('shown', 'prod-1', context),
@@ -77,5 +101,15 @@ describe('product-recommendation-analytics', () => {
       'glow-salon',
       expect.objectContaining({ event: 'shown', productId: 'prod-2' }),
     );
+  });
+
+  it('skips recommendation analytics when cookies were rejected', () => {
+    localStorage.setItem('cookie-consent-glow-salon', 'rejected');
+    trackProductRecommendationEvent(
+      { ...context, cookieBannerEnabled: true },
+      'clicked',
+      'prod-1',
+    );
+    expect(recordProductRecommendationEvent).not.toHaveBeenCalled();
   });
 });

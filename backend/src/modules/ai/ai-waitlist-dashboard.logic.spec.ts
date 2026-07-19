@@ -30,6 +30,26 @@ describe('ai-waitlist-dashboard.logic (ai-cmd-ext-2.11–2.12)', () => {
   };
 
   it('handleListWaitlistEntriesLogic lists tagged customers', async () => {
+    const andWhere = jest.fn().mockReturnThis();
+    customerRepo.createQueryBuilder.mockImplementationOnce(() => ({
+      where: jest.fn().mockReturnThis(),
+      andWhere,
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn(async () => [
+        {
+          id: 'c-1',
+          name: 'Alice',
+          phone: '+15551234',
+          email: 'alice@example.com',
+        },
+        {
+          id: 'c-2',
+          name: 'Bob',
+          phone: null,
+          email: 'bob@example.com',
+        },
+      ]),
+    }));
     const result = await handleListWaitlistEntriesLogic(
       { customerRepo: customerRepo as any },
       'biz-1',
@@ -39,6 +59,12 @@ describe('ai-waitlist-dashboard.logic (ai-cmd-ext-2.11–2.12)', () => {
     expect(result.action).toBe('list_waitlist_entries');
     expect(result.summary).toContain('Alice');
     expect(result.summary).toContain('Bob');
+    // e2e-bug.145 — simple-array LIKE filter, never PG ANY().
+    expect(andWhere).toHaveBeenCalledWith(
+      expect.stringMatching(/c\.tags = :waitlistTag/),
+      expect.objectContaining({ waitlistTag: 'waitlist' }),
+    );
+    expect(String(andWhere.mock.calls[0][0])).not.toMatch(/\bANY\b/i);
   });
 
   it('handleListWaitlistEntriesLogic empty waitlist', async () => {

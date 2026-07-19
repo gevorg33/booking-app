@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
 import type {
   AiAbExperiment,
@@ -10,11 +11,10 @@ export type { AiRoleProfile } from './ai-settings.types.js';
 import type { AccessTier } from './access-control.matrix.js';
 import { resolveAccessTier } from './access-control.matrix.js';
 import { resolveVerticalPlaybookId } from '../onboarding/vertical-playbooks.constants.js';
-import {
-  CUSTOMER_INTENTS,
-  PUBLIC_ASSISTANT_INTENTS as REGISTRY_PUBLIC_ASSISTANT_INTENTS,
-  PUBLIC_INTENTS,
-} from './ai-command-registry.build.js';
+import * as CommandRegistryBuild from './ai-command-registry.build.js';
+import { PUBLIC_ONLY_ASSISTANT_ACTIONS } from './ai-public-only-assistant-actions.js';
+
+export { mapAccessTierToRoleProfile } from './ai-role-profile.util.js';
 
 export type AiCommandSurface = 'dashboard' | 'provider' | 'customer' | 'public';
 
@@ -64,10 +64,49 @@ export interface AiCommandMetricsSummary {
   };
 }
 
-/** Union of anonymous public + logged-in customer intents (legacy orchestration; see ai-cmd-0.5). */
-export const PUBLIC_ASSISTANT_INTENTS = REGISTRY_PUBLIC_ASSISTANT_INTENTS;
+/**
+ * Union of anonymous public + logged-in customer intents (legacy orchestration; see ai-cmd-0.5).
+ * Live re-export from the registry — never snapshot-assign (circular init left that copy undefined; e2e-bug.1 / e2e-bug.90).
+ */
+export { PUBLIC_ASSISTANT_INTENTS } from './ai-command-registry.build.js';
+export type PublicAssistantIntent =
+  (typeof CommandRegistryBuild.PUBLIC_ASSISTANT_INTENTS)[number];
 
-export type PublicAssistantIntent = (typeof PUBLIC_ASSISTANT_INTENTS)[number];
+/** Read a registry intent list at call time; never throw when circular-init left it undefined. */
+export function readRegistryIntentList(
+  list: readonly string[] | undefined | null,
+): readonly string[] | undefined {
+  return Array.isArray(list) && list.length > 0 ? list : undefined;
+}
+
+/**
+ * Resolve the public-assistant allowlist for the orchestration gate.
+ * Prefers the provided/live registry union; falls back to the leaf public-only
+ * list so discovery intents never 500 when the circular import race leaves the
+ * registry binding undefined (e2e-bug.90).
+ */
+export function resolvePublicAssistantIntentAllowlistFrom(
+  registryList: readonly string[] | null | undefined,
+): readonly string[] {
+  const primary = readRegistryIntentList(registryList);
+  if (primary) return primary;
+  return [...PUBLIC_ONLY_ASSISTANT_ACTIONS, 'unknown'];
+}
+
+export function resolvePublicAssistantIntentAllowlist(): readonly string[] {
+  return resolvePublicAssistantIntentAllowlistFrom(
+    CommandRegistryBuild.PUBLIC_ASSISTANT_INTENTS,
+  );
+}
+
+export function intentAllowlistIncludes(
+  list: readonly string[] | undefined | null,
+  action: string,
+  fallback: readonly string[] = [],
+): boolean {
+  const resolved = readRegistryIntentList(list) ?? fallback;
+  return resolved.includes(action);
+}
 
 /** ai-e3 — receptionist deny-list (front desk; no owner/financial ops). */
 export const RECEPTIONIST_DENIED_INTENTS = new Set([
@@ -224,10 +263,18 @@ export function isIntentAllowedForRoleProfile(
   )
     return true;
   if (surface === 'public') {
-    return PUBLIC_INTENTS.includes(action);
+    return intentAllowlistIncludes(
+      CommandRegistryBuild.PUBLIC_INTENTS,
+      action,
+      PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    );
   }
   if (surface === 'customer') {
-    return CUSTOMER_INTENTS.includes(action);
+    return intentAllowlistIncludes(
+      CommandRegistryBuild.CUSTOMER_INTENTS,
+      action,
+      PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    );
   }
   if (profile === 'owner' || profile === 'manager') return true;
   if (profile === 'provider') {
@@ -445,32 +492,47 @@ export function resolveHitlSlaMinutes(
 
 /** ai-e8 — public assistant orchestration gate (same rules as dashboard security surface). */
 export function validatePublicAssistantAction(action: string): boolean {
-  return (PUBLIC_ASSISTANT_INTENTS as readonly string[]).includes(action);
+  // Call-time resolve + leaf fallback — never throw on circular-init undefined (e2e-bug.90).
+  return resolvePublicAssistantIntentAllowlist().includes(action);
 }
 
+/** e2e-bug.127 — localized denial; blockedAction stays in details only (no snake_case in summary). */
 export function buildPublicAssistantDeniedResult(
   action: string,
+  locale?: string | null,
 ): CommandResult {
   return {
     success: false,
     action: 'security_blocked',
-    summary: `The booking assistant cannot perform "${action}". Try rephrasing or use the booking flow.`,
+    summary: t(resolveLocale(locale), 'assistant.deniedPublic'),
     details: { surface: 'public', blockedAction: action },
   };
 }
 
 /** ai-cmd-0.5 — customer gateway action gate (client tier + customer/public union). */
 export function validateCustomerAssistantAction(action: string): boolean {
-  return CUSTOMER_INTENTS.includes(action) || PUBLIC_INTENTS.includes(action);
+  return (
+    intentAllowlistIncludes(
+      CommandRegistryBuild.CUSTOMER_INTENTS,
+      action,
+      PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    ) ||
+    intentAllowlistIncludes(
+      CommandRegistryBuild.PUBLIC_INTENTS,
+      action,
+      PUBLIC_ONLY_ASSISTANT_ACTIONS,
+    )
+  );
 }
 
 export function buildCustomerAssistantDeniedResult(
   action: string,
+  locale?: string | null,
 ): CommandResult {
   return {
     success: false,
     action: 'security_blocked',
-    summary: `The customer assistant cannot perform "${action}". Try rephrasing or use the booking menu.`,
+    summary: t(resolveLocale(locale), 'assistant.deniedCustomer'),
     details: { surface: 'customer', blockedAction: action },
   };
 }
@@ -487,9 +549,3 @@ export function enrichPublicSessionWithOrchestrationRules(
   };
 }
 
-export function mapAccessTierToRoleProfile(tier: AccessTier): AiRoleProfile {
-  if (tier === 'owner') return 'owner';
-  if (tier === 'manager') return 'manager';
-  if (tier === 'staff') return 'receptionist';
-  return 'provider';
-}

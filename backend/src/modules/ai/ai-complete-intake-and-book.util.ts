@@ -45,14 +45,14 @@ const INTAKE_MUTATE_CUE = new RegExp(
 );
 
 const LAB_BOOK_CUE = new RegExp(
-  String.raw`\b(?:book|schedule|reserve)\b.{0,40}\b(?:blood\s+draw|blood\s+work|lab\s+test|lab\s+appointment|blood\s+collection|CBC|lipid(?:\s+panel)?|metabolic\s+panel|TSH)\b|\b(?:blood\s+draw|blood\s+work|lab\s+test|CBC|lipid(?:\s+panel)?).{0,30}\b(?:book|schedule|reserve)\b|արյան\s+վերց|լաբ\s+թեստ|забор\s+крови|анализ`,
+  String.raw`\b(?:book|schedule|reserve)\b.{0,40}\b(?:blood\s+draw|blood\s+work|blood\s+test|lab\s+test|lab\s+appointment|blood\s+collection|CBC|lipid(?:\s+panel)?|metabolic\s+panel|TSH)\b|\b(?:blood\s+draw|blood\s+work|blood\s+test|lab\s+test|CBC|lipid(?:\s+panel)?).{0,30}\b(?:book|schedule|reserve)\b|արյան\s+վերց|լաբ\s+թեստ|забор\s+крови|анализ`,
   'iu',
 );
 
 const COMPOUND_LINK_CUE = /\b(?:and|then|after|;&|;)\b|և|ու|и\s+затем|потом/i;
 
 const LAB_SERVICE_NAME_CUE =
-  /\b(CBC|lipid(?:\s+panel)?|TSH|metabolic\s+panel|blood\s+draw|blood\s+work|blood\s+collection|lab\s+test|lab\s+appointment)\b/i;
+  /\b(CBC|lipid(?:\s+panel)?|TSH|metabolic\s+panel|blood\s+draw|blood\s+work|blood\s+test|blood\s+collection|lab\s+test|lab\s+appointment)\b/i;
 
 function matchCompleteIntakeAndBookScenario(
   prompt: string,
@@ -86,6 +86,7 @@ export function extractLabServiceNameFromIntakeBookPrompt(
   const named = prompt.match(LAB_SERVICE_NAME_CUE);
   if (named?.[1]) return named[1].trim();
 
+  if (/\bblood\s+test\b/i.test(prompt)) return 'blood test';
   if (/\bblood\b/i.test(prompt)) return 'blood draw';
   if (/\blab\s+draw\b/i.test(prompt)) return 'blood draw';
   if (/\blab\b/i.test(prompt)) return 'lab test';

@@ -14,6 +14,7 @@ export const BUSINESS_TAX_CLASSIFIER_RULES = `- configure_business_tax: MUTATE �
   - "Enable 20% VAT" → configure_business_tax, enabled=true, rate=20, name=VAT
   - "Switch to tax-inclusive pricing" → configure_business_tax, model=inclusive
   - "Set our GST rate to 5%" → configure_business_tax, enabled=true, rate=5, name=GST
+  - "Set my sales tax rate to 8.5 percent" → configure_business_tax, enabled=true, rate=8.5, name="Sales Tax"
   - "Make massage services tax-exempt" → set_service_tax_rate, serviceQuery=massage, taxRatePercent=0
   - "Apply 10% tax to medical consultations only" → set_service_tax_rate, serviceQuery=medical consultations, taxRatePercent=10
   - "What is our current VAT rate?" → explain_business_tax
@@ -53,6 +54,13 @@ export const CONFIGURE_BUSINESS_TAX_PROMPTS = [
     prompt: 'Enable 10% sales tax',
     enabled: true,
     rate: 10,
+    name: 'Sales Tax',
+  },
+  {
+    id: 'e2e146-set-sales-tax-rate-percent-word',
+    prompt: 'Set my sales tax rate to 8.5 percent',
+    enabled: true,
+    rate: 8.5,
     name: 'Sales Tax',
   },
   {

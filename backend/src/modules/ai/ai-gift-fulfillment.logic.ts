@@ -14,6 +14,7 @@ import { deactivateCancelledGiftCard } from '../gift-cards/gift-card-refund.util
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeFulfillmentCompoundPrompt,
+  extractCancelReasonFromPrompt,
   extractCarrierTrackingFromPrompt,
   extractDelayReasonFromPrompt,
   extractEmployeeNameFromPrompt,
@@ -379,6 +380,17 @@ export async function handleCancelGiftCardOrderLogic(
     );
   }
 
+  const reason =
+    (typeof params.reason === 'string' && params.reason.trim()) ||
+    extractCancelReasonFromPrompt(prompt ?? (params._prompt as string) ?? '');
+  if (!reason) {
+    return failure(
+      'cancel_gift_card_order',
+      "What's the reason for cancelling this gift card order?",
+      { clarify: true, missing: ['reason'], giftCardId },
+    );
+  }
+
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
@@ -401,11 +413,12 @@ export async function handleCancelGiftCardOrderLogic(
 
   return success(
     'cancel_gift_card_order',
-    `Gift card order cancelled${refundStatus ? ` — refund ${refundStatus}` : ''}.`,
+    `Gift card order cancelled (reason: ${reason})${refundStatus ? ` — refund ${refundStatus}` : ''}.`,
     {
       giftCardId: card.id,
       refundStatus,
       fulfillmentStatus: card.fulfillmentStatus,
+      reason,
     },
   );
 }

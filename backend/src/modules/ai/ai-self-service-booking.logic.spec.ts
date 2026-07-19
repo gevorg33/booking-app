@@ -4,6 +4,7 @@ import {
   handleBookPackageLogic,
   handleBookWithCashLogic,
   handleCancelMyBookingLogic,
+  handleCancelMySubscriptionLogic,
   handleCancelPackageVisitSelfLogic,
   handleChangeProviderOnRescheduleLogic,
   handleCheckMultiServiceAvailabilityLogic,
@@ -138,6 +139,10 @@ function buildDeps(
           plan: { name: 'Monthly Gold' },
         },
       ]),
+      cancelSubscription: jest.fn(async () => ({
+        subscription: { id: 'sub-1', status: 'cancelled' },
+        refundStatus: undefined,
+      })),
     } as any,
     multiServiceBookingsService: {
       resolveSettingsFromBusiness: jest.fn(() => ({
@@ -388,6 +393,66 @@ describe('ai-self-service-booking.logic', () => {
     ).toBe(false);
 
     expect(
+      (await handleCancelMySubscriptionLogic(deps, 'biz-1', {})).success,
+    ).toBe(false);
+    expect(
+      (
+        await handleCancelMySubscriptionLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).success,
+    ).toBe(true);
+    (
+      deps.subscriptionsService.listCustomerSubscriptions as jest.Mock
+    ).mockResolvedValueOnce([]);
+    expect(
+      (
+        await handleCancelMySubscriptionLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).success,
+    ).toBe(false);
+    (
+      deps.subscriptionsService.cancelSubscription as jest.Mock
+    ).mockResolvedValueOnce({
+      subscription: { id: 'sub-1', status: 'cancelled' },
+      refundStatus: 'refunded',
+    });
+    expect(
+      (
+        await handleCancelMySubscriptionLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).summary,
+    ).toContain('refunded');
+    (
+      deps.subscriptionsService.cancelSubscription as jest.Mock
+    ).mockResolvedValueOnce({
+      subscription: { id: 'sub-1', status: 'cancelled' },
+      refundStatus: 'ineligible',
+    });
+    expect(
+      (
+        await handleCancelMySubscriptionLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).summary,
+    ).toContain('already used');
+    (
+      deps.subscriptionsService.cancelSubscription as jest.Mock
+    ).mockResolvedValueOnce({
+      subscription: { id: 'sub-1', status: 'cancelled' },
+      refundStatus: 'failed',
+    });
+    expect(
+      (
+        await handleCancelMySubscriptionLogic(deps, 'biz-1', {
+          sessionCustomerId: 'cust-1',
+        })
+      ).summary,
+    ).toContain("didn't go through");
+
+    expect(
       (await handleListMyAppointmentsLogic(deps, 'biz-1', {})).success,
     ).toBe(false);
     expect(
@@ -417,6 +482,34 @@ describe('ai-self-service-booking.logic', () => {
         })
       ).summary,
     ).toContain('no need to call the salon');
+    (
+      deps.publicCustomerBookingService.cancelBooking as jest.Mock
+    ).mockResolvedValueOnce({
+      booking: { id: 'book-1', status: BookingStatus.CANCELLED },
+      refundStatus: 'refunded',
+    });
+    const refunded = await handleCancelMyBookingLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
+      bookingId: 'book-1',
+    });
+    expect(refunded.success).toBe(true);
+    expect(refunded.summary).toContain("we've refunded your payment");
+    expect(refunded.details).toMatchObject({ refundStatus: 'refunded' });
+
+    (
+      deps.publicCustomerBookingService.cancelBooking as jest.Mock
+    ).mockResolvedValueOnce({
+      booking: { id: 'book-1', status: BookingStatus.CANCELLED },
+      refundStatus: 'failed',
+    });
+    const refundFailed = await handleCancelMyBookingLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
+      bookingId: 'book-1',
+    });
+    expect(refundFailed.success).toBe(true);
+    expect(refundFailed.summary).toContain("refund didn't go through");
+    expect(refundFailed.details).toMatchObject({ refundStatus: 'failed' });
+
     (deps.bookingRepo.find as jest.Mock).mockResolvedValueOnce([]);
     expect(
       (

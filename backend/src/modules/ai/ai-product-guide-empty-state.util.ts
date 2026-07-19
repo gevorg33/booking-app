@@ -5,13 +5,14 @@ import { buildProductGuideLogicInput } from './ai-product-guide-session.util.js'
 import type { EmptyStateGuideLogicDeps } from './ai-product-guide-empty-state.logic.js';
 import { runEmptyStateGuideIntentLogic } from './ai-product-guide-empty-state.logic.js';
 import {
-  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
-  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
   EMPTY_STATE_GUIDE_RESCUE_SCENARIOS,
-  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
   type EmptyStateGuideIntent,
   type EmptyStateGuideRescueScenario,
 } from './ai-product-guide-empty-state.fixtures.js';
+import {
+  isEmptyStateGuideIntent,
+  isEmptyStateGuideIntentOnSurface,
+} from './ai-product-guide-empty-state-intent.util.js';
 
 export {
   CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
@@ -23,32 +24,10 @@ export {
   type EmptyStateGuideIntent,
 } from './ai-product-guide-empty-state.fixtures.js';
 
-export function isEmptyStateGuideIntent(
-  action: string,
-): action is EmptyStateGuideIntent {
-  return (DASHBOARD_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(
-    action,
-  );
-}
-
-export function isEmptyStateGuideIntentOnSurface(
-  action: string,
-  surface: GuideFlowSurface,
-): boolean {
-  if (!isEmptyStateGuideIntent(action)) return false;
-  if (surface === 'dashboard') return true;
-  if (surface === 'provider') {
-    return (PROVIDER_EMPTY_STATE_GUIDE_INTENTS as readonly string[]).includes(
-      action,
-    );
-  }
-  if (surface === 'customer' || surface === 'public') {
-    return (
-      CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS as readonly string[]
-    ).includes(action);
-  }
-  return false;
-}
+export {
+  isEmptyStateGuideIntent,
+  isEmptyStateGuideIntentOnSurface,
+} from './ai-product-guide-empty-state-intent.util.js';
 
 function matchesEmptyStateRescueScenario(
   prompt: string,

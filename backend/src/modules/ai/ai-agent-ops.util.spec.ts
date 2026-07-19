@@ -102,6 +102,21 @@ describe('ai-agent-ops.util (ai-cmd-dashboard-6.1)', () => {
       );
     });
 
+    it('e2e-bug.152 — exact pending AI agent tasks phrasing', () => {
+      expect(isListAgentTasksPrompt('Show me pending AI agent tasks')).toBe(
+        true,
+      );
+      expect(
+        rescueAgentOpsIntent('Show me pending AI agent tasks', 'unknown'),
+      ).toEqual({ action: 'list_agent_tasks', rescueReason: 'list_tasks' });
+      expect(
+        rescueAgentOpsIntent(
+          'Show me pending AI agent tasks',
+          'list_clinic_tasks',
+        ),
+      ).toEqual({ action: 'list_agent_tasks', rescueReason: 'list_tasks' });
+    });
+
     it('returns null for unrelated prompts', () => {
       expect(rescueAgentOpsIntent('cancel all appointments today', 'unknown')).toBeNull();
     });

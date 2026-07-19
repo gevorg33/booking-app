@@ -29,6 +29,7 @@ import {
   shouldAutoNavigateAssistantCheckout,
 } from '@/lib/public-assistant-checkout.util';
 import {
+  extractPublicAssistantGuidePrefixText,
   hasPublicAssistantGuideSteps,
 } from '@/lib/public-assistant-guide.util';
 import {
@@ -47,6 +48,10 @@ import { isSpeechSynthesisSupported, localeToSpeechLang, speakText } from '@/lib
 import {
   buildPublicAssistantPageContext,
 } from '@/lib/public-booking-assistant-context.util';
+import {
+  nudgeFabAnchorClearOfSupportLauncher,
+  publicAiFabDefaultBottomInset,
+} from '@/lib/public-floating-fab-layer.util';
 import { subscribePublicAssistantEvents } from '@/lib/public-assistant-events';
 import { handleAssistantFeedbackClientAction } from '@/lib/assistant-feedback.util';
 
@@ -138,10 +143,23 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     }
     return fab;
   }, [open, viewport.height, viewport.width]);
+  // e2e-bug.123 — stack above Zendesk launcher when support widget is enabled.
+  const hasSupportLauncher = Boolean(tenant.support?.zendeskWidgetKey?.trim());
+  const fabBottomInset = useMemo(
+    () => publicAiFabDefaultBottomInset(hasSupportLauncher),
+    [hasSupportLauncher],
+  );
+  const reconcileFabAnchor = useCallback(
+    (anchor: { right: number; bottom: number }) =>
+      nudgeFabAnchorClearOfSupportLauncher(anchor, hasSupportLauncher),
+    [hasSupportLauncher],
+  );
   const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
     useDraggableFloatingPosition({
       storageKey: `public-ai-position-${slug}`,
       estimatedSize,
+      defaultBottomInset: fabBottomInset,
+      reconcileAnchor: reconcileFabAnchor,
     });
 
   useEffect(() => {
@@ -172,9 +190,11 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     [router, slug],
   );
 
+  // e2e-bug.106 — include URL query (bookingId/token/cart) so manage/checkout/multi
+  // pages thread page context into every assistant request.
   const assistantPageContext = useMemo(
-    () => buildPublicAssistantPageContext(pathname),
-    [pathname],
+    () => buildPublicAssistantPageContext(pathname, searchParams.toString()),
+    [pathname, searchParams],
   );
 
   const submit = useCallback(
@@ -465,18 +485,29 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
                   }
                 >
                   {hasPublicAssistantGuideSteps(msg.guide) ? (
-                    <PublicAssistantGuidePanel
-                      guide={msg.guide}
-                      slug={slug}
-                      onNavigate={(href) => {
-                        const trimmed = href.replace(/^\//, '');
-                        const [path, queryString] = trimmed.split('?');
-                        followNavigate({
-                          path: path as NonNullable<PublicAssistantResponse['navigate']>['path'],
-                          query: Object.fromEntries(new URLSearchParams(queryString ?? '')),
-                        });
-                      }}
-                    />
+                    <>
+                      {(() => {
+                        const prefixText = extractPublicAssistantGuidePrefixText(
+                          msg.text,
+                          msg.guide?.summary,
+                        );
+                        return prefixText ? (
+                          <p className="whitespace-pre-wrap leading-relaxed mb-2">{prefixText}</p>
+                        ) : null;
+                      })()}
+                      <PublicAssistantGuidePanel
+                        guide={msg.guide}
+                        slug={slug}
+                        onNavigate={(href) => {
+                          const trimmed = href.replace(/^\//, '');
+                          const [path, queryString] = trimmed.split('?');
+                          followNavigate({
+                            path: path as NonNullable<PublicAssistantResponse['navigate']>['path'],
+                            query: Object.fromEntries(new URLSearchParams(queryString ?? '')),
+                          });
+                        }}
+                      />
+                    </>
                   ) : (
                     <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                   )}

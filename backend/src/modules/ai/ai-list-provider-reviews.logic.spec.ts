@@ -30,6 +30,9 @@ function buildDeps(
         items: [],
       })),
     } as any,
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    } as any,
     ...overrides,
   };
 }
@@ -92,13 +95,30 @@ describe('ai-list-provider-reviews.logic', () => {
     ]);
   });
 
-  it('fails gracefully when slug is missing', async () => {
+  it('fails gracefully when business slug cannot be resolved', async () => {
+    const result = await handleListProviderReviewsLogic(
+      buildDeps({
+        businessRepo: { findOne: jest.fn(async () => null) } as any,
+      }),
+      'biz-1',
+      { providerName: 'Anna' },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toBe('Business not found.');
+  });
+
+  it('resolves slug from businessId when params.slug is omitted (e2e-bug.82)', async () => {
     const result = await handleListProviderReviewsLogic(deps, 'biz-1', {
       providerName: 'Anna',
     });
 
-    expect(result.success).toBe(false);
-    expect(result.summary).toBe('Business not found.');
+    expect(result.success).toBe(true);
+    expect(deps.reviewsService.listPublicProviderReviews).toHaveBeenCalledWith(
+      'salon',
+      'emp-1',
+      1,
+    );
   });
 
   it('handles review lookup failures', async () => {

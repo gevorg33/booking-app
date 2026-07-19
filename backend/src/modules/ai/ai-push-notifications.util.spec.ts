@@ -14,6 +14,7 @@ import {
   isTestPushPrompt,
   isNotificationHistoryPrompt,
   isToggleBusinessEmailOnCustomerChangePrompt,
+  extractBusinessEmailOnCustomerChangeToggleFromPrompt,
   isEnableNotificationsPrompt,
   isAppointmentReminderPreferencesPrompt,
   isSummarizeDayOnlyPrompt,
@@ -25,6 +26,7 @@ import {
   extractBookingIdFromPushPrompt,
   extractPushRecipientNamesFromPrompt,
   extractNotificationToggleFromPrompt,
+  classifyPushNotificationsSegment,
   resolveNotificationEnabledFromPrompt,
   resolveSmsRemindersWhenEnabling,
   extractReminderHoursFromPrompt,
@@ -51,6 +53,10 @@ import { PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS } from './ai-provider-of
 import { PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS } from './ai-provider-retry-offline-action.fixtures.js';
 import { PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS } from './ai-provider-explain-offline-mode.fixtures.js';
 import { PROVIDER_EXPLAIN_APP_UPDATE_GATE_PROMPT_SCENARIOS } from './ai-provider-explain-app-update-gate.fixtures.js';
+import {
+  E2E159_CUSTOMER_OUTBOUND_NOTIFY_NEGATIVE,
+  E2E159_OWNER_CANCEL_ALERT_SCENARIOS,
+} from './ai-e2e159-owner-cancel-alert.fixtures.js';
 
 describe('ai-push-notifications.util', () => {
   describe('prompt classifiers', () => {
@@ -808,5 +814,39 @@ describe('ai-push-notifications.util', () => {
       });
       expect(nudge).toContain('2.4.0');
     });
+  });
+
+  describe('e2e-bug.159 — owner cancel alert vs customer notify', () => {
+    it.each([
+      ...E2E159_OWNER_CANCEL_ALERT_SCENARIOS,
+    ])('$id rescues to business email toggle', (row) => {
+      expect(isToggleBusinessEmailOnCustomerChangePrompt(row.prompt)).toBe(
+        true,
+      );
+      expect(
+        extractBusinessEmailOnCustomerChangeToggleFromPrompt(row.prompt),
+      ).toBe(row.enabled);
+      expect(
+        rescuePushNotificationsIntent(row.prompt, 'unknown')?.action,
+      ).toBe(row.expectedAction);
+      expect(
+        rescuePushNotificationsIntent(row.prompt, 'react_agent')?.action,
+      ).toBe(row.expectedAction);
+      const segment = classifyPushNotificationsSegment(row.prompt);
+      expect(segment?.action).toBe(row.expectedAction);
+      expect(segment?.params.enabled).toBe(row.enabled);
+    });
+
+    it.each([...E2E159_CUSTOMER_OUTBOUND_NOTIFY_NEGATIVE])(
+      'does not treat customer-outbound notify as owner alert: %s',
+      (prompt) => {
+        expect(isToggleBusinessEmailOnCustomerChangePrompt(prompt)).toBe(
+          false,
+        );
+        expect(
+          rescuePushNotificationsIntent(prompt, 'unknown')?.action,
+        ).not.toBe('toggle_business_email_on_customer_change');
+      },
+    );
   });
 });

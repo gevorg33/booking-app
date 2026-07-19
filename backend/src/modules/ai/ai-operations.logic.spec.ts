@@ -49,6 +49,11 @@ describe('ai-operations.logic', () => {
       action: 'no_show_recovery',
       summary: 'done',
     }),
+    approveTask: jest.fn().mockResolvedValue({
+      success: true,
+      action: 'update_service_prices',
+      summary: 'approved-and-executed',
+    }),
   };
 
   const deps: OperationsLogicDeps = {
@@ -323,6 +328,16 @@ describe('ai-operations.logic', () => {
       services,
     );
     expect(byName?.steps[0].params.price).toBe(105);
+
+    // e2e-bug.164 — dollar delta must win over a mis-filled percentChange.
+    const byDollars = prepareUpdateServicePricesPlanLogic(
+      deps,
+      'biz-1',
+      'Increase the price of the Massage service by 5 dollars',
+      { percentChange: 5, serviceName: 'Massage' },
+      [{ id: 's1', name: 'Massage', price: 20, category: { name: 'Wellness' } } as any],
+    );
+    expect(byDollars?.steps[0].params.price).toBe(25);
     const byCategory = prepareUpdateServicePricesPlanLogic(
       deps,
       'biz-1',
@@ -659,5 +674,31 @@ describe('ai-operations.logic', () => {
       'u1',
     );
     expect(executed.action).toBe('no_show_recovery');
+
+    // e2e-bug.164 — pending policy approval must be auto-approved for price updates
+    // once the AI confirmation gate has already authorized execution.
+    orchestration.executePlan.mockResolvedValueOnce({
+      success: true,
+      action: 'update_service_prices',
+      summary: 'planned',
+      requiresApproval: true,
+      taskId: 'task-price-1',
+    });
+    const priceExecuted = await executeOperationsPlan(
+      { orchestration },
+      {
+        id: 'p2',
+        intent: 'update_service_prices',
+        steps: [],
+        businessId: 'biz-1',
+      } as any,
+      'biz-1',
+      'u1',
+    );
+    expect(orchestration.approveTask).toHaveBeenCalledWith(
+      'task-price-1',
+      'u1',
+    );
+    expect(priceExecuted.summary).toBe('approved-and-executed');
   });
 });

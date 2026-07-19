@@ -13,6 +13,9 @@ function makeDeps(
         salonRewardSummary: '',
       })),
     } as unknown as ShareMyBookingLogicDeps['publicBookingService'],
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+    } as ShareMyBookingLogicDeps['businessRepo'],
     ...overrides,
   };
 }
@@ -66,7 +69,21 @@ describe('ai-share-my-booking.logic (ai-cmd-customer-4.3.7)', () => {
     expect(result.details.clarify).toBe(true);
   });
 
-  it('returns failure when business slug is missing', async () => {
+  it('returns failure when business slug cannot be resolved', async () => {
+    const result = await handleShareMyBookingLogic(
+      makeDeps({
+        businessRepo: { findOne: jest.fn(async () => null) },
+      }),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Share my booking',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Business not found');
+  });
+
+  it('resolves slug from businessId when params.slug is omitted (e2e-bug.82)', async () => {
     const result = await handleShareMyBookingLogic(
       makeDeps(),
       'biz-1',
@@ -74,7 +91,7 @@ describe('ai-share-my-booking.logic (ai-cmd-customer-4.3.7)', () => {
       'Share my booking',
     );
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('returns clarify for non-share prompts', async () => {

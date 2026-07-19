@@ -15,13 +15,16 @@ export type OperationFeedbackSnapshot = {
   toasts: OperationToast[];
 };
 
+/** Shared empty array so getSnapshot identity is stable on first mount (e2e-bug.14). */
+const EMPTY_TOASTS: OperationToast[] = [];
+
 const SERVER_SNAPSHOT: OperationFeedbackSnapshot = Object.freeze({
   pendingCount: 0,
-  toasts: [],
+  toasts: EMPTY_TOASTS,
 });
 
 let pendingCount = 0;
-let toasts: OperationToast[] = [];
+let toasts: OperationToast[] = EMPTY_TOASTS;
 let clientSnapshot: OperationFeedbackSnapshot = SERVER_SNAPSHOT;
 const listeners = new Set<Listener>();
 
@@ -29,7 +32,7 @@ function syncClientSnapshot(): OperationFeedbackSnapshot {
   if (clientSnapshot.pendingCount === pendingCount && clientSnapshot.toasts === toasts) {
     return clientSnapshot;
   }
-  clientSnapshot = { pendingCount, toasts: [...toasts] };
+  clientSnapshot = { pendingCount, toasts };
   return clientSnapshot;
 }
 
@@ -54,7 +57,8 @@ function pushToast(
   ];
   emit();
   setTimeout(() => {
-    toasts = toasts.slice(1);
+    const next = toasts.slice(1);
+    toasts = next.length === 0 ? EMPTY_TOASTS : next;
     emit();
   }, 6_000);
 }
@@ -86,7 +90,7 @@ export const operationFeedbackStore = {
   },
   resetForTests() {
     pendingCount = 0;
-    toasts = [];
+    toasts = EMPTY_TOASTS;
     clientSnapshot = SERVER_SNAPSHOT;
     emit();
   },

@@ -3,14 +3,15 @@ import { PromoDiscountType } from '../promo-codes/entities/promo-code.entity.js'
 /** Dashboard mutate intent (ai-cmd-ext-2.24). */
 export const CREATE_PROMO_CODE_INTENT = 'create_promo_code' as const;
 
-export const CREATE_PROMO_CODE_CLASSIFIER_RULES = `- create_promo_code: MUTATE — admin creates a promo/discount code on Monetization → Promo codes. Params: code (string), discountType (percent|fixed), discountValue (number), optional minOrderAmount, maxUses, expiresAt, description. Use for "create promo code SAVE10 for 20% off", "add a new discount code WELCOME15". NOT promo_code_help (customer validate/how-to), NOT deactivate_promo_code (turning an existing code off).
+export const CREATE_PROMO_CODE_CLASSIFIER_RULES = `- create_promo_code: MUTATE — admin creates a promo/discount code on Monetization → Promo codes. Params: code (string), discountType (percent|fixed), discountValue (number), optional minOrderAmount, maxUses, expiresAt, description. Use for "create promo code SAVE10 for 20% off", "add a new discount code WELCOME15". NOT promo_code_help (customer validate/how-to), NOT deactivate_promo_code (turning an existing code off). NOT create_service_category — "Add a new service category called Wellness" is catalog organization, not a promo (even though it contains "called …").
 - deactivate_promo_code: MUTATE — admin turns off an existing promo/discount code so it can no longer be redeemed. Requires code (or promoId). "Deactivate promo code SAVE10", "Turn off the WELCOME15 discount code" → code=SAVE10 / WELCOME15. NOT create_promo_code (making a new one).
 - Examples:
   - "Create promo code SAVE10 for 20% off" → code=SAVE10, discountType=percent, discountValue=20
   - "Add a new discount code WELCOME15 — 15 percent" → code=WELCOME15, discountType=percent, discountValue=15
   - "Make coupon SUMMER25 with $10 off" → code=SUMMER25, discountType=fixed, discountValue=10
   - "Deactivate promo code SAVE10" → deactivate_promo_code, code=SAVE10
-  - NOT "How do promo codes work" → promo_code_help (customer)`;
+  - NOT "How do promo codes work" → promo_code_help (customer)
+  - NOT "Add a new service category called Wellness" → create_service_category`;
 
 export type CreatePromoCodePromptFixture = {
   id: string;
@@ -199,6 +200,15 @@ export function isCreatePromoCodePrompt(prompt: string): boolean {
   if (!text || !CREATE_VERB.test(text)) return false;
   if (HELP_SIGNAL.test(text) && !/\b(for|with|at)\b/i.test(text)) return false;
   if (/\bdeactivate\b/i.test(text)) return false;
+  // e2e-bug.151 — "Add a new service category called Wellness" is catalog, not a promo.
+  // "called X" alone must not imply a discount code when the noun is a service category.
+  if (
+    /\b(service\s+)?category\b/i.test(text) &&
+    !PROMO_SIGNAL.test(text) &&
+    !/\b(?:promo|discount|coupon)\b/i.test(text)
+  ) {
+    return false;
+  }
   return (
     PROMO_SIGNAL.test(text) ||
     /\bcode\s+"?[A-Z0-9_-]{3,}"?\b/i.test(text) ||

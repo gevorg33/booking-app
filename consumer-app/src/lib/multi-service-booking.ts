@@ -310,9 +310,41 @@ export function multiServiceCartErrors(input: {
   return errors;
 }
 
+/** Path segment for MultiServicePickerPage — reserved; never a real service id (e2e-bug.7). */
+export const MULTI_SERVICE_PICKER_PATH_SEGMENT = 'any';
+
+/** Path segment for MultiServiceRedirectPage — reserved; never a real service id (e2e-bug.32). */
+export const MULTI_SERVICE_REDIRECT_PATH_SEGMENT = 'multi';
+
+export function isMultiServicePickerPathSegment(
+  serviceId: string | undefined | null,
+): boolean {
+  return serviceId === MULTI_SERVICE_PICKER_PATH_SEGMENT;
+}
+
+export function isMultiServiceRedirectPathSegment(
+  serviceId: string | undefined | null,
+): boolean {
+  return serviceId === MULTI_SERVICE_REDIRECT_PATH_SEGMENT;
+}
+
+/**
+ * IonRouterOutlet can match `/book/:serviceId` over more-specific `/book/any` and `/book/multi`
+ * siblings (e2e-bug.7 / e2e-bug.32). Resolve which page the catch-all should render.
+ */
+export type BookPathCollisionTarget = 'picker' | 'multi_redirect' | 'book';
+
+export function resolveBookPathCollision(
+  serviceId: string | undefined | null,
+): BookPathCollisionTarget {
+  if (isMultiServicePickerPathSegment(serviceId)) return 'picker';
+  if (isMultiServiceRedirectPathSegment(serviceId)) return 'multi_redirect';
+  return 'book';
+}
+
 export function buildMultiServicePickerPath(slug: string, serviceIds: string[]): string {
   const q = new URLSearchParams({ services: uniqueMultiServiceIds(serviceIds).join(',') });
-  return `${buildSalonPath(slug, '/book/any')}?${q.toString()}`;
+  return `${buildSalonPath(slug, `/book/${MULTI_SERVICE_PICKER_PATH_SEGMENT}`)}?${q.toString()}`;
 }
 
 export function buildMultiServiceAvailabilityPath(slug: string, serviceIds: string[]): string {
@@ -358,6 +390,32 @@ export function resolvePathAfterRemovingService(
     return buildSalonPath(slug, `/book/${remaining[0]}`);
   }
   return buildMultiServiceSchedulePath(slug, remaining, schedulingMode);
+}
+
+/**
+ * When checkout is opened without 2+ services (stale history / cleared cart),
+ * recover to schedule, single-service book, picker, or services — never a dead-end.
+ */
+export function resolveMultiServiceCheckoutRecoveryPath(
+  slug: string,
+  urlServiceIds: string[],
+  schedulingMode: MultiServiceSchedulingMode = 'same_visit',
+): string {
+  const fromUrl = uniqueMultiServiceIds(urlServiceIds);
+  if (fromUrl.length >= 2) {
+    return buildMultiServiceSchedulePath(slug, fromUrl, schedulingMode);
+  }
+  if (fromUrl.length === 1) {
+    return buildSalonPath(slug, `/book/${fromUrl[0]}`);
+  }
+  const persisted = readPersistedMultiServiceCart(slug);
+  if (persisted.length >= 2) {
+    return buildMultiServiceSchedulePath(slug, persisted, schedulingMode);
+  }
+  if (persisted.length === 1) {
+    return buildSalonPath(slug, `/book/${persisted[0]}`);
+  }
+  return buildSalonPath(slug, '/services');
 }
 
 export function toDateKey(iso: string, _timezone = 'UTC'): string {

@@ -6,11 +6,14 @@ export function ConsumerLanguagePicker({
   enabledLocales,
   localeLabels,
   onChange,
+  ariaLabel,
 }: {
   locale: ConsumerLocale;
   enabledLocales: readonly ConsumerLocale[];
   localeLabels: Record<ConsumerLocale, string>;
   onChange: (locale: ConsumerLocale) => void;
+  /** e2e-bug.54 — localized aria-label (was hardcoded "Language") */
+  ariaLabel: string;
 }) {
   if (enabledLocales.length <= 1) return null;
 
@@ -18,7 +21,7 @@ export function ConsumerLanguagePicker({
     <IonSelect
       value={locale}
       interface="popover"
-      aria-label="Language"
+      aria-label={ariaLabel}
       onIonChange={(e) => onChange(e.detail.value as ConsumerLocale)}
     >
       {enabledLocales.map((code) => (

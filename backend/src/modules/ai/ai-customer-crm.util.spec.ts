@@ -50,6 +50,15 @@ describe('ai-customer-crm.util', () => {
       expect(isListCustomerSubscriptionsPrompt('Show my subscriptions')).toBe(
         false,
       );
+      // e2e-bug.138 — owner "my customers" is dashboard CRM, not self-service.
+      expect(
+        isListCustomerSubscriptionsPrompt(
+          'List active memberships for my customers',
+        ),
+      ).toBe(true);
+      expect(
+        isMySubscriptionsPrompt('List active memberships for my customers'),
+      ).toBe(false);
       expect(
         isSubscriptionUsageHistoryPrompt('Usage history for Anna nail plan'),
       ).toBe(true);
@@ -94,6 +103,13 @@ describe('ai-customer-crm.util', () => {
     it('detects customer account prompts', () => {
       expect(isMyProfilePrompt('Show my profile')).toBe(true);
       expect(isMyAppointmentsPrompt('Show my appointments')).toBe(true);
+      // e2e-bug.134 — cancel/manage-link must not look like my_appointments
+      expect(
+        isMyAppointmentsPrompt(
+          'Please cancel my booking https://example.com/manage?bookingId=x&token=y',
+        ),
+      ).toBe(false);
+      expect(isMyAppointmentsPrompt('Please cancel my booking')).toBe(false);
       expect(isMySubscriptionsPrompt('Show my subscriptions')).toBe(true);
       expect(isSubscriptionUsagePrompt('My subscription usage remaining')).toBe(
         true,
@@ -232,6 +248,22 @@ describe('ai-customer-crm.util', () => {
       expect(
         rescueCustomerCrmIntent('Show my subscriptions', 'unknown')?.action,
       ).toBe('my_subscriptions');
+      // e2e-bug.138 — owner membership list must not stay as my_subscriptions
+      expect(
+        rescueCustomerCrmIntent(
+          'List active memberships for my customers',
+          'my_subscriptions',
+        ),
+      ).toEqual({
+        action: 'list_customer_subscriptions',
+        rescueReason: 'list_subscriptions',
+      });
+      expect(
+        rescueCustomerCrmIntent(
+          'List active memberships for my customers',
+          'unknown',
+        )?.action,
+      ).toBe('list_customer_subscriptions');
       expect(
         rescueCustomerCrmIntent('My subscription usage remaining', 'unknown')
           ?.action,

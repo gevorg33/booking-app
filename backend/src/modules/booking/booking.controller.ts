@@ -133,16 +133,17 @@ export class BookingController {
 
   @Put(':id/cancel')
   @UseGuards(JwtAuthGuard)
-  cancel(
+  async cancel(
     @Param('id') id: string,
     @Body() dto: CancelBookingDto,
     @CurrentUser() user: any,
   ) {
-    return this.bookingService.cancel(
+    const { booking } = await this.bookingService.cancel(
       id,
       dto.reason,
       user?.id,
       dto.expectedUpdatedAt,
     );
+    return booking;
   }
 }

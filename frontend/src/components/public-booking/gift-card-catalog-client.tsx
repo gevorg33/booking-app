@@ -12,6 +12,7 @@ import {
   type PublicService,
 } from '@/lib/public-api';
 import { resolveTenantPriceCurrency } from '@/lib/business-currency';
+import { resolveGiftCardCatalogSubtitleKey } from '@/lib/gift-card-catalog-copy.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -120,7 +121,13 @@ export function GiftCardCatalogClient({ slug, tenant, catalog, services = [] }: 
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{t('public.giftCards.title')}</h1>
-            <p className="text-sm text-gray-500">{t('public.giftCards.subtitle')}</p>
+            <p className="text-sm text-gray-500">
+              {t(
+                resolveGiftCardCatalogSubtitleKey(
+                  Boolean(settings.physicalDeliveryEnabled),
+                ),
+              )}
+            </p>
           </div>
         </div>
 

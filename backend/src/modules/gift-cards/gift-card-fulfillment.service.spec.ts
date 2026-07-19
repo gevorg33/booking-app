@@ -85,7 +85,7 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
     expect(out.deliveryStaffId).toBe('emp-driver');
   });
 
-  it('marks order delivered', async () => {
+  it('marks order delivered from out_for_delivery', async () => {
     giftCardRepo.findOne.mockResolvedValue({
       ...physicalOrder,
       fulfillmentStatus: 'out_for_delivery',
@@ -93,6 +93,43 @@ describe('GiftCardFulfillmentService — card makers & drivers', () => {
     const delivered = await service.markDelivered('biz-1', 'order-1');
     expect(delivered.fulfillmentStatus).toBe('delivered');
     expect(delivered.deliveredAt).toBeTruthy();
+  });
+
+  it('marks order delivered from shipped', async () => {
+    giftCardRepo.findOne.mockResolvedValue({
+      ...physicalOrder,
+      fulfillmentStatus: 'shipped',
+    });
+    const delivered = await service.markDelivered('biz-1', 'order-1');
+    expect(delivered.fulfillmentStatus).toBe('delivered');
+  });
+
+  it('e2e-bug.73 — rejects delivered when still awaiting card creation', async () => {
+    giftCardRepo.findOne.mockResolvedValue({ ...physicalOrder });
+    await expect(service.markDelivered('biz-1', 'order-1')).rejects.toThrow(
+      /out for delivery or shipped/i,
+    );
+    expect(giftCardRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('e2e-bug.73 — rejects delivered from ready_for_delivery', async () => {
+    giftCardRepo.findOne.mockResolvedValue({
+      ...physicalOrder,
+      fulfillmentStatus: 'ready_for_delivery',
+    });
+    await expect(service.markDelivered('biz-1', 'order-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('e2e-bug.73 — rejects delivered when already delivered', async () => {
+    giftCardRepo.findOne.mockResolvedValue({
+      ...physicalOrder,
+      fulfillmentStatus: 'delivered',
+    });
+    await expect(service.markDelivered('biz-1', 'order-1')).rejects.toThrow(
+      /already delivered/i,
+    );
   });
 
   it('lists delivery queue for drivers', async () => {

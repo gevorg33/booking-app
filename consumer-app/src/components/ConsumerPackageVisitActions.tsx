@@ -18,6 +18,11 @@ import {
   suggestPackageBlock,
 } from '../services/public-api.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import {
+  formatFriendlyNetworkError,
+  formatPackageScheduleError,
+  isVisitDurationCapError,
+} from '../lib/consumer-network-ux.util.js';
 
 const ACTIVE = new Set(['confirmed', 'pending']);
 
@@ -75,37 +80,63 @@ export function ConsumerPackageVisitActions({
           const chosen = match ?? result.slots[0];
           setSelectedStart(chosen.startTime);
           setEmployeeId(chosen.employeeId ?? null);
+          setError(null);
         } else {
           setSelectedStart(null);
           setEmployeeId(null);
         }
-      } catch {
+      } catch (err: unknown) {
+        // e2e-bug.36 — surface schedule failures (incl. duration-cap) instead of silent empty UI.
         setSlots([]);
         setSelectedStart(null);
         setEmployeeId(null);
+        setError(
+          formatPackageScheduleError(err, {
+            packageCannotSchedule: copy.packageCannotSchedule,
+            fallback: copy.loadAvailableTimesFailed,
+          }),
+        );
       } finally {
         setSlotsLoading(false);
       }
     },
-    [packageVisit.packageId, slug],
+    [
+      copy.loadAvailableTimesFailed,
+      copy.packageCannotSchedule,
+      packageVisit.packageId,
+      slug,
+    ],
   );
 
   useEffect(() => {
     if (!rescheduleOpen || !packageVisit.packageId) return;
     let cancelled = false;
     setPickerLoading(true);
+    setError(null);
     void (async () => {
       try {
         const suggested = await suggestPackageBlock(slug, packageVisit.packageId!);
         if (cancelled) return;
         setDateKey(suggested.dateKey);
         await loadDaySlots(suggested.dateKey, suggested.startTime);
-      } catch {
-        if (!cancelled) {
-          const today = new Date().toISOString().slice(0, 10);
-          setDateKey(today);
-          await loadDaySlots(today);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        // e2e-bug.36 — never leave the picker blank with no explanation.
+        setError(
+          formatPackageScheduleError(err, {
+            packageCannotSchedule: copy.packageCannotSchedule,
+            fallback: copy.packageNoBlock,
+          }),
+        );
+        // e2e-bug.15 — duration-cap is terminal; don't re-hit block-slots and clear the message.
+        if (isVisitDurationCapError(err)) {
+          setSlots([]);
+          setSlotsLoading(false);
+          return;
         }
+        const today = new Date().toISOString().slice(0, 10);
+        setDateKey(today);
+        await loadDaySlots(today);
       } finally {
         if (!cancelled) setPickerLoading(false);
       }
@@ -113,7 +144,14 @@ export function ConsumerPackageVisitActions({
     return () => {
       cancelled = true;
     };
-  }, [loadDaySlots, packageVisit.packageId, rescheduleOpen, slug]);
+  }, [
+    copy.packageCannotSchedule,
+    copy.packageNoBlock,
+    loadDaySlots,
+    packageVisit.packageId,
+    rescheduleOpen,
+    slug,
+  ]);
 
   if (!showActions) {
     if (packageVisit.policyMessage) {
@@ -140,7 +178,7 @@ export function ConsumerPackageVisitActions({
       }
       onUpdated();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.cancelPackageVisitFailed);
+      setError(formatFriendlyNetworkError(err, copy.cancelPackageVisitFailed));
     } finally {
       setBusy(null);
     }
@@ -182,7 +220,7 @@ export function ConsumerPackageVisitActions({
       setRescheduleOpen(false);
       onUpdated();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.rescheduleBookingFailed);
+      setError(formatFriendlyNetworkError(err, copy.rescheduleBookingFailed));
     } finally {
       setBusy(null);
     }
@@ -232,6 +270,7 @@ export function ConsumerPackageVisitActions({
                     const day = v.slice(0, 10);
                     setDateKey(day);
                     setSelectedStart(null);
+                    setError(null);
                     void loadDaySlots(day);
                   }
                 }}
@@ -276,7 +315,11 @@ export function ConsumerPackageVisitActions({
           )}
         </div>
       )}
-      {error ? <p style={{ color: '#dc2626', marginTop: 8 }}>{error}</p> : null}
+      {error ? (
+        <p role="alert" style={{ color: '#dc2626', marginTop: 8 }}>
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

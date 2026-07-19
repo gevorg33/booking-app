@@ -12,7 +12,10 @@ import {
   isPrivacySelfServiceMutateCommand,
 } from './ai-customer-crm.util.js';
 import { rescuePrivacyExportIntent } from './ai-privacy-export.util.js';
-import { rescuePrivacyDeleteIntent } from './ai-privacy-delete.util.js';
+import {
+  rescuePrivacyDeleteConfirmIntent,
+  rescuePrivacyDeleteIntent,
+} from './ai-privacy-delete.util.js';
 
 export const CUSTOMER_PRIVACY_GDPR_CLASSIFIER_RULES = `${CUSTOMER_PRIVACY_EXPORT_CLASSIFIER_RULES}
 ${CUSTOMER_PRIVACY_DELETE_CLASSIFIER_RULES}`;
@@ -33,10 +36,20 @@ export const PRIVACY_GDPR_CUSTOMER_PROMPTS: readonly PrivacyGdprCustomerPromptFi
 export function rescuePrivacyGdprCustomerIntent(
   prompt: string,
   action: string,
+  params: Record<string, unknown> = {},
 ): {
   action: PrivacyGdprCustomerPromptFixture['expectedAction'];
   rescueReason: string;
+  params?: Record<string, unknown>;
 } | null {
+  const confirm = rescuePrivacyDeleteConfirmIntent(prompt, action, params);
+  if (confirm) {
+    return {
+      action: confirm.action,
+      rescueReason: confirm.rescueReason,
+      params: confirm.params,
+    };
+  }
   return (
     rescuePrivacyDeleteIntent(prompt, action) ??
     rescuePrivacyExportIntent(prompt, action)

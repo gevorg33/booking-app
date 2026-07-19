@@ -229,7 +229,8 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
         'Buy physical gift card $75',
         'buy_gift_card',
         'buy_gift_card_physical',
-        'digital_to_physical_gift_card',
+        // Budget misroute uses action as rescueReason; payments path uses physical_gift_card.
+        'buy_gift_card_physical',
       ],
       [
         'apply_gift_card-checkout',

@@ -2,6 +2,7 @@ import { resolveDateRange } from './ai-orchestration.helpers.js';
 import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
 import { isListTourCalendarWeekPrompt } from './ai-tour-calendar-week.util.js';
 import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
+import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
 import {
   LIST_MY_UPCOMING_APPOINTMENTS_PROMPTS,
   type ListMyUpcomingAppointmentsScope,
@@ -84,6 +85,8 @@ const EXPLAIN_PROVIDER_AVAILABILITY_BLOCK = new RegExp(
 );
 
 export function isListMyUpcomingAppointmentsPrompt(prompt: string): boolean {
+  // e2e-bug.88 — "pay online … for my upcoming … appointment" is pay_online.
+  if (isExplicitPayOnlinePrompt(prompt)) return false;
   if (isExplainTourServicesPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (isListTourCalendarWeekPrompt(prompt)) return false;

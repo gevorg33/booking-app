@@ -13,6 +13,7 @@ import {
   extractTourBookingMetadata,
   extractTourMetadata,
   isTourService,
+  resolveTourCatalogServiceByName,
   type TourDifficulty,
 } from '../../common/utils/tour-service.util.js';
 import {
@@ -49,17 +50,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function formatDifficulty(difficulty: TourDifficulty): string {
@@ -112,7 +102,7 @@ export async function handleConfigureTourServiceLogic(
   const service = parsed.serviceId
     ? services.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(services, parsed.serviceName)
+      ? resolveTourCatalogServiceByName(services, parsed.serviceName)
       : undefined;
 
   if (!service) {
@@ -309,7 +299,7 @@ export async function handleExplainTourServicesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveServiceByName(tourServices, parsed.serviceName);
+    const match = resolveTourCatalogServiceByName(tourServices, parsed.serviceName);
     tourServices = match ? [match] : [];
   }
 
@@ -370,7 +360,7 @@ export async function handleExplainTourServicesLogic(
       if (!parsed.serviceName && !parsed.serviceId) return true;
       if (parsed.serviceId) return booking.serviceId === parsed.serviceId;
       const match = parsed.serviceName
-        ? resolveServiceByName(tourServices, parsed.serviceName)
+        ? resolveTourCatalogServiceByName(tourServices, parsed.serviceName)
         : undefined;
       return match ? booking.serviceId === match.id : false;
     })

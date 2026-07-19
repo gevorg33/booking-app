@@ -13,6 +13,19 @@ describe('gift-card-purchase.util', () => {
     expect(parseGiftCardServiceIdsFromSearch(new URLSearchParams('serviceIds=a,b'))).toEqual(['a', 'b']);
   });
 
+  it('returns a new serviceIds array identity every call (e2e-bug.37 — page must memoize)', () => {
+    const params = new URLSearchParams('serviceIds=a,b');
+    const first = parseGiftCardServiceIdsFromSearch(params);
+    const second = parseGiftCardServiceIdsFromSearch(params);
+    expect(first).toEqual(['a', 'b']);
+    expect(second).toEqual(['a', 'b']);
+    expect(first).not.toBe(second);
+    const emptyA = parseGiftCardServiceIdsFromSearch(new URLSearchParams());
+    const emptyB = parseGiftCardServiceIdsFromSearch(new URLSearchParams());
+    expect(emptyA).toEqual([]);
+    expect(emptyA).not.toBe(emptyB);
+  });
+
   it('builds digital self-purchase payload', () => {
     const payload = buildGiftCardPurchasePayload({
       cardType: 'monetary',

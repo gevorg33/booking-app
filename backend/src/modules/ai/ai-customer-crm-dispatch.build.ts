@@ -12,6 +12,7 @@ import {
   handleGiftCardBalanceLogic,
   handleGiftCardRedemptionHistoryLogic,
   handleListCustomerBookingsLogic,
+  handleListCustomersLogic,
   handleListCustomerGiftCardsLogic,
   handleListCustomerSubscriptionsLogic,
   handleMergeCustomersLogic,
@@ -98,6 +99,9 @@ export function buildCustomerCrmLogicDispatchMap(): ReadonlyMap<
       ctx.customers,
       ctx.resolveCustomer,
     ),
+  );
+  map.set('list_customers', async (deps, ctx) =>
+    handleListCustomersLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('list_customer_bookings', async (deps, ctx) =>
     handleListCustomerBookingsLogic(

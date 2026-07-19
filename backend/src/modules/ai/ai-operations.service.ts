@@ -192,7 +192,57 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildUpdateServicePricesFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    const result = await executeOperationsPlan(
+      this.deps,
+      plan,
+      businessId,
+      userId,
+    );
+    // e2e-bug.164 — never claim a completed price change when orchestration
+    // still needs approval (zero writes) or when the summary could invent numbers.
+    if (result.details?.requiresApproval) {
+      return {
+        ...result,
+        success: false,
+        summary: [
+          'Price update was planned but not applied.',
+          plan.reasoning,
+          'Confirm the command again, or approve the task in AI Ops.',
+        ]
+          .filter(Boolean)
+          .join(' '),
+        details: {
+          ...result.details,
+          requiresExecutionConfirmation: true,
+          plannedUpdates: plan.steps.map((step) => ({
+            serviceId: step.params.serviceId,
+            price: step.params.price,
+            description: step.description,
+          })),
+        },
+      };
+    }
+    if (result.success) {
+      const applied = plan.steps
+        .map((step) => step.estimatedImpact ?? step.description)
+        .filter(Boolean);
+      return {
+        ...result,
+        summary:
+          applied.length === 1
+            ? `Updated service price: ${applied[0]}.`
+            : `Updated ${applied.length} service prices: ${applied.join('; ')}.`,
+        details: {
+          ...result.details,
+          appliedUpdates: plan.steps.map((step) => ({
+            serviceId: step.params.serviceId,
+            price: step.params.price,
+            description: step.description,
+          })),
+        },
+      };
+    }
+    return result;
   }
 
   prepareUpdateServicePricesPlan(

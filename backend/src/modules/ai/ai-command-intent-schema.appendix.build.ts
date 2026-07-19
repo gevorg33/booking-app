@@ -47,6 +47,7 @@ import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtu
 import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
 import { CLINIC_TEST_CATALOG_CLASSIFIER_RULES } from './ai-clinic-test-catalog.fixtures.js';
 import { LOCATIONS_CLASSIFIER_RULES } from './ai-locations.fixtures.js';
+import { DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES } from './ai-explain-business-hours-and-location.util.js';
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
 import { PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES } from './ai-patient-clinical-mutations.fixtures.js';
 import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
@@ -104,6 +105,7 @@ import { RETAIL_FINANCE_DASHBOARD_CLASSIFIER_RULES } from './ai-retail-finance-d
 import { MARKETING_GROWTH_DASHBOARD_CLASSIFIER_RULES } from './ai-marketing-growth-dashboard-classifier.fixtures.js';
 import { PUSH_NOTIFICATIONS_DASHBOARD_CLASSIFIER_RULES } from './ai-push-notifications-dashboard-classifier.fixtures.js';
 import { INTEGRATIONS_DASHBOARD_CLASSIFIER_RULES } from './ai-integrations-dashboard-classifier.fixtures.js';
+import { EXPLAIN_SUPPORT_INBOX_CLASSIFIER_RULES } from './ai-explain-support-inbox.util.js';
 import { SELF_SERVICE_BOOKING_DASHBOARD_CLASSIFIER_RULES } from './ai-self-service-booking-dashboard-classifier.fixtures.js';
 import { SCHEDULING_DASHBOARD_CLASSIFIER_RULES } from './ai-scheduling-dashboard-classifier.fixtures.js';
 
@@ -120,6 +122,7 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   MARKETING_GROWTH_DASHBOARD_CLASSIFIER_RULES,
   PUSH_NOTIFICATIONS_DASHBOARD_CLASSIFIER_RULES,
   INTEGRATIONS_DASHBOARD_CLASSIFIER_RULES,
+  EXPLAIN_SUPPORT_INBOX_CLASSIFIER_RULES,
   SELF_SERVICE_BOOKING_DASHBOARD_CLASSIFIER_RULES,
   SCHEDULING_DASHBOARD_CLASSIFIER_RULES,
   UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CLASSIFIER_RULES,
@@ -179,6 +182,7 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   CLINIC_TEST_RESULT_CLASSIFIER_RULES,
   CLINIC_TEST_CATALOG_CLASSIFIER_RULES,
   LOCATIONS_CLASSIFIER_RULES,
+  DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
   CLINIC_PATIENT_CHART_CLASSIFIER_RULES,
   PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES,
   DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES,

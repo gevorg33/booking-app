@@ -23,10 +23,15 @@ import {
   buildGiftCardServicePriceMap,
   canContinueGiftCardCatalog,
   resolveGiftCardAvailableTypes,
+  resolveGiftCardCatalogGate,
   sumSelectedGiftCardServices,
 } from '../lib/gift-card-catalog.util.js';
 import { parseGiftCardAssistantPrefill } from '../lib/consumer-gift-card-assistant-prefill.util.js';
-import { giftCardTypeDescription, giftCardTypeLabel } from '../lib/gift-card-copy.util.js';
+import {
+  giftCardTypeDescription,
+  giftCardTypeLabel,
+  resolveGiftCardCatalogSubtitle,
+} from '../lib/gift-card-copy.util.js';
 import type { PublicGiftCardType } from '../lib/gift-card.types.js';
 import { fetchPublicServices, getPublicGiftCardCatalog } from '../services/public-api.js';
 
@@ -141,7 +146,18 @@ export default function GiftCardCatalogPage() {
     );
   };
 
-  if (loading || catalogQuery.isLoading) {
+  const catalogGate = resolveGiftCardCatalogGate({
+    bootstrapLoading: loading,
+    catalogLoading: catalogQuery.isLoading,
+    bootstrapError: error,
+    hasProfile: Boolean(profile),
+    hasSlug: Boolean(slug),
+    catalogFetchFailed: catalogQuery.isError,
+    purchaseEnabled: catalogQuery.data?.purchaseEnabled,
+    hasSettings: Boolean(settings),
+  });
+
+  if (catalogGate === 'loading') {
     return (
       <IonPage>
         <IonContent className="ion-padding ion-text-center">
@@ -151,19 +167,23 @@ export default function GiftCardCatalogPage() {
     );
   }
 
-  if (error || !profile || !slug || !catalogQuery.data?.purchaseEnabled || !settings) {
+  if (catalogGate !== 'ready' || !settings || !slug || !profile) {
+    const gateMessage =
+      catalogGate === 'purchase_disabled'
+        ? copy.giftCardPurchaseUnavailable
+        : error || copy.networkLoadFailed;
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/')} />
+              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.giftCardNav}</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
-          <p>{error || copy.networkLoadFailed}</p>
+          <p>{gateMessage}</p>
         </IonContent>
       </IonPage>
     );
@@ -174,13 +194,15 @@ export default function GiftCardCatalogPage() {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.giftCardTitle}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <p style={{ color: '#6b7280', marginBottom: 16 }}>{copy.giftCardSubtitle}</p>
+        <p style={{ color: '#6b7280', marginBottom: 16 }}>
+          {resolveGiftCardCatalogSubtitle(copy, Boolean(settings.physicalDeliveryEnabled))}
+        </p>
 
         <section className="salon-card" style={{ marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{copy.giftCardChooseType}</h2>

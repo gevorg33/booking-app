@@ -21,20 +21,31 @@ describe('PublicCustomerBookingService', () => {
     resolveSettingsFromBusiness: jest.fn(() => ({ turnoverBufferMinutes: 5 })),
   };
   const bookingRepo = { findOne: jest.fn(), find: jest.fn() };
+  const bookingRefundService = {
+    refundBookingPayment: jest.fn().mockResolvedValue('refunded'),
+  };
+  const packageRefundService = {
+    refundPackagePayment: jest.fn().mockResolvedValue('refunded'),
+  };
+  const packagePurchaseRepo = { findOne: jest.fn() };
 
   const service = new PublicCustomerBookingService(
     businessService as any,
     bookingService as any,
+    bookingRefundService as any,
+    packageRefundService as any,
     notificationsService as any,
     configService as any,
     multiServiceBookingsService as any,
     bookingRepo as any,
+    packagePurchaseRepo as any,
   );
 
   const futureStart = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
+  const bookingId = '22222222-2222-4222-8222-222222222222';
   const baseBooking = {
-    id: 'book-1',
+    id: bookingId,
     businessId: 'biz-1',
     customerId: 'cust-1',
     employeeId: 'emp-1',
@@ -58,8 +69,11 @@ describe('PublicCustomerBookingService', () => {
     });
     bookingRepo.findOne.mockResolvedValue({ ...baseBooking });
     bookingService.cancel.mockResolvedValue({
-      ...baseBooking,
-      status: BookingStatus.CANCELLED,
+      booking: {
+        ...baseBooking,
+        status: BookingStatus.CANCELLED,
+      },
+      didCancel: true,
     });
     bookingService.update.mockResolvedValue({
       ...baseBooking,
@@ -109,23 +123,63 @@ describe('PublicCustomerBookingService', () => {
   });
 
   it('cancels owned booking and notifies customer', async () => {
-    const result = await service.cancelBooking('salon', 'cust-1', 'book-1');
+    const result = await service.cancelBooking('salon', 'cust-1', bookingId);
     expect(bookingService.cancel).toHaveBeenCalledWith(
-      'book-1',
+      bookingId,
       'Cancelled by customer',
       'customer:cust-1',
     );
     expect(notificationsService.sendBookingCancellation).toHaveBeenCalled();
     expect(
       notificationsService.sendBusinessCustomerBookingChange,
-    ).toHaveBeenCalledWith('book-1', 'cancelled');
+    ).toHaveBeenCalledWith(bookingId, 'cancelled');
     expect(result.booking.status).toBe(BookingStatus.CANCELLED);
+    expect(bookingRefundService.refundBookingPayment).not.toHaveBeenCalled();
+    expect(result.refundStatus).toBeUndefined();
+  });
+
+  it('refunds a paid-online booking when it is cancelled', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...baseBooking,
+      paymentStatus: 'paid',
+      metadata: { stripePaymentIntentId: 'pi_123' },
+    });
+    const cancelledBooking = {
+      ...baseBooking,
+      status: BookingStatus.CANCELLED,
+      paymentStatus: 'not_applicable',
+      metadata: { stripePaymentIntentId: 'pi_123' },
+    };
+    bookingService.cancel.mockResolvedValue({
+      booking: cancelledBooking,
+      didCancel: true,
+    });
+
+    const result = await service.cancelBooking('salon', 'cust-1', bookingId);
+
+    expect(bookingRefundService.refundBookingPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'biz-1' }),
+      cancelledBooking,
+    );
+    expect(result.refundStatus).toBe('refunded');
+  });
+
+  it('does not attempt a refund for a cash/unpaid booking', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...baseBooking,
+      paymentStatus: 'pending',
+    });
+
+    const result = await service.cancelBooking('salon', 'cust-1', bookingId);
+
+    expect(bookingRefundService.refundBookingPayment).not.toHaveBeenCalled();
+    expect(result.refundStatus).toBeUndefined();
   });
 
   it('cancels with manage token without customer login', async () => {
-    await service.cancelBookingWithToken('salon', 'book-1', 'tok-abc');
+    await service.cancelBookingWithToken('salon', bookingId, 'tok-abc');
     expect(bookingService.cancel).toHaveBeenCalledWith(
-      'book-1',
+      bookingId,
       'Cancelled by customer',
       'customer:cust-1',
     );
@@ -134,9 +188,61 @@ describe('PublicCustomerBookingService', () => {
     ).toHaveBeenCalled();
   });
 
+  it('api-bug.5 — re-cancel of an already-cancelled booking is an idempotent no-op', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...baseBooking,
+      status: BookingStatus.CANCELLED,
+    });
+
+    const result = await service.cancelBookingWithToken(
+      'salon',
+      bookingId,
+      'tok-abc',
+    );
+
+    expect(result.booking.status).toBe(BookingStatus.CANCELLED);
+    expect(bookingService.cancel).not.toHaveBeenCalled();
+    expect(notificationsService.sendBookingCancellation).not.toHaveBeenCalled();
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).not.toHaveBeenCalled();
+    expect(bookingRefundService.refundBookingPayment).not.toHaveBeenCalled();
+  });
+
+  it('e2e-bug.117 — non-UUID bookingId on manage cancel is a clean 400', async () => {
+    await expect(
+      service.cancelBookingWithToken('salon', 'not-a-uuid', 'tok-abc'),
+    ).rejects.toThrow('bookingId must be a UUID');
+    expect(bookingRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it('e2e-bug.121 — concurrent cancel loser (didCancel:false) skips re-notify', async () => {
+    bookingService.cancel.mockResolvedValue({
+      booking: {
+        ...baseBooking,
+        status: BookingStatus.CANCELLED,
+        cancellationReason: 'Cancelled by customer',
+      },
+      didCancel: false,
+    });
+
+    const result = await service.cancelBookingWithToken(
+      'salon',
+      bookingId,
+      'tok-abc',
+    );
+
+    expect(result.booking.status).toBe(BookingStatus.CANCELLED);
+    expect(bookingService.cancel).toHaveBeenCalled();
+    expect(notificationsService.sendBookingCancellation).not.toHaveBeenCalled();
+    expect(
+      notificationsService.sendBusinessCustomerBookingChange,
+    ).not.toHaveBeenCalled();
+  });
+
   it('rejects cancel with invalid manage token', async () => {
     await expect(
-      service.cancelBookingWithToken('salon', 'book-1', 'wrong'),
+      service.cancelBookingWithToken('salon', bookingId, 'wrong'),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -144,7 +250,7 @@ describe('PublicCustomerBookingService', () => {
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
     const result = await service.rescheduleBookingWithToken(
       'salon',
-      'book-1',
+      bookingId,
       'tok-abc',
       {
         startTime: newStart,
@@ -154,7 +260,7 @@ describe('PublicCustomerBookingService', () => {
     expect(
       notificationsService.sendBusinessCustomerBookingChange,
     ).toHaveBeenCalledWith(
-      'book-1',
+      bookingId,
       'rescheduled',
       expect.objectContaining({
         previousStartTime: baseBooking.startTime.toISOString(),
@@ -164,7 +270,7 @@ describe('PublicCustomerBookingService', () => {
 
   it('rejects provider change when policy disallows it', async () => {
     await expect(
-      service.rescheduleBooking('salon', 'cust-1', 'book-1', {
+      service.rescheduleBooking('salon', 'cust-1', bookingId, {
         startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
         employeeId: 'emp-2',
       }),
@@ -174,7 +280,7 @@ describe('PublicCustomerBookingService', () => {
   it('rejects cancel when booking not owned', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
     await expect(
-      service.cancelBooking('salon', 'cust-2', 'book-1'),
+      service.cancelBooking('salon', 'cust-2', bookingId),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -184,17 +290,17 @@ describe('PublicCustomerBookingService', () => {
       startTime: new Date(Date.now() + 60 * 60 * 1000),
     });
     await expect(
-      service.cancelBooking('salon', 'cust-1', 'book-1'),
+      service.cancelBooking('salon', 'cust-1', bookingId),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('reschedules owned booking and increments count', async () => {
     const newStart = new Date(futureStart.getTime() + 86400000).toISOString();
-    await service.rescheduleBooking('salon', 'cust-1', 'book-1', {
+    await service.rescheduleBooking('salon', 'cust-1', bookingId, {
       startTime: newStart,
     });
     expect(bookingService.update).toHaveBeenCalledWith(
-      'book-1',
+      bookingId,
       expect.objectContaining({
         startTime: newStart,
         metadata: expect.objectContaining({ customerRescheduleCount: 1 }),
@@ -209,15 +315,15 @@ describe('PublicCustomerBookingService', () => {
       metadata: { customerRescheduleCount: 5 },
     });
     await expect(
-      service.rescheduleBooking('salon', 'cust-1', 'book-1', {
+      service.rescheduleBooking('salon', 'cust-1', bookingId, {
         startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('returns manage context for valid token', async () => {
-    const ctx = await service.getManageContext('salon', 'book-1', 'tok-abc');
-    expect(ctx.bookingId).toBe('book-1');
+    const ctx = await service.getManageContext('salon', bookingId, 'tok-abc');
+    expect(ctx.bookingId).toBe(bookingId);
     expect(ctx.canCancel).toBe(true);
     expect(ctx.manageUrl).toContain('/book/salon/manage');
     expect(ctx.allowProviderChangeOnReschedule).toBe(false);
@@ -225,7 +331,7 @@ describe('PublicCustomerBookingService', () => {
 
   it('rejects invalid manage token', async () => {
     await expect(
-      service.getManageContext('salon', 'book-1', 'wrong'),
+      service.getManageContext('salon', bookingId, 'wrong'),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -237,20 +343,20 @@ describe('PublicCustomerBookingService', () => {
       settings: {},
     });
     await expect(
-      service.getManageContext('salon', 'book-1', 'tok-abc'),
+      service.getManageContext('salon', bookingId, 'tok-abc'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects manage context when booking missing', async () => {
     bookingRepo.findOne.mockResolvedValue(null);
     await expect(
-      service.getManageContext('salon', 'book-1', 'tok-abc'),
+      service.getManageContext('salon', bookingId, 'tok-abc'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects loadBookingForAction when neither customer id nor token is provided', async () => {
     await expect(
-      (service as any).loadBookingForAction('salon', 'book-1', {}),
+      (service as any).loadBookingForAction('salon', bookingId, {}),
     ).rejects.toThrow('Authentication required');
   });
 
@@ -299,7 +405,7 @@ describe('PublicCustomerBookingService', () => {
   it('returns manage context with default frontend url and missing customer email', async () => {
     configService.get.mockReturnValue(undefined);
     bookingRepo.findOne.mockResolvedValue({ ...baseBooking, customer: null });
-    const ctx = await service.getManageContext('salon', 'book-1', 'tok-abc');
+    const ctx = await service.getManageContext('salon', bookingId, 'tok-abc');
     expect(ctx.customerEmail).toBeNull();
     expect(ctx.manageUrl).toContain('http://localhost:3000/book/salon/manage');
   });
@@ -317,7 +423,7 @@ describe('PublicCustomerBookingService', () => {
     };
     const second = {
       ...packageBooking,
-      id: 'book-2',
+      id: '33333333-3333-4333-8333-333333333333',
       serviceId: 'svc-2',
       startTime: new Date(futureStart.getTime() + 35 * 60 * 1000),
       service: { name: 'Massage', durationMinutes: 20, bufferMinutes: 0 },
@@ -325,13 +431,16 @@ describe('PublicCustomerBookingService', () => {
     bookingRepo.findOne.mockResolvedValue(packageBooking);
     bookingRepo.find.mockResolvedValue([packageBooking, second]);
     bookingService.cancel.mockImplementation(async (id) => ({
-      id,
-      status: BookingStatus.CANCELLED,
+      booking: {
+        id,
+        status: BookingStatus.CANCELLED,
+      },
+      didCancel: true,
     }));
 
     const result = await service.cancelPackageVisitWithToken(
       'salon',
-      'book-1',
+      bookingId,
       'tok-abc',
     );
 
@@ -379,6 +488,26 @@ describe('PublicCustomerBookingService', () => {
     expect(item.packageName).toBe('Glow');
   });
 
+  it('enriches multiServiceGroupId for account grouping (e2e-bug.34)', () => {
+    const item = service.enrichBookingItem(
+      {
+        ...baseBooking,
+        multiServiceGroupId: 'group-1',
+        metadata: { schedulingMode: 'same_visit' },
+      } as any,
+      {
+        allowCancel: true,
+        allowReschedule: true,
+        minimumNoticeHours: 24,
+        maxReschedulesPerBooking: 3,
+        allowProviderChangeOnReschedule: false,
+      },
+      new Set(),
+    );
+    expect(item.multiServiceGroupId).toBe('group-1');
+    expect(item.multiServiceSchedulingMode).toBe('same_visit');
+  });
+
   it('uses cancel policy reason when both cancel and reschedule are blocked on enrich', () => {
     const item = service.enrichBookingItem(
       {
@@ -409,7 +538,7 @@ describe('PublicCustomerBookingService', () => {
     bookingRepo.findOne.mockResolvedValue(packageBooking);
     bookingRepo.find.mockResolvedValue([packageBooking]);
 
-    const summary = await service.getPackageVisitSummary('salon', 'book-1', {
+    const summary = await service.getPackageVisitSummary('salon', bookingId, {
       customerId: 'cust-1',
     });
     expect(summary.packageName).toBe('Glow');
@@ -425,7 +554,7 @@ describe('PublicCustomerBookingService', () => {
     };
     const second = {
       ...packageBooking,
-      id: 'book-2',
+      id: '33333333-3333-4333-8333-333333333333',
       serviceId: 'svc-2',
       startTime: new Date(futureStart.getTime() + 35 * 60 * 1000),
       service: { durationMinutes: 20, bufferMinutes: 0 },
@@ -434,14 +563,14 @@ describe('PublicCustomerBookingService', () => {
     bookingRepo.find.mockResolvedValue([packageBooking, second]);
 
     await expect(
-      service.reschedulePackageVisit('salon', 'cust-1', 'book-1', {
+      service.reschedulePackageVisit('salon', 'cust-1', bookingId, {
         lines: [
           {
-            bookingId: 'book-1',
+            bookingId: bookingId,
             startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
           },
           {
-            bookingId: 'book-2',
+            bookingId: '33333333-3333-4333-8333-333333333333',
             startTime: new Date(
               futureStart.getTime() + 86400000 + 35 * 60 * 1000,
             ).toISOString(),
@@ -462,7 +591,7 @@ describe('PublicCustomerBookingService', () => {
     };
     const second = {
       ...packageBooking,
-      id: 'book-2',
+      id: '33333333-3333-4333-8333-333333333333',
       serviceId: 'svc-2',
       startTime: new Date(blockStart.getTime() + 35 * 60 * 1000),
       service: { name: 'Massage', durationMinutes: 20, bufferMinutes: 0 },
@@ -473,12 +602,12 @@ describe('PublicCustomerBookingService', () => {
     const newBlock = new Date(futureStart.getTime() + 86400000);
     const lines = [
       {
-        bookingId: 'book-1',
+        bookingId: bookingId,
         startTime: newBlock.toISOString(),
         employeeId: 'emp-1',
       },
       {
-        bookingId: 'book-2',
+        bookingId: '33333333-3333-4333-8333-333333333333',
         startTime: new Date(newBlock.getTime() + 35 * 60 * 1000).toISOString(),
         employeeId: 'emp-1',
       },
@@ -493,7 +622,7 @@ describe('PublicCustomerBookingService', () => {
     const result = await service.reschedulePackageVisit(
       'salon',
       'cust-1',
-      'book-1',
+      bookingId,
       { lines },
     );
     expect(result.bookings).toHaveLength(2);
@@ -503,13 +632,13 @@ describe('PublicCustomerBookingService', () => {
       expect.any(Date),
       expect.any(Date),
       ['svc-1', 'svc-2'],
-      ['book-1', 'book-2'],
+      [bookingId, '33333333-3333-4333-8333-333333333333'],
     );
     expect(bookingService.rescheduleSameVisitBlock).toHaveBeenCalledTimes(1);
     expect(bookingService.rescheduleSameVisitBlock).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ bookingId: 'book-1', employeeId: 'emp-1' }),
-        expect.objectContaining({ bookingId: 'book-2', employeeId: 'emp-1' }),
+        expect.objectContaining({ bookingId: bookingId, employeeId: 'emp-1' }),
+        expect.objectContaining({ bookingId: '33333333-3333-4333-8333-333333333333', employeeId: 'emp-1' }),
       ]),
       'customer:cust-1',
     );
@@ -522,10 +651,10 @@ describe('PublicCustomerBookingService', () => {
       .mockReturnValue({ allowed: false });
 
     await expect(
-      service.cancelBooking('salon', 'cust-1', 'book-1'),
+      service.cancelBooking('salon', 'cust-1', bookingId),
     ).rejects.toThrow('Cancellation is not allowed');
     await expect(
-      service.rescheduleBooking('salon', 'cust-1', 'book-1', {
+      service.rescheduleBooking('salon', 'cust-1', bookingId, {
         startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
       }),
     ).rejects.toThrow('Rescheduling is not allowed');
@@ -551,7 +680,7 @@ describe('PublicCustomerBookingService', () => {
         policyMessage: null,
       });
     await expect(
-      service.cancelPackageVisit('salon', 'cust-1', 'book-1'),
+      service.cancelPackageVisit('salon', 'cust-1', bookingId),
     ).rejects.toThrow('Cancellation is not allowed for this visit');
 
     visitPolicySpy.mockReturnValue({
@@ -560,10 +689,10 @@ describe('PublicCustomerBookingService', () => {
       policyMessage: null,
     });
     await expect(
-      service.reschedulePackageVisit('salon', 'cust-1', 'book-1', {
+      service.reschedulePackageVisit('salon', 'cust-1', bookingId, {
         lines: [
           {
-            bookingId: 'book-1',
+            bookingId: bookingId,
             startTime: new Date(futureStart.getTime() + 86400000).toISOString(),
             employeeId: 'emp-1',
           },

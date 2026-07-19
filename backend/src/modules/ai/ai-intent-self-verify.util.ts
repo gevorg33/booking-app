@@ -1,6 +1,7 @@
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
 import {
   isClearSchedulePrompt,
+  isDeleteScheduleBlockPrompt,
   isScheduleTemplateCreationPrompt,
 } from './ai-orchestration.helpers.js';
 import {
@@ -40,6 +41,7 @@ export function hasScheduleMutationVocabulary(prompt: string): boolean {
 
   return (
     isClearSchedulePrompt(trimmed) ||
+    isDeleteScheduleBlockPrompt(trimmed) ||
     isScheduleTemplateCreationPrompt(trimmed) ||
     isHideAppointmentsFromCalendarPrompt(trimmed) ||
     isWorkTimeSchedulePrompt(trimmed) ||
@@ -142,6 +144,10 @@ export function checkBookingVsClearMismatch(
 function resolveScheduleVocabCorrection(prompt: string): string | undefined {
   if (isScheduleTemplateCreationPrompt(prompt)) {
     return SCHEDULE_TEMPLATE_ACTION;
+  }
+  // e2e-bug.136 — unblock/remove block before clear_schedule vocab.
+  if (isDeleteScheduleBlockPrompt(prompt)) {
+    return 'delete_schedule_block';
   }
   if (
     isWorkTimeSchedulePrompt(prompt) ||

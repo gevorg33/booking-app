@@ -59,7 +59,10 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
       usage: [{ id: 'u1' }],
       subscription: sub,
     })),
-    cancelSubscription: jest.fn(),
+    cancelSubscription: jest.fn(async () => ({
+      subscription: sub,
+      refundStatus: undefined,
+    })),
     listPlans: jest.fn(async () => [{ id: 'plan-1', name: 'Nail Plan' }]),
   };
   const giftCardOrderService = {
@@ -581,6 +584,7 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
         (
           await customerCrm.handlePrivacyDelete('biz-1', {
             sessionCustomerId: 'c1',
+            confirm: true,
           })
         ).success,
       ).toBe(true);

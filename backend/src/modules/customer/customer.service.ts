@@ -120,6 +120,8 @@ export interface CustomerInsightsResult {
   summary: {
     totalCustomers: number;
     totalNoShows: number;
+    /** e2e-bug.155 — aggregate cancelled bookings across active customers. */
+    totalCancellations: number;
     atRiskCount: number;
     highNoShowCount: number;
     vipCount: number;
@@ -772,6 +774,12 @@ export class CustomerService {
     const summary = {
       totalCustomers: enriched.length,
       totalNoShows: enriched.reduce((n, r) => n + r.stats.noShowCount, 0),
+      // e2e-bug.155 — same reduce pattern as totalNoShows; cancellation counts
+      // already exist per-customer in byStatus[CANCELLED] (most_cancellations).
+      totalCancellations: enriched.reduce(
+        (n, r) => n + (r.stats.byStatus[BookingStatus.CANCELLED] ?? 0),
+        0,
+      ),
       atRiskCount: enriched.filter((r) => r.segment === 'at_risk').length,
       highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show')
         .length,

@@ -50,6 +50,11 @@ vi.mock('../lib/provider-guide-assistant-seed.util', () => ({
     fireProviderGuideAssistantSeed(...args),
 }));
 
+// e2e-bug.69 — GuidePage mounts ProviderAiShell; stub the heavy assistant leaf.
+vi.mock('../components/ProviderAiAssistant', () => ({
+  default: () => <div data-testid="provider-ai-assistant" />,
+}));
+
 vi.mock('../i18n', () => ({
   useI18n: () => ({
     locale: 'en',
@@ -252,5 +257,22 @@ describe('GuidePage (ai-guide-1.9.14)', () => {
       topicTitle: expect.stringMatching(/provider app/i),
       walkThroughTemplate: 'Walk me through {topic}',
     });
+  });
+
+  it('mounts ProviderAiShell assistant so ask-about-section has a listener (e2e-bug.69)', async () => {
+    render('/tabs/profile/guide');
+
+    await flushEffects();
+
+    expect(container.querySelector('[data-testid="provider-ai-assistant"]')).toBeTruthy();
+  });
+
+  it('does not mount assistant when business is missing (e2e-bug.69)', async () => {
+    business = null;
+    render('/tabs/profile/guide');
+
+    await flushEffects();
+
+    expect(container.querySelector('[data-testid="provider-ai-assistant"]')).toBeNull();
   });
 });

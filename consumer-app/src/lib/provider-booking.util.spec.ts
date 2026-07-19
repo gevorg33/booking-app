@@ -6,6 +6,7 @@ import {
   buildProfessionalsPath,
   buildProfessionalServicesPath,
   buildProviderProfilePath,
+  filterServicesBySearchQuery,
   groupServicesByCategory,
 } from './provider-booking.util.js';
 
@@ -56,5 +57,32 @@ describe('provider-booking.util', () => {
       'Other',
     );
     expect(groups.map((group) => group.categoryName)).toEqual(['Hair', 'Nails']);
+  });
+
+  it('filters services by name, description, or category', () => {
+    const services = [
+      {
+        id: '1',
+        name: 'Neck Massage',
+        description: 'Relaxing upper body work',
+        durationMinutes: 50,
+        price: 40,
+        category: { id: 'm', name: 'Massage', sortOrder: 1 },
+      },
+      {
+        id: '2',
+        name: 'Haircut',
+        description: 'Classic cut',
+        durationMinutes: 30,
+        price: 25,
+        category: { id: 'h', name: 'Hair Care', sortOrder: 2 },
+      },
+    ];
+
+    expect(filterServicesBySearchQuery(services, '').map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterServicesBySearchQuery(services, '  neck  ').map((s) => s.id)).toEqual(['1']);
+    expect(filterServicesBySearchQuery(services, 'UPPER BODY').map((s) => s.id)).toEqual(['1']);
+    expect(filterServicesBySearchQuery(services, 'hair care').map((s) => s.id)).toEqual(['2']);
+    expect(filterServicesBySearchQuery(services, 'facemassage')).toEqual([]);
   });
 });

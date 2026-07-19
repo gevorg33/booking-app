@@ -47,7 +47,7 @@ const NEAREST_DEPARTURE_CUE = new RegExp(
 );
 
 const TOUR_BOOKING_TOPIC = new RegExp(
-  String.raw`\b(?:tours?|treks?|excursions?|hikes?|wine\s+country|mountain\s+trek|sunset\s+hike|city\s+tour)\b|(?:տուր|էքսկուրս)|(?:тур|экскурс)`,
+  String.raw`\b(?:tours?|treks?|excursions?|hikes?|drives?|wine\s+country|mountain\s+trek|sunset\s+hike|city\s+tour|coastal\s+drive)\b|(?:տուր|էքսկուրս)|(?:тур|экскурс)`,
   'iu',
 );
 
@@ -114,10 +114,13 @@ export function extractTourServiceNameFromBookingPrompt(
   if (scenario?.serviceName) return scenario.serviceName;
 
   const patterns = [
+    // e2e-bug.133 — "Sunset Coastal Drive for 5 guests — reserve when seats…"
+    // e2e-bug.105 — must NOT steal "Book the wine tour … for 2 people" (verb-led).
+    /^(?!book\b|reserve\b|schedule\b|get\b|buy\b|purchase\b|order\b)([A-Za-z0-9][\w\s&'-]+?)\s+for\s+\d+\s+(?:guests?|people|pax|travelers?)\b/i,
     /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?["']([^"']+?)["']\s+tour\b/i,
     /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+tour\b/i,
-    /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:trek|hike|excursion)\b/i,
-    /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?(\d[\w-]*(?:\s+[A-Za-z0-9][\w&'-]+)*)\s+(?:trek|tour)\b/i,
+    /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:trek|hike|drive|excursion)\b/i,
+    /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?(\d[\w-]*(?:\s+[A-Za-z0-9][\w&'-]+)*)\s+(?:trek|tour|drive)\b/i,
     /\b(?:book|reserve|schedule|get|buy|purchase|order)\s+(?:the\s+|a\s+|my\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour\s+)?(?:earliest|nearest|soonest|asap|first\s+available)\b/i,
     /(?:amragrel|amragrum|patvir).{0,20}(?:the\s+)?([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek|տուր)/iu,
     /(?:зabron|бронир|запиш).{0,20}([A-Za-z0-9][\w\s&'-]+?)\s+(?:tour|trek|тур)/iu,

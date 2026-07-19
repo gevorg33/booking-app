@@ -53,6 +53,14 @@ describe('ai-get-manage-link.util (ai-cmd-customer-4.4.5)', () => {
     ).toEqual({ phone: '5551234567' });
   });
 
+  it('e2e-bug.102 does not treat UUID fragments in manage URLs as phones', () => {
+    expect(
+      extractGuestContactFromPrompt(
+        'Reschedule my package visit https://example.com/manage?bookingId=da94-4537-9c93-4cc8-b913-dbeda160dc2a&token=tok-x',
+      ).phone,
+    ).toBeUndefined();
+  });
+
   it('flags guest lookup only from fixtures when present', () => {
     expect(
       isGuestManageLinkLookupPrompt('Get manage link for my booking'),

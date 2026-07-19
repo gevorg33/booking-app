@@ -19,6 +19,7 @@ export interface ProviderVisitStatusSnapshot {
 
 export interface ProviderVisitStatusBookingLike {
   status: string;
+  checkedInAt?: Date | string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -104,6 +105,12 @@ export function applyProviderVisitStatusToMetadata(
   };
 }
 
+function hasCheckedInAt(value?: Date | string | null): boolean {
+  if (value == null || value === '') return false;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return !Number.isNaN(parsed.getTime());
+}
+
 export function buildProviderVisitStatusEligibility(
   booking: ProviderVisitStatusBookingLike,
 ): ProviderVisitStatusActionEligibility {
@@ -123,6 +130,13 @@ export function buildProviderVisitStatusEligibility(
     return {
       allowed: false,
       reason: 'Visit status updates are not available for this booking',
+    };
+  }
+  // e2e-bug.70 — ready-now / running-late only after the client has checked in.
+  if (!hasCheckedInAt(booking.checkedInAt)) {
+    return {
+      allowed: false,
+      reason: 'Check in the client before updating visit status',
     };
   }
   return { allowed: true, reason: null };

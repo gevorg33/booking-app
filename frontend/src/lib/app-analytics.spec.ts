@@ -49,6 +49,7 @@ describe('app-analytics (frontend public web)', () => {
       tenantSlug: 'salon-a',
       locale: 'en',
       appSurface: 'public_web',
+      cookieBannerEnabled: true,
     });
 
     trackAppAnalyticsEvent('app_opened');
@@ -64,6 +65,7 @@ describe('app-analytics (frontend public web)', () => {
       tenantSlug: 'salon-a',
       locale: 'en',
       appSurface: 'public_web',
+      cookieBannerEnabled: true,
     });
     expect(syncAnalyticsConsentFromCookies('salon-a')).toBe(true);
     trackAppAnalyticsEvent('started_booking', { serviceId: 'svc-1' });
@@ -103,9 +105,10 @@ describe('app-analytics (frontend public web)', () => {
       tenantSlug: 'salon-a',
       locale: 'en',
       appSurface: 'public_web',
+      cookieBannerEnabled: true,
     });
     localStorage.setItem('cookie-consent-salon-a', 'accepted');
-    syncAnalyticsConsentFromCookies('salon-a');
+    syncAnalyticsConsentFromCookies('salon-a', { cookieBannerEnabled: true });
     trackAppAnalyticsEvent('app_opened');
     await flushAppAnalytics();
     expect(axios.post).toHaveBeenCalledTimes(1);
@@ -118,5 +121,35 @@ describe('app-analytics (frontend public web)', () => {
       { event: 'viewed_salon' },
       { tenantSlug: 'salon-a', appSurface: 'public_web', locale: 'en' },
     ).userType).toBe('first_open');
+  });
+
+  it('rejects drop queued events and block further tracking', () => {
+    configureAppAnalytics({
+      tenantSlug: 'salon-a',
+      locale: 'en',
+      appSurface: 'public_web',
+      cookieBannerEnabled: true,
+    });
+    localStorage.setItem('cookie-consent-salon-a', 'accepted');
+    syncAnalyticsConsentFromCookies('salon-a', { cookieBannerEnabled: true });
+    trackAppAnalyticsEvent('app_opened');
+
+    localStorage.setItem('cookie-consent-salon-a', 'rejected');
+    expect(
+      syncAnalyticsConsentFromCookies('salon-a', { cookieBannerEnabled: true }),
+    ).toBe(false);
+    trackAppAnalyticsEvent('started_booking');
+    expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
+  });
+
+  it('allows tracking without a choice when cookie banner is disabled', () => {
+    configureAppAnalytics({
+      tenantSlug: 'salon-a',
+      locale: 'en',
+      appSurface: 'public_web',
+      cookieBannerEnabled: false,
+    });
+    trackAppAnalyticsEvent('viewed_salon');
+    expect(syncAnalyticsConsentFromCookies('salon-a')).toBe(true);
   });
 });

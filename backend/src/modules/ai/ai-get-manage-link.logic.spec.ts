@@ -15,32 +15,52 @@ describe('ai-get-manage-link.logic (ai-cmd-customer-4.4.5)', () => {
     employee: { name: 'Anna' },
   };
 
-  const deps = () => ({
-    businessRepo: {
-      findOne: jest.fn(async () => ({
-        id: 'biz-1',
-        slug: 'glow-salon',
-      })),
-    },
-    bookingRepo: {
-      find: jest.fn(async () => [guestBooking]),
-      findOne: jest.fn(async () => guestBooking),
-      save: jest.fn(async (booking: typeof guestBooking) => booking),
-    },
-    configService: {
-      get: jest.fn(() => 'http://localhost:3000'),
-    },
-    notificationsService: {
-      sendBookingConfirmation: jest.fn(async () => undefined),
-    },
-    publicBookingService: {},
-    publicCustomerBookingService: {},
-    publicCustomerAuthService: {},
-    packagesService: {},
-    subscriptionsService: {},
-    multiServiceBookingsService: {},
-    serviceRepo: {},
-  });
+  const deps = () => {
+    const bookingRow = { ...guestBooking, metadata: { ...guestBooking.metadata } };
+    const lockedQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => bookingRow),
+    };
+    const manager = {
+      createQueryBuilder: jest.fn(() => lockedQb),
+      save: jest.fn(async (_entity: unknown, booking: typeof bookingRow) => {
+        Object.assign(bookingRow, booking);
+        return bookingRow;
+      }),
+    };
+    return {
+      businessRepo: {
+        findOne: jest.fn(async () => ({
+          id: 'biz-1',
+          slug: 'glow-salon',
+        })),
+      },
+      bookingRepo: {
+        find: jest.fn(async () => [bookingRow]),
+        findOne: jest.fn(async () => bookingRow),
+        save: jest.fn(async (booking: typeof bookingRow) => booking),
+        manager: {
+          transaction: jest.fn(async (cb: (m: typeof manager) => Promise<string>) =>
+            cb(manager),
+          ),
+        },
+      },
+      configService: {
+        get: jest.fn(() => 'http://localhost:3000'),
+      },
+      notificationsService: {
+        sendBookingConfirmation: jest.fn(async () => undefined),
+      },
+      publicBookingService: {},
+      publicCustomerBookingService: {},
+      publicCustomerAuthService: {},
+      packagesService: {},
+      subscriptionsService: {},
+      multiServiceBookingsService: {},
+      serviceRepo: {},
+    };
+  };
 
   it('returns manage link for signed-in session booking', async () => {
     const localDeps = deps();

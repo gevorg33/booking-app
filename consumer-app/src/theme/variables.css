@@ -22,6 +22,7 @@ ion-content {
 }
 
 .consumer-booking-datetime {
+  --ion-color-primary: var(--tenant-primary);
   --ion-color-step-150: #e5e7eb;
   --ion-color-step-300: #d1d5db;
 }
@@ -29,6 +30,25 @@ ion-content {
 .consumer-booking-datetime::part(calendar-day disabled) {
   color: #d1d5db;
   opacity: 1;
+}
+
+/* Selected day: brand color at low opacity (not success/mint green). */
+.consumer-booking-datetime::part(calendar-day active) {
+  background: rgba(var(--ion-color-primary-rgb), 0.16);
+  color: var(--tenant-primary);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.consumer-booking-datetime::part(calendar-day today) {
+  color: var(--tenant-primary);
+  border-color: var(--tenant-primary);
+}
+
+.consumer-booking-datetime::part(calendar-day today active) {
+  background: rgba(var(--ion-color-primary-rgb), 0.22);
+  color: var(--tenant-primary);
+  border-color: transparent;
 }
 
 body.salon-tab-active ion-content {
@@ -81,7 +101,115 @@ body.salon-tab-active ion-page {
 }
 
 .salon-tab-btn.is-active {
-  color: var(--ion-color-primary, #7c3aed);
+  color: var(--tenant-primary, var(--ion-color-primary, #7c3aed));
+}
+
+.salon-tab-btn:hover:not(.is-active) {
+  color: color-mix(in srgb, var(--tenant-primary, #7c3aed) 72%, #6b7280);
+}
+
+.salon-tab-btn.is-active:hover {
+  color: color-mix(in srgb, var(--tenant-primary, #7c3aed) 78%, transparent);
+}
+
+/*
+ * Ion solid CTAs — hover keeps white label contrast.
+ * Never set --color-hover to the brand fill (text vanishes).
+ * "Less capacity" = same brand hue lightened toward white.
+ */
+ion-button:not([color]):not([fill='outline']):not([fill='clear']):not([fill='default']),
+ion-button[color='primary']:not([fill='outline']):not([fill='clear']):not([fill='default']),
+ion-button[fill='solid']:not([color]),
+ion-button[fill='solid'][color='primary'] {
+  --color: #ffffff;
+  --color-hover: #ffffff;
+  --color-activated: #ffffff;
+  --color-focused: #ffffff;
+  --background-hover: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary, #7c3aed)) 78%,
+    #ffffff
+  );
+  --background-activated: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary, #7c3aed)) 72%,
+    #ffffff
+  );
+  --background-focused: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary, #7c3aed)) 78%,
+    #ffffff
+  );
+}
+
+/* Outline / clear — brand text + light brand wash on hover. */
+ion-button[fill='outline']:not([color]),
+ion-button[fill='outline'][color='primary'],
+ion-button[fill='clear']:not([color]),
+ion-button[fill='clear'][color='primary'],
+.consumer-brand-outline-button {
+  --background-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 12%, transparent);
+  --background-activated: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary)) 16%,
+    transparent
+  );
+  --background-focused: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 12%, transparent);
+  --border-color: var(--tenant-primary, var(--ion-color-primary));
+  --color: var(--tenant-primary, var(--ion-color-primary));
+  --color-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 78%, transparent);
+  --color-activated: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 72%, transparent);
+}
+
+ion-back-button {
+  --color: var(--tenant-primary, var(--ion-color-primary));
+  --color-hover: rgba(var(--ion-color-primary-rgb), 0.78);
+  --color-activated: rgba(var(--ion-color-primary-rgb), 0.72);
+}
+
+ion-checkbox {
+  --checkbox-background-checked: var(--tenant-primary);
+  --border-color-checked: var(--tenant-primary);
+  --checkmark-color: #fff;
+}
+
+/* Solid home/booking CTAs — same fill as Help & guide book icon. */
+.consumer-brand-solid-button {
+  --background: var(--tenant-primary, var(--ion-color-primary));
+  --background-hover: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary)) 78%,
+    #ffffff
+  );
+  --background-activated: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary)) 72%,
+    #ffffff
+  );
+  --background-focused: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary)) 78%,
+    #ffffff
+  );
+  --color: #ffffff;
+  --color-hover: #ffffff;
+  --color-activated: #ffffff;
+  --color-focused: #ffffff;
+}
+
+.consumer-ai-fab {
+  background: var(--tenant-primary, var(--ion-color-primary, #7c3aed)) !important;
+  color: #fff !important;
+  transition: background-color 120ms ease;
+}
+
+.consumer-ai-fab:hover,
+.consumer-ai-fab:active {
+  background: color-mix(
+    in srgb,
+    var(--tenant-primary, var(--ion-color-primary, #7c3aed)) 78%,
+    #ffffff
+  ) !important;
 }
 
 .salon-tab-badge {
@@ -117,10 +245,174 @@ body.salon-tab-active ion-page {
   min-height: var(--consumer-tab-bar-core-height);
   max-height: var(--consumer-tab-bar-core-height);
   margin: 0;
-  --border-radius: 0;
-  --box-shadow: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   font-size: 15px;
   font-weight: 600;
+  color: #fff;
+  background: var(
+    --consumer-action-button-color,
+    var(--tenant-primary, var(--ion-color-primary, #7c3aed))
+  );
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.consumer-fixed-action-bar__button:hover:not(:disabled),
+.consumer-fixed-action-bar__button:active:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--consumer-action-button-color, var(--tenant-primary, #7c3aed)) 78%,
+    transparent
+  );
+}
+
+.consumer-fixed-action-bar__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* e2e-bug.4 — native primary CTAs (reliable button role outside Ion shadow DOM) */
+.consumer-action-button {
+  --consumer-action-button-color: var(--tenant-primary, var(--ion-color-primary, #7c3aed));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.consumer-action-button--block {
+  display: flex;
+  width: 100%;
+}
+
+.consumer-action-button--solid {
+  border: none;
+  background: var(--consumer-action-button-color);
+  color: #fff;
+  transition: background-color 120ms ease;
+}
+
+.consumer-action-button--solid:hover:not(:disabled),
+.consumer-action-button--solid:active:not(:disabled) {
+  background: color-mix(in srgb, var(--consumer-action-button-color) 78%, transparent);
+}
+
+.consumer-action-button--outline {
+  background: transparent;
+  border: 1px solid var(--consumer-action-button-color, #6b7280);
+  color: var(--consumer-action-button-color, #374151);
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.consumer-action-button--outline:hover:not(:disabled),
+.consumer-action-button--outline:active:not(:disabled) {
+  background: color-mix(in srgb, var(--consumer-action-button-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--consumer-action-button-color) 78%, transparent);
+  color: color-mix(in srgb, var(--consumer-action-button-color) 78%, transparent);
+}
+
+.consumer-action-button--clear {
+  background: transparent;
+  border: none;
+  color: var(--consumer-action-button-color, #374151);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.consumer-action-button--clear:hover:not(:disabled),
+.consumer-action-button--clear:active:not(:disabled) {
+  background: color-mix(in srgb, var(--consumer-action-button-color) 12%, transparent);
+  color: color-mix(in srgb, var(--consumer-action-button-color) 78%, transparent);
+}
+
+.consumer-action-button--medium {
+  --consumer-action-button-color: #6b7280;
+  color: #4b5563;
+  border-color: #9ca3af;
+}
+
+.consumer-action-button--danger {
+  --consumer-action-button-color: #dc2626;
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.consumer-action-button--solid.consumer-action-button--danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+
+.consumer-action-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.consumer-action-button--icon-only {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+/* e2e-bug.4 — provider list rows must be light-DOM link/button (IonItem shadow hides role) */
+.consumer-provider-list__profile-link,
+.consumer-provider-list__row-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 12px 16px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.consumer-provider-list__profile-link:focus-visible,
+.consumer-provider-list__row-button:focus-visible {
+  outline: 2px solid var(--ion-color-primary, #7c3aed);
+  outline-offset: -2px;
+}
+
+.consumer-provider-list__row-button ion-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.consumer-provider-list__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.consumer-provider-list__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.consumer-provider-list__subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
 body.salon-tab-active .consumer-fixed-action-bar {
@@ -187,4 +479,36 @@ body.salon-tab-active ion-content.consumer-tab-fixed-action-content {
 .clinic-chip--info {
   background: #e0f2fe;
   color: #0369a1;
+}
+
+/*
+ * e2e-bug.55 — desktop/tablet: keep the mobile card UI at phone width instead of
+ * stretching edge-to-edge. Matches public booking's ~max-w-lg (32rem) column.
+ */
+@media (min-width: 768px) {
+  :root {
+    --consumer-desktop-shell-max: 32rem;
+  }
+
+  html,
+  body {
+    background: #e5e7eb;
+  }
+
+  ion-app {
+    max-width: var(--consumer-desktop-shell-max);
+    margin-inline: auto;
+    min-height: 100%;
+    background: #f5f5f7;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .salon-bottom-tab-bar,
+  .consumer-fixed-action-bar {
+    left: 50%;
+    right: auto;
+    width: 100%;
+    max-width: var(--consumer-desktop-shell-max);
+    transform: translateX(-50%);
+  }
 }

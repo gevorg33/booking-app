@@ -48,6 +48,7 @@ import {
   isExplainPatientAlertPrompt,
 } from './ai-explain-patient-alert.util.js';
 import { isPushNotificationsDomainPrompt } from './ai-push-notifications.util.js';
+import { rescueClaimReferralCodeIntent } from './ai-rewards-and-referral-claim.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
@@ -173,6 +174,10 @@ export function rescueConsumerAdoptionIntent(
 
   const explainShareReward = rescueExplainShareRewardIntent(text, action);
   if (explainShareReward) return explainShareReward;
+
+  // e2e-bug.83 — before growth-loops refer_a_friend steals "referral code".
+  const claimReferral = rescueClaimReferralCodeIntent(text, action);
+  if (claimReferral) return claimReferral;
 
   const switchSalonSteal = rescueSwitchSalonTenantIntent(text, action);
   if (switchSalonSteal) return switchSalonSteal;

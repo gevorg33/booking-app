@@ -24,6 +24,9 @@ function buildDeps(
         createdAt: '2026-06-01T10:00:00.000Z',
       })),
     },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    } as any,
     ...overrides,
   } as SubmitProviderReviewLogicDeps;
 }

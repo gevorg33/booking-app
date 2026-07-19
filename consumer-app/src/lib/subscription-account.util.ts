@@ -5,7 +5,11 @@ export function formatSubscriptionUsageAction(
   action: string,
   copy: ConsumerCopy,
 ): string {
-  const normalized = action.toLowerCase();
+  const normalized = action.trim().toLowerCase();
+  // Real backend enum: SubscriptionUsageAction.CONSUME | RESTORE (e2e-bug.41).
+  if (normalized === 'consume') return copy.subscriptionUsageRedeem;
+  if (normalized === 'restore') return copy.subscriptionUsageRestore;
+  // Legacy / defensive aliases
   if (normalized.includes('purchase')) return copy.subscriptionUsagePurchase;
   if (normalized.includes('redeem') || normalized.includes('use')) {
     return copy.subscriptionUsageRedeem;

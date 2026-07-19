@@ -83,6 +83,18 @@ describe('ai-explain-business-hours-and-location.logic (ai-cmd-customer-4.1.5)',
     ).toBe('profile');
   });
 
+  it('e2e-bug.137 — owner "What are my business hours?" returns opening hours', async () => {
+    const result = await handleExplainBusinessHoursAndLocationLogic(
+      buildDeps(),
+      'biz-1',
+      {},
+      'What are my business hours?',
+    );
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_business_hours_and_location');
+    expect(result.summary).toMatch(/opening hours|09:00|19:00/i);
+  });
+
   it('explains location and map link', async () => {
     const result = await handleExplainBusinessHoursAndLocationLogic(
       buildDeps(),

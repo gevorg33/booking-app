@@ -40,6 +40,25 @@ const en: MessageTree = {
       'I didn\'t quite catch that. Try asking who is available, what services you offer, or say something like "Book a massage with Gevorg tomorrow at 10:00".',
     helpPrompt:
       'I can help you find a specialist, check open times, see services and prices, or book an appointment. What would you like to do?',
+    // e2e-bug.127 — security_blocked / action-denied summaries (no raw action ids).
+    securityInjection:
+      'That request tries to override system rules. I can only run allowed booking and schedule commands for your role.',
+    securityDataExport:
+      'Bulk customer export is not available via AI. Ask for a ranked summary (e.g. "top 5 VIP customers") or use CRM export in Settings.',
+    securityAvailabilityBypass:
+      'I cannot book or reschedule into unavailable slots. I can check availability or find the next open time.',
+    securityDefault: 'That command is not allowed for security reasons.',
+    deniedPublic:
+      'That action is not available here. Try rephrasing or use the booking steps.',
+    deniedCustomer:
+      'That action is not available in the customer assistant. Try rephrasing or use the booking menu.',
+    // e2e-bug.126 — unknown-intent clarify lead sentence (per surface).
+    unknownIntentProvider:
+      "I'm not sure what you meant. Pick one of these, or rephrase your request.",
+    unknownIntentCustomer:
+      "I didn't fully understand that. What would you like to do?",
+    unknownIntentDashboard:
+      "I didn't fully understand that command. Which of these did you mean?",
     noSpecialists:
       'No specialists are available for booking right now. Please contact the business directly.',
     specialistsHeader: 'Here are our specialists:',
@@ -239,7 +258,8 @@ const en: MessageTree = {
     nextUpTitle: 'Next: {customer} at {time}',
     nextUpPrompt: "Mark {customer}'s appointment at {time} as done and paid",
     emptyTodayTitle: 'No appointments today',
-    emptyTodayPrompt: 'Summarize my schedule for {date}',
+    // e2e-bug.66 — must match summarize_day rescue/classifier (not get_schedule_summary ranges).
+    emptyTodayPrompt: "How's today looking?",
     defaultClient: 'client',
   },
   clinic: {
@@ -304,6 +324,24 @@ const hy: MessageTree = {
       'Չհասկացա։ Փորձեք հարցնել՝ ով է ազատ, ինչ ծառայություններ ունեք, կամ ասեք՝ «Ամրագրիր massage Gevorg-ի հետ վաղը 10:00-ին»։',
     helpPrompt:
       'Կարող եմ օգնել գտնել մասնագետ, ստուգել ազատ ժամերը, տեսնել ծառայություններն ու գները կամ ամրագրել։ Ի՞նչ եք ցանկանում։',
+    securityInjection:
+      'Այդ հարցումը փորձում է շրջանցել համակարգի կանոնները։ Ես կարող եմ կատարել միայն ձեր դերին թույլատրված ամրագրման և ժամանակացույցի հրամանները։',
+    securityDataExport:
+      'Հաճախորդների զանգվածային արտահանումը AI-ով հասանելի չէ։ Խնդրեք վարկանիշային ամփոփում (օր. «թոփ 5 VIP հաճախորդներ») կամ օգտագործեք CRM արտահանումը Կարգավորումներում։',
+    securityAvailabilityBypass:
+      'Չեմ կարող ամրագրել կամ վերաժամանակացնել անհասանելի ժամերում։ Կարող եմ ստուգել հասանելիությունը կամ գտնել հաջորդ ազատ ժամը։',
+    securityDefault: 'Այդ հրամանը անվտանգության պատճառով թույլատրված չէ։',
+    deniedPublic:
+      'Այդ գործողությունը այստեղ հասանելի չէ։ Փորձեք վերաձևակերպել կամ օգտագործել ամրագրման քայլերը։',
+    deniedCustomer:
+      'Այդ գործողությունը հաճախորդի օգնականում հասանելի չէ։ Փորձեք վերաձևակերպել կամ օգտագործել ամրագրման ընտրացանկը։',
+    // e2e-bug.126 — unknown-intent clarify lead sentence (per surface).
+    unknownIntentProvider:
+      'Հգիտեմ ինչ նկատի ունեիք։ Ընտրեք ստորևներից մեկը կամ վերաձևակերպեք հարցումը։',
+    unknownIntentCustomer:
+      'Ամբողջությամբ չհասկացա։ Ի՞նչ կցանկանայիք անել։',
+    unknownIntentDashboard:
+      'Ամբողջությամբ չհասկացա այդ հրամանը։ Ո՞ր տարբերակն էիք նկատի ունեցել։',
     noSpecialists:
       'Այս պահին ամրագրման համար մասնագետներ չկան։ Խնդրում ենք կապվել բիզնեսի հետ։',
     specialistsHeader: 'Մեր մասնագետները՝',
@@ -509,7 +547,8 @@ const hy: MessageTree = {
     nextUpPrompt:
       'Նշել {customer}-ի ամրագրումը {time}-ին որպես ավարտված և վճարված',
     emptyTodayTitle: 'Այսօր ամրագրումներ չկան',
-    emptyTodayPrompt: 'Ամփոփիր իմ գրաֆիկը {date} ամսաթվի համար',
+    // e2e-bug.66 — must match summarize_day rescue (hy fixture).
+    emptyTodayPrompt: 'Ինչպե՞ս է այսօրվա օրը',
     defaultClient: 'հաճախորդ',
   },
   clinic: {
@@ -574,6 +613,24 @@ const ru: MessageTree = {
       'Не совсем понял. Спросите, кто свободен, какие услуги есть, или скажите: «Запиши массаж с Gevorg на завтра в 10:00».',
     helpPrompt:
       'Могу помочь найти специалиста, проверить время, показать услуги и цены или записать. Что вам нужно?',
+    securityInjection:
+      'Этот запрос пытается обойти правила системы. Я могу выполнять только разрешённые для вашей роли команды записи и расписания.',
+    securityDataExport:
+      'Массовый экспорт клиентов через ИИ недоступен. Запросите краткий рейтинг (например, «топ‑5 VIP клиентов») или используйте экспорт CRM в Настройках.',
+    securityAvailabilityBypass:
+      'Я не могу записать или перенести на недоступное время. Могу проверить свободные слоты или найти ближайшее время.',
+    securityDefault: 'Эта команда недоступна по соображениям безопасности.',
+    deniedPublic:
+      'Это действие здесь недоступно. Переформулируйте запрос или воспользуйтесь шагами записи.',
+    deniedCustomer:
+      'Это действие недоступно в помощнике клиента. Переформулируйте запрос или воспользуйтесь меню записи.',
+    // e2e-bug.126 — unknown-intent clarify lead sentence (per surface).
+    unknownIntentProvider:
+      'Не уверен, что вы имели в виду. Выберите один из вариантов или переформулируйте запрос.',
+    unknownIntentCustomer:
+      'Я не до конца понял. Что бы вы хотели сделать?',
+    unknownIntentDashboard:
+      'Я не до конца понял эту команду. Что из этого вы имели в виду?',
     noSpecialists:
       'Сейчас нет доступных специалистов для записи. Свяжитесь с бизнесом напрямую.',
     specialistsHeader: 'Наши специалисты:',
@@ -763,7 +820,8 @@ const ru: MessageTree = {
     nextUpPrompt:
       'Отметить запись {customer} в {time} как завершённую и оплаченную',
     emptyTodayTitle: 'На сегодня записей нет',
-    emptyTodayPrompt: 'Кратко опиши моё расписание на {date}',
+    // e2e-bug.66 — must match summarize_day rescue (ru fixture).
+    emptyTodayPrompt: 'Как проходит мой день?',
     defaultClient: 'клиент',
   },
   clinic: {

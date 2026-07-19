@@ -26,6 +26,7 @@ import {
   handleCreatePromoCodeLogic,
   handleDeactivatePromoCodeLogic,
 } from './ai-create-promo-code.logic.js';
+import { handleListPromoCodesLogic } from './ai-list-promo-codes.logic.js';
 import { handleExplainLoyaltyPointsLogic } from './ai-explain-loyalty-points.logic.js';
 
 export type MarketingGrowthDispatchContext = {
@@ -99,6 +100,12 @@ export function buildMarketingGrowthLogicDispatchMap(): ReadonlyMap<
   );
   map.set('regenerate_tenant_app_install_qr', async (deps, ctx) =>
     handleRegenerateTenantAppInstallQrLogic(deps, ctx.businessId),
+  );
+  map.set('list_promo_codes', async (deps, ctx) =>
+    handleListPromoCodesLogic(deps, ctx.businessId, {
+      ...ctx.params,
+      _prompt: ctx.prompt,
+    }),
   );
   map.set('create_promo_code', async (deps, ctx) =>
     handleCreatePromoCodeLogic(deps, ctx.businessId, ctx.params, ctx.prompt),

@@ -19,6 +19,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatBookingDateTimeRange, formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import { formatPublicMoney } from '../lib/business-currency.js';
@@ -43,6 +44,10 @@ import {
   type PackageCheckoutPaymentMethod,
 } from '../lib/package-checkout-payment.util.js';
 import {
+  loadRememberedCheckoutContact,
+  mergeCheckoutContactPrefill,
+} from '../lib/checkout-autofill.util.js';
+import {
   normalizeGuestContact,
   resolveCheckoutContact,
   validateGuestCheckoutContact,
@@ -59,6 +64,7 @@ import { ConsumerCheckoutContactForm } from '../components/ConsumerCheckoutConta
 import { ConsumerCheckoutDiscounts } from '../components/ConsumerCheckoutDiscounts.js';
 import { ConsumerCheckoutQuoteSummary } from '../components/ConsumerCheckoutQuoteSummary.js';
 import { useCheckoutDiscounts } from '../hooks/use-checkout-discounts.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import {
   bookPublicPackage,
   confirmPublicBookingPayment,
@@ -100,8 +106,22 @@ export default function PackageCheckoutPage() {
   });
   const pkg = packageQuery.data?.package;
 
-  const profileStored = slug ? getStoredCustomerProfile(slug) : null;
+  // e2e-bug.6/8 — memoize; getStoredCustomerProfile returns a new object each call.
+  const profileStored = useMemo(
+    () => (slug ? getStoredCustomerProfile(slug) : null),
+    [slug],
+  );
   const authed = slug ? !!getCustomerToken(slug) : false;
+
+  useEffect(() => {
+    if (!slug) return;
+    setGuestContact((prev) =>
+      mergeCheckoutContactPrefill(prev, {
+        profile: profileStored,
+        remembered: loadRememberedCheckoutContact(slug),
+      }),
+    );
+  }, [slug, profileStored]);
   const turnover = profile?.multiService?.turnoverBufferMinutes ?? 5;
   const scheduleStart = lines[0]?.startTime;
   const hasSchedule = lines.length > 0;
@@ -260,7 +280,8 @@ export default function PackageCheckoutPage() {
       setBookedWithCash(method === 'cash' && cashAvailable);
       setSuccess(true);
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : copy.assistantErrorGeneric);
+      // e2e-bug.33 / e2e-bug.3 — unwrap Nest/axios body; never show "Request failed with status code N".
+      setMessage(formatFriendlyNetworkError(err, copy.assistantErrorGeneric));
     } finally {
       setSubmitting(false);
     }
@@ -285,7 +306,7 @@ export default function PackageCheckoutPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')} />
+              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.packageCheckoutTitle}</IonTitle>
           </IonToolbar>
@@ -303,7 +324,7 @@ export default function PackageCheckoutPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
+              <IonBackButton defaultHref={buildSalonPath(slug, '/services')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.packageCheckoutTitle}</IonTitle>
           </IonToolbar>
@@ -399,7 +420,14 @@ export default function PackageCheckoutPage() {
 
           <IonButton
             expand="block"
-            style={{ marginTop: 24, '--background': profile.branding.primaryColor || '#7c3aed' }}
+            color="primary"
+            style={{
+              marginTop: 24,
+              ['--background' as string]: profile.branding.primaryColor || '#7c3aed',
+              ['--color' as string]: '#ffffff',
+              ['--color-hover' as string]: '#ffffff',
+              ['--color-activated' as string]: '#ffffff',
+            }}
             onClick={() => history.push(buildSalonPath(slug))}
           >
             {copy.bookAnother}
@@ -419,11 +447,11 @@ export default function PackageCheckoutPage() {
       : copy.packageBook;
 
   return (
-    <IonPage>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildPackageConfirmPath(slug, packageId)} />
+            <IonBackButton defaultHref={buildPackageConfirmPath(slug, packageId)}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.packageCheckoutTitle}</IonTitle>
         </IonToolbar>
@@ -475,7 +503,11 @@ export default function PackageCheckoutPage() {
           })}
         </IonList>
 
-        <ConsumerCheckoutContactForm value={guestContact} onChange={setGuestContact} />
+        <ConsumerCheckoutContactForm
+          value={guestContact}
+          onChange={setGuestContact}
+          copy={copy}
+        />
 
         <ConsumerCheckoutDiscounts
           copy={copy}
@@ -539,15 +571,13 @@ export default function PackageCheckoutPage() {
           </IonButton>
         ) : null}
 
-        <IonButton
-          expand="block"
-          disabled={submitting || quoteLoading}
-          style={{ marginTop: 16, '--background': primary }}
-          onClick={() => void submitBooking()}
-        >
-          {submitting ? copy.packageCompletePayment : submitLabel}
-        </IonButton>
       </IonContent>
+      <ConsumerFixedActionBar
+        label={submitting ? copy.packageCompletePayment : submitLabel}
+        disabled={submitting || quoteLoading}
+        primaryColor={primary}
+        onClick={() => void submitBooking()}
+      />
     </IonPage>
   );
 }

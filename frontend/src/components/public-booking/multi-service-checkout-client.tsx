@@ -37,6 +37,7 @@ import {
   sumMultiServicePrice,
   uniqueMultiServiceIds,
 } from '@/lib/multi-service-booking';
+import { getErrorMessage } from '@/lib/error-message';
 
 interface MultiServiceCheckoutClientProps {
   slug: string;
@@ -286,7 +287,8 @@ export function MultiServiceCheckoutClient({
       .catch((err) => {
         if (cancelled || requestId !== quoteRequestId.current) return;
         setQuote(null);
-        const message = err instanceof Error ? err.message : t('public.quoteFailed');
+        // e2e-bug.33 / e2e-bug.3 — unwrap Nest/axios body; never show status-only axios text.
+        const message = getErrorMessage(err, t('public.quoteFailed'));
         setQuoteError(message);
         if (appliedPromo && /promo|gift card/i.test(message)) {
           setAppliedPromo('');

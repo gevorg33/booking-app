@@ -28,6 +28,7 @@ import {
   isExplainWhyStripeRequiredPrompt,
   isReceiptStatusPrompt,
   extractGiftCardCodeFromPrompt,
+  extractRefundReasonFromPrompt,
   extractServiceNameFromPrompt,
   extractAmountFromPrompt,
   resolveAvailabilityDateKey,
@@ -155,6 +156,12 @@ describe('ai-payments.util', () => {
         'GCB-SPECIAL',
       );
       expect(extractGiftCardCodeFromPrompt('no code here')).toBeNull();
+      expect(
+        extractRefundReasonFromPrompt(
+          'Refund GIFT1234 because the item arrived damaged',
+        ),
+      ).toBe('the item arrived damaged');
+      expect(extractRefundReasonFromPrompt('Refund GIFT1234')).toBeNull();
       expect(
         extractServiceNameFromPrompt('Who is available for massage tomorrow'),
       ).toBe('massage');

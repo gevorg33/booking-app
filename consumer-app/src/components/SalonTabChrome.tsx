@@ -7,7 +7,6 @@ import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
 import { fetchMyClinicLabBookingRequests, fetchMyBookings } from '../services/public-api.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
-import { useConsumerLocale } from '../hooks/use-consumer-locale.js';
 import { useHomeScreenWidgetSync } from '../hooks/use-home-screen-widget-sync.js';
 import { buildSalonTabHomePath, type SalonTabId } from '../lib/salon-tab-route.util.js';
 import { ConsumerAiShell } from './ConsumerAiShell.js';
@@ -36,8 +35,8 @@ export function SalonTabChrome({
     : '';
   const showResultsTab = shouldShowPatientResultsTab(profile.businessType);
   const authed = !!getCustomerToken(slug);
-  const { copy } = useConsumerCopy(slug, profile);
-  const { locale } = useConsumerLocale(slug, profile);
+  // Single locale hook via useConsumerCopy — avoid a second useConsumerLocale (e2e-bug.14).
+  const { copy, locale } = useConsumerCopy(slug, profile);
 
   const pendingLabRequestsQuery = useQuery({
     queryKey: ['clinic-lab-booking-requests', slug],

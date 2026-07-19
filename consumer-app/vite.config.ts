@@ -18,7 +18,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: Number(process.env.PORT) || 5174,
+    strictPort: Boolean(process.env.PORT),
     host: '127.0.0.1',
   },
   test: {
@@ -27,6 +28,7 @@ export default defineConfig({
     environmentMatchGlobs: [
       ['src/components/**', 'happy-dom'],
       ['src/pages/**', 'happy-dom'],
+      ['src/hooks/**', 'happy-dom'],
     ],
     setupFiles: ['./vitest.setup.ts'],
     coverage: {

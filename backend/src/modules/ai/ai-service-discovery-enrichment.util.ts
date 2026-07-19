@@ -18,6 +18,7 @@ import {
 import {
   enrichServiceRankFromPrompt,
   extractServiceRankServiceCategoryFromPrompt,
+  scrubRankPollutedServiceNameParams,
 } from './ai-service-rank-discovery.util.js';
 import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.js';
 import { enrichEmployeeRoleRankFromPrompt } from './ai-employee-role-rank.util.js';
@@ -57,11 +58,16 @@ export function enrichServiceDiscoveryFromPrompt(
     prompt,
   );
   if (!prompt?.trim()) return enriched;
+  // e2e-bug.101 — don't keep "most expensive massage" as a literal serviceName.
+  const scrubbed = scrubRankPollutedServiceNameParams(enriched);
   const category = extractServiceRankServiceCategoryFromPrompt(prompt);
-  return enrichListServicesParamsFromPrompt(prompt, {
-    ...enriched,
-    ...(category ? { serviceCategory: category } : {}),
-  });
+  const rankedParams: Record<string, unknown> = { ...scrubbed };
+  if (category) {
+    rankedParams.serviceCategory = category;
+    delete rankedParams.serviceName;
+    delete rankedParams.serviceNames;
+  }
+  return enrichListServicesParamsFromPrompt(prompt, rankedParams);
 }
 
 /** Multi-turn rank session — budget + rank enrichment with category/rank carry (rank-session-*-en). */

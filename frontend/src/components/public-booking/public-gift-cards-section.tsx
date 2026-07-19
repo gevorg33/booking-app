@@ -100,17 +100,19 @@ function OrderActions({
       </button>
 
       {cancelOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
-          onClick={closeCancelModal}
-          role="presentation"
-        >
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          {/* e2e-bug.4 spot-check — dismiss control is a real <button>, not a clickable div */}
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label={t('common.cancel')}
+            onClick={closeCancelModal}
+          />
           <div
-            className="bg-white rounded-2xl border border-gray-100 shadow-xl w-full max-w-sm p-5"
+            className="relative bg-white rounded-2xl border border-gray-100 shadow-xl w-full max-w-sm p-5"
             role="dialog"
             aria-modal="true"
             aria-labelledby={`gift-card-cancel-title-${order.id}`}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <h3

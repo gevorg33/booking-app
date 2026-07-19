@@ -36,6 +36,32 @@ export const WELCOME_SECTION_SCENARIOS = [
     savedSlugs: [],
     recentSlugs: ['old-visit', 'booked'],
   },
+  {
+    id: 'e2e-bug.21-pinned-survives-recent-cap',
+    salons: [
+      { slug: 'old-pinned', name: 'Pinned', visitedAt: '2026-01-01T10:00:00.000Z' },
+      ...Array.from({ length: 8 }, (_, index) => ({
+        slug: `r${index}`,
+        name: `Recent ${index}`,
+        visitedAt: `2026-06-0${Math.min(index + 1, 8)}T10:00:00.000Z`,
+      })),
+    ],
+    pinned: ['old-pinned'],
+    // Pinned stays first even though 8 newer visits would have pushed it off a recency-only cap.
+    quickReturnSlugs: [
+      'old-pinned',
+      'r7',
+      'r6',
+      'r5',
+      'r4',
+      'r3',
+      'r2',
+      'r1',
+      'r0',
+    ],
+    savedSlugs: ['old-pinned'],
+    recentSlugs: ['r7', 'r6', 'r5', 'r4', 'r3', 'r2', 'r1', 'r0'],
+  },
 ] as const;
 
 export const RECENCY_SUBTITLE_SCENARIOS = [

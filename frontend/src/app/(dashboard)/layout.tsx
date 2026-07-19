@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { useDashboardBusinessType } from '@/lib/use-dashboard-business-type';
 import { AiCommandBar } from '@/components/ai-command-bar';
 import { AiNotificationCenter } from '@/components/ai-notification-center';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -62,22 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     enabled: !!business?.id && !!token && mounted,
   });
 
-  const { data: businessProfile } = useQuery({
-    queryKey: ['business-profile', business?.id],
-    queryFn: async () => {
-      const { data } = await api.get(`/businesses/${business!.id}`);
-      return ((data as { data?: Record<string, unknown> })?.data ?? data) as Record<
-        string,
-        unknown
-      >;
-    },
-    enabled: !!business?.id && !!token && mounted,
-  });
-
-  const businessType =
-    ((businessProfile?.settings as { businessType?: string } | undefined)?.businessType ??
-      (businessProfile?.businessType as string | undefined)) ??
-    undefined;
+  const businessType = useDashboardBusinessType();
   const showLabQueueNav = isClinicVerticalBusinessType(businessType);
 
   const navItems = useMemo(

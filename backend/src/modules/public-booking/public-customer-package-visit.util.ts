@@ -28,6 +28,15 @@ export function readPackageNameFromMetadata(
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
 }
 
+/** e2e-bug.34 — scheduling mode stamped on multi-service booking metadata. */
+export function readMultiServiceSchedulingMode(
+  metadata?: Record<string, unknown> | null,
+): 'same_visit' | 'per_service' | null {
+  const raw = metadata?.schedulingMode;
+  if (raw === 'same_visit' || raw === 'per_service') return raw;
+  return null;
+}
+
 export function isPackageVisitBooking(booking: Booking): boolean {
   return Boolean(booking.packagePurchaseId);
 }

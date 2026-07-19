@@ -1,6 +1,8 @@
-import { IonButton, IonInput, IonSpinner } from '@ionic/react';
+import { IonInput, IonSpinner } from '@ionic/react';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 import { useEffect, useState, type Ref } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { resolveGiftCardClaimSuccessCopyKey } from '../lib/gift-card-purchase.util.js';
 import { claimPublicGiftCard } from '../services/public-api.js';
 
@@ -41,7 +43,7 @@ export function ConsumerGiftCardClaimSection({
       setCode('');
       onClaimed?.();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.networkLoadFailed);
+      setError(formatFriendlyNetworkError(err, copy.networkLoadFailed));
     } finally {
       setLoading(false);
     }
@@ -59,9 +61,9 @@ export function ConsumerGiftCardClaimSection({
           style={{ flex: 1, '--background': '#f9fafb', textTransform: 'uppercase' }}
           onIonInput={(e) => setCode(String(e.detail.value ?? ''))}
         />
-        <IonButton onClick={() => void handleClaim()} disabled={loading || !code.trim()}>
+        <ConsumerActionButton onClick={() => void handleClaim()} disabled={loading || !code.trim()}>
           {loading ? <IonSpinner name="crescent" /> : copy.giftCardClaimSubmit}
-        </IonButton>
+        </ConsumerActionButton>
       </div>
       {error ? <p style={{ color: '#b91c1c', fontSize: 12, marginTop: 8 }}>{error}</p> : null}
       {success ? <p style={{ color: '#15803d', fontSize: 12, marginTop: 8 }}>{success}</p> : null}

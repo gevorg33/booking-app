@@ -1,15 +1,13 @@
 'use client';
 
 import { ClinicSpecimenQueuePanel } from '@/components/clinic/clinic-specimen-queue-panel';
-import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { useDashboardBusinessType } from '@/lib/use-dashboard-business-type';
 
 export default function LabSpecimenTrackingPage() {
   const { t } = useI18n();
-  const { business } = useAuthStore();
-  const businessType =
-    (business?.settings?.businessType as string | undefined) ?? undefined;
+  const businessType = useDashboardBusinessType();
   const showPage = isClinicVerticalBusinessType(businessType);
 
   if (!showPage) {

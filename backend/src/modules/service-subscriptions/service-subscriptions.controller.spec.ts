@@ -200,15 +200,15 @@ describe('ServiceSubscriptionsController', () => {
 
   it('cancels customer subscription', async () => {
     subscriptionsService.cancelSubscription.mockResolvedValue({
-      id: 'sub-1',
-      status: 'cancelled',
+      subscription: { id: 'sub-1', status: 'cancelled' },
+      refundStatus: undefined,
     });
     const result = await controller.cancelSubscription('biz-1', 'sub-1', user);
     expect(subscriptionsService.cancelSubscription).toHaveBeenCalledWith(
       'biz-1',
       'sub-1',
     );
-    expect(result.status).toBe('cancelled');
+    expect(result.subscription.status).toBe('cancelled');
   });
 
   it('returns usage history', async () => {

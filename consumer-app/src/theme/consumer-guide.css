@@ -117,6 +117,21 @@
 
 .consumer-guide-section__ask {
   --padding-start: 0;
+  /* Same brand token as Help & guide book icon (`color="primary"`). */
+  --color: var(--tenant-primary, var(--ion-color-primary));
+  --color-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 78%, transparent);
+  --color-activated: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 72%, transparent);
+  --background-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 12%, transparent);
+  --background-activated: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 16%, transparent);
   margin-inline-start: -0.35rem;
   font-weight: 600;
+}
+
+.consumer-guide-section__actions ion-button[fill='outline'] {
+  --border-color: var(--tenant-primary, var(--ion-color-primary));
+  --color: var(--tenant-primary, var(--ion-color-primary));
+  --color-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 78%, transparent);
+  --color-activated: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 72%, transparent);
+  --background-hover: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 12%, transparent);
+  --background-activated: color-mix(in srgb, var(--tenant-primary, var(--ion-color-primary)) 16%, transparent);
 }

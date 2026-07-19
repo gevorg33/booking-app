@@ -94,9 +94,9 @@ function extractTaxName(prompt: string): string | undefined {
 
 function extractTaxRate(prompt: string): number | undefined {
   const patterns = [
-    /(\d+(?:\.\d+)?)\s*%?\s*(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ)/i,
-    /(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ)\s*(?:of|at|to|rate)?\s*(\d+(?:\.\d+)?)\s*%?/i,
-    /(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%?\s*(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ|percent|per\s*cent)/i,
+    /(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ)(?:\s+rate)?\s*(?:of|at|to)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)?/i,
+    /(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)\b/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);

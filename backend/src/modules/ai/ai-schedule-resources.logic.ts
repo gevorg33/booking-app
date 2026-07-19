@@ -248,6 +248,73 @@ export async function handleAssignResourceHoursLogic(
   );
 }
 
+/** e2e-bug.147 — READ configured requirements (never invent typical equipment). */
+export async function handleListServiceResourceRequirementsLogic(
+  deps: Sprint29ScheduleResourceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  services: Service[],
+): Promise<CommandResult> {
+  const serviceName =
+    (params.serviceName as string | undefined) ??
+    (params.serviceNames as string[] | undefined)?.[0];
+  const service = params.serviceId
+    ? services.find((s) => s.id === params.serviceId)
+    : serviceName
+      ? resolveByName(services, serviceName)
+      : undefined;
+
+  if (!service) {
+    return failure(
+      'list_service_resource_requirements',
+      'Specify which service to look up resource requirements for.',
+      { clarify: true, missing: ['serviceName'] },
+    );
+  }
+
+  try {
+    const rows = await deps.resourcesService.getServiceRequirements(
+      businessId,
+      service.id,
+    );
+    const named = rows.map((row) => ({
+      resourceId: row.resourceId,
+      resourceName: row.resource?.name ?? row.resourceId,
+      quantity: row.quantity ?? 1,
+    }));
+    if (named.length === 0) {
+      return success(
+        'list_service_resource_requirements',
+        `"${service.name}" has no configured scheduling resource requirements in this business.`,
+        {
+          serviceId: service.id,
+          serviceName: service.name,
+          requirements: [],
+          count: 0,
+        },
+      );
+    }
+    const labels = named.map(
+      (r) => (r.quantity > 1 ? `${r.quantity}× ` : '') + r.resourceName,
+    );
+    return success(
+      'list_service_resource_requirements',
+      `"${service.name}" requires: ${labels.join(', ')}.`,
+      {
+        serviceId: service.id,
+        serviceName: service.name,
+        requirements: named,
+        count: named.length,
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'list_service_resource_requirements',
+      err?.message ?? 'Could not load service resource requirements.',
+    );
+  }
+}
+
 export async function handleSetServiceResourceRequirementsLogic(
   deps: Sprint29ScheduleResourceLogicDeps,
   businessId: string,
@@ -817,6 +884,14 @@ export async function handleScheduleResourceCompoundLogic(
     switch (step.action) {
       case 'list_scheduling_resources':
         result = await handleListSchedulingResourcesLogic(deps, businessId);
+        break;
+      case 'list_service_resource_requirements':
+        result = await handleListServiceResourceRequirementsLogic(
+          deps,
+          businessId,
+          stepParams,
+          services,
+        );
         break;
       case 'create_resource':
         result = await handleCreateResourceLogic(deps, businessId, stepParams);

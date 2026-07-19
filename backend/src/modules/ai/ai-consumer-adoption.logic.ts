@@ -1,3 +1,5 @@
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
@@ -23,6 +25,7 @@ import { handleExplainAppUpdateRequiredLogic } from './ai-explain-app-update-req
 import { handleExplainAnalyticsConsentLogic } from './ai-explain-analytics-consent.logic.js';
 import { handleExplainHomeScreenWidgetLogic } from './ai-explain-home-screen-widget.logic.js';
 import { handleExplainPatientAlertLogic } from './ai-explain-patient-alert.logic.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 export { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
@@ -34,6 +37,8 @@ export interface ConsumerAdoptionLogicDeps {
   pushNotifications: AiPushNotificationsService;
   notificationsService: NotificationsService;
   consumerPushTokenService: ConsumerPushTokenService;
+  /** e2e-bug.125 — resolve booking slug from authenticated businessId. */
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -57,6 +62,19 @@ function resolveSessionCustomerId(
 ): string | undefined {
   const raw = params.sessionCustomerId ?? params.customerId;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+}
+
+/** e2e-bug.82 / e2e-bug.125 — never require classifier-extracted slug. */
+async function resolveBusinessSlug(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<string | null> {
+  return resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
 }
 
 export async function handleExplainMyNotificationsLogic(
@@ -128,7 +146,7 @@ export async function handleReferAFriendLogic(
     });
   }
 
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) {
     return failure('refer_a_friend', 'Business not found.');
   }
@@ -170,7 +188,7 @@ export async function handleShareSalonLinkLogic(
       clarify: true,
     });
   }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) return failure('share_salon_link', 'Business not found.');
 
   const view = await deps.publicBookingService.getCustomerShareRewards(
@@ -201,7 +219,7 @@ export async function handleExplainRewardsWalletLogic(
       clarify: true,
     });
   }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) return failure('explain_rewards_wallet', 'Business not found.');
 
   const view = await deps.publicBookingService.getCustomerRewards(
@@ -245,7 +263,7 @@ export async function handleClaimReferralCodeLogic(
       { clarify: true },
     );
   }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) return failure('claim_referral_code', 'Business not found.');
 
   const referralCode =
@@ -272,6 +290,8 @@ export async function handleClaimReferralCodeLogic(
       invalid_code: `I couldn't find a referral code matching "${referralCode}".`,
       already_attached: "You've already claimed a referral code.",
       self_referral: "You can't claim your own referral code.",
+      not_eligible_existing_customer:
+        'Referral rewards apply to new customers before their first completed visit.',
     };
     return failure(
       'claim_referral_code',
@@ -305,7 +325,7 @@ export async function handleClaimShareRewardLogic(
       clarify: true,
     });
   }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) return failure('claim_share_reward', 'Business not found.');
 
   const channel =
@@ -355,7 +375,10 @@ export async function handleExplainShareRewardLogic(
   prompt = '',
 ): Promise<CommandResult> {
   return handleExplainShareRewardLogicCore(
-    { publicBookingService: deps.publicBookingService },
+    {
+      publicBookingService: deps.publicBookingService,
+      businessRepo: deps.businessRepo,
+    },
     businessId,
     params,
     prompt,
@@ -369,7 +392,10 @@ export async function handleShareMyBookingLogic(
   prompt = '',
 ): Promise<CommandResult> {
   return handleShareMyBookingLogicCore(
-    { publicBookingService: deps.publicBookingService },
+    {
+      publicBookingService: deps.publicBookingService,
+      businessRepo: deps.businessRepo,
+    },
     businessId,
     params,
     prompt,

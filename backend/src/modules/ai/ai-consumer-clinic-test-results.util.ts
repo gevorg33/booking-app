@@ -482,7 +482,22 @@ export function isExplainResultStatusPrompt(prompt: string): boolean {
   ) {
     return true;
   }
-  if (/\bwhen\b.*\b(available|ready|released|appear|show)\b/i.test(prompt)) {
+  // e2e-bug.133 — bare "when … available" matched tour capacity gates
+  // ("reserve when seats are available"). Require results/lab wording and
+  // exclude seat/spot/capacity booking phrasing.
+  if (
+    /\bwhen\b/i.test(prompt) &&
+    /\b(seats?|spots?|capacity)\b/i.test(prompt) &&
+    /\b(available|allows?|remain|enough)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\bwhen\b.*\b(available|ready|released|appear|show)\b/i.test(prompt) &&
+    (RESULTS_NOUN.test(prompt) ||
+      /\bresults?\b/i.test(prompt) ||
+      /\b(lab|test|CBC|lipid|panel)\b/i.test(prompt))
+  ) {
     return true;
   }
   if (

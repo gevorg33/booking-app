@@ -1,5 +1,4 @@
 import {
-  IonButton,
   IonCheckbox,
   IonContent,
   IonHeader,
@@ -40,6 +39,7 @@ import {
 } from '../lib/provider-booking.util.js';
 import { persistProfessionalsFirstBookState } from '../lib/professionals-first-book.util.js';
 import { ConsumerBackButton } from '../components/ConsumerBackButton.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { fetchPublicServicesForSlot } from '../services/public-api.js';
 
 export default function ProfessionalServicesPage() {
@@ -183,12 +183,12 @@ export default function ProfessionalServicesPage() {
   const primary = profile.branding.primaryColor || '#7c3aed';
 
   return (
-    <IonPage>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
           <ConsumerBackButton
             defaultHref={buildProfessionalsPath(slug, { employeeId, startTime })}
-          />
+           text={copy.guidePageBack} />
           <IonTitle>{copy.selectService}</IonTitle>
         </IonToolbar>
       </IonHeader>
@@ -243,16 +243,13 @@ export default function ProfessionalServicesPage() {
             ))}
           </IonList>
         )}
-
-        <IonButton
-          expand="block"
-          disabled={continueDisabled}
-          style={{ marginTop: 16, '--background': primary }}
-          onClick={onContinue}
-        >
-          {hasMultiSelection ? copy.multiServiceContinue : copy.continueBooking}
-        </IonButton>
       </IonContent>
+      <ConsumerFixedActionBar
+        label={hasMultiSelection ? copy.multiServiceContinue : copy.continueBooking}
+        disabled={continueDisabled}
+        primaryColor={primary}
+        onClick={onContinue}
+      />
     </IonPage>
   );
 }

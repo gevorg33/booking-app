@@ -75,18 +75,27 @@ export function resolveNearestSlotSelection(input: {
   };
 }
 
-export function guidedBookingStepLabel(step: GuidedBookingStep): string {
+export function guidedBookingStepLabel(
+  step: GuidedBookingStep,
+  copy: {
+    guidedStepWelcome: string;
+    guidedStepSalon: string;
+    guidedStepService: string;
+    guidedStepSlot: string;
+    guidedStepConfirm: string;
+  },
+): string {
   switch (step) {
     case 'welcome':
-      return 'Home';
+      return copy.guidedStepWelcome;
     case 'salon':
-      return 'Salon';
+      return copy.guidedStepSalon;
     case 'service':
-      return 'Service';
+      return copy.guidedStepService;
     case 'slot':
-      return 'Time';
+      return copy.guidedStepSlot;
     case 'confirm':
-      return 'Confirm';
+      return copy.guidedStepConfirm;
     default:
       return step;
   }

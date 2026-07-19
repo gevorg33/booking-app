@@ -195,8 +195,12 @@ describe('AiPaymentsService', () => {
       ).success,
     ).toBe(true);
     expect(
-      (await service.handleRefundGiftCardOrder('biz-1', { giftCardId: 'gc-1' }))
-        .success,
+      (
+        await service.handleRefundGiftCardOrder('biz-1', {
+          giftCardId: 'gc-1',
+          reason: 'Customer changed their mind',
+        })
+      ).success,
     ).toBe(true);
     expect(
       (

@@ -1,3 +1,4 @@
+import { allowsNonEssentialTracking } from './cookie-consent';
 import { recordProductRecommendationEvent } from './public-api';
 
 export type ProductRecommendationAnalyticsEvent = 'shown' | 'clicked';
@@ -10,6 +11,8 @@ export interface ProductRecommendationAnalyticsContext {
   categoryId?: string;
   bookingId?: string;
   surface?: ProductRecommendationSurface;
+  /** When false, recommendation analytics may run without a banner choice. */
+  cookieBannerEnabled?: boolean;
 }
 
 export function collectNewImpressionProductIds(
@@ -46,6 +49,13 @@ export function trackProductRecommendationEvent(
   event: ProductRecommendationAnalyticsEvent,
   productId: string,
 ): void {
+  if (
+    !allowsNonEssentialTracking(context.slug, {
+      cookieBannerEnabled: context.cookieBannerEnabled,
+    })
+  ) {
+    return;
+  }
   void recordProductRecommendationEvent(
     context.slug,
     buildProductRecommendationEventBody(event, productId, context),

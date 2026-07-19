@@ -8,7 +8,10 @@ export const GIFT_CARD_CATALOG_SETTINGS: PublicGiftCardCatalogSettings = {
   purchasablePackages: [],
   purchasableSubscriptionPlans: [],
   bundles: [{ id: 'bundle-1', name: 'Spa day', lines: [], price: 120 }],
-  shippingMethods: [{ id: 'standard', label: 'Standard', fee: 5, estimatedDays: '3-5 days' }],
+  shippingMethods: [
+    { id: 'standard', label: 'Standard', fee: 5, estimatedDays: '3-5 days' },
+    { id: 'express', label: 'Express', fee: 12, estimatedDays: '1-2 days' },
+  ],
   cancelModifyEnabled: true,
   cancelModifyWindowHours: 24,
   acceptCashPayments: true,

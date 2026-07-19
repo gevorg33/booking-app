@@ -39,6 +39,15 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
       ],
     })),
   };
+  const businessRepo = {
+    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+  };
+  const pickDeps = () => ({
+    employeeRepo,
+    serviceRepo,
+    publicCustomerAuthService,
+    businessRepo,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,7 +55,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('selects named provider and service with navigate query', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'Book with Anna for color',
@@ -69,7 +78,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('selects stylist from last visit when signed in', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       { sessionCustomerId: 'cust-1', slug: 'salon' },
       'I want the same stylist as last time',
@@ -84,7 +93,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('requires sign-in for same_as_last', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'Use my usual stylist',
@@ -95,7 +104,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('navigates to professionals when only provider is selected', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'I want Anna as my stylist',
@@ -112,7 +121,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
       bookings: [],
     });
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       { sessionCustomerId: 'cust-1', slug: 'salon' },
       'I want the same stylist as last time',
@@ -129,9 +138,12 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
     ).toContain('last visit');
   });
 
-  it('fails when slug is missing for same_as_last', async () => {
+  it('fails when business slug cannot be resolved for same_as_last', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      {
+        ...pickDeps(),
+        businessRepo: { findOne: jest.fn(async () => null) },
+      },
       'biz-1',
       { sessionCustomerId: 'cust-1' },
       'Use my usual stylist',
@@ -140,9 +152,23 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
     expect(result.summary).toContain('Business not found');
   });
 
+  it('resolves slug from businessId for same_as_last without params.slug (e2e-bug.82)', async () => {
+    const result = await handlePickProviderForServiceLogic(
+      pickDeps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Use my usual stylist',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details).toMatchObject({
+      mode: 'same_as_last',
+      employeeId: 'emp-anna',
+    });
+  });
+
   it('returns clarify when prompt does not parse', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'hello there',
@@ -153,7 +179,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('keeps unresolved service name when catalog has no match', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'Book with Anna for keratin',
@@ -167,7 +193,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
 
   it('fails when named provider is unknown', async () => {
     const result = await handlePickProviderForServiceLogic(
-      { employeeRepo, serviceRepo, publicCustomerAuthService },
+      pickDeps(),
       'biz-1',
       {},
       'Book with Zoe for color',

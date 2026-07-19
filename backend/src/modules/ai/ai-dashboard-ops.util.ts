@@ -8,6 +8,75 @@ import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
 import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
 import { isConfigureOnlineBookingPrompt } from './ai-staff-operations.util.js';
 
+/** e2e-bug.137 — browse/filter customer list (not rankings). */
+export function isListCustomersPrompt(prompt: string): boolean {
+  if (/\b(rank|top\s+\d+|most\s+(?:bookings?|no-?shows?|spend)|vip\s+ranking)\b/i.test(prompt)) {
+    return false;
+  }
+  if (isCustomerRetentionPrompt(prompt)) return false;
+  // e2e-bug.138 — membership/subscription lists are list_customer_subscriptions.
+  if (/\b(memberships?|subscriptions?|plans?)\b/i.test(prompt)) {
+    return false;
+  }
+  return (
+    /\b(list|show|search|browse|find|how many)\b/i.test(prompt) &&
+    /\bcustomers?\b/i.test(prompt) &&
+    !/\b(inactive|lapsed|re[\s-]?engagement)\b/i.test(prompt)
+  );
+}
+
+/** e2e-bug.137 — retention / repeat-rate → summarize_customers at_risk segment. */
+export function isCustomerRetentionPrompt(prompt: string): boolean {
+  return (
+    /\b(retention|repeat)\s+rate\b/i.test(prompt) ||
+    (/\bretention\b/i.test(prompt) &&
+      /\b(customer|clients?|rate|how)\b/i.test(prompt))
+  );
+}
+
+/** e2e-bug.137 — single customer profile lookup without booking-context phrasing. */
+export function isLookupCustomerPrompt(prompt: string): boolean {
+  if (isListCustomersPrompt(prompt) || isCustomerRetentionPrompt(prompt)) {
+    return false;
+  }
+  if (
+    /\b(anonymize|forget|erase|gdpr|erasure|right\s+to)\b/i.test(prompt) &&
+    /\b(customer|profile|pii|data)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  const hasLookupCue =
+    /\b(look\s*up|lookup|find|show|profile|tell me about|who is)\b/i.test(
+      prompt,
+    );
+  const hasCustomerCue =
+    /\b(customer|client)\b/i.test(prompt) ||
+    /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:'s|’s)\s+(?:profile|history|details)\b/.test(
+      prompt,
+    );
+  return hasLookupCue && hasCustomerCue;
+}
+
+export function extractLookupCustomerNameFromPrompt(
+  prompt: string,
+): string | undefined {
+  const patterns = [
+    /\b(?:customer|client)\s+(?:profile\s+for\s+|named\s+|for\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+    /\b(?:look\s*up|find|show|tell me about)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:'s|’s)\s+(?:profile|history|details)\b/,
+  ];
+  for (const re of patterns) {
+    const m = prompt.match(re);
+    if (
+      m?.[1] &&
+      !/^(Customer|Client|Profile|Service|Provider)$/i.test(m[1])
+    ) {
+      return m[1].trim();
+    }
+  }
+  return undefined;
+}
+
 /** "Summarize customer Maria Lopez who has a booking with Gevorg today at 10:00". */
 export function isCustomerBookingContextPrompt(prompt: string): boolean {
   if (isConfigureOnlineBookingPrompt(prompt)) {
@@ -164,6 +233,9 @@ export function extractSingleProviderNameFromPrompt(
 /** "Show upcoming appointments for Gevorg and Maria" / "all providers". */
 export function isUpcomingAppointmentsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.77 — "cancel all my upcoming bookings" is customer bulk-cancel, not
+  // dashboard/provider show_appointments.
+  if (/\bcancel\b/i.test(lower)) return false;
   return (
     /\bupcoming\b/i.test(lower) &&
     /\b(appointments?|bookings?)\b/i.test(lower) &&

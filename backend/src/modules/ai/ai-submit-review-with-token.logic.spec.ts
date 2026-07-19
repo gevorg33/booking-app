@@ -14,6 +14,7 @@ function buildDeps(
         serviceName: 'Haircut',
         customerName: 'Guest',
         appointmentDate: '2026-06-01T10:00:00.000Z',
+        appointmentEndDate: '2026-06-01T11:00:00.000Z',
         alreadySubmitted: false,
       })),
       submitPublic: jest.fn(async () => ({
@@ -24,6 +25,9 @@ function buildDeps(
         createdAt: '2026-06-01T10:00:00.000Z',
       })),
     },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    } as any,
     ...overrides,
   } as SubmitReviewWithTokenLogicDeps;
 }
@@ -78,6 +82,7 @@ describe('handleSubmitReviewWithTokenLogic', () => {
           serviceName: 'Haircut',
           customerName: 'Guest',
           appointmentDate: '2026-06-01T10:00:00.000Z',
+        appointmentEndDate: '2026-06-01T11:00:00.000Z',
           alreadySubmitted: true,
         })),
         submitPublic: jest.fn(),

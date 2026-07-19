@@ -21,4 +21,17 @@ describe('ai-intake-lab-book-pay-payment-cue.util (ai-cmd-customer-4.21.1)', () 
       hasIntakeLabBookPayPaymentCue('Fill intake and book blood draw'),
     ).toBe(false);
   });
+
+  it('e2e-bug.99 detects pay cash at the visit', () => {
+    expect(
+      hasIntakeLabBookPayPaymentCue(
+        'fill my intake, book the soonest blood test slot, and pay cash at the visit',
+      ),
+    ).toBe(true);
+    expect(
+      hasIntakeLabBookPayPaymentCue(
+        'complete my pre-visit intake, book my blood test, and I will pay cash at the visit',
+      ),
+    ).toBe(true);
+  });
 });

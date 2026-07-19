@@ -6,6 +6,7 @@ import {
 } from './ai-growth-loops-customer.fixtures.js';
 import { isPromoCodeHelpPrompt } from './ai-marketing-growth.util.js';
 import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
+import { isClaimReferralCodePrompt } from './ai-rewards-and-referral-claim.util.js';
 
 export { CUSTOMER_GROWTH_LOOPS_CLASSIFIER_RULES } from './ai-growth-loops-customer.fixtures.js';
 export {
@@ -39,6 +40,8 @@ function matchGrowthLoopsScenarioPrompt(
 
 export function isReferAFriendPrompt(prompt: string): boolean {
   if (isPromoCodeHelpPrompt(prompt)) return false;
+  // e2e-bug.83 — claiming someone else's code is claim_referral_code, not refer_a_friend.
+  if (isClaimReferralCodePrompt(prompt)) return false;
   if (isShareMyBookingPrompt(prompt) && !REFER_FRIEND.test(prompt))
     return false;
   return REFER_FRIEND.test(prompt);

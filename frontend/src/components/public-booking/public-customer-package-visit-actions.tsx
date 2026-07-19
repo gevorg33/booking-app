@@ -24,6 +24,11 @@ import { buildBookingDayOptions } from '@/lib/booking-day-options';
 import { buildPackageLinesFromBlockStart, expandPackageServiceItems } from '@/lib/package-booking';
 import { useI18n } from '@/i18n';
 import { confirmDialog } from '@/lib/app-dialog';
+import {
+  getErrorMessage,
+  getPackageScheduleErrorMessage,
+  isVisitDurationCapError,
+} from '@/lib/error-message';
 
 const ACTIVE_STATUSES = new Set(['confirmed', 'pending']);
 
@@ -118,10 +123,20 @@ export function PublicCustomerPackageVisitActions({
         await loadDaySlots(suggested.dateKey, suggested.startTime);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : t('public.packageNoBlock'));
-          const today = new Date().toISOString().slice(0, 10);
-          setDateKey(today);
-          await loadDaySlots(today);
+          setError(
+            getPackageScheduleErrorMessage(err, {
+              packageCannotSchedule: t('public.packageCannotSchedule'),
+              fallback: t('public.packageNoBlock'),
+            }),
+          );
+          if (isVisitDurationCapError(err)) {
+            setSlots([]);
+            setSlotsLoading(false);
+          } else {
+            const today = new Date().toISOString().slice(0, 10);
+            setDateKey(today);
+            await loadDaySlots(today);
+          }
         }
       } finally {
         if (!cancelled) setPickerLoading(false);
@@ -164,7 +179,7 @@ export function PublicCustomerPackageVisitActions({
       }
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('public.cancelPackageVisitFailed'));
+      setError(getErrorMessage(err, t('public.cancelPackageVisitFailed')));
     } finally {
       setBusy(null);
     }
@@ -208,7 +223,7 @@ export function PublicCustomerPackageVisitActions({
       setRescheduleOpen(false);
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('public.reschedulePackageVisitFailed'));
+      setError(getErrorMessage(err, t('public.reschedulePackageVisitFailed')));
     } finally {
       setBusy(null);
     }
@@ -298,6 +313,7 @@ export function PublicCustomerPackageVisitActions({
                 primaryColor={primary}
                 emptyLabel={t('public.noSlotsThisDay')}
                 heading={t('public.pickNewTime')}
+                timeZone={tz}
               />
               {selectedStart && (
                 <p className="text-xs text-gray-600">

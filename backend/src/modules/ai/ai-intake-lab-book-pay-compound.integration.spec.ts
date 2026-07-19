@@ -31,7 +31,7 @@ describe('ai-intake-lab-book-pay-compound integration (ai-cmd-customer-4.21.1)',
     ),
   )(
     'decomposeDeterministicForSurface customer EN $id',
-    ({ prompt, orderedActions }) => {
+    ({ prompt, orderedActions, paymentAction }) => {
       expect(isCompoundPrompt(prompt)).toBe(true);
       const result = decomposeDeterministicForSurface('customer', prompt);
       expect(result?.recipeId).toBe(INTAKE_LAB_BOOK_PAY_RECIPE_ID);
@@ -40,7 +40,13 @@ describe('ai-intake-lab-book-pay-compound integration (ai-cmd-customer-4.21.1)',
         ...orderedActions,
       ]);
       expect(result?.steps[0]?.params.preVisitIntakeRequired).toBe(true);
-      expect(result?.steps[2]?.params.paymentMethod).toBe('online');
+      const expectedMethod =
+        paymentAction === 'pay_cash_at_visit'
+          ? 'cash'
+          : paymentAction === 'pay_online'
+            ? 'online'
+            : undefined;
+      expect(result?.steps[2]?.params.paymentMethod).toBe(expectedMethod);
     },
   );
 

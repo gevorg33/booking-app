@@ -63,6 +63,7 @@ describe('ReferralProgramService', () => {
       businessId: 'biz-1',
       metadata: {},
     });
+    bookingRepo.count.mockResolvedValue(0);
 
     const result = await service.claimReferralCode(
       'biz-1',
@@ -75,6 +76,34 @@ describe('ReferralProgramService', () => {
     );
     expect(result.refereePromoCode).toBeNull();
     expect(customerRepo.save).toHaveBeenCalled();
+    expect(bookingRepo.count).toHaveBeenCalledWith({
+      where: {
+        businessId: 'biz-1',
+        customerId: 'referee-1',
+        status: BookingStatus.COMPLETED,
+      },
+    });
+  });
+
+  it('rejects claim when referee already has completed bookings (e2e-bug.48)', async () => {
+    customerRepo.findOne.mockResolvedValue({
+      id: 'referee-existing',
+      businessId: 'biz-1',
+      metadata: {},
+    });
+    bookingRepo.count.mockResolvedValue(5);
+
+    const result = await service.claimReferralCode(
+      'biz-1',
+      'referee-existing',
+      'A1B2C3D4',
+    );
+    expect(result).toEqual({
+      attached: false,
+      reason: 'not_eligible_existing_customer',
+      referralCode: 'A1B2C3D4',
+    });
+    expect(customerRepo.save).not.toHaveBeenCalled();
   });
 
   it('awards both sides on first completed booking with loyalty referrer reward', async () => {

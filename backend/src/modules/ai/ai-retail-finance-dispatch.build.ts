@@ -130,7 +130,7 @@ export function buildRetailFinanceLogicDispatchMap(): ReadonlyMap<
     handleListExpensesLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('delete_expense', async (deps, ctx) =>
-    handleDeleteExpenseLogic(deps, ctx.businessId, ctx.params),
+    handleDeleteExpenseLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
   );
   map.set('summarize_pl', async (deps, ctx) =>
     handleSummarizePlLogic(deps, ctx.businessId, ctx.params, ctx.prompt),

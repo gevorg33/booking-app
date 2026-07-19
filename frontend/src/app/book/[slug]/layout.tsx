@@ -10,6 +10,7 @@ import { PublicBookingShell } from '@/components/public-booking/public-booking-s
 import { PublicDateFormatBootstrap } from '@/components/public-booking/public-date-format-bootstrap';
 import { PublicGrowthWidgetsHost } from '@/components/public-booking/public-growth-widgets-host';
 import { CookieConsentBanner } from '@/components/public-booking/cookie-consent-banner';
+import { PublicAnalyticsBootstrap } from '@/components/public-booking/public-analytics-bootstrap';
 
 export default async function PublicBookingLayout({
   children,
@@ -50,6 +51,7 @@ export default async function PublicBookingLayout({
         <PublicGrowthWidgetsHost tenant={tenant} />
         <PublicBookingAssistantHost slug={slug} tenant={tenant} />
         <PublicBookingFooter slug={slug} />
+        <PublicAnalyticsBootstrap slug={slug} tenant={tenant} />
         <CookieConsentBanner slug={slug} tenant={tenant} />
       </div>
     </I18nProvider>

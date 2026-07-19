@@ -46,6 +46,9 @@ describe('buildPublicClassifierSchema', () => {
     expect(schema).toContain('recover_lost_manage_link');
     expect(schema).toContain('fix_checkout_validation_error');
     expect(schema).toContain('confirm_my_booking_details');
+    expect(schema).toContain('leave_visit_review');
+    expect(schema).toContain('leave a 5 star review for my facemassage visit');
+    expect(schema).toContain('NOT confirm_my_booking_details');
     expect(schema).toContain('add_booking_to_calendar');
     expect(schema).toContain('get_directions_to_salon');
     expect(schema).toContain('explain_preparation_notes');

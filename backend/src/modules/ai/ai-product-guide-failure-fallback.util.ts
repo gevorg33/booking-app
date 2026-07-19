@@ -18,6 +18,9 @@ import {
 import { mergeGuideFlowPlaybooks } from './guide/guide-flow.merge.util.js';
 import { resolveGuideFlowRoutePrimaryTopic } from './guide/guide-flow.routes.manifest.js';
 import { buildGuideResponseFromCorpus } from './ai-product-guide-corpus-response.util.js';
+import { CUSTOMER_APP_GUIDE_ROUTES } from './ai-customer-product-guide.util.js';
+import { PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES } from './ai-public-booking-guide.util.js';
+import { matchSimilarAppGuideTopicFromPrompt } from './ai-product-guide-rescue.util.js';
 import { resolveProductGuideSessionContext } from './ai-product-guide-session.util.js';
 import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
 import type { AccessTier } from './access-control.matrix.js';
@@ -36,6 +39,8 @@ export type PostFailureGuideFallbackInput = {
   vertical?: string;
   retailPosEnabled?: boolean;
   enabledModules?: readonly string[];
+  /** Original user prompt — used to score a relevant topic before route default (e2e-bug.53). */
+  prompt?: string;
 };
 
 export function buildPostFailureGuideFallbackInput(
@@ -45,6 +50,7 @@ export function buildPostFailureGuideFallbackInput(
     | undefined,
   surface: CommandSurface,
   locale?: string,
+  prompt?: string,
 ): PostFailureGuideFallbackInput {
   const sessionObj =
     session && typeof session === 'object' && 'context' in session
@@ -60,7 +66,32 @@ export function buildPostFailureGuideFallbackInput(
     vertical: ctx.vertical,
     retailPosEnabled: ctx.retailPosEnabled,
     enabledModules: ctx.enabledModules,
+    prompt,
   };
+}
+
+/**
+ * e2e-bug.53 — home/overview defaults are not real page grounding for guide
+ * snippets. Attaching consumer-tabs / public-booking-funnel for every unknown
+ * prompt made free-text chat look broken.
+ */
+export function isWeakDefaultGuideFallbackRoute(
+  route: string | undefined,
+  surface: CommandSurface,
+): boolean {
+  if (!route?.trim()) return true;
+  const normalized = route.trim().replace(/\/+$/, '') || '/';
+  if (surface === 'customer') {
+    return (
+      normalized === CUSTOMER_APP_GUIDE_ROUTES.tabs ||
+      normalized === '/s/home' ||
+      normalized === '/consumer'
+    );
+  }
+  if (surface === 'public') {
+    return normalized === PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview;
+  }
+  return false;
 }
 
 export function shouldAppendPostFailureGuideFallback(
@@ -119,12 +150,21 @@ export function resolvePostFailureGuideSnippet(
   input: PostFailureGuideFallbackInput,
 ): { snippetLine: string; guide: GuideResponse } | null {
   const locale = resolveLocale(input.locale);
-  const topicId = resolveGuideFlowRoutePrimaryTopic(input.route);
+  // e2e-bug.53 — prefer prompt-scored topic; never use weak home/overview defaults alone.
+  const scoredTopicId = input.prompt?.trim()
+    ? matchSimilarAppGuideTopicFromPrompt(input.prompt, input.surface)
+    : undefined;
+  const routeTopicId = resolveGuideFlowRoutePrimaryTopic(input.route);
+  const topicId =
+    scoredTopicId ??
+    (isWeakDefaultGuideFallbackRoute(input.route, input.surface)
+      ? undefined
+      : (routeTopicId ?? undefined));
   if (!topicId) return null;
 
   const messages = getFrontendGuideCorpusMessages(locale);
   const ctx = buildGuideFlowListContext({
-    prompt: '',
+    prompt: input.prompt ?? '',
     intent: 'explain_current_screen',
     route: input.route,
     role: input.role,

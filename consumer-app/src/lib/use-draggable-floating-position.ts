@@ -30,6 +30,10 @@ const VIEWPORT_MARGIN = 8;
 const DEFAULT_MARGIN = 24;
 const FAB_SIZE = { width: 56, height: 56 };
 
+function positionsEqual(a: FloatingPosition, b: FloatingPosition): boolean {
+  return a.x === b.x && a.y === b.y;
+}
+
 function getViewportSize(): ElementSize {
   if (typeof window === 'undefined') return { width: 0, height: 0 };
   const vv = window.visualViewport;
@@ -107,7 +111,8 @@ export function readStoredAnchor(storageKey: string, defaultBottomInset = DEFAUL
     if (typeof parsed === 'object' && parsed !== null && 'right' in parsed && 'bottom' in parsed) {
       const anchor = {
         right: Math.max(VIEWPORT_MARGIN, Number(parsed.right) || DEFAULT_MARGIN),
-        bottom: Math.max(VIEWPORT_MARGIN, Number(parsed.bottom) || defaultBottomInset),
+        // Never sit below the layout-safe inset (tab bar / fixed CTA).
+        bottom: Math.max(defaultBottomInset, Number(parsed.bottom) || defaultBottomInset),
       };
       const probe = positionFromAnchor(anchor, FAB_SIZE);
       if (isCorruptStoredPosition(probe)) {
@@ -191,7 +196,8 @@ export function useDraggableFloatingPosition({
   );
 
   const syncPositionFromAnchor = useCallback((size: ElementSize = sizeRef.current) => {
-    setPosition(positionFromAnchor(anchorRef.current, size));
+    const next = positionFromAnchor(anchorRef.current, size);
+    setPosition((prev) => (positionsEqual(prev, next) ? prev : next));
   }, []);
 
   useEffect(() => {
@@ -402,14 +408,19 @@ export function useViewportSize() {
   useLayoutEffect(() => {
     const update = () => {
       const next = getViewportSize();
-      setViewport(next);
+      // e2e-bug.14 — visualViewport can fire resize/scroll repeatedly; only update on real size changes.
+      setViewport((prev) =>
+        prev.width === next.width && prev.height === next.height ? prev : next,
+      );
     };
     update();
     window.addEventListener('resize', update);
     window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
     return () => {
       window.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
     };
   }, []);
 

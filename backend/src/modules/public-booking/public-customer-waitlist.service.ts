@@ -137,6 +137,16 @@ export class PublicCustomerWaitlistService {
       employeeName = employee.name;
     }
 
+    // e2e-bug.112 — provider-only prompts must not persist the name as a service.
+    if (
+      serviceName &&
+      employeeName &&
+      serviceName.toLowerCase() === employeeName.toLowerCase() &&
+      !serviceId
+    ) {
+      serviceName = undefined;
+    }
+
     return {
       ...(serviceId ? { serviceId } : {}),
       ...(serviceName ? { serviceName } : {}),

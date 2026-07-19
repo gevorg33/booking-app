@@ -37,6 +37,10 @@ export interface PublicCustomerBookingItem {
   packagePurchaseId?: string | null;
   packageId?: string | null;
   packageName?: string | null;
+  /** Ad-hoc multi-service visit group (e2e-bug.34). */
+  multiServiceGroupId?: string | null;
+  /** From booking metadata when part of a multi-service group. */
+  multiServiceSchedulingMode?: 'same_visit' | 'per_service' | null;
 }
 
 export interface PublicPackageVisitAppointment {

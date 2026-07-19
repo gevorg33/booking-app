@@ -1,4 +1,5 @@
 import type { CommandResult } from './command-completion.types.js';
+import { sanitizeSessionContextForClient } from './ai-command-client-sanitize.util.js';
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import { mergeCheckProvidersHandoffIntoContext } from './ai-check-book-handoff.util.js';
@@ -19,6 +20,7 @@ import { CUSTOMER_DISMISS_RECOMMENDATIONS_CLASSIFIER_RULES } from './ai-dismiss-
 import { DISMISS_RECOMMENDATIONS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-dismiss-recommendations-multilingual.fixtures.js';
 import { CUSTOMER_BUY_GIFT_CARD_FOR_SOMEONE_CLASSIFIER_RULES } from './ai-buy-gift-card-for-someone.fixtures.js';
 import { BUY_GIFT_CARD_FOR_SOMEONE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-buy-gift-card-for-someone-multilingual.fixtures.js';
+import { CUSTOMER_BUY_GIFT_CARD_CLASSIFIER_RULES } from './ai-gift-card-payments.fixtures.js';
 import { CONSUMER_CHECKOUT_SUCCESS_CLASSIFIER_RULES } from './ai-consumer-checkout-success.fixtures.js';
 import { CONSUMER_CHECKOUT_SUCCESS_MULTILINGUAL_CLASSIFIER_RULES } from './ai-consumer-checkout-success-multilingual.fixtures.js';
 import { CONSUMER_CHECKOUT_SUCCESS_EN_CLASSIFIER_RULES } from './ai-consumer-checkout-success-en.fixtures.js';
@@ -263,28 +265,14 @@ import {
   PUBLIC_INTENTS,
 } from './ai-command-registry.build.js';
 import type { PublicAssistantResult } from '../public-booking/public-booking-assistant.service.js';
-
-/** Anonymous public-booking assistant intents routed via PublicBookingAssistantService.
- *  Documented in `ai-capability.matrix.ts` as `CUSTOMER_PUBLIC_DELEGATED_INTENTS`. */
-export const PUBLIC_ONLY_ASSISTANT_ACTIONS = [
-  'list_providers',
-  'list_services',
-  'find_services_under_budget',
-  'find_evening_weekend_slots',
-  'check_availability',
-  'explain_provider_availability',
-  'recommend_specialists',
-  'business_info',
-  'book_appointment',
-  'booking_help',
-  'preview_multi_service_cart',
-  'list_public_promotions',
-  'list_provider_reviews',
-  'suggest_package_block',
-] as const;
-
-export type PublicOnlyAssistantAction =
-  (typeof PUBLIC_ONLY_ASSISTANT_ACTIONS)[number];
+export {
+  PUBLIC_ONLY_ASSISTANT_ACTIONS,
+  type PublicOnlyAssistantAction,
+} from './ai-public-only-assistant-actions.js';
+import {
+  PUBLIC_ONLY_ASSISTANT_ACTIONS,
+  type PublicOnlyAssistantAction,
+} from './ai-public-only-assistant-actions.js';
 
 export const CUSTOMER_SURFACE_INTENT_UNION = [
   ...new Set([...CUSTOMER_INTENTS, ...PUBLIC_INTENTS]),
@@ -309,15 +297,19 @@ export function isCustomerSurfaceIntent(action: string): boolean {
 export function publicAssistantResultToCommandResult(
   result: PublicAssistantResult,
 ): CommandResult {
+  const details = { ...(result.details ?? {}) };
+  // e2e-bug.91 — details.sessionContext from guide/fallback must not overwrite
+  // the sanitized top-level sessionContext (often carries _capabilityHints etc.).
+  delete details.sessionContext;
   return {
     success: result.success,
     action: result.action,
     summary: result.summary,
     details: {
+      ...details,
       sessionContext: result.sessionContext,
-      navigate: result.navigate,
-      bookingId: result.bookingId,
-      ...(result.details ?? {}),
+      navigate: result.navigate ?? details.navigate,
+      bookingId: result.bookingId ?? details.bookingId,
     },
   };
 }
@@ -335,16 +327,20 @@ const PUBLIC_ASSISTANT_UI_DETAIL_KEYS = [
   'slots',
   'serviceNames',
   'serviceIds',
+  // e2e-bug.95 — get_manage_link must deliver the link/token to the client.
+  'manageUrl',
+  'manageToken',
 ] as const;
 
 function serializePublicAssistantSessionContext(
   sessionContext: unknown,
 ): PublicAssistantResult['sessionContext'] {
   if (!sessionContext || typeof sessionContext !== 'object') return undefined;
+  // e2e-bug.91 — never echo orchestration internals to anonymous clients.
+  const safe = sanitizeSessionContextForClient(sessionContext);
+  if (!safe) return undefined;
   const out: Record<string, string | null> = {};
-  for (const [key, value] of Object.entries(
-    sessionContext as Record<string, unknown>,
-  )) {
+  for (const [key, value] of Object.entries(safe)) {
     if (value == null || value === '') {
       out[key] = null;
       continue;
@@ -355,7 +351,7 @@ function serializePublicAssistantSessionContext(
     }
     out[key] = typeof value === 'string' ? value : String(value);
   }
-  return out;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export function commandResultToPublicAssistantResult(
@@ -435,7 +431,7 @@ Classify the user's message and extract parameters. Return JSON:
 Rules:
 - Use public assistant actions (list_providers, check_availability, book_appointment, etc.) for anonymous discovery/booking on the public page.
 - Use customer self-service actions (book_package, list_my_appointments, cancel_my_booking, promo_code_help, etc.) for logged-in account flows.
-- cancel_all_upcoming_bookings: MUTATE — logged-in customer cancels ALL of their upcoming confirmed bookings at once (NOT a single booking — use cancel_my_booking for "cancel my booking"/"cancel my appointment"). Triggers: "cancel all my upcoming appointments", "cancel all my bookings", "cancel every visit I have". This is a two-step confirm flow: on the FIRST ask, do NOT set params.confirm — the assistant will show a preview list and ask the customer to confirm. Only set params.confirm=true when the customer has ALREADY explicitly agreed to cancel all of them in this conversation (e.g. they replied "yes"/"confirm"/"go ahead" to the preview). Never set confirm=true on the first turn.
+- cancel_all_upcoming_bookings: MUTATE — logged-in customer cancels ALL of their upcoming confirmed bookings at once (NOT a single booking — use cancel_my_booking for "cancel my booking"/"cancel my appointment"). Triggers: "cancel all my upcoming appointments", "cancel all my bookings", "cancel every visit I have". This is a two-step confirm flow: on the FIRST ask, do NOT set params.confirm — the assistant will show a preview list and ask the customer to confirm. On the follow-up turn after that preview, when the customer replies "yes" / "yes, cancel them all" / "confirm" / "go ahead", set params.confirm=true and keep action cancel_all_upcoming_bookings. Never set confirm=true on the first turn.
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — classify the first step as check_providers_for_service when only listing providers, or book_nearest_slot when only booking flexibly; never return create_booking/book_appointment with a missing timeSlot unless bookingFirstAvailable=true.
 - Never invent catalog names; use context when provided.
 - Default to "unknown" when unclear.
@@ -586,6 +582,7 @@ ${CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES}
 ${EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_BOOK_WITH_GIFT_CARD_CLASSIFIER_RULES}
 ${BOOK_WITH_GIFT_CARD_MULTILINGUAL_CLASSIFIER_RULES}
+${CUSTOMER_BUY_GIFT_CARD_CLASSIFIER_RULES}
 ${CUSTOMER_BUY_GIFT_CARD_FOR_SOMEONE_CLASSIFIER_RULES}
 ${BUY_GIFT_CARD_FOR_SOMEONE_MULTILINGUAL_CLASSIFIER_RULES}
 ${CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES}
@@ -719,6 +716,12 @@ export function mergeCustomerCompoundContext(
     'useSubscriptionId',
     'serviceId',
     'employeeId',
+    // e2e-bug.78 / e2e-bug.84 — two-turn confirm pending flags.
+    'cancelAllUpcomingPending',
+    'privacyDeletePending',
+    'requiresConfirmation',
+    'pendingAction',
+    'bookingIds',
   ]) {
     if (details[key] !== undefined) next[key] = details[key];
   }

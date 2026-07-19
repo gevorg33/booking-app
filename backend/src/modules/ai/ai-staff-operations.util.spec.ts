@@ -155,4 +155,20 @@ describe('ai-staff-operations.util (ai-cmd-ext-2.5–2.8)', () => {
     expect(isDeactivateEmployeePrompt('Remove Maria from team')).toBe(true);
     expect(isConfigureOnlineBookingPrompt('Enable online booking')).toBe(true);
   });
+
+  it('e2e-bug.144 — catalog delete/remove is not deactivate_employee', () => {
+    expect(
+      isDeactivateEmployeePrompt(
+        'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+      ),
+    ).toBe(false);
+    expect(
+      isDeactivateEmployeePrompt('Delete the service called QA Test Trim'),
+    ).toBe(false);
+    expect(
+      isDeactivateEmployeePrompt(
+        'Remove the QA Test Trim service from my catalog permanently',
+      ),
+    ).toBe(false);
+  });
 });

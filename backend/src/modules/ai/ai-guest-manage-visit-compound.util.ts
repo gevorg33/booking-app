@@ -3,6 +3,7 @@ import {
   parseGetManageLinkFromPrompt,
 } from './ai-get-manage-link.util.js';
 import { enrichRescheduleMyBookingParamsFromPrompt } from './ai-reschedule-my-booking.util.js';
+import { hasManageLinkCredentialsInPrompt } from './ai-manage-booking-with-token.util.js';
 
 export const GUEST_MANAGE_VISIT_RECIPE_ID = 'guest_manage_visit';
 
@@ -52,6 +53,8 @@ export function isGuestManageVisitCompoundPrompt(
 ): boolean {
   const text = prompt.trim();
   if (text.length < 12) return false;
+  // e2e-bug.103 — already have bookingId+token; do not start email/phone lookup.
+  if (hasManageLinkCredentialsInPrompt(text)) return false;
   if (!isGuestContext(text, params)) return false;
   return detectManageVisitAction(text) !== null;
 }

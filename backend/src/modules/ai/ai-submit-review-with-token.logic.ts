@@ -1,9 +1,13 @@
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { SubmitPublicReviewDto } from '../reviews/dto/submit-public-review.dto.js';
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface SubmitReviewWithTokenLogicDeps {
   reviewsService: Pick<ReviewsService, 'getPublicContext' | 'submitPublic'>;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -35,7 +39,12 @@ export async function handleSubmitReviewWithTokenLogic(
   businessId: string,
   params: Record<string, any> = {},
 ): Promise<CommandResult> {
-  const slug = params.slug as string | undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) return failure('Business not found.');
 
   const bookingId = params.bookingId as string | undefined;

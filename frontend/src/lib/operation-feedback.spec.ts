@@ -107,6 +107,24 @@ describe('operation-feedback', () => {
       expect(extractErrorMessage({ response: { data: { message: ['', ''] } } })).toBeNull();
       expect(extractErrorMessage(null)).toBeNull();
     });
+
+    it('prefers Nest message over axios status Error.message (e2e-bug.63)', () => {
+      const err = new Error('Request failed with status code 500') as Error & {
+        response?: { data?: { message?: string } };
+      };
+      err.response = { data: { message: 'Invitation email failed' } };
+      expect(extractErrorMessage(err)).toBe('Invitation email failed');
+    });
+
+    it('drops bare axios status text so toasts use the kind fallback (e2e-bug.63)', () => {
+      expect(extractErrorMessage(new Error('Request failed with status code 404'))).toBeNull();
+      const toast = failureMessageForKind(
+        'create',
+        new Error('Request failed with status code 500'),
+      );
+      expect(toast).toMatch(/Something went wrong/i);
+      expect(toast).not.toMatch(/Request failed with status code/i);
+    });
   });
 
   describe('runWithOperationFeedback', () => {

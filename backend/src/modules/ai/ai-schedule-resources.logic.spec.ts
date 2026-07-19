@@ -5,6 +5,7 @@ import {
   handleDeactivateResourceLogic,
   handleAssignResourceHoursLogic,
   handleSetServiceResourceRequirementsLogic,
+  handleListServiceResourceRequirementsLogic,
   handleListResourceConflictsLogic,
   handleExplainResourceConflictLogic,
   handleConfigureMultiServiceSchedulingModeLogic,
@@ -45,6 +46,14 @@ function buildDeps(
       deactivateResource: jest.fn(),
       setServiceRequirements: jest.fn(async () => [
         { resourceId: 'r1', serviceId: 's1' },
+      ]),
+      getServiceRequirements: jest.fn(async () => [
+        {
+          resourceId: 'r1',
+          serviceId: 's1',
+          quantity: 1,
+          resource: { name: 'Room 1' },
+        },
       ]),
       findConflictingResourceIds: jest.fn(async () => ['r1']),
       getBookingResources: jest.fn(async () => [{ id: 'r1', name: 'Room 1' }]),
@@ -301,6 +310,45 @@ describe('ai-schedule-resources.logic', () => {
           )
         ).success,
       ).toBe(true);
+    });
+
+    it('e2e-bug.147 — lists configured service resource requirements', async () => {
+      const noService = await handleListServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        services,
+      );
+      expect(noService.success).toBe(false);
+      expect(noService.action).toBe('list_service_resource_requirements');
+
+      const deps = buildDeps();
+      const populated = await handleListServiceResourceRequirementsLogic(
+        deps,
+        'biz-1',
+        { serviceName: 'Massage' },
+        services,
+      );
+      expect(populated.success).toBe(true);
+      expect(populated.summary).toContain('Room 1');
+      expect(populated.summary).not.toMatch(/typically/i);
+      expect(deps.resourcesService.getServiceRequirements).toHaveBeenCalledWith(
+        'biz-1',
+        's1',
+      );
+
+      const empty = await handleListServiceResourceRequirementsLogic(
+        buildDeps({
+          resourcesService: {
+            getServiceRequirements: jest.fn(async () => []),
+          } as any,
+        }),
+        'biz-1',
+        { serviceId: 's1' },
+        services,
+      );
+      expect(empty.success).toBe(true);
+      expect(empty.summary).toMatch(/no configured/i);
     });
 
     it('sets bulk service resource requirements (ai-cmd-dashboard-6.12)', async () => {

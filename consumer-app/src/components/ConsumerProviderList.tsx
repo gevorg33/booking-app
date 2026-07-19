@@ -1,5 +1,6 @@
-import { IonIcon, IonItem, IonLabel, IonList } from '@ionic/react';
+import { IonIcon, IonList } from '@ionic/react';
 import { peopleOutline } from 'ionicons/icons';
+import { Link } from 'react-router-dom';
 import type { PublicProvider } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { formatScheduleTime, resolveNearestSlotDateLabel } from '../lib/date-format.js';
@@ -19,6 +20,7 @@ interface ConsumerProviderListProps {
   showAnySpecialistOption?: boolean;
 }
 
+/** e2e-bug.4 — profile row + any-specialist use light-DOM link/button (not IonItem shadow). */
 export function ConsumerProviderList({
   slug,
   providers,
@@ -34,13 +36,17 @@ export function ConsumerProviderList({
   return (
     <IonList>
       {showAnySpecialistOption && onAnySpecialist ? (
-        <IonItem button detail onClick={onAnySpecialist}>
-          <IonIcon icon={peopleOutline} slot="start" color="medium" />
-          <IonLabel>
-            <h2>{copy.anySpecialist}</h2>
-            <p>{copy.anySpecialistHint}</p>
-          </IonLabel>
-        </IonItem>
+        <button
+          type="button"
+          className="consumer-provider-list__row-button"
+          onClick={onAnySpecialist}
+        >
+          <IonIcon icon={peopleOutline} color="medium" aria-hidden="true" />
+          <span className="consumer-provider-list__text">
+            <span className="consumer-provider-list__title">{copy.anySpecialist}</span>
+            <span className="consumer-provider-list__subtitle">{copy.anySpecialistHint}</span>
+          </span>
+        </button>
       ) : null}
 
       {providers.map((provider) => {
@@ -62,27 +68,25 @@ export function ConsumerProviderList({
               overflow: 'hidden',
             }}
           >
-            <IonItem
-              button
-              detail={false}
-              lines="none"
-              routerLink={buildProviderProfilePath(slug, provider.id)}
+            <Link
+              to={buildProviderProfilePath(slug, provider.id)}
+              className="consumer-provider-list__profile-link"
             >
               {provider.avatarUrl ? (
                 <img
                   src={provider.avatarUrl}
                   alt=""
-                  slot="start"
                   style={{
                     width: 48,
                     height: 48,
                     borderRadius: '50%',
                     objectFit: 'cover',
+                    flexShrink: 0,
                   }}
                 />
               ) : (
                 <div
-                  slot="start"
+                  aria-hidden="true"
                   style={{
                     width: 48,
                     height: 48,
@@ -93,14 +97,17 @@ export function ConsumerProviderList({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 600,
+                    flexShrink: 0,
                   }}
                 >
                   {provider.name.charAt(0)}
                 </div>
               )}
-              <IonLabel>
-                <h2 style={{ fontWeight: 600 }}>{provider.name}</h2>
-                {provider.role ? <p>{provider.role}</p> : null}
+              <span className="consumer-provider-list__text">
+                <span className="consumer-provider-list__title">{provider.name}</span>
+                {provider.role ? (
+                  <span className="consumer-provider-list__subtitle">{provider.role}</span>
+                ) : null}
                 {hasReviews ? (
                   <ConsumerProviderReviewSummary
                     averageRating={averageRating!}
@@ -108,8 +115,8 @@ export function ConsumerProviderList({
                     summaryTemplate={copy.providerReviewSummary}
                   />
                 ) : null}
-              </IonLabel>
-            </IonItem>
+              </span>
+            </Link>
 
             <div style={{ padding: '0 16px 16px' }}>
               {provider.slots.length > 0 ? (

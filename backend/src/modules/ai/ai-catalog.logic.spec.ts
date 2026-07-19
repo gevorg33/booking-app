@@ -1201,16 +1201,16 @@ describe('ai-catalog.logic', () => {
     });
 
     it('create gift card bundle', async () => {
-      expect(
-        (
-          await handleCreateGiftCardBundleLogic(
-            buildDeps(),
-            'biz-1',
-            {},
-            services,
-          )
-        ).success,
-      ).toBe(false);
+      const clarify = await handleCreateGiftCardBundleLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        services,
+      );
+      expect(clarify.success).toBe(false);
+      // e2e-bug.157 — clarify must say gift card and redirect package phrasing
+      expect(clarify.summary).toMatch(/gift card/i);
+      expect(clarify.summary).toMatch(/Create a package called/i);
       expect(
         (
           await handleCreateGiftCardBundleLogic(

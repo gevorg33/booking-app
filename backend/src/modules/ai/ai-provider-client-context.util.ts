@@ -222,6 +222,14 @@ export function isExplainPackageVisitContextPrompt(prompt: string): boolean {
   if (/\b(?:list|cancel|show all)\b/i.test(lower)) return false;
   if (/\bfor\s+booking\b/i.test(lower)) return false;
   if (/\b(?:reschedule|move|shift)\b/i.test(lower)) return false;
+  // e2e-bug.129 — customer "visits left on my plan" is explain_my_subscription,
+  // not provider package-visit progress for a named client.
+  if (
+    /\bmy\s+(?:plan|membership|subscription)\b/i.test(lower) &&
+    !/\b(package|her|his|their|client|customer)\b/i.test(lower)
+  ) {
+    return false;
+  }
 
   return (
     (/\bpackage\b/i.test(lower) && /\bvisits?\b/i.test(lower)) ||

@@ -1,6 +1,6 @@
 import type { PlanTierId } from '../billing/plan-limits.js';
 import { resolveAccessTier, type AccessTier } from './access-control.matrix.js';
-import { mapAccessTierToRoleProfile } from './ai-platform.util.js';
+import { mapAccessTierToRoleProfile } from './ai-role-profile.util.js';
 import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import type { GuideFlowSurface } from './guide/guide-flow.types.js';

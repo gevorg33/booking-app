@@ -34,6 +34,18 @@ describe('ai-gift-card-payments-hints.util', () => {
     ).toBe('buy_gift_card_physical');
   });
 
+  it('rescues apply_gift_card_code steal for gift-for-someone (e2e-bug.51 / e2e-bug.53)', () => {
+    expect(
+      disambiguateGiftCardPaymentsAction(
+        'I want to buy a gift card for my mom',
+        'apply_gift_card_code',
+      ),
+    ).toEqual({
+      action: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
+    });
+  });
+
   it('inherits gift card code into checkout follow-up', () => {
     const params: Record<string, any> = {};
     inheritGiftCardPaymentsFollowUpContext(

@@ -10,10 +10,16 @@ import {
   isAddRetailSaleToBookingPrompt,
   isRemoveRetailLinePrompt,
   isRecordExpensePrompt,
+  isDeleteExpensePrompt,
   isListExpensesPrompt,
   isSummarizePlPrompt,
   isCommissionReportPrompt,
   isPayoutExportPrompt,
+  isCreateCommissionRulePrompt,
+  isExportAnalyticsReportPrompt,
+  parseCreateCommissionRuleFromPrompt,
+  parseExportAnalyticsReportFromPrompt,
+  rescueRetailFinanceIntent,
   isSuggestRetailUpsellPrompt,
   isAddRetailToMyBookingPrompt,
   isSearchRetailSkuPrompt,
@@ -22,6 +28,7 @@ import {
   extractRetailSearchQuery,
   extractSkuFromPrompt,
   extractRetailPriceFromPrompt,
+  enrichCreateProductParamsFromPrompt,
   extractQuantityFromPrompt,
   extractInventoryDeltaFromPrompt,
   extractServiceNameFromPrompt,
@@ -30,6 +37,9 @@ import {
   extractExpenseCategoryFromPrompt,
   extractExpenseAmountFromPrompt,
   extractExpenseDescriptionFromPrompt,
+  enrichDeleteExpenseParamsFromPrompt,
+  enrichRecordExpenseParamsFromPrompt,
+  normalizeExpenseCategory,
   extractProductIdFromPrompt,
   parseFirstProduct,
   parseRetailSalesLinesFromPrompt,
@@ -83,6 +93,32 @@ describe('ai-retail-finance.util', () => {
       );
     });
 
+    it('e2e-bug.146 — rescues create_commission_rule and export_analytics_report', () => {
+      const commissionPrompt =
+        'Set commission rate for Gevorg Gasparyan to 20 percent';
+      expect(isCreateCommissionRulePrompt(commissionPrompt)).toBe(true);
+      expect(isCommissionReportPrompt(commissionPrompt)).toBe(false);
+      expect(parseCreateCommissionRuleFromPrompt(commissionPrompt)).toEqual({
+        employeeName: 'Gevorg Gasparyan',
+        value: 20,
+        type: 'percent',
+      });
+      expect(rescueRetailFinanceIntent(commissionPrompt, 'unknown')).toEqual({
+        action: 'create_commission_rule',
+        rescueReason: 'create_commission_rule',
+      });
+
+      const exportPrompt = 'Export my analytics report for this quarter';
+      expect(isExportAnalyticsReportPrompt(exportPrompt)).toBe(true);
+      expect(parseExportAnalyticsReportFromPrompt(exportPrompt)).toEqual({
+        dateRange: 'this_quarter',
+      });
+      expect(rescueRetailFinanceIntent(exportPrompt, 'unknown')).toEqual({
+        action: 'export_analytics_report',
+        rescueReason: 'export_analytics_report',
+      });
+    });
+
     it('detects search_retail_sku prompts (ai-cmd-provider-5.4.5)', () => {
       expect(isSearchRetailSkuPrompt('Find SKU 12345')).toBe(true);
       expect(isSearchRetailSkuPrompt('Do we carry bond builder?')).toBe(true);
@@ -129,6 +165,16 @@ describe('ai-retail-finance.util', () => {
       expect(extractSkuFromPrompt('sku SH-01')).toBe('SH-01');
       expect(extractRetailPriceFromPrompt('retail 25')).toBe(25);
       expect(extractRetailPriceFromPrompt('price 19.99')).toBe(19.99);
+      expect(
+        extractRetailPriceFromPrompt(
+          'Add a retail product called QA Test Product priced at 5 dollars',
+        ),
+      ).toBe(5);
+      expect(
+        extractRetailPriceFromPrompt(
+          'Add a retail product called QA Test Product 2, price $5',
+        ),
+      ).toBe(5);
       expect(extractQuantityFromPrompt('quantity 12')).toBe(12);
       expect(extractQuantityFromPrompt('on hand 8')).toBe(8);
       expect(extractInventoryDeltaFromPrompt('adjust inventory by 10')).toBe(
@@ -156,10 +202,52 @@ describe('ai-retail-finance.util', () => {
       expect(extractExpenseCategoryFromPrompt('category "Supplies"')).toBe(
         'Supplies',
       );
+      expect(
+        extractExpenseCategoryFromPrompt(
+          'Add a $20 business expense today for QA test cleaning supplies',
+        ),
+      ).toBeNull();
+      expect(
+        normalizeExpenseCategory(
+          'today',
+          'Add a $20 business expense today for QA test cleaning supplies',
+        ),
+      ).toBe('supplies');
+      expect(
+        enrichRecordExpenseParamsFromPrompt(
+          { category: 'today', amount: 20 },
+          'Add a $20 business expense today for QA test cleaning supplies',
+        ),
+      ).toMatchObject({
+        category: 'supplies',
+        amount: 20,
+        description: 'QA test cleaning supplies',
+      });
       expect(extractExpenseAmountFromPrompt('expense supplies $120')).toBe(120);
       expect(
         extractExpenseDescriptionFromPrompt('description "Office rent"'),
       ).toBe('Office rent');
+      expect(
+        extractExpenseDescriptionFromPrompt(
+          'Delete the $20 QA test cleaning supplies expense I just added',
+        ),
+      ).toBe('QA test cleaning supplies');
+      expect(
+        enrichDeleteExpenseParamsFromPrompt(
+          {},
+          'Delete the $20 QA test cleaning supplies expense I just added',
+        ),
+      ).toMatchObject({ description: 'QA test cleaning supplies' });
+      expect(
+        isDeleteExpensePrompt(
+          'Delete the $20 QA test cleaning supplies expense I just added',
+        ),
+      ).toBe(true);
+      expect(
+        isRecordExpensePrompt(
+          'Delete the $20 QA test cleaning supplies expense I just added',
+        ),
+      ).toBe(false);
       expect(
         extractProductIdFromPrompt(
           'product 550e8400-e29b-41d4-a716-446655440000',
@@ -172,6 +260,26 @@ describe('ai-retail-finance.util', () => {
       expect(extractProductNameFromPrompt('no product')).toBeNull();
       expect(extractSkuFromPrompt('no sku')).toBeNull();
       expect(extractRetailPriceFromPrompt('no price')).toBeNull();
+      expect(extractQuantityFromPrompt('no qty')).toBeNull();
+    });
+
+    it('e2e-bug.148 — priced at N dollars enriches create_product price + retailPrice', () => {
+      const prompt =
+        'Add a retail product called QA Test Product priced at 5 dollars';
+      expect(enrichCreateProductParamsFromPrompt({}, prompt)).toMatchObject({
+        productName: expect.stringMatching(/QA Test Product/i),
+        price: 5,
+        retailPrice: 5,
+      });
+      expect(
+        decomposeRetailFinanceCompoundPrompt(prompt)[0]?.params,
+      ).toMatchObject({
+        price: 5,
+        retailPrice: 5,
+      });
+    });
+
+    it('keeps null extraction helpers after e2e-148 cases', () => {
       expect(extractQuantityFromPrompt('no qty')).toBeNull();
       expect(extractInventoryDeltaFromPrompt('no delta')).toBeNull();
       expect(extractServiceNameFromPrompt('no service')).toBeNull();

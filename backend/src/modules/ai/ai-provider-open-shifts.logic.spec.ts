@@ -3,7 +3,9 @@ import {
   handleDraftWaitlistOfferMessageLogic,
   handleListRebookingCandidatesLogic,
   handleListWaitlistForMyServicesLogic,
+  handleSuggestWaitlistForGapLogic,
 } from './ai-provider-open-shifts.logic.js';
+import { buildFillGapAiPrompt } from '../provider-mobile/provider-open-shifts.util.js';
 
 describe('ai-provider-open-shifts.logic (prov-exp-7.3)', () => {
   const businessService = { findOne: jest.fn() };
@@ -50,6 +52,40 @@ describe('ai-provider-open-shifts.logic (prov-exp-7.3)', () => {
       { id: 'c1', name: 'Anna' },
       { id: 'c2', name: 'Ben' },
     ]);
+  });
+
+  it('resolves ISO gap date from Fill-this-gap UI prompt when params.date is missing (e2e-bug.67)', async () => {
+    const prompt = buildFillGapAiPrompt('2026-07-15', {
+      startTime: '09:00',
+      endTime: '19:00',
+    });
+
+    const result = await handleSuggestWaitlistForGapLogic(
+      deps,
+      'biz-1',
+      'emp-1',
+      prompt,
+      {},
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('suggest_waitlist_for_gap');
+    expect(result.details?.date).toBe('2026-07-15');
+    expect(result.summary).not.toContain('Specify the gap date');
+  });
+
+  it('still clarifies when neither params nor prompt contain a date (e2e-bug.67)', async () => {
+    const result = await handleSuggestWaitlistForGapLogic(
+      deps,
+      'biz-1',
+      'emp-1',
+      'Fill this gap from waitlist',
+      {},
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Specify the gap date');
+    expect(result.details?.clarify).toBe(true);
   });
 
   it('drafts a copy-only offer message for the top waitlist candidate (ai-cmd-provider-5.5.3)', async () => {

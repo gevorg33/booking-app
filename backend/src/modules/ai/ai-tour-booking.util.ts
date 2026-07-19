@@ -358,10 +358,23 @@ export function parseExplainTourBookingFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedExplainTourBooking | null {
+  // e2e-bug.105 — book_tour_nearest_departure / tour_group_checkout step 1
+  // passes serviceName + aspect while the raw prompt is a mutate compound
+  // (isExplainTourBookingPrompt intentionally false). Accept structured
+  // compound params, not only tourGroupCheckout.
+  const hasStructuredService =
+    (typeof params.serviceName === 'string' &&
+      params.serviceName.trim().length > 0) ||
+    (typeof params.serviceId === 'string' &&
+      params.serviceId.trim().length > 0);
   const fromCompound =
-    params.tourGroupCheckout === true &&
-    typeof params.serviceName === 'string' &&
-    params.serviceName.trim().length > 0;
+    hasStructuredService &&
+    (params.tourGroupCheckout === true ||
+      params.bookingFirstAvailable === true ||
+      params.aspect === 'groupSize' ||
+      params.aspect === 'pricing' ||
+      params.aspect === 'duration' ||
+      params.aspect === 'all');
   if (!isExplainTourBookingPrompt(prompt) && !fromCompound) return null;
 
   const serviceId =

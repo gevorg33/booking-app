@@ -5,6 +5,7 @@ import {
   isCatalogIntent,
   isBulkCreateCatalogPrompt,
   isCreateServiceCategoryPrompt,
+  extractDeactivateServiceNameFromPrompt,
   isDeactivateServicePrompt,
   isCreatePackagePrompt,
   isUpdatePackagePrompt,
@@ -41,8 +42,13 @@ import {
   extractExpiresAtFromPrompt,
   extractMultiServiceLimits,
   extractPackageServiceNames,
+  extractCreatePackageParamsFromPrompt,
   CATALOG_INTENTS,
 } from './ai-catalog.util.js';
+import {
+  E2E157_CREATE_PACKAGE_SCENARIOS,
+  E2E157_GIFT_CARD_BUNDLE_STILL_MATCHES,
+} from './ai-e2e157-create-package.fixtures.js';
 
 describe('ai-catalog.util', () => {
   describe('prompt classifiers', () => {
@@ -131,6 +137,58 @@ describe('ai-catalog.util', () => {
       expect(isListSubscriptionPlansPrompt('show subscription plans')).toBe(
         true,
       );
+    });
+
+    it.each([
+      ['Delete the service called QA Test Trim', 'QA Test Trim'],
+      [
+        'Remove the QA Test Trim service from my catalog permanently',
+        'QA Test Trim',
+      ],
+      [
+        'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+        'QA Test Trim',
+      ],
+      ['Deactivate the QA Test Trim service', 'QA Test Trim'],
+    ] as const)(
+      'e2e-bug.144 — %s → deactivate_service with serviceName',
+      (prompt, serviceName) => {
+        expect(isDeactivateServicePrompt(prompt)).toBe(true);
+        expect(extractDeactivateServiceNameFromPrompt(prompt)).toBe(
+          serviceName,
+        );
+        expect(rescueCatalogIntent(prompt, 'remove_service_from_cart')?.action).toBe(
+          'deactivate_service',
+        );
+        expect(
+          rescueCatalogIntent(prompt, 'unassign_employee_services')?.action,
+        ).toBe('deactivate_service');
+        expect(rescueCatalogIntent(prompt, 'deactivate_employee')?.action).toBe(
+          'deactivate_service',
+        );
+        const rescued = rescueCatalogIntent(prompt, 'unknown');
+        expect(rescued?.action).toBe('deactivate_service');
+        expect(rescued?.params?.serviceName).toBe(serviceName);
+      },
+    );
+
+    it('e2e-bug.151 — new service category called X is not a promo code', () => {
+      const prompt = 'Add a new service category called Wellness';
+      expect(isCreateServiceCategoryPrompt(prompt)).toBe(true);
+      expect(rescueCatalogIntent(prompt, 'create_promo_code')).toEqual({
+        action: 'create_service_category',
+        rescueReason: 'service_category',
+      });
+      expect(rescueCatalogIntent(prompt, 'unknown')?.action).toBe(
+        'create_service_category',
+      );
+      const params: Record<string, unknown> = {};
+      enrichServiceCategoryRescueParams(
+        'create_service_category',
+        params,
+        prompt,
+      );
+      expect(params.categoryName).toBe('Wellness');
     });
 
     it('detects package and subscription plan prompts', () => {
@@ -671,5 +729,43 @@ describe('ai-catalog.util', () => {
       expect(isCatalogIntent(intent)).toBe(true);
     }
     expect(isCatalogIntent('create_booking')).toBe(false);
+  });
+
+  describe('e2e-bug.157 — package vs gift-card-bundle', () => {
+    it.each([...E2E157_CREATE_PACKAGE_SCENARIOS])(
+      '$id routes to create_package even when misclassified as gift-card bundle',
+      (row) => {
+        expect(isCreatePackagePrompt(row.prompt)).toBe(true);
+        expect(isCreateGiftCardBundlePrompt(row.prompt)).toBe(false);
+        expect(
+          rescueCatalogIntent(row.prompt, 'create_gift_card_bundle'),
+        ).toMatchObject({
+          action: row.expectedAction,
+          rescueReason: row.rescueReason,
+        });
+        expect(rescueCatalogIntent(row.prompt, 'unknown')?.action).toBe(
+          row.expectedAction,
+        );
+        const params = extractCreatePackageParamsFromPrompt(row.prompt);
+        expect(params.packageName).toBe(row.packageName);
+        expect(params.serviceNames).toEqual(
+          expect.arrayContaining(row.serviceNames),
+        );
+        expect((params.serviceNames as string[]).length).toBe(
+          row.serviceNames.length,
+        );
+      },
+    );
+
+    it.each([...E2E157_GIFT_CARD_BUNDLE_STILL_MATCHES])(
+      '$id still rescues explicit gift-card bundles',
+      (row) => {
+        expect(isCreateGiftCardBundlePrompt(row.prompt)).toBe(true);
+        expect(isCreatePackagePrompt(row.prompt)).toBe(false);
+        expect(rescueCatalogIntent(row.prompt, 'unknown')?.action).toBe(
+          row.expectedAction,
+        );
+      },
+    );
   });
 });

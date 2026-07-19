@@ -1097,9 +1097,16 @@ const ACTION_RULES: Record<string, Rule> = {
     [
       needs(
         'percentChange',
-        'Percent change',
-        !!(cmd.params.percentChange || cmd.params.priceChangePercent),
-        '10',
+        'Percent or dollar amount change',
+        !!(
+          cmd.params.percentChange ||
+          cmd.params.priceChangePercent ||
+          cmd.params.amountChange ||
+          cmd.params.priceChangeAmount ||
+          cmd.params.absoluteChange ||
+          cmd.params.priceDelta
+        ),
+        '10% or 5 dollars',
       ),
     ].filter(Boolean) as ValidationIssue[],
 

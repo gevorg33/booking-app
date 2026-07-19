@@ -249,17 +249,23 @@ export async function handleCancelPackageVisitWithTokenLogic(
   if ('success' in creds) return creds;
 
   try {
-    const { bookings } =
+    const { bookings, refundStatus } =
       await deps.publicCustomerBookingService.cancelPackageVisitWithToken(
         slug,
         creds.bookingId,
         creds.manageToken,
       );
-    return success(
-      'cancel_package_visit_with_token',
-      `Cancelled your package visit (${bookings.length} service${bookings.length === 1 ? '' : 's'}) — you're all set.`,
-      { bookingIds: bookings.map((b) => b.id) },
-    );
+    const baseSummary = `Cancelled your package visit (${bookings.length} service${bookings.length === 1 ? '' : 's'}) — you're all set.`;
+    const summary =
+      refundStatus === 'refunded'
+        ? `${baseSummary} We've refunded your payment to your original payment method.`
+        : refundStatus === 'failed'
+          ? `${baseSummary} The automatic refund didn't go through — please contact the salon about your refund.`
+          : baseSummary;
+    return success('cancel_package_visit_with_token', summary, {
+      bookingIds: bookings.map((b) => b.id),
+      refundStatus,
+    });
   } catch (err: any) {
     return failure(
       'cancel_package_visit_with_token',

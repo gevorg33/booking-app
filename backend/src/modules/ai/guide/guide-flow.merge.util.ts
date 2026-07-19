@@ -1,5 +1,5 @@
 import type { AccessTier } from '../access-control.matrix.js';
-import { mapAccessTierToRoleProfile } from '../ai-platform.util.js';
+import { mapAccessTierToRoleProfile } from '../ai-role-profile.util.js';
 import type { AiRoleProfile } from '../ai-settings.types.js';
 import {
   getLimitsForTier,

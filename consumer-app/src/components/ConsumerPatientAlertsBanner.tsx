@@ -14,10 +14,14 @@ import {
   type ClinicPatientAlertView,
   type ConsumerPatientAlertRoute,
 } from '../lib/clinic-patient-alerts.js';
+import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 
 export interface ConsumerPatientAlertsBannerProps {
   slug: string;
   copy: ConsumerCopy;
+  /** When set, clinic APIs are skipped for non-clinic businesses (e2e-bug.43). */
+  businessType?: string | null;
+  enabled?: boolean;
   onNavigate?: (route: ConsumerPatientAlertRoute, anchorId: string) => void;
 }
 
@@ -52,15 +56,23 @@ function alertTitle(copy: ConsumerCopy, type: ClinicPatientAlertView['type']): s
 export function ConsumerPatientAlertsBanner({
   slug,
   copy,
+  businessType,
+  enabled = true,
   onNavigate,
 }: ConsumerPatientAlertsBannerProps) {
   const queryClient = useQueryClient();
   const queryKey = ['consumer-patient-alerts', slug] as const;
+  const clinicEnabled =
+    enabled &&
+    !!slug &&
+    (businessType === undefined
+      ? true
+      : shouldShowPatientResultsTab(businessType));
 
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async () => unwrapPatientChartAlerts(await fetchMyClinicPatientAlerts(slug)),
-    enabled: !!slug,
+    enabled: clinicEnabled,
   });
 
   const dismissMutation = useMutation({

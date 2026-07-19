@@ -22,6 +22,10 @@ import { buildBookingDayOptions } from '@/lib/booking-day-options';
 import { useI18n } from '@/i18n';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { buildPackageLinesFromBlockStart, expandPackageServiceItems } from '@/lib/package-booking';
+import {
+  getPackageScheduleErrorMessage,
+  isVisitDurationCapError,
+} from '@/lib/error-message';
 
 interface PackageConfirmClientProps {
   slug: string;
@@ -118,7 +122,12 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           setSelectedStart(null);
           setEmployeeId(null);
           setEmployeeName(null);
-          setError((err as Error)?.message || t('common.errorGeneric'));
+          setError(
+            getPackageScheduleErrorMessage(err, {
+              packageCannotSchedule: t('public.packageCannotSchedule'),
+              fallback: t('common.errorGeneric'),
+            }),
+          );
         }
       } finally {
         if (slotsRequestRef.current === requestId) {
@@ -172,7 +181,18 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
         }
       } catch (err: unknown) {
         if (suggestRequestRef.current !== requestId) return;
-        setError((err as Error)?.message || t('public.packageNoBlock'));
+        setError(
+          getPackageScheduleErrorMessage(err, {
+            packageCannotSchedule: t('public.packageCannotSchedule'),
+            fallback: t('public.packageNoBlock'),
+          }),
+        );
+        // e2e-bug.15 — duration-cap is terminal; don't re-hit block-slots and overwrite the message.
+        if (isVisitDurationCapError(err)) {
+          setSlots([]);
+          setSlotsLoading(false);
+          return;
+        }
         const today = new Date().toISOString().slice(0, 10);
         if (!userPickedDateRef.current) {
           setDateKey(today);
@@ -475,6 +495,7 @@ export function PackageConfirmClient({ slug, tenant, pkg, backHref }: PackageCon
           error={null}
           emptyLabel={t('public.noSlotsThisDay')}
           heading={t('public.availableSlots')}
+          timeZone={tz}
         />
       </main>
       <FixedActionBar

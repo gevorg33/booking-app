@@ -25,6 +25,10 @@ import {
 } from '../../../modules/booking/entities/booking.entity.js';
 import { Employee } from '../../../modules/employee/entities/employee.entity.js';
 import { Customer } from '../../../modules/customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../../../modules/customer/customer-tag-query.util.js';
 import { Business } from '../../../modules/business/entities/business.entity.js';
 import { SchedulingPeriod } from '../../../modules/schedule/entities/scheduling-period.entity.js';
 import { NotificationsService } from '../../../modules/notifications/notifications.service.js';
@@ -454,6 +458,14 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
       );
       totalPeriodsRemoved += result.periodsRemoved;
       totalSlotsRemoved += result.slotsRemoved;
+    }
+
+    // e2e-bug.136 — never report success when the mutation matched zero rows
+    // (e.g. "unblock" misrouted here left block_schedules intact).
+    if (totalPeriodsRemoved === 0 && totalSlotsRemoved === 0) {
+      throw new BadRequestException(
+        'Nothing to clear — no applied schedule periods or slots matched that day. To remove a time block, use delete/unblock the schedule block instead.',
+      );
     }
 
     return {
@@ -964,11 +976,18 @@ export class WorkflowStepExecutorsService implements OnModuleInit {
 
     const [taggedWaitlist, recentCancelled, activeCustomers] =
       await Promise.all([
-        this.customerRepo
-          .createQueryBuilder('c')
-          .where('c.business_id = :businessId', { businessId })
-          .andWhere(`'waitlist' = ANY(c.tags)`)
-          .getMany(),
+        (() => {
+          const waitlistQb = this.customerRepo
+            .createQueryBuilder('c')
+            .where('c.business_id = :businessId', { businessId });
+          andWhereSimpleArrayTag(
+            waitlistQb,
+            'c',
+            WAITLIST_CUSTOMER_TAG,
+            'waitlistTag',
+          );
+          return waitlistQb.getMany();
+        })(),
         this.bookingRepo.find({
           where: {
             businessId,

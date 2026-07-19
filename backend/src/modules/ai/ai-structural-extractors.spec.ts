@@ -443,6 +443,24 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
         'at_risk',
       );
     });
+
+    it('e2e-bug.155 — total cancellation asks use overview', () => {
+      expect(
+        resolveCustomerMetric(
+          { customerMetric: 'most_cancellations' },
+          'How many cancellations have I had in total?',
+        ),
+      ).toBe('overview');
+    });
+
+    it('e2e-bug.153 — how many customers overrides most_no_shows params', () => {
+      expect(
+        resolveCustomerMetric(
+          { customerMetric: 'most_no_shows' },
+          'How many customers do I have?',
+        ),
+      ).toBe('overview');
+    });
   });
 
   describe('earnings and specialist revenue heuristics', () => {

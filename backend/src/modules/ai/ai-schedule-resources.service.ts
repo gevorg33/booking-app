@@ -27,6 +27,7 @@ import {
   handleExplainWhyNoSlotsLogic,
   handleListResourceConflictsLogic,
   handleListSchedulingResourcesLogic,
+  handleListServiceResourceRequirementsLogic,
   handleMyResourceAssignmentsLogic,
   handleProvidersAvailableLaterDaysLogic,
   handleScheduleResourceCompoundLogic,
@@ -77,6 +78,19 @@ export class AiScheduleResourcesService {
 
   handleListSchedulingResources(businessId: string) {
     return handleListSchedulingResourcesLogic(this.deps, businessId);
+  }
+
+  handleListServiceResourceRequirements(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+  ) {
+    return handleListServiceResourceRequirementsLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+    );
   }
 
   handleCreateResource(businessId: string, params: Record<string, any>) {

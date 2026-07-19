@@ -65,3 +65,104 @@ export function enrichRescheduleWithTokenParamsFromPrompt(
   );
   return { ...next, ...resolveManageBookingCredentials(next, prompt) };
 }
+
+const CANCEL_VERB = /\b(cancel|skip)\b/i;
+const RESCHEDULE_VERB = /\b(reschedule|move|shift)\b/i;
+/** e2e-bug.103 — align with package-visit-self cues (spa day / my package). */
+const PACKAGE_VISIT_CUE =
+  /\bpackage\s+visit\b|\bwhole\s+(?:spa\s+)?day\b|\bpackage\s+appointment\b|\bspa\s+day\b|\bmy\s+package\b|\bpackage\s+bundle\b/i;
+
+function isManageLinkPolicyOrExplainQuestion(prompt: string): boolean {
+  return /\b(can\s+i|am\s+i|will\s+i|do\s+i|what\s+(?:are|is|happens)|explain|rules?|policy|terms?|tell\s+me\s+about|what'?s\s+this)\b/i.test(
+    prompt,
+  );
+}
+
+/** True when the prompt embeds a full guest manage-link bookingId+token pair. */
+export function hasManageLinkCredentialsInPrompt(prompt: string): boolean {
+  const { bookingId, manageToken } =
+    extractManageLinkCredentialsFromPrompt(prompt);
+  return Boolean(bookingId && manageToken);
+}
+
+/** True when session already carries manage-link credentials (e2e-bug.106 page context). */
+export function hasManageLinkCredentialsInSession(
+  session?: Record<string, unknown> | null,
+): boolean {
+  if (!session) return false;
+  const bookingId =
+    typeof session.bookingId === 'string' ? session.bookingId.trim() : '';
+  const manageToken =
+    typeof session.manageToken === 'string' ? session.manageToken.trim() : '';
+  return Boolean(bookingId && manageToken);
+}
+
+export function hasManageLinkCredentials(
+  prompt: string,
+  session?: Record<string, unknown> | null,
+): boolean {
+  return (
+    hasManageLinkCredentialsInPrompt(prompt) ||
+    hasManageLinkCredentialsInSession(session)
+  );
+}
+
+/**
+ * e2e-bug.134 — guest pasted a manage link + cancel/reschedule must NOT fall
+ * through to session-only my_appointments / cancel_my_booking.
+ * e2e-bug.106 — same when bookingId+manageToken are already in page/session context
+ * (manage URL query), even if the customer did not paste the link into chat.
+ */
+export function rescueManageBookingWithTokenIntent(
+  prompt: string,
+  action: string,
+  session?: Record<string, unknown> | null,
+): { action: ManageBookingWithTokenIntent; rescueReason: string } | null {
+  if (!hasManageLinkCredentials(prompt, session)) return null;
+
+  const packageCue = PACKAGE_VISIT_CUE.test(prompt);
+  const wantsCancel = CANCEL_VERB.test(prompt);
+  const wantsReschedule = RESCHEDULE_VERB.test(prompt);
+  const explainOrPolicy = isManageLinkPolicyOrExplainQuestion(prompt);
+
+  if (packageCue && wantsCancel && !explainOrPolicy) {
+    if (action === 'cancel_package_visit_with_token') return null;
+    return {
+      action: 'cancel_package_visit_with_token',
+      rescueReason: 'cancel_package_visit_with_token',
+    };
+  }
+  if (packageCue && wantsReschedule && !explainOrPolicy) {
+    if (action === 'reschedule_package_visit_with_token') return null;
+    return {
+      action: 'reschedule_package_visit_with_token',
+      rescueReason: 'reschedule_package_visit_with_token',
+    };
+  }
+  if (wantsCancel && !explainOrPolicy) {
+    if (action === 'cancel_booking_with_token') return null;
+    return {
+      action: 'cancel_booking_with_token',
+      rescueReason: 'cancel_booking_with_token',
+    };
+  }
+  if (wantsReschedule && !explainOrPolicy) {
+    if (action === 'reschedule_booking_with_token') return null;
+    return {
+      action: 'reschedule_booking_with_token',
+      rescueReason: 'reschedule_booking_with_token',
+    };
+  }
+  if (explainOrPolicy || /\b(this\s+booking|this\s+appointment)\b/i.test(prompt)) {
+    if (action === 'explain_manage_booking_context') return null;
+    return {
+      action: 'explain_manage_booking_context',
+      rescueReason: 'explain_manage_booking_context',
+    };
+  }
+  return null;
+}
+
+/** Public-surface copy of classifier rules (same intents; schema import clarity). */
+export const PUBLIC_MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES =
+  MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES;

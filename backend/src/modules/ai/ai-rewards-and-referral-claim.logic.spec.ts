@@ -44,6 +44,9 @@ function buildDeps(
     pushNotifications: {} as any,
     notificationsService: {} as any,
     consumerPushTokenService: {} as any,
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    } as any,
     ...overrides,
   };
 }
@@ -76,6 +79,21 @@ describe('handleExplainRewardsWalletLogic', () => {
     });
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
+  });
+
+  // e2e-bug.125
+  it('resolves slug from businessId when params.slug is missing', async () => {
+    const result = await handleExplainRewardsWalletLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
+    });
+    expect(result.success).toBe(true);
+    expect(deps.businessRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+    });
+    expect(deps.publicBookingService.getCustomerRewards).toHaveBeenCalledWith(
+      'salon',
+      'cust-1',
+    );
   });
 
   it('handles an empty wallet', async () => {
@@ -115,6 +133,18 @@ describe('handleClaimReferralCodeLogic', () => {
     ).toHaveBeenCalledWith('salon', 'cust-1', 'FRIEND10');
   });
 
+  // e2e-bug.125
+  it('claims referral code without params.slug via businessId lookup', async () => {
+    const result = await handleClaimReferralCodeLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
+      referralCode: 'FRIEND10',
+    });
+    expect(result.success).toBe(true);
+    expect(
+      deps.publicBookingService.claimCustomerReferralCode,
+    ).toHaveBeenCalledWith('salon', 'cust-1', 'FRIEND10');
+  });
+
   it('requires sign-in', async () => {
     const result = await handleClaimReferralCodeLogic(deps, 'biz-1', {
       slug: 'salon',
@@ -138,6 +168,7 @@ describe('handleClaimReferralCodeLogic', () => {
     ['invalid_code', "couldn't find"],
     ['already_attached', 'already claimed'],
     ['self_referral', "can't claim your own"],
+    ['not_eligible_existing_customer', 'new customers'],
   ])('surfaces a friendly message for reason=%s', async (reason, expected) => {
     (
       deps.publicBookingService.claimCustomerReferralCode as jest.Mock
@@ -163,6 +194,19 @@ describe('handleClaimShareRewardLogic', () => {
     const result = await handleClaimShareRewardLogic(deps, 'biz-1', {
       sessionCustomerId: 'cust-1',
       slug: 'salon',
+      channel: 'booking',
+      bookingId: 'book-1',
+    });
+    expect(result.success).toBe(true);
+    expect(
+      deps.publicBookingService.claimCustomerShareReward,
+    ).toHaveBeenCalledWith('salon', 'cust-1', 'booking', 'book-1');
+  });
+
+  // e2e-bug.125
+  it('claims share reward without params.slug via businessId lookup', async () => {
+    const result = await handleClaimShareRewardLogic(deps, 'biz-1', {
+      sessionCustomerId: 'cust-1',
       channel: 'booking',
       bookingId: 'book-1',
     });

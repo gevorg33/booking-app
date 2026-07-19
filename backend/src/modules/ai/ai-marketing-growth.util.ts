@@ -20,6 +20,7 @@ import {
   rescueCreatePromoCodeIntent,
   rescueDeactivatePromoCodeIntent,
 } from './ai-create-promo-code.util.js';
+import { rescueListPromoCodesIntent } from './ai-list-promo-codes.util.js';
 import { isApplyPromoCodeCheckoutPrompt } from './ai-apply-promo-code-checkout.util.js';
 import {
   isConfigureLoyaltySettingsPrompt,
@@ -60,6 +61,7 @@ export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
 export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'summarize_automation_performance',
   'list_inactive_customers',
+  'list_promo_codes',
   'explain_plan_limits',
   'explain_plan_entitlements',
   'suggest_upgrade',
@@ -517,6 +519,8 @@ export function rescueMarketingGrowthIntent(
       rescueReason: 'apply_promo_code_checkout',
     };
   }
+  const listPromo = rescueListPromoCodesIntent(prompt, action);
+  if (listPromo) return listPromo;
   const createPromo = rescueCreatePromoCodeIntent(prompt, action);
   if (createPromo) return createPromo;
   const deactivatePromo = rescueDeactivatePromoCodeIntent(prompt, action);

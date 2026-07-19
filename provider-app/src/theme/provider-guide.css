@@ -9,7 +9,8 @@
   margin-bottom: 1.5rem;
   padding: 0.75rem;
   border-radius: 12px;
-  background: var(--ion-color-light, #f4f5f8);
+  /* e2e-bug.68 — use dark-theme surface token; --ion-color-light stays light-mode white. */
+  background: var(--ion-card-background, var(--ion-item-background, #111827));
 }
 
 .provider-guide-toc__label {
@@ -42,7 +43,7 @@
 .provider-guide-section {
   scroll-margin-top: 72px;
   padding-bottom: var(--provider-guide-section-gap);
-  border-bottom: 1px solid var(--ion-color-light-shade, #d7d8da);
+  border-bottom: 1px solid var(--ion-color-step-200, rgba(255, 255, 255, 0.12));
 }
 
 .provider-guide-section:last-child {

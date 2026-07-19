@@ -107,7 +107,7 @@ export async function handleCompleteIntakeAndBookLogic(
   const bookingFirstAvailable = parsed?.bookingFirstAvailable === true;
   const navigate = buildCompleteIntakeAndBookNavigate(service.id);
 
-  let intakeId: string | undefined;
+  let intakeId: string;
   let intakeStatus: string | undefined;
   try {
     const draft = await deps.publicPreVisitIntakeService.ensureCustomerDraft(
@@ -117,9 +117,21 @@ export async function handleCompleteIntakeAndBookLogic(
     );
     intakeId = draft.id;
     intakeStatus = draft.status;
-  } catch {
-    // Fall back to a navigate-only handoff — the client can still start
-    // intake manually on the booking page (ai-cmd-customer-6.4.2).
+  } catch (err: unknown) {
+    // e2e-bug.98 — never report success when the draft was not persisted.
+    // Surface the real precondition failure (e.g. no published questionnaire).
+    const message =
+      err instanceof Error && err.message.trim()
+        ? err.message
+        : 'Could not start the pre-visit intake for this lab test.';
+    return failure('complete_intake_and_book', message, {
+      clarify: true,
+      draftFailed: true,
+      serviceId: service.id,
+      serviceName: service.name,
+      // Client may still open the booking page to retry once intake is configured.
+      navigate,
+    });
   }
 
   const summary = formatCompleteIntakeAndBookSummary(
@@ -136,15 +148,16 @@ export async function handleCompleteIntakeAndBookLogic(
     bookingFirstAvailable,
     clientAction: 'startConsumerPreVisitIntake',
     navigate,
-    ...(intakeId ? { intakeId, intakeStatus } : {}),
+    intakeId,
+    intakeStatus,
     sessionContext: {
       serviceId: service.id,
       serviceName: service.name,
       bookingPhase: 'intake',
       completeIntakeAndBook: true,
       preVisitIntakeRequired: true,
+      intakeId,
       ...(bookingFirstAvailable ? { bookingFirstAvailable: true } : {}),
-      ...(intakeId ? { intakeId } : {}),
     },
   });
 }

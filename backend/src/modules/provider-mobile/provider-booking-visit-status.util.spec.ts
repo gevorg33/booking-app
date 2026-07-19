@@ -17,10 +17,12 @@ import { buildProviderVisitStatusCustomerSms } from '../../common/utils/provider
 describe('provider-booking-visit-status.util (prov-exp-3.2)', () => {
   it.each(PROVIDER_VISIT_STATUS_ELIGIBILITY_SCENARIOS)(
     'buildProviderVisitStatusEligibility — $id',
-    ({ booking, allowed }) => {
-      expect(buildProviderVisitStatusEligibility(booking).allowed).toBe(
-        allowed,
-      );
+    (row) => {
+      const result = buildProviderVisitStatusEligibility(row.booking);
+      expect(result.allowed).toBe(row.allowed);
+      if ('reason' in row && row.reason) {
+        expect(result.reason).toBe(row.reason);
+      }
     },
   );
 

@@ -18,9 +18,14 @@ import { useHistory, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
+import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
+import { ConsumerProviderAvatar } from '../components/ConsumerProviderAvatar.js';
 import { formatPublicMoney } from '../lib/business-currency.js';
 import { formatCopy } from '../lib/copy.js';
-import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
+import { formatScheduleTime } from '../lib/date-format.js';
+import type { PublicServiceSlotProvider } from '../lib/types.js';
 import {
   buildPackageCheckoutPath,
   buildPackagePickerPath,
@@ -29,6 +34,10 @@ import {
   expandPackageServiceItems,
 } from '../lib/package-booking.js';
 import { resolvePackageItemPricing } from '../lib/package-item-pricing.util.js';
+import {
+  formatPackageScheduleError,
+  isVisitDurationCapError,
+} from '../lib/consumer-network-ux.util.js';
 import { toDateKey } from '../lib/multi-service-booking.js';
 import {
   fetchPackageBlockSlots,
@@ -36,6 +45,28 @@ import {
   fetchPublicPackage,
   suggestPackageBlock,
 } from '../services/public-api.js';
+
+type PackageSlotProvider = PublicServiceSlotProvider & { earliestStartTime?: string };
+
+function normalizePackageProvider(provider: {
+  id: string;
+  name: string;
+  role?: string | null;
+  avatarUrl?: string | null;
+  averageRating?: number | null;
+  reviewCount?: number;
+  earliestStartTime?: string;
+}): PackageSlotProvider {
+  return {
+    id: provider.id,
+    name: provider.name,
+    role: provider.role ?? undefined,
+    avatarUrl: provider.avatarUrl ?? undefined,
+    averageRating: provider.averageRating ?? null,
+    reviewCount: provider.reviewCount ?? 0,
+    earliestStartTime: provider.earliestStartTime,
+  };
+}
 
 export default function PackageConfirmPage() {
   const history = useHistory();
@@ -57,13 +88,8 @@ export default function PackageConfirmPage() {
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
-  const [slotProviders, setSlotProviders] = useState<
-    Array<{ id: string; name: string; earliestStartTime?: string }>
-  >([]);
-  const [laterProviders, setLaterProviders] = useState<
-    Array<{ id: string; name: string; earliestStartTime?: string }>
-  >([]);
-  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+  const [slotProviders, setSlotProviders] = useState<PackageSlotProvider[]>([]);
+  const [laterProviders, setLaterProviders] = useState<PackageSlotProvider[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -120,7 +146,12 @@ export default function PackageConfirmPage() {
           setSelectedStart(null);
           setEmployeeId(null);
           setEmployeeName(null);
-          setMessage((err as Error)?.message || copy.loadAvailableTimesFailed);
+          setMessage(
+            formatPackageScheduleError(err, {
+              packageCannotSchedule: copy.packageCannotSchedule,
+              fallback: copy.loadAvailableTimesFailed,
+            }),
+          );
         }
       } finally {
         if (slotsRequestRef.current === requestId) {
@@ -128,7 +159,7 @@ export default function PackageConfirmPage() {
         }
       }
     },
-    [copy.loadAvailableTimesFailed, packageId, slug],
+    [copy.loadAvailableTimesFailed, copy.packageCannotSchedule, packageId, slug],
   );
 
   useEffect(() => {
@@ -143,7 +174,6 @@ export default function PackageConfirmPage() {
     setSlots([]);
     setSlotProviders([]);
     setLaterProviders([]);
-    setProviderPickerOpen(false);
     setPageLoading(true);
     setSlotsLoading(true);
     setMessage('');
@@ -172,7 +202,18 @@ export default function PackageConfirmPage() {
         }
       } catch (err: unknown) {
         if (suggestRequestRef.current !== requestId) return;
-        setMessage((err as Error)?.message || copy.packageNoBlock);
+        setMessage(
+          formatPackageScheduleError(err, {
+            packageCannotSchedule: copy.packageCannotSchedule,
+            fallback: copy.packageNoBlock,
+          }),
+        );
+        // e2e-bug.15 — duration-cap is terminal; don't re-hit block-slots and overwrite the message.
+        if (isVisitDurationCapError(err)) {
+          setSlots([]);
+          setSlotsLoading(false);
+          return;
+        }
         const today = new Date().toISOString().slice(0, 10);
         if (!userPickedDateRef.current) {
           setDateKey(today);
@@ -186,7 +227,7 @@ export default function PackageConfirmPage() {
         if (suggestRequestRef.current === requestId) setPageLoading(false);
       }
     })();
-  }, [copy.packageNoBlock, loadDaySlots, packageId, slug]);
+  }, [copy.packageCannotSchedule, copy.packageNoBlock, loadDaySlots, packageId, slug]);
 
   useEffect(() => {
     if (!selectedStart || !slug || !packageId) {
@@ -202,8 +243,8 @@ export default function PackageConfirmPage() {
     ])
       .then(([slotResult, laterResult]) => {
         if (cancelled) return;
-        setSlotProviders(slotResult.providers);
-        setLaterProviders(laterResult.providers);
+        setSlotProviders(slotResult.providers.map(normalizePackageProvider));
+        setLaterProviders(laterResult.providers.map(normalizePackageProvider));
       })
       .catch(() => {
         if (!cancelled) {
@@ -218,7 +259,7 @@ export default function PackageConfirmPage() {
   }, [packageId, selectedStart, slug]);
 
   const availableProviders = useMemo(() => {
-    const byId = new Map<string, { id: string; name: string; earliestStartTime?: string }>();
+    const byId = new Map<string, PackageSlotProvider>();
     for (const provider of slotProviders) byId.set(provider.id, provider);
     for (const provider of laterProviders) {
       if (!byId.has(provider.id)) byId.set(provider.id, provider);
@@ -274,11 +315,12 @@ export default function PackageConfirmPage() {
   const tz = profile.timezone || 'UTC';
 
   return (
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildPackagePickerPath(slug)} />
+            <IonBackButton defaultHref={buildPackagePickerPath(slug)}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.schedulePackage}</IonTitle>
         </IonToolbar>
@@ -298,57 +340,10 @@ export default function PackageConfirmPage() {
           </IonLabel>
         </IonItem>
 
-        {(selectedProviderName || employeeId) && (
-          <IonItem
-            button
-            detail={availableProviders.length > 1}
-            onClick={() => availableProviders.length > 1 && setProviderPickerOpen((open) => !open)}
-          >
-            <IonLabel>
-              <p style={{ fontSize: 12, color: '#6b7280' }}>{copy.selectSpecialist}</p>
-              <h3>{selectedProviderName || copy.selectSpecialist}</h3>
-            </IonLabel>
-          </IonItem>
-        )}
-
-        {providerPickerOpen ? (
-          <IonList>
-            {availableProviders.map((provider) => (
-              <IonItem
-                key={provider.id}
-                button
-                color={employeeId === provider.id ? 'primary' : undefined}
-                onClick={() => {
-                  setEmployeeId(provider.id);
-                  setEmployeeName(provider.name);
-                  if (
-                    provider.earliestStartTime &&
-                    provider.earliestStartTime !== selectedStartRef.current
-                  ) {
-                    selectedStartRef.current = provider.earliestStartTime;
-                    setSelectedStart(provider.earliestStartTime);
-                    const nextDate = toDateKey(provider.earliestStartTime, tz);
-                    setDateKey(nextDate);
-                    dateKeyRef.current = nextDate;
-                  }
-                  setProviderPickerOpen(false);
-                }}
-              >
-                <IonLabel>
-                  <h3>{provider.name}</h3>
-                  {provider.earliestStartTime &&
-                  provider.earliestStartTime !== selectedStart ? (
-                    <p>{formatDateDisplay(provider.earliestStartTime, locale)}</p>
-                  ) : null}
-                </IonLabel>
-              </IonItem>
-            ))}
-          </IonList>
-        ) : null}
-
         <IonItem lines="none">
           <IonLabel position="stacked">{copy.dateLabel}</IonLabel>
           <IonDatetime
+            className="consumer-booking-datetime"
             presentation="date"
             min={minDate}
             value={dateKey}
@@ -373,29 +368,62 @@ export default function PackageConfirmPage() {
         {slotsLoading ? (
           <IonSpinner className="ion-margin-top" />
         ) : (
-          <IonList>
-            {slots.map((slot) => (
-              <IonItem
-                key={slot.startTime}
-                button
-                color={selectedStart === slot.startTime ? 'primary' : undefined}
-                onClick={() => {
-                  selectedStartRef.current = slot.startTime;
-                  setSelectedStart(slot.startTime);
-                  setEmployeeId(slot.employeeId);
-                  setEmployeeName(slot.employeeName);
-                  setProviderPickerOpen(false);
-                }}
-              >
-                <IonLabel>
-                  {formatScheduleTime(slot.startTime, locale)}
-                  {slot.employeeName ? ` · ${slot.employeeName}` : ''}
-                </IonLabel>
-              </IonItem>
-            ))}
-            {slots.length === 0 ? <p className="ion-padding">{copy.noTimesAvailable}</p> : null}
-          </IonList>
+          <ConsumerGroupedTimeSlotList
+            slots={slots}
+            selectedStartTime={selectedStart}
+            onSelect={(startTime) => {
+              selectedStartRef.current = startTime;
+              setSelectedStart(startTime);
+              const match = slots.find((slot) => slot.startTime === startTime);
+              setEmployeeId(match?.employeeId ?? null);
+              setEmployeeName(match?.employeeName ?? null);
+            }}
+            copy={copy}
+            primaryColor={primary}
+            formatSlotLabel={(startTime) => formatScheduleTime(startTime, locale)}
+          />
         )}
+
+        {!slotsLoading && availableProviders.length > 1 ? (
+          <ConsumerSlotSpecialistPicker
+            copy={copy}
+            primaryColor={primary}
+            providers={availableProviders}
+            value={employeeId ?? ''}
+            onChange={(nextEmployeeId) => {
+              setEmployeeId(nextEmployeeId || null);
+              const provider = availableProviders.find((entry) => entry.id === nextEmployeeId);
+              setEmployeeName(provider?.name ?? null);
+              if (provider?.earliestStartTime && provider.earliestStartTime !== selectedStartRef.current) {
+                selectedStartRef.current = provider.earliestStartTime;
+                setSelectedStart(provider.earliestStartTime);
+                const nextDate = toDateKey(provider.earliestStartTime, tz);
+                setDateKey(nextDate);
+                dateKeyRef.current = nextDate;
+              }
+            }}
+          />
+        ) : null}
+
+        {!slotsLoading && availableProviders.length === 1 ? (
+          <IonItem lines="none">
+            <div slot="start">
+              <ConsumerProviderAvatar
+                name={availableProviders[0]!.name}
+                avatarUrl={availableProviders[0]!.avatarUrl}
+                primaryColor={primary}
+                size={36}
+              />
+            </div>
+            <IonLabel>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>{copy.selectSpecialist}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{availableProviders[0]!.name}</p>
+              {availableProviders[0]!.role ? (
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{availableProviders[0]!.role}</p>
+              ) : null}
+            </IonLabel>
+          </IonItem>
+        ) : null}
 
         {expandedItems.length > 0 ? (
           <IonList>
@@ -432,5 +460,6 @@ export default function PackageConfirmPage() {
         </IonButton>
       </IonContent>
     </IonPage>
+    </ConsumerAiShell>
   );
 }

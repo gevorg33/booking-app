@@ -308,10 +308,21 @@ describe('ai-gift-fulfillment.logic', () => {
 
   it('cancels orders and extends cancel window', async () => {
     const deps = buildDeps();
+    const cancelNoReason = await handleCancelGiftCardOrderLogic(
+      deps,
+      'biz-1',
+      { giftCardId: 'gc-1' },
+    );
+    expect(cancelNoReason.success).toBe(false);
+    expect(cancelNoReason.details).toMatchObject({
+      clarify: true,
+      missing: ['reason'],
+    });
     expect(
       (
         await handleCancelGiftCardOrderLogic(deps, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'Customer requested cancellation',
         })
       ).success,
     ).toBe(true);
@@ -346,6 +357,7 @@ describe('ai-gift-fulfillment.logic', () => {
       (
         await handleCancelGiftCardOrderLogic(noBiz, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'Customer requested cancellation',
         })
       ).success,
     ).toBe(false);
@@ -368,6 +380,7 @@ describe('ai-gift-fulfillment.logic', () => {
       (
         await handleCancelGiftCardOrderLogic(noRefund, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'No refund needed — unused',
         })
       ).success,
     ).toBe(true);
@@ -1011,8 +1024,9 @@ describe('ai-gift-fulfillment.logic', () => {
             }
           : action === 'extend_cancel_window'
             ? { cancelModifyWindowHours: 48 }
-            : action === 'cancel_gift_card_order' ||
-                action === 'print_packing_slip' ||
+            : action === 'cancel_gift_card_order'
+              ? { giftCardId: 'gc-1', reason: 'Test cancellation' }
+              : action === 'print_packing_slip' ||
                 action === 'start_card_preparation' ||
                 action === 'mark_delivered' ||
                 action === 'mark_out_for_delivery' ||

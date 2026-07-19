@@ -1,8 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
+  allowsNonEssentialTracking,
   cookieConsentStorageKey,
   hasAcceptedCookies,
   readCookieConsent,
+  shouldShowCookieConsentBanner,
   writeCookieConsent,
 } from './cookie-consent';
 
@@ -88,5 +90,34 @@ describe('cookie-consent', () => {
     });
     expect(readCookieConsent(slug)).toBeNull();
     expect(() => writeCookieConsent(slug, 'accepted')).not.toThrow();
+  });
+
+  it('allowsNonEssentialTracking requires accept when banner is enabled', () => {
+    expect(allowsNonEssentialTracking(slug, { cookieBannerEnabled: true })).toBe(
+      false,
+    );
+    writeCookieConsent(slug, 'rejected');
+    expect(allowsNonEssentialTracking(slug, { cookieBannerEnabled: true })).toBe(
+      false,
+    );
+    writeCookieConsent(slug, 'accepted');
+    expect(allowsNonEssentialTracking(slug, { cookieBannerEnabled: true })).toBe(
+      true,
+    );
+  });
+
+  it('allowsNonEssentialTracking when banner is disabled (no prompt)', () => {
+    expect(
+      allowsNonEssentialTracking(slug, { cookieBannerEnabled: false }),
+    ).toBe(true);
+  });
+
+  it('shouldShowCookieConsentBanner only when enabled and undecided', () => {
+    expect(shouldShowCookieConsentBanner(slug, false)).toBe(false);
+    expect(shouldShowCookieConsentBanner(slug, true)).toBe(true);
+    writeCookieConsent(slug, 'rejected');
+    expect(shouldShowCookieConsentBanner(slug, true)).toBe(false);
+    writeCookieConsent(slug, 'accepted');
+    expect(shouldShowCookieConsentBanner(slug, true)).toBe(false);
   });
 });

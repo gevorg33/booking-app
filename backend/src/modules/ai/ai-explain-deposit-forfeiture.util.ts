@@ -20,7 +20,7 @@ export type ExplainDepositForfeitureIntent =
 export { CUSTOMER_PUBLIC_EXPLAIN_DEPOSIT_FORFEITURE_CLASSIFIER_RULES } from './ai-explain-deposit-forfeiture.fixtures.js';
 
 const DEPOSIT_FORFEITURE_CUE = new RegExp(
-  String.raw`\b(?:deposit|prepayment|50\s*%|forfeit|refund(?:able)?|lose\s+my|get\s+my|give\s+back|cancellation\s+fee|cancel\s+for\s+free|free\s+cancel|late\s+cancel)\b|անկախավճ|վերադարձ|депозит|вернут|бесплатн|forfeit`,
+  String.raw`\b(?:deposit|prepayment|50\s*%|forfeit(?:ure)?|refund(?:able)?|lose\s+my|get\s+my|give\s+back|cancellation\s+fee|cancel\s+for\s+free|free\s+cancel|late\s+cancel)\b|անկախավճ|վերադարձ|депозит|вернут|бесплатн|forfeit`,
   'iu',
 );
 
@@ -88,6 +88,17 @@ export function isExplainDepositForfeiturePrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // Keep "why is there a deposit …" / bare "explain the deposit policy" on why-stripe
+  // unless cancel/forfeit/refund framing is present (e2e-bug.113 boundary).
+  if (
+    (/\bwhy\s+is\s+there\s+a\s+deposit\b/i.test(prompt) ||
+      /\bexplain\s+(?:the\s+)?deposit\s+policy\b/i.test(prompt)) &&
+    !/\b(?:forfeit|cancel|refund|lose|get\s+(?:my\s+)?(?:deposit|prepayment)\s+back|to\s+book)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
 
   if (
     AMOUNT_DUE_CUE.test(prompt) &&
@@ -114,6 +125,16 @@ export function isExplainDepositForfeiturePrompt(prompt: string): boolean {
     !DEPOSIT_FORFEITURE_CUE.test(prompt)
   ) {
     return false;
+  }
+
+  // e2e-bug.113 — "why do I have to pay a deposit to book?" (not named-service why-deposit).
+  if (
+    /\bwhy\b/i.test(prompt) &&
+    /\b(?:have\s+to\s+|must\s+)?pay\b/i.test(prompt) &&
+    /\bdeposit\b/i.test(prompt) &&
+    /\b(?:to\s+)?book(?:ing)?\b/i.test(prompt)
+  ) {
+    return true;
   }
 
   return (

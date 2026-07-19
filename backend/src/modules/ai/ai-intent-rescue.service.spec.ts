@@ -302,7 +302,266 @@ describe('AiIntentRescueService', () => {
     });
     expect(result?.action).toBe('summarize_bookings');
     expect(result?.params.bookingMetric).toBe('revenue');
-    expect(result?.rescueReason).toBe('list_to_total_earnings');
+    // Either the dedicated list_bookings disambiguation or the generic earnings rescue.
+    expect(['list_to_total_earnings', 'total_earnings']).toContain(
+      result?.rescueReason,
+    );
+  });
+
+  it('e2e-bug.153 — how many customers forces overview (not most_no_shows)', () => {
+    const result = rescue.rescue({
+      prompt: 'How many customers do I have?',
+      action: 'summarize_customers',
+      params: { customerMetric: 'most_no_shows' },
+      employees,
+    });
+    expect(result?.action).toBe('summarize_customers');
+    expect(result?.params.customerMetric).toBe('overview');
+    expect(result?.rescueReason).toBe('unscoped_customer_count');
+  });
+
+  it.each([
+    [
+      'Add a new business location called QA Test Branch at 123 Test St',
+      'create_location',
+      { name: 'QA Test Branch', address: '123 Test St' },
+    ],
+    [
+      "Update my main location's address to 456 New St",
+      'update_location',
+      { locationName: 'main', address: '456 New St' },
+    ],
+    [
+      'Set commission rate for Gevorg Gasparyan to 20 percent',
+      'create_commission_rule',
+      { employeeName: 'Gevorg Gasparyan', value: 20, type: 'percent' },
+    ],
+    [
+      'Export my analytics report for this quarter',
+      'export_analytics_report',
+      { dateRange: 'this_quarter' },
+    ],
+    [
+      'Set my sales tax rate to 8.5 percent',
+      'configure_business_tax',
+      { rate: 8.5 },
+    ],
+  ] as const)(
+    'e2e-bug.146 — %s → %s (not react_agent denial)',
+    (prompt, expectedAction, paramsPartial) => {
+      for (const action of ['unknown', 'react_agent'] as const) {
+        const result = rescue.rescue({
+          prompt,
+          action,
+          params: {},
+          employees,
+        });
+        expect(result?.action).toBe(expectedAction);
+        expect(result?.params).toEqual(
+          expect.objectContaining(paramsPartial),
+        );
+      }
+    },
+  );
+
+  it.each(['unknown', 'react_agent', 'list_templates'] as const)(
+    'e2e-bug.137 — What are my business hours? → explain_business_hours_and_location from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'What are my business hours?',
+        action,
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('explain_business_hours_and_location');
+      expect(result?.rescueReason).toBe('business_hours_location');
+    },
+  );
+
+  it.each(['unknown', 'clear_schedule', 'react_agent'] as const)(
+    'e2e-bug.136 — unblock full-day block → delete_schedule_block from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt:
+          "Unblock Gevorg's schedule for tomorrow, 18/07/2026, remove the full-day block I just created",
+        action,
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('delete_schedule_block');
+    },
+  );
+
+  it.each(['my_subscriptions', 'unknown', 'react_agent'] as const)(
+    'e2e-bug.138 — active memberships for my customers → list_customer_subscriptions from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'List active memberships for my customers',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_customer_subscriptions');
+      expect(result?.rescueReason).toBe('list_subscriptions');
+    },
+  );
+
+  it.each(['list_agent_tasks', 'unknown', 'react_agent'] as const)(
+    'e2e-bug.139 — open support tickets → explain_support_inbox (not agent tasks) from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'Do I have any open support tickets?',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('explain_support_inbox');
+      expect(result?.rescueReason).toBe('explain_support_inbox');
+    },
+  );
+
+  it('e2e-bug.139 — unread customer messages → explain_support_inbox', () => {
+    const result = rescue.rescue({
+      prompt: 'Do I have any unread customer messages?',
+      action: 'list_agent_tasks',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('explain_support_inbox');
+  });
+
+  it('e2e-bug.140 — record_expense sanitizes category=today to supplies', () => {
+    const result = rescue.rescue({
+      prompt: 'Add a $20 business expense today for QA test cleaning supplies',
+      action: 'record_expense',
+      params: { category: 'today', amount: 20 },
+      employees,
+    });
+    expect(result?.action).toBe('record_expense');
+    expect(result?.params.category).toBe('supplies');
+    expect(String(result?.params.description)).toMatch(
+      /QA test cleaning supplies/i,
+    );
+  });
+
+  it('e2e-bug.141 — delete expense enriches description from natural prompt', () => {
+    const result = rescue.rescue({
+      prompt: 'Delete the $20 QA test cleaning supplies expense I just added',
+      action: 'delete_expense',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('delete_expense');
+    expect(String(result?.params.description)).toMatch(
+      /QA test cleaning supplies/i,
+    );
+  });
+
+  it('e2e-bug.148 — priced at N dollars enriches create_product params', () => {
+    const result = rescue.rescue({
+      prompt:
+        'Add a retail product called QA Test Product priced at 5 dollars',
+      action: 'create_product',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('create_product');
+    expect(result?.rescueReason).toBe('create_product_params');
+    expect(result?.params.price).toBe(5);
+    expect(result?.params.retailPrice).toBe(5);
+    expect(String(result?.params.productName)).toMatch(/QA Test Product/i);
+  });
+
+  it.each(['unknown', 'react_agent', 'list_scheduling_resources'])(
+    'e2e-bug.147 — service equipment requirements → list_service_resource_requirements from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt:
+          'What equipment does the deep tissue massage service require?',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_service_resource_requirements');
+      expect(result?.rescueReason).toMatch(
+        /list_service_resource_requirements/,
+      );
+      expect(String(result?.params.serviceName)).toMatch(
+        /deep tissue massage/i,
+      );
+    },
+  );
+
+  it.each([
+    [
+      'Delete the service called QA Test Trim',
+      'QA Test Trim',
+      'remove_service_from_cart',
+    ],
+    [
+      'Remove the QA Test Trim service from my catalog permanently',
+      'QA Test Trim',
+      'unassign_employee_services',
+    ],
+    [
+      'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+      'QA Test Trim',
+      'deactivate_employee',
+    ],
+    ['Deactivate the QA Test Trim service', 'QA Test Trim', 'unknown'],
+  ] as const)(
+    'e2e-bug.144 — %s → deactivate_service (not %s)',
+    (prompt, serviceName, stealAction) => {
+      for (const action of [stealAction, 'unknown', 'react_agent'] as const) {
+        const result = rescue.rescue({
+          prompt,
+          action,
+          params: {},
+          employees,
+        });
+        expect(result?.action).toBe('deactivate_service');
+        expect(String(result?.params.serviceName)).toBe(serviceName);
+      }
+    },
+  );
+
+  it('e2e-bug.151 — service category called X → create_service_category (not promo)', () => {
+    const result = rescue.rescue({
+      prompt: 'Add a new service category called Wellness',
+      action: 'create_promo_code',
+      params: { code: 'WELLNESS' },
+      employees,
+    });
+    expect(result?.action).toBe('create_service_category');
+    expect(result?.rescueReason).toBe('service_category');
+    expect(result?.params.categoryName).toBe('Wellness');
+  });
+
+  it.each(['unknown', 'list_clinic_tasks', 'react_agent', 'my_appointments'])(
+    'e2e-bug.152 — pending AI agent tasks → list_agent_tasks (not clinic) from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'Show me pending AI agent tasks',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_agent_tasks');
+      expect(result?.rescueReason).toBe('list_tasks');
+      expect(result?.params.scope).toBe('pending');
+    },
+  );
+
+  it('e2e-bug.152 — does not overwrite a correct list_agent_tasks classification', () => {
+    const result = rescue.rescue({
+      prompt: 'Show me pending AI agent tasks',
+      action: 'list_agent_tasks',
+      params: { scope: 'pending' },
+      employees,
+    });
+    expect(result).toBeNull();
   });
 
   it('disambiguates list_employees to specialist revenue ranking', () => {

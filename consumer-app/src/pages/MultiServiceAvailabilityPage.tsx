@@ -7,7 +7,6 @@ import {
   IonHeader,
   IonItem,
   IonLabel,
-  IonList,
   IonPage,
   IonSpinner,
   IonTitle,
@@ -20,7 +19,9 @@ import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { formatPublicMoney, resolveTenantPriceCurrency } from '../lib/business-currency.js';
 import { formatCopy } from '../lib/copy.js';
-import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
+import { formatScheduleTime } from '../lib/date-format.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
+import type { PublicServiceSlotProvider } from '../lib/types.js';
 import {
   buildMultiServiceCheckoutPath,
   buildMultiServicePickerPath,
@@ -37,6 +38,31 @@ import {
   getPublicMultiServiceProviders,
   suggestPublicMultiServiceBlock,
 } from '../services/public-api.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
+import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
+import { ConsumerProviderAvatar } from '../components/ConsumerProviderAvatar.js';
+
+type MultiServiceProvider = PublicServiceSlotProvider & { earliestStartTime?: string };
+
+function normalizeMultiServiceProvider(provider: {
+  id: string;
+  name: string;
+  role?: string | null;
+  avatarUrl?: string | null;
+  averageRating?: number | null;
+  reviewCount?: number;
+  earliestStartTime?: string;
+}): MultiServiceProvider {
+  return {
+    id: provider.id,
+    name: provider.name,
+    role: provider.role ?? undefined,
+    avatarUrl: provider.avatarUrl ?? undefined,
+    averageRating: provider.averageRating ?? null,
+    reviewCount: provider.reviewCount ?? 0,
+    earliestStartTime: provider.earliestStartTime,
+  };
+}
 
 export default function MultiServiceAvailabilityPage() {
   const history = useHistory();
@@ -63,13 +89,8 @@ export default function MultiServiceAvailabilityPage() {
   >([]);
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
-  const [slotProviders, setSlotProviders] = useState<
-    Array<{ id: string; name: string; earliestStartTime?: string }>
-  >([]);
-  const [laterProviders, setLaterProviders] = useState<
-    Array<{ id: string; name: string; earliestStartTime?: string }>
-  >([]);
-  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+  const [slotProviders, setSlotProviders] = useState<MultiServiceProvider[]>([]);
+  const [laterProviders, setLaterProviders] = useState<MultiServiceProvider[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -82,6 +103,11 @@ export default function MultiServiceAvailabilityPage() {
 
   useEffect(() => {
     if (!slug || services.length === 0) return;
+    // e2e-bug.177 — Ionic's IonRouterOutlet (no <Switch>) keeps this page mounted in its
+    // back-navigation stack after the user moves on; useLocation() is global, so without this
+    // guard this effect kept firing on every unrelated navigation and stomping on it with a
+    // stale redirect back to the picker.
+    if (!location.pathname.endsWith('/book/multi/availability')) return;
     const resolved = resolveMultiServiceCartFromLocation(
       slug,
       searchParams.get('services'),
@@ -153,7 +179,9 @@ export default function MultiServiceAvailabilityPage() {
           selectedStartRef.current = null;
           setSelectedStart(null);
           setEmployeeId(null);
-          setMessage((err as Error)?.message || copy.loadAvailableTimesFailed);
+          setMessage(
+            formatFriendlyNetworkError(err, copy.loadAvailableTimesFailed),
+          );
         }
       } finally {
         if (slotsRequestRef.current === requestId) setSlotsLoading(false);
@@ -173,7 +201,6 @@ export default function MultiServiceAvailabilityPage() {
     setSlots([]);
     setSlotProviders([]);
     setLaterProviders([]);
-    setProviderPickerOpen(false);
     setPageLoading(true);
     setSlotsLoading(true);
     setMessage('');
@@ -202,7 +229,9 @@ export default function MultiServiceAvailabilityPage() {
         }
       } catch (err: unknown) {
         if (suggestRequestRef.current !== requestId) return;
-        setMessage((err as Error)?.message || copy.findAvailableBlockFailed);
+        setMessage(
+          formatFriendlyNetworkError(err, copy.findAvailableBlockFailed),
+        );
         const today = new Date().toISOString().slice(0, 10);
         if (!userPickedDateRef.current) {
           setDateKey(today);
@@ -230,8 +259,8 @@ export default function MultiServiceAvailabilityPage() {
     ])
       .then(([slotResult, laterResult]) => {
         if (cancelled) return;
-        setSlotProviders(slotResult.providers);
-        setLaterProviders(laterResult.providers);
+        setSlotProviders(slotResult.providers.map(normalizeMultiServiceProvider));
+        setLaterProviders(laterResult.providers.map(normalizeMultiServiceProvider));
       })
       .catch(() => {
         if (!cancelled) {
@@ -245,21 +274,13 @@ export default function MultiServiceAvailabilityPage() {
   }, [selectedStart, serviceIds, slug]);
 
   const availableProviders = useMemo(() => {
-    const byId = new Map<string, { id: string; name: string; earliestStartTime?: string }>();
+    const byId = new Map<string, MultiServiceProvider>();
     for (const provider of slotProviders) byId.set(provider.id, provider);
     for (const provider of laterProviders) {
       if (!byId.has(provider.id)) byId.set(provider.id, provider);
     }
     return [...byId.values()];
   }, [laterProviders, slotProviders]);
-
-  const selectedProviderName = useMemo(() => {
-    if (employeeId) {
-      const match = availableProviders.find((provider) => provider.id === employeeId);
-      if (match?.name) return match.name;
-    }
-    return slots.find((slot) => slot.startTime === selectedStart)?.employeeName ?? '';
-  }, [availableProviders, employeeId, selectedStart, slots]);
 
   const onContinue = () => {
     if (!slug || !selectedStart || !employeeId) return;
@@ -301,12 +322,24 @@ export default function MultiServiceAvailabilityPage() {
   const currency = resolveTenantPriceCurrency(selectedServices[0]?.currency, profile.currency);
   const minDate = new Date().toISOString().slice(0, 10);
 
+  const onSelectProvider = (nextEmployeeId: string) => {
+    setEmployeeId(nextEmployeeId || null);
+    const provider = availableProviders.find((entry) => entry.id === nextEmployeeId);
+    if (provider?.earliestStartTime && provider.earliestStartTime !== selectedStartRef.current) {
+      selectedStartRef.current = provider.earliestStartTime;
+      setSelectedStart(provider.earliestStartTime);
+      const nextDate = toDateKey(provider.earliestStartTime, profile.timezone);
+      setDateKey(nextDate);
+      dateKeyRef.current = nextDate;
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildMultiServicePickerPath(slug, serviceIds)} />
+            <IonBackButton defaultHref={buildMultiServicePickerPath(slug, serviceIds)}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.multiServiceAvailabilityTitle}</IonTitle>
         </IonToolbar>
@@ -327,56 +360,10 @@ export default function MultiServiceAvailabilityPage() {
           </IonLabel>
         </IonItem>
 
-        {(selectedProviderName || employeeId) && (
-          <IonItem
-            button
-            detail={availableProviders.length > 1}
-            onClick={() => availableProviders.length > 1 && setProviderPickerOpen((open) => !open)}
-          >
-            <IonLabel>
-              <p style={{ fontSize: 12, color: '#6b7280' }}>{copy.selectSpecialist}</p>
-              <h3>{selectedProviderName || copy.selectSpecialist}</h3>
-            </IonLabel>
-          </IonItem>
-        )}
-
-        {providerPickerOpen ? (
-          <IonList>
-            {availableProviders.map((provider) => (
-              <IonItem
-                key={provider.id}
-                button
-                color={employeeId === provider.id ? 'primary' : undefined}
-                onClick={() => {
-                  setEmployeeId(provider.id);
-                  if (
-                    provider.earliestStartTime &&
-                    provider.earliestStartTime !== selectedStartRef.current
-                  ) {
-                    selectedStartRef.current = provider.earliestStartTime;
-                    setSelectedStart(provider.earliestStartTime);
-                    const nextDate = toDateKey(provider.earliestStartTime, profile.timezone);
-                    setDateKey(nextDate);
-                    dateKeyRef.current = nextDate;
-                  }
-                  setProviderPickerOpen(false);
-                }}
-              >
-                <IonLabel>
-                  <h3>{provider.name}</h3>
-                  {provider.earliestStartTime &&
-                  provider.earliestStartTime !== selectedStart ? (
-                    <p>{formatDateDisplay(provider.earliestStartTime, locale)}</p>
-                  ) : null}
-                </IonLabel>
-              </IonItem>
-            ))}
-          </IonList>
-        ) : null}
-
         <IonItem lines="none">
           <IonLabel position="stacked">Date</IonLabel>
           <IonDatetime
+            className="consumer-booking-datetime"
             presentation="date"
             min={minDate}
             value={dateKey}
@@ -400,28 +387,50 @@ export default function MultiServiceAvailabilityPage() {
         {slotsLoading ? (
           <IonSpinner className="ion-margin-top" />
         ) : (
-          <IonList>
-            {slots.map((slot) => (
-              <IonItem
-                key={slot.startTime}
-                button
-                color={selectedStart === slot.startTime ? 'primary' : undefined}
-                onClick={() => {
-                  selectedStartRef.current = slot.startTime;
-                  setSelectedStart(slot.startTime);
-                  setEmployeeId(slot.employeeId);
-                  setProviderPickerOpen(false);
-                }}
-              >
-                <IonLabel>
-                  {formatScheduleTime(slot.startTime, locale)}
-                  {slot.employeeName ? ` · ${slot.employeeName}` : ''}
-                </IonLabel>
-              </IonItem>
-            ))}
-            {slots.length === 0 ? <p className="ion-padding">{copy.noTimesAvailable}</p> : null}
-          </IonList>
+          <ConsumerGroupedTimeSlotList
+            slots={slots}
+            selectedStartTime={selectedStart}
+            onSelect={(startTime) => {
+              selectedStartRef.current = startTime;
+              setSelectedStart(startTime);
+              const match = slots.find((slot) => slot.startTime === startTime);
+              setEmployeeId(match?.employeeId ?? null);
+            }}
+            copy={copy}
+            primaryColor={primary}
+            formatSlotLabel={(startTime) => formatScheduleTime(startTime, locale)}
+          />
         )}
+
+        {!slotsLoading && availableProviders.length > 1 ? (
+          <ConsumerSlotSpecialistPicker
+            copy={copy}
+            primaryColor={primary}
+            providers={availableProviders}
+            value={employeeId ?? ''}
+            onChange={onSelectProvider}
+          />
+        ) : null}
+
+        {!slotsLoading && availableProviders.length === 1 ? (
+          <IonItem lines="none">
+            <div slot="start">
+              <ConsumerProviderAvatar
+                name={availableProviders[0]!.name}
+                avatarUrl={availableProviders[0]!.avatarUrl}
+                primaryColor={primary}
+                size={36}
+              />
+            </div>
+            <IonLabel>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 2px' }}>{copy.selectSpecialist}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{availableProviders[0]!.name}</p>
+              {availableProviders[0]!.role ? (
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>{availableProviders[0]!.role}</p>
+              ) : null}
+            </IonLabel>
+          </IonItem>
+        ) : null}
 
         <IonButton
           expand="block"

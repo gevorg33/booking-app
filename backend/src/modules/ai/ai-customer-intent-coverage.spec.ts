@@ -51,12 +51,17 @@ describe('ai customer intent coverage util (ai-cmd-customer-2.6)', () => {
     //   there is no consumer-app/web-widget UI button for it yet — the AI orchestrator
     //   calls PublicCustomerBookingService directly, so no public-api.ts client wrapper
     //   exists to bind to. Same shape as join_waitlist/notify_running_late above.
+    // - cancel_my_subscription: the AI intent calls ServiceSubscriptionsService directly
+    //   (same shape as cancel_all_upcoming_bookings above) — no dedicated customer-facing
+    //   REST route or public-api.ts wrapper exists yet (today's only subscription-cancel
+    //   route is the dashboard-admin one under /subscriptions/customer/:customerId/:id/cancel).
     const knownExceptions = new Set([
       'add_services_to_cart',
       'remove_service_from_cart',
       'join_waitlist',
       'notify_running_late',
       'cancel_all_upcoming_bookings',
+      'cancel_my_subscription',
     ]);
     const missing = listMutatingCustomerIntentsMissingApiBinding(
       SELF_SERVICE_BOOKING_MUTATE_INTENTS,

@@ -122,6 +122,15 @@ export function isListClinicTasksPrompt(prompt: string): boolean {
   if (isClaimClinicTaskPrompt(prompt)) return false;
   if (isCompleteClinicTaskPrompt(prompt)) return false;
   if (isListLabResultsQueuePrompt(prompt)) return false;
+  // e2e-bug.152 — "pending AI agent tasks" is dashboard agent-ops, not clinic to-dos.
+  // Broad pending+tasks matching previously stole list_agent_tasks (incl. correct classifications).
+  if (
+    /\b(ai\s+)?agent\s+tasks?\b/i.test(prompt) ||
+    /\bpending\s+ai\s+agent\b/i.test(prompt) ||
+    /\btask\s+queue\b/i.test(prompt)
+  ) {
+    return false;
+  }
 
   const normalized = prompt.toLowerCase();
   if (
@@ -208,6 +217,8 @@ export function rescueProviderClinicTasksAndResultsIntent(
   action: string,
 ): { action: ProviderClinicTasksAndResultsIntent; rescueReason: string } | null {
   if (isProviderClinicTasksAndResultsIntent(action)) return null;
+  // e2e-bug.152 — never overwrite a correct (or pending) agent-ops classification.
+  if (action === 'list_agent_tasks') return null;
 
   if (isListBookingLabSummariesPrompt(prompt)) {
     return {

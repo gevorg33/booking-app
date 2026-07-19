@@ -136,21 +136,25 @@ export async function handleCancelPackageVisitSelfLogic(
   }
 
   try {
-    const { bookings: cancelled } =
+    const { bookings: cancelled, refundStatus } =
       await deps.publicCustomerBookingService.cancelPackageVisit(
         slug,
         customerId,
         booking.id,
       );
-    return success(
-      'cancel_package_visit_self',
-      `Cancelled package visit (${cancelled.length} appointment(s)).`,
-      {
-        bookingIds: cancelled.map((row) => row.id),
-        packagePurchaseId: booking.packagePurchaseId ?? null,
-        navigate: buildCancelPackageVisitSelfNavigate(booking.id),
-      },
-    );
+    const baseSummary = `Cancelled package visit (${cancelled.length} appointment(s)).`;
+    const summary =
+      refundStatus === 'refunded'
+        ? `${baseSummary} We've refunded your payment to your original payment method.`
+        : refundStatus === 'failed'
+          ? `${baseSummary} The automatic refund didn't go through — please contact the salon about your refund.`
+          : baseSummary;
+    return success('cancel_package_visit_self', summary, {
+      bookingIds: cancelled.map((row) => row.id),
+      packagePurchaseId: booking.packagePurchaseId ?? null,
+      refundStatus,
+      navigate: buildCancelPackageVisitSelfNavigate(booking.id),
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : 'Could not cancel package visit.';

@@ -18,6 +18,9 @@ function buildDeps(
         storedLocale: 'hy',
       })),
     } as any,
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    } as any,
     ...overrides,
   } as CustomerCrmLogicDeps;
 }
@@ -52,11 +55,26 @@ describe('ai-my-locale.logic', () => {
       expect(result.details?.clarify).toBe(true);
     });
 
-    it('fails when slug is missing', async () => {
+    it('fails when business slug cannot be resolved', async () => {
+      const result = await handleGetMyLocaleLogic(
+        buildDeps({
+          businessRepo: { findOne: jest.fn(async () => null) } as any,
+        }),
+        'biz-1',
+        { sessionCustomerId: 'cust-1' },
+      );
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('Business not found');
+    });
+
+    it('resolves slug from businessId when params.slug is omitted (e2e-bug.82)', async () => {
       const result = await handleGetMyLocaleLogic(deps, 'biz-1', {
         sessionCustomerId: 'cust-1',
       });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      expect(
+        deps.publicCustomerAuthService.getPreferredLocale,
+      ).toHaveBeenCalledWith('salon', 'cust-1');
     });
 
     it('fails gracefully on service error', async () => {

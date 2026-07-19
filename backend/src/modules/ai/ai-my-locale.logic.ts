@@ -1,6 +1,7 @@
 import type { CommandResult } from './command-completion.types.js';
 import type { CustomerCrmLogicDeps } from './ai-customer-crm.logic.js';
 import { normalizeRequestedLocale } from './ai-my-locale.util.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 function failure(
   action: string,
@@ -25,14 +26,9 @@ function resolveSessionCustomerId(
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 }
 
-function resolveSlug(params: Record<string, unknown>): string | undefined {
-  const raw = params.slug;
-  return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-}
-
 export async function handleGetMyLocaleLogic(
   deps: CustomerCrmLogicDeps,
-  _businessId: string,
+  businessId: string,
   params: Record<string, unknown> = {},
 ): Promise<CommandResult> {
   const customerId = resolveSessionCustomerId(params);
@@ -43,7 +39,12 @@ export async function handleGetMyLocaleLogic(
     });
   }
 
-  const slug = resolveSlug(params);
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) {
     return failure('get_my_locale', 'Business not found.');
   }
@@ -68,7 +69,7 @@ export async function handleGetMyLocaleLogic(
 
 export async function handleUpdateMyLocaleLogic(
   deps: CustomerCrmLogicDeps,
-  _businessId: string,
+  businessId: string,
   params: Record<string, unknown> = {},
   prompt = '',
 ): Promise<CommandResult> {
@@ -81,7 +82,11 @@ export async function handleUpdateMyLocaleLogic(
     );
   }
 
-  const slug = resolveSlug(params);
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) {
     return failure('update_my_locale', 'Business not found.');
   }

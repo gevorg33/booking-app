@@ -1,9 +1,14 @@
 import { resolveTenantPriceCurrency } from '@/lib/business-currency';
+import { toIntlLocale } from '@/lib/app-locale';
 
+/**
+ * e2e-bug.115 — never pass `undefined` to Intl.NumberFormat: Node SSR and the
+ * browser can disagree on the runtime default locale (e.g. `344,25 $` vs `$344.25`),
+ * which causes a React hydration mismatch. Match date-format: fixed `en-GB` fallback.
+ */
 export function formatPublicPrice(price: number, currency: string, locale?: string): string {
   try {
-    const intlLocale =
-      locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : locale === 'en' ? 'en-GB' : undefined;
+    const intlLocale = toIntlLocale(locale) ?? 'en-GB';
     return new Intl.NumberFormat(intlLocale, { style: 'currency', currency }).format(price);
   } catch {
     return `${price} ${currency}`;

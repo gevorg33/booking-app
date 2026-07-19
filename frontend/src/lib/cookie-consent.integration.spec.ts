@@ -1,8 +1,10 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
+  allowsNonEssentialTracking,
   cookieConsentStorageKey,
   hasAcceptedCookies,
   readCookieConsent,
+  shouldShowCookieConsentBanner,
   writeCookieConsent,
 } from './cookie-consent';
 
@@ -36,6 +38,8 @@ describe('Sprint 37 — cookie consent scenario matrix', () => {
       steps: [] as Array<'accepted' | 'rejected'>,
       accepted: false,
       stored: null,
+      showBanner: true,
+      trackingWithBanner: false,
     },
     {
       id: 'accept-banner',
@@ -43,6 +47,8 @@ describe('Sprint 37 — cookie consent scenario matrix', () => {
       steps: ['accepted'] as const,
       accepted: true,
       stored: 'accepted' as const,
+      showBanner: false,
+      trackingWithBanner: true,
     },
     {
       id: 'reject-banner',
@@ -50,6 +56,8 @@ describe('Sprint 37 — cookie consent scenario matrix', () => {
       steps: ['rejected'] as const,
       accepted: false,
       stored: 'rejected' as const,
+      showBanner: false,
+      trackingWithBanner: false,
     },
     {
       id: 'change-mind-reject-to-accept',
@@ -57,6 +65,8 @@ describe('Sprint 37 — cookie consent scenario matrix', () => {
       steps: ['rejected', 'accepted'] as const,
       accepted: true,
       stored: 'accepted' as const,
+      showBanner: false,
+      trackingWithBanner: true,
     },
     {
       id: 'tenant-isolation',
@@ -65,19 +75,47 @@ describe('Sprint 37 — cookie consent scenario matrix', () => {
       otherSlug: 'other-f',
       accepted: true,
       stored: 'accepted' as const,
+      showBanner: false,
+      trackingWithBanner: true,
+    },
+    {
+      id: 'revisit-after-reject-no-reprompt',
+      slug: 'massage-g',
+      steps: ['rejected'] as const,
+      accepted: false,
+      stored: 'rejected' as const,
+      showBanner: false,
+      trackingWithBanner: false,
     },
   ])(
     'cookie consent flow for $id',
-    ({ slug, steps, accepted, stored, otherSlug }) => {
+    ({
+      slug,
+      steps,
+      accepted,
+      stored,
+      otherSlug,
+      showBanner,
+      trackingWithBanner,
+    }) => {
       for (const choice of steps) {
         writeCookieConsent(slug, choice);
       }
 
       expect(readCookieConsent(slug)).toBe(stored);
       expect(hasAcceptedCookies(slug)).toBe(accepted);
+      expect(shouldShowCookieConsentBanner(slug, true)).toBe(showBanner);
+      expect(
+        allowsNonEssentialTracking(slug, { cookieBannerEnabled: true }),
+      ).toBe(trackingWithBanner);
+      // Banner off → tracking allowed without a stored choice.
+      expect(
+        allowsNonEssentialTracking(slug, { cookieBannerEnabled: false }),
+      ).toBe(true);
 
       if (otherSlug) {
         expect(readCookieConsent(otherSlug)).toBeNull();
+        expect(shouldShowCookieConsentBanner(otherSlug, true)).toBe(true);
         expect(cookieConsentStorageKey(slug)).not.toBe(
           cookieConsentStorageKey(otherSlug),
         );

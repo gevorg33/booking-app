@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import { attachConsumerOfflineAxios } from '../lib/consumer-api-offline.util.js';
+import { checkoutClientReturnFields } from '../lib/checkout-client-surface.util.js';
 import type {
   PublicBookingManageContext,
   PublicBusinessProfile,
@@ -35,6 +37,9 @@ const http = axios.create({
   baseURL: getPublicApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 });
+
+// e2e-bug.16 — queue eligible cancel/reschedule mutations on network drop; flush when online.
+attachConsumerOfflineAxios(http);
 
 function unwrap<T>(data: unknown): T {
   if (data && typeof data === 'object' && 'data' in data) {
@@ -275,8 +280,7 @@ export async function fetchMyBookings(slug: string): Promise<PublicCustomerBooki
 
 export async function fetchMySubscriptions(slug: string): Promise<PublicCustomerSubscription[]> {
   const { data } = await http.get(`/public/${slug}/me/subscriptions`, publicConfig(slug));
-  const body = unwrap<{ subscriptions: import('../lib/types.js').PublicCustomerSubscription[] }>(data);
-  return body.subscriptions ?? [];
+  return unwrap<import('../lib/types.js').PublicCustomerSubscription[]>(data) ?? [];
 }
 
 export async function fetchMySubscriptionUsage(
@@ -288,6 +292,21 @@ export async function fetchMySubscriptionUsage(
 }> {
   const { data } = await http.get(
     `/public/${slug}/me/subscriptions/${subscriptionId}/usage`,
+    publicConfig(slug),
+  );
+  return unwrap(data);
+}
+
+export async function cancelCustomerSubscription(
+  slug: string,
+  subscriptionId: string,
+): Promise<{
+  subscription: import('../lib/types.js').PublicCustomerSubscription;
+  refundStatus?: string;
+}> {
+  const { data } = await http.post(
+    `/public/${slug}/me/subscriptions/${subscriptionId}/cancel`,
+    {},
     publicConfig(slug),
   );
   return unwrap(data);
@@ -504,7 +523,11 @@ export async function bookPublicPackage(slug: string, body: BookPublicPackageBod
 }
 
 export async function createPublicPackageCheckout(slug: string, body: BookPublicPackageBody) {
-  const { data } = await http.post(`/public/${slug}/packages/checkout`, body, publicConfig(slug));
+  const { data } = await http.post(
+    `/public/${slug}/packages/checkout`,
+    { ...body, ...checkoutClientReturnFields() },
+    publicConfig(slug),
+  );
   return unwrap<{ url: string; sessionId: string; amount: number; currency: string }>(data);
 }
 
@@ -520,7 +543,7 @@ export async function fetchPackageProviders(
     `/public/${slug}/packages/${packageId}/providers?${params.toString()}`,
   );
   return unwrap<{
-    providers: Array<{ id: string; name: string; earliestStartTime?: string }>;
+    providers: Array<PublicProvider & { earliestStartTime?: string }>;
   }>(data);
 }
 
@@ -572,6 +595,7 @@ export async function quotePublicBooking(
   body: {
     serviceId: string;
     purchasePlanId?: string;
+    useSubscriptionId?: string;
     promoCode?: string;
     loyaltyPointsToRedeem?: number;
     paxCount?: number;
@@ -805,7 +829,11 @@ export async function createPublicBookingCheckout(
     customer: { name: string; email?: string; phone?: string };
   },
 ): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
-  const { data } = await http.post(`/public/${slug}/bookings/checkout`, body, publicConfig(slug));
+  const { data } = await http.post(
+    `/public/${slug}/bookings/checkout`,
+    { ...body, ...checkoutClientReturnFields() },
+    publicConfig(slug),
+  );
   return unwrap(data);
 }
 
@@ -966,7 +994,11 @@ export async function createPublicMultiServiceCheckout(
   slug: string,
   body: BookPublicMultiServiceBody,
 ): Promise<{ url: string; sessionId: string; amount: number; currency: string }> {
-  const { data } = await http.post(`/public/${slug}/multi-service/checkout`, body, publicConfig(slug));
+  const { data } = await http.post(
+    `/public/${slug}/multi-service/checkout`,
+    { ...body, ...checkoutClientReturnFields() },
+    publicConfig(slug),
+  );
   return unwrap(data);
 }
 
@@ -995,7 +1027,11 @@ export async function createPublicGiftCardCheckout(
   slug: string,
   body: import('../lib/gift-card.types.js').PurchasePublicGiftCardBody,
 ) {
-  const { data } = await http.post(`/public/${slug}/gift-cards/checkout`, body, publicConfig(slug));
+  const { data } = await http.post(
+    `/public/${slug}/gift-cards/checkout`,
+    { ...body, ...checkoutClientReturnFields() },
+    publicConfig(slug),
+  );
   return unwrap<{ url: string; sessionId: string; amount: number; currency: string }>(data);
 }
 

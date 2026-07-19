@@ -22,6 +22,7 @@ import {
   filterBookableWallClockSlots,
   resolveBusinessWallClockTimezone,
 } from '@/lib/wall-clock-slot.util';
+import { applyOptimisticReviewSummary } from '@/lib/provider-review-summary.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -169,15 +170,15 @@ export function ProviderProfileClient({
           employeeId={provider.id}
           primaryColor={primary}
           onSubmitted={(review) => {
-            setReviewItems((prev) => [review, ...prev]);
-            setReviewCount((prev) => {
-              const next = prev + 1;
-              setAverageRating((currentAvg) => {
-                if (currentAvg == null) return review.rating;
-                return Math.round(((currentAvg * prev + review.rating) / next) * 10) / 10;
-              });
-              return next;
+            // e2e-bug.26 — compute from plain locals; never nest setAverageRating inside setReviewCount.
+            const summary = applyOptimisticReviewSummary({
+              currentAverage: averageRating,
+              previousCount: reviewCount,
+              newRating: review.rating,
             });
+            setReviewItems((prev) => [review, ...prev]);
+            setReviewCount(summary.reviewCount);
+            setAverageRating(summary.averageRating);
           }}
         />
 

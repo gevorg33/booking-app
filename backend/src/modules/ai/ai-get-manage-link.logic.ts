@@ -95,6 +95,7 @@ async function finalizeManageLinkResult(
     email: parsed.email,
     phone: parsed.phone,
     resent,
+    manageUrl,
   });
 
   return success('get_manage_link', summary, {

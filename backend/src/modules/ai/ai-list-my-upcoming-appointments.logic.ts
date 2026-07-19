@@ -116,7 +116,8 @@ export async function handleListMyUpcomingAppointmentsLogic(
       bookings: filtered,
       upcomingCount: filtered.length,
       summaryLines: lines,
-      navigate: { path: 'account', query: { section: 'bookings' } },
+      // e2e-bug.52 — align with my_appointments / list_my_appointments (tab=bookings)
+      navigate: { path: 'account', query: { tab: 'bookings' } },
     },
   );
 }

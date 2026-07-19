@@ -62,6 +62,33 @@ describe('ai-prompt-security.util', () => {
     ).toBe(false);
   });
 
+  it('e2e-bug.163 — denies list_customers / lookup_customer for staff', () => {
+    expect(
+      canPerformBulkCustomerRead(
+        'dashboard',
+        'staff',
+        'List customers who have not visited in 60 days',
+        'list_customers',
+      ),
+    ).toBe(false);
+    expect(
+      canPerformBulkCustomerRead(
+        'dashboard',
+        'staff',
+        'Show me Mary Torgomyan',
+        'lookup_customer',
+      ),
+    ).toBe(false);
+    expect(
+      canPerformBulkCustomerRead(
+        'dashboard',
+        'manager',
+        'List customers who have not visited in 60 days',
+        'list_customers',
+      ),
+    ).toBe(true);
+  });
+
   it('allows ranked customer summary for owner', () => {
     expect(
       canPerformBulkCustomerRead(
@@ -115,4 +142,22 @@ describe('ai-prompt-security.util', () => {
       /Bulk customer export/i,
     );
   });
+
+  // e2e-bug.127
+  it.each([
+    ['en', 'injection', /override system rules/i],
+    ['ru', 'injection', /правила системы/i],
+    ['hy', 'injection', /կանոնները/i],
+    ['en', 'data_export', /Bulk customer export/i],
+    ['ru', 'data_export', /экспорт клиентов/i],
+    ['hy', 'data_export', /արտահանումը/i],
+    ['en', 'availability_bypass', /unavailable slots/i],
+    ['ru', 'availability_bypass', /недоступное время/i],
+    ['hy', 'availability_bypass', /անհասանելի/i],
+  ] as const)(
+    'localizes securityDenialMessage(%s, %s)',
+    (locale, reason, pattern) => {
+      expect(securityDenialMessage(reason, locale)).toMatch(pattern);
+    },
+  );
 });

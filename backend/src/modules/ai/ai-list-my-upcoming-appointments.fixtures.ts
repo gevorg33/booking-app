@@ -12,7 +12,7 @@ export type ListMyUpcomingAppointmentsPromptFixture = {
   rescueReason: 'list_upcoming_appointments';
 };
 
-export const CUSTOMER_LIST_MY_UPCOMING_APPOINTMENTS_CLASSIFIER_RULES = `- list_my_upcoming_appointments: READ — signed-in customer: list filtered upcoming confirmed visits (next appointment, this week, or all upcoming). Triggers: "What's my next appointment?", "Appointments this week", "Show my upcoming appointments". Set scope to next|this_week|all_upcoming when clear. NOT list_my_appointments (full appointment list without upcoming filter), NOT confirm_my_booking_details (single booking summary), NOT cancel_my_booking|reschedule_my_booking (mutate), NOT list_my_package_visits (package bundles).`;
+export const CUSTOMER_LIST_MY_UPCOMING_APPOINTMENTS_CLASSIFIER_RULES = `- list_my_upcoming_appointments: READ — signed-in customer: list filtered upcoming confirmed visits (next appointment, this week, or all upcoming). Triggers: "What's my next appointment?", "Appointments this week", "Show my upcoming appointments". Set scope to next|this_week|all_upcoming when clear. NOT list_my_appointments (full appointment list without upcoming filter), NOT confirm_my_booking_details (single booking summary), NOT pay_online (pay online / pay with card for an upcoming visit — mutate checkout), NOT cancel_my_booking|reschedule_my_booking (mutate), NOT list_my_package_visits (package bundles).`;
 
 export const LIST_MY_UPCOMING_APPOINTMENTS_PROMPTS: readonly ListMyUpcomingAppointmentsPromptFixture[] =
   [

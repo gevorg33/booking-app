@@ -29,6 +29,7 @@ describe('ServiceSubscriptionsService', () => {
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
   };
   const serviceRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
@@ -52,6 +53,10 @@ describe('ServiceSubscriptionsService', () => {
     }),
   };
 
+  const subscriptionRefundService = {
+    refundSubscriptionPayment: jest.fn().mockResolvedValue('refunded'),
+  };
+
   const service = new ServiceSubscriptionsService(
     planRepo as any,
     subscriptionRepo as any,
@@ -61,6 +66,7 @@ describe('ServiceSubscriptionsService', () => {
     businessRepo as any,
     planEntitlements as any,
     catalogAnnouncement as any,
+    subscriptionRefundService as any,
   );
 
   const basePlan = {
@@ -626,15 +632,62 @@ describe('ServiceSubscriptionsService', () => {
     expect(sub.status).toBe(CustomerSubscriptionStatus.ACTIVE);
   });
 
-  it('cancels customer subscription', async () => {
+  it('cancels customer subscription with no online payment (no refund attempted)', async () => {
     subscriptionRepo.findOne.mockResolvedValue({
       id: 'sub-1',
       businessId: 'biz-1',
       status: 'active',
+      metadata: {},
     });
     subscriptionRepo.save.mockImplementation(async (v) => v);
-    const updated = await service.cancelSubscription('biz-1', 'sub-1');
-    expect(updated.status).toBe(CustomerSubscriptionStatus.CANCELLED);
+    const { subscription, refundStatus } = await service.cancelSubscription(
+      'biz-1',
+      'sub-1',
+    );
+    expect(subscription.status).toBe(CustomerSubscriptionStatus.CANCELLED);
+    expect(refundStatus).toBeUndefined();
+    expect(subscriptionRefundService.refundSubscriptionPayment).not.toHaveBeenCalled();
+  });
+
+  it('refunds an unused, paid-online subscription on cancel', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-2',
+      businessId: 'biz-1',
+      status: 'active',
+      metadata: { stripePaymentIntentId: 'pi_123' },
+    });
+    subscriptionRepo.save.mockImplementation(async (v) => v);
+    usageRepo.count.mockResolvedValueOnce(0);
+    const { refundStatus } = await service.cancelSubscription(
+      'biz-1',
+      'sub-2',
+    );
+    expect(refundStatus).toBe('refunded');
+    expect(subscriptionRefundService.refundSubscriptionPayment).toHaveBeenCalled();
+  });
+
+  it('marks a used, paid-online subscription as ineligible for refund on cancel', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-3',
+      businessId: 'biz-1',
+      status: 'active',
+      metadata: { stripePaymentIntentId: 'pi_123' },
+    });
+    subscriptionRepo.save.mockImplementation(async (v) => v);
+    usageRepo.count.mockResolvedValueOnce(1);
+    const { refundStatus } = await service.cancelSubscription(
+      'biz-1',
+      'sub-3',
+    );
+    expect(refundStatus).toBe('ineligible');
+    expect(subscriptionRefundService.refundSubscriptionPayment).not.toHaveBeenCalled();
+  });
+
+  it('isRefundEligible reflects usage even after a later restore', async () => {
+    usageRepo.count.mockResolvedValueOnce(0);
+    await expect(service.isRefundEligible('sub-x')).resolves.toBe(true);
+    usageRepo.count.mockResolvedValueOnce(1);
+    await expect(service.isRefundEligible('sub-x')).resolves.toBe(false);
   });
 
   it('returns plan checkout details', async () => {
@@ -699,6 +752,30 @@ describe('ServiceSubscriptionsService', () => {
     subscriptionRepo.findOne.mockResolvedValue(null);
     await expect(
       service.getCustomerSubscriptionUsage('biz-1', 'cust-1', 'sub-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('cancelCustomerSubscription cancels when owned by the customer', async () => {
+    subscriptionRepo.findOne.mockResolvedValue({
+      id: 'sub-1',
+      businessId: 'biz-1',
+      customerId: 'cust-1',
+      status: 'active',
+      metadata: {},
+    });
+    subscriptionRepo.save.mockImplementation(async (v) => v);
+    const { subscription } = await service.cancelCustomerSubscription(
+      'biz-1',
+      'cust-1',
+      'sub-1',
+    );
+    expect(subscription.status).toBe(CustomerSubscriptionStatus.CANCELLED);
+  });
+
+  it('cancelCustomerSubscription rejects when subscription belongs to another customer', async () => {
+    subscriptionRepo.findOne.mockResolvedValue(null);
+    await expect(
+      service.cancelCustomerSubscription('biz-1', 'cust-2', 'sub-1'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 

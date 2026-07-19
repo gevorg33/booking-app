@@ -57,6 +57,10 @@ import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.se
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../customer/customer-tag-query.util.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
@@ -552,6 +556,7 @@ export class ProviderAiCommandService {
       businessId,
       prompt,
       'provider',
+      typeof context?.locale === 'string' ? context.locale : undefined,
     );
     if (blocked) {
       return {
@@ -721,6 +726,7 @@ export class ProviderAiCommandService {
           details: clarify.details as Record<string, unknown>,
         },
         context,
+        prompt,
       );
     }
 
@@ -853,6 +859,8 @@ export class ProviderAiCommandService {
         confidence:
           typeof parsed.confidence === 'number' ? parsed.confidence : 0,
         trace: understood.trace,
+        locale:
+          typeof context?.locale === 'string' ? context.locale : undefined,
       });
       this.aiEvents.emitClarify(businessId, {
         action: 'unknown',
@@ -867,6 +875,7 @@ export class ProviderAiCommandService {
           details: clarify.details as Record<string, unknown>,
         },
         context,
+        prompt,
       );
     }
 
@@ -889,7 +898,7 @@ export class ProviderAiCommandService {
             ? clarify.details.missing
             : undefined,
         });
-        return this.withPostFailureGuideFallback(clarify, context);
+        return this.withPostFailureGuideFallback(clarify, context, prompt);
       }
     }
 
@@ -919,6 +928,7 @@ export class ProviderAiCommandService {
       parsed.action,
       prompt,
       parsed.params,
+      typeof context?.locale === 'string' ? context.locale : undefined,
     );
     if (securityDenied) {
       return {
@@ -2132,18 +2142,22 @@ export class ProviderAiCommandService {
         ),
       ),
       context,
+      prompt,
     );
   }
 
   private withPostFailureGuideFallback(
     result: ProviderCommandResult,
     context?: Record<string, unknown>,
+    prompt?: string,
   ): ProviderCommandResult {
     return appendPostFailureGuideFallback(
       result,
       buildPostFailureGuideFallbackInput(
         mergeProviderMobileGuideContext(context),
         'provider',
+        undefined,
+        prompt,
       ),
     );
   }
@@ -5104,12 +5118,17 @@ export class ProviderAiCommandService {
       };
     }
 
-    const waitlist = await this.customerRepo
+    const waitlistQb = this.customerRepo
       .createQueryBuilder('c')
       .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .orderBy('c.name', 'ASC')
-      .getMany();
+      .orderBy('c.name', 'ASC');
+    andWhereSimpleArrayTag(
+      waitlistQb,
+      'c',
+      WAITLIST_CUSTOMER_TAG,
+      'waitlistTag',
+    );
+    const waitlist = await waitlistQb.getMany();
 
     const waitlistCustomer = matchWaitlistCustomerByName(
       waitlist,

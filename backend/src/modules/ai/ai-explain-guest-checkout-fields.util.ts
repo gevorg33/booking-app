@@ -69,8 +69,10 @@ const GUEST_ACCOUNT_TOPIC = new RegExp(
   'iu',
 );
 
+// e2e-bug.93 — bare "profile" stole provider-profile reads ("…Mariam's profile").
+// Keep merge/prefill/sign-in cues; require checkout/guest context for "profile".
 const MERGE_TOPIC = new RegExp(
-  String.raw`\b(?:merge|link|same\s+(?:email|phone)|after\s+(?:i\s+)?sign[\s-]?in|existing\s+customer|returning\s+guest|pre-?fill|profile)\b|միացն|նույն\s+էլ|привяз|тот\s+же\s+email|объедин`,
+  String.raw`\b(?:merge|link|same\s+(?:email|phone)|after\s+(?:i\s+)?sign[\s-]?in|existing\s+customer|returning\s+guest|pre-?fill)\b|(?:\b(?:guest|checkout|sign[\s-]?in)\b.{0,48}\bprofile\b|\bprofile\b.{0,48}\b(?:guest|checkout|pre-?fill|merge|sign[\s-]?in|email|phone)\b)|միացն|նույն\s+էլ|привяз|тот\s+же\s+email|объедин`,
   'iu',
 );
 
@@ -169,6 +171,18 @@ export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
   if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
   if (isExplainRecommendationSetupPrompt(prompt)) return false;
   if (isExplainWhySignInPrompt(prompt)) return false;
+  // e2e-bug.93 — provider professional-profile reads are not guest checkout.
+  if (
+    /\b(?:tell\s+me\s+about|learn(?:\s+more)?\s+about|show\s+me|open|view)\b/i.test(
+      prompt,
+    ) &&
+    /\b(?:profile|experience|background|bio|professional\s+profile)\b/i.test(
+      prompt,
+    ) &&
+    !/\b(?:guest|checkout|pre-?fill|sign[\s-]?in)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     /\b(save (?:this )?booking to (?:my )?account|sign in with google after|post-booking sign|after (?:my )?booking|maybe later on save|confirmation screen save)\b/i.test(
       prompt,

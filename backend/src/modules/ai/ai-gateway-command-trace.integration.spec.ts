@@ -80,7 +80,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
         confidence: 0.88,
       },
     });
-    await gateway.execute({
+    const clientResult = await gateway.execute({
       surface: 'dashboard',
       businessId: 'biz-1',
       prompt: 'list bookings',
@@ -92,9 +92,23 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
         businessId: 'biz-1',
         action: 'list_bookings',
         traceId: 'trace-exec',
-        result: expect.objectContaining({ success: true }),
+        result: expect.objectContaining({
+          success: true,
+          details: expect.objectContaining({
+            pipelineTrace: expect.any(Array),
+            confidence: 0.88,
+          }),
+        }),
       }),
     );
+    // e2e-bug.135 — client body must not include pipeline internals.
+    expect((clientResult as { details?: Record<string, unknown> }).details)
+      .toEqual(expect.not.objectContaining({
+        pipelineTrace: expect.anything(),
+        confidence: expect.anything(),
+        traceId: expect.anything(),
+        gateway: expect.anything(),
+      }));
   });
 
   it('persists trace on clarify path', async () => {

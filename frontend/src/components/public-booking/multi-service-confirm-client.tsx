@@ -24,6 +24,7 @@ import {
   persistMultiServiceCart,
   buildMultiServicePickerHref,
 } from '@/lib/multi-service-booking';
+import { resolveMultiServiceAvailabilityCatchMessage } from '@/lib/multi-service-availability-catch.util';
 
 interface LineState {
   key: string;
@@ -134,8 +135,11 @@ export function MultiServiceConfirmClient({
             };
           }),
         );
-      } catch (err: unknown) {
-        if (!cancelled) setError((err as Error)?.message || t('common.errorGeneric'));
+      } catch {
+        // e2e-bug.56 — never surface raw backend English (e.g. "No available slot found for…")
+        if (!cancelled) {
+          setError(resolveMultiServiceAvailabilityCatchMessage(t, 'suggestLines'));
+        }
       } finally {
         if (!cancelled) setLoadingDefaults(false);
       }
@@ -193,7 +197,9 @@ export function MultiServiceConfirmClient({
       <main className="max-w-lg mx-auto px-4 py-6 pb-32 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('public.multiServiceConfirmTitle')}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t('public.packageScheduleEach')}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {t('public.multiServiceConfirmPerServiceHint')}
+          </p>
           <p className="mt-2 font-semibold text-gray-900">{formatPrice(totalPrice, currency)}</p>
         </div>
 

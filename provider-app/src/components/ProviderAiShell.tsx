@@ -7,7 +7,7 @@ import ProviderAiAssistant from './ProviderAiAssistant';
 import { providerRouteFromPath } from '../lib/provider-ai-shell.util';
 import { providerTabPath, resolveProviderTabId } from '../lib/provider-tab-route.util';
 
-/** Global AI FAB + assistant on provider tab routes only. */
+/** Global AI FAB + assistant on provider tab routes and the standalone Guide page. */
 export function ProviderAiShell({
   children,
   overlaysVisible = true,

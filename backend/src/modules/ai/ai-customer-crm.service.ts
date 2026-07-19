@@ -33,6 +33,7 @@ import {
   handleGiftCardBalanceLogic,
   handleGiftCardRedemptionHistoryLogic,
   handleListCustomerBookingsLogic,
+  handleListCustomersLogic,
   handleListCustomerGiftCardsLogic,
   handleListCustomerSubscriptionsLogic,
   handleMergeCustomersLogic,
@@ -189,6 +190,10 @@ export class AiCustomerCrmService {
       customers,
       resolveCustomer,
     );
+  }
+
+  handleListCustomers(businessId: string, params: Record<string, any>) {
+    return handleListCustomersLogic(this.deps, businessId, params);
   }
 
   handleListCustomerBookings(

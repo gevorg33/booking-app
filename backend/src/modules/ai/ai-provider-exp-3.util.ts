@@ -76,6 +76,9 @@ export function isAddRetailToBookingPrompt(prompt: string): boolean {
   );
 }
 
+const RETAIL_PRODUCT_CUE =
+  /\b(retail|product|serum|shampoo|conditioner|merchandise|sku|gel|oil|cream|lotion)\b/i;
+
 /** ai-cmd-provider-5.4.4 — remove one retail product from own active booking. */
 export function isRemoveRetailFromBookingPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
@@ -88,9 +91,29 @@ export function isRemoveRetailFromBookingPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.144 — catalog soft-delete / "not a cart" disambiguation is not retail.
+  if (
+    /\b(?:catalog|service\s+menu|deactivate_service|delete_service)\b/i.test(
+      lower,
+    ) ||
+    /\bnot\s+a\s+cart\b/i.test(lower)
+  ) {
+    return false;
+  }
+  // e2e-bug.131 — customer multi-service cart ("Remove the manicure from my cart")
+  // is remove_service_from_cart, not provider retail undo.
+  if (
+    /\b(cart|basket)\b/i.test(lower) &&
+    !RETAIL_PRODUCT_CUE.test(lower) &&
+    !/\bundo\b/i.test(lower)
+  ) {
+    return false;
+  }
   if (
     /\b(remove|delete|undo|take)\b/i.test(lower) &&
-    /\b(cart|booking|appointment|item|line)\b/i.test(lower)
+    /\b(cart|booking|appointment|item|line)\b/i.test(lower) &&
+    (RETAIL_PRODUCT_CUE.test(lower) ||
+      /\b(booking|appointment|item|line)\b/i.test(lower))
   ) {
     return true;
   }

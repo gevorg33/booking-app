@@ -23,12 +23,19 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('@/lib/store', () => ({
-  useAuthStore: () => ({
-    business: {
-      id: 'biz-1',
-      settings: { businessType: 'clinic' },
-    },
-  }),
+  useAuthStore: (selector?: (state: {
+    business: { id: string; settings: { businessType: string } };
+    token: string;
+  }) => unknown) => {
+    const state = {
+      business: {
+        id: 'biz-1',
+        settings: { businessType: 'clinic' },
+      },
+      token: 'test-token',
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 vi.mock('@/lib/api', () => ({
