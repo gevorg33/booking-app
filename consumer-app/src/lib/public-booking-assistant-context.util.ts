@@ -2,6 +2,10 @@ export type PublicBookingAssistantStep = 'professionals' | 'services' | 'checkou
 
 export type ConsumerActivationStep = 'welcome' | 'salon' | 'service' | 'slot' | 'confirm';
 
+/**
+ * e2e-bug.124 — bare `/book/:slug` landing must NOT report `checkout`
+ * (that steered gift-card purchase prompts into apply/redeem).
+ */
 export function derivePublicBookingStepFromPathname(
   pathname: string,
 ): PublicBookingAssistantStep | undefined {
@@ -15,15 +19,10 @@ export function derivePublicBookingStepFromPathname(
   if (/\/services(\/|$|\?)/.test(lower) && !lower.includes('/providers/')) {
     return 'services';
   }
-  if (
-    /\/book\/[0-9a-f-]{8,}/i.test(lower) ||
-    (/\/book\/[^/]+(\/|$|\?)/.test(lower) &&
-      !lower.includes('/packages/') &&
-      !lower.includes('/multi/') &&
-      !lower.includes('/gift-cards/'))
-  ) {
+  if (/\/book\/[^/]+\/review(\/|$|\?)/.test(lower)) {
     return 'checkout';
   }
+  // Consumer deep-link with a selected service: /s/:tenant/book/:serviceId
   if (/^\/s\/[^/]+\/book\//.test(lower)) {
     return 'checkout';
   }

@@ -200,6 +200,15 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
       ],
     })),
   };
+  const businessRepo = {
+    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+  };
+  const switchDeps = () => ({
+    employeeRepo,
+    serviceRepo,
+    publicBookingService,
+    businessRepo,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -207,7 +216,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('switches to another provider at the same time', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -234,7 +243,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('switches to a named provider at the same time', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -251,7 +260,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('clarifies when service is missing', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       { slug: 'salon', date: '2026-07-01', timeSlot },
       'Keep 3pm but different stylist',
@@ -277,7 +286,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     });
 
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -309,7 +318,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     });
 
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -327,7 +336,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('derives time slot from session startTime', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',

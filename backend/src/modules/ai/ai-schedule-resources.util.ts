@@ -8,12 +8,14 @@ export const DASHBOARD_RESOURCE_MUTATE_INTENTS = [
   'update_resource',
   'deactivate_resource',
   'assign_resource_hours',
+  'set_service_resource_requirements',
   'configure_multi_service_scheduling_mode',
   'block_resource_unavailable',
 ] as const;
 
 export const DASHBOARD_RESOURCE_READ_INTENTS = [
   'list_scheduling_resources',
+  'list_service_resource_requirements',
   'list_resource_conflicts',
   'explain_resource_conflict',
   'explain_multi_service_settings',
@@ -61,8 +63,76 @@ export function isListSchedulingResourcesPrompt(prompt: string): boolean {
     /\b(list|show)\b/i.test(prompt) &&
     /\b(scheduling\s+)?resources?\b/i.test(prompt) &&
     !/\bconflicts?\b/i.test(prompt) &&
-    !/\bassignments?\b/i.test(prompt)
+    !/\bassignments?\b/i.test(prompt) &&
+    !/\brequirements?\b/i.test(prompt) &&
+    !/\bequipment\b/i.test(prompt)
   );
+}
+
+/** e2e-bug.147 — READ configured resource requirements for a named service. */
+export function isListServiceResourceRequirementsPrompt(
+  prompt: string,
+): boolean {
+  if (
+    /\b(set|configure|assign|update|change|replace|link|attach|create|add)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (/\bconflicts?\b/i.test(prompt) || /\bassignments?\b/i.test(prompt)) {
+    return false;
+  }
+  const hasReadCue =
+    /\b(what|which|list|show|explain|describe|tell|does|do|how)\b/i.test(
+      prompt,
+    ) ||
+    /\b(resources?|equipment|rooms?|chairs?|stations?)\s+(?:required|needed|requirements?)\s+for\b/i.test(
+      prompt,
+    );
+  const hasRequireCue =
+    /\b(require|requires|required|requirement|requirements|need|needs|needed)\b/i.test(
+      prompt,
+    );
+  const hasResourceCue =
+    /\b(resource|resources|equipment|room|rooms|chair|chairs|station|stations)\b/i.test(
+      prompt,
+    );
+  return hasReadCue && hasRequireCue && hasResourceCue;
+}
+
+export function extractServiceNameForResourceRequirements(
+  prompt: string,
+): string | null {
+  const patterns = [
+    /\b(?:what|which)\s+(?:equipment|resources?|rooms?|chairs?|stations?)\s+(?:does|do)\s+(?:the\s+)?(.+?)\s+service\s+require/i,
+    /\b(?:what|which)\s+(?:equipment|resources?|rooms?|chairs?|stations?)\s+(?:are\s+)?(?:required|needed)\s+for\s+(?:the\s+)?(.+?)(?:\s+service)?(?:\?|$)/i,
+    /\b(?:resources?|equipment|rooms?|chairs?)\s+(?:required|needed|requirements?)\s+for\s+(?:the\s+)?(.+?)(?:\s+service)?(?:\?|$)/i,
+    /\b(?:list|show|explain|describe)\s+(?:the\s+)?(?:resource\s+)?requirements?\s+for\s+(?:the\s+)?(.+?)(?:\s+service)?(?:\?|$)/i,
+    /\b(?:does|do)\s+(?:the\s+)?(.+?)\s+service\s+(?:require|need)\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    const name = match?.[1]?.trim().replace(/[?.!,;:]+$/, '');
+    if (name && name.length >= 2 && name.length <= 80) return name;
+  }
+  const quoted = prompt.match(/"([^"]{1,60})"/);
+  return quoted?.[1]?.trim() ?? null;
+}
+
+export function enrichListServiceResourceRequirementsParamsFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const next = { ...params };
+  if (
+    typeof next.serviceName !== 'string' ||
+    !String(next.serviceName).trim()
+  ) {
+    const serviceName = extractServiceNameForResourceRequirements(prompt);
+    if (serviceName) next.serviceName = serviceName;
+  }
+  return next;
 }
 
 export function isCreateResourcePrompt(prompt: string): boolean {
@@ -229,11 +299,40 @@ export function extractServiceNamesFromPrompt(prompt: string): string[] {
   return [...new Set(names.filter(Boolean))];
 }
 
+export type ScheduleResourceRescue = {
+  action: ScheduleResourceIntent;
+  rescueReason: string;
+  params?: Record<string, unknown>;
+};
+
 /** NL rescue when classifier returns unknown or a nearby action. */
 export function rescueScheduleResourceIntent(
   prompt: string,
   action: string,
-): { action: ScheduleResourceIntent; rescueReason: string } | null {
+): ScheduleResourceRescue | null {
+  // e2e-bug.147 — before isScheduleResourceIntent early-return so nearby
+  // list_scheduling_resources / react_agent misroutes still rescue.
+  if (isListServiceResourceRequirementsPrompt(prompt)) {
+    const params = enrichListServiceResourceRequirementsParamsFromPrompt(
+      prompt,
+      {},
+    );
+    if (action !== 'list_service_resource_requirements') {
+      return {
+        action: 'list_service_resource_requirements',
+        rescueReason: 'list_service_resource_requirements',
+        params,
+      };
+    }
+    if (params.serviceName) {
+      return {
+        action: 'list_service_resource_requirements',
+        rescueReason: 'list_service_resource_requirements_params',
+        params,
+      };
+    }
+  }
+
   if (isScheduleResourceIntent(action)) return null;
   if (isScheduleResourceCompoundPrompt(prompt) && action !== 'compound_intent')
     return null;
@@ -334,6 +433,13 @@ function classifyScheduleSegment(
   const schedulingMode = extractSchedulingModeFromPrompt(text);
   if (schedulingMode) base.schedulingMode = schedulingMode;
 
+  if (isListServiceResourceRequirementsPrompt(text)) {
+    return {
+      action: 'list_service_resource_requirements',
+      params: enrichListServiceResourceRequirementsParamsFromPrompt(text, base),
+      segment: text,
+    };
+  }
   if (isListSchedulingResourcesPrompt(text)) {
     return { action: 'list_scheduling_resources', params: {}, segment: text };
   }

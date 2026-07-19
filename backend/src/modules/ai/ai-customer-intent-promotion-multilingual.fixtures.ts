@@ -84,7 +84,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'hy',
       prompt: 'Ինչու պետք է վճարել օնլայն',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'customer',
     },
     {
@@ -92,7 +92,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'hy',
       prompt: 'Ինչու է պահանջվում քարտով վճարում checkout-ում',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'customer',
     },
     {
@@ -100,7 +100,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'hy',
       prompt: 'Ինչու պետք է deposit վճարել հիմա',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'customer',
     },
     {
@@ -108,7 +108,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'ru',
       prompt: 'Почему нужно платить онлайн',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'public',
     },
     {
@@ -116,7 +116,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'ru',
       prompt: 'Зачем требуется оплата картой при checkout',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'public',
     },
     {
@@ -124,7 +124,7 @@ export const CUSTOMER_INTENT_PROMOTION_MULTILINGUAL_SCENARIOS: readonly Customer
       locale: 'ru',
       prompt: 'Почему нужно внести депозит сейчас',
       expectedAction: 'explain_why_stripe_required',
-      rescueReason: 'explain_prepayment',
+      rescueReason: 'why_prepayment',
       surface: 'public',
     },
     {

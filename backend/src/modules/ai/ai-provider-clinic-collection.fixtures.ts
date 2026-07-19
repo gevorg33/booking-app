@@ -1,9 +1,11 @@
 /** Provider mobile classifier rules for specimen collection queue (ai-cmd-clinic-v2-4). */
 export const PROVIDER_CLINIC_COLLECTION_CLASSIFIER_RULES = `- list_my_collection_queue: READ — clinic only: provider-scoped specimen collection worklist (NotCollected / RecollectRequired) for own assigned visits today or date range. Triggers: my collection queue|specimen collection|draw list|collection worklist|who to draw. NOT list_bookings (appointments), NOT list_test_orders (dashboard lab orders), NOT lab-results queue.
 - mark_specimen_collected: MUTATE — clinic only: mark a specimen Collected on own assigned visit. Requires specimenId or customerName (+ optional orderId). Triggers: mark/collect/specimen collected + patient or specimen id. NOT mark_paid (payment), NOT complete clinic task wording without specimen, NOT dashboard enter_test_result.
+- explain_specimen_recollect: READ — clinic only: why a specimen was flagged RecollectRequired and the next step (redraw, then mark collected or rejected). Requires specimenId or customerName. Triggers: why recollect required, failed draw — what next, why redraw. NOT mark_specimen_collected (mutate).
 - Examples:
   - "Show my collection queue today" → list_my_collection_queue
-  - "Mark specimen collected for Maria" → mark_specimen_collected, customerName=Maria`;
+  - "Mark specimen collected for Maria" → mark_specimen_collected, customerName=Maria
+  - "Why recollect required for Maria?" → explain_specimen_recollect, customerName=Maria`;
 
 export const LIST_MY_COLLECTION_QUEUE_PROMPTS = [
   {
@@ -98,6 +100,35 @@ export const MARK_SPECIMEN_COLLECTED_PROMPTS = [
     id: 'done-drawing-maria',
     prompt: 'Done drawing Maria — mark her specimen collected',
     customerName: 'Maria',
+  },
+] as const;
+
+export const EXPLAIN_SPECIMEN_RECOLLECT_PROMPTS = [
+  {
+    id: 'why-recollect-required',
+    prompt: 'Why recollect required?',
+  },
+  {
+    id: 'failed-draw-what-next',
+    prompt: 'Failed draw — what next?',
+  },
+  {
+    id: 'why-recollect-maria',
+    prompt: 'Why recollect required for Maria?',
+    customerName: 'Maria',
+  },
+  {
+    id: 'why-redraw-specimen',
+    prompt: 'Why redraw specimen #abc123?',
+    specimenId: 'abc123',
+  },
+  {
+    id: 'why-recollect-hy',
+    prompt: 'Ինչու է պահանջվում կրկնակի վերցում',
+  },
+  {
+    id: 'why-recollect-ru',
+    prompt: 'Почему требуется повторный забор?',
   },
 ] as const;
 

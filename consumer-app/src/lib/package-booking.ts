@@ -143,3 +143,16 @@ export function buildPackageCheckoutPath(
 export function buildPackagePickerPath(slug: string): string {
   return buildSalonPath(slug, '/book/any');
 }
+
+/**
+ * Services-tab catalog entry for packages / "any specialist".
+ * Packages must stay reachable when multi-service booking is on (e2e-bug.7).
+ */
+export function shouldShowServicesCatalogEntry(input: {
+  hasPackages: boolean;
+  multiServiceEnabled: boolean;
+  hasServices: boolean;
+}): boolean {
+  if (input.hasPackages) return true;
+  return input.hasServices && !input.multiServiceEnabled;
+}

@@ -1,6 +1,10 @@
 /** prov-exp-3.1 — provider mobile client check-in. */
 
-import { BookingStatus } from '../booking/entities/booking.entity.js';
+import type { EntityManager, Repository } from 'typeorm';
+import {
+  Booking,
+  BookingStatus,
+} from '../booking/entities/booking.entity.js';
 
 export type ProviderBookingFloorStatus =
   | 'waiting'
@@ -115,4 +119,56 @@ export function buildProviderCheckInPushMessage(input: {
     title: 'Client checked in',
     body: `${input.customerName} — ${input.serviceName} with ${input.providerName} at ${input.whenLabel}`,
   };
+}
+
+export type ClaimProviderBookingCheckInResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; reason: string; code: 'not_found' | 'not_allowed' };
+
+/**
+ * e2e-bug.74 — claim check-in under SELECT … FOR UPDATE so concurrent
+ * check-ins serialize: only the first writer sets checkedInAt and may notify.
+ */
+export async function claimProviderBookingCheckIn(
+  bookingRepo: Repository<Booking>,
+  input: {
+    bookingId: string;
+    businessId: string;
+    checkedInAt?: Date;
+  },
+): Promise<ClaimProviderBookingCheckInResult> {
+  return bookingRepo.manager.transaction(async (manager: EntityManager) => {
+    const booking = await manager
+      .createQueryBuilder(Booking, 'booking')
+      .setLock('pessimistic_write')
+      .leftJoinAndSelect('booking.customer', 'customer')
+      .leftJoinAndSelect('booking.service', 'service')
+      .leftJoinAndSelect('booking.employee', 'employee')
+      .where('booking.id = :bookingId', { bookingId: input.bookingId })
+      .andWhere('booking.businessId = :businessId', {
+        businessId: input.businessId,
+      })
+      .getOne();
+
+    if (!booking) {
+      return {
+        ok: false,
+        code: 'not_found',
+        reason: 'Booking not found',
+      };
+    }
+
+    const eligibility = buildProviderCheckInEligibility(booking);
+    if (!eligibility.allowed) {
+      return {
+        ok: false,
+        code: 'not_allowed',
+        reason: eligibility.reason ?? 'Check-in is not allowed for this booking',
+      };
+    }
+
+    booking.checkedInAt = input.checkedInAt ?? new Date();
+    const saved = await manager.save(Booking, booking);
+    return { ok: true, booking: saved };
+  });
 }

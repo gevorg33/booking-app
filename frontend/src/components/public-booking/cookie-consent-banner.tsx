@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
+import { syncAnalyticsConsentFromCookies } from '@/lib/app-analytics';
 import {
-  readCookieConsent,
+  shouldShowCookieConsentBanner,
   writeCookieConsent,
   type CookieConsentChoice,
 } from '@/lib/cookie-consent';
@@ -19,21 +20,23 @@ export function CookieConsentBanner({
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const privacy = tenant.privacy;
+  const bannerEnabled = privacy?.cookieBannerEnabled === true;
 
   useEffect(() => {
-    if (!privacy?.cookieBannerEnabled) return;
     queueMicrotask(() => {
-      setVisible(readCookieConsent(slug) == null);
+      setVisible(shouldShowCookieConsentBanner(slug, bannerEnabled));
     });
-  }, [slug, privacy?.cookieBannerEnabled]);
+  }, [slug, bannerEnabled]);
 
-  if (!privacy?.cookieBannerEnabled || !visible) return null;
+  if (!bannerEnabled || !visible) return null;
 
   const message =
-    privacy.cookieBannerMessage?.trim() || t('public.cookieBannerDefault');
+    privacy?.cookieBannerMessage?.trim() || t('public.cookieBannerDefault');
 
   const choose = (choice: CookieConsentChoice) => {
     writeCookieConsent(slug, choice);
+    // Keep in-memory analytics gate in sync without a full reload.
+    syncAnalyticsConsentFromCookies(slug, { cookieBannerEnabled: true });
     setVisible(false);
   };
 
@@ -41,7 +44,7 @@ export function CookieConsentBanner({
     <div
       role="dialog"
       aria-label={t('public.cookieBannerTitle')}
-      className="fixed bottom-0 inset-x-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-4 shadow-lg"
+      className="fixed bottom-0 inset-x-0 z-[60] border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg"
     >
       <div className="mx-auto max-w-3xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-700">{message}</p>

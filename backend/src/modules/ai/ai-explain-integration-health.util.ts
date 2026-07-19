@@ -1,5 +1,6 @@
 import { isConfigureOpenaiIntegrationPrompt } from './ai-openai-integration.util.js';
 import { isConfigureWhatsappIntegrationPrompt } from './ai-whatsapp-integration.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
 import type { IntegrationHealthFocus } from './ai-integration-health.snapshot.js';
 
 /** Dashboard read intent (ai-cmd-ext-2.31). */
@@ -209,6 +210,7 @@ export function isExplainIntegrationHealthPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (isConfigureWhatsappIntegrationPrompt(text)) return false;
+  if (isExplainServiceOnlinePaymentSetupPrompt(text)) return false;
   if (isConfigureOpenaiIntegrationPrompt(text)) return false;
   if (
     /\b(configure|connect|enable|disable|turn\s+on|turn\s+off|set\s+up|update|rotate|create|delete|sync|run)\b/i.test(

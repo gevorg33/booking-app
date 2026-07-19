@@ -108,10 +108,8 @@ describe('customer AI gateway integration (ai-cmd-0.5)', () => {
     expect(
       conversationSummary.prepareHistoryForClassifier,
     ).toHaveBeenCalledWith('biz-1', undefined, 'customer');
-    expect((result as CommandResult).details?.gateway).toEqual({
-      surface: 'customer',
-      tier: 'client',
-    });
+    // e2e-bug.135 — gateway meta is attach-only for telemetry, stripped from client body.
+    expect((result as CommandResult).details?.gateway).toBeUndefined();
   });
 
   it('records customer command outcomes on the customer surface', async () => {

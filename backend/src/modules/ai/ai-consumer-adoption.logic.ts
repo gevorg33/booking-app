@@ -1,3 +1,5 @@
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
@@ -15,12 +17,15 @@ import { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js
 import { handleSwitchSalonTenantLogic } from './ai-switch-salon-tenant.logic.js';
 import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 import { handleCustomerEnablePushNotificationsLogic } from './ai-customer-enable-push-notifications.logic.js';
+import { handleRegisterCustomerPushLogic } from './ai-register-customer-push.logic.js';
+import { handleExplainPushRegistrationStatusLogic } from './ai-explain-push-registration-status.logic.js';
 import { handleExplainPushPermissionLogic } from './ai-explain-push-permission.logic.js';
 import { handleExplainOfflineModeLogic } from './ai-explain-offline-mode.logic.js';
 import { handleExplainAppUpdateRequiredLogic } from './ai-explain-app-update-required.logic.js';
 import { handleExplainAnalyticsConsentLogic } from './ai-explain-analytics-consent.logic.js';
 import { handleExplainHomeScreenWidgetLogic } from './ai-explain-home-screen-widget.logic.js';
 import { handleExplainPatientAlertLogic } from './ai-explain-patient-alert.logic.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 export { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
@@ -32,6 +37,8 @@ export interface ConsumerAdoptionLogicDeps {
   pushNotifications: AiPushNotificationsService;
   notificationsService: NotificationsService;
   consumerPushTokenService: ConsumerPushTokenService;
+  /** e2e-bug.125 — resolve booking slug from authenticated businessId. */
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -55,6 +62,19 @@ function resolveSessionCustomerId(
 ): string | undefined {
   const raw = params.sessionCustomerId ?? params.customerId;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+}
+
+/** e2e-bug.82 / e2e-bug.125 — never require classifier-extracted slug. */
+async function resolveBusinessSlug(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<string | null> {
+  return resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
 }
 
 export async function handleExplainMyNotificationsLogic(
@@ -126,7 +146,7 @@ export async function handleReferAFriendLogic(
     });
   }
 
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) {
     return failure('refer_a_friend', 'Business not found.');
   }
@@ -168,7 +188,7 @@ export async function handleShareSalonLinkLogic(
       clarify: true,
     });
   }
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const slug = await resolveBusinessSlug(deps, businessId, params);
   if (!slug) return failure('share_salon_link', 'Business not found.');
 
   const view = await deps.publicBookingService.getCustomerShareRewards(
@@ -188,6 +208,166 @@ export async function handleShareSalonLinkLogic(
   );
 }
 
+export async function handleExplainRewardsWalletLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure('explain_rewards_wallet', 'Sign in to view your rewards.', {
+      clarify: true,
+    });
+  }
+  const slug = await resolveBusinessSlug(deps, businessId, params);
+  if (!slug) return failure('explain_rewards_wallet', 'Business not found.');
+
+  const view = await deps.publicBookingService.getCustomerRewards(
+    slug,
+    customerId,
+  );
+
+  const parts: string[] = [];
+  if (view.loyaltyEnabled && view.loyalty) {
+    parts.push(
+      `${view.loyalty.pointsBalance} loyalty points (≈ $${view.loyalty.pointsValue} value)`,
+    );
+  }
+  if (view.promotions.length) {
+    parts.push(
+      `${view.promotions.length} active promotion(s): ${view.promotions.map((p) => p.code).join(', ')}`,
+    );
+  }
+  const summary = parts.length
+    ? `Your rewards wallet: ${parts.join(' and ')}.`
+    : 'No loyalty points or active promotions in your rewards wallet yet.';
+
+  return success('explain_rewards_wallet', summary, {
+    loyaltyEnabled: view.loyaltyEnabled,
+    loyalty: view.loyalty,
+    promotions: view.promotions,
+    navigate: { path: 'account', query: { section: 'rewards' } },
+  });
+}
+
+export async function handleClaimReferralCodeLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure(
+      'claim_referral_code',
+      'Sign in to claim a referral code.',
+      { clarify: true },
+    );
+  }
+  const slug = await resolveBusinessSlug(deps, businessId, params);
+  if (!slug) return failure('claim_referral_code', 'Business not found.');
+
+  const referralCode =
+    typeof params.referralCode === 'string'
+      ? params.referralCode.trim()
+      : undefined;
+  if (!referralCode) {
+    return failure(
+      'claim_referral_code',
+      'What referral code would you like to claim?',
+      { clarify: true, missing: ['referralCode'] },
+    );
+  }
+
+  const result = await deps.publicBookingService.claimCustomerReferralCode(
+    slug,
+    customerId,
+    referralCode,
+  );
+
+  if (!result.attached) {
+    const messages: Record<string, string> = {
+      disabled: 'Referral rewards are not enabled for this business.',
+      invalid_code: `I couldn't find a referral code matching "${referralCode}".`,
+      already_attached: "You've already claimed a referral code.",
+      self_referral: "You can't claim your own referral code.",
+      not_eligible_existing_customer:
+        'Referral rewards apply to new customers before their first completed visit.',
+    };
+    return failure(
+      'claim_referral_code',
+      messages[result.reason ?? ''] ?? 'Could not claim this referral code.',
+      { referralCode, reason: result.reason },
+    );
+  }
+
+  return success(
+    'claim_referral_code',
+    `Referral code ${result.referralCode} claimed${
+      result.refereePromoCode
+        ? ` — use promo code ${result.refereePromoCode} on your next booking`
+        : ''
+    }.`,
+    {
+      referralCode: result.referralCode,
+      refereePromoCode: result.refereePromoCode ?? null,
+    },
+  );
+}
+
+export async function handleClaimShareRewardLogic(
+  deps: ConsumerAdoptionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure('claim_share_reward', 'Sign in to claim your reward.', {
+      clarify: true,
+    });
+  }
+  const slug = await resolveBusinessSlug(deps, businessId, params);
+  if (!slug) return failure('claim_share_reward', 'Business not found.');
+
+  const channel =
+    params.channel === 'booking' || params.channel === 'salon'
+      ? params.channel
+      : undefined;
+  if (!channel) {
+    return failure(
+      'claim_share_reward',
+      'Did you share your booking or the salon link?',
+      { clarify: true, missing: ['channel'] },
+    );
+  }
+  const bookingId =
+    typeof params.bookingId === 'string' ? params.bookingId : undefined;
+
+  const result = await deps.publicBookingService.claimCustomerShareReward(
+    slug,
+    customerId,
+    channel,
+    bookingId,
+  );
+
+  if (!result.awarded) {
+    const messages: Record<string, string> = {
+      disabled: 'Share rewards are not enabled for this business.',
+      cooldown: "You've already claimed a share reward recently.",
+      no_reward: 'No reward is configured for this share.',
+    };
+    return failure(
+      'claim_share_reward',
+      messages[result.reason ?? ''] ?? 'Could not claim a share reward.',
+      { channel, reason: result.reason },
+    );
+  }
+
+  return success('claim_share_reward', `Reward claimed for sharing your ${channel === 'booking' ? 'booking' : 'salon link'}.`, {
+    channel,
+    awarded: true,
+  });
+}
+
 export async function handleExplainShareRewardLogic(
   deps: ConsumerAdoptionLogicDeps,
   businessId: string,
@@ -195,7 +375,10 @@ export async function handleExplainShareRewardLogic(
   prompt = '',
 ): Promise<CommandResult> {
   return handleExplainShareRewardLogicCore(
-    { publicBookingService: deps.publicBookingService },
+    {
+      publicBookingService: deps.publicBookingService,
+      businessRepo: deps.businessRepo,
+    },
     businessId,
     params,
     prompt,
@@ -209,7 +392,10 @@ export async function handleShareMyBookingLogic(
   prompt = '',
 ): Promise<CommandResult> {
   return handleShareMyBookingLogicCore(
-    { publicBookingService: deps.publicBookingService },
+    {
+      publicBookingService: deps.publicBookingService,
+      businessRepo: deps.businessRepo,
+    },
     businessId,
     params,
     prompt,
@@ -241,6 +427,10 @@ export async function dispatchConsumerAdoptionIntent(
       );
     case 'explain_push_permission':
       return handleExplainPushPermissionLogic(deps, businessId, params, prompt);
+    case 'register_customer_push':
+      return handleRegisterCustomerPushLogic(deps, businessId, params);
+    case 'explain_push_registration_status':
+      return handleExplainPushRegistrationStatusLogic(deps, businessId, params);
     case 'explain_offline_mode':
       return handleExplainOfflineModeLogic(businessId, params, prompt);
     case 'explain_app_update_required':
@@ -253,12 +443,18 @@ export async function dispatchConsumerAdoptionIntent(
       return handleExplainPatientAlertLogic(businessId, params, prompt);
     case 'refer_a_friend':
       return handleReferAFriendLogic(deps, businessId, params);
+    case 'claim_referral_code':
+      return handleClaimReferralCodeLogic(deps, businessId, params);
     case 'explain_share_reward':
       return handleExplainShareRewardLogic(deps, businessId, params, prompt);
     case 'share_salon_link':
       return handleShareSalonLinkLogic(deps, businessId, params);
     case 'share_my_booking':
       return handleShareMyBookingLogic(deps, businessId, params, prompt);
+    case 'claim_share_reward':
+      return handleClaimShareRewardLogic(deps, businessId, params);
+    case 'explain_rewards_wallet':
+      return handleExplainRewardsWalletLogic(deps, businessId, params);
     case 'rebook_last_appointment':
       return handleRebookLastAppointmentLogic(deps, businessId, params, prompt);
     case 'find_my_saved_salons':

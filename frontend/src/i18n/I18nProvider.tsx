@@ -44,7 +44,8 @@ function coerceLocale(
   value: AppLocale,
   enabledLocales: readonly AppLocale[],
 ): AppLocale {
-  return enabledLocales.includes(value) ? value : (enabledLocales[0] ?? 'en');
+  // `normalizeEnabledLocales` always yields a non-empty list.
+  return enabledLocales.includes(value) ? value : enabledLocales[0]!;
 }
 
 export function I18nProvider({
@@ -65,16 +66,23 @@ export function I18nProvider({
     [enabledLocalesProp],
   );
 
-  const [locale, setLocaleState] = useState<AppLocale>(() => {
-    const fallback = coerceLocale(initialLocale, enabledLocales);
-    if (typeof window === 'undefined') return fallback;
-    const stored = readScopedCookie(localeCookie);
-    return stored ? coerceLocale(stored, enabledLocales) : fallback;
-  });
+  // e2e-bug.166 — always trust SSR `initialLocale` on first paint. Reading
+  // `document.cookie` in the useState initializer (via `typeof window`) causes
+  // hydration mismatches when the cookie disagrees with the server pass
+  // (common after Stripe/OAuth return navigations).
+  const [locale, setLocaleState] = useState<AppLocale>(() =>
+    coerceLocale(initialLocale, enabledLocales),
+  );
 
   useEffect(() => {
-    queueMicrotask(() => setLocaleState((current) => coerceLocale(current, enabledLocales)));
-  }, [enabledLocales]);
+    const stored = readScopedCookie(localeCookie);
+    queueMicrotask(() => {
+      setLocaleState((current) => {
+        if (stored) return coerceLocale(stored, enabledLocales);
+        return coerceLocale(current, enabledLocales);
+      });
+    });
+  }, [enabledLocales, localeCookie]);
 
   useEffect(() => {
     document.documentElement.lang = locale;

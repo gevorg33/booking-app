@@ -1,4 +1,5 @@
 import { buildTenantPublicUrl } from '../../common/utils/tenant-public-url.util.js';
+import type { TenantAppInstallView } from '../../common/utils/tenant-app-install-settings.util.js';
 import { isSendReengagementPrompt } from './ai-customer-crm.util.js';
 import { isConfigureMarketingRegistrationEmailPrompt } from './ai-integrations.util.js';
 import { rescueBillingLoyaltyDashboardIntent } from './ai-billing-loyalty-dashboard.util.js';
@@ -17,7 +18,9 @@ import {
 import {
   isCreatePromoCodePrompt,
   rescueCreatePromoCodeIntent,
+  rescueDeactivatePromoCodeIntent,
 } from './ai-create-promo-code.util.js';
+import { rescueListPromoCodesIntent } from './ai-list-promo-codes.util.js';
 import { isApplyPromoCodeCheckoutPrompt } from './ai-apply-promo-code-checkout.util.js';
 import {
   isConfigureLoyaltySettingsPrompt,
@@ -49,13 +52,18 @@ export const DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS = [
   'toggle_annual_billing',
   'regenerate_tenant_app_install_qr',
   'create_promo_code',
+  'deactivate_promo_code',
   'configure_loyalty_settings',
+  'start_billing_checkout',
+  'confirm_billing_checkout',
 ] as const;
 
 export const DASHBOARD_MARKETING_GROWTH_READ_INTENTS = [
   'summarize_automation_performance',
   'list_inactive_customers',
+  'list_promo_codes',
   'explain_plan_limits',
+  'explain_plan_entitlements',
   'suggest_upgrade',
   'summarize_new_registrations',
   'open_billing_settings',
@@ -205,6 +213,7 @@ export function isPromoCodeHelpPrompt(prompt: string): boolean {
   if (isApplyPromoCodeCheckoutPrompt(prompt)) return false;
   if (isCreatePromoCodePrompt(prompt)) return false;
   if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
+  if (/\bgift\s*card\b/i.test(prompt)) return false;
   if (
     /\bunder\s+\$?\d+/i.test(prompt) &&
     /\bcode\s+[A-Z0-9_-]{3,}\b/i.test(prompt) &&
@@ -406,20 +415,42 @@ export function buildConsumerAppDownloadGuidance(input: {
 export function buildConsumerAppSwitchGuidance(input: {
   frontendUrl: string;
   businessSlug?: string | null;
-}): { summary: string; deepLink: string; steps: string[] } {
+  view?: TenantAppInstallView | null;
+}): {
+  summary: string;
+  deepLink: string;
+  customSchemeUrl: string | null;
+  steps: string[];
+} {
   const frontendUrl = input.frontendUrl.replace(/\/$/, '');
-  const deepLink = input.businessSlug
+  const bookingUrl = input.businessSlug
     ? buildTenantPublicUrl({
         slug: input.businessSlug,
         frontendUrl: input.frontendUrl,
       })
     : frontendUrl;
+
+  if (input.view) {
+    const { view } = input;
+    return {
+      summary: `Open ${view.customSchemeUrl} to jump straight into the app for this salon. Not installed yet? The same /get-app link as the salon's Growth QR (${view.landingUrl}) detects your phone and installs or opens it automatically.`,
+      deepLink: view.landingUrl,
+      customSchemeUrl: view.customSchemeUrl,
+      steps: [
+        `Tap ${view.customSchemeUrl} to open the app directly if it's already installed.`,
+        `If nothing happens, open ${view.landingUrl} — the same get-app link as the salon's Growth QR — it detects iOS or Android and installs or opens the app automatically.`,
+        'Once open, use My appointments / My profile for account actions.',
+      ],
+    };
+  }
+
   return {
     summary:
       'Open the consumer booking experience to manage appointments and loyalty.',
-    deepLink,
+    deepLink: bookingUrl,
+    customSchemeUrl: null,
     steps: [
-      `Open ${deepLink} in your phone browser or home-screen shortcut.`,
+      `Open ${bookingUrl} in your phone browser or home-screen shortcut.`,
       'Sign in with the same email or phone you used when booking.',
       'Use My appointments / My profile for account actions.',
     ],
@@ -445,6 +476,21 @@ export function rescueMarketingGrowthIntent(
 ): { action: MarketingGrowthIntent; rescueReason: string } | null {
   const billingLoyalty = rescueBillingLoyaltyDashboardIntent(prompt, action);
   if (billingLoyalty) return billingLoyalty;
+  const regenerateTenantQrBeforeIntentCheck =
+    rescueRegenerateTenantAppInstallQrIntent(prompt, action);
+  if (regenerateTenantQrBeforeIntentCheck) {
+    return regenerateTenantQrBeforeIntentCheck;
+  }
+  const downloadAppBeforeIntentCheck = rescueHowToDownloadAppIntent(
+    prompt,
+    action,
+  );
+  if (downloadAppBeforeIntentCheck) return downloadAppBeforeIntentCheck;
+  const applyLoyaltyBeforeIntentCheck = rescueApplyLoyaltyAtCheckoutIntent(
+    prompt,
+    action,
+  );
+  if (applyLoyaltyBeforeIntentCheck) return applyLoyaltyBeforeIntentCheck;
 
   if (isMarketingGrowthIntent(action)) return null;
   if (isMarketingGrowthCompoundPrompt(prompt)) return null;
@@ -461,8 +507,6 @@ export function rescueMarketingGrowthIntent(
 
   const explainLoyalty = rescueExplainLoyaltyPointsIntent(prompt, action);
   if (explainLoyalty) return explainLoyalty;
-  const applyLoyalty = rescueApplyLoyaltyAtCheckoutIntent(prompt, action);
-  if (applyLoyalty) return applyLoyalty;
   if (isLoyaltyPointsBalancePrompt(prompt)) {
     return {
       action: 'loyalty_points_balance',
@@ -475,8 +519,12 @@ export function rescueMarketingGrowthIntent(
       rescueReason: 'apply_promo_code_checkout',
     };
   }
+  const listPromo = rescueListPromoCodesIntent(prompt, action);
+  if (listPromo) return listPromo;
   const createPromo = rescueCreatePromoCodeIntent(prompt, action);
   if (createPromo) return createPromo;
+  const deactivatePromo = rescueDeactivatePromoCodeIntent(prompt, action);
+  if (deactivatePromo) return deactivatePromo;
   const configureLoyalty = rescueConfigureLoyaltySettingsIntent(prompt, action);
   if (configureLoyalty) return configureLoyalty;
   if (isPromoCodeHelpPrompt(prompt)) {
@@ -485,13 +533,6 @@ export function rescueMarketingGrowthIntent(
   if (isSwitchToConsumerAppPrompt(prompt)) {
     return { action: 'switch_to_consumer_app', rescueReason: 'switch_app' };
   }
-  const regenerateTenantQr = rescueRegenerateTenantAppInstallQrIntent(
-    prompt,
-    action,
-  );
-  if (regenerateTenantQr) return regenerateTenantQr;
-  const downloadApp = rescueHowToDownloadAppIntent(prompt, action);
-  if (downloadApp) return downloadApp;
   const tenantAppInstall = rescueExplainTenantAppInstallIntent(prompt, action);
   if (tenantAppInstall) return tenantAppInstall;
 

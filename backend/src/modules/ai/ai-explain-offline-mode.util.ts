@@ -11,8 +11,11 @@ import {
 import { isExplainAppUpdateRequiredPrompt } from './ai-explain-app-update-required.util.js';
 import { isSwitchToConsumerAppPrompt } from './ai-marketing-growth.util.js';
 import { isHowToDownloadAppPrompt } from './ai-how-to-download-app.util.js';
+import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
 import { isSummarizeRecommendationPerformancePrompt } from './ai-recommendation-performance.util.js';
+import { isBulkUpdateServiceCurrencyPrompt } from './ai-business-currency.util.js';
+import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 
 export const EXPLAIN_OFFLINE_MODE_INTENTS = ['explain_offline_mode'] as const;
 
@@ -88,8 +91,11 @@ export function isExplainOfflineModePrompt(prompt: string): boolean {
   if (!text) return false;
   if (isSwitchToConsumerAppPrompt(text)) return false;
   if (isHowToDownloadAppPrompt(text)) return false;
+  if (isExplainTenantAppInstallPrompt(text)) return false;
   if (isExplainRecommendationAnalyticsPrompt(text)) return false;
   if (isSummarizeRecommendationPerformancePrompt(text)) return false;
+  if (isBulkUpdateServiceCurrencyPrompt(text)) return false;
+  if (isExplainTenantCurrencyPrompt(text)) return false;
   if (matchExplainOfflineModeScenario(text)) return true;
   if (isExplainAppUpdateRequiredPrompt(text)) return false;
   if (PROVIDER_OFFLINE_CUE.test(text)) return false;

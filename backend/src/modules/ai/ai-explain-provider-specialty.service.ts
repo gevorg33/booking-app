@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -25,6 +26,9 @@ import {
   handleExplainProfessionalProfileLogic,
   type ExplainProfessionalProfileLogicDeps,
 } from './ai-explain-professional-profile.logic.js';
+import { handleListProviderReviewsLogic } from './ai-list-provider-reviews.logic.js';
+import { handleSubmitProviderReviewLogic } from './ai-submit-provider-review.logic.js';
+import { handleSubmitReviewWithTokenLogic } from './ai-submit-review-with-token.logic.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 
@@ -35,14 +39,17 @@ export class AiProviderSpecialtyService {
   private readonly pickProviderDeps: PickProviderForServiceLogicDeps;
   private readonly switchProviderSameTimeDeps: SwitchProviderSameTimeLogicDeps;
   private readonly professionalProfileDeps: ExplainProfessionalProfileLogicDeps;
+  private readonly businessRepo: Repository<Business>;
 
   constructor(
     @InjectRepository(Employee) employeeRepo: Repository<Employee>,
     @InjectRepository(Service) serviceRepo: Repository<Service>,
+    @InjectRepository(Business) businessRepo: Repository<Business>,
     private readonly reviewsService: ReviewsService,
     private readonly publicCustomerAuthService: PublicCustomerAuthService,
     private readonly publicBookingService: PublicBookingService,
   ) {
+    this.businessRepo = businessRepo;
     this.deps = {
       employeeRepo,
       serviceRepo,
@@ -53,11 +60,13 @@ export class AiProviderSpecialtyService {
       employeeRepo,
       serviceRepo,
       publicCustomerAuthService: this.publicCustomerAuthService,
+      businessRepo,
     };
     this.switchProviderSameTimeDeps = {
       employeeRepo,
       serviceRepo,
       publicBookingService: this.publicBookingService,
+      businessRepo,
     };
     this.professionalProfileDeps = {
       employeeRepo,
@@ -128,6 +137,51 @@ export class AiProviderSpecialtyService {
       businessId,
       params,
       prompt,
+    );
+  }
+
+  handleListProviderReviews(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleListProviderReviewsLogic(
+      {
+        employeeRepo: this.deps.employeeRepo,
+        serviceRepo: this.deps.serviceRepo,
+        reviewsService: this.reviewsService,
+        businessRepo: this.businessRepo,
+      },
+      businessId,
+      params,
+    );
+  }
+
+  handleSubmitProviderReview(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleSubmitProviderReviewLogic(
+      {
+        employeeRepo: this.deps.employeeRepo,
+        reviewsService: this.reviewsService,
+        businessRepo: this.businessRepo,
+      },
+      businessId,
+      params,
+    );
+  }
+
+  handleSubmitReviewWithToken(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleSubmitReviewWithTokenLogic(
+      {
+        reviewsService: this.reviewsService,
+        businessRepo: this.businessRepo,
+      },
+      businessId,
+      params,
     );
   }
 }

@@ -9,7 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { BusinessMember } from '../business/entities/business-member.entity.js';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { resolveBookingPaymentSummary } from '../booking/booking-payment-summary.util.js';
 import { BusinessService } from '../business/business.service.js';
 import { BookingService } from '../booking/booking.service.js';
@@ -136,6 +140,7 @@ import {
 import {
   buildProviderCheckInEligibility,
   buildProviderCheckInPushMessage,
+  claimProviderBookingCheckIn,
   providerMobileNotifyCustomerOnVisitStatus,
   providerMobileNotifyReceptionOnCheckIn,
   resolveProviderBookingFloorStatus,
@@ -160,6 +165,17 @@ import {
   resolveBusinessWallClockTimezone,
 } from '../../common/utils/timezone.util.js';
 import { getBusinessDefaultLocale } from '../../common/utils/business-locale.util.js';
+import {
+  resolveCustomerSelfServiceSettings,
+  resolvePublicPaymentSettings,
+  evaluateCustomerBookingPolicy,
+} from '../../common/utils/customer-self-service.util.js';
+import {
+  buildCancelPolicyDepositContext,
+  buildCancelPolicySettingsLines,
+  buildDepositForfeitureLines,
+  buildGeneralDepositForfeitureLine,
+} from '../ai/ai-explain-cancel-policy.util.js';
 import {
   buildProviderReassignEligibility,
   filterReassignTargetEmployees,
@@ -872,6 +888,49 @@ export class ProviderMobileService {
     };
   }
 
+  /** ai-cmd-provider-5.8.5 — manager-only preview of today's unpaid bookings across the team. */
+  async getTeamUnpaidToday(businessId: string, userId: string) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    if (access.viewMode !== 'team') {
+      throw new ForbiddenException(
+        'Team unpaid view is only available to managers',
+      );
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(today);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const bookings = await this.bookingRepo.find({
+      where: {
+        businessId,
+        startTime: Between(today, dayEnd),
+        paymentStatus: PaymentStatus.PENDING,
+        status: In([
+          BookingStatus.CONFIRMED,
+          BookingStatus.IN_PROGRESS,
+          BookingStatus.COMPLETED,
+        ]),
+      },
+      relations: { customer: true, employee: true, service: true },
+      order: { startTime: 'ASC' },
+    });
+
+    return {
+      date: today.toISOString().slice(0, 10),
+      totalUnpaid: bookings.length,
+      bookings: bookings.map((booking) => ({
+        id: booking.id,
+        customerName: booking.customer?.name ?? 'Walk-in',
+        employeeName: booking.employee?.name ?? 'Unassigned',
+        serviceName: booking.service?.name ?? 'Appointment',
+        startTime: booking.startTime,
+        servicePrice: booking.service?.price ?? null,
+      })),
+    };
+  }
+
   async getTeamWhosNext(
     businessId: string,
     userId: string,
@@ -1060,6 +1119,121 @@ export class ProviderMobileService {
       startTime: created.singleStartTime,
       endTime: created.singleEndTime,
       employeeId: access.employee.id,
+    };
+  }
+
+  /** ai-cmd-provider-5.6.6 — extend/push the end time of the provider's own most-recent one-off block. */
+  async extendProviderSelfBlock(
+    businessId: string,
+    userId: string,
+    dto: { extendMinutes?: number; newEndTime?: string },
+  ) {
+    const access = await this.resolveMobileAccess(businessId, userId);
+    if (access.viewMode !== 'provider' || !access.employee?.id) {
+      throw new ForbiddenException(
+        'Schedule blocks on mobile are only available for your own provider calendar.',
+      );
+    }
+
+    const blocks = await this.blockScheduleService.list(
+      businessId,
+      access.employee.id,
+    );
+    const candidate = blocks.find(
+      (b) => !b.isRepetitive && b.singleStartTime && b.singleEndTime,
+    );
+    if (!candidate) {
+      throw new NotFoundException(
+        'No block found to extend. Create one first with "block my lunch".',
+      );
+    }
+
+    let newEndIso: string;
+    if (dto.newEndTime) {
+      const datePart = candidate.singleStartTime!.slice(0, 10);
+      const iso = buildProviderSelfBlockIso(datePart, dto.newEndTime);
+      if (!iso) throw new BadRequestException('Invalid end time');
+      newEndIso = iso;
+    } else {
+      const minutes = dto.extendMinutes ?? 30;
+      newEndIso = new Date(
+        new Date(candidate.singleEndTime!).getTime() + minutes * 60_000,
+      ).toISOString();
+    }
+
+    const updated = await this.blockScheduleService.update(
+      businessId,
+      candidate.id,
+      {
+        employeeId: access.employee.id,
+        placeholder: candidate.placeholderLabel ?? 'Blocked',
+        isRepetitive: false,
+        singleBlock: {
+          startTime: candidate.singleStartTime!,
+          endTime: newEndIso,
+        },
+      },
+      userId,
+    );
+
+    return {
+      id: updated.id,
+      placeholder: updated.placeholderLabel,
+      startTime: updated.singleStartTime,
+      endTime: updated.singleEndTime,
+      employeeId: access.employee.id,
+    };
+  }
+
+  /** ai-cmd-provider-5.7.6 — explain this booking's cancel/reschedule policy and deposit-forfeiture exposure to the provider. */
+  async explainCancelPolicyForBooking(
+    businessId: string,
+    userId: string,
+    bookingId: string,
+  ) {
+    const booking = await this.getAccessibleBooking(
+      businessId,
+      userId,
+      bookingId,
+      'read',
+    );
+    const business = await this.businessService.findOne(businessId);
+    const rawSettings = (business?.settings ?? {}) as Record<string, unknown>;
+
+    const settings = resolveCustomerSelfServiceSettings(rawSettings);
+    const payment = resolvePublicPaymentSettings(rawSettings);
+    const settingsLines = buildCancelPolicySettingsLines(settings);
+    const depositContext = buildCancelPolicyDepositContext({
+      businessSettings: rawSettings,
+      booking,
+    });
+    const depositLines = buildDepositForfeitureLines(depositContext);
+    const generalDepositLine =
+      depositLines.length === 0
+        ? buildGeneralDepositForfeitureLine(settings, payment)
+        : null;
+    const bookingPolicy = {
+      cancel: evaluateCustomerBookingPolicy(booking, settings, 'cancel'),
+      reschedule: evaluateCustomerBookingPolicy(
+        booking,
+        settings,
+        'reschedule',
+      ),
+      deposit: {
+        prepaymentMode: depositContext.prepaymentMode,
+        prepaymentDueAmount: depositContext.prepaymentDueAmount,
+        paymentStatus: depositContext.paymentStatus,
+        cancelAllowedNow: depositContext.cancelAllowedNow,
+      },
+    };
+
+    return {
+      customerName: booking.customer?.name ?? 'Client',
+      settingsLines,
+      depositLines,
+      generalDepositLine,
+      depositContext,
+      bookingPolicy,
     };
   }
 
@@ -1435,22 +1609,21 @@ export class ProviderMobileService {
   }
 
   async checkInBooking(businessId: string, userId: string, bookingId: string) {
-    const booking = await this.getAccessibleBooking(
-      businessId,
-      userId,
+    // Access check first (provider scope); claim serializes the write.
+    await this.getAccessibleBooking(businessId, userId, bookingId);
+
+    const claimed = await claimProviderBookingCheckIn(this.bookingRepo, {
       bookingId,
-    );
-    const eligibility = buildProviderCheckInEligibility(booking);
-    if (!eligibility.allowed) {
-      throw new BadRequestException(
-        eligibility.reason ?? 'Check-in is not allowed for this booking',
-      );
+      businessId,
+    });
+    if (!claimed.ok) {
+      if (claimed.code === 'not_found') {
+        throw new NotFoundException(claimed.reason);
+      }
+      throw new BadRequestException(claimed.reason);
     }
 
-    const checkedInAt = new Date();
-    booking.checkedInAt = checkedInAt;
-    const saved = await this.bookingRepo.save(booking);
-
+    const saved = claimed.booking;
     await this.maybeNotifyReceptionOnCheckIn(businessId, userId, saved);
 
     return {
@@ -2232,7 +2405,7 @@ export class ProviderMobileService {
     dto: CancelProviderBookingDto,
   ) {
     await this.getAccessibleBooking(businessId, userId, bookingId);
-    const cancelled = await this.bookingService.cancel(
+    const { booking: cancelled } = await this.bookingService.cancel(
       bookingId,
       dto.reason?.trim() || 'Cancelled by provider',
       userId,

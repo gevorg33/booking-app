@@ -56,6 +56,19 @@ describe('consumer-checkout-return.util', () => {
     expect(bookParams.get('session_id')).toBe('cs_single');
   });
 
+  it('e2e-bug.18 parses consumer-app single-service Stripe return URLs', () => {
+    const route = parseCheckoutReturnRoute(
+      'http://localhost:5174/s/salon/book/svc-1?paid=1&slot=2026-06-09T14%3A00%3A00.000Z&date=2026-06-09&session_id=cs_single',
+    );
+    expect(route).toEqual({
+      kind: 'single',
+      slug: 'salon',
+      serviceId: 'svc-1',
+      query: expect.any(URLSearchParams),
+    });
+    expect(resolveCheckoutReturnNavigationPath(route!)).toContain('/s/salon/book/svc-1?');
+  });
+
   it('restores package lines from pending payment when Stripe omits them', () => {
     const lines = [
       {

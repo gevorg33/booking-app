@@ -81,6 +81,116 @@ describe('GiftCardsService', () => {
     expect(redemptionRepo.save).toHaveBeenCalled();
   });
 
+  it('restores monetary balance on booking cancel (e2e-bug.38)', async () => {
+    redemptionRepo.find.mockResolvedValue([
+      {
+        id: 'red-1',
+        giftCardId: 'gc-1',
+        businessId: 'biz-1',
+        bookingId: 'booking-1',
+        amount: 40,
+        creditsConsumed: 0,
+      },
+    ]);
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      balance: 10,
+      isActive: true,
+    });
+    giftCardRepo.save.mockImplementation(async (v) => v);
+
+    const restored = await service.restoreRedemptionForBooking('booking-1');
+
+    expect(restored).toBe(true);
+    expect(giftCardRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ balance: 50, isActive: true }),
+    );
+    expect(redemptionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: 'booking-1',
+        amount: -40,
+        creditsConsumed: 0,
+      }),
+    );
+  });
+
+  it('is idempotent when a restore ledger row already exists (e2e-bug.38)', async () => {
+    redemptionRepo.find.mockResolvedValue([
+      {
+        id: 'red-1',
+        giftCardId: 'gc-1',
+        bookingId: 'booking-1',
+        amount: 40,
+        creditsConsumed: 0,
+      },
+      {
+        id: 'red-2',
+        giftCardId: 'gc-1',
+        bookingId: 'booking-1',
+        amount: -40,
+        creditsConsumed: 0,
+      },
+    ]);
+
+    const restored = await service.restoreRedemptionForBooking('booking-1');
+
+    expect(restored).toBe(false);
+    expect(giftCardRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('restores service credits on booking cancel (e2e-bug.38)', async () => {
+    const credit = {
+      id: 'c1',
+      serviceId: 'svc-1',
+      serviceName: 'Haircut',
+      quantityRemaining: 0,
+      quantityTotal: 2,
+    };
+    redemptionRepo.find.mockResolvedValue([
+      {
+        id: 'red-1',
+        giftCardId: 'gc-1',
+        businessId: 'biz-1',
+        bookingId: 'booking-1',
+        amount: null,
+        serviceId: 'svc-1',
+        serviceName: 'Haircut',
+        creditsConsumed: 1,
+      },
+    ]);
+    giftCardRepo.findOne.mockResolvedValue({
+      ...baseCard,
+      cardType: 'service',
+      balance: 0,
+      isActive: false,
+      serviceCredits: [credit],
+    });
+    giftCardRepo.save.mockImplementation(async (v) => v);
+
+    const restored = await service.restoreRedemptionForBooking('booking-1');
+
+    expect(restored).toBe(true);
+    expect(creditRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ quantityRemaining: 1 }),
+    );
+    expect(giftCardRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: true }),
+    );
+    expect(redemptionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: 'booking-1',
+        creditsConsumed: -1,
+        serviceId: 'svc-1',
+      }),
+    );
+  });
+
+  it('no-ops restore when booking has no gift-card redemptions (e2e-bug.38)', async () => {
+    redemptionRepo.find.mockResolvedValue([]);
+    expect(await service.restoreRedemptionForBooking('booking-x')).toBe(false);
+    expect(giftCardRepo.save).not.toHaveBeenCalled();
+  });
+
   it('deactivates monetary card when balance reaches zero', async () => {
     giftCardRepo.findOne.mockResolvedValue({ ...baseCard, balance: 10 });
     giftCardRepo.save.mockImplementation(async (v) => v);

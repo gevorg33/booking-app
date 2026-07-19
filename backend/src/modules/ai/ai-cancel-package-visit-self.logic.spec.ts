@@ -139,6 +139,58 @@ describe('ai-cancel-package-visit-self.logic (ai-cmd-customer-4.15.2)', () => {
     );
   });
 
+  const futurePackageBooking = {
+    ...packageBooking,
+    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+  };
+
+  it('mentions the refund when the package purchase was refunded', async () => {
+    const result = await handleCancelPackageVisitSelfLogic(
+      buildDeps({
+        publicCustomerAuthService: {
+          listBookings: jest
+            .fn()
+            .mockResolvedValue({ bookings: [futurePackageBooking] }),
+        },
+        publicCustomerBookingService: {
+          cancelPackageVisit: jest.fn().mockResolvedValue({
+            bookings: [futurePackageBooking],
+            refundStatus: 'refunded',
+          }),
+        },
+      }),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Cancel my package visit',
+    );
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('refunded');
+    expect(result.details?.refundStatus).toBe('refunded');
+  });
+
+  it('mentions the manual follow-up when the automatic refund fails', async () => {
+    const result = await handleCancelPackageVisitSelfLogic(
+      buildDeps({
+        publicCustomerAuthService: {
+          listBookings: jest
+            .fn()
+            .mockResolvedValue({ bookings: [futurePackageBooking] }),
+        },
+        publicCustomerBookingService: {
+          cancelPackageVisit: jest.fn().mockResolvedValue({
+            bookings: [futurePackageBooking],
+            refundStatus: 'failed',
+          }),
+        },
+      }),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      'Cancel my package visit',
+    );
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain("didn't go through");
+  });
+
   it('handles missing business and API errors', async () => {
     expect(
       (

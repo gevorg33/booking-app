@@ -55,6 +55,15 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
       ],
     })),
   };
+  const businessRepo = {
+    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+  };
+  const switchDeps = () => ({
+    employeeRepo,
+    serviceRepo,
+    publicBookingService,
+    businessRepo,
+  });
 
   let rescue: AiIntentRescueService;
 
@@ -96,7 +105,7 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
     expect(validation.issues).toEqual([]);
 
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',

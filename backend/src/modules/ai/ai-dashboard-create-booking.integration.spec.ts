@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const AI_COMMAND_SOURCE = readFileSync(
-  join(__dirname, 'ai-command.service.ts'),
-  'utf8',
-);
+const AI_COMMAND_SOURCE =
+  readFileSync(join(__dirname, 'ai-command.service.ts'), 'utf8') +
+  readFileSync(join(__dirname, 'ai-booking-core.service.ts'), 'utf8');
 
 describe('dashboard create_booking OR + budget/rank wiring (ai-cmd-ext-1.4)', () => {
   it('enriches discovery params on dashboard classify', () => {

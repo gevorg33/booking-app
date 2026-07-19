@@ -1,8 +1,10 @@
 import type { Repository } from 'typeorm';
 import type { Business } from '../business/entities/business.entity.js';
+import type { Service } from '../service/entities/service.entity.js';
 import type { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicCustomerBookingItem } from '../public-booking/public-customer-auth.types.js';
+import type { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   buildReschedulePackageVisitSelfAmbiguousSummary,
@@ -12,6 +14,17 @@ import {
   matchCustomerOwnedPackageVisit,
   parseReschedulePackageVisitSelfFromPrompt,
 } from './ai-reschedule-package-visit-self.util.js';
+import {
+  buildPackageVisitLinesFromTarget,
+  type PackageVisitLineSource,
+} from './ai-package-visit-lines.util.js';
+import { buildUtcStartTimeFromDayAndTime } from '../../common/utils/date-format.util.js';
+
+const TERMINAL_PACKAGE_VISIT_STATUSES = new Set([
+  'cancelled',
+  'completed',
+  'no_show',
+]);
 
 export interface ReschedulePackageVisitSelfLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne'>;
@@ -20,6 +33,11 @@ export interface ReschedulePackageVisitSelfLogicDeps {
     'reschedulePackageVisit'
   >;
   publicCustomerAuthService: Pick<PublicCustomerAuthService, 'listBookings'>;
+  serviceRepo: Pick<Repository<Service>, 'find'>;
+  multiServiceBookingsService: Pick<
+    MultiServiceBookingsService,
+    'resolveSettingsFromBusiness'
+  >;
 }
 
 function resolveSessionCustomerId(
@@ -141,7 +159,40 @@ export async function handleReschedulePackageVisitSelfLogic(
     );
   }
 
-  const lines = Array.isArray(enriched.lines) ? enriched.lines : undefined;
+  let lines = Array.isArray(enriched.lines) ? enriched.lines : undefined;
+
+  if (!lines?.length) {
+    const targetStartTime =
+      (enriched.startTime as string | undefined) ??
+      (enriched.date
+        ? buildUtcStartTimeFromDayAndTime(
+            enriched.date as string,
+            (enriched.timeSlot as string | undefined) ?? '09:00',
+          )
+        : undefined);
+
+    if (targetStartTime && booking.packagePurchaseId) {
+      const visitBookings: PackageVisitLineSource[] = bookings
+        .filter(
+          (row) =>
+            row.packagePurchaseId === booking.packagePurchaseId &&
+            !TERMINAL_PACKAGE_VISIT_STATUSES.has(row.status.toLowerCase()),
+        )
+        .map((row) => ({
+          bookingId: row.id,
+          serviceId: row.serviceId,
+          employeeId: row.employeeId,
+          startTime: row.startTime,
+        }));
+      lines = await buildPackageVisitLinesFromTarget(
+        deps,
+        businessId,
+        visitBookings,
+        targetStartTime,
+      );
+    }
+  }
+
   if (!lines?.length) {
     return success(
       'reschedule_package_visit_self',

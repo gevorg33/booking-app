@@ -43,8 +43,10 @@ export const PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS: readonly ProviderProductGu
       id: 'profile-settings',
       intent: 'explain_profile_settings',
       samplePrompt: 'How do I update my avatar?',
+      // NOT matched when the user supplies the actual new value ("... to <value>") —
+      // that phrasing routes to the update_provider_profile mutate instead.
       prompt:
-        /\b(?:change\s+my\s+title|update\s+(?:my\s+)?avatar|edit\s+(?:my\s+)?profile|profile\s+settings?|change\s+profile\s+photo|update\s+my\s+name\s+on\s+profile)\b/i,
+        /\b(?:change\s+my\s+title(?!\s+to\b)|update\s+(?:my\s+)?avatar(?!\s+(?:to|url)\b)|edit\s+(?:my\s+)?profile|profile\s+settings?|change\s+profile\s+photo|update\s+my\s+name\s+on\s+profile(?!\s+to\b))\b/i,
     },
     {
       id: 'assistant-confirm-swipe',

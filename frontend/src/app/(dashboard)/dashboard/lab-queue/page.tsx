@@ -15,6 +15,7 @@ import {
   type ClinicLabQueueItem,
 } from '@/lib/clinic-lab-queue';
 import { isClinicVerticalBusinessType } from '@/lib/clinic-service';
+import { useDashboardBusinessType } from '@/lib/use-dashboard-business-type';
 import { formatDateDisplay } from '@/lib/date-format';
 import { ClinicLabStatusBadge } from '@/components/clinic/clinic-lab-status-badge';
 
@@ -43,8 +44,7 @@ export default function LabQueuePage() {
   const { t } = useI18n();
   const { business } = useAuthStore();
   const businessId = business?.id ?? '';
-  const businessType =
-    (business?.settings?.businessType as string | undefined) ?? undefined;
+  const businessType = useDashboardBusinessType();
   const showPage = isClinicVerticalBusinessType(businessType);
 
   const [status, setStatus] = useState('');

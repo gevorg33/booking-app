@@ -6,14 +6,24 @@ import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 export function ConsumerGuideEntryRow({
   copy,
   onOpen,
+  primaryColor,
 }: {
   copy: ConsumerCopy;
   onOpen: () => void;
+  /** Exact brand hex — keep in sync with Sign in / other primary CTAs. */
+  primaryColor?: string;
 }) {
+  const brand = primaryColor?.trim() || 'var(--tenant-primary, var(--ion-color-primary))';
+
   return (
     <IonList lines="full" className="ion-margin-bottom">
       <IonItem button detail onClick={onOpen} aria-label={copy.guidePageAccountEntryHint}>
-        <IonIcon icon={bookOutline} slot="start" color="primary" />
+        <IonIcon
+          icon={bookOutline}
+          slot="start"
+          style={{ color: brand }}
+          aria-hidden="true"
+        />
         <IonLabel>
           <h2>{copy.guidePageTitle}</h2>
           <p>{copy.guidePageAccountEntryHint}</p>

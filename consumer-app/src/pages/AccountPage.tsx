@@ -16,6 +16,7 @@ import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/ty
 import { buildSalonPath } from '../lib/deep-link.js';
 import { buildConsumerGuidePath } from '../lib/consumer-guide.util.js';
 import type { ConsumerCopy } from '../lib/copy.js';
+import { formatCopy } from '../lib/copy.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import { groupBookingsForAccount } from '../lib/group-package-bookings.js';
 import {
@@ -24,6 +25,7 @@ import {
   getStoredCustomerProfile,
 } from '../lib/customer-auth.js';
 import { fetchMyBookings, fetchMySubscriptions, getPublicCustomerGiftCards } from '../services/public-api.js';
+import { ConsumerActionButton } from '../components/ConsumerActionButton.js';
 import { ConsumerGiftCardClaimSection } from '../components/ConsumerGiftCardClaimSection.js';
 import { ConsumerGuideEntryRow } from '../components/ConsumerGuideEntryRow.js';
 import { ConsumerGiftCardsOrdersSection } from '../components/ConsumerGiftCardsOrdersSection.js';
@@ -34,6 +36,7 @@ import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlerts
 import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
 import type { ConsumerPatientAlertRoute } from '../lib/clinic-patient-alerts.js';
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
+import { ConsumerMultiServiceVisitActions } from '../components/ConsumerMultiServiceVisitActions.js';
 import { RescheduleConfirmationCard } from '../components/RescheduleConfirmationCard.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { ConsumerTenantSwitcher } from '../components/ConsumerTenantSwitcher.js';
@@ -42,6 +45,7 @@ import { ConsumerNotificationPreferencesCard } from '../components/ConsumerNotif
 import { ConsumerAccountGrowthCard } from '../components/ConsumerAccountGrowthCard.js';
 import { ConsumerSubscriptionsSection } from '../components/ConsumerSubscriptionsSection.js';
 import { ConsumerPrivacyDataSection } from '../components/ConsumerPrivacyDataSection.js';
+import { ConsumerWaitlistSection } from '../components/ConsumerWaitlistSection.js';
 import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 import { PostVisitReviewPrompt } from '../components/PostVisitReviewPrompt.js';
 import { shareBookingLinkWithReward, formatShareRewardToast } from '../lib/consumer-share-flow.util.js';
@@ -190,6 +194,8 @@ export default function AccountPage({
   const history = useHistory();
   const location = useLocation();
   const subscriptionsSectionRef = useRef<HTMLHeadingElement>(null);
+  const giftCardsSectionRef = useRef<HTMLHeadingElement>(null);
+  const bookingsSectionRef = useRef<HTMLHeadingElement>(null);
   const privacySectionRef = useRef<HTMLDivElement>(null);
   const growthSectionRef = useRef<HTMLDivElement>(null);
   const giftCardClaimSectionRef = useRef<HTMLElement>(null);
@@ -240,6 +246,19 @@ export default function AccountPage({
     if (accountTab !== 'subscriptions' || !subsQuery.isSuccess) return;
     subscriptionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [accountTab, subsQuery.isSuccess]);
+
+  useEffect(() => {
+    if (accountTab !== 'giftCards' || !authed) return;
+    giftCardsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accountTab, authed]);
+
+  // e2e-bug.52 — assistant my_appointments / list bookings navigate here
+  useEffect(() => {
+    const wantsBookings =
+      accountTab === 'bookings' || accountSection === 'bookings';
+    if (!wantsBookings || !authed || bookingsQuery.isLoading) return;
+    bookingsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accountTab, accountSection, authed, bookingsQuery.isLoading]);
 
   useEffect(() => {
     if (accountSection !== 'privacy' || !authed) return;
@@ -382,21 +401,26 @@ export default function AccountPage({
     <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Account</IonTitle>
+          <IonTitle>{copy.tabAccount}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
         <ConsumerGuideEntryRow
           copy={copy}
+          primaryColor={profile.branding.primaryColor || undefined}
           onOpen={() => history.push(buildConsumerGuidePath(slug))}
         />
         {!authed ? (
           <>
             <p>Sign in to see appointments and subscriptions at {profile.name}.</p>
-            <IonButton expand="block" onClick={() => history.push(buildSalonPath(slug, '/login'))}>
-              Sign in with Google
-            </IonButton>
-            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
+            <ConsumerActionButton
+              expand="block"
+              color={profile.branding.primaryColor || '#7c3aed'}
+              onClick={() => history.push(buildSalonPath(slug, '/login'))}
+            >
+              {copy.signInWithGoogle}
+            </ConsumerActionButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" copy={copy} />
           </>
         ) : (
           <>
@@ -405,19 +429,19 @@ export default function AccountPage({
               {customer?.email ? <p>{customer.email}</p> : null}
               {customer?.phone ? <p>{customer.phone}</p> : null}
             </div>
-            <IonButton expand="block" fill="outline" color="medium" onClick={signOut}>
+            <ConsumerActionButton expand="block" fill="outline" color="medium" onClick={signOut}>
               Sign out
-            </IonButton>
-            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" />
+            </ConsumerActionButton>
+            <ConsumerTenantSwitcher currentSlug={slug} trigger="button" copy={copy} />
 
-            <IonButton
+            <ConsumerActionButton
               expand="block"
               fill="outline"
               className="ion-margin-top"
               onClick={() => history.push(buildSalonPath(slug, '/profile'))}
             >
               {copy.profileViewDetails}
-            </IonButton>
+            </ConsumerActionButton>
 
             <div ref={privacySectionRef}>
               <ConsumerPrivacyDataSection
@@ -443,6 +467,8 @@ export default function AccountPage({
 
             <ConsumerNotificationPreferencesCard slug={slug} copy={copy} authed />
 
+            <ConsumerWaitlistSection slug={slug} copy={copy} authed />
+
             <ConsumerAccountGrowthCard
               slug={slug}
               profile={profile}
@@ -460,7 +486,11 @@ export default function AccountPage({
               onClaimed={() => void queryClient.invalidateQueries({ queryKey: ['gift-cards-account', slug] })}
             />
 
-            <h2 id="my-gift-cards" style={{ fontSize: '1.1rem', marginTop: 24 }}>
+            <h2
+              id="my-gift-cards"
+              ref={giftCardsSectionRef}
+              style={{ fontSize: '1.1rem', marginTop: 24 }}
+            >
               {copy.giftCardMyGiftCards}
             </h2>
             <h3 style={{ fontSize: '0.95rem', marginTop: 12, color: '#374151' }}>{copy.giftCardMyOrdered}</h3>
@@ -506,6 +536,7 @@ export default function AccountPage({
                 <ConsumerPatientAlertsBanner
                   slug={slug}
                   copy={copy}
+                  businessType={profile.businessType}
                   onNavigate={navigateToAlertSection}
                 />
               </>
@@ -519,7 +550,13 @@ export default function AccountPage({
               />
             )}
 
-            <h2 id="my-bookings" style={{ fontSize: '1.1rem', marginTop: 24 }}>My appointments</h2>
+            <h2
+              id="my-bookings"
+              ref={bookingsSectionRef}
+              style={{ fontSize: '1.1rem', marginTop: 24 }}
+            >
+              My appointments
+            </h2>
             {bookingsQuery.isLoading ? (
               <IonSpinner />
             ) : (
@@ -554,6 +591,38 @@ export default function AccountPage({
                     </div>
                   );
                 })}
+                {grouped.multiServiceGroups.map((visit) => {
+                  const start = visit.appointments[0]?.startTime;
+                  const end = visit.appointments[visit.appointments.length - 1]?.endTime;
+                  return (
+                    <div key={visit.multiServiceGroupId} className="salon-card">
+                      <h2 style={{ fontWeight: 600 }}>{visit.label}</h2>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        {formatCopy(copy.multiServiceVisitAppointmentCount, {
+                          count: visit.appointments.length,
+                        })}
+                      </p>
+                      {start && end && (
+                        <p style={{ fontSize: '0.875rem', marginTop: 8 }}>
+                          {formatDateDisplay(start, locale)} · {formatScheduleTime(start)} –{' '}
+                          {formatScheduleTime(end)}
+                        </p>
+                      )}
+                      <ConsumerMultiServiceVisitActions
+                        slug={slug}
+                        tenant={profile}
+                        anchorBookingId={visit.anchorBookingId}
+                        visit={visit}
+                        authed={authed}
+                        copy={copy}
+                        onUpdated={reloadBookings}
+                        onRescheduled={(previous, next) =>
+                          setRescheduleNotice({ previousStartTime: previous, newStartTime: next })
+                        }
+                      />
+                    </div>
+                  );
+                })}
                 {grouped.standalone.map((b) => (
                   <BookingCard
                     key={b.id}
@@ -571,7 +640,9 @@ export default function AccountPage({
                     onRebook={onRebookBooking}
                   />
                 ))}
-                {grouped.standalone.length === 0 && grouped.packageGroups.length === 0 && (
+                {grouped.standalone.length === 0 &&
+                  grouped.packageGroups.length === 0 &&
+                  grouped.multiServiceGroups.length === 0 && (
                   <p>No bookings yet.</p>
                 )}
               </div>
@@ -594,6 +665,7 @@ export default function AccountPage({
                 copy={copy}
                 locale={locale}
                 initialExpandedSubscriptionId={subscriptionIdFromQuery}
+                onCancelled={() => void subsQuery.refetch()}
               />
             )}
           </>

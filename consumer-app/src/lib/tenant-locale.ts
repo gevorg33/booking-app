@@ -54,12 +54,41 @@ export function readStoredConsumerLocale(slug: string): ConsumerLocale | null {
   }
 }
 
+/** e2e-bug.22 — sync every mounted useConsumerLocale after a language change. */
+export const CONSUMER_LOCALE_CHANGED_EVENT = 'consumer-locale-changed';
+
+export type ConsumerLocaleChangedDetail = {
+  slug: string;
+  locale: ConsumerLocale;
+};
+
 export function writeStoredConsumerLocale(slug: string, locale: ConsumerLocale) {
   try {
     localStorage.setItem(localeStorageKey(slug), locale);
   } catch {
     // ignore quota / private mode
   }
+  try {
+    window.dispatchEvent(
+      new CustomEvent<ConsumerLocaleChangedDetail>(CONSUMER_LOCALE_CHANGED_EVENT, {
+        detail: { slug, locale },
+      }),
+    );
+  } catch {
+    // ignore non-browser / missing window
+  }
+}
+
+/** Whether a locale-changed event should update this hook instance. */
+export function shouldApplyConsumerLocaleChange(input: {
+  eventSlug: string;
+  hookSlug: string;
+  nextLocale: string;
+  enabledLocales: readonly string[];
+}): boolean {
+  if (input.eventSlug !== input.hookSlug) return false;
+  const next = normalizeConsumerLocale(input.nextLocale);
+  return Boolean(next && input.enabledLocales.includes(next));
 }
 
 export function resolveConsumerLocale(
@@ -79,4 +108,30 @@ export function resolveConsumerLocale(
 export function formatStoredTenantLocaleLabel(slug: string): string | null {
   const stored = readStoredConsumerLocale(slug);
   return stored ? CONSUMER_LOCALE_LABELS[stored] : null;
+}
+
+/**
+ * Locale for screens without a tenant slug (welcome).
+ * e2e-bug.54 — WelcomePage previously forced `getConsumerCopy('en')`.
+ */
+export function resolveAppConsumerLocale(): ConsumerLocale {
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith('consumer-locale:')) continue;
+      const locale = normalizeConsumerLocale(localStorage.getItem(key));
+      if (locale) return locale;
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const nav = normalizeConsumerLocale(
+      typeof navigator !== 'undefined' ? navigator.language?.slice(0, 2) : null,
+    );
+    if (nav) return nav;
+  } catch {
+    // ignore
+  }
+  return 'en';
 }

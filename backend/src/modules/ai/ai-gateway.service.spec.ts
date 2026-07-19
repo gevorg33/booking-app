@@ -197,7 +197,29 @@ describe('AiGatewayService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('returns preflight block with gateway meta', async () => {
+  it('e2e-bug.145 — unexpected handler errors become graceful CommandResult (not raw 500)', async () => {
+    const mocks = createMocks();
+    mocks.dashboardCommands.executeCommand = jest.fn(async () => {
+      throw new Error('op ANY/ALL (array) requires array on right side');
+    });
+    const { service } = createService(mocks);
+    const result = (await service.execute({
+      surface: 'dashboard',
+      businessId: 'biz-1',
+      prompt: 'How many customers are on my waitlist?',
+      membershipRole: 'owner',
+    })) as CommandResult;
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('error');
+    expect(result.summary).toMatch(/something went wrong/i);
+    expect(result.summary).not.toMatch(/ANY\/ALL/i);
+    expect(result.details).toEqual(
+      expect.objectContaining({ unexpectedError: true }),
+    );
+  });
+
+  it('returns preflight block without pipeline/gateway leak (e2e-bug.135)', async () => {
     const mocks = createMocks();
     const blocked: CommandResult = {
       success: false,
@@ -218,11 +240,12 @@ describe('AiGatewayService', () => {
     expect(result).toEqual(
       expect.objectContaining({
         details: expect.objectContaining({
-          gateway: { surface: 'dashboard', tier: 'owner' },
+          workflowSteps: [{ id: 's1' }],
           executionTimeline: [{ id: 's1' }],
         }),
       }),
     );
+    expect((result as CommandResult).details?.gateway).toBeUndefined();
     expect(dashboardCommands.executeCommand).not.toHaveBeenCalled();
   });
 

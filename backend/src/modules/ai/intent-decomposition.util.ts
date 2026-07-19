@@ -213,6 +213,15 @@ import {
   isGuestPayCashManageCompoundPrompt,
   GUEST_PAY_CASH_MANAGE_RECIPE_ID,
 } from './ai-guest-pay-cash-manage-compound.util.js';
+import {
+  decomposeGuestManageVisitCompoundPrompt,
+  isGuestManageVisitCompoundPrompt,
+  GUEST_MANAGE_VISIT_RECIPE_ID,
+} from './ai-guest-manage-visit-compound.util.js';
+import {
+  decomposePublicAssistantCompoundPrompt,
+  isPublicAssistantCompoundPrompt,
+} from './ai-public-assistant-compound.util.js';
 import type {
   CompoundDecompositionResult,
   DecomposedIntentStep,
@@ -284,6 +293,8 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeGiftCardCheckoutCompoundPrompt,
   decomposeMultiServiceDayCompoundPrompt,
   decomposeGuestBookAndManageCompoundPrompt,
+  decomposeGuestManageVisitCompoundPrompt,
+  decomposePublicAssistantCompoundPrompt,
 };
 
 function buildBookPackageWithNearestSlotGoldenSteps(
@@ -483,6 +494,18 @@ function buildGuestBookAndManageGoldenSteps(
     action: step.action,
     params: step.params,
     reasoning: `Guest book and manage compound: ${step.action}`,
+    segment: prompt,
+  }));
+}
+
+function buildGuestManageVisitGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeGuestManageVisitCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Guest manage visit compound: ${step.action}`,
     segment: prompt,
   }));
 }
@@ -781,7 +804,8 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
       isCheckProvidersForServicePrompt(prompt) &&
       isBookNearestSlotPrompt(prompt) &&
       !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
-      !isDiscoverBookAndPayCompoundPrompt(prompt),
+      !isDiscoverBookAndPayCompoundPrompt(prompt) &&
+      !isBookLabCollectionNearestCompoundPrompt(prompt),
     buildSteps: buildCheckAndBookGoldenSteps,
   },
   {
@@ -1022,6 +1046,13 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     recipeId: GUEST_BOOK_AND_MANAGE_RECIPE_ID,
     matches: (prompt) => isGuestBookAndManageCompoundPrompt(prompt),
     buildSteps: buildGuestBookAndManageGoldenSteps,
+  },
+  {
+    id: 'customer_guest_manage_visit',
+    surface: 'customer',
+    recipeId: GUEST_MANAGE_VISIT_RECIPE_ID,
+    matches: (prompt) => isGuestManageVisitCompoundPrompt(prompt),
+    buildSteps: buildGuestManageVisitGoldenSteps,
   },
   {
     id: 'customer_gift_card_checkout',
@@ -1281,6 +1312,8 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (trimmed.length < 12) return false;
   if (isGuestPayCashManageCompoundPrompt(trimmed)) return true;
   if (isGuestBookAndManageCompoundPrompt(trimmed)) return true;
+  if (isGuestManageVisitCompoundPrompt(trimmed)) return true;
+  if (isPublicAssistantCompoundPrompt(trimmed)) return true;
   if (isMultiServiceDayCompoundPrompt(trimmed)) return true;
   if (isProviderSameDayMultiCompoundPrompt(trimmed)) return true;
   if (isGiftCardCheckoutCompoundPrompt(trimmed)) return true;

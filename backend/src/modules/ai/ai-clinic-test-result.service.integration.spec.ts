@@ -7,8 +7,11 @@ import { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-ord
 import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
 import { ClinicTestCatalogService } from '../clinic-test-results/catalog/clinic-test-catalog.service.js';
 import { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
+import { ClinicLabChangeHistoryService } from '../clinic-test-results/shared/clinic-lab-change-history.service.js';
 import { ClinicTestResultActionService } from '../clinic-test-results/test-result/clinic-test-result-action.service.js';
 import { ClinicTestResultService } from '../clinic-test-results/test-result/clinic-test-result.service.js';
+import { ClinicSpecimenService } from '../clinic-test-results/specimen/clinic-specimen.service.js';
+import { ClinicSpecimenStatusService } from '../clinic-test-results/specimen/clinic-specimen-status.service.js';
 import { AiClinicTestResultService } from './ai-clinic-test-result.service.js';
 
 describe('AiClinicTestResultService integration (ai-cmd-clinic-6-gap-3.1)', () => {
@@ -93,6 +96,15 @@ describe('AiClinicTestResultService integration (ai-cmd-clinic-6-gap-3.1)', () =
       normalHigh: 11,
     })),
   };
+  const clinicLabChangeHistoryService = {
+    listResultChangeHistory: jest.fn(async () => []),
+  };
+  const specimenService = {
+    listSpecimens: jest.fn(async () => []),
+  };
+  const specimenStatusService = {
+    transitionSpecimenStatus: jest.fn(async () => ({})),
+  };
 
   let service: AiClinicTestResultService;
 
@@ -114,6 +126,15 @@ describe('AiClinicTestResultService integration (ai-cmd-clinic-6-gap-3.1)', () =
         },
         { provide: ClinicLabAccessService, useValue: clinicLabAccessService },
         { provide: ClinicTestCatalogService, useValue: clinicCatalogService },
+        {
+          provide: ClinicLabChangeHistoryService,
+          useValue: clinicLabChangeHistoryService,
+        },
+        { provide: ClinicSpecimenService, useValue: specimenService },
+        {
+          provide: ClinicSpecimenStatusService,
+          useValue: specimenStatusService,
+        },
       ],
     }).compile();
 

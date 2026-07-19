@@ -57,7 +57,15 @@ describe('guided-booking-flow.util', () => {
   });
 
   it('labels guided booking steps and handles unknown paths', () => {
-    expect(guidedBookingStepLabel('slot')).toBe('Time');
+    expect(
+      guidedBookingStepLabel('slot', {
+        guidedStepWelcome: 'Home',
+        guidedStepSalon: 'Salon',
+        guidedStepService: 'Service',
+        guidedStepSlot: 'Time',
+        guidedStepConfirm: 'Confirm',
+      }),
+    ).toBe('Time');
     expect(resolveGuidedBookingStep('/s/salon/unknown')).toBe('salon');
   });
 });

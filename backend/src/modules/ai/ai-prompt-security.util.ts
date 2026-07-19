@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { AiSurface } from './ai-capability.matrix.js';
 import type { AccessTier } from './access-control.matrix.js';
 
@@ -91,7 +92,11 @@ const DANGEROUS_PARAM_KEYS = new Set([
 export const BULK_CUSTOMER_READ_ACTIONS = new Set([
   'summarize_customers',
   'lookup_customer',
+  'list_customers',
   'summarize_waitlist',
+  'list_customer_bookings',
+  'list_customer_gift_cards',
+  'customer_no_show_history',
 ]);
 
 export const MAX_AI_READ_DATE_RANGE_DAYS = 31;
@@ -199,7 +204,16 @@ export function canPerformBulkCustomerRead(
   if (isBulkCustomerExportAttempt(prompt)) {
     return tier === 'owner' || tier === 'manager';
   }
-  if (action === 'summarize_customers' && tier === 'staff') {
+  // e2e-bug.163 — staff may not pull full CRM rosters / profiles via AI
+  if (
+    tier === 'staff' &&
+    (action === 'summarize_customers' ||
+      action === 'list_customers' ||
+      action === 'lookup_customer' ||
+      action === 'list_customer_bookings' ||
+      action === 'list_customer_gift_cards' ||
+      action === 'customer_no_show_history')
+  ) {
     return false;
   }
   return true;
@@ -227,18 +241,21 @@ export function clampReadDateRangeDays(
   };
 }
 
+/** e2e-bug.127 — localized security_blocked summaries (no raw action ids). */
 export function securityDenialMessage(
   reason: PromptSecurityAssessment['blockReason'],
+  locale?: string | null,
 ): string {
+  const loc = resolveLocale(locale);
   switch (reason) {
     case 'injection':
-      return 'That request tries to override system rules. I can only run allowed booking and schedule commands for your role.';
+      return t(loc, 'assistant.securityInjection');
     case 'data_export':
-      return 'Bulk customer export is not available via AI. Ask for a ranked summary (e.g. "top 5 VIP customers") or use CRM export in Settings.';
+      return t(loc, 'assistant.securityDataExport');
     case 'availability_bypass':
-      return 'I cannot book or reschedule into unavailable slots. I can check availability or find the next open time.';
+      return t(loc, 'assistant.securityAvailabilityBypass');
     default:
-      return 'That command is not allowed for security reasons.';
+      return t(loc, 'assistant.securityDefault');
   }
 }
 

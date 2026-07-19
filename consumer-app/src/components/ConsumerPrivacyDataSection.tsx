@@ -1,4 +1,4 @@
-import { IonButton, IonSpinner, useIonToast } from '@ionic/react';
+import { IonSpinner, useIonToast } from '@ionic/react';
 import { useState, useEffect } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { downloadCustomerDataExport } from '../lib/consumer-privacy-data.util.js';
@@ -6,6 +6,7 @@ import {
   deletePublicCustomerData,
   exportPublicCustomerData,
 } from '../services/public-api.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export function ConsumerPrivacyDataSection({
   slug,
@@ -75,23 +76,21 @@ export function ConsumerPrivacyDataSection({
     <div className="salon-card ion-margin-top">
       <p style={{ fontWeight: 600, marginBottom: 12 }}>{copy.privacyDataTitle}</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <IonButton
+        <ConsumerActionButton
           fill="outline"
-          size="small"
           disabled={loading !== null}
           onClick={() => void onExport()}
         >
           {loading === 'export' ? <IonSpinner name="crescent" /> : copy.privacyExportMyData}
-        </IonButton>
-        <IonButton
+        </ConsumerActionButton>
+        <ConsumerActionButton
           fill="outline"
           color="danger"
-          size="small"
           disabled={loading !== null}
           onClick={() => void onDelete()}
         >
           {loading === 'delete' ? copy.privacyLoading : copy.privacyDeleteMyData}
-        </IonButton>
+        </ConsumerActionButton>
       </div>
       {message ? (
         <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: 10 }}>{message}</p>

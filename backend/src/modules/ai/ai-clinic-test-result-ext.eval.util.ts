@@ -23,6 +23,11 @@ export type ClinicTestResultAccessTier = ClinicTestResultExtAccessTier;
 const CLINIC_TEST_RESULT_CORE_MUTATE_INTENTS = [
   'enter_test_result',
   'release_test_result',
+  'transition_specimen',
+] as const;
+
+const CLINIC_TEST_RESULT_CORE_READ_INTENTS = [
+  'explain_lab_result_history',
 ] as const;
 
 export function resolveClinicTestResultAccessTier(
@@ -39,7 +44,12 @@ export function resolveClinicTestResultAccessTier(
     return 'M';
   }
   if (
-    (CLINIC_TEST_RESULT_EXT_READ_INTENTS as readonly string[]).includes(action)
+    (CLINIC_TEST_RESULT_EXT_READ_INTENTS as readonly string[]).includes(
+      action,
+    ) ||
+    (CLINIC_TEST_RESULT_CORE_READ_INTENTS as readonly string[]).includes(
+      action,
+    )
   ) {
     return 'R';
   }

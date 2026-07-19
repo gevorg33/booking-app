@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -109,14 +110,19 @@ function suggestionsForRule(
   ].slice(0, 3);
 }
 
-function summaryForUnknownIntent(surface: CommandSurface): string {
+/** e2e-bug.126 — localize unknown-intent clarify lead sentence per surface. */
+function summaryForUnknownIntent(
+  surface: CommandSurface,
+  locale?: string | null,
+): string {
+  const loc = resolveLocale(locale);
   if (surface === 'provider') {
-    return "I'm not sure what you meant. Pick one of these, or rephrase your request.";
+    return t(loc, 'assistant.unknownIntentProvider');
   }
   if (surface === 'customer' || surface === 'public') {
-    return "I didn't fully understand that. What would you like to do?";
+    return t(loc, 'assistant.unknownIntentCustomer');
   }
-  return "I didn't fully understand that command. Which of these did you mean?";
+  return t(loc, 'assistant.unknownIntentDashboard');
 }
 
 /** True when dispatch must not enter the handler switch (pipe-1.8.1). */
@@ -135,10 +141,14 @@ export function shouldBlockUnknownFromHandlerSwitch(
 /** Clarify payload when intent remains unknown after understand + post-rescue (acc-4.7). */
 export function buildUnknownIntentClarifyPayload(
   surface: CommandSurface,
-  options: { confidence?: number; reasoning?: string } = {},
+  options: {
+    confidence?: number;
+    reasoning?: string;
+    locale?: string | null;
+  } = {},
 ): SelfVerifyClarifyPayload {
   return {
-    summary: summaryForUnknownIntent(surface),
+    summary: summaryForUnknownIntent(surface, options.locale),
     clarifyFields: ['intentChoice'],
     suggestions: suggestionsForRule(undefined, surface),
     loweredConfidence:
@@ -155,10 +165,12 @@ export function buildUnknownIntentClarifyResult(opts: {
   reasoning?: string;
   confidence?: number;
   trace?: PipelineTrace[];
+  locale?: string | null;
 }): CommandResult {
   const payload = buildUnknownIntentClarifyPayload(opts.surface, {
     confidence: opts.confidence,
     reasoning: opts.reasoning,
+    locale: opts.locale,
   });
 
   const understood: PipelineUnderstandResult = {

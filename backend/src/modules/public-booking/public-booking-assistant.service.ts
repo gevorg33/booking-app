@@ -41,6 +41,11 @@ import {
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import {
+  readBusinessPrivacySettings,
+  toPublicBusinessPrivacySettings,
+} from '../../common/utils/business-compliance.util.js';
+import { readTenantAppInstallSettings } from '../../common/utils/tenant-app-install-settings.util.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
 import {
   attachCheckProvidersHandoff,
@@ -169,6 +174,10 @@ import { rescueSignInToManageBookingIntent } from '../ai/ai-sign-in-to-manage-bo
 import { rescueRecoverLostManageLinkIntent } from '../ai/ai-recover-lost-manage-link.util.js';
 import { rescueFixCheckoutValidationErrorIntent } from '../ai/ai-fix-checkout-validation-error.util.js';
 import { rescueConfirmMyBookingDetailsIntent } from '../ai/ai-confirm-my-booking-details.util.js';
+import {
+  enrichLeaveVisitReviewParamsFromPrompt,
+  rescueLeaveVisitReviewIntent,
+} from '../ai/ai-leave-visit-review.util.js';
 import { rescueAddBookingToCalendarIntent } from '../ai/ai-add-booking-to-calendar.util.js';
 import { rescueBookAnotherServiceIntent } from '../ai/ai-book-another-service.util.js';
 import { rescueGetDirectionsToSalonIntent } from '../ai/ai-get-directions-to-salon.util.js';
@@ -192,12 +201,26 @@ import { rescueCashPaymentCheckoutIntent } from '../ai/ai-cash-payment-checkout.
 import { rescuePayOnlineCheckoutIntent } from '../ai/ai-pay-online-checkout.util.js';
 import { rescueConsumerDiagnoseStripeCheckoutFailureIntent } from '../ai/ai-diagnose-stripe-checkout-failure.util.js';
 import { rescuePayAtVenueFallbackIntent } from '../ai/ai-pay-at-venue-fallback.util.js';
+import { isRescheduleMyBookingPrompt } from '../ai/ai-self-service-booking.util.js';
+import {
+  enrichRescheduleWithTokenParamsFromPrompt,
+  hasManageLinkCredentialsInSession,
+  rescueManageBookingWithTokenIntent,
+  resolveManageBookingCredentials,
+} from '../ai/ai-manage-booking-with-token.util.js';
+import {
+  enrichBuyGiftCardForSomeoneParamsFromPrompt,
+  rescueBuyGiftCardForSomeoneIntent,
+} from '../ai/ai-buy-gift-card-for-someone.util.js';
 import { rescueResumeBookingDraftIntent } from '../ai/ai-resume-booking-draft.util.js';
 import { rescueExplainSlotNoLongerAvailableIntent } from '../ai/ai-explain-slot-no-longer-available.util.js';
 import { rescueExplainVoiceInputIntent } from '../ai/ai-explain-voice-input.util.js';
 import { rescueSpeakAssistantReplyIntent } from '../ai/ai-speak-assistant-reply.util.js';
 import { rescueGiveAiFeedbackIntent } from '../ai/ai-give-ai-feedback.util.js';
-import { rescueExplainRtlLayoutIntent } from '../ai/ai-explain-rtl-layout.util.js';
+import {
+  mergeExplainRtlLayoutRequestLocale,
+  rescueExplainRtlLayoutIntent,
+} from '../ai/ai-explain-rtl-layout.util.js';
 import {
   parseExplainCheckoutTaxFromPrompt,
   rescueCheckoutTaxIntent,
@@ -261,6 +284,7 @@ import {
   decomposeDeterministicForSurface,
   isCompoundPrompt,
 } from '../ai/intent-decomposition.util.js';
+import { isPublicAssistantCompoundPrompt } from '../ai/ai-public-assistant-compound.util.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -488,6 +512,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         this.pipelineClarifyToPublicResult(understood, locale),
         orchestratedSession,
         locale,
+        prompt,
       );
     }
 
@@ -566,6 +591,46 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           ...parsed.params,
           bookingId: parsedDeposit.bookingId,
         };
+      }
+    }
+
+    // e2e-bug.111 — before confirm_my_booking_details (and staff explain_reviews_inbox).
+    const leaveVisitReviewRescue = rescueLeaveVisitReviewIntent(
+      prompt,
+      parsed.action,
+    );
+    if (leaveVisitReviewRescue) {
+      parsed.action = leaveVisitReviewRescue.action;
+      rescueReason = leaveVisitReviewRescue.rescueReason;
+      parsed.params = enrichLeaveVisitReviewParamsFromPrompt(
+        parsed.params ?? {},
+        prompt,
+      );
+    }
+
+    // e2e-bug.106 — manage page URL bookingId+token → guest with_token intents
+    // before booking_help / signed-in cancel|reschedule_my_booking steals.
+    const manageWithTokenRescue = rescueManageBookingWithTokenIntent(
+      prompt,
+      parsed.action,
+      orchestratedSession,
+    );
+    if (manageWithTokenRescue) {
+      parsed.action = manageWithTokenRescue.action;
+      rescueReason = manageWithTokenRescue.rescueReason;
+      parsed.params = {
+        ...parsed.params,
+        ...resolveManageBookingCredentials(
+          { ...orchestratedSession, ...(parsed.params ?? {}) },
+          prompt,
+        ),
+      };
+      if (manageWithTokenRescue.action === 'reschedule_booking_with_token') {
+        parsed.params = enrichRescheduleWithTokenParamsFromPrompt(
+          parsed.params ?? {},
+          prompt,
+          tz,
+        );
       }
     }
 
@@ -743,6 +808,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       rescueReason = cashCheckoutRescue.rescueReason;
     }
 
+    // e2e-bug.114 — dated cancel+rebook → reschedule before pay_at_venue (bare "instead").
+    // e2e-bug.106 — when manage-link credentials are in session, prefer with_token.
+    if (
+      parsed.action !== 'reschedule_my_booking' &&
+      parsed.action !== 'reschedule_booking_with_token' &&
+      parsed.action !== 'reschedule_package_visit_with_token' &&
+      isRescheduleMyBookingPrompt(prompt)
+    ) {
+      if (hasManageLinkCredentialsInSession(orchestratedSession)) {
+        parsed.action = 'reschedule_booking_with_token';
+        rescueReason = 'reschedule_booking_with_token';
+        parsed.params = enrichRescheduleWithTokenParamsFromPrompt(
+          {
+            ...orchestratedSession,
+            ...(parsed.params ?? {}),
+          },
+          prompt,
+          tz,
+        );
+      } else {
+        parsed.action = 'reschedule_my_booking';
+        rescueReason = 'reschedule_my';
+      }
+    }
+
     const payAtVenueFallbackRescue = rescuePayAtVenueFallbackIntent(
       prompt,
       parsed.action,
@@ -820,6 +910,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       rescueReason = payOnlineRescue.rescueReason;
     }
 
+    // e2e-bug.124 — purchase phrasing must not stay on apply_gift_card_code
+    // even when a stale bookingStep=checkout biased the classifier.
+    const buyGiftCardForSomeoneRescue = rescueBuyGiftCardForSomeoneIntent(
+      prompt,
+      parsed.action,
+    );
+    if (buyGiftCardForSomeoneRescue) {
+      parsed.action = buyGiftCardForSomeoneRescue.action;
+      rescueReason = buyGiftCardForSomeoneRescue.rescueReason;
+      parsed.params = enrichBuyGiftCardForSomeoneParamsFromPrompt(
+        parsed.params ?? {},
+        prompt,
+      );
+    }
+
     const multiServiceRescue = rescueMultiServiceCustomerPublicIntent(
       prompt,
       parsed.action,
@@ -883,14 +988,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             confidence:
               typeof parsed.confidence === 'number' ? parsed.confidence : 0,
             trace: understood.trace,
+            locale,
           }),
         ),
         orchestratedSession,
         locale,
+        prompt,
       );
     }
 
-    const gateDenied = this.platform.gatePublicAction(parsed.action);
+    const gateDenied = this.platform.gatePublicAction(parsed.action, locale);
     if (gateDenied) {
       return {
         success: false,
@@ -1042,6 +1149,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'business_info':
         result = this.handleBusinessInfo(business);
         break;
+      case 'list_public_promotions':
+        result = await this.handleListPublicPromotions(slug);
+        break;
       case 'book_appointment':
         result = await this.handleBookAppointment(
           slug,
@@ -1144,6 +1254,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           business.id,
           parsed.params ?? {},
           prompt,
+          locale,
         );
         break;
       case 'explain_checkout_total':
@@ -1295,6 +1406,18 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           prompt,
         );
         break;
+      case 'list_provider_reviews':
+        result = await this.handleListProviderReviews(business.id, {
+          ...(parsed.params ?? {}),
+          slug,
+        });
+        break;
+      case 'submit_provider_review':
+        result = await this.handleSubmitProviderReview(business.id, {
+          ...(parsed.params ?? {}),
+          slug,
+        });
+        break;
       case 'choose_payment_method':
         result = await this.handleChoosePaymentMethod(
           business.id,
@@ -1305,7 +1428,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'pay_cash_at_visit':
         result = await this.handlePayCashAtVisit(
           business.id,
-          parsed.params ?? {},
+          {
+            ...orchestratedSession,
+            ...(parsed.params ?? {}),
+          },
           prompt,
         );
         break;
@@ -1316,6 +1442,36 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           prompt,
           orchestratedSession,
         );
+        break;
+      case 'get_booking_quote':
+        result = await this.handleGetBookingQuote(business.id, {
+          ...orchestratedSession,
+          ...(parsed.params ?? {}),
+        });
+        break;
+      case 'get_package_quote':
+        result = await this.handleGetPackageQuote(business.id, {
+          ...(parsed.params ?? {}),
+          packageId: parsed.params?.packageId ?? orchestratedSession.packageId,
+          packageName:
+            parsed.params?.packageName ?? orchestratedSession.packageName,
+        });
+        break;
+      case 'get_multi_service_quote':
+        result = await this.handleGetMultiServiceQuote(
+          business.id,
+          this.mergeMultiServiceSessionParams(
+            parsed.params ?? {},
+            orchestratedSession,
+            prompt,
+          ),
+        );
+        break;
+      case 'confirm_stripe_payment':
+        result = await this.handleConfirmStripePayment(business.id, {
+          ...(parsed.params ?? {}),
+          sessionId: parsed.params?.sessionId ?? orchestratedSession.sessionId,
+        });
         break;
       case 'book_multi_service':
         result = await this.handleBookMultiService(
@@ -1335,6 +1491,22 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         break;
       case 'add_services_to_cart':
         result = await this.handleAddServicesToCart(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'preview_multi_service_cart':
+        result = await this.handlePreviewMultiServiceCart(
+          business.id,
+          parsed.params ?? {},
+          prompt,
+          orchestratedSession,
+        );
+        break;
+      case 'suggest_package_block':
+        result = await this.handleSuggestPackageBlock(
           business.id,
           parsed.params ?? {},
           prompt,
@@ -1500,6 +1672,123 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             ...parsed.params,
             bookingId:
               orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'leave_visit_review':
+        result = await this.handleLeaveVisitReview(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'explain_manage_booking_context':
+        result = await this.handleExplainManageBookingContext(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'cancel_booking_with_token':
+        result = await this.handleCancelBookingWithToken(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'reschedule_booking_with_token':
+        result = await this.handleRescheduleBookingWithToken(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'cancel_package_visit_with_token':
+        result = await this.handleCancelPackageVisitWithToken(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'reschedule_package_visit_with_token':
+        result = await this.handleReschedulePackageVisitWithToken(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            manageToken:
+              orchestratedSession.manageToken ?? parsed.params?.manageToken,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'reschedule_my_booking':
+        result = await this.handleRescheduleMyBooking(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
+            sessionCustomerId:
+              orchestratedSession.customerId ??
+              parsed.params?.sessionCustomerId,
+            locale,
+          },
+          prompt,
+        );
+        break;
+      case 'cancel_my_booking':
+        result = await this.handleCancelMyBooking(
+          business.id,
+          {
+            ...parsed.params,
+            bookingId:
+              orchestratedSession.bookingId ?? parsed.params?.bookingId,
             sessionCustomerId:
               orchestratedSession.customerId ??
               parsed.params?.sessionCustomerId,
@@ -1632,6 +1921,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       final,
       orchestratedSession,
       locale,
+      prompt,
     );
   }
 
@@ -1639,6 +1929,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     result: PublicAssistantResult,
     session?: Record<string, unknown>,
     locale?: AppLocale,
+    prompt?: string,
   ): PublicAssistantResult {
     const asCommand: CommandResult = {
       success: result.success,
@@ -1657,16 +1948,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         mergePublicBookingGuideContext({ ...session, locale }),
         'public',
         locale,
+        prompt,
       ),
     );
     if (enriched === asCommand) return result;
+    const enrichedDetails = { ...(enriched.details ?? {}) };
+    // e2e-bug.91 — keep client sessionContext from attachSession; never re-emit
+    // orchestration internals that lived on the inbound session object.
+    delete enrichedDetails.sessionContext;
     return {
       ...result,
       summary: enriched.summary,
       guide: enriched.guide ?? result.guide,
       details: {
         ...(result.details ?? {}),
-        ...enriched.details,
+        ...enrichedDetails,
       },
     };
   }
@@ -1710,6 +2006,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         '\n',
       ),
       navigate: { path: 'professionals', query: {} },
+    };
+  }
+
+  private async handleListPublicPromotions(
+    slug: string,
+  ): Promise<PublicAssistantResult> {
+    const { promotions } =
+      await this.publicBookingService.getPublicPromotions(slug);
+    return {
+      success: true,
+      action: 'list_public_promotions',
+      summary: promotions.length
+        ? `${promotions.length} active promotion(s) right now.`
+        : 'No active promotions right now.',
+      details: { promotions },
     };
   }
 
@@ -2005,7 +2316,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       mergedParams,
       input.prompt,
       slug,
-      business.id,
+      business,
       employees,
       services,
       locale,
@@ -2030,7 +2341,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       !isCompoundPrompt(prompt) &&
       !isBudgetServiceDiscoveryCompoundPrompt(prompt) &&
       !isFlexibleAvailabilityBudgetBookCompoundPrompt(prompt) &&
-      !isPublicMultiServiceCompoundPrompt(prompt)
+      !isPublicMultiServiceCompoundPrompt(prompt) &&
+      !isPublicAssistantCompoundPrompt(prompt)
     ) {
       return null;
     }
@@ -2061,7 +2373,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             enriched,
             segment,
             slug,
-            business.id,
+            business,
             employees,
             services,
             locale,
@@ -2093,14 +2405,25 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     params: Record<string, any>,
     prompt: string,
     slug: string,
-    businessId: string,
+    business: {
+      id: string;
+      name: string;
+      description?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      settings?: Record<string, any> | null;
+    },
     employees: Employee[],
     services: Service[],
     locale: AppLocale,
     tz: string,
     session: Record<string, unknown>,
   ): Promise<PublicAssistantResult> {
+    const businessId = business.id;
     switch (action) {
+      case 'list_providers':
+        return this.handleListProviders(slug, params, locale);
       case 'list_services':
         return this.handleListServices(
           slug,
@@ -2128,6 +2451,17 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           tz,
           prompt,
         );
+      case 'recommend_specialists':
+        return this.handleRecommendSpecialists(
+          slug,
+          params,
+          employees,
+          services,
+          locale,
+          tz,
+        );
+      case 'business_info':
+        return this.handleBusinessInfo(business);
       case 'book_appointment':
         return this.handleBookAppointment(
           slug,
@@ -3122,6 +3456,28 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     return commandResultToPublicAssistantResult(result);
   }
 
+  private async handleListProviderReviews(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.providerSpecialty.handleListProviderReviews(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleSubmitProviderReview(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.providerSpecialty.handleSubmitProviderReview(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
   private async handleExplainProviderAvailability(
     slug: string,
     params: Record<string, unknown>,
@@ -3304,10 +3660,15 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     businessId: string,
     params: Record<string, unknown>,
     prompt: string,
+    requestLocale?: string,
   ): Promise<PublicAssistantResult> {
+    // e2e-bug.85 — thread resolved request locale; classifier never extracts it.
     const result = await this.explainRtlLayout.handleExplainRtlLayout(
       businessId,
-      { ...params, _prompt: prompt },
+      mergeExplainRtlLayoutRequestLocale(
+        { ...params, _prompt: prompt },
+        requestLocale,
+      ),
       prompt,
     );
     return commandResultToPublicAssistantResult(result);
@@ -3332,6 +3693,50 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       businessId,
       mergedParams,
       prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleGetBookingQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetBookingQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleGetPackageQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetPackageQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleGetMultiServiceQuote(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleGetMultiServiceQuote(
+      businessId,
+      params,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleConfirmStripePayment(
+    businessId: string,
+    params: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.payments.handleConfirmStripePayment(
+      businessId,
+      params,
     );
     return commandResultToPublicAssistantResult(result);
   }
@@ -3464,6 +3869,39 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         this.mergeMultiServiceSessionParams(params, session, prompt),
         prompt,
       );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handlePreviewMultiServiceCart(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handlePreviewMultiServiceCart(
+      businessId,
+      this.mergeMultiServiceSessionParams(params, session, prompt),
+      prompt,
+    );
+    return commandResultToPublicAssistantResult(result);
+  }
+
+  private async handleSuggestPackageBlock(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+    session: Record<string, unknown>,
+  ): Promise<PublicAssistantResult> {
+    const merged = {
+      ...params,
+      packageId: params.packageId ?? session.packageId,
+      packageName: params.packageName ?? session.packageName,
+      _prompt: prompt,
+    };
+    const result = await this.selfServiceBooking.handleSuggestPackageBlock(
+      businessId,
+      merged,
+    );
     return commandResultToPublicAssistantResult(result);
   }
 
@@ -3880,6 +4318,155 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     };
   }
 
+  private async handleLeaveVisitReview(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleLeaveVisitReview(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'leave_visit_review',
+      summary: result.summary,
+      details: result.details,
+      navigate: result.details?.navigate as PublicAssistantResult['navigate'],
+    };
+  }
+
+  private async handleExplainManageBookingContext(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.selfServiceBooking.handleExplainManageBookingContext(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'explain_manage_booking_context',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleCancelBookingWithToken(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleCancelBookingWithToken(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'cancel_booking_with_token',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleRescheduleBookingWithToken(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.selfServiceBooking.handleRescheduleBookingWithToken(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'reschedule_booking_with_token',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleCancelPackageVisitWithToken(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.selfServiceBooking.handleCancelPackageVisitWithToken(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'cancel_package_visit_with_token',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleReschedulePackageVisitWithToken(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result =
+      await this.selfServiceBooking.handleReschedulePackageVisitWithToken(
+        businessId,
+        params,
+        prompt,
+      );
+    return {
+      success: result.success,
+      action: result.action ?? 'reschedule_package_visit_with_token',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleRescheduleMyBooking(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleRescheduleMyBooking(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'reschedule_my_booking',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
+  private async handleCancelMyBooking(
+    businessId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<PublicAssistantResult> {
+    const result = await this.selfServiceBooking.handleCancelMyBooking(
+      businessId,
+      params,
+      prompt,
+    );
+    return {
+      success: result.success,
+      action: result.action ?? 'cancel_my_booking',
+      summary: result.summary,
+      details: result.details,
+    };
+  }
+
   private async handleJoinWaitlist(
     businessId: string,
     params: Record<string, unknown>,
@@ -4032,12 +4619,31 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     phone?: string;
     email?: string;
     address?: string;
+    settings?: Record<string, any> | null;
   }): PublicAssistantResult {
     const parts = [`${business.name}`];
     if (business.description) parts.push(business.description);
     if (business.address) parts.push(`Address: ${business.address}`);
     if (business.phone) parts.push(`Phone: ${business.phone}`);
     if (business.email) parts.push(`Email: ${business.email}`);
+
+    const privacy = toPublicBusinessPrivacySettings(
+      readBusinessPrivacySettings(business.settings ?? undefined),
+    );
+    parts.push(
+      `Privacy: policy v${privacy.privacyPolicyVersion}` +
+        (privacy.requireAiProcessingConsent
+          ? ' · AI-processing consent required'
+          : '') +
+        (privacy.dataResidencyRegion !== 'other'
+          ? ` · data hosted in ${privacy.dataResidencyRegion.toUpperCase()}`
+          : ''),
+    );
+
+    const appInstall = readTenantAppInstallSettings(business.settings);
+    if (appInstall) {
+      parts.push(`Get our app: ${appInstall.landingUrl}`);
+    }
 
     return {
       success: true,

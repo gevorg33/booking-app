@@ -507,6 +507,55 @@ export class AgentOrchestratorService {
     return workspace;
   }
 
+  async rebookAllFromTask(
+    businessId: string,
+    taskId: string,
+    userId: string,
+  ): Promise<AgentTask | { success: false; message: string }> {
+    const workspace = await this.previewTaskWorkspace(taskId);
+    const proposals = (workspace as any)?.cancellationRecovery?.proposals ?? [];
+    const task = await this.getTask(taskId);
+
+    const steps = proposals
+      .filter((p: any) => p.recommendedCustomer && p.params)
+      .map((p: any, index: number) => ({
+        id: crypto.randomUUID(),
+        action: 'execute_reassignment',
+        description: `Rebook ${p.recommendedCustomer.customerName}`,
+        params: {
+          ...p.params,
+          businessId,
+          userId,
+          proposalId: p.id,
+        },
+        dependsOn: index === 0 ? [] : [`rebook-${index - 1}`],
+        estimatedImpact: 'Creates replacement booking',
+      }));
+
+    if (!steps.length) {
+      return { success: false, message: 'No rebooking proposals available' };
+    }
+
+    for (let i = 1; i < steps.length; i++) {
+      steps[i].dependsOn = [steps[i - 1].id];
+    }
+
+    const plan = {
+      ...task.plan,
+      id: crypto.randomUUID(),
+      intent: `Rebook all from task ${taskId}`,
+      steps,
+      status: 'validated',
+    };
+
+    return this.processPlan({
+      plan: plan as any,
+      businessId,
+      userId,
+      autoExecute: true,
+    });
+  }
+
   private buildWorkspacePayload(
     task: AgentTask,
     stepResults: Record<string, unknown>,

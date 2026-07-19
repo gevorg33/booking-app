@@ -58,10 +58,16 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
   it.each(
     PROVIDER_OPEN_SHIFTS_MULTILINGUAL_SCENARIOS.map((scenario) => [
       scenario.id,
-      scenario.prompt,
+      scenario,
     ]),
-  )('detects suggest_waitlist_for_gap i18n prompt %s', (_id, prompt) => {
-    expect(isSuggestWaitlistForGapPrompt(prompt)).toBe(true);
+  )('detects i18n prompt %s for its expected action', (_id, scenario) => {
+    if (scenario.expectedAction === 'suggest_waitlist_for_gap') {
+      expect(isSuggestWaitlistForGapPrompt(scenario.prompt)).toBe(true);
+    } else {
+      expect(
+        rescueProviderOpenShiftsIntent(scenario.prompt, 'unknown')?.action,
+      ).toBe(scenario.expectedAction);
+    }
   });
 
   it('tags HY/RU provider open shifts eval rows with provider surface and locale', () => {
@@ -74,8 +80,8 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(2);
-    expect(ruCases.length).toBe(2);
+    expect(hyCases.length).toBe(38);
+    expect(ruCases.length).toBe(38);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(
@@ -83,6 +89,6 @@ describe('ai provider open shifts locale parity (acc-2.4)', () => {
         (row) => row.expect.needsMultilingual === true,
       ),
     ).toBe(true);
-    expect(AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_CASES.length).toBe(2);
+    expect(AI_COMMAND_EVAL_PROVIDER_OPEN_SHIFTS_CASES.length).toBe(38);
   });
 });

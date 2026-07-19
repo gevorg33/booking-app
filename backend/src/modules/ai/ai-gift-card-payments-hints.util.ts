@@ -10,6 +10,7 @@ import {
 } from './ai-compound-booking-context.util.js';
 import { isTrackGiftCardShipmentPrompt } from './ai-gift-fulfillment.util.js';
 import { isCashBookingPrompt } from './ai-booking-depth.util.js';
+import { hasGiftCardForSomeoneCue } from './ai-buy-gift-card-for-someone.util.js';
 import {
   decomposePaymentsCompoundPrompt,
   extractAmountFromPrompt,
@@ -34,6 +35,7 @@ export const GIFT_CARD_PAYMENTS_ACTIONS = [
   'pay_cash_at_visit',
   'buy_gift_card',
   'buy_gift_card_physical',
+  'get_gift_card_quote',
   'track_physical_gift_card_order',
 ] as const;
 
@@ -151,6 +153,18 @@ export function disambiguateGiftCardPaymentsAction(
     };
   }
 
+  // e2e-bug.51 / e2e-bug.53 — "buy a gift card for my mom" must not stick on
+  // apply_gift_card_code (or any other gift-card payments action) via the early bail.
+  if (
+    hasGiftCardForSomeoneCue(prompt) &&
+    action !== 'buy_gift_card_for_someone'
+  ) {
+    return {
+      action: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
+    };
+  }
+
   if (isGiftCardPaymentsAction(action)) return null;
 
   if (isApplyGiftCardCodePrompt(prompt) && action !== 'apply_gift_card_code') {
@@ -235,6 +249,7 @@ export function mergeGiftCardPaymentsHintsIntoSessionContext(
 }
 
 function enrichGiftCardPaymentsBaseParams(
+  action: string,
   params: Record<string, any>,
   prompt: string,
 ): void {
@@ -245,6 +260,15 @@ function enrichGiftCardPaymentsBaseParams(
   const amount = extractAmountFromPrompt(prompt);
   if (amount != null && params.amount == null) {
     params.amount = amount;
+  }
+  // Buying/quoting a card is not paying with one — "gift card" in the prompt is the SKU.
+  if (
+    action === 'buy_gift_card' ||
+    action === 'buy_gift_card_physical' ||
+    action === 'buy_gift_card_for_someone' ||
+    action === 'get_gift_card_quote'
+  ) {
+    return;
   }
   const paymentMethod = extractPaymentMethodFromPrompt(prompt);
   if (paymentMethod && !params.paymentMethod) {
@@ -266,7 +290,7 @@ export function applyGiftCardPaymentsPromptHints(
     action,
     prompt,
   );
-  enrichGiftCardPaymentsBaseParams(params, prompt);
+  enrichGiftCardPaymentsBaseParams(action, params, prompt);
 
   if (action === 'buy_gift_card_physical' && !params.deliveryMethod) {
     params.deliveryMethod = 'physical';
@@ -298,7 +322,6 @@ export function classifyGiftCardPaymentsSegment(
     sharedContext,
     buildSharedBookingContextFromPrompt(text),
   );
-  enrichGiftCardPaymentsBaseParams(base, text);
   const fromShared = enrichParamsWithSharedEntities({}, text);
   const params = { ...base, ...fromShared };
 
@@ -308,6 +331,11 @@ export function classifyGiftCardPaymentsSegment(
     !/\b(buy|purchase)\b/i.test(text) &&
     !isBuyGiftCardPhysicalPrompt(text)
   ) {
+    enrichGiftCardPaymentsBaseParams(
+      'track_physical_gift_card_order',
+      params,
+      text,
+    );
     return {
       action: 'track_physical_gift_card_order',
       params,
@@ -316,6 +344,7 @@ export function classifyGiftCardPaymentsSegment(
   }
 
   if (isBuyGiftCardPhysicalPrompt(text)) {
+    enrichGiftCardPaymentsBaseParams('buy_gift_card_physical', params, text);
     return {
       action: 'buy_gift_card_physical',
       params: { ...params, deliveryMethod: 'physical' },

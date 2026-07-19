@@ -1,5 +1,7 @@
 import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
+import { Business } from '../business/entities/business.entity.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
@@ -27,7 +29,13 @@ describe('ai-explain-app-update-required integration (ai-cmd-customer-4.13.4)', 
           useValue: {
             getNativePushStatus: jest.fn(async () => ({ registered: false })),
           },
-        },
+          },
+          {
+            provide: getRepositoryToken(Business),
+            useValue: {
+              findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+            },
+          },
       ],
     }).compile();
 

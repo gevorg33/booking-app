@@ -3,6 +3,12 @@ import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
 import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 import { isExplainConsumerCheckoutSuccessPrompt } from './ai-consumer-checkout-success.util.js';
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
+import { isExplainProviderDateDisplayPrompt } from './ai-provider-date-format.util.js';
+import {
+  isExplainDateInputFormatPrompt,
+  isPreviewDateInputParsePrompt,
+} from './ai-date-input-format.util.js';
+import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
 import { EXPLAIN_WHY_SIGN_IN_MULTILINGUAL_SCENARIOS } from './ai-explain-why-sign-in-multilingual.fixtures.js';
 import {
   EXPLAIN_WHY_SIGN_IN_PROMPTS,
@@ -36,6 +42,14 @@ const MANAGE_LINK_SIGN_IN_CUE =
 
 const GUEST_CHECKOUT_FIELD_FOCUS =
   /\b(?:guest\s+checkout\s+requires?|what\s+guest\s+checkout|guest\s+checkout\s+fields?|pre-?fill(?:s|ed)?\s+(?:my\s+)?profile|signed[\s-]?in\s+checkout\s+pre-?fill|guest\s+booking\s+link|same\s+(?:email|phone).*(?:merge|link)|book(?:s|ed)?\s+as\s+a?\s+guest\s+with\s+the\s+same)\b/iu;
+
+/** e2e-bug.76 — "can I cancel my appointment?" matched can i + my appointment. */
+const BOOKING_MUTATE_QUESTION_CUE =
+  /\b(cancel|reschedule|move|postpone|rebook)\b/i;
+
+/** e2e-bug.76 — "what language is my account set to?" matched what + account. */
+const LOCALE_ACCOUNT_QUESTION_CUE =
+  /\b(language|locale|հայերեն|русск|english|armenian)\b/i;
 
 const ACCOUNT_SIGN_IN_TOPIC =
   /\b(?:account|sign[\s-]?in|log[\s-]?in|register|create\s+(?:an?\s+)?account|guest\s+checkout|without\s+(?:an?\s+)?account|signed[\s-]?in|stay\s+as\s+a?\s+guest|my\s+appointments?|past\s+appointments?|booking\s+history|benefit|worth\s+it)\b|հաշիվ|մուտք|գրանցվել|аккаунт|войти|регистрац|гостев/i;
@@ -119,6 +133,10 @@ export function isExplainWhySignInPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isExplainCheckoutRecommendationsPrompt(text)) return false;
   if (isExplainConsumerCheckoutSuccessPrompt(text)) return false;
+  if (isExplainProviderDateDisplayPrompt(text)) return false;
+  if (isExplainDateInputFormatPrompt(text)) return false;
+  if (isPreviewDateInputParsePrompt(text)) return false;
+  if (isExplainNotificationCurrencyPrompt(text)) return false;
   if (matchExplainWhySignInScenario(text)) return true;
   if (POST_BOOKING_SAVE_CUE.test(text)) return false;
   if (MANAGE_LINK_SIGN_IN_CUE.test(text) || hasSignInToManageBookingCue(text)) {
@@ -127,6 +145,19 @@ export function isExplainWhySignInPrompt(prompt: string): boolean {
   if (GUEST_CHECKOUT_FIELD_FOCUS.test(text)) return false;
   if (isExplainDataRightsPrompt(text)) return false;
   if (isExplainTenantCurrencyPrompt(text)) return false;
+  // e2e-bug.76 — cancel/reschedule questions and locale reads are not sign-in FAQ.
+  if (
+    BOOKING_MUTATE_QUESTION_CUE.test(text) &&
+    /\b(appointment|booking|visit|reservation|subscription)\b/i.test(text)
+  ) {
+    return false;
+  }
+  if (
+    LOCALE_ACCOUNT_QUESTION_CUE.test(text) &&
+    !/\b(sign[\s-]?in|log[\s-]?in|guest\s+checkout)\b/i.test(text)
+  ) {
+    return false;
+  }
   if (CHECKOUT_FIELD_TOPIC.test(text) && !ACCOUNT_SIGN_IN_TOPIC.test(text)) {
     return false;
   }

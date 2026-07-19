@@ -33,6 +33,15 @@ export function isHowToDownloadAppPrompt(prompt: string): boolean {
   if (matchHowToDownloadAppScenario(prompt)) return true;
   if (isExplainTenantAppInstallPrompt(prompt)) return false;
   if (SWITCH_TO_CONSUMER_APP.test(prompt)) return false;
+  // e2e-bug.94 — "get an appointment" must not match loose "app" substring.
+  if (
+    /\b(appointment|slot|opening)\b/i.test(prompt) &&
+    /\b(soonest|earliest|nearest|next\s+available|first\s+available|asap)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (
     /\binstall\b/i.test(prompt) &&
     /\b(phone|iphone|android|device|my\s+phone)\b/i.test(prompt)
@@ -53,7 +62,8 @@ export function isHowToDownloadAppPrompt(prompt: string): boolean {
     (/\b(app|ios|android|iphone|mobile\s+app|consumer\s+app|booking\s+app|google\s+play|app\s+store|qr)\b/i.test(
       prompt,
     ) ||
-      /(app|consumer app|booking app|прилож|мобильн|iphone|android|qr)/i.test(
+      // Word-bound Latin "app"; keep Cyrillic stems unbound.
+      /(?:\b(?:app|consumer\s+app|booking\s+app)\b|прилож|мобильн|\biphone\b|\bandroid\b|\bqr\b)/i.test(
         prompt,
       ))
   );

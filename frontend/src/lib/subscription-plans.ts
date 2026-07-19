@@ -66,11 +66,14 @@ export function buildQuoteRequest(options: {
   selectedPlanId: string;
   promoCode?: string;
   loyaltyPointsToRedeem?: number;
+  /** e2e-bug.28 — thread subscription credit into /bookings/quote */
+  useSubscriptionId?: string;
 }): {
   serviceId: string;
   promoCode?: string;
   loyaltyPointsToRedeem?: number;
   purchasePlanId?: string;
+  useSubscriptionId?: string;
 } {
   return {
     serviceId: options.serviceId,
@@ -78,6 +81,9 @@ export function buildQuoteRequest(options: {
     loyaltyPointsToRedeem: options.loyaltyPointsToRedeem,
     ...(options.purchaseType === 'subscription' && options.selectedPlanId
       ? { purchasePlanId: options.selectedPlanId }
+      : {}),
+    ...(options.useSubscriptionId
+      ? { useSubscriptionId: options.useSubscriptionId }
       : {}),
   };
 }

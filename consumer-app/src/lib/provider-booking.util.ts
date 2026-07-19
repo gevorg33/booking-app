@@ -102,3 +102,34 @@ export function groupServicesByCategory(
     return left.categoryName.localeCompare(right.categoryName);
   });
 }
+
+/** Normalize user search text for case-insensitive service list filtering. */
+export function normalizeServiceSearchQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function serviceMatchesSearchQuery(
+  service: PublicService,
+  query: string,
+): boolean {
+  const normalized = normalizeServiceSearchQuery(query);
+  if (!normalized) return true;
+  const haystack = [
+    service.name,
+    service.description,
+    service.category?.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(normalized);
+}
+
+export function filterServicesBySearchQuery(
+  services: PublicService[],
+  query: string,
+): PublicService[] {
+  const normalized = normalizeServiceSearchQuery(query);
+  if (!normalized) return services;
+  return services.filter((service) => serviceMatchesSearchQuery(service, normalized));
+}

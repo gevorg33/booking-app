@@ -39,11 +39,14 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
     }
   }
 
+  const giftCardsNavLabel = t('public.giftCards.nav');
+
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
-      <div className="max-w-lg mx-auto px-4 py-3 flex items-start gap-3">
+      {/* e2e-bug.57 — min-w-0 + overflow so name truncates beside gift-cards/actions */}
+      <div className="mx-auto flex min-w-0 max-w-lg items-center gap-2 px-4 py-3 sm:gap-3">
         {showBack && backHref && (
-          <Link href={backHref} className="mt-2 p-1 -ml-1 text-gray-600 hover:text-gray-900">
+          <Link href={backHref} className="shrink-0 p-1 -ml-1 text-gray-600 hover:text-gray-900">
             <ChevronLeft className="w-5 h-5" />
           </Link>
         )}
@@ -65,12 +68,12 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
           </div>
         )}
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <Link
             href={bookPath(tenant.slug, '/profile')}
-            className="inline-flex items-center gap-1 font-semibold text-gray-900 hover:opacity-80"
+            className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-gray-900 hover:opacity-80"
           >
-            <span className="truncate">{tenant.name}</span>
+            <span className="min-w-0 truncate">{tenant.name}</span>
             <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
           </Link>
           {tenant.address && (
@@ -78,14 +81,17 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
           )}
         </div>
 
-        <div className="shrink-0 mt-1 flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {tenant.giftCardsPurchaseEnabled && (
             <Link
               href={bookPath(tenant.slug, '/gift-cards')}
+              aria-label={giftCardsNavLabel}
+              title={giftCardsNavLabel}
               className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
               <Gift className="w-3.5 h-3.5 shrink-0" />
-              <span>{t('public.giftCards.nav')}</span>
+              {/* Icon-only under sm so the name column can truncate instead of overlapping */}
+              <span className="hidden sm:inline">{giftCardsNavLabel}</span>
             </Link>
           )}
           {loading ? (
@@ -93,11 +99,11 @@ export function PublicHeader({ tenant, showBack, backHref }: PublicHeaderProps) 
           ) : customer ? (
             <Link
               href={bookPath(tenant.slug, '/account')}
-              className="inline-flex items-center gap-1.5 max-w-[120px] rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="inline-flex max-w-[7.5rem] items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
               title={customer.email ?? customer.name}
             >
               <User className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{customer.name.split(' ')[0]}</span>
+              <span className="min-w-0 truncate">{customer.name.split(' ')[0]}</span>
             </Link>
           ) : googleEnabled ? (
             <button

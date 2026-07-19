@@ -133,7 +133,12 @@ export function mergeGuideMultiTurnSessionIntoContext(
   context: Record<string, unknown> | undefined,
   session: GuideMultiTurnSession | null,
 ): Record<string, unknown> {
-  const next = { ...(context ?? {}) };
+  // e2e-bug.91 — never persist orchestration internals into client sessionContext.
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(context ?? {})) {
+    if (key.startsWith('_')) continue;
+    next[key] = value;
+  }
   if (!session) {
     delete next.guideFlowId;
     delete next.guideStepIndex;

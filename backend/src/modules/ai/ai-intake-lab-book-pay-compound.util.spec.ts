@@ -18,7 +18,7 @@ import {
 describe('ai-intake-lab-book-pay-compound.util (ai-cmd-customer-4.21.1)', () => {
   it.each(INTAKE_LAB_BOOK_PAY_COMPOUND_PROMPTS)(
     'detects intake_lab_book_pay compound for $id',
-    ({ prompt, orderedActions }) => {
+    ({ prompt, orderedActions, paymentAction }) => {
       expect(isIntakeLabBookPayCompoundPrompt(prompt)).toBe(true);
       expect(hasIntakeLabBookPayPaymentCue(prompt)).toBe(true);
       const decompose =
@@ -26,7 +26,13 @@ describe('ai-intake-lab-book-pay-compound.util (ai-cmd-customer-4.21.1)', () => 
           ? decomposePublicIntakeLabBookPayCompoundPrompt(prompt)
           : decomposeCustomerIntakeLabBookPayCompoundPrompt(prompt);
       expect(decompose.map((step) => step.action)).toEqual([...orderedActions]);
-      expect(decompose[2]?.params.paymentMethod).toBe('online');
+      const expectedMethod =
+        paymentAction === 'pay_cash_at_visit'
+          ? 'cash'
+          : paymentAction === 'pay_online'
+            ? 'online'
+            : undefined;
+      expect(decompose[2]?.params.paymentMethod).toBe(expectedMethod);
     },
   );
 

@@ -179,16 +179,23 @@ export async function getCommandAnalyticsLogic(
 
 export function gatePublicAssistantActionLogic(
   action: string,
+  locale?: string | null,
 ): CommandResult | null {
-  if (validatePublicAssistantAction(action)) return null;
-  return buildPublicAssistantDeniedResult(action);
+  // e2e-bug.90 — never let an undefined allowlist throw a raw 500.
+  try {
+    if (validatePublicAssistantAction(action)) return null;
+  } catch {
+    return buildPublicAssistantDeniedResult(action, locale);
+  }
+  return buildPublicAssistantDeniedResult(action, locale);
 }
 
 export function gateCustomerAssistantActionLogic(
   action: string,
+  locale?: string | null,
 ): CommandResult | null {
   if (validateCustomerAssistantAction(action)) return null;
-  return buildCustomerAssistantDeniedResult(action);
+  return buildCustomerAssistantDeniedResult(action, locale);
 }
 
 export async function scanStuckTasksForEscalationLogic(

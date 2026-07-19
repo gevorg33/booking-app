@@ -70,7 +70,22 @@ export async function handleExplainPublicIntakeFormLogic(
 
   const parsed = parseExplainPublicIntakeFormFromPrompt(textPrompt, enriched);
   const aspect = parsed?.aspect ?? 'how_it_works';
-  const ctx = resolvePublicIntakeFormExplainContext(enriched);
+  let ctx = resolvePublicIntakeFormExplainContext(enriched);
+  let questionnaireTitle: string | null = null;
+
+  if (ctx.serviceId && ctx.offersPreVisitIntake === null) {
+    try {
+      const config = await deps.publicPreVisitIntakeService.getCheckoutConfig(
+        business.slug,
+        ctx.serviceId,
+      );
+      ctx = { ...ctx, offersPreVisitIntake: config.offersPreVisitIntake };
+      questionnaireTitle = config.questionnaire?.title ?? null;
+    } catch {
+      // Service not found or intake unavailable — leave offersPreVisitIntake unknown.
+    }
+  }
+
   const summary = assemblePublicIntakeFormSummary(aspect, ctx);
   const navigate = buildExplainPublicIntakeFormNavigate(aspect, ctx);
 
@@ -81,6 +96,7 @@ export async function handleExplainPublicIntakeFormLogic(
     signedIn: ctx.signedIn,
     serviceId: ctx.serviceId,
     publicIntakeCheckout: true,
+    ...(questionnaireTitle ? { questionnaireTitle } : {}),
     ...(navigate ? { navigate } : {}),
   });
 }

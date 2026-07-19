@@ -31,6 +31,9 @@ export const BOOK_LAB_FROM_ORDER_BLOCK =
 const LIST_ONLY_CUE =
   /\b(?:what|which|show|list|any|how\s+many)\b.{0,30}(?:lab\s+to\s+book|lab\s+appointments?\s+to\s+book|pending\s+lab)|(?:ինչ|որ|ցույց|сколько|какие).{0,20}(?:լաբ|лаб).{0,20}(?:ամրագր|забронир)/iu;
 
+const LAB_TO_BOOK_LIST_REFERENCE_BLOCK =
+  /^\s*(?:my\s+)?lab\s+to\s+book(?:\s+(?:list|tab|page))?\s*$|\blab\s+to\s+book\b.{0,20}\b(?:on|in)\s+my\s+account\b/i;
+
 const MY_SCOPE =
   /\b(?:my|the)\b|(?:^|[\s,.;])իմ(?:[\s,.;]|$)|(?:^|[\s,.;])мои(?:[\s,.;]|$)|(?:^|[\s,.;])мой(?:[\s,.;]|$)|(?:^|[\s,.;])мою(?:[\s,.;]|$)/iu;
 
@@ -93,6 +96,12 @@ export function isBookLabFromOrderPrompt(prompt: string): boolean {
   if (isBookLabCollectionNearestCompoundPrompt(text)) return false;
   if (COMPLETE_INTAKE_AND_BOOK_BLOCK.test(text)) return false;
   if (LIST_ONLY_CUE.test(text) && !BOOK_LAB_ORDER_CUE.test(text)) return false;
+  if (
+    LAB_TO_BOOK_LIST_REFERENCE_BLOCK.test(text) &&
+    !BOOK_LAB_ORDER_CUE.test(text)
+  ) {
+    return false;
+  }
 
   if (
     (containsArmenianScript(text) &&

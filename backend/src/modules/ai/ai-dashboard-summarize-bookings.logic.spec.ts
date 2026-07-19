@@ -14,9 +14,12 @@ import {
   formatSummarizeBookingsRevenue,
   isDashboardSummarizeBookingsPrompt,
   isRevenueEligibleBooking,
+  isUnscopedBookingCountPrompt,
   rescueSummarizeBookingsIntent,
   resolveSummarizeBookingsCurrency,
 } from './ai-dashboard-summarize-bookings.logic.js';
+import { resolveDateRange } from './ai-orchestration.helpers.js';
+import { resolveBookingMetric } from './ai-metric-resolvers.util.js';
 
 describe('ai-dashboard-summarize-bookings.logic (ai-cmd-ext-1.6)', () => {
   it.each(SUMMARIZE_BOOKINGS_REVENUE_CURRENCY_SCENARIOS)(
@@ -334,5 +337,86 @@ describe('ai-dashboard-summarize-bookings.logic (ai-cmd-ext-1.6)', () => {
       now: new Date('2026-06-11T12:00:00Z'),
     });
     expect(result.summary).toContain('Booking overview for all providers');
+  });
+
+  describe('e2e-bug.154 — unscoped booking totals', () => {
+    it.each([
+      'How many bookings do I have in total?',
+      'How many appointments do I have altogether?',
+      'What is my total number of bookings?',
+      'Bookings in total',
+    ])('detects unscoped count prompt: %s', (prompt) => {
+      expect(isUnscopedBookingCountPrompt(prompt)).toBe(true);
+      expect(isDashboardSummarizeBookingsPrompt(prompt)).toBe(true);
+      expect(resolveBookingMetric({}, prompt)).toBe('count');
+      expect(rescueSummarizeBookingsIntent(prompt, 'unknown')).toEqual({
+        action: 'summarize_bookings',
+        bookingMetric: 'count',
+        rescueReason: 'unscoped_booking_count',
+        allTime: true,
+      });
+      expect(
+        rescueSummarizeBookingsIntent(prompt, 'show_appointments')?.action,
+      ).toBe('summarize_bookings');
+    });
+
+    it('does not steal scoped week/day counts or revenue totals', () => {
+      expect(
+        isUnscopedBookingCountPrompt('How many bookings do I have this week?'),
+      ).toBe(false);
+      expect(
+        isUnscopedBookingCountPrompt('How many bookings do I have today?'),
+      ).toBe(false);
+      expect(
+        isUnscopedBookingCountPrompt('How much revenue do I have in total?'),
+      ).toBe(false);
+    });
+
+    it('resolveDateRange maps in-total booking prompts to a wide window', () => {
+      const range = resolveDateRange(
+        {},
+        'How many bookings do I have in total?',
+        'UTC',
+      );
+      expect(range).not.toBeNull();
+      expect(range!.start < range!.end || range!.start === range!.end).toBe(
+        true,
+      );
+      // Must not collapse to a single "today" when asking for a total.
+      const spanDays =
+        (new Date(range!.end).getTime() - new Date(range!.start).getTime()) /
+        86400000;
+      expect(spanDays).toBeGreaterThan(30);
+    });
+
+    it('compose labels all-time counts without inventing a day scope', () => {
+      const result = composeSummarizeBookingsResult({
+        bookings: [
+          {
+            status: 'confirmed',
+            paymentStatus: 'pending',
+            startTime: new Date('2026-01-01T10:00:00Z'),
+            service: { price: 50 },
+            employee: { name: 'Anna' },
+          },
+          {
+            status: 'cancelled',
+            paymentStatus: 'pending',
+            startTime: new Date('2026-02-01T10:00:00Z'),
+            service: { price: 50 },
+            employee: { name: 'Anna' },
+          },
+        ],
+        businessSettings: { currency: 'USD' },
+        metric: 'count',
+        range: { start: 'all-time', end: 'all-time' },
+        allTime: true,
+        now: new Date('2026-07-19T12:00:00Z'),
+      });
+      expect(result.summary).toContain('all time');
+      expect(result.summary).toContain('1 active appointment(s)');
+      expect(result.summary).toContain('1 cancelled');
+      expect(result.summary).not.toMatch(/total of 0/i);
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   assignAbVariant,
   buildBranchClassifierHint,
   buildCommandMetricPayload,
+  buildCustomerAssistantDeniedResult,
   buildPublicAssistantDeniedResult,
   buildVerticalClassifierHints,
   classifyCommandOutcome,
@@ -24,6 +25,9 @@ import {
   validatePublicAssistantAction,
   VERTICAL_AI_PLUGINS,
 } from './ai-platform.util.js';
+// e2e-bug.1 — load former cycle entry points before asserting the live allowlist binding.
+import './ai-product-guide-session.util.js';
+import './guide/guide-flow.merge.util.js';
 
 describe('ai-platform.util', () => {
   it('resolves branch scope from context and settings', () => {
@@ -86,6 +90,21 @@ describe('ai-platform.util', () => {
     ).toBe(false);
     expect(validatePublicAssistantAction('book_appointment')).toBe(true);
     expect(validatePublicAssistantAction('payment_sweep')).toBe(false);
+  });
+
+  it('e2e-bug.1 / e2e-bug.90: PUBLIC_ASSISTANT_INTENTS stays defined for public-only actions', () => {
+    expect(Array.isArray(platformUtil.PUBLIC_ASSISTANT_INTENTS)).toBe(true);
+    expect(platformUtil.PUBLIC_ASSISTANT_INTENTS.length).toBeGreaterThan(0);
+    expect(validatePublicAssistantAction('list_services')).toBe(true);
+    expect(validatePublicAssistantAction('find_services_under_budget')).toBe(
+      true,
+    );
+    expect(validatePublicAssistantAction('business_info')).toBe(true);
+    expect(validatePublicAssistantAction('list_providers')).toBe(true);
+    expect(validatePublicAssistantAction('list_public_promotions')).toBe(true);
+    expect(validatePublicAssistantAction('find_evening_weekend_slots')).toBe(
+      true,
+    );
   });
 
   it('resolves vertical plugins and rescues intents', () => {
@@ -313,6 +332,22 @@ describe('ai-platform.util', () => {
     expect(buildPublicAssistantDeniedResult('x').action).toBe(
       'security_blocked',
     );
+    // e2e-bug.127 — no snake_case action id in customer-facing summary
+    expect(buildPublicAssistantDeniedResult('create_booking').summary).not.toMatch(
+      /create_booking/,
+    );
+    expect(
+      buildCustomerAssistantDeniedResult('create_booking', 'ru').summary,
+    ).toMatch(/помощнике клиента/i);
+    expect(
+      buildCustomerAssistantDeniedResult('create_booking', 'ru').summary,
+    ).not.toMatch(/create_booking/);
+    expect(
+      buildPublicAssistantDeniedResult('payment_sweep', 'hy').summary,
+    ).toMatch(/հասանելի չէ/);
+    expect(
+      buildPublicAssistantDeniedResult('payment_sweep', 'hy').details,
+    ).toMatchObject({ blockedAction: 'payment_sweep' });
     expect(
       enrichPublicSessionWithOrchestrationRules(
         { foo: 1 },

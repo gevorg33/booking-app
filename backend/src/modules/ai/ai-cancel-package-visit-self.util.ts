@@ -6,6 +6,7 @@ import {
   type CancelPackageVisitSelfPromptFixture,
 } from './ai-cancel-package-visit-self.fixtures.js';
 import { CANCEL_PACKAGE_VISIT_SELF_MULTILINGUAL_SCENARIOS } from './ai-cancel-package-visit-self-multilingual.fixtures.js';
+import { hasManageLinkCredentialsInPrompt } from './ai-manage-booking-with-token.util.js';
 
 export const CANCEL_PACKAGE_VISIT_SELF_INTENTS = [
   'cancel_package_visit_self',
@@ -96,6 +97,8 @@ export function isCancelPackageVisitSelfIntent(
 
 export function isCancelPackageVisitSelfPrompt(prompt: string): boolean {
   if (isCancelPackageRebookSingleCompoundCandidate(prompt)) return false;
+  // e2e-bug.103 — guest manage-link cancel → cancel_package_visit_with_token
+  if (hasManageLinkCredentialsInPrompt(prompt)) return false;
   if (matchCancelPackageVisitSelfScenario(prompt)) return true;
 
   const packageContext =

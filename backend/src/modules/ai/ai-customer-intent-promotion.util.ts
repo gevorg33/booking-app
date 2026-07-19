@@ -7,7 +7,7 @@ import {
 } from './ai-customer-intent-coverage.util.js';
 import type { AiCommandEvalCase } from './eval/ai-command-eval.types.js';
 
-export type CustomerIntentPromotionTier = 'P0' | 'P1' | 'P2' | 'P3';
+export type CustomerIntentPromotionTier = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
 
 export type CustomerIntentPromotionSurface =
   | 'customer'
@@ -101,6 +101,101 @@ export const CUSTOMER_INTENT_PROMOTION_QUEUE: readonly CustomerIntentPromotionGr
       intents: ['refer_a_friend', 'share_salon_link'],
       todoRef: 'ai-cmd-customer-4.0 P3',
     },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['select_subscription_plan', 'discover_subscription_plans'],
+      todoRef: 'ai-cmd-customer-6.1.6',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['change_provider_on_reschedule'],
+      todoRef: 'ai-cmd-customer-6.3.4',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: [
+        'manage_notification_preferences',
+        'explain_my_notifications',
+        'explain_data_rights',
+      ],
+      todoRef: 'ai-cmd-customer-6.5.4',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['explain_loyalty_points'],
+      todoRef: 'ai-cmd-customer-6.6.4',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['share_my_booking', 'explain_share_reward'],
+      todoRef: 'ai-cmd-customer-6.6.6',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['subscription_usage'],
+      todoRef: 'ai-cmd-customer-6.6.7',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['request_gift_card_modify'],
+      todoRef: 'ai-cmd-customer-6.7.4',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['list_my_test_results', 'explain_result_status'],
+      todoRef: 'ai-cmd-customer-6.8.3',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['list_my_lab_booking_requests', 'book_lab_collection'],
+      todoRef: 'ai-cmd-customer-6.8.4',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['explain_patient_alert'],
+      todoRef: 'ai-cmd-customer-6.8.5',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['explain_app_update_required'],
+      todoRef: 'ai-cmd-customer-6.11.3',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['cancel_all_upcoming_bookings'],
+      todoRef: 'ai-cmd-customer-6.12.7',
+    },
+    {
+      tier: 'P4',
+      shipped: true,
+      surfaces: 'customer',
+      intents: ['update_my_profile'],
+      todoRef: 'ai-cmd-customer-6.14.3',
+    },
   ] as const;
 
 const TIER_ORDER: Record<CustomerIntentPromotionTier, number> = {
@@ -108,6 +203,7 @@ const TIER_ORDER: Record<CustomerIntentPromotionTier, number> = {
   P1: 1,
   P2: 2,
   P3: 3,
+  P4: 4,
 };
 
 export type CustomerIntentPromotionCoverageBucket =

@@ -20,6 +20,7 @@ import {
   hasAvailabilityWhen,
   hasRescheduleNewTime,
 } from './booking-time-completion.util.js';
+import { parseRetailSalesLinesFromPrompt } from './ai-retail-finance.util.js';
 
 const PROVIDER_VALIDATED_ACTIONS = new Set([
   'cancel_bookings',
@@ -46,6 +47,8 @@ const PROVIDER_VALIDATED_ACTIONS = new Set([
   'send_client_message',
   'block_my_time',
   'request_time_off',
+  'set_retail_sales_lines',
+  'remove_retail_from_booking',
   ...PROVIDER_PRODUCT_GUIDE_INTENTS,
   ...PROVIDER_META_GUIDE_INTENTS,
   ...PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
@@ -67,7 +70,8 @@ function hasBookingFilter(params: Record<string, unknown>): boolean {
     !!params.customerName ||
     params.allAppointments === true ||
     !!params.timeSlot ||
-    !!params.serviceName
+    !!params.serviceName ||
+    !!params.bookingId
   );
 }
 
@@ -185,7 +189,8 @@ const PROVIDER_ACTION_RULES: Record<
     const hasTarget =
       params.allAppointments === true ||
       !!params.customerName ||
-      !!params.timeSlot;
+      !!params.timeSlot ||
+      !!params.bookingId;
     const hasChange = !!params.status || !!params.paymentStatus;
     return [
       ...(hasTarget
@@ -329,6 +334,18 @@ const PROVIDER_ACTION_RULES: Record<
           },
         ],
 
+  remove_retail_from_booking: (params) =>
+    params.bookingId || params.customerName || params.productName
+      ? []
+      : [
+          {
+            field: 'productName',
+            label: 'Product',
+            message: 'Name the product and booking to remove it from',
+            example: 'Remove shampoo from Jane booking',
+          },
+        ],
+
   send_client_message: (params) =>
     params.bookingId || params.customerName
       ? []
@@ -340,6 +357,31 @@ const PROVIDER_ACTION_RULES: Record<
             example: 'Text Jane running late',
           },
         ],
+
+  set_retail_sales_lines: (params) => {
+    const hasTarget = !!(params.bookingId || params.customerName);
+    const hasLines =
+      (Array.isArray(params.lines) && params.lines.length > 0) ||
+      parseRetailSalesLinesFromPrompt(readPrompt(params)).length > 0;
+    const issues: ValidationIssue[] = [];
+    if (!hasTarget) {
+      issues.push({
+        field: 'bookingId',
+        label: 'Booking',
+        message: 'Open an appointment or name the client for this cart',
+        example: 'Set retail cart to 2 shampoo for Jane',
+      });
+    }
+    if (!hasLines) {
+      issues.push({
+        field: 'lines',
+        label: 'Cart lines',
+        message: 'Specify the retail products and quantities',
+        example: 'Set retail cart to 2 shampoo, 1 conditioner',
+      });
+    }
+    return issues;
+  },
 
   block_my_time: (params) =>
     params.date &&

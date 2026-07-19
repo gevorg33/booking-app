@@ -136,6 +136,7 @@ export function AnyAvailabilityClient({
             error={slotError}
             emptyLabel={t('public.noSlotsThisDay')}
             heading={t('public.availableSlots')}
+            timeZone={tz}
           />
         </div>
       </main>

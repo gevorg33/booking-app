@@ -57,11 +57,22 @@ import { OperationalPlanBuilderService } from '../ai/operational-plan-builder.se
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
+import {
+  WAITLIST_CUSTOMER_TAG,
+  andWhereSimpleArrayTag,
+} from '../customer/customer-tag-query.util.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpers.js';
 import { resolveDateRange } from '../ai/ai-orchestration.helpers.js';
 import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
+import { extractDaysFromPrompt } from '../ai/ai-provider-schedule-reads.util.js';
+import { parseMarkMultiServiceStepDoneFromPrompt } from '../ai/ai-provider-mark-multi-service-step-done.util.js';
+import {
+  extractPatientSearchQueryFromPrompt,
+  formatPatientSearchResultsText,
+} from '../ai/ai-provider-search-patient.util.js';
+import { buildHandoffToDashboardPhiSummary } from '../ai/ai-provider-handoff-to-dashboard-phi.util.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import {
   buildAfternoonAvailabilityResult,
@@ -80,6 +91,11 @@ import {
   resolveStatusFilter,
   shouldUseAfternoonAvailability,
 } from './provider-ai-sprint19.util.js';
+import {
+  buildExplainTodayTimelineGapChips,
+  buildExplainTodayTimelineSummary,
+  buildProviderTodayTimelineView,
+} from './provider-booking-today-timeline.util.js';
 import { buildTeamWhosNextSummary } from './provider-team-whos-next.util.js';
 import {
   applyProviderEntityMemory,
@@ -110,6 +126,44 @@ import {
   isProviderMobileCompoundPrompt,
   mergeProviderMobileHintsIntoSessionContext,
 } from '../ai/ai-provider-mobile-hints.util.js';
+import {
+  isChairCloseoutPrompt,
+  isCancelAndRecoverPrompt,
+  isCheckInStartCompletePrompt,
+  isClinicDrawFlowPrompt,
+  isClinicDrawPatientPrompt,
+  isEndOfDayClosePrompt,
+  isGapWaitlistFillPrompt,
+  isGapWalkInBookPrompt,
+  isManagerFloorSweepPrompt,
+  isMultiServiceBriefPrompt,
+  isNoShowRecoverPrompt,
+  isPendingConfirmDayPrompt,
+  isPreVisitBriefPrompt,
+  isPushConfirmCheckInPrompt,
+  isPushMarkPaidClosePrompt,
+  isRescheduleAndNotifyPrompt,
+  isRetailCloseoutPrompt,
+  isRunningLateNotifyPrompt,
+} from '../ai/ai-provider-compound-recipes.util.js';
+import {
+  buildExplainBookingStatusBadgeSummary,
+  buildExplainFloorStatusSummary,
+} from '../ai/ai-provider-visit-status-explainers.util.js';
+import {
+  buildExplainBlockVsTimeOffSummary,
+  buildExplainCalendarUtilizationBandsSummary,
+} from '../ai/ai-provider-calendar-scheduling-explainers.util.js';
+import {
+  buildExplainAccessibilitySettingsSummary,
+  buildExplainOfflineSuggestionsSummary,
+} from '../ai/ai-provider-assistant-ux-explainers.util.js';
+import { handleGiveProviderAiFeedback } from '../ai/ai-provider-give-ai-feedback.util.js';
+import {
+  buildExplainReassignLimitSummary,
+  buildExplainTimeOffApprovalSummary,
+  resolveDashboardOnlyActionSummaryFromPrompt,
+} from '../ai/ai-provider-dashboard-handoff.util.js';
 import { ProviderPushActionService } from './provider-push-action.service.js';
 import { AiProviderPushSetupService } from '../ai/ai-provider-push-setup.service.js';
 import { AiProviderEarningsService } from '../ai/ai-provider-earnings.service.js';
@@ -122,6 +176,12 @@ import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
 import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
+import { AiProviderClinicTasksAndResultsService } from '../ai/ai-provider-clinic-tasks-and-results.service.js';
+import { AiClinicPatientChartService } from '../ai/ai-clinic-patient-chart.service.js';
+import { AiGiftFulfillmentService } from '../ai/ai-gift-fulfillment.service.js';
+import { AiRetailFinanceService } from '../ai/ai-retail-finance.service.js';
+import { AiScheduleResourcesService } from '../ai/ai-schedule-resources.service.js';
+import { AiPaymentsService } from '../ai/ai-payments.service.js';
 import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
 import { AiProductGuideEmptyStateService } from '../ai/ai-product-guide-empty-state.service.js';
 import {
@@ -198,7 +258,7 @@ const PROVIDER_INTENT_SCHEMA = `You are an AI assistant for a service provider m
 Classify the user's command and extract parameters. Return JSON:
 
 {
-  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "voice_summarize_next_client" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "list_patient_pending_lab_requests" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "explain_staff_invite" | "explain_provider_app_tabs" | "explain_team_view_scope" | "explain_profile_settings" | "explain_assistant_confirm_swipe" | "explain_provider_compound_steps" | "unknown",
+  "action": "cancel_bookings" | "update_bookings" | "mark_no_shows" | "payment_sweep" | "list_bookings" | "show_appointments" | "voice_summarize_next_client" | "team_whos_next" | "my_stats" | "team_floor_status" | "check_in_client" | "mark_running_late" | "summarize_day" | "summarize_my_appointments" | "summarize_my_revenue" | "summarize_client" | "show_client_history" | "add_client_note" | "reschedule_booking" | "add_retail_to_booking" | "send_client_message" | "block_my_time" | "fill_unused_slots" | "suggest_waitlist_for_gap" | "check_availability" | "block_schedule" | "request_time_off" | "list_my_time_off_requests" | "summarize_utilization" | "explain_today_timeline" | "coordinate_waitlist_offer" | "list_package_appointments_today" | "list_my_package_visits" | "list_my_multi_service_groups" | "mark_paid" | "list_my_collection_queue" | "mark_specimen_collected" | "explain_specimen_recollect" | "list_patient_pending_lab_requests" | "notify_patient_book_lab" | "confirm_booking_from_push" | "suggest_reschedule_from_push" | "explain_last_push" | "open_booking_from_push" | "offline_queue_status" | "retry_offline_action" | "explain_offline_mode" | "explain_app_update_gate" | "dismiss_push" | "end_of_day_summary" | "new_booking_push_actions" | "explain_push_setup" | "enable_push_notifications" | "explain_push_registration_status" | "explain_appointment_tax" | "explain_provider_payment_currency" | "explain_provider_date_display" | "configure_provider_push_date_format" | "explain_provider_session_timeout" | "explain_staff_invite" | "explain_provider_app_tabs" | "explain_team_view_scope" | "explain_profile_settings" | "update_provider_profile" | "show_provider_profile" | "explain_assistant_confirm_swipe" | "explain_provider_compound_steps" | "explain_provider_context" | "list_upcoming_bookings" | "get_schedule_summary" | "get_calendar_month" | "list_schedule_gaps" | "open_booking_detail" | "mark_ready_now" | "mark_visit_complete" | "mark_visit_in_progress" | "mark_multi_service_step_done" | "search_patient" | "handoff_to_dashboard_phi" | "confirm_pending_booking" | "explain_booking_status_badge" | "explain_floor_status" | "explain_calendar_utilization_bands" | "explain_block_vs_time_off" | "explain_offline_suggestions" | "explain_accessibility_settings" | "give_provider_ai_feedback" | "explain_dashboard_only_action" | "explain_reassign_limit" | "explain_time_off_approval" | "open_dashboard_deep_link" | "suggest_cancel_note" | "request_client_review" | "list_reassign_options" | "reassign_booking_same_day" | "list_client_staff_notes" | "explain_client_intake" | "explain_package_visit_context" | "explain_multi_service_timeline" | "explain_booking_payment_breakdown" | "explain_deposit_balance_due" | "collect_remaining_balance" | "explain_retail_cart" | "explain_cancel_policy_for_client" | "explain_gift_card_redemption" | "explain_tour_group_on_booking" | "list_team_unpaid_today" | "explain_reviews_inbox" | "explain_request_review_flow" | "draft_review_response" | "list_waitlist_for_my_services" | "list_rebooking_candidates" | "book_walk_in_gap" | "set_retail_sales_lines" | "remove_retail_from_booking" | "search_retail_sku" | "draft_waitlist_offer_message" | "explain_message_templates" | "notify_client_ready" | "extend_my_block" | "cancel_time_off_request" | "list_push_notifications" | "mark_all_notifications_read" | "mark_booking_notifications_read" | "mark_notification_read" | "list_lab_results_queue" | "claim_clinic_task" | "complete_clinic_task" | "list_booking_lab_summaries" | "list_clinic_tasks" | "explain_clinic_task" | "open_patient_chart" | "gift_card_creation_queue" | "start_card_preparation" | "explain_gift_card_order_details" | "mark_card_ready" | "delivery_queue" | "accept_delivery" | "mark_out_for_delivery" | "mark_delivered" | "capture_delivery_proof" | "notify_delay" | "suggest_retail_upsell" | "chair_closeout" | "running_late_notify" | "gap_waitlist_fill" | "cancel_and_recover" | "pre_visit_brief" | "end_of_day_close" | "reschedule_and_notify" | "clinic_draw_flow" | "push_confirm_check_in" | "pending_confirm_day" | "check_in_start_complete" | "retail_closeout" | "gap_walk_in_book" | "no_show_recover" | "multi_service_brief" | "clinic_draw_patient" | "push_mark_paid_close" | "manager_floor_sweep" | "unknown",
   "params": {
     "bookingId": "string or null — specific booking reference",
     "customerName": "string or null — client/customer name mentioned (e.g. John)",
@@ -216,6 +276,10 @@ Classify the user's command and extract parameters. Return JSON:
     "paymentStatus": "paid | pending | refunded | not_applicable | null",
     "reason": "string or null — cancellation reason or note",
     "clientNote": "string or null — internal staff note body for add_client_note",
+    "draft": "string or null — provider's rough draft to refine for suggest_cancel_note",
+    "days": "number or null — 1-30, for list_upcoming_bookings (default 7) / get_schedule_summary (default 14)",
+    "title": "string or null — new profile title for update_provider_profile",
+    "avatarUrl": "string or null — new profile avatar URL for update_provider_profile",
     "period": "week | month | null — for my_stats",
     "scope": "mine | team | null — for my_stats (team requires manager)",
     "minutesLate": "number or null — minutes late for mark_running_late (default 10)",
@@ -232,6 +296,7 @@ Rules:
 - "payment done" / "paid" / "mark payment as paid" → paymentStatus=paid. "N/A" → not_applicable.
 - cancel_bookings: user wants to cancel one or more appointments. Put sickness/reason in reason.
 - update_bookings: change status and/or payment status without cancelling (single appointment or explicit customer/time).
+- mark_visit_complete: MUTATE — dedicated shortcut for marking the current/in-progress visit as completed (single booking, no explicit payment change). Triggers: mark done, finish this appointment, wrap up this visit, done with this client. NOT mark_paid (payment status, not visit status), NOT update_bookings when the user gives an explicit customer/time to target a different appointment or also mentions payment.
 - mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
 - payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
 - list_bookings / show_appointments / summarize_day: view-only; no mutations. show_appointments supports serviceName and status/statusFilter.
@@ -243,20 +308,29 @@ Rules:
 - add_client_note: MUTATE — save internal staff note on booking customer (clientNote body, max 500 chars). Requires bookingId and/or customerName. NOT update_bookings.
 - check_availability: READ-ONLY — open slots and schedule blocks for own calendar (managers may query team when scoped).
 - add_retail_to_booking: MUTATE — add retail product line to own active booking (productName, bookingId, and/or customerName). NOT suggest_retail_upsell (read-only suggestions).
+- remove_retail_from_booking: MUTATE — remove one retail product line from own active booking (productName, bookingId, and/or customerName). Triggers: remove the serum from cart, undo product add, delete shampoo from this booking. NOT add_retail_to_booking (adds a line), NOT set_retail_sales_lines (bulk cart replace), NOT explain_retail_cart (read-only).
+- suggest_retail_upsell: READ — list sellable retail products for this booking's service (or your active appointment), ranked with products linked to the service first. Triggers: what should I upsell, suggest retail for this client, what products go with this service. NOT add_retail_to_booking (actually adds a line to the cart).
+- search_retail_sku: READ — navigate/search sellable retail products by name or SKU (business-wide, not booking-specific). Triggers: find SKU 12345, do we carry bond builder, is olaplex in stock. NOT suggest_retail_upsell (ranked recommendations for a booking's service), NOT add_retail_to_booking (mutate).
 - send_client_message: READ — open SMS/WhatsApp with canned template for booking client (templateId, channel=sms|whatsapp). NOT add_client_note (internal note).
+- explain_message_templates: READ — list the business-configured canned SMS/WhatsApp templates available to send (label + resolved preview text for this booking). Triggers: what templates can I send, show canned messages, what message templates are there. Editing templates stays dashboard-only. NOT send_client_message (actually opens the SMS/WhatsApp link).
+- notify_client_ready: MUTATE — open SMS/WhatsApp telling the client their chair/turn is ready now (uses a configured "ready"/"your turn" template if one exists, otherwise a default message). Triggers: tell her chair is ready, send your turn message, let him know we're ready. NOT send_client_message (generic canned template, not the ready-specific default).
 - block_my_time: MUTATE — instant lunch/break block on own calendar (date, timeFrom/timeTo). NOT request_time_off (needs approval).
+- extend_my_block: MUTATE — push the end time of your own most-recent one-off block (lunch/break) later, either by a duration or to a specific time. Triggers: extend lunch 30 minutes, push break to 2:30, make my lunch longer, add 20 minutes to my break. NOT block_my_time (creates a new block).
 - block_schedule: block lunch/break on own calendar only for providers; managers may block team when allowed.
 - request_time_off: submit unavailable date range for manager approval (own calendar). NOT block_schedule (instant block).
 - list_my_time_off_requests: READ — status of own pending/approved/denied time-off requests.
 - summarize_utilization: READ-ONLY utilization % for date range — own stats for providers; team summary for managers.
+- explain_today_timeline: READ — narrative walkthrough of today's own-calendar bookings in order, calling out gaps between clients. Triggers: walk me through my day, gaps between clients, what does my day look like, any breaks today. NOT summarize_day (status breakdown, not chronological), NOT show_appointments (flat list, no gap narrative), NOT fill_unused_slots (afternoon-gap mutate-adjacent offer-to-fill).
 - reschedule_booking: move an appointment to a new time (own bookings only unless team view).
 - fill_unused_slots: fill schedule gaps for own calendar (team view: all providers).
 - suggest_waitlist_for_gap: READ — suggest waitlist customers for a specific open gap on own calendar (date + timeFrom/timeTo). Triggers: fill this gap, waitlist for this slot. NOT fill_unused_slots (creates blocks) and NOT coordinate_waitlist_offer (manager cancel flow).
+- draft_waitlist_offer_message: READ — draft (copy-only, no send) SMS text offering an open gap to the top waitlist candidate (date + timeFrom/timeTo). Triggers: draft SMS for waitlist when gap opens, message top waitlist client, write a waitlist offer message. NOT suggest_waitlist_for_gap (just lists candidates, no message text), NOT send_client_message (booking-specific canned template).
 - coordinate_waitlist_offer: manager team view — cancel provider appointment and offer slot to waitlist customer (e.g. "If Maria cancels, offer slot to waitlist customer John").
 - list_package_appointments_today: READ-ONLY — provider-scoped package appointments on own calendar today. NOT list_package_bookings (dashboard admin).
 - list_my_package_visits: READ-ONLY — provider-scoped package visits on own calendar for a date range.
 - list_my_multi_service_groups: READ-ONLY — provider-scoped multi-service groups/blocks on own calendar.
 - mark_paid: mark a single booking paid (own calendar unless manager team view). NOT payment_sweep (bulk). Set bookingId when known.
+- collect_remaining_balance: MUTATE — collect the outstanding balance on a single booking at the chair (deposit already paid, rest due now). No Stripe Terminal integration exists — this is the same manual mark-paid mutation as mark_paid, just phrased as "charge/collect the rest". Triggers: charge the balance on file, collect the rest at chair, take the remaining payment now. NOT mark_paid (full amount not yet touched), NOT payment_sweep (bulk), NOT explain_deposit_balance_due (read-only balance question).
 - explain_appointment_tax: READ — tax lines on appointment payment breakdown: inclusive vs exclusive model, per-rule amounts, and amount collected when marked paid. Optional bookingId. NOT explain_provider_payment_currency (ISO currency symbol) and NOT lookup_booking_tax_metadata (support metadata dump).
 - explain_provider_payment_currency: READ — why appointment payment breakdown or POS grand total shows € / ֏ / ₽ / $ (business default vs legacy service code vs retail add-on). NOT explain_payment_status (paid/pending status) and NOT explain_appointment_tax (tax lines).
 - explain_provider_date_display: READ — how provider schedule/booking cards format dates and times from auth business dateFormat/timeFormat (fmt-1.8). NOT explain_provider_payment_currency (currency) and NOT explain_last_push (push actions).
@@ -264,6 +338,9 @@ Rules:
 - explain_provider_session_timeout: READ — clinic only: when provider mobile app auto-logs out after HIPAA inactivity timeout (compliance-1.13 provider deferred). NOT explain_provider_date_display (date formatting) and NOT dashboard explain_hipaa_session_timeout.
 - list_my_collection_queue: READ — clinic only: own specimen collection worklist (draws/recollects) for today or a date. NOT list_bookings (appointments) and NOT dashboard list_test_orders.
 - mark_specimen_collected: MUTATE — clinic only: mark a specimen Collected for an assigned visit. Requires customerName or specimenId or orderId. NOT mark_paid (payment) and NOT enter_test_result (dashboard).
+- explain_specimen_recollect: READ — clinic only: why a specimen was flagged RecollectRequired and what to do next (draw again, then mark collected or rejected). Requires specimenId or customerName. Triggers: why recollect required, failed draw — what next. NOT mark_specimen_collected (mutate).
+- search_patient: READ — clinic only: search/lookup patients across the clinic by name or phone fragment. Optional query. Triggers: find patient Jane Doe, lookup by phone ending 4521, search for patients named John. NOT open_patient_chart (already-identified patient's full chart), NOT summarize_client (booking-scoped snapshot).
+- handoff_to_dashboard_phi: READ — clinic only: static explainer for why full pre-visit intake / PHI editing isn't available on mobile and requires the dashboard. Triggers: open full intake on dashboard, why can't I edit intake here. NOT explain_client_intake (reads the actual intake answers for this booking).
 - confirm_booking_from_push: confirm one booking — same as Confirm on a new-booking push. Requires bookingId (inherit from lastPush).
 - suggest_reschedule_from_push: open AI to reschedule — same as Reschedule on a new-booking push (guidance only, no slot move).
 - Combine filters: customerName + timeSlot + date for one appointment (e.g. "John at 13:00").
@@ -328,6 +405,18 @@ export class ProviderAiCommandService {
     private providerOpenShifts: AiProviderOpenShiftsService,
     @Inject(forwardRef(() => AiProviderExp3Service))
     private providerExp3: AiProviderExp3Service,
+    @Inject(forwardRef(() => AiProviderClinicTasksAndResultsService))
+    private providerClinicTasksAndResults: AiProviderClinicTasksAndResultsService,
+    @Inject(forwardRef(() => AiClinicPatientChartService))
+    private clinicPatientChart: AiClinicPatientChartService,
+    @Inject(forwardRef(() => AiGiftFulfillmentService))
+    private giftFulfillment: AiGiftFulfillmentService,
+    @Inject(forwardRef(() => AiRetailFinanceService))
+    private retailFinance: AiRetailFinanceService,
+    @Inject(forwardRef(() => AiScheduleResourcesService))
+    private scheduleResources: AiScheduleResourcesService,
+    @Inject(forwardRef(() => AiPaymentsService))
+    private payments: AiPaymentsService,
     private pushActions: ProviderPushActionService,
     private productGuide: AiProductGuideService,
     private emptyStateGuide: AiProductGuideEmptyStateService,
@@ -467,6 +556,7 @@ export class ProviderAiCommandService {
       businessId,
       prompt,
       'provider',
+      typeof context?.locale === 'string' ? context.locale : undefined,
     );
     if (blocked) {
       return {
@@ -479,6 +569,15 @@ export class ProviderAiCommandService {
 
     const providerName = access.employee?.name ?? 'Admin';
     const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    const recipeResult = await this.dispatchProviderCompoundRecipe(
+      businessId,
+      userId,
+      prompt,
+      access,
+      context,
+    );
+    if (recipeResult) return recipeResult;
 
     if (this.providerBooking.isProviderBookingCompound(prompt)) {
       const providerBookingCompound =
@@ -514,6 +613,25 @@ export class ProviderAiCommandService {
         );
       if (compound.success || compound.details?.failedStep) {
         return compound;
+      }
+    }
+
+    if (this.giftFulfillment.isFulfillmentCompound(prompt)) {
+      const giftFulfillmentCompound =
+        await this.giftFulfillment.handleFulfillmentCompound(
+          businessId,
+          prompt,
+          {
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+            ...context,
+          },
+          userId,
+        );
+      if (
+        giftFulfillmentCompound.success ||
+        giftFulfillmentCompound.details?.failedStep
+      ) {
+        return giftFulfillmentCompound;
       }
     }
 
@@ -608,6 +726,7 @@ export class ProviderAiCommandService {
           details: clarify.details as Record<string, unknown>,
         },
         context,
+        prompt,
       );
     }
 
@@ -709,6 +828,11 @@ export class ProviderAiCommandService {
       rescueReason = mobileFix.rescueReason;
     }
 
+    if ((parsed.action as string) === 'add_retail_to_my_booking') {
+      parsed.action = 'add_retail_to_booking';
+      rescueReason = 'retail_action_alias';
+    }
+
     recordMisrouteTelemetry(this.aiEvents, businessId, {
       surface: 'provider',
       prompt,
@@ -735,6 +859,8 @@ export class ProviderAiCommandService {
         confidence:
           typeof parsed.confidence === 'number' ? parsed.confidence : 0,
         trace: understood.trace,
+        locale:
+          typeof context?.locale === 'string' ? context.locale : undefined,
       });
       this.aiEvents.emitClarify(businessId, {
         action: 'unknown',
@@ -749,6 +875,7 @@ export class ProviderAiCommandService {
           details: clarify.details as Record<string, unknown>,
         },
         context,
+        prompt,
       );
     }
 
@@ -771,7 +898,7 @@ export class ProviderAiCommandService {
             ? clarify.details.missing
             : undefined,
         });
-        return this.withPostFailureGuideFallback(clarify, context);
+        return this.withPostFailureGuideFallback(clarify, context, prompt);
       }
     }
 
@@ -801,6 +928,7 @@ export class ProviderAiCommandService {
       parsed.action,
       prompt,
       parsed.params,
+      typeof context?.locale === 'string' ? context.locale : undefined,
     );
     if (securityDenied) {
       return {
@@ -864,6 +992,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'update_bookings':
@@ -872,7 +1001,87 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
+        break;
+      case 'mark_visit_complete':
+        result = await this.handleMarkVisitComplete(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+          context?.confirmed === true,
+        );
+        break;
+      case 'mark_visit_in_progress':
+        result = await this.handleMarkVisitInProgress(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+          context?.confirmed === true,
+        );
+        break;
+      case 'mark_multi_service_step_done':
+        result = await this.handleMarkMultiServiceStepDone(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+          context?.confirmed === true,
+          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
+          prompt,
+        );
+        break;
+      case 'search_patient':
+        result = await this.handleSearchPatient(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'confirm_pending_booking':
+        result = await this.handleConfirmPendingBooking(
+          businessId,
+          access,
+          parsed.params,
+          userId,
+          context?.confirmed === true,
+        );
+        break;
+      case 'explain_booking_status_badge':
+        result = this.handleExplainBookingStatusBadge();
+        break;
+      case 'explain_floor_status':
+        result = this.handleExplainFloorStatus();
+        break;
+      case 'explain_calendar_utilization_bands':
+        result = this.handleExplainCalendarUtilizationBands();
+        break;
+      case 'explain_block_vs_time_off':
+        result = this.handleExplainBlockVsTimeOff();
+        break;
+      case 'explain_offline_suggestions':
+        result = this.handleExplainOfflineSuggestions();
+        break;
+      case 'explain_accessibility_settings':
+        result = this.handleExplainAccessibilitySettings();
+        break;
+      case 'give_provider_ai_feedback':
+        result = handleGiveProviderAiFeedback(parsed.params, prompt);
+        break;
+      case 'explain_dashboard_only_action':
+        result = this.handleExplainDashboardOnlyAction(prompt);
+        break;
+      case 'explain_reassign_limit':
+        result = this.handleExplainReassignLimit();
+        break;
+      case 'explain_time_off_approval':
+        result = this.handleExplainTimeOffApproval();
+        break;
+      case 'handoff_to_dashboard_phi':
+        result = this.handleHandoffToDashboardPhi();
         break;
       case 'mark_no_shows':
         result = await this.handleMarkNoShows(
@@ -880,6 +1089,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'payment_sweep':
@@ -888,6 +1098,7 @@ export class ProviderAiCommandService {
           access,
           parsed.params,
           userId,
+          context?.confirmed === true,
         );
         break;
       case 'list_bookings':
@@ -919,6 +1130,22 @@ export class ProviderAiCommandService {
           prompt,
           parsed.params,
           userId,
+        );
+        break;
+      case 'list_schedule_gaps':
+        result = await this.handleListScheduleGaps(
+          businessId,
+          access,
+          prompt,
+          parsed.params,
+        );
+        break;
+      case 'open_booking_detail':
+        result = await this.handleOpenBookingDetail(
+          businessId,
+          access,
+          userId,
+          parsed.params,
         );
         break;
       case 'show_appointments':
@@ -959,8 +1186,13 @@ export class ProviderAiCommandService {
         );
         break;
       case 'add_retail_to_booking':
+      case 'set_retail_sales_lines':
+      case 'remove_retail_from_booking':
       case 'send_client_message':
+      case 'explain_message_templates':
+      case 'notify_client_ready':
       case 'block_my_time':
+      case 'extend_my_block':
       case 'request_time_off':
         result = (await this.providerExp3.handleIntent(
           businessId,
@@ -974,6 +1206,204 @@ export class ProviderAiCommandService {
           success: false,
           action: parsed.action,
           summary: `Could not complete "${parsed.action}". Try rephrasing or use the booking detail screen.`,
+          details: { clarify: true },
+        };
+        break;
+      case 'suggest_retail_upsell':
+        result = await this.retailFinance.handleSuggestRetailUpsell(
+          businessId,
+          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+          prompt,
+        );
+        break;
+      case 'search_retail_sku':
+        result = await this.retailFinance.handleSearchRetailSku(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'chair_closeout':
+        result = await this.handleChairCloseout(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'running_late_notify':
+        result = await this.handleRunningLateNotify(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'gap_waitlist_fill':
+        result = await this.handleGapWaitlistFill(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'cancel_and_recover':
+        result = await this.handleCancelAndRecover(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'pre_visit_brief':
+        result = await this.handlePreVisitBrief(
+          businessId,
+          userId,
+          prompt,
+          context,
+        );
+        break;
+      case 'end_of_day_close':
+        result = await this.handleEndOfDayClose(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'reschedule_and_notify':
+        result = await this.handleRescheduleAndNotify(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'clinic_draw_flow':
+        result = await this.handleClinicDrawFlow(
+          businessId,
+          userId,
+          prompt,
+          context,
+        );
+        break;
+      case 'push_confirm_check_in':
+        result = await this.handlePushConfirmCheckIn(
+          businessId,
+          userId,
+          prompt,
+          context,
+        );
+        break;
+      case 'pending_confirm_day':
+        result = await this.handlePendingConfirmDay(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'check_in_start_complete':
+        result = await this.handleCheckInStartComplete(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'retail_closeout':
+        result = await this.handleRetailCloseout(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'gap_walk_in_book':
+        result = await this.handleGapWalkInBook(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'no_show_recover':
+        result = await this.handleNoShowRecover(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'multi_service_brief':
+        result = await this.handleMultiServiceBrief(
+          businessId,
+          userId,
+          prompt,
+          context,
+        );
+        break;
+      case 'clinic_draw_patient':
+        result = await this.handleClinicDrawPatient(
+          businessId,
+          userId,
+          prompt,
+          context,
+        );
+        break;
+      case 'push_mark_paid_close':
+        result = await this.handlePushMarkPaidClose(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'manager_floor_sweep':
+        result = await this.handleManagerFloorSweep(
+          businessId,
+          userId,
+          prompt,
+          access,
+          context,
+        );
+        break;
+      case 'my_resource_assignments':
+        result = await this.scheduleResources.handleMyResourceAssignments(
+          businessId,
+          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+        );
+        break;
+      case 'block_resource_unavailable':
+        result = await this.scheduleResources.handleBlockResourceUnavailable(
+          businessId,
+          parsed.params,
+        );
+        break;
+      case 'explain_payment_status':
+      case 'collect_cash_confirm':
+        result = (await this.payments.dispatchIntent({
+          businessId,
+          action: parsed.action,
+          params: parsed.params,
+          prompt,
+          userId,
+        })) ?? {
+          success: false,
+          action: parsed.action,
+          summary: `Could not complete "${parsed.action}".`,
           details: { clarify: true },
         };
         break;
@@ -992,6 +1422,21 @@ export class ProviderAiCommandService {
           details: { clarify: true },
         };
         break;
+      case 'cancel_time_off_request':
+        result = (await this.providerTimeOff.handleIntent(
+          businessId,
+          userId,
+          parsed.action,
+          parsed.params,
+          'provider',
+          access.employee?.id,
+        )) ?? {
+          success: false,
+          action: parsed.action,
+          summary: 'Could not cancel your time-off request.',
+          details: { clarify: true },
+        };
+        break;
       case 'suggest_waitlist_for_gap':
         result = (await this.providerOpenShifts.handleIntent(
           businessId,
@@ -999,6 +1444,8 @@ export class ProviderAiCommandService {
           prompt,
           parsed.params,
           access.employee?.id,
+          userId,
+          context,
         )) ?? {
           success: false,
           action: 'suggest_waitlist_for_gap',
@@ -1007,11 +1454,82 @@ export class ProviderAiCommandService {
           details: { clarify: true },
         };
         break;
+      case 'draft_waitlist_offer_message':
+        result = (await this.providerOpenShifts.handleIntent(
+          businessId,
+          parsed.action,
+          prompt,
+          parsed.params,
+          access.employee?.id,
+          userId,
+          context,
+        )) ?? {
+          success: false,
+          action: 'draft_waitlist_offer_message',
+          summary: 'Could not draft a waitlist offer message for this gap.',
+          details: { clarify: true },
+        };
+        break;
+      case 'list_waitlist_for_my_services':
+        result = (await this.providerOpenShifts.handleIntent(
+          businessId,
+          parsed.action,
+          prompt,
+          parsed.params,
+          access.employee?.id,
+          userId,
+          context,
+        )) ?? {
+          success: false,
+          action: 'list_waitlist_for_my_services',
+          summary: 'Could not load your waitlist.',
+          details: { clarify: true },
+        };
+        break;
+      case 'list_rebooking_candidates':
+        result = (await this.providerOpenShifts.handleIntent(
+          businessId,
+          parsed.action,
+          prompt,
+          parsed.params,
+          access.employee?.id,
+          userId,
+          context,
+        )) ?? {
+          success: false,
+          action: 'list_rebooking_candidates',
+          summary: 'Could not load rebooking candidates.',
+          details: { clarify: true },
+        };
+        break;
+      case 'book_walk_in_gap':
+        result = (await this.providerOpenShifts.handleIntent(
+          businessId,
+          parsed.action,
+          prompt,
+          parsed.params,
+          access.employee?.id,
+          userId,
+          context,
+        )) ?? {
+          success: false,
+          action: 'book_walk_in_gap',
+          summary: 'Could not book the walk-in.',
+          details: { clarify: true },
+        };
+        break;
       case 'summarize_utilization':
         result = await this.handleSummarizeUtilization(
           businessId,
           access,
           prompt,
+          parsed.params,
+        );
+        break;
+      case 'explain_today_timeline':
+        result = await this.handleExplainTodayTimeline(
+          businessId,
+          access,
           parsed.params,
         );
         break;
@@ -1056,6 +1574,19 @@ export class ProviderAiCommandService {
           online: parsed.params.online ?? context?.online,
         });
         break;
+      case 'explain_offline_mode':
+        result = await this.pushNotifications.handleProviderExplainOfflineMode({
+          ...parsed.params,
+          offlineQueueCount:
+            parsed.params.offlineQueueCount ?? context?.offlineQueueCount,
+          online: parsed.params.online ?? context?.online,
+        });
+        break;
+      case 'explain_app_update_gate':
+        result = await this.pushNotifications.handleProviderExplainAppUpdateGate(
+          parsed.params,
+        );
+        break;
       case 'dismiss_push':
         result = await this.pushNotifications.handleDismissPush({
           ...parsed.params,
@@ -1074,8 +1605,40 @@ export class ProviderAiCommandService {
       case 'new_booking_push_actions':
         result = await this.pushNotifications.handleNewBookingPushActions();
         break;
+      case 'list_push_notifications':
+        result = await this.pushNotifications.handleListPushNotifications(
+          businessId,
+          userId,
+        );
+        break;
+      case 'mark_all_notifications_read':
+        result = await this.pushNotifications.handleMarkAllNotificationsRead(
+          businessId,
+          userId,
+        );
+        break;
+      case 'mark_booking_notifications_read':
+        result =
+          await this.pushNotifications.handleMarkBookingNotificationsRead(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              lastPush: parsed.params.lastPush ?? context?.lastPush,
+            },
+            prompt,
+          );
+        break;
+      case 'mark_notification_read':
+        result = await this.pushNotifications.handleMarkNotificationRead(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
       case 'explain_push_setup':
       case 'enable_push_notifications':
+      case 'explain_push_registration_status':
         result = (await this.providerPushSetup.handleIntent(
           businessId,
           userId,
@@ -1110,6 +1673,16 @@ export class ProviderAiCommandService {
       case 'summarize_client':
       case 'show_client_history':
       case 'add_client_note':
+      case 'list_client_staff_notes':
+      case 'explain_client_intake':
+      case 'explain_package_visit_context':
+      case 'explain_multi_service_timeline':
+      case 'explain_booking_payment_breakdown':
+      case 'explain_deposit_balance_due':
+      case 'explain_retail_cart':
+      case 'explain_cancel_policy_for_client':
+      case 'explain_gift_card_redemption':
+      case 'explain_tour_group_on_booking':
         result = (await this.providerClientContext.handleIntent(
           businessId,
           userId,
@@ -1128,6 +1701,16 @@ export class ProviderAiCommandService {
       case 'team_floor_status':
       case 'check_in_client':
       case 'mark_running_late':
+      case 'mark_ready_now':
+      case 'suggest_cancel_note':
+      case 'request_client_review':
+      case 'list_reassign_options':
+      case 'reassign_booking_same_day':
+      case 'list_team_unpaid_today':
+      case 'explain_reviews_inbox':
+      case 'explain_request_review_flow':
+      case 'draft_review_response':
+      case 'open_dashboard_deep_link':
         result = (await this.providerExp2.handleIntent(
           businessId,
           userId,
@@ -1194,6 +1777,15 @@ export class ProviderAiCommandService {
             _prompt: prompt,
           },
           userId,
+        );
+        break;
+      case 'collect_remaining_balance':
+        result = await this.handleCollectRemainingBalance(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+          scopedEmployeeId,
         );
         break;
       case 'explain_appointment_tax': {
@@ -1281,6 +1873,42 @@ export class ProviderAiCommandService {
           parsed.params,
         );
         break;
+      case 'explain_provider_context':
+        result = await this.handleExplainProviderContext(businessId, userId);
+        break;
+      case 'list_upcoming_bookings':
+        result = await this.handleListUpcomingBookings(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'get_schedule_summary':
+        result = await this.handleGetScheduleSummary(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'get_calendar_month':
+        result = await this.handleGetCalendarMonth(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
+      case 'update_provider_profile':
+        result = await this.handleUpdateProviderProfile(
+          businessId,
+          userId,
+          parsed.params,
+        );
+        break;
+      case 'show_provider_profile':
+        result = await this.handleShowProviderProfile(businessId, userId);
+        break;
       case 'list_my_collection_queue':
         result =
           await this.providerClinicCollection.handleListMyCollectionQueue(
@@ -1306,6 +1934,18 @@ export class ProviderAiCommandService {
             prompt,
           );
         break;
+      case 'explain_specimen_recollect':
+        result =
+          await this.providerClinicCollection.handleExplainSpecimenRecollect(
+            businessId,
+            {
+              ...parsed.params,
+              sessionEmployeeId: scopedEmployeeId ?? undefined,
+              _prompt: prompt,
+            },
+            prompt,
+          );
+        break;
       case 'list_patient_pending_lab_requests':
         result =
           await this.clinicLabBooking.handleListPatientPendingLabRequests(
@@ -1316,6 +1956,171 @@ export class ProviderAiCommandService {
               sessionEmployeeId: scopedEmployeeId ?? undefined,
             },
           );
+        break;
+      case 'notify_patient_book_lab': {
+        const pushResult = await this.clinicLabBooking.handlePushLabBookingToPatient(
+          businessId,
+          userId,
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
+          prompt,
+          context?.confirmed === true,
+        );
+        result = { ...pushResult, action: 'notify_patient_book_lab' };
+        break;
+      }
+      case 'list_lab_results_queue':
+        result =
+          await this.providerClinicTasksAndResults.handleListLabResultsQueue(
+            businessId,
+            userId,
+          );
+        break;
+      case 'list_clinic_tasks':
+        result = await this.providerClinicTasksAndResults.handleListClinicTasks(
+          businessId,
+          userId,
+        );
+        break;
+      case 'explain_clinic_task':
+        result = await this.providerClinicTasksAndResults.handleExplainClinicTask(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'open_patient_chart': {
+        let chartParams = { ...parsed.params } as Record<string, unknown>;
+        if (!chartParams.customerId && !chartParams.customerName) {
+          const bookingId =
+            (typeof context?.bookingId === 'string' &&
+              context.bookingId.trim()) ||
+            null;
+          if (bookingId) {
+            try {
+              const booking = await this.providerMobile.getBookingDetail(
+                businessId,
+                userId,
+                bookingId,
+              );
+              if (booking.customer?.id) {
+                chartParams = {
+                  ...chartParams,
+                  customerId: booking.customer.id,
+                };
+              }
+            } catch {
+              // fall through — handleExplainPatientChart will ask to clarify
+            }
+          }
+        }
+        const chartResult = await this.clinicPatientChart.handleExplainPatientChart(
+          businessId,
+          userId,
+          chartParams,
+          prompt,
+        );
+        result = { ...chartResult, action: 'open_patient_chart' };
+        break;
+      }
+      case 'claim_clinic_task':
+        result = await this.providerClinicTasksAndResults.handleClaimClinicTask(
+          businessId,
+          userId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'complete_clinic_task':
+        result =
+          await this.providerClinicTasksAndResults.handleCompleteClinicTask(
+            businessId,
+            userId,
+            parsed.params,
+            prompt,
+          );
+        break;
+      case 'list_booking_lab_summaries':
+        result =
+          await this.providerClinicTasksAndResults.handleListBookingLabSummaries(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              bookingId: parsed.params.bookingId ?? context?.bookingId,
+            },
+            prompt,
+          );
+        break;
+      case 'gift_card_creation_queue':
+        result = await this.giftFulfillment.handleGiftCardCreationQueue(
+          businessId,
+        );
+        break;
+      case 'start_card_preparation':
+        result = await this.giftFulfillment.handleStartCardPreparation(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'explain_gift_card_order_details':
+        result = await this.giftFulfillment.handleExplainGiftCardOrderDetails(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'mark_card_ready':
+        result = await this.giftFulfillment.handleMarkCardReady(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'delivery_queue':
+        result = await this.giftFulfillment.handleDeliveryQueue(businessId);
+        break;
+      case 'accept_delivery':
+        result = await this.giftFulfillment.handleAcceptDelivery(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'mark_out_for_delivery':
+        result = await this.giftFulfillment.handleMarkOutForDelivery(
+          businessId,
+          parsed.params,
+          userId,
+          prompt,
+        );
+        break;
+      case 'mark_delivered':
+        result = await this.giftFulfillment.handleMarkDelivered(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'capture_delivery_proof':
+        result = await this.giftFulfillment.handleCaptureDeliveryProof(
+          businessId,
+          parsed.params,
+          prompt,
+        );
+        break;
+      case 'notify_delay':
+        result = await this.giftFulfillment.handleNotifyDelay(
+          businessId,
+          parsed.params,
+          prompt,
+        );
         break;
       default:
         result = {
@@ -1337,20 +2142,1097 @@ export class ProviderAiCommandService {
         ),
       ),
       context,
+      prompt,
     );
   }
 
   private withPostFailureGuideFallback(
     result: ProviderCommandResult,
     context?: Record<string, unknown>,
+    prompt?: string,
   ): ProviderCommandResult {
     return appendPostFailureGuideFallback(
       result,
       buildPostFailureGuideFallbackInput(
         mergeProviderMobileGuideContext(context),
         'provider',
+        undefined,
+        prompt,
       ),
     );
+  }
+
+  /** ai-cmd-provider-5.14 — one natural-language message fans out into a fixed sequence of already-shipped provider actions. */
+  private async dispatchProviderCompoundRecipe(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult | null> {
+    if (isPushConfirmCheckInPrompt(prompt)) {
+      return this.handlePushConfirmCheckIn(businessId, userId, prompt, context);
+    }
+    if (isCancelAndRecoverPrompt(prompt)) {
+      return this.handleCancelAndRecover(businessId, userId, prompt, access, context);
+    }
+    if (isClinicDrawFlowPrompt(prompt)) {
+      return this.handleClinicDrawFlow(businessId, userId, prompt, context);
+    }
+    if (isClinicDrawPatientPrompt(prompt)) {
+      return this.handleClinicDrawPatient(businessId, userId, prompt, context);
+    }
+    if (isPushMarkPaidClosePrompt(prompt)) {
+      return this.handlePushMarkPaidClose(businessId, userId, prompt, access, context);
+    }
+    if (isManagerFloorSweepPrompt(prompt)) {
+      return this.handleManagerFloorSweep(businessId, userId, prompt, access, context);
+    }
+    if (isPendingConfirmDayPrompt(prompt)) {
+      return this.handlePendingConfirmDay(businessId, userId, prompt, access, context);
+    }
+    if (isCheckInStartCompletePrompt(prompt)) {
+      return this.handleCheckInStartComplete(businessId, userId, prompt, access, context);
+    }
+    if (isRetailCloseoutPrompt(prompt)) {
+      return this.handleRetailCloseout(businessId, userId, prompt, access, context);
+    }
+    if (isGapWalkInBookPrompt(prompt)) {
+      return this.handleGapWalkInBook(businessId, userId, prompt, access, context);
+    }
+    if (isNoShowRecoverPrompt(prompt)) {
+      return this.handleNoShowRecover(businessId, userId, prompt, access, context);
+    }
+    if (isEndOfDayClosePrompt(prompt)) {
+      return this.handleEndOfDayClose(businessId, userId, prompt, access, context);
+    }
+    if (isGapWaitlistFillPrompt(prompt)) {
+      return this.handleGapWaitlistFill(businessId, userId, prompt, access, context);
+    }
+    if (isRescheduleAndNotifyPrompt(prompt)) {
+      return this.handleRescheduleAndNotify(businessId, userId, prompt, access, context);
+    }
+    if (isRunningLateNotifyPrompt(prompt)) {
+      return this.handleRunningLateNotify(businessId, userId, prompt, access, context);
+    }
+    if (isChairCloseoutPrompt(prompt)) {
+      return this.handleChairCloseout(businessId, userId, prompt, access, context);
+    }
+    if (isMultiServiceBriefPrompt(prompt)) {
+      return this.handleMultiServiceBrief(businessId, userId, prompt, context);
+    }
+    if (isPreVisitBriefPrompt(prompt)) {
+      return this.handlePreVisitBrief(businessId, userId, prompt, context);
+    }
+    return null;
+  }
+
+  private async handleChairCloseout(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const visitStep = await this.handleMarkVisitComplete(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+    if (!visitStep.success) return { ...visitStep, action: 'chair_closeout' };
+
+    const paidStep = await this.providerBooking.handleMarkPaid(
+      businessId,
+      { ...params },
+      userId,
+    );
+    if (!paidStep.success) {
+      return {
+        success: false,
+        action: 'chair_closeout',
+        summary: `${visitStep.summary} ${paidStep.summary}`,
+        details: { visit: visitStep.details, paid: paidStep.details },
+      };
+    }
+
+    const summaryParts = [visitStep.summary, paidStep.summary];
+    let retailDetails: Record<string, unknown> | null = null;
+    if (/\badd\s+[A-Z]/.test(prompt)) {
+      const retailStep = await this.providerExp3.handleIntent(
+        businessId,
+        userId,
+        'add_retail_to_booking',
+        params,
+        prompt,
+        context,
+        access.employee?.id,
+      );
+      if (retailStep) {
+        summaryParts.push(retailStep.summary);
+        retailDetails = retailStep.details as Record<string, unknown>;
+      }
+    }
+
+    return {
+      success: true,
+      action: 'chair_closeout',
+      summary: summaryParts.join(' '),
+      details: {
+        visit: visitStep.details,
+        paid: paidStep.details,
+        retail: retailDetails,
+      },
+    };
+  }
+
+  private async handleRunningLateNotify(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const lateStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'mark_running_late',
+      params,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'mark_running_late',
+      summary: 'Could not mark you running late.',
+      details: { clarify: true },
+    };
+    if (!lateStep.success) return { ...lateStep, action: 'running_late_notify' };
+
+    const messageStep = (await this.providerExp3.handleIntent(
+      businessId,
+      userId,
+      'send_client_message',
+      params,
+      prompt,
+      context,
+      access.employee?.id,
+    )) ?? {
+      success: false,
+      action: 'send_client_message',
+      summary: 'Could not text the next client.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: lateStep.success && messageStep.success,
+      action: 'running_late_notify',
+      summary: `${lateStep.summary} ${messageStep.summary}`,
+      details: {
+        runningLate: lateStep.details,
+        clientMessage: messageStep.details,
+      },
+    };
+  }
+
+  private async handleGapWaitlistFill(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const suggestStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'suggest_waitlist_for_gap',
+      prompt,
+      params,
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'suggest_waitlist_for_gap',
+      summary: 'Could not suggest waitlist customers for this gap.',
+      details: { clarify: true },
+    };
+    if (!suggestStep.success) {
+      return { ...suggestStep, action: 'gap_waitlist_fill' };
+    }
+
+    const draftParams = { ...params, ...(suggestStep.details ?? {}) };
+    const draftStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'draft_waitlist_offer_message',
+      prompt,
+      draftParams,
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'draft_waitlist_offer_message',
+      summary: 'Could not draft a waitlist offer message.',
+      details: { clarify: true },
+    };
+    if (!draftStep.success) {
+      return {
+        success: false,
+        action: 'gap_waitlist_fill',
+        summary: `${suggestStep.summary} ${draftStep.summary}`,
+        details: { suggest: suggestStep.details, draft: draftStep.details },
+      };
+    }
+
+    const offerParams = { ...draftParams, ...(draftStep.details ?? {}) };
+    const offerStep = await this.handleCoordinateWaitlistOffer(
+      businessId,
+      access,
+      offerParams,
+      userId,
+      confirmed,
+    );
+
+    return {
+      success: suggestStep.success && draftStep.success && offerStep.success,
+      action: 'gap_waitlist_fill',
+      summary: `${suggestStep.summary} ${draftStep.summary} ${offerStep.summary}`,
+      details: {
+        suggest: suggestStep.details,
+        draft: draftStep.details,
+        offer: offerStep.details,
+      },
+    };
+  }
+
+  private async handleCancelAndRecover(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const cancelStep = await this.handleCancelBookings(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+    if (!cancelStep.success) {
+      return { ...cancelStep, action: 'cancel_and_recover' };
+    }
+
+    const recoverParams = { ...params, ...(cancelStep.details ?? {}) };
+    const recoverStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'list_rebooking_candidates',
+      prompt,
+      recoverParams,
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'list_rebooking_candidates',
+      summary: 'Could not load rebooking candidates.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: cancelStep.success && recoverStep.success,
+      action: 'cancel_and_recover',
+      summary: `${cancelStep.summary} ${recoverStep.summary}`,
+      details: { cancel: cancelStep.details, recover: recoverStep.details },
+    };
+  }
+
+  private async handlePreVisitBrief(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const summaryStep = (await this.providerClientContext.handleIntent(
+      businessId,
+      userId,
+      'summarize_client',
+      params,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'summarize_client',
+      summary: 'Could not summarize this client.',
+      details: { clarify: true },
+    };
+    if (!summaryStep.success) {
+      return { ...summaryStep, action: 'pre_visit_brief' };
+    }
+
+    const historyParams = { ...params, ...(summaryStep.details ?? {}) };
+    const historyStep = (await this.providerClientContext.handleIntent(
+      businessId,
+      userId,
+      'show_client_history',
+      historyParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'show_client_history',
+      summary: 'Could not load visit history.',
+      details: { clarify: true },
+    };
+
+    const intakeStep = (await this.providerClientContext.handleIntent(
+      businessId,
+      userId,
+      'explain_client_intake',
+      historyParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'explain_client_intake',
+      summary: 'Could not load pre-visit intake.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: true,
+      action: 'pre_visit_brief',
+      summary: [summaryStep.summary, historyStep.summary, intakeStep.summary]
+        .filter(Boolean)
+        .join(' '),
+      details: {
+        summary: summaryStep.details,
+        history: historyStep.details,
+        intake: intakeStep.details,
+      },
+    };
+  }
+
+  private async handleEndOfDayClose(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    const summaryStep = await this.pushNotifications.handleEndOfDaySummary(
+      businessId,
+      { ...params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+    );
+
+    const sweepStep = await this.handlePaymentSweep(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+    if (!sweepStep.success) {
+      return {
+        success: false,
+        action: 'end_of_day_close',
+        summary: `${summaryStep.summary} ${sweepStep.summary}`,
+        details: { summary: summaryStep.details, sweep: sweepStep.details },
+      };
+    }
+
+    const noShowStep = await this.handleMarkNoShows(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+
+    return {
+      success: sweepStep.success && noShowStep.success,
+      action: 'end_of_day_close',
+      summary: `${summaryStep.summary} ${sweepStep.summary} ${noShowStep.summary}`,
+      details: {
+        summary: summaryStep.details,
+        sweep: sweepStep.details,
+        noShows: noShowStep.details,
+      },
+    };
+  }
+
+  private async handleRescheduleAndNotify(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const rescheduleStep = await this.handleRescheduleBooking(
+      businessId,
+      access,
+      { ...params },
+      userId,
+    );
+    if (!rescheduleStep.success) {
+      return { ...rescheduleStep, action: 'reschedule_and_notify' };
+    }
+
+    const messageParams = { ...params, ...(rescheduleStep.details ?? {}) };
+    const messageStep = (await this.providerExp3.handleIntent(
+      businessId,
+      userId,
+      'send_client_message',
+      messageParams,
+      prompt,
+      context,
+      access.employee?.id,
+    )) ?? {
+      success: false,
+      action: 'send_client_message',
+      summary: 'Could not text the client about the reschedule.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: rescheduleStep.success && messageStep.success,
+      action: 'reschedule_and_notify',
+      summary: `${rescheduleStep.summary} ${messageStep.summary}`,
+      details: {
+        reschedule: rescheduleStep.details,
+        clientMessage: messageStep.details,
+      },
+    };
+  }
+
+  private async handleClinicDrawFlow(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const queueStep =
+      await this.providerClinicCollection.handleListMyCollectionQueue(
+        businessId,
+        params,
+        prompt,
+      );
+    if (!queueStep.success) {
+      return { ...queueStep, action: 'clinic_draw_flow' } as ProviderCommandResult;
+    }
+
+    const chartParams = { ...params, ...(queueStep.details ?? {}) };
+    const chartStep = await this.clinicPatientChart.handleExplainPatientChart(
+      businessId,
+      userId,
+      chartParams,
+      prompt,
+    );
+
+    const collectParams = { ...chartParams, ...(chartStep.details ?? {}) };
+    const collectStep =
+      await this.providerClinicCollection.handleMarkSpecimenCollected(
+        businessId,
+        userId,
+        collectParams,
+        prompt,
+      );
+
+    return {
+      success: queueStep.success && chartStep.success && collectStep.success,
+      action: 'clinic_draw_flow',
+      summary: `${queueStep.summary} ${chartStep.summary} ${collectStep.summary}`,
+      details: {
+        queue: queueStep.details,
+        chart: chartStep.details,
+        collect: collectStep.details,
+      },
+    } as ProviderCommandResult;
+  }
+
+  private async handlePushConfirmCheckIn(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = {
+      ...context,
+      lastPush: context?.lastPush,
+      _prompt: prompt,
+    };
+
+    const confirmStep = await this.handleConfirmBookingFromPush(
+      businessId,
+      userId,
+      params,
+    );
+    if (!confirmStep.success) {
+      return { ...confirmStep, action: 'push_confirm_check_in' };
+    }
+
+    const checkInParams = { ...params, ...(confirmStep.details ?? {}) };
+    const checkInStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'check_in_client',
+      checkInParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'check_in_client',
+      summary: 'Confirmed the booking, but could not check the client in yet.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: confirmStep.success && checkInStep.success,
+      action: 'push_confirm_check_in',
+      summary: `${confirmStep.summary} ${checkInStep.summary}`,
+      details: { confirm: confirmStep.details, checkIn: checkInStep.details },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.1 — confirm all pending bookings, then summarize today's schedule. */
+  private async handlePendingConfirmDay(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const confirmStep = await this.handleConfirmPendingBooking(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+    if (!confirmStep.success) {
+      return { ...confirmStep, action: 'pending_confirm_day' };
+    }
+
+    const summaryStep = await this.handleSummarizeDay(businessId, access, {
+      ...params,
+    });
+
+    return {
+      success: confirmStep.success && summaryStep.success,
+      action: 'pending_confirm_day',
+      summary: `${confirmStep.summary} ${summaryStep.summary}`,
+      details: { confirm: confirmStep.details, day: summaryStep.details },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.2 — check in, start, then complete a visit in one message. */
+  private async handleCheckInStartComplete(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const checkInStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'check_in_client',
+      { ...params },
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'check_in_client',
+      summary: 'Could not check in the client.',
+      details: { clarify: true },
+    };
+    if (!checkInStep.success) {
+      return { ...checkInStep, action: 'check_in_start_complete' };
+    }
+
+    const progressParams = { ...params, ...(checkInStep.details ?? {}) };
+    const progressStep = await this.handleMarkVisitInProgress(
+      businessId,
+      access,
+      progressParams,
+      userId,
+      confirmed,
+    );
+    if (!progressStep.success) {
+      return {
+        success: false,
+        action: 'check_in_start_complete',
+        summary: `${checkInStep.summary} ${progressStep.summary}`,
+        details: { checkIn: checkInStep.details, progress: progressStep.details },
+      };
+    }
+
+    const completeParams = { ...progressParams, ...(progressStep.details ?? {}) };
+    const completeStep = await this.handleMarkVisitComplete(
+      businessId,
+      access,
+      completeParams,
+      userId,
+      confirmed,
+    );
+
+    return {
+      success: checkInStep.success && progressStep.success && completeStep.success,
+      action: 'check_in_start_complete',
+      summary: `${checkInStep.summary} ${progressStep.summary} ${completeStep.summary}`,
+      details: {
+        checkIn: checkInStep.details,
+        progress: progressStep.details,
+        complete: completeStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.3 — suggest a retail upsell, add it, then mark the booking paid. */
+  private async handleRetailCloseout(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+
+    const upsellStep = await this.retailFinance.handleSuggestRetailUpsell(
+      businessId,
+      { ...params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+      prompt,
+    );
+    if (!upsellStep.success) {
+      return { ...upsellStep, action: 'retail_closeout' };
+    }
+
+    const addParams = { ...params, ...(upsellStep.details ?? {}) };
+    const addStep = (await this.providerExp3.handleIntent(
+      businessId,
+      userId,
+      'add_retail_to_booking',
+      addParams,
+      prompt,
+      context,
+      access.employee?.id,
+    )) ?? {
+      success: false,
+      action: 'add_retail_to_booking',
+      summary: 'Could not add the product to the booking.',
+      details: { clarify: true },
+    };
+    if (!addStep.success) {
+      return {
+        success: false,
+        action: 'retail_closeout',
+        summary: `${upsellStep.summary} ${addStep.summary}`,
+        details: { upsell: upsellStep.details, add: addStep.details },
+      };
+    }
+
+    const paidParams = { ...addParams, ...(addStep.details ?? {}), _prompt: prompt };
+    const paidStep = await this.providerBooking.handleMarkPaid(
+      businessId,
+      paidParams,
+      userId,
+    );
+
+    return {
+      success: upsellStep.success && addStep.success && paidStep.success,
+      action: 'retail_closeout',
+      summary: `${upsellStep.summary} ${addStep.summary} ${paidStep.summary}`,
+      details: {
+        upsell: upsellStep.details,
+        add: addStep.details,
+        paid: paidStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.4 — book a walk-in into the next open gap, then check them in. */
+  private async handleGapWalkInBook(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const bookStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'book_walk_in_gap',
+      prompt,
+      { ...params },
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'book_walk_in_gap',
+      summary: 'Could not book the walk-in.',
+      details: { clarify: true },
+    };
+    if (!bookStep.success) {
+      return { ...bookStep, action: 'gap_walk_in_book' };
+    }
+
+    const checkInParams = { ...params, ...(bookStep.details ?? {}) };
+    const checkInStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'check_in_client',
+      checkInParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'check_in_client',
+      summary: 'Booked the walk-in, but could not check them in yet.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: bookStep.success && checkInStep.success,
+      action: 'gap_walk_in_book',
+      summary: `${bookStep.summary} ${checkInStep.summary}`,
+      details: { book: bookStep.details, checkIn: checkInStep.details },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.5 — mark a no-show, find rebooking candidates, then draft an offer message. */
+  private async handleNoShowRecover(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const noShowStep = await this.handleMarkNoShows(
+      businessId,
+      access,
+      { ...params },
+      userId,
+      confirmed,
+    );
+    if (!noShowStep.success) {
+      return { ...noShowStep, action: 'no_show_recover' };
+    }
+
+    const rebookParams = { ...params, ...(noShowStep.details ?? {}) };
+    const rebookStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'list_rebooking_candidates',
+      prompt,
+      rebookParams,
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'list_rebooking_candidates',
+      summary: 'Could not load rebooking candidates.',
+      details: { clarify: true },
+    };
+    if (!rebookStep.success) {
+      return {
+        success: false,
+        action: 'no_show_recover',
+        summary: `${noShowStep.summary} ${rebookStep.summary}`,
+        details: { noShow: noShowStep.details, rebook: rebookStep.details },
+      };
+    }
+
+    const draftParams = { ...rebookParams, ...(rebookStep.details ?? {}) };
+    const draftStep = (await this.providerOpenShifts.handleIntent(
+      businessId,
+      'draft_waitlist_offer_message',
+      prompt,
+      draftParams,
+      access.employee?.id,
+      userId,
+      context,
+    )) ?? {
+      success: false,
+      action: 'draft_waitlist_offer_message',
+      summary: 'Could not draft a waitlist offer message.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: noShowStep.success && rebookStep.success && draftStep.success,
+      action: 'no_show_recover',
+      summary: `${noShowStep.summary} ${rebookStep.summary} ${draftStep.summary}`,
+      details: {
+        noShow: noShowStep.details,
+        rebook: rebookStep.details,
+        draft: draftStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.6 — multi-service groups, service timeline, then a client snapshot before a visit. */
+  private async handleMultiServiceBrief(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const groupsStep = await this.providerBooking.handleListMyMultiServiceGroups(
+      businessId,
+      prompt,
+      { ...params },
+    );
+    if (!groupsStep.success) {
+      return { ...groupsStep, action: 'multi_service_brief' };
+    }
+
+    const timelineParams = { ...params, ...(groupsStep.details ?? {}) };
+    const timelineStep = (await this.providerClientContext.handleIntent(
+      businessId,
+      userId,
+      'explain_multi_service_timeline',
+      timelineParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'explain_multi_service_timeline',
+      summary: 'Could not load the multi-service order.',
+      details: { clarify: true },
+    };
+
+    const clientParams = { ...timelineParams, ...(timelineStep.details ?? {}) };
+    const clientStep = (await this.providerClientContext.handleIntent(
+      businessId,
+      userId,
+      'summarize_client',
+      clientParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'summarize_client',
+      summary: 'Could not summarize this client.',
+      details: { clarify: true },
+    };
+
+    return {
+      success: groupsStep.success && timelineStep.success && clientStep.success,
+      action: 'multi_service_brief',
+      summary: `${groupsStep.summary} ${timelineStep.summary} ${clientStep.summary}`,
+      details: {
+        groups: groupsStep.details,
+        timeline: timelineStep.details,
+        client: clientStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.8 — find a patient by name, open their chart, then mark their specimen collected. */
+  private async handleClinicDrawPatient(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+
+    const searchStep = await this.handleSearchPatient(
+      businessId,
+      userId,
+      { ...params },
+      prompt,
+    );
+    if (!searchStep.success) {
+      return { ...searchStep, action: 'clinic_draw_patient' };
+    }
+
+    const chartParams = { ...params, ...(searchStep.details ?? {}) };
+    const chartStep = await this.clinicPatientChart.handleExplainPatientChart(
+      businessId,
+      userId,
+      chartParams,
+      prompt,
+    );
+
+    const collectParams = { ...chartParams, ...(chartStep.details ?? {}) };
+    const collectStep =
+      await this.providerClinicCollection.handleMarkSpecimenCollected(
+        businessId,
+        userId,
+        collectParams,
+        prompt,
+      );
+
+    return {
+      success: searchStep.success && chartStep.success && collectStep.success,
+      action: 'clinic_draw_patient',
+      summary: `${searchStep.summary} ${chartStep.summary} ${collectStep.summary}`,
+      details: {
+        search: searchStep.details,
+        chart: chartStep.details,
+        collect: collectStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.9 — open a booking from a push notification, mark it paid, then complete the visit. */
+  private async handlePushMarkPaidClose(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = {
+      ...context,
+      lastPush: context?.lastPush,
+      _prompt: prompt,
+    };
+    const confirmed = context?.confirmed === true;
+
+    const openStep = await this.pushNotifications.handleOpenBookingFromPush(
+      businessId,
+      { ...params },
+      prompt,
+    );
+    if (!openStep.success) {
+      return { ...openStep, action: 'push_mark_paid_close' };
+    }
+
+    const paidParams = { ...params, ...(openStep.details ?? {}) };
+    const paidStep = await this.providerBooking.handleMarkPaid(
+      businessId,
+      paidParams,
+      userId,
+    );
+    if (!paidStep.success) {
+      return {
+        success: false,
+        action: 'push_mark_paid_close',
+        summary: `${openStep.summary} ${paidStep.summary}`,
+        details: { open: openStep.details, paid: paidStep.details },
+      };
+    }
+
+    const completeParams = { ...paidParams, ...(paidStep.details ?? {}) };
+    const completeStep = await this.handleMarkVisitComplete(
+      businessId,
+      access,
+      completeParams,
+      userId,
+      confirmed,
+    );
+
+    return {
+      success: openStep.success && paidStep.success && completeStep.success,
+      action: 'push_mark_paid_close',
+      summary: `${openStep.summary} ${paidStep.summary} ${completeStep.summary}`,
+      details: {
+        open: openStep.details,
+        paid: paidStep.details,
+        complete: completeStep.details,
+      },
+    };
+  }
+
+  /** ai-cmd-provider-5.26.10 — manager view: floor status, today's team unpaid, then a payment sweep. */
+  private async handleManagerFloorSweep(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    access: MobileAccess,
+    context: Record<string, unknown> | undefined,
+  ): Promise<ProviderCommandResult> {
+    const params: Record<string, unknown> = { ...context, _prompt: prompt };
+    const confirmed = context?.confirmed === true;
+
+    const floorStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'team_floor_status',
+      { ...params },
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'team_floor_status',
+      summary: 'Could not load team floor status.',
+      details: { clarify: true },
+    };
+    if (!floorStep.success) {
+      return { ...floorStep, action: 'manager_floor_sweep' };
+    }
+
+    const unpaidParams = { ...params, ...(floorStep.details ?? {}) };
+    const unpaidStep = (await this.providerExp2.handleIntent(
+      businessId,
+      userId,
+      'list_team_unpaid_today',
+      unpaidParams,
+      prompt,
+      context,
+    )) ?? {
+      success: false,
+      action: 'list_team_unpaid_today',
+      summary: 'Could not load team unpaid appointments.',
+      details: { clarify: true },
+    };
+
+    const sweepParams = { ...unpaidParams, ...(unpaidStep.details ?? {}) };
+    const sweepStep = await this.handlePaymentSweep(
+      businessId,
+      access,
+      sweepParams,
+      userId,
+      confirmed,
+    );
+
+    return {
+      success: floorStep.success && unpaidStep.success && sweepStep.success,
+      action: 'manager_floor_sweep',
+      summary: `${floorStep.summary} ${unpaidStep.summary} ${sweepStep.summary}`,
+      details: {
+        floor: floorStep.details,
+        unpaid: unpaidStep.details,
+        sweep: sweepStep.details,
+      },
+    };
   }
 
   private async handleProviderMobileCompound(
@@ -1421,6 +3303,24 @@ export class ProviderAiCommandService {
             summary: markPaid.summary,
             details: markPaid.details as Record<string, unknown>,
           };
+          break;
+        }
+        case 'set_retail_sales_lines': {
+          const cartResult = (await this.providerExp3.handleIntent(
+            businessId,
+            userId,
+            'set_retail_sales_lines',
+            stepParams,
+            step.segment,
+            compoundContext,
+            scopedEmployeeId,
+          )) ?? {
+            success: false,
+            action: 'set_retail_sales_lines',
+            summary: 'Could not update retail cart.',
+            details: { clarify: true },
+          };
+          stepResult = cartResult;
           break;
         }
         case 'explain_last_push':
@@ -1818,6 +3718,183 @@ export class ProviderAiCommandService {
     throw new BadRequestException('Unsupported action');
   }
 
+  private async handleExplainProviderContext(
+    businessId: string,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const ctx = await this.providerMobile.getContext(businessId, userId);
+    const viewLabel = ctx.viewMode === 'team' ? 'team view' : 'your own view';
+    const enabledFeatures = [
+      ctx.labFeaturesEnabled ? 'clinic lab' : null,
+      ctx.retailPosEnabled ? 'retail POS' : null,
+      ctx.whatsappContactEnabled ? 'WhatsApp contact' : null,
+    ].filter((feature): feature is string => Boolean(feature));
+
+    const summaryParts = [
+      `You're in ${viewLabel} as ${ctx.membershipRole}${ctx.employee ? ` (${ctx.employee.name})` : ''}`,
+      enabledFeatures.length
+        ? `${enabledFeatures.join(', ')} enabled`
+        : 'no extra features enabled for this business',
+    ];
+
+    return {
+      success: true,
+      action: 'explain_provider_context',
+      summary: `${summaryParts.join(' — ')}.`,
+      details: { context: ctx },
+    };
+  }
+
+  private async handleListUpcomingBookings(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<ProviderCommandResult> {
+    const days =
+      typeof params.days === 'number'
+        ? params.days
+        : (extractDaysFromPrompt(prompt) ?? 7);
+    const view = await this.providerMobile.getUpcomingBookings(
+      businessId,
+      userId,
+      days,
+    );
+    return {
+      success: true,
+      action: 'list_upcoming_bookings',
+      summary: view.bookings.length
+        ? `${view.bookings.length} upcoming booking(s) from ${view.from} to ${view.to}.`
+        : `No upcoming bookings from ${view.from} to ${view.to}.`,
+      details: { ...view },
+    };
+  }
+
+  private async handleGetScheduleSummary(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<ProviderCommandResult> {
+    const days =
+      typeof params.days === 'number'
+        ? params.days
+        : (extractDaysFromPrompt(prompt) ?? 14);
+    const summary = await this.providerMobile.getScheduleSummary(
+      businessId,
+      userId,
+      days,
+    );
+    const totalAvailable = summary.days.reduce(
+      (sum, d) => sum + d.available,
+      0,
+    );
+    const totalBooked = summary.days.reduce((sum, d) => sum + d.booked, 0);
+    return {
+      success: true,
+      action: 'get_schedule_summary',
+      summary: `Next ${days} day(s): ${totalBooked} booked, ${totalAvailable} available slot(s).`,
+      details: { ...summary },
+    };
+  }
+
+  private resolveRequestedCalendarMonthKey(
+    params: Record<string, unknown>,
+  ): string | undefined {
+    if (typeof params.month === 'string' && params.month.trim()) {
+      return params.month.trim();
+    }
+    return undefined;
+  }
+
+  private async handleGetCalendarMonth(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const month = this.resolveRequestedCalendarMonthKey(params);
+    const view = await this.providerMobile.getCalendarMonthSummary(
+      businessId,
+      userId,
+      month,
+    );
+    const counts = { empty: 0, low: 0, medium: 0, high: 0 };
+    for (const day of view.days) counts[day.utilizationBand] += 1;
+    const highDays = view.days
+      .filter((d) => d.utilizationBand === 'high')
+      .map((d) => d.date);
+
+    return {
+      success: true,
+      action: 'get_calendar_month',
+      summary: [
+        `${view.month}: ${counts.high} fully booked, ${counts.medium} medium, ${counts.low} low, ${counts.empty} empty day(s).`,
+        ...(highDays.length ? [`Fully booked: ${highDays.join(', ')}.`] : []),
+      ].join(' '),
+      details: { ...view, counts },
+    };
+  }
+
+  private async handleUpdateProviderProfile(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const title =
+      typeof params.title === 'string' ? params.title.trim() : undefined;
+    const avatarUrl =
+      typeof params.avatarUrl === 'string'
+        ? params.avatarUrl.trim()
+        : undefined;
+    if (title === undefined && avatarUrl === undefined) {
+      return {
+        success: false,
+        action: 'update_provider_profile',
+        summary:
+          'What should I update on your profile — title or avatar URL?',
+        details: { clarify: true, missing: ['title', 'avatarUrl'] },
+      };
+    }
+
+    const profile = await this.providerMobile.updateProviderProfile(
+      businessId,
+      userId,
+      { title, avatarUrl },
+    );
+    const updatedFields = [
+      title !== undefined ? 'title' : null,
+      avatarUrl !== undefined ? 'avatar' : null,
+    ].filter((field): field is string => Boolean(field));
+
+    return {
+      success: true,
+      action: 'update_provider_profile',
+      summary: `Updated your ${updatedFields.join(' and ')}.`,
+      details: { profile },
+    };
+  }
+
+  private async handleShowProviderProfile(
+    businessId: string,
+    userId: string,
+  ): Promise<ProviderCommandResult> {
+    const profile = await this.providerMobile.getProviderProfile(
+      businessId,
+      userId,
+    );
+    const parts = [
+      `Name: ${profile.name}`,
+      `Title: ${profile.title ?? 'not set'}`,
+      profile.avatarUrl ? 'Avatar: set' : 'Avatar: not set',
+    ];
+    return {
+      success: true,
+      action: 'show_provider_profile',
+      summary: parts.join(', '),
+      details: { profile },
+    };
+  }
+
   private async classifyIntent(
     businessId: string,
     userId: string,
@@ -1854,6 +3931,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
@@ -1877,7 +3955,7 @@ export class ProviderAiCommandService {
 
     const reason = String(params.reason ?? 'Cancelled by provider');
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'cancel_bookings',
@@ -1897,6 +3975,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
@@ -1936,7 +4015,7 @@ export class ProviderAiCommandService {
       paymentStatus ? `payment → ${paymentStatus}` : null,
     ].filter(Boolean);
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'update_bookings',
@@ -1949,6 +4028,340 @@ export class ProviderAiCommandService {
     }
 
     return this.executeUpdate(bookings, { status, paymentStatus }, userId);
+  }
+
+  /** ai-cmd-provider-5.2.7 — dedicated shortcut for update_bookings(status=completed). */
+  private async handleMarkVisitComplete(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    confirmed: boolean,
+  ): Promise<ProviderCommandResult> {
+    const result = await this.handleUpdateBookings(
+      businessId,
+      access,
+      { ...params, status: 'completed' },
+      userId,
+      confirmed,
+    );
+    return { ...result, action: 'mark_visit_complete' };
+  }
+
+  /** ai-cmd-provider-5.16.2 — thin alias to update_bookings(status=in_progress); dedicated action name so "Begin Jane's color" resolves unambiguously without needing the generic status-branch matching. */
+  private async handleMarkVisitInProgress(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    confirmed: boolean,
+  ): Promise<ProviderCommandResult> {
+    const result = await this.handleUpdateBookings(
+      businessId,
+      access,
+      { ...params, status: 'in_progress' },
+      userId,
+      confirmed,
+    );
+    return { ...result, action: 'mark_visit_in_progress' };
+  }
+
+  /** ai-cmd-provider-5.18.3 — mark one leg of a multi-service booking group done (per-leg status), not the whole visit. */
+  private async handleMarkMultiServiceStepDone(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    confirmed: boolean,
+    sessionBookingId?: string,
+    prompt?: string,
+  ): Promise<ProviderCommandResult> {
+    const anchorBookingId =
+      (typeof params.bookingId === 'string' && params.bookingId.trim()) ||
+      (typeof sessionBookingId === 'string' && sessionBookingId.trim()) ||
+      null;
+    if (!anchorBookingId) {
+      return {
+        success: false,
+        action: 'mark_multi_service_step_done',
+        summary: 'Open the multi-service booking and try again.',
+        details: { clarify: true },
+      };
+    }
+
+    const anchor = await this.bookingRepo.findOne({
+      where: { id: anchorBookingId, businessId },
+    });
+    if (!anchor?.multiServiceGroupId) {
+      return {
+        success: false,
+        action: 'mark_multi_service_step_done',
+        summary: 'This booking is not part of a multi-service group.',
+        details: {},
+      };
+    }
+
+    const siblings = await this.bookingRepo.find({
+      where: { businessId, multiServiceGroupId: anchor.multiServiceGroupId },
+      relations: { service: true, customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const parsedFromPrompt = parseMarkMultiServiceStepDoneFromPrompt(
+      prompt ?? '',
+    );
+    const stepIndex =
+      typeof params.stepIndex === 'number'
+        ? params.stepIndex
+        : (parsedFromPrompt?.stepIndex ?? null);
+    const serviceName =
+      typeof params.serviceName === 'string' && params.serviceName.trim()
+        ? params.serviceName
+        : parsedFromPrompt?.serviceName;
+
+    let target: Booking | undefined;
+    if (stepIndex != null && stepIndex >= 1 && stepIndex <= siblings.length) {
+      target = siblings[stepIndex - 1];
+    } else if (serviceName) {
+      const query = serviceName.toLowerCase();
+      target = siblings.find((booking) =>
+        booking.service?.name.toLowerCase().includes(query),
+      );
+    }
+
+    if (!target) {
+      return {
+        success: true,
+        action: 'mark_multi_service_step_done',
+        summary: 'Which step? Say the step number or the service name.',
+        details: {
+          clarify: true,
+          steps: siblings.map(
+            (booking, index) => `${index + 1}. ${booking.service?.name}`,
+          ),
+        },
+      };
+    }
+
+    const result = await this.handleUpdateBookings(
+      businessId,
+      access,
+      { bookingId: target.id, status: 'completed' },
+      userId,
+      confirmed,
+    );
+    return { ...result, action: 'mark_multi_service_step_done' };
+  }
+
+  /** ai-cmd-provider-5.19.1 — search/lookup patients by name or phone across the clinic. */
+  private async handleSearchPatient(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown>,
+    prompt?: string,
+  ): Promise<ProviderCommandResult> {
+    const query =
+      (typeof params.query === 'string' && params.query.trim()) ||
+      extractPatientSearchQueryFromPrompt(prompt ?? '') ||
+      null;
+    if (!query) {
+      return {
+        success: false,
+        action: 'search_patient',
+        summary: 'Who are you looking for? Give a name or phone number.',
+        details: { clarify: true },
+      };
+    }
+
+    const result = await this.providerMobile.searchProviderPatients(
+      businessId,
+      userId,
+      query,
+    );
+    if (!result.labFeaturesEnabled) {
+      return {
+        success: false,
+        action: 'search_patient',
+        summary: 'Patient search is only available for clinic businesses.',
+        details: { clinicOnly: true },
+      };
+    }
+
+    return {
+      success: true,
+      action: 'search_patient',
+      summary: formatPatientSearchResultsText(query, result.patients),
+      details: { query, patients: result.patients, count: result.patients.length },
+    };
+  }
+
+  /** ai-cmd-provider-5.16.4 — confirm pending booking(s): bulk ("Confirm all pending today") or single ("Accept Maria's booking"). Filters to currently-PENDING bookings only, unlike the generic update_bookings(status=confirmed) branch which would touch any non-cancelled match. */
+  private async handleConfirmPendingBooking(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    confirmed: boolean,
+  ): Promise<ProviderCommandResult> {
+    if (!params.date) params.date = toIsoDay(todayDisplay());
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const matched = await this.findMatchingBookings(businessId, employeeId, params, {
+      excludeCancelled: true,
+    });
+    const bookings = matched.filter((b) => b.status === BookingStatus.PENDING);
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action: 'confirm_pending_booking',
+        summary: 'No pending appointments found to confirm.',
+        details: { matchedCount: 0 },
+      };
+    }
+
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
+      return {
+        success: true,
+        action: 'confirm_pending_booking',
+        summary: `Confirm ${bookings.length} pending appointment(s)?`,
+        details: this.buildConfirmationDetails(bookings, {
+          action: 'confirm_pending_booking',
+          params: { status: 'confirmed' },
+        }),
+      };
+    }
+
+    const result = await this.executeUpdate(
+      bookings,
+      { status: 'confirmed' },
+      userId,
+    );
+    return { ...result, action: 'confirm_pending_booking' };
+  }
+
+  /** ai-cmd-provider-5.16.5 — static explainer, no live data needed. */
+  private handleExplainBookingStatusBadge(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_booking_status_badge',
+      summary: buildExplainBookingStatusBadgeSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.19.6 — static explainer, no live data needed. */
+  private handleHandoffToDashboardPhi(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'handoff_to_dashboard_phi',
+      summary: buildHandoffToDashboardPhiSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.16.6 — static explainer, no live data needed. */
+  private handleExplainFloorStatus(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_floor_status',
+      summary: buildExplainFloorStatusSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.23.2 — static explainer, no live data needed. */
+  private handleExplainCalendarUtilizationBands(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_calendar_utilization_bands',
+      summary: buildExplainCalendarUtilizationBandsSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.23.4 — static explainer, no live data needed. */
+  private handleExplainBlockVsTimeOff(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_block_vs_time_off',
+      summary: buildExplainBlockVsTimeOffSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.24.1 — static explainer, no live data needed. */
+  private handleExplainOfflineSuggestions(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_offline_suggestions',
+      summary: buildExplainOfflineSuggestionsSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.24.6 — static explainer, no live data needed (local OS setting). */
+  private handleExplainAccessibilitySettings(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_accessibility_settings',
+      summary: buildExplainAccessibilitySettingsSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.25.1 — static lookup over PROVIDER_EXP_UI_AI_PARITY's dashboard-only rows. */
+  private handleExplainDashboardOnlyAction(prompt: string): ProviderCommandResult {
+    const summary =
+      resolveDashboardOnlyActionSummaryFromPrompt(prompt) ??
+      "That feature is managed from the dashboard, not the mobile assistant. Open the dashboard for this.";
+    return {
+      success: true,
+      action: 'explain_dashboard_only_action',
+      summary,
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.25.2 — static explainer, no live data needed. */
+  private handleExplainReassignLimit(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_reassign_limit',
+      summary: buildExplainReassignLimitSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.25.3 — static explainer, no live data needed. */
+  private handleExplainTimeOffApproval(): ProviderCommandResult {
+    return {
+      success: true,
+      action: 'explain_time_off_approval',
+      summary: buildExplainTimeOffApprovalSummary(),
+      details: {},
+    };
+  }
+
+  /** ai-cmd-provider-5.3.6 — thin alias to mark_paid; no Stripe Terminal integration exists, so
+   * collection is always manual (cash/card-on-file recorded elsewhere) and this just flips
+   * paymentStatus like the mark_paid push-parity action does. */
+  private async handleCollectRemainingBalance(
+    businessId: string,
+    params: Record<string, unknown>,
+    userId: string,
+    prompt: string,
+    scopedEmployeeId?: string | null,
+  ): Promise<ProviderCommandResult> {
+    const result = await this.providerBooking.handleMarkPaid(
+      businessId,
+      {
+        ...params,
+        sessionEmployeeId: scopedEmployeeId ?? undefined,
+        _prompt: prompt,
+      },
+      userId,
+    );
+    return { ...result, action: 'collect_remaining_balance' };
   }
 
   private resolveProviderAccessTier(access: MobileAccess): AccessTier {
@@ -2209,6 +4622,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date && !params.dateFrom)
       params.date = toIsoDay(todayDisplay());
@@ -2228,7 +4642,7 @@ export class ProviderAiCommandService {
       };
     }
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'mark_no_shows',
@@ -2253,6 +4667,7 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
+    confirmed: boolean,
   ): Promise<ProviderCommandResult> {
     if (!params.date && !params.dateFrom)
       params.date = toIsoDay(todayDisplay());
@@ -2272,7 +4687,7 @@ export class ProviderAiCommandService {
       };
     }
 
-    if (bookings.length >= BULK_CONFIRM_THRESHOLD) {
+    if (bookings.length >= BULK_CONFIRM_THRESHOLD && !confirmed) {
       return {
         success: true,
         action: 'payment_sweep',
@@ -2475,12 +4890,14 @@ export class ProviderAiCommandService {
     emptySummary: string,
   ): Promise<ProviderCommandResult> {
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const bookings = filterBookingsForProviderList(
+    const allBookings = filterBookingsForProviderList(
       await this.findMatchingBookings(businessId, employeeId, params, {}),
       resolveStatusFilter(params),
       Date.now(),
       (value) => this.normalizeStatus(value),
     );
+    const bookings =
+      params.nextOnly === true ? allBookings.slice(0, 1) : allBookings;
 
     return buildProviderBookingsListResult({
       bookings,
@@ -2619,6 +5036,56 @@ export class ProviderAiCommandService {
     });
   }
 
+  private async handleExplainTodayTimeline(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const isoDay = params.date
+      ? toIsoDay(String(params.date))
+      : toIsoDay(todayDisplay());
+    const { day, dayEnd } = resolveAvailabilityDayBounds(isoDay);
+
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(day, dayEnd),
+      status: Not(In([BookingStatus.CANCELLED])),
+    };
+    if (employeeId) where.employeeId = employeeId;
+
+    const bookings = await this.bookingRepo.find({
+      where,
+      relations: { customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const timeline = buildProviderTodayTimelineView({
+      enabled: true,
+      date: isoDay,
+      bookings: bookings.map((b) => ({
+        id: b.id,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+        customer: b.customer ? { name: b.customer.name } : null,
+      })),
+    });
+
+    const formatTime = (iso: string) => formatTimeDisplay(new Date(iso));
+
+    return {
+      success: true,
+      action: 'explain_today_timeline',
+      summary: buildExplainTodayTimelineSummary(timeline, formatTime),
+      details: {
+        segments: timeline.segments,
+        gaps: buildExplainTodayTimelineGapChips(timeline, formatTime),
+        nextClient: timeline.nextClient,
+      },
+    };
+  }
+
   private async handleCoordinateWaitlistOffer(
     businessId: string,
     access: MobileAccess,
@@ -2651,12 +5118,17 @@ export class ProviderAiCommandService {
       };
     }
 
-    const waitlist = await this.customerRepo
+    const waitlistQb = this.customerRepo
       .createQueryBuilder('c')
       .where('c.business_id = :businessId', { businessId })
-      .andWhere(`'waitlist' = ANY(c.tags)`)
-      .orderBy('c.name', 'ASC')
-      .getMany();
+      .orderBy('c.name', 'ASC');
+    andWhereSimpleArrayTag(
+      waitlistQb,
+      'c',
+      WAITLIST_CUSTOMER_TAG,
+      'waitlistTag',
+    );
+    const waitlist = await waitlistQb.getMany();
 
     const waitlistCustomer = matchWaitlistCustomerByName(
       waitlist,
@@ -2816,9 +5288,15 @@ export class ProviderAiCommandService {
       where.status = Not(In([BookingStatus.CANCELLED]));
     }
 
-    const dateRange = this.resolveDateRange(params);
-    if (dateRange) {
-      where.startTime = Between(dateRange.start, dateRange.end);
+    const hasExplicitBookingId =
+      typeof params.bookingId === 'string' && params.bookingId.trim().length > 0;
+    if (hasExplicitBookingId) {
+      where.id = params.bookingId;
+    } else {
+      const dateRange = this.resolveDateRange(params);
+      if (dateRange) {
+        where.startTime = Between(dateRange.start, dateRange.end);
+      }
     }
 
     let bookings = await this.bookingRepo.find({
@@ -2826,6 +5304,10 @@ export class ProviderAiCommandService {
       relations: { customer: true, service: true },
       order: { startTime: 'ASC' },
     });
+
+    if (hasExplicitBookingId) {
+      return bookings;
+    }
 
     if (params.customerName) {
       const name = String(params.customerName).toLowerCase();
@@ -2979,6 +5461,101 @@ export class ProviderAiCommandService {
       action: 'fill_unused_slots',
       summary: result.summary,
       details: result.details as Record<string, unknown>,
+    };
+  }
+
+  private async handleListScheduleGaps(
+    businessId: string,
+    access: MobileAccess,
+    prompt: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const employees = await this.employeeRepo.find({
+      where: { businessId, isActive: true },
+    });
+
+    const scopedEmployeeId = this.providerMobile.getScopedEmployeeId(access);
+    const scopedEmployees = scopedEmployeeId
+      ? employees.filter((e) => e.id === scopedEmployeeId)
+      : employees;
+
+    const gapParams = {
+      ...params,
+      employeeName: scopedEmployeeId
+        ? employees.find((e) => e.id === scopedEmployeeId)?.name
+        : params.employeeName,
+      allProviders: !scopedEmployeeId && access.viewMode === 'team',
+    };
+
+    const result = await this.scheduleHandlers.handleListScheduleGaps(
+      businessId,
+      prompt,
+      gapParams as Record<string, any>,
+      scopedEmployees,
+    );
+
+    return {
+      success: result.success,
+      action: 'list_schedule_gaps',
+      summary: result.summary,
+      details: result.details as Record<string, unknown>,
+    };
+  }
+
+  private async handleOpenBookingDetail(
+    businessId: string,
+    access: MobileAccess,
+    userId: string,
+    params: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    let bookingId =
+      typeof params.bookingId === 'string' ? params.bookingId.trim() : '';
+
+    if (!bookingId) {
+      const employeeId = this.providerMobile.getScopedEmployeeId(access);
+      const matches = await this.findMatchingBookings(
+        businessId,
+        employeeId,
+        params,
+        { excludeCancelled: true },
+      );
+      if (matches.length === 0) {
+        return {
+          success: false,
+          action: 'open_booking_detail',
+          summary: this.noMatchMessage('open', params),
+          details: { clarify: true },
+        };
+      }
+      if (matches.length > 1) {
+        return {
+          success: false,
+          action: 'open_booking_detail',
+          summary:
+            'Multiple appointments match — specify a time or the customer name.',
+          details: { clarify: true, matchedCount: matches.length },
+        };
+      }
+      bookingId = matches[0].id;
+    }
+
+    const detail = await this.providerMobile.getBookingDetail(
+      businessId,
+      userId,
+      bookingId,
+    );
+    const url = `/provider/bookings/${bookingId}`;
+
+    return {
+      success: true,
+      action: 'open_booking_detail',
+      summary: `Open ${detail.customer?.name ?? 'appointment'} — ${detail.service?.name ?? 'service'} at ${formatTimeDisplay(new Date(detail.startTime))}.`,
+      details: {
+        bookingId,
+        url,
+        deepLink: url,
+        booking: detail,
+      },
     };
   }
 

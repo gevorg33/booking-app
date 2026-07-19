@@ -3,6 +3,7 @@ import * as customerSelfService from '../../common/utils/customer-self-service.u
 import {
   evaluatePackageVisitPolicy,
   isPackageVisitBooking,
+  readMultiServiceSchedulingMode,
   readPackageIdFromMetadata,
   readPackageNameFromMetadata,
   sortPackageVisitBookings,
@@ -33,6 +34,17 @@ describe('public-customer-package-visit.util', () => {
     expect(isPackageVisitBooking({ packagePurchaseId: null } as any)).toBe(
       false,
     );
+  });
+
+  it('reads multi-service scheduling mode from metadata (e2e-bug.34)', () => {
+    expect(readMultiServiceSchedulingMode({ schedulingMode: 'same_visit' })).toBe(
+      'same_visit',
+    );
+    expect(
+      readMultiServiceSchedulingMode({ schedulingMode: 'per_service' }),
+    ).toBe('per_service');
+    expect(readMultiServiceSchedulingMode({ schedulingMode: 'other' })).toBeNull();
+    expect(readMultiServiceSchedulingMode(null)).toBeNull();
   });
 
   it('sorts visit bookings by start time', () => {

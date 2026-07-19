@@ -15,7 +15,10 @@ export const LEAVE_VISIT_REVIEW_INTENTS = ['leave_visit_review'] as const;
 export type LeaveVisitReviewIntent =
   (typeof LEAVE_VISIT_REVIEW_INTENTS)[number];
 
-export { CUSTOMER_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES } from './ai-leave-visit-review.fixtures.js';
+export {
+  CUSTOMER_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES,
+  CUSTOMER_PUBLIC_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES,
+} from './ai-leave-visit-review.fixtures.js';
 
 const EXPLAIN_REVIEW_PROMPT_CUE =
   /\b(why am i seeing|why is the app asking|why did i get a review|review popup|post-visit review|skip the rating|can i skip|dismiss the review|will you ask me again|do i have to (?:rate|review|leave)|what is this satisfaction|explain the post-visit review|how does the visit rating)\b/i;
@@ -129,6 +132,15 @@ export function isLeaveVisitReviewPrompt(prompt: string): boolean {
   if (EXPLAIN_REVIEW_PROMPT_CUE.test(prompt)) return false;
   if (REPORT_PROBLEM_CUE.test(prompt)) return false;
   if (REBOOK_CUE.test(prompt) && !REVIEW_CUE.test(prompt)) return false;
+  // e2e-bug.146 — "sales tax rate" / "commission rate" must not match REVIEW_CUE's `\brate\b`.
+  if (
+    /\b(?:tax|vat|gst|sales\s*tax|commission|interest)\b/i.test(prompt) &&
+    !/\b(review|feedback|star(?:s)?|rating|գնահատ|կարծիք|отзыв|оцени|звезд|звёзд)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
 
   if (matchLeaveVisitReviewScenario(prompt)) return true;
 
@@ -198,17 +210,20 @@ function extractLeaveVisitReviewServiceName(
   const raw =
     fromEnriched || extractServiceNameFromPrompt(prompt)?.trim() || '';
   if (!raw) return undefined;
-  const normalized = raw
+  // e2e-bug.111 — "for my facemassage visit" → "facemassage" (not "my facemassage visit")
+  const cleaned = raw
     .replace(/^my\s+/i, '')
-    .trim()
-    .toLowerCase();
+    .replace(/\s+(?:visit|appointment|booking|reservation)\s*$/i, '')
+    .trim();
+  const normalized = cleaned.toLowerCase();
   if (
+    !cleaned ||
     GENERIC_REVIEW_SERVICE_NAMES.has(normalized) ||
     /^last\s+(appointment|visit|booking|time)$/i.test(normalized)
   ) {
     return undefined;
   }
-  return raw;
+  return cleaned;
 }
 
 function extractVisitReviewCommentFromPrompt(

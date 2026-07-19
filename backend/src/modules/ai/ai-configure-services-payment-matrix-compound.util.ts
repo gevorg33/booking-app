@@ -324,7 +324,12 @@ export function buildConfigureServicesPaymentMatrixCompoundParams(
 
   const priceAdj = parsePriceAdjustment(prompt, params);
   if (priceAdj) {
-    params.percentChange = priceAdj.percentChange;
+    if (priceAdj.percentChange != null) {
+      params.percentChange = priceAdj.percentChange;
+    }
+    if (priceAdj.amountChange != null) {
+      params.amountChange = priceAdj.amountChange;
+    }
     if (priceAdj.categoryHint) params.categoryName = priceAdj.categoryHint;
     if (priceAdj.effectiveFrom) params.effectiveFrom = priceAdj.effectiveFrom;
   }
@@ -351,7 +356,12 @@ export function decomposeConfigureServicesPaymentMatrixCompoundPrompt(
         action: 'update_service_prices',
         params: {
           ...base,
-          percentChange: adjustment.percentChange,
+          ...(adjustment.percentChange != null
+            ? { percentChange: adjustment.percentChange }
+            : {}),
+          ...(adjustment.amountChange != null
+            ? { amountChange: adjustment.amountChange }
+            : {}),
           ...(adjustment.categoryHint
             ? { categoryName: adjustment.categoryHint }
             : {}),

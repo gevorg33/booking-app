@@ -8,6 +8,7 @@ import type { NotificationsService } from '../notifications/notifications.servic
 import type { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import type { PushService } from '../provider-mobile/push.service.js';
 import type { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import type { ProviderPushHistoryService } from '../provider-mobile/provider-push-history.service.js';
 import {
   aggregateEodSummaries,
   buildEodPushPayload,
@@ -20,10 +21,13 @@ import { handleConfigureWhatsappIntegrationLogic } from './ai-whatsapp-integrati
 import {
   buildNewBookingPushActionsGuide,
   buildOfflineQueueStatusSummary,
+  buildProviderExplainAppUpdateGateSummary,
+  buildProviderExplainOfflineModeSummary,
   buildRetryOfflineActionGuidance,
   decomposePushNotificationsCompoundPrompt,
   explainLastPushSummary,
   extractBookingIdFromPushPrompt,
+  extractBusinessEmailOnCustomerChangeToggleFromPrompt,
   extractNotificationToggleFromPrompt,
   resolveNotificationEnabledFromPrompt,
   resolveSmsRemindersWhenEnabling,
@@ -31,6 +35,7 @@ import {
   extractReminderHoursFromPrompt,
   resolveCommandPromptText,
   parseProviderLastPushPayload,
+  summarizeProviderPushNotificationCenter,
   type PushNotificationsCompoundStep,
   type ProviderLastPushPayload,
 } from './ai-push-notifications.util.js';
@@ -40,6 +45,7 @@ export interface PushNotificationsLogicDeps {
   whatsappIntegrationService: WhatsAppIntegrationService;
   pushService: PushService;
   providerMobileService: ProviderMobileService;
+  pushHistoryService: ProviderPushHistoryService;
   bookingRepo: Repository<Booking>;
   businessRepo: Repository<Business>;
   customerRepo: Repository<Customer>;
@@ -226,6 +232,38 @@ export async function handleRetryOfflineActionLogic(
   };
 }
 
+export async function handleProviderExplainOfflineModeLogic(
+  _deps: PushNotificationsLogicDeps,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const state = resolveOfflineState(params);
+  return success(
+    'explain_offline_mode',
+    buildProviderExplainOfflineModeSummary(state),
+    {
+      ...state,
+      providerOffline: true,
+    },
+  );
+}
+
+export async function handleProviderExplainAppUpdateGateLogic(
+  _deps: PushNotificationsLogicDeps,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  return success(
+    'explain_app_update_gate',
+    buildProviderExplainAppUpdateGateSummary({
+      currentVersion:
+        typeof params.currentVersion === 'string'
+          ? params.currentVersion
+          : undefined,
+      blocked: params.blocked === true,
+    }),
+    { providerAppGate: true },
+  );
+}
+
 export async function handleDismissPushLogic(
   _deps: PushNotificationsLogicDeps,
   params: Record<string, any>,
@@ -239,6 +277,121 @@ export async function handleDismissPushLogic(
       pushType: payload?.pushType ?? null,
       bookingId: payload?.bookingId ?? null,
     },
+  );
+}
+
+export async function handleListPushNotificationsLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const view = await deps.pushHistoryService.listNotificationCenter(
+    businessId,
+    userId,
+  );
+  return success(
+    'list_push_notifications',
+    summarizeProviderPushNotificationCenter(view),
+    { ...view },
+  );
+}
+
+export async function handleMarkAllNotificationsReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+): Promise<CommandResult> {
+  const { updated } = await deps.pushHistoryService.markAllNotificationsRead(
+    businessId,
+    userId,
+  );
+  return success(
+    'mark_all_notifications_read',
+    updated
+      ? `Marked ${updated} notification${updated === 1 ? '' : 's'} as read.`
+      : 'No unread notifications to mark as read.',
+    { updated },
+  );
+}
+
+export async function handleMarkNotificationReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  let notificationId =
+    typeof params.notificationId === 'string' && params.notificationId.trim()
+      ? params.notificationId.trim()
+      : undefined;
+
+  if (!notificationId) {
+    const view = await deps.pushHistoryService.listNotificationCenter(
+      businessId,
+      userId,
+    );
+    const target = view.items.find((item) => !item.isRead) ?? view.items[0];
+    if (!target) {
+      return failure(
+        'mark_notification_read',
+        'No notifications to mark as read.',
+        { clarify: true },
+      );
+    }
+    notificationId = target.id;
+  }
+
+  try {
+    const notification = await deps.pushHistoryService.markNotificationRead(
+      businessId,
+      userId,
+      notificationId,
+    );
+    return success(
+      'mark_notification_read',
+      `Marked "${notification.title}" as read.`,
+      { notificationId: notification.id, title: notification.title },
+    );
+  } catch {
+    return failure(
+      'mark_notification_read',
+      'Notification not found.',
+      { clarify: true },
+    );
+  }
+}
+
+export async function handleMarkBookingNotificationsReadLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const promptText = resolveCommandPromptText(prompt, params);
+  const payload = resolveLastPush(params);
+  const bookingId =
+    (params.bookingId as string | undefined) ??
+    payload?.bookingId ??
+    extractBookingIdFromPushPrompt(promptText);
+
+  if (!bookingId) {
+    return failure(
+      'mark_booking_notifications_read',
+      "Specify which booking's notifications to mark as read.",
+      { clarify: true, missing: ['bookingId'] },
+    );
+  }
+
+  await deps.pushHistoryService.markLatestBookingNotificationRead(
+    businessId,
+    userId,
+    bookingId,
+  );
+  return success(
+    'mark_booking_notifications_read',
+    'Marked notifications for that booking as read.',
+    { bookingId },
   );
 }
 
@@ -289,6 +442,7 @@ export async function handleEndOfDaySummaryLogic(
     employeeId,
     appointmentCount: 0,
     unpaidCount: 0,
+    noShowCount: 0,
     gapsTomorrow: 0,
   };
   const pushPayload = buildEodPushPayload(summary);
@@ -301,6 +455,7 @@ export async function handleEndOfDaySummaryLogic(
       pushPayload,
       appointmentCount: summary.appointmentCount,
       unpaidCount: summary.unpaidCount,
+      noShowCount: summary.noShowCount,
     },
   );
 }
@@ -459,7 +614,7 @@ export async function handleToggleBusinessEmailOnCustomerChangeLogic(
   const toggle =
     params.enabled !== undefined
       ? Boolean(params.enabled)
-      : extractNotificationToggleFromPrompt(promptText);
+      : extractBusinessEmailOnCustomerChangeToggleFromPrompt(promptText);
 
   if (toggle === null) {
     const settings =
@@ -477,9 +632,13 @@ export async function handleToggleBusinessEmailOnCustomerChangeLogic(
       notifyBusinessOnCustomerBookingChange: toggle,
     },
   );
+  // e2e-bug.159 — clarify recipient (business/owner) + future events, not a
+  // one-off customer-facing message about an already-cancelled booking.
   return success(
     'toggle_business_email_on_customer_change',
-    `Business email on customer booking changes is now ${toggle ? 'enabled' : 'disabled'}.`,
+    toggle
+      ? 'Business email alerts are now enabled: you will be emailed when a customer cancels or reschedules online (ongoing preference for future events — this does not message the customer).'
+      : 'Business email on customer booking changes is now disabled.',
     { settings, notifyBusinessOnCustomerBookingChange: toggle },
   );
 }

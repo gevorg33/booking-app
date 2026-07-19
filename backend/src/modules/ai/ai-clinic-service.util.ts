@@ -106,7 +106,11 @@ function hasClinicExplainSurface(prompt: string): boolean {
     /\b(which|what)\s+(?:lab\s+tests?|services?).*(?:fasting|prep)\b/i.test(
       prompt,
     ) ||
-    /\bfasting\s+requirements?\b/i.test(prompt)
+    /\bfasting\s+requirements?\b/i.test(prompt) ||
+    /(?:ինչ|որ)\s+(?:լաբ|ծառայ)[\p{L}\p{M}]*.*ծոմավոր/iu.test(prompt) ||
+    /(?:какие|какой|который)\s+(?:лабораторн[\p{L}\p{M}]*\s+)?(?:тест[\p{L}\p{M}]*|услуг[\p{L}\p{M}]*).*голод/iu.test(
+      prompt,
+    )
   ) {
     return true;
   }
@@ -116,10 +120,10 @@ function hasClinicExplainSurface(prompt: string): boolean {
       prompt,
     ) ||
     /\b(?:our\s+)?(?:clinic|polyclinic)\b/i.test(prompt) ||
-    /(կլինիկական\s+ծառայություն|բաժին|ծոմավոր|խորհրդատվություն|կատալոգ)/i.test(
+    /(կլինիկական\s+ծառայություն|բաժին|խորհրդատվություն|կատալոգ)/i.test(
       prompt,
     ) ||
-    /(клиник|поликлиник|отделен|голод|каталог\s+клиник|лабораторн|консультац)/i.test(
+    /(клиник|поликлиник|отделен|каталог\s+клиник|лабораторн|консультац)/i.test(
       prompt,
     )
   );

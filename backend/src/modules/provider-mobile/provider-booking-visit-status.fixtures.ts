@@ -4,28 +4,46 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 export const PROVIDER_VISIT_STATUS_ELIGIBILITY_SCENARIOS = [
   {
-    id: 'allowed-confirmed',
-    booking: { status: BookingStatus.CONFIRMED, metadata: null },
+    id: 'allowed-confirmed-checked-in',
+    booking: {
+      status: BookingStatus.CONFIRMED,
+      checkedInAt: '2026-06-09T09:55:00.000Z',
+      metadata: null,
+    },
     allowed: true,
   },
   {
+    id: 'e2e70-blocked-not-checked-in',
+    booking: {
+      status: BookingStatus.CONFIRMED,
+      checkedInAt: null,
+      metadata: null,
+    },
+    allowed: false,
+    reason: 'Check in the client before updating visit status',
+  },
+  {
     id: 'blocked-completed',
-    booking: { status: BookingStatus.COMPLETED, metadata: null },
+    booking: {
+      status: BookingStatus.COMPLETED,
+      checkedInAt: '2026-06-09T09:55:00.000Z',
+      metadata: null,
+    },
     allowed: false,
   },
   {
     id: 'blocked-cancelled',
-    booking: { status: BookingStatus.CANCELLED, metadata: null },
+    booking: { status: BookingStatus.CANCELLED, checkedInAt: null, metadata: null },
     allowed: false,
   },
   {
     id: 'blocked-no-show',
-    booking: { status: BookingStatus.NO_SHOW, metadata: null },
+    booking: { status: BookingStatus.NO_SHOW, checkedInAt: null, metadata: null },
     allowed: false,
   },
   {
     id: 'blocked-unknown-status',
-    booking: { status: 'archived', metadata: null },
+    booking: { status: 'archived', checkedInAt: null, metadata: null },
     allowed: false,
   },
 ] as const;

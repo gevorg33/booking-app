@@ -24,10 +24,14 @@ import {
   handleCreateServiceCategoryLogic,
   handleCreateSubscriptionPlanLogic,
   handleCatalogCompoundLogic,
+  handleActivatePackageLogic,
   handleDeactivatePackageLogic,
   handleDeactivateServiceLogic,
   handleUpdateServiceLogic,
+  handleUpdateServiceCategoryLogic,
+  handleDeleteServiceCategoryLogic,
   resolveCategoryByName,
+  handleActivateSubscriptionPlanLogic,
   handleDeactivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
@@ -76,6 +80,14 @@ export class AiCatalogService {
 
   handleCreateServiceCategory(businessId: string, params: Record<string, any>) {
     return handleCreateServiceCategoryLogic(this.deps, businessId, params);
+  }
+
+  handleUpdateServiceCategory(businessId: string, params: Record<string, any>) {
+    return handleUpdateServiceCategoryLogic(this.deps, businessId, params);
+  }
+
+  handleDeleteServiceCategory(businessId: string, params: Record<string, any>) {
+    return handleDeleteServiceCategoryLogic(this.deps, businessId, params);
   }
 
   handleBulkCreateCatalog(
@@ -157,6 +169,10 @@ export class AiCatalogService {
     return handleDeactivatePackageLogic(this.deps, businessId, params);
   }
 
+  handleActivatePackage(businessId: string, params: Record<string, any>) {
+    return handleActivatePackageLogic(this.deps, businessId, params);
+  }
+
   handleDuplicatePackage(businessId: string, params: Record<string, any>) {
     return handleDuplicatePackageLogic(this.deps, businessId, params);
   }
@@ -199,6 +215,13 @@ export class AiCatalogService {
     params: Record<string, any>,
   ) {
     return handleDeactivateSubscriptionPlanLogic(this.deps, businessId, params);
+  }
+
+  handleActivateSubscriptionPlan(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleActivateSubscriptionPlanLogic(this.deps, businessId, params);
   }
 
   handleAssignSubscription(

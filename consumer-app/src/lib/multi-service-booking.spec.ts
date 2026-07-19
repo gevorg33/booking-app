@@ -7,11 +7,16 @@ import {
   buildMultiServiceSchedulePath,
   findIncompatiblePairLabels,
   getDisabledMultiServiceIds,
+  isMultiServicePickerPathSegment,
+  isMultiServiceRedirectPathSegment,
+  resolveBookPathCollision,
+  MULTI_SERVICE_PICKER_PATH_SEGMENT,
   multiServiceCartErrors,
   parseMultiServiceIds,
   persistMultiServiceCart,
   readPersistedMultiServiceCart,
   resolveMultiServiceCartFromLocation,
+  resolveMultiServiceCheckoutRecoveryPath,
   resolveMultiServiceSelection,
   resolvePathAfterRemovingService,
   serviceCategoryKey,
@@ -55,6 +60,23 @@ describe('multi-service-booking', () => {
     vi.unstubAllGlobals();
   });
 
+  it('e2e-bug.7: reserves the multi-service picker path segment', () => {
+    expect(MULTI_SERVICE_PICKER_PATH_SEGMENT).toBe('any');
+    expect(isMultiServicePickerPathSegment('any')).toBe(true);
+    expect(isMultiServicePickerPathSegment('svc-1')).toBe(false);
+    expect(isMultiServicePickerPathSegment(undefined)).toBe(false);
+  });
+
+  it.each([
+    { id: 'e2e-bug.32-multi-redirect', serviceId: 'multi', expected: 'multi_redirect' as const },
+    { id: 'e2e-bug.7-any-picker', serviceId: 'any', expected: 'picker' as const },
+    { id: 'e2e-bug.32-real-service', serviceId: 'svc-1', expected: 'book' as const },
+    { id: 'e2e-bug.32-empty', serviceId: '', expected: 'book' as const },
+  ])('$id: resolveBookPathCollision', ({ serviceId, expected }) => {
+    expect(resolveBookPathCollision(serviceId)).toBe(expected);
+    expect(isMultiServiceRedirectPathSegment(serviceId)).toBe(serviceId === 'multi');
+  });
+
   it('builds consumer navigation paths', () => {
     expect(buildMultiServicePickerPath('salon', ['a', 'b'])).toBe(
       '/s/salon/book/any?services=a%2Cb',
@@ -73,6 +95,15 @@ describe('multi-service-booking', () => {
     );
     expect(resolvePathAfterRemovingService('salon', ['a', 'b', 'c'], 'b')).toBe(
       '/s/salon/book/multi/availability?services=a%2Cc',
+    );
+    expect(resolveMultiServiceCheckoutRecoveryPath('salon', [])).toBe('/s/salon/services');
+    expect(resolveMultiServiceCheckoutRecoveryPath('salon', ['a'])).toBe('/s/salon/book/a');
+    expect(resolveMultiServiceCheckoutRecoveryPath('salon', ['a', 'b'])).toBe(
+      '/s/salon/book/multi/availability?services=a%2Cb',
+    );
+    persistMultiServiceCart('salon', ['x', 'y']);
+    expect(resolveMultiServiceCheckoutRecoveryPath('salon', [])).toBe(
+      '/s/salon/book/multi/availability?services=x%2Cy',
     );
     expect(buildMultiServiceAvailabilityPath('salon', ['a', 'b'])).toBe(
       '/s/salon/book/multi/availability?services=a%2Cb',

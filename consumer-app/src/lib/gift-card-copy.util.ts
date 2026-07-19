@@ -26,3 +26,13 @@ export function giftCardTypeDescription(copy: ConsumerCopy, cardType: PublicGift
   const value = copy[TYPE_DESC_KEYS[cardType]];
   return typeof value === 'string' ? value : '';
 }
+
+/** e2e-bug.58 — do not advertise physical delivery when the business has it off. */
+export function resolveGiftCardCatalogSubtitle(
+  copy: Pick<ConsumerCopy, 'giftCardSubtitle' | 'giftCardSubtitleDigitalOnly'>,
+  physicalDeliveryEnabled: boolean,
+): string {
+  return physicalDeliveryEnabled
+    ? copy.giftCardSubtitle
+    : copy.giftCardSubtitleDigitalOnly;
+}

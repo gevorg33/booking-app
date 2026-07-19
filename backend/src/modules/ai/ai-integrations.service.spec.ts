@@ -92,6 +92,13 @@ describe('AiIntegrationsService', () => {
       phoneNumberId: '15551234567',
     })),
   };
+  const distributionIntegrationService = {
+    updateSettings: jest.fn(async () => ({
+      googleReserve: { enabled: true },
+      metaBooking: { enabled: false, bookingUrl: 'https://example.com' },
+      messaging: { telegramEnabled: false, whatsappBookingEnabled: false },
+    })),
+  };
   const integrationsDocsService = { buildDocs: jest.fn(() => ({})) };
   const businessRepo = {
     findOne: jest.fn(async () => ({
@@ -139,6 +146,7 @@ describe('AiIntegrationsService', () => {
       integrationsDocsService as any,
       openAiIntegrationService as any,
       whatsappIntegrationService as any,
+      distributionIntegrationService as any,
       businessRepo as any,
       customerRepo as any,
       giftCardRepo as any,

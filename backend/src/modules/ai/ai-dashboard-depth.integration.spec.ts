@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { PlanStatus } from '../../engine/agent/interfaces/agent.interfaces.js';
+import {
+  AgentType,
+  PlanStatus,
+} from '../../engine/agent/interfaces/agent.interfaces.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { AiSettingsService } from './ai-settings.service.js';
 import { DEFAULT_AI_SETTINGS } from './ai-settings.types.js';
@@ -99,8 +102,9 @@ describe('Sprint 17 AI dashboard depth integration', () => {
     orchestrator.processPlan.mockResolvedValue({
       id: 'task-fail',
       businessId: 'biz-1',
+      agentType: AgentType.SCHEDULING_OPTIMIZATION,
       status: PlanStatus.FAILED,
-      intent: 'optimize_schedule',
+      intent: 'Optimize my schedule please?',
       plan: { steps: [{ id: 's1', description: 'Optimize' }] },
       result: {
         steps: [{ stepId: 's1', status: 'failed', error: 'Slot conflict' }],
@@ -109,11 +113,13 @@ describe('Sprint 17 AI dashboard depth integration', () => {
     });
 
     const result = await orchestration.executePlan({
-      plan: { steps: [] } as any,
+      plan: { steps: [], intent: 'Optimize my schedule please?' } as any,
       businessId: 'biz-1',
     });
 
     expect(result.success).toBe(false);
+    // e2e-bug.150 — never echo the free-text prompt as action.
+    expect(result.action).toBe('optimize_schedule');
     expect(result.details.executionTimeline).toEqual([
       expect.objectContaining({
         stepId: 's1',

@@ -65,7 +65,7 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
   );
 
   it.each(PRIVACY_DELETE_PROMPTS.map((row) => [row.id, row] as const))(
-    'validates and handles privacy_delete $0',
+    'validates and previews privacy_delete without confirm $0',
     async (_id, row) => {
       expect(
         validateCommand({
@@ -79,14 +79,25 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
         }).issues,
       ).toEqual([]);
 
-      const result = await handlePrivacyDeleteLogic(
-        privacyDeps(),
+      const d = privacyDeps();
+      const preview = await handlePrivacyDeleteLogic(
+        d,
         'biz-1',
         { sessionCustomerId: 'c1' },
         row.prompt,
       );
-      expect(result.success).toBe(true);
-      expect(result.details?.navigate).toMatchObject({
+      expect(preview.success).toBe(false);
+      expect(preview.details?.requiresConfirmation).toBe(true);
+      expect(d.customerPrivacyService.deleteCustomerData).not.toHaveBeenCalled();
+
+      const confirmed = await handlePrivacyDeleteLogic(
+        privacyDeps(),
+        'biz-1',
+        { sessionCustomerId: 'c1', confirm: true },
+        row.prompt,
+      );
+      expect(confirmed.success).toBe(true);
+      expect(confirmed.details?.navigate).toMatchObject({
         path: 'account',
         query: { section: 'privacy', privacyAction: 'delete' },
       });

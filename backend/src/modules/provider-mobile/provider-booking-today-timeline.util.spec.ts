@@ -6,6 +6,8 @@ import {
   PROVIDER_TODAY_TIMELINE_VIEW_SCENARIOS,
 } from './provider-booking-today-timeline.fixtures.js';
 import {
+  buildExplainTodayTimelineGapChips,
+  buildExplainTodayTimelineSummary,
   buildProviderTodayTimelineSegments,
   buildProviderTodayTimelineView,
   computeProviderTodayNowMarkerPercent,
@@ -229,5 +231,98 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
     });
     expect(view.segments).toEqual([]);
     expect(view.rangeStart).toBeNull();
+  });
+
+  describe('buildExplainTodayTimelineSummary (ai-cmd-provider-5.1.5)', () => {
+    const formatTime = (iso: string) => new Date(iso).toISOString().slice(11, 16);
+
+    it('returns an empty-day message with no bookings', () => {
+      const view = buildProviderTodayTimelineView({
+        enabled: true,
+        date: '2026-06-09',
+        bookings: [],
+      });
+      expect(buildExplainTodayTimelineSummary(view, formatTime)).toBe(
+        'No appointments scheduled today.',
+      );
+    });
+
+    it('narrates bookings and calls out a gap between clients', () => {
+      const view = buildProviderTodayTimelineView({
+        enabled: true,
+        date: '2026-06-09',
+        bookings: [
+          {
+            id: 'first',
+            startTime: '2026-06-09T09:00:00.000Z',
+            endTime: '2026-06-09T09:30:00.000Z',
+            status: 'confirmed',
+            customer: { name: 'Maria' },
+          },
+          {
+            id: 'second',
+            startTime: '2026-06-09T10:00:00.000Z',
+            endTime: '2026-06-09T11:00:00.000Z',
+            status: 'confirmed',
+            customer: { name: 'John' },
+          },
+        ],
+      });
+      const summary = buildExplainTodayTimelineSummary(view, formatTime);
+      expect(summary).toContain('2 appointments today');
+      expect(summary).toContain('09:00–09:30 Maria');
+      expect(summary).toContain('10:00–11:00 John');
+      expect(summary).toContain('Gaps: 09:30–10:00 (30m)');
+    });
+
+    it('reports no gaps for a back-to-back day', () => {
+      const view = buildProviderTodayTimelineView({
+        enabled: true,
+        date: '2026-06-09',
+        bookings: [
+          {
+            id: 'first',
+            startTime: '2026-06-09T09:00:00.000Z',
+            endTime: '2026-06-09T09:30:00.000Z',
+            status: 'confirmed',
+            customer: { name: 'Maria' },
+          },
+        ],
+      });
+      expect(buildExplainTodayTimelineSummary(view, formatTime)).toContain(
+        'No gaps — back-to-back day.',
+      );
+    });
+  });
+
+  describe('buildExplainTodayTimelineGapChips (ai-cmd-provider-5.1.5)', () => {
+    it('extracts gap chips with formatted labels', () => {
+      const formatTime = (iso: string) =>
+        new Date(iso).toISOString().slice(11, 16);
+      const view = buildProviderTodayTimelineView({
+        enabled: true,
+        date: '2026-06-09',
+        bookings: [
+          {
+            id: 'first',
+            startTime: '2026-06-09T09:00:00.000Z',
+            endTime: '2026-06-09T09:30:00.000Z',
+            status: 'confirmed',
+            customer: { name: 'Maria' },
+          },
+          {
+            id: 'second',
+            startTime: '2026-06-09T10:00:00.000Z',
+            endTime: '2026-06-09T11:00:00.000Z',
+            status: 'confirmed',
+            customer: { name: 'John' },
+          },
+        ],
+      });
+      const chips = buildExplainTodayTimelineGapChips(view, formatTime);
+      expect(chips).toHaveLength(1);
+      expect(chips[0].durationMinutes).toBe(30);
+      expect(chips[0].label).toBe('09:30–10:00 (30m)');
+    });
   });
 });

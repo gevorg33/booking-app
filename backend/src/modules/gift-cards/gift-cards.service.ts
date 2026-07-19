@@ -15,6 +15,11 @@ import {
   resolveGiftCardExpirationUpdate,
   type UpdateGiftCardExpirationInput,
 } from './gift-card-expiration.util.js';
+import {
+  isGiftCardRestoreRedemption,
+  restoredMonetaryBalance,
+  restoredServiceCreditRemaining,
+} from './gift-card-restore.util.js';
 import { PlanEntitlementsService } from '../billing/plan-entitlements.service.js';
 
 export interface GiftCardBalanceView {
@@ -242,6 +247,89 @@ export class GiftCardsService {
       where: { giftCardId },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  /**
+   * Reverse gift-card spend when a booking is cancelled (e2e-bug.38).
+   * Idempotent via restore ledger rows (negative amount / creditsConsumed).
+   */
+  async restoreRedemptionForBooking(bookingId: string): Promise<boolean> {
+    const rows = await this.redemptionRepo.find({ where: { bookingId } });
+    if (!rows.length) return false;
+    if (rows.some((row) => isGiftCardRestoreRedemption(row))) return false;
+
+    const spends = rows.filter((row) => !isGiftCardRestoreRedemption(row));
+    if (!spends.length) return false;
+
+    let restoredAny = false;
+    for (const spend of spends) {
+      const card = await this.giftCardRepo.findOne({
+        where: { id: spend.giftCardId },
+        relations: { serviceCredits: true },
+      });
+      if (!card) continue;
+
+      const amount = Number(spend.amount ?? 0);
+      const credits = Number(spend.creditsConsumed ?? 0);
+
+      if (amount > 0) {
+        card.balance = restoredMonetaryBalance({
+          currentBalance: Number(card.balance),
+          restoreAmount: amount,
+          initialBalance: Number(card.initialBalance),
+        });
+        if (Number(card.balance) > 0) card.isActive = true;
+        await this.giftCardRepo.save(card);
+        await this.redemptionRepo.save(
+          this.redemptionRepo.create({
+            giftCardId: card.id,
+            businessId: card.businessId,
+            bookingId,
+            amount: -amount,
+            creditsConsumed: 0,
+          }),
+        );
+        restoredAny = true;
+        continue;
+      }
+
+      if (credits > 0 && spend.serviceId) {
+        const credit =
+          (card.serviceCredits ?? []).find(
+            (c) => c.serviceId === spend.serviceId,
+          ) ??
+          (await this.creditRepo.findOne({
+            where: {
+              giftCardId: card.id,
+              serviceId: spend.serviceId,
+            },
+          }));
+        if (credit) {
+          credit.quantityRemaining = restoredServiceCreditRemaining({
+            quantityRemaining: credit.quantityRemaining,
+            quantityTotal: credit.quantityTotal,
+            creditsToRestore: credits,
+          });
+          await this.creditRepo.save(credit);
+        }
+        card.isActive = true;
+        await this.giftCardRepo.save(card);
+        await this.redemptionRepo.save(
+          this.redemptionRepo.create({
+            giftCardId: card.id,
+            businessId: card.businessId,
+            bookingId,
+            serviceId: spend.serviceId,
+            serviceName: spend.serviceName,
+            amount: null,
+            creditsConsumed: -credits,
+          }),
+        );
+        restoredAny = true;
+      }
+    }
+
+    return restoredAny;
   }
 
   async updateExpiration(

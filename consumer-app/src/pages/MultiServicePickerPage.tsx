@@ -1,6 +1,5 @@
 import {
   IonBackButton,
-  IonButton,
   IonButtons,
   IonCheckbox,
   IonContent,
@@ -16,6 +15,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { ConsumerPackageCards } from '../components/ConsumerPackageCards.js';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
@@ -34,6 +35,7 @@ import {
   uniqueMultiServiceIds,
   validateLocalMultiServiceCart,
 } from '../lib/multi-service-booking.js';
+import { resolveBlockedMultiServiceAddReason } from '../lib/multi-service-selection-feedback.util.js';
 import type { PublicService } from '../lib/types.js';
 import {
   fetchPublicPackages,
@@ -69,6 +71,7 @@ export default function MultiServicePickerPage() {
   const { slug, profile, loading, error } = useTenantBootstrap();
   const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectionBlockMessage, setSelectionBlockMessage] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [serviceId, setServiceId] = useState<string | null>(null);
 
@@ -91,6 +94,11 @@ export default function MultiServicePickerPage() {
 
   useEffect(() => {
     if (!slug || !multiEnabled || services.length === 0) return;
+    // e2e-bug.177 — this page stays mounted in Ionic's IonRouterOutlet stack (no <Switch>)
+    // for the rest of the session once visited; useLocation() is global, so without this
+    // guard this effect kept firing on every later unrelated navigation and stomping on it
+    // with a stale redirect back to /book/any.
+    if (!location.pathname.endsWith('/book/any')) return;
     const params = new URLSearchParams(location.search);
     const ids = resolveMultiServiceCartFromLocation(slug, params.get('services'), services);
     if (ids.length === 0) return;
@@ -101,7 +109,7 @@ export default function MultiServicePickerPage() {
       const q = new URLSearchParams({ services: ids.join(',') });
       history.replace(`${buildSalonPath(slug, '/book/any')}?${q.toString()}`);
     }
-  }, [history, location.search, multiEnabled, services, slug]);
+  }, [history, location.pathname, location.search, multiEnabled, services, slug]);
 
   useEffect(() => {
     if (slug) persistMultiServiceCart(slug, selectedServiceIds);
@@ -154,15 +162,52 @@ export default function MultiServicePickerPage() {
     [copy.uncategorizedServices, services],
   );
 
+  const multiSettings = profile?.multiService
+    ? {
+        incompatiblePairMode: profile.multiService.incompatiblePairMode ?? 'service',
+        incompatiblePairs: profile.multiService.incompatiblePairs ?? [],
+        incompatibleCategoryPairs: profile.multiService.incompatibleCategoryPairs ?? [],
+        maxServiceCount: profile.multiService.maxServiceCount,
+        maxDurationMinutes: profile.multiService.maxDurationMinutes,
+        turnoverBufferMinutes: profile.multiService.turnoverBufferMinutes ?? 5,
+      }
+    : null;
+
   const toggleService = (id: string) => {
     setSelectedPackageId(null);
     if (multiEnabled) {
       setServiceId(null);
-      setSelectedServiceIds((prev) => {
-        if (prev.includes(id)) return prev.filter((entry) => entry !== id);
-        if (disabledServiceIds.has(id)) return prev;
-        return [...prev, id];
-      });
+      if (selectedServiceIds.includes(id)) {
+        setSelectionBlockMessage('');
+        setSelectedServiceIds((prev) => prev.filter((entry) => entry !== id));
+        return;
+      }
+      if (disabledServiceIds.has(id) && multiSettings) {
+        const reason = resolveBlockedMultiServiceAddReason({
+          serviceId: id,
+          selectedIds: selectedServiceIds,
+          services,
+          settings: multiSettings,
+        });
+        if (reason === 'max_count') {
+          setSelectionBlockMessage(
+            formatCopy(copy.multiServiceMaxCountBlocked, {
+              count: multiSettings.maxServiceCount,
+            }),
+          );
+        } else if (reason === 'duration') {
+          setSelectionBlockMessage(
+            formatCopy(copy.multiServiceDurationBlocked, {
+              limit: multiSettings.maxDurationMinutes,
+            }),
+          );
+        } else if (reason === 'incompatible') {
+          setSelectionBlockMessage(copy.multiServiceIncompatibleBlocked);
+        }
+        return;
+      }
+      setSelectionBlockMessage('');
+      setSelectedServiceIds((prev) => [...prev, id]);
       return;
     }
     setSelectedServiceIds([]);
@@ -203,7 +248,9 @@ export default function MultiServicePickerPage() {
   const hasMultiSelection = multiEnabled && selectedServiceIds.length >= 2;
 
   const continueDisabled =
-    !selectedPackageId && !hasSingleSelection && !hasMultiSelection;
+    !selectedPackageId &&
+    ((!hasSingleSelection && !hasMultiSelection) ||
+      (hasMultiSelection && cartErrors.length > 0));
 
   const continueLabel = selectedPackageId
     ? copy.schedulePackage
@@ -229,7 +276,7 @@ export default function MultiServicePickerPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')} />
+              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.servicesSection}</IonTitle>
           </IonToolbar>
@@ -244,11 +291,12 @@ export default function MultiServicePickerPage() {
   const primary = profile.branding.primaryColor || '#7c3aed';
 
   return (
-    <IonPage>
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/services')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/services')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>
             {multiEnabled ? copy.multiServiceEntryCta : packages.length > 0 ? copy.packagesTitle : copy.anySpecialist}
@@ -293,7 +341,18 @@ export default function MultiServicePickerPage() {
                     price: formatPublicMoney(cartTotals.price, cartTotals.currency, profile.currency),
                   })}
                 </p>
+                {cartErrors.map((error) => (
+                  <p key={error} role="alert" style={{ margin: '6px 0 0', color: '#b91c1c', fontSize: 14 }}>
+                    {error}
+                  </p>
+                ))}
               </div>
+            ) : null}
+
+            {selectionBlockMessage ? (
+              <p role="alert" style={{ margin: '0 0 12px', color: '#b91c1c', fontSize: 14 }}>
+                {selectionBlockMessage}
+              </p>
             ) : null}
 
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{copy.servicesSection}</h2>
@@ -308,20 +367,21 @@ export default function MultiServicePickerPage() {
                     const checked = multiEnabled
                       ? selectedServiceIds.includes(service.id)
                       : serviceId === service.id;
-                    const disabled = disabledServiceIds.has(service.id);
+                    const blocked = multiEnabled && disabledServiceIds.has(service.id) && !checked;
                     return (
                       <IonItem
                         key={service.id}
                         button
                         color={!multiEnabled && checked ? 'primary' : undefined}
-                        disabled={disabled && !checked}
+                        disabled={false}
+                        style={blocked ? { opacity: 0.55 } : undefined}
                         onClick={() => toggleService(service.id)}
                       >
                         {multiEnabled ? (
                           <IonCheckbox
                             slot="start"
                             checked={checked}
-                            disabled={disabled && !checked}
+                            disabled={blocked}
                             onIonChange={() => toggleService(service.id)}
                           />
                         ) : null}
@@ -341,15 +401,14 @@ export default function MultiServicePickerPage() {
           </>
         )}
 
-        <IonButton
-          expand="block"
-          disabled={continueDisabled}
-          style={{ marginTop: 8, '--background': primary }}
-          onClick={onContinue}
-        >
-          {continueLabel}
-        </IonButton>
       </IonContent>
+      <ConsumerFixedActionBar
+        label={continueLabel}
+        disabled={continueDisabled}
+        primaryColor={primary}
+        onClick={onContinue}
+      />
     </IonPage>
+    </ConsumerAiShell>
   );
 }

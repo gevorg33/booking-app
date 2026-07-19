@@ -1,6 +1,7 @@
 /** adopt-5.5 — semver compare for min-supported-version gates. */
 
-export function parseSemver(version: string): [number, number, number] | null {
+export function parseSemver(version: string | null | undefined): [number, number, number] | null {
+  if (version == null || typeof version !== 'string') return null;
   const match = version.trim().match(/^(\d+)\.(\d+)\.(\d+)/);
   if (!match) return null;
   return [Number(match[1]), Number(match[2]), Number(match[3])];

@@ -188,6 +188,44 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     ).toHaveBeenCalledWith(['booking-1', 'booking-2']);
   });
 
+  it('stamps stripePaymentIntentId on every line for cancel refund eligibility (e2e-bug.35)', async () => {
+    bookingService.create.mockReset();
+    bookingService.create
+      .mockResolvedValueOnce({ id: 'booking-1', serviceId: 'face-plasma' })
+      .mockResolvedValueOnce({ id: 'booking-2', serviceId: 'face-pilling' });
+
+    await service.bookMultiService('salon', {
+      serviceIds: ['face-plasma', 'face-pilling'],
+      blockStartTime: '2026-06-02T09:00:00.000Z',
+      employeeId: 'emp-1',
+      customer: { name: 'Alex', email: 'alex@example.com' },
+      markPaid: true,
+      metadata: {
+        stripePaymentIntentId: 'pi_ms_1',
+        stripeConnectAccountId: 'acct_1',
+        stripeSessionId: 'sess_ms',
+      },
+    });
+
+    expect(bookingService.create).toHaveBeenCalledTimes(2);
+    for (const call of bookingService.create.mock.calls) {
+      expect(call[1].metadata).toEqual(
+        expect.objectContaining({
+          stripePaymentIntentId: 'pi_ms_1',
+          stripeConnectAccountId: 'acct_1',
+          stripeSessionId: 'sess_ms',
+        }),
+      );
+    }
+    expect(multiServiceBookingsService.createGroup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          stripePaymentIntentId: 'pi_ms_1',
+        }),
+      }),
+    );
+  });
+
   it('does not set sameVisitMultiService for per_service scheduling', async () => {
     multiServiceBookingsService.resolveSettingsFromBusiness.mockReturnValue({
       ...business.settings.publicBooking!.multiService,
@@ -232,5 +270,39 @@ describe('PublicBookingService bookMultiService same_visit', () => {
         customer: { name: 'Alex', email: 'alex@example.com' },
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('api-bug.7 — allows unpaid book when Connect ready but amountDue is 0 (all none)', async () => {
+    stripeIntegrationService.isConnectReady.mockReturnValue(true);
+    bookingPaymentService.resolveMultiServiceCheckoutPricing.mockResolvedValue({
+      amountDue: 0,
+      subtotal: 125,
+    });
+
+    const result = await service.bookMultiService('salon', {
+      serviceIds: ['face-plasma', 'face-pilling'],
+      blockStartTime: '2026-06-02T09:00:00.000Z',
+      employeeId: 'emp-1',
+      customer: { name: 'Alex', email: 'alex@example.com' },
+    });
+
+    expect(result.bookings).toHaveLength(2);
+  });
+
+  it('api-bug.7 — still requires online payment when amountDue > 0', async () => {
+    stripeIntegrationService.isConnectReady.mockReturnValue(true);
+    bookingPaymentService.resolveMultiServiceCheckoutPricing.mockResolvedValue({
+      amountDue: 40,
+      subtotal: 125,
+    });
+
+    await expect(
+      service.bookMultiService('salon', {
+        serviceIds: ['face-plasma', 'face-pilling'],
+        blockStartTime: '2026-06-02T09:00:00.000Z',
+        employeeId: 'emp-1',
+        customer: { name: 'Alex', email: 'alex@example.com' },
+      }),
+    ).rejects.toThrow('Online payment is required for this booking');
   });
 });

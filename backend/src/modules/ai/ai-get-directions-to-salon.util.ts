@@ -1,4 +1,5 @@
 import type { GetDirectionsToSalonAspect } from './ai-get-directions-to-salon.fixtures.js';
+import { isOpenBookingFromPushPrompt } from './ai-push-notifications.util.js';
 
 export const GET_DIRECTIONS_TO_SALON_INTENTS = [
   'get_directions_to_salon',
@@ -58,6 +59,7 @@ const CONSUMER_SUCCESS_SCREEN_NAV_BLOCK = new RegExp(
 );
 
 export function isGetDirectionsToSalonPrompt(prompt: string): boolean {
+  if (isOpenBookingFromPushPrompt(prompt)) return false;
   if (BOOKING_SUMMARY_BLOCK.test(prompt)) return false;
   if (CONSUMER_SUCCESS_SCREEN_NAV_BLOCK.test(prompt)) return false;
   if (/\bis\s+there\s+parking\b/i.test(prompt)) return false;

@@ -17,6 +17,11 @@ import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { ensureBookingManageToken } from '../../common/utils/booking-manage-token.util.js';
+import {
+  assertUuid,
+  assertUuidIfPresent,
+  assertUuidList,
+} from '../../common/utils/uuid-param.util.js';
 import { resolveCheckoutPaymentStatus } from '../booking/booking-payment-status.util.js';
 import { BookingService } from '../booking/booking.service.js';
 import { CustomerService } from '../customer/customer.service.js';
@@ -25,7 +30,13 @@ import {
   SlotStatus,
 } from '../schedule/entities/scheduling-slot.entity.js';
 import { SchedulingPeriod } from '../schedule/entities/scheduling-period.entity.js';
+import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import { TemplatePeriodType } from '../schedule/entities/scheduling-template-period.entity.js';
+import {
+  buildPublicOpeningHoursFromTemplates,
+  type PublicOpeningHours,
+} from './public-opening-hours.util.js';
+import { sanitizeGoogleMapEmbed } from '../../common/utils/google-map-embed.util.js';
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import {
   CreatePublicBookingDto,
@@ -271,6 +282,8 @@ export interface PublicBusinessProfile {
     defaultHours: number | null;
   };
   businessType?: string;
+  /** e2e-bug.50 — weekly open hours from schedule templates (omit when unknown). */
+  openingHours?: PublicOpeningHours;
 }
 
 export interface ProviderSlotPreview {
@@ -370,6 +383,8 @@ export class PublicBookingService {
     @InjectRepository(SchedulingPeriod)
     private schedulingPeriodRepo: Repository<SchedulingPeriod>,
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(ScheduleTemplate)
+    private scheduleTemplateRepo: Repository<ScheduleTemplate>,
     @Optional()
     private publicPreVisitIntakeService?: PublicPreVisitIntakeService,
     @Optional()
@@ -515,7 +530,12 @@ export class PublicBookingService {
         youtube: social.youtube,
       },
       location: {
-        mapEmbedHtml: location.mapEmbedHtml,
+        // e2e-bug.49 — never emit stored XSS payloads to public clients.
+        mapEmbedHtml: sanitizeGoogleMapEmbed(
+          typeof location.mapEmbedHtml === 'string'
+            ? location.mapEmbedHtml
+            : '',
+        ) ?? undefined,
       },
       publicBookingEnabled: publicBooking.enabled !== false,
       defaultPhoneCountryCode: inferDefaultPhoneCountryCode(
@@ -705,7 +725,21 @@ export class PublicBookingService {
       business,
       preferredLocale,
     );
-    return this.toPublicProfile(business, displayLocale);
+    const profile = this.toPublicProfile(business, displayLocale);
+    const openingHours = await this.loadPublicOpeningHours(business.id);
+    return openingHours ? { ...profile, openingHours } : profile;
+  }
+
+  /** e2e-bug.50 — derive hours from active schedule templates (not settings defaults). */
+  private async loadPublicOpeningHours(
+    businessId: string,
+  ): Promise<PublicOpeningHours | undefined> {
+    if (typeof this.scheduleTemplateRepo?.find !== 'function') return undefined;
+    const templates = await this.scheduleTemplateRepo.find({
+      where: { businessId, isDeleted: false, isActive: true },
+      relations: { periods: true },
+    });
+    return buildPublicOpeningHoursFromTemplates(templates);
   }
 
   async getCheckoutRecommendations(
@@ -875,11 +909,7 @@ export class PublicBookingService {
             continue;
           }
 
-          const rawSlots = await this.getEmployeeStartTimes(
-            business.id,
-            employee,
-            dateKey,
-          );
+          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
           const upcoming = rawSlots.filter((startTime) =>
             isWallClockSlotBookable(
               dateKey,
@@ -914,11 +944,7 @@ export class PublicBookingService {
         }
 
         if (matchedServices.length === 0) {
-          const rawSlots = await this.getEmployeeStartTimes(
-            business.id,
-            employee,
-            dateKey,
-          );
+          const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
           const upcoming = rawSlots.filter((startTime) =>
             isWallClockSlotBookable(
               dateKey,
@@ -987,6 +1013,9 @@ export class PublicBookingService {
     date: string,
     options?: { serviceId?: string; notBeforeTime?: string | null },
   ) {
+    // e2e-bug.117 — reject non-UUID employeeId before Postgres uuid 500.
+    assertUuid(employeeId, 'employeeId');
+    assertUuidIfPresent(options?.serviceId, 'serviceId');
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
@@ -996,11 +1025,7 @@ export class PublicBookingService {
     if (!employee) throw new NotFoundException('Provider not found');
 
     const tz = this.resolveWallClockTimezone(business);
-    const rawSlots = await this.getEmployeeStartTimes(
-      business.id,
-      employee,
-      date,
-    );
+    const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
     const upcoming = rawSlots.filter((startTime) =>
       isWallClockSlotBookable(
         date,
@@ -1080,11 +1105,7 @@ export class PublicBookingService {
     const slotMap = new Map<string, PublicServiceDaySlot>();
 
     for (const employee of employees) {
-      const rawSlots = await this.getEmployeeStartTimes(
-        business.id,
-        employee,
-        date,
-      );
+      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
       const upcoming = rawSlots.filter((startTime) =>
         isWallClockSlotBookable(
           date,
@@ -1268,11 +1289,7 @@ export class PublicBookingService {
     let hasScheduleMatch = false;
 
     for (const employee of employees) {
-      const rawSlots = await this.getEmployeeStartTimes(
-        business.id,
-        employee,
-        dateKey,
-      );
+      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
       const upcoming = rawSlots.filter((startTime) =>
         isWallClockSlotBookable(
           dateKey,
@@ -1491,6 +1508,20 @@ export class PublicBookingService {
     );
   }
 
+  async cancelCustomerSubscription(
+    slug: string,
+    customerId: string,
+    subscriptionId: string,
+  ) {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    return this.subscriptionsService.cancelCustomerSubscription(
+      business.id,
+      customerId,
+      subscriptionId,
+    );
+  }
+
   async getActiveCustomerSubscriptionForService(
     slug: string,
     customerId: string,
@@ -1512,11 +1543,15 @@ export class PublicBookingService {
     startTime: string,
     locale?: string,
   ) {
+    // e2e-bug.116 — reject missing/malformed startTime before Invalid Date
+    // reaches Postgres as a leaked timestamp syntax 500.
+    assertUuid(employeeId, 'employeeId');
+    const start = this.parseRequiredIsoDate(startTime, 'startTime');
+
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
 
     let { services } = await this.getServices(slug, employeeId, locale);
-    const start = new Date(startTime);
 
     const allowedIds = await this.bookingService.getAllowedServiceIdsAtInstant(
       business.id,
@@ -1635,11 +1670,7 @@ export class PublicBookingService {
 
     for (const dateKey of scanDateKeys) {
       for (const employee of employees) {
-        const daySlots = await this.getEmployeeStartTimes(
-          business.id,
-          employee,
-          dateKey,
-        );
+        const daySlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
 
         for (const startTime of daySlots) {
           const timeSlot = formatTimeDisplay(startTime);
@@ -1788,6 +1819,21 @@ export class PublicBookingService {
     });
     if (!service) throw new NotFoundException('Service not found');
 
+    // e2e-bug.28 — validate subscription credit before returning a $0 quote preview.
+    if (dto.useSubscriptionId) {
+      if (!authenticatedCustomerId) {
+        throw new UnauthorizedException(
+          'Sign in to use a subscription for this visit',
+        );
+      }
+      await this.subscriptionsService.assertCanConsume(
+        business.id,
+        dto.useSubscriptionId,
+        authenticatedCustomerId,
+        dto.serviceId,
+      );
+    }
+
     return this.bookingPaymentService.resolveCheckoutPricing(
       business.id,
       service,
@@ -1798,6 +1844,7 @@ export class PublicBookingService {
         promoCode: dto.promoCode,
         loyaltyPointsToRedeem: dto.loyaltyPointsToRedeem,
         purchasePlanId: dto.purchasePlanId,
+        useSubscriptionId: dto.useSubscriptionId,
         paxCount: dto.paxCount,
       },
       authenticatedCustomerId,
@@ -2013,6 +2060,8 @@ export class PublicBookingService {
   }
 
   async getPublicPackage(slug: string, packageId: string, locale?: string) {
+    // e2e-bug.117 — reject non-UUID packageId before Postgres uuid 500.
+    assertUuid(packageId, 'packageId');
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const graceHours = resolvePackageCheckoutGraceHours(business.settings);
@@ -2064,7 +2113,10 @@ export class PublicBookingService {
       slug,
       packageId,
     );
-    return this.suggestMultiServiceBlock(slug, serviceIds);
+    // e2e-bug.107 — curated packages are exempt from multi-service maxDurationMinutes.
+    return this.suggestMultiServiceBlock(slug, serviceIds, {
+      skipDurationCap: true,
+    });
   }
 
   async getPackageBlockDaySlots(slug: string, packageId: string, date: string) {
@@ -2072,7 +2124,9 @@ export class PublicBookingService {
       slug,
       packageId,
     );
-    return this.getMultiServiceBlockDaySlots(slug, serviceIds, date);
+    return this.getMultiServiceBlockDaySlots(slug, serviceIds, date, {
+      skipDurationCap: true,
+    });
   }
 
   async getPackageBlockProviders(
@@ -2140,6 +2194,13 @@ export class PublicBookingService {
     }
 
     const serviceIds = this.packagesService.expectedLineServiceIds(pkg);
+    // e2e-bug.107 — packages skip multi-service maxDurationMinutes (curated bundles).
+    // Ad hoc multi-service carts still enforce the cap via bookMultiService.
+    await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      serviceIds,
+      { skipDurationCap: true },
+    );
     const services = await this.loadOrderedMultiServiceLines(
       business.id,
       serviceIds,
@@ -2225,6 +2286,14 @@ export class PublicBookingService {
       customer.id,
       pricing.amountDue,
       pricing.currency,
+      {
+        ...(typeof dto.metadata?.stripePaymentIntentId === 'string'
+          ? { stripePaymentIntentId: dto.metadata.stripePaymentIntentId }
+          : {}),
+        ...(typeof dto.metadata?.stripeConnectAccountId === 'string'
+          ? { stripeConnectAccountId: dto.metadata.stripeConnectAccountId }
+          : {}),
+      },
     );
 
     const paymentStatus = dto.markPaid
@@ -2288,6 +2357,8 @@ export class PublicBookingService {
   }
 
   async previewMultiServiceSelection(slug: string, serviceIds: string[]) {
+    // e2e-bug.117 — reject non-UUID serviceIds before Postgres uuid 500.
+    assertUuidList(serviceIds, 'serviceIds');
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     return this.multiServiceBookingsService.previewTotals(
@@ -2300,6 +2371,7 @@ export class PublicBookingService {
     slug: string,
     serviceIds: string[],
     date: string,
+    options?: { skipDurationCap?: boolean },
   ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -2309,6 +2381,7 @@ export class PublicBookingService {
     const preview = await this.multiServiceBookingsService.previewTotals(
       business.id,
       normalizedIds,
+      options,
     );
     const services = await this.loadOrderedMultiServiceLines(
       business.id,
@@ -2372,7 +2445,11 @@ export class PublicBookingService {
     };
   }
 
-  async suggestMultiServiceBlock(slug: string, serviceIds: string[]) {
+  async suggestMultiServiceBlock(
+    slug: string,
+    serviceIds: string[],
+    options?: { skipDurationCap?: boolean },
+  ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const normalizedIds = normalizeMultiServiceIds(serviceIds);
@@ -2381,6 +2458,7 @@ export class PublicBookingService {
     const preview = await this.multiServiceBookingsService.previewTotals(
       business.id,
       normalizedIds,
+      options,
     );
     const services = await this.loadOrderedMultiServiceLines(
       business.id,
@@ -2410,12 +2488,12 @@ export class PublicBookingService {
       const dateKey = addDaysToDateKey(todayKey, offset, tz);
       for (const employee of employees) {
         const daySlots = await this.getMultiServiceBlockStartCandidates(
-          business.id,
-          employee,
-          dateKey,
-          normalizedIds,
-          blockDurationMinutes,
-        );
+        business.id,
+        employee,
+        dateKey,
+        normalizedIds,
+        blockDurationMinutes,
+      );
         for (const startTime of daySlots) {
           if (
             !isWallClockSlotBookable(
@@ -2640,6 +2718,19 @@ export class PublicBookingService {
       authenticatedCustomerId,
     );
     const pricingMeta = this.bookingPaymentService.pricingMetadata(pricing);
+    // e2e-bug.35 — stamp Stripe payment ids on every line so cancel/refund works
+    // regardless of which sibling the customer/staff cancels.
+    const paymentStripeMeta = {
+      ...(typeof dto.metadata?.stripePaymentIntentId === 'string'
+        ? { stripePaymentIntentId: dto.metadata.stripePaymentIntentId }
+        : {}),
+      ...(typeof dto.metadata?.stripeConnectAccountId === 'string'
+        ? { stripeConnectAccountId: dto.metadata.stripeConnectAccountId }
+        : {}),
+      ...(typeof dto.metadata?.stripeSessionId === 'string'
+        ? { stripeSessionId: dto.metadata.stripeSessionId }
+        : {}),
+    };
 
     let appointments: Array<{
       serviceId: string;
@@ -2745,6 +2836,7 @@ export class PublicBookingService {
         serviceNames,
         schedulingMode: settings.schedulingMode,
         ...pricingMeta,
+        ...paymentStripeMeta,
       },
     });
 
@@ -2771,6 +2863,7 @@ export class PublicBookingService {
             groupLabel: serviceNames.join(' + '),
             schedulingMode: settings.schedulingMode,
             ...(index === 0 ? pricingMeta : {}),
+            ...paymentStripeMeta,
             ...this.resolvePublicBookingReminderMetadata(
               business,
               dto.customer,
@@ -2817,6 +2910,7 @@ export class PublicBookingService {
     const preview = await this.multiServiceBookingsService.previewTotals(
       business.id,
       serviceIds,
+      { skipDurationCap: true },
     );
     const services = await this.loadOrderedMultiServiceLines(
       business.id,
@@ -3164,6 +3258,14 @@ export class PublicBookingService {
             dto.metadata?.subscriptionPricePaid != null
               ? Number(dto.metadata.subscriptionPricePaid)
               : undefined,
+          stripePaymentIntentId:
+            typeof dto.metadata?.stripePaymentIntentId === 'string'
+              ? dto.metadata.stripePaymentIntentId
+              : undefined,
+          stripeConnectAccountId:
+            typeof dto.metadata?.stripeConnectAccountId === 'string'
+              ? dto.metadata.stripeConnectAccountId
+              : undefined,
         },
       );
       customerSubscriptionId = purchased.id;
@@ -3291,10 +3393,17 @@ export class PublicBookingService {
       booking.id,
     );
 
-    const manageToken = await ensureBookingManageToken(
-      this.bookingRepo,
-      booking.id,
-    );
+    // e2e-bug.120 / api-bug.6 — prefer the token stamped on create so the HTTP
+    // response cannot diverge from DB when confirmation-email ensure races.
+    // Fall back to locked ensure for legacy rows that predate create-stamping.
+    const stampedToken =
+      typeof booking.metadata?.manageToken === 'string' &&
+      booking.metadata.manageToken.length > 0
+        ? booking.metadata.manageToken
+        : null;
+    const manageToken =
+      stampedToken ??
+      (await ensureBookingManageToken(this.bookingRepo, booking.id));
 
     if (
       dto.preVisitIntakeId &&
@@ -3333,6 +3442,22 @@ export class PublicBookingService {
         'Public booking is disabled for this business',
       );
     }
+  }
+
+  /** e2e-bug.116 — ISO date query params must parse before SQL timestamp binds. */
+  private parseRequiredIsoDate(value: string, fieldName: string): Date {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO 8601 date string`,
+      );
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO 8601 date string`,
+      );
+    }
+    return parsed;
   }
 
   private async filterStartTimesWithAnyBookableService(
@@ -3472,11 +3597,7 @@ export class PublicBookingService {
 
     for (let offset = 0; offset < SCAN_DAYS; offset++) {
       const dateKey = addDaysToDateKey(fromDateKey, offset, timeZone);
-      const daySlots = await this.getEmployeeStartTimes(
-        businessId,
-        employee,
-        dateKey,
-      );
+      const daySlots = await this.getEmployeeStartTimes(businessId, employee, dateKey);
       const upcoming = daySlots.filter((startTime) =>
         isWallClockSlotBookable(
           dateKey,

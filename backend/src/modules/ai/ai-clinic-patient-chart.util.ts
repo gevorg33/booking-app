@@ -30,7 +30,7 @@ export interface ParsedExplainPatientChartRequest {
 const UNICODE_WORD_SUFFIX = '[\\p{L}\\p{M}\\u055B]*';
 
 const EXPLAIN_CHART_VERB = new RegExp(
-  String.raw`\b(explain|show|summarize|summary|review|tell\s+me\s+about|list|what|can\s+you)\b|(?:\p{L}*բացատր${UNICODE_WORD_SUFFIX}|բացատր${UNICODE_WORD_SUFFIX}|\p{L}*ցույց${UNICODE_WORD_SUFFIX}|ցույց${UNICODE_WORD_SUFFIX}|\p{L}*ամփոփ${UNICODE_WORD_SUFFIX}|ամփոփ${UNICODE_WORD_SUFFIX}|\p{L}*պատմ${UNICODE_WORD_SUFFIX}|պատմ${UNICODE_WORD_SUFFIX}|\p{L}*ներկայացր${UNICODE_WORD_SUFFIX}|\p{L}*վերանայ${UNICODE_WORD_SUFFIX}|\p{L}*ցուցակավոր${UNICODE_WORD_SUFFIX}|ինչ${UNICODE_WORD_SUFFIX}|կարող\s+ես)|(?:[Оо]бъясн${UNICODE_WORD_SUFFIX}|[Пп]окаж${UNICODE_WORD_SUFFIX}|[Рр]езюмир${UNICODE_WORD_SUFFIX}|[Рр]асскаж${UNICODE_WORD_SUFFIX}|[Оо]пиш${UNICODE_WORD_SUFFIX}|[Пп]росмотр${UNICODE_WORD_SUFFIX}|[Пп]еречисл${UNICODE_WORD_SUFFIX}|[Кк]акие${UNICODE_WORD_SUFFIX}|[Чч]то${UNICODE_WORD_SUFFIX}|[Мм]ожешь${UNICODE_WORD_SUFFIX})`,
+  String.raw`\b(explain|show|summarize|summary|review|tell\s+me\s+about|list|what|can\s+you|open|pull\s+up)\b|(?:\p{L}*բացատր${UNICODE_WORD_SUFFIX}|բացատր${UNICODE_WORD_SUFFIX}|\p{L}*ցույց${UNICODE_WORD_SUFFIX}|ցույց${UNICODE_WORD_SUFFIX}|\p{L}*ամփոփ${UNICODE_WORD_SUFFIX}|ամփոփ${UNICODE_WORD_SUFFIX}|\p{L}*պատմ${UNICODE_WORD_SUFFIX}|պատմ${UNICODE_WORD_SUFFIX}|\p{L}*ներկայացր${UNICODE_WORD_SUFFIX}|\p{L}*վերանայ${UNICODE_WORD_SUFFIX}|\p{L}*ցուցակավոր${UNICODE_WORD_SUFFIX}|ինչ${UNICODE_WORD_SUFFIX}|կարող\s+ես)|(?:[Оо]бъясн${UNICODE_WORD_SUFFIX}|[Пп]окаж${UNICODE_WORD_SUFFIX}|[Рр]езюмир${UNICODE_WORD_SUFFIX}|[Рр]асскаж${UNICODE_WORD_SUFFIX}|[Оо]пиш${UNICODE_WORD_SUFFIX}|[Пп]росмотр${UNICODE_WORD_SUFFIX}|[Пп]еречисл${UNICODE_WORD_SUFFIX}|[Кк]акие${UNICODE_WORD_SUFFIX}|[Чч]то${UNICODE_WORD_SUFFIX}|[Мм]ожешь${UNICODE_WORD_SUFFIX})`,
   'iu',
 );
 const CHART_CONTEXT = new RegExp(
@@ -64,6 +64,10 @@ export function isExplainPatientChartPrompt(prompt: string): boolean {
   }
 
   if (/\bpatient\s+chart\b/i.test(prompt) && /\b(for|about)\b/i.test(prompt)) {
+    return true;
+  }
+
+  if (/\bchart\s+(?:for|about)\b/i.test(prompt)) {
     return true;
   }
 

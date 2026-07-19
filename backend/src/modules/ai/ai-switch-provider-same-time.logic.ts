@@ -1,17 +1,20 @@
-import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
 import { parseSwitchProviderSameTimeFromPrompt } from './ai-switch-provider-same-time.util.js';
 import type { SwitchProviderSameTimeMode } from './ai-switch-provider-same-time.fixtures.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
+import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
 
 export interface SwitchProviderSameTimeLogicDeps {
   employeeRepo: Pick<Repository<Employee>, 'find'>;
   serviceRepo: Pick<Repository<Service>, 'findOne'>;
   publicBookingService: Pick<PublicBookingService, 'getServiceDaySlots'>;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -84,7 +87,12 @@ export async function handleSwitchProviderSameTimeLogic(
     );
   }
 
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) {
     return failure('switch_provider_same_time', 'Business not found.', {
       mode: parsed.mode,

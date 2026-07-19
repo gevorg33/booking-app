@@ -45,6 +45,7 @@ export type PublicBookingHarnessDeps = {
   slotRepo?: unknown;
   schedulingPeriodRepo?: unknown;
   bookingRepo?: unknown;
+  scheduleTemplateRepo?: unknown;
   publicPreVisitIntakeService?: unknown;
   clinicTestOrderBookingRequestService?: unknown;
 };
@@ -92,6 +93,7 @@ export function createPublicBookingServiceHarness(
     deps.slotRepo ?? EMPTY,
     deps.schedulingPeriodRepo ?? EMPTY,
     (deps.bookingRepo ?? createEmptyBookingPopularityRepoMock()) as any,
+    deps.scheduleTemplateRepo as never,
     deps.publicPreVisitIntakeService as never,
     deps.clinicTestOrderBookingRequestService as never,
   );

@@ -1,3 +1,4 @@
+import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import {
   guidedBookingProgress,
   guidedBookingStepLabel,
@@ -8,9 +9,18 @@ import {
 export function BookingProgressIndicator({
   pathname,
   slotSelected = false,
+  copy,
 }: {
   pathname: string;
   slotSelected?: boolean;
+  copy: Pick<
+    ConsumerCopy,
+    | 'guidedStepWelcome'
+    | 'guidedStepSalon'
+    | 'guidedStepService'
+    | 'guidedStepSlot'
+    | 'guidedStepConfirm'
+  >;
 }) {
   const step = resolveGuidedBookingStep(pathname, { slotSelected });
   const progress = guidedBookingProgress(step);
@@ -26,7 +36,7 @@ export function BookingProgressIndicator({
           marginBottom: 6,
         }}
       >
-        <span>{guidedBookingStepLabel(step)}</span>
+        <span>{guidedBookingStepLabel(step, copy)}</span>
         <span>{progress}%</span>
       </div>
       <div
@@ -41,7 +51,7 @@ export function BookingProgressIndicator({
           style={{
             width: `${progress}%`,
             height: '100%',
-            background: 'var(--ion-color-primary, #7c3aed)',
+            background: 'var(--tenant-primary, var(--ion-color-primary, #7c3aed))',
             transition: 'width 180ms ease',
           }}
         />
@@ -65,7 +75,10 @@ function StepDots({ activeStep }: { activeStep: GuidedBookingStep }) {
             flex: 1,
             height: 4,
             borderRadius: 999,
-            background: index <= activeIndex ? 'var(--ion-color-primary, #7c3aed)' : '#e5e7eb',
+            background:
+              index <= activeIndex
+                ? 'var(--tenant-primary, var(--ion-color-primary, #7c3aed))'
+                : '#e5e7eb',
           }}
         />
       ))}

@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS } from './ai-provider-push-setup.fixtures.js';
 import {
   isEnablePushNotificationsPrompt,
+  isExplainPushRegistrationStatusPrompt,
   isExplainPushSetupPrompt,
   rescueProviderPushSetupIntent,
 } from './ai-provider-push-setup.util.js';
@@ -35,6 +36,28 @@ describe('ai-provider-push-setup.util', () => {
     expect(
       isEnablePushNotificationsPrompt(
         'Configure push notifications to use our business time format',
+      ),
+    ).toBe(false);
+  });
+
+  it('prefers status check over enable/explain for status phrasing', () => {
+    expect(
+      rescueProviderPushSetupIntent(
+        'Did my provider app push registration work?',
+        'unknown',
+      )?.action,
+    ).toBe('explain_push_registration_status');
+  });
+
+  it('does not treat generic setup/enable phrasing as a status check', () => {
+    expect(
+      isExplainPushRegistrationStatusPrompt(
+        'How do push notifications work in the provider app?',
+      ),
+    ).toBe(false);
+    expect(
+      isExplainPushRegistrationStatusPrompt(
+        'Enable push notifications for new bookings',
       ),
     ).toBe(false);
   });

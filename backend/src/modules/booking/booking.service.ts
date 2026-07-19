@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { formatBookingOverlapConflict } from '../../common/utils/booking-conflict-messages.util.js';
+import { generateBookingManageToken } from '../../common/utils/booking-manage-token.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,
@@ -49,6 +50,7 @@ import {
 import { LoyaltyAwardService } from '../loyalty/loyalty-award.service.js';
 import { SchedulingResourcesService } from '../resources/scheduling-resources.service.js';
 import { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import { GiftCardsService } from '../gift-cards/gift-cards.service.js';
 import { MultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.entity.js';
 import { buildSequentialAppointments } from '../../common/utils/multi-service-booking.util.js';
 import { resolveMultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
@@ -58,6 +60,7 @@ import {
 } from './booking-payment-summary.util.js';
 import { PhiFieldService } from '../compliance/phi-field.service.js';
 import { BusinessService } from '../business/business.service.js';
+import { BookingRefundService } from './booking-refund.service.js';
 
 export interface AppointmentListItem {
   id: string;
@@ -122,6 +125,8 @@ export class BookingService {
     private subscriptionsService: ServiceSubscriptionsService,
     private phiFieldService: PhiFieldService,
     private businessService: BusinessService,
+    private bookingRefundService: BookingRefundService,
+    private giftCardsService: GiftCardsService,
   ) {}
 
   private async loadBusinessEntity(businessId: string): Promise<Business> {
@@ -132,14 +137,38 @@ export class BookingService {
     return business;
   }
 
+  /**
+   * Staff BusinessMember user ids are bare UUIDs.
+   * api-bug.1 / e2e-bug.97 — PublicCustomerBookingService passes `customer:<uuid>`
+   * as the actor for guest/self-service cancel/reschedule; that must never hit
+   * `ensureMember` (Postgres rejects the non-UUID string).
+   */
+  private isStaffMemberUserId(userId?: string): userId is string {
+    if (!userId) return false;
+    if (userId.startsWith('customer:')) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      userId,
+    );
+  }
+
   private async resolvePhiAuditActor(
     businessId: string,
     userId?: string,
   ): Promise<
     | { userId: string; role: string; ip?: string | null }
-    | { role: 'public' | 'system'; userId: null; ip?: string | null }
+    | {
+        role: 'public' | 'system' | 'customer';
+        userId: null;
+        ip?: string | null;
+      }
   > {
     if (!userId) return { role: 'public', userId: null };
+    if (userId.startsWith('customer:')) {
+      return { role: 'customer', userId: null };
+    }
+    if (!this.isStaffMemberUserId(userId)) {
+      return { role: 'public', userId: null };
+    }
     const membership = await this.businessService.ensureMember(
       businessId,
       userId,
@@ -152,7 +181,9 @@ export class BookingService {
     userId?: string,
     ip?: string | null,
   ) {
-    if (!userId) return null;
+    // e2e-bug.97 — update()/create() return findOne({ staffUserId: actor }).
+    // Guest `customer:<uuid>` actors must not query BusinessMember.
+    if (!this.isStaffMemberUserId(userId)) return null;
     const membership = await this.businessService.ensureMember(
       businessId,
       userId,
@@ -351,58 +382,54 @@ export class BookingService {
     const slotServiceFilter = options?.sameVisitMultiService
       ? undefined
       : dto.serviceId;
-    const slotsToLock = await this.findSlotsInWindow(
-      businessId,
-      dto.employeeId,
-      startTime,
-      endTime,
-      slotServiceFilter,
-    );
 
+    let lockedSlotsCount = 0;
     const booking = await this.dataSource.transaction(async (manager) => {
-      if (slotsToLock.length > 0) {
-        // Lock ALL micro-slots in the booking window (clinic-app pattern)
-        for (const slot of slotsToLock) {
-          slot.appointmentCount += 1;
-          if (slot.appointmentCount >= slot.maxAppointmentCount) {
-            slot.status = SlotStatus.BOOKED;
-          }
-          await manager.save(SchedulingSlot, slot);
-        }
-      } else {
-        // No scheduled slots — fall back to engine / conflict check
-        const conflictQb = manager
-          .createQueryBuilder(Booking, 'booking')
-          .setLock('pessimistic_write')
-          .where('booking.employee_id = :employeeId', {
-            employeeId: dto.employeeId,
-          })
-          .andWhere('booking.business_id = :businessId', { businessId })
-          .andWhere('booking.status NOT IN (:...excludedStatuses)', {
-            excludedStatuses: [BookingStatus.CANCELLED],
-          })
-          .andWhere('booking.startTime < :endTime', { endTime })
-          .andWhere('booking.endTime > :startTime', { startTime });
+      // api-bug.4 / e2e-bug.119 — claim slot capacity and serialize against
+      // overlapping bookings inside the transaction under FOR UPDATE.
+      // Pre-transaction reads of appointmentCount were racy: concurrent
+      // public POST bookings all saw "free" and all inserted confirmed rows
+      // sharing one slot_id.
+      const claimedSlots = await this.claimSlotsInWindowForUpdate(
+        manager,
+        businessId,
+        dto.employeeId,
+        startTime,
+        endTime,
+        slotServiceFilter,
+      );
+      lockedSlotsCount = claimedSlots.length;
 
-        if (options?.sameVisitMultiService && dto.multiServiceGroupId) {
-          conflictQb.andWhere(
-            '(booking.multiServiceGroupId IS NULL OR booking.multiServiceGroupId != :groupId)',
-            { groupId: dto.multiServiceGroupId },
-          );
-        }
+      const conflictQb = manager
+        .createQueryBuilder(Booking, 'booking')
+        .setLock('pessimistic_write')
+        .where('booking.employee_id = :employeeId', {
+          employeeId: dto.employeeId,
+        })
+        .andWhere('booking.business_id = :businessId', { businessId })
+        .andWhere('booking.status NOT IN (:...excludedStatuses)', {
+          excludedStatuses: [BookingStatus.CANCELLED],
+        })
+        .andWhere('booking.startTime < :endTime', { endTime })
+        .andWhere('booking.endTime > :startTime', { startTime });
 
-        const conflicts = await conflictQb.getMany();
+      if (options?.sameVisitMultiService && dto.multiServiceGroupId) {
+        conflictQb.andWhere(
+          '(booking.multiServiceGroupId IS NULL OR booking.multiServiceGroupId != :groupId)',
+          { groupId: dto.multiServiceGroupId },
+        );
+      }
 
-        if (conflicts.length > 0) {
-          const existing = conflicts[0];
-          throw new ConflictException(
-            formatBookingOverlapConflict({
-              employeeName: existing?.employee?.name,
-              startTime: existing?.startTime,
-              existingCustomerName: existing?.customer?.name,
-            }),
-          );
-        }
+      const conflicts = await conflictQb.getMany();
+      if (conflicts.length > 0) {
+        const existing = conflicts[0];
+        throw new ConflictException(
+          formatBookingOverlapConflict({
+            employeeName: existing?.employee?.name,
+            startTime: existing?.startTime,
+            existingCustomerName: existing?.customer?.name,
+          }),
+        );
       }
 
       const paymentStatus =
@@ -425,6 +452,9 @@ export class BookingService {
               subscriptionCreditUsed: true,
             }
           : {}),
+        // api-bug.6 / e2e-bug.120 — stamp manage token with the booking row so
+        // create response and confirmation email cannot mint competing tokens.
+        manageToken: generateBookingManageToken(),
       };
       const encryptedPayload =
         await this.phiFieldService.encryptBookingForStorage(businessEntity, {
@@ -449,7 +479,7 @@ export class BookingService {
         virtualMeetingUrl: dto.virtualMeetingUrl,
         metadata: encryptedPayload.metadata ?? bookingMetadata,
         // Store the first slot id for backward compat
-        slotId: slotsToLock[0]?.id,
+        slotId: claimedSlots[0]?.id,
       });
 
       const saved = await manager.save(newBooking);
@@ -484,7 +514,7 @@ export class BookingService {
         serviceId: booking.serviceId,
         startTime: booking.startTime,
         endTime: booking.endTime,
-        lockedSlotsCount: slotsToLock.length,
+        lockedSlotsCount: lockedSlotsCount,
       },
       userId,
     });
@@ -501,7 +531,9 @@ export class BookingService {
       auditActor,
     );
 
-    return this.findOne(booking.id, { staffUserId: userId });
+    return this.findOne(booking.id, {
+      staffUserId: this.isStaffMemberUserId(userId) ? userId : undefined,
+    });
   }
 
   async update(
@@ -849,7 +881,10 @@ export class BookingService {
       userId,
     });
 
-    return this.findOne(booking.id, { staffUserId: userId });
+    // e2e-bug.97 — do not treat guest/self-service `customer:` actors as staff.
+    return this.findOne(booking.id, {
+      staffUserId: this.isStaffMemberUserId(userId) ? userId : undefined,
+    });
   }
 
   async findAll(
@@ -883,8 +918,10 @@ export class BookingService {
           qb.andWhere('booking.employee_id = :employeeId', { employeeId });
         }
 
+        // e2e-bug.104 / e2e-bug.149 — DB column is camelCase "startTime",
+        // not snake_case start_time (tour_group_checkout + tour week range).
         qb.andWhere(
-          `(booking.start_time BETWEEN :weekStart AND :weekEnd
+          `(booking.startTime BETWEEN :weekStart AND :weekEnd
             OR (
               booking.metadata->>'tourStartDate' IS NOT NULL
               AND (booking.metadata->>'tourStartDate') <= :rangeEnd
@@ -893,7 +930,7 @@ export class BookingService {
           { weekStart, weekEnd, rangeStart, rangeEnd },
         );
 
-        return qb.orderBy('booking.start_time', 'ASC').getMany();
+        return qb.orderBy('booking.startTime', 'ASC').getMany();
       }
     }
 
@@ -1119,13 +1156,17 @@ export class BookingService {
     return booking;
   }
 
+  /**
+   * Cancel a booking. Concurrent callers serialize on a row lock; losers get
+   * `didCancel: false` so callers can skip re-notify (e2e-bug.121 / api-bug.5).
+   */
   async cancel(
     id: string,
     reason?: string,
     userId?: string,
     expectedUpdatedAt?: string,
     options?: { skipGroupCancel?: boolean },
-  ): Promise<Booking> {
+  ): Promise<{ booking: Booking; didCancel: boolean }> {
     const booking = await this.findOne(id);
     this.assertExpectedUpdatedAt(booking, expectedUpdatedAt);
 
@@ -1149,44 +1190,69 @@ export class BookingService {
       }
     }
 
-    const wasAlreadyCancelled = booking.status === BookingStatus.CANCELLED;
+    // e2e-bug.165 — serialize concurrent cancels with a row lock so the second
+    // writer cannot silently overwrite cancellationReason / paymentStatus.
+    const { cancelled, didCancel } = await this.dataSource.transaction(
+      async (manager) => {
+        const locked = await manager.findOne(Booking, {
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+          relations: { employee: true, service: true, customer: true },
+        });
+        if (!locked) throw new NotFoundException('Booking not found');
+        this.assertExpectedUpdatedAt(locked, expectedUpdatedAt);
+
+        if (locked.status === BookingStatus.CANCELLED) {
+          return { cancelled: locked, didCancel: false };
+        }
+
+        const previousStatus = locked.status;
+        const shouldAttemptRefund = this.bookingNeedsOnlineRefund(locked);
+        locked.status = BookingStatus.CANCELLED;
+        locked.cancellationReason = reason || 'Cancelled';
+        // Keep PAID / PARTIALLY_PAID so refund eligibility is not wiped before
+        // Stripe is called (applyPaymentStatusOnStatusChange would set
+        // not_applicable and hide that a refund is owed).
+        if (!shouldAttemptRefund) {
+          this.applyPaymentStatusOnStatusChange(
+            locked,
+            previousStatus,
+            BookingStatus.CANCELLED,
+          );
+        }
+        await manager.save(locked);
+        return { cancelled: locked, didCancel: true };
+      },
+    );
 
     await this.releaseSlotsByWindow(
-      booking.employeeId,
-      booking.businessId,
-      booking.startTime,
-      booking.endTime,
+      cancelled.employeeId,
+      cancelled.businessId,
+      cancelled.startTime,
+      cancelled.endTime,
     );
     await this.reconcileStuckSlotsInWindow(
-      booking.businessId,
-      booking.employeeId,
-      booking.startTime,
-      booking.endTime,
+      cancelled.businessId,
+      cancelled.employeeId,
+      cancelled.startTime,
+      cancelled.endTime,
     );
 
-    if (!wasAlreadyCancelled) {
-      const previousStatus = booking.status;
-      booking.status = BookingStatus.CANCELLED;
-      booking.cancellationReason = reason || 'Cancelled';
-      this.applyPaymentStatusOnStatusChange(
-        booking,
-        previousStatus,
-        BookingStatus.CANCELLED,
-      );
-      await this.bookingRepo.save(booking);
-
+    if (didCancel) {
       await this.subscriptionsService.restoreCreditForBooking(id);
+      // e2e-bug.38 — restore gift-card balance / service credits spent on this booking.
+      await this.giftCardsService.restoreRedemptionForBooking(id);
 
       await this.eventStore.publish({
         eventType: EventType.BOOKING_CANCELLED,
         aggregateType: 'booking',
         aggregateId: id,
-        businessId: booking.businessId,
+        businessId: cancelled.businessId,
         payload: {
           reason,
-          employeeId: booking.employeeId,
-          startTime: booking.startTime.toISOString(),
-          endTime: booking.endTime.toISOString(),
+          employeeId: cancelled.employeeId,
+          startTime: cancelled.startTime.toISOString(),
+          endTime: cancelled.endTime.toISOString(),
         },
         userId,
       });
@@ -1195,19 +1261,45 @@ export class BookingService {
         eventType: EventType.BOOKING_UPDATED,
         aggregateType: 'booking',
         aggregateId: id,
-        businessId: booking.businessId,
+        businessId: cancelled.businessId,
         payload: {
           bookingId: id,
           status: BookingStatus.CANCELLED,
-          employeeId: booking.employeeId,
-          startTime: booking.startTime.toISOString(),
-          endTime: booking.endTime.toISOString(),
+          employeeId: cancelled.employeeId,
+          startTime: cancelled.startTime.toISOString(),
+          endTime: cancelled.endTime.toISOString(),
         },
         userId,
       });
     }
 
-    return booking;
+    // e2e-bug.165 — every cancel surface (dashboard / provider / customer)
+    // refunds paid-online bookings. Idempotent via stripeRefundId.
+    await this.attemptCancelRefund(cancelled);
+    return { booking: await this.findOne(id), didCancel };
+  }
+
+  /** True when checkout stored a Stripe PI that has not been refunded yet. */
+  private bookingNeedsOnlineRefund(booking: Booking): boolean {
+    const metadata = (booking.metadata ?? {}) as Record<string, unknown>;
+    const paymentIntentId = metadata.stripePaymentIntentId;
+    return (
+      typeof paymentIntentId === 'string' &&
+      paymentIntentId.length > 0 &&
+      !metadata.stripeRefundId
+    );
+  }
+
+  private async attemptCancelRefund(booking: Booking): Promise<void> {
+    if (!this.bookingNeedsOnlineRefund(booking)) return;
+    try {
+      const business = await this.loadBusinessEntity(booking.businessId);
+      await this.bookingRefundService.refundBookingPayment(business, booking);
+    } catch (err) {
+      this.logger.warn(
+        `Cancel refund failed for ${booking.id}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
   }
 
   /** Re-activate a cancelled booking and re-lock schedule slots when possible. */
@@ -2182,6 +2274,56 @@ export class BookingService {
     return qb.getMany();
   }
 
+  /**
+   * api-bug.4 / e2e-bug.119 — lock every micro-slot in the window, then claim
+   * still-available capacity. Locking before filtering prevents two concurrent
+   * creates from both reading appointmentCount=0 and both inserting a booking
+   * for the same employee/time/slot_id.
+   */
+  private async claimSlotsInWindowForUpdate(
+    manager: EntityManager,
+    businessId: string,
+    employeeId: string,
+    startTime: Date,
+    endTime: Date,
+    serviceId?: string,
+  ): Promise<SchedulingSlot[]> {
+    const windowSlots = await manager
+      .createQueryBuilder(SchedulingSlot, 'slot')
+      .setLock('pessimistic_write')
+      .where('slot.business_id = :businessId', { businessId })
+      .andWhere('slot.employee_id = :employeeId', { employeeId })
+      .andWhere('slot.startTime >= :startTime', { startTime })
+      .andWhere('slot.startTime < :endTime', { endTime })
+      .orderBy('slot.startTime', 'ASC')
+      .addOrderBy('slot.id', 'ASC')
+      .getMany();
+
+    const claimable = windowSlots.filter(
+      (slot) =>
+        slot.status === SlotStatus.AVAILABLE &&
+        slot.appointmentCount < slot.maxAppointmentCount &&
+        (!serviceId || this.slotAllowsService(slot, serviceId)),
+    );
+
+    // e2e-bug.119 — micro-slots exist but none have capacity: reject hard so a
+    // concurrent loser cannot insert another confirmed booking on the same
+    // slot_id (even if the overlapping-booking FOR UPDATE query is empty).
+    if (windowSlots.length > 0 && claimable.length === 0) {
+      throw new ConflictException('Time slot is already booked');
+    }
+
+    for (const slot of claimable) {
+      slot.appointmentCount += 1;
+      if (slot.appointmentCount >= slot.maxAppointmentCount) {
+        slot.status = SlotStatus.BOOKED;
+      }
+      await manager.save(SchedulingSlot, slot);
+    }
+
+    return claimable;
+  }
+
   private mergeExcludeBookingIds(
     bookingId: string,
     extra?: string[],
@@ -2357,6 +2499,7 @@ export class BookingService {
   ): Promise<SchedulingSlot[]> {
     const qb = slotRepo
       .createQueryBuilder('slot')
+      .setLock('pessimistic_write')
       .where('slot.business_id = :businessId', { businessId })
       .andWhere('slot.employee_id = :employeeId', { employeeId })
       .andWhere('slot.startTime >= :startTime', { startTime })

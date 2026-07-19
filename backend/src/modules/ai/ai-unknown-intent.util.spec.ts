@@ -206,6 +206,46 @@ describe('ai-unknown-intent.util (pipe-1.8.1)', () => {
     expect(result.details.pipeMarker).toBe('pipe-1.8.1');
     expect(result.details.suggestions?.length).toBeGreaterThanOrEqual(2);
   });
+
+  // e2e-bug.126
+  it.each([
+    {
+      id: 'customer-ru',
+      surface: 'customer' as const,
+      locale: 'ru',
+      pattern: /не до конца понял/i,
+    },
+    {
+      id: 'public-hy',
+      surface: 'public' as const,
+      locale: 'hy',
+      pattern: /չհասկացա/,
+    },
+    {
+      id: 'provider-ru',
+      surface: 'provider' as const,
+      locale: 'ru',
+      pattern: /Не уверен/i,
+    },
+    {
+      id: 'dashboard-en',
+      surface: 'dashboard' as const,
+      locale: 'en',
+      pattern: /didn't fully understand that command/i,
+    },
+  ])(
+    'localizes unknown-intent clarify summary ($id)',
+    ({ surface, locale, pattern }) => {
+      const payload = buildUnknownIntentClarifyPayload(surface, { locale });
+      expect(payload.summary).toMatch(pattern);
+      const result = buildUnknownIntentClarifyResult({
+        surface,
+        prompt: scenarioPrompt(),
+        locale,
+      });
+      expect(result.summary).toMatch(pattern);
+    },
+  );
 });
 
 function scenarioPrompt(): string {

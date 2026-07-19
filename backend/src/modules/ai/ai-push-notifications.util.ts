@@ -9,6 +9,16 @@ import {
   enrichWhatsappIntegrationParamsFromPrompt,
   rescueConfigureWhatsappIntegrationIntent,
 } from './ai-whatsapp-integration.util.js';
+import { PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-open-booking-from-push.fixtures.js';
+import { PROVIDER_CONFIRM_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-confirm-booking-from-push.fixtures.js';
+import { PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS } from './ai-provider-dismiss-push.fixtures.js';
+import { PROVIDER_MARK_NOTIFICATION_READ_PROMPT_SCENARIOS } from './ai-provider-mark-notification-read.fixtures.js';
+import { PROVIDER_EXPLAIN_LAST_PUSH_PROMPT_SCENARIOS } from './ai-provider-explain-last-push.fixtures.js';
+import { PROVIDER_NEW_BOOKING_PUSH_ACTIONS_PROMPT_SCENARIOS } from './ai-provider-new-booking-push-actions.fixtures.js';
+import { PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS } from './ai-provider-offline-queue-status.fixtures.js';
+import { PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS } from './ai-provider-retry-offline-action.fixtures.js';
+import { PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS } from './ai-provider-explain-offline-mode.fixtures.js';
+import { PROVIDER_EXPLAIN_APP_UPDATE_GATE_PROMPT_SCENARIOS } from './ai-provider-explain-app-update-gate.fixtures.js';
 
 export const DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'configure_notification_settings',
@@ -25,6 +35,10 @@ export const DASHBOARD_PUSH_NOTIFICATIONS_READ_INTENTS = [
 export const PROVIDER_PUSH_NOTIFICATIONS_MUTATE_INTENTS = [
   'retry_offline_action',
   'dismiss_push',
+  'mark_all_notifications_read',
+  'mark_booking_notifications_read',
+  'mark_notification_read',
+  'confirm_booking_from_push',
 ] as const;
 
 export const PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS = [
@@ -33,6 +47,9 @@ export const PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS = [
   'offline_queue_status',
   'end_of_day_summary',
   'new_booking_push_actions',
+  'list_push_notifications',
+  'explain_offline_mode',
+  'explain_app_update_gate',
 ] as const;
 
 export const CUSTOMER_PUSH_NOTIFICATIONS_INTENTS = [
@@ -95,17 +112,31 @@ export function isSummarizeDayOnlyPrompt(prompt: string): boolean {
 }
 
 export function isExplainLastPushPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_EXPLAIN_LAST_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   return (
     /\b(explain|what\s+was|what\s+did|tell\s+me\s+about|decode|understand)\b/i.test(
       prompt,
     ) &&
-    /\b(last\s+push|push\s+notification|notification\s+i\s+got|recent\s+push|that\s+push|this\s+push)\b/i.test(
+    /\b(last\s+push|push\s+notification|notification\s+i\s+got|recent\s+push|that\s+push|this\s+push|last\s+notification|that\s+alert|this\s+alert|last\s+alert)\b/i.test(
       prompt,
     )
   );
 }
 
 export function isOpenBookingFromPushPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   return (
     (/\b(open|view|go\s+to|show|navigate)\b/i.test(prompt) &&
       /\b(booking|appointment)\b/i.test(prompt) &&
@@ -116,7 +147,33 @@ export function isOpenBookingFromPushPrompt(prompt: string): boolean {
   );
 }
 
+/** ai-cmd-provider-5.0.1 — confirm the booking referenced by a push notification (push-context gated, distinct from the broader hint-only isConfirmBookingFromPushPrompt in ai-provider-mobile-hints.util.ts). */
+export function isConfirmBookingFromPushRescuePrompt(prompt: string): boolean {
+  if (
+    PROVIDER_CONFIRM_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
+  if (/\b(cancel|reschedule|move|shift)\b/i.test(prompt)) return false;
+  return (
+    /\b(confirm|accept|approve)\b/i.test(prompt) &&
+    /\b(booking|appointment|it)\b/i.test(prompt) &&
+    /\b(from\s+(?:the\s+)?push|push\s+notification|notification|alert)\b/i.test(
+      prompt,
+    )
+  );
+}
+
 export function isOfflineQueueStatusPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   if (
     /\b(why.{0,30}offline|my\s+booking|consumer\s+app|saved\s+salon|waiting\s+to\s+sync|will.{0,20}sync)\b/i.test(
       prompt,
@@ -139,11 +196,21 @@ export function isOfflineQueueStatusPrompt(prompt: string): boolean {
     ) ||
     (/\b(queue\s+status|sync\s+status|how\s+many\s+queued)\b/i.test(prompt) &&
       /\boffline\b/i.test(prompt)) ||
-    /\bshow\s+offline\s+queue\b/i.test(prompt)
+    /\bshow\s+offline\s+queue\b/i.test(prompt) ||
+    /\bdid\s+(?:my|the)\s+(?:check-?in|note|payment|update)\s+save\b/i.test(
+      prompt,
+    )
   );
 }
 
 export function isRetryOfflineActionPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   if (
     /\b(will.{0,30}sync|my\s+booking|consumer\s+app)\b/i.test(prompt) &&
     !/\b(retry|replay|resync|flush)\b/i.test(prompt)
@@ -151,17 +218,155 @@ export function isRetryOfflineActionPrompt(prompt: string): boolean {
     return false;
   }
   return (
-    /\b(retry|replay|resync|sync|flush)\b/i.test(prompt) &&
-    /\b(offline|queued|queue|pending\s+actions?)\b/i.test(prompt)
+    (/\b(retry|replay|resync|sync|flush)\b/i.test(prompt) &&
+      /\b(offline|queued|queue|pending\s+actions?)\b/i.test(prompt)) ||
+    /\bretry\s+failed\s+sync\b/i.test(prompt) ||
+    /\bsend\s+queued\s+actions?(?:\s+now)?\b/i.test(prompt)
+  );
+}
+
+const PROVIDER_APP_OFFLINE_CUE =
+  /\b(provider\s+app|provider\s+mobile|staff\s+app|today\s+tab|floor\s+status)\b/i;
+
+/** ai-cmd-provider-5.13.3 — general "why offline / will it sync" explainer for the provider app (not a queue listing). Requires provider-app framing to disambiguate from the customer-surface explain_offline_mode, since AiIntentRescueService.rescue() calls the push-notifications rescue chain regardless of surface. */
+export function isProviderExplainOfflineModePrompt(prompt: string): boolean {
+  if (
+    PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
+  if (isOfflineQueueStatusPrompt(prompt) || isRetryOfflineActionPrompt(prompt)) {
+    return false;
+  }
+
+  const hasProviderCue =
+    PROVIDER_APP_OFFLINE_CUE.test(prompt) ||
+    (/[԰-֏]/.test(prompt) &&
+      /(provider\s*app|staff\s*app)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) &&
+      /(provider\s*app|staff\s*app)/i.test(prompt));
+  if (!hasProviderCue) return false;
+
+  return (
+    /\b(why.{0,30}offline|offline\s+mode|will.{0,30}sync|sync.{0,20}(?:when|once)|no\s+internet|reconnect|what\s+happens\s+(?:to|on|when))\b/i.test(
+      prompt,
+    ) ||
+    (/[԰-֏]/.test(prompt) &&
+      (/համաժամաց/i.test(prompt) ||
+        (/ինչու/i.test(prompt) && /offline/i.test(prompt)))) ||
+    (/[Ѐ-ӿ]/.test(prompt) &&
+      (/синхрониз/i.test(prompt) ||
+        (/почему/i.test(prompt) && /офлайн/i.test(prompt))))
+  );
+}
+
+/** ai-cmd-provider-5.13.6 — why the provider app is gating on an app-store update (kill switch / update required / skip nudge). Requires provider-app framing to disambiguate from the customer-surface explain_app_update_required, for the same unconditional-rescue-pipeline reason as isProviderExplainOfflineModePrompt. */
+export function isProviderExplainAppUpdateGatePrompt(prompt: string): boolean {
+  if (
+    PROVIDER_EXPLAIN_APP_UPDATE_GATE_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
+
+  const hasProviderCue =
+    PROVIDER_APP_OFFLINE_CUE.test(prompt) ||
+    (/[԰-֏]/.test(prompt) &&
+      /(provider\s*app|staff\s*app)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) &&
+      /(provider\s*app|staff\s*app)/i.test(prompt));
+  if (!hasProviderCue) return false;
+
+  return (
+    /\b(why.{0,40}(?:update|must i update)|skip.{0,20}update|not now.{0,30}(?:update|banner)|update required|app version|version (?:unavailable|blocked|gate)|kill switch|newer version|minimum.{0,20}version|app store.{0,20}update|update nudge|temporarily unavailable|dismiss.{0,20}nudge|blocked.{0,20}update|update\s+gate)\b/i.test(
+      prompt,
+    ) ||
+    (/[԰-֏]/.test(prompt) &&
+      /(թարմաց|բաց թողնել|արգելափակ)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) &&
+      /(обнов|пропуст|недоступ)/i.test(prompt))
+  );
+}
+
+export function isMarkAllNotificationsReadPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (!/\bread\b/.test(normalized)) return false;
+  return (
+    /\bmark\b.*\b(all|everything)\b.*\b(notifications?|push(?:es)?)\b/.test(
+      normalized,
+    ) ||
+    /\b(all|everything)\b.*\bnotifications?\b.*\bread\b/.test(normalized) ||
+    /\bmark\b.*\b(all|everything)\b.*\bread\b/.test(normalized)
+  );
+}
+
+export function isMarkBookingNotificationsReadPrompt(prompt: string): boolean {
+  const normalized = prompt.toLowerCase();
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  return (
+    /\bmark\b/.test(normalized) &&
+    /\bread\b/.test(normalized) &&
+    /\b(notifications?|push(?:es)?)\b/.test(normalized) &&
+    /\b(this\s+booking|booking|appointment|for\s+[a-z])/.test(normalized)
+  );
+}
+
+export function isMarkNotificationReadPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_MARK_NOTIFICATION_READ_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
+  const normalized = prompt.toLowerCase();
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
+  return (
+    /\bmark\b/.test(normalized) &&
+    /\bread\b/.test(normalized) &&
+    /\b(notification|push|alert)\b/.test(normalized) &&
+    /\b(this|that|it|the\s+latest|my\s+latest|one)\b/.test(normalized)
+  );
+}
+
+export function isListPushNotificationsPrompt(prompt: string): boolean {
+  if (isNotificationHistoryPrompt(prompt)) return false;
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
+  if (isOpenBookingFromPushPrompt(prompt)) return false;
+  if (isExplainLastPushPrompt(prompt)) return false;
+  if (/\bnotification\s+settings?\b/i.test(prompt)) return false;
+  if (/\b(booking|appointment)\b/i.test(prompt)) return false;
+  const normalized = prompt.toLowerCase();
+  return (
+    /\b(show|open|list|view|check|see)\b.*\b(my\s+)?(notifications?|notification\s+center|push\s+notifications?)\b/.test(
+      normalized,
+    ) ||
+    /\bwhat\s+notifications?\s+do\s+i\s+have\b/.test(normalized) ||
+    /\bnotification\s+center\b/.test(normalized)
   );
 }
 
 export function isDismissPushPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   if (/\b(patient|clinic)\s+alert\b/i.test(prompt)) return false;
+  if (isMarkAllNotificationsReadPrompt(prompt)) return false;
+  if (isMarkBookingNotificationsReadPrompt(prompt)) return false;
   return (
     /\b(dismiss|clear|ignore|close)\b/i.test(prompt) &&
     /\b(push|notification|alert|banner)\b/i.test(prompt) &&
-    !/\bhistory\b/i.test(prompt)
+    !/\bhistory\b/i.test(prompt) &&
+    !/\bread\b/i.test(prompt)
   );
 }
 
@@ -175,13 +380,21 @@ export function isEndOfDaySummaryPrompt(prompt: string): boolean {
 }
 
 export function isNewBookingPushActionsPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_NEW_BOOKING_PUSH_ACTIONS_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
+  if (isConfirmBookingFromPushRescuePrompt(prompt)) return false;
   return (
     (/\b(new\s+booking|booking)\b/i.test(prompt) &&
       /\bpush\b/i.test(prompt) &&
       /\b(actions?|buttons?|options?|confirm|mark\s+paid|reschedule)\b/i.test(
         prompt,
       )) ||
-    /\bwhat\s+can\s+i\s+do\s+from\s+(?:the\s+)?(?:new\s+)?booking\s+push\b/i.test(
+    /\bwhat\s+can\s+i\s+do\s+from\s+(?:the\s+|a\s+)?(?:new\s+)?booking\s+push\b/i.test(
       prompt,
     )
   );
@@ -214,15 +427,42 @@ export function isNotificationHistoryPrompt(prompt: string): boolean {
   return !/\border\s+status\b/i.test(prompt);
 }
 
+/**
+ * Owner/business alert when customers cancel/reschedule (e2e-bug.159).
+ * Must NOT match customer-facing "notify the customer about their cancelled booking".
+ */
 export function isToggleBusinessEmailOnCustomerChangePrompt(
   prompt: string,
 ): boolean {
+  // Customer-outbound notify proposals — never treat as owner alert prefs.
+  if (
+    /\bnotify\s+(?:the\s+)?customers?\b/i.test(prompt) &&
+    !/\bnotify\s+me\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(send|message)\s+(?:a\s+)?(?:notification|message|sms|email)\s+to\s+(?:the\s+)?customers?\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+
+  const customerChangeCue =
+    /\b(customer\s+(?:cancel|reschedule|change)|booking\s+change|when\s+customers?\s+(?:cancel|reschedule)|a\s+customer\s+cancels?|customers?\s+cancel|customers?\s+reschedule)\b/i.test(
+      prompt,
+    );
+  const ownerAlertCue =
+    /\b(notify\s+me|alert\s+me|email\s+me|tell\s+me)\b/i.test(prompt) &&
+    /\b(whenever|when|if|each\s+time|every\s+time)\b/i.test(prompt);
+  const enableDisableCue =
+    /\b(toggle|enable|disable|turn\s+on|turn\s+off)\b/i.test(prompt) &&
+    /\b(email|notify|alert)\b/i.test(prompt);
+
   return (
-    (/\b(toggle|enable|disable|turn\s+on|turn\s+off)\b/i.test(prompt) &&
-      /\b(email|notify|alert)\b/i.test(prompt) &&
-      /\b(customer\s+(?:cancel|reschedule|change)|booking\s+change|when\s+customers?\s+(?:cancel|reschedule))\b/i.test(
-        prompt,
-      )) ||
+    (ownerAlertCue && customerChangeCue) ||
+    (enableDisableCue && customerChangeCue) ||
     /\bnotify\s+business\s+(?:by\s+)?email\s+when\s+customers?\b/i.test(prompt)
   );
 }
@@ -278,6 +518,7 @@ export function isPushNotificationsCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 20 || !PUSH_NOTIFICATIONS_VERB.test(trimmed))
     return false;
+  if (isConfigureWhatsappIntegrationPrompt(trimmed)) return false;
   return (
     COMPOUND_SPLIT.test(trimmed) ||
     decomposePushNotificationsCompoundPrompt(trimmed).length > 1
@@ -323,6 +564,31 @@ export function extractNotificationToggleFromPrompt(
 ): boolean | null {
   if (/\b(enable|turn\s+on|activate)\b/i.test(prompt)) return true;
   if (/\b(disable|turn\s+off|deactivate)\b/i.test(prompt)) return false;
+  return null;
+}
+
+/**
+ * e2e-bug.159 — "Notify me whenever a customer cancels…" implies enable for the
+ * business-email-on-customer-change setting (not a customer-outbound notify).
+ */
+export function extractBusinessEmailOnCustomerChangeToggleFromPrompt(
+  prompt: string,
+): boolean | null {
+  const base = extractNotificationToggleFromPrompt(prompt);
+  if (base !== null) return base;
+  if (
+    /\b(don'?t|do\s+not|stop|never)\s+(?:notify|alert|email|tell)\s+me\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(notify\s+me|alert\s+me|email\s+me|tell\s+me)\b/i.test(prompt) &&
+    /\b(whenever|when|if|each\s+time|every\s+time)\b/i.test(prompt)
+  ) {
+    return true;
+  }
   return null;
 }
 
@@ -437,6 +703,20 @@ export function buildNewBookingPushActionsGuide(): {
   };
 }
 
+export function summarizeProviderPushNotificationCenter(view: {
+  unreadCount: number;
+  items: Array<{ title: string; body: string; isRead: boolean }>;
+}): string {
+  if (!view.items.length) {
+    return 'No notifications in your inbox right now.';
+  }
+  const preview = view.items
+    .slice(0, 3)
+    .map((item) => `${item.isRead ? '' : '● '}${item.title}`)
+    .join('; ');
+  return `${view.unreadCount} unread of ${view.items.length} notification${view.items.length === 1 ? '' : 's'}: ${preview}${view.items.length > 3 ? '…' : ''}.`;
+}
+
 export function buildOfflineQueueStatusSummary(input: {
   online: boolean;
   queuedCount: number;
@@ -451,6 +731,50 @@ export function buildOfflineQueueStatusSummary(input: {
     return `Online — syncing ${input.queuedCount} queued action${input.queuedCount === 1 ? '' : 's'}.`;
   }
   return 'Online — no offline actions are queued.';
+}
+
+/** ai-cmd-provider-5.13.3 — general "why offline / will it sync" explainer for the provider app. */
+export function buildProviderExplainOfflineModeSummary(input: {
+  online: boolean;
+  queuedCount: number;
+}): string {
+  const lines = [
+    'The provider app shows offline when your device loses network connectivity.',
+    'While offline you can still check in clients, add notes, and mark visits paid — those actions queue on this device.',
+  ];
+  if (!input.online) {
+    lines.push(
+      input.queuedCount > 0
+        ? `You are offline right now with ${input.queuedCount} queued action${input.queuedCount === 1 ? '' : 's'} — they replay automatically once you reconnect.`
+        : 'You are offline right now — new actions will queue until you reconnect.',
+    );
+  } else if (input.queuedCount > 0) {
+    lines.push(
+      `You are back online — ${input.queuedCount} queued action${input.queuedCount === 1 ? '' : 's'} will sync automatically.`,
+    );
+  } else {
+    lines.push('You are online and nothing is queued right now.');
+  }
+  return lines.join(' ');
+}
+
+/** ai-cmd-provider-5.13.6 — why the provider app is gating on an app-store update. */
+export function buildProviderExplainAppUpdateGateSummary(input: {
+  currentVersion?: string;
+  blocked?: boolean;
+}): string {
+  const lines = [
+    'The provider app checks your installed build against the platform minimum version whenever you open it.',
+    'A hard update-required or kill-switch screen blocks the app until you update from the store; a soft nudge is dismissible for the session.',
+  ];
+  if (input.blocked) {
+    lines.push(
+      'Your build is currently blocked — update from the app store link on the gate screen to keep using the provider app.',
+    );
+  } else if (input.currentVersion) {
+    lines.push(`Your current version is ${input.currentVersion}.`);
+  }
+  return lines.join(' ');
 }
 
 export function buildRetryOfflineActionGuidance(input: {
@@ -549,6 +873,30 @@ export function rescuePushNotificationsIntent(
   if (isEndOfDaySummaryPrompt(prompt)) {
     return { action: 'end_of_day_summary', rescueReason: 'end_of_day_summary' };
   }
+  if (isMarkAllNotificationsReadPrompt(prompt)) {
+    return {
+      action: 'mark_all_notifications_read',
+      rescueReason: 'mark_all_notifications_read',
+    };
+  }
+  if (isMarkBookingNotificationsReadPrompt(prompt)) {
+    return {
+      action: 'mark_booking_notifications_read',
+      rescueReason: 'mark_booking_notifications_read',
+    };
+  }
+  if (isMarkNotificationReadPrompt(prompt)) {
+    return {
+      action: 'mark_notification_read',
+      rescueReason: 'mark_notification_read',
+    };
+  }
+  if (isListPushNotificationsPrompt(prompt)) {
+    return {
+      action: 'list_push_notifications',
+      rescueReason: 'list_push_notifications',
+    };
+  }
   if (isDismissPushPrompt(prompt)) {
     return { action: 'dismiss_push', rescueReason: 'dismiss_push' };
   }
@@ -557,6 +905,24 @@ export function rescuePushNotificationsIntent(
   }
   if (isOfflineQueueStatusPrompt(prompt)) {
     return { action: 'offline_queue_status', rescueReason: 'offline_queue' };
+  }
+  if (isProviderExplainOfflineModePrompt(prompt)) {
+    return {
+      action: 'explain_offline_mode',
+      rescueReason: 'provider_offline_mode',
+    };
+  }
+  if (isProviderExplainAppUpdateGatePrompt(prompt)) {
+    return {
+      action: 'explain_app_update_gate',
+      rescueReason: 'provider_app_update_gate',
+    };
+  }
+  if (isConfirmBookingFromPushRescuePrompt(prompt)) {
+    return {
+      action: 'confirm_booking_from_push',
+      rescueReason: 'confirm_from_push',
+    };
   }
   if (isOpenBookingFromPushPrompt(prompt)) {
     return { action: 'open_booking_from_push', rescueReason: 'open_from_push' };
@@ -585,7 +951,10 @@ export function isPushNotificationsDomainPrompt(prompt: string): boolean {
     isNotificationHistoryPrompt(text) ||
     isToggleBusinessEmailOnCustomerChangePrompt(text) ||
     isConfigureNotificationSettingsPrompt(text) ||
-    isConfigureWhatsappIntegrationPrompt(text)
+    isConfigureWhatsappIntegrationPrompt(text) ||
+    isMarkAllNotificationsReadPrompt(text) ||
+    isMarkBookingNotificationsReadPrompt(text) ||
+    isListPushNotificationsPrompt(text)
   );
 }
 
@@ -630,9 +999,14 @@ export function classifyPushNotificationsSegment(
     return { action: 'enable_notifications', params: base, segment: text };
   }
   if (isToggleBusinessEmailOnCustomerChangePrompt(text)) {
+    const businessEmailToggle =
+      extractBusinessEmailOnCustomerChangeToggleFromPrompt(text);
     return {
       action: 'toggle_business_email_on_customer_change',
-      params: base,
+      params: {
+        ...base,
+        ...(businessEmailToggle !== null ? { enabled: businessEmailToggle } : {}),
+      },
       segment: text,
     };
   }

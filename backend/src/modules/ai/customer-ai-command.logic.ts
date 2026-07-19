@@ -29,6 +29,7 @@ import type { AiExplainVoiceInputService } from './ai-explain-voice-input.servic
 import type { AiSpeakAssistantReplyService } from './ai-speak-assistant-reply.service.js';
 import type { AiGiveAiFeedbackService } from './ai-give-ai-feedback.service.js';
 import type { AiExplainRtlLayoutService } from './ai-explain-rtl-layout.service.js';
+import { mergeExplainRtlLayoutRequestLocale } from './ai-explain-rtl-layout.util.js';
 import type { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import type { DecomposedIntentStep } from './intent-decomposition.types.js';
 import { mergeSharedBookingStepParams } from './ai-compound-booking-context.util.js';
@@ -97,6 +98,8 @@ export interface CustomerIntentSession {
   paymentMethod?: string;
   useSubscriptionId?: string;
   bookingId?: string;
+  manageToken?: string;
+  intakeId?: string;
   date?: string;
   timeOfDay?: string;
   notBeforeTime?: string;
@@ -125,6 +128,12 @@ export interface CustomerIntentSession {
   pendingCheckoutStartTime?: string;
   pendingCheckoutEmployeeId?: string;
   prompt?: string;
+  privacyDeletePending?: boolean;
+  cancelAllUpcomingPending?: boolean;
+  requiresConfirmation?: boolean;
+  pendingAction?: string;
+  confirm?: boolean;
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 function withCustomerSession(
@@ -134,6 +143,10 @@ function withCustomerSession(
   return {
     ...params,
     sessionCustomerId: session.customerId,
+    // e2e-bug.125 — forward booking-page slug; handlers also resolve via businessId.
+    slug: (typeof params.slug === 'string' && params.slug.trim()
+      ? params.slug.trim()
+      : undefined) ?? session.slug,
     cartServiceIds: session.cartServiceIds ?? params.cartServiceIds,
     packageId: session.packageId ?? params.packageId,
     packageName: session.packageName ?? params.packageName,
@@ -141,6 +154,8 @@ function withCustomerSession(
     paymentMethod: session.paymentMethod ?? params.paymentMethod,
     useSubscriptionId: session.useSubscriptionId ?? params.useSubscriptionId,
     bookingId: session.bookingId ?? params.bookingId,
+    manageToken: session.manageToken ?? params.manageToken,
+    intakeId: session.intakeId ?? params.intakeId,
     date: session.date ?? params.date,
     timeOfDay: session.timeOfDay ?? params.timeOfDay,
     notBeforeTime: session.notBeforeTime ?? params.notBeforeTime,
@@ -172,6 +187,20 @@ function withCustomerSession(
     pendingCheckoutEmployeeId:
       session.pendingCheckoutEmployeeId ?? params.pendingCheckoutEmployeeId,
     _prompt: session.prompt,
+    // e2e-bug.84 — carry GDPR erasure preview pending into turn 2.
+    privacyDeletePending:
+      params.privacyDeletePending ?? session.privacyDeletePending,
+    // e2e-bug.78 — carry bulk-cancel preview pending into turn 2.
+    cancelAllUpcomingPending:
+      params.cancelAllUpcomingPending ?? session.cancelAllUpcomingPending,
+    requiresConfirmation:
+      params.requiresConfirmation ?? session.requiresConfirmation,
+    pendingAction: params.pendingAction ?? session.pendingAction,
+    confirm: params.confirm === true ? true : session.confirm === true,
+    conversationHistory:
+      (Array.isArray(params.conversationHistory)
+        ? params.conversationHistory
+        : undefined) ?? session.conversationHistory,
   };
 }
 
@@ -246,6 +275,15 @@ export async function dispatchCustomerIntent(
         prompt,
       );
     }
+    if (action === 'submit_provider_review') {
+      return deps.providerSpecialty.handleSubmitProviderReview(businessId, p);
+    }
+    if (action === 'submit_review_with_token') {
+      return deps.providerSpecialty.handleSubmitReviewWithToken(
+        businessId,
+        p,
+      );
+    }
     return deps.providerSpecialty.handleExplainProviderSpecialty(
       businessId,
       p,
@@ -258,6 +296,10 @@ export async function dispatchCustomerIntent(
       return deps.customerCrm.handleMyProfile(businessId, p);
     case 'update_my_profile':
       return deps.customerCrm.handleUpdateMyProfile(businessId, p, prompt);
+    case 'get_my_locale':
+      return deps.customerCrm.handleGetMyLocale(businessId, p);
+    case 'update_my_locale':
+      return deps.customerCrm.handleUpdateMyLocale(businessId, p, prompt);
     case 'my_appointments':
       return deps.customerCrm.handleMyAppointments(businessId, p);
     case 'my_subscriptions':
@@ -292,6 +334,8 @@ export async function dispatchCustomerIntent(
       return deps.customerCrm.handleRequestGiftCardModify(businessId, p);
     case 'track_physical_gift_card_order':
       return deps.customerCrm.handleTrackPhysicalGiftCardOrder(businessId, p);
+    case 'explain_gift_card_order':
+      return deps.customerCrm.handleExplainGiftCardOrder(businessId, p);
     case 'privacy_export':
       return deps.customerCrm.handlePrivacyExport(businessId, p, prompt);
     case 'privacy_delete':
@@ -371,6 +415,8 @@ export async function dispatchCustomerIntent(
     case 'manage_notification_preferences':
     case 'enable_push_notifications':
     case 'explain_push_permission':
+    case 'register_customer_push':
+    case 'explain_push_registration_status':
     case 'explain_offline_mode':
     case 'explain_app_update_required':
     case 'explain_analytics_consent':
@@ -378,8 +424,11 @@ export async function dispatchCustomerIntent(
     case 'explain_patient_alert':
     case 'explain_share_reward':
     case 'refer_a_friend':
+    case 'claim_referral_code':
     case 'share_salon_link':
     case 'share_my_booking':
+    case 'claim_share_reward':
+    case 'explain_rewards_wallet':
     case 'rebook_last_appointment':
     case 'find_my_saved_salons':
     case 'switch_salon_tenant':
@@ -435,6 +484,16 @@ export async function dispatchCustomerIntent(
         businessId,
         p,
         prompt,
+      );
+    case 'open_clinic_document':
+      return deps.consumerClinicTestResults.handleOpenClinicDocument(
+        businessId,
+        p,
+      );
+    case 'dismiss_patient_alert':
+      return deps.consumerClinicTestResults.handleDismissPatientAlert(
+        businessId,
+        p,
       );
     case 'explain_abnormal_result_flag':
       return deps.consumerClinicTestResults.handleExplainAbnormalResultFlag(
@@ -492,6 +551,14 @@ export async function dispatchCustomerIntent(
         p,
         prompt,
       );
+    case 'create_intake_draft':
+      return deps.clinicBooking.handleCreateIntakeDraft(businessId, p);
+    case 'get_intake_flow_status':
+      return deps.clinicBooking.handleGetIntakeFlowStatus(businessId, p);
+    case 'start_pre_visit_intake':
+      return deps.clinicBooking.handleStartPreVisitIntake(businessId, p);
+    case 'submit_intake_answers':
+      return deps.clinicBooking.handleSubmitIntakeAnswers(businessId, p);
     case 'explain_guest_checkout_fields':
       return deps.guestCheckoutFields.handleExplainGuestCheckoutFields(
         businessId,
@@ -503,6 +570,14 @@ export async function dispatchCustomerIntent(
         businessId,
         p,
         prompt,
+      );
+    case 'sign_in_with_google':
+    case 'sign_in_with_apple':
+    case 'sign_in_with_phone':
+      return deps.guestCheckoutFields.handleSignInWithProvider(
+        action as 'sign_in_with_google' | 'sign_in_with_apple' | 'sign_in_with_phone',
+        businessId,
+        p,
       );
     case 'fix_checkout_validation_error':
       return deps.guestCheckoutFields.handleFixCheckoutValidationError(
@@ -576,9 +651,10 @@ export async function dispatchCustomerIntent(
     case 'give_ai_feedback':
       return deps.giveAiFeedback.handleGiveAiFeedback(businessId, p, prompt);
     case 'explain_rtl_layout':
+      // e2e-bug.85 — locale is request/session context, not a classifier entity.
       return deps.explainRtlLayout.handleExplainRtlLayout(
         businessId,
-        p,
+        mergeExplainRtlLayoutRequestLocale(p, session.locale),
         prompt,
       );
     case 'explain_stripe_checkout_currency':
@@ -689,8 +765,19 @@ export async function dispatchCustomerIntent(
       );
     case 'use_subscription_credit':
       return deps.selfServiceBooking.handleUseSubscriptionCredit(businessId, p);
+    case 'cancel_my_subscription':
+      return deps.selfServiceBooking.handleCancelMySubscription(
+        businessId,
+        p,
+      );
     case 'cancel_my_booking':
       return deps.selfServiceBooking.handleCancelMyBooking(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'cancel_all_upcoming_bookings':
+      return deps.selfServiceBooking.handleCancelAllUpcomingBookings(
         businessId,
         p,
         prompt,
@@ -709,6 +796,12 @@ export async function dispatchCustomerIntent(
       );
     case 'reschedule_package_visit_self':
       return deps.selfServiceBooking.handleReschedulePackageVisitSelf(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'reschedule_package_lines':
+      return deps.selfServiceBooking.handleReschedulePackageLines(
         businessId,
         p,
         prompt,
@@ -753,6 +846,30 @@ export async function dispatchCustomerIntent(
       );
     case 'get_manage_link':
       return deps.selfServiceBooking.handleGetManageLink(businessId, p, prompt);
+    case 'cancel_booking_with_token':
+      return deps.selfServiceBooking.handleCancelBookingWithToken(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'reschedule_booking_with_token':
+      return deps.selfServiceBooking.handleRescheduleBookingWithToken(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'cancel_package_visit_with_token':
+      return deps.selfServiceBooking.handleCancelPackageVisitWithToken(
+        businessId,
+        p,
+        prompt,
+      );
+    case 'reschedule_package_visit_with_token':
+      return deps.selfServiceBooking.handleReschedulePackageVisitWithToken(
+        businessId,
+        p,
+        prompt,
+      );
     case 'recover_lost_manage_link':
       return deps.selfServiceBooking.handleRecoverLostManageLink(
         businessId,
@@ -773,6 +890,12 @@ export async function dispatchCustomerIntent(
           sessionCustomerId:
             (p.sessionCustomerId as string | undefined) ?? session.customerId,
         },
+        prompt,
+      );
+    case 'explain_manage_booking_context':
+      return deps.selfServiceBooking.handleExplainManageBookingContext(
+        businessId,
+        p,
         prompt,
       );
     case 'notify_running_late':

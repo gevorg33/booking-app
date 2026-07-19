@@ -224,4 +224,14 @@ describe('ConsumerPatientAlertsBanner', () => {
 
     expect(container.textContent).toContain('Lab order');
   });
+
+  it('does not fetch alerts for non-clinic business types (e2e-bug.43)', async () => {
+    renderBanner({ businessType: 'salon' });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
 });

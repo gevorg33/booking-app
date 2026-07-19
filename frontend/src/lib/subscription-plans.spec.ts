@@ -177,5 +177,16 @@ describe('subscription-plans', () => {
       serviceId: 'svc-1',
       promoCode: 'SAVE12',
     });
+    expect(
+      buildQuoteRequest({
+        serviceId: 'svc-1',
+        purchaseType: 'one-time',
+        selectedPlanId: '',
+        useSubscriptionId: 'sub-1',
+      }),
+    ).toEqual({
+      serviceId: 'svc-1',
+      useSubscriptionId: 'sub-1',
+    });
   });
 });

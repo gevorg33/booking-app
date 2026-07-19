@@ -44,7 +44,39 @@ describe('provider-end-of-day-summary.util', () => {
     expect(summaries[0]).toMatchObject({
       appointmentCount: 4,
       unpaidCount: 1,
+      noShowCount: 0,
       gapsTomorrow: 2,
+    });
+  });
+
+  it('aggregates no-shows separately from unpaid (ai-cmd-provider-5.1.7)', () => {
+    const summaries = aggregateEodSummaries(
+      [
+        {
+          businessId: 'biz-1',
+          employeeId: 'emp-1',
+          status: BookingStatus.NO_SHOW,
+          paymentStatus: PaymentStatus.PENDING,
+        },
+        {
+          businessId: 'biz-1',
+          employeeId: 'emp-1',
+          status: BookingStatus.NO_SHOW,
+          paymentStatus: PaymentStatus.NOT_APPLICABLE,
+        },
+        {
+          businessId: 'biz-1',
+          employeeId: 'emp-1',
+          status: BookingStatus.COMPLETED,
+          paymentStatus: PaymentStatus.PENDING,
+        },
+      ],
+      new Map(),
+    );
+    expect(summaries[0]).toMatchObject({
+      appointmentCount: 3,
+      unpaidCount: 1,
+      noShowCount: 2,
     });
   });
 
@@ -54,6 +86,7 @@ describe('provider-end-of-day-summary.util', () => {
       employeeId: 'emp-1',
       appointmentCount: 4,
       unpaidCount: 1,
+      noShowCount: 0,
       gapsTomorrow: 2,
     });
     expect(body).toBe('4 appointments, 1 unpaid, 2 gaps tomorrow');
@@ -64,6 +97,7 @@ describe('provider-end-of-day-summary.util', () => {
         employeeId: 'emp-1',
         appointmentCount: 1,
         unpaidCount: 0,
+        noShowCount: 0,
         gapsTomorrow: 1,
       }),
     ).toBe('1 appointment, 1 gap tomorrow');
@@ -73,10 +107,36 @@ describe('provider-end-of-day-summary.util', () => {
       employeeId: 'emp-1',
       appointmentCount: 2,
       unpaidCount: 0,
+      noShowCount: 0,
       gapsTomorrow: 0,
     });
     expect(payload.pushType).toBe('end_of_day');
     expect(payload.aiPrompt).toMatch(/Summarize today's appointments/);
+    expect(payload.aiPrompt).toMatch(/unpaid or no-show/);
+  });
+
+  it('includes no-show count in the push body (ai-cmd-provider-5.1.7)', () => {
+    expect(
+      formatEodPushBody({
+        businessId: 'biz-1',
+        employeeId: 'emp-1',
+        appointmentCount: 5,
+        unpaidCount: 1,
+        noShowCount: 2,
+        gapsTomorrow: 0,
+      }),
+    ).toBe('5 appointments, 1 unpaid, 2 no-shows');
+
+    expect(
+      formatEodPushBody({
+        businessId: 'biz-1',
+        employeeId: 'emp-1',
+        appointmentCount: 1,
+        unpaidCount: 0,
+        noShowCount: 1,
+        gapsTomorrow: 0,
+      }),
+    ).toBe('1 appointment, 1 no-show');
   });
 
   it('ignores gap-only employees that have no booking row', () => {

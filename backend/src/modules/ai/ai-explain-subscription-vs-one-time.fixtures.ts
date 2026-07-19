@@ -15,7 +15,7 @@ export type ExplainSubscriptionVsOneTimePromptFixture = {
   focus?: ExplainSubscriptionVsOneTimeFocus;
 };
 
-export const CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES = `- explain_subscription_vs_one_time: READ — explain checkout subscription choices for a service: One-time appointment (pay per visit), Subscribe & save (buy a membership plan with included visits), and Use subscription (apply an existing visit credit when signed in). Triggers: subscribe and save vs one visit, subscription or one-time, which plan includes massage, use my subscription or pay once, explain checkout subscription options. Set serviceName when the user names a service; planName when they name a plan. Summarize per-visit price, plan visits/months, savings, and remaining credits. NOT explain_my_subscription (visits left/expiry on account), NOT discover_subscription_plans (list catalog only), NOT select_subscription_plan (pick plan mutate), NOT use_subscription_credit (apply credit mutate), NOT explain_package_savings (multi-service bundle).`;
+export const CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES = `- explain_subscription_vs_one_time: READ — explain checkout subscription choices for a service: One-time appointment (pay per visit), Subscribe & save (buy a membership plan with included visits), and Use subscription (apply an existing visit credit when signed in). Triggers: subscribe and save vs one visit, subscription or one-time, which plan includes massage, use my subscription or pay once, explain checkout subscription options, "should I get the subscription or just pay per visit?", "explain the difference between the subscription plan and paying one time", "is the Monthly Massage Plan subscription better value than paying per visit?". Set serviceName when the user names a service; planName when they name a plan. Summarize per-visit price, plan visits/months, savings, and remaining credits. NOT explain_my_subscription (visits left/expiry on account), NOT discover_subscription_plans (list catalog only), NOT select_subscription_plan (pick plan mutate), NOT use_subscription_credit (apply credit mutate), NOT explain_package_savings (multi-service bundle), NOT compare_services (catalog service A vs B — subscription vs one-time is not two services), NOT add_booking_to_calendar (calendar/ICS only), NOT subscription_usage_history (dashboard staff usage ledger).`;
 
 export const EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_PROMPTS: readonly ExplainSubscriptionVsOneTimePromptFixture[] =
   [
@@ -136,6 +136,34 @@ export const EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_PROMPTS: readonly ExplainSubscript
       rescueReason: 'subscription_vs_one_time',
       focus: 'compare',
     },
+    {
+      id: 'e2e79-get-subscription-or-pay-per-visit-customer',
+      prompt: 'should I get the subscription or just pay per visit?',
+      surface: 'customer',
+      expectedAction: 'explain_subscription_vs_one_time',
+      rescueReason: 'subscription_vs_one_time',
+      focus: 'compare',
+    },
+    {
+      id: 'e2e79-difference-subscription-vs-one-time-customer',
+      prompt:
+        'explain the difference between the subscription plan and paying one time',
+      surface: 'customer',
+      expectedAction: 'explain_subscription_vs_one_time',
+      rescueReason: 'subscription_vs_one_time',
+      focus: 'compare',
+    },
+    {
+      id: 'e2e79-monthly-plan-better-value-customer',
+      prompt:
+        'is the Monthly Massage Plan subscription better value than paying per visit?',
+      surface: 'customer',
+      expectedAction: 'explain_subscription_vs_one_time',
+      rescueReason: 'subscription_vs_one_time',
+      planName: 'Monthly Massage',
+      serviceName: 'Massage',
+      focus: 'compare',
+    },
   ];
 
 export const EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_RESCUE_SCENARIOS = [
@@ -161,6 +189,26 @@ export const EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_RESCUE_SCENARIOS = [
     id: 'misclassified-use-credit',
     prompt: 'Should I use subscription credit or one-time appointment?',
     misclassifiedAction: 'use_subscription_credit',
+    surface: 'customer' as const,
+  },
+  {
+    id: 'e2e79-misclassified-add-booking-to-calendar',
+    prompt: 'should I get the subscription or just pay per visit?',
+    misclassifiedAction: 'add_booking_to_calendar',
+    surface: 'customer' as const,
+  },
+  {
+    id: 'e2e79-misclassified-compare-services',
+    prompt:
+      'explain the difference between the subscription plan and paying one time',
+    misclassifiedAction: 'compare_services',
+    surface: 'customer' as const,
+  },
+  {
+    id: 'e2e79-misclassified-subscription-usage-history',
+    prompt:
+      'is the Monthly Massage Plan subscription better value than paying per visit?',
+    misclassifiedAction: 'subscription_usage_history',
     surface: 'customer' as const,
   },
 ] as const;

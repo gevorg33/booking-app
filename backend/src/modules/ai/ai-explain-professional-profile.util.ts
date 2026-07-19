@@ -1,5 +1,6 @@
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-explain-professional-profile-multilingual.fixtures.js';
 import { isExplainRecommendationSetupPrompt } from './ai-recommendation-product.util.js';
+import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
 import {
   EXPLAIN_PROFESSIONAL_PROFILE_PROMPTS,
   type ExplainProfessionalProfilePromptFixture,
@@ -31,13 +32,24 @@ const TELL_ME_ABOUT_BLOCK = new RegExp(
   'iu',
 );
 
+/** e2e-bug.93 — tell-me-about + profile/experience is professional profile, not specialty. */
+const PROFILE_EXPERIENCE_CUE = new RegExp(
+  String.raw`\b(?:profile|experience|background|bio|professional\s+profile)\b`,
+  'iu',
+);
+
 const PICK_PROVIDER_BLOCK = new RegExp(
   String.raw`\b(?:book|schedule|reserve)\s+with\b|\b(?:pick|choose|select)\s+[A-Za-z].+?\s+for\b`,
   'iu',
 );
 
 const NAMED_PROFILE_PATTERNS: ReadonlyArray<RegExp> = [
-  /\bshow\s+me\s+(.+?)(?:'s|’s)\s+(?:services|profile)\b/i,
+  // e2e-bug.93 — "tell me about Mariam's profile and experience"
+  /\btell\s+me\s+about\s+(.+?)(?:'s|’s)\s+(?:profile|experience|background|bio|professional\s+profile)\b/i,
+  /\blearn(?:\s+more)?\s+about\s+(.+?)(?:'s|’s)\s+(?:profile|experience|background|bio|professional\s+profile)\b/i,
+  /\bshow\s+me\s+(.+?)(?:'s|’s)\s+(?:services|profile|professional\s+profile)\b/i,
+  // e2e-bug.137 — "Show me Mariam Ohanyan's professional profile"
+  /\bshow\s+me\s+(.+?)(?:'s|’s)\s+professional\s+profile\b/i,
   /\bopen\s+(.+?)(?:'s|’s)\s+profile\b/i,
   /\bview\s+(.+?)(?:'s|’s)\s+(?:profile|professional profile)\b/i,
   /\bwhat\s+services\s+does\s+(.+?)\s+offer\b/i,
@@ -140,9 +152,13 @@ export function isExplainProfessionalProfileIntent(
 
 export function isExplainProfessionalProfilePrompt(prompt: string): boolean {
   if (isExplainRecommendationSetupPrompt(prompt)) return false;
+  if (isExplainTourServicesPrompt(prompt)) return false;
   if (matchExplainProfessionalProfileScenario(prompt)) return true;
   if (SPECIALTY_MATCH_BLOCK.test(prompt)) return false;
-  if (TELL_ME_ABOUT_BLOCK.test(prompt)) return false;
+  // e2e-bug.93 — allow tell-me-about when profile/experience cues are present.
+  if (TELL_ME_ABOUT_BLOCK.test(prompt) && !PROFILE_EXPERIENCE_CUE.test(prompt)) {
+    return false;
+  }
   if (PICK_PROVIDER_BLOCK.test(prompt)) return false;
   if (hasBrowseProfessionalsCue(prompt)) return true;
   if (hasCurrentProviderProfileCue(prompt)) return true;

@@ -8,6 +8,7 @@ import {
 import { isCapacityRebalancePrompt } from './ai-scheduling.util.js';
 import { isHideAppointmentsFromCalendarPrompt } from './ai-schedule-ops-hints.util.js';
 import { isRemoveRetailLinePrompt } from './ai-retail-finance.util.js';
+import { isConfigureServiceFeaturedPrompt } from './ai-configure-service-featured.util.js';
 
 const SENIORITY_MATRIX_RE =
   /\b(?:senior|junior)\s+(?:only|stylist|stylists|provider|providers|staff)\b/i;
@@ -26,6 +27,7 @@ export function isTransferServicesBetweenProvidersPrompt(
   const hasTransferVerb = /\b(move|transfer|reassign)\b/i.test(prompt);
   if (!hasTransferVerb) return false;
   if (!/\bfrom\s+.+\s+to\s+/i.test(prompt)) return false;
+  if (/\bcategory\b.*\bto\b.*\bcategory\b/i.test(prompt)) return false;
   return /\b(services?|category|skills?)\b/i.test(prompt);
 }
 
@@ -33,6 +35,7 @@ export function isTransferServicesBetweenProvidersPrompt(
 export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
   if (isHideAppointmentsFromCalendarPrompt(prompt)) return false;
   if (isRemoveRetailLinePrompt(prompt)) return false;
+  if (isConfigureServiceFeaturedPrompt(prompt)) return false;
   if (isTransferServicesBetweenProvidersPrompt(prompt)) return false;
   if (SENIORITY_MATRIX_RE.test(prompt)) return false;
   // Locale/translation cleanup ("strip translations from catalog", "remove
@@ -51,6 +54,30 @@ export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  if (/\bfrom\s+(?:the\s+)?public\s+booking\b/i.test(prompt)) return false;
+  // e2e-bug.144 — "remove service from my/the catalog" is deactivate_service.
+  if (
+    /\bfrom\s+(?:the\s+|my\s+|our\s+)?(?:public\s+|service\s+|business\s+)?(?:catalog|menu)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\bpermanently\b/i.test(prompt) &&
+    /\b(?:service|catalog)\b/i.test(prompt) &&
+    !/\b(?:provider|employee|stylist)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.131 — "Remove the manicure from my cart" is customer cart, not
+  // unassign_employee_services (was parsing "cart" as employeeName).
+  if (
+    /\b(?:cart|basket)\b/i.test(prompt) &&
+    !/\b(?:provider|employee|stylist|staff|team\s+member)\b/i.test(prompt)
+  ) {
+    return false;
+  }
 
   const hasUnassign =
     /\b(unassign|remove|strip|drop|revoke|take away|clear)\b/i.test(prompt);
@@ -58,7 +85,9 @@ export function isUnassignServicesFromProviderPrompt(prompt: string): boolean {
 
   const hasFromProvider =
     /\bfrom\s+(?:service\s+)?provider\s+[A-Za-z]/i.test(prompt) ||
-    (/\bfrom\s+[A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?(?:\s*$|\s)/i.test(prompt) &&
+    (/\bfrom\s+(?!my\b|our\b|the\b|public\b|service\b|provider\b|cart\b|basket\b)([A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?)(?:\s*$|\s)/i.test(
+      prompt,
+    ) &&
       !/\bfrom\s+(?:seniors?|juniors?)\b/i.test(prompt));
 
   const hasScope =

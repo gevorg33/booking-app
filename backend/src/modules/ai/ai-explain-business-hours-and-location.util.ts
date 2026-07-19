@@ -4,6 +4,9 @@ import { isApplyClinicPlaybookPrompt } from './ai-clinic-service.util.js';
 
 export const CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — explain salon opening hours (including a named weekday), street address, Google Maps link from the profile embed, and optional parking amenity copy. Triggers: "When are you open Saturday?", "Where are you located?", "What are your hours?", "Is there parking?", "What's the address?". Set aspect to hours|location|parking|hours_and_location when clear; set weekday for a named day. Navigate to profile when sharing map/address. NOT explain_salon_profile (general salon profile page / photos / social), NOT get_directions_to_salon (navigation/directions URL or visit parking guidance), NOT business_info (general salon description/contact dump), NOT booking_help (how to book), and NOT check_availability (slot search).`;
 
+/** e2e-bug.137 — dashboard owner/admin hours/address reads (not location CRUD, not schedule templates). */
+export const DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — salon opening hours, street address, map link, or parking copy from the business profile. Triggers: "What are my business hours?", "When are we open Saturday?", "What's our address?", "Do we have parking info listed?". Set aspect to hours|location|parking|hours_and_location; set weekday for a named day. NOT create_location / update_location (admin location CRUD), NOT list_templates (schedule template names), NOT check_schedule_compliance (appointments outside hours), and NOT react_agent.`;
+
 export type BusinessHoursLocationAspect =
   | 'hours'
   | 'location'
@@ -219,8 +222,8 @@ function hasHoursCue(prompt: string): boolean {
     /\b(?:open(?:ing)?\s+hours?|business\s+hours?|operating\s+hours?|what\s+time|when\s+are\s+you\s+open|are\s+you\s+open|close|closing|hours?\s+on|your\s+hours|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+hours?)\b/i.test(
       prompt,
     ) ||
-    /(?:աշխատանքային|բաց|ժամեր|երբ)/iu.test(prompt) ||
-    /(?:часы|открыт|работаете|когда|закрыва|сколько)/iu.test(prompt)
+    /(?:աշխատանքային|բաց(?!իր|ատրիր)|ժամեր|երբ)/iu.test(prompt) ||
+    /(?:часы|открыт|работаете|закрыва)/iu.test(prompt)
   );
 }
 
@@ -297,6 +300,27 @@ export function isExplainBusinessHoursAndLocationPrompt(
     return false;
   }
   if (hasSalonDirectionsCue(prompt)) return false;
+
+  // e2e-bug.146 — admin location CRUD must not match on bare "location"/"address".
+  if (
+    /\b(?:add|create|open|set\s+up|setup)\b/i.test(prompt) &&
+    /\b(?:new\s+)?(?:business\s+)?location\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:update|edit|change|rename)\b/i.test(prompt) &&
+    /\b(?:location|branch)\b/i.test(prompt) &&
+    /\b(?:address|phone|timezone|default|name)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:main|default|primary)\s+location\b/i.test(prompt) &&
+    /\b(?:update|edit|change|set|address|phone|timezone)\b/i.test(prompt)
+  ) {
+    return false;
+  }
 
   if (
     /\b(?:book|reserve|schedule)\b/i.test(prompt) &&

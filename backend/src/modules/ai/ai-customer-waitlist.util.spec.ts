@@ -2,6 +2,7 @@ import {
   CHECK_WAITLIST_STATUS_PROMPTS,
   CUSTOMER_PUBLIC_CUSTOMER_WAITLIST_CLASSIFIER_RULES,
   CUSTOMER_WAITLIST_RESCUE_SCENARIOS,
+  E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS,
   JOIN_WAITLIST_PROMPTS,
 } from './ai-customer-waitlist.fixtures.js';
 import { CUSTOMER_WAITLIST_MULTILINGUAL_SCENARIOS } from './ai-customer-waitlist-multilingual.fixtures.js';
@@ -19,7 +20,14 @@ import {
   isCustomerWaitlistIntent,
   detectCustomerWaitlistAction,
   enrichJoinWaitlistParamsFromPrompt,
+  looksLikeWaitlistPersonName,
+  sanitizeWaitlistPreferenceNames,
 } from './ai-customer-waitlist.util.js';
+import {
+  buildCustomerWaitlistRequest,
+  buildJoinWaitlistSuccessSummary,
+  formatCustomerWaitlistPreferenceSummary,
+} from '../../common/utils/customer-waitlist.util.js';
 
 describe('ai-customer-waitlist.util (ai-cmd-customer-4.4.7)', () => {
   it('exports classifier rules', () => {
@@ -122,5 +130,61 @@ describe('ai-customer-waitlist.util (ai-cmd-customer-4.4.7)', () => {
         CUSTOMER_WAITLIST_MULTILINGUAL_SCENARIOS.length +
         CUSTOMER_WAITLIST_RESCUE_SCENARIOS.length,
     );
+  });
+
+  it.each(E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS)(
+    'e2e-bug.112 does not duplicate provider into serviceName ($id)',
+    ({ prompt, serviceName, employeeName }) => {
+      const parsed = parseJoinWaitlistFromPrompt(prompt);
+      expect(parsed).not.toBeNull();
+      expect(parsed?.employeeName).toBe(employeeName);
+      if (serviceName) {
+        expect(parsed?.serviceName).toBe(serviceName);
+      } else {
+        expect(parsed?.serviceName).toBeUndefined();
+      }
+      expect(parsed?.serviceName).not.toBe(parsed?.employeeName);
+
+      // Classifier sometimes pre-fills both slots with the provider name.
+      const fromClassifier = enrichJoinWaitlistParamsFromPrompt(
+        { serviceName: employeeName, employeeName },
+        prompt,
+      );
+      expect(fromClassifier.serviceName).toBeUndefined();
+      expect(fromClassifier.employeeName).toBe(employeeName);
+
+      const summary = buildJoinWaitlistSuccessSummary(
+        buildCustomerWaitlistRequest({
+          ...(typeof fromClassifier.serviceName === 'string'
+            ? { serviceName: fromClassifier.serviceName }
+            : {}),
+          employeeName: String(fromClassifier.employeeName),
+          date: '18/07/2026',
+        }),
+      );
+      expect(summary).not.toContain(`${employeeName} with ${employeeName}`);
+      expect(summary).toContain(`with ${employeeName}`);
+    },
+  );
+
+  it('e2e-bug.112 sanitize + person-name helpers', () => {
+    expect(looksLikeWaitlistPersonName('Gevorg Gasparyan')).toBe(true);
+    expect(looksLikeWaitlistPersonName('massage')).toBe(false);
+    expect(looksLikeWaitlistPersonName('Swedish massage')).toBe(false);
+    expect(
+      sanitizeWaitlistPreferenceNames({
+        serviceName: 'Gevorg Gasparyan',
+        employeeName: 'Gevorg Gasparyan',
+      }),
+    ).toEqual({ employeeName: 'Gevorg Gasparyan' });
+    expect(
+      formatCustomerWaitlistPreferenceSummary(
+        buildCustomerWaitlistRequest({
+          serviceName: 'Gevorg Gasparyan',
+          employeeName: 'Gevorg Gasparyan',
+          date: '18/07/2026',
+        }),
+      ),
+    ).toBe('with Gevorg Gasparyan on 18/07/2026');
   });
 });

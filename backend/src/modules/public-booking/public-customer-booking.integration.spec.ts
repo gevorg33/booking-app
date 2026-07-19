@@ -130,6 +130,28 @@ describe('Public customer booking self-service integration', () => {
       bookings.set(booking.id, { ...booking });
       return booking;
     }),
+    // api-bug.6 — ensureBookingManageToken uses manager.transaction + FOR UPDATE
+    manager: {
+      transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) => {
+        const manager = {
+          createQueryBuilder: () => ({
+            setLock: () => ({
+              where: (_clause: string, params: { bookingId: string }) => ({
+                getOne: async () => {
+                  const row = bookings.get(params.bookingId);
+                  return row ? { ...row, metadata: { ...row.metadata } } : null;
+                },
+              }),
+            }),
+          }),
+          save: async (_entity: unknown, booking: StoredBooking) => {
+            bookings.set(booking.id, { ...booking });
+            return booking;
+          },
+        };
+        return cb(manager);
+      }),
+    },
   };
 
   const reviewRepo = {
@@ -177,6 +199,7 @@ describe('Public customer booking self-service integration', () => {
     cancel: jest.fn(async (id: string, reason: string, userId?: string) => {
       const booking = bookings.get(id);
       if (!booking) throw new NotFoundException('Booking not found');
+      const didCancel = booking.status !== BookingStatus.CANCELLED;
       booking.status = BookingStatus.CANCELLED;
       booking.metadata = {
         ...booking.metadata,
@@ -184,12 +207,14 @@ describe('Public customer booking self-service integration', () => {
         cancelledBy: userId,
       };
       bookings.set(id, booking);
-      await eventStore.publish({
-        eventType: 'booking.cancelled',
-        aggregateId: id,
-        payload: { reason, userId },
-      });
-      return { ...booking };
+      if (didCancel) {
+        await eventStore.publish({
+          eventType: 'booking.cancelled',
+          aggregateId: id,
+          payload: { reason, userId },
+        });
+      }
+      return { booking: { ...booking }, didCancel };
     }),
     update: jest.fn(
       async (
@@ -269,13 +294,51 @@ describe('Public customer booking self-service integration', () => {
     sign: jest.fn(() => 'jwt-token'),
   } as unknown as JwtService;
 
+  const bookingRefundService = {
+    refundBookingPayment: jest.fn(async (_business: unknown, booking: any) => {
+      const metadata = booking.metadata ?? {};
+      if (metadata.stripeRefundId) return 'already_refunded';
+      if (!metadata.stripePaymentIntentId) return 'skipped';
+      booking.metadata = { ...metadata, stripeRefundId: 're_test' };
+      booking.paymentStatus = PaymentStatus.REFUNDED;
+      bookings.set(booking.id, booking);
+      return 'refunded';
+    }),
+  };
+
+  type StoredPackagePurchase = {
+    id: string;
+    metadata: Record<string, unknown>;
+  };
+  const packagePurchases = new Map<string, StoredPackagePurchase>();
+
+  const packagePurchaseRepo = {
+    findOne: jest.fn(async ({ where }: { where: { id: string } }) => {
+      return packagePurchases.get(where.id) ?? null;
+    }),
+  };
+
+  const packageRefundService = {
+    refundPackagePayment: jest.fn(async (_business: unknown, purchase: any) => {
+      const metadata = purchase.metadata ?? {};
+      if (metadata.stripeRefundId) return 'already_refunded';
+      if (!metadata.stripePaymentIntentId) return 'skipped';
+      purchase.metadata = { ...metadata, stripeRefundId: 're_test' };
+      packagePurchases.set(purchase.id, purchase);
+      return 'refunded';
+    }),
+  };
+
   const publicCustomerBookingService = new PublicCustomerBookingService(
     businessService as any,
     bookingService as any,
+    bookingRefundService as any,
+    packageRefundService as any,
     notificationsService as any,
     configService as any,
     multiServiceBookingsService as any,
     bookingRepo as any,
+    packagePurchaseRepo as any,
   );
 
   const giftCardPurchaseService = {
@@ -289,6 +352,7 @@ describe('Public customer booking self-service integration', () => {
     jwtService,
     { isReady: false } as any,
     publicCustomerBookingService,
+    {} as any,
     giftCardPurchaseService as any,
     eventEmitter as any,
     customerRepo as any,
@@ -383,6 +447,7 @@ describe('Public customer booking self-service integration', () => {
 
   beforeEach(() => {
     bookings.clear();
+    packagePurchases.clear();
     reviews.length = 0;
     jest.clearAllMocks();
     business.isActive = true;
@@ -560,6 +625,39 @@ describe('Public customer booking self-service integration', () => {
     expect(
       notificationsService.sendBusinessCustomerBookingChange,
     ).toHaveBeenCalledWith(booking.id, 'cancelled');
+  });
+
+  it('refunds a paid-online booking on cancel and reports refund status', async () => {
+    const booking = seedBooking({
+      id: 'book-paid',
+      paymentStatus: PaymentStatus.PAID,
+      metadata: { stripePaymentIntentId: 'pi_abc' },
+    });
+
+    const result = await publicCustomerBookingService.cancelBooking(
+      'salon',
+      'cust-1',
+      booking.id,
+    );
+
+    expect(bookingRefundService.refundBookingPayment).toHaveBeenCalled();
+    expect(result.refundStatus).toBe('refunded');
+    expect(bookings.get(booking.id)?.paymentStatus).toBe(
+      PaymentStatus.REFUNDED,
+    );
+  });
+
+  it('does not refund a booking with no online payment on cancel', async () => {
+    const booking = seedBooking({ id: 'book-cash' });
+
+    const result = await publicCustomerBookingService.cancelBooking(
+      'salon',
+      'cust-1',
+      booking.id,
+    );
+
+    expect(bookingRefundService.refundBookingPayment).not.toHaveBeenCalled();
+    expect(result.refundStatus).toBeUndefined();
   });
 
   it('reschedules via manage token and notifies business', async () => {
@@ -766,7 +864,8 @@ describe('Public customer booking self-service integration', () => {
       booking.id,
     );
     expect(token).toMatch(/^[a-f0-9]{48}$/);
-    expect(bookingRepo.save).toHaveBeenCalled();
+    expect(bookings.get('book-new-token')?.metadata.manageToken).toBe(token);
+    expect(bookingRepo.manager.transaction).toHaveBeenCalled();
   });
 
   describe('package visit self-service', () => {
@@ -1086,6 +1185,54 @@ describe('Public customer booking self-service integration', () => {
       );
       expect(result.bookings).toHaveLength(1);
       expect(bookingService.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('refunds an unused, paid-online package purchase on cancel', async () => {
+      const { anchor } = seedPackageVisit();
+      packagePurchases.set('purchase-1', {
+        id: 'purchase-1',
+        metadata: { stripePaymentIntentId: 'pi_pkg_1' },
+      });
+
+      const result = await publicCustomerBookingService.cancelPackageVisit(
+        'salon',
+        'cust-1',
+        anchor.id,
+      );
+      expect(result.refundStatus).toBe('refunded');
+      expect(packageRefundService.refundPackagePayment).toHaveBeenCalled();
+      expect(packagePurchases.get('purchase-1')?.metadata.stripeRefundId).toBe(
+        're_test',
+      );
+    });
+
+    it('does not refund a package purchase once a line has been used', async () => {
+      const { anchor } = seedPackageVisit();
+      bookings.get('pkg-2')!.status = BookingStatus.COMPLETED;
+      packagePurchases.set('purchase-1', {
+        id: 'purchase-1',
+        metadata: { stripePaymentIntentId: 'pi_pkg_1' },
+      });
+
+      const result = await publicCustomerBookingService.cancelPackageVisit(
+        'salon',
+        'cust-1',
+        anchor.id,
+      );
+      expect(result.refundStatus).toBeUndefined();
+      expect(packageRefundService.refundPackagePayment).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt a refund for a cash package purchase', async () => {
+      const { anchor } = seedPackageVisit();
+
+      const result = await publicCustomerBookingService.cancelPackageVisit(
+        'salon',
+        'cust-1',
+        anchor.id,
+      );
+      expect(result.refundStatus).toBeUndefined();
+      expect(packageRefundService.refundPackagePayment).not.toHaveBeenCalled();
     });
 
     it('falls back to anchor when package sibling query returns empty', async () => {

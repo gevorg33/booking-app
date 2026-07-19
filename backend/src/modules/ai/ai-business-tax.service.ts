@@ -20,6 +20,8 @@ import {
   handleSummarizeCustomerTaxPaidLogic,
   type BusinessTaxLogicDeps,
 } from './ai-business-tax.logic.js';
+import { dispatchBusinessTaxLogicIntent } from './ai-business-tax-dispatch.util.js';
+import type { BusinessTaxDispatchContext } from './ai-business-tax-dispatch.build.js';
 
 @Injectable()
 export class AiBusinessTaxService {
@@ -176,5 +178,10 @@ export class AiBusinessTaxService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-tax intent. */
+  dispatchIntent(ctx: BusinessTaxDispatchContext): Promise<CommandResult | null> {
+    return dispatchBusinessTaxLogicIntent(this.deps, ctx);
   }
 }

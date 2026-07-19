@@ -14,6 +14,7 @@ import {
   isCreateEmployeePrompt,
   isDeactivateEmployeePrompt,
   isInviteStaffMemberPrompt,
+  isUpdateTeamMemberRolePrompt,
   parseOnlineBookingEnabledFromPrompt,
   rescueStaffOperationsIntent,
 } from './ai-staff-operations.util.js';
@@ -127,10 +128,47 @@ describe('ai-staff-operations.util (ai-cmd-ext-2.5–2.8)', () => {
     );
   });
 
+  it('isUpdateTeamMemberRolePrompt detects role-change phrasing', () => {
+    expect(isUpdateTeamMemberRolePrompt("Make Maria's role manager")).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Set Jake\'s role to admin')).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Promote Anna to manager')).toBe(
+      true,
+    );
+    expect(isUpdateTeamMemberRolePrompt('Rename Anna to Maria')).toBe(false);
+  });
+
+  it('rescueStaffOperationsIntent rescues update_team_member_role from unknown', () => {
+    const rescued = rescueStaffOperationsIntent(
+      'Make Maria a manager role',
+      'unknown',
+    );
+    expect(rescued?.action).toBe('update_team_member_role');
+  });
+
   it('detection helpers match fixtures', () => {
     expect(isCreateEmployeePrompt('Add stylist Anna')).toBe(true);
     expect(isInviteStaffMemberPrompt('Invite staff to the app')).toBe(true);
     expect(isDeactivateEmployeePrompt('Remove Maria from team')).toBe(true);
     expect(isConfigureOnlineBookingPrompt('Enable online booking')).toBe(true);
+  });
+
+  it('e2e-bug.144 — catalog delete/remove is not deactivate_employee', () => {
+    expect(
+      isDeactivateEmployeePrompt(
+        'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+      ),
+    ).toBe(false);
+    expect(
+      isDeactivateEmployeePrompt('Delete the service called QA Test Trim'),
+    ).toBe(false);
+    expect(
+      isDeactivateEmployeePrompt(
+        'Remove the QA Test Trim service from my catalog permanently',
+      ),
+    ).toBe(false);
   });
 });

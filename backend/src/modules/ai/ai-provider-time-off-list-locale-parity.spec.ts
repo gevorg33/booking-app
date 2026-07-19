@@ -74,8 +74,8 @@ describe('ai provider time-off list locale parity (acc-2.4)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(3);
-    expect(ruCases.length).toBe(3);
+    expect(hyCases.length).toBe(4);
+    expect(ruCases.length).toBe(4);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(
@@ -83,6 +83,6 @@ describe('ai provider time-off list locale parity (acc-2.4)', () => {
         (row) => row.expect.needsMultilingual === true,
       ),
     ).toBe(true);
-    expect(AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_CASES.length).toBe(3);
+    expect(AI_COMMAND_EVAL_PROVIDER_TIME_OFF_LIST_CASES.length).toBe(4);
   });
 });

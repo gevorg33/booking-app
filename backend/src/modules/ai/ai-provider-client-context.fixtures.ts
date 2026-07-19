@@ -2,11 +2,29 @@
 export const PROVIDER_CLIENT_CONTEXT_CLASSIFIER_RULES = `- summarize_client: READ — provider mobile only: brief client snapshot before the visit — loyalty balance with last earn/redeem (read-only on mobile), completed visits, last visit, no-shows, marketing opt-in, referral, first-visit / win-back badges, recent visit highlights. Requires bookingId (session) and/or customerName. Triggers: summarize this client, what should I know about Jane, client overview, is this a first visit, loyalty balance for Jane. NOT show_client_history (visit list only), NOT show_appointments (today's schedule), NOT dashboard summarize_customers, NOT adjust_loyalty (dashboard/AI only).
 - show_client_history: READ — provider mobile only: list recent completed visits for the client on this booking (service, provider, date). Requires bookingId and/or customerName. Triggers: show visit history, past appointments for John, when did they last visit. NOT summarize_client (narrative snapshot), NOT list_bookings (all bookings admin-style).
 - add_client_note: MUTATE — provider mobile only: add an internal staff note on the customer linked to this booking (max 500 chars). Requires clientNote body plus bookingId and/or customerName. Triggers: add note, remember that, staff note. NOT update_bookings (appointment status), NOT dashboard add_customer_note.
+- list_client_staff_notes: READ — provider mobile only: list existing internal staff notes on the customer linked to this booking. Requires bookingId and/or customerName. Triggers: show staff notes, what notes do we have on Jane, any notes for this client. NOT add_client_note (writes a new note), NOT summarize_client (narrative snapshot).
+- explain_client_intake: READ — provider mobile only: read the client's submitted pre-visit intake questionnaire answers for this booking (status, questionnaire title, answers). Requires bookingId and/or customerName. Triggers: what does their intake say, show pre-visit intake answers, did they fill out the questionnaire. NOT summarize_client (narrative snapshot without intake detail), NOT explain_clinic_booking (checkout form fields).
+- explain_package_visit_context: READ — provider mobile only: which visit in a package this booking is (visit N of total, package name, visits remaining). Requires bookingId and/or customerName. Triggers: which visit is this in her package, 2 of 6 facials, how many package visits are left, show Jane's package progress, visits left on her plan. NOT summarize_client (full narrative snapshot), NOT explain_multi_service_timeline (same-visit multi-service order, not a multi-visit package).
+- explain_multi_service_timeline: READ — provider mobile only: order of services in a multi-service booking group (what's already done, current service, what's next). Requires bookingId and/or customerName. Triggers: what's next after this blowdry, spa day order, what else is on this booking. NOT explain_package_visit_context (multi-visit package, not same-visit multi-service), NOT list_my_multi_service_groups (list of groups, not one booking's timeline).
+- explain_booking_payment_breakdown: READ — provider mobile only: full payment breakdown for this booking — service price, retail add-ons, promo/gift-card/loyalty discounts, tax, grand total, amount collected, and amount still owed. Requires bookingId and/or customerName. Triggers: payment breakdown, break down the total, what discounts were applied, what's included in this total, prepaid — show breakdown. NOT explain_payment_status (paid/pending status only, no line items), NOT explain_appointment_tax (tax lines only), NOT explain_provider_payment_currency (currency symbol only).
+- explain_deposit_balance_due: READ — provider mobile only: quick balance-due answer — how much is left to pay after any deposit/prepayment, no itemized line items. Requires bookingId and/or customerName. Triggers: how much is left at checkout, what's the balance due, 50% deposit — rest due?, how much does she still owe. NOT explain_booking_payment_breakdown (full itemized line-by-line breakdown), NOT explain_payment_status (paid/pending status only).
+- explain_retail_cart: READ — provider mobile only: what's on the retail tab for this booking (product names, quantities, retail total). Requires bookingId and/or customerName. Triggers: what's on the retail tab, total with products, show me the retail cart, what products are on this booking. NOT add_retail_to_booking (mutate — adds a line), NOT explain_booking_payment_breakdown (full payment breakdown including service/tax/discounts, not just retail).
+- explain_cancel_policy_for_client: READ — provider mobile only: read the salon's cancel/reschedule policy (notice window, online cancel/reschedule allowed, max reschedules) and this booking's deposit-forfeiture exposure if cancelled. Requires bookingId and/or customerName. Triggers: what's our cancellation policy for this client, will she lose her deposit if she cancels, how much notice do we need to cancel, explain the reschedule policy for this booking. NOT explain_deposit_balance_due (how much is owed, not cancellation exposure), NOT explain_booking_payment_breakdown (full payment breakdown, not policy).
+- explain_gift_card_redemption: READ — provider mobile only: checkout-badge context — how much of this booking is covered by a gift card and the card's current remaining balance. Requires bookingId and/or customerName. Triggers: she's paying with gift card — balance?, how much gift card balance does she have, what's left on the gift card. NOT explain_booking_payment_breakdown (full itemized breakdown, gift card discount is just one line), NOT claim_gift_card_balance (customer-surface — adds a gift card to their own account).
+- explain_tour_group_on_booking: READ — provider mobile only: tour group metadata (pax count / group size) stored on this booking. Requires bookingId and/or customerName. Triggers: how many pax on this tour, group booking details, how many people in this group, pax count. NOT explain_multi_service_timeline (same-visit service order, not group size), NOT summarize_client (full narrative snapshot).
 - Examples:
   - "Summarize this client" → summarize_client (inherit bookingId from session)
   - "What should I know about Jane before her color appointment?" → summarize_client, customerName=Jane
   - "Show Jane's visit history" → show_client_history, customerName=Jane
-  - "Add note: prefers window seat" → add_client_note, clientNote=prefers window seat`;
+  - "Add note: prefers window seat" → add_client_note, clientNote=prefers window seat
+  - "Show staff notes for this client" → list_client_staff_notes
+  - "What does their pre-visit intake say?" → explain_client_intake
+  - "Which visit is this in her package?" → explain_package_visit_context
+  - "What's next after this blowdry?" → explain_multi_service_timeline
+  - "What's the payment breakdown for this booking?" → explain_booking_payment_breakdown
+  - "How much is left at checkout?" → explain_deposit_balance_due
+  - "What's on the retail tab?" → explain_retail_cart
+  - "She's paying with gift card — balance?" → explain_gift_card_redemption`;
 
 export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
   {
@@ -214,5 +232,566 @@ export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
     prompt: 'Добавь заметку: аллергия на латекс',
     surface: 'provider' as const,
     expectedAction: 'add_client_note',
+  },
+  {
+    id: 'staff-notes-show-en',
+    prompt: 'Show staff notes for this client',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+  },
+  {
+    id: 'staff-notes-any-en',
+    prompt: 'Any notes on Jane?',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'staff-notes-list-en',
+    prompt: 'List the customer notes for John',
+    surface: 'provider' as const,
+    expectedAction: 'list_client_staff_notes',
+    paramsPartial: { customerName: 'John' },
+  },
+  {
+    id: 'intake-what-say-en',
+    prompt: 'What does their pre-visit intake say?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-show-answers-en',
+    prompt: "Show Jane's pre-visit intake answers",
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'intake-fill-out-en',
+    prompt: 'Did they fill out the intake questionnaire?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-explain-en',
+    prompt: 'Explain her intake questionnaire',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-summarize-form-en',
+    prompt: 'Summarize his pre-visit form',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-allergies-en',
+    prompt: 'What allergies did she list on her intake?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-questionnaire-answers-en',
+    prompt: 'Show me the questionnaire answers',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-did-she-fill-en',
+    prompt: 'Did she fill out her pre-visit questionnaire?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-form-say-en',
+    prompt: 'What does the intake form say about allergies?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+  },
+  {
+    id: 'intake-answers-name-en',
+    prompt: 'Show the intake answers for Maria',
+    surface: 'provider' as const,
+    expectedAction: 'explain_client_intake',
+    paramsPartial: { customerName: 'Maria' },
+  },
+  {
+    id: 'package-visit-which-en',
+    prompt: 'Which visit is this in her package?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-count-en',
+    prompt: 'This is visit 2 of 6 facials, right?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-how-many-left-en',
+    prompt: 'How many package visits does she have left?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-is-this-en',
+    prompt: 'Is this a package visit?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-what-package-en',
+    prompt: 'What package is this visit part of?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-remain-en',
+    prompt: 'How many visits remain in the package?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-which-for-john-en',
+    prompt: 'Which package visit is this for John?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+    paramsPartial: { customerName: 'John' },
+  },
+  {
+    id: 'package-visit-number-en',
+    prompt: 'Is this visit 3 of her package?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-remaining-client-en',
+    prompt: 'Package visits remaining for this client?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-what-number-en',
+    prompt: 'What number visit is this in the package?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'package-visit-progress-en',
+    prompt: "Show Jane's package progress",
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'package-visit-left-on-plan-en',
+    prompt: 'Visits left on her plan',
+    surface: 'provider' as const,
+    expectedAction: 'explain_package_visit_context',
+  },
+  {
+    id: 'multi-service-timeline-blowdry-en',
+    prompt: "What's next after this blowdry?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-spa-order-en',
+    prompt: 'Spa day order',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-else-en',
+    prompt: "What else is on this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-order-services-en',
+    prompt: "What's the order of services today?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-next-service-en',
+    prompt: "What's next after this service?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-show-order-en',
+    prompt: 'Show me the multi-service order',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-spa-day-order-en',
+    prompt: "What's the spa day order?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-else-for-her-en',
+    prompt: 'What else is on this booking for her?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-show-timeline-en',
+    prompt: 'Show the multi-service timeline',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-next-one-en',
+    prompt: "What's next after this one?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-which-first-en',
+    prompt: 'Which service is first?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'multi-service-timeline-gap-between-en',
+    prompt: 'Gap between her two appointments?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_multi_service_timeline',
+  },
+  {
+    id: 'payment-breakdown-what-en',
+    prompt: "What's the payment breakdown for this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-show-en',
+    prompt: "Show me the breakdown for this booking's payment",
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-prepaid-en',
+    prompt: 'She prepaid online — show the breakdown',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-total-en',
+    prompt: 'Break down the total for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-discounts-en',
+    prompt: 'What discounts were applied to this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-included-en',
+    prompt: "What's included in this booking's total?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-price-en',
+    prompt: 'Show the price breakdown for this appointment',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-not-fully-paid-en',
+    prompt: "Why isn't this booking fully paid — what's the breakdown?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-owes-en',
+    prompt: 'Break down what she owes on this booking',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'payment-breakdown-deposit-en',
+    prompt: 'How much deposit is left on this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_booking_payment_breakdown',
+  },
+  {
+    id: 'deposit-balance-due-checkout-en',
+    prompt: 'How much is left at checkout?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-owe-en',
+    prompt: 'How much does she still owe on this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-rest-en',
+    prompt: "50% deposit — what's the rest due?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-balance-en',
+    prompt: "What's the balance due on this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-visit-en',
+    prompt: 'How much is due at the visit?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-appointment-en',
+    prompt: 'How much do they still owe on this appointment?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-left-to-pay-en',
+    prompt: "What's left to pay on this appointment?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-is-there-en',
+    prompt: 'Is there a balance due on this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-collect-en',
+    prompt: 'How much of the deposit is remaining to collect?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'deposit-balance-due-before-checkout-en',
+    prompt: 'What does she owe before checkout?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_deposit_balance_due',
+  },
+  {
+    id: 'retail-cart-tab-en',
+    prompt: "What's on the retail tab?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-total-with-products-en',
+    prompt: 'Total with products?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-show-cart-en',
+    prompt: 'Show me the retail cart for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-what-products-en',
+    prompt: 'What products are on this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-list-items-en',
+    prompt: 'List the retail items on this appointment',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-whats-in-cart-en',
+    prompt: "What's in the retail cart for this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-show-section-en',
+    prompt: 'Show the retail section for this client',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-how-much-en',
+    prompt: 'How much retail is on this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-retail-total-en',
+    prompt: "What's the retail total for this appointment?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'retail-cart-show-buying-en',
+    prompt: 'Show me what products she is buying',
+    surface: 'provider' as const,
+    expectedAction: 'explain_retail_cart',
+  },
+  {
+    id: 'cancel-policy-client-what-en',
+    prompt: "What's our cancellation policy for this client?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-explain-en',
+    prompt: 'Explain the cancel policy for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-lose-deposit-en',
+    prompt: 'Will she lose her deposit if she cancels?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-notice-en',
+    prompt: 'How much notice do we need to cancel this appointment?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-reschedule-rules-en',
+    prompt: "What's the reschedule policy for this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-forfeit-en',
+    prompt: 'Does he forfeit his deposit if he cancels late?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-window-en',
+    prompt: "What's the cancellation notice window on this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-refundable-en',
+    prompt: 'Is her deposit refundable if she cancels this booking?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'cancel-policy-client-rules-jane-en',
+    prompt: "Tell me the cancellation rules for Jane's booking",
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'cancel-policy-client-keep-deposit-en',
+    prompt: 'Does she keep her deposit if she reschedules instead of cancelling?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_cancel_policy_for_client',
+  },
+  {
+    id: 'gift-card-redemption-paying-with-en',
+    prompt: "She's paying with gift card — balance?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-how-much-en',
+    prompt: 'How much gift card balance does she have?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-whats-left-en',
+    prompt: "What's left on the gift card?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-jane-balance-en',
+    prompt: "Check Jane's gift card balance",
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'gift-card-redemption-remaining-on-her-card-en',
+    prompt: 'How much is remaining on her gift card?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-check-balance-en',
+    prompt: 'Check the gift card balance for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-how-much-left-en',
+    prompt: 'How much gift card balance is left?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-using-gift-card-en',
+    prompt: "She's using a gift card — what's the balance?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-johns-balance-en',
+    prompt: "Check John's gift card balance",
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+    paramsPartial: { customerName: 'John' },
+  },
+  {
+    id: 'gift-card-redemption-on-his-card-en',
+    prompt: 'How much is left on his gift card?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'gift-card-redemption-covered-service-only-en',
+    prompt: 'Gift card covered service only — is anything else owed?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_gift_card_redemption',
+  },
+  {
+    id: 'tour-group-how-many-pax-en',
+    prompt: 'How many pax on this tour?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_tour_group_on_booking',
+  },
+  {
+    id: 'tour-group-booking-details-en',
+    prompt: 'Group booking details',
+    surface: 'provider' as const,
+    expectedAction: 'explain_tour_group_on_booking',
+  },
+  {
+    id: 'tour-group-how-many-people-en',
+    prompt: 'How many people are in this tour group?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_tour_group_on_booking',
+  },
+  {
+    id: 'tour-group-pax-count-en',
+    prompt: "What's the pax count for this booking?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_tour_group_on_booking',
   },
 ] as const;

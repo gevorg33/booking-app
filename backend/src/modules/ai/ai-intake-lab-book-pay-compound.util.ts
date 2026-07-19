@@ -1,6 +1,7 @@
 import { propagateSharedBookingContextAcrossSteps } from './ai-compound-booking-context.util.js';
 import {
   isChoosePaymentMethodPrompt,
+  isPayCashAtVisitPrompt,
   isPayOnlinePrompt,
 } from './ai-payments.util.js';
 import { isAskPaymentOptionsPrompt } from './ai-cash-payment-checkout.util.js';
@@ -28,16 +29,21 @@ export const INTAKE_LAB_BOOK_PAY_CUSTOMER_STEP_ACTIONS = [
   'complete_intake_and_book',
   'book_nearest_slot',
   'pay_online',
+  'pay_cash_at_visit',
+  'choose_payment_method',
 ] as const;
 
 export const INTAKE_LAB_BOOK_PAY_PUBLIC_STEP_ACTIONS = [
   'complete_intake_and_book',
   'book_appointment',
   'pay_online',
+  'pay_cash_at_visit',
+  'choose_payment_method',
 ] as const;
 
 export type IntakeLabBookPayPaymentAction =
   | 'pay_online'
+  | 'pay_cash_at_visit'
   | 'choose_payment_method';
 
 export type IntakeLabBookPayCompoundStep = {
@@ -85,6 +91,15 @@ export function resolveIntakeLabBookPayPaymentAction(
   const scenario = matchIntakeLabBookPayScenario(prompt);
   if (scenario?.paymentAction) return scenario.paymentAction;
   if (isPayOnlinePrompt(prompt)) return 'pay_online';
+  if (isPayCashAtVisitPrompt(prompt)) return 'pay_cash_at_visit';
+  if (
+    /\b(?:pay|paying|paid|will\s+pay)\b.{0,40}\bcash\b/i.test(prompt) ||
+    /\bcash\s+(?:payment\s+)?at\s+(?:the\s+)?(?:visit|venue|appointment)\b/i.test(
+      prompt,
+    )
+  ) {
+    return 'pay_cash_at_visit';
+  }
   if (isChoosePaymentMethodPrompt(prompt)) return 'choose_payment_method';
   if (
     isAskPaymentOptionsPrompt(prompt) &&
@@ -140,6 +155,12 @@ export function decomposeIntakeLabBookPayCompoundPrompt(
 
   const paymentAction = resolveIntakeLabBookPayPaymentAction(prompt);
   const bookStepParams = intakeSteps[intakeSteps.length - 1]?.params ?? {};
+  const paymentMethod =
+    paymentAction === 'pay_online'
+      ? 'online'
+      : paymentAction === 'pay_cash_at_visit'
+        ? 'cash'
+        : undefined;
 
   return propagateSharedBookingContextAcrossSteps([
     ...intakeSteps.map((step) => ({
@@ -151,7 +172,7 @@ export function decomposeIntakeLabBookPayCompoundPrompt(
       action: paymentAction,
       params: {
         ...bookStepParams,
-        paymentMethod: paymentAction === 'pay_online' ? 'online' : undefined,
+        paymentMethod,
         continueAfterBooking: true,
         intakeLabBookPay: true,
       },

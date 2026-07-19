@@ -4,6 +4,7 @@ import { COMPLETE_INTAKE_AND_BOOK_PROMPTS } from './ai-complete-intake-and-book.
 describe('ai-complete-intake-and-book.logic (ai-cmd-customer-4.14.2)', () => {
   const clinicBusiness = {
     id: 'biz-1',
+    slug: 'salon',
     settings: { businessType: 'clinic' },
   };
 
@@ -20,6 +21,17 @@ describe('ai-complete-intake-and-book.logic (ai-cmd-customer-4.14.2)', () => {
       },
       serviceService: {
         findAll: jest.fn().mockResolvedValue([labService]),
+      },
+      publicPreVisitIntakeService: {
+        ensureCustomerDraft: jest.fn().mockResolvedValue({
+          id: 'intake-1',
+          status: 'assigned',
+          questionnaire: { title: 'Lab Intake' },
+        }),
+        getCustomerFlow: jest.fn(),
+        startCustomerIntake: jest.fn(),
+        submitCustomerAnswers: jest.fn(),
+        getCheckoutConfig: jest.fn(),
       },
     };
   }
@@ -62,6 +74,7 @@ describe('ai-complete-intake-and-book.logic (ai-cmd-customer-4.14.2)', () => {
     const salon = await handleCompleteIntakeAndBookLogic(
       buildDeps({
         id: 'biz-1',
+        slug: 'salon',
         settings: { businessType: 'salon' },
       }),
       'biz-1',

@@ -2022,6 +2022,7 @@ const ru: MessageTree = {
     bookAppointment: 'Записаться',
     followUs: 'Мы в соцсетях',
     location: 'Местоположение',
+    hours: 'Часы работы',
     selectProviderInfo: 'О специалисте',
     submitReviewWithGoogle: 'Отправить отзыв через Google',
     reviewGoogleHint: 'Войдите через Google, чтобы подтвердить визит перед публикацией.',
@@ -2064,6 +2065,8 @@ const ru: MessageTree = {
     validateServiceSelectionFailed: 'Не удалось проверить выбор услуг',
     loadAvailableTimesFailed: 'Не удалось загрузить доступное время',
     findAvailableBlockFailed: 'Не удалось найти свободный блок',
+    suggestMultiServiceLinesFailed:
+      'Не удалось предложить время автоматически. Выберите дату для каждой услуги ниже.',
     privacyConsent: 'Я согласен на обработку персональных данных',
     marketingOptIn: 'Присылать предложения и маркетинговые сообщения (необязательно)',
     exportMyData: 'Скачать мои данные',
@@ -2114,6 +2117,8 @@ const ru: MessageTree = {
     packageScheduleEach: 'Все услуги записываются в один день подряд, одним визитом',
     packageIncludedServices: 'Включённые услуги',
     packageNoBlock: 'Нет доступного визита в один день для этого пакета',
+    packageCannotSchedule:
+      'Этот пакет нельзя записать — он длиннее, чем бизнес разрешает для одного визита. Выберите более короткий пакет или запишите услуги отдельно.',
     packageContinueCheckout: 'Перейти к оплате',
     packageConfirmTitle: 'Подтверждение пакета',
     packageBookedTitle: 'Пакет забронирован',
@@ -2128,6 +2133,8 @@ const ru: MessageTree = {
     multiServiceSelectHint: 'Выберите одну услугу или две и более для записи в один визит.',
     multiServiceCheckoutTitle: 'Подтвердите визит',
     multiServiceConfirmTitle: 'Запланируйте услуги',
+    multiServiceConfirmPerServiceHint:
+      'Выберите дату и время для каждой услуги — они могут быть в разные дни.',
     multiServiceBookedTitle: 'Записи подтверждены',
     multiServiceBookedHint: 'Ваш мультисервисный визит подтверждён.',
     multiServiceWithProvider: 'с {name}',
@@ -2219,6 +2226,7 @@ const ru: MessageTree = {
     accountSignInPrompt: 'Войдите через Google, чтобы видеть записи и управлять профилем.',
     referralSectionTitle: 'Пригласить друга',
     referralSectionBody: 'Поделитесь ссылкой. Вы получите {referrerBonus} баллов лояльности, друг — {refereeBonus} бонусных баллов после первого визита.',
+    referralSectionBodyDynamic: 'Поделитесь ссылкой. Вы получите {referrerReward} за каждого друга, а он получит {refereeBonus} приветственных баллов после первого визита.',
     referralYourCode: 'Ваш код',
     referralConversions: '{count} друзей завершили первый визит',
     referralShareText: 'Запишитесь в {businessName} по моей ссылке',

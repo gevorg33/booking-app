@@ -1,7 +1,7 @@
 export type LeaveVisitReviewPromptFixture = {
   id: string;
   prompt: string;
-  surface: 'customer';
+  surface: 'customer' | 'public';
   expectedAction: 'leave_visit_review';
   rescueReason: 'leave_visit_review';
   serviceName?: string;
@@ -9,6 +9,9 @@ export type LeaveVisitReviewPromptFixture = {
 };
 
 export const CUSTOMER_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES = `- leave_visit_review: MUTATE — logged-in customer rates or opens the post-visit review flow for their own completed appointment. Triggers: rate my last visit, leave a review for today's haircut, give 5 stars for my massage, submit feedback for my appointment. Set rating 1–5 when stated; set bookingId when known; otherwise serviceName and/or date to pick the visit. Uses POST /me/bookings/:id/review or opens PostVisitReviewPrompt on Account. NOT explain_post_visit_review_prompt (why popup shows), NOT report_booking_problem (complaint/charge issue), NOT rebook_last_appointment, NOT list_my_appointments, NOT contact_support unless review blocked.`;
+
+/** Public booking widget (signed-in) — same action; exclude confirm_my_booking_details / staff reviews inbox / submit_provider_review. */
+export const CUSTOMER_PUBLIC_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES = `- leave_visit_review: MUTATE — signed-in customer on the public booking page rates or opens the post-visit review flow for their own completed appointment. Triggers: rate my last visit, leave a 5 star review for my facemassage visit, I want to leave a review for my last visit, give 5 stars for my massage. Set rating 1–5 when stated; set bookingId when known; otherwise serviceName and/or date. NOT confirm_my_booking_details (upcoming booking summary), NOT submit_provider_review (named stylist outside a booking), NOT explain_post_visit_review_prompt, NOT report_booking_problem, NOT explain_reviews_inbox (staff).`;
 
 export const LEAVE_VISIT_REVIEW_PROMPTS: readonly LeaveVisitReviewPromptFixture[] =
   [
@@ -104,6 +107,23 @@ export const LEAVE_VISIT_REVIEW_PROMPTS: readonly LeaveVisitReviewPromptFixture[
       expectedAction: 'leave_visit_review',
       rescueReason: 'leave_visit_review',
     },
+    // e2e-bug.111 — public booking widget (signed-in)
+    {
+      id: 'e2e-bug-111-five-star-facemassage-public',
+      prompt: 'leave a 5 star review for my facemassage visit',
+      surface: 'public',
+      expectedAction: 'leave_visit_review',
+      rescueReason: 'leave_visit_review',
+      rating: 5,
+      serviceName: 'facemassage',
+    },
+    {
+      id: 'e2e-bug-111-last-visit-public',
+      prompt: 'I want to leave a review for my last visit',
+      surface: 'public',
+      expectedAction: 'leave_visit_review',
+      rescueReason: 'leave_visit_review',
+    },
   ];
 
 export const LEAVE_VISIT_REVIEW_RESCUE_SCENARIOS = [
@@ -123,6 +143,18 @@ export const LEAVE_VISIT_REVIEW_RESCUE_SCENARIOS = [
     id: 'misclassified-unknown',
     prompt: 'Give 5 stars for my last appointment',
     misclassifiedAction: 'unknown',
+    expectedAction: 'leave_visit_review' as const,
+  },
+  {
+    id: 'e2e-bug-111-misclassified-confirm-details',
+    prompt: 'leave a 5 star review for my facemassage visit',
+    misclassifiedAction: 'confirm_my_booking_details',
+    expectedAction: 'leave_visit_review' as const,
+  },
+  {
+    id: 'e2e-bug-111-misclassified-reviews-inbox',
+    prompt: 'I want to leave a review for my last visit',
+    misclassifiedAction: 'explain_reviews_inbox',
     expectedAction: 'leave_visit_review' as const,
   },
 ];

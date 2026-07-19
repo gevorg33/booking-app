@@ -15,6 +15,7 @@ import { GiftCardOrderService } from '../gift-cards/gift-card-order.service.js';
 import { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
 import { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
+import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 
 describe('Sprint 28 customer account & CRM AI scenarios', () => {
   const customers = [
@@ -58,7 +59,10 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
       usage: [{ id: 'u1' }],
       subscription: sub,
     })),
-    cancelSubscription: jest.fn(),
+    cancelSubscription: jest.fn(async () => ({
+      subscription: sub,
+      refundStatus: undefined,
+    })),
     listPlans: jest.fn(async () => [{ id: 'plan-1', name: 'Nail Plan' }]),
   };
   const giftCardOrderService = {
@@ -149,6 +153,13 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           useValue: changeRequestRepo,
         },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
+        {
+          provide: PublicCustomerAuthService,
+          useValue: {
+            getPreferredLocale: jest.fn(),
+            updatePreferredLocale: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -297,6 +308,7 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           prompt: 'Gift card balance left',
           action: 'unknown',
           params: {},
+          surface: 'customer',
         })?.action,
       ).toBe('gift_card_balance');
       expect(
@@ -572,6 +584,7 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
         (
           await customerCrm.handlePrivacyDelete('biz-1', {
             sessionCustomerId: 'c1',
+            confirm: true,
           })
         ).success,
       ).toBe(true);

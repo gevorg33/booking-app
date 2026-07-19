@@ -484,7 +484,7 @@ describe('ai-integrations.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(INTEGRATIONS_INTENTS.length).toBe(18);
+      expect(INTEGRATIONS_INTENTS.length).toBe(22);
       expect(isIntegrationsIntent('list_webhooks')).toBe(true);
       expect(isIntegrationsIntent('not_real')).toBe(false);
       expect(decomposeIntegrationsCompoundPrompt('')).toEqual([]);

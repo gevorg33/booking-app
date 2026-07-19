@@ -134,6 +134,7 @@ export function parseUpdateMyProfileFromPrompt(
   };
 }
 
+/** @deprecated Account has no profile-edit UI (e2e-bug.40); keep for legacy callers/tests. */
 export function buildUpdateMyProfileNavigate(parsed: ParsedUpdateMyProfile): {
   path: 'account';
   query: Record<string, string>;
@@ -145,25 +146,41 @@ export function buildUpdateMyProfileNavigate(parsed: ParsedUpdateMyProfile): {
   return { path: 'account', query };
 }
 
+/** e2e-bug.40 — email has no API and Account has no profile-edit section. */
+export function buildUpdateMyProfileEmailUnsupportedSummary(
+  parsed: ParsedUpdateMyProfile,
+): string {
+  const parts = [
+    "Email changes aren't supported yet — your login email can't be updated in the app or chat.",
+  ];
+  if (parsed.email) {
+    parts.push(`You mentioned ${parsed.email}.`);
+  }
+  parts.push(
+    'I can update your name or phone number if you tell me the new value.',
+  );
+  return parts.join(' ');
+}
+
+export function buildUpdateMyProfileMissingValueSummary(
+  parsed: ParsedUpdateMyProfile,
+): string {
+  if (parsed.field === 'phone') {
+    return 'Tell me the new phone number to save (for example: "Change my phone to 555-123-4567").';
+  }
+  if (parsed.field === 'name') {
+    return 'Tell me the new name to save (for example: "Update my name to Jane Doe").';
+  }
+  return "Say what to update — your name or phone number. Email changes aren't supported yet.";
+}
+
 export function buildUpdateMyProfileSummary(
   parsed: ParsedUpdateMyProfile,
 ): string {
-  const fieldLabel =
-    parsed.field === 'phone'
-      ? 'phone number'
-      : parsed.field === 'email'
-        ? 'email'
-        : parsed.field === 'name'
-          ? 'name'
-          : 'profile details';
-  const parts = [
-    `Open Account to update your ${fieldLabel}.`,
-    'Profile edits are saved in the app — chat cannot persist profile changes until the profile API ships.',
-  ];
-  if (parsed.name) parts.push(`You mentioned the name "${parsed.name}".`);
-  if (parsed.phone) parts.push(`You mentioned phone ${parsed.phone}.`);
-  if (parsed.email) parts.push(`You mentioned email ${parsed.email}.`);
-  return parts.join(' ');
+  if (parsed.field === 'email' || parsed.email) {
+    return buildUpdateMyProfileEmailUnsupportedSummary(parsed);
+  }
+  return buildUpdateMyProfileMissingValueSummary(parsed);
 }
 
 export function rescueUpdateMyProfileIntent(

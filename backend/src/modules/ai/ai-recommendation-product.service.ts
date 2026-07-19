@@ -26,6 +26,8 @@ import {
   type RecommendationLinkLogicDeps,
   type RecommendationProductLogicDeps,
 } from './ai-recommendation-product.logic.js';
+import { dispatchRecommendationProductIntent } from './ai-recommendation-product-dispatch.util.js';
+import type { RecommendationProductDispatchContext } from './ai-recommendation-product-dispatch.build.js';
 
 @Injectable()
 export class AiRecommendationProductService {
@@ -195,5 +197,12 @@ export class AiRecommendationProductService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a recommendation-product intent. */
+  dispatchIntent(
+    ctx: RecommendationProductDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchRecommendationProductIntent(this, ctx);
   }
 }

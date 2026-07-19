@@ -7,6 +7,7 @@ import {
   applySemanticParamHintsToRescueInput,
   enrichRescueResultWithSemanticParamHints,
 } from './semantic-rescue-param-hints.util.js';
+import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
 
 /** pipe-1.5.1 — domain-first rescue orchestration (semantic is pipeline-only). */
 export const RESCUE_PIPELINE_PIPE_MARKER = RESCUE_PIPELINE_BOUNDARY_MARKER;
@@ -66,6 +67,36 @@ export function buildRescuePipelineContext(
 }
 
 /**
+ * e2e-bug.77 — never accept a rescued action that the current surface cannot run.
+ * Without this, ungated staff/provider rescues become security_blocked instead of
+ * falling through to the real customer/public intent.
+ *
+ * Public booking shares most customer self-service intents; accept either surface.
+ */
+export function acceptRescueForSurface(
+  result: IntentRescueResult | null,
+  surface: IntentRescueInput['surface'],
+): IntentRescueResult | null {
+  if (!result) return null;
+  if (!surface) return result;
+  if (
+    result.action === 'unknown' ||
+    result.action === 'error' ||
+    result.action === 'security_blocked'
+  ) {
+    return result;
+  }
+  if (isIntentAllowedOnSurface(result.action, surface)) return result;
+  if (
+    surface === 'public' &&
+    isIntentAllowedOnSurface(result.action, 'customer')
+  ) {
+    return result;
+  }
+  return null;
+}
+
+/**
  * Domain rescues first — provider surface, classified disambiguation, then unknown domain.
  * Semantic matching is excluded (pipeline stage only).
  */
@@ -76,20 +107,32 @@ export function runIntentRescuePipeline(
   const enrichedInput = applySemanticParamHintsToRescueInput(input);
   const hints = enrichedInput.semanticParamHints;
   const ctx = buildRescuePipelineContext(enrichedInput);
+  const surface = enrichedInput.surface;
 
-  const provider = host.runRescueProviderPhase(enrichedInput);
+  const provider = acceptRescueForSurface(
+    host.runRescueProviderPhase(enrichedInput),
+    surface,
+  );
   if (provider) {
     return enrichRescueResultWithSemanticParamHints(provider, hints);
   }
 
   if (enrichedInput.action !== 'unknown') {
-    const classified = host.runRescueClassifiedPhase(enrichedInput, ctx);
+    const classifiedRaw = host.runRescueClassifiedPhase(enrichedInput, ctx);
+    const classified = acceptRescueForSurface(classifiedRaw, surface);
     if (classified) {
       return enrichRescueResultWithSemanticParamHints(classified, hints);
     }
-    return null;
+    // Wrong-surface classified steal — continue into unknown so customer/public
+    // domain rescues can still win (e2e-bug.77).
+    if (!classifiedRaw) {
+      return null;
+    }
   }
 
-  const unknown = host.runRescueUnknownPhase(enrichedInput, ctx);
+  const unknown = acceptRescueForSurface(
+    host.runRescueUnknownPhase(enrichedInput, ctx),
+    surface,
+  );
   return enrichRescueResultWithSemanticParamHints(unknown, hints);
 }

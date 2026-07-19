@@ -227,13 +227,22 @@ export function buildUpdateServicePricesPlanSteps(params: {
 
 export function buildUpdateServicePricesPlanMeta(params: {
   updates: ServicePriceUpdate[];
-  percentChange: number;
+  percentChange?: number;
+  amountChange?: number;
   effectiveFrom?: string;
 }) {
   const names = params.updates.map((u) => u.serviceName).join(', ');
   const effective = params.effectiveFrom ? ` from ${params.effectiveFrom}` : '';
+  const deltaLabel =
+    params.amountChange != null
+      ? `${params.amountChange >= 0 ? '+' : ''}${params.amountChange} (absolute)`
+      : `${params.percentChange ?? 0}%`;
+  const previewPrices = params.updates
+    .slice(0, 5)
+    .map((u) => `${u.serviceName}: ${u.currentPrice} → ${u.newPrice}`)
+    .join('; ');
   return {
-    reasoning: `Adjust prices for ${params.updates.length} service(s) by ${params.percentChange}%${effective}: ${names}.`,
+    reasoning: `Adjust prices for ${params.updates.length} service(s) by ${deltaLabel}${effective}: ${names}.${previewPrices ? ` ${previewPrices}.` : ''}`,
     risk: {
       level:
         params.updates.length > 10 ? ('high' as const) : ('medium' as const),

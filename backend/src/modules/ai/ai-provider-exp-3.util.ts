@@ -1,7 +1,11 @@
 /** prov-exp-5.3 — provider mobile chair-side actions AI helpers. */
 
-import { extractProductNameFromPrompt } from './ai-retail-finance.util.js';
+import {
+  extractProductNameFromPrompt,
+  parseRetailSalesLinesFromPrompt,
+} from './ai-retail-finance.util.js';
 import { rescueProviderTimeOffIntent } from './ai-provider-time-off.util.js';
+import { normalizeTime24 } from '../../common/utils/time-format.util.js';
 import { PROVIDER_EXP_3_MULTILINGUAL_SCENARIOS } from './ai-provider-exp-3-multilingual.fixtures.js';
 import { PROVIDER_EXP_3_PROMPT_SCENARIOS } from './ai-provider-exp-3.fixtures.js';
 
@@ -10,12 +14,21 @@ export const PROVIDER_EXP_3_INTENTS = [
   'send_client_message',
   'block_my_time',
   'request_time_off',
+  'set_retail_sales_lines',
+  'remove_retail_from_booking',
+  'explain_message_templates',
+  'notify_client_ready',
+  'extend_my_block',
 ] as const;
 
 export const PROVIDER_EXP_3_MUTATE_INTENTS = [
   'add_retail_to_booking',
   'block_my_time',
   'request_time_off',
+  'set_retail_sales_lines',
+  'remove_retail_from_booking',
+  'notify_client_ready',
+  'extend_my_block',
 ] as const;
 
 export type ProviderExp3Intent = (typeof PROVIDER_EXP_3_INTENTS)[number];
@@ -63,6 +76,78 @@ export function isAddRetailToBookingPrompt(prompt: string): boolean {
   );
 }
 
+const RETAIL_PRODUCT_CUE =
+  /\b(retail|product|serum|shampoo|conditioner|merchandise|sku|gel|oil|cream|lotion)\b/i;
+
+/** ai-cmd-provider-5.4.4 — remove one retail product from own active booking. */
+export function isRemoveRetailFromBookingPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  // Dashboard admin phrasing ("remove retail line from booking b1") owns the
+  // "retail" + "line/sale" combo — not this provider-mobile chair-side action.
+  if (
+    /\b(remove|delete|drop)\b/i.test(lower) &&
+    /\bretail\b/i.test(lower) &&
+    /\b(line|sale)\b/i.test(lower)
+  ) {
+    return false;
+  }
+  // e2e-bug.144 — catalog soft-delete / "not a cart" disambiguation is not retail.
+  if (
+    /\b(?:catalog|service\s+menu|deactivate_service|delete_service)\b/i.test(
+      lower,
+    ) ||
+    /\bnot\s+a\s+cart\b/i.test(lower)
+  ) {
+    return false;
+  }
+  // e2e-bug.131 — customer multi-service cart ("Remove the manicure from my cart")
+  // is remove_service_from_cart, not provider retail undo.
+  if (
+    /\b(cart|basket)\b/i.test(lower) &&
+    !RETAIL_PRODUCT_CUE.test(lower) &&
+    !/\bundo\b/i.test(lower)
+  ) {
+    return false;
+  }
+  if (
+    /\b(remove|delete|undo|take)\b/i.test(lower) &&
+    /\b(cart|booking|appointment|item|line)\b/i.test(lower) &&
+    (RETAIL_PRODUCT_CUE.test(lower) ||
+      /\b(booking|appointment|item|line)\b/i.test(lower))
+  ) {
+    return true;
+  }
+  if (/\bundo\b/i.test(lower) && /\b(product|retail)\b/i.test(lower)) {
+    return true;
+  }
+
+  if (
+    containsArmenianScript(prompt) &&
+    /(հեռացրու|ջնջիր)/i.test(prompt) &&
+    /(ապրանք|կրպակ|զամբյուղ)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(убери|удали)/i.test(prompt) &&
+    /(товар|корзин)/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isSetRetailSalesLinesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const replaceCue =
+    /\b(set|replace|update)\b/i.test(lower) &&
+    /\b(retail\s+)?(?:sales?\s+)?(cart|lines?)\b/i.test(lower);
+  if (!replaceCue) return false;
+  return parseRetailSalesLinesFromPrompt(prompt).length > 0;
+}
+
 export function isSendClientMessagePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (/\b(staff note|internal note|add note)\b/i.test(lower)) return false;
@@ -86,6 +171,44 @@ export function isSendClientMessagePrompt(prompt: string): boolean {
       /(client|customer|\u043a\u043b\u0438\u0435\u043d\u0442|[A-Z][\w'.-]+)/i.test(
         prompt,
       ))
+  );
+}
+
+/** ai-cmd-provider-5.5.4 — list configured canned SMS/WhatsApp templates (read-only). */
+export function isExplainMessageTemplatesPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    /\b(templates?|canned\s+messages?)\b/i.test(lower) &&
+    /\b(what|which|show|list|explain|see)\b/i.test(lower)
+  );
+}
+
+/** ai-cmd-provider-5.5.5 — tell the client their chair/turn is ready now. */
+export function isNotifyClientReadyPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\b(chair|turn|table|room)\s+is\s+ready\b/i.test(lower)) return true;
+  if (/\bready\s+for\s+(?:her|him|them|you)\b/i.test(lower)) return true;
+  if (/\byour\s+turn\b/i.test(lower)) return true;
+  if (
+    /\b(tell|let|notify|send)\b/i.test(lower) &&
+    /\b(ready|turn)\b/i.test(lower)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** ai-cmd-provider-5.6.6 — extend/push the end time of an existing self-block. */
+export function isExtendMyBlockPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return (
+    (/\bextend\b/i.test(lower) &&
+      /\b(lunch|break|block|time)\b/i.test(lower)) ||
+    (/\bpush\b/i.test(lower) && /\b(lunch|break|block)\b/i.test(lower)) ||
+    /\bmake\s+my\s+(?:lunch|break)\s+longer\b/i.test(lower) ||
+    /\badd\s+\d+\s*(?:minutes?|mins?)\s+to\s+my\s+(?:lunch|break|block)\b/i.test(
+      lower,
+    )
   );
 }
 
@@ -145,6 +268,22 @@ export function extractBlockWindowFromPrompt(prompt: string): {
   return { startTime: range[1].trim(), endTime: range[2].trim() };
 }
 
+export function extractExtendBlockParams(prompt: string): {
+  extendMinutes?: number;
+  newEndTime?: string;
+} {
+  const minutesMatch = prompt.match(/\b(\d+)\s*(?:minutes?|mins?)\b/i);
+  if (minutesMatch) return { extendMinutes: Number(minutesMatch[1]) };
+  const timeMatch = prompt.match(
+    /\b(?:to|until|till)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b/i,
+  );
+  if (timeMatch) {
+    const normalized = normalizeTime24(timeMatch[1]);
+    if (normalized) return { newEndTime: normalized };
+  }
+  return {};
+}
+
 export function extractRetailProductName(
   prompt: string,
   params: Record<string, unknown>,
@@ -185,10 +324,34 @@ export function rescueProviderExp3Intent(
   const exact = matchProviderExp3Scenario(prompt);
   if (exact) return exact;
 
+  if (isSetRetailSalesLinesPrompt(prompt)) {
+    return {
+      action: 'set_retail_sales_lines',
+      rescueReason: 'set_retail_sales_lines',
+    };
+  }
+  if (isRemoveRetailFromBookingPrompt(prompt)) {
+    return {
+      action: 'remove_retail_from_booking',
+      rescueReason: 'remove_retail_from_booking',
+    };
+  }
   if (isAddRetailToBookingPrompt(prompt)) {
     return {
       action: 'add_retail_to_booking',
       rescueReason: 'add_retail_booking',
+    };
+  }
+  if (isExplainMessageTemplatesPrompt(prompt)) {
+    return {
+      action: 'explain_message_templates',
+      rescueReason: 'explain_message_templates',
+    };
+  }
+  if (isNotifyClientReadyPrompt(prompt)) {
+    return {
+      action: 'notify_client_ready',
+      rescueReason: 'notify_client_ready',
     };
   }
   if (isSendClientMessagePrompt(prompt)) {
@@ -196,6 +359,9 @@ export function rescueProviderExp3Intent(
       action: 'send_client_message',
       rescueReason: 'send_client_message',
     };
+  }
+  if (isExtendMyBlockPrompt(prompt)) {
+    return { action: 'extend_my_block', rescueReason: 'extend_my_block' };
   }
   if (isBlockMyTimePrompt(prompt)) {
     return { action: 'block_my_time', rescueReason: 'block_my_time' };

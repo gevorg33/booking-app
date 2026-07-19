@@ -12,6 +12,9 @@ import {
   handleToggleBusinessEmailOnCustomerChangeLogic,
   handleEnableNotificationsLogic,
   handleAppointmentReminderPreferencesLogic,
+  handleListPushNotificationsLogic,
+  handleMarkAllNotificationsReadLogic,
+  handleMarkBookingNotificationsReadLogic,
   handlePushNotificationsCompoundLogic,
   mergePushNotificationsCompoundContext,
   type PushNotificationsLogicDeps,
@@ -56,6 +59,15 @@ function buildDeps(
       sendToUser: jest.fn(async () => 1),
     } as any,
     providerMobileService: {} as any,
+    pushHistoryService: {
+      listNotificationCenter: jest.fn(async () => ({
+        days: 3,
+        unreadCount: 0,
+        items: [],
+      })),
+      markAllNotificationsRead: jest.fn(async () => ({ updated: 0 })),
+      markLatestBookingNotificationRead: jest.fn(async () => undefined),
+    } as any,
     bookingRepo: {
       findOne: jest.fn(async () => ({
         id: 'b1',
@@ -331,6 +343,19 @@ describe('ai-push-notifications.logic', () => {
         )
       ).success,
     ).toBe(true);
+
+    // e2e-bug.159 — "Notify me whenever…" enables owner alert, not customer notify.
+    const notifyMe = await handleToggleBusinessEmailOnCustomerChangeLogic(
+      buildDeps(),
+      'biz-1',
+      {},
+      'Notify me whenever a customer cancels a booking today',
+    );
+    expect(notifyMe.success).toBe(true);
+    expect(notifyMe.details?.notifyBusinessOnCustomerBookingChange).toBe(true);
+    expect(notifyMe.summary).toMatch(/emailed when a customer cancels/i);
+    expect(notifyMe.summary).toMatch(/does not message the customer/i);
+    expect(notifyMe.summary).not.toMatch(/pending your approval/i);
   });
 
   it('handles customer notification preferences', async () => {
@@ -1097,5 +1122,136 @@ describe('ai-push-notifications.logic', () => {
         )
       ).success,
     ).toBe(true);
+  });
+
+  describe('ai-cmd-provider-6.8 — push notification inbox actions', () => {
+    it('lists the provider push notification center', async () => {
+      const deps = buildDeps({
+        pushHistoryService: {
+          listNotificationCenter: jest.fn(async () => ({
+            days: 3,
+            unreadCount: 1,
+            items: [
+              {
+                id: 'n1',
+                title: 'New booking',
+                body: 'Anna — Cut',
+                bookingId: 'b1',
+                url: null,
+                kind: 'booking_created',
+                sentAt: '2026-06-02T09:00:00.000Z',
+                readAt: null,
+                isRead: false,
+              },
+            ],
+          })),
+        } as any,
+      });
+
+      const result = await handleListPushNotificationsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('list_push_notifications');
+      expect(result.summary).toContain('1 unread of 1 notification');
+      expect(deps.pushHistoryService.listNotificationCenter).toHaveBeenCalledWith(
+        'biz-1',
+        'user-1',
+      );
+    });
+
+    it('marks all notifications as read', async () => {
+      const deps = buildDeps({
+        pushHistoryService: {
+          markAllNotificationsRead: jest.fn(async () => ({ updated: 3 })),
+        } as any,
+      });
+
+      const result = await handleMarkAllNotificationsReadLogic(
+        deps,
+        'biz-1',
+        'user-1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('3 notifications');
+      expect(
+        deps.pushHistoryService.markAllNotificationsRead,
+      ).toHaveBeenCalledWith('biz-1', 'user-1');
+    });
+
+    it('reports nothing to mark when inbox is already read', async () => {
+      const deps = buildDeps({
+        pushHistoryService: {
+          markAllNotificationsRead: jest.fn(async () => ({ updated: 0 })),
+        } as any,
+      });
+
+      const result = await handleMarkAllNotificationsReadLogic(
+        deps,
+        'biz-1',
+        'user-1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('No unread notifications');
+    });
+
+    it('marks booking notifications as read by explicit bookingId', async () => {
+      const deps = buildDeps({
+        pushHistoryService: {
+          markLatestBookingNotificationRead: jest.fn(async () => undefined),
+        } as any,
+      });
+
+      const result = await handleMarkBookingNotificationsReadLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        { bookingId: 'b1' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('mark_booking_notifications_read');
+      expect(
+        deps.pushHistoryService.markLatestBookingNotificationRead,
+      ).toHaveBeenCalledWith('biz-1', 'user-1', 'b1');
+    });
+
+    it('resolves bookingId from lastPush payload when omitted', async () => {
+      const deps = buildDeps({
+        pushHistoryService: {
+          markLatestBookingNotificationRead: jest.fn(async () => undefined),
+        } as any,
+      });
+
+      const result = await handleMarkBookingNotificationsReadLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        { lastPush: { bookingId: 'b2', pushType: 'booking_created' } },
+      );
+
+      expect(result.success).toBe(true);
+      expect(
+        deps.pushHistoryService.markLatestBookingNotificationRead,
+      ).toHaveBeenCalledWith('biz-1', 'user-1', 'b2');
+    });
+
+    it('clarifies when no bookingId can be resolved', async () => {
+      const deps = buildDeps();
+      const result = await handleMarkBookingNotificationsReadLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({ clarify: true });
+    });
   });
 });

@@ -81,3 +81,69 @@ export function buildPrivacyDeleteSignInNavigate(): {
 } {
   return { path: 'login', query: { reason: 'privacy_delete' } };
 }
+
+/** Bare affirmative after a privacy_delete preview (e2e-bug.84 turn 2). */
+export function isPrivacyDeleteAffirmativePrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (!text) return false;
+  return /^(yes|y|yeah|yep|confirm|confirmed|go\s+ahead|do\s+it|proceed|ok|okay|sure|please\s+do|absolutely)[.!]?$/iu.test(
+    text,
+  );
+}
+
+export function isPrivacyDeletePendingParams(
+  params: Record<string, unknown> = {},
+): boolean {
+  return (
+    params.privacyDeletePending === true ||
+    params.requiresConfirmation === true ||
+    params.pendingAction === 'privacy_delete'
+  );
+}
+
+/**
+ * e2e-bug.84 — only execute when confirm is explicit (classifier/session) or
+ * the customer affirmed after a pending preview.
+ */
+export function isPrivacyDeleteConfirmed(
+  params: Record<string, unknown> = {},
+): boolean {
+  return params.confirm === true;
+}
+
+export function enrichPrivacyDeleteConfirmFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): Record<string, unknown> {
+  if (params.confirm === true) return params;
+  if (
+    isPrivacyDeletePendingParams(params) &&
+    isPrivacyDeleteAffirmativePrompt(prompt)
+  ) {
+    return { ...params, confirm: true };
+  }
+  return params;
+}
+
+/**
+ * Rescue a bare "yes" onto privacy_delete when the prior turn left a pending
+ * erasure preview in session/params.
+ */
+export function rescuePrivacyDeleteConfirmIntent(
+  prompt: string,
+  action: string,
+  params: Record<string, unknown> = {},
+): {
+  action: PrivacyDeleteIntent;
+  rescueReason: string;
+  params: Record<string, unknown>;
+} | null {
+  if (!isPrivacyDeletePendingParams(params)) return null;
+  if (!isPrivacyDeleteAffirmativePrompt(prompt)) return null;
+  if (isPrivacyDeleteIntent(action) && params.confirm === true) return null;
+  return {
+    action: 'privacy_delete',
+    rescueReason: 'privacy_delete_confirm',
+    params: { ...params, confirm: true },
+  };
+}

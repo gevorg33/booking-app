@@ -7,6 +7,7 @@ import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-anal
 import { isConfigureRecommendationProductPrompt } from './ai-recommendation-product.util.js';
 import { isSummarizeRecommendationPerformancePrompt } from './ai-recommendation-performance.util.js';
 import { isExplainTenantCurrencyPrompt } from './ai-tenant-currency.util.js';
+import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
 
 export const CHECKOUT_RECOMMENDATIONS_INTENTS = [
   'explain_checkout_recommendations',
@@ -196,6 +197,7 @@ export function isExplainCheckoutRecommendationsPrompt(
   prompt: string,
 ): boolean {
   if (isExplainTenantCurrencyPrompt(prompt)) return false;
+  if (isExplainTourServicesPrompt(prompt)) return false;
   if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
   if (isConfigureRecommendationProductPrompt(prompt)) return false;
   if (isSummarizeRecommendationPerformancePrompt(prompt)) return false;

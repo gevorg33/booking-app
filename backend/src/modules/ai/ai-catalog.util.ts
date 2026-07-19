@@ -36,6 +36,8 @@ import {
 
 export const CATALOG_MUTATE_INTENTS = [
   'create_service_category',
+  'update_service_category',
+  'delete_service_category',
   'bulk_create_catalog',
   'update_service',
   'update_service_duration_buffer',
@@ -43,10 +45,12 @@ export const CATALOG_MUTATE_INTENTS = [
   'create_package',
   'update_package',
   'deactivate_package',
+  'activate_package',
   'duplicate_package',
   'create_subscription_plan',
   'update_subscription_plan',
   'deactivate_subscription_plan',
+  'activate_subscription_plan',
   'assign_subscription_to_customer',
   'configure_gift_card_products',
   'create_gift_card_bundle',
@@ -124,19 +128,100 @@ export function isBulkCreateCatalogPrompt(prompt: string): boolean {
 }
 
 export function isCreateServiceCategoryPrompt(prompt: string): boolean {
+  // e2e-bug.151 — allow "Add a new service category called …" (optional "new").
   return (
-    /\b(add|create)\s+(a\s+)?(service\s+)?category\b/i.test(prompt) &&
+    /\b(add|create)\s+(a\s+)?(new\s+)?(service\s+)?category\b/i.test(prompt) &&
     !isBulkCreateCatalogPrompt(prompt)
   );
 }
 
+/** e2e-bug.144 — natural "delete/remove service" maps to soft-delete deactivate_service. */
 export function isDeactivateServicePrompt(prompt: string): boolean {
   if (isConfigureServiceOnlinePaymentPrompt(prompt)) return false;
+  if (/\bpackage\b/i.test(prompt)) return false;
+  // Real cart remove only — ignore "not a cart …" disambiguation.
+  if (
+    /\b(?:from|in|to)\s+(?:the\s+|my\s+)?(?:cart|basket)\b/i.test(prompt) &&
+    !/\bnot\s+a\s+cart\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (/\bunassign\b/i.test(prompt)) return false;
+  if (
+    /\bfrom\s+(?:service\s+)?(?:provider|employee|stylist|team\s+member)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // Provider skill removal: "Remove X from Maria" — not catalog soft-delete.
+  if (
+    /\bfrom\s+[A-Z][a-z][\w'-]*(?:\s+[A-Z][a-z][\w'-]*)?\b/.test(prompt) &&
+    !/\bfrom\s+(?:my|the|our|public|service|business)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const hasVerb = /\b(hide|deactivate|disable|remove|delete)\b/i.test(prompt);
+  if (!hasVerb) return false;
+
+  // "Delete the service called X" / "Delete service X from the catalog"
+  if (
+    /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(?:delete|remove|deactivate|hide|disable)\b/i.test(prompt) &&
+    /\bservices?\b/i.test(prompt) &&
+    /\b(?:catalog|service\s+menu|public\s+booking|business\s+catalog|permanently|offering)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+
+  // Legacy hide/deactivate ("Hide balayage from public booking").
+  if (
+    /\b(hide|deactivate|disable)\b/i.test(prompt) &&
+    /\b(from\s+public|service|offering|catalog)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  // "Remove X from public/catalog" — not "Remove X from Maria" (unassign).
   return (
-    /\b(hide|deactivate|disable|remove)\b/i.test(prompt) &&
-    /\b(from\s+public|service|offering|catalog)\b/i.test(prompt) &&
-    !/\bpackage\b/i.test(prompt)
+    /\bremove\b/i.test(prompt) &&
+    /\b(?:from\s+public|catalog|service\s+menu|permanently)\b/i.test(prompt)
   );
+}
+
+export function extractDeactivateServiceNameFromPrompt(
+  prompt: string,
+): string | null {
+  const patterns = [
+    /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+(?:called|named)\s+["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
+    /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+["']?([^"'.,]+?)["']?(?=\s+from\b|\s*[.?!]|$)/i,
+    /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?["']?([^"'.,]+?)["']?\s+service\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    const name = match?.[1]
+      ?.replace(/^["']|["']$/g, '')
+      .replace(/\s+service$/i, '')
+      .trim();
+    if (
+      name &&
+      name.length >= 2 &&
+      name.length <= 80 &&
+      !/^(all|every|the|a|an)$/i.test(name)
+    ) {
+      return name;
+    }
+  }
+  return null;
 }
 
 /** "Move Neck Massage under service category: Massage". */
@@ -184,6 +269,9 @@ export function extractCreateServiceCategoryFromPrompt(
   prompt: string,
 ): string | undefined {
   const patterns = [
+    // e2e-bug.151 — "Add a new service category called Wellness"
+    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\s+(?:called|named)\s+["']?([A-Za-z][\w\s&'-]+?)["']?\s*$/i,
+    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\s+["']([A-Za-z][\w\s&'-]+?)["']/i,
     /\b(?:under|in|into|within)\s+(?:the\s+)?(?:service\s+)?category\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
     /\b(?:under|in|into|within)\s+(?:the\s+)?([A-Za-z][\w\s&'-]+?)\s+(?:service\s+)?category\b/i,
     /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?service\b[^.]*\bcategory\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
@@ -192,7 +280,7 @@ export function extractCreateServiceCategoryFromPrompt(
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
     const name = match?.[1]?.trim();
-    if (name) return name;
+    if (name && !/^(?:called|named)$/i.test(name)) return name;
   }
 
   return undefined;
@@ -333,7 +421,11 @@ export function enrichServiceCategoryRescueParams(
     return;
   }
 
-  if (action === 'create_service' || action === 'create_services') {
+  if (
+    action === 'create_service' ||
+    action === 'create_services' ||
+    action === 'create_service_category'
+  ) {
     const categoryName = extractCreateServiceCategoryFromPrompt(prompt);
     if (categoryName && !params.categoryName) {
       params.categoryName = categoryName;
@@ -350,8 +442,15 @@ export function enrichServiceCategoryRescueParams(
 
 export function isCreatePackagePrompt(prompt: string): boolean {
   if (/\b(booking|visit|appointment)\b/i.test(prompt)) return false;
+  // Gift-card product create — never treat as service package (e2e-bug.157).
+  if (/\bgift\s*card\b/i.test(prompt) && !/\bpackage\b/i.test(prompt)) {
+    return false;
+  }
   return (
+    /\b(create|add)\s+(?:a\s+|the\s+|new\s+)*package\b/i.test(prompt) ||
     /\b(create|add)\s+(?:the\s+)?[\w\s«»]+\s+package\b/i.test(prompt) ||
+    (/\bpackage\s+called\b/i.test(prompt) &&
+      /\b(create|add|combining|with|includes?)\b/i.test(prompt)) ||
     (/(ստեղծ|ավելաց)/i.test(prompt) && /(փաթեթ|package)/i.test(prompt)) ||
     (/(создай|создать|добав)/i.test(prompt) && /(пакет|package)/i.test(prompt))
   );
@@ -453,6 +552,12 @@ export function isDeactivateSubscriptionPlanPrompt(prompt: string): boolean {
   );
 }
 
+export function isActivateSubscriptionPlanPrompt(prompt: string): boolean {
+  return /\b(activate|enable|reactivate|re-activate|turn\s+back\s+on)\s+(the\s+)?\w*\s*(subscription|membership)\s+plan\b/i.test(
+    prompt,
+  );
+}
+
 export function isListSubscriptionPlansPrompt(prompt: string): boolean {
   return (
     /\b(list|show)\b/i.test(prompt) &&
@@ -475,10 +580,20 @@ export function isConfigureGiftCardProductsPrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * Gift-card bundle product — requires an explicit gift-card cue.
+ * e2e-bug.157: bare "bundle" / "package called … Bundle" must NOT match
+ * (those are create_package).
+ */
 export function isCreateGiftCardBundlePrompt(prompt: string): boolean {
+  if (isCreatePackagePrompt(prompt)) return false;
+  if (/\bpackage\b/i.test(prompt) && !/\bgift\s*card\b/i.test(prompt)) {
+    return false;
+  }
   return (
     /\b(create|add|sell)\b/i.test(prompt) &&
-    /\b(gift\s*card\s+)?bundle\b/i.test(prompt)
+    (/\bgift\s*card\s+bundle\b/i.test(prompt) ||
+      (/\bbundle\b/i.test(prompt) && /\bgift\s*card\b/i.test(prompt)))
   );
 }
 
@@ -531,12 +646,10 @@ export function rescueCatalogIntent(
   ) {
     return { action: 'bulk_create_catalog', rescueReason: 'bulk_catalog' };
   }
+  // e2e-bug.151 — also steal back from create_promo_code ("called Wellness" false positive).
   if (
     isCreateServiceCategoryPrompt(prompt) &&
-    action !== 'create_service_category' &&
-    (action === 'unknown' ||
-      action === 'create_service' ||
-      action === 'create_services')
+    action !== 'create_service_category'
   ) {
     return {
       action: 'create_service_category',
@@ -575,14 +688,27 @@ export function rescueCatalogIntent(
     action !== 'create_package' &&
     (action === 'unknown' ||
       action === 'create_package_booking' ||
-      action === 'create_booking')
+      action === 'create_booking' ||
+      // e2e-bug.157 — LLM confuses multi-service packages with gift-card bundles
+      action === 'create_gift_card_bundle' ||
+      action === 'configure_gift_card_products')
   ) {
-    return { action: 'create_package', rescueReason: 'create_package' };
+    return {
+      action: 'create_package',
+      rescueReason: 'create_package',
+      params: extractCreatePackageParamsFromPrompt(prompt),
+    };
   }
   if (isDeactivateSubscriptionPlanPrompt(prompt)) {
     return {
       action: 'deactivate_subscription_plan',
       rescueReason: 'deactivate_subscription_plan',
+    };
+  }
+  if (isActivateSubscriptionPlanPrompt(prompt)) {
+    return {
+      action: 'activate_subscription_plan',
+      rescueReason: 'activate_subscription_plan',
     };
   }
   if (isUpdateSubscriptionPlanPrompt(prompt)) {
@@ -647,10 +773,18 @@ export function rescueCatalogIntent(
     };
   }
   if (isDeactivateServicePrompt(prompt) && action !== 'update_service_prices') {
+    const params = enrichDeactivateServiceCategoryScopeParamsFromPrompt(
+      {},
+      prompt,
+    );
+    const calledName = extractDeactivateServiceNameFromPrompt(prompt);
+    if (calledName && !params.serviceName) {
+      params.serviceName = calledName;
+    }
     return {
       action: 'deactivate_service',
       rescueReason: 'deactivate_service',
-      params: enrichDeactivateServiceCategoryScopeParamsFromPrompt({}, prompt),
+      params,
     };
   }
   if (
@@ -816,14 +950,71 @@ export function parseBulkCatalogFromPrompt(
 }
 
 export function extractPackageServiceNames(prompt: string): string[] {
-  const plusSection = prompt.match(
-    /\b(?:with|includes?|:)\s+(.+?)(?:\s+\d+\s*%|\s+off|\s+expires?|$)/i,
+  const combining = prompt.match(
+    /\bcombining\s+(.+?)(?:\s+services?)?(?:\s+for\b|\s+at\b|\s+\$|\s+priced|\s*$)/i,
   );
+  const plusSection =
+    combining ??
+    prompt.match(
+      /\b(?:with|includes?|:)\s+(.+?)(?:\s+\d+\s*%|\s+off|\s+expires?|\s+for\b|\s+\$|$)/i,
+    );
   const raw = plusSection?.[1] ?? prompt;
   return raw
     .split(/\s*\+\s*|\s+and\s+/i)
-    .map((s) => s.replace(/\b\d+\s*%?\s*off\b/gi, '').trim())
-    .filter((s) => s.length > 1 && !/^\d/.test(s) && !/\bpackage\b/i.test(s));
+    .map((s) =>
+      s
+        .replace(/\b\d+\s*%?\s*off\b/gi, '')
+        .replace(/\bservices?\b/gi, '')
+        .replace(/\bfor\s+\d+.*$/i, '')
+        .trim(),
+    )
+    .filter(
+      (s) =>
+        s.length > 1 &&
+        !/^\d/.test(s) &&
+        !/\bpackage\b/i.test(s) &&
+        !/\bbundle\b/i.test(s) &&
+        !/\bcalled\b/i.test(s) &&
+        !/\bnew\b/i.test(s) &&
+        !/\bcreate\b/i.test(s),
+    );
+}
+
+/** Params for create_package rescue / compound segments (e2e-bug.157). */
+export function extractCreatePackageParamsFromPrompt(
+  prompt: string,
+): Record<string, unknown> {
+  const calledName = prompt
+    .match(
+      /\b(?:package\s+)?called\s+["«']?([A-Za-z0-9][\w\s-]{0,80}?)["»']?(?=\s+combining|\s+with|\s+includes?|\s+for\b|\s+at\b|\s*$)/i,
+    )?.[1]
+    ?.trim();
+  const packageName =
+    calledName ??
+    prompt
+      .match(
+        /\b(?:create|add)\s+(?:a\s+|the\s+|new\s+)*package\s+(?:called\s+)?["«']?([A-Za-z0-9][\w\s-]{0,80}?)["»']?(?=\s+combining|\s+with|\s+includes?|\s+for\b|\s+at\b|\s*$)/i,
+      )?.[1]
+      ?.trim() ??
+    prompt
+      .match(
+        /\b(?:create|add)\s+(?:the\s+)?([A-Za-z][\w\s]+?)\s+package\b/i,
+      )?.[1]
+      ?.trim() ??
+    prompt
+      .match(/\bpackage\s+([A-Za-z][\w\s]+?)(?:\s+with|\s*:|$)/i)?.[1]
+      ?.trim();
+
+  const serviceNames = extractPackageServiceNames(prompt);
+  const discount = extractDiscountFromPrompt(prompt);
+
+  return {
+    ...(packageName ? { packageName } : {}),
+    ...(serviceNames.length ? { serviceNames } : {}),
+    ...(discount ?? {}),
+    expiresAt: extractExpiresAtFromPrompt(prompt),
+    ...catalogNotifyParamsFromPrompt(prompt),
+  };
 }
 
 export function extractDiscountFromPrompt(prompt: string): {
@@ -938,24 +1129,9 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
     };
   }
   if (isCreatePackagePrompt(text)) {
-    const packageName =
-      text
-        .match(
-          /\b(?:create|add)\s+(?:the\s+)?([A-Za-z][\w\s]+)\s+package\b/i,
-        )?.[1]
-        ?.trim() ??
-      text
-        .match(/\bpackage\s+([A-Za-z][\w\s]+?)(?:\s+with|\s*:|$)/i)?.[1]
-        ?.trim();
     return {
       action: 'create_package',
-      params: {
-        packageName,
-        serviceNames: extractPackageServiceNames(text),
-        ...extractDiscountFromPrompt(text),
-        expiresAt: extractExpiresAtFromPrompt(text),
-        ...catalogNotifyParamsFromPrompt(text),
-      },
+      params: extractCreatePackageParamsFromPrompt(text),
       segment: text,
     };
   }

@@ -129,19 +129,29 @@ export function failureMessageForKind(kind: OperationKind, error: unknown): stri
   return detail ? `${prefix} ${detail}` : m.failed;
 }
 
+const AXIOS_STATUS_MESSAGE_RE = /^request failed with status code \d+$/i;
+
 export function extractErrorMessage(error: unknown): string | null {
   if (!error) return null;
-  if (typeof error === 'string' && error.trim()) return error.trim();
-  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  // e2e-bug.63 — Nest/axios payload before generic Error.message ("Request failed with status code …").
   const axiosErr = error as AxiosError<{ message?: string | string[]; error?: string }>;
   const raw = axiosErr.response?.data?.message;
   if (Array.isArray(raw)) {
-    const joined = raw.filter(Boolean).join(', ');
-    return joined || null;
+    const joined = raw.filter((part) => typeof part === 'string' && part.trim()).join(', ');
+    if (joined) return joined;
   }
   if (typeof raw === 'string' && raw.trim()) return raw.trim();
   const errField = axiosErr.response?.data?.error;
   if (typeof errField === 'string' && errField.trim()) return errField.trim();
+
+  if (typeof error === 'string' && error.trim()) {
+    const trimmed = error.trim();
+    return AXIOS_STATUS_MESSAGE_RE.test(trimmed) ? null : trimmed;
+  }
+  if (error instanceof Error && error.message.trim()) {
+    const trimmed = error.message.trim();
+    return AXIOS_STATUS_MESSAGE_RE.test(trimmed) ? null : trimmed;
+  }
   return null;
 }
 

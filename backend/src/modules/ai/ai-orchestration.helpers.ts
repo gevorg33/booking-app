@@ -203,6 +203,14 @@ export function extractDateRangeFromPrompt(
     if (start && end) return { start, end };
   }
 
+  // e2e-bug.67 — app-generated prompts use ISO YYYY-MM-DD (not slash dates).
+  const isoRange = prompt.match(
+    /\b(\d{4}-\d{2}-\d{2})\s*(?:-|–|to|through)\s*(\d{4}-\d{2}-\d{2})\b/,
+  );
+  if (isoRange) {
+    return { start: isoRange[1], end: isoRange[2] };
+  }
+
   return null;
 }
 
@@ -214,6 +222,11 @@ export function extractSingleIsoDayFromPrompt(
   const range = extractDateRangeFromPrompt(prompt, timeZone);
   if (range) {
     return range.start === range.end ? range.start : null;
+  }
+
+  const isoDay = prompt.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (isoDay) {
+    return isoDay[1];
   }
 
   const lower = prompt.toLowerCase();
@@ -663,6 +676,52 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
   return [];
 }
 
+/**
+ * e2e-bug.143 — LLM sometimes stuffs pronouns into serviceCategory
+ * ("What services do I offer?" → serviceCategory="i"). Reject those before
+ * filtering the catalog.
+ */
+const LIST_SERVICES_FILTER_STOPWORDS = new Set([
+  'i',
+  'me',
+  'my',
+  'we',
+  'us',
+  'our',
+  'you',
+  'your',
+  'they',
+  'them',
+  'their',
+  'a',
+  'an',
+  'the',
+  'do',
+  'does',
+  'did',
+  'have',
+  'has',
+  'offer',
+  'offers',
+  'offering',
+  'all',
+  'any',
+  'some',
+  'what',
+  'which',
+]);
+
+export function sanitizeListServicesFilterValue(
+  value: string | null | undefined,
+): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length < 2) return null;
+  if (LIST_SERVICES_FILTER_STOPWORDS.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
 /** Extract a service-type keyword from "what kinds of massage do you have?" prompts. */
 export function extractServiceTypeKeywordFromListPrompt(
   prompt: string,
@@ -671,6 +730,9 @@ export function extractServiceTypeKeywordFromListPrompt(
     /\b(?:what|which)\s+(?:kind|type|sort)s?\s+of\s+([a-z][\w\s-]{1,30}?)(?:\s+do\s+you|\s+you\s+(?:have|offer)|\?|$)/i,
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\s+(?:do\s+you\s+)?(?:have|offer)/i,
     /\b(?:what|which)\s+([a-z][\w\s-]{1,30}?)\s+(?:services?|options?)\s+(?:do\s+you\s+)?(?:have|offer)/i,
+    // e2e-bug.53 — "Do you offer facemassage services?"
+    /\bdo\s+you\s+offer\s+([a-z][\w\s-]{1,40}?)\s+services?\b/i,
+    /\bdo\s+you\s+offer\s+([a-z][\w\s-]{1,40}?)(?:\s*\?|$)/i,
     /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
     /\b(?:recommend|suggest)\s+(?:me\s+)?(?:some\s+)?([a-z][\w\s-]{1,40}?)\s+services?\b/i,
     /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|,|$))/i,
@@ -711,16 +773,39 @@ export function enrichListServicesParamsFromPrompt(
     params,
     prompt,
   );
+  const cleaned = { ...withPayment };
+
+  if (
+    typeof cleaned.serviceCategory === 'string' ||
+    cleaned.serviceCategory === null
+  ) {
+    cleaned.serviceCategory = sanitizeListServicesFilterValue(
+      cleaned.serviceCategory,
+    );
+  }
+  if (
+    typeof cleaned.serviceName === 'string' ||
+    cleaned.serviceName === null
+  ) {
+    cleaned.serviceName = sanitizeListServicesFilterValue(cleaned.serviceName);
+  }
+  if (Array.isArray(cleaned.serviceNames)) {
+    const names = cleaned.serviceNames
+      .map((name) => sanitizeListServicesFilterValue(name))
+      .filter((name): name is string => !!name);
+    cleaned.serviceNames = names.length ? names : null;
+  }
+
   const hasFilter = !!(
-    withPayment.serviceCategory ||
-    withPayment.serviceName ||
-    (Array.isArray(withPayment.serviceNames) && withPayment.serviceNames.length)
+    cleaned.serviceCategory ||
+    cleaned.serviceName ||
+    (Array.isArray(cleaned.serviceNames) && cleaned.serviceNames.length)
   );
-  if (hasFilter) return withPayment;
+  if (hasFilter) return cleaned;
 
   const keyword = extractServiceTypeKeywordFromListPrompt(prompt);
-  if (!keyword) return withPayment;
-  return { ...withPayment, serviceCategory: keyword };
+  if (!keyword) return cleaned;
+  return { ...cleaned, serviceCategory: keyword };
 }
 
 /** Only persist service filters that resolve against the live catalog (public assistant session). */
@@ -994,6 +1079,21 @@ export function resolveDateRange(
   }
 
   if (/\ball[\s-]?(?:time|times)\b/i.test(lower)) {
+    return {
+      start: today.subtract(10, 'year').format('YYYY-MM-DD'),
+      end: todayKey,
+    };
+  }
+
+  // e2e-bug.154 — "in total" / "altogether" without a named period → all-time
+  // window (same span as "all time"), never a silent single empty day.
+  if (
+    /\b(bookings?|appointments?)\b/i.test(lower) &&
+    /\b(in\s+total|altogether|overall|ever)\b/i.test(lower) &&
+    !/\b(today|tomorrow|yesterday|this week|last week|this month|last month)\b/i.test(
+      lower,
+    )
+  ) {
     return {
       start: today.subtract(10, 'year').format('YYYY-MM-DD'),
       end: todayKey,
@@ -1293,10 +1393,32 @@ export function isScheduleTemplateCreationPrompt(prompt?: string): boolean {
   );
 }
 
+/**
+ * e2e-bug.136 — remove/unblock a schedule *block* (block_schedules row), not
+ * applied periods/slots. Must win over clear_schedule.
+ */
+export function isDeleteScheduleBlockPrompt(prompt?: string): boolean {
+  const lower = (prompt ?? '').toLowerCase();
+  if (!lower.trim()) return false;
+  if (/\bunblock\b/.test(lower)) return true;
+  if (
+    /\b(?:full[-\s]?day\s+)?(?:schedule\s+)?block\b/.test(lower) &&
+    /\b(?:remove|delete|clear|lift|cancel)\b/.test(lower)
+  ) {
+    return true;
+  }
+  return (
+    /\b(?:remove|delete|clear)\b/.test(lower) &&
+    /\b(?:the\s+)?(?:full[-\s]?day\s+)?block\b/.test(lower)
+  );
+}
+
 /** cleanup / clear / wipe / reset provider schedule (not appointments). */
 export function isClearSchedulePrompt(prompt?: string): boolean {
   const lower = (prompt ?? '').toLowerCase();
   if (!/\bschedule\b/.test(lower)) return false;
+  // e2e-bug.136 — "unblock / remove the block" is delete_schedule_block.
+  if (isDeleteScheduleBlockPrompt(prompt)) return false;
   if (
     /\b(from calendar|appointment|booking)s?\b/.test(lower) &&
     !/\bschedule\b/.test(lower)
@@ -1935,6 +2057,7 @@ export function shouldAutoExecute(
     'analyze_services',
     'summarize_staff',
     'lookup_customer',
+    'list_customers',
     'summarize_waitlist',
     'lookup_service_assignment',
     'list_employees',

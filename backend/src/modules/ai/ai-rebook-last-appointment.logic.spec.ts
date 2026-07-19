@@ -16,6 +16,9 @@ describe('ai-rebook-last-appointment.logic (ai-cmd-customer-4.4.8)', () => {
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),
     },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+    },
   });
 
   it('requires sign-in', async () => {

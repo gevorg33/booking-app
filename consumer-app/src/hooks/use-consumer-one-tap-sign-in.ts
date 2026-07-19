@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { getOrCreateAnonId, track } from '../lib/app-analytics.js';
 import { recordActiveTenant, setCustomerSession } from '../lib/customer-auth.js';
 import { claimPendingReferralAfterSignIn } from '../lib/consumer-referral.util.js';
+import type { ConsumerGoogleSignInErrorCopy } from '../lib/consumer-google-sign-in-error.util.js';
+import { resolveConsumerGoogleSignInErrorMessage } from '../lib/consumer-google-sign-in-error.util.js';
 import {
   isValidConsumerPhone,
   normalizeConsumerPhone,
@@ -21,7 +23,8 @@ export interface ConsumerOneTapSignInResult {
 
 export function useConsumerOneTapSignIn(
   slug: string | null | undefined,
-  options?: {
+  options: {
+    copy: ConsumerGoogleSignInErrorCopy;
     onSuccess?: (result: ConsumerOneTapSignInResult) => void;
   },
 ) {
@@ -46,7 +49,7 @@ export function useConsumerOneTapSignIn(
         claimReferralCode(slug, code),
       );
 
-      options?.onSuccess?.({
+      options.onSuccess?.({
         provider,
         customer: session.customer,
         referralAttached: referralResult?.attached === true,
@@ -57,7 +60,7 @@ export function useConsumerOneTapSignIn(
 
   const signInWithGoogle = useCallback(async () => {
     if (!slug || !isGoogleSignInAvailable()) {
-      setMessage('Google sign-in is not configured.');
+      setMessage(options.copy.loginGoogleNotConfigured);
       return;
     }
     setBusy(true);
@@ -66,11 +69,11 @@ export function useConsumerOneTapSignIn(
       const idToken = await getGoogleIdToken();
       await completeSession('google', idToken);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Sign-in failed');
+      setMessage(resolveConsumerGoogleSignInErrorMessage(error, options.copy));
     } finally {
       setBusy(false);
     }
-  }, [completeSession, slug]);
+  }, [completeSession, options.copy, slug]);
 
   const signInWithApple = useCallback(async () => {
     setMessage('Apple sign-in is not configured in this build.');

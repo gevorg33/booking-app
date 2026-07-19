@@ -31,4 +31,12 @@ export const EXPLAIN_APPOINTMENT_TAX_PROMPTS = [
     id: 'collected-amount-tax',
     prompt: 'How much tax is in the collected payment for this appointment?',
   },
+  {
+    id: 'why-vat-breakdown',
+    prompt: 'Why VAT on this breakdown?',
+  },
+  {
+    id: 'inclusive-vs-exclusive-tax',
+    prompt: 'Inclusive vs exclusive tax?',
+  },
 ] as const;

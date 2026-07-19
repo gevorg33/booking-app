@@ -4,6 +4,7 @@ import { EXPLAIN_PUBLIC_INTAKE_FORM_PROMPTS } from './ai-explain-public-intake-f
 describe('ai-explain-public-intake-form.logic (ai-cmd-customer-4.14.1)', () => {
   const clinicBusiness = {
     id: 'biz-1',
+    slug: 'clinic-1',
     settings: { businessType: 'clinic' },
   };
 
@@ -14,6 +15,16 @@ describe('ai-explain-public-intake-form.logic (ai-cmd-customer-4.14.1)', () => {
       },
       serviceService: {
         findAll: jest.fn().mockResolvedValue([]),
+      },
+      publicPreVisitIntakeService: {
+        ensureCustomerDraft: jest.fn(),
+        getCustomerFlow: jest.fn(),
+        startCustomerIntake: jest.fn(),
+        submitCustomerAnswers: jest.fn(),
+        getCheckoutConfig: jest.fn().mockResolvedValue({
+          offersPreVisitIntake: true,
+          questionnaire: { id: 'q-1', title: 'Lab prep questionnaire' },
+        }),
       },
     };
   }
@@ -40,6 +51,7 @@ describe('ai-explain-public-intake-form.logic (ai-cmd-customer-4.14.1)', () => {
     const result = await handleExplainPublicIntakeFormLogic(
       buildDeps({
         id: 'biz-1',
+        slug: 'salon-1',
         settings: { businessType: 'salon' },
       }),
       'biz-1',
@@ -87,5 +99,49 @@ describe('ai-explain-public-intake-form.logic (ai-cmd-customer-4.14.1)', () => {
       'Why these health questions?',
     );
     expect(missing.success).toBe(false);
+  });
+
+  it('reads offersPreVisitIntake live from checkout config when not passed by the caller', async () => {
+    const deps = buildDeps();
+    const result = await handleExplainPublicIntakeFormLogic(
+      deps,
+      'biz-1',
+      { serviceId: 'svc-lab-1' },
+      'Why these health questions?',
+    );
+    expect(result.success).toBe(true);
+    expect(
+      deps.publicPreVisitIntakeService.getCheckoutConfig,
+    ).toHaveBeenCalledWith('clinic-1', 'svc-lab-1');
+    expect(result.details?.offersPreVisitIntake).toBe(true);
+    expect(result.details?.questionnaireTitle).toBe('Lab prep questionnaire');
+  });
+
+  it('does not fetch live config when offersPreVisitIntake is already known', async () => {
+    const deps = buildDeps();
+    await handleExplainPublicIntakeFormLogic(
+      deps,
+      'biz-1',
+      { serviceId: 'svc-lab-1', offersPreVisitIntake: false },
+      'Why these health questions?',
+    );
+    expect(
+      deps.publicPreVisitIntakeService.getCheckoutConfig,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('leaves offersPreVisitIntake unknown when the live config lookup fails', async () => {
+    const deps = buildDeps();
+    (
+      deps.publicPreVisitIntakeService.getCheckoutConfig as jest.Mock
+    ).mockRejectedValueOnce(new Error('Service not found'));
+    const result = await handleExplainPublicIntakeFormLogic(
+      deps,
+      'biz-1',
+      { serviceId: 'svc-missing' },
+      'Why these health questions?',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.offersPreVisitIntake).toBeNull();
   });
 });

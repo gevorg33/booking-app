@@ -50,9 +50,14 @@ describe('Patient staff notes (integration)', () => {
     }),
     create: jest.fn((value) => value),
     save: jest.fn(async (value: Record<string, unknown>) => {
+      const rawId = typeof value.id === 'string' ? value.id.trim() : '';
+      // Mirror Postgres: empty string is not a valid uuid primary key.
+      if (value.id === '') {
+        throw new Error('invalid input syntax for type uuid: ""');
+      }
       const saved = {
         ...value,
-        id: value.id ?? `note-${storedNotes.length + 1}`,
+        id: rawId || `note-${storedNotes.length + 1}`,
         createdAt: value.createdAt ?? new Date('2026-06-04T10:00:00.000Z'),
       };
       const index = storedNotes.findIndex((row) => row.id === saved.id);
@@ -122,6 +127,8 @@ describe('Patient staff notes (integration)', () => {
     );
     expect(created.body).toBe('Coordinate follow-up labs before next visit.');
     expect(created.authorName).toBe('Dr. Lee');
+    expect(created.id).toBeTruthy();
+    expect(created.id).not.toBe('');
 
     const list = await staffNotesService.listNotesForCustomer(
       'biz-1',
@@ -130,6 +137,27 @@ describe('Patient staff notes (integration)', () => {
     );
     expect(list.notes).toHaveLength(1);
     expect(list.canCreate).toBe(true);
+  });
+
+  it('e2e-bug.71 — create without pre-assigned id does not save empty uuid', async () => {
+    phiFieldService.resolveBusinessEncryptionKey.mockResolvedValueOnce(null);
+    const access = await accessService.assertCustomerStaffNoteAccess(
+      'biz-1',
+      'user-1',
+      'cust-1',
+    );
+
+    const created = await staffNotesService.createNoteForCustomer(
+      'biz-1',
+      'cust-1',
+      access,
+      { body: 'Note when PHI key is absent.' },
+    );
+
+    const savedArg = noteRepo.save.mock.calls[0]?.[0] as { id?: string };
+    expect(savedArg?.id).not.toBe('');
+    expect(created.id).toMatch(/^note-\d+$/);
+    expect(created.body).toBe('Note when PHI key is absent.');
   });
 
   it('blocks receptionist-tier staff from staff notes', async () => {

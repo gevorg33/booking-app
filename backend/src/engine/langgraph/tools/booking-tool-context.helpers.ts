@@ -41,6 +41,22 @@ export function resolveEmployeeLabel(
   return 'provider';
 }
 
+/** Resolves a real employeeId from a bare employeeName when the caller (e.g. an LLM tool call) omitted the id (e2e-bug.169). */
+export function resolveEmployeeId(
+  ctx: BookingToolRunContext,
+  employeeId?: string | null,
+  employeeName?: string | null,
+): string | undefined {
+  const trimmedId = employeeId?.trim();
+  if (trimmedId) return trimmedId;
+
+  const rawName = employeeName?.trim();
+  if (!rawName) return undefined;
+  if (isUuid(rawName)) return rawName;
+
+  return fuzzyMatchByName(ctx.employees, rawName)?.id;
+}
+
 export function withResolvedEmployeeParams(
   ctx: BookingToolRunContext,
   params: { employeeId?: string; employeeName?: string } & Record<
@@ -54,6 +70,115 @@ export function withResolvedEmployeeParams(
     params.employeeName,
   );
   return { ...params, employeeName: label };
+}
+
+/**
+ * Builds the isRepetitive/singleBlock/repetitiveBlock shape CreateBlockScheduleDto
+ * requires (e2e-bug.170) — mirrors the working pattern already used by the
+ * non-react_agent dashboard pipeline in buildBlockScheduleBlockPayloads
+ * (ai-scheduling.util.ts), scoped to a single provider.
+ */
+export function buildBlockScheduleParams(
+  ctx: BookingToolRunContext,
+  input: {
+    employeeId?: string;
+    employeeName?: string;
+    date?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    startTime?: string;
+    endTime?: string;
+    blockFullDay?: boolean;
+    applyDays?: number[];
+    weeksCount?: number;
+    placeholder?: string;
+  },
+): Record<string, unknown> {
+  const employeeId = resolveEmployeeId(
+    ctx,
+    input.employeeId,
+    input.employeeName,
+  );
+  const label = resolveEmployeeLabel(ctx, employeeId, input.employeeName);
+
+  const range = resolveDateRange(
+    {
+      date: input.date,
+      dateFrom: input.dateFrom,
+      dateTo: input.dateTo,
+      _timeZone: ctx.timeZone,
+    },
+    ctx.prompt,
+    ctx.timeZone,
+  );
+  if (!range) {
+    throw new Error(
+      'Block schedule requires date, dateFrom/dateTo, or a date phrase in the prompt.',
+    );
+  }
+
+  const fullDay = input.blockFullDay === true;
+  const applyDays = Array.isArray(input.applyDays) ? input.applyDays : [];
+  const placeholder = input.placeholder ?? 'Blocked';
+  const base = {
+    employeeId,
+    employeeName: label,
+    placeholder,
+    userId: ctx.userId,
+  };
+
+  if (fullDay && range.start === range.end) {
+    return {
+      ...base,
+      isRepetitive: false,
+      singleBlock: {
+        startTime: `${range.start}T00:00:00.000Z`,
+        endTime: `${range.end}T23:59:59.000Z`,
+      },
+    };
+  }
+
+  const isRepetitive =
+    range.start !== range.end && !fullDay && applyDays.length > 0;
+
+  if (isRepetitive) {
+    return {
+      ...base,
+      isRepetitive: true,
+      repetitiveBlock: {
+        startDay: range.start,
+        endDay: range.end,
+        startTime: normalizeTime24(input.startTime ?? '00:00'),
+        endTime: normalizeTime24(input.endTime ?? '23:59'),
+        weeksCount: input.weeksCount ?? 1,
+        isActiveOnMonday: applyDays.includes(1),
+        isActiveOnTuesday: applyDays.includes(2),
+        isActiveOnWednesday: applyDays.includes(3),
+        isActiveOnThursday: applyDays.includes(4),
+        isActiveOnFriday: applyDays.includes(5),
+        isActiveOnSaturday: applyDays.includes(6),
+        isActiveOnSunday: applyDays.includes(0),
+      },
+    };
+  }
+
+  const timeFrom = normalizeTime24(input.startTime ?? '00:00');
+  const timeTo = normalizeTime24(input.endTime ?? '23:59');
+  const [sh, sm] = timeFrom.split(':').map(Number);
+  const [eh, em] = timeTo.split(':').map(Number);
+  const start = new Date(`${range.start}T00:00:00.000Z`);
+  start.setUTCHours(sh, sm, 0, 0);
+  const end = new Date(`${range.start}T00:00:00.000Z`);
+  end.setUTCHours(eh, em, 0, 0);
+
+  return {
+    ...base,
+    isRepetitive: false,
+    singleBlock: {
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+    },
+  };
 }
 
 export function truncateResult(result: unknown): string {
@@ -228,24 +353,25 @@ export function buildDirectScheduleProposalSteps(
     );
   }
 
-  const employee = ctx.employees.find((e) => e.id === provider.employeeId);
+  const employeeId = resolveEmployeeId(
+    ctx,
+    provider.employeeId,
+    provider.employeeName,
+  );
+  const employee = ctx.employees.find((e) => e.id === employeeId);
   const periods = normalizeDirectSchedulePeriods(
     provider.periods ??
       (input.periods as DirectSchedulePeriodInput[] | undefined),
     input,
     employee?.serviceIds,
   );
-  const label = resolveEmployeeLabel(
-    ctx,
-    provider.employeeId,
-    provider.employeeName,
-  );
+  const label = resolveEmployeeLabel(ctx, employeeId, provider.employeeName);
 
   return dates.map((date, index) => ({
     action: 'create_direct_schedule',
     description: `Set schedule for ${label} on ${date}`,
     params: withResolvedEmployeeParams(ctx, {
-      employeeId: provider.employeeId,
+      employeeId,
       employeeName: label,
       date,
       periods,
@@ -416,6 +542,11 @@ export function buildApplyScheduleProposalSteps(
     );
   }
 
+  const applyDays =
+    Array.isArray(input.applyDays) && input.applyDays.length > 0
+      ? input.applyDays
+      : [0, 1, 2, 3, 4, 5, 6];
+
   return providers.map((provider, index) => ({
     action: 'apply_template',
     description: `Apply "${template.name}" to ${provider.employeeName}`,
@@ -425,7 +556,7 @@ export function buildApplyScheduleProposalSteps(
       employeeName: provider.employeeName,
       startDate: range.start,
       endDate: range.end,
-      applyDays: input.applyDays,
+      applyDays,
       repeatWeeksCount: input.repeatWeeksCount ?? 1,
       userId: ctx.userId,
     }),

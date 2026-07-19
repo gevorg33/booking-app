@@ -3,7 +3,14 @@
 export const PROVIDER_EXP_2_CLASSIFIER_RULES = `- my_stats: READ — provider mobile only: personal or team performance rollup (completed visits, paid revenue, utilization, reviews, tips when enabled). Triggers: my stats, how am I doing, my week stats, utilization this week. Optional period=week|month, scope=mine|team (managers only for team). NOT summarize_my_revenue (earnings narrative), NOT summarize_utilization (single % only).
 - team_floor_status: READ — manager/owner team view only: today's floor board counts per provider (waiting, in service, done, no-show). Triggers: team floor status, who is waiting, floor board today. NOT team_whos_next (next 2h queue), NOT show_appointments (flat list).
 - check_in_client: MUTATE — check in a client for today's appointment (sets checkedInAt). Requires bookingId (session) and/or customerName; optional timeSlot. Triggers: check in Jane, client arrived, mark checked in. NOT update_bookings (generic status).
-- mark_running_late: MUTATE — mark visit running late on booking metadata; optional minutesLate (default 10). Requires bookingId and/or customerName. Triggers: running 10 minutes late, I'm running late for Maria. NOT mark_no_shows, NOT ready_now unless user says ready now (separate future action).`;
+- mark_running_late: MUTATE — mark visit running late on booking metadata; optional minutesLate (default 10). Requires bookingId and/or customerName. Triggers: running 10 minutes late, I'm running late for Maria. NOT mark_no_shows, NOT mark_ready_now (opposite status).
+- mark_ready_now: MUTATE — mark visit ready now on booking metadata (client/room is ready, cancels any running-late state). Requires bookingId and/or customerName. Triggers: mark Maria ready now, I'm ready for the next client, ready to be seen. NOT check_in_client (arrival, not readiness), NOT mark_running_late (opposite status).
+- suggest_cancel_note: READ — AI-drafted short cancellation note for a booking about to be cancelled; optional draft to refine. Requires bookingId and/or customerName. Triggers: draft a cancellation note, write a cancel reason for Jane, suggest a cancellation message. NOT cancel_bookings (actually cancels).
+- request_client_review: MUTATE — send a review request to the client for a completed booking. Requires bookingId and/or customerName. Triggers: ask Jane for a review, send a review request, request a review from this client. NOT my_stats (reads review aggregate).
+- list_reassign_options: READ — live list of other providers free for this booking's exact same-day slot. Requires bookingId and/or customerName. Triggers: who else is free to take this, reassign options for this booking, which providers can cover this. NOT reassign_booking_same_day (actually reassigns).
+- reassign_booking_same_day: MUTATE — reassign a booking to a different provider for the same slot today. Requires bookingId and/or customerName, plus employeeName (target provider). Triggers: reassign this to Maria, give this appointment to James. NOT list_reassign_options (read-only options), NOT change_provider_on_reschedule (customer self-service reschedule flow).
+- list_team_unpaid_today: READ — manager/owner team view only: preview of today's unpaid appointments across the whole team (customer, provider, service, price). Triggers: anyone on the floor not paid yet, unpaid across team, who hasn't paid today, team unpaid appointments. NOT payment_sweep (mutate — actually marks them paid), NOT explain_deposit_balance_due (single booking's balance, not a team-wide list).
+- explain_reviews_inbox: READ — own reviews (or whole team's, for managers): rating, comment, customer, date, flags low ratings. Optional period=today|yesterday|week|month (default month). Triggers: my rating this month, bad review yesterday — show it, any low reviews this week, team reviews inbox. NOT request_client_review (mutate — sends a review request), NOT my_stats (aggregate score only, no individual review list).`;
 
 export const PROVIDER_EXP_2_PROMPT_SCENARIOS = [
   {
@@ -119,6 +126,50 @@ export const PROVIDER_EXP_2_PROMPT_SCENARIOS = [
     paramsPartial: { customerName: 'Sam' },
   },
   {
+    id: 'check-in-voice-heres-en',
+    prompt: "Jane's here, check her in",
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'check-in-voice-go-ahead-en',
+    prompt: 'Go ahead and check in Sam',
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+  },
+  {
+    id: 'check-in-voice-walked-in-en',
+    prompt: 'She just walked in, check her in please',
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+  },
+  {
+    id: 'check-in-voice-shorthand-en',
+    prompt: "Maria's arrived",
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+    paramsPartial: { customerName: 'Maria' },
+  },
+  {
+    id: 'check-in-voice-mark-checked-en',
+    prompt: 'Mark Emma as checked in',
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+  },
+  {
+    id: 'check-in-voice-shes-here-en',
+    prompt: "Check in Jane, she's here",
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+  },
+  {
+    id: 'check-in-voice-next-client-en',
+    prompt: 'A client just showed up, check them in',
+    surface: 'provider' as const,
+    expectedAction: 'check_in_client',
+  },
+  {
     id: 'check-in-client-hy',
     prompt: 'Գրանցել Jane-ի ժամանումը',
     surface: 'provider' as const,
@@ -168,5 +219,231 @@ export const PROVIDER_EXP_2_PROMPT_SCENARIOS = [
     prompt: 'Я опаздываю на 10 минут к Jane',
     surface: 'provider' as const,
     expectedAction: 'mark_running_late',
+  },
+  {
+    id: 'ready-now-client-en',
+    prompt: 'Mark Maria ready now',
+    surface: 'provider' as const,
+    expectedAction: 'mark_ready_now',
+    paramsPartial: { customerName: 'Maria' },
+  },
+  {
+    id: 'ready-now-self-en',
+    prompt: "I'm ready for the next client",
+    surface: 'provider' as const,
+    expectedAction: 'mark_ready_now',
+  },
+  {
+    id: 'ready-to-be-seen-en',
+    prompt: 'Ready to be seen',
+    surface: 'provider' as const,
+    expectedAction: 'mark_ready_now',
+  },
+  {
+    id: 'ready-for-next-client-en',
+    prompt: 'Ready for next client',
+    surface: 'provider' as const,
+    expectedAction: 'mark_ready_now',
+  },
+  {
+    id: 'clear-running-late-en',
+    prompt: 'Clear running late',
+    surface: 'provider' as const,
+    expectedAction: 'mark_ready_now',
+  },
+  {
+    id: 'suggest-cancel-note-en',
+    prompt: 'Draft a cancellation note for Jane',
+    surface: 'provider' as const,
+    expectedAction: 'suggest_cancel_note',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'suggest-cancel-note-generic-en',
+    prompt: 'Suggest a cancel reason for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'suggest_cancel_note',
+  },
+  {
+    id: 'request-client-review-en',
+    prompt: 'Ask Jane for a review',
+    surface: 'provider' as const,
+    expectedAction: 'request_client_review',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  {
+    id: 'request-review-generic-en',
+    prompt: 'Send a review request for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'request_client_review',
+  },
+  {
+    id: 'list-reassign-options-en',
+    prompt: 'Who else is free to take this appointment instead?',
+    surface: 'provider' as const,
+    expectedAction: 'list_reassign_options',
+  },
+  {
+    id: 'reassign-options-generic-en',
+    prompt: 'Reassign options for this booking',
+    surface: 'provider' as const,
+    expectedAction: 'list_reassign_options',
+  },
+  {
+    id: 'reassign-booking-same-day-en',
+    prompt: 'Reassign this to Maria',
+    surface: 'provider' as const,
+    expectedAction: 'reassign_booking_same_day',
+    paramsPartial: { employeeName: 'Maria' },
+  },
+  {
+    id: 'unpaid-today-floor-en',
+    prompt: 'Anyone on the floor not paid yet?',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-across-team-en',
+    prompt: 'Unpaid across the whole team',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-hasnt-paid-en',
+    prompt: "Who hasn't paid today?",
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-team-list-en',
+    prompt: 'Show team unpaid appointments today',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-floor-list-en',
+    prompt: 'List unpaid on the floor',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-anyone-outstanding-en',
+    prompt: 'Is anyone on the team not paid yet?',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-check-floor-en',
+    prompt: 'Check who on the floor is not paid',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-team-outstanding-en',
+    prompt: 'Team unpaid appointments right now',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-who-owes-en',
+    prompt: 'Who on the floor still owes today?',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'unpaid-today-not-paid-team-en',
+    prompt: 'Which team appointments are not paid today?',
+    surface: 'provider' as const,
+    expectedAction: 'list_team_unpaid_today',
+  },
+  {
+    id: 'reviews-inbox-my-rating-month-en',
+    prompt: 'My rating this month',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-bad-review-yesterday-en',
+    prompt: 'Bad review yesterday — show it',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-my-reviews-en',
+    prompt: 'Show my reviews this month',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-inbox-en',
+    prompt: 'Show my reviews inbox',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-low-reviews-week-en',
+    prompt: 'Any low reviews this week?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-recent-reviews-en',
+    prompt: 'Recent reviews for me',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-did-i-get-bad-en',
+    prompt: 'Did I get any bad reviews today?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-team-reviews-month-en',
+    prompt: 'Team reviews this month',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-team-rating-week-en',
+    prompt: "What's our team rating this week?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-negative-review-en',
+    prompt: 'Show negative reviews from this week',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'reviews-inbox-five-star-latest-en',
+    prompt: 'Latest 5-star reviews',
+    surface: 'provider' as const,
+    expectedAction: 'explain_reviews_inbox',
+  },
+  {
+    id: 'explain-request-review-flow-how-en',
+    prompt: "What's the process for requesting a client review?",
+    surface: 'provider' as const,
+    expectedAction: 'explain_request_review_flow',
+  },
+  {
+    id: 'explain-request-review-flow-can-i-en',
+    prompt: 'Can I request a review from Jane?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_request_review_flow',
+  },
+  {
+    id: 'draft-review-response-reply-en',
+    prompt: 'Help reply to this review',
+    surface: 'provider' as const,
+    expectedAction: 'draft_review_response',
+  },
+  {
+    id: 'draft-review-response-professional-en',
+    prompt: 'Draft professional response',
+    surface: 'provider' as const,
+    expectedAction: 'draft_review_response',
   },
 ] as const;

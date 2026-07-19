@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonButton,
   IonContent,
@@ -25,11 +25,14 @@ import {
   unwrapAuthResult,
   type AuthResult,
 } from '../lib/auth-session';
+import { useAuthStoreHydrated } from '../lib/use-auth-hydrated';
 import { useI18n } from '../i18n';
 
 export default function LoginPage() {
   const { t } = useI18n();
   const history = useHistory();
+  const hydrated = useAuthStoreHydrated();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +43,12 @@ export default function LoginPage() {
   const [forgotMsg, setForgotMsg] = useState('');
   const [pendingBusinesses, setPendingBusinesses] = useState<AuthResult['businesses'] | null>(null);
   const googleEnabled = isGoogleSignInAvailable();
+
+  // e2e-bug.64 — already-signed-in visits to /login must bounce to today (mirror e2e-bug.45).
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated) return;
+    history.replace('/tabs/today');
+  }, [hydrated, history, isAuthenticated]);
 
   const finishLogin = (result: AuthResult) => {
     if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
@@ -120,6 +129,16 @@ export default function LoginPage() {
       setForgotMsg(t('auth.resetEmailSent'));
     }
   };
+
+  if (!hydrated || isAuthenticated) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding ion-text-center">
+          <IonSpinner name="crescent" style={{ marginTop: '40vh' }} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (pendingBusinesses) {
     return (

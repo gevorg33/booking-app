@@ -12,6 +12,7 @@ import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integ
 import { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
 import { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
+import { DistributionIntegrationService } from '../integrations/distribution/distribution-integration.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeIntegrationsCompoundPrompt,
@@ -23,6 +24,7 @@ import {
   handleConfigureZendeskLogic,
   handleConfigureZapierLogic,
   handleContactSupportLogic,
+  handleCreateApiKeyLogic,
   handleCreateSupportTicketLogic,
   handleCreateWebhookLogic,
   handleDeleteWebhookLogic,
@@ -32,6 +34,8 @@ import {
   handleListWebhooksLogic,
   handleListZapierTriggersLogic,
   handleOpenTicketForOrderLogic,
+  handleConfigureDistributionChannelsLogic,
+  handleRevokeApiKeyLogic,
   handleRotateApiKeyLogic,
   handleRunAccountingExportLogic,
   handleSyncCustomerToZendeskLogic,
@@ -40,6 +44,8 @@ import {
 } from './ai-integrations.logic.js';
 import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
 import { handleExplainIntegrationHealthLogic } from './ai-explain-integration-health.logic.js';
+import { dispatchIntegrationsLogicIntent } from './ai-integrations-dispatch.util.js';
+import type { IntegrationsDispatchContext } from './ai-integrations-dispatch.build.js';
 
 @Injectable()
 export class AiIntegrationsService {
@@ -54,6 +60,7 @@ export class AiIntegrationsService {
     integrationsDocsService: IntegrationsDocsService,
     openAiIntegrationService: OpenAiIntegrationService,
     whatsappIntegrationService: WhatsAppIntegrationService,
+    distributionIntegrationService: DistributionIntegrationService,
     @InjectRepository(Business) businessRepo: Repository<Business>,
     @InjectRepository(Customer) customerRepo: Repository<Customer>,
     @InjectRepository(GiftCard) giftCardRepo: Repository<GiftCard>,
@@ -67,6 +74,7 @@ export class AiIntegrationsService {
       integrationsDocsService,
       openAiIntegrationService,
       whatsappIntegrationService,
+      distributionIntegrationService,
       businessRepo,
       customerRepo,
       giftCardRepo,
@@ -133,6 +141,34 @@ export class AiIntegrationsService {
       params,
       userId,
       prompt,
+    );
+  }
+
+  handleCreateApiKey(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+    prompt?: string,
+  ) {
+    return handleCreateApiKeyLogic(this.deps, businessId, params, userId, prompt);
+  }
+
+  handleRevokeApiKey(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleRevokeApiKeyLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleConfigureDistributionChannels(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleConfigureDistributionChannelsLogic(
+      this.deps,
+      businessId,
+      params,
     );
   }
 
@@ -293,5 +329,12 @@ export class AiIntegrationsService {
       actorEmail,
       actorName,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an integrations intent. */
+  dispatchIntent(
+    ctx: IntegrationsDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchIntegrationsLogicIntent(this.deps, ctx);
   }
 }

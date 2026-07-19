@@ -13,8 +13,9 @@ export type ParsedDeactivateServiceCategoryScope = {
 
 function isDeactivateCatalogServicePrompt(prompt: string): boolean {
   if (/\bpackage\b/i.test(prompt)) return false;
+  if (/\b(cart|basket)\b/i.test(prompt)) return false;
   return (
-    /\b(hide|deactivate|disable|remove)\b/i.test(prompt) &&
+    /\b(hide|deactivate|disable|remove|delete)\b/i.test(prompt) &&
     /\b(?:from\s+public|services?|offerings?|catalog|booking)\b/i.test(prompt)
   );
 }
@@ -25,7 +26,7 @@ function isProviderSkillRemovalPrompt(prompt: string): boolean {
     return true;
   }
   if (
-    /\bfrom\s+(?:(?:the|our)\s+)?(?:public|service\s+catalog|catalog|public\s+booking|booking|service\s+menu)\b/i.test(
+    /\bfrom\s+(?:(?:the|my|our)\s+)?(?:public\s+|service\s+|business\s+)?(?:catalog|menu|public\s+booking|booking)\b/i.test(
       prompt,
     )
   ) {
@@ -76,15 +77,19 @@ function parseSingleServiceNameFromDeactivatePrompt(
   prompt: string,
 ): string | undefined {
   const patterns = [
-    /\b(?:hide|deactivate|disable|remove)\s+(?:the\s+)?service\s+["']?([^"']+?)["']?\s+from\b/i,
-    /\b(?:hide|deactivate|disable|remove)\s+(?:the\s+)?["']?([^"']+?)["']?\s+from\s+(?:public|the\s+service\s+catalog|catalog|public\s+booking)\b/i,
-    /\b(?:hide|deactivate|disable|remove)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+from\b/i,
-    /\b(?:hide|deactivate|disable|remove)\s+(?:the\s+)?([A-Za-z][\w\s'-]+)\s+service\b/i,
+    /\b(?:hide|deactivate|disable|remove|delete)\s+(?:the\s+)?service\s+(?:called|named)\s+["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
+    /\b(?:hide|deactivate|disable|remove|delete)\s+(?:the\s+)?service\s+["']?([^"']+?)["']?(?=\s+from\b)/i,
+    /\b(?:hide|deactivate|disable|remove|delete)\s+(?:the\s+)?([A-Za-z][\w\s'-]+)\s+service\b/i,
+    /\b(?:hide|deactivate|disable|remove|delete)\s+(?:the\s+)?["']?([^"']+?)["']?\s+from\s+(?:public|the\s+service\s+catalog|catalog|public\s+booking|the\s+business\s+catalog|my\s+catalog)\b/i,
+    /\b(?:hide|deactivate|disable|remove|delete)\s+(?:the\s+)?([A-Za-z][\w\s'-]+?)\s+from\s+(?:public|catalog|the\s+service\s+catalog|public\s+booking)\b/i,
   ];
 
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
-    const name = match?.[1]?.replace(/^["']|["']$/g, '').trim();
+    const name = match?.[1]
+      ?.replace(/^["']|["']$/g, '')
+      .replace(/\s+service$/i, '')
+      .trim();
     if (name && !/^(all|every)$/i.test(name)) return name;
   }
 

@@ -110,6 +110,21 @@ describe('Sprint 29 schedule & resources AI scenarios', () => {
     it('rescues scheduling resource CRUD and conflict intents', () => {
       expect(
         rescue.rescue({
+          prompt:
+            'What equipment does the deep tissue massage service require?',
+          action: 'unknown',
+          params: {},
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          action: 'list_service_resource_requirements',
+          params: expect.objectContaining({
+            serviceName: expect.stringMatching(/deep tissue massage/i),
+          }),
+        }),
+      );
+      expect(
+        rescue.rescue({
           prompt: 'List scheduling resources',
           action: 'unknown',
           params: {},

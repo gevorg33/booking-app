@@ -12,6 +12,9 @@ import {
   handlePromoCodeHelpLogic,
   handleLoyaltyPointsBalanceLogic,
   handleOpenBillingSettingsLogic,
+  handleStartBillingCheckoutLogic,
+  handleConfirmBillingCheckoutLogic,
+  handleExplainPlanEntitlementsLogic,
   handleSummarizeLoyaltyProgramLogic,
   handleMarketingGrowthCompoundLogic,
   mergeMarketingGrowthCompoundContext,
@@ -127,6 +130,14 @@ function buildDeps(
       })),
       createPortalSession: jest.fn(async () => ({
         url: 'https://billing.stripe.com/portal',
+      })),
+      confirmCheckoutSession: jest.fn(async () => ({
+        status: 'active',
+        planId: 'starter',
+        plan: { id: 'starter', name: 'Starter' },
+        currentPeriodEnd: '2026-08-01T00:00:00.000Z',
+        isActive: true,
+        stripeCustomerId: 'cus_123',
       })),
     } as any,
     loyaltyService: {
@@ -466,6 +477,107 @@ describe('ai-marketing-growth.logic', () => {
     expect((await handleOpenBillingSettingsLogic(deps, 'biz-1')).success).toBe(
       true,
     );
+    const startCheckoutMissingPlan = await handleStartBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      {},
+    );
+    expect(startCheckoutMissingPlan.success).toBe(false);
+    expect(startCheckoutMissingPlan.details.clarify).toBe(true);
+    const startCheckoutByName = await handleStartBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      { planName: 'Starter' },
+    );
+    expect(startCheckoutByName.success).toBe(true);
+    expect(deps.billingService.createCheckoutSession).toHaveBeenCalledWith(
+      'biz-1',
+      'starter',
+      '',
+      'month',
+    );
+    const startCheckoutByIdYearly = await handleStartBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      { planId: 'starter', billingInterval: 'year' },
+    );
+    expect(startCheckoutByIdYearly.success).toBe(true);
+    expect(deps.billingService.createCheckoutSession).toHaveBeenLastCalledWith(
+      'biz-1',
+      'starter',
+      '',
+      'year',
+    );
+    const startCheckoutUnknownPlan = await handleStartBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      { planName: 'Nonexistent' },
+    );
+    expect(startCheckoutUnknownPlan.success).toBe(false);
+    const startCheckoutNoBusiness = await handleStartBillingCheckoutLogic(
+      buildDeps({
+        businessRepo: { findOne: jest.fn(async () => null) } as any,
+      }),
+      'biz-1',
+      { planName: 'Starter' },
+    );
+    expect(startCheckoutNoBusiness.success).toBe(false);
+    const startCheckoutFails = await handleStartBillingCheckoutLogic(
+      buildDeps({
+        billingService: {
+          createCheckoutSession: jest.fn(async () => {
+            throw new Error('Stripe is not configured on the server');
+          }),
+        } as any,
+      }),
+      'biz-1',
+      { planName: 'Starter' },
+    );
+    expect(startCheckoutFails.success).toBe(false);
+    expect(startCheckoutFails.summary).toContain('not configured');
+    const confirmCheckoutMissingSession = await handleConfirmBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      {},
+    );
+    expect(confirmCheckoutMissingSession.success).toBe(false);
+    expect(confirmCheckoutMissingSession.details?.clarify).toBe(true);
+    const confirmCheckoutOk = await handleConfirmBillingCheckoutLogic(
+      deps,
+      'biz-1',
+      { sessionId: 'cs_test_123' },
+    );
+    expect(confirmCheckoutOk.success).toBe(true);
+    expect(deps.billingService.confirmCheckoutSession).toHaveBeenCalledWith(
+      'biz-1',
+      'cs_test_123',
+    );
+    const confirmCheckoutFails = await handleConfirmBillingCheckoutLogic(
+      buildDeps({
+        billingService: {
+          confirmCheckoutSession: jest.fn(async () => {
+            throw new Error('Checkout session does not belong to this business');
+          }),
+        } as any,
+      }),
+      'biz-1',
+      { sessionId: 'cs_test_bad' },
+    );
+    expect(confirmCheckoutFails.success).toBe(false);
+    expect(
+      (await handleExplainPlanEntitlementsLogic(deps, 'biz-1')).success,
+    ).toBe(true);
+    const entitlementsFail = buildDeps({
+      planEntitlementsService: {
+        getEntitlements: jest.fn(async () => {
+          throw new Error('entitlements fail');
+        }),
+      } as any,
+    });
+    expect(
+      (await handleExplainPlanEntitlementsLogic(entitlementsFail, 'biz-1'))
+        .success,
+    ).toBe(false);
     expect(
       (await handleSummarizeLoyaltyProgramLogic(deps, 'biz-1')).success,
     ).toBe(true);

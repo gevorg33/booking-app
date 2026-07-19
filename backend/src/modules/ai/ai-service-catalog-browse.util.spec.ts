@@ -10,12 +10,19 @@ describe('ai-service-catalog-browse.util', () => {
     'I want a pilling',
     'I want a face pilling',
     'show me massage services',
+    'Do you offer facemassage services',
   ])('detects catalog browse prompt %s', (prompt) => {
     expect(isServiceCatalogBrowsePrompt(prompt)).toBe(true);
     expect(rescueServiceCatalogBrowseIntent(prompt, 'unknown')).toEqual({
       action: 'list_services',
       rescueReason: 'catalog_browse',
     });
+  });
+
+  it('enriches service name from do-you-offer phrasing (e2e-bug.53)', () => {
+    expect(
+      enrichListServicesParamsFromPrompt('Do you offer facemassage services', {}),
+    ).toEqual({ serviceCategory: 'facemassage' });
   });
 
   it('does not steal provider rank prompts', () => {

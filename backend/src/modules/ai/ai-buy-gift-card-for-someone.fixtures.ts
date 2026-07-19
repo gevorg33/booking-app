@@ -10,7 +10,7 @@ export type BuyGiftCardForSomeonePromptFixture = {
   deliveryMethod?: 'digital' | 'physical';
 };
 
-export const CUSTOMER_BUY_GIFT_CARD_FOR_SOMEONE_CLASSIFIER_RULES = `- buy_gift_card_for_someone: MUTATE navigate — logged-in customer buys a gift card as a gift for someone else (recipient name/email, digital email delivery or mailed physical). Triggers: buy/purchase/gift card for my mom|dad|friend|wife|partner|someone; email/send a digital gift card; gift card for Sarah; buy $100 gift card for someone. Sets amount when stated, recipientName/recipientEmail when named, deliveryMethod digital|physical, buyAsGift=true, navigate to gift-cards catalog or checkout. Customer/consumer app only. NOT buy_gift_card (self purchase / no recipient), NOT buy_gift_card_physical alone (mailed card without gift-for-someone framing), NOT book_with_gift_card (pay for booking with code), NOT apply_gift_card_code, NOT check_gift_card_balance, NOT my_gift_cards.`;
+export const CUSTOMER_BUY_GIFT_CARD_FOR_SOMEONE_CLASSIFIER_RULES = `- buy_gift_card_for_someone: MUTATE navigate — logged-in customer buys a gift card as a gift for someone else (recipient name/email, digital email delivery or mailed physical). Triggers: buy/purchase/gift card for my mom|dad|friend|wife|partner|someone; email/send a digital gift card; gift card for Sarah; buy $100 gift card for someone; purchase as a present for a friend. Sets amount when stated, recipientName/recipientEmail when named, deliveryMethod digital|physical, buyAsGift=true, navigate to gift-cards catalog or checkout. Prefer this over apply_gift_card_code whenever the user says buy/purchase/present/gift for someone — even if session bookingStep is checkout (purchase ≠ redeem). Customer/consumer app + public booking assistant. NOT buy_gift_card (self purchase / no recipient), NOT buy_gift_card_physical alone (mailed card without gift-for-someone framing), NOT book_with_gift_card (pay for booking with code), NOT apply_gift_card_code (redeem existing code at checkout), NOT check_gift_card_balance, NOT my_gift_cards.`;
 
 export const BUY_GIFT_CARD_FOR_SOMEONE_PROMPTS: readonly BuyGiftCardForSomeonePromptFixture[] =
   [
@@ -122,6 +122,28 @@ export const BUY_GIFT_CARD_FOR_SOMEONE_PROMPTS: readonly BuyGiftCardForSomeonePr
       recipientName: 'Friend',
       deliveryMethod: 'digital',
     },
+    // e2e-bug.124 — explicit purchase phrasing misrouted to apply_gift_card_code
+    {
+      id: 'e2e124-buy-50-for-friend',
+      prompt: 'I want to buy a $50 gift card for a friend',
+      surface: 'customer',
+      expectedAction: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
+      amount: 50,
+      recipientName: 'Friend',
+      deliveryMethod: 'digital',
+    },
+    {
+      id: 'e2e124-purchase-as-present',
+      prompt:
+        'Please purchase a $50 gift card as a present for my friend, I want to send it to them',
+      surface: 'customer',
+      expectedAction: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
+      amount: 50,
+      recipientName: 'Friend',
+      deliveryMethod: 'digital',
+    },
   ];
 
 export const BUY_GIFT_CARD_FOR_SOMEONE_RESCUE_SCENARIOS = [
@@ -147,6 +169,20 @@ export const BUY_GIFT_CARD_FOR_SOMEONE_RESCUE_SCENARIOS = [
     id: 'misclassified-book-with-gift-card',
     prompt: 'Buy a gift card for my friend',
     misclassifiedAction: 'book_with_gift_card',
+    surface: 'customer' as const,
+  },
+  // e2e-bug.124
+  {
+    id: 'e2e124-misclassified-apply-code',
+    prompt: 'I want to buy a $50 gift card for a friend',
+    misclassifiedAction: 'apply_gift_card_code',
+    surface: 'customer' as const,
+  },
+  {
+    id: 'e2e124-misclassified-apply-present',
+    prompt:
+      'Please purchase a $50 gift card as a present for my friend, I want to send it to them',
+    misclassifiedAction: 'apply_gift_card_code',
     surface: 'customer' as const,
   },
 ] as const;

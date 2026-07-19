@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonSpinner, useIonToast } from '@ionic/react';
+import { IonIcon, IonSpinner, useIonToast } from '@ionic/react';
 import { repeatOutline, shareOutline, peopleOutline } from 'ionicons/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -19,6 +19,7 @@ import {
 import type { PublicBusinessProfile, PublicCustomerBookingItem } from '../lib/types.js';
 import { getStoredCustomerProfile } from '../lib/customer-auth.js';
 import { claimShareReward, fetchMyReferralProgram } from '../services/public-api.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export function ConsumerAccountGrowthCard({
   slug,
@@ -165,29 +166,34 @@ export function ConsumerAccountGrowthCard({
               time: formatScheduleTime(rebook.booking.startTime),
             })}
           </p>
-          <IonButton expand="block" onClick={onRebook}>
-            <IonIcon slot="start" icon={repeatOutline} />
+          <ConsumerActionButton expand="block" onClick={onRebook}>
+            <IonIcon icon={repeatOutline} aria-hidden="true" />
             {copy.growthRebookAction}
-          </IonButton>
+          </ConsumerActionButton>
         </div>
       ) : null}
 
-      <IonButton expand="block" fill="outline" onClick={() => void onShareSalon()} disabled={busy === 'share'}>
-        <IonIcon slot="start" icon={shareOutline} />
+      <ConsumerActionButton
+        expand="block"
+        fill="outline"
+        onClick={() => void onShareSalon()}
+        disabled={busy === 'share'}
+      >
+        <IonIcon icon={shareOutline} aria-hidden="true" />
         {copy.growthShareSalonAction}
-      </IonButton>
+      </ConsumerActionButton>
 
       {customer?.id ? (
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="outline"
           style={{ marginTop: 8 }}
           onClick={() => void onRefer()}
           disabled={busy === 'refer'}
         >
-          <IonIcon slot="start" icon={peopleOutline} />
+          <IonIcon icon={peopleOutline} aria-hidden="true" />
           {copy.growthReferAction}
-        </IonButton>
+        </ConsumerActionButton>
       ) : (
         <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: 8 }}>
           {formatCopy(copy.growthReferSubtitle, { businessName: profile.name })}

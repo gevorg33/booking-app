@@ -108,7 +108,7 @@ function hasExplainReadCue(prompt: string): boolean {
 
 function hasMultiServiceSettingsSurface(prompt: string): boolean {
   return (
-    /\bmulti[\s-]?service\b/i.test(prompt) ||
+    /\bmulti[\s-]?service\b(?!\s+(?:cart|basket|visit))/i.test(prompt) ||
     /\bmax(?:imum)?\s+\d+\s+services?\b/i.test(prompt) ||
     /\b(?:max|duration)\s+(?:services?|minutes?|cap|limit)\b/i.test(prompt) ||
     /\b(?:same[\s-]?visit|per[\s-]?service)\b/i.test(prompt) ||

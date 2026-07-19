@@ -5,6 +5,7 @@ import {
 import {
   rescueCustomerCrmIntent,
   isMySubscriptionsPrompt,
+  isDiscoverSubscriptionPlansPrompt,
 } from './ai-customer-crm.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import {
@@ -15,7 +16,8 @@ import {
 import { rescueSubscriptionFirstVisitCompoundIntent } from './ai-subscription-first-visit-compound.util.js';
 
 export const CUSTOMER_SUBSCRIPTION_MEMBERSHIP_CLASSIFIER_RULES = `- use_subscription_credit: MUTATE — apply an active membership/subscription visit credit when booking or at checkout (logged-in customer). Triggers: use|apply|redeem + subscription|membership|credit|visit without a named service visit booking. Sets useSubscriptionId in session and paymentMethod subscription_credit. NOT subscription_first_visit (explain plan + book named visit with credit); NOT my_subscriptions (list plans), NOT subscription_usage (visits remaining read), NOT select_subscription_plan (pick a new plan), NOT discover_subscription_plans (browse catalog), NOT explain_subscription_vs_one_time (compare checkout options).
-- my_subscriptions: READ — list the signed-in customer's active membership/subscription plans on their account. Triggers: show|list|view my subscriptions/memberships/plans; what memberships do I have; do I have a membership. Navigates to account subscriptions tab. NOT explain_my_subscription (visits/expiry/plan explain), NOT subscription_usage (raw usage ledger), NOT use_subscription_credit (apply credit), NOT discover_subscription_plans (salon catalog), NOT explain_subscription_vs_one_time (checkout compare).`;
+- my_subscriptions: READ — list the signed-in customer's active membership/subscription plans on their account. Triggers: show|list|view my subscriptions/memberships/plans; what memberships do I have; do I have a membership. Navigates to account subscriptions tab. NOT explain_my_subscription (visits/expiry/plan explain), NOT subscription_usage (raw usage ledger), NOT use_subscription_credit (apply credit), NOT discover_subscription_plans (salon catalog), NOT explain_subscription_vs_one_time (checkout compare).
+- cancel_my_subscription: MUTATE — logged-in customer cancels their own membership/subscription plan. Triggers: cancel my subscription/membership/plan, end my membership, stop my plan. Set subscriptionId when known; otherwise defaults to the customer's sole active subscription. Refund is automatic only if none of the subscription's included visits have ever been used — this is enforced server-side, not by the assistant. NOT cancel_subscription_admin (staff dashboard), NOT cancel_my_booking (single appointment), NOT use_subscription_credit (apply credit, not cancel).`;
 
 export type SubscriptionMembershipCustomerPromptFixture = {
   id: string;
@@ -209,33 +211,67 @@ export const SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS: readonly SubscriptionMemb
 const MEMBERSHIP_CUSTOMER_RESCUE_ACTIONS = new Set<string>([
   'use_subscription_credit',
   'my_subscriptions',
+  'select_subscription_plan',
+]);
+
+const MEMBERSHIP_CRM_RESCUE_ACTIONS = new Set<string>([
+  'my_subscriptions',
+  'discover_subscription_plans',
 ]);
 
 export function rescueMembershipCustomerIntent(
   prompt: string,
   action: string,
 ): {
-  action: 'use_subscription_credit' | 'my_subscriptions' | 'compound_intent';
+  action:
+    | 'use_subscription_credit'
+    | 'my_subscriptions'
+    | 'select_subscription_plan'
+    | 'discover_subscription_plans'
+    | 'compound_intent';
   rescueReason: string;
 } | null {
   const compound = rescueSubscriptionFirstVisitCompoundIntent(prompt, action);
   if (compound) return compound;
 
+  // Checked ahead of self-service/my_subscriptions: discover_subscription_plans
+  // catalog-browse prompts ("show/list your plans") otherwise fall through to
+  // my_subscriptions' broad "mentions membership" catch-all, and some RU
+  // discovery phrasing ("планы подписки") overlaps select_subscription_plan's
+  // "подпис*" cue. Excludes possessive phrasing ("show MY plans") so it
+  // doesn't shadow my_subscriptions.
+  const isPossessive = /\b(my|mine)\b|мои|моя|моих|իմ/i.test(prompt);
+  if (!isPossessive && isDiscoverSubscriptionPlansPrompt(prompt)) {
+    return {
+      action: 'discover_subscription_plans',
+      rescueReason: 'discover_subscriptions',
+    };
+  }
+
+  // Also checked ahead of self-service: select_subscription_plan's RU cue
+  // ("подпис*") is a bare fragment that also matches "подписки" (plural noun
+  // in "мои подписки"/"активные подписки"), so my_subscriptions prompts must
+  // win that overlap.
+  if (isMySubscriptionsPrompt(prompt)) {
+    return { action: 'my_subscriptions', rescueReason: 'my_subscriptions' };
+  }
+
   const selfService = rescueSelfServiceBookingIntent(prompt, action);
   if (
     selfService &&
-    selfService.action === 'use_subscription_credit' &&
     MEMBERSHIP_CUSTOMER_RESCUE_ACTIONS.has(selfService.action)
   ) {
     return {
-      action: 'use_subscription_credit',
+      action: selfService.action as
+        | 'use_subscription_credit'
+        | 'select_subscription_plan',
       rescueReason: selfService.rescueReason,
     };
   }
   const crm = rescueCustomerCrmIntent(prompt, action);
-  if (crm?.action === 'my_subscriptions') {
+  if (crm && MEMBERSHIP_CRM_RESCUE_ACTIONS.has(crm.action)) {
     return {
-      action: 'my_subscriptions',
+      action: crm.action as 'my_subscriptions' | 'discover_subscription_plans',
       rescueReason: crm.rescueReason,
     };
   }
@@ -246,6 +282,8 @@ export function detectMembershipCustomerAction(
   prompt: string,
 ):
   | SubscriptionMembershipCustomerPromptFixture['expectedAction']
+  | 'select_subscription_plan'
+  | 'discover_subscription_plans'
   | 'compound_intent'
   | null {
   return rescueMembershipCustomerIntent(prompt, 'unknown')?.action ?? null;

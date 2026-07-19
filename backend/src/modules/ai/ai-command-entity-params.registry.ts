@@ -216,6 +216,7 @@ const PARAM_INTENT_BINDINGS: ReadonlyArray<{
       'cancel_subscription_admin',
       'subscription_usage_history',
       'use_subscription_credit',
+      'cancel_my_subscription',
       'create_booking_subscription_credit',
       'my_subscriptions',
       'subscription_usage',

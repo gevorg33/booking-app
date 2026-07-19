@@ -12,12 +12,17 @@ import {
   handleCollectCashConfirmLogic,
   handleConfigureCashPaymentsLogic,
   handleConfigureServiceOnlinePaymentLogic,
+  handleConfirmStripePaymentLogic,
   handleExplainCheckoutTotalLogic,
   handleExplainPaymentStatusLogic,
   handleExplainWhyStripeRequiredLogic,
   handleExportAccountingLogic,
   handleExportCommissionsLogic,
   handleExtendGiftCardExpiryLogic,
+  handleGetBookingQuoteLogic,
+  handleGetGiftCardQuoteLogic,
+  handleGetMultiServiceQuoteLogic,
+  handleGetPackageQuoteLogic,
   handleListSubscriptionRevenueLogic,
   handlePayCashAtVisitLogic,
   handlePayOnlineLogic,
@@ -240,7 +245,12 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
     handleExplainPaymentStatusLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('collect_cash_confirm', (deps, ctx) =>
-    handleCollectCashConfirmLogic(deps, ctx.businessId, ctx.params, ctx.userId),
+    handleCollectCashConfirmLogic(
+      deps,
+      ctx.businessId,
+      withPromptParams(ctx.params, ctx.prompt),
+      ctx.userId,
+    ),
   );
   map.set('check_providers_for_service', (deps, ctx) =>
     handleCheckProvidersForServiceLogic(
@@ -278,6 +288,14 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
   map.set('buy_gift_card_physical', (deps, ctx) =>
     handleBuyGiftCardLogic(deps, ctx.businessId, ctx.params, true),
   );
+  map.set('get_gift_card_quote', (deps, ctx) =>
+    handleGetGiftCardQuoteLogic(
+      deps,
+      ctx.businessId,
+      withPromptParams(ctx.params, ctx.prompt),
+      ctx.prompt,
+    ),
+  );
   map.set('choose_payment_method', (deps, ctx) =>
     handleChoosePaymentMethodLogic(
       deps,
@@ -301,6 +319,18 @@ export function buildPaymentsLogicDispatchMap(): ReadonlyMap<
       withPromptParams(ctx.params, ctx.prompt),
       ctx.prompt,
     ),
+  );
+  map.set('get_booking_quote', (deps, ctx) =>
+    handleGetBookingQuoteLogic(deps, ctx.businessId, ctx.params),
+  );
+  map.set('get_package_quote', (deps, ctx) =>
+    handleGetPackageQuoteLogic(deps, ctx.businessId, ctx.params),
+  );
+  map.set('get_multi_service_quote', (deps, ctx) =>
+    handleGetMultiServiceQuoteLogic(deps, ctx.businessId, ctx.params),
+  );
+  map.set('confirm_stripe_payment', (deps, ctx) =>
+    handleConfirmStripePaymentLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('purchase_subscription_checkout', (deps, ctx) =>
     handlePurchaseSubscriptionCheckoutLogic(deps, ctx.businessId, ctx.params),

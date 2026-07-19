@@ -152,7 +152,7 @@ export function isExplainCheckoutTaxPrompt(prompt: string): boolean {
   if (containsArmenianScript(prompt)) {
     if (
       /(ինչու|ինչ|բացատրիր|ինչ է)/i.test(prompt) &&
-      /(հարկ|vat|gst|incl)/i.test(prompt) &&
+      /(հարկ(?!ավոր)|vat|gst|incl)/i.test(prompt) &&
       /(checkout|էջ|քարտ|գրանցում|booking page)/i.test(prompt)
     ) {
       return true;

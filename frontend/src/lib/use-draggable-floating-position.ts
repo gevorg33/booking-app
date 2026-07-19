@@ -41,8 +41,8 @@ function clampPosition(pos: FloatingPosition, size: ElementSize): FloatingPositi
   };
 }
 
-function defaultAnchor(margin = DEFAULT_MARGIN): ViewportAnchor {
-  return { right: margin, bottom: margin };
+function defaultAnchor(bottom = DEFAULT_MARGIN): ViewportAnchor {
+  return { right: DEFAULT_MARGIN, bottom };
 }
 
 function positionFromAnchor(anchor: ViewportAnchor, size: ElementSize): FloatingPosition {
@@ -64,16 +64,22 @@ function anchorFromPosition(pos: FloatingPosition, size: ElementSize): ViewportA
   };
 }
 
-function readStoredAnchor(storageKey: string): ViewportAnchor {
-  if (typeof window === 'undefined') return defaultAnchor();
+function readStoredAnchor(
+  storageKey: string,
+  defaultBottomInset = DEFAULT_MARGIN,
+): ViewportAnchor {
+  if (typeof window === 'undefined') return defaultAnchor(defaultBottomInset);
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return defaultAnchor();
+    if (!raw) return defaultAnchor(defaultBottomInset);
     const parsed = JSON.parse(raw) as ViewportAnchor | FloatingPosition;
     if (typeof parsed === 'object' && parsed !== null && 'right' in parsed && 'bottom' in parsed) {
       return {
         right: Math.max(VIEWPORT_MARGIN, Number(parsed.right) || DEFAULT_MARGIN),
-        bottom: Math.max(VIEWPORT_MARGIN, Number(parsed.bottom) || DEFAULT_MARGIN),
+        bottom: Math.max(
+          VIEWPORT_MARGIN,
+          Number(parsed.bottom) || defaultBottomInset,
+        ),
       };
     }
     if ('x' in parsed && 'y' in parsed) {
@@ -85,7 +91,7 @@ function readStoredAnchor(storageKey: string): ViewportAnchor {
   } catch {
     /* ignore */
   }
-  return defaultAnchor();
+  return defaultAnchor(defaultBottomInset);
 }
 
 function sizesEqual(a: ElementSize, b: ElementSize): boolean {
@@ -95,18 +101,29 @@ function sizesEqual(a: ElementSize, b: ElementSize): boolean {
 export interface UseDraggableFloatingPositionOptions {
   storageKey: string;
   estimatedSize: ElementSize;
+  /** Default anchor bottom inset (e.g. stacked above Zendesk — e2e-bug.123). */
+  defaultBottomInset?: number;
+  /**
+   * Optional post-read nudge (e.g. clear third-party launcher conflict zone).
+   * Return a new anchor when adjustment is needed; persist happens automatically.
+   */
+  reconcileAnchor?: (anchor: ViewportAnchor) => ViewportAnchor;
 }
 
 export function useDraggableFloatingPosition({
   storageKey,
   estimatedSize,
+  defaultBottomInset = DEFAULT_MARGIN,
+  reconcileAnchor,
 }: UseDraggableFloatingPositionOptions) {
-  const anchorRef = useRef<ViewportAnchor>(defaultAnchor());
+  const anchorRef = useRef<ViewportAnchor>(defaultAnchor(defaultBottomInset));
   const sizeRef = useRef<ElementSize>(estimatedSize);
   // Keep initial position SSR-stable; restore from storage in useLayoutEffect before paint.
   const [position, setPosition] = useState<FloatingPosition>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [measuredSize, setMeasuredSize] = useState<ElementSize | null>(null);
+  const reconcileAnchorRef = useRef(reconcileAnchor);
+  reconcileAnchorRef.current = reconcileAnchor;
 
   const positionRef = useRef(position);
 
@@ -152,9 +169,22 @@ export function useDraggableFloatingPosition({
   }, [activeSize]);
 
   useLayoutEffect(() => {
-    anchorRef.current = readStoredAnchor(storageKey);
+    let anchor = readStoredAnchor(storageKey, defaultBottomInset);
+    const reconcile = reconcileAnchorRef.current;
+    if (reconcile) {
+      const next = reconcile(anchor);
+      if (next.right !== anchor.right || next.bottom !== anchor.bottom) {
+        anchor = next;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(anchor));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    anchorRef.current = anchor;
     syncPositionFromAnchor(sizeRef.current);
-  }, [storageKey, syncPositionFromAnchor]);
+  }, [storageKey, defaultBottomInset, syncPositionFromAnchor]);
 
   useEffect(() => {
     if (dragRef.current) return;

@@ -18,6 +18,8 @@ import {
   type ProviderBookingCompoundStep,
 } from './ai-provider-booking.util.js';
 import { enrichProviderExp2ActionParams } from './ai-provider-exp-2.util.js';
+import { isSetRetailSalesLinesPrompt } from './ai-provider-exp-3.util.js';
+import { parseRetailSalesLinesFromPrompt } from './ai-retail-finance.util.js';
 
 /** Push deep-link actions with NL parity (ai-cmd-h3.5). */
 export const PROVIDER_PUSH_PARITY_ACTIONS = [
@@ -47,7 +49,7 @@ const PROVIDER_MOBILE_SESSION_KEYS = [
 ] as const;
 
 const MOBILE_COMPOUND_SPLIT =
-  /\s*;\s*|\s+and\s+(?=(?:confirm|mark|reschedule|open|explain|offline|dismiss|list|show|new|retry)\b)/i;
+  /\s*;\s*|\s+and\s+(?=(?:confirm|mark|reschedule|open|explain|offline|dismiss|list|show|new|retry|set|replace)\b)/i;
 
 export type ProviderMobileCompoundStep = {
   action: string;
@@ -330,6 +332,13 @@ function classifyProviderMobileSegment(
   }
   if (isProviderMarkPaidPrompt(text)) {
     return { action: 'mark_paid', params: base, segment: text };
+  }
+  if (isSetRetailSalesLinesPrompt(text)) {
+    return {
+      action: 'set_retail_sales_lines',
+      params: { ...base, lines: parseRetailSalesLinesFromPrompt(text) },
+      segment: text,
+    };
   }
   if (
     isSuggestRescheduleFromPushPromptLoose(text) ||

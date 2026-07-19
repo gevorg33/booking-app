@@ -1,6 +1,7 @@
 import {
   Injectable,
   ForbiddenException,
+  HttpException,
   Logger,
   Inject,
   forwardRef,
@@ -29,6 +30,7 @@ import {
   buildProviderEntityMemoryLearnPayload,
   shouldLearnFromCommandResult,
 } from './ai-gateway-meta.util.js';
+import { sanitizeCommandResultForClient } from './ai-command-client-sanitize.util.js';
 import {
   PlanEntitlementsService,
   type PlanEntitlementsView,
@@ -173,6 +175,59 @@ export class AiGatewayService {
     const tier = resolveAccessTier(params.membershipRole ?? params.role);
     const surface = params.surface;
 
+    try {
+      return await this.executeCommandPipeline(
+        params,
+        startedAt,
+        traceId,
+        tier,
+        surface,
+      );
+    } catch (error) {
+      // e2e-bug.145 — never leak raw Postgres/TypeORM internals as HTTP 500.
+      if (error instanceof HttpException) throw error;
+      const message =
+        error instanceof Error ? error.message : 'Unexpected AI command error';
+      this.logger.error(
+        `Unhandled AI command error business=${params.businessId} surface=${surface} trace=${traceId}: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      const graceful: CommandResult = {
+        success: false,
+        action: 'error',
+        summary:
+          'Something went wrong running that command. Please try again or rephrase your request.',
+        details: {
+          unexpectedError: true,
+          traceId,
+        },
+      };
+      const attached = attachGatewayMeta(graceful, surface, tier);
+      this.persistCommandTrace({
+        params,
+        result: graceful,
+        surface: this.toTraceSurface(surface),
+        traceId,
+        startedAt,
+        role: tier,
+      });
+      // e2e-bug.135 — strip pipeline internals after server-side telemetry.
+      return this.toClientResponse(attached);
+    }
+  }
+
+  /** e2e-bug.135 — client-safe shape after server-side trace/outcome recording. */
+  private toClientResponse(result: CommandResult): CommandResult {
+    return sanitizeCommandResultForClient(result);
+  }
+
+  private async executeCommandPipeline(
+    params: AiGatewayExecuteParams,
+    startedAt: number,
+    traceId: string,
+    tier: ReturnType<typeof resolveAccessTier>,
+    surface: AiSurface,
+  ): Promise<CommandResult | Record<string, unknown>> {
     if (surface === 'dashboard' && tier === 'client') {
       throw new ForbiddenException(
         'Dashboard AI requires a business staff, manager, or owner account.',
@@ -183,6 +238,9 @@ export class AiGatewayService {
       params.businessId,
       params.prompt,
       surface,
+      typeof params.context?.locale === 'string'
+        ? params.context.locale
+        : undefined,
     );
     if (blocked) {
       const attached = attachGatewayMeta(blocked, surface, tier);
@@ -194,7 +252,7 @@ export class AiGatewayService {
         startedAt,
         role: tier,
       });
-      return attached;
+      return this.toClientResponse(attached);
     }
 
     const businessRecord = await this.aiSettings.getBusinessRecord(
@@ -226,7 +284,7 @@ export class AiGatewayService {
         startedAt,
         role: tier,
       });
-      return attached;
+      return this.toClientResponse(attached);
     }
 
     if (surface === 'dashboard') {
@@ -264,7 +322,7 @@ export class AiGatewayService {
               startedAt,
               role: tier,
             });
-            return attached;
+            return this.toClientResponse(attached);
           }
         }
         throw error;
@@ -373,7 +431,7 @@ export class AiGatewayService {
         startedAt,
         role: roleProfile,
       });
-      return attached;
+      return this.toClientResponse(attached);
     }
 
     if (params.surface === 'provider') {
@@ -419,7 +477,7 @@ export class AiGatewayService {
         startedAt,
         role: roleProfile,
       });
-      return result;
+      return this.toClientResponse(result);
     }
 
     const result = await this.dashboardCommands.executeCommand(
@@ -459,7 +517,7 @@ export class AiGatewayService {
       startedAt,
       role: roleProfile,
     });
-    return attached;
+    return this.toClientResponse(attached);
   }
 
   private toTraceSurface(surface: AiSurface): AiCommandTraceSurface {
@@ -518,11 +576,12 @@ export class AiGatewayService {
     if (surface === 'provider') {
       throw new ForbiddenException('Plan approval is dashboard-only');
     }
-    return this.dashboardCommands.approveTask(
+    const result = await this.dashboardCommands.approveTask(
       taskId,
       userId ?? 'system',
       businessId,
     );
+    return this.toClientResponse(result);
   }
 
   async retryFailedStep(
@@ -531,12 +590,13 @@ export class AiGatewayService {
     stepId: string,
     userId?: string,
   ) {
-    return this.dashboardCommands.retryWorkflowStep(
+    const result = await this.dashboardCommands.retryWorkflowStep(
       businessId,
       taskId,
       stepId,
       userId ?? 'system',
     );
+    return this.toClientResponse(result);
   }
 
   assertIntentAllowed(

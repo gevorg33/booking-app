@@ -42,16 +42,7 @@ import {
   type AppLocale,
 } from '../../common/utils/business-locale.util.js';
 
-const FORBIDDEN_MAP_EMBED = /<script|javascript:/i;
-
-function isValidGoogleMapEmbed(html: string): boolean {
-  const trimmed = html.trim();
-  if (!/^<iframe[\s\S]*<\/iframe>$/i.test(trimmed)) return false;
-  if (FORBIDDEN_MAP_EMBED.test(trimmed)) return false;
-  return /google\.[^"'\s>]*\/maps|maps\.google|maps\.googleapis\.com/i.test(
-    trimmed,
-  );
-}
+import { sanitizeGoogleMapEmbed } from '../../common/utils/google-map-embed.util.js';
 
 @Injectable()
 export class BusinessService {
@@ -253,14 +244,19 @@ export class BusinessService {
 
     if (dto.location) {
       const mapEmbedHtml = dto.location.mapEmbedHtml?.trim();
-      if (mapEmbedHtml && !isValidGoogleMapEmbed(mapEmbedHtml)) {
-        throw new BadRequestException(
-          'Map embed must be a Google Maps iframe embed code.',
-        );
-      }
+      // e2e-bug.49 — allowlist sanitize (reject on* handlers / unknown attrs).
       settings.location = { ...(settings.location || {}) };
-      if (mapEmbedHtml) settings.location.mapEmbedHtml = mapEmbedHtml;
-      else delete settings.location.mapEmbedHtml;
+      if (mapEmbedHtml) {
+        const sanitizedEmbed = sanitizeGoogleMapEmbed(mapEmbedHtml);
+        if (!sanitizedEmbed) {
+          throw new BadRequestException(
+            'Map embed must be a Google Maps iframe embed code.',
+          );
+        }
+        settings.location.mapEmbedHtml = sanitizedEmbed;
+      } else {
+        delete settings.location.mapEmbedHtml;
+      }
     }
 
     if (dto.embed) {

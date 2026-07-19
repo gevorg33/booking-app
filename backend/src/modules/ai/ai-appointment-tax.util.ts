@@ -9,7 +9,39 @@ export const APPOINTMENT_TAX_INTENTS = ['explain_appointment_tax'] as const;
 
 export type AppointmentTaxIntent = (typeof APPOINTMENT_TAX_INTENTS)[number];
 
+function containsArmenianScript(text: string): boolean {
+  return /[԰-֏]/.test(text);
+}
+
+function containsCyrillicScript(text: string): boolean {
+  return /[Ѐ-ӿ]/.test(text);
+}
+
 export function hasAppointmentTaxContext(prompt: string): boolean {
+  if (
+    containsArmenianScript(prompt) &&
+    /ԱԱՀ/i.test(prompt) &&
+    /(հաշվարկ|ներառյալ|առանց|վճար)/i.test(prompt) &&
+    !/(կարգավիճակ|թիմ|հարկում)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(налог|ндс)/i.test(prompt) &&
+    /почему/i.test(prompt) &&
+    /(стоимост|визит|запис)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(налог|ндс)/i.test(prompt) &&
+    /включ[её]н/i.test(prompt) &&
+    /или/i.test(prompt)
+  ) {
+    return true;
+  }
   if (
     /\b(appointment|booking)\b/i.test(prompt) &&
     /\b(tax|vat|gst|pst|hst|inclusive|exclusive)\b/i.test(prompt)
@@ -25,6 +57,22 @@ export function hasAppointmentTaxContext(prompt: string): boolean {
     return true;
   }
   if (/\bmark(?:ed)?\s+paid\b/i.test(prompt) && /\btax\b/i.test(prompt)) {
+    return true;
+  }
+  if (
+    /\b(inclusive)\b.{0,15}\b(vs\.?|or|versus)\b.{0,15}\b(exclusive)\b/i.test(
+      prompt,
+    ) &&
+    /\b(tax|vat|gst|pst|hst)\b/i.test(prompt) &&
+    !/\bbusiness\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /\bthis\s+breakdown\b/i.test(prompt) &&
+    /\b(tax|vat|gst|pst|hst)\b/i.test(prompt) &&
+    !/\bbusiness\b/i.test(prompt)
+  ) {
     return true;
   }
   return false;
@@ -96,7 +144,10 @@ export function isExplainAppointmentTaxPrompt(prompt: string): boolean {
   const explainCue =
     /\b(?:what|which|explain|describe|show|how|why|is|included|exclusive|collected)\b/i.test(
       prompt,
-    ) || /\b(?:tax\s+lines?|payment\s+breakdown)\b/i.test(prompt);
+    ) ||
+    /\b(?:tax\s+lines?|payment\s+breakdown)\b/i.test(prompt) ||
+    containsArmenianScript(prompt) ||
+    containsCyrillicScript(prompt);
 
   return explainCue;
 }

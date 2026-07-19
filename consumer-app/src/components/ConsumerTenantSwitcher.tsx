@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { buildRememberedTenants, type RememberedTenant } from '../lib/customer-auth.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 
 function TenantAvatar({ tenant }: { tenant: RememberedTenant }) {
   if (tenant.logoUrl) {
@@ -34,9 +35,14 @@ function TenantAvatar({ tenant }: { tenant: RememberedTenant }) {
 export function ConsumerTenantSwitcher({
   currentSlug,
   trigger = 'icon',
+  copy,
 }: {
   currentSlug?: string;
   trigger?: 'icon' | 'button';
+  copy: Pick<
+    ConsumerCopy,
+    'switchSalon' | 'switchSalonCurrentAria' | 'assistantClose'
+  >;
 }) {
   const history = useHistory();
   const [open, setOpen] = useState(false);
@@ -70,10 +76,10 @@ export function ConsumerTenantSwitcher({
       {trigger === 'button' ? (
         <IonButton expand="block" fill="outline" className="ion-margin-top" onClick={openModal}>
           <IonIcon slot="start" icon={swapHorizontalOutline} />
-          Switch salon
+          {copy.switchSalon}
         </IonButton>
       ) : (
-        <IonButton aria-label="Switch salon" onClick={openModal}>
+        <IonButton aria-label={copy.switchSalon} onClick={openModal}>
           <IonIcon icon={swapHorizontalOutline} />
         </IonButton>
       )}
@@ -81,9 +87,9 @@ export function ConsumerTenantSwitcher({
       <IonModal isOpen={open} onDidDismiss={() => setOpen(false)}>
         <IonHeader>
           <IonToolbar>
-            <IonTitle>Switch salon</IonTitle>
+            <IonTitle>{copy.switchSalon}</IonTitle>
             <IonButtons slot="end">
-              <IonButton onClick={() => setOpen(false)}>Close</IonButton>
+              <IonButton onClick={() => setOpen(false)}>{copy.assistantClose}</IonButton>
             </IonButtons>
           </IonToolbar>
         </IonHeader>
@@ -102,7 +108,12 @@ export function ConsumerTenantSwitcher({
                   <p>{tenant.subtitle}</p>
                 </IonLabel>
                 {tenant.isActive ? (
-                  <IonIcon icon={checkmarkCircle} slot="end" color="success" aria-label="Current salon" />
+                  <IonIcon
+                    icon={checkmarkCircle}
+                    slot="end"
+                    color="success"
+                    aria-label={copy.switchSalonCurrentAria}
+                  />
                 ) : null}
               </IonItem>
             ))}

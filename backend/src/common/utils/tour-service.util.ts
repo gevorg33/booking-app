@@ -79,6 +79,92 @@ export function isTourService(
   return extractTourMetadata(metadata) !== null;
 }
 
+/** Genre / filler tokens ignored when fuzzy-matching short tour nicknames. */
+const TOUR_NAME_MATCH_STOPWORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'for',
+  'and',
+  'tour',
+  'tours',
+  'trek',
+  'treks',
+  'hike',
+  'hikes',
+  'drive',
+  'drives',
+  'excursion',
+  'excursions',
+  'day',
+  'days',
+  'private',
+  'full',
+]);
+
+/**
+ * Resolve a visitor's tour nickname (e.g. "wine tour", "mountain trek") to a
+ * catalog row. Exact / substring first; then strip genre words and score token
+ * overlap so "wine tour" matches "Private Wine Country Day" (e2e-bug.105).
+ */
+export function resolveTourCatalogServiceByName<
+  T extends { id: string; name: string },
+>(list: readonly T[], name: string): T | undefined {
+  const needle = name.trim().toLowerCase();
+  if (!needle || list.length === 0) return undefined;
+
+  const exact = list.find((item) => item.name.toLowerCase() === needle);
+  if (exact) return exact;
+
+  const includes = list.find((item) =>
+    item.name.toLowerCase().includes(needle),
+  );
+  if (includes) return includes;
+
+  const reverse = list.find((item) =>
+    needle.includes(item.name.toLowerCase()),
+  );
+  if (reverse) return reverse;
+
+  const stripped = needle
+    .replace(/\b(?:tours?|treks?|hikes?|drives?|excursions?)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (stripped && stripped !== needle) {
+    const viaStrip = list.find((item) =>
+      item.name.toLowerCase().includes(stripped),
+    );
+    if (viaStrip) return viaStrip;
+  }
+
+  const tokens = (stripped || needle)
+    .split(/[^a-z0-9]+/i)
+    .map((token) => token.toLowerCase())
+    .filter(
+      (token) => token.length >= 3 && !TOUR_NAME_MATCH_STOPWORDS.has(token),
+    );
+  if (tokens.length === 0) return undefined;
+
+  let best: T | undefined;
+  let bestScore = 0;
+  let tied = false;
+  for (const item of list) {
+    const hay = item.name.toLowerCase();
+    const score = tokens.filter((token) => hay.includes(token)).length;
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+      tied = false;
+    } else if (score === bestScore && score > 0 && best && best.id !== item.id) {
+      tied = true;
+    }
+  }
+
+  const minScore = Math.max(1, Math.ceil(tokens.length * 0.5));
+  if (!best || tied || bestScore < minScore) return undefined;
+  return best;
+}
+
 export function resolveTourDurationDays(service: {
   durationMinutes: number;
   metadata?: Record<string, unknown> | null;

@@ -127,13 +127,15 @@ export function resolvePostBookingSupportHandoff(input: {
   customerEmail?: string | null;
   zendeskWidgetConfigured?: boolean;
 }): 'zendesk_ticket' | 'support_web' | 'none' {
-  if (input.hasCustomerToken && input.customerEmail?.trim()) {
+  // e2e-bug.42 — only attempt Zendesk tickets when the business actually has Zendesk.
+  if (
+    input.hasCustomerToken &&
+    input.customerEmail?.trim() &&
+    input.zendeskWidgetConfigured
+  ) {
     return 'zendesk_ticket';
   }
   if (buildPublicSupportUrl(input.slug, input.bookingId)) {
-    return 'support_web';
-  }
-  if (input.zendeskWidgetConfigured) {
     return 'support_web';
   }
   return 'none';

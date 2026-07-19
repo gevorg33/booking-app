@@ -17,6 +17,7 @@ export type ClinicV2RescuableAction =
   | 'explain_patient_chart'
   | 'list_my_collection_queue'
   | 'mark_specimen_collected'
+  | 'explain_specimen_recollect'
   | 'list_my_test_results'
   | 'explain_result_status'
   | 'compound_intent';

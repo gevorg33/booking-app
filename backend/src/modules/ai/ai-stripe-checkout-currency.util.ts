@@ -5,6 +5,9 @@ import {
 } from './ai-stripe-currency-warning.util.js';
 import { hasStripeCheckoutFailureContext } from './ai-stripe-checkout-failure.util.js';
 import { isExplainCheckoutTotalPrompt } from './ai-payments.util.js';
+import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
+import { isAuditServicesMissingOnlinePaymentPrompt } from './ai-audit-services-missing-online-payment.util.js';
 
 export const STRIPE_CHECKOUT_CURRENCY_INTENTS = [
   'explain_stripe_checkout_currency',
@@ -102,6 +105,14 @@ function hasStripeTaxChargeExplainContext(prompt: string): boolean {
 
 export function isExplainStripeCheckoutCurrencyPrompt(prompt: string): boolean {
   if (isExplainCheckoutTotalPrompt(prompt)) return false;
+  if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
+  if (
+    isExplainPublicBookingCheckoutPrompt(prompt) &&
+    !/\b(currency|currencies)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (isAuditServicesMissingOnlinePaymentPrompt(prompt)) return false;
   if (hasStripeTaxChargeExplainContext(prompt)) return false;
   if (isExplainStripeCurrencyWarningPrompt(prompt)) return false;
   if (hasStripeCheckoutFailureContext(prompt)) return false;

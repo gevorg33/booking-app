@@ -92,7 +92,8 @@ export const DASHBOARD_TIME_OFF_CLASSIFIER_RULES = `- list_time_off_requests: RE
 - deny_time_off_request: MUTATE — deny a pending time-off request. Triggers: deny time off|reject vacation request.`;
 
 export const PROVIDER_TIME_OFF_CLASSIFIER_RULES = `- request_time_off: MUTATE — submit unavailable date range for manager approval (own calendar). Triggers: request time off|I need Friday off|vacation request|PTO. NOT block_schedule (instant block when enabled).
-- list_my_time_off_requests: READ — own pending/approved/denied time-off requests. Triggers: my time off status|did my vacation get approved|pending PTO.`;
+- list_my_time_off_requests: READ — own pending/approved/denied time-off requests. Triggers: my time off status|did my vacation get approved|pending PTO.
+- cancel_time_off_request: MUTATE — withdraw your own pending time-off request before manager review. Optional requestId (auto-resolves when you have exactly one pending request). Triggers: cancel my time off request|withdraw my vacation request|cancel my PTO. NOT deny_time_off_request (manager rejecting someone else's), NOT request_time_off (submitting a new one).`;
 
 export const SIMILAR_DASHBOARD_TIME_OFF_PROMPTS = [
   {
@@ -128,6 +129,24 @@ export const SIMILAR_PROVIDER_TIME_OFF_PROMPTS = [
     surface: 'provider' as const,
     expectedAction: 'list_my_time_off_requests',
   },
+  {
+    id: 'cancel-time-off-en',
+    prompt: 'Cancel my time off request',
+    surface: 'provider' as const,
+    expectedAction: 'cancel_time_off_request',
+  },
+  {
+    id: 'withdraw-vacation-en',
+    prompt: 'Withdraw my vacation request',
+    surface: 'provider' as const,
+    expectedAction: 'cancel_time_off_request',
+  },
+  {
+    id: 'cancel-pto-en',
+    prompt: 'Cancel my PTO',
+    surface: 'provider' as const,
+    expectedAction: 'cancel_time_off_request',
+  },
 ] as const;
 
 /** Provider read-only time-off status prompts (acc-2.4 eval spine). */
@@ -141,6 +160,12 @@ export const SIMILAR_PROVIDER_TIME_OFF_LIST_PROMPTS = [
   {
     id: 'pending-pto',
     prompt: 'Show my pending PTO requests',
+    surface: 'provider' as const,
+    expectedAction: 'list_my_time_off_requests' as const,
+  },
+  {
+    id: 'my-time-off-requests',
+    prompt: 'Show my time off requests',
     surface: 'provider' as const,
     expectedAction: 'list_my_time_off_requests' as const,
   },

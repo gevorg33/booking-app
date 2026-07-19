@@ -190,6 +190,18 @@ export class GiftCardFulfillmentService {
     giftCardId: string,
   ): Promise<GiftCard> {
     const card = await this.findPhysicalOrder(businessId, giftCardId);
+    // e2e-bug.73 — delivered is terminal; only out_for_delivery (hand) or
+    // shipped (carrier) may advance here — never skip ready/dispatch steps.
+    if (
+      card.fulfillmentStatus !== 'out_for_delivery' &&
+      card.fulfillmentStatus !== 'shipped'
+    ) {
+      throw new BadRequestException(
+        card.fulfillmentStatus === 'delivered'
+          ? 'Gift card is already delivered'
+          : 'Gift card must be out for delivery or shipped before marking delivered',
+      );
+    }
     card.fulfillmentStatus = 'delivered';
     card.deliveredAt = new Date();
     card.codeRevealed = true;

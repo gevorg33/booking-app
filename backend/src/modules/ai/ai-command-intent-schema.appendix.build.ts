@@ -45,7 +45,11 @@ import { BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES } from './ai-budget-service-d
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
 import { CLINIC_TEST_ORDER_CLASSIFIER_RULES } from './ai-clinic-test-order.fixtures.js';
 import { CLINIC_TEST_RESULT_CLASSIFIER_RULES } from './ai-clinic-test-result.fixtures.js';
+import { CLINIC_TEST_CATALOG_CLASSIFIER_RULES } from './ai-clinic-test-catalog.fixtures.js';
+import { LOCATIONS_CLASSIFIER_RULES } from './ai-locations.fixtures.js';
+import { DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES } from './ai-explain-business-hours-and-location.util.js';
 import { CLINIC_PATIENT_CHART_CLASSIFIER_RULES } from './ai-clinic-patient-chart.fixtures.js';
+import { PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES } from './ai-patient-clinical-mutations.fixtures.js';
 import { APP_GUIDE_CLASSIFIER_RULES } from './ai-product-guide.fixtures.js';
 import { META_PRODUCT_GUIDE_CLASSIFIER_RULES } from './ai-meta-product-guide.fixtures.js';
 import { DASHBOARD_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
@@ -57,6 +61,13 @@ import { SERVICE_ONLINE_PAYMENT_SETUP_CLASSIFIER_RULES } from './ai-service-onli
 import { DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES } from './ai-intent-disambiguation.fixtures.js';
 import { DASHBOARD_FLEXIBLE_AVAILABILITY_CLASSIFIER_RULES } from './ai-flexible-availability.fixtures.js';
 import { DASHBOARD_SUMMARIZE_BOOKINGS_CURRENCY_CLASSIFIER_RULES } from './ai-dashboard-summarize-bookings.fixtures.js';
+import { AGENT_OPS_CLASSIFIER_RULES } from './ai-agent-ops.fixtures.js';
+import { BUSINESS_PROFILE_CLASSIFIER_RULES } from './ai-business-profile.fixtures.js';
+import { ONBOARDING_CLASSIFIER_RULES } from './ai-onboarding.fixtures.js';
+import { CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES } from './ai-clinic-pre-visit-intake.fixtures.js';
+import { CLINIC_QUESTIONNAIRE_CLASSIFIER_RULES } from './ai-clinic-questionnaire.fixtures.js';
+import { REFERRAL_STAFF_TEMPLATES_CLASSIFIER_RULES } from './ai-referral-staff-templates.fixtures.js';
+import { EXTERNAL_DOCTORS_CLASSIFIER_RULES } from './ai-external-doctors.fixtures.js';
 import {
   STAFF_OPERATIONS_CLASSIFIER_RULES,
   STAFF_OPERATIONS_MULTILINGUAL_CLASSIFIER_RULES,
@@ -94,6 +105,7 @@ import { RETAIL_FINANCE_DASHBOARD_CLASSIFIER_RULES } from './ai-retail-finance-d
 import { MARKETING_GROWTH_DASHBOARD_CLASSIFIER_RULES } from './ai-marketing-growth-dashboard-classifier.fixtures.js';
 import { PUSH_NOTIFICATIONS_DASHBOARD_CLASSIFIER_RULES } from './ai-push-notifications-dashboard-classifier.fixtures.js';
 import { INTEGRATIONS_DASHBOARD_CLASSIFIER_RULES } from './ai-integrations-dashboard-classifier.fixtures.js';
+import { EXPLAIN_SUPPORT_INBOX_CLASSIFIER_RULES } from './ai-explain-support-inbox.util.js';
 import { SELF_SERVICE_BOOKING_DASHBOARD_CLASSIFIER_RULES } from './ai-self-service-booking-dashboard-classifier.fixtures.js';
 import { SCHEDULING_DASHBOARD_CLASSIFIER_RULES } from './ai-scheduling-dashboard-classifier.fixtures.js';
 
@@ -110,6 +122,7 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   MARKETING_GROWTH_DASHBOARD_CLASSIFIER_RULES,
   PUSH_NOTIFICATIONS_DASHBOARD_CLASSIFIER_RULES,
   INTEGRATIONS_DASHBOARD_CLASSIFIER_RULES,
+  EXPLAIN_SUPPORT_INBOX_CLASSIFIER_RULES,
   SELF_SERVICE_BOOKING_DASHBOARD_CLASSIFIER_RULES,
   SCHEDULING_DASHBOARD_CLASSIFIER_RULES,
   UPDATE_SERVICE_PRICES_ONLINE_PAYMENT_FILTER_CLASSIFIER_RULES,
@@ -167,7 +180,11 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   BUSINESS_COMPLIANCE_CLASSIFIER_RULES,
   CLINIC_TEST_ORDER_CLASSIFIER_RULES,
   CLINIC_TEST_RESULT_CLASSIFIER_RULES,
+  CLINIC_TEST_CATALOG_CLASSIFIER_RULES,
+  LOCATIONS_CLASSIFIER_RULES,
+  DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
   CLINIC_PATIENT_CHART_CLASSIFIER_RULES,
+  PATIENT_CLINICAL_MUTATIONS_CLASSIFIER_RULES,
   DASHBOARD_CLINIC_LAB_BOOKING_CLASSIFIER_RULES,
   CLINIC_SERVICE_CLASSIFIER_RULES,
   QUOTE_STAFF_BOOKING_TAX_CLASSIFIER_RULES,
@@ -191,6 +208,13 @@ export const DASHBOARD_INTENT_SCHEMA_APPENDIX_SECTIONS = [
   STRIPE_CHECKOUT_FAILURE_CLASSIFIER_RULES,
   REPORTS_CURRENCY_CLASSIFIER_RULES,
   REVENUE_KPIS_CLASSIFIER_RULES,
+  AGENT_OPS_CLASSIFIER_RULES,
+  BUSINESS_PROFILE_CLASSIFIER_RULES,
+  ONBOARDING_CLASSIFIER_RULES,
+  CLINIC_PRE_VISIT_INTAKE_CLASSIFIER_RULES,
+  CLINIC_QUESTIONNAIRE_CLASSIFIER_RULES,
+  REFERRAL_STAFF_TEMPLATES_CLASSIFIER_RULES,
+  EXTERNAL_DOCTORS_CLASSIFIER_RULES,
 ] as const;
 
 export function buildDashboardIntentSchemaAppendix(): string {

@@ -5,6 +5,8 @@ import {
 } from './ai-update-my-profile.fixtures.js';
 import { UPDATE_MY_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-update-my-profile-multilingual.fixtures.js';
 import {
+  buildUpdateMyProfileEmailUnsupportedSummary,
+  buildUpdateMyProfileMissingValueSummary,
   buildUpdateMyProfileNavigate,
   buildUpdateMyProfileSummary,
   enrichUpdateMyProfileParamsFromPrompt,
@@ -28,6 +30,9 @@ describe('ai-update-my-profile.util (ai-cmd-customer-4.5.6)', () => {
   it('exports classifier rules for update_my_profile', () => {
     expect(CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES).toContain(
       'update_my_profile',
+    );
+    expect(CUSTOMER_UPDATE_MY_PROFILE_CLASSIFIER_RULES).toMatch(
+      /email changes are not supported/i,
     );
   });
 
@@ -76,7 +81,7 @@ describe('ai-update-my-profile.util (ai-cmd-customer-4.5.6)', () => {
     expect(isUpdateMyProfilePrompt('What is my profile?')).toBe(false);
   });
 
-  it('extracts inline values and builds navigate handoff', () => {
+  it('extracts inline values and keeps legacy navigate helper (unused by handler)', () => {
     const parsed = parseUpdateMyProfileFromPrompt('Update my name to Jane Doe');
     expect(parsed).toEqual({
       field: 'name',
@@ -86,7 +91,23 @@ describe('ai-update-my-profile.util (ai-cmd-customer-4.5.6)', () => {
       path: 'account',
       query: { section: 'profile', field: 'name' },
     });
-    expect(buildUpdateMyProfileSummary(parsed!)).toContain('Jane Doe');
+    expect(buildUpdateMyProfileMissingValueSummary(parsed!)).toContain(
+      'new name',
+    );
+  });
+
+  it('summarizes email updates as unsupported without promising Account UI (e2e-bug.40)', () => {
+    const parsed = parseUpdateMyProfileFromPrompt(
+      'Update my contact email to jane@example.com',
+    );
+    expect(parsed?.field).toBe('email');
+    expect(buildUpdateMyProfileSummary(parsed!)).toMatch(
+      /aren't supported yet/i,
+    );
+    expect(buildUpdateMyProfileEmailUnsupportedSummary(parsed!)).toContain(
+      'jane@example.com',
+    );
+    expect(buildUpdateMyProfileSummary(parsed!)).not.toMatch(/Open Account/i);
   });
 
   it('extracts phone and email values', () => {

@@ -1,4 +1,6 @@
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   assembleShareRewardSummary,
@@ -6,9 +8,11 @@ import {
   parseExplainShareRewardFromPrompt,
   type ShareRewardExplainContext,
 } from './ai-explain-share-reward.util.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface ExplainShareRewardLogicDeps {
   publicBookingService: Pick<PublicBookingService, 'getCustomerShareRewards'>;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -36,7 +40,7 @@ function resolveSessionCustomerId(
 
 export async function handleExplainShareRewardLogic(
   deps: ExplainShareRewardLogicDeps,
-  _businessId: string,
+  businessId: string,
   params: Record<string, any>,
   prompt = '',
 ): Promise<CommandResult> {
@@ -52,7 +56,12 @@ export async function handleExplainShareRewardLogic(
 
   let view: ShareRewardExplainContext | null = null;
   const customerId = resolveSessionCustomerId(params);
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (customerId && slug) {
     const rewards = await deps.publicBookingService.getCustomerShareRewards(
       slug,

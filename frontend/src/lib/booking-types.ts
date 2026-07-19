@@ -119,7 +119,8 @@ export function formatServicePrice(
   const amount = Number(price);
   if (Number.isNaN(amount)) return null;
   try {
-    return new Intl.NumberFormat(undefined, {
+    // e2e-bug.115 — pin locale; bare `undefined` follows runtime ICU defaults.
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: currency || 'USD',
       maximumFractionDigits: amount % 1 === 0 ? 0 : 2,

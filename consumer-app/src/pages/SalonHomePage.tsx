@@ -21,7 +21,6 @@ import { pushConsumerRoute } from '../lib/consumer-ion-navigation.util.js';
 import { formatCopy } from '../lib/copy.js';
 import { ConsumerLanguagePicker } from '../components/ConsumerLanguagePicker.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
-import { useConsumerLocale } from '../hooks/use-consumer-locale.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
 import { shouldShowPatientResultsTab } from '../lib/clinic-service.js';
@@ -47,11 +46,12 @@ export default function SalonHomePage({
   const location = useLocation();
   const logo = profile.branding.logoUrl;
   const [pinned, setPinned] = useState(() => isSalonPinned(slug));
-  const { locale, setConsumerLocale, enabledLocales, localeLabels } = useConsumerLocale(
+  // e2e-bug.22 / e2e-bug.14 — single locale state via useConsumerCopy (never pair with
+  // a second useConsumerLocale; that leaves RewardsCard copy stuck on the old language).
+  const { copy, locale, setConsumerLocale, enabledLocales, localeLabels } = useConsumerCopy(
     slug,
     profile,
   );
-  const { copy } = useConsumerCopy(slug, profile);
   const authed = !!getCustomerToken(slug);
   const showClinicAlerts = shouldShowPatientResultsTab(profile.businessType);
 
@@ -82,11 +82,13 @@ export default function SalonHomePage({
         <IonToolbar>
           <IonTitle>{profile.name}</IonTitle>
           <IonButtons slot="start">
-            <ConsumerTenantSwitcher currentSlug={slug} />
+            <ConsumerTenantSwitcher currentSlug={slug} copy={copy} />
           </IonButtons>
           <IonButtons slot="end">
             <IonButton
-              aria-label={pinned ? 'Unsave salon' : 'Save salon'}
+              aria-label={
+                pinned ? copy.welcomeUnsaveSalonAria : copy.welcomeSaveSalonAria
+              }
               onClick={() => setPinned(toggleSalonPin(slug))}
             >
               <IonIcon icon={pinned ? bookmark : bookmarkOutline} color={pinned ? 'warning' : 'medium'} />
@@ -96,12 +98,13 @@ export default function SalonHomePage({
               enabledLocales={enabledLocales}
               localeLabels={localeLabels}
               onChange={setConsumerLocale}
+              ariaLabel={copy.languagePickerAria}
             />
           </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <BookingProgressIndicator pathname={location.pathname} />
+        <BookingProgressIndicator pathname={location.pathname} copy={copy} />
 
         <div className="salon-card ion-text-center">
           {logo ? (
@@ -124,6 +127,7 @@ export default function SalonHomePage({
           <ConsumerPatientAlertsBanner
             slug={slug}
             copy={copy}
+            businessType={profile.businessType}
             onNavigate={navigateToAlertSection}
           />
         ) : null}
@@ -136,14 +140,20 @@ export default function SalonHomePage({
           onBook={goBook}
         />
 
-        <IonButton expand="block" onClick={goBook}>
+        <IonButton
+          expand="block"
+          color="primary"
+          className="consumer-brand-solid-button"
+          onClick={goBook}
+        >
           {copy.bookAppointment}
         </IonButton>
         {profile.giftCardsPurchaseEnabled ? (
           <IonButton
             expand="block"
             fill="outline"
-            className="ion-margin-top"
+            color="primary"
+            className="ion-margin-top consumer-brand-outline-button"
             onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
           >
             {copy.giftCardBuyGiftCard}
@@ -153,7 +163,8 @@ export default function SalonHomePage({
           <IonButton
             expand="block"
             fill="outline"
-            className="ion-margin-top"
+            color="primary"
+            className="ion-margin-top consumer-brand-outline-button"
             onClick={() => history.push(buildSalonPath(slug, '/lab-to-book'))}
           >
             {pendingLabCount > 0
@@ -171,7 +182,8 @@ export default function SalonHomePage({
         <IonButton
           expand="block"
           fill="outline"
-          className="ion-margin-top"
+          color="primary"
+          className="ion-margin-top consumer-brand-outline-button"
           onClick={() => history.push(buildSalonPath(slug, '/profile'))}
         >
           {copy.profileViewDetails}
@@ -179,10 +191,11 @@ export default function SalonHomePage({
         <IonButton
           expand="block"
           fill="outline"
-          className="ion-margin-top"
+          color="primary"
+          className="ion-margin-top consumer-brand-outline-button"
           onClick={() => history.push(buildSalonPath(slug, '/account'))}
         >
-          My account
+          {copy.myAccountAction}
         </IonButton>
 
         <ConsumerGrowthLinks profile={profile} copy={copy} />

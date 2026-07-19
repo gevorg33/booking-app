@@ -6,6 +6,8 @@ import type { ComplianceBreachService } from '../compliance/compliance-breach.se
 import type { PhiAccessAuditService } from '../compliance/phi-access-audit.service.js';
 import type { BusinessService } from '../business/business.service.js';
 import type { PhiAccessAuditLog } from '../compliance/entities/phi-access-audit-log.entity.js';
+import type { EnterpriseTrustService } from '../enterprise-trust/enterprise-trust.service.js';
+import type { StrategyEvalService } from '../strategy-eval/strategy-eval.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import { GDPR_BREACH_NOTIFICATION_HOURS } from '../../common/utils/breach-notification.util.js';
 import {
@@ -36,6 +38,9 @@ import {
   formatSubProcessorsList,
   parseAcceptHipaaBaaFromPrompt,
   parseAdminDeleteCustomerDataFromPrompt,
+  parseExplainEnterpriseTrustFromPrompt,
+  parseExplainStrategyEvalFromPrompt,
+  isUpdateStrategyEvalPrompt,
   parseConfigureGranularConsentFromPrompt,
   parseConfigurePrivacyRetentionFromPrompt,
   parseConfigureHipaaSessionTimeoutFromPrompt,
@@ -73,6 +78,18 @@ export interface BusinessComplianceLogicDeps {
   >;
   phiAccessAuditService: Pick<PhiAccessAuditService, 'listForOwner'>;
   businessService: Pick<BusinessService, 'ensureOwner'>;
+  enterpriseTrustService: Pick<
+    EnterpriseTrustService,
+    'getSettings' | 'updateSettings' | 'renderDocuments' | 'getSecurityOnePager'
+  >;
+  strategyEvalService: Pick<
+    StrategyEvalService,
+    | 'getSummary'
+    | 'getHipaaFramework'
+    | 'getMarketplaceFramework'
+    | 'submitHipaaEval'
+    | 'submitMarketplaceEval'
+  >;
 }
 
 function resolveCustomerByName(
@@ -1387,6 +1404,248 @@ export async function handleAcceptHipaaBaaLogic(
       hipaaEnabled,
     },
   );
+}
+
+export async function handleExplainEnterpriseTrustLogic(
+  deps: BusinessComplianceLogicDeps,
+  businessId: string,
+  userId: string | undefined,
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): Promise<CommandResult> {
+  if (!userId) {
+    return failure(
+      'explain_enterprise_trust',
+      'Sign in as the business owner to view enterprise trust information.',
+      { clarify: true },
+    );
+  }
+
+  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  const parsed = parseExplainEnterpriseTrustFromPrompt(
+    effectivePrompt,
+    params,
+  );
+  if (!parsed) {
+    return failure(
+      'explain_enterprise_trust',
+      'Ask about enterprise trust settings, DPA/privacy-policy documents, or the security one-pager (e.g. "What is our enterprise trust status?" or "Show our DPA").',
+      { clarify: true },
+    );
+  }
+
+  const settings = await deps.enterpriseTrustService.getSettings(businessId);
+
+  if (parsed.aspect === 'documents') {
+    const documents = await deps.enterpriseTrustService.renderDocuments(
+      businessId,
+    );
+    return success(
+      'explain_enterprise_trust',
+      `${documents.length} trust document(s) available: ${documents
+        .map((d) => d.title)
+        .join(', ')}.`,
+      { aspect: 'documents', documents, settings },
+    );
+  }
+
+  if (parsed.aspect === 'security') {
+    const onePager = deps.enterpriseTrustService.getSecurityOnePager();
+    return success(
+      'explain_enterprise_trust',
+      `Security one-pager "${onePager.title}" — ${onePager.summary}`,
+      { aspect: 'security', securityOnePager: onePager },
+    );
+  }
+
+  const configuredFields = Object.entries(settings).filter(
+    ([, v]) => v != null && v !== '',
+  ).length;
+  const totalFields = Object.keys(settings).length;
+  return success(
+    'explain_enterprise_trust',
+    `Enterprise trust settings: ${configuredFields}/${totalFields} fields configured (legal business name, registered address, DPO email, EU representative, etc.).`,
+    { aspect: 'settings', settings },
+  );
+}
+
+export async function handleExplainStrategyEvalLogic(
+  deps: BusinessComplianceLogicDeps,
+  businessId: string,
+  userId: string | undefined,
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): Promise<CommandResult> {
+  if (!userId) {
+    return failure(
+      'explain_strategy_eval',
+      'Sign in as the business owner to view the strategy evaluation.',
+      { clarify: true },
+    );
+  }
+
+  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  const parsed = parseExplainStrategyEvalFromPrompt(effectivePrompt, params);
+  if (!parsed) {
+    return failure(
+      'explain_strategy_eval',
+      'Ask about our HIPAA readiness decision or marketplace positioning decision (e.g. "What is our HIPAA decision?" or "Show our marketplace positioning eval").',
+      { clarify: true },
+    );
+  }
+
+  const summary = await deps.strategyEvalService.getSummary(businessId);
+
+  if (parsed.aspect === 'hipaa') {
+    return success(
+      'explain_strategy_eval',
+      summary.hipaa
+        ? `HIPAA decision: ${summary.hipaa.recommendation} (readiness ${summary.hipaa.readinessPercent}%, ${summary.hipaa.blockers.length} blocker(s)).`
+        : 'No HIPAA readiness evaluation has been submitted yet.',
+      { aspect: 'hipaa', hipaa: summary.hipaa },
+    );
+  }
+
+  if (parsed.aspect === 'marketplace') {
+    return success(
+      'explain_strategy_eval',
+      summary.marketplace
+        ? `Marketplace positioning decision: ${summary.marketplace.recommendation}.`
+        : 'No marketplace positioning evaluation has been submitted yet.',
+      { aspect: 'marketplace', marketplace: summary.marketplace },
+    );
+  }
+
+  const parts: string[] = [];
+  parts.push(
+    summary.hipaa
+      ? `HIPAA: ${summary.hipaa.recommendation}`
+      : 'HIPAA: not evaluated',
+  );
+  parts.push(
+    summary.marketplace
+      ? `marketplace: ${summary.marketplace.recommendation}`
+      : 'marketplace: not evaluated',
+  );
+  return success('explain_strategy_eval', parts.join('; ') + '.', {
+    aspect: 'all',
+    summary,
+  });
+}
+
+export async function handleUpdateStrategyEvalLogic(
+  deps: BusinessComplianceLogicDeps,
+  businessId: string,
+  userId: string | undefined,
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): Promise<CommandResult> {
+  if (!userId) {
+    return failure(
+      'update_strategy_eval',
+      'Sign in as the business owner to submit a strategy evaluation.',
+      { clarify: true },
+    );
+  }
+
+  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  const evalType =
+    typeof params.evalType === 'string' ? params.evalType : undefined;
+
+  if (evalType !== 'hipaa' && evalType !== 'marketplace') {
+    if (!isUpdateStrategyEvalPrompt(effectivePrompt)) {
+      return failure(
+        'update_strategy_eval',
+        'Ask to submit or update the HIPAA readiness decision or marketplace positioning decision, with evalType set to "hipaa" or "marketplace".',
+        { clarify: true, missing: ['evalType'] },
+      );
+    }
+    return failure(
+      'update_strategy_eval',
+      'Specify evalType: "hipaa" (with answers) or "marketplace" (with criterionWeights).',
+      { clarify: true, missing: ['evalType'] },
+    );
+  }
+
+  await deps.businessService.ensureOwner(businessId, userId);
+
+  if (evalType === 'hipaa') {
+    const answers = params.answers as Record<string, any> | undefined;
+    if (!answers || typeof answers !== 'object') {
+      return failure(
+        'update_strategy_eval',
+        'Provide answers for the HIPAA readiness checklist (an object mapping checklist item ids to "yes"/"no"/"unsure").',
+        { clarify: true, missing: ['answers'] },
+      );
+    }
+    const decision =
+      typeof params.decision === 'string'
+        ? (params.decision as 'defer' | 'wellness_only' | 'pursue_baa')
+        : undefined;
+    try {
+      const result = await deps.strategyEvalService.submitHipaaEval(
+        businessId,
+        {
+          answers,
+          notes: typeof params.notes === 'string' ? params.notes : undefined,
+          decision,
+        },
+      );
+      return success(
+        'update_strategy_eval',
+        `HIPAA readiness evaluation saved — recommendation: ${result.recommendation}.`,
+        { evalType: 'hipaa', hipaa: result },
+      );
+    } catch (err: any) {
+      return failure(
+        'update_strategy_eval',
+        err?.message ?? 'Could not save the HIPAA evaluation.',
+      );
+    }
+  }
+
+  const criterionWeights = params.criterionWeights as
+    | Record<string, number>
+    | undefined;
+  if (!criterionWeights || typeof criterionWeights !== 'object') {
+    return failure(
+      'update_strategy_eval',
+      'Provide criterionWeights for the marketplace positioning evaluation (an object mapping criterion ids to a weight).',
+      { clarify: true, missing: ['criterionWeights'] },
+    );
+  }
+  const decision =
+    typeof params.decision === 'string'
+      ? (params.decision as
+          | 'software_only'
+          | 'partner_directory'
+          | 'full_marketplace'
+          | 'undecided')
+      : undefined;
+  try {
+    const result = await deps.strategyEvalService.submitMarketplaceEval(
+      businessId,
+      {
+        criterionWeights,
+        directoryOptIn:
+          typeof params.directoryOptIn === 'boolean'
+            ? params.directoryOptIn
+            : undefined,
+        notes: typeof params.notes === 'string' ? params.notes : undefined,
+        decision,
+      },
+    );
+    return success(
+      'update_strategy_eval',
+      `Marketplace positioning evaluation saved — recommendation: ${result.recommendation}.`,
+      { evalType: 'marketplace', marketplace: result },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_strategy_eval',
+      err?.message ?? 'Could not save the marketplace evaluation.',
+    );
+  }
 }
 
 export async function handleConfigureHipaaSessionTimeoutLogic(

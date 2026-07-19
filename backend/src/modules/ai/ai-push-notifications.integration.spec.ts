@@ -11,6 +11,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
 import { PushService } from '../provider-mobile/push.service.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
+import { ProviderPushHistoryService } from '../provider-mobile/provider-push-history.service.js';
 
 describe('Sprint 35 push/offline/notifications AI scenarios', () => {
   const notificationsService = {
@@ -46,6 +47,27 @@ describe('Sprint 35 push/offline/notifications AI scenarios', () => {
     sendToUser: jest.fn(async () => 1),
   };
   const providerMobileService = {};
+  const pushHistoryService = {
+    listNotificationCenter: jest.fn(async () => ({
+      days: 3,
+      unreadCount: 2,
+      items: [
+        {
+          id: 'n1',
+          title: 'New booking',
+          body: 'Anna — Cut at 10:00',
+          bookingId: 'b1',
+          url: null,
+          kind: 'booking_created',
+          sentAt: '2026-06-02T09:00:00.000Z',
+          readAt: null,
+          isRead: false,
+        },
+      ],
+    })),
+    markAllNotificationsRead: jest.fn(async () => ({ updated: 2 })),
+    markLatestBookingNotificationRead: jest.fn(async () => undefined),
+  };
 
   let pushNotifications: AiPushNotificationsService;
   let rescue: AiIntentRescueService;
@@ -63,6 +85,10 @@ describe('Sprint 35 push/offline/notifications AI scenarios', () => {
         },
         { provide: PushService, useValue: pushService },
         { provide: ProviderMobileService, useValue: providerMobileService },
+        {
+          provide: ProviderPushHistoryService,
+          useValue: pushHistoryService,
+        },
         {
           provide: getRepositoryToken(Booking),
           useValue: {

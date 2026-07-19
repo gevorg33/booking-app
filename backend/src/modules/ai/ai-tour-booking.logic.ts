@@ -3,6 +3,7 @@ import {
   extractTourMetadata,
   formatTourDurationBadge,
   isTourService,
+  resolveTourCatalogServiceByName,
   resolveTourDurationDays,
 } from '../../common/utils/tour-service.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -30,17 +31,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function formatCurrencyLabel(code: string | null | undefined): string {
@@ -127,7 +117,7 @@ async function executeExplainTourBooking(
   const service = parsed.serviceId
     ? services.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(services, parsed.serviceName)
+      ? resolveTourCatalogServiceByName(services, parsed.serviceName)
       : undefined;
 
   if (!service) {

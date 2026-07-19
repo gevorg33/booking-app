@@ -13,6 +13,7 @@ import { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integ
 import { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
 import { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
 import { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
+import { DistributionIntegrationService } from '../integrations/distribution/distribution-integration.service.js';
 
 describe('Sprint 32 integrations AI scenarios', () => {
   const webhooksService = {
@@ -115,6 +116,13 @@ describe('Sprint 32 integrations AI scenarios', () => {
       phoneNumberId: '15551234567',
     })),
   };
+  const distributionIntegrationService = {
+    updateSettings: jest.fn(async () => ({
+      googleReserve: { enabled: true },
+      metaBooking: { enabled: false, bookingUrl: 'https://example.com' },
+      messaging: { telegramEnabled: false, whatsappBookingEnabled: false },
+    })),
+  };
   const businessRepo = {
     findOne: jest.fn(async () => ({
       id: 'biz-1',
@@ -181,6 +189,10 @@ describe('Sprint 32 integrations AI scenarios', () => {
         {
           provide: WhatsAppIntegrationService,
           useValue: whatsappIntegrationService,
+        },
+        {
+          provide: DistributionIntegrationService,
+          useValue: distributionIntegrationService,
         },
         { provide: getRepositoryToken(Business), useValue: businessRepo },
         { provide: getRepositoryToken(Customer), useValue: customerRepo },

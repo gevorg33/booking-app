@@ -3,10 +3,11 @@ import {
   type Service,
 } from '../service/entities/service.entity.js';
 import { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
+import { isExplainDepositForfeiturePrompt } from './ai-explain-deposit-forfeiture.util.js';
 
 export { isExplainAmountDueNowPrompt } from './ai-explain-amount-due-now.util.js';
 
-export const CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES = `- explain_why_stripe_required: READ — explain why online card payment or prepayment is required at checkout (Stripe secure checkout). When the user asks why prepayment, why deposit, why pay now, or why Stripe, classify here — include serviceName when they name a catalog service. Summarizes per-service prepaymentMode (none|full|deposit), deposit amount due now, and balance at visit. NOT explain_payment_options_for_service (can I pay cash/online for a service — options read without why), NOT configure_service_online_payment (dashboard mutate), NOT explain_service_online_payment_setup (owner catalog summary), NOT explain_public_booking_checkout (holistic cash/online/gift-card flow), NOT pay_online|choose_payment_method (mutate checkout or list payment options), NOT explain_amount_due_now (how much due today / deposit math), and NOT explain_checkout_currency|explain_stripe_checkout_currency (currency display).
+export const CUSTOMER_PUBLIC_PREPAYMENT_EXPLAIN_CLASSIFIER_RULES = `- explain_why_stripe_required: READ — explain why online card payment or prepayment is required at checkout (Stripe secure checkout). When the user asks why prepayment, why deposit for a named service, why pay now, or why Stripe, classify here — include serviceName when they name a catalog service. Summarizes per-service prepaymentMode (none|full|deposit), deposit amount due now, and balance at visit. NOT explain_deposit_forfeiture (deposit refund/forfeit on cancel — "why do I have to pay a deposit to book?", "deposit forfeiture policy if I cancel late"), NOT explain_payment_options_for_service (can I pay cash/online for a service — options read without why), NOT configure_service_online_payment (dashboard mutate), NOT explain_service_online_payment_setup (owner catalog summary), NOT explain_public_booking_checkout (holistic cash/online/gift-card flow), NOT pay_online|choose_payment_method (mutate checkout or list payment options), NOT explain_amount_due_now (how much due today / deposit math), and NOT explain_checkout_currency|explain_stripe_checkout_currency (currency display).
 - explain_checkout_total: READ — explain the full checkout total breakdown for a named service including gift-card offset and remainder due at visit. Triggers: explain checkout total, checkout total breakdown with gift card. Uses session serviceId/serviceName on public booking when the user refers to the selected service. NOT explain_amount_due_now (pay today / deposit due now), NOT explain_checkout_tax (tax line), NOT list_services (catalog browse), NOT explain_why_stripe_required (policy why, not line-item math), NOT explain_service_price (listed card price + tax badge without checkout math).`;
 
 export type ExplainPrepaymentPromptFixture = {
@@ -427,6 +428,8 @@ export function describeServicePrepaymentPolicy(
 export function isExplainWhyPrepaymentPrompt(prompt: string): boolean {
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isDoIPayOnlineForServicePrompt(prompt)) return false;
+  // e2e-bug.113 — deposit forfeit/cancel policy must not land on why-Stripe.
+  if (isExplainDepositForfeiturePrompt(prompt)) return false;
   if (/\bdo\s+i\s+pay\s+online\b/i.test(prompt)) return true;
   if (/\bwhy\s+(?:must|do)\s+i\s+(?:have\s+to\s+)?pay\b/i.test(prompt))
     return true;
@@ -439,6 +442,12 @@ export function isExplainWhyPrepaymentPrompt(prompt: string): boolean {
   }
   if (/\bwhy\s+pay\s+online\b/i.test(prompt)) return true;
   if (/\bwhy\s+pay\s+(?:by\s+)?(?:card|online)\b/i.test(prompt)) return true;
+  if (/ինչու/i.test(prompt) && /վճար|պահանջ|deposit/i.test(prompt)) {
+    return true;
+  }
+  if (/почему|зачем/i.test(prompt) && /плат|треб|депозит/i.test(prompt)) {
+    return true;
+  }
   return (
     /\b(why|explain)\b/i.test(prompt) &&
     /\b(prepayment|prepay|deposit|pay\s+now|pay\s+online|online\s+payment|pay\s+before|pay\s+by\s+card|upfront|due\s+upfront|hold\s+the\s+slot|card\s+payment|before\s+(?:my\s+)?(?:appointment|visit)|when\s+booking|online\s+when\s+booking)\b/i.test(
@@ -465,7 +474,8 @@ export function rescueExplainPrepaymentIntent(
   if (
     action === 'explain_why_stripe_required' ||
     action === 'explain_checkout_total' ||
-    action === 'explain_amount_due_now'
+    action === 'explain_amount_due_now' ||
+    action === 'explain_deposit_forfeiture'
   ) {
     return null;
   }

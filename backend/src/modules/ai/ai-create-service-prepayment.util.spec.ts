@@ -106,7 +106,12 @@ describe('ai-create-service-prepayment.util (ai-cmd-ext-5.2)', () => {
         {},
         'Add haircut 30 min $35, no online prepayment',
       ),
-    ).toEqual({ prepaymentMode: 'none' });
+    ).toEqual({
+      prepaymentMode: 'none',
+      serviceName: 'haircut',
+      durationMinutes: 30,
+      price: 35,
+    });
   });
 
   describe('create_services bulk prepayment (ai-cmd-ext-5.3)', () => {

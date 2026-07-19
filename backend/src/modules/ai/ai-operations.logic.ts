@@ -51,7 +51,7 @@ import {
 export interface OperationsLogicDeps {
   bookingRepo: Pick<Repository<Booking>, 'find'>;
   businessRepo: Pick<Repository<Business>, 'findOne'>;
-  orchestration: Pick<CommandOrchestrationService, 'executePlan'>;
+  orchestration: Pick<CommandOrchestrationService, 'executePlan' | 'approveTask'>;
   planBuilder: OperationalPlanBuilderService;
 }
 
@@ -98,7 +98,7 @@ export function buildUpdateServicePricesFailure(
     success: false,
     action: 'update_service_prices',
     summary:
-      'Specify a percent change and optional category (e.g. "Raise all massage prices 10% from June 1").',
+      'Specify a percent or dollar amount change and optional category (e.g. "Raise all massage prices 10%" or "Increase Facial by 5 dollars").',
     details: { params },
   };
 }
@@ -149,6 +149,20 @@ export async function executeOperationsPlan(
     userId,
     autoExecute: shouldAutoExecuteOperations(plan.intent, plan.steps.length),
   });
+  // e2e-bug.164 — AI command confirmation already authorized the mutation.
+  // Policy "requires approval" must not return success:true with zero writes.
+  if (
+    result.requiresApproval &&
+    result.taskId &&
+    plan.intent === 'update_service_prices' &&
+    userId
+  ) {
+    const approved = await deps.orchestration.approveTask(
+      result.taskId,
+      userId,
+    );
+    return mapOperationsOrchestrationResult(approved);
+  }
   return mapOperationsOrchestrationResult(result);
 }
 
@@ -330,7 +344,7 @@ export function prepareUpdateServicePricesPlanLogic(
       serviceId: service.id,
       serviceName: service.name,
       currentPrice,
-      newPrice: applyPriceAdjustment(currentPrice, adjustment.percentChange),
+      newPrice: applyPriceAdjustment(currentPrice, adjustment),
     };
   });
 
@@ -343,6 +357,7 @@ export function prepareUpdateServicePricesPlanLogic(
   const meta = buildUpdateServicePricesPlanMeta({
     updates,
     percentChange: adjustment.percentChange,
+    amountChange: adjustment.amountChange,
     effectiveFrom: adjustment.effectiveFrom,
   });
   return deps.planBuilder.wrapOperationsPlan(

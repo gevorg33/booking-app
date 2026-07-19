@@ -60,31 +60,103 @@ function containsCyrillicScript(prompt: string): boolean {
   return /[\u0400-\u04FF]/.test(prompt);
 }
 
+/** Catalog-ish tokens — never treat these as provider person names (e2e-bug.112). */
+const WAITLIST_SERVICE_TOKEN =
+  /\b(massage|haircut|facial|manicure|pedicure|color|colour|trim|wax|blowdry|beard|cut|nails?|highlights?|balayage|keratin|brows?|lashes?|spa|treatment|service|package|facemassage)\b/i;
+
+const WAITLIST_DATE_BOUNDARY =
+  String.raw`(?=\s*(?:,|;|\?|\band\b|\bwith\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bon\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+
+/** Proper-name heuristic for provider-only waitlist phrasing (e2e-bug.112). */
+export function looksLikeWaitlistPersonName(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || WAITLIST_SERVICE_TOKEN.test(trimmed)) return false;
+  // "Gevorg Gasparyan", "Mary Jane"
+  if (/^[A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+)+$/u.test(trimmed)) return true;
+  // Single proper name used as provider ("Anna", "Gevorg")
+  if (/^[A-Z][\p{L}'-]{2,30}$/u.test(trimmed)) return true;
+  return false;
+}
+
+function extractWaitlistEmployeeName(
+  prompt: string,
+  params: Record<string, unknown>,
+): string | undefined {
+  const fromParams =
+    typeof params.employeeName === 'string' ? params.employeeName.trim() : '';
+  if (fromParams) return fromParams;
+
+  // Case-sensitive [A-Z] — do not use the `i` flag or "Anna on Friday" becomes one name.
+  const withPerson = prompt.match(
+    new RegExp(
+      String.raw`\bwith\s+([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+)*)` +
+        WAITLIST_DATE_BOUNDARY,
+      'u',
+    ),
+  );
+  if (withPerson?.[1] && looksLikeWaitlistPersonName(withPerson[1])) {
+    return withPerson[1].trim();
+  }
+
+  const forPerson = prompt.match(
+    new RegExp(
+      String.raw`\b(?:wait(?:ing)?\s*list|waitlist)?\s*for\s+([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+)*)` +
+        WAITLIST_DATE_BOUNDARY,
+      'u',
+    ),
+  );
+  if (forPerson?.[1] && looksLikeWaitlistPersonName(forPerson[1])) {
+    return forPerson[1].trim();
+  }
+
+  return undefined;
+}
+
 function extractWaitlistServiceName(
   prompt: string,
   params: Record<string, unknown>,
 ): string | undefined {
   const fromParams =
     typeof params.serviceName === 'string' ? params.serviceName.trim() : '';
-  if (fromParams) return fromParams;
+  if (fromParams) {
+    // e2e-bug.112 — classifier sometimes copies provider into serviceName.
+    if (looksLikeWaitlistPersonName(fromParams)) return undefined;
+    const employee =
+      typeof params.employeeName === 'string'
+        ? params.employeeName.trim()
+        : '';
+    if (employee && fromParams.toLowerCase() === employee.toLowerCase()) {
+      return undefined;
+    }
+    return fromParams;
+  }
 
   const scenario = matchWaitlistScenario(prompt);
   if (scenario?.serviceName) return scenario.serviceName;
 
   const waitingListFor = prompt.match(
-    /\b(?:waiting list|waitlist)\s+for\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\btomorrow\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
+    new RegExp(
+      String.raw`\b(?:waiting list|waitlist)\s+for\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)` +
+        WAITLIST_DATE_BOUNDARY,
+      'i',
+    ),
   );
   if (waitingListFor) {
-    return waitingListFor[1].trim().replace(/[,.]$/, '');
+    const name = waitingListFor[1].trim().replace(/[,.]$/, '');
+    if (name && !looksLikeWaitlistPersonName(name)) return name;
   }
 
   const forService = prompt.match(
-    /\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|$))/i,
+    new RegExp(
+      String.raw`\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)` + WAITLIST_DATE_BOUNDARY,
+      'i',
+    ),
   );
   if (forService) {
     const name = forService[1].trim().replace(/[,.]$/, '');
     if (
       name &&
+      !looksLikeWaitlistPersonName(name) &&
       !/^(the|a|an|anything|something|friday|monday|tuesday|wednesday|thursday|saturday|sunday|waitlist|waiting list)$/i.test(
         name,
       ) &&
@@ -95,7 +167,44 @@ function extractWaitlistServiceName(
   }
 
   const raw = extractServiceNameFromPrompt(prompt)?.trim();
-  return raw || undefined;
+  if (!raw) return undefined;
+  if (looksLikeWaitlistPersonName(raw)) return undefined;
+  // e2e-bug.112 — generic extractor can return "Anna on Friday" for provider+date.
+  if (
+    !WAITLIST_SERVICE_TOKEN.test(raw) &&
+    /\bon\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b/i.test(
+      raw,
+    )
+  ) {
+    return undefined;
+  }
+  return raw;
+}
+
+/** Drop duplicated provider→serviceName copies (e2e-bug.112). */
+export function sanitizeWaitlistPreferenceNames(input: {
+  serviceName?: string;
+  employeeName?: string;
+}): { serviceName?: string; employeeName?: string } {
+  let serviceName = input.serviceName?.trim() || undefined;
+  let employeeName = input.employeeName?.trim() || undefined;
+
+  if (serviceName && looksLikeWaitlistPersonName(serviceName)) {
+    if (!employeeName) employeeName = serviceName;
+    serviceName = undefined;
+  }
+  if (
+    serviceName &&
+    employeeName &&
+    serviceName.toLowerCase() === employeeName.toLowerCase()
+  ) {
+    serviceName = undefined;
+  }
+
+  return {
+    ...(serviceName ? { serviceName } : {}),
+    ...(employeeName ? { employeeName } : {}),
+  };
 }
 
 function extractTimeOfDayFromPrompt(
@@ -146,6 +255,12 @@ export function isCheckWaitlistStatusPrompt(prompt: string): boolean {
 export function isJoinWaitlistPrompt(prompt: string): boolean {
   if (isStaffWaitlistPrompt(prompt)) return false;
   if (isCheckWaitlistStatusPrompt(prompt)) return false;
+  if (
+    /\bonline\s+payment\b/i.test(prompt) &&
+    /\bpublic\s+booking\b/i.test(prompt)
+  ) {
+    return false;
+  }
 
   const scenario = matchWaitlistScenario(prompt);
   if (scenario?.expectedAction === 'join_waitlist') return true;
@@ -214,16 +329,28 @@ export function enrichJoinWaitlistParamsFromPrompt(
   const dateParams = { ...shared, ...params };
   applyRelativeDateFromPrompt(dateParams, prompt, timeZone);
 
-  const serviceName =
-    extractWaitlistServiceName(prompt, params) ||
-    (typeof dateParams.serviceName === 'string'
-      ? dateParams.serviceName.trim()
-      : undefined);
+  // Do not inherit serviceName from buildSharedBookingContextFromPrompt — that
+  // helper uses a greedy extractor that turns "for Anna on Friday" into a fake
+  // service (e2e-bug.112). Waitlist extraction is the sole source of truth.
+  const sanitized = sanitizeWaitlistPreferenceNames({
+    serviceName: extractWaitlistServiceName(prompt, params),
+    employeeName:
+      extractWaitlistEmployeeName(prompt, params) ||
+      (typeof params.employeeName === 'string'
+        ? params.employeeName.trim()
+        : undefined) ||
+      (typeof dateParams.employeeName === 'string'
+        ? dateParams.employeeName.trim()
+        : undefined),
+  });
   const timeOfDay = extractTimeOfDayFromPrompt(prompt, params);
 
+  const next = { ...dateParams };
+  delete next.serviceName;
+  delete next.employeeName;
   return {
-    ...dateParams,
-    ...(serviceName ? { serviceName } : {}),
+    ...next,
+    ...sanitized,
     ...(timeOfDay ? { timeOfDay } : {}),
   };
 }

@@ -10,6 +10,7 @@ import {
   type ReschedulePackageVisitSelfPromptFixture,
 } from './ai-reschedule-package-visit-self.fixtures.js';
 import { RESCHEDULE_PACKAGE_VISIT_SELF_MULTILINGUAL_SCENARIOS } from './ai-reschedule-package-visit-self-multilingual.fixtures.js';
+import { hasManageLinkCredentialsInPrompt } from './ai-manage-booking-with-token.util.js';
 
 export const RESCHEDULE_PACKAGE_VISIT_SELF_INTENTS = [
   'reschedule_package_visit_self',
@@ -81,6 +82,8 @@ export function isReschedulePackageVisitSelfIntent(
 }
 
 export function isReschedulePackageVisitSelfPrompt(prompt: string): boolean {
+  // e2e-bug.103 — guest manage-link reschedule → reschedule_package_visit_with_token
+  if (hasManageLinkCredentialsInPrompt(prompt)) return false;
   if (matchReschedulePackageVisitSelfScenario(prompt)) return true;
 
   const packageContext =

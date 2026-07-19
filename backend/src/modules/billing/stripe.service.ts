@@ -54,6 +54,11 @@ export class StripeService implements OnModuleInit {
     return this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   }
 
+  /** e2e-bug.18 — consumer-app web origin for Stripe success/cancel redirects. */
+  get consumerAppUrl(): string {
+    return this.config.get<string>('CONSUMER_APP_URL')?.trim() || '';
+  }
+
   /** Default country fallback when tenant country is unknown. */
   get connectDefaultCountry(): string {
     const raw = this.config

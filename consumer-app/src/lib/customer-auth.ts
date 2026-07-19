@@ -16,6 +16,28 @@ export function getCustomerToken(slug: string): string | null {
   return localStorage.getItem(tokenKey(slug));
 }
 
+function pickNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * e2e-bug.31 — booking responses return a thin `{ id, name, created }` customer and must not
+ * wipe email/phone from the richer signed-in profile already in localStorage.
+ */
+export function mergeCustomerProfileCache(
+  existing: PublicCustomerProfile | null,
+  incoming: Partial<PublicCustomerProfile> & { id?: string; name?: string },
+): PublicCustomerProfile {
+  return {
+    id: pickNonEmptyString(incoming.id) ?? existing?.id ?? '',
+    name: pickNonEmptyString(incoming.name) ?? existing?.name ?? '',
+    email: pickNonEmptyString(incoming.email) ?? pickNonEmptyString(existing?.email),
+    phone: pickNonEmptyString(incoming.phone) ?? pickNonEmptyString(existing?.phone),
+  };
+}
+
 export function setCustomerSession(
   slug: string,
   token: string | null,
@@ -28,7 +50,9 @@ export function setCustomerSession(
     localStorage.removeItem(tokenKey(slug));
   }
   if (profile) {
-    localStorage.setItem(profileKey(slug), JSON.stringify(profile));
+    const existing = getStoredCustomerProfile(slug);
+    const merged = mergeCustomerProfileCache(existing, profile);
+    localStorage.setItem(profileKey(slug), JSON.stringify(merged));
   } else {
     localStorage.removeItem(profileKey(slug));
   }

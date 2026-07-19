@@ -30,6 +30,7 @@ import {
   sumMultiServicePrice,
   uniqueMultiServiceIds,
 } from '@/lib/multi-service-booking';
+import { resolveMultiServiceAvailabilityCatchMessage } from '@/lib/multi-service-availability-catch.util';
 
 interface MultiServiceAvailabilityClientProps {
   slug: string;
@@ -156,13 +157,13 @@ export function MultiServiceAvailabilityClient({
           setSelectedStart(null);
           setEmployeeId(null);
         }
-      } catch (err: unknown) {
+      } catch {
         if (slotsRequestRef.current === requestId) {
           setSlots([]);
           selectedStartRef.current = null;
           setSelectedStart(null);
           setEmployeeId(null);
-          setError((err as Error)?.message || t('public.loadAvailableTimesFailed'));
+          setError(resolveMultiServiceAvailabilityCatchMessage(t, 'loadSlots'));
         }
       } finally {
         if (slotsRequestRef.current === requestId) {
@@ -232,9 +233,9 @@ export function MultiServiceAvailabilityClient({
             userPickedDateRef.current ? null : suggested.startTime,
           );
         }
-      } catch (err: unknown) {
+      } catch {
         if (suggestRequestRef.current !== requestId) return;
-        setError((err as Error)?.message || t('public.findAvailableBlockFailed'));
+        setError(resolveMultiServiceAvailabilityCatchMessage(t, 'findBlock'));
         const today = new Date().toISOString().slice(0, 10);
         if (!userPickedDateRef.current) {
           setDateKey(today);
@@ -501,6 +502,7 @@ export function MultiServiceAvailabilityClient({
           error={null}
           emptyLabel={t('public.noSlotsThisDay')}
           heading={t('public.availableSlots')}
+          timeZone={tz}
         />
       </main>
       <FixedActionBar

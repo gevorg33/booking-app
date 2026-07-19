@@ -13,9 +13,13 @@ import type { GiftCardOrderService } from '../gift-cards/gift-card-order.service
 import type { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import type { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-integration.service.js';
 import { isCustomerTag } from '../customer/customer-tag.constants.js';
+import type { GetCustomersQueryDto } from '../customer/dto/get-customers-query.dto.js';
 import { readBusinessGiftCardSettings } from '../gift-cards/gift-card.types.js';
 import { addMonths } from '../../common/utils/subscription-pricing.util.js';
 import {
+  buildMyAppointmentsNavigate,
+  buildMyGiftCardsNavigate,
+  buildMyGiftCardsSummary,
   decomposeCrmCompoundPrompt,
   type CrmCompoundStep,
 } from './ai-customer-crm.util.js';
@@ -30,6 +34,7 @@ import {
 } from './ai-privacy-delete.logic.js';
 import type { GiftCardClaimService } from '../gift-cards/gift-card-claim.service.js';
 import { handleClaimGiftCardBalanceLogic as handleClaimGiftCardBalanceLogicImpl } from './ai-claim-gift-card-balance.logic.js';
+import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 
 export interface CustomerCrmLogicDeps
   extends PrivacyExportLogicDeps, PrivacyDeleteLogicDeps {
@@ -46,6 +51,10 @@ export interface CustomerCrmLogicDeps
   changeRequestRepo: Repository<GiftCardChangeRequest>;
   giftCardRepo: Repository<GiftCard>;
   businessRepo: Repository<Business>;
+  publicCustomerAuthService: Pick<
+    PublicCustomerAuthService,
+    'getPreferredLocale' | 'updatePreferredLocale' | 'updateMyProfile'
+  >;
 }
 
 function failure(
@@ -247,12 +256,23 @@ export async function handleCancelSubscriptionAdminLogic(
   if (!sub)
     return failure('cancel_subscription_admin', 'Subscription not found.');
 
-  await deps.subscriptionsService.cancelSubscription(businessId, sub.id);
-  return success(
-    'cancel_subscription_admin',
-    `Cancelled ${customer.name}'s subscription.`,
-    { subscriptionId: sub.id, customerId: customer.id },
+  const { refundStatus } = await deps.subscriptionsService.cancelSubscription(
+    businessId,
+    sub.id,
   );
+  let summary = `Cancelled ${customer.name}'s subscription.`;
+  if (refundStatus === 'refunded') {
+    summary = `Cancelled ${customer.name}'s subscription and refunded their payment.`;
+  } else if (refundStatus === 'failed') {
+    summary = `Cancelled ${customer.name}'s subscription, but the automatic refund didn't go through — please process it manually.`;
+  } else if (refundStatus === 'ineligible') {
+    summary = `Cancelled ${customer.name}'s subscription. (Already used — not eligible for a refund.)`;
+  }
+  return success('cancel_subscription_admin', summary, {
+    subscriptionId: sub.id,
+    customerId: customer.id,
+    refundStatus,
+  });
 }
 
 export async function handleListCustomerGiftCardsLogic(
@@ -316,6 +336,85 @@ export async function handleListCustomerBookingsLogic(
       customerId: customer.id,
       appointments: detail.appointments,
       stats: detail.stats,
+    },
+  );
+}
+
+const CUSTOMER_LIST_SEGMENTS = new Set(['vip', 'at_risk', 'high_no_show', 'new']);
+const CUSTOMER_LIST_SORT_BY = new Set(['name', 'createdAt', 'updatedAt']);
+
+/** ai-cmd-dashboard-6.7.5 — GET …/customers/dashboard search+filter+paginate, previously never called by AI. */
+export async function handleListCustomersLogic(
+  deps: CustomerCrmLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const query: GetCustomersQueryDto = {
+    search: typeof params.searchTerm === 'string' ? params.searchTerm : undefined,
+    email: typeof params.email === 'string' ? params.email : undefined,
+    phone: typeof params.phone === 'string' ? params.phone : undefined,
+    bookingStatus:
+      typeof params.bookingStatus === 'string' ? params.bookingStatus : undefined,
+    tags:
+      typeof params.tags === 'string' && isCustomerTag(params.tags)
+        ? params.tags
+        : undefined,
+    segment: CUSTOMER_LIST_SEGMENTS.has(params.segment) ? params.segment : undefined,
+    isVip: typeof params.isVip === 'boolean' ? params.isVip : undefined,
+    sortBy: CUSTOMER_LIST_SORT_BY.has(params.sortBy) ? params.sortBy : undefined,
+    sortOrder:
+      params.sortOrder === 'ASC' || params.sortOrder === 'DESC'
+        ? params.sortOrder
+        : undefined,
+    page: typeof params.page === 'number' && params.page > 0 ? params.page : undefined,
+    pageSize:
+      typeof params.limit === 'number' && params.limit > 0
+        ? Math.min(params.limit, 100)
+        : typeof params.pageSize === 'number' && params.pageSize > 0
+          ? Math.min(params.pageSize, 100)
+          : undefined,
+  };
+
+  const result = await deps.customerService.searchDashboard(businessId, query);
+
+  const hasFilters = Boolean(
+    query.search ||
+      query.email ||
+      query.phone ||
+      query.tags ||
+      query.segment ||
+      query.isVip ||
+      query.bookingStatus,
+  );
+
+  if (result.customers.length === 0) {
+    return success(
+      'list_customers',
+      hasFilters
+        ? 'No customers match those filters.'
+        : 'No customers found.',
+      { customers: [], totalItems: 0, page: result.page, pageSize: result.pageSize },
+    );
+  }
+
+  const lines = result.customers
+    .slice(0, 10)
+    .map(
+      (c) =>
+        `• ${c.name}${c.isVip ? ' (VIP)' : ''} — ${c.segment}${c.tags.length ? `, tags: ${c.tags.join(', ')}` : ''}`,
+    );
+
+  return success(
+    'list_customers',
+    [
+      `${result.totalItems} customer(s)${hasFilters ? ' matching filters' : ''}:`,
+      ...lines,
+    ].join('\n'),
+    {
+      customers: result.customers,
+      totalItems: result.totalItems,
+      page: result.page,
+      pageSize: result.pageSize,
     },
   );
 }
@@ -390,6 +489,70 @@ export async function handleTagCustomerLogic(
     customerId: updated.id,
     tags: updated.tags,
   });
+}
+
+export async function handleUpdateCustomerLogic(
+  deps: CustomerCrmLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  customers: Customer[],
+  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+): Promise<CommandResult> {
+  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  if (!customer) {
+    return failure(
+      'update_customer',
+      'Specify which customer to update (customerName or customerId).',
+      { clarify: true, missing: ['customerName'] },
+    );
+  }
+
+  const name =
+    typeof params.newName === 'string' ? params.newName.trim() : undefined;
+  const email =
+    typeof params.email === 'string' ? params.email.trim() : undefined;
+  const phone =
+    typeof params.phone === 'string' ? params.phone.trim() : undefined;
+  const isVip = typeof params.isVip === 'boolean' ? params.isVip : undefined;
+
+  if (
+    name === undefined &&
+    email === undefined &&
+    phone === undefined &&
+    isVip === undefined
+  ) {
+    return failure(
+      'update_customer',
+      `What should I change for ${customer.name}? Provide a new name, email, phone, or VIP status.`,
+    );
+  }
+
+  try {
+    const updated = await deps.customerService.update(customer.id, {
+      ...(name !== undefined ? { name } : {}),
+      ...(email !== undefined ? { email } : {}),
+      ...(phone !== undefined ? { phone } : {}),
+      ...(isVip !== undefined ? { isVip } : {}),
+    });
+    const changes = [
+      name !== undefined ? `name → ${name}` : null,
+      email !== undefined ? `email → ${email}` : null,
+      phone !== undefined ? `phone → ${phone}` : null,
+      isVip !== undefined ? `VIP → ${isVip}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return success(
+      'update_customer',
+      `Updated ${updated.name}: ${changes}.`,
+      { customerId: updated.id, customerName: updated.name },
+    );
+  } catch (err: any) {
+    return failure(
+      'update_customer',
+      err?.message ?? 'Could not update the customer.',
+    );
+  }
 }
 
 export async function handleExportCustomerDataLogic(
@@ -582,10 +745,14 @@ export async function handleMyAppointmentsLogic(
     businessId,
     customerId,
   );
+  // e2e-bug.52 — summary alone is useless in chat; hand off to Account appointments.
   return success(
     'my_appointments',
     `You have ${detail.appointments.length} appointment(s) on record.`,
-    { appointments: detail.appointments },
+    {
+      appointments: detail.appointments,
+      navigate: buildMyAppointmentsNavigate(),
+    },
   );
 }
 
@@ -671,7 +838,16 @@ export async function handleMyGiftCardsLogic(
     businessId,
     customerId,
   );
-  return success('my_gift_cards', 'Your gift cards.', { account });
+  // e2e-bug.81 — summary must carry counts/balances; public UI drops details.account.
+  const orderCount = account.orders.length;
+  const redeemedCount = account.redeemed.length;
+  return success('my_gift_cards', buildMyGiftCardsSummary(account), {
+    account,
+    count: orderCount + redeemedCount,
+    orderCount,
+    redeemedCount,
+    navigate: buildMyGiftCardsNavigate(),
+  });
 }
 
 export async function handleGiftCardBalanceLogic(
@@ -881,6 +1057,48 @@ export async function handleTrackPhysicalGiftCardOrderLogic(
     `Order status: ${order.fulfillmentStatus ?? 'processing'}.`,
     { order },
   );
+}
+
+export async function handleExplainGiftCardOrderLogic(
+  deps: CustomerCrmLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  const giftCardId = params.giftCardId as string | undefined;
+  if (!customerId) {
+    return failure(
+      'explain_gift_card_order',
+      'Sign in to view your gift card order.',
+      { clarify: true },
+    );
+  }
+  if (!giftCardId) {
+    return failure(
+      'explain_gift_card_order',
+      'Specify which gift card order you mean.',
+      { clarify: true, missing: ['giftCardId'] },
+    );
+  }
+
+  try {
+    const order = await deps.giftCardOrderService.getCustomerOrder(
+      businessId,
+      customerId,
+      giftCardId,
+    );
+    return success(
+      'explain_gift_card_order',
+      `${order.cardType} gift card — balance $${order.balance.toFixed(2)}, ${order.deliveryMethod} delivery, status ${order.fulfillmentStatus ?? 'active'}.`,
+      { order },
+    );
+  } catch (err: any) {
+    return failure(
+      'explain_gift_card_order',
+      err?.message ?? 'Gift card order not found.',
+      { giftCardId },
+    );
+  }
 }
 
 export async function handlePrivacyExportLogic(

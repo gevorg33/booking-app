@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildConsumerAssistantPageContext,
   deriveConsumerActivationStepFromPathname,
+  derivePublicBookingStepFromPathname,
 } from './public-booking-assistant-context.util.js';
 
 describe('public-booking-assistant-context.util (ai-guide-1.5.4)', () => {
@@ -50,5 +51,15 @@ describe('public-booking-assistant-context.util (ai-guide-1.5.4)', () => {
       screen: '/s/demo/account',
       pathname: '/s/demo/account',
     });
+  });
+
+  // e2e-bug.124
+  it.each([
+    { pathname: '/book/demo', step: undefined },
+    { pathname: '/book/pollin-clinic-3b7fb9d8', step: undefined },
+    { pathname: '/book/demo/checkout', step: 'checkout' as const },
+    { pathname: '/s/demo/book/svc-1', step: 'checkout' as const },
+  ])('derivePublicBookingStepFromPathname for $pathname', ({ pathname, step }) => {
+    expect(derivePublicBookingStepFromPathname(pathname)).toBe(step);
   });
 });

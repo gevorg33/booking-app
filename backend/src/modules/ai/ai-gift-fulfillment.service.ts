@@ -26,6 +26,9 @@ import {
   handleFilterAwaitingCreationLogic,
   handleFulfillmentCompoundLogic,
   handleGiftCardCreationQueueLogic,
+  handleGiftFulfillBatchLogic,
+  handleExplainGiftCardOrderDetailsLogic,
+  handleListGiftCardChangeRequestsLogic,
   handleListGiftCardOrdersLogic,
   handleMarkCardReadyLogic,
   handleMarkDeliveredLogic,
@@ -34,11 +37,15 @@ import {
   handleNotifyDelayLogic,
   handleOrderStatusNotificationsLogic,
   handlePrintPackingSlipLogic,
+  handleResolveGiftCardChangeRequestLogic,
   handleShippingMethodQuoteLogic,
   handleStartCardPreparationLogic,
   handleTrackGiftCardShipmentLogic,
+  handleUpdateGiftCardSettingsLogic,
   type GiftFulfillmentLogicDeps,
 } from './ai-gift-fulfillment.logic.js';
+import { dispatchGiftFulfillmentLogicIntent } from './ai-gift-fulfillment-dispatch.util.js';
+import type { GiftFulfillmentDispatchContext } from './ai-gift-fulfillment-dispatch.build.js';
 
 @Injectable()
 export class AiGiftFulfillmentService {
@@ -145,6 +152,32 @@ export class AiGiftFulfillmentService {
     return handleExtendCancelWindowLogic(this.deps, businessId, params, prompt);
   }
 
+  handleUpdateGiftCardSettings(businessId: string, params: Record<string, any>) {
+    return handleUpdateGiftCardSettingsLogic(this.deps, businessId, params);
+  }
+
+  handleListGiftCardChangeRequests(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleListGiftCardChangeRequestsLogic(this.deps, businessId, params);
+  }
+
+  handleResolveGiftCardChangeRequest(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleResolveGiftCardChangeRequestLogic(
+      this.deps,
+      businessId,
+      params,
+    );
+  }
+
+  handleGiftFulfillBatch(businessId: string, params: Record<string, any>) {
+    return handleGiftFulfillBatchLogic(this.deps, businessId, params);
+  }
+
   handlePrintPackingSlip(
     businessId: string,
     params: Record<string, any>,
@@ -163,6 +196,19 @@ export class AiGiftFulfillmentService {
     prompt?: string,
   ) {
     return handleStartCardPreparationLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleExplainGiftCardOrderDetails(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleExplainGiftCardOrderDetailsLogic(
       this.deps,
       businessId,
       params,
@@ -281,5 +327,12 @@ export class AiGiftFulfillmentService {
       params,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a gift-fulfillment intent. */
+  dispatchIntent(
+    ctx: GiftFulfillmentDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchGiftFulfillmentLogicIntent(this.deps, ctx);
   }
 }

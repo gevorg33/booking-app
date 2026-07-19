@@ -8,11 +8,15 @@ import {
   handleCreateGiftCardBundleLogic,
   handleCreatePackageLogic,
   handleCreateServiceCategoryLogic,
+  handleUpdateServiceCategoryLogic,
+  handleDeleteServiceCategoryLogic,
   handleCreateSubscriptionPlanLogic,
+  handleActivatePackageLogic,
   handleDeactivatePackageLogic,
   handleDeactivateServiceLogic,
   handleUpdateServiceLogic,
   handleDeactivateSubscriptionPlanLogic,
+  handleActivateSubscriptionPlanLogic,
   handleDuplicatePackageLogic,
   handleListPackagesLogic,
   handleListSubscriptionPlansLogic,
@@ -68,6 +72,8 @@ function buildDeps(
     categoryService: {
       findAll: jest.fn().mockResolvedValue([]),
       create: jest.fn(async (_b, dto) => ({ id: 'cat-1', name: dto.name })),
+      update: jest.fn(async (id, _businessId, dto) => ({ id, ...dto })),
+      remove: jest.fn(async () => undefined),
     } as any,
     serviceService: {
       findAll: jest.fn().mockImplementation(async () => [...services]),
@@ -88,6 +94,7 @@ function buildDeps(
         name: 'Spa Day Updated',
       })),
       deactivatePackage: jest.fn(),
+      activatePackage: jest.fn(),
       duplicatePackage: jest.fn(async () => ({
         id: 'pkg-2',
         name: 'Spa Day (Copy)',
@@ -100,6 +107,7 @@ function buildDeps(
       createPlan: jest.fn(async () => ({ id: 'plan-1', name: 'Nail Plan' })),
       updatePlan: jest.fn(async (p) => p),
       deactivatePlan: jest.fn(),
+      activatePlan: jest.fn(async () => ({ id: 'plan-1', isActive: true })),
       assignSubscription: jest.fn(async () => ({ id: 'sub-1' })),
     } as any,
     ...overrides,
@@ -148,6 +156,100 @@ describe('ai-catalog.logic', () => {
       );
       expect(withPlaceholders.success).toBe(true);
       expect((withPlaceholders.details as any).serviceIds).toHaveLength(2);
+    });
+  });
+
+  describe('handleUpdateServiceCategoryLogic', () => {
+    function depsWithCategory() {
+      return buildDeps({
+        categoryService: {
+          findAll: jest
+            .fn()
+            .mockResolvedValue([{ id: 'cat-1', name: 'Color' }]),
+          update: jest.fn(async (id, _businessId, dto) => ({
+            id,
+            name: dto.name || 'Color',
+          })),
+          remove: jest.fn(async () => undefined),
+        } as any,
+      });
+    }
+
+    it('asks for clarification when categoryName is missing', async () => {
+      const result = await handleUpdateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({ clarify: true });
+    });
+
+    it('fails when category not found', async () => {
+      const result = await handleUpdateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Missing' },
+      );
+      expect(result.success).toBe(false);
+    });
+
+    it('updates the category', async () => {
+      const deps = depsWithCategory();
+      const result = await handleUpdateServiceCategoryLogic(deps, 'biz-1', {
+        categoryName: 'Color',
+        newName: 'Hair Color',
+      });
+      expect(result.success).toBe(true);
+      expect(deps.categoryService.update).toHaveBeenCalledWith(
+        'cat-1',
+        'biz-1',
+        expect.objectContaining({ name: 'Hair Color' }),
+      );
+    });
+  });
+
+  describe('handleDeleteServiceCategoryLogic', () => {
+    function depsWithCategory() {
+      return buildDeps({
+        categoryService: {
+          findAll: jest
+            .fn()
+            .mockResolvedValue([{ id: 'cat-1', name: 'Color' }]),
+          remove: jest.fn(async () => undefined),
+        } as any,
+      });
+    }
+
+    it('asks for clarification when categoryName is missing', async () => {
+      const result = await handleDeleteServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(false);
+      expect(result.details).toMatchObject({ clarify: true });
+    });
+
+    it('fails when category not found', async () => {
+      const result = await handleDeleteServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Missing' },
+      );
+      expect(result.success).toBe(false);
+    });
+
+    it('deletes the category', async () => {
+      const deps = depsWithCategory();
+      const result = await handleDeleteServiceCategoryLogic(deps, 'biz-1', {
+        categoryName: 'Color',
+      });
+      expect(result.success).toBe(true);
+      expect(deps.categoryService.remove).toHaveBeenCalledWith(
+        'cat-1',
+        'biz-1',
+      );
     });
   });
 
@@ -629,6 +731,25 @@ describe('ai-catalog.logic', () => {
 
       expect(
         (
+          await handleActivatePackageLogic(
+            {
+              packagesService: {
+                listPackages: jest.fn().mockResolvedValue([]),
+              } as any,
+            } as any,
+            'biz-1',
+            { packageName: 'X' },
+          )
+        ).success,
+      ).toBe(false);
+      const activated = await handleActivatePackageLogic(buildDeps(), 'biz-1', {
+        packageName: 'Spa Day',
+      });
+      expect(activated.success).toBe(true);
+      expect(activated.details).toMatchObject({ packageId: 'pkg-1' });
+
+      expect(
+        (
           await handleDuplicatePackageLogic(
             {
               packagesService: {
@@ -871,6 +992,61 @@ describe('ai-catalog.logic', () => {
       ).toBe(true);
     });
 
+    it('activates a subscription plan (ai-cmd-dashboard-6.11.3)', async () => {
+      expect(
+        (
+          await handleActivateSubscriptionPlanLogic(
+            {
+              subscriptionsService: {
+                listPlans: jest.fn().mockResolvedValue([]),
+              } as any,
+            } as any,
+            'biz-1',
+            { planName: 'X' },
+          )
+        ).success,
+      ).toBe(false);
+
+      const activateDeps = buildDeps();
+      const activated = await handleActivateSubscriptionPlanLogic(
+        activateDeps,
+        'biz-1',
+        { planName: 'Nail' },
+      );
+      expect(activated.success).toBe(true);
+      expect(activateDeps.subscriptionsService.activatePlan).toHaveBeenCalledWith(
+        'biz-1',
+        'plan-1',
+      );
+
+      const byPlanId = buildDeps();
+      expect(
+        (
+          await handleActivateSubscriptionPlanLogic(byPlanId, 'biz-1', {
+            planId: 'plan-1',
+          })
+        ).success,
+      ).toBe(true);
+
+      const errorDeps = buildDeps({
+        subscriptionsService: {
+          listPlans: jest
+            .fn()
+            .mockResolvedValue([{ id: 'plan-1', name: 'Nail Plan' }]),
+          activatePlan: jest.fn(async () => {
+            throw new Error('Subscription plan is already active');
+          }),
+        } as any,
+      });
+      const errored = await handleActivateSubscriptionPlanLogic(
+        errorDeps,
+        'biz-1',
+        { planId: 'plan-1' },
+      );
+      expect(errored.success).toBe(false);
+      expect(errored.summary).toContain('already active');
+    });
+
     it('assigns subscription to customer', async () => {
       expect(
         (
@@ -1025,16 +1201,16 @@ describe('ai-catalog.logic', () => {
     });
 
     it('create gift card bundle', async () => {
-      expect(
-        (
-          await handleCreateGiftCardBundleLogic(
-            buildDeps(),
-            'biz-1',
-            {},
-            services,
-          )
-        ).success,
-      ).toBe(false);
+      const clarify = await handleCreateGiftCardBundleLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+        services,
+      );
+      expect(clarify.success).toBe(false);
+      // e2e-bug.157 — clarify must say gift card and redirect package phrasing
+      expect(clarify.summary).toMatch(/gift card/i);
+      expect(clarify.summary).toMatch(/Create a package called/i);
       expect(
         (
           await handleCreateGiftCardBundleLogic(

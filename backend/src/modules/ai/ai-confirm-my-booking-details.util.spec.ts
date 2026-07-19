@@ -58,6 +58,25 @@ describe('ai-confirm-my-booking-details.util (ai-cmd-customer-4.3.1)', () => {
     expect(isListMyAppointmentsPrompt('List my appointments')).toBe(true);
   });
 
+  it('e2e-bug.111 — does not steal leave_visit_review prompts', () => {
+    expect(
+      isConfirmMyBookingDetailsPrompt(
+        'leave a 5 star review for my facemassage visit',
+      ),
+    ).toBe(false);
+    expect(
+      isConfirmMyBookingDetailsPrompt(
+        'I want to leave a review for my last visit',
+      ),
+    ).toBe(false);
+    expect(
+      rescueConfirmMyBookingDetailsIntent(
+        'leave a 5 star review for my facemassage visit',
+        'unknown',
+      ),
+    ).toBeNull();
+  });
+
   it('extracts aspect from phrasing', () => {
     expect(
       extractConfirmMyBookingDetailsAspectFromPrompt(

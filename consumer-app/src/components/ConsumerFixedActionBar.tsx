@@ -1,5 +1,5 @@
-import { IonButton } from '@ionic/react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { CONSUMER_FIXED_ACTION_ACTIVE_CLASS } from '../lib/consumer-tab-bar-layout.util.js';
 
 /** Compact fixed bottom CTA — same height as the salon tab bar. */
 export function ConsumerFixedActionBar({
@@ -15,18 +15,25 @@ export function ConsumerFixedActionBar({
   onClick: () => void;
   children?: ReactNode;
 }) {
+  useEffect(() => {
+    document.body.classList.add(CONSUMER_FIXED_ACTION_ACTIVE_CLASS);
+    return () => {
+      document.body.classList.remove(CONSUMER_FIXED_ACTION_ACTIVE_CLASS);
+    };
+  }, []);
+
   return (
     <div className="consumer-fixed-action-bar">
       {children}
-      <IonButton
-        expand="block"
+      <button
+        type="button"
         disabled={disabled}
         className="consumer-fixed-action-bar__button"
-        style={{ '--background': primaryColor }}
+        style={{ ['--consumer-action-button-color' as string]: primaryColor }}
         onClick={onClick}
       >
         {label}
-      </IonButton>
+      </button>
     </div>
   );
 }

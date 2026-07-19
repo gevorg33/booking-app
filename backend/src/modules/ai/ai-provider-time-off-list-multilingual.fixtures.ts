@@ -33,6 +33,10 @@ const TIME_OFF_LIST_I18N: Record<string, { hy: string; ru: string }> = {
     hy: 'Ինչ status ունի իմ time off request-ը',
     ru: 'Какой статус у моего time off запроса',
   },
+  'my-time-off-requests': {
+    hy: 'Ցույց տուր իմ time off request-ները',
+    ru: 'У меня отпуск — покажи статус запроса',
+  },
 };
 
 function buildProviderTimeOffListMultilingualScenarios(): ProviderTimeOffListMultilingualScenario[] {

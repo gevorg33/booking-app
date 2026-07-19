@@ -27,13 +27,17 @@ import {
   handleExplainWhyNoSlotsLogic,
   handleListResourceConflictsLogic,
   handleListSchedulingResourcesLogic,
+  handleListServiceResourceRequirementsLogic,
   handleMyResourceAssignmentsLogic,
   handleProvidersAvailableLaterDaysLogic,
   handleScheduleResourceCompoundLogic,
+  handleSetServiceResourceRequirementsLogic,
   handleUpdateResourceLogic,
   type Sprint29ScheduleResourceLogicDeps,
 } from './ai-schedule-resources.logic.js';
 import { handleExplainMultiServiceSettingsLogic } from './ai-explain-multi-service-settings.logic.js';
+import { dispatchScheduleResourcesLogicIntent } from './ai-schedule-resources-dispatch.util.js';
+import type { ScheduleResourcesDispatchContext } from './ai-schedule-resources-dispatch.build.js';
 
 @Injectable()
 export class AiScheduleResourcesService {
@@ -76,6 +80,19 @@ export class AiScheduleResourcesService {
     return handleListSchedulingResourcesLogic(this.deps, businessId);
   }
 
+  handleListServiceResourceRequirements(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+  ) {
+    return handleListServiceResourceRequirementsLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+    );
+  }
+
   handleCreateResource(businessId: string, params: Record<string, any>) {
     return handleCreateResourceLogic(this.deps, businessId, params);
   }
@@ -94,6 +111,19 @@ export class AiScheduleResourcesService {
     services: Service[],
   ) {
     return handleAssignResourceHoursLogic(
+      this.deps,
+      businessId,
+      params,
+      services,
+    );
+  }
+
+  handleSetServiceResourceRequirements(
+    businessId: string,
+    params: Record<string, any>,
+    services: Service[],
+  ) {
+    return handleSetServiceResourceRequirementsLogic(
       this.deps,
       businessId,
       params,
@@ -206,5 +236,12 @@ export class AiScheduleResourcesService {
       services,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a schedule-resources intent. */
+  dispatchIntent(
+    ctx: ScheduleResourcesDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchScheduleResourcesLogicIntent(this.deps, ctx);
   }
 }

@@ -68,7 +68,8 @@ describe('ai-explain-subscription-vs-one-time.util (ai-cmd-customer-4.16.3)', ()
   });
 
   it('does not steal bare use subscription credit mutate prompts', () => {
-    const prompt = 'Use my subscription for today massage';
+    // Avoid first-visit book cues (today/service) — those are subscription_first_visit.
+    const prompt = 'Use my subscription credit at checkout';
     expect(isExplainSubscriptionVsOneTimePrompt(prompt)).toBe(false);
     expect(isUseSubscriptionCreditPrompt(prompt)).toBe(true);
   });

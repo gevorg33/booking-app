@@ -164,6 +164,75 @@ export async function handleCreateServiceCategoryLogic(
   );
 }
 
+export async function handleUpdateServiceCategoryLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const categoryName = (params.categoryName as string | undefined)?.trim();
+  if (!categoryName) {
+    return failure(
+      'update_service_category',
+      'Specify which category to update (e.g. "Rename category Color to Hair Color").',
+      { clarify: true, missing: ['categoryName'] },
+    );
+  }
+
+  const category = await resolveCategoryByName(deps, businessId, categoryName);
+  if (!category) {
+    return failure(
+      'update_service_category',
+      `Category "${categoryName}" not found.`,
+      { clarify: true, missing: ['categoryName'] },
+    );
+  }
+
+  const newName = (params.newName as string | undefined)?.trim();
+  const updated = await deps.categoryService.update(category.id, businessId, {
+    name: newName || undefined,
+    description: params.description,
+    sortOrder:
+      params.sortOrder != null ? Number(params.sortOrder) : undefined,
+  });
+
+  return success(
+    'update_service_category',
+    `Updated category "${updated.name}".`,
+    { categoryId: updated.id, categoryName: updated.name },
+  );
+}
+
+export async function handleDeleteServiceCategoryLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const categoryName = (params.categoryName as string | undefined)?.trim();
+  if (!categoryName) {
+    return failure(
+      'delete_service_category',
+      'Specify which category to delete (e.g. "Delete category Color").',
+      { clarify: true, missing: ['categoryName'] },
+    );
+  }
+
+  const category = await resolveCategoryByName(deps, businessId, categoryName);
+  if (!category) {
+    return failure(
+      'delete_service_category',
+      `Category "${categoryName}" not found.`,
+      { clarify: true, missing: ['categoryName'] },
+    );
+  }
+
+  await deps.categoryService.remove(category.id, businessId);
+  return success(
+    'delete_service_category',
+    `Deleted category "${category.name}".`,
+    { categoryId: category.id, categoryName: category.name },
+  );
+}
+
 export async function handleBulkCreateCatalogLogic(
   deps: CatalogLogicDeps,
   businessId: string,
@@ -545,6 +614,31 @@ export async function handleDeactivatePackageLogic(
   });
 }
 
+export async function handleActivatePackageLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const packages = await deps.packagesService.listPackages(
+    businessId,
+    'all',
+    true,
+  );
+  const pkg = params.packageId
+    ? packages.find((p) => p.id === params.packageId)
+    : resolveByName(packages, params.packageName as string);
+  if (!pkg) {
+    return failure('activate_package', 'Specify which package to activate.', {
+      clarify: true,
+      missing: ['packageName'],
+    });
+  }
+  await deps.packagesService.activatePackage(businessId, pkg.id);
+  return success('activate_package', `Activated package "${pkg.name}".`, {
+    packageId: pkg.id,
+  });
+}
+
 export async function handleDuplicatePackageLogic(
   deps: CatalogLogicDeps,
   businessId: string,
@@ -738,6 +832,45 @@ export async function handleDeactivateSubscriptionPlanLogic(
   );
 }
 
+export async function handleActivateSubscriptionPlanLogic(
+  deps: CatalogLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const plans = await deps.subscriptionsService.listPlans(
+    businessId,
+    undefined,
+    true,
+  );
+  const plan = params.planId
+    ? plans.find((p) => p.id === params.planId)
+    : resolveByName(plans, (params.planName as string) ?? '');
+  if (!plan) {
+    return failure(
+      'activate_subscription_plan',
+      'Specify which plan to activate.',
+      {
+        clarify: true,
+        missing: ['planName'],
+      },
+    );
+  }
+
+  try {
+    await deps.subscriptionsService.activatePlan(businessId, plan.id);
+    return success(
+      'activate_subscription_plan',
+      `Activated plan "${plan.name}".`,
+      { planId: plan.id },
+    );
+  } catch (err: any) {
+    return failure(
+      'activate_subscription_plan',
+      err?.message ?? 'Could not activate the subscription plan.',
+    );
+  }
+}
+
 export async function handleAssignSubscriptionToCustomerLogic(
   deps: CatalogLogicDeps,
   businessId: string,
@@ -856,7 +989,7 @@ export async function handleCreateGiftCardBundleLogic(
   if (!bundleName || serviceNames.length < 2) {
     return failure(
       'create_gift_card_bundle',
-      'Specify bundle name and at least two services (e.g. "haircut + beard + facial").',
+      'For a gift card product bundle, specify the gift card bundle name and at least two services (e.g. "Create gift card bundle Spa Trio with haircut + beard + facial"). To sell services together as a catalog package (not a gift card), say "Create a package called … combining …".',
       { clarify: true, missing: ['bundleName', 'serviceNames'] },
     );
   }

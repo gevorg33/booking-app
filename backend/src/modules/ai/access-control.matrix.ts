@@ -14,7 +14,7 @@ import {
   EMPTY_STATE_GUIDE_INTENTS,
   PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
 } from './ai-product-guide-empty-state.fixtures.js';
-import { isEmptyStateGuideIntentOnSurface } from './ai-product-guide-empty-state.util.js';
+import { isEmptyStateGuideIntentOnSurface } from './ai-product-guide-empty-state-intent.util.js';
 import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
 
 /**
@@ -116,6 +116,58 @@ export function tierAccessSummary(tier: AccessTier): string {
   return labels[tier];
 }
 
+/**
+ * e2e-bug.163 — intents that contradict TIER_DATA_ACCESS.staff
+ * (no crm_insights / revenue_analytics / owner_operations).
+ * Kept as an explicit set so the deny-list stays auditable against the
+ * documented data-access model.
+ */
+export const STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS = [
+  // Full CRM / PII roster (crm_insights — not limited_customer_info)
+  'list_customers',
+  'lookup_customer',
+  'list_customer_subscriptions',
+  'subscription_usage_history',
+  'list_customer_gift_cards',
+  'list_customer_bookings',
+  'customer_no_show_history',
+  'extend_subscription',
+  'cancel_subscription_admin',
+  'merge_customers',
+  'export_customer_data',
+  'delete_customer_data',
+  'send_reengagement_message',
+  'tag_customer',
+  'update_customer',
+  'lookup_booking_tax_metadata',
+  'summarize_customer_tax_paid',
+  // Revenue / finance analytics
+  'revenue_forecast',
+  'commission_report',
+  'summarize_pl',
+  'export_commissions',
+  'export_accounting',
+  'list_subscription_revenue',
+  'summarize_unpaid',
+  'record_expense',
+  'delete_expense',
+  'list_expenses',
+  'create_commission_rule',
+  'delete_commission_rule',
+  'payout_export',
+  'export_analytics_report',
+  // Gift-card financial mutations / balance access
+  'adjust_gift_card_balance',
+  'extend_gift_card_expiry',
+  'refund_gift_card_order',
+  'cancel_gift_card_order',
+  'validate_gift_card',
+  'gift_card_balance',
+  'update_gift_card_settings',
+  'extend_cancel_window',
+  'resolve_gift_card_change_request',
+] as const;
+
 /** Dashboard AI intents blocked per tier (deny-list). */
 export const DASHBOARD_DENIED_BY_TIER: Record<
   AccessTier,
@@ -127,6 +179,19 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'create_services',
     'cancel_bookings',
     'bulk_smart_cancel',
+    'list_agent_tasks',
+    'rebook_all_from_agent_task',
+    'undo_latest_agent_task',
+    'approve_agent_task',
+    'retry_agent_step',
+    'get_dashboard_overview',
+    'update_business_profile',
+    'set_business_type',
+    'apply_onboarding_catalog',
+    'apply_onboarding_schedule',
+    'skip_onboarding_schedule',
+    'apply_onboarding_playbook',
+    'complete_onboarding',
     'hide_appointments_from_calendar',
     'unhide_appointments_from_calendar',
     'fill_slot_from_waitlist',
@@ -140,6 +205,7 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'analyze_services',
     'summarize_staff',
     'lookup_customer',
+    'list_customers',
     'lookup_booking_tax_metadata',
     'summarize_customer_tax_paid',
     'summarize_waitlist',
@@ -147,7 +213,15 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'list_services',
     'list_employees',
     'list_templates',
+    'list_schedule_blocks',
+    'get_provider_calendar',
     'create_schedule_template',
+    'update_schedule_template',
+    'delete_schedule_templates',
+    'duplicate_schedule_template',
+    'delete_schedule_block',
+    'apply_and_fill',
+    'update_team_member_role',
     'optimize_schedule',
     'fill_unused_slots',
     'list_schedule_gaps',
@@ -160,6 +234,13 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'transfer_employee_services',
     'summarize_utilization',
     'summarize_customers',
+    'summarize_ai_briefing',
+    'summarize_ai_weekly_report',
+    'explain_ai_audit_log',
+    'explain_ai_usage_analytics',
+    'explain_ai_capabilities',
+    'summarize_ai_settings',
+    'configure_ai_autopilot',
     'setup_week_schedule',
     'swap_schedules',
     'rebalance_capacity',
@@ -186,6 +267,9 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'list_waitlist_entries',
     'offer_waitlist_slot',
     'open_billing_settings',
+    'start_billing_checkout',
+    'confirm_billing_checkout',
+    'explain_plan_entitlements',
     'summarize_loyalty_program',
     'upload_patient_result',
     'explain_patient_results',
@@ -193,6 +277,26 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'list_abnormal_results',
     'enter_test_result',
     'release_test_result',
+    'transition_specimen',
+    'explain_lab_result_history',
+    'update_clinical_profile',
+    'dismiss_patient_alert',
+    'release_patient_document',
+    'create_encounter_addendum',
+    'update_encounter_by_booking',
+    'list_customer_staff_notes',
+    'add_customer_staff_note',
+    'staff_submit_intake_answers',
+    'create_questionnaire',
+    'update_questionnaire',
+    'publish_questionnaire',
+    'create_test_type',
+    'update_test_type',
+    'delete_test_type',
+    'create_test_panel',
+    'update_test_panel',
+    'set_test_panel_items',
+    'import_clinic_catalog_csv',
   ]),
   staff: new Set([
     'list_employees',
@@ -214,6 +318,14 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'list_waitlist_entries',
     'offer_waitlist_slot',
     'open_billing_settings',
+    'start_billing_checkout',
+    'confirm_billing_checkout',
+    'explain_plan_entitlements',
+    'explain_ai_audit_log',
+    'explain_ai_usage_analytics',
+    'explain_ai_capabilities',
+    'summarize_ai_settings',
+    'configure_ai_autopilot',
     'summarize_loyalty_program',
     'create_services',
     'create_service',
@@ -229,8 +341,39 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'update_service_prices',
     'staff_service_matrix',
     'list_templates',
+    'list_schedule_blocks',
+    'get_provider_calendar',
     'create_schedule_template',
+    'update_schedule_template',
+    'delete_schedule_templates',
+    'duplicate_schedule_template',
+    'delete_schedule_block',
+    'apply_and_fill',
+    'update_team_member_role',
+    'create_questionnaire',
+    'update_questionnaire',
+    'publish_questionnaire',
+    'create_test_type',
+    'update_test_type',
+    'delete_test_type',
+    'create_test_panel',
+    'update_test_panel',
+    'set_test_panel_items',
+    'import_clinic_catalog_csv',
     'bulk_smart_cancel',
+    'list_agent_tasks',
+    'rebook_all_from_agent_task',
+    'undo_latest_agent_task',
+    'approve_agent_task',
+    'retry_agent_step',
+    'get_dashboard_overview',
+    'update_business_profile',
+    'set_business_type',
+    'apply_onboarding_catalog',
+    'apply_onboarding_schedule',
+    'skip_onboarding_schedule',
+    'apply_onboarding_playbook',
+    'complete_onboarding',
     'hide_appointments_from_calendar',
     'unhide_appointments_from_calendar',
     'configure_business_currency',
@@ -248,9 +391,16 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'list_sub_processors',
     'explain_gdpr_checklist',
     'open_compliance_dashboard',
+    'explain_enterprise_trust',
+    'explain_strategy_eval',
+    'update_strategy_eval',
     'configure_stacked_tax_rules',
     'set_service_tax_rate',
     'configure_business_languages',
+    'configure_referral_program',
+    'configure_staff_message_templates',
+    'create_external_doctor',
+    'update_external_doctor',
     'configure_business_date_format',
     'configure_package_localized_names',
     'configure_tour_service',
@@ -263,8 +413,9 @@ export const DASHBOARD_DENIED_BY_TIER: Record<
     'migrate_dashboard_date_display',
     'notify_patient_result_ready',
     'bulk_update_service_currency',
+    ...STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS,
   ]),
-  manager: new Set(['optimize_schedule']),
+  manager: new Set(['optimize_schedule', 'update_team_member_role']),
   owner: new Set(),
 };
 
@@ -337,13 +488,41 @@ export function isCustomerIntentAllowed(
   return tier === 'client';
 }
 
+const REVENUE_FINANCE_ACTIONS = new Set<string>([
+  'payment_sweep',
+  'summarize_utilization',
+  'revenue_forecast',
+  'commission_report',
+  'summarize_pl',
+  'export_commissions',
+  'export_accounting',
+  'list_subscription_revenue',
+  'summarize_unpaid',
+  'record_expense',
+  'delete_expense',
+  'list_expenses',
+  'create_commission_rule',
+  'delete_commission_rule',
+  'payout_export',
+  'export_analytics_report',
+  'adjust_gift_card_balance',
+  'extend_gift_card_expiry',
+  'refund_gift_card_order',
+  'cancel_gift_card_order',
+  'validate_gift_card',
+  'gift_card_balance',
+  'update_gift_card_settings',
+  'extend_cancel_window',
+  'resolve_gift_card_change_request',
+]);
+
 /** Revenue / financial intents or metrics — manager+ only. */
 export function isRevenueRelatedRequest(
   action: string,
   params: Record<string, unknown>,
   prompt: string,
 ): boolean {
-  if (['payment_sweep', 'summarize_utilization'].includes(action)) return true;
+  if (REVENUE_FINANCE_ACTIONS.has(action)) return true;
   if (action === 'summarize_bookings') {
     const metric = String(params.bookingMetric ?? '').toLowerCase();
     if (metric === 'revenue' || metric === 'unpaid') return true;
@@ -364,6 +543,32 @@ export function isRevenueRelatedRequest(
   if (action === 'summarize_staff') return true;
   if (action === 'summarize_customers') return true;
   return false;
+}
+
+const CRM_INSIGHTS_ACTIONS = new Set<string>([
+  'list_customers',
+  'lookup_customer',
+  'summarize_customers',
+  'list_customer_subscriptions',
+  'subscription_usage_history',
+  'list_customer_gift_cards',
+  'list_customer_bookings',
+  'customer_no_show_history',
+  'extend_subscription',
+  'cancel_subscription_admin',
+  'merge_customers',
+  'export_customer_data',
+  'delete_customer_data',
+  'send_reengagement_message',
+  'tag_customer',
+  'update_customer',
+  'lookup_booking_tax_metadata',
+  'summarize_customer_tax_paid',
+]);
+
+/** Full CRM / customer PII roster — manager+ only (e2e-bug.163). */
+export function isCrmInsightsRequest(action: string): boolean {
+  return CRM_INSIGHTS_ACTIONS.has(action);
 }
 
 /** Staff directory / cross-provider analytics — manager+ only. */

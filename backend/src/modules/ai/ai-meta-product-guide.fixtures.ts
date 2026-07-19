@@ -114,7 +114,13 @@ export const META_PRODUCT_GUIDE_RESCUE_SCENARIOS: readonly MetaProductGuideRescu
       id: 'provider-swipe-approval',
       intent: 'explain_assistant_approval',
       surface: 'provider',
-      samplePrompt: 'Why do I swipe to confirm AI changes?',
+      // Deliberately avoids the "swipe to confirm" phrasing shared with
+      // PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS's 'assistant-confirm-swipe'
+      // scenario (ai-provider-product-guide.fixtures.ts) — rescueProductGuideIntent
+      // checks the provider-specific rescue before this meta one for surface
+      // 'provider', so an overlapping sample prompt was always won by
+      // explain_assistant_confirm_swipe instead of exercising this scenario.
+      samplePrompt: 'Why do I need assistant approval before AI changes apply?',
       prompt:
         /\b(?:swipe\s+to\s+confirm|confirm\s+swipe|what\s+will\s+change\s+before\s+confirm|bulk\s+confirm\s+preview|assistant\s+approval)\b/i,
       fromActions: [

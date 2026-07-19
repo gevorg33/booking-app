@@ -153,7 +153,7 @@ export default function AcceptInvitePage() {
                 />
               </IonItem>
               <IonItem>
-                <IonLabel position="stacked">Last name</IonLabel>
+                <IonLabel position="stacked">{t('auth.lastName')}</IonLabel>
                 <IonInput
                   value={form.lastName}
                   onIonInput={(e) => setForm({ ...form, lastName: e.detail.value ?? '' })}

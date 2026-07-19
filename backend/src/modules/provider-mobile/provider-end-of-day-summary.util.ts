@@ -16,6 +16,7 @@ export interface EodEmployeeSummary {
   employeeId: string;
   appointmentCount: number;
   unpaidCount: number;
+  noShowCount: number;
   gapsTomorrow: number;
 }
 
@@ -32,6 +33,7 @@ export function aggregateEodSummaries(
       employeeId: booking.employeeId,
       appointmentCount: 0,
       unpaidCount: 0,
+      noShowCount: 0,
       gapsTomorrow: gapsTomorrowByEmployee.get(booking.employeeId) ?? 0,
     };
     existing.appointmentCount += 1;
@@ -41,6 +43,9 @@ export function aggregateEodSummaries(
       booking.paymentStatus === PaymentStatus.PENDING
     ) {
       existing.unpaidCount += 1;
+    }
+    if (booking.status === BookingStatus.NO_SHOW) {
+      existing.noShowCount += 1;
     }
     byKey.set(key, existing);
   }
@@ -59,6 +64,11 @@ export function formatEodPushBody(summary: EodEmployeeSummary): string {
   ];
   if (summary.unpaidCount > 0) {
     parts.push(`${summary.unpaidCount} unpaid`);
+  }
+  if (summary.noShowCount > 0) {
+    parts.push(
+      `${summary.noShowCount} no-show${summary.noShowCount === 1 ? '' : 's'}`,
+    );
   }
   if (summary.gapsTomorrow > 0) {
     parts.push(
@@ -81,6 +91,7 @@ export function buildEodPushPayload(summary: EodEmployeeSummary): {
     body,
     url: '/provider/today',
     pushType: 'end_of_day',
-    aiPrompt: "Summarize today's appointments and flag anything unpaid",
+    aiPrompt:
+      "Summarize today's appointments and flag anything unpaid or no-show",
   };
 }

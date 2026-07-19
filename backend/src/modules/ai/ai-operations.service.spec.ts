@@ -21,6 +21,11 @@ describe('AiOperationsService (thin wrapper)', () => {
       summary: 'done',
       requiresApproval: true,
     }),
+    approveTask: jest.fn().mockResolvedValue({
+      success: true,
+      action: 'update_service_prices',
+      summary: 'approved',
+    }),
   };
   const planBuilder = {
     wrapOperationsPlan: jest.fn((_b, intent, steps, meta) => ({
@@ -69,6 +74,7 @@ describe('AiOperationsService (thin wrapper)', () => {
     planBuilder as any,
     employeeService as any,
     invitationsService as any,
+    { updateRoleByEmployeeId: jest.fn() } as any,
   );
 
   beforeEach(() => {
@@ -169,22 +175,40 @@ describe('AiOperationsService (thin wrapper)', () => {
     orchestration.executePlan.mockResolvedValueOnce({
       success: true,
       action: 'update_service_prices',
-      summary: 'ok',
+      summary: 'LLM may invent USD 26 here',
     });
-    expect(
-      (
-        await service.handleUpdateServicePrices(
-          'biz-1',
-          'Raise all massage prices 10%',
-          {},
-          services,
-        )
-      ).action,
-    ).toBe('update_service_prices');
+    const priceResult = await service.handleUpdateServicePrices(
+      'biz-1',
+      'Raise all massage prices 10%',
+      {},
+      services,
+    );
+    expect(priceResult.action).toBe('update_service_prices');
+    expect(priceResult.summary).toContain('Massage');
+    expect(priceResult.summary).toContain('110');
+    expect(priceResult.summary).not.toContain('USD 26');
     expect(
       (await service.handleUpdateServicePrices('biz-1', 'x', {}, services))
         .success,
     ).toBe(false);
+
+    // e2e-bug.164 — pending approval after AI confirm must not look like success.
+    orchestration.executePlan.mockResolvedValueOnce({
+      success: true,
+      action: 'update_service_prices',
+      summary: 'will be increased',
+      requiresApproval: true,
+      // no taskId → cannot auto-approve; must not claim completion
+    });
+    const pending = await service.handleUpdateServicePrices(
+      'biz-1',
+      'Raise all massage prices 10%',
+      {},
+      services,
+      'u1',
+    );
+    expect(pending.success).toBe(false);
+    expect(pending.details?.requiresExecutionConfirmation).toBe(true);
 
     expect(
       service.prepareStaffServiceMatrixPlan(

@@ -6,6 +6,7 @@ import {
   IonItem,
   IonLabel,
   IonList,
+  IonSearchbar,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -31,7 +32,10 @@ import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js'
 import { useOnlineStatus } from '../lib/use-online-status.js';
 import { fetchPublicPackages } from '../services/public-api.js';
 import { isPublicTourService } from '../lib/tour-service.util.js';
-import { groupServicesByCategory } from '../lib/provider-booking.util.js';
+import {
+  filterServicesBySearchQuery,
+  groupServicesByCategory,
+} from '../lib/provider-booking.util.js';
 import {
   buildMultiServiceSchedulePath,
   getDisabledMultiServiceIds,
@@ -42,6 +46,8 @@ import {
   uniqueMultiServiceIds,
   validateLocalMultiServiceCart,
 } from '../lib/multi-service-booking.js';
+import { resolveBlockedMultiServiceAddReason } from '../lib/multi-service-selection-feedback.util.js';
+import { shouldShowServicesCatalogEntry } from '../lib/package-booking.js';
 import { ConsumerTabPageShell } from '../components/ConsumerTabPageShell.js';
 
 export default function ServicesPage({
@@ -64,27 +70,42 @@ export default function ServicesPage({
   const showCachedHint = fromCache || (!online && services.length > 0 && !isFetching);
   const multiEnabled = profile.multiService?.enabled === true;
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectionBlockMessage, setSelectionBlockMessage] = useState('');
+  const [serviceSearch, setServiceSearch] = useState('');
   const packagesQuery = useQuery({
     queryKey: ['public-packages', slug],
     queryFn: () => fetchPublicPackages(slug),
     enabled: Boolean(slug && online),
   });
   const hasPackages = (packagesQuery.data?.length ?? 0) > 0;
-  const showLegacyBookingEntry = services.length > 0 && !multiEnabled;
+  // e2e-bug.7 — keep packages reachable when multi-service is enabled.
+  const showLegacyBookingEntry = shouldShowServicesCatalogEntry({
+    hasPackages,
+    multiServiceEnabled: multiEnabled,
+    hasServices: services.length > 0,
+  });
   const legacyBookingLabel = hasPackages ? copy.packagesTitle : copy.anySpecialist;
   const primary = profile.branding.primaryColor || '#7c3aed';
+  const visibleServices = useMemo(
+    () => filterServicesBySearchQuery(services, serviceSearch),
+    [serviceSearch, services],
+  );
   const tourServices = useMemo(
-    () => services.filter((service) => isPublicTourService(service)),
-    [services],
+    () => visibleServices.filter((service) => isPublicTourService(service)),
+    [visibleServices],
   );
   const regularServices = useMemo(
-    () => services.filter((service) => !isPublicTourService(service)),
-    [services],
+    () => visibleServices.filter((service) => !isPublicTourService(service)),
+    [visibleServices],
   );
   const groupedServices = useMemo(
     () => groupServicesByCategory(regularServices, copy.uncategorizedServices),
     [copy.uncategorizedServices, regularServices],
   );
+  const searchHasNoMatches =
+    serviceSearch.trim().length > 0 &&
+    tourServices.length === 0 &&
+    groupedServices.length === 0;
   const selectedServices = useMemo(
     () => services.filter((service) => selectedServiceIds.includes(service.id)),
     [selectedServiceIds, services],
@@ -138,15 +159,63 @@ export default function ServicesPage({
     persistMultiServiceCart(slug, selectedServiceIds);
   }, [multiEnabled, selectedServiceIds, slug]);
 
+  const multiSettings = profile.multiService
+    ? {
+        incompatiblePairMode: profile.multiService.incompatiblePairMode ?? 'service',
+        incompatiblePairs: profile.multiService.incompatiblePairs ?? [],
+        incompatibleCategoryPairs: profile.multiService.incompatibleCategoryPairs ?? [],
+        maxServiceCount: profile.multiService.maxServiceCount,
+        maxDurationMinutes: profile.multiService.maxDurationMinutes,
+        turnoverBufferMinutes: profile.multiService.turnoverBufferMinutes ?? 5,
+      }
+    : null;
+
+  const explainBlockedAdd = useCallback(
+    (serviceId: string) => {
+      if (!multiSettings) return;
+      const reason = resolveBlockedMultiServiceAddReason({
+        serviceId,
+        selectedIds: selectedServiceIds,
+        services,
+        settings: multiSettings,
+      });
+      if (!reason) return;
+      if (reason === 'max_count') {
+        setSelectionBlockMessage(
+          formatCopy(copy.multiServiceMaxCountBlocked, {
+            count: multiSettings.maxServiceCount,
+          }),
+        );
+        return;
+      }
+      if (reason === 'duration') {
+        setSelectionBlockMessage(
+          formatCopy(copy.multiServiceDurationBlocked, {
+            limit: multiSettings.maxDurationMinutes,
+          }),
+        );
+        return;
+      }
+      setSelectionBlockMessage(copy.multiServiceIncompatibleBlocked);
+    },
+    [copy, multiSettings, selectedServiceIds, services],
+  );
+
   const toggleService = useCallback(
     (serviceId: string) => {
-      setSelectedServiceIds((prev) => {
-        if (prev.includes(serviceId)) return prev.filter((id) => id !== serviceId);
-        if (disabledServiceIds.has(serviceId)) return prev;
-        return [...prev, serviceId];
-      });
+      if (selectedServiceIds.includes(serviceId)) {
+        setSelectionBlockMessage('');
+        setSelectedServiceIds((prev) => prev.filter((id) => id !== serviceId));
+        return;
+      }
+      if (disabledServiceIds.has(serviceId)) {
+        explainBlockedAdd(serviceId);
+        return;
+      }
+      setSelectionBlockMessage('');
+      setSelectedServiceIds((prev) => [...prev, serviceId]);
     },
-    [disabledServiceIds],
+    [disabledServiceIds, explainBlockedAdd, selectedServiceIds],
   );
 
   const onContinue = useCallback(() => {
@@ -187,11 +256,11 @@ export default function ServicesPage({
     <ConsumerTabPageShell embedded={embedded}>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Services</IonTitle>
+          <IonTitle>{copy.servicesSection}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className={contentClassName}>
-          <BookingProgressIndicator pathname={location.pathname} />
+          <BookingProgressIndicator pathname={location.pathname} copy={copy} />
 
           <IonButton
             expand="block"
@@ -239,23 +308,13 @@ export default function ServicesPage({
             <p style={{ color: '#6b7280' }}>{copy.offlineStatusOffline}</p>
           ) : (
             <>
-              {tourServices.map((service) => (
-                <ConsumerTourServiceCard
-                  key={service.id}
-                  service={service}
-                  tenantCurrency={profile.currency}
-                  selected={false}
-                  primary={primary}
-                  copy={copy}
-                  onSelect={() => {
-                    track('onboarding_step_viewed', {
-                      onboardingStep: 'service',
-                      serviceId: service.id,
-                    });
-                    history.push(buildSalonPath(slug, `/book/${service.id}`));
-                  }}
-                />
-              ))}
+              <IonSearchbar
+                value={serviceSearch}
+                debounce={200}
+                placeholder={copy.servicesSearchPlaceholder}
+                onIonInput={(event) => setServiceSearch(event.detail.value ?? '')}
+                style={{ paddingInline: 0, marginBottom: 8 }}
+              />
 
               {hasMultiSelection && cartTotals ? (
                 <div
@@ -276,62 +335,107 @@ export default function ServicesPage({
                       price: formatPublicMoney(cartTotals.price, cartTotals.currency, profile.currency),
                     })}
                   </p>
+                  {/* e2e-bug.24 — surface validateLocalMultiServiceCart messages (were unused). */}
+                  {cartErrors.map((error) => (
+                    <p key={error} role="alert" style={{ margin: '6px 0 0', color: '#b91c1c', fontSize: 14 }}>
+                      {error}
+                    </p>
+                  ))}
                 </div>
               ) : null}
 
-              {groupedServices.map((group) => (
-                <div key={group.key} style={{ marginBottom: 20 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{group.categoryName}</h2>
-                  <IonList>
-                    {group.services.map((service) => {
-                      const checked = selectedServiceIds.includes(service.id);
-                      const disabled = multiEnabled && disabledServiceIds.has(service.id) && !checked;
+              {selectionBlockMessage ? (
+                <p role="alert" style={{ margin: '0 0 12px', color: '#b91c1c', fontSize: 14 }}>
+                  {selectionBlockMessage}
+                </p>
+              ) : null}
 
-                      return (
-                        <IonItem
-                          key={service.id}
-                          button
-                          detail={!multiEnabled}
-                          disabled={disabled}
-                          onClick={() => {
-                            if (multiEnabled) {
-                              if (!disabled || checked) toggleService(service.id);
-                              return;
-                            }
-                            track('onboarding_step_viewed', {
-                              onboardingStep: 'service',
-                              serviceId: service.id,
-                            });
-                            history.push(buildSalonPath(slug, `/book/${service.id}`));
-                          }}
-                        >
-                          {multiEnabled ? (
-                            <IonCheckbox
-                              slot="start"
-                              checked={checked}
-                              disabled={disabled}
-                              onIonChange={() => toggleService(service.id)}
-                              onClick={(event) => event.stopPropagation()}
-                            />
-                          ) : null}
-                          <IonLabel>
-                            <h2>{service.name}</h2>
-                            <ConsumerClinicServiceBadges service={service} copy={copy} />
-                            <p>
-                              {service.durationMinutes} min ·{' '}
-                              {formatPublicMoney(service.price, service.currency, profile.currency)}
-                              {shouldShowInclusiveTaxBadge(profile.tax) && profile.tax
-                                ? ` · ${formatInclusiveTaxBadge(profile.tax)}`
-                                : ''}
-                            </p>
-                            {service.description ? <p>{service.description}</p> : null}
-                          </IonLabel>
-                        </IonItem>
-                      );
-                    })}
-                  </IonList>
-                </div>
-              ))}
+              {searchHasNoMatches ? (
+                <p style={{ color: '#6b7280' }}>{copy.servicesSearchEmpty}</p>
+              ) : (
+                <>
+                  {tourServices.map((service) => (
+                    <ConsumerTourServiceCard
+                      key={service.id}
+                      service={service}
+                      tenantCurrency={profile.currency}
+                      selected={false}
+                      primary={primary}
+                      copy={copy}
+                      onSelect={() => {
+                        track('onboarding_step_viewed', {
+                          onboardingStep: 'service',
+                          serviceId: service.id,
+                        });
+                        history.push(buildSalonPath(slug, `/book/${service.id}`));
+                      }}
+                    />
+                  ))}
+
+                  {groupedServices.map((group) => (
+                    <div key={group.key} style={{ marginBottom: 20 }}>
+                      <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>
+                        {group.categoryName}
+                      </h2>
+                      <IonList>
+                        {group.services.map((service) => {
+                          const checked = selectedServiceIds.includes(service.id);
+                          const blocked =
+                            multiEnabled && disabledServiceIds.has(service.id) && !checked;
+
+                          return (
+                            <IonItem
+                              key={service.id}
+                              button
+                              detail={!multiEnabled}
+                              // e2e-bug.24 — keep clickable so blocked taps can explain why.
+                              disabled={false}
+                              style={blocked ? { opacity: 0.55 } : undefined}
+                              onClick={() => {
+                                if (multiEnabled) {
+                                  toggleService(service.id);
+                                  return;
+                                }
+                                track('onboarding_step_viewed', {
+                                  onboardingStep: 'service',
+                                  serviceId: service.id,
+                                });
+                                history.push(buildSalonPath(slug, `/book/${service.id}`));
+                              }}
+                            >
+                              {multiEnabled ? (
+                                <IonCheckbox
+                                  slot="start"
+                                  checked={checked}
+                                  disabled={blocked}
+                                  onIonChange={() => toggleService(service.id)}
+                                  onClick={(event) => event.stopPropagation()}
+                                />
+                              ) : null}
+                              <IonLabel>
+                                <h2>{service.name}</h2>
+                                <ConsumerClinicServiceBadges service={service} copy={copy} />
+                                <p>
+                                  {service.durationMinutes} min ·{' '}
+                                  {formatPublicMoney(
+                                    service.price,
+                                    service.currency,
+                                    profile.currency,
+                                  )}
+                                  {shouldShowInclusiveTaxBadge(profile.tax) && profile.tax
+                                    ? ` · ${formatInclusiveTaxBadge(profile.tax)}`
+                                    : ''}
+                                </p>
+                                {service.description ? <p>{service.description}</p> : null}
+                              </IonLabel>
+                            </IonItem>
+                          );
+                        })}
+                      </IonList>
+                    </div>
+                  ))}
+                </>
+              )}
             </>
           )}
         </IonContent>

@@ -10,6 +10,7 @@ import { BlockSchedule } from './entities/block-schedule.entity.js';
 import { BlockScheduleInstance } from './entities/block-schedule-instance.entity.js';
 import { Booking } from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
+import { Business } from '../business/entities/business.entity.js';
 import { ScheduleService } from './schedule.service.js';
 import { TemplateApplyService } from './services/template-apply.service.js';
 import { BlockScheduleService } from './services/block-schedule.service.js';
@@ -29,6 +30,7 @@ import { EventStoreModule } from '../../events/store/event-store.module.js';
       BlockScheduleInstance,
       Booking,
       Employee,
+      Business,
     ]),
     EventStoreModule,
   ],

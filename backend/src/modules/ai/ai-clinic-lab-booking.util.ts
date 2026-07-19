@@ -52,8 +52,13 @@ export const PROVIDER_CLINIC_LAB_BOOKING_READ_INTENTS = [
   'list_patient_pending_lab_requests',
 ] as const;
 
+export const PROVIDER_CLINIC_LAB_BOOKING_MUTATE_INTENTS = [
+  'notify_patient_book_lab',
+] as const;
+
 export const PROVIDER_CLINIC_LAB_BOOKING_INTENTS = [
   ...PROVIDER_CLINIC_LAB_BOOKING_READ_INTENTS,
+  ...PROVIDER_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
 ] as const;
 
 export type DashboardClinicLabBookingIntent =
@@ -104,6 +109,11 @@ const STAFF_BOOK_VERB = new RegExp(
   String.raw`\b(book|schedule|reserve)\b|(?:\p{L}*ամրագր${UNICODE_WORD_SUFFIX}|ամրագր${UNICODE_WORD_SUFFIX}|\p{L}*գրանց${UNICODE_WORD_SUFFIX}|գրանց${UNICODE_WORD_SUFFIX})|(?:[Зз]апиш${UNICODE_WORD_SUFFIX}|[Зз]абронир${UNICODE_WORD_SUFFIX}|[Зз]арезервир${UNICODE_WORD_SUFFIX}|[Нн]азнач${UNICODE_WORD_SUFFIX}|[Зз]апланир${UNICODE_WORD_SUFFIX})|(?:կարո[՞?]ղ\s+եք|можете)`,
   'iu',
 );
+const STAFF_BOOK_LAB_ORDER_TIME_CUE = new RegExp(
+  String.raw`\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening|\d{1,2}\s*(?:am|pm)|\d{1,2}:\d{2})\b`,
+  'i',
+);
+
 const STAFF_BOOK_TARGET = new RegExp(
   String.raw`\b(lab\s+collection|blood\s+draw|collection\s+appointment|collection\s+slot|draw\s+slot|draw\s+visit|collection\s+for)\b|(?:լաբ(?:որատոր)?\s*հավաք|արյան\s*վերց|հավաքման\s*այց|հավաքման\s*սլոթ|հավաքում)|(?:лабораторн${UNICODE_WORD_SUFFIX}\s+заказ${UNICODE_WORD_SUFFIX}|лабораторн${UNICODE_WORD_SUFFIX}\s+забор|забор\s+крови|сбор\s+образц|лабораторн${UNICODE_WORD_SUFFIX}\s+сбор|при[её]м\s+на\s+забор)`,
   'iu',
@@ -207,7 +217,18 @@ export function isPushLabBookingToPatientPrompt(prompt: string): boolean {
   return PUSH_VERB.test(prompt) && PUSH_TARGET.test(prompt);
 }
 
+/** ai-cmd-provider-5.19.4 — provider mobile: remind/nudge a patient to self-book pending lab collection. Deliberately narrower than isPushLabBookingToPatientPrompt (which also matches dashboard's push/send/notify verbs) so it doesn't steal that shared vocabulary from push_lab_booking_to_patient on other surfaces. */
+export function isNotifyPatientBookLabPrompt(prompt: string): boolean {
+  return /\b(remind|nudge)\b/i.test(prompt) && PUSH_TARGET.test(prompt);
+}
+
 export function isStaffBookLabCollectionPrompt(prompt: string): boolean {
+  if (
+    BOOK_LAB_FROM_ORDER_BLOCK.test(prompt) &&
+    !STAFF_BOOK_LAB_ORDER_TIME_CUE.test(prompt)
+  ) {
+    return false;
+  }
   if (
     LIST_QUERY_VERB.test(prompt) &&
     LIST_LAB_BOOKING_STATUS_CONTEXT.test(prompt) &&
@@ -354,7 +375,7 @@ function extractLabBookingPatientNameFromPrompt(prompt: string): string | null {
   if (patientNamed?.[1]) return patientNamed[1].trim();
 
   const haveSelfBook = prompt.match(
-    /\b(?:have|let|ask)\s+([A-Za-z][\w-]*)\s+(?:self[- ]?book|to\s+book)\b/i,
+    /\b(?:have|let|ask|remind|nudge)\s+([A-Za-z][\w-]*)\s+(?:self[- ]?book|to\s+book)\b/i,
   );
   if (haveSelfBook?.[1]) return haveSelfBook[1].trim();
 
@@ -627,7 +648,12 @@ export function parsePushLabBookingFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedPushLabBookingRequest | null {
-  if (!isPushLabBookingToPatientPrompt(prompt)) return null;
+  if (
+    !isPushLabBookingToPatientPrompt(prompt) &&
+    !isNotifyPatientBookLabPrompt(prompt)
+  ) {
+    return null;
+  }
 
   const orderId =
     (typeof params.orderId === 'string' && params.orderId.trim()
@@ -958,6 +984,13 @@ export function rescueProviderClinicLabBookingIntent(
     return {
       action: 'list_patient_pending_lab_requests',
       rescueReason: 'list_patient_pending_lab_requests',
+    };
+  }
+
+  if (isNotifyPatientBookLabPrompt(prompt)) {
+    return {
+      action: 'notify_patient_book_lab',
+      rescueReason: 'notify_patient_book_lab',
     };
   }
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { hasAcceptedCookies } from './cookie-consent';
+import { allowsNonEssentialTracking } from './cookie-consent';
 import {
   bootstrapColdAnalyticsSession,
   buildAnalyticsDeviceContext,
@@ -33,6 +33,8 @@ export interface AppAnalyticsContext {
   locale?: string;
   appVersion?: string;
   appSurface: AppAnalyticsSurface;
+  /** When false, analytics may run without a banner choice. When true/omitted, require accept. */
+  cookieBannerEnabled?: boolean;
 }
 
 export interface AppAnalyticsEventProps {
@@ -90,15 +92,29 @@ export function getOrCreateAnonId(tenantSlug: string): string {
   return created;
 }
 
-export function syncAnalyticsConsentFromCookies(tenantSlug: string): boolean {
-  consentGranted = hasAcceptedCookies(tenantSlug);
+export function syncAnalyticsConsentFromCookies(
+  tenantSlug: string,
+  options?: { cookieBannerEnabled?: boolean | null },
+): boolean {
+  const bannerEnabled =
+    options?.cookieBannerEnabled ?? context?.cookieBannerEnabled;
+  const next = allowsNonEssentialTracking(tenantSlug, {
+    cookieBannerEnabled: bannerEnabled,
+  });
+  // Drop queued non-essential events when consent is revoked / never granted.
+  if (!next) {
+    queue = [];
+  }
+  consentGranted = next;
   return consentGranted;
 }
 
 export function configureAppAnalytics(next: AppAnalyticsContext): void {
   context = next;
   if (next.tenantSlug) {
-    syncAnalyticsConsentFromCookies(next.tenantSlug);
+    syncAnalyticsConsentFromCookies(next.tenantSlug, {
+      cookieBannerEnabled: next.cookieBannerEnabled,
+    });
   }
 }
 

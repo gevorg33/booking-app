@@ -35,9 +35,15 @@ describe('ai-staff-operations.logic (ai-cmd-ext-2.5–2.8)', () => {
       { id: 'svc-2', name: 'Haircut' },
     ]),
   };
+  const teamMembersService = {
+    updateRoleByEmployeeId: jest.fn(async (_b: string, _e: string, role: string) => ({
+      role,
+    })),
+  };
   const deps = {
     employeeService,
     invitationsService,
+    teamMembersService,
     businessRepo,
     serviceRepo,
   };

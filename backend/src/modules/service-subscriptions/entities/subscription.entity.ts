@@ -126,6 +126,9 @@ export class CustomerSubscription {
   @Column({ default: 'USD' })
   currency: string;
 
+  @Column({ type: 'jsonb', default: {} })
+  metadata: Record<string, unknown>;
+
   @CreateDateColumn()
   createdAt: Date;
 

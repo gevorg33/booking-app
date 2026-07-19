@@ -4,6 +4,7 @@ import {
   decomposePushNotificationsCompoundPrompt,
   isExplainLastPushPrompt,
   isOpenBookingFromPushPrompt,
+  isConfirmBookingFromPushRescuePrompt,
   isOfflineQueueStatusPrompt,
   isRetryOfflineActionPrompt,
   isDismissPushPrompt,
@@ -13,13 +14,19 @@ import {
   isTestPushPrompt,
   isNotificationHistoryPrompt,
   isToggleBusinessEmailOnCustomerChangePrompt,
+  extractBusinessEmailOnCustomerChangeToggleFromPrompt,
   isEnableNotificationsPrompt,
   isAppointmentReminderPreferencesPrompt,
   isSummarizeDayOnlyPrompt,
+  isMarkAllNotificationsReadPrompt,
+  isMarkBookingNotificationsReadPrompt,
+  isMarkNotificationReadPrompt,
+  isListPushNotificationsPrompt,
   resolveCommandPromptText,
   extractBookingIdFromPushPrompt,
   extractPushRecipientNamesFromPrompt,
   extractNotificationToggleFromPrompt,
+  classifyPushNotificationsSegment,
   resolveNotificationEnabledFromPrompt,
   resolveSmsRemindersWhenEnabling,
   extractReminderHoursFromPrompt,
@@ -27,10 +34,29 @@ import {
   explainLastPushSummary,
   buildNewBookingPushActionsGuide,
   buildOfflineQueueStatusSummary,
+  buildProviderExplainAppUpdateGateSummary,
+  buildProviderExplainOfflineModeSummary,
   buildRetryOfflineActionGuidance,
+  isProviderExplainAppUpdateGatePrompt,
+  isProviderExplainOfflineModePrompt,
+  summarizeProviderPushNotificationCenter,
   PUSH_NOTIFICATIONS_INTENTS,
   isPushNotificationsIntent,
 } from './ai-push-notifications.util.js';
+import { PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-open-booking-from-push.fixtures.js';
+import { PROVIDER_CONFIRM_BOOKING_FROM_PUSH_PROMPT_SCENARIOS } from './ai-provider-confirm-booking-from-push.fixtures.js';
+import { PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS } from './ai-provider-dismiss-push.fixtures.js';
+import { PROVIDER_MARK_NOTIFICATION_READ_PROMPT_SCENARIOS } from './ai-provider-mark-notification-read.fixtures.js';
+import { PROVIDER_EXPLAIN_LAST_PUSH_PROMPT_SCENARIOS } from './ai-provider-explain-last-push.fixtures.js';
+import { PROVIDER_NEW_BOOKING_PUSH_ACTIONS_PROMPT_SCENARIOS } from './ai-provider-new-booking-push-actions.fixtures.js';
+import { PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS } from './ai-provider-offline-queue-status.fixtures.js';
+import { PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS } from './ai-provider-retry-offline-action.fixtures.js';
+import { PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS } from './ai-provider-explain-offline-mode.fixtures.js';
+import { PROVIDER_EXPLAIN_APP_UPDATE_GATE_PROMPT_SCENARIOS } from './ai-provider-explain-app-update-gate.fixtures.js';
+import {
+  E2E159_CUSTOMER_OUTBOUND_NOTIFY_NEGATIVE,
+  E2E159_OWNER_CANCEL_ALERT_SCENARIOS,
+} from './ai-e2e159-owner-cancel-alert.fixtures.js';
 
 describe('ai-push-notifications.util', () => {
   describe('prompt classifiers', () => {
@@ -58,6 +84,60 @@ describe('ai-push-notifications.util', () => {
       ).toBe(true);
       expect(isSummarizeDayOnlyPrompt('Summarize my day today')).toBe(true);
       expect(isEndOfDaySummaryPrompt('Summarize my day today')).toBe(false);
+    });
+
+    it('detects mark_all/mark_booking/list_push_notifications prompts (ai-cmd-provider-6.8)', () => {
+      expect(
+        isMarkAllNotificationsReadPrompt('Mark all notifications as read'),
+      ).toBe(true);
+      expect(
+        isMarkAllNotificationsReadPrompt('Mark everything as read'),
+      ).toBe(true);
+      expect(isMarkAllNotificationsReadPrompt('Clear all notifications')).toBe(
+        false,
+      );
+
+      expect(
+        isMarkBookingNotificationsReadPrompt(
+          "Mark this booking's notifications as read",
+        ),
+      ).toBe(true);
+      expect(
+        isMarkBookingNotificationsReadPrompt(
+          'Mark all notifications as read',
+        ),
+      ).toBe(false);
+
+      expect(isListPushNotificationsPrompt('Show my notifications')).toBe(
+        true,
+      );
+      expect(isListPushNotificationsPrompt('Open notification center')).toBe(
+        true,
+      );
+      expect(
+        isListPushNotificationsPrompt('What notifications do I have?'),
+      ).toBe(true);
+      expect(
+        isListPushNotificationsPrompt('Open booking from push notification'),
+      ).toBe(false);
+      expect(
+        isListPushNotificationsPrompt('Explain the last push notification'),
+      ).toBe(false);
+    });
+
+    it('formats provider push notification center summary', () => {
+      expect(
+        summarizeProviderPushNotificationCenter({ unreadCount: 0, items: [] }),
+      ).toContain('No notifications');
+      expect(
+        summarizeProviderPushNotificationCenter({
+          unreadCount: 1,
+          items: [
+            { title: 'New booking', body: 'Anna — Cut', isRead: false },
+            { title: 'Confirmed', body: 'Sam — Color', isRead: true },
+          ],
+        }),
+      ).toContain('1 unread of 2 notifications');
     });
 
     it('detects dashboard and customer notification prompts', () => {
@@ -248,6 +328,22 @@ describe('ai-push-notifications.util', () => {
           'unknown',
         )?.action,
       ).toBe('appointment_reminder_preferences');
+      expect(
+        rescuePushNotificationsIntent(
+          'Mark all notifications as read',
+          'unknown',
+        )?.action,
+      ).toBe('mark_all_notifications_read');
+      expect(
+        rescuePushNotificationsIntent(
+          "Mark this booking's notifications as read",
+          'unknown',
+        )?.action,
+      ).toBe('mark_booking_notifications_read');
+      expect(
+        rescuePushNotificationsIntent('Show my notifications', 'unknown')
+          ?.action,
+      ).toBe('list_push_notifications');
     });
 
     it('skips rescue for compounds and collisions', () => {
@@ -310,7 +406,7 @@ describe('ai-push-notifications.util', () => {
         'new_booking_push_actions',
       ]);
 
-      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(15);
+      expect(PUSH_NOTIFICATIONS_INTENTS.length).toBe(22);
       expect(isPushNotificationsIntent('test_push')).toBe(true);
       expect(isPushNotificationsIntent('not_real')).toBe(false);
       expect(decomposePushNotificationsCompoundPrompt('')).toEqual([]);
@@ -506,5 +602,251 @@ describe('ai-push-notifications.util', () => {
           .label,
       ).toBe('');
     });
+  });
+
+  describe('open_booking_from_push (ai-cmd-provider-5.10.2)', () => {
+    it.each(
+      PROVIDER_OPEN_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isOpenBookingFromPushPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'open_booking_from_push',
+        rescueReason: 'open_from_push',
+      });
+    });
+  });
+
+  describe('confirm_booking_from_push (ai-cmd-provider-5.0.1)', () => {
+    it.each(
+      PROVIDER_CONFIRM_BOOKING_FROM_PUSH_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isConfirmBookingFromPushRescuePrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'confirm_booking_from_push',
+        rescueReason: 'confirm_from_push',
+      });
+    });
+
+    it('does not steal new_booking_push_actions question prompts', () => {
+      expect(
+        isConfirmBookingFromPushRescuePrompt(
+          'What can I do from a new booking push',
+        ),
+      ).toBe(false);
+    });
+
+    it('does not treat reschedule/cancel push prompts as confirm', () => {
+      expect(
+        isConfirmBookingFromPushRescuePrompt(
+          'Reschedule this booking from the push notification',
+        ),
+      ).toBe(false);
+      expect(
+        isConfirmBookingFromPushRescuePrompt(
+          'Cancel this appointment from the alert',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('dismiss_push (ai-cmd-provider-5.10.4)', () => {
+    it.each(
+      PROVIDER_DISMISS_PUSH_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isDismissPushPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'dismiss_push',
+        rescueReason: 'dismiss_push',
+      });
+    });
+
+    it('does not treat mark-as-read prompts as dismiss', () => {
+      expect(isDismissPushPrompt('Mark all notifications as read')).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('mark_notification_read (ai-cmd-provider-6.8.6)', () => {
+    it.each(
+      PROVIDER_MARK_NOTIFICATION_READ_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isMarkNotificationReadPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'mark_notification_read',
+        rescueReason: 'mark_notification_read',
+      });
+    });
+
+    it('does not shadow mark-all or mark-booking phrasing', () => {
+      expect(
+        isMarkNotificationReadPrompt('Mark all notifications as read'),
+      ).toBe(false);
+      expect(
+        isMarkNotificationReadPrompt(
+          "Mark this booking's notifications as read",
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('explain_last_push (ai-cmd-provider-5.10.3)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_LAST_PUSH_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isExplainLastPushPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'explain_last_push',
+        rescueReason: 'explain_push',
+      });
+    });
+  });
+
+  describe('new_booking_push_actions (ai-cmd-provider-5.10.7)', () => {
+    it.each(
+      PROVIDER_NEW_BOOKING_PUSH_ACTIONS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isNewBookingPushActionsPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'new_booking_push_actions',
+        rescueReason: 'booking_push_actions',
+      });
+    });
+  });
+
+  describe('offline_queue_status (ai-cmd-provider-5.13.1)', () => {
+    it.each(
+      PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isOfflineQueueStatusPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'offline_queue_status',
+        rescueReason: 'offline_queue',
+      });
+    });
+  });
+
+  describe('retry_offline_action (ai-cmd-provider-5.13.2)', () => {
+    it.each(
+      PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isRetryOfflineActionPrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'retry_offline_action',
+        rescueReason: 'retry_offline',
+      });
+    });
+  });
+
+  describe('explain_offline_mode — provider surface (ai-cmd-provider-5.13.3)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isProviderExplainOfflineModePrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'explain_offline_mode',
+        rescueReason: 'provider_offline_mode',
+      });
+    });
+
+    it('does not fire on bare "why offline" without provider-app context', () => {
+      expect(isProviderExplainOfflineModePrompt('Why does it say offline?')).toBe(
+        false,
+      );
+    });
+
+    it('formats a provider offline-mode summary', () => {
+      const online = buildProviderExplainOfflineModeSummary({
+        online: true,
+        queuedCount: 0,
+      });
+      expect(online).toContain('provider app shows offline');
+      expect(online).toContain('online and nothing is queued');
+
+      const offline = buildProviderExplainOfflineModeSummary({
+        online: false,
+        queuedCount: 3,
+      });
+      expect(offline).toContain('3 queued actions');
+    });
+  });
+
+  describe('explain_app_update_gate — provider surface (ai-cmd-provider-5.13.6)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_APP_UPDATE_GATE_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('detects and rescues %s', (_id, prompt) => {
+      expect(isProviderExplainAppUpdateGatePrompt(prompt)).toBe(true);
+      expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
+        action: 'explain_app_update_gate',
+        rescueReason: 'provider_app_update_gate',
+      });
+    });
+
+    it('does not fire on bare "why must I update" without provider-app context', () => {
+      expect(
+        isProviderExplainAppUpdateGatePrompt('Why must I update the app?'),
+      ).toBe(false);
+    });
+
+    it('formats a provider app-update-gate summary', () => {
+      const summary = buildProviderExplainAppUpdateGateSummary({
+        blocked: true,
+      });
+      expect(summary).toContain('currently blocked');
+
+      const nudge = buildProviderExplainAppUpdateGateSummary({
+        currentVersion: '2.4.0',
+      });
+      expect(nudge).toContain('2.4.0');
+    });
+  });
+
+  describe('e2e-bug.159 — owner cancel alert vs customer notify', () => {
+    it.each([
+      ...E2E159_OWNER_CANCEL_ALERT_SCENARIOS,
+    ])('$id rescues to business email toggle', (row) => {
+      expect(isToggleBusinessEmailOnCustomerChangePrompt(row.prompt)).toBe(
+        true,
+      );
+      expect(
+        extractBusinessEmailOnCustomerChangeToggleFromPrompt(row.prompt),
+      ).toBe(row.enabled);
+      expect(
+        rescuePushNotificationsIntent(row.prompt, 'unknown')?.action,
+      ).toBe(row.expectedAction);
+      expect(
+        rescuePushNotificationsIntent(row.prompt, 'react_agent')?.action,
+      ).toBe(row.expectedAction);
+      const segment = classifyPushNotificationsSegment(row.prompt);
+      expect(segment?.action).toBe(row.expectedAction);
+      expect(segment?.params.enabled).toBe(row.enabled);
+    });
+
+    it.each([...E2E159_CUSTOMER_OUTBOUND_NOTIFY_NEGATIVE])(
+      'does not treat customer-outbound notify as owner alert: %s',
+      (prompt) => {
+        expect(isToggleBusinessEmailOnCustomerChangePrompt(prompt)).toBe(
+          false,
+        );
+        expect(
+          rescuePushNotificationsIntent(prompt, 'unknown')?.action,
+        ).not.toBe('toggle_business_email_on_customer_change');
+      },
+    );
   });
 });

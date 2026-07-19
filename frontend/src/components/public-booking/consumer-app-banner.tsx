@@ -130,16 +130,19 @@ export function ConsumerAppBanner({ slug }: { slug: string }) {
       </div>
 
       {qrOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('consumerApp.qrModalTitle')}
-          onClick={() => setQrOpen(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* e2e-bug.4 spot-check — backdrop dismiss uses native <button> (same as specialist-picker) */}
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label={t('consumerApp.close')}
+            onClick={() => setQrOpen(false)}
+          />
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl"
-            onClick={(event) => event.stopPropagation()}
+            className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('consumerApp.qrModalTitle')}
           >
             <h2 className="text-lg font-semibold text-gray-900">{t('consumerApp.qrModalTitle')}</h2>
             <p className="mt-1 text-sm text-gray-600">{t('consumerApp.qrModalHint')}</p>

@@ -105,11 +105,39 @@ export async function handleCompleteIntakeAndBookLogic(
   }
 
   const bookingFirstAvailable = parsed?.bookingFirstAvailable === true;
+  const navigate = buildCompleteIntakeAndBookNavigate(service.id);
+
+  let intakeId: string;
+  let intakeStatus: string | undefined;
+  try {
+    const draft = await deps.publicPreVisitIntakeService.ensureCustomerDraft(
+      business.slug,
+      customerId,
+      { serviceId: service.id },
+    );
+    intakeId = draft.id;
+    intakeStatus = draft.status;
+  } catch (err: unknown) {
+    // e2e-bug.98 — never report success when the draft was not persisted.
+    // Surface the real precondition failure (e.g. no published questionnaire).
+    const message =
+      err instanceof Error && err.message.trim()
+        ? err.message
+        : 'Could not start the pre-visit intake for this lab test.';
+    return failure('complete_intake_and_book', message, {
+      clarify: true,
+      draftFailed: true,
+      serviceId: service.id,
+      serviceName: service.name,
+      // Client may still open the booking page to retry once intake is configured.
+      navigate,
+    });
+  }
+
   const summary = formatCompleteIntakeAndBookSummary(
     service.name,
     bookingFirstAvailable,
   );
-  const navigate = buildCompleteIntakeAndBookNavigate(service.id);
 
   return success('complete_intake_and_book', summary, {
     serviceId: service.id,
@@ -120,12 +148,15 @@ export async function handleCompleteIntakeAndBookLogic(
     bookingFirstAvailable,
     clientAction: 'startConsumerPreVisitIntake',
     navigate,
+    intakeId,
+    intakeStatus,
     sessionContext: {
       serviceId: service.id,
       serviceName: service.name,
       bookingPhase: 'intake',
       completeIntakeAndBook: true,
       preVisitIntakeRequired: true,
+      intakeId,
       ...(bookingFirstAvailable ? { bookingFirstAvailable: true } : {}),
     },
   });

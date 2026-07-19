@@ -6,6 +6,7 @@ import { isExplainLastPushPrompt } from './ai-push-notifications.util.js';
 export const PROVIDER_PUSH_SETUP_INTENTS = [
   'explain_push_setup',
   'enable_push_notifications',
+  'explain_push_registration_status',
 ] as const;
 
 export const PROVIDER_PUSH_SETUP_MUTATE_INTENTS = [
@@ -87,6 +88,31 @@ export function isExplainPushSetupPrompt(prompt: string): boolean {
   return hasProviderPushSetupContext(prompt) || /\bprovider\b/i.test(prompt);
 }
 
+export function isExplainPushRegistrationStatusPrompt(prompt: string): boolean {
+  if (
+    matchProviderPushSetupScenarioPrompt(prompt) ===
+    'explain_push_registration_status'
+  ) {
+    return true;
+  }
+
+  if (isExplainLastPushPrompt(prompt)) return false;
+  if (hasProviderPushTimeContext(prompt)) return false;
+  if (!hasNativePushTopic(prompt)) return false;
+
+  const statusCue =
+    /\b(?:is|are)\b.{0,20}\bon\b|\bdid\b.{0,25}\bwork\b|\bcheck\b.{0,20}\bstatus\b|\bregistered\b|\bam\s+i\s+registered\b/i.test(
+      prompt,
+    ) ||
+    (containsArmenianScript(prompt) && /(գրանցված|կարգավիճակ)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(зарегистрирован|статус)/i.test(prompt));
+
+  if (!statusCue) return false;
+
+  return hasProviderPushSetupContext(prompt) || /\bprovider\b/i.test(prompt);
+}
+
 export function isEnablePushNotificationsPrompt(prompt: string): boolean {
   if (
     matchProviderPushSetupScenarioPrompt(prompt) === 'enable_push_notifications'
@@ -163,6 +189,12 @@ export function rescueProviderPushSetupIntent(
     return { action: scenarioAction, rescueReason: scenarioAction };
   }
 
+  if (isExplainPushRegistrationStatusPrompt(prompt)) {
+    return {
+      action: 'explain_push_registration_status',
+      rescueReason: 'explain_push_registration_status',
+    };
+  }
   if (isEnablePushNotificationsPrompt(prompt)) {
     return {
       action: 'enable_push_notifications',

@@ -6,7 +6,7 @@ export type PayAtVenueFallbackPromptFixture = {
   rescueReason: 'pay_at_venue_fallback';
 };
 
-export const CUSTOMER_PUBLIC_PAY_AT_VENUE_FALLBACK_CLASSIFIER_RULES = `- pay_at_venue_fallback: MUTATE — customer app or public booking web: skip optional online card checkout and confirm pay-at-venue / cash instead (activationPayAtVenue fallback when prepayment is not required). Triggers: "Pay at salon instead", "Skip online payment", "Confirm and pay at visit instead", "Don't pay online — pay at the salon", "Bypass card payment". Sets paymentMethod=cash, payAtVenue=true, navigates to checkout with payment=cash when slot context exists. Fails when acceptCashPayments is off or the service requires full online prepayment. NOT pay_cash_at_visit (direct cash selection without skip/instead cue), NOT pay_online, NOT choose_payment_method (list options), NOT diagnose_stripe_checkout_failure (explain after failure — READ), NOT book_with_cash (booking-flow cash preference), NOT explain_why_stripe_required.`;
+export const CUSTOMER_PUBLIC_PAY_AT_VENUE_FALLBACK_CLASSIFIER_RULES = `- pay_at_venue_fallback: MUTATE — customer app or public booking web: skip optional online card checkout and confirm pay-at-venue / cash instead (activationPayAtVenue fallback when prepayment is not required). Triggers: "Pay at salon instead", "Skip online payment", "Confirm and pay at visit instead", "Don't pay online — pay at the salon", "Bypass card payment". Requires payment/online/venue/cash context with "instead" — never bare "instead" alone (e2e-bug.114). Sets paymentMethod=cash, payAtVenue=true, navigates to checkout with payment=cash when slot context exists. Fails when acceptCashPayments is off or the service requires full online prepayment. NOT pay_cash_at_visit (direct cash selection without skip/instead cue), NOT pay_online, NOT choose_payment_method (list options), NOT diagnose_stripe_checkout_failure (explain after failure — READ), NOT book_with_cash (booking-flow cash preference), NOT explain_why_stripe_required, NOT cancel_my_booking / reschedule_my_booking / cancel+rebook ("cancel my booking and rebook it for next Friday instead").`;
 
 export const PAY_AT_VENUE_FALLBACK_PROMPTS: readonly PayAtVenueFallbackPromptFixture[] =
   [
@@ -204,6 +204,23 @@ export const PAY_AT_VENUE_FALLBACK_RESCUE_SCENARIOS = [
     prompt: 'Skip online payment',
     misclassifiedAction: 'diagnose_stripe_checkout_failure',
     expectedAction: 'pay_at_venue_fallback',
+  },
+] as const;
+
+/** e2e-bug.114 — must NOT classify as pay_at_venue_fallback. */
+export const PAY_AT_VENUE_FALLBACK_NEGATIVE_PROMPTS = [
+  {
+    id: 'e2e114-cancel-rebook-friday-instead',
+    prompt:
+      'cancel my facemassage booking and rebook it for next Friday instead',
+  },
+  {
+    id: 'cancel-and-rebook-nearest-instead',
+    prompt: 'Cancel my booking and rebook the nearest slot instead',
+  },
+  {
+    id: 'reschedule-friday-instead',
+    prompt: 'Reschedule my appointment to Friday instead',
   },
 ] as const;
 

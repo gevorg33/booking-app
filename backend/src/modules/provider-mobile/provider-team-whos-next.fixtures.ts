@@ -119,4 +119,22 @@ export const SIMILAR_PROVIDER_TEAM_WHOS_NEXT_PROMPTS = [
     surface: 'provider' as const,
     expectedAction: 'team_whos_next' as const,
   },
+  {
+    id: 'team-queue',
+    prompt: "What's the team queue looking like",
+    surface: 'provider' as const,
+    expectedAction: 'team_whos_next' as const,
+  },
+  {
+    id: 'next-2-hours',
+    prompt: "Who's next in the next 2 hours for the team",
+    surface: 'provider' as const,
+    expectedAction: 'team_whos_next' as const,
+  },
+  {
+    id: 'every-provider',
+    prompt: 'Show who is next for every provider',
+    surface: 'provider' as const,
+    expectedAction: 'team_whos_next' as const,
+  },
 ] as const;

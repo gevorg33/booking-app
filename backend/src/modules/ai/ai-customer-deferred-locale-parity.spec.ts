@@ -571,8 +571,8 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(26);
-    expect(ruCases.length).toBe(26);
+    expect(hyCases.length).toBe(28);
+    expect(ruCases.length).toBe(28);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(hyCases.every((row) => row.expect.needsMultilingual === true)).toBe(
@@ -645,8 +645,8 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(24);
-    expect(ruCases.length).toBe(24);
+    expect(hyCases.length).toBe(21);
+    expect(ruCases.length).toBe(21);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(hyCases.every((row) => row.expect.needsMultilingual === true)).toBe(

@@ -2,8 +2,12 @@ import {
   extractSharedEntityParamsFromPrompt,
   propagateCompoundStepParamsAcrossSteps,
 } from './ai-command-entity-params.util.js';
+import { PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS } from './ai-provider-list-my-multi-service-groups.fixtures.js';
 
-export const PROVIDER_BOOKING_MUTATE_INTENTS = ['mark_paid'] as const;
+export const PROVIDER_BOOKING_MUTATE_INTENTS = [
+  'mark_paid',
+  'collect_remaining_balance',
+] as const;
 
 export const PROVIDER_BOOKING_READ_INTENTS = [
   'list_package_appointments_today',
@@ -72,10 +76,11 @@ export function isProviderSelfScopePrompt(prompt: string): boolean {
 export function isListPackageAppointmentsTodayPrompt(prompt: string): boolean {
   return (
     isProviderSelfScopePrompt(prompt) &&
-    /\b(list|show)\b/i.test(prompt) &&
     /\bpackage\b/i.test(prompt) &&
     /\b(appointments?|visits?)\b/i.test(prompt) &&
-    /\b(today|this\s+morning)\b/i.test(prompt) &&
+    /\b(today|this\s+morning|this\s+afternoon|this\s+evening)\b/i.test(
+      prompt,
+    ) &&
     !/\bmulti[\s-]?service\b/i.test(prompt) &&
     !isDashboardPackageMultiScopePrompt(prompt)
   );
@@ -86,13 +91,22 @@ export function isListMyPackageVisitsPrompt(prompt: string): boolean {
     isProviderSelfScopePrompt(prompt) &&
     /\b(list|show)\b/i.test(prompt) &&
     /\b(my\s+)?package\s+(visits?|appointments?|bookings?)\b/i.test(prompt) &&
-    !/\b(today|this\s+morning)\b/i.test(prompt) &&
+    !/\b(today|this\s+morning|this\s+afternoon|this\s+evening)\b/i.test(
+      prompt,
+    ) &&
     !/\bmulti[\s-]?service\b/i.test(prompt) &&
     !isDashboardPackageMultiScopePrompt(prompt)
   );
 }
 
 export function isListMyMultiServiceGroupsPrompt(prompt: string): boolean {
+  if (
+    PROVIDER_LIST_MY_MULTI_SERVICE_GROUPS_PROMPT_SCENARIOS.some(
+      (scenario) => scenario.prompt === prompt,
+    )
+  ) {
+    return true;
+  }
   return (
     isProviderSelfScopePrompt(prompt) &&
     /\b(list|show)\b/i.test(prompt) &&
@@ -105,12 +119,75 @@ export function isListMyMultiServiceGroupsPrompt(prompt: string): boolean {
 }
 
 export function isProviderMarkPaidPrompt(prompt: string): boolean {
-  return (
+  if (isDashboardPackageMultiScopePrompt(prompt)) return false;
+  if (/\b(sweep|all\s+unpaid|everyone|payment\s+sweep)\b/i.test(prompt)) {
+    return false;
+  }
+
+  if (
     /\bmark\b/i.test(prompt) &&
-    /\b(paid|payment\s+(?:as\s+)?(?:done|complete|received))\b/i.test(prompt) &&
-    !/\b(sweep|all\s+unpaid|everyone|payment\s+sweep)\b/i.test(prompt) &&
-    !isDashboardPackageMultiScopePrompt(prompt)
-  );
+    /\b(paid|payment\s+(?:as\s+)?(?:done|complete|received))\b/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  if (/[԰-֏]/.test(prompt) && /նշիր/i.test(prompt) && /վճարված/i.test(prompt)) {
+    return true;
+  }
+  if (
+    /[Ѐ-ӿ]/.test(prompt) &&
+    /отметь/i.test(prompt) &&
+    /(?:(?<!не)оплачен|оплатив)/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/** ai-cmd-provider-5.3.6 — collect the outstanding balance at the chair (thin alias to mark_paid; no Stripe Terminal exists). */
+export function isCollectRemainingBalancePrompt(prompt: string): boolean {
+  if (isDashboardPackageMultiScopePrompt(prompt)) return false;
+  if (
+    /\b(sweep|all\s+unpaid|everyone|payment\s+sweep|all\s+outstanding|outstanding\s+payments)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // Question phrasing ("how much ... is remaining to collect?") is the read-only
+  // explain_deposit_balance_due intent, not this imperative mutate action.
+  if (
+    /\b(how\s+much|how\s+many|what'?s|is\s+there|does\s+(?:she|he|it)|do\s+they)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    /\b(charge|collect|take)\b/i.test(prompt) &&
+    /\b(balance|remaining|rest|outstanding)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  if (
+    /[԰-֏]/.test(prompt) &&
+    /(գանձիր|վերցրու)/i.test(prompt) &&
+    /(մնացորդ|մնացած)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /[Ѐ-ӿ]/.test(prompt) &&
+    /(спиши|получи|заряди)/i.test(prompt) &&
+    /(остаток|остальн)/i.test(prompt)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export function isProviderBookingCompoundPrompt(prompt: string): boolean {
@@ -208,6 +285,16 @@ export function rescueProviderBookingIntent(
     action !== 'collect_cash_confirm'
   ) {
     return { action: 'mark_paid', rescueReason: 'mark_paid' };
+  }
+  if (
+    isCollectRemainingBalancePrompt(prompt) &&
+    action !== 'payment_sweep' &&
+    action !== 'collect_cash_confirm'
+  ) {
+    return {
+      action: 'collect_remaining_balance',
+      rescueReason: 'collect_remaining_balance',
+    };
   }
 
   return null;

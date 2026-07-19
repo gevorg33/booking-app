@@ -6,9 +6,16 @@ import {
   isUpdateMyProfilePrompt,
   rescueUpdateMyProfileIntent,
 } from './ai-update-my-profile.util.js';
+import {
+  isGetMyLocalePrompt,
+  isUpdateMyLocalePrompt,
+  rescueMyLocaleIntent,
+} from './ai-my-locale.util.js';
 import { isTrackPhysicalGiftCardOrderCustomerPrompt } from './ai-track-physical-gift-card-order.util.js';
 import { rescueClaimGiftCardBalanceIntent } from './ai-claim-gift-card-balance.util.js';
 import { hasSubscriptionCheckoutCompareCue } from './ai-explain-subscription-vs-one-time.util.js';
+import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
+import { isProtectedFromCrmListSteal } from './ai-crm-list-steal-guard.util.js';
 
 export const DASHBOARD_CRM_MUTATE_INTENTS = [
   'extend_subscription',
@@ -18,6 +25,7 @@ export const DASHBOARD_CRM_MUTATE_INTENTS = [
   'delete_customer_data',
   'send_reengagement_message',
   'tag_customer',
+  'update_customer',
 ] as const;
 
 export const DASHBOARD_CRM_READ_INTENTS = [
@@ -35,10 +43,12 @@ export const CUSTOMER_ACCOUNT_MUTATE_INTENTS = [
   'privacy_export',
   'privacy_delete',
   'update_my_profile',
+  'update_my_locale',
 ] as const;
 
 export const CUSTOMER_ACCOUNT_READ_INTENTS = [
   'my_profile',
+  'get_my_locale',
   'my_appointments',
   'explain_my_subscription',
   'my_subscriptions',
@@ -47,6 +57,7 @@ export const CUSTOMER_ACCOUNT_READ_INTENTS = [
   'gift_card_balance',
   'gift_card_redemption_history',
   'track_physical_gift_card_order',
+  'explain_gift_card_order',
 ] as const;
 
 export const DISCOVERY_INTENTS = [
@@ -100,16 +111,40 @@ export function hasDashboardCustomerReference(prompt: string): boolean {
   );
 }
 
-export function isListCustomerSubscriptionsPrompt(prompt: string): boolean {
+/**
+ * e2e-bug.138 — owner asks about customers' memberships ("my customers"),
+ * not the signed-in customer's own "my subscriptions".
+ */
+export function hasBusinessWideCustomerMembershipScope(prompt: string): boolean {
   return (
-    /\b(list|show)\b/i.test(prompt) &&
-    hasDashboardCustomerReference(prompt) &&
-    /\b(subscription|membership|plan)s?\b/i.test(prompt) &&
-    !isMyAccountPrompt(prompt)
+    /\bmy\s+customers?\b/i.test(prompt) ||
+    /\b(?:our|the)\s+customers?\b/i.test(prompt) ||
+    /\bfor\s+(?:my\s+|our\s+|the\s+)?customers?\b/i.test(prompt) ||
+    /\bcustomers['']?\s+(?:active\s+)?(?:memberships?|subscriptions?|plans?)\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:memberships?|subscriptions?)\s+for\s+(?:my\s+|our\s+|the\s+)?customers?\b/i.test(
+      prompt,
+    )
   );
 }
 
+export function isListCustomerSubscriptionsPrompt(prompt: string): boolean {
+  if (
+    !/\b(list|show)\b/i.test(prompt) ||
+    !/\b(subscription|membership|plan)s?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.138 — "List active memberships for my customers" is dashboard CRM.
+  if (hasBusinessWideCustomerMembershipScope(prompt)) return true;
+  return hasDashboardCustomerReference(prompt) && !isMyAccountPrompt(prompt);
+}
+
 export function isSubscriptionUsageHistoryPrompt(prompt: string): boolean {
+  // e2e-bug.79 — "…subscription better value than paying per visit?" matched
+  // visit + subscription/plan and leaked dashboard subscription_usage_history.
+  if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
   return (
     /\b(usage|visits?|history)\b/i.test(prompt) &&
     /\b(subscription|membership|plan)\b/i.test(prompt) &&
@@ -202,12 +237,65 @@ export function isCustomerNoShowHistoryPrompt(prompt: string): boolean {
 
 export function isMyProfilePrompt(prompt: string): boolean {
   if (isUpdateMyProfilePrompt(prompt)) return false;
+  // e2e-bug.76 — "what language is my account set to?" is get_my_locale.
+  if (isGetMyLocalePrompt(prompt) || isUpdateMyLocalePrompt(prompt)) {
+    return false;
+  }
+  // e2e-bug.75 — "confirm my booking details" is confirm_my_booking_details.
+  if (
+    /\b(booking|appointment|visit|reservation)\b/i.test(prompt) &&
+    /\b(confirm|summarize|summary|details)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\bmy\b/i.test(prompt) && /\b(profile|account|details)\b/i.test(prompt)
   );
 }
 
 export function isMyAppointmentsPrompt(prompt: string): boolean {
+  // e2e-bug.134 — "cancel/reschedule my booking" (+ manage-link URL) is mutate,
+  // not a signed-in appointments list. CRM rescue was stealing cancel_my_booking
+  // / cancel_booking_with_token into my_appointments → "Sign in to view…".
+  if (
+    /\b(cancel|reschedule|move|shift|skip)\b/i.test(prompt) ||
+    /\bchange\s+(?:my|this|the)\s+(?:booking|appointment|visit|reservation)/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // e2e-bug.75 — pre-visit/intake ("my" + "visit" across hyphen), calendar, confirm.
+  if (
+    /\bpre[\s-]?visit\b/i.test(prompt) ||
+    /\b(intake|questionnaire|health\s+form)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(calendar|ics|outlook)\b/i.test(prompt) ||
+    /\badd\s+(?:to\s+)?(?:my\s+)?calendar\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(confirm|summarize|summary|details?\s+of)\b/i.test(prompt) &&
+    /\b(booking|appointment|visit|reservation)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.88 — pay online for my booking/appointment is pay_online, not list.
+  if (isExplicitPayOnlinePrompt(prompt)) return false;
+  if (
+    /\bpay\s+(?:cash|at\s+(?:the\s+)?(?:visit|venue|salon)|in\s+cash)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (/[?&]bookingId=/i.test(prompt) && /[?&]token=/i.test(prompt)) {
+    return false;
+  }
   return (
     /\bmy\b/i.test(prompt) &&
     /\b(appointments?|bookings?|visits?|schedule)\b/i.test(prompt) &&
@@ -218,7 +306,17 @@ export function isMyAppointmentsPrompt(prompt: string): boolean {
 export function isMySubscriptionsPrompt(prompt: string): boolean {
   if (isExplainMySubscriptionPrompt(prompt)) return false;
   if (isSubscriptionUsagePrompt(prompt)) return false;
+  // e2e-bug.138 — never treat owner "my customers" membership lists as self-service.
+  if (hasBusinessWideCustomerMembershipScope(prompt)) return false;
+  if (isListCustomerSubscriptionsPrompt(prompt)) return false;
   if (hasDashboardCustomerReference(prompt) && !/\bmy\b/i.test(prompt)) {
+    return false;
+  }
+  // e2e-bug.75 — cancel/end/stop membership is cancel_my_subscription, not list.
+  if (
+    /\b(cancel|end|stop)\b/i.test(prompt) &&
+    /\b(subscription|membership|plan)s?\b/i.test(prompt)
+  ) {
     return false;
   }
   if (
@@ -235,10 +333,17 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  const mentionsMembership = /\b(subscription|membership|plan)s?\b/i.test(
-    prompt,
-  );
+  const mentionsMembership =
+    /\b(subscription|membership|plan)s?\b/i.test(prompt) ||
+    /բաժանորդագր|պլան/i.test(prompt) ||
+    /подписк|план/i.test(prompt);
   if (!mentionsMembership) return false;
+
+  // Armenian/Cyrillic script alone implies self-scope + read-intent here: this
+  // domain has no dashboard-admin equivalent phrased in those scripts, and the
+  // earlier hasDashboardCustomerReference bail-out already screens out
+  // admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
 
   return (
     (/\bmy\b/i.test(prompt) &&
@@ -249,17 +354,29 @@ export function isMySubscriptionsPrompt(prompt: string): boolean {
     ) ||
     /\bwhat\s+memberships?\s+do\s+i\s+have\b/i.test(prompt) ||
     /\bwhat\s+(?:are\s+)?my\s+active\s+subscriptions?\b/i.test(prompt) ||
-    /\bwhat\s+is\s+on\s+my\s+subscription\b/i.test(prompt)
+    /\bwhat\s+is\s+on\s+my\s+subscription\b/i.test(prompt) ||
+    hasNonLatinScript
   );
 }
 
 export function isSubscriptionUsagePrompt(prompt: string): boolean {
   if (isExplainMySubscriptionPrompt(prompt)) return false;
-  return (
+  if (
     /\bmy\b/i.test(prompt) &&
     /\b(subscription|membership|plan)\b/i.test(prompt) &&
     /\b(usage|visits?|remaining|credits?)\b/i.test(prompt)
-  );
+  ) {
+    return true;
+  }
+  const hasHyUsageCue =
+    /իմ/i.test(prompt) &&
+    /պլան|բաժանորդագր|membership/i.test(prompt) &&
+    /օգտագործ/i.test(prompt);
+  const hasRuUsageCue =
+    /мо(?:й|я|его|ей)/i.test(prompt) &&
+    /план|подписк/i.test(prompt) &&
+    /использован/i.test(prompt);
+  return hasHyUsageCue || hasRuUsageCue;
 }
 
 export function isMyGiftCardsPrompt(prompt: string): boolean {
@@ -278,6 +395,10 @@ export function isGiftCardBalancePrompt(prompt: string): boolean {
 }
 
 export function isGiftCardRedemptionHistoryPrompt(prompt: string): boolean {
+  // e2e-bug.77 — order codes like QATEST-REDEEMED-001 must not steal cancel asks.
+  if (/\b(cancel|refund|return|void|modify|change)\b/i.test(prompt)) {
+    return false;
+  }
   return (
     /\b(gift\s*card)\b/i.test(prompt) &&
     /\b(redemption|redeemed|used)\b/i.test(prompt)
@@ -285,49 +406,64 @@ export function isGiftCardRedemptionHistoryPrompt(prompt: string): boolean {
 }
 
 export function isRequestGiftCardCancelPrompt(prompt: string): boolean {
-  if (
-    /\b(cancel)\b/i.test(prompt) &&
-    /\b(gift\s*card)\b/i.test(prompt) &&
-    /\b(order)\b/i.test(prompt) &&
-    !/\bmy\b/i.test(prompt) &&
-    !/\brequest\b/i.test(prompt)
-  ) {
-    return false;
-  }
+  // e2e-bug.77 — staff cancel_gift_card_order is surface-gated off customer/public;
+  // polite "please cancel gift card order {code}" is customer self-service.
   if (
     hasDashboardCustomerReference(prompt) &&
     !/\bmy\b/i.test(prompt) &&
-    !/\brequest\b/i.test(prompt)
+    !/\brequest\b/i.test(prompt) &&
+    !/\bplease\b/i.test(prompt)
   ) {
     return false;
   }
+
+  // Armenian/Cyrillic script alone implies self-scope here: this domain has no
+  // dashboard-admin equivalent phrased in those scripts, and the earlier
+  // hasDashboardCustomerReference bail-out already screens out admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
 
   const selfScope =
     /\bmy\b/i.test(prompt) ||
     /\brequest\b/i.test(prompt) ||
+    /\bplease\b/i.test(prompt) ||
     /\b(i\s+)?bought\b/i.test(prompt) ||
-    (/\b(this|the)\b/i.test(prompt) && /\bregret\b/i.test(prompt));
+    (/\b(this|the)\b/i.test(prompt) && /\bregret\b/i.test(prompt)) ||
+    hasNonLatinScript;
 
   const cancelIntent =
     /\b(cancel|refund|return|undo|void|stop)\b/i.test(prompt) ||
-    /\b(regret|buyer'?s?\s+remorse)\b/i.test(prompt);
+    /\b(regret|buyer'?s?\s+remorse)\b/i.test(prompt) ||
+    /չեղարկ|վերադարձ/i.test(prompt) ||
+    /отмен|верну/i.test(prompt);
 
   const giftTarget =
     /\b(gift\s*card|gift\s*card\s+order|gift\s*card\s+purchase)\b/i.test(
       prompt,
     ) ||
     (/\border\b/i.test(prompt) &&
-      /\b(gift|purchase|bought|card)\b/i.test(prompt));
+      /\b(gift|purchase|bought|card)\b/i.test(prompt)) ||
+    (/подарочн/i.test(prompt) && /карт/i.test(prompt));
 
   return selfScope && cancelIntent && giftTarget;
 }
 
 export function isRequestGiftCardModifyPrompt(prompt: string): boolean {
-  return (
+  if (
     /\b(change|modify|update|edit)\b/i.test(prompt) &&
     /\b(gift\s*card|order)\b/i.test(prompt) &&
     (/\bmy\b/i.test(prompt) || /\brequest\b/i.test(prompt))
-  );
+  ) {
+    return true;
+  }
+  const hasHyModifyCue =
+    /փոխ|փոփոխ/i.test(prompt) &&
+    /նվեր\s*քարտ|պատվեր/i.test(prompt) &&
+    /իմ/i.test(prompt);
+  const hasRuModifyCue =
+    /измен/i.test(prompt) &&
+    /подарочн|заказ/i.test(prompt) &&
+    /мо(?:й|я|его|ей)/i.test(prompt);
+  return hasHyModifyCue || hasRuModifyCue;
 }
 
 export function isTrackPhysicalGiftCardPrompt(prompt: string): boolean {
@@ -415,6 +551,18 @@ export function isDiscoverPackagesPrompt(prompt: string): boolean {
 
 export function isDiscoverSubscriptionPlansPrompt(prompt: string): boolean {
   if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
+  if (
+    /(ինչ|ի՞նչ|ցույց|ցուցակ)/i.test(prompt) &&
+    /(բաժանորդագր|անդամակցությ)\S*\s*պլան/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /(какие|покажи|список|доступны)/i.test(prompt) &&
+    /(план[а-я]*\s*подписк|абонемент)/i.test(prompt)
+  ) {
+    return true;
+  }
   return (
     /\b(what|which|show|list|discover|available|membership)\b/i.test(prompt) &&
     /\b(subscription|membership)\s+plans?\b/i.test(prompt) &&
@@ -519,11 +667,28 @@ export function rescueCustomerCrmIntent(
   const updateProfileEarly = rescueUpdateMyProfileIntent(prompt, action);
   if (updateProfileEarly) return updateProfileEarly;
 
+  // e2e-bug.76 — before my_profile ("account") / explain_why_sign_in steals.
+  const myLocaleEarly = rescueMyLocaleIntent(prompt, action);
+  if (myLocaleEarly) return myLocaleEarly;
+
   const claimGiftCardBalanceEarly = rescueClaimGiftCardBalanceIntent(
     prompt,
     action,
   );
   if (claimGiftCardBalanceEarly) return claimGiftCardBalanceEarly;
+
+  // e2e-bug.138 — before isCustomerCrmIntent early-return so leaked
+  // my_subscriptions on the dashboard can still be corrected.
+  if (
+    action !== 'list_subscription_plans' &&
+    isListCustomerSubscriptionsPrompt(prompt) &&
+    action !== 'list_customer_subscriptions'
+  ) {
+    return {
+      action: 'list_customer_subscriptions',
+      rescueReason: 'list_subscriptions',
+    };
+  }
 
   if (isCustomerCrmIntent(action)) return null;
 
@@ -561,19 +726,21 @@ export function rescueCustomerCrmIntent(
     return { action: 'subscription_usage', rescueReason: 'subscription_usage' };
   if (isMyGiftCardsPrompt(prompt))
     return { action: 'my_gift_cards', rescueReason: 'my_gift_cards' };
-  if (
-    isListCustomerSubscriptionsPrompt(prompt) &&
-    action !== 'list_subscription_plans'
-  ) {
-    return {
-      action: 'list_customer_subscriptions',
-      rescueReason: 'list_subscriptions',
-    };
-  }
-  if (isMySubscriptionsPrompt(prompt))
+  // e2e-bug.75 — never clobber a correct mutate/read classification into a list.
+  if (isMySubscriptionsPrompt(prompt)) {
+    if (action === 'my_subscriptions' || isProtectedFromCrmListSteal(action)) {
+      return null;
+    }
     return { action: 'my_subscriptions', rescueReason: 'my_subscriptions' };
+  }
   if (isMyAppointmentsPrompt(prompt)) {
-    if (action === 'list_my_appointments') return null;
+    if (
+      action === 'list_my_appointments' ||
+      action === 'my_appointments' ||
+      isProtectedFromCrmListSteal(action)
+    ) {
+      return null;
+    }
     return { action: 'my_appointments', rescueReason: 'my_appointments' };
   }
   if (isMyProfilePrompt(prompt))
@@ -794,4 +961,41 @@ export function decomposeCrmCompoundPrompt(prompt: string): CrmCompoundStep[] {
     }
   }
   return steps;
+}
+
+/** e2e-bug.81 — verbalize counts/balances; public assistant drops `details.account`. */
+export function buildMyGiftCardsSummary(account: {
+  orders: Array<{ balance?: number | null }>;
+  redeemed: unknown[];
+}): string {
+  const orderCount = account.orders.length;
+  const redeemedCount = account.redeemed.length;
+  if (orderCount === 0 && redeemedCount === 0) {
+    return 'You have no gift cards.';
+  }
+  const totalBalance = account.orders.reduce(
+    (sum, order) =>
+      sum + (typeof order.balance === 'number' ? order.balance : 0),
+    0,
+  );
+  let summary = `You have ${orderCount} gift card(s), ${redeemedCount} redeemed.`;
+  if (orderCount > 0) {
+    summary += ` Order balances total ${totalBalance}.`;
+  }
+  return summary;
+}
+
+export function buildMyGiftCardsNavigate(): {
+  path: 'account';
+  query: { tab: 'giftCards' };
+} {
+  return { path: 'account', query: { tab: 'giftCards' } };
+}
+
+/** e2e-bug.52 — my_appointments / list bookings must hand off to Account appointments. */
+export function buildMyAppointmentsNavigate(): {
+  path: 'account';
+  query: { tab: 'bookings' };
+} {
+  return { path: 'account', query: { tab: 'bookings' } };
 }

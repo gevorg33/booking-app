@@ -9,8 +9,15 @@ import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
 describe('ai clinic booking integration (ai-cmd-clinic-5)', () => {
   const businessRepo = { findOne: jest.fn() };
   const serviceService = { findAll: jest.fn() };
+  const publicPreVisitIntakeService = {
+    ensureCustomerDraft: jest.fn(),
+    getCustomerFlow: jest.fn(),
+    startCustomerIntake: jest.fn(),
+    submitCustomerAnswers: jest.fn(),
+    getCheckoutConfig: jest.fn(),
+  };
 
-  const deps = { businessRepo, serviceService };
+  const deps = { businessRepo, serviceService, publicPreVisitIntakeService };
 
   beforeEach(() => {
     jest.clearAllMocks();

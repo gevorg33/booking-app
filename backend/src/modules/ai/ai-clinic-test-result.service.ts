@@ -7,8 +7,11 @@ import { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-ord
 import { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
 import { ClinicTestCatalogService } from '../clinic-test-results/catalog/clinic-test-catalog.service.js';
 import { ClinicLabAccessService } from '../clinic-test-results/shared/clinic-lab-access.service.js';
+import { ClinicLabChangeHistoryService } from '../clinic-test-results/shared/clinic-lab-change-history.service.js';
 import { ClinicTestResultActionService } from '../clinic-test-results/test-result/clinic-test-result-action.service.js';
 import { ClinicTestResultService } from '../clinic-test-results/test-result/clinic-test-result.service.js';
+import { ClinicSpecimenService } from '../clinic-test-results/specimen/clinic-specimen.service.js';
+import { ClinicSpecimenStatusService } from '../clinic-test-results/specimen/clinic-specimen-status.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleEnterTestResultLogic,
@@ -17,11 +20,15 @@ import {
 } from './ai-clinic-test-result.logic.js';
 import {
   handleConfigureTestReferenceRangeLogic,
+  handleExplainLabResultHistoryLogic,
   handleExplainPatientResultsLogic,
   handleListAbnormalResultsLogic,
+  handleTransitionSpecimenLogic,
   handleUploadPatientResultLogic,
   type ClinicTestResultExtLogicDeps,
 } from './ai-clinic-test-result-ext.logic.js';
+import { dispatchClinicTestResultIntent } from './ai-clinic-test-result-dispatch.util.js';
+import type { ClinicTestResultDispatchContext } from './ai-clinic-test-result-dispatch.build.js';
 
 @Injectable()
 export class AiClinicTestResultService {
@@ -39,6 +46,9 @@ export class AiClinicTestResultService {
     clinicTestResultActionService: ClinicTestResultActionService,
     clinicLabAccessService: ClinicLabAccessService,
     clinicCatalogService: ClinicTestCatalogService,
+    clinicLabChangeHistoryService: ClinicLabChangeHistoryService,
+    specimenService: ClinicSpecimenService,
+    specimenStatusService: ClinicSpecimenStatusService,
   ) {
     this.deps = {
       businessRepo,
@@ -55,6 +65,9 @@ export class AiClinicTestResultService {
       clinicTestResultService,
       clinicCatalogService,
       clinicLabAccessService,
+      clinicLabChangeHistoryService,
+      specimenService,
+      specimenStatusService,
     };
   }
 
@@ -136,5 +149,38 @@ export class AiClinicTestResultService {
     params: Record<string, unknown> = {},
   ): Promise<CommandResult> {
     return handleListAbnormalResultsLogic(this.extDeps, businessId, params);
+  }
+
+  handleTransitionSpecimen(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleTransitionSpecimenLogic(
+      this.extDeps,
+      businessId,
+      userId,
+      params,
+    );
+  }
+
+  handleExplainLabResultHistory(
+    businessId: string,
+    userId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleExplainLabResultHistoryLogic(
+      this.extDeps,
+      businessId,
+      userId,
+      params,
+    );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-test-result intent. */
+  dispatchIntent(
+    ctx: ClinicTestResultDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicTestResultIntent(this, ctx);
   }
 }

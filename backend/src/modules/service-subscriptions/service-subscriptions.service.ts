@@ -28,6 +28,10 @@ import {
   stripCatalogNotifyFields,
 } from '../catalog-announcement/catalog-announcement.util.js';
 import { Business } from '../business/entities/business.entity.js';
+import {
+  SubscriptionRefundService,
+  type SubscriptionRefundStatus,
+} from './subscription-refund.service.js';
 
 export interface CreateSubscriptionPlanDto {
   name: string;
@@ -60,6 +64,7 @@ export class ServiceSubscriptionsService {
     private businessRepo: Repository<Business>,
     private planEntitlements: PlanEntitlementsService,
     private catalogAnnouncement: CatalogAnnouncementService,
+    private subscriptionRefundService: SubscriptionRefundService,
   ) {}
 
   async listPlans(
@@ -113,13 +118,63 @@ export class ServiceSubscriptionsService {
     return { deleted: true, id: planId };
   }
 
-  async cancelSubscription(businessId: string, subscriptionId: string) {
+  async isRefundEligible(subscriptionId: string): Promise<boolean> {
+    const consumedCount = await this.usageRepo.count({
+      where: { subscriptionId, action: SubscriptionUsageAction.CONSUME },
+    });
+    return consumedCount === 0;
+  }
+
+  async cancelSubscription(
+    businessId: string,
+    subscriptionId: string,
+  ): Promise<{
+    subscription: CustomerSubscription;
+    refundStatus?: SubscriptionRefundStatus | 'ineligible';
+  }> {
     const sub = await this.subscriptionRepo.findOne({
       where: { id: subscriptionId, businessId },
     });
     if (!sub) throw new NotFoundException('Subscription not found');
     sub.status = CustomerSubscriptionStatus.CANCELLED;
-    return this.subscriptionRepo.save(sub);
+    const saved = await this.subscriptionRepo.save(sub);
+
+    let refundStatus: SubscriptionRefundStatus | 'ineligible' | undefined;
+    const metadata = (saved.metadata ?? {}) as Record<string, unknown>;
+    if (metadata.stripePaymentIntentId) {
+      const eligible = await this.isRefundEligible(saved.id);
+      if (!eligible) {
+        refundStatus = 'ineligible';
+      } else {
+        const business = await this.businessRepo.findOne({
+          where: { id: businessId },
+        });
+        if (business) {
+          refundStatus =
+            await this.subscriptionRefundService.refundSubscriptionPayment(
+              business,
+              saved,
+            );
+        }
+      }
+    }
+
+    return { subscription: saved, refundStatus };
+  }
+
+  async cancelCustomerSubscription(
+    businessId: string,
+    customerId: string,
+    subscriptionId: string,
+  ): Promise<{
+    subscription: CustomerSubscription;
+    refundStatus?: SubscriptionRefundStatus | 'ineligible';
+  }> {
+    const owned = await this.subscriptionRepo.findOne({
+      where: { id: subscriptionId, businessId, customerId },
+    });
+    if (!owned) throw new NotFoundException('Subscription not found');
+    return this.cancelSubscription(businessId, subscriptionId);
   }
 
   async getPlanCheckoutDetails(businessId: string, planId: string) {
@@ -233,7 +288,13 @@ export class ServiceSubscriptionsService {
     businessId: string,
     customerId: string,
     planId: string,
-    options?: { startsAt?: Date; pricePaid?: number; currency?: string },
+    options?: {
+      startsAt?: Date;
+      pricePaid?: number;
+      currency?: string;
+      stripePaymentIntentId?: string;
+      stripeConnectAccountId?: string;
+    },
   ) {
     const plan = await this.planRepo.findOne({
       where: { id: planId, businessId, isActive: true },
@@ -266,6 +327,14 @@ export class ServiceSubscriptionsService {
       status: CustomerSubscriptionStatus.ACTIVE,
       pricePaid: options?.pricePaid ?? preview.subscriptionPrice,
       currency: options?.currency ?? plan.service.currency ?? 'USD',
+      metadata: {
+        ...(options?.stripePaymentIntentId
+          ? { stripePaymentIntentId: options.stripePaymentIntentId }
+          : {}),
+        ...(options?.stripeConnectAccountId
+          ? { stripeConnectAccountId: options.stripeConnectAccountId }
+          : {}),
+      },
     });
     return this.subscriptionRepo.save(subscription);
   }

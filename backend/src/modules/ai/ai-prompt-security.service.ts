@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CommandResult } from './command-completion.types.js';
 import type { AiSurface } from './ai-capability.matrix.js';
 import {
+  isCrmInsightsRequest,
   isRevenueRelatedRequest,
   isStaffDirectoryRequest,
   STAFF_SCOPED_INTENTS,
@@ -38,6 +39,7 @@ export class AiPromptSecurityService {
     businessId: string,
     prompt: string,
     surface: AiSurface,
+    locale?: string | null,
   ): CommandResult | null {
     const assessment = assessPromptSecurity(prompt);
     if (assessment.level !== 'block') {
@@ -56,7 +58,7 @@ export class AiPromptSecurityService {
     return {
       success: false,
       action: 'security_blocked',
-      summary: securityDenialMessage(assessment.blockReason),
+      summary: securityDenialMessage(assessment.blockReason, locale),
       details: {
         securityBlocked: true,
         reason: assessment.blockReason,
@@ -73,6 +75,7 @@ export class AiPromptSecurityService {
     action: string,
     prompt: string,
     params: Record<string, unknown>,
+    locale?: string | null,
   ): CommandResult | null {
     const cleaned = stripDangerousParams(params);
 
@@ -86,7 +89,7 @@ export class AiPromptSecurityService {
       return {
         success: false,
         action,
-        summary: securityDenialMessage('availability_bypass'),
+        summary: securityDenialMessage('availability_bypass', locale),
         details: { securityBlocked: true, reason: 'availability_bypass' },
       };
     }
@@ -102,6 +105,19 @@ export class AiPromptSecurityService {
           summary:
             'Revenue and financial analytics are available to managers and owners only.',
           details: { securityBlocked: true, reason: 'revenue_access', tier },
+        };
+      }
+      // e2e-bug.163 — full CRM / customer PII is manager+ only
+      if (isCrmInsightsRequest(action)) {
+        this.logger.warn(
+          `AI CRM access denied business=${businessId} tier=${tier} action=${action}`,
+        );
+        return {
+          success: false,
+          action,
+          summary:
+            'Full customer lists and CRM profiles are available to managers and owners only. Staff can see limited customer info on their assigned bookings.',
+          details: { securityBlocked: true, reason: 'crm_insights', tier },
         };
       }
       if (isStaffDirectoryRequest(action)) {
@@ -121,7 +137,7 @@ export class AiPromptSecurityService {
       return {
         success: false,
         action,
-        summary: securityDenialMessage('data_export'),
+        summary: securityDenialMessage('data_export', locale),
         details: { securityBlocked: true, reason: 'data_export', tier },
       };
     }

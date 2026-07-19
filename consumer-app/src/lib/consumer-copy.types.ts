@@ -29,6 +29,43 @@ export type ConsumerCopy = {
   manageBookingSignInHint: string;
   signIn: string;
   signInWithGoogle: string;
+  /** e2e-bug.54 — LoginPage / Welcome / chrome that previously hard-coded English */
+  loginAccountHeading: string;
+  loginSubtitle: string;
+  loginGoogleNotConfigured: string;
+  /** e2e-bug.44 — Google sign-in failure messages (never raw Firebase SDK strings) */
+  loginGooglePopupBlocked: string;
+  loginGoogleCancelled: string;
+  loginGoogleFailed: string;
+  loginPhoneHint: string;
+  loginPhoneLabel: string;
+  loginSendCode: string;
+  loginOtpLabel: string;
+  loginVerify: string;
+  loginDifferentNumber: string;
+  welcomeAppTitle: string;
+  welcomeHeading: string;
+  welcomeSubtitle: string;
+  welcomeBookAgain: string;
+  /** e2e-bug.21 — dedicated pinned/saved salons list on Welcome */
+  welcomeSavedSalons: string;
+  welcomeYourSalons: string;
+  /** e2e-bug.20 — mistyped / missing salon slug bootstrap errors */
+  salonNotFound: string;
+  invalidSalonLink: string;
+  salonBookingUnavailable: string;
+  salonNotFoundBack: string;
+  welcomeSalonCodeLabel: string;
+  welcomeSalonCodePlaceholder: string;
+  welcomeContinue: string;
+  welcomeSaveSalonAria: string;
+  welcomeUnsaveSalonAria: string;
+  switchSalon: string;
+  switchSalonCurrentAria: string;
+  languagePickerAria: string;
+  checkoutContactName: string;
+  checkoutContactEmail: string;
+  checkoutContactPhone: string;
   cancelPackageVisit: string;
   cancelPackageVisitConfirm: string;
   cancelPackageVisitFailed: string;
@@ -36,6 +73,17 @@ export type ConsumerCopy = {
   reschedulePackageVisitSummary: string;
   reschedulePackageVisitSuccess: string;
   packageNoBlock: string;
+  /** e2e-bug.15 — package exceeds business multi-service duration cap / cannot be scheduled */
+  packageCannotSchedule: string;
+  /** e2e-bug.34 — multi-service same_visit group actions */
+  cancelMultiServiceVisit: string;
+  cancelMultiServiceVisitConfirm: string;
+  cancelMultiServiceVisitFailed: string;
+  rescheduleMultiServiceVisit: string;
+  rescheduleMultiServiceVisitSummary: string;
+  rescheduleMultiServiceVisitSuccess: string;
+  multiServiceNoBlock: string;
+  multiServiceVisitAppointmentCount: string;
   bookingStatusCancelled: string;
   bookingStatusCompleted: string;
   bookingStatusConfirmed: string;
@@ -156,6 +204,20 @@ export type ConsumerCopy = {
   guidePageSubtitle: string;
   guidePageTopicsLabel: string;
   guidePageBack: string;
+  /** Bottom tab + page titles */
+  tabHome: string;
+  tabBook: string;
+  tabAccount: string;
+  tabNavAria: string;
+  myAccountAction: string;
+  guidedStepWelcome: string;
+  guidedStepSalon: string;
+  guidedStepService: string;
+  guidedStepSlot: string;
+  guidedStepConfirm: string;
+  /** Confirm-step hint when already signed in. `{name}` = customer display name. */
+  bookingSignedInHint: string;
+  serviceNotFound: string;
   guidePageOpenInApp: string;
   guidePageAskSection: string;
   guideWalkThroughTopic: string;
@@ -233,6 +295,10 @@ export type ConsumerCopy = {
   multiServiceEntryCta: string;
   multiServiceSelectHint: string;
   multiServiceCart: string;
+  /** e2e-bug.24 — why a disabled multi-service row cannot be added */
+  multiServiceMaxCountBlocked: string;
+  multiServiceDurationBlocked: string;
+  multiServiceIncompatibleBlocked: string;
   multiServiceTotal: string;
   multiServiceContinue: string;
   multiServiceAvailabilityTitle: string;
@@ -245,6 +311,8 @@ export type ConsumerCopy = {
   multiServiceCheckoutTitle: string;
   uncategorizedServices: string;
   servicesSection: string;
+  servicesSearchPlaceholder: string;
+  servicesSearchEmpty: string;
   selectSpecialist: string;
   noTimesAvailable: string;
   loadAvailableTimesFailed: string;
@@ -363,9 +431,20 @@ export type ConsumerCopy = {
   growthShareUnavailable: string;
   growthShareRewardEarned: string;
   postBookingTenantReviewAction: string;
+  waitlistSectionTitle: string;
+  waitlistSectionHint: string;
+  waitlistOnList: string;
+  waitlistNotOnList: string;
+  waitlistJoinAction: string;
+  waitlistLeaveAction: string;
+  waitlistEmptySlotsHint: string;
   giftCardNav: string;
   giftCardTitle: string;
   giftCardSubtitle: string;
+  /** e2e-bug.58 — when physicalDeliveryEnabled is false */
+  giftCardSubtitleDigitalOnly: string;
+  /** Shown when catalog loads but the salon has gift-card purchase disabled. */
+  giftCardPurchaseUnavailable: string;
   giftCardChooseType: string;
   giftCardTypeMonetary: string;
   giftCardTypeService: string;
@@ -398,9 +477,11 @@ export type ConsumerCopy = {
   giftCardAddressLine1: string;
   giftCardAddressLine2: string;
   giftCardCity: string;
+  giftCardStateRegion: string;
   giftCardPostalCode: string;
   giftCardCountry: string;
   giftCardDeliveryInstructions: string;
+  giftCardShippingMethod: string;
   giftCardShipping: string;
   giftCardTotal: string;
   giftCardTotalDue: string;
@@ -492,11 +573,15 @@ export type ConsumerCopy = {
   providerReviewsTitle: string;
   providerReviewSummary: string;
   noProviderReviews: string;
+  /** e2e-bug.25 — load next page of provider reviews */
+  providerReviewsLoadMore: string;
+  providerReviewsLoadMoreFailed: string;
   availableSlots: string;
   bookAppointment: string;
   profileViewDetails: string;
   profileFollowUs: string;
   profileLocation: string;
+  profileHours: string;
   profileSocialWebsite: string;
   profileSocialInstagram: string;
   profileSocialFacebook: string;
@@ -545,10 +630,16 @@ export type ConsumerCopy = {
   subscriptionsVisitsLeft: string;
   subscriptionsExpires: string;
   subscriptionsBookNext: string;
+  subscriptionsCancel: string;
+  subscriptionsCancelConfirm: string;
+  subscriptionsCancelFailed: string;
+  subscriptionsCancelRefunded: string;
   subscriptionsUsageHistory: string;
   subscriptionsNoUsage: string;
   subscriptionUsagePurchase: string;
   subscriptionUsageRedeem: string;
+  /** e2e-bug.41 — SubscriptionUsageAction.RESTORE */
+  subscriptionUsageRestore: string;
   subscriptionUsageExpire: string;
   subscriptionUsageLine: string;
   assistantExampleSubscriptions: string;

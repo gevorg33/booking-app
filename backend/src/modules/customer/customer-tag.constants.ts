@@ -4,6 +4,7 @@ export const CUSTOMER_TAGS = [
   'persona',
   'corporate',
   'referral',
+  'waitlist',
 ] as const;
 
 export type CustomerTag = (typeof CUSTOMER_TAGS)[number];

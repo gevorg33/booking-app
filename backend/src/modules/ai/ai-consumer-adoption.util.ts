@@ -48,12 +48,15 @@ import {
   isExplainPatientAlertPrompt,
 } from './ai-explain-patient-alert.util.js';
 import { isPushNotificationsDomainPrompt } from './ai-push-notifications.util.js';
+import { rescueClaimReferralCodeIntent } from './ai-rewards-and-referral-claim.util.js';
 
 export const CONSUMER_ADOPTION_INTENTS = [
   'explain_my_notifications',
   'manage_notification_preferences',
   'enable_push_notifications',
   'explain_push_permission',
+  'register_customer_push',
+  'explain_push_registration_status',
   'explain_offline_mode',
   'explain_app_update_required',
   'explain_analytics_consent',
@@ -61,8 +64,11 @@ export const CONSUMER_ADOPTION_INTENTS = [
   'explain_patient_alert',
   'explain_share_reward',
   'refer_a_friend',
+  'claim_referral_code',
   'share_salon_link',
   'share_my_booking',
+  'claim_share_reward',
+  'explain_rewards_wallet',
   'rebook_last_appointment',
   'find_my_saved_salons',
   'switch_salon_tenant',
@@ -168,6 +174,10 @@ export function rescueConsumerAdoptionIntent(
 
   const explainShareReward = rescueExplainShareRewardIntent(text, action);
   if (explainShareReward) return explainShareReward;
+
+  // e2e-bug.83 — before growth-loops refer_a_friend steals "referral code".
+  const claimReferral = rescueClaimReferralCodeIntent(text, action);
+  if (claimReferral) return claimReferral;
 
   const switchSalonSteal = rescueSwitchSalonTenantIntent(text, action);
   if (switchSalonSteal) return switchSalonSteal;

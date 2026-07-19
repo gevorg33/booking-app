@@ -3,9 +3,11 @@ import {
   buildBookingSubscriptionFields,
   isUsingSubscriptionCredit,
   requiresCheckoutOnlinePayment,
+  resolveDisplayCheckoutQuote,
   shouldShowSubscriptionCheckoutOptions,
   showCheckoutCashOption,
 } from './checkout-subscription.util.js';
+import type { PublicCheckoutQuote } from './types.js';
 
 describe('checkout-subscription.util', () => {
   const service = {
@@ -118,4 +120,75 @@ describe('checkout-subscription.util', () => {
       }),
     ).toBe(true);
   });
+
+  it.each([
+    {
+      id: 'e2e-bug.17-credit-zeros-amount-due',
+      usingSubscriptionCredit: true,
+      quote: {
+        servicePrice: 120,
+        subtotal: 120,
+        amountDue: 120,
+        currency: 'USD',
+      } satisfies PublicCheckoutQuote,
+      expectedAmountDue: 0,
+      expectedSubtotal: 120,
+      expectedTotalDiscount: 120,
+    },
+    {
+      id: 'e2e-bug.28-credit-marks-free-after-discounts',
+      usingSubscriptionCredit: true,
+      quote: {
+        servicePrice: 120,
+        subtotal: 120,
+        amountDue: 120,
+        totalDiscount: 0,
+        currency: 'USD',
+      } satisfies PublicCheckoutQuote,
+      expectedAmountDue: 0,
+      expectedSubtotal: 120,
+      expectedTotalDiscount: 120,
+    },
+    {
+      id: 'e2e-bug.17-paid-visit-unchanged',
+      usingSubscriptionCredit: false,
+      quote: {
+        servicePrice: 120,
+        subtotal: 120,
+        amountDue: 120,
+        currency: 'USD',
+      } satisfies PublicCheckoutQuote,
+      expectedAmountDue: 120,
+      expectedSubtotal: 120,
+      expectedTotalDiscount: undefined,
+    },
+    {
+      id: 'e2e-bug.17-null-quote',
+      usingSubscriptionCredit: true,
+      quote: null,
+      expectedAmountDue: null,
+      expectedSubtotal: null,
+      expectedTotalDiscount: undefined,
+    },
+  ])(
+    '$id resolveDisplayCheckoutQuote',
+    ({
+      usingSubscriptionCredit,
+      quote,
+      expectedAmountDue,
+      expectedSubtotal,
+      expectedTotalDiscount,
+    }) => {
+      const display = resolveDisplayCheckoutQuote(quote, { usingSubscriptionCredit });
+      if (expectedAmountDue == null) {
+        expect(display).toBeNull();
+        return;
+      }
+      expect(display?.amountDue).toBe(expectedAmountDue);
+      expect(display?.subtotal).toBe(expectedSubtotal);
+      if (expectedTotalDiscount != null) {
+        expect(display?.totalDiscount).toBe(expectedTotalDiscount);
+      }
+    },
+  );
 });

@@ -17,6 +17,14 @@ export type ProviderAiCommandHarnessOverrides = {
   providerTimeOff?: Record<string, unknown>;
   providerOpenShifts?: Record<string, unknown>;
   providerExp3?: Record<string, unknown>;
+  providerClinicTasksAndResults?: Record<string, unknown>;
+  clinicPatientChart?: Record<string, unknown>;
+  providerClinicCollection?: Record<string, unknown>;
+  clinicLabBooking?: Record<string, unknown>;
+  giftFulfillment?: Record<string, unknown>;
+  retailFinance?: Record<string, unknown>;
+  scheduleResources?: Record<string, unknown>;
+  payments?: Record<string, unknown>;
   pushActions?: Record<string, unknown>;
   pushNotifications?: Record<string, unknown>;
   providerBooking?: Record<string, unknown>;
@@ -235,8 +243,16 @@ export function createProviderAiCommandHarness(
       rescueProviderBookingIntent: jest.fn(() => null),
       ...overrides.providerBooking,
     } as any,
-    {} as any,
-    {} as any,
+    {
+      handleListMyCollectionQueue: jest.fn(noopAsync),
+      handleMarkSpecimenCollected: jest.fn(noopAsync),
+      ...overrides.providerClinicCollection,
+    } as any,
+    {
+      handleListPatientPendingLabRequests: jest.fn(noopAsync),
+      handlePushLabBookingToPatient: jest.fn(noopAsync),
+      ...overrides.clinicLabBooking,
+    } as any,
     { handleExplainProviderPaymentCurrency: jest.fn() } as any,
     {
       handleExplainProviderDateDisplay: jest.fn(),
@@ -276,6 +292,49 @@ export function createProviderAiCommandHarness(
       rescueProviderExp3Intent: jest.fn(() => null),
       handleIntent: jest.fn(noopAsync),
       ...overrides.providerExp3,
+    } as any,
+    {
+      rescueProviderClinicTasksAndResultsIntent: jest.fn(() => null),
+      handleListLabResultsQueue: jest.fn(noopAsync),
+      handleListClinicTasks: jest.fn(noopAsync),
+      handleClaimClinicTask: jest.fn(noopAsync),
+      handleCompleteClinicTask: jest.fn(noopAsync),
+      handleListBookingLabSummaries: jest.fn(noopAsync),
+      ...overrides.providerClinicTasksAndResults,
+    } as any,
+    {
+      handleExplainPatientChart: jest.fn(noopAsync),
+      ...overrides.clinicPatientChart,
+    } as any,
+    {
+      rescueFulfillmentIntent: jest.fn(() => null),
+      isFulfillmentCompound: jest.fn(() => false),
+      decomposeFulfillmentCompound: jest.fn(() => []),
+      handleFulfillmentCompound: jest.fn(noopAsync),
+      handleGiftCardCreationQueue: jest.fn(noopAsync),
+      handleStartCardPreparation: jest.fn(noopAsync),
+      handleExplainGiftCardOrderDetails: jest.fn(noopAsync),
+      handleMarkCardReady: jest.fn(noopAsync),
+      handleDeliveryQueue: jest.fn(noopAsync),
+      handleAcceptDelivery: jest.fn(noopAsync),
+      handleMarkOutForDelivery: jest.fn(noopAsync),
+      handleMarkDelivered: jest.fn(noopAsync),
+      handleCaptureDeliveryProof: jest.fn(noopAsync),
+      handleNotifyDelay: jest.fn(noopAsync),
+      ...overrides.giftFulfillment,
+    } as any,
+    {
+      handleSuggestRetailUpsell: jest.fn(noopAsync),
+      ...overrides.retailFinance,
+    } as any,
+    {
+      handleMyResourceAssignments: jest.fn(noopAsync),
+      handleBlockResourceUnavailable: jest.fn(noopAsync),
+      ...overrides.scheduleResources,
+    } as any,
+    {
+      dispatchIntent: jest.fn(noopAsync),
+      ...overrides.payments,
     } as any,
     {
       handleAction: jest.fn(),

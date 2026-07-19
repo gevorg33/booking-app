@@ -39,6 +39,21 @@ describe('provider-command-completion.validator (ai-cmd-t4)', () => {
     ).toBe(true);
   });
 
+  it('cancel_bookings passes with an explicit bookingId', () => {
+    expect(
+      validateProviderCommand('cancel_bookings', { bookingId: 'book-1' }).ok,
+    ).toBe(true);
+  });
+
+  it('update_bookings passes with an explicit bookingId and status', () => {
+    expect(
+      validateProviderCommand('update_bookings', {
+        bookingId: 'book-1',
+        status: 'done',
+      }).ok,
+    ).toBe(true);
+  });
+
   it('mark_no_shows requires date', () => {
     const result = validateProviderCommand('mark_no_shows', {});
     expect(result.ok).toBe(false);

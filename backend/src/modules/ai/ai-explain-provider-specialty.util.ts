@@ -1,5 +1,8 @@
 import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
 import { isExplainProfessionalProfilePrompt } from './ai-explain-professional-profile.util.js';
+import { isTeamFloorStatusPrompt } from './ai-provider-exp-2.util.js';
+import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
+import { isLookupServiceAssignmentPrompt } from './ai-intent-disambiguation.util.js';
 
 export const CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES = `- explain_provider_specialty: READ — explain a provider's role, specialty/bio copy from their profile, linked services, and ratings; or match specialists to a hair/skin/service topic (e.g. curly hair, balayage). Triggers: "Who is best for curly hair?", "Tell me about Anna", "Who specializes in color?", "What is Maria's specialty?". Set aspect to named_provider when a person is named (providerName) or specialty_match when asking who fits a topic (specialtyTopic). Navigate to the professionals profile when possible. NOT explain_professional_profile (open profile page / show services list), NOT explain_any_provider_option (Any stylist picker), NOT recommend_specialists (ranked availability/slots this week), NOT list_providers (roster only), NOT check_availability (slot search), and NOT business_info (salon description).`;
 
@@ -237,6 +240,9 @@ export const EXPLAIN_PROVIDER_SPECIALTY_PROMPTS: readonly ExplainProviderSpecial
   ];
 
 const NAMED_PROVIDER_PATTERNS: ReadonlyArray<RegExp> = [
+  // e2e-bug.93 — "what does Karo specialize in?"
+  /\bwhat\s+does\s+([A-Za-z][\w.'-]{1,40})\s+specialize\s+in\b/i,
+  /\bwhat\s+is\s+([A-Za-z][\w.'-]{1,40})\s+speciali[sz]ed\s+in\b/i,
   /\btell me about\s+(.+?)(?:\?|$)/i,
   /\blearn(?: more)? about\s+(.+?)(?:\?|$)/i,
   /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b)(.+?)(?:\?|$)/i,
@@ -282,6 +288,9 @@ function hasNamedProviderCue(prompt: string): boolean {
     /\b(?:tell me about|learn(?: more)? about|what(?:'s| is)\s+\w+(?:'s)?\s+specialty|does\s+\w+\s+do)\b/i.test(
       prompt,
     ) ||
+    // e2e-bug.93 — "what does Karo specialize in?"
+    /\bwhat\s+does\s+\w+\s+specialize\s+in\b/i.test(prompt) ||
+    /\bwhat\s+is\s+\w+\s+speciali[sz]ed\s+in\b/i.test(prompt) ||
     /\bwho is\s+(?!best\b|good\b|the\s+best\b|the\s+expert\b|free\b|available\b|open\b|working\b|busy\b)/i.test(
       prompt,
     ) ||
@@ -365,6 +374,9 @@ export function inferProviderSpecialtyAspect(
 }
 
 export function isExplainProviderSpecialtyPrompt(prompt: string): boolean {
+  if (isTeamFloorStatusPrompt(prompt)) return false;
+  if (isLookupServiceAssignmentPrompt(prompt)) return false;
+  if (isExplainTenantAppInstallPrompt(prompt)) return false;
   if (isExplainProfessionalProfilePrompt(prompt)) return false;
   if (isExplainAnyProviderOptionPrompt(prompt)) return false;
   if (isRecommendAvailabilityPrompt(prompt)) return false;

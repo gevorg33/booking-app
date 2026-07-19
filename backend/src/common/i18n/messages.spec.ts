@@ -76,6 +76,23 @@ const CLINIC_AFTER_VISIT_SUMMARY_PDF_KEYS = [
   'pdf.clinicAfterVisitSummary.printButton',
 ] as const;
 
+/** e2e-bug.127 — security_blocked / action-denied assistant copy */
+const ASSISTANT_SECURITY_DENIED_KEYS = [
+  'assistant.securityInjection',
+  'assistant.securityDataExport',
+  'assistant.securityAvailabilityBypass',
+  'assistant.securityDefault',
+  'assistant.deniedPublic',
+  'assistant.deniedCustomer',
+] as const;
+
+/** e2e-bug.126 — unknown-intent clarify lead sentence */
+const ASSISTANT_UNKNOWN_INTENT_KEYS = [
+  'assistant.unknownIntentProvider',
+  'assistant.unknownIntentCustomer',
+  'assistant.unknownIntentDashboard',
+] as const;
+
 describe('backend i18n messages', () => {
   it('resolves hy and ru locales', () => {
     expect(resolveLocale('hy')).toBe('hy');
@@ -169,6 +186,34 @@ describe('backend i18n messages', () => {
         const value = t(locale, key);
         expect(value).not.toBe(key);
         expect(value.trim().length).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it.each(SUPPORTED_LOCALES)(
+    'defines assistant security denial keys for %s (e2e-bug.127)',
+    (locale) => {
+      for (const key of ASSISTANT_SECURITY_DENIED_KEYS) {
+        const value = t(locale, key);
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(0);
+        expect(value).not.toMatch(/create_booking|payment_sweep/);
+      }
+    },
+  );
+
+  it.each(SUPPORTED_LOCALES)(
+    'defines assistant unknown-intent keys for %s (e2e-bug.126)',
+    (locale) => {
+      for (const key of ASSISTANT_UNKNOWN_INTENT_KEYS) {
+        const value = t(locale, key);
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(0);
+      }
+      if (locale !== 'en') {
+        expect(t(locale, 'assistant.unknownIntentCustomer')).not.toBe(
+          t('en', 'assistant.unknownIntentCustomer'),
+        );
       }
     },
   );

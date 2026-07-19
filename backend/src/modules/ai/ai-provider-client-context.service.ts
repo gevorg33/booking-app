@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../booking/entities/booking.entity.js';
+import { GiftCard } from '../gift-cards/entities/gift-card.entity.js';
 import { ProviderMobileService } from '../provider-mobile/provider-mobile.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -16,11 +17,13 @@ export class AiProviderClientContextService {
 
   constructor(
     @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    @InjectRepository(GiftCard) private giftCardRepo: Repository<GiftCard>,
     private providerMobile: ProviderMobileService,
   ) {
     this.deps = {
       bookingRepo: this.bookingRepo,
       providerMobile: this.providerMobile,
+      giftCardRepo: this.giftCardRepo,
     };
   }
 

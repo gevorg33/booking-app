@@ -97,6 +97,36 @@ export async function handleEnablePushNotificationsLogic(
   );
 }
 
+export async function handleExplainPushRegistrationStatusLogic(
+  deps: ProviderPushSetupLogicDeps,
+  businessId: string,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<CommandResult> {
+  if (!userId?.trim()) {
+    return failure(
+      'explain_push_registration_status',
+      'Sign in to the provider app to check your push notification status.',
+      { clarify: true },
+    );
+  }
+
+  const platform = resolveNativePlatform(params);
+  const status = await deps.pushService.getNativePushStatus(
+    userId,
+    businessId,
+    platform,
+  );
+
+  return success(
+    'explain_push_registration_status',
+    status.registered
+      ? `Push notifications are on for your ${status.platform ?? 'device'}.`
+      : 'Push notifications are not enabled on this device yet.',
+    { ...status },
+  );
+}
+
 export async function dispatchProviderPushSetupIntent(
   deps: ProviderPushSetupLogicDeps,
   businessId: string,
@@ -109,6 +139,13 @@ export async function dispatchProviderPushSetupIntent(
       return handleExplainPushSetupLogic(businessId, params);
     case 'enable_push_notifications':
       return handleEnablePushNotificationsLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+      );
+    case 'explain_push_registration_status':
+      return handleExplainPushRegistrationStatusLogic(
         deps,
         businessId,
         userId,

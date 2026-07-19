@@ -81,6 +81,21 @@ function matchBuyGiftCardForSomeoneScenario(
 }
 
 export function hasGiftCardForSomeoneCue(prompt: string): boolean {
+  // e2e-bug.80 — "gift card for myself" / "for 75 dollars" is self-purchase face
+  // value, not a recipient. The old `.+\b(to|for)\b` catch-all stole those.
+  if (/\bfor\s+(?:my\s*self|myself|me)\b/i.test(prompt)) return false;
+  if (
+    /\bfor\s+(?:\$\s*)?\d[\d,]*(?:\.\d+)?(?:\s*(?:dollars?|usd))?\b/i.test(
+      prompt,
+    ) &&
+    !/\bfor\s+(?:my\s+)?(?:mom|mother|dad|father|wife|husband|partner|friend|sister|brother|someone)\b/i.test(
+      prompt,
+    ) &&
+    !/\bfor\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/.test(prompt) &&
+    !/\bas\s+a\s+(?:gift|present)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(?:buy|purchase|order|get|send|email|mail)\b/i.test(prompt) &&
     /\b(gift\s*card|digital\s+(?:gift\s*)?card)\b/i.test(prompt) &&
@@ -88,10 +103,13 @@ export function hasGiftCardForSomeoneCue(prompt: string): boolean {
       prompt,
     ) ||
       /\bfor\s+someone\s+else\b/i.test(prompt) ||
-      /\bas\s+a\s+gift\b/i.test(prompt) ||
+      /\bas\s+a\s+(?:gift|present)\b/i.test(prompt) ||
       /\b(?:email|send)\b.+\b(?:gift\s*card|digital)\b/i.test(prompt) ||
-      /\b(?:gift\s*card|digital\s+card)\b.+\b(?:to|for)\b/i.test(prompt) ||
+      /\b(?:gift\s*card|digital\s+card)\b.{0,48}\b(?:to|for)\s+(?!myself\b|me\b|(?:\$\s*)?\d)(?:my\s+)?(?:mom|mother|dad|father|wife|husband|partner|friend|sister|brother|someone|[A-Z][a-z]+)/i.test(
+        prompt,
+      ) ||
       /\bfor\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/.test(prompt) ||
+      /\bto\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/.test(prompt) ||
       /\bto\s+[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i.test(prompt) ||
       HY_RU_GIFT_FOR_SOMEONE_CUE.test(prompt))
   );

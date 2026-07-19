@@ -6,7 +6,10 @@ import {
   applyPublicPaymentSettingsToBusinessSettings,
   resolvePublicPaymentSettings,
 } from '../../common/utils/customer-self-service.util.js';
-import { ensureBookingManageToken } from '../../common/utils/booking-manage-token.util.js';
+import {
+  ensureBookingManageToken,
+  generateBookingManageToken,
+} from '../../common/utils/booking-manage-token.util.js';
 
 describe('Public booking cash + manage token integration', () => {
   const business = {
@@ -66,9 +69,15 @@ describe('Public booking cash + manage token integration', () => {
         _user?: unknown,
         opts?: { paymentStatus?: PaymentStatus },
       ) => {
+        // Mirror BookingService.create — stamp manageToken with the row.
+        const metadata = {
+          ...((dto.metadata as Record<string, unknown>) || {}),
+          manageToken: generateBookingManageToken(),
+        };
         const booking = {
           id: 'book-cash-1',
           ...dto,
+          metadata,
           paymentStatus: opts?.paymentStatus,
         };
         storedBookings.set('book-cash-1', booking);
@@ -88,6 +97,35 @@ describe('Public booking cash + manage token integration', () => {
       storedBookings.set(String(b.id), b);
       return b;
     }),
+    // e2e-bug.120 / api-bug.6 — ensureBookingManageToken uses FOR UPDATE tx
+    manager: {
+      transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) => {
+        const manager = {
+          createQueryBuilder: () => ({
+            setLock: () => ({
+              where: (_clause: string, params: { bookingId: string }) => ({
+                getOne: async () => {
+                  const row = storedBookings.get(params.bookingId);
+                  return row
+                    ? {
+                        ...row,
+                        metadata: {
+                          ...((row.metadata as Record<string, unknown>) || {}),
+                        },
+                      }
+                    : null;
+                },
+              }),
+            }),
+          }),
+          save: async (_entity: unknown, booking: Record<string, unknown>) => {
+            storedBookings.set(String(booking.id), { ...booking });
+            return booking;
+          },
+        };
+        return cb(manager);
+      }),
+    },
   };
   const configService = { get: jest.fn(() => 'https://app.test') };
 
@@ -189,6 +227,67 @@ describe('Public booking cash + manage token integration', () => {
       result.booking.id,
     );
     expect(again).toBe(result.manageToken);
+  });
+
+  it('e2e-bug.120 — create response manageToken matches persisted metadata under concurrent ensure', async () => {
+    const result = await publicBookingService.createBooking('salon', {
+      employeeId: 'emp-1',
+      serviceId: 'svc-1',
+      startTime: new Date(Date.now() + 86400000).toISOString(),
+      customer: { name: 'Jane', email: 'jane@example.com' },
+    });
+
+    const persisted = storedBookings.get('book-cash-1')?.metadata as {
+      manageToken?: string;
+    };
+    expect(result.manageToken).toMatch(/^[a-f0-9]{48}$/);
+    expect(persisted?.manageToken).toBe(result.manageToken);
+    expect(result.booking.metadata?.manageToken).toBe(result.manageToken);
+
+    // Concurrent confirmation-email style ensures must not mint a different token.
+    const [a, b] = await Promise.all([
+      ensureBookingManageToken(bookingRepo as any, result.booking.id),
+      ensureBookingManageToken(bookingRepo as any, result.booking.id),
+    ]);
+    expect(a).toBe(result.manageToken);
+    expect(b).toBe(result.manageToken);
+    expect(
+      (storedBookings.get('book-cash-1')?.metadata as { manageToken?: string })
+        ?.manageToken,
+    ).toBe(result.manageToken);
+  });
+
+  it('e2e-bug.120 — legacy row without stamped token: ensure under lock matches response', async () => {
+    bookingService.create.mockImplementationOnce(
+      async (
+        _bizId: string,
+        dto: Record<string, unknown>,
+        _user?: unknown,
+        opts?: { paymentStatus?: PaymentStatus },
+      ) => {
+        const booking = {
+          id: 'book-cash-1',
+          ...dto,
+          metadata: { ...((dto.metadata as Record<string, unknown>) || {}) },
+          paymentStatus: opts?.paymentStatus,
+        };
+        storedBookings.set('book-cash-1', booking);
+        return booking;
+      },
+    );
+
+    const result = await publicBookingService.createBooking('salon', {
+      employeeId: 'emp-1',
+      serviceId: 'svc-1',
+      startTime: new Date(Date.now() + 86400000).toISOString(),
+      customer: { name: 'Jane', email: 'jane@example.com' },
+    });
+
+    expect(bookingRepo.manager.transaction).toHaveBeenCalled();
+    expect(
+      (storedBookings.get('book-cash-1')?.metadata as { manageToken?: string })
+        ?.manageToken,
+    ).toBe(result.manageToken);
   });
 
   it('allows cash booking when amount due remains after discounts', async () => {

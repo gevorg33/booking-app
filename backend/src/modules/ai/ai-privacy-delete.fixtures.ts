@@ -6,7 +6,7 @@ export type PrivacyDeletePromptFixture = {
   rescueReason: 'privacy_delete';
 };
 
-export const CUSTOMER_PRIVACY_DELETE_CLASSIFIER_RULES = `- privacy_delete: MUTATE — signed-in customer requests GDPR erasure / right-to-be-forgotten for their own account. Triggers: delete|erase|remove|forget|anonymize + my + data|account|information|profile; delete my account; right to be forgotten. Requires session customerId. NOT explain_data_rights (read questions — "Can I delete my account data?"), NOT delete_customer_data / admin_delete_customer_data (dashboard admin erasure for a named customer).`;
+export const CUSTOMER_PRIVACY_DELETE_CLASSIFIER_RULES = `- privacy_delete: MUTATE — signed-in customer requests GDPR erasure / right-to-be-forgotten for their own account. Triggers: delete|erase|remove|forget|anonymize + my + data|account|information|profile; delete my account; right to be forgotten. Requires session customerId. This is a two-step confirm flow: on the FIRST ask, do NOT set params.confirm — the assistant will preview irreversible anonymization and ask the customer to confirm. Only set params.confirm=true when the customer has ALREADY explicitly agreed in this conversation (e.g. they replied "yes"/"confirm"/"go ahead" to the preview). Never set confirm=true on the first turn. NOT explain_data_rights (read questions — "Can I delete my account data?"), NOT delete_customer_data / admin_delete_customer_data (dashboard admin erasure for a named customer).`;
 
 export const PRIVACY_DELETE_PROMPTS: readonly PrivacyDeletePromptFixture[] = [
   {

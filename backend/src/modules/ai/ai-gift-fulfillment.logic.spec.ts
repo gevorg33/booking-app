@@ -1,4 +1,5 @@
 import {
+  handleExplainGiftCardOrderDetailsLogic,
   handleListGiftCardOrdersLogic,
   handleFilterAwaitingCreationLogic,
   handleAssignCardCreatorLogic,
@@ -21,6 +22,10 @@ import {
   handleShippingMethodQuoteLogic,
   handleOrderStatusNotificationsLogic,
   handleFulfillmentCompoundLogic,
+  handleUpdateGiftCardSettingsLogic,
+  handleListGiftCardChangeRequestsLogic,
+  handleResolveGiftCardChangeRequestLogic,
+  handleGiftFulfillBatchLogic,
   type GiftFulfillmentLogicDeps,
 } from './ai-gift-fulfillment.logic.js';
 
@@ -104,6 +109,17 @@ function buildDeps(
         trackingCarrier: 'UPS',
         trackingNumber: 'TRK-1',
       })),
+      listChangeRequests: jest.fn(async () => [
+        { id: 'req-1', status: 'pending', giftCardId: 'gc-1' },
+      ]),
+      resolveChangeRequest: jest.fn(
+        async (
+          _businessId: string,
+          requestId: string,
+          resolution: string,
+          specialistNotes?: string,
+        ) => ({ id: requestId, status: resolution, specialistNotes }),
+      ),
     } as any,
     giftCardPurchaseService: {
       getPublicCatalog: jest.fn(async () => ({
@@ -292,10 +308,21 @@ describe('ai-gift-fulfillment.logic', () => {
 
   it('cancels orders and extends cancel window', async () => {
     const deps = buildDeps();
+    const cancelNoReason = await handleCancelGiftCardOrderLogic(
+      deps,
+      'biz-1',
+      { giftCardId: 'gc-1' },
+    );
+    expect(cancelNoReason.success).toBe(false);
+    expect(cancelNoReason.details).toMatchObject({
+      clarify: true,
+      missing: ['reason'],
+    });
     expect(
       (
         await handleCancelGiftCardOrderLogic(deps, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'Customer requested cancellation',
         })
       ).success,
     ).toBe(true);
@@ -330,6 +357,7 @@ describe('ai-gift-fulfillment.logic', () => {
       (
         await handleCancelGiftCardOrderLogic(noBiz, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'Customer requested cancellation',
         })
       ).success,
     ).toBe(false);
@@ -352,6 +380,7 @@ describe('ai-gift-fulfillment.logic', () => {
       (
         await handleCancelGiftCardOrderLogic(noRefund, 'biz-1', {
           giftCardId: 'gc-1',
+          reason: 'No refund needed — unused',
         })
       ).success,
     ).toBe(true);
@@ -383,6 +412,38 @@ describe('ai-gift-fulfillment.logic', () => {
     expect(
       (await handleDeliveryQueueLogic(emptyQueue, 'biz-1')).summary,
     ).toContain('empty');
+  });
+
+  it('explains a gift card order detail (ai-cmd-provider-5.20.5)', async () => {
+    const deps = buildDeps({
+      fulfillmentService: {
+        getDashboardOrder: jest.fn(async () => ({
+          ...physicalCard,
+          cardType: 'service',
+          purchaseAmount: 100,
+          balance: 100,
+          currency: 'USD',
+        })),
+      } as any,
+    });
+
+    const result = await handleExplainGiftCardOrderDetailsLogic(deps, 'biz-1', {
+      giftCardId: 'gc-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_gift_card_order_details');
+    expect(result.summary).toContain('service gift card');
+    expect(result.summary).toContain('Jane');
+    expect(result.details?.cardType).toBe('service');
+
+    const clarify = await handleExplainGiftCardOrderDetailsLogic(
+      deps,
+      'biz-1',
+      {},
+    );
+    expect(clarify.success).toBe(false);
+    expect(clarify.details?.clarify).toBe(true);
   });
 
   it('handles card preparation and ready states', async () => {
@@ -963,8 +1024,9 @@ describe('ai-gift-fulfillment.logic', () => {
             }
           : action === 'extend_cancel_window'
             ? { cancelModifyWindowHours: 48 }
-            : action === 'cancel_gift_card_order' ||
-                action === 'print_packing_slip' ||
+            : action === 'cancel_gift_card_order'
+              ? { giftCardId: 'gc-1', reason: 'Test cancellation' }
+              : action === 'print_packing_slip' ||
                 action === 'start_card_preparation' ||
                 action === 'mark_delivered' ||
                 action === 'mark_out_for_delivery' ||
@@ -1763,5 +1825,178 @@ describe('ai-gift-fulfillment.logic', () => {
       },
     );
     expect(listMerge.success).toBe(true);
+  });
+
+  describe('handleUpdateGiftCardSettingsLogic (ai-cmd-dashboard-6.10)', () => {
+    it('clarifies when no field is given', async () => {
+      const result = await handleUpdateGiftCardSettingsLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(false);
+    });
+
+    it('updates gift card settings', async () => {
+      const deps = buildDeps();
+      const result = await handleUpdateGiftCardSettingsLogic(deps, 'biz-1', {
+        defaultExpiryMonths: 12,
+        digitalDeliveryEnabled: false,
+      });
+      expect(result.success).toBe(true);
+      expect(deps.businessRepo.save).toHaveBeenCalled();
+      expect(result.details.settings.defaultExpiryMonths).toBe(12);
+      expect(result.details.settings.digitalDeliveryEnabled).toBe(false);
+    });
+
+    it('fails when business is not found', async () => {
+      const deps = buildDeps({
+        businessRepo: { findOne: jest.fn(async () => null), save: jest.fn() } as any,
+      });
+      const result = await handleUpdateGiftCardSettingsLogic(deps, 'biz-1', {
+        defaultExpiryMonths: 6,
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('handleListGiftCardChangeRequestsLogic (ai-cmd-dashboard-6.10)', () => {
+    it('lists change requests', async () => {
+      const deps = buildDeps();
+      const result = await handleListGiftCardChangeRequestsLogic(
+        deps,
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(true);
+      expect(result.details.requests).toHaveLength(1);
+    });
+
+    it('reports none found', async () => {
+      const deps = buildDeps({
+        giftCardOrderService: {
+          listChangeRequests: jest.fn(async () => []),
+          resolveChangeRequest: jest.fn(),
+        } as any,
+      });
+      const result = await handleListGiftCardChangeRequestsLogic(
+        deps,
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toMatch(/No gift card change requests/);
+    });
+  });
+
+  describe('handleResolveGiftCardChangeRequestLogic (ai-cmd-dashboard-6.10)', () => {
+    it('clarifies when requestId/resolution missing', async () => {
+      const result = await handleResolveGiftCardChangeRequestLogic(
+        buildDeps(),
+        'biz-1',
+        {},
+      );
+      expect(result.success).toBe(false);
+      expect(result.details.clarify).toBe(true);
+    });
+
+    it('resolves the change request', async () => {
+      const deps = buildDeps();
+      const result = await handleResolveGiftCardChangeRequestLogic(
+        deps,
+        'biz-1',
+        { requestId: 'req-1', resolution: 'approve' },
+      );
+      expect(result.success).toBe(true);
+      expect(deps.giftCardOrderService.resolveChangeRequest).toHaveBeenCalledWith(
+        'biz-1',
+        'req-1',
+        'approve',
+        undefined,
+      );
+    });
+
+    it('handles errors gracefully', async () => {
+      const deps = buildDeps({
+        giftCardOrderService: {
+          listChangeRequests: jest.fn(),
+          resolveChangeRequest: jest.fn(async () => {
+            throw new Error('This request has already been resolved');
+          }),
+        } as any,
+      });
+      const result = await handleResolveGiftCardChangeRequestLogic(
+        deps,
+        'biz-1',
+        { requestId: 'req-1', resolution: 'deny' },
+      );
+      expect(result.success).toBe(false);
+      expect(result.summary).toContain('already been resolved');
+    });
+  });
+
+  describe('handleGiftFulfillBatchLogic (ai-cmd-dashboard-6.10)', () => {
+    it('reports nothing to ship when queue is empty', async () => {
+      const deps = buildDeps({
+        fulfillmentService: {
+          listDashboardOrders: jest.fn(async () => ({
+            orders: [],
+            total: 0,
+            page: 1,
+            pageSize: 20,
+          })),
+        } as any,
+      });
+      const result = await handleGiftFulfillBatchLogic(deps, 'biz-1', {});
+      expect(result.success).toBe(true);
+      expect(result.details.shipped).toEqual([]);
+    });
+
+    it('ships the first N ready orders', async () => {
+      const deps = buildDeps({
+        fulfillmentService: {
+          listDashboardOrders: jest.fn(async () => ({
+            orders: [
+              { ...physicalCard, id: 'gc-1' },
+              { ...physicalCard, id: 'gc-2' },
+            ],
+            total: 2,
+            page: 1,
+            pageSize: 20,
+          })),
+          markShipped: jest.fn(async (_biz: string, id: string) => ({
+            ...physicalCard,
+            id,
+            fulfillmentStatus: 'shipped',
+          })),
+        } as any,
+      });
+      const result = await handleGiftFulfillBatchLogic(deps, 'biz-1', {
+        count: 2,
+      });
+      expect(result.success).toBe(true);
+      expect(result.details.shipped).toHaveLength(2);
+      expect(deps.fulfillmentService.markShipped).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports partial failures', async () => {
+      const deps = buildDeps({
+        fulfillmentService: {
+          listDashboardOrders: jest.fn(async () => ({
+            orders: [{ ...physicalCard, id: 'gc-1' }],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+          })),
+          markShipped: jest.fn(async () => {
+            throw new Error('Order already shipped');
+          }),
+        } as any,
+      });
+      const result = await handleGiftFulfillBatchLogic(deps, 'biz-1', {});
+      expect(result.success).toBe(true);
+      expect(result.details.shipped).toEqual([]);
+      expect(result.details.failed).toHaveLength(1);
+    });
   });
 });

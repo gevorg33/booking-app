@@ -19,8 +19,12 @@ import { PAY_ONLINE_CHECKOUT_PROMPTS } from './ai-pay-online-checkout.util.js';
 import { PRIVACY_GDPR_CUSTOMER_PROMPTS } from './ai-privacy-gdpr-customer.util.js';
 import { PROMO_CODE_HELP_PROMPTS } from './ai-promo-code-help-customer-public.util.js';
 import { RESCHEDULE_MY_BOOKING_PROMPTS } from './ai-reschedule-my-booking.util.js';
+import { CHANGE_PROVIDER_ON_RESCHEDULE_PROMPTS } from './ai-change-provider-on-reschedule-customer.util.js';
 import { SELF_SERVICE_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-self-service-booking-multilingual.fixtures.js';
 import { SUBSCRIPTION_MEMBERSHIP_CUSTOMER_PROMPTS } from './ai-subscription-membership-customer.util.js';
+import { SELECT_SUBSCRIPTION_PLAN_PROMPTS } from './ai-select-subscription-plan-customer.util.js';
+import { DISCOVER_SUBSCRIPTION_PLANS_PROMPTS } from './ai-discover-subscription-plans-customer.util.js';
+import { DISCOVER_SUBSCRIPTION_PLANS_MULTILINGUAL_SCENARIOS } from './ai-discover-subscription-plans-multilingual.fixtures.js';
 import { DIAGNOSE_TOUR_CAPACITY_PROMPTS } from './ai-tour-capacity.fixtures.js';
 import { EXPLAIN_TOUR_BOOKING_PROMPTS } from './ai-tour-booking.fixtures.js';
 import { MULTILINGUAL_TOUR_CONSUMER_EVAL_SCENARIOS } from './ai-tour-consumer-multilingual.fixtures.js';
@@ -28,6 +32,40 @@ import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js'
 import { EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS } from './ai-tour-booking-record.fixtures.js';
 import { EXPLAIN_TOUR_MEETING_POINT_PROMPTS } from './ai-tour-meeting-point.fixtures.js';
 import { EXPLAIN_TOUR_MEETING_POINT_MULTILINGUAL_SCENARIOS } from './ai-tour-meeting-point-multilingual.fixtures.js';
+import { MANAGE_NOTIFICATION_PREFERENCES_PROMPTS } from './ai-manage-notification-preferences.fixtures.js';
+import { MANAGE_NOTIFICATION_PREFERENCES_MULTILINGUAL_SCENARIOS } from './ai-manage-notification-preferences-multilingual.fixtures.js';
+import { EXPLAIN_MY_NOTIFICATIONS_PROMPTS } from './ai-explain-my-notifications.fixtures.js';
+import { EXPLAIN_MY_NOTIFICATIONS_MULTILINGUAL_SCENARIOS } from './ai-explain-my-notifications-multilingual.fixtures.js';
+import { EXPLAIN_DATA_RIGHTS_PROMPTS } from './ai-data-rights.fixtures.js';
+import { DATA_RIGHTS_MULTILINGUAL_SCENARIOS } from './ai-data-rights-multilingual.fixtures.js';
+import { EXPLAIN_LOYALTY_POINTS_PROMPTS } from './ai-explain-loyalty-points.fixtures.js';
+import { EXPLAIN_LOYALTY_POINTS_MULTILINGUAL_SCENARIOS } from './ai-explain-loyalty-points-multilingual.fixtures.js';
+import { SHARE_MY_BOOKING_PROMPTS } from './ai-share-my-booking.fixtures.js';
+import { SHARE_MY_BOOKING_MULTILINGUAL_SCENARIOS } from './ai-share-my-booking-multilingual.fixtures.js';
+import { EXPLAIN_SHARE_REWARD_PROMPTS } from './ai-explain-share-reward.fixtures.js';
+import { EXPLAIN_SHARE_REWARD_MULTILINGUAL_SCENARIOS } from './ai-explain-share-reward-multilingual.fixtures.js';
+import { SUBSCRIPTION_USAGE_PROMPTS } from './ai-subscription-usage.fixtures.js';
+import { SUBSCRIPTION_USAGE_MULTILINGUAL_SCENARIOS } from './ai-subscription-usage-multilingual.fixtures.js';
+import { GIFT_CARD_MODIFY_PROMPTS } from './ai-gift-card-modify.fixtures.js';
+import { GIFT_CARD_MODIFY_MULTILINGUAL_SCENARIOS } from './ai-gift-card-modify-multilingual.fixtures.js';
+import {
+  LIST_MY_TEST_RESULTS_PROMPTS,
+  EXPLAIN_RESULT_STATUS_PROMPTS,
+} from './ai-consumer-clinic-test-results.fixtures.js';
+import { MULTILINGUAL_CONSUMER_CLINIC_TEST_RESULTS_EVAL_SCENARIOS } from './ai-consumer-clinic-test-results-multilingual.fixtures.js';
+import {
+  LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
+  BOOK_LAB_COLLECTION_PROMPTS,
+} from './ai-clinic-lab-booking.fixtures.js';
+import { MULTILINGUAL_CLINIC_LAB_BOOKING_EVAL_SCENARIOS } from './ai-clinic-lab-booking-multilingual.fixtures.js';
+import { EXPLAIN_PATIENT_ALERT_PROMPTS } from './ai-explain-patient-alert.fixtures.js';
+import { EXPLAIN_PATIENT_ALERT_MULTILINGUAL_SCENARIOS } from './ai-explain-patient-alert-multilingual.fixtures.js';
+import { EXPLAIN_APP_UPDATE_REQUIRED_PROMPTS } from './ai-explain-app-update-required.fixtures.js';
+import { EXPLAIN_APP_UPDATE_REQUIRED_MULTILINGUAL_SCENARIOS } from './ai-explain-app-update-required-multilingual.fixtures.js';
+import { CANCEL_ALL_UPCOMING_BOOKINGS_PROMPTS } from './ai-cancel-all-upcoming-bookings.fixtures.js';
+import { CANCEL_ALL_UPCOMING_BOOKINGS_MULTILINGUAL_SCENARIOS } from './ai-cancel-all-upcoming-bookings-multilingual.fixtures.js';
+import { UPDATE_MY_PROFILE_PROMPTS } from './ai-update-my-profile.fixtures.js';
+import { UPDATE_MY_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-update-my-profile-multilingual.fixtures.js';
 import type { AiEvalLocale } from './eval/ai-command-eval.types.js';
 
 export const CUSTOMER_INTENT_PROMOTION_MIN_EN_FIXTURES = 10;
@@ -104,6 +142,40 @@ export const CUSTOMER_INTENT_PROMOTION_EVAL_ID_PREFIXES: Readonly<
   explain_checkout_recommendations: ['checkout-recommendations-'],
   refer_a_friend: ['growth-loops-'],
   share_salon_link: ['growth-loops-'],
+  select_subscription_plan: [
+    'select-subscription-plan-',
+    'self-service-i18n-select-subscription-plan-',
+  ],
+  discover_subscription_plans: ['discover-subscription-plans-'],
+  change_provider_on_reschedule: [
+    'change-provider-on-reschedule-',
+    'self-service-i18n-change-provider-on-reschedule-',
+  ],
+  manage_notification_preferences: ['manage-notification-preferences-'],
+  explain_my_notifications: ['explain-my-notifications-'],
+  explain_data_rights: ['explain-data-rights-'],
+  explain_loyalty_points: ['explain-loyalty-points-'],
+  share_my_booking: ['share-my-booking-'],
+  explain_share_reward: ['explain-share-reward-'],
+  subscription_usage: ['subscription-usage-'],
+  request_gift_card_modify: ['gift-card-modify-'],
+  list_my_test_results: [
+    'list-my-test-results-',
+    'consumer-clinic-test-results-',
+  ],
+  explain_result_status: [
+    'explain-result-status-',
+    'consumer-clinic-test-results-',
+  ],
+  list_my_lab_booking_requests: [
+    'list-my-lab-booking-requests-',
+    'clinic-lab-booking-',
+  ],
+  book_lab_collection: ['book-lab-collection-', 'clinic-lab-booking-'],
+  explain_patient_alert: ['explain-patient-alert-'],
+  explain_app_update_required: ['explain-app-update-required-'],
+  cancel_all_upcoming_bookings: ['cancel-all-upcoming-bookings-'],
+  update_my_profile: ['update-my-profile-'],
 };
 
 type FixtureLocaleRow = {
@@ -193,6 +265,22 @@ function checkoutRecommendationsForIntent(intent: string): FixtureLocaleRow[] {
     })),
     ...MULTILINGUAL_CHECKOUT_RECOMMENDATIONS_EVAL_SCENARIOS,
   ];
+}
+
+function consumerClinicTestResultsMultilingualForIntent(
+  intent: string,
+): FixtureLocaleRow[] {
+  return MULTILINGUAL_CONSUMER_CLINIC_TEST_RESULTS_EVAL_SCENARIOS.filter(
+    (row) => row.expectedAction === intent,
+  );
+}
+
+function clinicLabBookingMultilingualForIntent(
+  intent: string,
+): FixtureLocaleRow[] {
+  return MULTILINGUAL_CLINIC_LAB_BOOKING_EVAL_SCENARIOS.filter(
+    (row) => row.expectedAction === intent,
+  );
 }
 
 function growthLoopsForIntent(intent: string): FixtureLocaleRow[] {
@@ -318,6 +406,107 @@ function fixtureRowsForPromotionIntent(intent: string): FixtureLocaleRow[] {
     case 'refer_a_friend':
     case 'share_salon_link':
       return growthLoopsForIntent(intent);
+    case 'select_subscription_plan':
+      return [
+        ...filterByAction(SELECT_SUBSCRIPTION_PLAN_PROMPTS, intent),
+        ...selfServiceMultilingualForIntent(intent),
+      ];
+    case 'discover_subscription_plans':
+      return [
+        ...DISCOVER_SUBSCRIPTION_PLANS_PROMPTS,
+        ...DISCOVER_SUBSCRIPTION_PLANS_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'change_provider_on_reschedule':
+      return [
+        ...CHANGE_PROVIDER_ON_RESCHEDULE_PROMPTS,
+        ...selfServiceMultilingualForIntent(intent),
+      ];
+    case 'manage_notification_preferences':
+      return [
+        ...MANAGE_NOTIFICATION_PREFERENCES_PROMPTS,
+        ...MANAGE_NOTIFICATION_PREFERENCES_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'explain_my_notifications':
+      return [
+        ...EXPLAIN_MY_NOTIFICATIONS_PROMPTS,
+        ...EXPLAIN_MY_NOTIFICATIONS_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'explain_data_rights':
+      return [
+        ...EXPLAIN_DATA_RIGHTS_PROMPTS,
+        ...DATA_RIGHTS_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'explain_loyalty_points':
+      return [
+        ...EXPLAIN_LOYALTY_POINTS_PROMPTS,
+        ...EXPLAIN_LOYALTY_POINTS_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'share_my_booking':
+      return [
+        ...SHARE_MY_BOOKING_PROMPTS,
+        ...SHARE_MY_BOOKING_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'explain_share_reward':
+      return [
+        ...EXPLAIN_SHARE_REWARD_PROMPTS,
+        ...EXPLAIN_SHARE_REWARD_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'subscription_usage':
+      return [
+        ...SUBSCRIPTION_USAGE_PROMPTS,
+        ...SUBSCRIPTION_USAGE_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'request_gift_card_modify':
+      return [
+        ...GIFT_CARD_MODIFY_PROMPTS,
+        ...GIFT_CARD_MODIFY_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'list_my_test_results':
+      return [
+        ...LIST_MY_TEST_RESULTS_PROMPTS,
+        ...consumerClinicTestResultsMultilingualForIntent(
+          'list_my_test_results',
+        ),
+      ];
+    case 'explain_result_status':
+      return [
+        ...EXPLAIN_RESULT_STATUS_PROMPTS,
+        ...consumerClinicTestResultsMultilingualForIntent(
+          'explain_result_status',
+        ),
+      ];
+    case 'list_my_lab_booking_requests':
+      return [
+        ...LIST_MY_LAB_BOOKING_REQUESTS_PROMPTS,
+        ...clinicLabBookingMultilingualForIntent(
+          'list_my_lab_booking_requests',
+        ),
+      ];
+    case 'book_lab_collection':
+      return [
+        ...BOOK_LAB_COLLECTION_PROMPTS,
+        ...clinicLabBookingMultilingualForIntent('book_lab_collection'),
+      ];
+    case 'explain_patient_alert':
+      return [
+        ...EXPLAIN_PATIENT_ALERT_PROMPTS,
+        ...EXPLAIN_PATIENT_ALERT_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'explain_app_update_required':
+      return [
+        ...EXPLAIN_APP_UPDATE_REQUIRED_PROMPTS,
+        ...EXPLAIN_APP_UPDATE_REQUIRED_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'cancel_all_upcoming_bookings':
+      return [
+        ...CANCEL_ALL_UPCOMING_BOOKINGS_PROMPTS,
+        ...CANCEL_ALL_UPCOMING_BOOKINGS_MULTILINGUAL_SCENARIOS,
+      ];
+    case 'update_my_profile':
+      return [
+        ...UPDATE_MY_PROFILE_PROMPTS,
+        ...UPDATE_MY_PROFILE_MULTILINGUAL_SCENARIOS,
+      ];
     default:
       return [];
   }

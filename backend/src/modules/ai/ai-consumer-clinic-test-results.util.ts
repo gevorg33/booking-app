@@ -199,7 +199,13 @@ export function isListMyTestResultsPrompt(prompt: string): boolean {
   if (LAB_BOOKING_LIST_BLOCK.test(prompt)) return false;
   if (LAB_BOOKING_COLLECTION_BLOCK.test(prompt)) return false;
   if (LAB_ORDER_BLOCK.test(prompt)) return false;
-  if (TRACK_LAB_ORDER_STATUS_BLOCK.test(prompt)) return false;
+  if (
+    TRACK_LAB_ORDER_STATUS_BLOCK.test(prompt) &&
+    !APP_SURFACE.test(prompt) &&
+    !PUBLIC_SURFACE.test(prompt)
+  ) {
+    return false;
+  }
   if (
     ORDER_MUTATE_CONTEXT.test(prompt) &&
     /(?:թեստ|պատվեր|заказ|анализ|լաբորատոր)/iu.test(prompt) &&
@@ -476,7 +482,22 @@ export function isExplainResultStatusPrompt(prompt: string): boolean {
   ) {
     return true;
   }
-  if (/\bwhen\b.*\b(available|ready|released|appear|show)\b/i.test(prompt)) {
+  // e2e-bug.133 — bare "when … available" matched tour capacity gates
+  // ("reserve when seats are available"). Require results/lab wording and
+  // exclude seat/spot/capacity booking phrasing.
+  if (
+    /\bwhen\b/i.test(prompt) &&
+    /\b(seats?|spots?|capacity)\b/i.test(prompt) &&
+    /\b(available|allows?|remain|enough)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\bwhen\b.*\b(available|ready|released|appear|show)\b/i.test(prompt) &&
+    (RESULTS_NOUN.test(prompt) ||
+      /\bresults?\b/i.test(prompt) ||
+      /\b(lab|test|CBC|lipid|panel)\b/i.test(prompt))
+  ) {
     return true;
   }
   if (

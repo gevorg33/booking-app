@@ -38,8 +38,13 @@ import { TemplatePeriodType } from '../schedule/entities/scheduling-template-per
 import {
   buildBlockScheduleBlockPayloads,
   enhanceSmartBlockParams,
+  scheduleBlockMatchesIsoDay,
 } from './ai-scheduling.util.js';
 import { AiSchedulingService } from './ai-scheduling.service.js';
+import { ScheduleService } from '../schedule/schedule.service.js';
+import { BlockScheduleService } from '../schedule/services/block-schedule.service.js';
+import { dispatchScheduleHandlersIntent } from './ai-schedule-handlers-dispatch.util.js';
+import type { ScheduleHandlersDispatchContext } from './ai-schedule-handlers-dispatch.build.js';
 
 @Injectable()
 export class AiScheduleHandlersService {
@@ -52,6 +57,8 @@ export class AiScheduleHandlersService {
     private orchestration: CommandOrchestrationService,
     private planBuilder: OperationalPlanBuilderService,
     private scheduling: AiSchedulingService,
+    private scheduleService: ScheduleService,
+    private blockScheduleService: BlockScheduleService,
   ) {}
 
   private async resolveBusinessLocale(businessId: string): Promise<AppLocale> {
@@ -1066,6 +1073,352 @@ export class AiScheduleHandlersService {
     });
   }
 
+  async handleUpdateScheduleTemplate(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) {
+      return {
+        success: false,
+        action: 'update_schedule_template',
+        summary: `No schedule template found${params.templateName ? ` matching "${params.templateName}"` : ''}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const newName = (params.newName as string | undefined)?.trim();
+    if (!newName) {
+      return {
+        success: false,
+        action: 'update_schedule_template',
+        summary: 'What should the template be renamed to?',
+        details: { clarify: true, missing: ['newName'] },
+      };
+    }
+
+    const updated = await this.scheduleService.updateTemplate(
+      businessId,
+      template.id,
+      { name: newName },
+      userId,
+    );
+    return {
+      success: true,
+      action: 'update_schedule_template',
+      summary: `Renamed template to "${updated.name}".`,
+      details: { templateId: updated.id, templateName: updated.name },
+    };
+  }
+
+  async handleDeleteScheduleTemplates(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const requestedNames: string[] = Array.isArray(params.templateNames)
+      ? params.templateNames
+      : params.templateName
+        ? [params.templateName]
+        : [];
+    if (!requestedNames.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_templates',
+        summary: 'Specify which template(s) to delete.',
+        details: { clarify: true, missing: ['templateName'] },
+      };
+    }
+
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const matched: ScheduleTemplate[] = [];
+    const notFound: string[] = [];
+    for (const name of requestedNames) {
+      const template = resolveTemplate(templates, name);
+      if (template) matched.push(template);
+      else notFound.push(name);
+    }
+
+    if (!matched.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_templates',
+        summary: `No template(s) found matching: ${requestedNames.join(', ')}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const result = await this.scheduleService.deleteTemplates(
+      businessId,
+      { templateIds: matched.map((t) => t.id) },
+      userId,
+    );
+    return {
+      success: true,
+      action: 'delete_schedule_templates',
+      summary: `Deleted ${result.deleted} template(s): ${matched.map((t) => t.name).join(', ')}.`,
+      details: {
+        deleted: result.deleted,
+        templateIds: matched.map((t) => t.id),
+        notFound,
+      },
+    };
+  }
+
+  async handleDuplicateScheduleTemplate(
+    businessId: string,
+    params: Record<string, any>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    const templates = await this.templateRepo.find({
+      where: { businessId, isDeleted: false },
+      order: { name: 'ASC' },
+    });
+    const template = resolveTemplate(templates, params.templateName);
+    if (!template) {
+      return {
+        success: false,
+        action: 'duplicate_schedule_template',
+        summary: `No schedule template found${params.templateName ? ` matching "${params.templateName}"` : ''}.`,
+        details: { availableTemplates: templates.map((t) => t.name) },
+      };
+    }
+
+    const duplicated = await this.scheduleService.duplicateTemplate(
+      businessId,
+      template.id,
+      userId,
+    );
+    return {
+      success: true,
+      action: 'duplicate_schedule_template',
+      summary: `Duplicated template "${template.name}" as "${duplicated.name}".`,
+      details: { templateId: duplicated.id, templateName: duplicated.name },
+    };
+  }
+
+  async handleDeleteScheduleBlock(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employee = targets[0];
+    if (!employee) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary: 'Specify which provider\'s block to delete.',
+        details: { clarify: true, missing: ['employeeName'] },
+      };
+    }
+
+    const blocks = await this.blockScheduleService.list(
+      businessId,
+      employee.id,
+    );
+    if (!blocks.length) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary: `${employee.name} has no schedule blocks.`,
+        details: {},
+      };
+    }
+
+    // Prefer explicit date; fall back to dates parsed from the prompt (e2e-bug.136).
+    const rawDate =
+      (typeof params.date === 'string' && params.date.trim()) ||
+      resolveScheduleDates(params, prompt)[0] ||
+      undefined;
+    const date = rawDate ? toIsoDay(rawDate) : undefined;
+    const candidates = date
+      ? blocks.filter((b: any) => scheduleBlockMatchesIsoDay(b, date))
+      : blocks;
+
+    if (candidates.length !== 1) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary:
+          candidates.length > 1
+            ? `${employee.name} has ${candidates.length} matching blocks — specify a date to narrow it down.`
+            : `No matching block found for ${employee.name}${date ? ` on ${date}` : ''}.`,
+        details: { clarify: true, missing: ['date'] },
+      };
+    }
+
+    const block = candidates[0] as any;
+    await this.blockScheduleService.remove(businessId, block.id, userId);
+    return {
+      success: true,
+      action: 'delete_schedule_block',
+      summary: `Deleted schedule block for ${employee.name}${date ? ` on ${formatDateDisplay(date)}` : ''}.`,
+      details: {
+        blockId: block.id,
+        employeeId: employee.id,
+        ...(date ? { date } : {}),
+      },
+    };
+  }
+
+  /** ai-cmd-dashboard-6.5.4 — GET …/block-schedules read (previously only queried internally by delete_schedule_block). */
+  async handleListScheduleBlocks(
+    businessId: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employeeId = targets.length === 1 ? targets[0].id : undefined;
+    const blocks: any[] = await this.blockScheduleService.list(
+      businessId,
+      employeeId,
+    );
+
+    if (!blocks.length) {
+      return {
+        success: true,
+        action: 'list_schedule_blocks',
+        summary: employeeId
+          ? `${targets[0].name} has no schedule blocks.`
+          : 'No schedule blocks found.',
+        details: { blocks: [] },
+      };
+    }
+
+    const lines = blocks
+      .slice(0, 10)
+      .map(
+        (b) =>
+          `• ${b.employee?.name ?? 'Unassigned'}: ${b.placeholderLabel ?? 'Block'} (${b.startDay}${b.endDay && b.endDay !== b.startDay ? `–${b.endDay}` : ''}, ${b.blockStartTime}-${b.blockEndTime})`,
+      );
+    return {
+      success: true,
+      action: 'list_schedule_blocks',
+      summary: [`${blocks.length} schedule block(s):`, ...lines].join('\n'),
+      details: { blocks },
+    };
+  }
+
+  /** ai-cmd-dashboard-6.5.5 — GET …/provider-calendar read (previously called by zero AI intents). */
+  async handleGetProviderCalendar(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+  ): Promise<CommandResult> {
+    const targets = resolveEmployees(employees, params);
+    const employee = targets[0];
+    if (!employee) {
+      return {
+        success: false,
+        action: 'get_provider_calendar',
+        summary: 'Specify which provider\'s calendar to show.',
+        details: { clarify: true, missing: ['employeeName'] },
+      };
+    }
+
+    const range = resolveDateRange(params, prompt) ?? {
+      start: new Date().toISOString().slice(0, 10),
+      end: new Date().toISOString().slice(0, 10),
+    };
+    const { periods } = await this.scheduleService.getProviderCalendar(
+      businessId,
+      employee.id,
+      range.start,
+      range.end,
+    );
+
+    if (!periods.length) {
+      return {
+        success: true,
+        action: 'get_provider_calendar',
+        summary: `${employee.name} has no scheduled periods from ${range.start} to ${range.end}.`,
+        details: { periods: [], range },
+      };
+    }
+
+    const byType = new Map<string, number>();
+    for (const p of periods as any[]) {
+      byType.set(p.type, (byType.get(p.type) ?? 0) + 1);
+    }
+    const typeSummary = [...byType.entries()]
+      .map(([type, count]) => `${count} ${type}`)
+      .join(', ');
+    return {
+      success: true,
+      action: 'get_provider_calendar',
+      summary: `${employee.name}'s calendar (${range.start} to ${range.end}): ${periods.length} period(s) — ${typeSummary}.`,
+      details: { periods, range },
+    };
+  }
+
+  isApplyAndFillPrompt(prompt: string): boolean {
+    return (
+      /\bapply\b/i.test(prompt) &&
+      /\b(fill|filling)\b/i.test(prompt) &&
+      /\b(gap|gaps|unused\s+slots?)\b/i.test(prompt)
+    );
+  }
+
+  /** ai-cmd-dashboard-6.5.3 — apply a template then fill any remaining unused slots in one command. */
+  async handleApplyAndFill(
+    businessId: string,
+    prompt: string,
+    params: Record<string, any>,
+    employees: Employee[],
+    services: Service[],
+    userId?: string,
+  ): Promise<CommandResult> {
+    const applyResult = await this.handleApplySchedule(
+      businessId,
+      prompt,
+      params,
+      employees,
+      userId,
+    );
+    if (!applyResult.success) {
+      return {
+        success: false,
+        action: 'apply_and_fill',
+        summary: `Stopped at apply_schedule: ${applyResult.summary}`,
+        details: { steps: [applyResult], failedStep: 'apply_schedule' },
+      };
+    }
+
+    const fillResult = await this.handleFillScheduleGaps(
+      businessId,
+      prompt,
+      params,
+      employees,
+      services,
+      userId,
+    );
+
+    return {
+      success: fillResult.success,
+      action: 'apply_and_fill',
+      summary: `${applyResult.summary} Then: ${fillResult.summary}`,
+      details: {
+        steps: [
+          { action: 'apply_schedule', summary: applyResult.summary },
+          { action: 'fill_unused_slots', summary: fillResult.summary },
+        ],
+        failedStep: fillResult.success ? undefined : 'fill_unused_slots',
+      },
+    };
+  }
+
   private applyDaysToTemplateFlags(applyDays: number[]) {
     const set = new Set(applyDays);
     return {
@@ -1077,5 +1430,12 @@ export class AiScheduleHandlersService {
       isActiveOnFriday: set.has(5),
       isActiveOnSaturday: set.has(6),
     };
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a schedule-handlers intent. */
+  dispatchIntent(
+    ctx: ScheduleHandlersDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchScheduleHandlersIntent(this, ctx);
   }
 }

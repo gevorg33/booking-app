@@ -1,25 +1,45 @@
 import { randomBytes } from 'crypto';
-import type { Repository } from 'typeorm';
-import type { Booking } from '../../modules/booking/entities/booking.entity.js';
+import type { EntityManager, Repository } from 'typeorm';
+import { Booking } from '../../modules/booking/entities/booking.entity.js';
 import { buildTenantPublicUrl } from './tenant-public-url.util.js';
 
+/** Fresh guest manage-link token (48 hex chars). */
+export function generateBookingManageToken(): string {
+  return randomBytes(24).toString('hex');
+}
+
+function readExistingManageToken(
+  metadata: Record<string, unknown> | null | undefined,
+): string | null {
+  const token = metadata?.manageToken;
+  return typeof token === 'string' && token.length > 0 ? token : null;
+}
+
+/**
+ * api-bug.6 / e2e-bug.120 — ensure a manage token under SELECT … FOR UPDATE so
+ * concurrent callers (create response + confirmation email) cannot each mint a
+ * different token and leave the response holding a stale value.
+ */
 export async function ensureBookingManageToken(
   bookingRepo: Repository<Booking>,
   bookingId: string,
 ): Promise<string> {
-  const booking = await bookingRepo.findOne({ where: { id: bookingId } });
-  if (!booking) throw new Error('Booking not found');
+  return bookingRepo.manager.transaction(async (manager: EntityManager) => {
+    const booking = await manager
+      .createQueryBuilder(Booking, 'booking')
+      .setLock('pessimistic_write')
+      .where('booking.id = :bookingId', { bookingId })
+      .getOne();
+    if (!booking) throw new Error('Booking not found');
 
-  const metadata = { ...(booking.metadata || {}) };
-  if (metadata.manageToken && typeof metadata.manageToken === 'string') {
-    return metadata.manageToken;
-  }
+    const existing = readExistingManageToken(booking.metadata);
+    if (existing) return existing;
 
-  const token = randomBytes(24).toString('hex');
-  metadata.manageToken = token;
-  booking.metadata = metadata;
-  await bookingRepo.save(booking);
-  return token;
+    const token = generateBookingManageToken();
+    booking.metadata = { ...(booking.metadata || {}), manageToken: token };
+    await manager.save(Booking, booking);
+    return token;
+  });
 }
 
 export function buildBookingManageUrl(

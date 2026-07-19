@@ -19,6 +19,9 @@ describe('ai-share-my-booking integration (ai-cmd-customer-4.3.7)', () => {
         salonRewardSummary: '',
       })),
     },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+    },
   });
 
   let rescue: AiIntentRescueService;

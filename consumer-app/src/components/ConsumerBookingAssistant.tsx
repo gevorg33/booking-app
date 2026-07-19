@@ -11,11 +11,16 @@ import { useQuery } from '@tanstack/react-query';
 import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { getConsumerDiscoveryChips } from '../lib/consumer-discovery-chips.js';
-import { getConsumerFabDefaultBottomInset } from '../lib/consumer-tab-bar-layout.util.js';
+import {
+  CONSUMER_FIXED_ACTION_ACTIVE_CLASS,
+  getConsumerFabDefaultBottomInset,
+} from '../lib/consumer-tab-bar-layout.util.js';
 import {
   useDraggableFloatingPosition,
   useViewportSize,
 } from '../lib/use-draggable-floating-position.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 import { ConsumerBodyPortal } from './ConsumerBodyPortal.js';
 import {
   sendPublicAssistantMessage,
@@ -102,6 +107,8 @@ interface SessionContext {
   screen?: string | null;
   recentSalons?: Array<{ slug: string; name: string }>;
 }
+
+const ASSISTANT_FAB_SIZE = { width: 56, height: 56 } as const;
 
 export function ConsumerBookingAssistant({
   slug,
@@ -211,21 +218,37 @@ export function ConsumerBookingAssistant({
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
-  const fabBottomInset = useMemo(() => getConsumerFabDefaultBottomInset(), []);
+  const [hasFixedActionBar, setHasFixedActionBar] = useState(() =>
+    typeof document !== 'undefined'
+      ? document.body.classList.contains(CONSUMER_FIXED_ACTION_ACTIVE_CLASS)
+      : false,
+  );
+  useEffect(() => {
+    const sync = () => {
+      setHasFixedActionBar(document.body.classList.contains(CONSUMER_FIXED_ACTION_ACTIVE_CLASS));
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+  const fabBottomInset = useMemo(
+    () => getConsumerFabDefaultBottomInset({ hasFixedActionBar }),
+    [hasFixedActionBar],
+  );
   const discoveryChips = useMemo(
     () => getConsumerDiscoveryChips(copy, exampleTenant),
     [copy, exampleTenant],
   );
   const estimatedSize = useMemo(() => {
-    const fab = { width: 56, height: 56 };
-    if (!viewport.width) return fab;
-    if (open) {
-      return {
-        width: Math.min(400, viewport.width - 32),
-        height: Math.min(560, Math.round(viewport.height * 0.8)),
-      };
+    // Stable FAB size reference when collapsed — avoids effect churn in useDraggableFloatingPosition (e2e-bug.14).
+    if (!open || !viewport.width) {
+      return ASSISTANT_FAB_SIZE;
     }
-    return fab;
+    return {
+      width: Math.min(400, viewport.width - 32),
+      height: Math.min(560, Math.round(viewport.height * 0.8)),
+    };
   }, [open, viewport.height, viewport.width]);
   const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
     useDraggableFloatingPosition({
@@ -371,12 +394,13 @@ export function ConsumerBookingAssistant({
         }
         handleAssistantFeedbackClientAction(result.details);
       } catch (err: unknown) {
+        // e2e-bug.3 — unwrap Nest/axios body; never show bare status text.
         setMessages((prev) => [
           ...prev,
           {
             id: `e-${Date.now()}`,
             role: 'assistant',
-            text: err instanceof Error ? err.message : copy.assistantErrorGeneric,
+            text: formatFriendlyNetworkError(err, copy.assistantErrorGeneric),
             success: false,
           },
         ]);
@@ -474,6 +498,7 @@ export function ConsumerBookingAssistant({
         <button
           ref={floatingRef}
           type="button"
+          className="consumer-ai-fab"
           {...bindDragHandle({ onPress: () => setOpen(true) })}
           style={{
             ...floatingStyle,
@@ -481,8 +506,6 @@ export function ConsumerBookingAssistant({
             height: 56,
             borderRadius: '50%',
             border: 'none',
-            background: primary,
-            color: '#fff',
             boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
             display: 'flex',
             alignItems: 'center',
@@ -888,14 +911,15 @@ export function ConsumerBookingAssistant({
                   borderRadius: 12,
                 }}
               />
-              <IonButton
+              <ConsumerActionButton
                 disabled={!input.trim() || loading}
-                style={{ '--background': primary, margin: 0 }}
+                color={primary}
+                style={{ margin: 0, minWidth: 44, minHeight: 44, padding: '0 12px' }}
                 onClick={() => void submit()}
                 aria-label="Send"
               >
-                <IonIcon icon={send} slot="icon-only" />
-              </IonButton>
+                <IonIcon icon={send} aria-hidden="true" />
+              </ConsumerActionButton>
             </div>
           </div>
         </div>

@@ -300,7 +300,22 @@ export function parseExplainTourDaySlotsFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedExplainTourDaySlots | null {
-  if (!isExplainTourDaySlotsPrompt(prompt)) return null;
+  // e2e-bug.105 — nearest-departure compound step 2 carries serviceName +
+  // aspect while the raw prompt is a book/reserve mutate (prompt detector false).
+  const hasStructuredService =
+    (typeof params.serviceName === 'string' &&
+      params.serviceName.trim().length > 0) ||
+    (typeof params.serviceId === 'string' &&
+      params.serviceId.trim().length > 0);
+  const fromCompound =
+    hasStructuredService &&
+    (params.bookingFirstAvailable === true ||
+      params.tourGroupCheckout === true ||
+      params.aspect === 'remainingSpots' ||
+      params.aspect === 'oneDeparture' ||
+      params.aspect === 'fullyBooked' ||
+      params.aspect === 'all');
+  if (!isExplainTourDaySlotsPrompt(prompt) && !fromCompound) return null;
 
   const serviceId =
     typeof params.serviceId === 'string' ? params.serviceId.trim() : undefined;

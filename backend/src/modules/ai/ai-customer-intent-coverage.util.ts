@@ -19,6 +19,8 @@ import {
 } from './ai-clinic-lab-booking.fixtures.js';
 import { BOOK_LAB_COLLECTION_NEAREST_PROMPTS } from './ai-book-lab-collection-nearest.fixtures.js';
 import { EXPLAIN_CLINIC_BOOKING_FIELDS_PROMPTS } from './ai-explain-clinic-booking-fields.fixtures.js';
+import { DISMISS_RECOMMENDATIONS_PROMPTS } from './ai-dismiss-recommendations.fixtures.js';
+import { DISMISS_RECOMMENDATIONS_MULTILINGUAL_SCENARIOS } from './ai-dismiss-recommendations-multilingual.fixtures.js';
 import { SIMILAR_CUSTOMER_PACKAGE_PROMPTS } from './ai-consumer-package-booking.fixtures.js';
 import { FIND_MY_SAVED_SALONS_PROMPTS } from './ai-find-my-saved-salons.fixtures.js';
 import { FIND_MY_SAVED_SALONS_MULTILINGUAL_SCENARIOS } from './ai-find-my-saved-salons-multilingual.fixtures.js';
@@ -50,6 +52,7 @@ import { EXPLAIN_LAB_PREP_MULTILINGUAL_SCENARIOS } from './ai-explain-lab-prep-m
 import { TRACK_LAB_ORDER_STATUS_PROMPTS } from './ai-track-lab-order-status.fixtures.js';
 import { TRACK_LAB_ORDER_STATUS_MULTILINGUAL_SCENARIOS } from './ai-track-lab-order-status-multilingual.fixtures.js';
 import { CONSUMER_DISCOVERY_CHIP_FIXTURES } from './ai-consumer-discovery-chips.fixtures.js';
+import { CUSTOMER_PUBLIC_API_AI_PARITY } from './customer-public-api-ai-parity.fixtures.js';
 import {
   SIMILAR_FLEXIBLE_AVAILABILITY_PROMPTS,
   type FlexibleAvailabilityPromptFixture,
@@ -159,6 +162,32 @@ export const CUSTOMER_INTENT_COVERAGE_REQUIRED: readonly string[] = [
   'dismiss_recommendations',
   'refer_a_friend',
   'share_salon_link',
+  // ai-cmd-customer-6.1 — subscription plan discover/select promotion
+  'select_subscription_plan',
+  'discover_subscription_plans',
+  // ai-cmd-customer-6.3 — reschedule-with-provider-change promotion
+  'change_provider_on_reschedule',
+  // ai-cmd-customer-6.5 — notification-preferences + data-rights promotion
+  'manage_notification_preferences',
+  'explain_my_notifications',
+  'explain_data_rights',
+  // ai-cmd-customer-6.6 — loyalty points explainer promotion
+  'explain_loyalty_points',
+  // ai-cmd-customer-6.6 — share-my-booking + share-reward explainer promotion
+  'share_my_booking',
+  'explain_share_reward',
+  // ai-cmd-customer-6.6 — subscription usage ledger promotion
+  'subscription_usage',
+  // ai-cmd-customer-6.7 — gift card modify-request promotion
+  'request_gift_card_modify',
+  // ai-cmd-customer-6.8 — patient lab results promotion
+  'explain_result_status',
+  // ai-cmd-customer-6.8 — patient alert explainer promotion
+  'explain_patient_alert',
+  // ai-cmd-customer-6.11 — app update gate explainer promotion
+  'explain_app_update_required',
+  // ai-cmd-customer-6.12 — bulk cancel-all-upcoming-bookings (new intent)
+  'cancel_all_upcoming_bookings',
 ];
 
 /** Registry intents tracked in parity-2.3 but not yet gated (ai-cmd-customer-2.6). */
@@ -174,7 +203,28 @@ export type CustomerIntentCoverageRow = {
   intent: string;
   hasEval: boolean;
   hasFixture: boolean;
+  hasApiBinding: boolean;
 };
+
+/** Customer/public intents with ≥1 row in customer-public-api-ai-parity.fixtures.ts (ai-cmd-customer-6.13.3). */
+const API_BOUND_CUSTOMER_INTENTS = new Set(
+  CUSTOMER_PUBLIC_API_AI_PARITY.flatMap((entry) =>
+    entry.coverage.kind === 'customer-ai' || entry.coverage.kind === 'public-ai'
+      ? entry.coverage.intents
+      : [],
+  ),
+);
+
+export function hasCustomerApiBinding(intent: string): boolean {
+  return API_BOUND_CUSTOMER_INTENTS.has(intent);
+}
+
+/** Mutating customer intents missing an API binding row (ai-cmd-customer-6.13.3). */
+export function listMutatingCustomerIntentsMissingApiBinding(
+  mutateIntents: readonly string[],
+): string[] {
+  return mutateIntents.filter((intent) => !hasCustomerApiBinding(intent));
+}
 
 export function acceptableCustomerEvalActions(
   intent: string,
@@ -532,6 +582,10 @@ export function collectCustomerFixtureIntents(): Set<string> {
     covered.add('book_lab_collection');
   }
   addScenarioFixtureIntents(covered, EXPLAIN_CLINIC_BOOKING_FIELDS_PROMPTS);
+  addScenarioFixtureIntents(covered, DISMISS_RECOMMENDATIONS_PROMPTS);
+  for (const row of DISMISS_RECOMMENDATIONS_MULTILINGUAL_SCENARIOS) {
+    covered.add(row.expectedAction);
+  }
 
   for (const intent of collectCustomerPromotionFixtureIntents()) {
     covered.add(intent);
@@ -570,6 +624,7 @@ export function auditCustomerIntentCoverage(
       intent,
       hasEval: hasCustomerEvalCoverage(intent, evalIntents),
       hasFixture: hasCustomerFixtureCoverage(intent, fixtureIntents),
+      hasApiBinding: hasCustomerApiBinding(intent),
     }));
 }
 

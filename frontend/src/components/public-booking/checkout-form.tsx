@@ -182,6 +182,12 @@ export function CheckoutForm({
       .catch(() => setSubscriptionPlans([]));
   }, [service.hasSubscriptionPlans, service.id, tenant.slug]);
 
+  // e2e-bug.28 — must be above the quote effect so useSubscriptionId can be threaded in.
+  const usingSubscriptionCredit =
+    Boolean(activeSubscription?.appointmentsRemaining) &&
+    useExistingSubscription &&
+    purchaseType === 'one-time';
+
   useEffect(() => {
     let cancelled = false;
     const requestId = ++quoteRequestId.current;
@@ -196,6 +202,9 @@ export function CheckoutForm({
           selectedPlanId,
           promoCode: appliedPromo || undefined,
           loyaltyPointsToRedeem: loyaltyPoints > 0 ? loyaltyPoints : undefined,
+          ...(usingSubscriptionCredit && activeSubscription?.id
+            ? { useSubscriptionId: activeSubscription.id }
+            : {}),
         }),
         ...(isTour ? { paxCount } : {}),
       },
@@ -241,6 +250,8 @@ export function CheckoutForm({
     customer?.id,
     purchaseType,
     selectedPlanId,
+    usingSubscriptionCredit,
+    activeSubscription?.id,
     isTour,
     paxCount,
     t,
@@ -319,10 +330,6 @@ export function CheckoutForm({
       : isTour
         ? service.price * paxCount
         : service.price;
-  const usingSubscriptionCredit =
-    Boolean(activeSubscription?.appointmentsRemaining) &&
-    useExistingSubscription &&
-    purchaseType === 'one-time';
 
   function selectOneTimeVisit() {
     setPurchaseType('one-time');

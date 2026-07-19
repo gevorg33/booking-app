@@ -167,18 +167,20 @@ function toWelcomeEntry(salon: RecentSalon, pinned: boolean, now: Date): Welcome
 export function buildWelcomeSalonSections(now: Date = new Date()): WelcomeSalonSections {
   const pinnedSlugs = new Set(loadPinnedSalonSlugs());
   const recent = sortSalonsByRecency(loadRecentSalons());
-  const saved = sortSalonsByRecency(loadSavedSalons());
+  // Pin order (most recently pinned first) — not recency, so saves stay findable.
+  const saved = loadSavedSalons();
   const savedSlugs = new Set(saved.map((salon) => salon.slug));
   const recentOnly = recent.filter((salon) => !savedSlugs.has(salon.slug));
+  const recentCapped = recentOnly.slice(0, MAX_RECENT);
 
-  const quickReturn = dedupeSalonsBySlug([...saved, ...recentOnly])
-    .sort((left, right) => salonRecencyTimestamp(right) - salonRecencyTimestamp(left))
-    .slice(0, MAX_RECENT)
-    .map((salon) => toWelcomeEntry(salon, pinnedSlugs.has(salon.slug), now));
+  // e2e-bug.21 — pinned first and never sliced away by the recent-only MAX_RECENT cap.
+  const quickReturn = dedupeSalonsBySlug([...saved, ...recentCapped]).map((salon) =>
+    toWelcomeEntry(salon, pinnedSlugs.has(salon.slug), now),
+  );
 
   return {
     quickReturn,
     saved: saved.map((salon) => toWelcomeEntry(salon, true, now)),
-    recent: recentOnly.map((salon) => toWelcomeEntry(salon, false, now)),
+    recent: recentCapped.map((salon) => toWelcomeEntry(salon, false, now)),
   };
 }

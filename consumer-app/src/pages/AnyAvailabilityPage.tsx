@@ -2,6 +2,7 @@ import {
   IonBackButton,
   IonButtons,
   IonContent,
+  IonDatetime,
   IonHeader,
   IonItem,
   IonLabel,
@@ -15,12 +16,15 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { ConsumerNetworkErrorCard } from '../components/ConsumerNetworkErrorCard.js';
+import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { useCachedTenantServices } from '../hooks/use-cached-tenant-services.js';
+import { useServiceBookableDates } from '../hooks/use-service-bookable-dates.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatScheduleTime } from '../lib/date-format.js';
 import { buildAutoAssignBookPath } from '../lib/provider-booking.util.js';
+import { isDayLevelTourService } from '../lib/tour-service.util.js';
 import { fetchServiceDaySlots } from '../services/public-api.js';
 
 export default function AnyAvailabilityPage() {
@@ -38,6 +42,15 @@ export default function AnyAvailabilityPage() {
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [date, setDate] = useState(minDate);
   const [selectedStartTime, setSelectedStartTime] = useState<string | null>(null);
+  const isDayLevelTour = service ? isDayLevelTourService(service) : false;
+
+  const { scanning: bookableDatesScanning, isDateEnabled } = useServiceBookableDates({
+    slug: slug ?? undefined,
+    serviceId,
+    enabled: Boolean(slug && serviceId),
+    isDayLevelTour,
+    minDateKey: minDate,
+  });
 
   const slotsQuery = useQuery({
     queryKey: ['any-availability-slots', slug, serviceId, date],
@@ -70,7 +83,7 @@ export default function AnyAvailabilityPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/book/any')} />
+              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/book/any')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.selectDateTime}</IonTitle>
           </IonToolbar>
@@ -89,7 +102,7 @@ export default function AnyAvailabilityPage() {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/book/any')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/book/any')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.selectDateTime}</IonTitle>
         </IonToolbar>
@@ -99,22 +112,21 @@ export default function AnyAvailabilityPage() {
 
         <IonItem lines="none">
           <IonLabel position="stacked">{copy.availableSlots}</IonLabel>
-          <input
-            type="date"
-            value={date}
+          <IonDatetime
+            className="consumer-booking-datetime"
+            presentation="date"
             min={minDate}
-            onChange={(event) => {
-              setDate(event.target.value);
+            value={date}
+            isDateEnabled={isDateEnabled}
+            onIonChange={(e) => {
+              const value = e.detail.value;
+              if (typeof value !== 'string') return;
+              if (!isDateEnabled(value)) return;
+              setDate(value.slice(0, 10));
               setSelectedStartTime(null);
             }}
-            style={{
-              width: '100%',
-              padding: '10px 0',
-              border: 'none',
-              background: 'transparent',
-              fontSize: 16,
-            }}
           />
+          {bookableDatesScanning ? <IonSpinner name="crescent" slot="end" /> : null}
         </IonItem>
 
         {slotsQuery.isLoading ? (
@@ -126,32 +138,15 @@ export default function AnyAvailabilityPage() {
             retryLabel={copy.networkRetryAction}
             onRetry={() => void slotsQuery.refetch()}
           />
-        ) : slots.length === 0 ? (
-          <p className="ion-padding">{copy.noSlotsThisDay}</p>
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
-            {slots.map((slot) => {
-              const active = selectedStartTime === slot.startTime;
-              return (
-                <button
-                  key={slot.startTime}
-                  type="button"
-                  onClick={() => setSelectedStartTime(slot.startTime)}
-                  style={{
-                    borderRadius: 999,
-                    border: active ? 'none' : '1px solid #e5e7eb',
-                    background: active ? primary : '#f9fafb',
-                    color: active ? '#fff' : '#374151',
-                    padding: '8px 14px',
-                    fontSize: 14,
-                    fontWeight: 500,
-                  }}
-                >
-                  {formatScheduleTime(slot.startTime, locale)}
-                </button>
-              );
-            })}
-          </div>
+          <ConsumerGroupedTimeSlotList
+            slots={slots}
+            selectedStartTime={selectedStartTime}
+            onSelect={setSelectedStartTime}
+            copy={copy}
+            primaryColor={primary}
+            formatSlotLabel={(startTime) => formatScheduleTime(startTime, locale)}
+          />
         )}
       </IonContent>
 

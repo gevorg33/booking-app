@@ -9,6 +9,8 @@ import {
   IonItem,
   IonLabel,
   IonPage,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonTextarea,
   IonTitle,
@@ -20,6 +22,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatPublicMoney } from '../lib/business-currency.js';
 import { formatCopy } from '../lib/copy.js';
@@ -33,6 +36,7 @@ import {
   type GiftCardCheckoutFormState,
 } from '../lib/gift-card-purchase.util.js';
 import { parseGiftCardAssistantPrefill } from '../lib/consumer-gift-card-assistant-prefill.util.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import {
   confirmPublicBookingPayment,
   createPublicGiftCardCheckout,
@@ -67,7 +71,7 @@ export default function GiftCardCheckoutPage() {
   const history = useHistory();
   const location = useLocation();
   const { slug, profile, loading, error } = useTenantBootstrap();
-  const { copy } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
+  const { copy, locale } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const assistantPrefill = useMemo(
     () => parseGiftCardAssistantPrefill(params),
@@ -84,13 +88,21 @@ export default function GiftCardCheckoutPage() {
   const settings = catalogQuery.data?.settings;
   const cardType = (params.get('cardType') ?? 'monetary') as PublicGiftCardType;
   const amount = params.get('amount') ?? String(settings?.presetAmounts[0] ?? 50);
-  const serviceIds = parseGiftCardServiceIdsFromSearch(params);
+  // e2e-bug.6 / e2e-bug.37 — parse returns a new array every call; memoize so buildPayload stays stable.
+  const serviceIds = useMemo(
+    () => parseGiftCardServiceIdsFromSearch(params),
+    [params],
+  );
   const bundleId = params.get('bundleId') ?? settings?.bundles[0]?.id ?? '';
   const packageId = params.get('packageId') ?? settings?.purchasablePackages?.[0]?.packageId ?? '';
   const subscriptionPlanId =
     params.get('subscriptionPlanId') ?? settings?.purchasableSubscriptionPlans?.[0]?.planId ?? '';
 
-  const customer = slug ? getStoredCustomerProfile(slug) : null;
+  // e2e-bug.6 / e2e-bug.37 — getStoredCustomerProfile JSON.parses a new object each call; memoize by slug.
+  const customer = useMemo(
+    () => (slug ? getStoredCustomerProfile(slug) : null),
+    [slug],
+  );
   const authed = slug ? !!getCustomerToken(slug) : false;
 
   const deliveryOptions = useMemo(
@@ -105,7 +117,9 @@ export default function GiftCardCheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'digital' | 'physical'>(
     assistantPrefill.deliveryMethod ?? deliveryOptions[0] ?? 'digital',
   );
-  const [shippingMethodId] = useState(settings?.shippingMethods[0]?.id ?? 'standard');
+  const [shippingMethodId, setShippingMethodId] = useState(
+    settings?.shippingMethods[0]?.id ?? 'standard',
+  );
   const [form, setForm] = useState<GiftCardCheckoutFormState>(() => ({
     ...emptyForm(),
     ...(assistantPrefill.recipientName
@@ -124,21 +138,54 @@ export default function GiftCardCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const quoteRequestId = useRef(0);
 
+  // Keep shipping method valid once catalog settings load (may arrive after first paint).
+  useEffect(() => {
+    const methods = settings?.shippingMethods ?? [];
+    if (methods.length === 0) return;
+    setShippingMethodId((prev) =>
+      methods.some((method) => method.id === prev) ? prev : methods[0]!.id,
+    );
+  }, [settings?.shippingMethods]);
+
   useEffect(() => {
     if (!customer) return;
-    setForm((prev) => ({
-      ...prev,
-      purchaserName: prev.purchaserName || customer.name || '',
-      purchaserEmail: prev.purchaserEmail || customer.email || '',
-      ...(assistantPrefill.buyAsGift
-        ? {}
-        : {
-            recipientName: prev.recipientName || customer.name,
-            recipientEmail: prev.recipientEmail || customer.email || '',
-            recipientPhone: prev.recipientPhone || customer.phone || '',
-          }),
-    }));
-  }, [assistantPrefill.buyAsGift, customer]);
+    setForm((prev) => {
+      const purchaserName = prev.purchaserName || customer.name || '';
+      const purchaserEmail = prev.purchaserEmail || customer.email || '';
+      const recipientName = assistantPrefill.buyAsGift
+        ? prev.recipientName
+        : prev.recipientName || customer.name || '';
+      const recipientEmail = assistantPrefill.buyAsGift
+        ? prev.recipientEmail
+        : prev.recipientEmail || customer.email || '';
+      const recipientPhone = assistantPrefill.buyAsGift
+        ? prev.recipientPhone
+        : prev.recipientPhone || customer.phone || '';
+      if (
+        purchaserName === prev.purchaserName &&
+        purchaserEmail === prev.purchaserEmail &&
+        recipientName === prev.recipientName &&
+        recipientEmail === prev.recipientEmail &&
+        recipientPhone === prev.recipientPhone
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        purchaserName,
+        purchaserEmail,
+        recipientName,
+        recipientEmail,
+        recipientPhone,
+      };
+    });
+  }, [
+    assistantPrefill.buyAsGift,
+    customer,
+    customer?.email,
+    customer?.name,
+    customer?.phone,
+  ]);
 
   useEffect(() => {
     if (!paymentSessionId || success) return;
@@ -195,7 +242,7 @@ export default function GiftCardCheckoutPage() {
       .catch((err: unknown) => {
         if (requestId !== quoteRequestId.current) return;
         setQuote(null);
-        setQuoteError(err instanceof Error ? err.message : copy.giftCardQuoteFailed);
+        setQuoteError(formatFriendlyNetworkError(err, copy.giftCardQuoteFailed));
       })
       .finally(() => {
         if (requestId === quoteRequestId.current) setQuoteLoading(false);
@@ -232,7 +279,9 @@ export default function GiftCardCheckoutPage() {
       const checkout = await createPublicGiftCardCheckout(slug, payload);
       openExternalCheckout(checkout.url);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : copy.giftCardCheckoutFailed);
+      setErrorMessage(
+        formatFriendlyNetworkError(err, copy.giftCardCheckoutFailed),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -282,11 +331,12 @@ export default function GiftCardCheckoutPage() {
   }
 
   return (
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/gift-cards')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/gift-cards')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.giftCardCheckoutTitle}</IonTitle>
         </IonToolbar>
@@ -376,6 +426,28 @@ export default function GiftCardCheckoutPage() {
 
         {deliveryMethod === 'physical' ? (
           <div className="salon-card" style={{ marginBottom: 16 }}>
+            {(settings?.shippingMethods?.length ?? 0) > 0 ? (
+              <IonItem>
+                <IonLabel position="stacked">{copy.giftCardShippingMethod}</IonLabel>
+                <IonSelect
+                  value={shippingMethodId}
+                  interface="popover"
+                  onIonChange={(e) => setShippingMethodId(String(e.detail.value ?? ''))}
+                >
+                  {(settings?.shippingMethods ?? []).map((method) => (
+                    <IonSelectOption key={method.id} value={method.id}>
+                      {method.label} —{' '}
+                      {formatPublicMoney(
+                        method.fee,
+                        quote?.currency ?? profile?.currency,
+                        profile?.currency,
+                      )}{' '}
+                      ({method.estimatedDays})
+                    </IonSelectOption>
+                  ))}
+                </IonSelect>
+              </IonItem>
+            ) : null}
             <IonItem>
               <IonLabel position="stacked">{copy.giftCardAddressLine1}</IonLabel>
               <IonInput value={form.line1} onIonInput={(e) => setForm({ ...form, line1: String(e.detail.value ?? '') })} />
@@ -387,6 +459,13 @@ export default function GiftCardCheckoutPage() {
             <IonItem>
               <IonLabel position="stacked">{copy.giftCardCity}</IonLabel>
               <IonInput value={form.city} onIonInput={(e) => setForm({ ...form, city: String(e.detail.value ?? '') })} />
+            </IonItem>
+            <IonItem>
+              <IonLabel position="stacked">{copy.giftCardStateRegion}</IonLabel>
+              <IonInput
+                value={form.stateRegion}
+                onIonInput={(e) => setForm({ ...form, stateRegion: String(e.detail.value ?? '') })}
+              />
             </IonItem>
             <IonItem>
               <IonLabel position="stacked">{copy.giftCardPostalCode}</IonLabel>
@@ -498,5 +577,6 @@ export default function GiftCardCheckoutPage() {
         </IonButton>
       </IonContent>
     </IonPage>
+    </ConsumerAiShell>
   );
 }

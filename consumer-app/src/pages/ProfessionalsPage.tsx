@@ -97,7 +97,7 @@ export default function ProfessionalsPage() {
     <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
-          <ConsumerBackButton defaultHref={buildSalonPath(slug)} />
+          <ConsumerBackButton defaultHref={buildSalonPath(slug)} text={copy.guidePageBack} />
           <IonTitle>{copy.chooseSpecialist}</IonTitle>
         </IonToolbar>
       </IonHeader>

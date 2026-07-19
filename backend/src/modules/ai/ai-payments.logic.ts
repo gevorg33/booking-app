@@ -11,13 +11,17 @@ import { handleConfigureCheckoutDefaultsLogic } from './ai-checkout-defaults.log
 import { handleConfigureServiceDepositPolicyLogic } from './ai-service-deposit-policy.logic.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { GiftCardsService } from '../gift-cards/gift-cards.service.js';
-import type { GiftCardPurchaseService } from '../gift-cards/gift-card-purchase.service.js';
+import type {
+  GiftCardPurchaseService,
+  PurchaseGiftCardInput,
+} from '../gift-cards/gift-card-purchase.service.js';
 import type { GiftCardOrderService } from '../gift-cards/gift-card-order.service.js';
 import type { GiftCardRefundService } from '../gift-cards/gift-card-refund.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AccountingIntegrationService } from '../integrations/accounting/accounting-integration.service.js';
 import type { CommissionsService } from '../commissions/commissions.service.js';
 import type { ServiceSubscriptionsService } from '../service-subscriptions/service-subscriptions.service.js';
+import type { BookingPaymentService } from '../booking/booking-payment.service.js';
 import {
   applyPublicPaymentSettingsToBusinessSettings,
   resolvePublicPaymentSettings,
@@ -32,6 +36,7 @@ import {
 import {
   extractAmountFromPrompt,
   extractGiftCardCodeFromPrompt,
+  extractRefundReasonFromPrompt,
   extractServiceNameFromPrompt,
   notBeforeTimeFromWindow,
   parseCashPaymentsToggle,
@@ -66,6 +71,7 @@ import {
 } from './ai-budget-list-services.logic.js';
 import { resolveServicesFromCatalogParams } from './ai-orchestration.helpers.js';
 import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-hints.util.js';
+import { parseCartServiceIds } from './ai-self-service-booking.util.js';
 import type { ServiceService } from '../service/service.service.js';
 import type { UpdateServiceDto } from '../service/dto/create-service.dto.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
@@ -113,6 +119,7 @@ export interface PaymentsLogicDeps {
   serviceRepo: Repository<Service>;
   giftCardRepo: Repository<GiftCard>;
   serviceService: ServiceService;
+  bookingPaymentService: BookingPaymentService;
 }
 
 function failure(
@@ -814,14 +821,25 @@ export async function handleRefundGiftCardOrderLogic(
     );
   }
 
+  const reason =
+    (typeof params.reason === 'string' && params.reason.trim()) ||
+    extractRefundReasonFromPrompt(params._prompt ?? '');
+  if (!reason) {
+    return failure(
+      'refund_gift_card_order',
+      `What's the reason for refunding gift card order ${card.code}?`,
+      { clarify: true, missing: ['reason'], giftCardId: card.id },
+    );
+  }
+
   const refundStatus = await deps.giftCardRefundService.refundPurchase(
     business,
     card,
   );
   return success(
     'refund_gift_card_order',
-    `Gift card order refund status: ${refundStatus}.`,
-    { giftCardId: card.id, refundStatus },
+    `Gift card order refund status: ${refundStatus} (reason: ${reason}).`,
+    { giftCardId: card.id, refundStatus, reason },
   );
 }
 
@@ -904,6 +922,11 @@ export async function handleCollectCashConfirmLogic(
     );
   }
 
+  const amount =
+    typeof params.amount === 'number'
+      ? params.amount
+      : extractAmountFromPrompt((params._prompt as string) ?? '');
+
   booking.paymentStatus = PaymentStatus.PAID;
   booking.status = BookingStatus.COMPLETED;
   booking.metadata = {
@@ -911,14 +934,18 @@ export async function handleCollectCashConfirmLogic(
     paidVia: 'cash',
     paidAt: new Date().toISOString(),
     cashConfirmedByUserId: userId,
+    ...(amount != null ? { cashCollectedAmount: amount } : {}),
   };
   await deps.bookingRepo.save(booking);
 
   return success(
     'collect_cash_confirm',
-    'Cash payment confirmed and booking marked paid.',
+    amount != null
+      ? `Cash payment of $${amount.toFixed(2)} confirmed and booking marked paid.`
+      : 'Cash payment confirmed and booking marked paid.',
     {
       bookingId: booking.id,
+      ...(amount != null ? { amount } : {}),
     },
   );
 }
@@ -1363,6 +1390,74 @@ export async function handleBuyGiftCardLogic(
   }
 }
 
+export async function handleGetGiftCardQuoteLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const catalog =
+    await deps.giftCardPurchaseService.getPublicCatalog(businessId);
+  if (!catalog.purchaseEnabled) {
+    return failure('get_gift_card_quote', 'Gift card purchase is not enabled.');
+  }
+
+  const cardType = (params.cardType as string | undefined) ?? 'monetary';
+  const deliveryMethod =
+    (params.deliveryMethod as 'digital' | 'physical' | undefined) ?? 'digital';
+
+  const amount =
+    params.amount ??
+    extractAmountFromPrompt((params._prompt as string) ?? prompt ?? '') ??
+    catalog.settings?.presetAmounts?.[0];
+
+  if (cardType === 'monetary' && (!amount || !Number.isFinite(Number(amount)))) {
+    return failure(
+      'get_gift_card_quote',
+      'Specify a gift card amount to quote (e.g. "$50 gift card").',
+      {
+        clarify: true,
+        missing: ['amount'],
+        catalog,
+      },
+    );
+  }
+
+  try {
+    const quote = await deps.giftCardPurchaseService.quotePurchase(
+      businessId,
+      {
+        cardType: cardType as PurchaseGiftCardInput['cardType'],
+        amount: amount != null ? Number(amount) : undefined,
+        serviceId: params.serviceId as string | undefined,
+        serviceIds: params.serviceIds as string[] | undefined,
+        packageId: params.packageId as string | undefined,
+        subscriptionPlanId: params.subscriptionPlanId as string | undefined,
+        bundleId: params.bundleId as string | undefined,
+        deliveryMethod,
+        shippingMethodId: params.shippingMethodId as string | undefined,
+        purchaserEmail:
+          (params.purchaserEmail as string) ?? 'guest@example.com',
+        purchaserName: params.purchaserName as string | undefined,
+      },
+    );
+    return success(
+      'get_gift_card_quote',
+      `${quote.label} — total $${quote.total.toFixed(2)}${
+        deliveryMethod === 'physical'
+          ? ` (incl. $${quote.shippingFee.toFixed(2)} shipping)`
+          : ''
+      }.`,
+      { quote, deliveryMethod, cardType },
+    );
+  } catch (err: any) {
+    return failure(
+      'get_gift_card_quote',
+      err?.message ?? 'Could not quote gift card.',
+    );
+  }
+}
+
 export async function handleChoosePaymentMethodLogic(
   deps: PaymentsLogicDeps,
   businessId: string,
@@ -1468,6 +1563,237 @@ export async function handlePayOnlineLogic(
     sessionContext: { paymentMethod: 'online' },
     ...(navigate ? { navigate } : {}),
   });
+}
+
+function resolveQuoteCustomerId(
+  params: Record<string, any>,
+): string | undefined {
+  return (
+    (params.sessionCustomerId as string | undefined) ??
+    (params.customerId as string | undefined)
+  );
+}
+
+function summarizeQuote(quote: {
+  amountDue?: number;
+  currency?: string;
+  totalDiscount?: number;
+}): string {
+  const amount = quote.amountDue != null ? quote.amountDue : undefined;
+  const currency = quote.currency ?? '';
+  if (amount == null) return 'Quote ready.';
+  const discount =
+    quote.totalDiscount && quote.totalDiscount > 0
+      ? ` (${quote.totalDiscount} ${currency} saved)`
+      : '';
+  return `${amount} ${currency} due now${discount}.`.trim();
+}
+
+export async function handleGetBookingQuoteLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any> = {},
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('get_booking_quote', 'Business not found.');
+
+  const service = await resolveService(deps, businessId, params);
+  if (!service) {
+    return failure(
+      'get_booking_quote',
+      'Which service would you like a quote for?',
+      { clarify: true, missing: ['serviceName'] },
+    );
+  }
+
+  const customerId = resolveQuoteCustomerId(params);
+  try {
+    const quote = await deps.publicBookingService.quoteCheckout(
+      slug,
+      {
+        serviceId: service.id,
+        paxCount: params.paxCount as number | undefined,
+        purchasePlanId: params.purchasePlanId as string | undefined,
+        promoCode: params.promoCode as string | undefined,
+        loyaltyPointsToRedeem: params.loyaltyPointsToRedeem as
+          | number
+          | undefined,
+      },
+      customerId,
+    );
+    return success('get_booking_quote', summarizeQuote(quote), {
+      serviceId: service.id,
+      serviceName: service.name,
+      quote,
+    });
+  } catch (err: any) {
+    return failure(
+      'get_booking_quote',
+      err?.message ?? 'Could not calculate a quote for this booking.',
+      { serviceId: service.id, reason: 'quote_failed' },
+    );
+  }
+}
+
+export async function handleGetPackageQuoteLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any> = {},
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('get_package_quote', 'Business not found.');
+
+  let packageId = params.packageId as string | undefined;
+  let packageName: string | undefined;
+  if (!packageId) {
+    const name = (params.packageName as string | undefined)?.trim();
+    if (!name) {
+      return failure(
+        'get_package_quote',
+        'Which package would you like a quote for?',
+        { clarify: true, missing: ['packageName'] },
+      );
+    }
+    const { packages } = await deps.publicBookingService.getPublicPackages(
+      slug,
+    );
+    const match = resolveByName(packages, name);
+    if (!match) {
+      return failure('get_package_quote', `I couldn't find a package named ${name}.`, {
+        packageName: name,
+      });
+    }
+    packageId = match.id;
+    packageName = match.name;
+  }
+
+  const customerId = resolveQuoteCustomerId(params);
+  try {
+    const quote = await deps.publicBookingService.quotePackageCheckout(
+      slug,
+      {
+        packageId,
+        promoCode: params.promoCode as string | undefined,
+        loyaltyPointsToRedeem: params.loyaltyPointsToRedeem as
+          | number
+          | undefined,
+      },
+      customerId,
+    );
+    return success('get_package_quote', summarizeQuote(quote), {
+      packageId,
+      packageName,
+      quote,
+    });
+  } catch (err: any) {
+    return failure(
+      'get_package_quote',
+      err?.message ?? 'Could not calculate a quote for this package.',
+      { packageId, reason: 'quote_failed' },
+    );
+  }
+}
+
+async function resolveQuoteServiceIds(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<string[]> {
+  const explicit = parseCartServiceIds(
+    params.cartServiceIds ?? params.serviceIds,
+  );
+  if (explicit.length) return explicit;
+
+  const names = Array.isArray(params.serviceNames)
+    ? (params.serviceNames as string[])
+    : [];
+  if (!names.length) return [];
+  const catalog = await deps.serviceRepo.find({
+    where: { businessId, isActive: true },
+  });
+  return names
+    .map((name) => resolveByName(catalog, name))
+    .filter((s): s is Service => Boolean(s))
+    .map((s) => s.id);
+}
+
+export async function handleGetMultiServiceQuoteLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any> = {},
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('get_multi_service_quote', 'Business not found.');
+
+  const serviceIds = await resolveQuoteServiceIds(deps, businessId, params);
+  if (serviceIds.length < 2) {
+    return failure(
+      'get_multi_service_quote',
+      'Name at least two services (or add them to your cart) to get a multi-service quote.',
+      { clarify: true, missing: ['serviceNames'] },
+    );
+  }
+
+  const customerId = resolveQuoteCustomerId(params);
+  try {
+    const quote = await deps.publicBookingService.quoteMultiServiceCheckout(
+      slug,
+      {
+        serviceIds,
+        promoCode: params.promoCode as string | undefined,
+        loyaltyPointsToRedeem: params.loyaltyPointsToRedeem as
+          | number
+          | undefined,
+      },
+      customerId,
+    );
+    return success('get_multi_service_quote', summarizeQuote(quote), {
+      serviceIds,
+      quote,
+    });
+  } catch (err: any) {
+    return failure(
+      'get_multi_service_quote',
+      err?.message ?? 'Could not calculate a multi-service quote.',
+      { serviceIds, reason: 'quote_failed' },
+    );
+  }
+}
+
+export async function handleConfirmStripePaymentLogic(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any> = {},
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('confirm_stripe_payment', 'Business not found.');
+
+  const sessionId = params.sessionId as string | undefined;
+  if (!sessionId) {
+    return failure(
+      'confirm_stripe_payment',
+      'Missing the Stripe checkout session to confirm.',
+      { clarify: true, missing: ['sessionId'] },
+    );
+  }
+
+  try {
+    const result = await deps.bookingPaymentService.confirmCheckoutSession(
+      slug,
+      sessionId,
+    );
+    return success(
+      'confirm_stripe_payment',
+      'Payment confirmed — your booking is set.',
+      { ...result, sessionContext: { paymentMethod: 'online' } },
+    );
+  } catch (err: any) {
+    return failure(
+      'confirm_stripe_payment',
+      err?.message ?? 'Could not confirm this payment yet.',
+      { sessionId, reason: 'confirm_failed' },
+    );
+  }
 }
 
 export async function handlePayCashAtVisitLogic(

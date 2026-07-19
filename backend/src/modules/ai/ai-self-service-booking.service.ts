@@ -28,6 +28,7 @@ import {
   handleBookPackageLogic,
   handleBookWithCashLogic,
   handleCancelMyBookingLogic,
+  handleCancelAllUpcomingBookingsLogic,
   handleCancelPackageVisitSelfLogic,
   handleChangeProviderOnRescheduleLogic,
   handleCheckMultiServiceAvailabilityLogic,
@@ -47,12 +48,15 @@ import {
   handleListMyAppointmentsLogic,
   handleListMyUpcomingAppointmentsLogic,
   handleListMyPackageVisitsLogic,
+  handlePreviewMultiServiceCartLogic,
   handleRemoveServiceFromCartLogic,
   handleRescheduleMyBookingLogic,
   handleReschedulePackageVisitSelfLogic,
   handleSelectSubscriptionPlanLogic,
   handleShowCartTotalDurationLogic,
+  handleSuggestPackageBlockLogic,
   handleUseSubscriptionCreditLogic,
+  handleCancelMySubscriptionLogic,
   handleConfirmMyBookingDetailsLogic,
   handleAddBookingToCalendarLogic,
   type SelfServiceBookingLogicDeps,
@@ -65,6 +69,16 @@ import { handleExplainMultiServiceCartLogic } from './ai-explain-multi-service-c
 import { handleExplainPackageSavingsLogic } from './ai-explain-package-savings.logic.js';
 import { handleExplainSubscriptionVsOneTimeLogic } from './ai-explain-subscription-vs-one-time.logic.js';
 import { handleExplainPackageVisitRulesLogic } from './ai-explain-package-visit-rules.logic.js';
+import { handleReschedulePackageLinesLogic } from './ai-reschedule-package-lines.logic.js';
+import {
+  handleCancelBookingWithTokenLogic,
+  handleCancelPackageVisitWithTokenLogic,
+  handleExplainManageBookingContextLogic,
+  handleRescheduleBookingWithTokenLogic,
+  handleReschedulePackageVisitWithTokenLogic,
+} from './ai-manage-booking-with-token.logic.js';
+import { dispatchSelfServiceBookingIntent } from './ai-self-service-booking-dispatch.util.js';
+import type { SelfServiceBookingDispatchContext } from './ai-self-service-booking-dispatch.build.js';
 
 @Injectable()
 export class AiSelfServiceBookingService {
@@ -162,6 +176,23 @@ export class AiSelfServiceBookingService {
     );
   }
 
+  handlePreviewMultiServiceCart(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handlePreviewMultiServiceCartLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
+  }
+
+  handleSuggestPackageBlock(businessId: string, params: Record<string, any>) {
+    return handleSuggestPackageBlockLogic(this.deps, businessId, params);
+  }
+
   handleSelectSubscriptionPlan(
     businessId: string,
     params: Record<string, any>,
@@ -173,12 +204,32 @@ export class AiSelfServiceBookingService {
     return handleUseSubscriptionCreditLogic(this.deps, businessId, params);
   }
 
+  handleCancelMySubscription(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
+    return handleCancelMySubscriptionLogic(this.deps, businessId, params);
+  }
+
   handleCancelMyBooking(
     businessId: string,
     params: Record<string, any>,
     prompt = '',
   ) {
     return handleCancelMyBookingLogic(this.deps, businessId, params, prompt);
+  }
+
+  handleCancelAllUpcomingBookings(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleCancelAllUpcomingBookingsLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleRescheduleMyBooking(
@@ -213,6 +264,19 @@ export class AiSelfServiceBookingService {
     prompt = '',
   ) {
     return handleReschedulePackageVisitSelfLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleReschedulePackageLines(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleReschedulePackageLinesLogic(
       this.deps,
       businessId,
       params,
@@ -303,6 +367,71 @@ export class AiSelfServiceBookingService {
     prompt = '',
   ) {
     return handleGetManageLinkLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleExplainManageBookingContext(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleExplainManageBookingContextLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleCancelBookingWithToken(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleCancelBookingWithTokenLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleRescheduleBookingWithToken(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleRescheduleBookingWithTokenLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleCancelPackageVisitWithToken(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleCancelPackageVisitWithTokenLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt || String(params._prompt ?? ''),
+    );
+  }
+
+  handleReschedulePackageVisitWithToken(
+    businessId: string,
+    params: Record<string, any>,
+    prompt = '',
+  ) {
+    return handleReschedulePackageVisitWithTokenLogic(
       this.deps,
       businessId,
       params,
@@ -541,5 +670,12 @@ export class AiSelfServiceBookingService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a self-service-booking intent. */
+  dispatchIntent(
+    ctx: SelfServiceBookingDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchSelfServiceBookingIntent(this, ctx);
   }
 }

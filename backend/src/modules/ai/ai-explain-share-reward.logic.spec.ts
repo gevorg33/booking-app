@@ -14,6 +14,9 @@ describe('ai-explain-share-reward.logic (ai-cmd-customer-4.12.4)', () => {
         bookingNextEligibleAt: null,
       })),
     },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    },
   });
 
   it('clarifies when prompt is not share reward explain', async () => {

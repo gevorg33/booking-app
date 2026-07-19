@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  ParseUUIDPipe,
   Query,
   UseGuards,
   ForbiddenException,
@@ -25,6 +26,7 @@ import {
   GetServiceSlotsQueryDto,
   GetServiceBookableDatesQueryDto,
   GetServiceSlotProvidersQueryDto,
+  GetServicesForSlotQueryDto,
   PublicBookingQuoteDto,
   BookPublicPackageDto,
   PublicPackageQuoteDto,
@@ -39,7 +41,19 @@ import {
   parseServiceIdsQuery,
 } from './dto/public-booking.dto.js';
 import { PublicCustomerGoogleLoginDto } from './dto/public-customer-google-login.dto.js';
-import { PublicCustomerRescheduleBookingDto } from './dto/public-customer-booking.dto.js';
+import {
+  PublicCustomerRescheduleBookingDto,
+  PublicCustomerBulkCancelBookingsDto,
+  PublicBookingManageQueryDto,
+  PublicBookingManageCancelDto,
+  PublicBookingManageRescheduleDto,
+  PublicReviewContextQueryDto,
+} from './dto/public-customer-booking.dto.js';
+import {
+  assertUuid,
+  assertUuidIfPresent,
+  assertUuidList,
+} from '../../common/utils/uuid-param.util.js';
 import { PublicCustomerNotifyRunningLateDto } from './dto/public-customer-running-late.dto.js';
 import { PublicJoinWaitlistDto } from './dto/public-customer-waitlist.dto.js';
 import {
@@ -77,6 +91,7 @@ import { PublicCustomerWaitlistService } from './public-customer-waitlist.servic
 import { PublicConsumerSupportTicketDto } from './dto/public-consumer-support-ticket.dto.js';
 import { UpdatePublicConsumerNotificationPreferencesDto } from './dto/public-consumer-notification-preferences.dto.js';
 import { UpdatePublicCustomerPreferredLocaleDto } from './dto/public-customer-preferred-locale.dto.js';
+import { PublicCustomerUpdateProfileDto } from './dto/public-customer-profile.dto.js';
 import { ClaimReferralCodeDto } from './dto/claim-referral.dto.js';
 import { ClaimShareRewardDto } from './dto/claim-share-reward.dto.js';
 import { SubmitCustomerReviewDto } from './dto/submit-customer-review.dto.js';
@@ -121,6 +136,8 @@ export class PublicBookingController {
     @Query('serviceId') serviceId?: string,
     @Query('categoryId') categoryId?: string,
   ) {
+    assertUuidIfPresent(serviceId, 'serviceId');
+    assertUuidIfPresent(categoryId, 'categoryId');
     return this.publicBookingService.getCheckoutRecommendations(
       slug,
       serviceId,
@@ -151,7 +168,7 @@ export class PublicBookingController {
   @Get('providers/:employeeId/slots')
   getProviderSlots(
     @Param('slug') slug: string,
-    @Param('employeeId') employeeId: string,
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Query() query: GetProviderSlotsQueryDto,
   ) {
     return this.publicBookingService.getProviderSlots(
@@ -164,7 +181,7 @@ export class PublicBookingController {
   @Get('providers/:employeeId/reviews')
   listProviderReviews(
     @Param('slug') slug: string,
-    @Param('employeeId') employeeId: string,
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Query('page') page?: string,
   ) {
     const pageNum = Math.max(1, parseInt(page ?? '1', 10) || 1);
@@ -181,28 +198,27 @@ export class PublicBookingController {
     @Query('employeeId') employeeId?: string,
     @Query('locale') locale?: string,
   ) {
+    assertUuidIfPresent(employeeId, 'employeeId');
     return this.publicBookingService.getServices(slug, employeeId, locale);
   }
 
   @Get('services/for-slot')
   getServicesForSlot(
     @Param('slug') slug: string,
-    @Query('employeeId') employeeId: string,
-    @Query('startTime') startTime: string,
-    @Query('locale') locale?: string,
+    @Query() query: GetServicesForSlotQueryDto,
   ) {
     return this.publicBookingService.getServicesForSlot(
       slug,
-      employeeId,
-      startTime,
-      locale,
+      query.employeeId,
+      query.startTime,
+      query.locale,
     );
   }
 
   @Get('services/:serviceId/subscription-plans')
   getServiceSubscriptionPlans(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
   ) {
     return this.publicBookingService.getServiceSubscriptionPlans(
       slug,
@@ -218,7 +234,7 @@ export class PublicBookingController {
   @Get('packages/:packageId')
   getPackage(
     @Param('slug') slug: string,
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
     @Query('locale') locale?: string,
   ) {
     return this.publicBookingService.getPublicPackage(slug, packageId, locale);
@@ -227,7 +243,7 @@ export class PublicBookingController {
   @Get('packages/:packageId/suggest-slots')
   suggestPackageSlots(
     @Param('slug') slug: string,
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
   ) {
     return this.publicBookingService.suggestPackageLineSlots(slug, packageId);
   }
@@ -235,7 +251,7 @@ export class PublicBookingController {
   @Get('packages/:packageId/suggest-block')
   suggestPackageBlock(
     @Param('slug') slug: string,
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
   ) {
     return this.publicBookingService.suggestPackageBlock(slug, packageId);
   }
@@ -243,7 +259,7 @@ export class PublicBookingController {
   @Get('packages/:packageId/block-slots')
   getPackageBlockSlots(
     @Param('slug') slug: string,
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
     @Query() query: PackageBlockSlotsQueryDto,
   ) {
     return this.publicBookingService.getPackageBlockDaySlots(
@@ -256,7 +272,7 @@ export class PublicBookingController {
   @Get('packages/:packageId/providers')
   getPackageBlockProviders(
     @Param('slug') slug: string,
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
     @Query() query: PackageBlockProvidersQueryDto,
   ) {
     return this.publicBookingService.getPackageBlockProviders(
@@ -343,6 +359,7 @@ export class PublicBookingController {
         Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw,
       ),
     );
+    assertUuidList(serviceIds, 'serviceIds');
     return this.publicBookingService.suggestMultiServiceBlock(slug, serviceIds);
   }
 
@@ -356,6 +373,7 @@ export class PublicBookingController {
         Array.isArray(serviceIdsRaw) ? serviceIdsRaw : serviceIdsRaw,
       ),
     );
+    assertUuidList(serviceIds, 'serviceIds');
     return this.publicBookingService.suggestMultiServicePerServiceLines(
       slug,
       serviceIds,
@@ -420,7 +438,7 @@ export class PublicBookingController {
   @Get('services/:serviceId/bookable-dates')
   getServiceBookableDates(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Query() query: GetServiceBookableDatesQueryDto,
   ) {
     return this.publicBookingService.getServiceBookableDates(
@@ -434,7 +452,7 @@ export class PublicBookingController {
   @Get('services/:serviceId/slots')
   getServiceDaySlots(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Query() query: GetServiceSlotsQueryDto,
   ) {
     return this.publicBookingService.getServiceDaySlots(
@@ -447,9 +465,10 @@ export class PublicBookingController {
   @Get('services/:serviceId/nearest-slot')
   getNearestServiceSlot(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Query('employeeId') employeeId?: string,
   ) {
+    assertUuidIfPresent(employeeId, 'employeeId');
     return this.publicBookingService.findNearestBookableSlot(slug, {
       serviceId,
       employeeId: employeeId ?? null,
@@ -459,7 +478,7 @@ export class PublicBookingController {
   @Get('services/:serviceId/providers')
   getProvidersForServiceSlot(
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
+    @Param('serviceId', ParseUUIDPipe) serviceId: string,
     @Query() query: GetServiceSlotProvidersQueryDto,
   ) {
     return this.publicBookingService.getProvidersForServiceSlot(
@@ -498,7 +517,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   getPreVisitIntakeFlow(
     @Param('slug') slug: string,
-    @Param('intakeId') intakeId: string,
+    @Param('intakeId', ParseUUIDPipe) intakeId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicPreVisitIntakeService.getCustomerFlow(
@@ -512,7 +531,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   startPreVisitIntake(
     @Param('slug') slug: string,
-    @Param('intakeId') intakeId: string,
+    @Param('intakeId', ParseUUIDPipe) intakeId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicPreVisitIntakeService.startCustomerIntake(
@@ -526,7 +545,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   submitPreVisitIntakeAnswers(
     @Param('slug') slug: string,
-    @Param('intakeId') intakeId: string,
+    @Param('intakeId', ParseUUIDPipe) intakeId: string,
     @Body() dto: SubmitClinicPreVisitIntakeAnswersDto,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
@@ -639,10 +658,13 @@ export class PublicBookingController {
   @Get('reviews/context')
   getReviewContext(
     @Param('slug') slug: string,
-    @Query('bookingId') bookingId: string,
-    @Query('token') token: string,
+    @Query() query: PublicReviewContextQueryDto,
   ) {
-    return this.reviewsService.getPublicContext(slug, bookingId, token);
+    return this.reviewsService.getPublicContext(
+      slug,
+      query.bookingId,
+      query.token,
+    );
   }
 
   @Post('reviews')
@@ -657,7 +679,7 @@ export class PublicBookingController {
   @UseGuards(OptionalPublicCustomerAuthGuard)
   submitProviderPortalReview(
     @Param('slug') slug: string,
-    @Param('employeeId') employeeId: string,
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Body() dto: SubmitProviderPortalReviewDto,
     @CurrentUser() user?: PublicCustomerRequestUser,
   ) {
@@ -811,7 +833,7 @@ export class PublicBookingController {
   async dismissMyClinicPatientAlert(
     @Param('slug') slug: string,
     @Param('alertType') alertType: ClinicPatientAlertType,
-    @Param('sourceId') sourceId: string,
+    @Param('sourceId', ParseUUIDPipe) sourceId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     const business = await this.businessService.findBySlug(slug);
@@ -834,7 +856,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   async getMyReleasedClinicDocument(
     @Param('slug') slug: string,
-    @Param('documentId') documentId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     const business = await this.businessService.findBySlug(slug);
@@ -871,7 +893,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   cancelMyBooking(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicCustomerBookingService.cancelBooking(
@@ -881,11 +903,25 @@ export class PublicBookingController {
     );
   }
 
+  @Post('me/bookings/bulk-cancel')
+  @UseGuards(PublicCustomerAuthGuard)
+  bulkCancelMyUpcomingBookings(
+    @Param('slug') slug: string,
+    @Body() dto: PublicCustomerBulkCancelBookingsDto,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicCustomerBookingService.bulkCancelUpcomingBookings(
+      slug,
+      user.customerId,
+      dto,
+    );
+  }
+
   @Post('me/bookings/:bookingId/reschedule')
   @UseGuards(PublicCustomerAuthGuard)
   rescheduleMyBooking(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @Body() dto: PublicCustomerRescheduleBookingDto,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
@@ -901,7 +937,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   notifyRunningLate(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @Body() dto: PublicCustomerNotifyRunningLateDto,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
@@ -955,7 +991,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   cancelMyPackageVisit(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicCustomerBookingService.cancelPackageVisit(
@@ -969,7 +1005,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   rescheduleMyPackageVisit(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @Body() dto: PublicCustomerReschedulePackageVisitDto,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
@@ -984,28 +1020,26 @@ export class PublicBookingController {
   @Get('bookings/manage')
   getBookingManageContext(
     @Param('slug') slug: string,
-    @Query('bookingId') bookingId: string,
-    @Query('token') token: string,
+    @Query() query: PublicBookingManageQueryDto,
   ) {
     return this.publicCustomerBookingService.getManageContext(
       slug,
-      bookingId,
-      token,
+      query.bookingId,
+      query.token,
     );
   }
 
   @Get('bookings/manage/calendar.ics')
   async downloadBookingCalendarIcs(
     @Param('slug') slug: string,
-    @Query('bookingId') bookingId: string,
-    @Query('token') token: string,
+    @Query() query: PublicBookingManageQueryDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { filename, content } =
       await this.publicCustomerBookingService.getCalendarIcs(
         slug,
-        bookingId,
-        token,
+        query.bookingId,
+        query.token,
       );
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1015,7 +1049,7 @@ export class PublicBookingController {
   @Post('bookings/manage/cancel')
   cancelBookingWithManageToken(
     @Param('slug') slug: string,
-    @Body() dto: { bookingId: string; token: string },
+    @Body() dto: PublicBookingManageCancelDto,
   ) {
     return this.publicCustomerBookingService.cancelBookingWithToken(
       slug,
@@ -1027,13 +1061,7 @@ export class PublicBookingController {
   @Post('bookings/manage/reschedule')
   rescheduleBookingWithManageToken(
     @Param('slug') slug: string,
-    @Body()
-    dto: {
-      bookingId: string;
-      token: string;
-      startTime: string;
-      employeeId?: string;
-    },
+    @Body() dto: PublicBookingManageRescheduleDto,
   ) {
     return this.publicCustomerBookingService.rescheduleBookingWithToken(
       slug,
@@ -1148,7 +1176,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   getMyReviewSession(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicBookingService.getCustomerReviewSession(
@@ -1162,7 +1190,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   submitMyReview(
     @Param('slug') slug: string,
-    @Param('bookingId') bookingId: string,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
     @Body() dto: SubmitCustomerReviewDto,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
@@ -1186,6 +1214,20 @@ export class PublicBookingController {
     );
   }
 
+  @Post('me/subscriptions/:subscriptionId/cancel')
+  @UseGuards(PublicCustomerAuthGuard)
+  cancelMySubscription(
+    @Param('slug') slug: string,
+    @Param('subscriptionId', ParseUUIDPipe) subscriptionId: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    return this.publicBookingService.cancelCustomerSubscription(
+      slug,
+      user.customerId,
+      subscriptionId,
+    );
+  }
+
   @Get('me/subscriptions/active')
   @UseGuards(PublicCustomerAuthGuard)
   getMyActiveSubscription(
@@ -1193,6 +1235,7 @@ export class PublicBookingController {
     @Query('serviceId') serviceId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
+    assertUuid(serviceId, 'serviceId');
     return this.publicBookingService.getActiveCustomerSubscriptionForService(
       slug,
       user.customerId,
@@ -1204,7 +1247,7 @@ export class PublicBookingController {
   @UseGuards(PublicCustomerAuthGuard)
   getMySubscriptionUsage(
     @Param('slug') slug: string,
-    @Param('subscriptionId') subscriptionId: string,
+    @Param('subscriptionId', ParseUUIDPipe) subscriptionId: string,
     @CurrentUser() user: PublicCustomerRequestUser,
   ) {
     return this.publicBookingService.getCustomerSubscriptionUsage(
@@ -1309,6 +1352,20 @@ export class PublicBookingController {
       slug,
       user.customerId,
       dto.preferredLocale,
+    );
+  }
+
+  @Patch('me/profile')
+  @UseGuards(PublicCustomerAuthGuard)
+  updateMyProfile(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+    @Body() dto: PublicCustomerUpdateProfileDto,
+  ) {
+    return this.publicCustomerAuthService.updateMyProfile(
+      slug,
+      user.customerId,
+      dto,
     );
   }
 

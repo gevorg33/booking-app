@@ -10,6 +10,12 @@ import {
   rescueExplainDepositForfeitureIntent,
 } from './ai-explain-deposit-forfeiture.util.js';
 import { isExplainCancelPolicyPrompt } from './ai-explain-cancel-policy.util.js';
+import {
+  isExplainWhyPrepaymentPrompt,
+  rescueExplainPrepaymentIntent,
+} from './ai-explain-prepayment.util.js';
+import { isExplainCheckoutCurrencyPrompt } from './ai-checkout-currency.util.js';
+import { isExplainWhyStripeRequiredPrompt } from './ai-payments.util.js';
 
 describe('ai-explain-deposit-forfeiture.util (ai-cmd-customer-4.20.2)', () => {
   it.each(EXPLAIN_DEPOSIT_FORFEITURE_PROMPTS)(
@@ -92,6 +98,43 @@ describe('ai-explain-deposit-forfeiture.util (ai-cmd-customer-4.20.2)', () => {
   it('detects heuristic multilingual deposit forfeiture cues', () => {
     expect(
       isExplainDepositForfeiturePrompt('вернут депозит если отменю сейчас'),
+    ).toBe(true);
+  });
+
+  it.each([
+    {
+      id: 'e2e113-why-pay-deposit-to-book',
+      prompt: 'why do I have to pay a deposit to book?',
+      misclassified: 'explain_checkout_currency',
+    },
+    {
+      id: 'e2e113-deposit-forfeiture-policy-late',
+      prompt: 'explain the deposit forfeiture policy if I cancel late',
+      misclassified: 'explain_why_stripe_required',
+    },
+  ] as const)(
+    'e2e-bug.113 routes $id away from currency/stripe steals',
+    ({ prompt, misclassified }) => {
+      expect(isExplainDepositForfeiturePrompt(prompt)).toBe(true);
+      expect(isExplainCheckoutCurrencyPrompt(prompt)).toBe(false);
+      expect(isExplainWhyPrepaymentPrompt(prompt)).toBe(false);
+      expect(isExplainWhyStripeRequiredPrompt(prompt)).toBe(false);
+      expect(rescueExplainPrepaymentIntent(prompt, misclassified)).toBeNull();
+      expect(
+        rescueExplainDepositForfeitureIntent(prompt, misclassified),
+      ).toEqual({
+        action: 'explain_deposit_forfeiture',
+        rescueReason: 'deposit_forfeiture',
+      });
+    },
+  );
+
+  it('does not steal named-service why-deposit prompts from why-stripe', () => {
+    expect(
+      isExplainDepositForfeiturePrompt('Why is there a deposit for facial?'),
+    ).toBe(false);
+    expect(
+      isExplainWhyPrepaymentPrompt('Why is there a deposit for facial?'),
     ).toBe(true);
   });
 });

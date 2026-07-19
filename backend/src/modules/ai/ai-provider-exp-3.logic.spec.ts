@@ -2,8 +2,12 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   dispatchProviderExp3Intent,
   handleAddRetailToBookingLogic,
+  handleRemoveRetailFromBookingLogic,
   handleBlockMyTimeLogic,
+  handleExtendMyBlockLogic,
   handleSendClientMessageLogic,
+  handleExplainMessageTemplatesLogic,
+  handleNotifyClientReadyLogic,
 } from './ai-provider-exp-3.logic.js';
 
 describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
@@ -18,9 +22,11 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
     resolveMobileAccess: jest.fn(),
     getScopedEmployeeId: jest.fn(),
     createProviderSelfBlock: jest.fn(),
+    extendProviderSelfBlock: jest.fn(),
   };
   const retailFinance = {
     handleAddRetailToMyBooking: jest.fn(),
+    handleRemoveRetailFromMyBooking: jest.fn(),
   };
   const providerTimeOff = {
     handleIntent: jest.fn(),
@@ -104,6 +110,49 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
     expect(result.action).toBe('block_my_time');
   });
 
+  it('extends the provider own most-recent block (ai-cmd-provider-5.6.6)', async () => {
+    providerMobile.extendProviderSelfBlock.mockResolvedValue({
+      id: 'block-1',
+      placeholder: 'Lunch',
+      startTime: '2026-06-09T12:00:00.000Z',
+      endTime: '2026-06-09T12:30:00.000Z',
+      employeeId: 'emp-1',
+    });
+
+    const result = await handleExtendMyBlockLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Extend lunch 30 minutes',
+    );
+
+    expect(providerMobile.extendProviderSelfBlock).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      { extendMinutes: 30, newEndTime: undefined },
+    );
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('extend_my_block');
+  });
+
+  it('fails extend_my_block when no block exists to extend', async () => {
+    providerMobile.extendProviderSelfBlock.mockRejectedValue(
+      new Error('No block found to extend. Create one first with "block my lunch".'),
+    );
+
+    const result = await handleExtendMyBlockLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      {},
+      'Extend lunch 30 minutes',
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('extend_my_block');
+  });
+
   it('requires customer when send_client_message has no bookingId', async () => {
     bookingRepo.find.mockResolvedValue([
       {
@@ -144,6 +193,105 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
     expect(result.success).toBe(false);
   });
 
+  it('explains message templates for a booking (ai-cmd-provider-5.5.4)', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      startTime: '2026-06-09T14:00:00.000Z',
+      customer: { name: 'Jane', phone: '+15551234567' },
+      staffMessageTemplates: [
+        { id: 'running-late', label: 'Running late', body: "Hi Jane, I'm running late." },
+      ],
+    });
+
+    const result = await handleExplainMessageTemplatesLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'b-1' },
+      'What templates can I send?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('explain_message_templates');
+    expect(result.summary).toContain('Running late');
+    expect(result.details.templates).toHaveLength(1);
+  });
+
+  it('reports no templates enabled when explaining message templates', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      startTime: '2026-06-09T14:00:00.000Z',
+      customer: { name: 'Jane', phone: '+15551234567' },
+      staffMessageTemplates: null,
+    });
+
+    const result = await handleExplainMessageTemplatesLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'b-1' },
+      'What templates can I send?',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('No canned message templates');
+  });
+
+  it('notifies client ready with a default message when no ready template is configured (ai-cmd-provider-5.5.5)', async () => {
+    providerMobile.getBookingDetail.mockResolvedValue({
+      startTime: '2026-06-09T14:00:00.000Z',
+      customer: { name: 'Jane', phone: '+15551234567' },
+    });
+
+    const result = await handleNotifyClientReadyLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'b-1' },
+      'Tell her chair is ready',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('notify_client_ready');
+    expect(result.details.messageBody).toContain("we're ready for you now");
+    expect(result.details.openLink).toContain('sms:');
+  });
+
+  it('notifies client ready using a configured ready template when one exists', async () => {
+    businessService.findOne.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Studio',
+      settings: {
+        staffMessageTemplates: {
+          enabled: true,
+          templates: [
+            {
+              id: 'your-turn',
+              label: 'Your turn',
+              body: 'Hi {customerName}, your turn is now — come on in!',
+              enabled: true,
+            },
+          ],
+        },
+        notifications: { whatsappEnabled: true },
+      },
+    });
+    providerMobile.getBookingDetail.mockResolvedValue({
+      startTime: '2026-06-09T14:00:00.000Z',
+      customer: { name: 'Jane', phone: '+15551234567' },
+    });
+
+    const result = await handleNotifyClientReadyLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      { bookingId: 'b-1' },
+      'Tell her chair is ready',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.details.templateId).toBe('your-turn');
+    expect(result.details.messageBody).toContain('your turn is now');
+  });
+
   it('fails block_my_time when window missing', async () => {
     const result = await handleBlockMyTimeLogic(
       deps,
@@ -176,6 +324,33 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
 
     expect(result.action).toBe('add_retail_to_booking');
     expect(result.success).toBe(true);
+  });
+
+  it('delegates remove_retail_from_booking to retail finance (ai-cmd-provider-5.4.4)', async () => {
+    retailFinance.handleRemoveRetailFromMyBooking.mockResolvedValue({
+      success: true,
+      action: 'remove_retail_line',
+      summary: 'Removed retail line — 0 line(s) remain.',
+      details: { bookingId: 'b-1' },
+    });
+
+    const result = await handleRemoveRetailFromBookingLogic(
+      deps,
+      'biz-1',
+      'user-1',
+      'emp-1',
+      { bookingId: 'b-1', productName: 'Shampoo' },
+      'Remove shampoo from this booking',
+    );
+
+    expect(result.action).toBe('remove_retail_from_booking');
+    expect(result.success).toBe(true);
+    expect(retailFinance.handleRemoveRetailFromMyBooking).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({ bookingId: 'b-1', productName: 'Shampoo' }),
+      'user-1',
+      'Remove shampoo from this booking',
+    );
   });
 
   it('dispatches request_time_off through time-off service', async () => {

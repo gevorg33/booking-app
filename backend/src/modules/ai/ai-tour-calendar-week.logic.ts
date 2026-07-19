@@ -13,6 +13,7 @@ import {
 import {
   extractTourBookingMetadata,
   isTourService,
+  resolveTourCatalogServiceByName,
 } from '../../common/utils/tour-service.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -56,17 +57,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function resolveEmployeeByName<T extends { id: string; name: string }>(
@@ -160,7 +150,10 @@ export async function handleListTourCalendarWeekLogic(
   if (parsed.serviceId) {
     scopedServiceIds = new Set([parsed.serviceId]);
   } else if (parsed.serviceName) {
-    const match = resolveServiceByName(tourServices, parsed.serviceName);
+    const match = resolveTourCatalogServiceByName(
+      tourServices,
+      parsed.serviceName,
+    );
     scopedServiceIds = match ? new Set([match.id]) : new Set();
   }
 

@@ -10,6 +10,7 @@ import {
   isExplainPatientResultsPrompt,
 } from './ai-clinic-test-result-ext.util.js';
 import { isTrackLabOrderStatusPrompt } from './ai-track-lab-order-status.util.js';
+import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
 import {
   EXPLAIN_ABNORMAL_RESULT_FLAG_PROMPTS,
   type ExplainAbnormalResultFlagAspect,
@@ -174,6 +175,7 @@ export function isExplainAbnormalResultFlagPrompt(prompt: string): boolean {
   if (matchExplainAbnormalResultFlagScenario(text)) return true;
 
   if (STAFF_CHART_BLOCK.test(text)) return false;
+  if (isExplainTourCalendarSpanPrompt(text)) return false;
   if (isListAbnormalResultsPrompt(text)) return false;
   if (isExplainPatientResultsPrompt(text)) return false;
   if (isTrackLabOrderStatusPrompt(text)) return false;

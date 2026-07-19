@@ -57,6 +57,25 @@ describe('customer-ai-command.util', () => {
     });
   });
 
+  it('e2e-bug.95 forwards get_manage_link manageUrl and manageToken', () => {
+    const mapped = commandResultToPublicAssistantResult({
+      success: true,
+      action: 'get_manage_link',
+      summary: 'Here is your booking manage link: https://example.com/manage',
+      details: {
+        bookingId: 'book-1',
+        manageUrl: 'https://example.com/manage?bookingId=book-1&token=tok',
+        manageToken: 'tok',
+        guestLookup: true,
+      },
+    });
+    expect(mapped.bookingId).toBe('book-1');
+    expect(mapped.details).toEqual({
+      manageUrl: 'https://example.com/manage?bookingId=book-1&token=tok',
+      manageToken: 'tok',
+    });
+  });
+
   it('converts between public assistant and command results', () => {
     const command = publicAssistantResultToCommandResult({
       success: true,

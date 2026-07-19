@@ -6,6 +6,7 @@ import {
   formatDateDisplay,
   formatTimeRangeDisplay,
 } from '../../common/utils/date-format.util.js';
+import { validateBookingManageToken } from '../../common/utils/booking-manage-token.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   matchCustomerOwnedBooking,
@@ -20,6 +21,7 @@ import {
   type ParsedConfirmMyBookingDetails,
 } from './ai-confirm-my-booking-details.util.js';
 import type { ConfirmMyBookingDetailsAspect } from './ai-confirm-my-booking-details.fixtures.js';
+import { resolveManageBookingCredentials } from './ai-manage-booking-with-token.util.js';
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
 
 function failure(
@@ -108,19 +110,37 @@ async function resolveBookingForConfirmDetails(
   parsed: ParsedConfirmMyBookingDetails,
 ): Promise<{ booking: Booking | null; ambiguous: Booking[] }> {
   const customerId = resolveSessionCustomerId(params);
+  const creds = resolveManageBookingCredentials(params, prompt);
   const bookingId =
-    parsed.bookingId ?? (params.bookingId as string | undefined) ?? undefined;
+    parsed.bookingId ??
+    creds.bookingId ??
+    (params.bookingId as string | undefined) ??
+    undefined;
+  const manageToken = creds.manageToken;
 
   if (bookingId) {
+    // e2e-bug.128 / e2e-bug.96 — never resolve by bookingId alone.
+    // Signed-in: must own the booking. Guest: require a valid manage token.
+    if (customerId) {
+      const booking = await deps.bookingRepo.findOne({
+        where: { id: bookingId, businessId, customerId },
+        relations: { employee: true, service: true },
+      });
+      return { booking: booking ?? null, ambiguous: [] };
+    }
+
+    if (!manageToken) {
+      return { booking: null, ambiguous: [] };
+    }
+
     const booking = await deps.bookingRepo.findOne({
-      where: {
-        id: bookingId,
-        businessId,
-        ...(customerId ? { customerId } : {}),
-      },
+      where: { id: bookingId, businessId },
       relations: { employee: true, service: true },
     });
-    return { booking: booking ?? null, ambiguous: [] };
+    if (!booking || !validateBookingManageToken(booking, manageToken)) {
+      return { booking: null, ambiguous: [] };
+    }
+    return { booking, ambiguous: [] };
   }
 
   if (!customerId) {
@@ -206,15 +226,42 @@ export async function handleConfirmMyBookingDetailsLogic(
   }
 
   if (!resolved.booking) {
+    const customerId = resolveSessionCustomerId(params);
+    const creds = resolveManageBookingCredentials(
+      params,
+      String(prompt ?? params._prompt ?? ''),
+    );
+    const guestMissingAuth =
+      !customerId &&
+      Boolean(creds.bookingId ?? params.bookingId) &&
+      !creds.manageToken;
+    const guestBadToken =
+      !customerId &&
+      Boolean(creds.bookingId ?? params.bookingId) &&
+      Boolean(creds.manageToken);
+
+    if (guestMissingAuth || guestBadToken) {
+      return failure(
+        'confirm_my_booking_details',
+        'Share the manage link for this booking first, so I can look it up.',
+        {
+          clarify: true,
+          missing: guestMissingAuth
+            ? ['manageToken']
+            : ['bookingId', 'manageToken'],
+        },
+      );
+    }
+
     return failure(
       'confirm_my_booking_details',
-      resolveSessionCustomerId(params)
+      customerId
         ? 'I could not find an upcoming booking to summarize. Finish checkout or pick an appointment from your account.'
         : 'Finish booking or sign in so I can read your appointment details from the session.',
       {
         clarify: true,
         missing: ['bookingId'],
-        navigate: resolveSessionCustomerId(params)
+        navigate: customerId
           ? { path: 'account', query: { tab: 'bookings' } }
           : undefined,
       },

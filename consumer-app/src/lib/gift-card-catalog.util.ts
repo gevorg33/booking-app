@@ -78,3 +78,29 @@ export function formatGiftCardCancelWindow(ms: number): string {
   if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
   return `${hours}h ${minutes}m left`;
 }
+
+/** e2e-bug.9 — distinguish disabled gift cards from a real load failure. */
+export type GiftCardCatalogGate =
+  | 'loading'
+  | 'tenant_error'
+  | 'catalog_error'
+  | 'purchase_disabled'
+  | 'ready';
+
+export function resolveGiftCardCatalogGate(input: {
+  bootstrapLoading: boolean;
+  catalogLoading: boolean;
+  bootstrapError?: string | null;
+  hasProfile: boolean;
+  hasSlug: boolean;
+  catalogFetchFailed: boolean;
+  purchaseEnabled?: boolean;
+  hasSettings: boolean;
+}): GiftCardCatalogGate {
+  if (input.bootstrapLoading || input.catalogLoading) return 'loading';
+  if (input.bootstrapError || !input.hasProfile || !input.hasSlug) return 'tenant_error';
+  if (input.catalogFetchFailed) return 'catalog_error';
+  if (input.purchaseEnabled === false || !input.hasSettings) return 'purchase_disabled';
+  if (input.purchaseEnabled !== true) return 'purchase_disabled';
+  return 'ready';
+}

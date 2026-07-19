@@ -6,8 +6,15 @@ export const INTELLIGENCE_CONTEXT_KEYS = [
   '_capabilityHints',
   '_accessTier',
   '_actorRole',
+  '_roleProfile',
+  '_membershipRole',
   '_planTierId',
   '_scopedEmployeeId',
+  '_locationId',
+  '_branchHint',
+  '_confidenceHigh',
+  '_abVariantId',
+  '_commandTraceId',
 ] as const;
 
 export interface IntelligenceBlocks {

@@ -74,6 +74,24 @@ function readCheckoutReturnFromUrl(url: URL): CheckoutReturnRoute | null {
     };
   }
 
+  // e2e-bug.18 — consumer-app Stripe return lands on /s/:slug/book/:serviceId
+  const consumerSingle = url.pathname.match(/\/s\/([a-z0-9-]+)\/book\/([^/]+)\/?$/i);
+  const reservedBookSegments = new Set(['packages', 'multi', 'any']);
+  if (
+    consumerSingle?.[1] &&
+    consumerSingle?.[2] &&
+    isValidSlug(consumerSingle[1]) &&
+    !reservedBookSegments.has(consumerSingle[2].toLowerCase()) &&
+    isCheckoutPaymentReturnQuery(query)
+  ) {
+    return {
+      kind: 'single',
+      slug: consumerSingle[1].toLowerCase(),
+      serviceId: consumerSingle[2],
+      query,
+    };
+  }
+
   if (url.protocol === 'optischedule:' && url.hostname === 'book') {
     const parts = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
     if (parts.length >= 4 && parts[1] === 'packages' && parts[3] === 'checkout' && isValidSlug(parts[0])) {
@@ -89,6 +107,21 @@ function readCheckoutReturnFromUrl(url: URL): CheckoutReturnRoute | null {
     }
     if (parts.length >= 3 && parts[1] === 'gift-cards' && parts[2] === 'checkout' && isValidSlug(parts[0])) {
       return { kind: 'gift_card', slug: parts[0].toLowerCase(), query };
+    }
+    // e2e-bug.18 — native single-service return: optischedule://book/{slug}/{serviceId}?…
+    if (
+      parts.length >= 2 &&
+      isValidSlug(parts[0]) &&
+      !reservedBookSegments.has(parts[1].toLowerCase()) &&
+      parts[1] !== 'packages' &&
+      isCheckoutPaymentReturnQuery(query)
+    ) {
+      return {
+        kind: 'single',
+        slug: parts[0].toLowerCase(),
+        serviceId: parts[1],
+        query,
+      };
     }
   }
 

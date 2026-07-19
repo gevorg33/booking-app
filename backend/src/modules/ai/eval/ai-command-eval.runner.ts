@@ -45,6 +45,14 @@ import { enrichExplainClinicBookingFieldsParamsFromPrompt } from '../ai-explain-
 import { enrichExplainPublicIntakeFormParamsFromPrompt } from '../ai-explain-public-intake-form.util.js';
 import { enrichExplainManageBookingPageParamsFromPrompt } from '../ai-explain-manage-booking-page.util.js';
 import { enrichPromoCodeHelpParamsFromPrompt } from '../ai-promo-code-help-customer-public.util.js';
+import { enrichApplyPromoCodeCheckoutParamsFromPrompt } from '../ai-apply-promo-code-checkout.util.js';
+import { enrichApplyLoyaltyAtCheckoutParamsFromPrompt } from '../ai-apply-loyalty-at-checkout.util.js';
+import { parseExplainAppUpdateRequiredFromPrompt } from '../ai-explain-app-update-required.util.js';
+import { parseExplainHomeScreenWidgetFromPrompt } from '../ai-explain-home-screen-widget.util.js';
+import { parseExplainAnalyticsConsentFromPrompt } from '../ai-explain-analytics-consent.util.js';
+import { parseExplainPatientAlertFromPrompt } from '../ai-explain-patient-alert.util.js';
+import { parseExplainPushPermissionFromPrompt } from '../ai-explain-push-permission.util.js';
+import { parseExplainOfflineModeFromPrompt } from '../ai-explain-offline-mode.util.js';
 import {
   enrichUseSubscriptionCreditParamsFromPrompt,
   rescueMembershipCustomerIntent,
@@ -119,6 +127,7 @@ import {
 } from '../ai-explain-package-visit-rules.util.js';
 import { rescueExplainLoyaltyPointsIntent } from '../ai-explain-loyalty-points.util.js';
 import { rescueExplainMySubscriptionIntent } from '../ai-explain-my-subscription.util.js';
+import { rescueCustomerCrmIntent } from '../ai-customer-crm.util.js';
 import { rescueUpdateMyProfileIntent } from '../ai-update-my-profile.util.js';
 import {
   rescueGetManageLinkIntent,
@@ -310,6 +319,28 @@ function paramsMatchPartial(
     }
   }
   return errors;
+}
+
+function resolveConsumerAdoptionEvalParams(
+  action: string,
+  prompt: string,
+): Record<string, unknown> {
+  switch (action) {
+    case 'explain_app_update_required':
+      return { ...(parseExplainAppUpdateRequiredFromPrompt(prompt) ?? {}) };
+    case 'explain_home_screen_widget':
+      return { ...(parseExplainHomeScreenWidgetFromPrompt(prompt) ?? {}) };
+    case 'explain_analytics_consent':
+      return { ...(parseExplainAnalyticsConsentFromPrompt(prompt) ?? {}) };
+    case 'explain_patient_alert':
+      return { ...(parseExplainPatientAlertFromPrompt(prompt) ?? {}) };
+    case 'explain_push_permission':
+      return { ...(parseExplainPushPermissionFromPrompt(prompt) ?? {}) };
+    case 'explain_offline_mode':
+      return { ...(parseExplainOfflineModeFromPrompt(prompt) ?? {}) };
+    default:
+      return {};
+  }
 }
 
 /** Evaluate one golden case using deterministic routing/parsing only. */
@@ -550,6 +581,9 @@ export function evaluateDeterministicEvalCase(
     const useSurfaceMembershipCustomerRescue =
       expect.useSurfaceMembershipCustomerRescue === true &&
       evalCase.surface === 'customer';
+    const useSurfaceCustomerCrmRescue =
+      expect.useSurfaceCustomerCrmRescue === true &&
+      evalCase.surface === 'customer';
     const useSurfacePrivacyGdprCustomerRescue =
       expect.useSurfacePrivacyGdprCustomerRescue === true &&
       evalCase.surface === 'customer';
@@ -745,6 +779,9 @@ export function evaluateDeterministicEvalCase(
       : null;
     const membershipCustomerRescued = useSurfaceMembershipCustomerRescue
       ? rescueMembershipCustomerIntent(prompt, misclassifiedAction)
+      : null;
+    const customerCrmRescued = useSurfaceCustomerCrmRescue
+      ? rescueCustomerCrmIntent(prompt, misclassifiedAction)
       : null;
     const privacyGdprCustomerRescued = useSurfacePrivacyGdprCustomerRescue
       ? rescuePrivacyGdprCustomerIntent(prompt, misclassifiedAction)
@@ -1229,7 +1266,17 @@ export function evaluateDeterministicEvalCase(
                                     explainMySubscriptionRescued.rescueReason,
                                 }
                               : null
-                            : useSurfaceExplainLoyaltyPointsRescue
+                            : useSurfaceCustomerCrmRescue
+                              ? customerCrmRescued
+                                ? {
+                                    action: customerCrmRescued.action,
+                                    params: {},
+                                    rescued: true,
+                                    rescueReason:
+                                      customerCrmRescued.rescueReason,
+                                  }
+                                : null
+                              : useSurfaceExplainLoyaltyPointsRescue
                               ? explainLoyaltyPointsRescued
                                 ? {
                                     action: explainLoyaltyPointsRescued.action,
@@ -1357,7 +1404,11 @@ export function evaluateDeterministicEvalCase(
                                                   ? {
                                                       action:
                                                         consumerAdoptionRescued.action,
-                                                      params: {},
+                                                      params:
+                                                        resolveConsumerAdoptionEvalParams(
+                                                          consumerAdoptionRescued.action,
+                                                          prompt,
+                                                        ),
                                                       rescued: true,
                                                       rescueReason:
                                                         consumerAdoptionRescued.rescueReason,
@@ -1731,7 +1782,19 @@ export function evaluateDeterministicEvalCase(
                                                                                           {},
                                                                                           prompt,
                                                                                         )
-                                                                                      : {},
+                                                                                      : marketingGrowthRescued.action ===
+                                                                                          'apply_promo_code_checkout'
+                                                                                        ? enrichApplyPromoCodeCheckoutParamsFromPrompt(
+                                                                                            {},
+                                                                                            prompt,
+                                                                                          )
+                                                                                        : marketingGrowthRescued.action ===
+                                                                                            'apply_loyalty_at_checkout'
+                                                                                          ? enrichApplyLoyaltyAtCheckoutParamsFromPrompt(
+                                                                                              {},
+                                                                                              prompt,
+                                                                                            )
+                                                                                          : {},
                                                                                   rescued: true,
                                                                                   rescueReason:
                                                                                     marketingGrowthRescued.rescueReason,

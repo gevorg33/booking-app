@@ -21,8 +21,14 @@ export function isServiceCatalogBrowsePrompt(prompt: string): boolean {
     (SERVICE_CATALOG_NOUN_PATTERN.test(prompt) ||
       /\b(?:recommend|suggest)\s+me\b/i.test(prompt));
   const wantsItem = /\bi\s+want\s+(?:a|an|the)\s+/i.test(prompt);
+  // e2e-bug.53 — "Do you offer facemassage services?" is catalog discovery, not unknown.
+  const asksOffer =
+    /\bdo\s+you\s+offer\b/i.test(prompt) &&
+    (SERVICE_CATALOG_NOUN_PATTERN.test(prompt) ||
+      extractServiceTypeKeywordFromListPrompt(prompt) != null);
   const asksCatalog =
     isListServicesCatalogPrompt(prompt) ||
+    asksOffer ||
     extractServiceTypeKeywordFromListPrompt(prompt) != null;
 
   if (!recommendsCatalog && !wantsItem && !asksCatalog) return false;

@@ -76,6 +76,8 @@ export function isCashBookingPrompt(prompt: string): boolean {
 }
 
 export function isPackageBookingPrompt(prompt: string): boolean {
+  // e2e-bug.103 — cancel/reschedule package visit ≠ staff create_package_booking
+  if (/\b(cancel|reschedule|move|shift|skip)\b/i.test(prompt)) return false;
   return (
     /\bbook\s+(the\s+)?\w*\s*package\b/i.test(prompt) ||
     /\bpackage\s+(booking|visit|appointment)/i.test(prompt) ||
@@ -159,6 +161,7 @@ export function isMarkPaidPrompt(prompt: string): boolean {
   ) {
     return true;
   }
+  if (/\bin[\s-]?progress\b/i.test(prompt)) return false;
   return (
     /\bmark\b/i.test(prompt) &&
     /\b(done|complete|completed|finished)\b/i.test(prompt)
@@ -458,6 +461,7 @@ export function rescueBookingDepthIntent(
   if (
     isMarkPaidPrompt(prompt) &&
     action !== 'payment_sweep' &&
+    !/\b(sweep|all\s+unpaid|everyone|payment\s+sweep)\b/i.test(prompt) &&
     (action !== 'update_bookings' || /\bappointment\b/i.test(prompt))
   ) {
     return { action: 'mark_paid', rescueReason: 'mark_paid' };

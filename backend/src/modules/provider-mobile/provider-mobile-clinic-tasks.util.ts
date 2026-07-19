@@ -28,6 +28,8 @@ export interface ProviderClinicTaskItem {
   bookingId: string | null;
   assigneeEmployeeId: string | null;
   assigneeName: string | null;
+  createdByEmployeeId: string | null;
+  createdByName: string | null;
   isAutoManaged: boolean;
   canClaim: boolean;
   canComplete: boolean;
@@ -108,6 +110,10 @@ export function mapProviderClinicTaskItem(
     assigneeEmployeeId: task.assigneeEmployeeId,
     assigneeName: task.assigneeEmployeeId
       ? (lookups.assigneeNames.get(task.assigneeEmployeeId) ?? null)
+      : null,
+    createdByEmployeeId: task.createdByEmployeeId,
+    createdByName: task.createdByEmployeeId
+      ? (lookups.assigneeNames.get(task.createdByEmployeeId) ?? null)
       : null,
     isAutoManaged: task.isAutoManaged,
     canClaim: canClaimClinicTask(ctx, task),

@@ -20,7 +20,7 @@ const REPORT_PROBLEM_CUE =
   /\b(something went wrong|charged twice|wrong charge|complaint|refund|dispute|problem with my visit|issue with my visit)\b/i;
 
 const EXPLAIN_POST_VISIT_REVIEW_CUE =
-  /\b(why am i seeing|review popup|post-visit review|rating popup|satisfaction (?:survey|prompt)|skip the rating|can i skip|dismiss the review|dismiss the review prompt|close the post-visit review|not now on the review|ask(?:ing)? me to rate|ask me again if i skip|do i have to (?:rate|review|leave a review)|how does the visit rating|visit rating flow|explain the post-visit review|what is this satisfaction|why did i get a review notification|why is the app asking)\b/i;
+  /\b(why am i seeing|review popup|post-visit review|rating popup|satisfaction (?:survey|prompt)|skip the rating|can i skip the rating|can i skip the review|dismiss the review|dismiss the review prompt|close the post-visit review|not now on the review|ask(?:ing)? me to rate|ask me again if i skip|do i have to (?:rate|review|leave a review)|how does the visit rating|visit rating flow|explain the post-visit review|what is this satisfaction|why did i get a review notification|why is the app asking)\b/i;
 
 const WHY_POPUP_CUE =
   /\b(why am i seeing|why is the app asking|why did i get a review|review notification|review popup)\b/i;

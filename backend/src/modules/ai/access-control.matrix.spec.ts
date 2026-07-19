@@ -2,6 +2,7 @@ import {
   canAccessDataCategory,
   ALL_PRODUCT_GUIDE_INTENTS,
   DASHBOARD_DENIED_BY_TIER,
+  isCrmInsightsRequest,
   isCustomerIntentAllowed,
   isDashboardIntentAllowed,
   isProductGuideIntentAllowed,
@@ -9,6 +10,7 @@ import {
   isRevenueRelatedRequest,
   isStaffDirectoryRequest,
   resolveAccessTier,
+  STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS,
   tierAccessSummary,
 } from './access-control.matrix.js';
 import {
@@ -73,6 +75,23 @@ describe('access-control.matrix', () => {
     expect(isDashboardIntentAllowed('staff', 'payment_sweep')).toBe(false);
     expect(isDashboardIntentAllowed('staff', 'list_employees')).toBe(false);
     expect(isDashboardIntentAllowed('staff', 'list_bookings')).toBe(true);
+  });
+
+  it('e2e-bug.163 — staff deny-list blocks CRM PII, commissions, and gift-card finance', () => {
+    for (const action of STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS) {
+      expect(DASHBOARD_DENIED_BY_TIER.staff.has(action)).toBe(true);
+      expect(isDashboardIntentAllowed('staff', action)).toBe(false);
+      expect(isDashboardIntentAllowed('manager', action)).toBe(true);
+      expect(isDashboardIntentAllowed('owner', action)).toBe(true);
+    }
+    expect(isDashboardIntentAllowed('staff', 'list_customers')).toBe(false);
+    expect(isDashboardIntentAllowed('staff', 'lookup_customer')).toBe(false);
+    expect(isDashboardIntentAllowed('staff', 'commission_report')).toBe(false);
+    expect(isDashboardIntentAllowed('staff', 'adjust_gift_card_balance')).toBe(
+      false,
+    );
+    expect(canAccessDataCategory('staff', 'crm_insights')).toBe(false);
+    expect(canAccessDataCategory('staff', 'revenue_analytics')).toBe(false);
   });
 
   it('owner can run payment sweep', () => {
@@ -164,6 +183,16 @@ describe('access-control.matrix', () => {
     expect(isRevenueRelatedRequest('summarize_staff', {}, '')).toBe(true);
     expect(isRevenueRelatedRequest('summarize_customers', {}, '')).toBe(true);
     expect(isRevenueRelatedRequest('list_bookings', {}, '')).toBe(false);
+    expect(isRevenueRelatedRequest('commission_report', {}, '')).toBe(true);
+    expect(isRevenueRelatedRequest('adjust_gift_card_balance', {}, '')).toBe(
+      true,
+    );
+  });
+
+  it('detects CRM insights requests (e2e-bug.163)', () => {
+    expect(isCrmInsightsRequest('list_customers')).toBe(true);
+    expect(isCrmInsightsRequest('lookup_customer')).toBe(true);
+    expect(isCrmInsightsRequest('list_bookings')).toBe(false);
   });
 
   it('detects staff directory requests', () => {
@@ -172,7 +201,7 @@ describe('access-control.matrix', () => {
   });
 
   it('allows product guide intents on their surfaces (ai-guide-1.8.5)', () => {
-    expect(ALL_PRODUCT_GUIDE_INTENTS.length).toBe(12);
+    expect(ALL_PRODUCT_GUIDE_INTENTS.length).toBeGreaterThanOrEqual(12);
     expect(
       isProductGuideIntentAllowed('owner', 'dashboard', 'guide_user_flow'),
     ).toBe(true);

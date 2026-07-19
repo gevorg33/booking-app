@@ -7,12 +7,14 @@ export const CATALOG_DASHBOARD_CLASSIFIER_RULES = `- For adding a new service ty
 - Example bulk: "Add services: facemassage 60min $50, haircut 30min $25, manicure 45min $40" → action create_services with services=[{serviceName:"facemassage",durationMinutes:60,price:50}, ...].
 - Do not use create_service when booking an appointment — that is create_booking.
 - bulk_create_catalog: create a category AND multiple services in one command (e.g. "Create category Hair with Women's cut 60m $65, Men's cut 30m $35").
-- create_service_category: add a single category; optional placeholderCount for stub services.
-- create_package / update_package / deactivate_package / duplicate_package: service package CRUD (NOT package visit booking — use create_package_booking for appointments).
-- create_subscription_plan / update_subscription_plan / deactivate_subscription_plan: membership plan CRUD for a service.
+- create_service_category: add a single category; optional placeholderCount for stub services. "Add a new service category called Wellness" → categoryName=Wellness. NOT create_promo_code (no discount/promo language — "called X" here is the category name, not a promo code).
+- update_service_category: rename or edit an existing category (categoryName to identify it, newName/description/sortOrder to change). NOT create_service_category (new row), NOT update_service (moves a service between categories).
+- delete_service_category: remove a category (categoryName). Soft-deletes (deactivates) the category, same as the dashboard's delete button. NOT deactivate_service (services, not categories).
+- create_package / update_package / deactivate_package / activate_package / duplicate_package: service package CRUD — a priced multi-service catalog offering sold together (e.g. "Create a new package called QA Test Bundle combining facemassage and Neck Massage for 80 dollars" → create_package with packageName + serviceNames). NOT package visit booking (create_package_booking). NOT create_gift_card_bundle (gift-card product; requires explicit "gift card" wording). activate_package re-enables a previously deactivated package (packageName or packageId).
+- create_subscription_plan / update_subscription_plan / deactivate_subscription_plan / activate_subscription_plan: membership plan CRUD for a service. activate_subscription_plan re-enables a previously deactivated plan (planName or planId).
 - assign_subscription_to_customer: admin enrolls a customer on a plan (customerName + planName).
 - configure_gift_card_products: enable presets and purchasable service cards (presetAmounts, serviceName).
-- create_gift_card_bundle: bundle multiple services as a gift card product (bundleName + serviceNames).
+- create_gift_card_bundle: gift-card product that bundles services onto a purchasable gift card (requires "gift card" + bundleName + serviceNames). NOT create_package — "package called … combining services for $X" is create_package even if the name contains "Bundle".
 - configure_multi_service_settings: enable multi-service booking limits (maxServiceCount, maxDurationMinutes).
 - configure_service_featured: mark/unmark featured services and set/clear serviceTier (standard|premium) metadata on existing catalog services. NOT configure_service_deposit_policy (deposit scoped to featured/tier), NOT update_service (move category).
 - bulk_assign_services_category: move many catalog services into a target category (all services, source category, or named list). NOT update_service (single service move), NOT assign_employee_services (provider skills).
@@ -28,4 +30,57 @@ export const CATALOG_DASHBOARD_CLASSIFIER_RULES = `- For adding a new service ty
 - explain_clinic_services: READ-ONLY — summarize clinic catalog: departments, consultation vs lab_test vs procedure counts, fasting requirements. Optional serviceName filter. NOT configure_clinic_service (mutate), NOT explain_clinic_booking (consumer checkout fields), NOT list_services (general catalog).
 - apply_clinic_playbook: MUTATE — clinic|polyclinic|beauty_clinic|dental shortcut to seed clinic vertical playbook catalog and clinic operating hours schedule. "Apply clinic playbook" / "Set up polyclinic starter catalog and schedule". NOT bulk_create_catalog or apply_schedule.
 - set_service_compatibility: block two services from same visit (incompatibleServiceNames).
-- deactivate_service: hide a service from public catalog (NOT deactivate_package). Single service → serviceName. Category bulk → categoryName + allInCategory=true ("Deactivate all dental services").`;
+- deactivate_service: soft-delete / hide a catalog service (same as dashboard Delete — there is NO delete_service intent). Triggers: delete/remove/deactivate/hide + service; "Delete the service called X"; "Remove X service from my catalog permanently". Set serviceName. NOT remove_service_from_cart (customer cart), NOT unassign_employee_services (provider skills), NOT deactivate_employee (team roster), NOT deactivate_package, NOT delete_service_category (categories). Category bulk → categoryName + allInCategory=true ("Deactivate all dental services").
+  - "Delete the service called QA Test Trim" → deactivate_service, serviceName="QA Test Trim"
+  - "Remove the QA Test Trim service from my catalog permanently" → deactivate_service, serviceName="QA Test Trim"
+  - "Deactivate the QA Test Trim service" → deactivate_service, serviceName="QA Test Trim"`;
+
+/** e2e-bug.144 — natural delete/remove must rescue to deactivate_service (soft-delete). */
+export const CATALOG_E2E144_DEACTIVATE_SERVICE_SCENARIOS = [
+  {
+    id: 'delete-service-called',
+    prompt: 'Delete the service called QA Test Trim',
+    expectedAction: 'deactivate_service' as const,
+    serviceName: 'QA Test Trim',
+    stealActions: [
+      'remove_service_from_cart',
+      'unassign_employee_services',
+      'deactivate_employee',
+      'unknown',
+      'react_agent',
+    ],
+  },
+  {
+    id: 'remove-service-from-catalog-permanently',
+    prompt: 'Remove the QA Test Trim service from my catalog permanently',
+    expectedAction: 'deactivate_service' as const,
+    serviceName: 'QA Test Trim',
+    stealActions: [
+      'unassign_employee_services',
+      'remove_service_from_cart',
+      'unknown',
+      'react_agent',
+    ],
+  },
+  {
+    id: 'delete-service-disambiguated',
+    prompt:
+      'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+    expectedAction: 'deactivate_service' as const,
+    serviceName: 'QA Test Trim',
+    stealActions: [
+      'deactivate_employee',
+      'remove_service_from_cart',
+      'unassign_employee_services',
+      'unknown',
+      'react_agent',
+    ],
+  },
+  {
+    id: 'deactivate-service-verbatim',
+    prompt: 'Deactivate the QA Test Trim service',
+    expectedAction: 'deactivate_service' as const,
+    serviceName: 'QA Test Trim',
+    stealActions: ['unknown', 'react_agent'],
+  },
+] as const;

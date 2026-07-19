@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { CLINIC_TEST_RESULT_EXT_DISPATCH_SCENARIOS } from './ai-clinic-test-result-ext-dispatch.fixtures.js';
 import {
   assertClinicTestResultExtCommandResultShape,
@@ -8,11 +6,7 @@ import {
 } from './ai-clinic-test-result-ext-dispatch.util.js';
 import { CLINIC_TEST_RESULT_EXT_INTENTS } from './ai-clinic-test-result-ext.util.js';
 import { resolveHandlerForSurface } from './ai-command-registry.util.js';
-
-const AI_COMMAND_SERVICE_SOURCE = readFileSync(
-  join(__dirname, 'ai-command.service.ts'),
-  'utf8',
-);
+import { getClinicTestResultDispatchHandler } from './ai-clinic-test-result-dispatch.util.js';
 
 describe('ai-clinic-test-result-ext dispatch (ai-cmd-clinic-6-gap-3.2)', () => {
   const businessId = 'biz-1';
@@ -35,12 +29,9 @@ describe('ai-clinic-test-result-ext dispatch (ai-cmd-clinic-6-gap-3.2)', () => {
     }
   });
 
-  it('wires executeSingleIntent switch through dispatchClinicTestResultExtIntent', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      'dispatchClinicTestResultExtIntent(',
-    );
+  it('wires every ext intent into the registry-driven AiClinicTestResultService dispatch map (ai-cmd-ext-0.5)', () => {
     for (const action of CLINIC_TEST_RESULT_EXT_INTENTS) {
-      expect(AI_COMMAND_SERVICE_SOURCE).toContain(`case '${action}':`);
+      expect(getClinicTestResultDispatchHandler(action)).toBeDefined();
     }
   });
 

@@ -36,12 +36,19 @@ export interface PublicReferralProgramView {
   conversionsCount: number;
 }
 
+export type ReferralClaimFailureReason =
+  | 'invalid_code'
+  | 'self_referral'
+  | 'already_attached'
+  | 'disabled'
+  | 'not_eligible_existing_customer';
+
 export interface ReferralClaimResult {
   attached: boolean;
   referralCode?: string;
   referrerCustomerId?: string;
   refereePromoCode?: string | null;
-  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+  reason?: ReferralClaimFailureReason;
 }
 
 export interface ReferralConversionResult {
@@ -124,6 +131,24 @@ export class ReferralProgramService {
 
     if (readReferredByCustomerId(referee.metadata)) {
       return { attached: false, reason: 'already_attached', referralCode };
+    }
+
+    // Must match processBookingCompleted: reward only fires on the referee's
+    // first-ever completed booking. Reject established customers at attach time
+    // so a successful claim cannot silently never convert (e2e-bug.48).
+    const priorCompleted = await this.bookingRepo.count({
+      where: {
+        businessId,
+        customerId: refereeCustomerId,
+        status: BookingStatus.COMPLETED,
+      },
+    });
+    if (priorCompleted > 0) {
+      return {
+        attached: false,
+        reason: 'not_eligible_existing_customer',
+        referralCode,
+      };
     }
 
     const referrerCustomerId = await this.resolveReferrerCustomerId(

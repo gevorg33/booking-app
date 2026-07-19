@@ -3,10 +3,12 @@ import {
   buildPackageCheckoutPath,
   buildPackageConfirmPath,
   buildPackageLinesFromBlockStart,
+  buildPackagePickerPath,
   computePackageTotalDurationMinutes,
   expandPackageServiceItems,
   formatPackageDurationMinutes,
   parsePackageBookingLines,
+  shouldShowServicesCatalogEntry,
   type PublicServicePackage,
 } from './package-booking.js';
 
@@ -96,5 +98,36 @@ describe('package-booking', () => {
     expect(buildPackageCheckoutPath('salon', 'pkg-1', { employeeName: 'Alex' })).toBe(
       '/s/salon/book/packages/pkg-1/checkout?employeeName=Alex',
     );
+    expect(buildPackagePickerPath('salon')).toBe('/s/salon/book/any');
+  });
+
+  it.each([
+    {
+      id: 'e2e-bug.7-packages-with-multi',
+      input: { hasPackages: true, multiServiceEnabled: true, hasServices: true },
+      expected: true,
+    },
+    {
+      id: 'e2e-bug.7-packages-without-multi',
+      input: { hasPackages: true, multiServiceEnabled: false, hasServices: true },
+      expected: true,
+    },
+    {
+      id: 'e2e-bug.7-no-packages-with-multi',
+      input: { hasPackages: false, multiServiceEnabled: true, hasServices: true },
+      expected: false,
+    },
+    {
+      id: 'e2e-bug.7-legacy-any-specialist',
+      input: { hasPackages: false, multiServiceEnabled: false, hasServices: true },
+      expected: true,
+    },
+    {
+      id: 'e2e-bug.7-empty-catalog',
+      input: { hasPackages: false, multiServiceEnabled: false, hasServices: false },
+      expected: false,
+    },
+  ])('$id: shouldShowServicesCatalogEntry → $expected', ({ input, expected }) => {
+    expect(shouldShowServicesCatalogEntry(input)).toBe(expected);
   });
 });

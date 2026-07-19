@@ -127,6 +127,15 @@ describe('ai-self-service-booking.util', () => {
       expect(isRemoveServiceFromCartPrompt('Remove facial from cart')).toBe(
         true,
       );
+      // e2e-bug.144 — catalog soft-delete is not cart remove
+      expect(
+        isRemoveServiceFromCartPrompt('Delete the service called QA Test Trim'),
+      ).toBe(false);
+      expect(
+        isRemoveServiceFromCartPrompt(
+          'Remove the QA Test Trim service from my catalog permanently',
+        ),
+      ).toBe(false);
       expect(isShowCartTotalDurationPrompt('Show cart total duration')).toBe(
         true,
       );

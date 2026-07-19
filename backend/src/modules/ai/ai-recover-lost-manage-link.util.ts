@@ -1,6 +1,8 @@
 import { hasSignInToManageBookingCue } from './ai-sign-in-to-manage-booking.util.js';
 import { isConfigureNotificationSettingsPrompt } from './ai-notification-settings.util.js';
 import { isExplainNotificationCurrencyPrompt } from './ai-notification-currency.util.js';
+import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
+import { isFixCheckoutValidationErrorPrompt } from './ai-fix-checkout-validation-error.util.js';
 import {
   extractGuestContactFromPrompt,
   normalizeGuestContactPhone,
@@ -94,6 +96,15 @@ export function isRecoverLostManageLinkPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isConfigureNotificationSettingsPrompt(text)) return false;
   if (isExplainNotificationCurrencyPrompt(text)) return false;
+  if (isFixCheckoutValidationErrorPrompt(text)) return false;
+  const contactForGuard = extractGuestContactFromPrompt(text);
+  if (
+    !contactForGuard.email &&
+    !contactForGuard.phone &&
+    isExplainGuestCheckoutFieldsPrompt(text)
+  ) {
+    return false;
+  }
   if (GUEST_RESEND_CUE.test(text) && MANAGE_LINK_CUE.test(text)) return true;
   if (matchRecoverLostManageLinkScenario(text)) return true;
 

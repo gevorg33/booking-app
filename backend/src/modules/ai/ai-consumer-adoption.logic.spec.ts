@@ -1,10 +1,22 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
-import { handleExplainMyNotificationsLogic } from './ai-consumer-adoption.logic.js';
+import {
+  handleExplainMyNotificationsLogic,
+  handleReferAFriendLogic,
+  handleShareSalonLinkLogic,
+} from './ai-consumer-adoption.logic.js';
 import { handleFindMySavedSalonsLogic } from './ai-find-my-saved-salons.logic.js';
 import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 import { DEFAULT_BUSINESS_NOTIFICATION_SETTINGS } from '../notifications/notification.types.js';
 
+const businessRepo = {
+  findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+};
+
 describe('ai-consumer-adoption.logic', () => {
+  beforeEach(() => {
+    businessRepo.findOne.mockClear();
+  });
+
   it('explains notifications from salon settings and customer prefs', async () => {
     const result = await handleExplainMyNotificationsLogic(
       {
@@ -30,6 +42,7 @@ describe('ai-consumer-adoption.logic', () => {
             smsEnabled: false,
           })),
         } as any,
+        businessRepo: businessRepo as any,
       },
       'biz-1',
       { sessionCustomerId: 'cust-1' },
@@ -54,11 +67,71 @@ describe('ai-consumer-adoption.logic', () => {
         publicBookingService: {} as any,
         pushNotifications: {} as any,
         notificationsService: {} as any,
+        businessRepo: businessRepo as any,
       },
       'biz-1',
       {},
     );
     expect(result.success).toBe(false);
+  });
+
+  // e2e-bug.125
+  it('returns referral code without params.slug via businessId lookup', async () => {
+    const getCustomerReferralProgram = jest.fn(async () => ({
+      referralCode: 'ABC12345',
+      shareUrl: 'https://book.example/s/demo?ref=ABC12345',
+      enabled: true,
+      referrerBonusPoints: 100,
+      refereeBonusPoints: 50,
+      refereePromoCode: null,
+      conversionsCount: 0,
+      referrerRewardSummary: '100 points',
+    }));
+    const result = await handleReferAFriendLogic(
+      {
+        publicCustomerAuthService: {} as any,
+        publicBookingService: { getCustomerReferralProgram } as any,
+        pushNotifications: {} as any,
+        notificationsService: {} as any,
+        consumerPushTokenService: {} as any,
+        businessRepo: businessRepo as any,
+      },
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+    );
+    expect(result.success).toBe(true);
+    expect(result.summary).toContain('ABC12345');
+    expect(businessRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 'biz-1' },
+    });
+    expect(getCustomerReferralProgram).toHaveBeenCalledWith(
+      'demo-salon',
+      'cust-1',
+    );
+  });
+
+  it('shares salon link without params.slug via businessId lookup', async () => {
+    const getCustomerShareRewards = jest.fn(async () => ({
+      salonShareEnabled: true,
+      salonRewardSummary: '50 points',
+    }));
+    const result = await handleShareSalonLinkLogic(
+      {
+        publicCustomerAuthService: {} as any,
+        publicBookingService: { getCustomerShareRewards } as any,
+        pushNotifications: {} as any,
+        notificationsService: {} as any,
+        consumerPushTokenService: {} as any,
+        businessRepo: businessRepo as any,
+      },
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+    );
+    expect(result.success).toBe(true);
+    expect(getCustomerShareRewards).toHaveBeenCalledWith(
+      'demo-salon',
+      'cust-1',
+    );
   });
 
   it('lists saved salons from client context', async () => {
@@ -95,6 +168,7 @@ describe('ai-consumer-adoption.logic', () => {
         publicBookingService: {} as any,
         pushNotifications: {} as any,
         notificationsService: {} as any,
+        businessRepo: businessRepo as any,
       },
       'biz-1',
       {

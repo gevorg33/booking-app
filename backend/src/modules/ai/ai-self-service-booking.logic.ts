@@ -29,6 +29,12 @@ import {
   matchCustomerOwnedBooking,
 } from './ai-cancel-my-booking.util.js';
 import {
+  buildCancelAllUpcomingClearedSessionContext,
+  buildCancelAllUpcomingPendingSessionContext,
+  enrichCancelAllUpcomingConfirmFromPrompt,
+  isCancelAllUpcomingConfirmed,
+} from './ai-cancel-all-upcoming-bookings.util.js';
+import {
   buildRescheduleMyBookingAmbiguousSummary,
   buildRescheduleOwnedBookingMatchParams,
   enrichRescheduleMyBookingParamsFromPrompt,
@@ -551,6 +557,103 @@ export async function handleCheckMultiServiceAvailabilityLogic(
   }
 }
 
+export async function handlePreviewMultiServiceCartLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug)
+    return failure('preview_multi_service_cart', 'Business not found.');
+
+  const services = await resolveServices(deps, businessId, {
+    ...params,
+    _prompt: prompt ?? params._prompt,
+  });
+  if (!services.length) {
+    return failure(
+      'preview_multi_service_cart',
+      'Add services to your cart first, or name the services to preview.',
+      { clarify: true, missing: ['serviceNames'] },
+    );
+  }
+
+  const serviceIds = services.map((s) => s.id);
+  try {
+    const preview = await deps.publicBookingService.previewMultiServiceSelection(
+      slug,
+      serviceIds,
+    );
+    const totalMinutes = preview.totals?.blockDurationMinutes;
+    const totalPrice = preview.totals?.totalPrice;
+    const summary =
+      totalMinutes != null && totalPrice != null
+        ? `${services.length} service(s) — about ${totalMinutes} minutes, ${totalPrice} ${preview.totals?.currency ?? ''}`.trim()
+        : `${services.length} service(s) previewed.`;
+    return success('preview_multi_service_cart', summary, {
+      serviceIds,
+      serviceNames: services.map((s) => s.name),
+      preview,
+    });
+  } catch (err: any) {
+    return failure(
+      'preview_multi_service_cart',
+      err?.message ?? 'Could not preview this multi-service selection.',
+      { serviceIds, reason: 'invalid_selection' },
+    );
+  }
+}
+
+export async function handleSuggestPackageBlockLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug) return failure('suggest_package_block', 'Business not found.');
+
+  const packageId = await resolvePackageId(deps, businessId, params);
+  if (!packageId) {
+    return failure(
+      'suggest_package_block',
+      'Name which package to suggest a block for.',
+      {
+        clarify: true,
+        missing: ['packageName'],
+      },
+    );
+  }
+
+  try {
+    const block = await deps.publicBookingService.suggestPackageBlock(
+      slug,
+      packageId,
+    );
+    const dateLabel = block.dateKey
+      ? formatDateDisplay(block.dateKey)
+      : undefined;
+    const timeLabel = formatTimeDisplay(block.startTime);
+    const summary = dateLabel
+      ? `Suggested block: ${timeLabel} on ${dateLabel} with ${block.employeeName}.`
+      : `Suggested block: ${timeLabel} with ${block.employeeName}.`;
+    return success('suggest_package_block', summary, {
+      packageId,
+      block,
+      navigate: {
+        path: 'checkout',
+        query: { packageId, startTime: block.startTime },
+      },
+    });
+  } catch (err: any) {
+    return failure(
+      'suggest_package_block',
+      err?.message ?? 'No package block available right now.',
+      { packageId, reason: 'no_blocks' },
+    );
+  }
+}
+
 export async function handleSelectSubscriptionPlanLogic(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
@@ -641,6 +744,67 @@ export async function handleUseSubscriptionCreditLogic(
       paymentMethod: 'subscription_credit',
     },
   );
+}
+
+export async function handleCancelMySubscriptionLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const customerId = resolveSessionCustomerId(params);
+  if (!customerId) {
+    return failure(
+      'cancel_my_subscription',
+      'Sign in to cancel your subscription.',
+      { clarify: true },
+    );
+  }
+
+  const subs = await deps.subscriptionsService.listCustomerSubscriptions(
+    businessId,
+    customerId,
+  );
+  if (!subs.length) {
+    return failure(
+      'cancel_my_subscription',
+      'You have no subscription to cancel.',
+      { clarify: true },
+    );
+  }
+
+  const active = subs.filter((s) => s.status === 'active');
+  const sub = params.subscriptionId
+    ? subs.find((s) => s.id === params.subscriptionId)
+    : active[0];
+
+  if (!sub) {
+    return failure(
+      'cancel_my_subscription',
+      active.length > 1
+        ? 'You have multiple subscriptions — specify which one to cancel.'
+        : 'Subscription not found.',
+      { clarify: true, subscriptions: subs },
+    );
+  }
+
+  const { refundStatus } = await deps.subscriptionsService.cancelSubscription(
+    businessId,
+    sub.id,
+  );
+  const planLabel = (sub as any).plan?.name ?? 'membership';
+  const summary =
+    refundStatus === 'refunded'
+      ? `Cancelled your "${planLabel}" membership — we've refunded your payment to your original payment method.`
+      : refundStatus === 'failed'
+        ? `Cancelled your "${planLabel}" membership, but the automatic refund didn't go through — please contact the salon about your refund.`
+        : refundStatus === 'ineligible'
+          ? `Cancelled your "${planLabel}" membership. Since you've already used a visit on this membership, it isn't eligible for a refund.`
+          : `Cancelled your "${planLabel}" membership.`;
+
+  return success('cancel_my_subscription', summary, {
+    subscriptionId: sub.id,
+    refundStatus,
+  });
 }
 
 async function resolveOwnedBooking(
@@ -751,22 +915,25 @@ export async function handleCancelMyBookingLogic(
   }
 
   try {
-    const { booking: cancelled } =
+    const { booking: cancelled, refundStatus } =
       await deps.publicCustomerBookingService.cancelBooking(
         slug,
         customerId,
         booking.id,
       );
     const serviceLabel = booking.service?.name ?? 'appointment';
-    return success(
-      'cancel_my_booking',
-      `Cancelled your ${serviceLabel} — you're all set, no need to call the salon.`,
-      {
-        bookingId: cancelled.id,
-        status: cancelled.status,
-        serviceName: booking.service?.name ?? null,
-      },
-    );
+    const summary =
+      refundStatus === 'refunded'
+        ? `Cancelled your ${serviceLabel} — you're all set, and we've refunded your payment to your original payment method.`
+        : refundStatus === 'failed'
+          ? `Cancelled your ${serviceLabel}, but the automatic refund didn't go through — please contact the salon about your refund.`
+          : `Cancelled your ${serviceLabel} — you're all set, no need to call the salon.`;
+    return success('cancel_my_booking', summary, {
+      bookingId: cancelled.id,
+      status: cancelled.status,
+      serviceName: booking.service?.name ?? null,
+      refundStatus,
+    });
   } catch (err: any) {
     return failure(
       'cancel_my_booking',
@@ -776,6 +943,95 @@ export async function handleCancelMyBookingLogic(
       },
     );
   }
+}
+
+export async function handleCancelAllUpcomingBookingsLogic(
+  deps: SelfServiceBookingLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt = '',
+): Promise<CommandResult> {
+  const textPrompt = prompt || String(params._prompt ?? '');
+  const history = Array.isArray(params.conversationHistory)
+    ? (params.conversationHistory as Array<{ role: string; content: string }>)
+    : undefined;
+  const merged = enrichCancelAllUpcomingConfirmFromPrompt(
+    textPrompt,
+    params,
+    history,
+  );
+
+  const customerId = resolveSessionCustomerId(merged);
+  if (!customerId) {
+    return failure(
+      'cancel_all_upcoming_bookings',
+      'Sign in to cancel your upcoming bookings.',
+      { clarify: true },
+    );
+  }
+
+  const slug = await resolveBusinessSlug(deps, businessId);
+  if (!slug)
+    return failure('cancel_all_upcoming_bookings', 'Business not found.');
+
+  const confirm = isCancelAllUpcomingConfirmed(merged);
+  const bookingIds = Array.isArray(merged.bookingIds)
+    ? (merged.bookingIds as unknown[]).filter(
+        (id): id is string => typeof id === 'string',
+      )
+    : undefined;
+
+  const result = await deps.publicCustomerBookingService.bulkCancelUpcomingBookings(
+    slug,
+    customerId,
+    { confirm, bookingIds },
+  );
+
+  if (result.requiresConfirmation) {
+    if (result.count === 0) {
+      return success(
+        'cancel_all_upcoming_bookings',
+        "You don't have any upcoming bookings to cancel.",
+        {
+          count: 0,
+          sessionContext: buildCancelAllUpcomingClearedSessionContext(),
+        },
+      );
+    }
+    const bookingIdList = result.bookings.map((b) => b.id);
+    const lines = result.bookings
+      .map(
+        (b) =>
+          `${b.serviceName} on ${new Date(b.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`,
+      )
+      .join('; ');
+    return failure(
+      'cancel_all_upcoming_bookings',
+      `This will cancel ${result.count} upcoming booking(s): ${lines}. Reply yes to confirm.`,
+      {
+        clarify: true,
+        requiresConfirmation: true,
+        cancelAllUpcomingPending: true,
+        pendingAction: 'cancel_all_upcoming_bookings',
+        count: result.count,
+        bookings: result.bookings,
+        bookingIds: bookingIdList,
+        sessionContext: buildCancelAllUpcomingPendingSessionContext(bookingIdList),
+      },
+    );
+  }
+
+  const summary =
+    result.failed === 0
+      ? `Cancelled ${result.cancelled} upcoming booking(s) — you're all set.`
+      : `Cancelled ${result.cancelled} of ${result.cancelled + result.failed} upcoming booking(s); ${result.failed} could not be cancelled (see details).`;
+
+  return success('cancel_all_upcoming_bookings', summary, {
+    cancelled: result.cancelled,
+    failed: result.failed,
+    results: result.results,
+    sessionContext: buildCancelAllUpcomingClearedSessionContext(),
+  });
 }
 
 export async function handleRescheduleMyBookingLogic(
@@ -984,6 +1240,8 @@ export async function handleListMyAppointmentsLogic(
       bookings,
       upcomingCount: upcoming.length,
       summaryLines: lines,
+      // e2e-bug.52 — same Account handoff as my_appointments
+      navigate: { path: 'account', query: { tab: 'bookings' } },
     },
   );
 }

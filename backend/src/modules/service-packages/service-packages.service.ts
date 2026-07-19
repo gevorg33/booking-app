@@ -455,6 +455,7 @@ export class ServicePackagesService {
     customerId: string,
     pricePaid: number,
     currency: string,
+    metadata?: Record<string, unknown>,
   ) {
     return this.purchaseRepo.save(
       this.purchaseRepo.create({
@@ -463,6 +464,7 @@ export class ServicePackagesService {
         customerId,
         pricePaid,
         currency,
+        metadata: metadata ?? {},
       }),
     );
   }
@@ -592,7 +594,7 @@ export class ServicePackagesService {
       .where('booking.package_purchase_id IN (:...purchaseIds)', {
         purchaseIds,
       })
-      .andWhere('booking.start_time > :now', { now })
+      .andWhere('booking.startTime > :now', { now })
       .andWhere('booking.status NOT IN (:...statuses)', {
         statuses: [BookingStatus.CANCELLED, BookingStatus.NO_SHOW],
       })

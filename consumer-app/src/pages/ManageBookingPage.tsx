@@ -15,9 +15,13 @@ import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
-import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
+import {
+  formatFriendlyNetworkError,
+  getHttpErrorStatus,
+} from '../lib/consumer-network-ux.util.js';
 import type { PublicBookingManageContext, PublicCustomerBookingItem } from '../lib/types.js';
 import { fetchBookingManageContext } from '../services/public-api.js';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
 import { ConsumerBookingActions } from '../components/ConsumerBookingActions.js';
 import { ConsumerPackageVisitActions } from '../components/ConsumerPackageVisitActions.js';
 import { ConsumerNetworkErrorCard } from '../components/ConsumerNetworkErrorCard.js';
@@ -63,7 +67,13 @@ export default function ManageBookingPage() {
       setContext(ctx);
     } catch (err: unknown) {
       setContext(null);
-      setError(formatFriendlyNetworkError(err, copy.networkLoadFailed));
+      // e2e-bug.3 — wrong/expired manage token is a 403; show the friendly link copy.
+      const status = getHttpErrorStatus(err);
+      if (status === 401 || status === 403 || status === 404) {
+        setError(copy.manageBookingInvalidLink);
+      } else {
+        setError(formatFriendlyNetworkError(err, copy.networkLoadFailed));
+      }
     } finally {
       setLoadingContext(false);
     }
@@ -109,7 +119,7 @@ export default function ManageBookingPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(effectiveSlug)} />
+              <IonBackButton defaultHref={buildSalonPath(effectiveSlug)}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>Manage</IonTitle>
           </IonToolbar>
@@ -132,7 +142,7 @@ export default function ManageBookingPage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(effectiveSlug)} />
+              <IonBackButton defaultHref={buildSalonPath(effectiveSlug)}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>Manage</IonTitle>
           </IonToolbar>
@@ -158,11 +168,12 @@ export default function ManageBookingPage() {
   }
 
   return (
+    <ConsumerAiShell slug={effectiveSlug} profile={profile} copy={copy} locale={locale}>
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(effectiveSlug)} />
+            <IonBackButton defaultHref={buildSalonPath(effectiveSlug)}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.manageBookingTitle}</IonTitle>
         </IonToolbar>
@@ -232,5 +243,6 @@ export default function ManageBookingPage() {
         </IonButton>
       </IonContent>
     </IonPage>
+    </ConsumerAiShell>
   );
 }

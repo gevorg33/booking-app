@@ -2,6 +2,7 @@ import type { CommandSurface } from './ai-command-registry.types.js';
 
 export type IntakeLabBookPayPaymentAction =
   | 'pay_online'
+  | 'pay_cash_at_visit'
   | 'choose_payment_method';
 
 export type IntakeLabBookPaySurface = Extract<
@@ -19,7 +20,7 @@ export type IntakeLabBookPayCompoundFixture = {
   misclassifiedAction?: string;
 };
 
-export const INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES = `- intake_lab_book_pay (compound): customer/public clinic — signed-in mutate chain: pre-visit intake questionnaire, lab-test slot booking, then online checkout payment. Decomposes to complete_intake_and_book → book_nearest_slot (customer) or book_appointment (public) → pay_online or choose_payment_method. Triggers: fill|complete|finish + intake|health form|questionnaire + book|schedule + blood draw|lab test|CBC + pay deposit|pay online|pay with card. Example: "Complete health form, book earliest blood draw, pay deposit", "Fill intake and book blood draw, pay online". NOT complete_intake_and_book when user omits payment; NOT discover_book_and_pay (budget/rank catalog filter); NOT book_lab_collection_nearest (no intake fill); NOT pay_online alone; NOT explain_public_intake_form.`;
+export const INTAKE_LAB_BOOK_PAY_CLASSIFIER_RULES = `- intake_lab_book_pay (compound): customer/public clinic — signed-in mutate chain: pre-visit intake questionnaire, lab-test slot booking, then checkout payment. Decomposes to complete_intake_and_book → book_nearest_slot (customer) or book_appointment (public) → pay_online | pay_cash_at_visit | choose_payment_method. Triggers: fill|complete|finish + intake|health form|questionnaire + book|schedule + blood draw|blood test|lab test|CBC + pay deposit|pay online|pay with card|pay cash at the visit. Example: "Complete health form, book earliest blood draw, pay deposit", "Fill intake and book blood draw, pay online", "fill my intake, book the soonest blood test slot, and pay cash at the visit". NOT complete_intake_and_book when user omits payment; NOT discover_book_and_pay (budget/rank catalog filter); NOT book_lab_collection_nearest (no intake fill); NOT pay_online|pay_cash_at_visit alone; NOT explain_public_intake_form.`;
 
 export const INTAKE_LAB_BOOK_PAY_EN_PROMPTS = [
   {
@@ -82,22 +83,41 @@ export const INTAKE_LAB_BOOK_PAY_EN_PROMPTS = [
     serviceName: 'blood draw',
     paymentAction: 'pay_online' as const,
   },
+  // e2e-bug.99 — cash-at-visit + "blood test" synonym (live audit phrasings)
+  {
+    id: 'intake-blood-test-pay-cash',
+    prompt:
+      'fill my intake, book the soonest blood test slot, and pay cash at the visit',
+    serviceName: 'blood test',
+    paymentAction: 'pay_cash_at_visit' as const,
+  },
+  {
+    id: 'previsit-blood-test-pay-cash',
+    prompt:
+      'complete my pre-visit intake, book my blood test, and I will pay cash at the visit',
+    serviceName: 'blood test',
+    paymentAction: 'pay_cash_at_visit' as const,
+  },
 ] as const;
 
 function buildIntakeLabBookPayPrompts(): IntakeLabBookPayCompoundFixture[] {
   const rows: IntakeLabBookPayCompoundFixture[] = [];
   for (const entry of INTAKE_LAB_BOOK_PAY_EN_PROMPTS) {
+    const paymentAction = entry.paymentAction;
     for (const surface of ['customer', 'public'] as const) {
+      const bookAction =
+        surface === 'public' ? 'book_appointment' : 'book_nearest_slot';
       rows.push({
         id: `${entry.id}-${surface}`,
         prompt: entry.prompt,
         surface,
-        orderedActions:
-          surface === 'public'
-            ? ['complete_intake_and_book', 'book_appointment', 'pay_online']
-            : ['complete_intake_and_book', 'book_nearest_slot', 'pay_online'],
+        orderedActions: [
+          'complete_intake_and_book',
+          bookAction,
+          paymentAction,
+        ],
         serviceName: entry.serviceName,
-        paymentAction: entry.paymentAction,
+        paymentAction,
       });
     }
   }
@@ -152,6 +172,30 @@ export const INTAKE_LAB_BOOK_PAY_RESCUE_SCENARIOS: readonly IntakeLabBookPayComp
         'pay_online',
       ],
       misclassifiedAction: 'explain_public_intake_form',
+    },
+    {
+      id: 'e2e99-self-service-steal-to-intake-lab-pay',
+      prompt:
+        'fill my intake, book the soonest blood test slot, and pay cash at the visit',
+      surface: 'customer',
+      orderedActions: [
+        'complete_intake_and_book',
+        'book_nearest_slot',
+        'pay_cash_at_visit',
+      ],
+      misclassifiedAction: 'book_nearest_slot',
+    },
+    {
+      id: 'e2e99-confirm-details-steal-to-intake-lab-pay',
+      prompt:
+        'complete my pre-visit intake, book my blood test, and I will pay cash at the visit',
+      surface: 'customer',
+      orderedActions: [
+        'complete_intake_and_book',
+        'book_nearest_slot',
+        'pay_cash_at_visit',
+      ],
+      misclassifiedAction: 'confirm_my_booking_details',
     },
   ];
 

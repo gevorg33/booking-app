@@ -1,11 +1,14 @@
 /** adopt-6.7 — provider mobile FCM push opt-in / setup assistant intents. */
 export const PROVIDER_PUSH_SETUP_CLASSIFIER_RULES = `- explain_push_setup: READ — provider mobile app only: explain how native push notifications work (FCM on iOS/Android), permission priming, Profile → Enable push toggle, and what booking alerts providers receive. Triggers: how do push notifications work, set up alerts, explain push permissions. NOT explain_last_push (act on a received notification), NOT configure_provider_push_date_format (time format in push bodies), NOT enable_notifications (customer reminder metadata), NOT dashboard configure_push_recipients.
 - enable_push_notifications: MUTATE — provider mobile app: turn on native FCM booking alerts for the signed-in provider on this device — opens Profile push toggle or requests OS permission. Triggers: enable push notifications, turn on alerts, activate booking notifications. NOT explain_push_setup (read-only overview), NOT retry_offline_action, NOT enable_notifications (consumer app).
+- explain_push_registration_status: READ — provider mobile app: check whether push notifications are currently registered on this device (live GET …/push/native-status read). Triggers: is push notifications on for my provider account, did my push registration work, check my provider push status, am I registered for push. NOT enable_push_notifications (turns it on), NOT explain_push_setup (general how-to overview, not a live status check).
 - Examples:
   - "How do push notifications work in the provider app?" → explain_push_setup
   - "Help me set up booking alerts on my phone" → explain_push_setup
   - "Enable push notifications for new bookings" → enable_push_notifications
-  - "Turn on provider app alerts" → enable_push_notifications`;
+  - "Turn on provider app alerts" → enable_push_notifications
+  - "Is push notifications on for my provider account?" → explain_push_registration_status
+  - "Did my provider app push registration work?" → explain_push_registration_status`;
 
 export const PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS = [
   {
@@ -55,6 +58,24 @@ export const PROVIDER_PUSH_SETUP_PROMPT_SCENARIOS = [
     prompt: 'Activate booking notifications on my phone',
     surface: 'provider' as const,
     expectedAction: 'enable_push_notifications',
+  },
+  {
+    id: 'push-status-en',
+    prompt: 'Is push notifications on for my provider account?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_push_registration_status',
+  },
+  {
+    id: 'push-status-en-2',
+    prompt: 'Did my provider app push registration work?',
+    surface: 'provider' as const,
+    expectedAction: 'explain_push_registration_status',
+  },
+  {
+    id: 'push-status-en-3',
+    prompt: 'Check my provider push notification status',
+    surface: 'provider' as const,
+    expectedAction: 'explain_push_registration_status',
   },
   {
     id: 'explain-push-setup-hy',

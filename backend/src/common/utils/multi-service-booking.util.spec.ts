@@ -190,6 +190,23 @@ describe('multi-service-booking.util', () => {
     expect(tooLong.errors[0]).toContain('exceeds the 40 minute limit');
   });
 
+  it('skips the duration cap when skipDurationCap is set', () => {
+    const settings = {
+      ...DEFAULT_MULTI_SERVICE_SETTINGS,
+      enabled: true,
+      maxDurationMinutes: 40,
+    };
+    const result = validateMultiServiceSelection(
+      ['haircut', 'color'],
+      services,
+      settings,
+      { skipDurationCap: true },
+    );
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.totals?.blockDurationMinutes).toBeGreaterThan(40);
+  });
+
   it('builds sequential appointments with turnover between services', () => {
     const lines = buildSequentialAppointments(
       [

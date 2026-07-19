@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
 import { ClinicTestResultsService } from '../clinic-test-results/clinic-test-results.service.js';
 import { PatientDocumentsService } from '../patient-clinical-profiles/patient-documents.service.js';
+import { PatientClinicalAlertsService } from '../patient-clinical-profiles/patient-clinical-alerts.service.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleExplainResultStatusLogic,
@@ -23,6 +24,14 @@ import {
   handleNotifyWhenResultsReadyLogic,
   type NotifyWhenResultsReadyLogicDeps,
 } from './ai-notify-when-results-ready.logic.js';
+import {
+  handleOpenClinicDocumentLogic,
+  type OpenClinicDocumentLogicDeps,
+} from './ai-open-clinic-document.logic.js';
+import {
+  handleDismissPatientAlertLogic,
+  type DismissPatientAlertLogicDeps,
+} from './ai-dismiss-patient-alert.logic.js';
 
 @Injectable()
 export class AiConsumerClinicTestResultsService {
@@ -30,11 +39,14 @@ export class AiConsumerClinicTestResultsService {
   private readonly listMyDocumentsDeps: ListMyDocumentsLogicDeps;
   private readonly explainAbnormalResultFlagDeps: ExplainAbnormalResultFlagLogicDeps;
   private readonly notifyWhenResultsReadyDeps: NotifyWhenResultsReadyLogicDeps;
+  private readonly openClinicDocumentDeps: OpenClinicDocumentLogicDeps;
+  private readonly dismissPatientAlertDeps: DismissPatientAlertLogicDeps;
 
   constructor(
     @InjectRepository(Business) businessRepo: Repository<Business>,
     clinicTestResultsService: ClinicTestResultsService,
     patientDocumentsService: PatientDocumentsService,
+    patientClinicalAlertsService: PatientClinicalAlertsService,
   ) {
     this.deps = {
       businessRepo,
@@ -49,6 +61,12 @@ export class AiConsumerClinicTestResultsService {
     };
     this.notifyWhenResultsReadyDeps = {
       businessRepo,
+    };
+    this.openClinicDocumentDeps = {
+      patientDocumentsService,
+    };
+    this.dismissPatientAlertDeps = {
+      patientClinicalAlertsService,
     };
   }
 
@@ -122,6 +140,28 @@ export class AiConsumerClinicTestResultsService {
       businessId,
       params,
       prompt,
+    );
+  }
+
+  handleOpenClinicDocument(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleOpenClinicDocumentLogic(
+      this.openClinicDocumentDeps,
+      businessId,
+      params,
+    );
+  }
+
+  handleDismissPatientAlert(
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleDismissPatientAlertLogic(
+      this.dismissPatientAlertDeps,
+      businessId,
+      params,
     );
   }
 }

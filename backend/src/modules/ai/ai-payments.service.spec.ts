@@ -119,6 +119,9 @@ describe('AiPaymentsService', () => {
       commissionsService as any,
       subscriptionsService as any,
       { update: jest.fn(async (id, dto) => ({ id, ...dto })) } as any,
+      {
+        confirmCheckoutSession: jest.fn(async () => ({ booking: {} })),
+      } as any,
       businessRepo as any,
       serviceRepo as any,
       bookingRepo as any,
@@ -192,8 +195,12 @@ describe('AiPaymentsService', () => {
       ).success,
     ).toBe(true);
     expect(
-      (await service.handleRefundGiftCardOrder('biz-1', { giftCardId: 'gc-1' }))
-        .success,
+      (
+        await service.handleRefundGiftCardOrder('biz-1', {
+          giftCardId: 'gc-1',
+          reason: 'Customer changed their mind',
+        })
+      ).success,
     ).toBe(true);
     expect(
       (

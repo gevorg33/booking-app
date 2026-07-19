@@ -119,6 +119,14 @@ describe('ai-how-to-download-app.util (ai-cmd-customer-4.5.7)', () => {
     expect(isHowToDownloadAppPrompt('Switch to consumer app')).toBe(false);
   });
 
+  it('e2e-bug.94 does not treat get-an-appointment as download-app', () => {
+    expect(
+      isHowToDownloadAppPrompt(
+        "what's the soonest I can get an appointment?",
+      ),
+    ).toBe(false);
+  });
+
   it('detects heuristic install and store-link prompts without fixture match', () => {
     expect(isHowToDownloadAppPrompt('Install on my phone please')).toBe(true);
     expect(

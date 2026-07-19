@@ -30,6 +30,18 @@ export interface OrchestrationResult {
   requiresApproval?: boolean;
 }
 
+/**
+ * e2e-bug.150 — dashboard action names for orchestration-tier agent types.
+ * Free-text `intent` (user prompt) must never leak into result.action.
+ */
+export const ORCHESTRATION_AGENT_RESULT_ACTIONS: Partial<
+  Record<AgentType, string>
+> = {
+  [AgentType.SCHEDULING_OPTIMIZATION]: 'optimize_schedule',
+  [AgentType.CONFLICT_RESOLUTION]: 'resolve_conflicts',
+  [AgentType.CANCELLATION_RECOVERY]: 'reassign_cancelled',
+};
+
 @Injectable()
 export class CommandOrchestrationService {
   private readonly logger = new Logger(CommandOrchestrationService.name);
@@ -43,7 +55,10 @@ export class CommandOrchestrationService {
   /** Route operational orchestration intents through planner agents. */
   async runOrchestrationIntent(params: {
     businessId: string;
+    /** Free-text user prompt for the planner LLM (not the result action name). */
     intent: string;
+    /** Canonical dashboard action name for result.action (e2e-bug.150). */
+    action: string;
     agentType: AgentType;
     userId?: string;
     date?: string;
@@ -65,7 +80,7 @@ export class CommandOrchestrationService {
       autoExecute: params.autoExecute ?? false,
     });
 
-    return this.taskToResult(task, params.intent);
+    return this.taskToResult(task, params.action);
   }
 
   /** Execute a pre-built deterministic plan (from classified command intents). */
@@ -108,7 +123,23 @@ export class CommandOrchestrationService {
     return this.taskToResult(task, task.intent);
   }
 
-  private taskToResult(task: any, action: string): OrchestrationResult {
+  /**
+   * Prefer the explicit action hint, then agentType mapping, never a free-text
+   * user prompt (e2e-bug.150).
+   */
+  resolveResultAction(
+    task: { agentType?: AgentType },
+    actionHint: string,
+  ): string {
+    const fromType =
+      task?.agentType != null
+        ? ORCHESTRATION_AGENT_RESULT_ACTIONS[task.agentType]
+        : undefined;
+    return fromType ?? actionHint;
+  }
+
+  private taskToResult(task: any, actionHint: string): OrchestrationResult {
+    const action = this.resolveResultAction(task, actionHint);
     const requiresApproval =
       task.status === PlanStatus.REQUIRES_APPROVAL ||
       task.status === PlanStatus.VALIDATED;

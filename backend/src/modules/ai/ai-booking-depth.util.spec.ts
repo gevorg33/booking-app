@@ -50,6 +50,8 @@ describe('ai-booking-depth.util', () => {
       expect(isCashBookingPrompt('walk-in only')).toBe(false);
       expect(isPackageBookingPrompt('Book spa day for James')).toBe(true);
       expect(isPackageBookingPrompt('package booking for Anna')).toBe(true);
+      expect(isPackageBookingPrompt('Cancel my package visit')).toBe(false);
+      expect(isPackageBookingPrompt('Reschedule my spa day')).toBe(false);
       expect(
         isMultiServiceBookingPrompt('Book haircut and beard trim Tuesday'),
       ).toBe(true);

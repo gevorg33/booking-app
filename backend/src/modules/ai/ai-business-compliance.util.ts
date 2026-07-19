@@ -27,6 +27,8 @@ export const BUSINESS_COMPLIANCE_READ_INTENTS = [
   'list_sub_processors',
   'explain_gdpr_checklist',
   'open_compliance_dashboard',
+  'explain_enterprise_trust',
+  'explain_strategy_eval',
 ] as const;
 
 export const BUSINESS_COMPLIANCE_MUTATE_INTENTS = [
@@ -38,6 +40,7 @@ export const BUSINESS_COMPLIANCE_MUTATE_INTENTS = [
   'report_data_breach',
   'send_breach_notification',
   'accept_hipaa_baa',
+  'update_strategy_eval',
 ] as const;
 
 export const BUSINESS_COMPLIANCE_INTENTS = [
@@ -1731,4 +1734,63 @@ export function formatGdprChecklistSummary(
       ? ` Still missing: ${missing.join('; ')}.`
       : ' All core checklist items are configured.';
   return `${checklistLine}${missingSuffix} Retention: customer PII ${privacy.retention.customerPiiDays} days, booking history ${privacy.retention.bookingHistoryDays} days.`;
+}
+
+export function isExplainEnterpriseTrustPrompt(prompt: string): boolean {
+  return /\b(enterprise\s+trust|dpa|data\s+processing\s+agreement|security\s+one[- ]?pager|trust\s+(?:documents?|center)|eu\s+representative|dpo\b)\b/i.test(
+    prompt,
+  );
+}
+
+export function parseExplainEnterpriseTrustFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): { aspect: 'settings' | 'documents' | 'security' } | null {
+  if (
+    typeof params.aspect === 'string' &&
+    ['settings', 'documents', 'security'].includes(params.aspect)
+  ) {
+    return { aspect: params.aspect as 'settings' | 'documents' | 'security' };
+  }
+  if (!isExplainEnterpriseTrustPrompt(prompt)) return null;
+  if (/\b(dpa|data\s+processing\s+agreement|privacy\s+policy|documents?)\b/i.test(prompt)) {
+    return { aspect: 'documents' };
+  }
+  if (/\bsecurity\s+one[- ]?pager\b/i.test(prompt)) {
+    return { aspect: 'security' };
+  }
+  return { aspect: 'settings' };
+}
+
+export function isExplainStrategyEvalPrompt(prompt: string): boolean {
+  return /\b(hipaa\s+(?:readiness|decision|eval)|marketplace\s+(?:positioning|decision|eval)|strategy\s+eval|business\s+associate\s+agreement\s+decision)\b/i.test(
+    prompt,
+  );
+}
+
+export function parseExplainStrategyEvalFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): { aspect: 'hipaa' | 'marketplace' | 'all' } | null {
+  if (
+    typeof params.aspect === 'string' &&
+    ['hipaa', 'marketplace', 'all'].includes(params.aspect)
+  ) {
+    return { aspect: params.aspect as 'hipaa' | 'marketplace' | 'all' };
+  }
+  if (!isExplainStrategyEvalPrompt(prompt)) return null;
+  if (/\bhipaa\b/i.test(prompt) && !/\bmarketplace\b/i.test(prompt)) {
+    return { aspect: 'hipaa' };
+  }
+  if (/\bmarketplace\b/i.test(prompt) && !/\bhipaa\b/i.test(prompt)) {
+    return { aspect: 'marketplace' };
+  }
+  return { aspect: 'all' };
+}
+
+export function isUpdateStrategyEvalPrompt(prompt: string): boolean {
+  return (
+    isExplainStrategyEvalPrompt(prompt) &&
+    /\b(submit|record|save|set|decide|update)\b/i.test(prompt)
+  );
 }

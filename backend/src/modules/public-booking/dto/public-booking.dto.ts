@@ -71,10 +71,10 @@ export class PublicCustomerDto {
 export class CreatePublicBookingDto {
   /** Omitted when the customer chose “any available specialist” — resolved at booking time. */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   employeeId?: string;
 
-  @IsString()
+  @IsUUID()
   serviceId: string;
 
   @IsDateString()
@@ -140,12 +140,12 @@ export class CreatePublicBookingDto {
 
   /** Use an existing customer subscription credit for this booking */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   useSubscriptionId?: string;
 
   /** Purchase a subscription plan as part of checkout (creates customer_subscription) */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   purchasePlanId?: string;
 
   /** When purchasing a plan, also consume first appointment on this booking (default true) */
@@ -157,10 +157,21 @@ export class CreatePublicBookingDto {
   @IsOptional()
   @IsString()
   paymentMethod?: 'online' | 'cash';
+
+  /** e2e-bug.18 — which client started Stripe checkout (affects success/cancel URLs). */
+  @IsOptional()
+  @IsIn(['web', 'consumer'])
+  clientSurface?: 'web' | 'consumer';
+
+  /** Optional origin (http/https) for consumer return; must match CONSUMER_APP_URL / allowlist. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  returnOrigin?: string;
 }
 
 export class PublicBookingQuoteDto {
-  @IsString()
+  @IsUUID()
   serviceId: string;
 
   @IsOptional()
@@ -171,8 +182,13 @@ export class PublicBookingQuoteDto {
   paxCount?: number;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   purchasePlanId?: string;
+
+  /** e2e-bug.28 — preview $0 when redeeming an existing subscription credit */
+  @IsOptional()
+  @IsUUID()
+  useSubscriptionId?: string;
 
   @IsOptional()
   @IsString()
@@ -213,12 +229,25 @@ export class GetServiceSlotProvidersQueryDto {
   startTime: string;
 }
 
-export class PackageBookingLineDto {
-  @IsString()
-  serviceId: string;
+/** e2e-bug.116 — validate for-slot query before Invalid Date hits Postgres. */
+export class GetServicesForSlotQueryDto {
+  @IsUUID()
+  employeeId: string;
+
+  @IsDateString()
+  startTime: string;
 
   @IsOptional()
   @IsString()
+  locale?: string;
+}
+
+export class PackageBookingLineDto {
+  @IsUUID()
+  serviceId: string;
+
+  @IsOptional()
+  @IsUUID()
   employeeId?: string;
 
   @IsDateString()
@@ -226,7 +255,7 @@ export class PackageBookingLineDto {
 }
 
 export class BookPublicPackageDto {
-  @IsString()
+  @IsUUID()
   packageId: string;
 
   @IsArray()
@@ -260,10 +289,20 @@ export class BookPublicPackageDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   loyaltyPointsToRedeem?: number;
+
+  /** e2e-bug.18 — which client started Stripe checkout (affects success/cancel URLs). */
+  @IsOptional()
+  @IsIn(['web', 'consumer'])
+  clientSurface?: 'web' | 'consumer';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  returnOrigin?: string;
 }
 
 export class PublicPackageQuoteDto {
-  @IsString()
+  @IsUUID()
   packageId: string;
 
   @IsOptional()
@@ -280,7 +319,7 @@ export class PublicPackageQuoteDto {
 export class MultiServiceSelectionDto {
   @IsArray()
   @ArrayMinSize(2)
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   serviceIds: string[];
 }
 
@@ -306,7 +345,7 @@ export class MultiServiceBlockSlotsQueryDto {
   @Transform(({ value }) => parseServiceIdsQuery(value))
   @IsArray()
   @ArrayMinSize(2)
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   serviceIds: string[];
 }
 
@@ -317,7 +356,7 @@ export class MultiServiceBlockProvidersQueryDto {
   @Transform(({ value }) => parseServiceIdsQuery(value))
   @IsArray()
   @ArrayMinSize(2)
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   serviceIds: string[];
 
   @IsOptional()
@@ -327,11 +366,11 @@ export class MultiServiceBlockProvidersQueryDto {
 }
 
 export class MultiServiceBookingLineDto {
-  @IsString()
+  @IsUUID()
   serviceId: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   employeeId?: string;
 
   @IsDateString()
@@ -341,7 +380,7 @@ export class MultiServiceBookingLineDto {
 export class BookPublicMultiServiceDto {
   @IsArray()
   @ArrayMinSize(2)
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   serviceIds: string[];
 
   /** Same-visit block start (required when schedulingMode is same_visit) */
@@ -350,7 +389,7 @@ export class BookPublicMultiServiceDto {
   blockStartTime?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   employeeId?: string;
 
   /** Per-service lines (required when schedulingMode is per_service) */
@@ -385,12 +424,22 @@ export class BookPublicMultiServiceDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   loyaltyPointsToRedeem?: number;
+
+  /** e2e-bug.18 — which client started Stripe checkout (affects success/cancel URLs). */
+  @IsOptional()
+  @IsIn(['web', 'consumer'])
+  clientSurface?: 'web' | 'consumer';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  returnOrigin?: string;
 }
 
 export class PublicMultiServiceQuoteDto {
   @IsArray()
   @ArrayMinSize(2)
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   serviceIds: string[];
 
   @IsOptional()
@@ -425,11 +474,12 @@ export class RecordProductRecommendationEventDto {
   @IsIn(['shown', 'clicked'])
   event: 'shown' | 'clicked';
 
+  /** Inventory product ids are not always UUID-shaped in fixtures/legacy data. */
   @IsString()
   productId: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   serviceId?: string;
 
   @IsOptional()
@@ -437,7 +487,7 @@ export class RecordProductRecommendationEventDto {
   categoryId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   bookingId?: string;
 
   @IsOptional()

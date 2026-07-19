@@ -7,6 +7,7 @@ import {
   shouldClearPromoOnQuoteError,
   type CheckoutDiscountState,
 } from '../lib/checkout-discounts.util.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 
 export function useCheckoutDiscounts<T extends PublicCheckoutQuote>(input: {
   enabled: boolean;
@@ -70,7 +71,8 @@ export function useCheckoutDiscounts<T extends PublicCheckoutQuote>(input: {
       .catch((err: unknown) => {
         if (cancelled || requestId !== quoteRequestId.current) return;
         setQuote(null);
-        const message = err instanceof Error ? err.message : input.quoteFailedMessage;
+        // e2e-bug.33 / e2e-bug.3 — prefer response.data.message over axios status text.
+        const message = formatFriendlyNetworkError(err, input.quoteFailedMessage);
         setQuoteError(message);
         if (shouldClearPromoOnQuoteError(message, appliedPromo)) {
           setAppliedPromo('');

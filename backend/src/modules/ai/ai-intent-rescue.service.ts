@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   isClearSchedulePrompt,
+  isDeleteScheduleBlockPrompt,
   isScheduleTemplateCreationPrompt,
   isProviderOwnServicesPrompt,
 } from './ai-orchestration.helpers.js';
@@ -13,6 +14,7 @@ import {
   extractBookingStatusFromPrompt,
   extractPaymentStatusFromPrompt,
   extractLimitFromPrompt,
+  rescueUnscopedCustomerCountIntent,
 } from './ai-intent-heuristics.js';
 import { applyBookingRescheduleActionHints } from './ai-booking-reschedule-hints.util.js';
 import {
@@ -33,7 +35,10 @@ import { enrichServiceOnlinePaymentParamsFromPrompt } from './ai-service-online-
 import { enrichServiceDepositPolicyParamsFromPrompt } from './ai-service-deposit-policy.util.js';
 import { enrichExplainServicePriceParamsFromPrompt } from './ai-explain-service-price.util.js';
 import { enrichExplainPaymentOptionsParamsFromPrompt } from './ai-explain-payment-options-for-service.util.js';
-import { enrichFindSoonestParamsFromPrompt } from './ai-find-soonest-appointment.util.js';
+import {
+  enrichFindSoonestParamsFromPrompt,
+  isFindSoonestAppointmentPrompt,
+} from './ai-find-soonest-appointment.util.js';
 import { enrichCompareServicesParamsFromPrompt } from './ai-compare-services.util.js';
 import {
   enrichFilterServicesNoPrepaymentParamsFromPrompt,
@@ -53,6 +58,7 @@ import { enrichConfigureServiceFeaturedParamsFromPrompt } from './ai-configure-s
 import { enrichBulkAssignServicesCategoryParamsFromPrompt } from './ai-bulk-assign-services-category.util.js';
 import { enrichConfigurePackageOnlinePaymentParamsFromPrompt } from './ai-configure-package-online-payment.util.js';
 import { enrichDeactivateServiceCategoryScopeParamsFromPrompt } from './ai-deactivate-service-category-scope.util.js';
+import { enrichServiceDurationBufferParamsFromPrompt } from './ai-service-duration-buffer.util.js';
 import {
   isTotalEarningsPrompt,
   isTopStaffRevenuePrompt,
@@ -62,7 +68,11 @@ import {
   extractCustomerBookingContextFromPrompt,
   extractSingleProviderNameFromPrompt,
   extractUpcomingAppointmentScope,
+  extractLookupCustomerNameFromPrompt,
   isCustomerBookingContextPrompt,
+  isCustomerRetentionPrompt,
+  isListCustomersPrompt,
+  isLookupCustomerPrompt,
   isSingleProviderRevenuePrompt,
   isUpcomingAppointmentsPrompt,
 } from './ai-dashboard-ops.util.js';
@@ -83,14 +93,23 @@ import {
 import { rescueBookingDepthIntent } from './ai-booking-depth.util.js';
 import {
   enrichServiceCategoryRescueParams,
+  extractDeactivateServiceNameFromPrompt,
+  isDeactivateServicePrompt,
   rescueCatalogIntent,
 } from './ai-catalog.util.js';
 import { enrichCatalogNotifyRescueParams } from './ai-catalog-notify.util.js';
 import { rescueCustomerCrmIntent } from './ai-customer-crm.util.js';
+import { rescuePrivacyDeleteConfirmIntent } from './ai-privacy-delete.util.js';
+import { rescueCancelAllUpcomingConfirmIntent } from './ai-cancel-all-upcoming-bookings.util.js';
+import { rescueExplainMySubscriptionIntent } from './ai-explain-my-subscription.util.js';
 import { rescueScheduleResourceIntent } from './ai-schedule-resources.util.js';
 import { rescueGiftFulfillmentIntent } from './ai-gift-fulfillment.util.js';
 import { rescueIntegrationsIntent } from './ai-integrations.util.js';
-import { rescuePushNotificationsIntent } from './ai-push-notifications.util.js';
+import { rescueExplainSupportInboxIntent } from './ai-explain-support-inbox.util.js';
+import {
+  extractBusinessEmailOnCustomerChangeToggleFromPrompt,
+  rescuePushNotificationsIntent,
+} from './ai-push-notifications.util.js';
 import { rescueReschedulePackageVisitSelfIntent } from './ai-reschedule-package-visit-self.util.js';
 import { rescueCancelPackageVisitSelfIntent } from './ai-cancel-package-visit-self.util.js';
 import {
@@ -101,12 +120,44 @@ import { rescueCancelAndRebookCompoundIntent } from './ai-cancel-and-rebook-comp
 import { rescueCancelPackageRebookSingleCompoundIntent } from './ai-cancel-package-rebook-single-compound.util.js';
 import { rescueProviderBookingIntent } from './ai-provider-booking.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
-import { rescueRetailFinanceIntent } from './ai-retail-finance.util.js';
+import { parseCreatePromoCodeFromPrompt } from './ai-create-promo-code.util.js';
+import { parseConfigureLoyaltySettingsFromPrompt } from './ai-configure-loyalty-settings.util.js';
+import { enrichConfigureStripeConnectParamsFromPrompt } from './ai-stripe-connect.util.js';
+import { enrichApplyLoyaltyAtCheckoutParamsFromPrompt } from './ai-apply-loyalty-at-checkout.util.js';
+import { parseConfigureCheckoutDefaultsFromPrompt } from './ai-checkout-defaults.util.js';
+import { parseExplainPushPermissionFromPrompt } from './ai-explain-push-permission.util.js';
+import { enrichNotificationSettingsParamsFromPrompt } from './ai-notification-settings.util.js';
+import { parseExplainIntegrationHealthFromPrompt } from './ai-explain-integration-health.util.js';
+import { enrichOpenaiIntegrationParamsFromPrompt } from './ai-openai-integration.util.js';
+import { enrichWhatsappIntegrationParamsFromPrompt } from './ai-whatsapp-integration.util.js';
+import {
+  enrichCreateProductParamsFromPrompt,
+  enrichDeleteExpenseParamsFromPrompt,
+  enrichRecordExpenseParamsFromPrompt,
+  parseCreateCommissionRuleFromPrompt,
+  parseExportAnalyticsReportFromPrompt,
+  rescueRetailFinanceIntent,
+} from './ai-retail-finance.util.js';
+import {
+  parseCreateLocationFromPrompt,
+  parseUpdateLocationFromPrompt,
+  rescueLocationsIntent,
+} from './ai-locations.util.js';
+import { rescueAgentOpsIntent } from './ai-agent-ops.util.js';
+import { rescueMetaOpsIntent } from './ai-meta-ops.util.js';
 import {
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
   rescuePaymentsIntent,
+  extractAmountFromPrompt,
+  extractServiceNameFromPrompt,
 } from './ai-payments.util.js';
+import {
+  enrichPayOnlineParamsFromPrompt,
+  rescuePayOnlineCheckoutIntent,
+} from './ai-pay-online-checkout.util.js';
+import { parseExplainServiceOnlinePaymentSetupFromPrompt } from './ai-service-online-payment-setup.util.js';
+import { parseAuditServicesMissingOnlinePaymentFromPrompt } from './ai-audit-services-missing-online-payment.util.js';
 import {
   enrichFindServicesUnderBudgetParamsFromPrompt,
   parseFindServicesUnderBudgetFromPrompt,
@@ -197,7 +248,10 @@ import {
   enrichExplainProfessionalProfileParamsFromPrompt,
   rescueExplainProfessionalProfileIntent,
 } from './ai-explain-professional-profile.util.js';
-import { rescueExplainAnyProviderOptionIntent } from './ai-explain-any-provider-option.util.js';
+import {
+  parseExplainAnyProviderOptionFromPrompt,
+  rescueExplainAnyProviderOptionIntent,
+} from './ai-explain-any-provider-option.util.js';
 import {
   enrichPickProviderForServiceParamsFromPrompt,
   rescuePickProviderForServiceIntent,
@@ -279,6 +333,7 @@ import {
   parseExplainWhySignInFromPrompt,
   rescueExplainWhySignInIntent,
 } from './ai-explain-why-sign-in.util.js';
+import { rescueMyLocaleIntent } from './ai-my-locale.util.js';
 import {
   parseFixCheckoutValidationErrorFromPrompt,
   rescueFixCheckoutValidationErrorIntent,
@@ -291,6 +346,10 @@ import {
   parseAddBookingToCalendarFromPrompt,
   rescueAddBookingToCalendarIntent,
 } from './ai-add-booking-to-calendar.util.js';
+import {
+  enrichExplainSubscriptionVsOneTimeParamsFromPrompt,
+  rescueExplainSubscriptionVsOneTimeIntent,
+} from './ai-explain-subscription-vs-one-time.util.js';
 import {
   enrichGetDirectionsToSalonParamsFromPrompt,
   parseGetDirectionsToSalonFromPrompt,
@@ -407,6 +466,12 @@ import { rescueMultiServiceDayCompoundIntent } from './ai-multi-service-day-comp
 import { rescueProviderSameDayMultiCompoundIntent } from './ai-provider-same-day-multi-compound.util.js';
 import { rescueGuestBookAndManageCompoundIntent } from './ai-guest-book-and-manage-compound.util.js';
 import { rescueGuestPayCashManageCompoundIntent } from './ai-guest-pay-cash-manage-compound.util.js';
+import { rescueGuestManageVisitCompoundIntent } from './ai-guest-manage-visit-compound.util.js';
+import { rescuePublicAssistantCompoundIntent } from './ai-public-assistant-compound.util.js';
+import {
+  extractManageLinkCredentialsFromPrompt,
+  rescueManageBookingWithTokenIntent,
+} from './ai-manage-booking-with-token.util.js';
 import { rescueRankDiscoverAndBookCompoundIntent } from './ai-rank-discover-and-book-compound.util.js';
 import { rescueSetupSalonCheckoutCompoundIntent } from './ai-setup-salon-checkout-compound.util.js';
 import { rescueConfigureServicesPaymentMatrixCompoundIntent } from './ai-configure-services-payment-matrix-compound.util.js';
@@ -414,7 +479,16 @@ import { rescueCashAndOnlinePaymentCompoundIntent } from './ai-cash-online-payme
 import { rescueDeclineOnlinePaymentCategoryCompoundIntent } from './ai-decline-online-payment-category-compound.util.js';
 import { rescueOnboardSalonNotificationsCompoundIntent } from './ai-onboard-salon-notifications-compound.util.js';
 import { rescueLaunchConsumerAppGrowthCompoundIntent } from './ai-launch-consumer-app-growth-compound.util.js';
-import { enrichServiceRankFromPrompt } from './ai-service-rank-discovery.util.js';
+import {
+  enrichServiceRankFromPrompt,
+  rescueServiceRankDiscoveryIntent,
+} from './ai-service-rank-discovery.util.js';
+import {
+  enrichListProviderReviewsParamsFromPrompt,
+  rescueListProviderReviewsIntent,
+} from './ai-list-provider-reviews.util.js';
+import { isConcreteTimedBookAppointmentPrompt } from './ai-intent-disambiguation.util.js';
+import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import {
   parseEnterTestResultFromPrompt,
   parseReleaseTestResultFromPrompt,
@@ -469,6 +543,11 @@ import {
   rescueProviderClinicCollectionIntent,
 } from './ai-provider-clinic-collection.util.js';
 import {
+  extractBookingIdForLabSummariesFromPrompt,
+  extractClinicTaskIdFromPrompt,
+  rescueProviderClinicTasksAndResultsIntent,
+} from './ai-provider-clinic-tasks-and-results.util.js';
+import {
   parseBookLabCollectionFromPrompt,
   parseListMyLabBookingRequestsFromPrompt,
   parsePushLabBookingFromPrompt,
@@ -504,6 +583,10 @@ import {
 } from './ai-business-compliance.util.js';
 import { rescueProviderSessionTimeoutIntent } from './ai-provider-session-timeout.util.js';
 import { rescueProviderPushSetupIntent } from './ai-provider-push-setup.util.js';
+import { rescueExplainProviderContextIntent } from './ai-explain-provider-context.util.js';
+import { rescueProviderScheduleReadsIntent } from './ai-provider-schedule-reads.util.js';
+import { rescueOpenBookingDetailIntent } from './ai-provider-open-booking-detail.util.js';
+import { rescueShowProviderProfileIntent } from './ai-provider-show-profile.util.js';
 import {
   extractClientNoteBodyFromPrompt,
   extractCustomerNameFromClientPrompt,
@@ -513,11 +596,36 @@ import {
 import { rescueProviderEarningsIntent } from './ai-provider-earnings.util.js';
 import {
   extractBookingActionCustomerName,
+  extractReassignEmployeeName,
   extractRunningLateMinutesFromPrompt,
   inferMyStatsPeriodFromPrompt,
   inferMyStatsScopeFromPrompt,
   rescueProviderExp2Intent,
 } from './ai-provider-exp-2.util.js';
+import { rescueSummarizeDayIntent } from './ai-provider-summarize-day.util.js';
+import { rescueSummarizeUtilizationIntent } from './ai-provider-summarize-utilization.util.js';
+import {
+  isShowAppointmentsPrompt,
+  rescueShowAppointmentsIntent,
+} from './ai-provider-show-appointments.util.js';
+import { rescueWhoIsNextIntent } from './ai-provider-who-is-next.util.js';
+import { rescueExplainTodayTimelineIntent } from './ai-provider-explain-today-timeline.util.js';
+import { rescueEndOfDaySummaryIntent } from './ai-provider-end-of-day-summary.util.js';
+import { rescueMarkVisitCompleteIntent } from './ai-provider-mark-visit-complete.util.js';
+import { rescueMarkVisitInProgressIntent } from './ai-provider-mark-visit-in-progress.util.js';
+import { rescueMarkMultiServiceStepDoneIntent } from './ai-provider-mark-multi-service-step-done.util.js';
+import {
+  extractPatientSearchQueryFromPrompt,
+  rescueSearchPatientIntent,
+} from './ai-provider-search-patient.util.js';
+import { rescueHandoffToDashboardPhiIntent } from './ai-provider-handoff-to-dashboard-phi.util.js';
+import { rescueConfirmPendingBookingIntent } from './ai-provider-confirm-pending-booking.util.js';
+import { rescueVisitStatusExplainersIntent } from './ai-provider-visit-status-explainers.util.js';
+import { rescueCalendarSchedulingExplainersIntent } from './ai-provider-calendar-scheduling-explainers.util.js';
+import { rescueAssistantUxExplainersIntent } from './ai-provider-assistant-ux-explainers.util.js';
+import { rescueDashboardHandoffIntent } from './ai-provider-dashboard-handoff.util.js';
+import { rescueProviderBlockScheduleIntent } from './ai-provider-block-schedule.util.js';
+import { rescueGiveProviderAiFeedbackIntent } from './ai-provider-give-ai-feedback.util.js';
 import {
   extractBlockWindowFromPrompt,
   extractMessageTemplateHint,
@@ -539,6 +647,10 @@ import {
   rescueProviderTimeOffIntent,
 } from './ai-provider-time-off.util.js';
 import { rescueConsumerAdoptionIntent } from './ai-consumer-adoption.util.js';
+import {
+  enrichClaimReferralCodeParamsFromPrompt,
+  rescueClaimReferralCodeIntent,
+} from './ai-rewards-and-referral-claim.util.js';
 import {
   parseExplainDataRightsFromPrompt,
   rescueExplainDataRightsIntent,
@@ -623,16 +735,25 @@ const READ_ONLY_ACTIONS = new Set([
   'analyze_services',
   'summarize_staff',
   'lookup_customer',
+  'list_customers',
   'summarize_waitlist',
   'lookup_service_assignment',
   'list_services',
   'list_employees',
   'list_templates',
+  'list_schedule_blocks',
+  'get_provider_calendar',
   'list_schedule_gaps',
   'summarize_utilization',
   'summarize_customers',
   'check_schedule_compliance',
   'revenue_forecast',
+  'summarize_ai_briefing',
+  'summarize_ai_weekly_report',
+  'explain_ai_audit_log',
+  'explain_ai_usage_analytics',
+  'explain_ai_capabilities',
+  'summarize_ai_settings',
   'list_cash_pending_bookings',
   'list_package_bookings',
   'list_multi_service_bookings',
@@ -656,6 +777,7 @@ const READ_ONLY_ACTIONS = new Set([
   'discover_subscription_plans',
   'discover_gift_card_products',
   'list_scheduling_resources',
+  'list_service_resource_requirements',
   'list_resource_conflicts',
   'explain_resource_conflict',
   'my_resource_assignments',
@@ -798,6 +920,28 @@ export class AiIntentRescueService {
       input.assistantMode,
     );
     if (productGuideMisroute) return productGuideMisroute;
+    const summarizeDayEarly = this.tryRescueSummarizeDay(prompt, action);
+    if (summarizeDayEarly) return summarizeDayEarly;
+    const summarizeUtilizationEarly = this.tryRescueSummarizeUtilization(
+      prompt,
+      action,
+    );
+    if (summarizeUtilizationEarly) return summarizeUtilizationEarly;
+    // e2e-bug.154 — unscoped booking totals must not stay on show_appointments /
+    // list_bookings / unknown and fall through to react_agent empty-day counts.
+    const summarizeBookingsEarly = this.tryRescueSummarizeBookings(
+      prompt,
+      action,
+      params,
+    );
+    if (summarizeBookingsEarly) return summarizeBookingsEarly;
+    // e2e-bug.153 — "how many customers?" must not stay on most_no_shows rankings.
+    const unscopedCustomerCountEarly = this.tryRescueUnscopedCustomerCount(
+      prompt,
+      action,
+      params,
+    );
+    if (unscopedCustomerCountEarly) return unscopedCustomerCountEarly;
     const createServicePrepaymentEarly = this.tryRescueCreateServicePrepayment(
       prompt,
       action,
@@ -806,11 +950,17 @@ export class AiIntentRescueService {
     const listServicesPaymentFilterEarly =
       this.tryRescueListServicesPaymentFilter(prompt, action);
     if (listServicesPaymentFilterEarly) return listServicesPaymentFilterEarly;
-    const budgetDiscoveryEarly = this.tryRescueBudgetServiceDiscovery(
-      prompt,
-      action,
-      budgetSurface,
-    );
+    // e2e-bug.132 — cancel-policy before budget "deal" → discover_packages steal.
+    const explainCancelPolicyBeforeBudget =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainCancelPolicy(prompt, action);
+    if (explainCancelPolicyBeforeBudget)
+      return explainCancelPolicyBeforeBudget;
+    const budgetDiscoveryEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueBudgetServiceDiscovery(prompt, action, budgetSurface);
     if (budgetDiscoveryEarly) return budgetDiscoveryEarly;
     const rankDiscoveryEarly = this.tryRescueRankServiceDiscovery(
       prompt,
@@ -858,6 +1008,32 @@ export class AiIntentRescueService {
         budgetSurface,
       );
     if (consumerAppGrowthEarly) return consumerAppGrowthEarly;
+    // e2e-bug.92/93 — named-provider + collapse escapes before availability disambiguation.
+    const providerNameReadsBeforeDisambiguation =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueNamedProviderReadIntents(prompt, action)
+        : null;
+    if (providerNameReadsBeforeDisambiguation) {
+      return providerNameReadsBeforeDisambiguation;
+    }
+    const checkProvidersCollapseBeforeDisambiguation =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueCheckProvidersCollapseIntents(
+            prompt,
+            action,
+            input.surface,
+          )
+        : null;
+    if (checkProvidersCollapseBeforeDisambiguation) {
+      return checkProvidersCollapseBeforeDisambiguation;
+    }
+    const rankDiscoveryBeforeDisambiguation =
+      budgetSurface === 'customer' || budgetSurface === 'public'
+        ? this.tryRescueRankServiceDiscovery(prompt, action, budgetSurface)
+        : null;
+    if (rankDiscoveryBeforeDisambiguation) {
+      return rankDiscoveryBeforeDisambiguation;
+    }
     const disambiguated = this.disambiguateMisclassified(
       prompt,
       action,
@@ -865,6 +1041,7 @@ export class AiIntentRescueService {
       employees,
       customers,
       timeZone,
+      input.surface,
     );
     if (disambiguated) return disambiguated;
     const clinicCompoundEarly = this.tryRescueClinicCompound(prompt, action);
@@ -912,6 +1089,20 @@ export class AiIntentRescueService {
     if (listCalendarWeekClassifiedEarly) {
       return listCalendarWeekClassifiedEarly;
     }
+    // e2e-bug.78 — affirmative after cancel-all preview before other steals.
+    const cancelAllUpcomingConfirmEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueCancelAllUpcomingConfirm(prompt, action, params)
+        : null;
+    if (cancelAllUpcomingConfirmEarly) return cancelAllUpcomingConfirmEarly;
+    // e2e-bug.79 — before add_booking_to_calendar steals "get … or … visit".
+    const explainSubscriptionVsOneTimeEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueExplainSubscriptionVsOneTime(prompt, action)
+        : null;
+    if (explainSubscriptionVsOneTimeEarly) {
+      return explainSubscriptionVsOneTimeEarly;
+    }
     const addBookingToCalendarEarly = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
@@ -933,12 +1124,14 @@ export class AiIntentRescueService {
       this.tryRescueExplainPackageVisitRules(prompt, action);
     if (explainPackageVisitRulesEarly) return explainPackageVisitRulesEarly;
     const explainDepositForfeitureEarly =
-      this.tryRescueExplainDepositForfeiture(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainDepositForfeiture(prompt, action);
     if (explainDepositForfeitureEarly) return explainDepositForfeitureEarly;
-    const explainCancelPolicyEarly = this.tryRescueExplainCancelPolicy(
-      prompt,
-      action,
-    );
+    const explainCancelPolicyEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainCancelPolicy(prompt, action);
     if (explainCancelPolicyEarly) return explainCancelPolicyEarly;
     const signInToManageBookingEarly = this.tryRescueSignInToManageBooking(
       prompt,
@@ -974,29 +1167,61 @@ export class AiIntentRescueService {
     if (explainPostVisitReviewPromptEarly) {
       return explainPostVisitReviewPromptEarly;
     }
-    const leaveVisitReviewEarly = this.tryRescueLeaveVisitReview(
+    // e2e-bug.146 — configure_business_tax before leave_visit_review ("tax rate" ≠ review).
+    const businessTaxBeforeReviewEarly = this.tryRescueBusinessTaxEarly(
       prompt,
       action,
     );
+    if (businessTaxBeforeReviewEarly) return businessTaxBeforeReviewEarly;
+    const leaveVisitReviewEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueLeaveVisitReview(prompt, action);
     if (leaveVisitReviewEarly) return leaveVisitReviewEarly;
-    const notifyRunningLateEarly = this.tryRescueNotifyRunningLate(
-      prompt,
-      action,
-    );
+    const notifyRunningLateEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueNotifyRunningLate(prompt, action);
     if (notifyRunningLateEarly) return notifyRunningLateEarly;
+    // e2e-bug.88 — pay_online before list/confirm steals "pay … for my booking".
+    const payOnlineEarly =
+      input.surface === 'provider' ? null : this.tryRescuePayOnline(prompt, action);
+    if (payOnlineEarly) return payOnlineEarly;
     const listMyUpcomingAppointmentsEarly =
-      this.tryRescueListMyUpcomingAppointments(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueListMyUpcomingAppointments(prompt, action);
     if (listMyUpcomingAppointmentsEarly) return listMyUpcomingAppointmentsEarly;
-    const confirmMyBookingDetailsEarly = this.tryRescueConfirmMyBookingDetails(
-      prompt,
-      action,
-    );
+    const confirmMyBookingDetailsEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueConfirmMyBookingDetails(prompt, action);
     if (confirmMyBookingDetailsEarly) return confirmMyBookingDetailsEarly;
+    // e2e-bug.76 — locale before explain_why_sign_in ("what" + "account").
+    const myLocaleEarly =
+      input.surface === 'provider' ? null : this.tryRescueMyLocale(prompt, action);
+    if (myLocaleEarly) return myLocaleEarly;
     const explainWhySignInEarly = this.tryRescueExplainWhySignIn(
       prompt,
       action,
     );
     if (explainWhySignInEarly) return explainWhySignInEarly;
+    // e2e-bug.93 — named provider availability/profile/specialty before guest-checkout steal.
+    const providerNameReadsEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueNamedProviderReadIntents(prompt, action)
+        : null;
+    if (providerNameReadsEarly) return providerNameReadsEarly;
+    // e2e-bug.92 — reviews / any-provider / timed book before check_providers collapse.
+    const checkProvidersCollapseEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueCheckProvidersCollapseIntents(
+            prompt,
+            action,
+            input.surface,
+          )
+        : null;
+    if (checkProvidersCollapseEarly) return checkProvidersCollapseEarly;
     const explainGuestCheckoutFieldsEarly =
       this.tryRescueExplainGuestCheckoutFields(prompt, action);
     if (explainGuestCheckoutFieldsEarly) return explainGuestCheckoutFieldsEarly;
@@ -1018,9 +1243,14 @@ export class AiIntentRescueService {
     if (explainClinicBookingEarly) return explainClinicBookingEarly;
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;
+    // e2e-bug.146 — location mutates before business-hours/location reads nested
+    // inside tryRescueBusinessCurrency (bare "location"/"address" cues).
+    const locationsBeforeHoursEarly = this.tryRescueLocations(prompt, action);
+    if (locationsBeforeHoursEarly) return locationsBeforeHoursEarly;
     const businessCurrencyEarly = this.tryRescueBusinessCurrency(
       prompt,
       action,
+      input.surface,
     );
     if (businessCurrencyEarly) return businessCurrencyEarly;
     const clinicTestResultEarly = this.tryRescueClinicTestResult(
@@ -1036,11 +1266,26 @@ export class AiIntentRescueService {
     const clinicPatientChartEarly = this.tryRescueClinicPatientChart(
       prompt,
       action,
+      input.surface,
     );
     if (clinicPatientChartEarly) return clinicPatientChartEarly;
     const providerClinicCollectionEarly =
       this.tryRescueProviderClinicCollection(prompt, action);
     if (providerClinicCollectionEarly) return providerClinicCollectionEarly;
+    // e2e-bug.139 — support tickets / unread messages before agent-ops steals.
+    const supportInboxBeforeAgentOps = this.tryRescueExplainSupportInbox(
+      prompt,
+      action,
+    );
+    if (supportInboxBeforeAgentOps) return supportInboxBeforeAgentOps;
+    // e2e-bug.152 — agent-ops before clinic tasks so "pending AI agent tasks"
+    // cannot be stolen by broad clinic pending+tasks matching.
+    const agentOpsBeforeClinicEarly = this.tryRescueAgentOps(prompt, action);
+    if (agentOpsBeforeClinicEarly) return agentOpsBeforeClinicEarly;
+    const providerClinicTasksAndResultsEarly =
+      this.tryRescueProviderClinicTasksAndResults(prompt, action);
+    if (providerClinicTasksAndResultsEarly)
+      return providerClinicTasksAndResultsEarly;
     const providerClinicLabBookingEarly =
       this.tryRescueProviderClinicLabBooking(prompt, action);
     if (providerClinicLabBookingEarly) return providerClinicLabBookingEarly;
@@ -1059,14 +1304,32 @@ export class AiIntentRescueService {
       action,
     );
     if (notifyWhenResultsReadyEarly) return notifyWhenResultsReadyEarly;
+    // e2e-bug.133 — tour capacity-gated booking before clinic result-status steal.
+    const tourGroupBeforeClinicEarly =
+      this.tryRescueBookTourNearestDepartureCompound(prompt, action);
+    if (tourGroupBeforeClinicEarly) return tourGroupBeforeClinicEarly;
+    const tourConsumerBeforeClinicEarly = this.tryRescueTourConsumer(
+      prompt,
+      action,
+    );
+    if (tourConsumerBeforeClinicEarly) return tourConsumerBeforeClinicEarly;
+    // e2e-bug.94 — soonest/next-available appointment before clinic/marketing steal.
+    const findSoonestBeforeClinicEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueFindSoonestAppointment(prompt, action)
+        : null;
+    if (findSoonestBeforeClinicEarly) return findSoonestBeforeClinicEarly;
     const consumerClinicTestResultsEarly =
       this.tryRescueConsumerClinicTestResults(prompt, action);
     if (consumerClinicTestResultsEarly) return consumerClinicTestResultsEarly;
     const consumerClinicLabBookingEarly =
       this.tryRescueConsumerClinicLabBooking(prompt, action);
     if (consumerClinicLabBookingEarly) return consumerClinicLabBookingEarly;
+    // e2e-bug.77 — dashboard clinic lab (push_lab_booking_to_patient) never on customer/public.
     const dashboardClinicLabBookingEarly =
-      this.tryRescueDashboardClinicLabBooking(prompt, action);
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueDashboardClinicLabBooking(prompt, action);
     if (dashboardClinicLabBookingEarly) return dashboardClinicLabBookingEarly;
     const clinicTestOrderEarly = this.tryRescueClinicTestOrder(prompt, action);
     if (clinicTestOrderEarly) return clinicTestOrderEarly;
@@ -1090,17 +1353,26 @@ export class AiIntentRescueService {
       action,
     );
     if (checkoutRecommendationsEarly) return checkoutRecommendationsEarly;
-    const billingLoyaltyEarly = this.tryRescueBillingLoyaltyDashboard(
+    // e2e-bug.129 — dashboard SaaS billing only; never steal customer
+    // "visits left on my plan" → open_billing_settings on customer/public.
+    const billingLoyaltyEarly =
+      input.surface === 'dashboard'
+        ? this.tryRescueBillingLoyaltyDashboard(prompt, action)
+        : null;
+    if (billingLoyaltyEarly) return billingLoyaltyEarly;
+    // e2e-bug.144 — catalog soft-delete before staff/ops steals
+    // (delete/remove service ≠ deactivate_employee / unassign_employee_services).
+    const catalogDeactivateEarly = this.tryRescueCatalogDeactivateService(
       prompt,
       action,
     );
-    if (billingLoyaltyEarly) return billingLoyaltyEarly;
+    if (catalogDeactivateEarly) return catalogDeactivateEarly;
     const staffOperationsEarly = this.tryRescueStaffOperations(prompt, action);
     if (staffOperationsEarly) return staffOperationsEarly;
-    const waitlistDashboardEarly = this.tryRescueWaitlistDashboard(
-      prompt,
-      action,
-    );
+    const waitlistDashboardEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueWaitlistDashboard(prompt, action);
     if (waitlistDashboardEarly) return waitlistDashboardEarly;
     const operations = this.tryRescueOperations(prompt, action, params);
     if (operations) return operations;
@@ -1115,7 +1387,11 @@ export class AiIntentRescueService {
     if (providerPushSetupEarly) return providerPushSetupEarly;
     const providerExp2Early = this.tryRescueProviderExp2(prompt, action);
     if (providerExp2Early) return providerExp2Early;
-    const providerExp3Early = this.tryRescueProviderExp3(prompt, action);
+    // e2e-bug.131 — provider retail/cart rescues must not steal customer/public cart.
+    const providerExp3Early =
+      input.surface === 'provider'
+        ? this.tryRescueProviderExp3(prompt, action)
+        : null;
     if (providerExp3Early) return providerExp3Early;
     const providerOpenShiftsEarly = this.tryRescueProviderOpenShifts(
       prompt,
@@ -1127,24 +1403,127 @@ export class AiIntentRescueService {
       action,
     );
     if (providerTeamWhosNextEarly) return providerTeamWhosNextEarly;
+    if (input.surface === 'provider') {
+      const markVisitCompleteEarly = this.tryRescueMarkVisitComplete(
+        prompt,
+        action,
+        params,
+      );
+      if (markVisitCompleteEarly) return markVisitCompleteEarly;
+      const markVisitInProgressEarly = this.tryRescueMarkVisitInProgress(
+        prompt,
+        action,
+        params,
+      );
+      if (markVisitInProgressEarly) return markVisitInProgressEarly;
+      const markMultiServiceStepDoneEarly =
+        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
+      if (markMultiServiceStepDoneEarly) return markMultiServiceStepDoneEarly;
+      const searchPatientEarly = this.tryRescueSearchPatient(
+        prompt,
+        action,
+        params,
+      );
+      if (searchPatientEarly) return searchPatientEarly;
+      const handoffToDashboardPhiEarly = this.tryRescueHandoffToDashboardPhi(
+        prompt,
+        action,
+        params,
+      );
+      if (handoffToDashboardPhiEarly) return handoffToDashboardPhiEarly;
+      const confirmPendingBookingEarly = this.tryRescueConfirmPendingBooking(
+        prompt,
+        action,
+        params,
+      );
+      if (confirmPendingBookingEarly) return confirmPendingBookingEarly;
+      const visitStatusExplainersEarly = this.tryRescueVisitStatusExplainers(
+        prompt,
+        action,
+        params,
+      );
+      if (visitStatusExplainersEarly) return visitStatusExplainersEarly;
+      const calendarSchedulingExplainersEarly =
+        this.tryRescueCalendarSchedulingExplainers(prompt, action, params);
+      if (calendarSchedulingExplainersEarly) {
+        return calendarSchedulingExplainersEarly;
+      }
+      const assistantUxExplainersEarly = this.tryRescueAssistantUxExplainers(
+        prompt,
+        action,
+        params,
+      );
+      if (assistantUxExplainersEarly) return assistantUxExplainersEarly;
+      const dashboardHandoffEarly = this.tryRescueDashboardHandoff(
+        prompt,
+        action,
+        params,
+      );
+      if (dashboardHandoffEarly) return dashboardHandoffEarly;
+      const providerBlockScheduleEarly = this.tryRescueProviderBlockSchedule(
+        prompt,
+        action,
+        params,
+        input.surface,
+      );
+      if (providerBlockScheduleEarly) return providerBlockScheduleEarly;
+      const endOfDaySummaryEarly = this.tryRescueEndOfDaySummary(
+        prompt,
+        action,
+      );
+      if (endOfDaySummaryEarly) return endOfDaySummaryEarly;
+      const explainTodayTimelineEarly = this.tryRescueExplainTodayTimeline(
+        prompt,
+        action,
+      );
+      if (explainTodayTimelineEarly) return explainTodayTimelineEarly;
+      const whoIsNextEarly = this.tryRescueWhoIsNext(prompt, action, params);
+      if (whoIsNextEarly) return whoIsNextEarly;
+      const showAppointmentsEarly = this.tryRescueShowAppointments(
+        prompt,
+        action,
+        params,
+      );
+      if (showAppointmentsEarly) return showAppointmentsEarly;
+    }
     const providerTimeOffEarly = this.tryRescueProviderTimeOff(prompt, action);
     if (providerTimeOffEarly) return providerTimeOffEarly;
-    const providerClientContextEarly = this.tryRescueProviderClientContext(
-      prompt,
-      action,
-    );
+    // Provider-mobile client context only — e2e-bug.129: must not steal
+    // customer/public "visits left on my plan" → explain_package_visit_context.
+    const providerClientContextEarly =
+      input.surface === 'provider'
+        ? this.tryRescueProviderClientContext(prompt, action)
+        : null;
     if (providerClientContextEarly) return providerClientContextEarly;
-    const providerEarningsEarly = this.tryRescueProviderEarnings(
-      prompt,
-      action,
-    );
+    const providerEarningsEarly =
+      input.surface === 'provider'
+        ? this.tryRescueProviderEarnings(prompt, action)
+        : null;
     if (providerEarningsEarly) return providerEarningsEarly;
-    const bookingDepthEarly = this.tryRescueBookingDepth(
-      prompt,
-      action,
-      employees,
-      customers,
-    );
+    const agentOpsEarly = this.tryRescueAgentOps(prompt, action);
+    if (agentOpsEarly) return agentOpsEarly;
+    // e2e-bug.129 — customer membership explain before meta-ops AI-quota
+    // ("how many … left on my plan") and dashboard billing steals.
+    const explainMySubscriptionEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueExplainMySubscription(prompt, action)
+        : null;
+    if (explainMySubscriptionEarly) return explainMySubscriptionEarly;
+    const metaOpsEarly = this.tryRescueMetaOps(prompt, action);
+    if (metaOpsEarly) return metaOpsEarly;
+    // e2e-bug.134 — before booking-depth / policy steals "can I cancel" + manage URL.
+    // e2e-bug.103 — also accept bookingId+manageToken already in request params.
+    const manageBookingWithTokenEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueManageBookingWithToken(prompt, action, params)
+        : null;
+    if (manageBookingWithTokenEarly) return manageBookingWithTokenEarly;
+    // e2e-bug.103 / e2e-bug.77 — booking-depth intents are dashboard staff-only;
+    // never rescue customer/public prompts into create_package_booking etc.
+    const bookingDepthEarly =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueBookingDepth(prompt, action, employees, customers);
     if (bookingDepthEarly) return bookingDepthEarly;
     const cancelPackageVisitSelfEarly = this.tryRescueCancelPackageVisitSelf(
       prompt,
@@ -1178,6 +1557,11 @@ export class AiIntentRescueService {
     if (speakAssistantReplyEarly) return speakAssistantReplyEarly;
     const giveAiFeedbackEarly = this.tryRescueGiveAiFeedback(prompt, action);
     if (giveAiFeedbackEarly) return giveAiFeedbackEarly;
+    const giveProviderAiFeedbackEarly =
+      input.surface === 'provider'
+        ? this.tryRescueGiveProviderAiFeedback(prompt, action)
+        : null;
+    if (giveProviderAiFeedbackEarly) return giveProviderAiFeedbackEarly;
     const explainRtlLayoutEarly = this.tryRescueExplainRtlLayout(
       prompt,
       action,
@@ -1198,18 +1582,37 @@ export class AiIntentRescueService {
     if (pushNotifications) return pushNotifications;
     const marketingGrowth = this.tryRescueMarketingGrowth(prompt, action);
     if (marketingGrowth) return marketingGrowth;
-    const retailFinance = this.tryRescueRetailFinance(prompt, action);
+    // e2e-bug.77 — dashboard/provider retail-finance (search_retail_sku) never on customer/public.
+    const retailFinance =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueRetailFinance(prompt, action, params);
     if (retailFinance) return retailFinance;
+    const locations = this.tryRescueLocations(prompt, action);
+    if (locations) return locations;
     const integrations = this.tryRescueIntegrations(prompt, action);
     if (integrations) return integrations;
-    const giftFulfillment = this.tryRescueGiftFulfillment(prompt, action);
+    // e2e-bug.77 — dashboard gift-fulfillment mutates (cancel_gift_card_order) never on customer/public.
+    const giftFulfillment =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueGiftFulfillment(prompt, action);
     if (giftFulfillment) return giftFulfillment;
+    // e2e-bug.83 — before payments apply_gift_card_code steals "redeem referral code".
+    const claimReferralCode = this.tryRescueClaimReferralCode(prompt, action);
+    if (claimReferralCode) return claimReferralCode;
     const payments = this.tryRescuePayments(prompt, action);
     if (payments) return payments;
     const scheduleResources = this.tryRescueScheduleResources(prompt, action);
     if (scheduleResources) return scheduleResources;
-    const customerCrm = this.tryRescueCustomerCrm(prompt, action);
+    const customerCrm = this.tryRescueCustomerCrm(prompt, action, params);
     if (customerCrm) return customerCrm;
+    const dashboardCustomerRead = this.tryRescueDashboardCustomerRead(
+      prompt,
+      action,
+      params,
+    );
+    if (dashboardCustomerRead) return dashboardCustomerRead;
     return null;
   }
 
@@ -1221,6 +1624,13 @@ export class AiIntentRescueService {
     const { prompt, action, params, reasoning } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
 
+    const summarizeDayUnknownEarly = this.tryRescueSummarizeDay(prompt, action);
+    if (summarizeDayUnknownEarly) return summarizeDayUnknownEarly;
+    const summarizeUtilizationUnknownEarly = this.tryRescueSummarizeUtilization(
+      prompt,
+      action,
+    );
+    if (summarizeUtilizationUnknownEarly) return summarizeUtilizationUnknownEarly;
     const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
       prompt,
       action,
@@ -1238,15 +1648,17 @@ export class AiIntentRescueService {
     }
 
     const explainDepositForfeitureUnknownEarly =
-      this.tryRescueExplainDepositForfeiture(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainDepositForfeiture(prompt, action);
     if (explainDepositForfeitureUnknownEarly) {
       return explainDepositForfeitureUnknownEarly;
     }
 
-    const explainCancelPolicyUnknownEarly = this.tryRescueExplainCancelPolicy(
-      prompt,
-      action,
-    );
+    const explainCancelPolicyUnknownEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainCancelPolicy(prompt, action);
     if (explainCancelPolicyUnknownEarly) return explainCancelPolicyUnknownEarly;
 
     const signInToManageBookingUnknownEarly =
@@ -1293,16 +1705,22 @@ export class AiIntentRescueService {
       return explainPostVisitReviewPromptUnknownEarly;
     }
 
-    const leaveVisitReviewUnknownEarly = this.tryRescueLeaveVisitReview(
+    // e2e-bug.146 — configure_business_tax before leave_visit_review ("tax rate" ≠ review).
+    const businessTaxBeforeReviewUnknown = this.tryRescueBusinessTaxEarly(
       prompt,
       action,
     );
+    if (businessTaxBeforeReviewUnknown) return businessTaxBeforeReviewUnknown;
+    const leaveVisitReviewUnknownEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueLeaveVisitReview(prompt, action);
     if (leaveVisitReviewUnknownEarly) return leaveVisitReviewUnknownEarly;
 
-    const notifyRunningLateUnknownEarly = this.tryRescueNotifyRunningLate(
-      prompt,
-      action,
-    );
+    const notifyRunningLateUnknownEarly =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueNotifyRunningLate(prompt, action);
     if (notifyRunningLateUnknownEarly) return notifyRunningLateUnknownEarly;
 
     const listServicesPaymentFilterUnknown =
@@ -1310,11 +1728,10 @@ export class AiIntentRescueService {
     if (listServicesPaymentFilterUnknown)
       return listServicesPaymentFilterUnknown;
 
-    const budgetDiscoveryUnknown = this.tryRescueBudgetServiceDiscovery(
-      prompt,
-      action,
-      budgetSurface,
-    );
+    const budgetDiscoveryUnknown =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueBudgetServiceDiscovery(prompt, action, budgetSurface);
     if (budgetDiscoveryUnknown) return budgetDiscoveryUnknown;
 
     const rankDiscoveryUnknown = this.tryRescueRankServiceDiscovery(
@@ -1349,6 +1766,13 @@ export class AiIntentRescueService {
     );
     if (summarizeBookingsUnknown) return summarizeBookingsUnknown;
 
+    const unscopedCustomerCountUnknown = this.tryRescueUnscopedCustomerCount(
+      prompt,
+      action,
+      params,
+    );
+    if (unscopedCustomerCountUnknown) return unscopedCustomerCountUnknown;
+
     const summarizeCustomerTaxPaidUnknown =
       rescueSummarizeCustomerTaxPaidIntent(prompt, action);
     if (summarizeCustomerTaxPaidUnknown) {
@@ -1376,8 +1800,11 @@ export class AiIntentRescueService {
     );
     if (providerPushSetupBeforeClinic) return providerPushSetupBeforeClinic;
 
+    // e2e-bug.77 — dashboard clinic lab never on customer/public.
     const dashboardClinicLabBookingBeforeResults =
-      this.tryRescueDashboardClinicLabBooking(prompt, action);
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueDashboardClinicLabBooking(prompt, action);
     if (dashboardClinicLabBookingBeforeResults) {
       return dashboardClinicLabBookingBeforeResults;
     }
@@ -1391,12 +1818,27 @@ export class AiIntentRescueService {
     const clinicPatientChartUnknown = this.tryRescueClinicPatientChart(
       prompt,
       action,
+      input.surface,
     );
     if (clinicPatientChartUnknown) return clinicPatientChartUnknown;
 
     const providerClinicCollectionUnknown =
       this.tryRescueProviderClinicCollection(prompt, action);
     if (providerClinicCollectionUnknown) return providerClinicCollectionUnknown;
+
+    // e2e-bug.152 — same ordering as classified phase (agent-ops before clinic tasks).
+    const supportInboxBeforeAgentOpsUnknown =
+      this.tryRescueExplainSupportInbox(prompt, action);
+    if (supportInboxBeforeAgentOpsUnknown) {
+      return supportInboxBeforeAgentOpsUnknown;
+    }
+    const agentOpsBeforeClinicUnknown = this.tryRescueAgentOps(prompt, action);
+    if (agentOpsBeforeClinicUnknown) return agentOpsBeforeClinicUnknown;
+
+    const providerClinicTasksAndResultsUnknown =
+      this.tryRescueProviderClinicTasksAndResults(prompt, action);
+    if (providerClinicTasksAndResultsUnknown)
+      return providerClinicTasksAndResultsUnknown;
 
     const providerClinicLabBookingUnknown =
       this.tryRescueProviderClinicLabBooking(prompt, action);
@@ -1425,6 +1867,23 @@ export class AiIntentRescueService {
     );
     if (notifyWhenResultsReadyUnknown) return notifyWhenResultsReadyUnknown;
 
+    // e2e-bug.133 — tour group/nearest before clinic explain_result_status.
+    const tourGroupBeforeClinicUnknown =
+      this.tryRescueBookTourNearestDepartureCompound(prompt, action);
+    if (tourGroupBeforeClinicUnknown) return tourGroupBeforeClinicUnknown;
+    const tourConsumerBeforeClinicUnknown = this.tryRescueTourConsumer(
+      prompt,
+      action,
+    );
+    if (tourConsumerBeforeClinicUnknown) return tourConsumerBeforeClinicUnknown;
+
+    // e2e-bug.94 — soonest/next-available before clinic/marketing steal.
+    const findSoonestBeforeClinicUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueFindSoonestAppointment(prompt, action)
+        : null;
+    if (findSoonestBeforeClinicUnknown) return findSoonestBeforeClinicUnknown;
+
     const consumerClinicTestResultsUnknown =
       this.tryRescueConsumerClinicTestResults(prompt, action);
     if (consumerClinicTestResultsUnknown)
@@ -1434,8 +1893,11 @@ export class AiIntentRescueService {
       this.tryRescueConsumerClinicLabBooking(prompt, action);
     if (consumerClinicLabBookingUnknown) return consumerClinicLabBookingUnknown;
 
+    // e2e-bug.77 — dashboard clinic lab never on customer/public.
     const dashboardClinicLabBookingUnknown =
-      this.tryRescueDashboardClinicLabBooking(prompt, action);
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueDashboardClinicLabBooking(prompt, action);
     if (dashboardClinicLabBookingUnknown)
       return dashboardClinicLabBookingUnknown;
 
@@ -1478,6 +1940,22 @@ export class AiIntentRescueService {
       return listCalendarWeekBeforeSelfService;
     }
 
+    // e2e-bug.78 — affirmative after cancel-all preview before other steals.
+    const cancelAllUpcomingConfirmUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueCancelAllUpcomingConfirm(prompt, action, params)
+        : null;
+    if (cancelAllUpcomingConfirmUnknown) {
+      return cancelAllUpcomingConfirmUnknown;
+    }
+    // e2e-bug.79 — before add_booking_to_calendar steals "get … or … visit".
+    const explainSubscriptionVsOneTimeUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueExplainSubscriptionVsOneTime(prompt, action)
+        : null;
+    if (explainSubscriptionVsOneTimeUnknown) {
+      return explainSubscriptionVsOneTimeUnknown;
+    }
     const addBookingToCalendarUnknown = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
@@ -1503,14 +1981,23 @@ export class AiIntentRescueService {
       this.tryRescueExplainPackageVisitRules(prompt, action);
     if (explainPackageVisitRulesUnknown) return explainPackageVisitRulesUnknown;
 
-    const explainCancelPolicyUnknown = this.tryRescueExplainCancelPolicy(
-      prompt,
-      action,
-    );
+    const explainCancelPolicyUnknown =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueExplainCancelPolicy(prompt, action);
     if (explainCancelPolicyUnknown) return explainCancelPolicyUnknown;
 
+    // e2e-bug.88 — pay_online before list/confirm steals "pay … for my booking".
+    const payOnlineUnknown =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescuePayOnline(prompt, action);
+    if (payOnlineUnknown) return payOnlineUnknown;
+
     const listMyUpcomingAppointmentsUnknown =
-      this.tryRescueListMyUpcomingAppointments(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueListMyUpcomingAppointments(prompt, action);
     if (listMyUpcomingAppointmentsUnknown)
       return listMyUpcomingAppointmentsUnknown;
 
@@ -1588,7 +2075,7 @@ export class AiIntentRescueService {
     if (anyProviderOptionUnknown) {
       return {
         action: anyProviderOptionUnknown.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOptionUnknown.action}`,
         rescued: true,
         rescueReason: anyProviderOptionUnknown.rescueReason,
@@ -1596,14 +2083,41 @@ export class AiIntentRescueService {
     }
 
     const confirmMyBookingDetailsUnknown =
-      this.tryRescueConfirmMyBookingDetails(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueConfirmMyBookingDetails(prompt, action);
     if (confirmMyBookingDetailsUnknown) return confirmMyBookingDetailsUnknown;
+
+    // e2e-bug.76 — locale before explain_why_sign_in ("what" + "account").
+    const myLocaleUnknown =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueMyLocale(prompt, action);
+    if (myLocaleUnknown) return myLocaleUnknown;
 
     const explainWhySignInUnknown = this.tryRescueExplainWhySignIn(
       prompt,
       action,
     );
     if (explainWhySignInUnknown) return explainWhySignInUnknown;
+
+    // e2e-bug.93 — named provider reads before guest-checkout / check_providers steal.
+    const providerNameReadsUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueNamedProviderReadIntents(prompt, action)
+        : null;
+    if (providerNameReadsUnknown) return providerNameReadsUnknown;
+
+    // e2e-bug.92 — reviews / any-provider / timed book before check_providers collapse.
+    const checkProvidersCollapseUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueCheckProvidersCollapseIntents(
+            prompt,
+            action,
+            input.surface,
+          )
+        : null;
+    if (checkProvidersCollapseUnknown) return checkProvidersCollapseUnknown;
 
     const explainGuestCheckoutFieldsUnknown =
       this.tryRescueExplainGuestCheckoutFields(prompt, action);
@@ -1663,10 +2177,10 @@ export class AiIntentRescueService {
     );
     if (staffOperationsBeforeCustomer) return staffOperationsBeforeCustomer;
 
-    const waitlistDashboardBeforeCustomer = this.tryRescueWaitlistDashboard(
-      prompt,
-      action,
-    );
+    const waitlistDashboardBeforeCustomer =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueWaitlistDashboard(prompt, action);
     if (waitlistDashboardBeforeCustomer) return waitlistDashboardBeforeCustomer;
 
     const explainProviderAvailabilityBeforeCustomerContext =
@@ -1724,13 +2238,19 @@ export class AiIntentRescueService {
     if (anyProviderOptionBeforeCustomerContext) {
       return {
         action: anyProviderOptionBeforeCustomerContext.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOptionBeforeCustomerContext.action}`,
         rescued: true,
         rescueReason: anyProviderOptionBeforeCustomerContext.rescueReason,
       };
     }
 
+    const dashboardCustomerReadUnknown = this.tryRescueDashboardCustomerRead(
+      prompt,
+      action,
+      params,
+    );
+    if (dashboardCustomerReadUnknown) return dashboardCustomerReadUnknown;
     if (isCustomerBookingContextPrompt(prompt)) {
       const ctx = extractCustomerBookingContextFromPrompt(prompt);
       return {
@@ -1838,7 +2358,105 @@ export class AiIntentRescueService {
       return providerTeamWhosNextBeforeAppointments;
     }
 
-    if (isUpcomingAppointmentsPrompt(prompt)) {
+    if (input.surface === 'provider') {
+      const markVisitCompleteUnknownEarly = this.tryRescueMarkVisitComplete(
+        prompt,
+        action,
+        params,
+      );
+      if (markVisitCompleteUnknownEarly) return markVisitCompleteUnknownEarly;
+      const markVisitInProgressUnknownEarly =
+        this.tryRescueMarkVisitInProgress(prompt, action, params);
+      if (markVisitInProgressUnknownEarly) {
+        return markVisitInProgressUnknownEarly;
+      }
+      const markMultiServiceStepDoneUnknownEarly =
+        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
+      if (markMultiServiceStepDoneUnknownEarly) {
+        return markMultiServiceStepDoneUnknownEarly;
+      }
+      const searchPatientUnknownEarly = this.tryRescueSearchPatient(
+        prompt,
+        action,
+        params,
+      );
+      if (searchPatientUnknownEarly) return searchPatientUnknownEarly;
+      const handoffToDashboardPhiUnknownEarly =
+        this.tryRescueHandoffToDashboardPhi(prompt, action, params);
+      if (handoffToDashboardPhiUnknownEarly) {
+        return handoffToDashboardPhiUnknownEarly;
+      }
+      const confirmPendingBookingUnknownEarly =
+        this.tryRescueConfirmPendingBooking(prompt, action, params);
+      if (confirmPendingBookingUnknownEarly) {
+        return confirmPendingBookingUnknownEarly;
+      }
+      const visitStatusExplainersUnknownEarly =
+        this.tryRescueVisitStatusExplainers(prompt, action, params);
+      if (visitStatusExplainersUnknownEarly) {
+        return visitStatusExplainersUnknownEarly;
+      }
+      const calendarSchedulingExplainersUnknownEarly =
+        this.tryRescueCalendarSchedulingExplainers(prompt, action, params);
+      if (calendarSchedulingExplainersUnknownEarly) {
+        return calendarSchedulingExplainersUnknownEarly;
+      }
+      const assistantUxExplainersUnknownEarly =
+        this.tryRescueAssistantUxExplainers(prompt, action, params);
+      if (assistantUxExplainersUnknownEarly) {
+        return assistantUxExplainersUnknownEarly;
+      }
+      const dashboardHandoffUnknownEarly = this.tryRescueDashboardHandoff(
+        prompt,
+        action,
+        params,
+      );
+      if (dashboardHandoffUnknownEarly) return dashboardHandoffUnknownEarly;
+      const providerBlockScheduleUnknownEarly =
+        this.tryRescueProviderBlockSchedule(
+          prompt,
+          action,
+          params,
+          input.surface,
+        );
+      if (providerBlockScheduleUnknownEarly) {
+        return providerBlockScheduleUnknownEarly;
+      }
+      const giveProviderAiFeedbackUnknownEarly =
+        this.tryRescueGiveProviderAiFeedback(prompt, action);
+      if (giveProviderAiFeedbackUnknownEarly) {
+        return giveProviderAiFeedbackUnknownEarly;
+      }
+      const endOfDaySummaryUnknownEarly = this.tryRescueEndOfDaySummary(
+        prompt,
+        action,
+      );
+      if (endOfDaySummaryUnknownEarly) return endOfDaySummaryUnknownEarly;
+      const explainTodayTimelineUnknownEarly =
+        this.tryRescueExplainTodayTimeline(prompt, action);
+      if (explainTodayTimelineUnknownEarly) {
+        return explainTodayTimelineUnknownEarly;
+      }
+      const whoIsNextUnknownEarly = this.tryRescueWhoIsNext(
+        prompt,
+        action,
+        params,
+      );
+      if (whoIsNextUnknownEarly) return whoIsNextUnknownEarly;
+      const showAppointmentsUnknownEarly = this.tryRescueShowAppointments(
+        prompt,
+        action,
+        params,
+      );
+      if (showAppointmentsUnknownEarly) return showAppointmentsUnknownEarly;
+    }
+
+    // e2e-bug.77 — dashboard/provider show_appointments must not steal customer/public.
+    if (
+      input.surface !== 'customer' &&
+      input.surface !== 'public' &&
+      isUpcomingAppointmentsPrompt(prompt)
+    ) {
       const scope = extractUpcomingAppointmentScope(prompt);
       return {
         action: 'show_appointments',
@@ -1929,9 +2547,13 @@ export class AiIntentRescueService {
 
     const schedulingUnknown = this.tryRescueScheduling(prompt, action, params);
     if (schedulingUnknown) return schedulingUnknown;
+    // e2e-bug.146 — location mutates before business-hours/location reads.
+    const locationsBeforeHoursUnknown = this.tryRescueLocations(prompt, action);
+    if (locationsBeforeHoursUnknown) return locationsBeforeHoursUnknown;
     const businessCurrencyUnknown = this.tryRescueBusinessCurrency(
       prompt,
       action,
+      input.surface,
     );
     if (businessCurrencyUnknown) return businessCurrencyUnknown;
     const recommendationProductUnknownEarly =
@@ -1939,20 +2561,27 @@ export class AiIntentRescueService {
     if (recommendationProductUnknownEarly) {
       return recommendationProductUnknownEarly;
     }
-    const billingLoyaltyUnknown = this.tryRescueBillingLoyaltyDashboard(
+    // e2e-bug.129 — dashboard SaaS billing only (see classified-phase twin).
+    const billingLoyaltyUnknown =
+      input.surface === 'dashboard'
+        ? this.tryRescueBillingLoyaltyDashboard(prompt, action)
+        : null;
+    if (billingLoyaltyUnknown) return billingLoyaltyUnknown;
+    // e2e-bug.144 — catalog soft-delete before staff/ops steals.
+    const catalogDeactivateUnknown = this.tryRescueCatalogDeactivateService(
       prompt,
       action,
     );
-    if (billingLoyaltyUnknown) return billingLoyaltyUnknown;
+    if (catalogDeactivateUnknown) return catalogDeactivateUnknown;
     const staffOperationsUnknown = this.tryRescueStaffOperations(
       prompt,
       action,
     );
     if (staffOperationsUnknown) return staffOperationsUnknown;
-    const waitlistDashboardUnknown = this.tryRescueWaitlistDashboard(
-      prompt,
-      action,
-    );
+    const waitlistDashboardUnknown =
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueWaitlistDashboard(prompt, action);
     if (waitlistDashboardUnknown) return waitlistDashboardUnknown;
     const operationsUnknown = this.tryRescueOperations(prompt, action, params);
     if (operationsUnknown) return operationsUnknown;
@@ -1970,7 +2599,11 @@ export class AiIntentRescueService {
     if (providerPushSetupUnknownEarly) return providerPushSetupUnknownEarly;
     const providerExp2UnknownEarly = this.tryRescueProviderExp2(prompt, action);
     if (providerExp2UnknownEarly) return providerExp2UnknownEarly;
-    const providerExp3UnknownEarly = this.tryRescueProviderExp3(prompt, action);
+    // e2e-bug.131 — provider Exp3 only on provider surface (classified + unknown).
+    const providerExp3UnknownEarly =
+      input.surface === 'provider'
+        ? this.tryRescueProviderExp3(prompt, action)
+        : null;
     if (providerExp3UnknownEarly) return providerExp3UnknownEarly;
     const providerOpenShiftsUnknownEarly = this.tryRescueProviderOpenShifts(
       prompt,
@@ -1989,14 +2622,31 @@ export class AiIntentRescueService {
     );
     if (providerTimeOffUnknownEarly) return providerTimeOffUnknownEarly;
     const providerClientContextUnknownEarly =
-      this.tryRescueProviderClientContext(prompt, action);
+      input.surface === 'provider'
+        ? this.tryRescueProviderClientContext(prompt, action)
+        : null;
     if (providerClientContextUnknownEarly)
       return providerClientContextUnknownEarly;
-    const providerEarningsUnknownEarly = this.tryRescueProviderEarnings(
-      prompt,
-      action,
-    );
+    const providerEarningsUnknownEarly =
+      input.surface === 'provider'
+        ? this.tryRescueProviderEarnings(prompt, action)
+        : null;
     if (providerEarningsUnknownEarly) return providerEarningsUnknownEarly;
+    const agentOpsUnknownEarly = this.tryRescueAgentOps(prompt, action);
+    if (agentOpsUnknownEarly) return agentOpsUnknownEarly;
+    // e2e-bug.129 — twin of classified-phase early membership explain.
+    const explainMySubscriptionUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueExplainMySubscription(prompt, action)
+        : null;
+    if (explainMySubscriptionUnknown) return explainMySubscriptionUnknown;
+    const metaOpsUnknownEarly = this.tryRescueMetaOps(prompt, action);
+    if (metaOpsUnknownEarly) return metaOpsUnknownEarly;
+    const manageBookingWithTokenUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? this.tryRescueManageBookingWithToken(prompt, action, params)
+        : null;
+    if (manageBookingWithTokenUnknown) return manageBookingWithTokenUnknown;
     const cancelPackageVisitSelfUnknown = this.tryRescueCancelPackageVisitSelf(
       prompt,
       action,
@@ -2022,15 +2672,28 @@ export class AiIntentRescueService {
       action,
     );
     if (marketingGrowthUnknown) return marketingGrowthUnknown;
-    const retailFinanceUnknown = this.tryRescueRetailFinance(prompt, action);
+    // e2e-bug.77 — dashboard/provider retail-finance never on customer/public.
+    const retailFinanceUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueRetailFinance(prompt, action, params);
     if (retailFinanceUnknown) return retailFinanceUnknown;
+    const locationsUnknown = this.tryRescueLocations(prompt, action);
+    if (locationsUnknown) return locationsUnknown;
     const integrationsUnknown = this.tryRescueIntegrations(prompt, action);
     if (integrationsUnknown) return integrationsUnknown;
-    const giftFulfillmentUnknown = this.tryRescueGiftFulfillment(
+    // e2e-bug.77 — dashboard gift-fulfillment never on customer/public.
+    const giftFulfillmentUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueGiftFulfillment(prompt, action);
+    if (giftFulfillmentUnknown) return giftFulfillmentUnknown;
+    // e2e-bug.83 — also correct a misclassified apply_gift_card_code.
+    const claimReferralCodeUnknown = this.tryRescueClaimReferralCode(
       prompt,
       action,
     );
-    if (giftFulfillmentUnknown) return giftFulfillmentUnknown;
+    if (claimReferralCodeUnknown) return claimReferralCodeUnknown;
     const paymentsUnknown = this.tryRescuePayments(prompt, action);
     if (paymentsUnknown) return paymentsUnknown;
     const scheduleResourcesUnknown = this.tryRescueScheduleResources(
@@ -2038,14 +2701,13 @@ export class AiIntentRescueService {
       action,
     );
     if (scheduleResourcesUnknown) return scheduleResourcesUnknown;
-    const customerCrmUnknown = this.tryRescueCustomerCrm(prompt, action);
+    const customerCrmUnknown = this.tryRescueCustomerCrm(prompt, action, params);
     if (customerCrmUnknown) return customerCrmUnknown;
-    const bookingDepthUnknown = this.tryRescueBookingDepth(
-      prompt,
-      action,
-      employees,
-      customers,
-    );
+    // e2e-bug.103 / e2e-bug.77 — dashboard booking-depth must not steal customer/public.
+    const bookingDepthUnknown =
+      input.surface === 'customer' || input.surface === 'public'
+        ? null
+        : this.tryRescueBookingDepth(prompt, action, employees, customers);
     if (bookingDepthUnknown) return bookingDepthUnknown;
 
     if (isCapacityRebalancePrompt(prompt)) {
@@ -2055,6 +2717,25 @@ export class AiIntentRescueService {
         reasoning: 'Move booked capacity between providers.',
         rescued: true,
         rescueReason: 'rebalance_capacity_pattern',
+      };
+    }
+
+    // e2e-bug.136 — unblock / remove block before clear_schedule ("remove" steals).
+    if (isDeleteScheduleBlockPrompt(prompt)) {
+      const rescuedParams = { ...params };
+      applyScheduleOpsPromptHints(
+        'delete_schedule_block',
+        rescuedParams,
+        prompt,
+        { employees },
+      );
+      return {
+        action: 'delete_schedule_block',
+        params: rescuedParams,
+        reasoning:
+          reasoning ?? 'Delete/unblock a schedule block (not applied periods)',
+        rescued: true,
+        rescueReason: 'delete_schedule_block_heuristic',
       };
     }
 
@@ -2099,7 +2780,13 @@ export class AiIntentRescueService {
     if (
       /\b(payment sweep|unpaid|collect payment|outstanding payment)/i.test(
         prompt,
-      )
+      ) ||
+      (/[԰-֏]/.test(prompt) &&
+        /(հավաքիր|ավլիր)/i.test(prompt) &&
+        /չվճարված/i.test(prompt)) ||
+      (/[Ѐ-ӿ]/.test(prompt) &&
+        /(собери|сбор|зачист)/i.test(prompt) &&
+        /неоплачен/i.test(prompt))
     ) {
       return {
         action: 'payment_sweep',
@@ -2137,7 +2824,10 @@ export class AiIntentRescueService {
       };
     }
 
-    if (/\b(show|list|display|view).+(appointment|booking)/i.test(prompt)) {
+    if (
+      /\b(show|list|display|view).+(appointment|booking)/i.test(prompt) ||
+      isShowAppointmentsPrompt(prompt)
+    ) {
       const explainTourRecordListing = this.tryRescueExplainTourBookingRecord(
         prompt,
         action,
@@ -2149,6 +2839,13 @@ export class AiIntentRescueService {
         action,
       );
       if (explainToursListing) return explainToursListing;
+
+      const showAppointmentsUnknown = this.tryRescueShowAppointments(
+        prompt,
+        action,
+        params,
+      );
+      if (showAppointmentsUnknown) return showAppointmentsUnknown;
 
       const statuses = extractStatusFiltersFromPrompt(prompt);
       return {
@@ -2185,8 +2882,34 @@ export class AiIntentRescueService {
 
     if (
       /\b(book|schedule|reserve|appointment)\b/i.test(prompt) &&
-      !/\b(cancel|hide|clear)\b/i.test(prompt)
+      !/\b(cancel|hide|clear)\b/i.test(prompt) &&
+      !(
+        /\b(mark|set|start|begin)\b.{0,30}\b(in[\s-]?progress|confirmed|pending|complete|completed|done)\b/i.test(
+          prompt,
+        ) ||
+        /\b(start|begin)\b.{0,20}\b(service|appointment|visit)\b/i.test(
+          prompt,
+        ) ||
+        /\b(confirm|accept|approve)\b.{0,40}\b(pending|booking|appointment)\b/i.test(
+          prompt,
+        )
+      )
     ) {
+      // e2e-bug.92 — public/customer must not land on dashboard create_booking.
+      if (input.surface === 'public' || input.surface === 'customer') {
+        return {
+          action: 'book_appointment',
+          params: {
+            ...params,
+            ...buildSharedBookingContextFromPrompt(prompt),
+          },
+          reasoning: 'Customer/public timed book rescue → book_appointment',
+          rescued: true,
+          rescueReason: isConcreteTimedBookAppointmentPrompt(prompt)
+            ? 'public_timed_book'
+            : 'book_appointment_pattern',
+        };
+      }
       const rescuedParams = { ...params };
       applyBookingRescheduleActionHints(
         'create_booking',
@@ -2237,9 +2960,10 @@ export class AiIntentRescueService {
     }
 
     if (
-      /\b(mark|set|update)\b.+\b(done|completed|no[\s-]?show|paid|payment|n\/a|not applicable)\b/i.test(
+      /\b(mark|set|update)\b.+\b(done|completed|no[\s-]?show|paid|payment|n\/a|not applicable|in[\s-]?progress|confirmed|pending)\b/i.test(
         prompt,
-      )
+      ) ||
+      /\b(start|begin)\b.+\b(service|appointment|visit)\b/i.test(prompt)
     ) {
       const rescuedParams = { ...params };
       if (isBulkAllAppointmentsPrompt(prompt)) {
@@ -2430,7 +3154,7 @@ export class AiIntentRescueService {
       action: rescued.action,
       params: rescued.params,
       rescued: true,
-      rescueReason: 'operations_booking_ops',
+      rescueReason: rescued.rescueReason ?? 'operations_booking_ops',
     };
   }
 
@@ -2664,6 +3388,292 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueSummarizeDay(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueSummarizeDayIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider summarize-day rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueSummarizeUtilization(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueSummarizeUtilizationIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider summarize-utilization rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueShowAppointments(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueShowAppointmentsIntent(prompt, action, params);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: rescued.params,
+      reasoning: 'Provider show-appointments rescue → show_appointments',
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueWhoIsNext(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueWhoIsNextIntent(prompt, action, params);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: rescued.params,
+      reasoning: 'Provider who-is-next rescue → show_appointments (next slot)',
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueExplainTodayTimeline(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainTodayTimelineIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider explain-today-timeline rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueEndOfDaySummary(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueEndOfDaySummaryIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider end-of-day-summary rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueMarkVisitComplete(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueMarkVisitCompleteIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: { ...params, ...rescued.params },
+      reasoning: `Provider mark-visit-complete rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueMarkVisitInProgress(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueMarkVisitInProgressIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: { ...params, ...rescued.params },
+      reasoning: `Provider mark-visit-in-progress rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueMarkMultiServiceStepDone(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueMarkMultiServiceStepDoneIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: { ...params, ...rescued.params },
+      reasoning: `Provider mark-multi-service-step-done rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueSearchPatient(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueSearchPatientIntent(prompt, action);
+    if (!rescued) return null;
+    const query = extractPatientSearchQueryFromPrompt(prompt);
+    return {
+      action: rescued.action,
+      params: { ...params, ...(query ? { query } : {}) },
+      reasoning: `Provider search-patient rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueHandoffToDashboardPhi(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueHandoffToDashboardPhiIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider handoff-to-dashboard-phi rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueConfirmPendingBooking(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueConfirmPendingBookingIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider confirm-pending-booking rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueVisitStatusExplainers(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueVisitStatusExplainersIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider visit-status-explainers rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueCalendarSchedulingExplainers(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueCalendarSchedulingExplainersIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider calendar-scheduling-explainers rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueAssistantUxExplainers(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueAssistantUxExplainersIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider assistant-ux-explainers rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueDashboardHandoff(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueDashboardHandoffIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider dashboard-handoff rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueProviderBlockSchedule(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+    surface?: IntentRescueInput['surface'],
+  ): IntentRescueResult | null {
+    if (surface !== 'provider') return null;
+    const rescued = rescueProviderBlockScheduleIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider block_schedule rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueGiveProviderAiFeedback(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueGiveProviderAiFeedbackIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Provider give-ai-feedback rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueProviderExp2(
     prompt: string,
     action: string,
@@ -2678,7 +3688,11 @@ export class AiIntentRescueService {
     }
     if (
       rescued.action === 'check_in_client' ||
-      rescued.action === 'mark_running_late'
+      rescued.action === 'mark_running_late' ||
+      rescued.action === 'mark_ready_now' ||
+      rescued.action === 'suggest_cancel_note' ||
+      rescued.action === 'request_client_review' ||
+      rescued.action === 'open_dashboard_deep_link'
     ) {
       const customerName = extractBookingActionCustomerName(prompt, params);
       if (customerName) params.customerName = customerName;
@@ -2687,10 +3701,29 @@ export class AiIntentRescueService {
       const minutesLate = extractRunningLateMinutesFromPrompt(prompt, params);
       if (minutesLate != null) params.minutesLate = minutesLate;
     }
+    if (rescued.action === 'reassign_booking_same_day') {
+      const employeeName = extractReassignEmployeeName(prompt, params);
+      if (employeeName) params.employeeName = employeeName;
+    }
     return {
       action: rescued.action,
       params,
       reasoning: `Provider exp-2 rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueClaimReferralCode(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueClaimReferralCodeIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: enrichClaimReferralCodeParamsFromPrompt(prompt),
+      reasoning: `Claim referral code rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -2702,9 +3735,15 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const rescued = rescueConsumerAdoptionIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    const params: Record<string, unknown> =
+      rescued.action === 'explain_push_permission'
+        ? { ...(parseExplainPushPermissionFromPrompt(prompt) ?? {}) }
+        : rescued.action === 'claim_referral_code'
+          ? enrichClaimReferralCodeParamsFromPrompt(prompt)
+          : {};
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Consumer adoption rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -2893,6 +3932,13 @@ export class AiIntentRescueService {
     action: string,
     surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
+    // e2e-bug.171: this whole chain rescues into customer-checkout-only intents
+    // (cancel/rebook, multi-service cart, availability discovery, etc.) — never
+    // let it fire for dashboard/provider-surface prompts, however tempting a
+    // keyword match looks, or a staff scheduling command can get silently
+    // hijacked into an unrelated customer booking flow.
+    if (surface !== 'customer' && surface !== 'public') return null;
+
     const cancelPackageRebookSingle =
       rescueCancelPackageRebookSingleCompoundIntent(prompt, action);
     if (cancelPackageRebookSingle) {
@@ -2977,15 +4023,93 @@ export class AiIntentRescueService {
         rescueReason: guestBookAndManage.rescueReason,
       };
     }
+    const guestManageVisit = rescueGuestManageVisitCompoundIntent(
+      prompt,
+      action,
+    );
+    if (guestManageVisit) {
+      return {
+        action: guestManageVisit.action,
+        params: {},
+        reasoning:
+          'Guest manage visit compound — look up manage link by guest contact, then cancel/reschedule with token.',
+        rescued: true,
+        rescueReason: guestManageVisit.rescueReason,
+      };
+    }
+    if (surface === 'public') {
+      const publicAssistantCompound = rescuePublicAssistantCompoundIntent(
+        prompt,
+        action,
+      );
+      if (publicAssistantCompound) {
+        return {
+          action: publicAssistantCompound.action,
+          params: {},
+          reasoning:
+            'Public assistant compound — browse/list then availability, specialists, or business info.',
+          rescued: true,
+          rescueReason: publicAssistantCompound.rescueReason,
+        };
+      }
+    }
     const rescued = rescueSelfServiceBookingIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    const manageCredParams = this.isManageBookingWithTokenRescueReason(
+      rescued.rescueReason,
+    )
+      ? extractManageLinkCredentialsFromPrompt(prompt)
+      : {};
     return {
       action: rescued.action,
-      params: {},
+      params: manageCredParams,
       reasoning: `Customer booking rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
+  }
+
+  /** e2e-bug.134 — guest manage-link cancel/reschedule/explain before CRM/policy steals. */
+  private tryRescueManageBookingWithToken(
+    prompt: string,
+    action: string,
+    session?: Record<string, unknown> | null,
+  ): IntentRescueResult | null {
+    const rescued = rescueManageBookingWithTokenIntent(
+      prompt,
+      action,
+      session,
+    );
+    if (!rescued || rescued.action === action) return null;
+    const fromPrompt = extractManageLinkCredentialsFromPrompt(prompt);
+    const bookingId =
+      fromPrompt.bookingId ??
+      (typeof session?.bookingId === 'string' ? session.bookingId : undefined);
+    const manageToken =
+      fromPrompt.manageToken ??
+      (typeof session?.manageToken === 'string'
+        ? session.manageToken
+        : undefined);
+    return {
+      action: rescued.action,
+      params: {
+        ...(bookingId ? { bookingId } : {}),
+        ...(manageToken ? { manageToken } : {}),
+      },
+      reasoning: `Manage-link token rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private isManageBookingWithTokenRescueReason(reason: string): boolean {
+    return (
+      reason === 'cancel_booking_with_token' ||
+      reason === 'reschedule_booking_with_token' ||
+      reason === 'cancel_package_visit_with_token' ||
+      reason === 'reschedule_package_visit_with_token' ||
+      reason === 'explain_manage_booking_context'
+    );
   }
 
   private tryRescuePushNotifications(
@@ -3009,9 +4133,22 @@ export class AiIntentRescueService {
 
     const rescued = rescuePushNotificationsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if ((rescued.action as string) === 'configure_notification_settings') {
+      params = enrichNotificationSettingsParamsFromPrompt({}, prompt);
+    } else if ((rescued.action as string) === 'configure_whatsapp_integration') {
+      params = enrichWhatsappIntegrationParamsFromPrompt({}, prompt);
+    } else if (
+      (rescued.action as string) === 'toggle_business_email_on_customer_change'
+    ) {
+      // e2e-bug.159 — "Notify me whenever…" must enable, not read-only status.
+      const enabled =
+        extractBusinessEmailOnCustomerChangeToggleFromPrompt(prompt);
+      if (enabled !== null) params = { enabled };
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Push/notifications rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3039,9 +4176,19 @@ export class AiIntentRescueService {
 
     const rescued = rescueMarketingGrowthIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if (rescued.action === 'create_promo_code') {
+      params = parseCreatePromoCodeFromPrompt(prompt) ?? {};
+    } else if (rescued.action === 'configure_loyalty_settings') {
+      params = parseConfigureLoyaltySettingsFromPrompt(prompt) ?? {};
+    } else if (rescued.action === 'configure_stripe_connect') {
+      params = enrichConfigureStripeConnectParamsFromPrompt({}, prompt);
+    } else if ((rescued.action as string) === 'apply_loyalty_at_checkout') {
+      params = enrichApplyLoyaltyAtCheckoutParamsFromPrompt({}, prompt);
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Marketing/growth rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3280,6 +4427,24 @@ export class AiIntentRescueService {
       rescued.rescueReason === 'apply_gift_card_code'
         ? 'apply_gift_card_checkout'
         : rescued.rescueReason;
+    // e2e-bug.130 / e2e-bug.80 — purchase/quote misroutes need gift-card amount
+    // hints, not budget maxPrice.
+    if (
+      rescued.action === 'buy_gift_card' ||
+      rescued.action === 'buy_gift_card_physical' ||
+      rescued.action === 'buy_gift_card_for_someone' ||
+      rescued.action === 'get_gift_card_quote'
+    ) {
+      const buyParams: Record<string, any> = {};
+      applyGiftCardPaymentsPromptHints(rescued.action, buyParams, prompt);
+      return {
+        action: rescued.action,
+        params: buyParams,
+        reasoning: `Budget service discovery rescue → ${rescued.action}`,
+        rescued: true,
+        rescueReason,
+      };
+    }
     return {
       action: rescued.action,
       params: enrichBudgetFromPrompt({}, prompt),
@@ -3294,6 +4459,18 @@ export class AiIntentRescueService {
     action: string,
     surface: 'dashboard' | 'customer' | 'public' = 'dashboard',
   ): IntentRescueResult | null {
+    // e2e-bug.92 — public/customer rank discovery must escape check_providers_for_service.
+    if (surface === 'customer' || surface === 'public') {
+      const rescued = rescueServiceRankDiscoveryIntent(prompt, action, surface);
+      if (!rescued || rescued.action === action) return null;
+      return {
+        action: rescued.action,
+        params: rescued.params,
+        reasoning: `Rank service discovery rescue → ${rescued.action}`,
+        rescued: true,
+        rescueReason: rescued.rescueReason,
+      };
+    }
     if (surface !== 'dashboard') return null;
     const compound = rescueRankDiscoverAndBookCompoundIntent(prompt, action);
     if (!compound) return null;
@@ -3546,15 +4723,229 @@ export class AiIntentRescueService {
   private tryRescueRetailFinance(
     prompt: string,
     action: string,
+    params: Record<string, unknown> = {},
   ): IntentRescueResult | null {
+    // e2e-bug.148 — enrich create_product price/name even when already classified.
+    if (action === 'create_product') {
+      const enriched = enrichCreateProductParamsFromPrompt({ ...params }, prompt);
+      if (enriched.price != null || enriched.productName) {
+        return {
+          action: 'create_product',
+          params: enriched,
+          reasoning:
+            'Enrich create_product name/price from natural retail phrasing.',
+          rescued: true,
+          rescueReason: 'create_product_params',
+        };
+      }
+    }
+
+    // e2e-bug.141 — enrich delete_expense description/id even when already classified.
+    if (action === 'delete_expense') {
+      const enriched = enrichDeleteExpenseParamsFromPrompt(
+        { ...params },
+        prompt,
+      );
+      if (enriched.description || enriched.expenseId || enriched.category) {
+        return {
+          action: 'delete_expense',
+          params: enriched,
+          reasoning:
+            'Enrich delete_expense match fields from natural expense phrasing.',
+          rescued: true,
+          rescueReason: 'delete_expense_params',
+        };
+      }
+    }
+
+    // e2e-bug.140 — sanitize garbage category (e.g. "today") on record_expense.
+    if (action === 'record_expense') {
+      const enriched = enrichRecordExpenseParamsFromPrompt(
+        { ...params },
+        prompt,
+      );
+      if (enriched.category || enriched.amount != null || enriched.description) {
+        return {
+          action: 'record_expense',
+          params: enriched,
+          reasoning:
+            'Enrich/sanitize record_expense category, amount, description.',
+          rescued: true,
+          rescueReason: 'record_expense_params',
+        };
+      }
+    }
+
     const rescued = rescueRetailFinanceIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    let nextParams: Record<string, unknown> = { ...params };
+    if (rescued.action === 'create_commission_rule') {
+      nextParams = {
+        ...nextParams,
+        ...(parseCreateCommissionRuleFromPrompt(prompt) ?? {}),
+      };
+    } else if (rescued.action === 'export_analytics_report') {
+      nextParams = {
+        ...nextParams,
+        ...(parseExportAnalyticsReportFromPrompt(prompt) ?? {}),
+      };
+    } else if (rescued.action === 'create_product') {
+      nextParams = enrichCreateProductParamsFromPrompt(nextParams, prompt);
+    } else if (rescued.action === 'delete_expense') {
+      nextParams = enrichDeleteExpenseParamsFromPrompt(nextParams, prompt);
+    } else if (rescued.action === 'record_expense') {
+      nextParams = enrichRecordExpenseParamsFromPrompt(nextParams, prompt);
+    }
+    return {
+      action: rescued.action,
+      params: nextParams,
+      reasoning: `Retail/finance rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueDashboardCustomerRead(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    if (
+      action === 'list_customers' ||
+      action === 'lookup_customer' ||
+      action === 'summarize_customers'
+    ) {
+      return null;
+    }
+    if (isCustomerRetentionPrompt(prompt)) {
+      return {
+        action: 'summarize_customers',
+        params: { ...params, customerMetric: 'at_risk' },
+        reasoning:
+          'Customer retention / at-risk segment → summarize_customers.',
+        rescued: true,
+        rescueReason: 'customer_retention',
+      };
+    }
+    if (isListCustomersPrompt(prompt)) {
+      return {
+        action: 'list_customers',
+        params: { ...params },
+        reasoning: 'Customer list/browse → list_customers.',
+        rescued: true,
+        rescueReason: 'list_customers',
+      };
+    }
+    if (isLookupCustomerPrompt(prompt)) {
+      const customerName = extractLookupCustomerNameFromPrompt(prompt);
+      return {
+        action: 'lookup_customer',
+        params: {
+          ...params,
+          ...(customerName ? { customerName } : {}),
+        },
+        reasoning: 'Customer profile lookup → lookup_customer.',
+        rescued: true,
+        rescueReason: 'lookup_customer',
+      };
+    }
+    return null;
+  }
+
+  /** e2e-bug.139 — override list_agent_tasks for support tickets / unread messages. */
+  private tryRescueExplainSupportInbox(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainSupportInboxIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     return {
       action: rescued.action,
       params: {},
-      reasoning: `Retail/finance rescue → ${rescued.action}`,
+      reasoning: `Support inbox boundary → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueAgentOps(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueAgentOpsIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    const params: Record<string, unknown> = {};
+    if (rescued.action === 'list_agent_tasks' && /\bpending\b/i.test(prompt)) {
+      params.scope = 'pending';
+    }
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Agent ops rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueMetaOps(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueMetaOpsIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `Meta ops rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueLocations(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueLocationsIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if (rescued.action === 'create_location') {
+      params = { ...(parseCreateLocationFromPrompt(prompt) ?? {}) };
+    } else if (rescued.action === 'update_location') {
+      params = { ...(parseUpdateLocationFromPrompt(prompt) ?? {}) };
+    }
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Locations rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  /** e2e-bug.146 — shared business-tax rescue (configure / set_service / explain). */
+  private tryRescueBusinessTaxEarly(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const businessTax = rescueBusinessTaxIntent(prompt, action);
+    if (!businessTax || businessTax.action === action) return null;
+    const params: Record<string, unknown> = {};
+    if (businessTax.action === 'configure_business_tax') {
+      const parsed = parseBusinessTaxFromPrompt(prompt);
+      if (!parsed) return null;
+      Object.assign(params, parsed);
+    } else if (businessTax.action === 'set_service_tax_rate') {
+      const parsed = parseSetServiceTaxRateFromPrompt(prompt);
+      if (!parsed) return null;
+      Object.assign(params, parsed);
+    }
+    return {
+      action: businessTax.action,
+      params,
+      reasoning: `Business tax rescue → ${businessTax.action}`,
+      rescued: true,
+      rescueReason: businessTax.rescueReason,
     };
   }
 
@@ -3564,9 +4955,15 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const rescued = rescueIntegrationsIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
+    let params: Record<string, unknown> = {};
+    if ((rescued.action as string) === 'explain_integration_health') {
+      params = { ...(parseExplainIntegrationHealthFromPrompt(prompt) ?? {}) };
+    } else if ((rescued.action as string) === 'configure_openai_integration') {
+      params = enrichOpenaiIntegrationParamsFromPrompt({}, prompt);
+    }
     return {
       action: rescued.action,
-      params: {},
+      params,
       reasoning: `Integrations rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3612,11 +5009,38 @@ export class AiIntentRescueService {
     if (!rescued) return null;
     return {
       action: rescued.action,
-      params: { ...params, bookingMetric: rescued.bookingMetric },
+      params: {
+        ...params,
+        bookingMetric: rescued.bookingMetric,
+        ...(rescued.allTime ? { allTime: true } : {}),
+      },
       reasoning:
         rescued.bookingMetric === 'revenue'
           ? 'Calculate total earnings/revenue for the requested period.'
-          : 'Summarize booking metrics for the requested period.',
+          : rescued.allTime
+            ? 'Count all bookings (unscoped total) — not a single empty day.'
+            : 'Summarize booking metrics for the requested period.',
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  /** e2e-bug.153 — plain "how many customers" → overview, not ranked no-shows. */
+  private tryRescueUnscopedCustomerCount(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueUnscopedCustomerCountIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {
+        ...params,
+        customerMetric: rescued.customerMetric,
+      },
+      reasoning:
+        'Count active customers (roster total) — not a ranked no-show/segment list.',
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -3784,7 +5208,7 @@ export class AiIntentRescueService {
     if (anyProviderOption) {
       return {
         action: anyProviderOption.action,
-        params: {},
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
         reasoning: `Any provider option explain rescue → ${anyProviderOption.action}`,
         rescued: true,
         rescueReason: anyProviderOption.rescueReason,
@@ -3928,8 +5352,14 @@ export class AiIntentRescueService {
   private tryRescueBusinessDateFormat(
     prompt: string,
     action: string,
+    surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
-    if (isConfigureProviderPushDateFormatPrompt(prompt)) {
+    // e2e-bug.77 — provider-only nests must not steal customer/public prompts
+    // (list_upcoming_bookings, show_provider_profile, open_booking_detail, …).
+    const blockProviderNests =
+      surface === 'customer' || surface === 'public';
+
+    if (!blockProviderNests && isConfigureProviderPushDateFormatPrompt(prompt)) {
       const providerDateFormatEarly = rescueProviderDateFormatIntent(
         prompt,
         action,
@@ -3979,21 +5409,73 @@ export class AiIntentRescueService {
       };
     }
 
-    const providerPushSetup = this.tryRescueProviderPushSetup(prompt, action);
-    if (providerPushSetup) return providerPushSetup;
+    if (!blockProviderNests) {
+      const providerPushSetup = this.tryRescueProviderPushSetup(prompt, action);
+      if (providerPushSetup) return providerPushSetup;
 
-    const providerSessionTimeout = rescueProviderSessionTimeoutIntent(
-      prompt,
-      action,
-    );
-    if (providerSessionTimeout) {
-      return {
-        action: providerSessionTimeout.action,
-        params: {},
-        reasoning: `Provider session timeout rescue → ${providerSessionTimeout.action}`,
-        rescued: true,
-        rescueReason: providerSessionTimeout.rescueReason,
-      };
+      const providerSessionTimeout = rescueProviderSessionTimeoutIntent(
+        prompt,
+        action,
+      );
+      if (providerSessionTimeout) {
+        return {
+          action: providerSessionTimeout.action,
+          params: {},
+          reasoning: `Provider session timeout rescue → ${providerSessionTimeout.action}`,
+          rescued: true,
+          rescueReason: providerSessionTimeout.rescueReason,
+        };
+      }
+
+      const providerContext = rescueExplainProviderContextIntent(prompt, action);
+      if (providerContext) {
+        return {
+          action: providerContext.action,
+          params: {},
+          reasoning: `Provider context rescue → ${providerContext.action}`,
+          rescued: true,
+          rescueReason: providerContext.rescueReason,
+        };
+      }
+
+      const providerScheduleReads = rescueProviderScheduleReadsIntent(
+        prompt,
+        action,
+      );
+      if (providerScheduleReads) {
+        return {
+          action: providerScheduleReads.action,
+          params: {},
+          reasoning: `Provider schedule reads rescue → ${providerScheduleReads.action}`,
+          rescued: true,
+          rescueReason: providerScheduleReads.rescueReason,
+        };
+      }
+
+      const openBookingDetail = rescueOpenBookingDetailIntent(prompt, action);
+      if (openBookingDetail) {
+        return {
+          action: openBookingDetail.action,
+          params: {},
+          reasoning: `Open booking detail rescue → ${openBookingDetail.action}`,
+          rescued: true,
+          rescueReason: openBookingDetail.rescueReason,
+        };
+      }
+
+      const showProviderProfile = rescueShowProviderProfileIntent(
+        prompt,
+        action,
+      );
+      if (showProviderProfile) {
+        return {
+          action: showProviderProfile.action,
+          params: {},
+          reasoning: `Show provider profile rescue → ${showProviderProfile.action}`,
+          rescued: true,
+          rescueReason: showProviderProfile.rescueReason,
+        };
+      }
     }
 
     const rescued = rescueBusinessDateFormatIntent(prompt, action);
@@ -4025,6 +5507,8 @@ export class AiIntentRescueService {
       };
     }
 
+    if (blockProviderNests) return null;
+
     const providerDateFormat = rescueProviderDateFormatIntent(prompt, action);
     if (!providerDateFormat) return null;
 
@@ -4050,6 +5534,7 @@ export class AiIntentRescueService {
   private tryRescueBusinessCurrency(
     prompt: string,
     action: string,
+    surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
     const businessCompliance = rescueBusinessComplianceIntent(prompt, action);
     if (businessCompliance) {
@@ -4272,28 +5757,14 @@ export class AiIntentRescueService {
       };
     }
 
-    const businessTax = rescueBusinessTaxIntent(prompt, action);
-    if (businessTax) {
-      const params: Record<string, unknown> = {};
-      if (businessTax.action === 'configure_business_tax') {
-        const parsed = parseBusinessTaxFromPrompt(prompt);
-        if (!parsed) return null;
-        Object.assign(params, parsed);
-      } else if (businessTax.action === 'set_service_tax_rate') {
-        const parsed = parseSetServiceTaxRateFromPrompt(prompt);
-        if (!parsed) return null;
-        Object.assign(params, parsed);
-      }
-      return {
-        action: businessTax.action,
-        params,
-        reasoning: `Business tax rescue → ${businessTax.action}`,
-        rescued: true,
-        rescueReason: businessTax.rescueReason,
-      };
-    }
+    const businessTax = this.tryRescueBusinessTaxEarly(prompt, action);
+    if (businessTax) return businessTax;
 
-    const businessDateFormat = this.tryRescueBusinessDateFormat(prompt, action);
+    const businessDateFormat = this.tryRescueBusinessDateFormat(
+      prompt,
+      action,
+      surface,
+    );
     if (businessDateFormat) return businessDateFormat;
 
     const businessLanguages = this.tryRescueBusinessLanguages(prompt, action);
@@ -4447,6 +5918,22 @@ export class AiIntentRescueService {
     };
   }
 
+  /** e2e-bug.94 — customer/public soonest availability before clinic/marketing. */
+  private tryRescueFindSoonestAppointment(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    if (action === 'find_soonest_appointment') return null;
+    if (!isFindSoonestAppointmentPrompt(prompt)) return null;
+    return {
+      action: 'find_soonest_appointment',
+      params: enrichFindSoonestParamsFromPrompt({}, prompt),
+      reasoning: 'Find soonest appointment rescue → find_soonest_appointment',
+      rescued: true,
+      rescueReason: 'soonest_appointment',
+    };
+  }
+
   private tryRescuePayments(
     prompt: string,
     action: string,
@@ -4556,6 +6043,12 @@ export class AiIntentRescueService {
         enrichServiceDepositPolicyParamsFromPrompt(rescuedParams, prompt),
       );
     }
+    if ((rescued.action as string) === 'configure_checkout_defaults') {
+      Object.assign(
+        rescuedParams,
+        parseConfigureCheckoutDefaultsFromPrompt(prompt, rescuedParams) ?? {},
+      );
+    }
     if (rescued.action === 'explain_service_price') {
       Object.assign(
         rescuedParams,
@@ -4586,6 +6079,22 @@ export class AiIntentRescueService {
         enrichFilterServicesNoPrepaymentParamsFromPrompt(rescuedParams, prompt),
       );
     }
+    if ((rescued.action as string) === 'explain_service_online_payment_setup') {
+      Object.assign(
+        rescuedParams,
+        parseExplainServiceOnlinePaymentSetupFromPrompt(prompt, rescuedParams) ??
+          {},
+      );
+    }
+    if ((rescued.action as string) === 'audit_services_missing_online_payment') {
+      Object.assign(
+        rescuedParams,
+        parseAuditServicesMissingOnlinePaymentFromPrompt(
+          prompt,
+          rescuedParams,
+        ) ?? {},
+      );
+    }
     if ((rescued.action as string) === 'get_directions_to_salon') {
       Object.assign(
         rescuedParams,
@@ -4613,6 +6122,10 @@ export class AiIntentRescueService {
         enrichListServicesPaymentFilterParamsFromPrompt(rescuedParams, prompt),
       );
     }
+    if (rescued.action === 'collect_cash_confirm') {
+      const amount = extractAmountFromPrompt(prompt);
+      if (amount != null) rescuedParams.amount = amount;
+    }
     if (rescued.action === 'create_service') {
       Object.assign(
         rescuedParams,
@@ -4639,11 +6152,39 @@ export class AiIntentRescueService {
     action: string,
   ): IntentRescueResult | null {
     const rescued = rescueScheduleResourceIntent(prompt, action);
+    if (!rescued) return null;
+    const params = rescued.params ?? {};
+    // e2e-bug.147 — allow param enrichment when action already matches.
+    if (rescued.action === action) {
+      if (!Object.keys(params).length) return null;
+      return {
+        action: rescued.action,
+        params,
+        reasoning: `Schedule/resource param enrich → ${rescued.action}`,
+        rescued: true,
+        rescueReason: rescued.rescueReason,
+      };
+    }
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Schedule/resource rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  /** e2e-bug.129 — membership visits/expiry explain before billing/meta steals. */
+  private tryRescueExplainMySubscription(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainMySubscriptionIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     return {
       action: rescued.action,
       params: {},
-      reasoning: `Schedule/resource rescue → ${rescued.action}`,
+      reasoning: `Explain my subscription rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -4652,7 +6193,29 @@ export class AiIntentRescueService {
   private tryRescueCustomerCrm(
     prompt: string,
     action: string,
+    params: Record<string, unknown> = {},
   ): IntentRescueResult | null {
+    const privacyDeleteConfirm = rescuePrivacyDeleteConfirmIntent(
+      prompt,
+      action,
+      params,
+    );
+    if (privacyDeleteConfirm) {
+      if (
+        privacyDeleteConfirm.action === action &&
+        params.confirm === true
+      ) {
+        return null;
+      }
+      return {
+        action: privacyDeleteConfirm.action,
+        params: privacyDeleteConfirm.params,
+        reasoning: `Privacy delete confirm rescue → ${privacyDeleteConfirm.action}`,
+        rescued: true,
+        rescueReason: privacyDeleteConfirm.rescueReason,
+      };
+    }
+
     const rescued = rescueCustomerCrmIntent(prompt, action);
     if (!rescued || rescued.action === action) return null;
     return {
@@ -5283,6 +6846,25 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescuePayOnline(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescuePayOnlineCheckoutIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: enrichPayOnlineParamsFromPrompt(
+        {},
+        prompt,
+        extractServiceNameFromPrompt,
+      ),
+      reasoning: `Pay online rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueListMyUpcomingAppointments(
     prompt: string,
     action: string,
@@ -5339,6 +6921,49 @@ export class AiIntentRescueService {
       action: rescued.action,
       params,
       reasoning: `Book another service rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueCancelAllUpcomingConfirm(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown> = {},
+  ): IntentRescueResult | null {
+    const history = Array.isArray(params.conversationHistory)
+      ? (params.conversationHistory as Array<{
+          role: string;
+          content: string;
+        }>)
+      : undefined;
+    const rescued = rescueCancelAllUpcomingConfirmIntent(
+      prompt,
+      action,
+      params,
+      history,
+    );
+    if (!rescued) return null;
+    if (rescued.action === action && params.confirm === true) return null;
+    return {
+      action: rescued.action,
+      params: rescued.params,
+      reasoning: `Cancel all upcoming confirm rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueExplainSubscriptionVsOneTime(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueExplainSubscriptionVsOneTimeIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: enrichExplainSubscriptionVsOneTimeParamsFromPrompt({}, prompt),
+      reasoning: `Explain subscription vs one-time rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -5422,6 +7047,117 @@ export class AiIntentRescueService {
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
+  }
+
+  /** e2e-bug.76 — account language setting before explain_why_sign_in / my_profile. */
+  private tryRescueMyLocale(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueMyLocaleIntent(prompt, action);
+    if (!rescued || rescued.action === action) return null;
+    return {
+      action: rescued.action,
+      params: {},
+      reasoning: `My locale rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  /** e2e-bug.93 — named provider availability / profile / specialty before guest checkout. */
+  private tryRescueNamedProviderReadIntents(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const availability = rescueExplainProviderAvailabilityIntent(
+      prompt,
+      action,
+    );
+    if (availability) {
+      return {
+        action: availability.action,
+        params: enrichExplainProviderAvailabilityParamsFromPrompt({}, prompt),
+        reasoning: `Explain provider availability rescue → ${availability.action}`,
+        rescued: true,
+        rescueReason: availability.rescueReason,
+      };
+    }
+
+    const professionalProfile = rescueExplainProfessionalProfileIntent(
+      prompt,
+      action,
+    );
+    if (professionalProfile) {
+      return {
+        action: professionalProfile.action,
+        params: enrichExplainProfessionalProfileParamsFromPrompt({}, prompt),
+        reasoning: `Professional profile rescue → ${professionalProfile.action}`,
+        rescued: true,
+        rescueReason: professionalProfile.rescueReason,
+      };
+    }
+
+    const providerSpecialty = rescueExplainProviderSpecialtyIntent(
+      prompt,
+      action,
+    );
+    if (providerSpecialty) {
+      return {
+        action: providerSpecialty.action,
+        params: enrichExplainProviderSpecialtyParamsFromPrompt({}, prompt),
+        reasoning: `Provider specialty rescue → ${providerSpecialty.action}`,
+        rescued: true,
+        rescueReason: providerSpecialty.rescueReason,
+      };
+    }
+
+    return null;
+  }
+
+  /** e2e-bug.92 — escape check_providers_for_service into reviews / any-provider / timed book. */
+  private tryRescueCheckProvidersCollapseIntents(
+    prompt: string,
+    action: string,
+    surface: 'customer' | 'public',
+  ): IntentRescueResult | null {
+    const reviews = rescueListProviderReviewsIntent(prompt, action);
+    if (reviews) {
+      return {
+        action: reviews.action,
+        params: enrichListProviderReviewsParamsFromPrompt({}, prompt),
+        reasoning: `Provider reviews rescue → ${reviews.action}`,
+        rescued: true,
+        rescueReason: reviews.rescueReason,
+      };
+    }
+
+    const anyProvider = rescueExplainAnyProviderOptionIntent(prompt, action);
+    if (anyProvider) {
+      return {
+        action: anyProvider.action,
+        params: parseExplainAnyProviderOptionFromPrompt(prompt) ?? {},
+        reasoning: `Any provider option explain rescue → ${anyProvider.action}`,
+        rescued: true,
+        rescueReason: anyProvider.rescueReason,
+      };
+    }
+
+    if (
+      isConcreteTimedBookAppointmentPrompt(prompt) &&
+      action !== 'book_appointment' &&
+      action !== 'book_nearest_slot'
+    ) {
+      return {
+        action: 'book_appointment',
+        params: buildSharedBookingContextFromPrompt(prompt),
+        reasoning: `Timed book rescue (${surface}) → book_appointment`,
+        rescued: true,
+        rescueReason: 'public_timed_book',
+      };
+    }
+
+    return null;
   }
 
   private tryRescueExplainGuestCheckoutFields(
@@ -5653,6 +7389,30 @@ export class AiIntentRescueService {
     };
   }
 
+  /** e2e-bug.144 — soft-delete catalog service before staff/ops misroutes. */
+  private tryRescueCatalogDeactivateService(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    if (action === 'deactivate_service') return null;
+    if (!isDeactivateServicePrompt(prompt)) return null;
+    const params = enrichDeactivateServiceCategoryScopeParamsFromPrompt(
+      {},
+      prompt,
+    );
+    const calledName = extractDeactivateServiceNameFromPrompt(prompt);
+    if (calledName && !params.serviceName) {
+      params.serviceName = calledName;
+    }
+    return {
+      action: 'deactivate_service',
+      params,
+      reasoning: 'Catalog soft-delete rescue → deactivate_service',
+      rescued: true,
+      rescueReason: 'deactivate_service',
+    };
+  }
+
   private tryRescueCatalog(
     prompt: string,
     action: string,
@@ -5736,6 +7496,12 @@ export class AiIntentRescueService {
         enrichDeactivateServiceCategoryScopeParamsFromPrompt(params, prompt),
       );
     }
+    if (rescued.action === 'update_service_duration_buffer') {
+      Object.assign(
+        params,
+        enrichServiceDurationBufferParamsFromPrompt(params, prompt),
+      );
+    }
     return {
       action: rescued.action,
       params,
@@ -5752,6 +7518,7 @@ export class AiIntentRescueService {
     employees: Array<{ id: string; name: string }>,
     customers: Array<{ id: string; name: string }> = [],
     timeZone = 'UTC',
+    surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;
@@ -5785,10 +7552,12 @@ export class AiIntentRescueService {
       };
     }
 
-    const packageMultiFix = disambiguateStaffPackageMultiBooking(
-      prompt,
-      action,
-    );
+    // e2e-bug.77 — staff package/multi booking is dashboard-only; never steal
+    // customer/public "package visit rules" into create_package_booking.
+    const packageMultiFix =
+      surface === 'customer' || surface === 'public'
+        ? null
+        : disambiguateStaffPackageMultiBooking(prompt, action);
     if (packageMultiFix) {
       const rescuedParams = { ...params };
       applyPackageMultiServicePromptHints(
@@ -5829,7 +7598,8 @@ export class AiIntentRescueService {
       };
     }
 
-    for (const surface of ['dashboard', 'customer'] as const) {
+    // e2e-bug.92 — include public so timed book / availability can escape check_providers.
+    for (const surface of ['dashboard', 'customer', 'public'] as const) {
       const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
         surface,
         prompt,
@@ -6048,6 +7818,7 @@ export class AiIntentRescueService {
   private tryRescueClinicPatientChart(
     prompt: string,
     action: string,
+    surface?: string,
   ): IntentRescueResult | null {
     const rescued = rescueClinicPatientChartIntent(prompt, action);
     if (!rescued) return null;
@@ -6057,12 +7828,22 @@ export class AiIntentRescueService {
     if (parsed?.customerName) params.customerName = parsed.customerName;
     if (parsed?.customerId) params.customerId = parsed.customerId;
 
+    /** ai-cmd-provider-5.11.4 — provider surface calls this "open_patient_chart", dashboard calls it "explain_patient_chart". */
+    const resolvedAction =
+      surface === 'provider' && rescued.action === 'explain_patient_chart'
+        ? 'open_patient_chart'
+        : rescued.action;
+    const resolvedReason =
+      surface === 'provider' && rescued.action === 'explain_patient_chart'
+        ? 'open_patient_chart'
+        : rescued.rescueReason;
+
     return {
-      action: rescued.action,
+      action: resolvedAction,
       params,
-      reasoning: `Clinic patient chart rescue → ${rescued.action}`,
+      reasoning: `Clinic patient chart rescue → ${resolvedAction}`,
       rescued: true,
-      rescueReason: rescued.rescueReason,
+      rescueReason: resolvedReason,
     };
   }
 
@@ -6196,6 +7977,35 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueProviderClinicTasksAndResults(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const rescued = rescueProviderClinicTasksAndResultsIntent(prompt, action);
+    if (!rescued) return null;
+
+    const params: Record<string, unknown> = {};
+    if (
+      rescued.action === 'claim_clinic_task' ||
+      rescued.action === 'complete_clinic_task'
+    ) {
+      const taskId = extractClinicTaskIdFromPrompt(prompt);
+      if (taskId) params.taskId = taskId;
+    }
+    if (rescued.action === 'list_booking_lab_summaries') {
+      const bookingId = extractBookingIdForLabSummariesFromPrompt(prompt);
+      if (bookingId) params.bookingId = bookingId;
+    }
+
+    return {
+      action: rescued.action,
+      params,
+      reasoning: `Provider clinic tasks/results rescue → ${rescued.action}`,
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
   private tryRescueClinicCompound(
     prompt: string,
     action: string,
@@ -6280,7 +8090,7 @@ export class AiIntentRescueService {
         action: intakeLabBookPayCompound.action,
         params: {},
         reasoning:
-          'Intake lab book pay compound — pre-visit questionnaire, lab slot booking, then online payment.',
+          'Intake lab book pay compound — pre-visit questionnaire, lab slot booking, then checkout payment.',
         rescued: true,
         rescueReason: intakeLabBookPayCompound.rescueReason,
       };

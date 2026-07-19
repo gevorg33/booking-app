@@ -45,6 +45,22 @@ export interface PublicBusinessTaxSettings {
   rules?: Array<{ name: string; rate: number }>;
 }
 
+export interface PublicOpeningHours {
+  days: Array<{
+    day:
+      | 'monday'
+      | 'tuesday'
+      | 'wednesday'
+      | 'thursday'
+      | 'friday'
+      | 'saturday'
+      | 'sunday';
+    closed: boolean;
+    ranges: Array<{ open: string; close: string }>;
+  }>;
+  summaryLines: string[];
+}
+
 export interface PublicBusinessProfile {
   id: string;
   name: string;
@@ -72,6 +88,8 @@ export interface PublicBusinessProfile {
   giftCardsPurchaseEnabled?: boolean;
   tax?: PublicBusinessTaxSettings;
   businessType?: string;
+  /** e2e-bug.50 — weekly open hours from schedule templates */
+  openingHours?: PublicOpeningHours;
   multiService?: {
     enabled: boolean;
     maxServiceCount: number;
@@ -261,7 +279,12 @@ export interface ReferralClaimResponse {
   referralCode?: string;
   referrerCustomerId?: string;
   refereePromoCode?: string | null;
-  reason?: 'invalid_code' | 'self_referral' | 'already_attached' | 'disabled';
+  reason?:
+    | 'invalid_code'
+    | 'self_referral'
+    | 'already_attached'
+    | 'disabled'
+    | 'not_eligible_existing_customer';
 }
 
 export interface PublicShareRewardsView {
@@ -303,6 +326,9 @@ export interface PublicCustomerBookingItem {
   packagePurchaseId?: string | null;
   packageId?: string | null;
   packageName?: string | null;
+  /** Ad-hoc multi-service visit group (e2e-bug.34). */
+  multiServiceGroupId?: string | null;
+  multiServiceSchedulingMode?: 'same_visit' | 'per_service' | null;
 }
 
 export interface PublicPackageVisitAppointment {
@@ -324,6 +350,18 @@ export interface PublicPackageVisitSummary {
   packagePurchaseId: string;
   packageId: string | null;
   packageName: string;
+  appointments: PublicPackageVisitAppointment[];
+  canCancelAll: boolean;
+  canRescheduleAll: boolean;
+  policyMessage: string | null;
+  allowProviderChangeOnReschedule: boolean;
+}
+
+/** Grouped ad-hoc multi-service visit on Account (e2e-bug.34). */
+export interface PublicMultiServiceVisitSummary {
+  multiServiceGroupId: string;
+  schedulingMode: 'same_visit' | 'per_service' | null;
+  label: string;
   appointments: PublicPackageVisitAppointment[];
   canCancelAll: boolean;
   canRescheduleAll: boolean;

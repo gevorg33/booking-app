@@ -1,5 +1,6 @@
 import {
   CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
+  DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
   EXPLAIN_BUSINESS_HOURS_AND_LOCATION_PROMPTS,
   detectExplainBusinessHoursAndLocationAction,
   enrichExplainBusinessHoursLocationParamsFromPrompt,
@@ -9,6 +10,8 @@ import {
 import { EXPLAIN_BUSINESS_HOURS_AND_LOCATION_MULTILINGUAL_SCENARIOS } from './ai-explain-business-hours-and-location-multilingual.fixtures.js';
 import { AI_COMMAND_EVAL_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
+import { DASHBOARD_INTENT_SCHEMA } from './ai-command-intent-schema.build.js';
+import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
 
 describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', () => {
   it('exports classifier rules for explain_business_hours_and_location', () => {
@@ -18,6 +21,27 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
     expect(
       CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
     ).toContain('When are you open Saturday?');
+    expect(
+      DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
+    ).toContain('What are my business hours?');
+    expect(DASHBOARD_INTENT_SCHEMA).toContain(
+      'What are my business hours?',
+    );
+  });
+
+  it('registers explain_business_hours_and_location on dashboard (e2e-bug.137)', () => {
+    expect(
+      isIntentAllowedOnSurface(
+        'explain_business_hours_and_location',
+        'dashboard',
+      ),
+    ).toBe(true);
+    expect(
+      rescueExplainBusinessHoursAndLocationIntent(
+        'What are my business hours?',
+        'unknown',
+      )?.action,
+    ).toBe('explain_business_hours_and_location');
   });
 
   it.each(
@@ -83,6 +107,19 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
     ).toBe(false);
     expect(
       isExplainBusinessHoursAndLocationPrompt('Directions to the salon'),
+    ).toBe(false);
+  });
+
+  it('e2e-bug.146 — does not steal admin location create/update', () => {
+    expect(
+      isExplainBusinessHoursAndLocationPrompt(
+        'Add a new business location called QA Test Branch at 123 Test St',
+      ),
+    ).toBe(false);
+    expect(
+      isExplainBusinessHoursAndLocationPrompt(
+        "Update my main location's address to 456 New St",
+      ),
     ).toBe(false);
   });
 

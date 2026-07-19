@@ -1,6 +1,8 @@
 import {
   applyUnavailableBlocksToPeriods,
   extractUnavailableBlocksFromPrompt,
+  extractDateRangeFromPrompt,
+  extractSingleIsoDayFromPrompt,
   inferDirectSchedulePeriods,
   resolveDirectScheduleDateKeys,
   resolveDirectSchedulePeriodServiceIds,
@@ -13,6 +15,7 @@ import {
   extractNextDaysRangeFromPrompt,
   enrichListServicesParamsFromPrompt,
   extractServiceTypeKeywordFromListPrompt,
+  sanitizeListServicesFilterValue,
   matchServicesByQuery,
   findServiceByExactName,
   fuzzyMatchServiceByName,
@@ -27,6 +30,39 @@ import {
 } from './ai-orchestration.helpers.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+
+describe('extractSingleIsoDayFromPrompt (e2e-bug.67)', () => {
+  it.each([
+    {
+      id: 'fill-gap-iso-ui-prompt',
+      prompt:
+        'Fill this gap on 2026-07-15 from 09:00 to 19:00 — suggest waitlist customers who could book it.',
+      expected: '2026-07-15',
+    },
+    {
+      id: 'slash-date',
+      prompt: 'Fill this gap on 09/06/2026 from 14:00 to 15:30',
+      expected: '2026-06-09',
+    },
+    {
+      id: 'bare-iso',
+      prompt: 'Suggest waitlist for 2026-08-01',
+      expected: '2026-08-01',
+    },
+  ])('extracts $id', ({ prompt, expected }) => {
+    expect(extractSingleIsoDayFromPrompt(prompt)).toBe(expected);
+  });
+
+  it('does not collapse an ISO date range to a single day', () => {
+    expect(
+      extractSingleIsoDayFromPrompt('from 2026-07-01 to 2026-07-05'),
+    ).toBeNull();
+    expect(extractDateRangeFromPrompt('from 2026-07-01 to 2026-07-05')).toEqual({
+      start: '2026-07-01',
+      end: '2026-07-05',
+    });
+  });
+});
 
 describe('inferDirectSchedulePeriods', () => {
   it('builds service blocks around lunch from prompt when periods are omitted', () => {
@@ -335,6 +371,33 @@ describe('extractServiceTypeKeywordFromListPrompt', () => {
   ])('extracts %s → %s', (prompt, keyword) => {
     expect(extractServiceTypeKeywordFromListPrompt(prompt)).toBe(keyword);
   });
+
+  it('e2e-bug.143 — unfiltered catalog ask extracts no keyword', () => {
+    expect(
+      extractServiceTypeKeywordFromListPrompt('What services do I offer?'),
+    ).toBeNull();
+    expect(
+      extractServiceTypeKeywordFromListPrompt('What services do we offer?'),
+    ).toBeNull();
+  });
+});
+
+describe('sanitizeListServicesFilterValue', () => {
+  it.each([
+    ['i', null],
+    ['I', null],
+    ['we', null],
+    ['you', null],
+    ['me', null],
+    ['a', null],
+    ['x', null],
+    ['', null],
+    ['  ', null],
+    ['massage', 'massage'],
+    ['hair', 'hair'],
+  ])('sanitizes %j → %j', (input, expected) => {
+    expect(sanitizeListServicesFilterValue(input)).toBe(expected);
+  });
 });
 
 describe('enrichListServicesParamsFromPrompt', () => {
@@ -350,6 +413,20 @@ describe('enrichListServicesParamsFromPrompt', () => {
         serviceCategory: 'hair',
       }),
     ).toEqual({ serviceCategory: 'hair' });
+  });
+
+  it('e2e-bug.143 — drops pronoun serviceCategory from What services do I offer?', () => {
+    expect(
+      enrichListServicesParamsFromPrompt('What services do I offer?', {
+        serviceCategory: 'i',
+      }),
+    ).toEqual({ serviceCategory: null });
+    expect(
+      enrichListServicesParamsFromPrompt('What services do we offer?', {
+        serviceCategory: 'we',
+        serviceName: 'I',
+      }),
+    ).toEqual({ serviceCategory: null, serviceName: null });
   });
 });
 

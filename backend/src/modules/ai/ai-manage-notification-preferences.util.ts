@@ -8,6 +8,14 @@ import { isCustomerEnablePushNotificationsPrompt } from './ai-customer-enable-pu
 import { isPushNotificationsDomainPrompt } from './ai-push-notifications.util.js';
 import { isOpenBillingSettingsPrompt } from './ai-billing-loyalty-dashboard.util.js';
 import { isOpenComplianceDashboardPrompt } from './ai-business-compliance.util.js';
+import {
+  isCreatePackagePrompt,
+  isUpdatePackagePrompt,
+  isCreateSubscriptionPlanPrompt,
+  isUpdateSubscriptionPlanPrompt,
+} from './ai-catalog.util.js';
+import { isConfigureLoyaltySettingsPrompt } from './ai-configure-loyalty-settings.util.js';
+import { isConfigureOpenaiIntegrationPrompt } from './ai-openai-integration.util.js';
 
 export const MANAGE_NOTIFICATION_PREFERENCES_INTENTS = [
   'manage_notification_preferences',
@@ -81,6 +89,16 @@ export function isManageNotificationPreferencesPrompt(prompt: string): boolean {
   if (!text) return false;
   if (isOpenBillingSettingsPrompt(text)) return false;
   if (isOpenComplianceDashboardPrompt(text)) return false;
+  if (isConfigureLoyaltySettingsPrompt(text)) return false;
+  if (isConfigureOpenaiIntegrationPrompt(text)) return false;
+  if (
+    isCreatePackagePrompt(text) ||
+    isUpdatePackagePrompt(text) ||
+    isCreateSubscriptionPlanPrompt(text) ||
+    isUpdateSubscriptionPlanPrompt(text)
+  ) {
+    return false;
+  }
   if (CONSUMER_OS_PUSH_PERMISSION_CUE.test(text)) return false;
   if (CONSUMER_OS_OPEN_PUSH_SETTINGS_CUE.test(text)) return false;
   if (isPushNotificationsDomainPrompt(text)) return false;

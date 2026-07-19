@@ -454,7 +454,8 @@ export const AI_CMD_ENTITY_ACTION_RULES: Record<string, EntityRule> = {
         ),
       );
     }
-    if (cmd.params.price == null) {
+    // e2e-bug.148 — accept either price or retailPrice (both set by enrich).
+    if (cmd.params.price == null && cmd.params.retailPrice == null) {
       issues.push(issue('price', 'Price', 'Specify product price', '$18'));
     }
     return issues;

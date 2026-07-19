@@ -37,6 +37,7 @@ import { PublicMyDocumentsSection } from '@/components/public-booking/public-my-
 import { PublicPatientAlertsBanner } from '@/components/public-booking/public-patient-alerts-banner';
 import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
 import { PublicCustomerPackageVisitActions } from '@/components/public-booking/public-customer-package-visit-actions';
+import { PublicCustomerMultiServiceVisitActions } from '@/components/public-booking/public-customer-multi-service-visit-actions';
 import { groupBookingsForAccount } from '@/lib/group-package-bookings';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { isPublicGoogleSignInCancelled, isPublicGoogleSignInRedirecting } from '@/lib/public-google-auth';
@@ -107,6 +108,61 @@ function PackageVisitRow({
         primary={primary}
         anchorBookingId={visit.anchorBookingId}
         packageVisit={visit}
+        onUpdated={onUpdated}
+      />
+    </article>
+  );
+}
+
+function MultiServiceVisitRow({
+  visit,
+  slug,
+  tenant,
+  primary,
+  t,
+  locale,
+  onUpdated,
+}: {
+  visit: ReturnType<typeof groupBookingsForAccount>['multiServiceGroups'][number];
+  slug: string;
+  tenant: PublicBusinessProfile;
+  primary: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  locale: string;
+  onUpdated: () => void;
+}) {
+  const start = new Date(visit.appointments[0]?.startTime ?? '1970-01-01T00:00:00.000Z');
+  const end = new Date(
+    visit.appointments[visit.appointments.length - 1]?.endTime ??
+      visit.appointments[0]?.startTime ??
+      '1970-01-01T00:00:00.000Z',
+  );
+  const allCancelled = visit.appointments.every((a) => a.status === 'cancelled');
+
+  return (
+    <article className="bg-white rounded-2xl border border-gray-100 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-gray-900">{visit.label}</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {t('public.multiServiceVisitAppointmentCount', { count: visit.appointments.length })}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {formatBookingDateTimeRange(start, end, locale)}
+          </p>
+        </div>
+        {allCancelled && (
+          <span className="text-xs font-medium text-gray-500 shrink-0">
+            {t('public.bookingStatusCancelled')}
+          </span>
+        )}
+      </div>
+      <PublicCustomerMultiServiceVisitActions
+        slug={slug}
+        tenant={tenant}
+        primary={primary}
+        anchorBookingId={visit.anchorBookingId}
+        visit={visit}
         onUpdated={onUpdated}
       />
     </article>
@@ -568,12 +624,25 @@ export function AccountClient({ tenant }: { tenant: PublicBusinessProfile }) {
             ) : (
               <div className="space-y-3">
                 {(() => {
-                  const { standalone, packageGroups } = groupBookingsForAccount(bookings);
+                  const { standalone, packageGroups, multiServiceGroups } =
+                    groupBookingsForAccount(bookings);
                   return (
                     <>
                       {packageGroups.map((visit) => (
                         <PackageVisitRow
                           key={visit.packagePurchaseId}
+                          visit={visit}
+                          slug={tenant.slug}
+                          tenant={tenant}
+                          primary={primary}
+                          t={t}
+                          locale={locale}
+                          onUpdated={() => void reloadBookings()}
+                        />
+                      ))}
+                      {multiServiceGroups.map((visit) => (
+                        <MultiServiceVisitRow
+                          key={visit.multiServiceGroupId}
                           visit={visit}
                           slug={tenant.slug}
                           tenant={tenant}

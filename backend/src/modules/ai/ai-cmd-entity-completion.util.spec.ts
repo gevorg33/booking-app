@@ -230,6 +230,17 @@ describe('ai-cmd-entity-completion.util (ai-cmd-t4)', () => {
       expect(fields).toEqual(expect.arrayContaining(['productName', 'price']));
     });
 
+    it('e2e-bug.148 — create_product accepts retailPrice in place of price', () => {
+      expect(
+        validateAiCmdEntityFields(
+          cmd('create_product', {
+            productName: 'QA Test Product',
+            retailPrice: 5,
+          }),
+        ),
+      ).toHaveLength(0);
+    });
+
     it('configure_zendesk requires subdomain', () => {
       expect(
         validateAiCmdEntityFields(cmd('configure_zendesk'))[0]?.field,

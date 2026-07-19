@@ -208,7 +208,8 @@ function hasCatalogBrowseCue(prompt: string): boolean {
     /\b(?:what\s+(?:can|could)\s+i\s+book|what\s+services?\b|what\s+services?\s+can\s+i\s+book|show\s+services?|show\b.{0,24}\boptions?|list\s+services?|which\s+services?|options)\b/i.test(
       prompt,
     ) ||
-    /\bbook\b.{0,30}\bwithout\b/i.test(prompt) ||
+    (/\bbook\b.{0,30}\bwithout\b/i.test(prompt) &&
+      !/^\s*book\b/i.test(prompt)) ||
     /(?:ինչ\s+կարող\s+եմ|ցույց\s+տուր)/iu.test(prompt) ||
     /(?:что\s+можно\s+забронировать|покажи\s+услуги)/iu.test(prompt)
   );
@@ -216,9 +217,12 @@ function hasCatalogBrowseCue(prompt: string): boolean {
 
 function isDashboardPaymentGapAuditPrompt(prompt: string): boolean {
   return (
-    /\b(?:audit|missing|still\s+don'?t|don'?t\s+accept|gap\s+audit)\b/i.test(
+    (/\b(?:audit|missing|still\s+don'?t|don'?t\s+accept|still\s+cash[\s-]?only|gap\s+audit)\b/i.test(
       prompt,
-    ) && /\bservices?\b/i.test(prompt)
+    ) ||
+      /\bno\s+online\s+prepayment\b/i.test(prompt) ||
+      /\bwithout\s+online\s+payment\s+setup\b/i.test(prompt)) &&
+    /\bservices?\b/i.test(prompt)
   );
 }
 

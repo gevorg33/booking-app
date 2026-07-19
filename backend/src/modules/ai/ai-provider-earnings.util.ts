@@ -15,6 +15,8 @@ import { PROVIDER_EARNINGS_PROMPT_SCENARIOS } from './ai-provider-earnings.fixtu
 import { PROVIDER_EARNINGS_MULTILINGUAL_SCENARIOS } from './ai-provider-earnings-multilingual.fixtures.js';
 import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
 import { isExplainProviderPaymentCurrencyPrompt } from './ai-provider-payment-currency.util.js';
+import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
+import { isExplainMultiServiceSettingsPrompt } from './ai-explain-multi-service-settings.util.js';
 import {
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
@@ -147,6 +149,8 @@ export function buildPeriodLabel(range: DateRange, prompt?: string): string {
 export function isSummarizeMyAppointmentsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  if (isExplainPublicBookingCheckoutPrompt(prompt)) return false;
+  if (isExplainMultiServiceSettingsPrompt(prompt)) return false;
   if (
     isBookNearestSlotPrompt(prompt) ||
     isCheckProvidersForServicePrompt(prompt)
@@ -231,6 +235,15 @@ export function isSummarizeMyRevenuePrompt(prompt: string): boolean {
 
   const lower = prompt.toLowerCase();
   if (/\b(mark paid|payment sweep|collect outstanding)\b/i.test(lower)) {
+    return false;
+  }
+  // e2e-bug.137 — business-owner "revenue have I made" is dashboard total, not
+  // provider personal earnings (unless cut/tips/take-home is explicit).
+  if (
+    /\bhave\s+i\s+made\b/i.test(lower) &&
+    /\b(revenue|sales|income)\b/i.test(lower) &&
+    !/\b(my\s+cut|take[- ]home|my\s+tips|my\s+share)\b/i.test(lower)
+  ) {
     return false;
   }
 

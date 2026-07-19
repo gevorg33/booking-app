@@ -8,6 +8,8 @@ import {
   type GuestCheckoutFieldsLogicDeps,
 } from './ai-explain-guest-checkout-fields.logic.js';
 import { handleExplainWhySignInLogic } from './ai-explain-why-sign-in.logic.js';
+import { handleSignInWithProviderLogic } from './ai-sign-in-with-provider.logic.js';
+import type { SignInWithProviderIntent } from './ai-sign-in-with-provider.util.js';
 import {
   handleFixCheckoutValidationErrorLogic,
   type FixCheckoutValidationErrorLogicDeps,
@@ -54,5 +56,13 @@ export class AiGuestCheckoutFieldsService {
     prompt?: string,
   ): Promise<CommandResult> {
     return handleExplainWhySignInLogic(businessId, params, prompt);
+  }
+
+  handleSignInWithProvider(
+    action: SignInWithProviderIntent,
+    businessId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<CommandResult> {
+    return handleSignInWithProviderLogic(action, businessId, params);
   }
 }

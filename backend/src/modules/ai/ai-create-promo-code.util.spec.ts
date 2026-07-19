@@ -40,6 +40,18 @@ describe('ai-create-promo-code.util', () => {
     ).toBeNull();
   });
 
+  it('e2e-bug.151 — service category "called X" is not a promo create', () => {
+    expect(
+      isCreatePromoCodePrompt('Add a new service category called Wellness'),
+    ).toBe(false);
+    expect(
+      rescueCreatePromoCodeIntent(
+        'Add a new service category called Wellness',
+        'unknown',
+      ),
+    ).toBeNull();
+  });
+
   it.each(CREATE_PROMO_CODE_PROMPTS)(
     'rescues unknown action to create_promo_code for $id',
     ({ prompt }) => {

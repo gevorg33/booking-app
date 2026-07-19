@@ -136,6 +136,7 @@ export function validateMultiServiceSelection(
   serviceIds: string[],
   services: MultiServiceLineInput[],
   settings: MultiServiceSettings,
+  options?: { skipDurationCap?: boolean },
 ): MultiServiceValidationResult {
   const errors: string[] = [];
   const uniqueIds = [...new Set(serviceIds)];
@@ -177,7 +178,10 @@ export function validateMultiServiceSelection(
       settings.turnoverBufferMinutes,
       ordered[0]?.currency ?? 'USD',
     );
-    if (totals.blockDurationMinutes > settings.maxDurationMinutes) {
+    if (
+      !options?.skipDurationCap &&
+      totals.blockDurationMinutes > settings.maxDurationMinutes
+    ) {
       errors.push(
         `Total visit duration (${totals.blockDurationMinutes} min) exceeds the ${settings.maxDurationMinutes} minute limit`,
       );

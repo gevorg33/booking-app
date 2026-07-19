@@ -7,7 +7,10 @@ import {
 import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { resolveBookingMetric } from './ai-intent-heuristics.js';
 import { isTotalEarningsPrompt } from './dashboard-revenue-analytics.util.js';
+import { isUnscopedBookingCountPrompt } from './ai-unscoped-booking-count.util.js';
 import type { CommandResult } from './command-completion.types.js';
+
+export { isUnscopedBookingCountPrompt } from './ai-unscoped-booking-count.util.js';
 
 export const SUMMARIZE_BOOKINGS_INTENTS = ['summarize_bookings'] as const;
 
@@ -23,6 +26,7 @@ export function isSummarizeBookingsIntent(
 /** Dashboard booking analytics (revenue totals + period overview). */
 export function isDashboardSummarizeBookingsPrompt(prompt: string): boolean {
   if (isTotalEarningsPrompt(prompt)) return true;
+  if (isUnscopedBookingCountPrompt(prompt)) return true;
 
   const lower = prompt.toLowerCase();
   const hasPeriod =
@@ -32,9 +36,10 @@ export function isDashboardSummarizeBookingsPrompt(prompt: string): boolean {
 
   return (
     hasPeriod &&
-    /\b(bookings?|appointments?)\s+(overview|summary|breakdown|stats)\b/i.test(
+    (/\b(bookings?|appointments?)\s+(overview|summary|breakdown|stats)\b/i.test(
       lower,
-    )
+    ) ||
+      /\b(how\s+many|count)\b/i.test(lower))
   );
 }
 
@@ -45,19 +50,32 @@ export function rescueSummarizeBookingsIntent(
   action: SummarizeBookingsIntent;
   bookingMetric: NonNullable<ReturnType<typeof resolveBookingMetric>>;
   rescueReason: string;
+  allTime?: boolean;
 } | null {
   if (isSummarizeBookingsIntent(action)) return null;
   if (!isDashboardSummarizeBookingsPrompt(prompt)) return null;
 
-  const bookingMetric = isTotalEarningsPrompt(prompt) ? 'revenue' : 'overview';
+  if (isTotalEarningsPrompt(prompt)) {
+    return {
+      action: 'summarize_bookings',
+      bookingMetric: 'revenue',
+      rescueReason: 'total_earnings',
+    };
+  }
+
+  if (isUnscopedBookingCountPrompt(prompt)) {
+    return {
+      action: 'summarize_bookings',
+      bookingMetric: 'count',
+      rescueReason: 'unscoped_booking_count',
+      allTime: true,
+    };
+  }
 
   return {
     action: 'summarize_bookings',
-    bookingMetric,
-    rescueReason:
-      bookingMetric === 'revenue'
-        ? 'total_earnings'
-        : 'summarize_bookings_metric',
+    bookingMetric: 'overview',
+    rescueReason: 'summarize_bookings_metric',
   };
 }
 
@@ -148,6 +166,8 @@ export type ComposeSummarizeBookingsArgs = {
   businessSettings: Record<string, unknown>;
   metric: string;
   range: { start: string; end: string };
+  /** e2e-bug.154 — label the period as all-time instead of a silent day default. */
+  allTime?: boolean;
   employeeId?: string;
   employeeName?: string;
   statusFilter?: string;
@@ -205,8 +225,9 @@ export function composeSummarizeBookingsResult(
   }
   const busiest = [...byProvider.entries()].sort((a, b) => b[1] - a[1]);
 
-  const rangeLabel =
-    args.range.start === args.range.end
+  const rangeLabel = args.allTime
+    ? 'all time'
+    : args.range.start === args.range.end
       ? formatDateDisplay(args.range.start)
       : `${formatDateDisplay(args.range.start)} → ${formatDateDisplay(args.range.end)}`;
   const scopeLabel = args.employeeName || 'all providers';

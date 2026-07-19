@@ -1001,8 +1001,18 @@ export function extractBookingStatusFromPrompt(
   ) {
     return BookingStatus.COMPLETED;
   }
-  if (/\bin[\s-]?progress\b/i.test(lower)) return BookingStatus.IN_PROGRESS;
+  if (
+    /\b(in[\s-]?progress|start(ed)?\s+(?:the\s+)?(?:service|appointment|visit)|begin\s+(?:the\s+)?(?:service|appointment|visit))\b/i.test(
+      lower,
+    )
+  ) {
+    return BookingStatus.IN_PROGRESS;
+  }
   if (/\bcancel(l)?ed\b/i.test(lower)) return BookingStatus.CANCELLED;
+  if (/\bconfirmed\b/i.test(lower) && !/\bpush\b/i.test(lower)) {
+    return BookingStatus.CONFIRMED;
+  }
+  if (/\bpending\b/i.test(lower)) return BookingStatus.PENDING;
   return undefined;
 }
 

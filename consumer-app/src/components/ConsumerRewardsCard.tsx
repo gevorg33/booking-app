@@ -176,7 +176,13 @@ export function ConsumerRewardsCard({
       ) : null}
 
       {onBook ? (
-        <IonButton expand="block" fill="outline" onClick={onBook}>
+        <IonButton
+          expand="block"
+          fill="outline"
+          color="primary"
+          className="consumer-brand-outline-button"
+          onClick={onBook}
+        >
           {copy.rewardsBookToRedeem}
         </IonButton>
       ) : null}

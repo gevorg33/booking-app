@@ -4,6 +4,7 @@ import {
   applyBranchScopeToCatalogLogic,
   escalateStuckTaskLogic,
   filterBookingsForBranchLogic,
+  gateCustomerAssistantActionLogic,
   gatePublicAssistantActionLogic,
   gateRoleProfileIntentLogic,
   getCommandAnalyticsLogic,
@@ -64,6 +65,26 @@ describe('ai-platform.logic', () => {
     expect(gatePublicAssistantActionLogic('payment_sweep')?.action).toBe(
       'security_blocked',
     );
+  });
+
+  // e2e-bug.127
+  it('localizes public/customer action denials without leaking action ids', () => {
+    const publicDenied = gatePublicAssistantActionLogic('payment_sweep', 'ru');
+    expect(publicDenied?.summary).toMatch(/недоступно/i);
+    expect(publicDenied?.summary).not.toMatch(/payment_sweep/);
+    expect(publicDenied?.details).toMatchObject({
+      blockedAction: 'payment_sweep',
+    });
+
+    const customerDenied = gateCustomerAssistantActionLogic(
+      'create_booking',
+      'hy',
+    );
+    expect(customerDenied?.summary).toMatch(/հասանելի չէ/);
+    expect(customerDenied?.summary).not.toMatch(/create_booking/);
+    expect(customerDenied?.details).toMatchObject({
+      blockedAction: 'create_booking',
+    });
   });
 
   it('applies A/B to suggestions', () => {

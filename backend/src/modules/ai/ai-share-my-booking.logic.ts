@@ -1,9 +1,13 @@
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
+import type { Repository } from 'typeorm';
+import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { parseShareMyBookingFromPrompt } from './ai-share-my-booking.util.js';
+import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface ShareMyBookingLogicDeps {
   publicBookingService: PublicBookingService;
+  businessRepo: Pick<Repository<Business>, 'findOne'>;
 }
 
 function failure(
@@ -31,7 +35,7 @@ function resolveSessionCustomerId(
 
 export async function handleShareMyBookingLogic(
   deps: ShareMyBookingLogicDeps,
-  _businessId: string,
+  businessId: string,
   params: Record<string, unknown>,
   prompt = '',
 ): Promise<CommandResult> {
@@ -54,7 +58,12 @@ export async function handleShareMyBookingLogic(
     });
   }
 
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  // e2e-bug.82 — resolve slug from businessId when classifier omits params.slug.
+  const slug = await resolveBusinessSlugFromParamsOrId(
+    deps.businessRepo,
+    businessId,
+    params,
+  );
   if (!slug) return failure('share_my_booking', 'Business not found.');
 
   const view = await deps.publicBookingService.getCustomerShareRewards(

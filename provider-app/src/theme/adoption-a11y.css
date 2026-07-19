@@ -23,7 +23,7 @@
 }
 
 .adoption-a11y-root ion-button,
-.adoption-a11y-root button,
+.adoption-a11y-root button:not([data-close-button]),
 .adoption-a11y-root ion-tab-button,
 .adoption-a11y-root ion-item[button='true'],
 .adoption-a11y-root ion-card[button='true'] {

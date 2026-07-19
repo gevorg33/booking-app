@@ -1,6 +1,8 @@
 import { isMultilingualBookNearestPrompt } from './ai-check-and-book-multilingual.util.js';
+import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { isFindSoonestAppointmentPrompt } from './ai-find-soonest-appointment.util.js';
 import { isExplainProviderAvailabilityPrompt } from './ai-explain-provider-availability.util.js';
+import { isExplainAnyProviderOptionPrompt } from './ai-explain-any-provider-option.util.js';
 import {
   isCheckProvidersForServicePrompt,
   isBookNearestSlotPrompt,
@@ -27,6 +29,20 @@ function hasBookVerb(prompt: string): boolean {
     BOOK_VERB.test(prompt) ||
     isBookNearestSlotPrompt(prompt) ||
     isMultilingualBookNearestPrompt(prompt)
+  );
+}
+
+/** e2e-bug.92 — "can I book a haircut tomorrow at 3pm?" (concrete time, not nearest). */
+export function isConcreteTimedBookAppointmentPrompt(prompt: string): boolean {
+  if (!BOOK_VERB.test(prompt) && !/\bcan\s+i\s+book\b/i.test(prompt)) {
+    return false;
+  }
+  if (isBookNearestSlotPrompt(prompt) || isFirstAvailableBookingPrompt(prompt)) {
+    return false;
+  }
+  if (isFindSoonestAppointmentPrompt(prompt)) return false;
+  return /\b(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(?::\d{2})?\s*(?:am|pm))\b/i.test(
+    prompt,
   );
 }
 
@@ -60,6 +76,17 @@ function publicAvailabilityAction(
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
   if (isExplainProviderAvailabilityPrompt(prompt)) return null;
+  // e2e-bug.92 — do not remap any-provider explain into check_availability.
+  if (isExplainAnyProviderOptionPrompt(prompt)) return null;
+  if (/\breviews?\b/i.test(prompt)) return null;
+  if (
+    /\b(?:best|top|highest)\s+rated\b/i.test(prompt) ||
+    /\brecommend(?:\s+me)?\s+(?:a\s+)?(?:specialist|stylist|provider)/i.test(
+      prompt,
+    )
+  ) {
+    return null;
+  }
   if (isFindSoonestAppointmentPrompt(prompt)) {
     return {
       action: 'find_soonest_appointment',
@@ -67,7 +94,7 @@ function publicAvailabilityAction(
       params: { bookingFirstAvailable: true, allProviders: true },
     };
   }
-  if (hasBookVerb(prompt)) {
+  if (hasBookVerb(prompt) || /\bcan\s+i\s+book\b/i.test(prompt)) {
     if (
       isBookNearestSlotPrompt(prompt) ||
       isFirstAvailableBookingPrompt(prompt)
@@ -76,6 +103,14 @@ function publicAvailabilityAction(
         action: 'book_appointment',
         rescueReason: 'public_flexible_book',
         params: { bookingFirstAvailable: true },
+      };
+    }
+    // e2e-bug.92 — concrete service + date/time book (not nearest-slot).
+    if (isConcreteTimedBookAppointmentPrompt(prompt)) {
+      return {
+        action: 'book_appointment',
+        rescueReason: 'public_timed_book',
+        params: buildSharedBookingContextFromPrompt(prompt),
       };
     }
     return null;
@@ -149,7 +184,12 @@ export function disambiguateMisclassifiedAvailabilityIntent(
   action: string,
   params: Record<string, unknown>,
 ): AvailabilityDisambiguationResult | null {
-  if (hasBookVerb(prompt) && !isCheckProvidersForServicePrompt(prompt)) {
+  // e2e-bug.92 — allow escaping check_providers_for_service when book/timed cues win.
+  if (
+    hasBookVerb(prompt) &&
+    !isCheckProvidersForServicePrompt(prompt) &&
+    action !== 'check_providers_for_service'
+  ) {
     return null;
   }
 
@@ -162,6 +202,7 @@ export function disambiguateMisclassifiedAvailabilityIntent(
     'check_availability',
     'check_providers_for_service',
     'book_appointment',
+    'unknown',
   ]);
   if (!confusedActions.has(action)) return null;
 

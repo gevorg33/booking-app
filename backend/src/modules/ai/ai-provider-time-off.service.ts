@@ -4,6 +4,7 @@ import { ProviderTimeOffService } from '../provider-mobile/provider-time-off.ser
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleApproveTimeOffRequestLogic,
+  handleCancelTimeOffRequestLogic,
   handleDenyTimeOffRequestLogic,
   handleListMyTimeOffRequestsLogic,
   handleListTimeOffRequestsLogic,
@@ -16,6 +17,8 @@ import {
   rescueDashboardTimeOffIntent,
   rescueProviderTimeOffIntent,
 } from './ai-provider-time-off.util.js';
+import { dispatchProviderTimeOffIntent } from './ai-provider-time-off-dispatch.util.js';
+import type { ProviderTimeOffDispatchContext } from './ai-provider-time-off-dispatch.build.js';
 
 @Injectable()
 export class AiProviderTimeOffService {
@@ -95,8 +98,22 @@ export class AiProviderTimeOffService {
           businessId,
           employeeId,
         );
+      case 'cancel_time_off_request':
+        return handleCancelTimeOffRequestLogic(
+          this.deps,
+          businessId,
+          employeeId,
+          params,
+        );
       default:
         return null;
     }
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a dashboard-surface time-off intent. */
+  dispatchIntent(
+    ctx: ProviderTimeOffDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchProviderTimeOffIntent(this, ctx);
   }
 }

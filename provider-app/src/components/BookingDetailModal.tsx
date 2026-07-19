@@ -17,6 +17,7 @@ import {
   useIonActionSheet,
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
+import { useProviderActiveBookingStore } from '../services/provider-active-booking-store';
 import {
   applyOptimisticBookingPatches,
   captureBookingCaches,
@@ -149,6 +150,12 @@ export default function BookingDetailModal({
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [versionConflict, setVersionConflict] = useState(false);
   const [pastVisitBookingId, setPastVisitBookingId] = useState<string | null>(null);
+
+  const setActiveBookingId = useProviderActiveBookingStore((s) => s.setActiveBookingId);
+  useEffect(() => {
+    setActiveBookingId(bookingId);
+    return () => setActiveBookingId(null);
+  }, [bookingId, setActiveBookingId]);
 
   const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['provider-booking', businessId, bookingId],

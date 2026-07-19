@@ -4,6 +4,10 @@ import {
   isConfigureTourServicePrompt,
   isExplainTourServicesPrompt,
 } from './ai-tour-service.util.js';
+import {
+  isConfigureClinicServicePrompt,
+  isExplainClinicServicesPrompt,
+} from './ai-clinic-service.util.js';
 import type { PreparationNotesAspect } from './ai-explain-preparation-notes.fixtures.js';
 
 export const EXPLAIN_PREPARATION_NOTES_INTENTS = [
@@ -114,6 +118,8 @@ export function inferPreparationNotesAspect(
 export function isExplainPreparationNotesPrompt(prompt: string): boolean {
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
   if (isConfigureTourServicePrompt(prompt)) return false;
+  if (isConfigureClinicServicePrompt(prompt)) return false;
+  if (isExplainClinicServicesPrompt(prompt)) return false;
   if (isExplainTourServicesPrompt(prompt)) return false;
   if (BOOKING_SUMMARY_BLOCK.test(prompt)) return false;
   if (CALENDAR_BLOCK.test(prompt)) return false;

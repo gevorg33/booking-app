@@ -3,7 +3,10 @@ import {
   extractSingleIsoDayFromPrompt,
   resolveDateRange,
 } from './ai-orchestration.helpers.js';
-import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import {
+  extractServiceNameFromPrompt,
+  isAvailabilityFillerServiceName,
+} from './ai-payments.util.js';
 
 export const CUSTOMER_CANCEL_MY_BOOKING_CLASSIFIER_RULES = `- cancel_my_booking: MUTATE — logged-in customer/consumer app self-serve cancel of their own upcoming appointment without calling the salon. Triggers: cancel my booking/appointment, cancel tomorrow's massage, cancel my upcoming visit, I need to cancel. Set bookingId when known; otherwise serviceName and/or date/timeSlot to pick the right visit. Uses POST /me/bookings/:id/cancel with salon cancel policy. NOT cancel_bookings (staff dashboard), NOT cancel_package_visit_self (package multi-visit), NOT explain_cancel_policy (read policy), NOT contact_support (unless cancel blocked and user asks for help), NOT reschedule_my_booking (move time).`;
 
@@ -123,22 +126,44 @@ export type CustomerOwnedBookingMatchInput = {
   employee?: { name?: string | null } | null;
 };
 
+function extractCancelTargetServiceName(prompt: string): string | null {
+  const namedVisit = prompt.match(
+    /\bcancel\s+(?:my\s+|the\s+|an?\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:appointment|booking|visit|reservation)\b/i,
+  )?.[1];
+  if (namedVisit) {
+    const trimmed = namedVisit.trim().replace(/^tomorrow'?s\s+/i, '');
+    if (trimmed && !isAvailabilityFillerServiceName(trimmed)) return trimmed;
+  }
+  const knownService = prompt.match(
+    /\b(massage|haircut|facial|facemassage|color|manicure|blowdry)\b/i,
+  )?.[1];
+  if (knownService && !isAvailabilityFillerServiceName(knownService)) {
+    return knownService;
+  }
+  return extractServiceNameFromPrompt(prompt);
+}
+
 export function enrichCancelMyBookingParamsFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
 ): Record<string, unknown> {
   const next = { ...params };
-  const knownService = prompt.match(
-    /\b(massage|haircut|facial|color|manicure|blowdry)\b/i,
-  )?.[1];
-  const extracted = extractServiceNameFromPrompt(prompt);
+  // e2e-bug.89 — drop availability fillers inherited from compound book-half.
+  if (isAvailabilityFillerServiceName(next.serviceName)) {
+    delete next.serviceName;
+  }
+  const fromParams = (next.serviceName as string | undefined)?.trim();
+  const extracted = extractCancelTargetServiceName(prompt);
   const serviceName =
-    (params.serviceName as string | undefined)?.trim() ||
-    knownService ||
+    (fromParams && !isAvailabilityFillerServiceName(fromParams)
+      ? fromParams
+      : undefined) ||
     extracted ||
     undefined;
-  if (serviceName && !next.serviceName) {
-    next.serviceName = serviceName.replace(/^tomorrow's\s+/i, '').trim();
+  if (serviceName) {
+    next.serviceName = serviceName.replace(/^tomorrow'?s\s+/i, '').trim();
+  } else {
+    delete next.serviceName;
   }
   return next;
 }

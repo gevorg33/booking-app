@@ -39,19 +39,32 @@ describe('I18nProvider', () => {
     act(() => root.unmount());
     container.remove();
     document.cookie = '';
+    vi.restoreAllMocks();
   });
 
   function mountProvider(props: {
     initialLocale?: 'en' | 'hy' | 'ru';
     localeCookie?: 'app' | 'public';
+    enabledLocales?: Array<'en' | 'hy' | 'ru'>;
   }) {
     mountKey += 1;
     act(() => {
       root.render(
         <I18nProvider key={mountKey} {...props}>
-          <Probe onReady={(ctx) => { latest = ctx; }} />
+          <Probe
+            onReady={(ctx) => {
+              latest = ctx;
+            }}
+          />
         </I18nProvider>,
       );
+    });
+  }
+
+  async function flushEffects() {
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
   }
 
@@ -62,6 +75,24 @@ describe('I18nProvider', () => {
       </I18nProvider>,
     );
     expect(html).toContain('');
+  });
+
+  it('e2e-bug.166 — first client paint trusts initialLocale even when cookie differs', () => {
+    publicLocaleCookie.writePublicCookieLocale('ru');
+    mountProvider({ initialLocale: 'en', localeCookie: 'public' });
+    // Hydration-safe: matches SSR HTML before any cookie reconcile.
+    expect(latest!.locale).toBe('en');
+    expect(container.querySelector('[data-locale]')?.getAttribute('data-locale')).toBe(
+      'en',
+    );
+  });
+
+  it('e2e-bug.166 — reconciles public cookie to locale after hydration', async () => {
+    publicLocaleCookie.writePublicCookieLocale('ru');
+    mountProvider({ initialLocale: 'hy', localeCookie: 'public' });
+    expect(latest!.locale).toBe('hy');
+    await flushEffects();
+    expect(latest!.locale).toBe('ru');
   });
 
   it('SSR state initializer ignores cookies when window is unavailable', () => {
@@ -94,24 +125,28 @@ describe('I18nProvider', () => {
     }
   });
 
-  it('uses business initial locale when no visitor cookie (public scope)', () => {
+  it('uses business initial locale when no visitor cookie (public scope)', async () => {
     vi.spyOn(publicLocaleCookie, 'readPublicCookieLocale').mockReturnValue(null);
     mountProvider({ initialLocale: 'hy', localeCookie: 'public' });
     expect(latest!.locale).toBe('hy');
-    vi.restoreAllMocks();
+    await flushEffects();
+    expect(latest!.locale).toBe('hy');
   });
 
-  it('prefers public-locale cookie over business default', () => {
+  it('prefers public-locale cookie over business default after hydration', async () => {
     publicLocaleCookie.writePublicCookieLocale('ru');
     mountProvider({ initialLocale: 'hy', localeCookie: 'public' });
+    expect(latest!.locale).toBe('hy');
+    await flushEffects();
     expect(latest!.locale).toBe('ru');
   });
 
-  it('prefers app-locale cookie for dashboard scope', () => {
+  it('prefers app-locale cookie for dashboard scope after hydration', async () => {
     vi.spyOn(appLocaleCookie, 'readCookieLocale').mockReturnValue('hy');
     mountProvider({ initialLocale: 'en', localeCookie: 'app' });
+    expect(latest!.locale).toBe('en');
+    await flushEffects();
     expect(latest!.locale).toBe('hy');
-    vi.restoreAllMocks();
   });
 
   it('persists visitor choice in public-locale cookie', () => {
@@ -131,10 +166,9 @@ describe('I18nProvider', () => {
     });
     expect(latest!.locale).toBe('ru');
     expect(writeSpy).not.toHaveBeenCalled();
-    writeSpy.mockRestore();
   });
 
-  it('constrains locales and selection to tenant enabledLocales', () => {
+  it('constrains locales and selection to tenant enabledLocales', async () => {
     mountProvider({
       initialLocale: 'ru',
       localeCookie: 'public',
@@ -142,6 +176,8 @@ describe('I18nProvider', () => {
     });
     expect(latest!.locale).toBe('en');
     expect(latest!.locales).toEqual(['en', 'hy']);
+    await flushEffects();
+    expect(latest!.locale).toBe('en');
     act(() => {
       latest!.setLocale('ru');
     });
@@ -156,9 +192,7 @@ describe('I18nProvider', () => {
     expireCookie(LOCALE_COOKIE);
     expireCookie(PUBLIC_LOCALE_COOKIE);
     mountProvider({ initialLocale: 'hy', localeCookie: 'app' });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushEffects();
     expect(document.documentElement.lang).toBe('hy');
     act(() => {
       latest!.setLocale('en');

@@ -9,6 +9,12 @@ import {
 } from '../lib/cached-tenant-data.util.js';
 import { tenantDateFormatPreference, setActiveBusinessDateFormats } from '../lib/business-date-format.js';
 import { captureReferralFromSearch } from '../lib/consumer-referral.util.js';
+import {
+  resolveTenantBootstrapErrorMessage,
+  resolveTenantBootstrapFetchFailure,
+} from '../lib/tenant-bootstrap-cache.util.js';
+import { getConsumerCopy } from '../lib/copy.js';
+import { resolveAppConsumerLocale } from '../lib/tenant-locale.js';
 
 function applyTenantDateFormats(profile: { dateFormat?: string; timeFormat?: string } | null): void {
   if (!profile) return;
@@ -40,8 +46,9 @@ export function useTenantBootstrap() {
   }, [location.search, slug]);
 
   useEffect(() => {
+    const copy = getConsumerCopy(resolveAppConsumerLocale());
     if (!slug || !isValidSlug(slug)) {
-      setError('Invalid salon link');
+      setError(copy.invalidSalonLink);
       setLoading(false);
       return;
     }
@@ -69,7 +76,7 @@ export function useTenantBootstrap() {
       .then((tenant) => {
         if (cancelled) return;
         if (!tenant.publicBookingEnabled) {
-          setError('Online booking is not available for this business');
+          setError(copy.salonBookingUnavailable);
           setProfile(null);
           return;
         }
@@ -86,14 +93,27 @@ export function useTenantBootstrap() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        if (hasReadyProfile(slug) || cachedSnapshot?.profile.publicBookingEnabled) {
-          if (!hasReadyProfile(slug) && cachedSnapshot) {
+        const storeReady = hasReadyProfile(slug);
+        const fallback = resolveTenantBootstrapFetchFailure({
+          storeReady,
+          hasCachedEnabledProfile: Boolean(
+            cachedSnapshot?.profile.publicBookingEnabled,
+          ),
+        });
+        // e2e-bug.23 — failed live refresh while showing store/cache data → fromCache banner.
+        if (fallback.keepShowingProfile) {
+          if (fallback.hydrateFromCache && cachedSnapshot) {
             setProfile(cachedSnapshot.profile);
-            setFromCache(true);
           }
+          setFromCache(fallback.fromCache);
           return;
         }
-        setError(err instanceof Error ? err.message : 'Salon not found');
+        // e2e-bug.20 — never surface raw axios 404 text for a mistyped salon code.
+        setError(
+          resolveTenantBootstrapErrorMessage(err, {
+            salonNotFound: copy.salonNotFound,
+          }),
+        );
         setProfile(null);
       })
       .finally(() => {

@@ -5,7 +5,14 @@ import { ProviderMobileService } from './provider-mobile.service.js';
 describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
   const employeeRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const memberRepo = { find: jest.fn() };
-  const bookingRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
+  const bookingRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    save: jest.fn(),
+    manager: {
+      transaction: jest.fn(),
+    },
+  };
   const slotRepo = { find: jest.fn() };
   const schedulingPeriodRepo = { find: jest.fn() };
   const businessService = {
@@ -129,6 +136,27 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
     bookingRepo.findOne.mockResolvedValue({ ...bookingRecord });
     bookingRepo.save.mockImplementation(async (row) => row);
     memberRepo.find.mockResolvedValue([{ userId: 'mgr-1' }]);
+    // e2e-bug.74 — check-in claims under transaction + FOR UPDATE.
+    bookingRepo.manager.transaction.mockImplementation(async (cb) => {
+      const row = {
+        ...bookingRecord,
+        checkedInAt: bookingRecord.checkedInAt,
+      };
+      const qb: Record<string, unknown> = {};
+      qb.setLock = jest.fn(() => qb);
+      qb.leftJoinAndSelect = jest.fn(() => qb);
+      qb.where = jest.fn(() => qb);
+      qb.andWhere = jest.fn(() => qb);
+      qb.getOne = jest.fn(async () => ({ ...row }));
+      const manager = {
+        createQueryBuilder: () => qb,
+        save: async (_entity: unknown, saved: typeof row) => {
+          Object.assign(row, saved);
+          return saved;
+        },
+      };
+      return cb(manager);
+    });
   });
 
   it('sets checkedInAt and returns floor status', async () => {
@@ -137,11 +165,7 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
     expect(result.bookingId).toBe('bk-1');
     expect(result.checkedInAt).toEqual(expect.any(String));
     expect(result.floorStatus).toBe('checked_in');
-    expect(bookingRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        checkedInAt: expect.any(Date),
-      }),
-    );
+    expect(bookingRepo.manager.transaction).toHaveBeenCalled();
   });
 
   it('includes floor status on today bookings', async () => {
@@ -175,10 +199,82 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
       ...bookingRecord,
       checkedInAt: new Date('2026-06-09T09:50:00.000Z'),
     });
+    bookingRepo.manager.transaction.mockImplementation(async (cb) => {
+      const qb: Record<string, unknown> = {};
+      qb.setLock = jest.fn(() => qb);
+      qb.leftJoinAndSelect = jest.fn(() => qb);
+      qb.where = jest.fn(() => qb);
+      qb.andWhere = jest.fn(() => qb);
+      qb.getOne = jest.fn(async () => ({
+        ...bookingRecord,
+        checkedInAt: new Date('2026-06-09T09:50:00.000Z'),
+      }));
+      return cb({
+        createQueryBuilder: () => qb,
+        save: jest.fn(),
+      });
+    });
 
     await expect(
       service.checkInBooking('biz-1', 'user-1', 'bk-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('e2e-bug.74 — second concurrent check-in does not notify reception twice', async () => {
+    businessService.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { providerMobile: { notifyReceptionOnCheckIn: true } },
+    });
+    let checkedInAt: Date | null = null;
+    let lockHeld = false;
+    const waiters: Array<() => void> = [];
+    const acquire = async () => {
+      if (!lockHeld) {
+        lockHeld = true;
+        return;
+      }
+      await new Promise<void>((resolve) => waiters.push(resolve));
+    };
+    const release = () => {
+      const next = waiters.shift();
+      if (next) next();
+      else lockHeld = false;
+    };
+
+    bookingRepo.manager.transaction.mockImplementation(async (cb) => {
+      await acquire();
+      try {
+        const qb: Record<string, unknown> = {};
+        qb.setLock = jest.fn(() => qb);
+        qb.leftJoinAndSelect = jest.fn(() => qb);
+        qb.where = jest.fn(() => qb);
+        qb.andWhere = jest.fn(() => qb);
+        qb.getOne = jest.fn(async () => ({
+          ...bookingRecord,
+          checkedInAt,
+        }));
+        return await cb({
+          createQueryBuilder: () => qb,
+          save: async (_entity: unknown, row: { checkedInAt: Date }) => {
+            checkedInAt = row.checkedInAt;
+            return { ...bookingRecord, checkedInAt };
+          },
+        });
+      } finally {
+        release();
+      }
+    });
+
+    const results = await Promise.allSettled([
+      service.checkInBooking('biz-1', 'user-1', 'bk-1'),
+      service.checkInBooking('biz-1', 'user-1', 'bk-1'),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(pushService.sendToUser).toHaveBeenCalledTimes(1);
   });
 
   it('notifies reception managers when setting enabled', async () => {

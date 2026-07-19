@@ -26,7 +26,8 @@ export const PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX = `- list_my_lab_book
 - book_lab_collection_nearest: "Book lab draw earliest slot", "Schedule my blood draw soonest opening"`;
 
 /** Provider mobile classifier rules. */
-export const PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_patient_pending_lab_requests: READ — clinic only: list patients on your schedule with lab orders awaiting patient self-booking (pushed, no collection booked). Triggers: patients waiting to book lab|pending lab booking requests|who still needs to book collection. NOT list_my_collection_queue (specimen draw queue), NOT list_test_orders (dashboard-wide).`;
+export const PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_patient_pending_lab_requests: READ — clinic only: list patients on your schedule with lab orders awaiting patient self-booking (pushed, no collection booked). Triggers: patients waiting to book lab|pending lab booking requests|who still needs to book collection. NOT list_my_collection_queue (specimen draw queue), NOT list_test_orders (dashboard-wide).
+- notify_patient_book_lab: MUTATE — clinic only: send/remind a patient (SMS/email/push) to self-book their lab collection for an existing lab order. Requires customerName or orderId. Triggers: remind patient to book collection, nudge pending lab self-book. NOT list_patient_pending_lab_requests (read-only list).`;
 
 export const PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS = [
   {
@@ -223,6 +224,22 @@ export const LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS = [
   },
   { id: 'check-pending-lab', prompt: 'Check pending lab booking requests' },
   { id: 'list-awaiting-book', prompt: 'List patients awaiting lab booking' },
+] as const;
+
+export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS = [
+  {
+    id: 'remind-patient-book-collection',
+    prompt: 'Remind patient to book collection',
+  },
+  {
+    id: 'nudge-pending-lab-self-book',
+    prompt: 'Nudge pending lab self-book',
+  },
+  {
+    id: 'remind-maria-book-collection',
+    prompt: 'Remind Maria to book her lab collection',
+    customerName: 'Maria',
+  },
 ] as const;
 
 export const AWAITING_PATIENT_BOOKING_LIST_PROMPTS = [

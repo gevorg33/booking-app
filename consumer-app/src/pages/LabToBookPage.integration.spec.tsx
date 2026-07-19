@@ -27,6 +27,11 @@ vi.mock('../services/public-api.js', () => ({
   fetchMyClinicPatientAlerts: vi.fn(async () => ({ data: { alerts: [], totalCount: 0 } })),
 }));
 
+import {
+  fetchMyClinicLabBookingRequests,
+  fetchMyClinicPatientAlerts,
+} from '../services/public-api.js';
+
 const profile = {
   name: 'City Clinic',
   businessType: 'clinic',
@@ -38,6 +43,9 @@ describe('LabToBookPage integration', () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.mocked(getCustomerToken).mockReturnValue('token');
+    vi.mocked(fetchMyClinicLabBookingRequests).mockClear();
+    vi.mocked(fetchMyClinicPatientAlerts).mockClear();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -87,5 +95,26 @@ describe('LabToBookPage integration', () => {
     });
 
     expect(container.textContent).toContain('Sign in to view pending lab collection requests');
+  });
+
+  it('does not call clinic APIs for non-clinic businesses (e2e-bug.43)', async () => {
+    const salonProfile = { ...profile, businessType: 'salon' } as PublicBusinessProfile;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    act(() => {
+      root.render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter>
+            <LabToBookPage slug="demo-salon" profile={salonProfile} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(fetchMyClinicLabBookingRequests).not.toHaveBeenCalled();
+    expect(fetchMyClinicPatientAlerts).not.toHaveBeenCalled();
   });
 });

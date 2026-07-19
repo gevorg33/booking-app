@@ -155,7 +155,8 @@ export function packageLocalizedNamesPayload(
 
 function formatMoney(value: number, currency: string): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    // e2e-bug.115 — pin locale; bare `undefined` follows runtime ICU defaults.
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,

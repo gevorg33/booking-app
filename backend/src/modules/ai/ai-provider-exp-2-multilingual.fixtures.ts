@@ -95,6 +95,34 @@ const CHECK_IN_I18N: Record<
     ru: 'Отметить Sam как пришедшего',
     paramsPartial: { customerName: 'Sam' },
   },
+  'check-in-voice-heres-en': {
+    hy: 'Jane-ը եկել է, գրանցիր նրան',
+    ru: 'Jane пришла, отметь приход',
+  },
+  'check-in-voice-go-ahead-en': {
+    hy: 'Կարող ես գրանցել Sam-ի ժամանումը',
+    ru: 'Можешь отметить приход Sam',
+  },
+  'check-in-voice-walked-in-en': {
+    hy: 'Նա հենց նոր մտավ, խնդրում եմ գրանցիր նրան',
+    ru: 'Она только что зашла, пожалуйста отметь её приход',
+  },
+  'check-in-voice-shorthand-en': {
+    hy: 'Maria-ն այստեղ է, նշիր նրա ժամանումը',
+    ru: 'Maria приехала',
+  },
+  'check-in-voice-mark-checked-en': {
+    hy: 'Նշիր Emma-ին որպես գրանցված',
+    ru: 'Отметь Emma как пришедшую',
+  },
+  'check-in-voice-shes-here-en': {
+    hy: 'Գրանցիր Jane-ին, նա այստեղ է',
+    ru: 'Зарегистрируй приход Jane, она здесь',
+  },
+  'check-in-voice-next-client-en': {
+    hy: 'Հաճախորդս հենց նոր եկավ, գրանցիր նրան',
+    ru: 'Мой клиент только что пришёл, отметь приход',
+  },
 };
 
 const RUNNING_LATE_I18N: Record<
@@ -116,6 +144,202 @@ const RUNNING_LATE_I18N: Record<
     ru: 'Сообщи клиенту, что я опаздываю',
   },
 };
+
+const READY_NOW_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'ready-now-client-en': {
+    hy: 'Նշիր Maria-ին որպես պատրաստ հիմա',
+    ru: 'Отметь готовность клиента Maria',
+    paramsPartial: { customerName: 'Maria' },
+  },
+  'ready-now-self-en': {
+    hy: 'Ես պատրաստ եմ հաջորդ հաճախորդի համար',
+    ru: 'Я готов к следующему клиенту',
+  },
+  'ready-to-be-seen-en': {
+    hy: 'Պատրաստ եմ ընդունվելու',
+    ru: 'Готов к приёму',
+  },
+  'ready-for-next-client-en': {
+    hy: 'Պատրաստ եմ հաջորդ հաճախորդի համար',
+    ru: 'Готов к следующему клиенту',
+  },
+  'clear-running-late-en': {
+    hy: 'Չեղարկիր ուշացման կարգավիճակը',
+    ru: 'Убери статус опоздания',
+  },
+};
+
+const SUGGEST_CANCEL_NOTE_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'suggest-cancel-note-en': {
+    hy: 'Կազմիր չեղարկման նշում Jane-ի համար',
+    ru: 'Составь заметку об отмене для Jane',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  'suggest-cancel-note-generic-en': {
+    hy: 'Առաջարկիր չեղարկման պատճառ այս ամրագրման համար',
+    ru: 'Предложи причину отмены для этой записи',
+  },
+};
+
+const REQUEST_CLIENT_REVIEW_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'request-client-review-en': {
+    hy: 'Խնդրիր Jane-ին թողնել կարծիք',
+    ru: 'Попроси отзыв у Jane',
+    paramsPartial: { customerName: 'Jane' },
+  },
+  'request-review-generic-en': {
+    hy: 'Խնդրիր հաճախորդից կարծիք թողնել',
+    ru: 'Попроси клиента оставить отзыв',
+  },
+};
+
+const LIST_REASSIGN_OPTIONS_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'list-reassign-options-en': {
+      hy: 'Ո՞վ է ազատ ստանձնելու այս ամրագրումը փոխարենը',
+      ru: 'Кто ещё свободен принять эту запись вместо меня?',
+    },
+    'reassign-options-generic-en': {
+      hy: 'Վերանշանակման տարբերակներ այս ամրագրման համար',
+      ru: 'Варианты переназначения для этой записи',
+    },
+  };
+
+const REASSIGN_BOOKING_SAME_DAY_I18N: Record<
+  string,
+  { hy: string; ru: string; paramsPartial?: Record<string, unknown> }
+> = {
+  'reassign-booking-same-day-en': {
+    hy: 'Վերանշանակիր սա Maria-ին',
+    ru: 'Переназначь это на Maria',
+    paramsPartial: { employeeName: 'Maria' },
+  },
+};
+
+const LIST_TEAM_UNPAID_TODAY_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'unpaid-today-floor-en': {
+      hy: 'Կա՞ որևէ մեկը հարկում, ով դեռ չի վճարել',
+      ru: 'Есть кто-то на зале, кто ещё не оплатил?',
+    },
+    'unpaid-today-across-team-en': {
+      hy: 'Չվճարվածները ամբողջ թիմում',
+      ru: 'Неоплаченные по всей команде',
+    },
+    'unpaid-today-hasnt-paid-en': {
+      hy: 'Ո՞վ չի վճարել այսօր',
+      ru: 'Кто ещё не оплатил сегодня?',
+    },
+    'unpaid-today-team-list-en': {
+      hy: 'Ցուցակագրիր թիմի չվճարված ամրագրումները այսօր',
+      ru: 'Покажи неоплаченные записи команды сегодня',
+    },
+    'unpaid-today-floor-list-en': {
+      hy: 'Ցուցակագրիր չվճարվածները հարկում',
+      ru: 'Список неоплаченных на зале',
+    },
+    'unpaid-today-anyone-outstanding-en': {
+      hy: 'Կա՞ որևէ մեկը թիմում, ով դեռ չի վճարել',
+      ru: 'Есть кто-то в команде, кто ещё не заплатил?',
+    },
+    'unpaid-today-check-floor-en': {
+      hy: 'Ստուգիր՝ ո՞վ է հարկում չի վճարել',
+      ru: 'Проверь, кто на зале не оплатил',
+    },
+    'unpaid-today-team-outstanding-en': {
+      hy: 'Թիմի չվճարված ամրագրումները հենց հիմա',
+      ru: 'Неоплаченные записи команды прямо сейчас',
+    },
+    'unpaid-today-who-owes-en': {
+      hy: 'Ո՞վ է հարկում դեռ պարտք այսօր',
+      ru: 'Кто на зале ещё должен сегодня?',
+    },
+    'unpaid-today-not-paid-team-en': {
+      hy: 'Ո՞ր թիմի ամրագրումները չեն վճարվել այսօր',
+      ru: 'Какие записи команды не оплачены сегодня?',
+    },
+  };
+
+const EXPLAIN_REVIEWS_INBOX_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'reviews-inbox-my-rating-month-en': {
+      hy: 'Իմ գնահատականը այս ամիս',
+      ru: 'Мой рейтинг за этот месяц',
+    },
+    'reviews-inbox-bad-review-yesterday-en': {
+      hy: 'Վատ կարծիք երեկ — ցուցադրիր',
+      ru: 'Плохой отзыв вчера — покажи его',
+    },
+    'reviews-inbox-my-reviews-en': {
+      hy: 'Ցուցադրիր իմ կարծիքները այս ամիս',
+      ru: 'Покажи мои отзывы за этот месяц',
+    },
+    'reviews-inbox-inbox-en': {
+      hy: 'Ցուցադրիր իմ բոլոր կարծիքները',
+      ru: 'Покажи все мои отзывы',
+    },
+    'reviews-inbox-low-reviews-week-en': {
+      hy: 'Կա՞ ցածր կարծիք այս շաբաթ',
+      ru: 'Есть плохие отзывы на этой неделе?',
+    },
+    'reviews-inbox-recent-reviews-en': {
+      hy: 'Իմ վերջին կարծիքները',
+      ru: 'Мои последние отзывы',
+    },
+    'reviews-inbox-did-i-get-bad-en': {
+      hy: 'Ստացե՞լ եմ վատ կարծիք այսօր',
+      ru: 'Получил ли я плохие отзывы сегодня?',
+    },
+    'reviews-inbox-team-reviews-month-en': {
+      hy: 'Թիմի կարծիքները այս ամիս',
+      ru: 'Отзывы команды за этот месяц',
+    },
+    'reviews-inbox-team-rating-week-en': {
+      hy: 'Ո՞րն է մեր թիմի գնահատականը այս շաբաթ',
+      ru: 'Какой у нас рейтинг команды на этой неделе?',
+    },
+    'reviews-inbox-negative-review-en': {
+      hy: 'Ցուցադրիր վատ կարծիքները այս շաբաթ',
+      ru: 'Покажи плохие отзывы за эту неделю',
+    },
+    'reviews-inbox-five-star-latest-en': {
+      hy: 'Վերջին 5 աստղանի կարծիքները',
+      ru: 'Последние отзывы с 5 звёздами',
+    },
+  };
+
+const EXPLAIN_REQUEST_REVIEW_FLOW_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'explain-request-review-flow-how-en': {
+      hy: 'Ինչ գործընթաց կա հաճախորդից կարծիք խնդրելու համար',
+      ru: 'Как мне попросить отзыв у клиента?',
+    },
+    'explain-request-review-flow-can-i-en': {
+      hy: 'Կարո՞ղ եմ կարծիք խնդրել Jane-ից',
+      ru: 'Могу ли я попросить отзыв у Jane?',
+    },
+  };
+
+const DRAFT_REVIEW_RESPONSE_I18N: Record<string, { hy: string; ru: string }> =
+  {
+    'draft-review-response-reply-en': {
+      hy: 'Օգնիր պատասխանել այս կարծիքին',
+      ru: 'Помоги ответить на этот отзыв',
+    },
+    'draft-review-response-professional-en': {
+      hy: 'Գրիր պատասխան այս կարծիքին',
+      ru: 'Напиши профессиональный ответ на отзыв',
+    },
+  };
 
 function pushExp2MultilingualRows(
   rows: ProviderExp2MultilingualScenario[],
@@ -150,6 +374,69 @@ function buildProviderExp2MultilingualScenarios(): ProviderExp2MultilingualScena
   }
   for (const [enScenarioId, i18n] of Object.entries(RUNNING_LATE_I18N)) {
     pushExp2MultilingualRows(rows, enScenarioId, 'mark_running_late', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(READY_NOW_I18N)) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'mark_ready_now', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    SUGGEST_CANCEL_NOTE_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'suggest_cancel_note', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    REQUEST_CLIENT_REVIEW_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'request_client_review',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    LIST_REASSIGN_OPTIONS_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'list_reassign_options', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    REASSIGN_BOOKING_SAME_DAY_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'reassign_booking_same_day',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    LIST_TEAM_UNPAID_TODAY_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'list_team_unpaid_today',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    EXPLAIN_REVIEWS_INBOX_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'explain_reviews_inbox', i18n);
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    EXPLAIN_REQUEST_REVIEW_FLOW_I18N,
+  )) {
+    pushExp2MultilingualRows(
+      rows,
+      enScenarioId,
+      'explain_request_review_flow',
+      i18n,
+    );
+  }
+  for (const [enScenarioId, i18n] of Object.entries(
+    DRAFT_REVIEW_RESPONSE_I18N,
+  )) {
+    pushExp2MultilingualRows(rows, enScenarioId, 'draft_review_response', i18n);
   }
 
   return rows;

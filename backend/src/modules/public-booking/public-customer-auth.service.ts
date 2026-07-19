@@ -22,6 +22,8 @@ import {
   PublicCustomerProfile,
 } from './public-customer-auth.types.js';
 import { PublicCustomerBookingService } from './public-customer-booking.service.js';
+import { CustomerService } from '../customer/customer.service.js';
+import { PublicCustomerUpdateProfileDto } from './dto/public-customer-profile.dto.js';
 import { GiftCardPurchaseService } from '../gift-cards/gift-card-purchase.service.js';
 import { resolveCustomerSelfServiceSettings } from '../../common/utils/customer-self-service.util.js';
 import {
@@ -49,6 +51,7 @@ export class PublicCustomerAuthService {
     private jwtService: JwtService,
     private firebase: FirebaseAdminService,
     private publicCustomerBookingService: PublicCustomerBookingService,
+    private customerService: CustomerService,
     private giftCardPurchaseService: GiftCardPurchaseService,
     private eventEmitter: EventEmitter2,
     @InjectRepository(Customer) private customerRepo: Repository<Customer>,
@@ -484,6 +487,23 @@ export class PublicCustomerAuthService {
     );
     await this.customerRepo.save(customer);
     return this.mapCustomerPreferredLocaleView(customer, business.settings);
+  }
+
+  async updateMyProfile(
+    slug: string,
+    customerId: string,
+    dto: PublicCustomerUpdateProfileDto,
+  ): Promise<PublicCustomerProfile> {
+    const business = await this.resolveBusiness(slug);
+    await this.getCustomerById(business.id, customerId);
+    if (dto.name === undefined && dto.phone === undefined) {
+      throw new BadRequestException('Provide a name or phone to update');
+    }
+    const updated = await this.customerService.update(customerId, {
+      name: dto.name,
+      phone: dto.phone,
+    });
+    return this.toProfile(updated);
   }
 
   private mapCustomerPreferredLocaleView(

@@ -244,6 +244,20 @@ export function parseBookingPathToGuideRoute(
   pathname: string,
 ): PublicBookingFunnelGuideRoute | undefined {
   const lower = pathname.toLowerCase();
+  // e2e-bug.106 — manage / account / non-funnel pages must NOT map to checkout.
+  if (
+    /\/manage(\/|$|\?)/.test(lower) ||
+    /\/account(\/|$|\?)/.test(lower) ||
+    /\/gift-cards(\/|$|\?)/.test(lower) ||
+    /\/packages(\/|$|\?)/.test(lower) ||
+    /\/multi\/availability(\/|$|\?)/.test(lower)
+  ) {
+    return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview;
+  }
+  // Consumer deep-link with a selected service: /s/:tenant/book/:serviceId
+  if (/^\/s\/[^/]+\/book\//.test(lower)) {
+    return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
+  }
   if (
     /\/checkout(\/|$|\?)/.test(lower) ||
     /\/book\/multi\/checkout/.test(lower)
@@ -256,12 +270,18 @@ export function parseBookingPathToGuideRoute(
   if (/\/services(\/|$|\?)/.test(lower) && !lower.includes('/providers/')) {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.services;
   }
+  // e2e-bug.124 / e2e-bug.106 — bare /book/:slug landing is overview, not checkout.
+  if (/^\/book\/[^/]+\/?$/.test(lower.split('?')[0] ?? lower)) {
+    return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview;
+  }
+  // Booking-in-progress deep segments under /book/:slug/... (review, etc.)
   if (
-    /\/book\/[0-9a-f-]{8,}/i.test(lower) ||
-    (/\/book\/[^/]+(\/|$|\?)/.test(lower) &&
-      !lower.includes('/packages/') &&
-      !lower.includes('/multi/') &&
-      !lower.includes('/gift-cards/'))
+    /^\/book\/[^/]+\//.test(lower) &&
+    !lower.includes('/packages/') &&
+    !lower.includes('/multi/') &&
+    !lower.includes('/gift-cards/') &&
+    !lower.includes('/manage') &&
+    !lower.includes('/account')
   ) {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
   }
@@ -282,6 +302,10 @@ export function mapPublicBookingGuideRoute(
 
   const step =
     readString(context?.bookingStep) ?? readString(context?.checkoutStep);
+  // e2e-bug.106 — manage/availability are not booking-funnel checkout/professionals.
+  if (step === 'manage' || step === 'availability') {
+    return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.overview;
+  }
   if (step === 'checkout' || step === 'payment') {
     return PUBLIC_BOOKING_FUNNEL_GUIDE_ROUTES.checkout;
   }

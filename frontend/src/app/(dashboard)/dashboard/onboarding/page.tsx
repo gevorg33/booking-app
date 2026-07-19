@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import { completeOnboardingPreservingBusinessType } from '@/lib/onboarding-skip.util';
 import { EmbedWidgetSection } from '@/components/embed-widget-section';
 import { AiCommandBar } from '@/components/ai-command-bar';
 import { AiPagePanel } from '@/components/ai-page-panel';
@@ -66,7 +67,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t } = useI18n();
-  const { business } = useAuthStore();
+  const { business, setAuth, user, token, businesses, employee } = useAuthStore();
   const [step, setStep] = useState<Step>('type');
   const [selectedType, setSelectedType] = useState('');
   const [notes, setNotes] = useState('');
@@ -74,6 +75,22 @@ export default function OnboardingPage() {
   const [summary, setSummary] = useState('');
   const [source, setSource] = useState<'ai' | 'template' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const syncBusinessTypeIntoAuthStore = (businessType: string) => {
+    if (!user || !token || !business) return;
+    setAuth(
+      user,
+      {
+        ...business,
+        settings: {
+          ...(business.settings ?? {}),
+          businessType,
+        },
+      },
+      token,
+      { businesses, employee },
+    );
+  };
 
   const { data: businessTypes = [] } = useQuery({
     queryKey: ['onboarding-business-types', business?.id],
@@ -101,6 +118,14 @@ export default function OnboardingPage() {
         notes: notes.trim() || undefined,
       });
       return unwrap(data);
+    },
+    onSuccess: () => {
+      if (selectedType.trim()) {
+        syncBusinessTypeIntoAuthStore(selectedType.trim());
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ['business-profile', business!.id],
+      });
     },
     onError: () => setError(t('onboarding.saveTypeFailed')),
   });
@@ -181,14 +206,36 @@ export default function OnboardingPage() {
   });
 
   const skipAllMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post(`/businesses/${business!.id}/onboarding/complete`);
-      return unwrap<{ completed: boolean }>(data);
-    },
+    // e2e-bug.60 — persist selected type before complete (Skip used to drop it).
+    mutationFn: async () =>
+      completeOnboardingPreservingBusinessType({
+        selectedType,
+        notes,
+        persistBusinessType: async (payload) => {
+          const { data } = await api.post(
+            `/businesses/${business!.id}/onboarding/business-type`,
+            payload,
+          );
+          return unwrap(data);
+        },
+        completeOnboarding: async () => {
+          const { data } = await api.post(
+            `/businesses/${business!.id}/onboarding/complete`,
+          );
+          return unwrap<{ completed: boolean }>(data);
+        },
+      }),
     onSuccess: (status) => {
       queryClient.setQueryData(['onboarding-status', business!.id], status);
+      if (selectedType.trim()) {
+        syncBusinessTypeIntoAuthStore(selectedType.trim());
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ['business-profile', business!.id],
+      });
       router.push('/dashboard');
     },
+    onError: () => setError(t('onboarding.saveTypeFailed')),
   });
 
   const totalServices = useMemo(
@@ -292,10 +339,16 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => skipAllMutation.mutate()}
-              disabled={skipAllMutation.isPending}
+              disabled={
+                skipAllMutation.isPending || saveTypeMutation.isPending
+              }
               className="btn-secondary inline-flex items-center gap-2"
             >
-              <SkipForward className="w-4 h-4" />
+              {skipAllMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <SkipForward className="w-4 h-4" />
+              )}
               {t('onboarding.skip')}
             </button>
             <button

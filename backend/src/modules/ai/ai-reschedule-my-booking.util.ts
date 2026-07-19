@@ -4,12 +4,12 @@ import {
   type CustomerOwnedBookingMatchInput,
 } from './ai-cancel-my-booking.util.js';
 
-export const CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES = `- reschedule_my_booking: MUTATE — logged-in customer/consumer app self-serve move of their own upcoming appointment to a new date/time without calling the salon. Triggers: reschedule my booking/appointment, move my visit to Friday 3pm, change my appointment to tomorrow. Set bookingId when known; otherwise serviceName and/or fromDate/fromTimeSlot to pick the visit; set date/timeSlot (or startTime) for the new slot. Uses POST /me/bookings/:id/reschedule with salon policy. NOT reschedule_bookings (staff dashboard), NOT reschedule_package_visit_self (package multi-visit), NOT change_provider_on_reschedule (switch stylist only), NOT book_nearest_slot (new booking), NOT explain_cancel_policy (read policy), NOT cancel_my_booking (cancel).`;
+export const CUSTOMER_RESCHEDULE_MY_BOOKING_CLASSIFIER_RULES = `- reschedule_my_booking: MUTATE — logged-in customer/consumer app (and signed-in public booking web) self-serve move of their own upcoming appointment to a new date/time without calling the salon. Triggers: reschedule my booking/appointment, move my visit to Friday 3pm, change my appointment to tomorrow, cancel my facemassage booking and rebook it for next Friday instead (dated cancel+rebook = reschedule). Set bookingId when known; otherwise serviceName and/or fromDate/fromTimeSlot to pick the visit; set date/timeSlot (or startTime) for the new slot. Uses POST /me/bookings/:id/reschedule with salon policy. NOT reschedule_bookings (staff dashboard), NOT reschedule_package_visit_self (package multi-visit), NOT change_provider_on_reschedule (switch stylist only), NOT book_nearest_slot / cancel_and_rebook (cancel then book nearest — no target date), NOT pay_at_venue_fallback (payment method — never match bare "instead"), NOT explain_cancel_policy (read policy), NOT cancel_my_booking alone (cancel without rebook date).`;
 
 export type RescheduleMyBookingPromptFixture = {
   id: string;
   prompt: string;
-  surface: 'customer';
+  surface: 'customer' | 'public';
   expectedAction: 'reschedule_my_booking';
   serviceName?: string;
   date?: string;
@@ -114,6 +114,32 @@ export const RESCHEDULE_MY_BOOKING_PROMPTS: readonly RescheduleMyBookingPromptFi
       prompt: 'I need to move my appointment to a different day',
       surface: 'customer',
       expectedAction: 'reschedule_my_booking',
+    },
+    {
+      id: 'e2e114-cancel-rebook-friday-customer',
+      prompt:
+        'cancel my facemassage booking and rebook it for next Friday instead',
+      surface: 'customer',
+      expectedAction: 'reschedule_my_booking',
+      serviceName: 'facemassage',
+      date: 'friday',
+    },
+    {
+      id: 'e2e114-cancel-rebook-friday-public',
+      prompt:
+        'cancel my facemassage booking and rebook it for next Friday instead',
+      surface: 'public',
+      expectedAction: 'reschedule_my_booking',
+      serviceName: 'facemassage',
+      date: 'friday',
+    },
+    {
+      id: 'cancel-rebook-massage-saturday-customer',
+      prompt: 'Cancel my massage booking and rebook it for Saturday',
+      surface: 'customer',
+      expectedAction: 'reschedule_my_booking',
+      serviceName: 'massage',
+      date: 'saturday',
     },
   ];
 

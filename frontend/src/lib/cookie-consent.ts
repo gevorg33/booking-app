@@ -41,3 +41,25 @@ export function writeCookieConsent(
 export function hasAcceptedCookies(slug: string): boolean {
   return readCookieConsent(slug) === 'accepted';
 }
+
+/**
+ * Whether non-essential cookies / analytics may run for this tenant.
+ * - Banner disabled → allowed (business is not collecting a choice).
+ * - Banner enabled → only after an explicit `accepted` choice (reject or undecided = blocked).
+ */
+export function allowsNonEssentialTracking(
+  slug: string,
+  options?: { cookieBannerEnabled?: boolean | null },
+): boolean {
+  if (options?.cookieBannerEnabled === false) return true;
+  return hasAcceptedCookies(slug);
+}
+
+/** True when the banner should show (enabled + no stored choice yet). */
+export function shouldShowCookieConsentBanner(
+  slug: string,
+  cookieBannerEnabled: boolean | null | undefined,
+): boolean {
+  if (!cookieBannerEnabled) return false;
+  return readCookieConsent(slug) == null;
+}

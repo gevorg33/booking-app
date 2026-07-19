@@ -21,6 +21,8 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
+import { ConsumerFixedActionBar } from '../components/ConsumerFixedActionBar.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { formatBookingDateTimeRange, formatDateDisplay, formatScheduleTime } from '../lib/date-format.js';
 import { formatPublicMoney, resolveTenantPriceCurrency } from '../lib/business-currency.js';
@@ -44,15 +46,21 @@ import {
   type MultiCheckoutPaymentMethod,
 } from '../lib/multi-service-checkout-payment.util.js';
 import {
+  loadRememberedCheckoutContact,
+  mergeCheckoutContactPrefill,
+} from '../lib/checkout-autofill.util.js';
+import {
   normalizeGuestContact,
   resolveCheckoutContact,
   validateGuestCheckoutContact,
   type GuestCheckoutContact,
 } from '../lib/guest-booking.util.js';
 import {
+  buildMultiServiceCheckoutPath,
   buildMultiServiceSchedulePath,
   parseMultiServiceIds,
   persistMultiServiceCart,
+  resolveMultiServiceCheckoutRecoveryPath,
   resolvePathAfterRemovingService,
   sumMultiServiceDuration,
   sumMultiServicePrice,
@@ -61,6 +69,7 @@ import { ConsumerCheckoutContactForm } from '../components/ConsumerCheckoutConta
 import { ConsumerCheckoutDiscounts } from '../components/ConsumerCheckoutDiscounts.js';
 import { ConsumerCheckoutQuoteSummary } from '../components/ConsumerCheckoutQuoteSummary.js';
 import { useCheckoutDiscounts } from '../hooks/use-checkout-discounts.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import {
   bookPublicMultiService,
   confirmPublicBookingPayment,
@@ -126,11 +135,36 @@ export default function MultiServiceCheckoutPage() {
     [serviceIds, servicesQuery.data],
   );
 
-  const profileStored = slug ? getStoredCustomerProfile(slug) : null;
+  // e2e-bug.6/8 — memoize; getStoredCustomerProfile returns a new object each call.
+  const profileStored = useMemo(
+    () => (slug ? getStoredCustomerProfile(slug) : null),
+    [slug],
+  );
   const authed = slug ? !!getCustomerToken(slug) : false;
+
+  useEffect(() => {
+    if (!slug) return;
+    setGuestContact((prev) =>
+      mergeCheckoutContactPrefill(prev, {
+        profile: profileStored,
+        remembered: loadRememberedCheckoutContact(slug),
+      }),
+    );
+  }, [slug, profileStored]);
   const schedulingMode = profile?.multiService?.schedulingMode ?? 'same_visit';
   const scheduleStart = startTime || lines?.[0]?.startTime;
   const hasSchedule = Boolean(scheduleStart || lines?.length);
+
+  // Incomplete checkout in the stack (e.g. Back after handing off to single-service book)
+  // must not trap the user on "Missing booking details."
+  useEffect(() => {
+    if (loading || !slug || !profile) return;
+    if (serviceIds.length >= 2) return;
+    history.replace(
+      resolveMultiServiceCheckoutRecoveryPath(slug, serviceIds, schedulingMode),
+    );
+  }, [history, loading, profile, schedulingMode, serviceIds, slug]);
+
   const isPaymentReturn = useMemo(
     () => Boolean(slug && hasMultiCheckoutPaymentReturn(params, slug, serviceIds)),
     [params, serviceIds, slug],
@@ -251,11 +285,42 @@ export default function MultiServiceCheckoutPage() {
 
   const removeService = (removeId: string) => {
     if (!slug) return;
-    persistMultiServiceCart(
-      slug,
-      serviceIds.filter((id) => id !== removeId),
-    );
-    history.push(resolvePathAfterRemovingService(slug, serviceIds, removeId, schedulingMode));
+    const remaining = serviceIds.filter((id) => id !== removeId);
+    persistMultiServiceCart(slug, remaining);
+
+    // e2e-bug.175 — removing one line shouldn't discard the specialist/time/contact
+    // already chosen for the rest of the visit; stay on this page (same route, just a
+    // shorter `services` list) whenever 2+ services remain so nothing else is lost.
+    if (remaining.length >= 2) {
+      const query: Record<string, string> = { services: remaining.join(',') };
+      if (schedulingMode === 'per_service' && lines) {
+        const remainingLines = lines.filter((line) => remaining.includes(line.serviceId));
+        if (remainingLines.length === remaining.length) {
+          query.lines = JSON.stringify(remainingLines);
+        }
+      } else {
+        if (startTime) query.startTime = startTime;
+        if (employeeId) query.employeeId = employeeId;
+        if (employeeName) query.employeeName = employeeName;
+      }
+      history.replace(buildMultiServiceCheckoutPath(slug, query));
+      return;
+    }
+
+    // Only one service left — hand off to single-service booking and drop this
+    // incomplete checkout from history so Back cannot reopen "Missing booking details."
+    const fallbackPath = resolvePathAfterRemovingService(slug, serviceIds, removeId, schedulingMode);
+    if (remaining.length === 1 && (startTime || employeeId)) {
+      const resumeQuery = new URLSearchParams();
+      if (startTime) {
+        resumeQuery.set('slot', startTime);
+        resumeQuery.set('date', startTime.slice(0, 10));
+      }
+      if (employeeId) resumeQuery.set('employeeId', employeeId);
+      history.replace(`${fallbackPath}?${resumeQuery.toString()}`);
+      return;
+    }
+    history.replace(fallbackPath);
   };
 
   const submitBooking = async (options?: { paymentOverride?: MultiCheckoutPaymentMethod }) => {
@@ -304,7 +369,8 @@ export default function MultiServiceCheckoutPage() {
       setAwaitingPaymentReturn(false);
       setSuccess(true);
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : copy.assistantErrorGeneric);
+      // e2e-bug.33 / e2e-bug.3 — unwrap Nest/axios body; never show "Request failed with status code N".
+      setMessage(formatFriendlyNetworkError(err, copy.assistantErrorGeneric));
     } finally {
       setSubmitting(false);
     }
@@ -320,19 +386,29 @@ export default function MultiServiceCheckoutPage() {
     );
   }
 
-  if (error || !profile || !slug || serviceIds.length < 2) {
+  if (error || !profile || !slug) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')} />
+              <IonBackButton defaultHref={buildSalonPath(slug ?? '', '/services')}  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.multiServiceCheckoutTitle}</IonTitle>
           </IonToolbar>
         </IonHeader>
         <IonContent className="ion-padding">
           <p>{error || 'Missing booking details.'}</p>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (serviceIds.length < 2) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding ion-text-center">
+          <IonSpinner name="crescent" style={{ marginTop: '40vh' }} />
         </IonContent>
       </IonPage>
     );
@@ -351,7 +427,14 @@ export default function MultiServiceCheckoutPage() {
           <h2>{copy.multiServiceBookedTitle}</h2>
           <p style={{ color: '#6b7280' }}>{copy.multiServiceBookedHint}</p>
           <IonButton
-            style={{ marginTop: 24, '--background': profile.branding.primaryColor || '#7c3aed' }}
+            color="primary"
+            style={{
+              marginTop: 24,
+              ['--background' as string]: profile.branding.primaryColor || '#7c3aed',
+              ['--color' as string]: '#ffffff',
+              ['--color-hover' as string]: '#ffffff',
+              ['--color-activated' as string]: '#ffffff',
+            }}
             onClick={() => history.push(buildSalonPath(slug))}
           >
             {copy.bookAnother}
@@ -374,13 +457,21 @@ export default function MultiServiceCheckoutPage() {
     ? new Date(new Date(scheduleStart).getTime() + totalDuration * 60_000).toISOString()
     : null;
 
+  const confirmLabel = submitting
+    ? 'Booking…'
+    : awaitingPaymentReturn
+      ? copy.multiServiceCompletePayment
+      : copy.multiServiceConfirmAction;
+
   return (
-    <IonPage>
+    <ConsumerAiShell slug={slug} profile={profile} copy={copy} locale={locale}>
+    <IonPage className="consumer-page-with-fixed-action">
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
             <IonBackButton
               defaultHref={buildMultiServiceSchedulePath(slug, serviceIds, schedulingMode)}
+              text={copy.guidePageBack}
             />
           </IonButtons>
           <IonTitle>{copy.multiServiceCheckoutTitle}</IonTitle>
@@ -472,7 +563,11 @@ export default function MultiServiceCheckoutPage() {
           </IonItem>
         )}
 
-        <ConsumerCheckoutContactForm value={guestContact} onChange={setGuestContact} />
+        <ConsumerCheckoutContactForm
+          value={guestContact}
+          onChange={setGuestContact}
+          copy={copy}
+        />
 
         {cashAvailable ? (
           <div className="ion-margin-top">
@@ -511,21 +606,14 @@ export default function MultiServiceCheckoutPage() {
           </div>
         ) : null}
 
-        <IonButton
-          expand="block"
-          disabled={submitting || awaitingPaymentReturn}
-          style={{ marginTop: 16, '--background': primary }}
-          onClick={() => void submitBooking()}
-        >
-          {submitting ? (
-            <IonSpinner name="crescent" />
-          ) : awaitingPaymentReturn ? (
-            copy.multiServiceCompletePayment
-          ) : (
-            copy.multiServiceConfirmAction
-          )}
-        </IonButton>
       </IonContent>
+      <ConsumerFixedActionBar
+        label={confirmLabel}
+        disabled={submitting || awaitingPaymentReturn}
+        primaryColor={primary}
+        onClick={() => void submitBooking()}
+      />
     </IonPage>
+    </ConsumerAiShell>
   );
 }

@@ -3,7 +3,7 @@ import type { PublicBusinessProfile } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { ConsumerBookingAssistant } from './ConsumerBookingAssistant.js';
 
-/** Global AI FAB + assistant on salon tab routes only. */
+/** Global AI FAB + assistant on salon tab routes and other tenant pages that need it. */
 export function ConsumerAiShell({
   slug,
   profile,

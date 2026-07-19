@@ -1,5 +1,6 @@
 import {
   applyScheduleOpsPromptHints,
+  disambiguateClearScheduleVsDeleteBlock,
   disambiguateClearScheduleVsHideCalendar,
   inheritScheduleFollowUpContext,
   isFillGapsFollowUpPrompt,
@@ -12,6 +13,26 @@ describe('ai-schedule-ops-hints.util', () => {
     { id: 'e1', name: 'Gevorg Gasparyan' },
     { id: 'e2', name: 'Mary Torgomyan' },
   ];
+
+  describe('e2e-bug.136 clear_schedule vs delete_schedule_block', () => {
+    it('flips clear_schedule to delete_schedule_block for unblock', () => {
+      const result = disambiguateClearScheduleVsDeleteBlock(
+        "Unblock Gevorg's schedule for tomorrow, remove the full-day block",
+        'clear_schedule',
+      );
+      expect(result?.action).toBe('delete_schedule_block');
+      expect(result?.rescueReason).toBe('clear_to_delete_schedule_block');
+    });
+
+    it('does not flip applied-schedule clear prompts', () => {
+      expect(
+        disambiguateClearScheduleVsDeleteBlock(
+          'Clear Gevorg schedule for tomorrow',
+          'clear_schedule',
+        ),
+      ).toBeNull();
+    });
+  });
 
   describe('clear_schedule vs hide_appointments_from_calendar', () => {
     it('detects hide-from-calendar prompts', () => {

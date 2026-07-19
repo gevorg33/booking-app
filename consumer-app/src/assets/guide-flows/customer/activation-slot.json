@@ -4,7 +4,7 @@
   "routes": ["/consumer/slot"],
   "titleKey": "guide.flows.customer.activation.slot.title",
   "summaryKey": "guide.flows.customer.activation.slot.summary",
-  "navigateTarget": { "path": "checkout" },
+  "navigateTarget": { "path": "services" },
   "keywords": ["pick time", "choose slot", "calendar", "nearest available"],
   "steps": [
     {

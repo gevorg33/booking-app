@@ -28,6 +28,7 @@ export const OPERATIONS_STAFF_INTENTS = [
   'invite_staff_member',
   'deactivate_employee',
   'configure_online_booking',
+  'update_team_member_role',
 ] as const;
 
 export const OPERATIONS_INTENTS = [
@@ -52,7 +53,10 @@ export interface ParsedMenuService {
 }
 
 export interface ParsedPriceAdjustment {
-  percentChange: number;
+  /** Relative percent delta (e.g. +10 => 10%). Mutually exclusive with amountChange. */
+  percentChange?: number;
+  /** Absolute currency delta (e.g. +5 dollars). Mutually exclusive with percentChange. */
+  amountChange?: number;
   categoryHint?: string;
   serviceNameHint?: string;
   effectiveFrom?: string;
@@ -197,23 +201,13 @@ export function isPricingAdjustmentPrompt(prompt: string): boolean {
   );
 }
 
-export function parsePriceAdjustment(
+function priceAdjustmentScopeHints(
   prompt: string,
   params: Record<string, unknown>,
-): ParsedPriceAdjustment | null {
-  const percentRaw =
-    params.percentChange ??
-    params.priceChangePercent ??
-    prompt.match(/([+-]?\d+(?:\.\d+)?)\s*%/)?.[1];
-  const percentChange =
-    percentRaw != null ? Number.parseFloat(String(percentRaw)) : NaN;
-  if (!Number.isFinite(percentChange)) return null;
-
-  const signed =
-    /\b(lower|decrease|reduce|cut|drop)\b/i.test(prompt) && percentChange > 0
-      ? -percentChange
-      : percentChange;
-
+): Pick<
+  ParsedPriceAdjustment,
+  'categoryHint' | 'serviceNameHint' | 'effectiveFrom'
+> {
   const categoryHint =
     (typeof params.categoryName === 'string' && params.categoryName) ||
     (typeof params.serviceCategory === 'string' && params.serviceCategory) ||
@@ -231,19 +225,119 @@ export function parsePriceAdjustment(
     undefined;
 
   return {
-    percentChange: signed,
-    categoryHint: categoryHint?.trim(),
-    serviceNameHint: serviceNameHint?.trim(),
-    effectiveFrom: effectiveFrom?.trim(),
+    categoryHint: categoryHint?.trim() || undefined,
+    serviceNameHint: serviceNameHint?.trim() || undefined,
+    effectiveFrom: effectiveFrom?.trim() || undefined,
+  };
+}
+
+function signPriceDelta(prompt: string, value: number): number {
+  return /\b(lower|decrease|reduce|cut|drop)\b/i.test(prompt) && value > 0
+    ? -value
+    : value;
+}
+
+/** True when the prompt clearly asks for a flat currency delta, not a percent. */
+export function isAbsolutePriceAmountPrompt(prompt: string): boolean {
+  if (/\d+(?:\.\d+)?\s*%/.test(prompt)) return false;
+  return (
+    /\b(?:dollars?|usd|eur|amd|gbp|₽|֏)\b/i.test(prompt) ||
+    /(?:by|of|to)\s*\$\s*\d+(?:\.\d+)?/i.test(prompt) ||
+    /\$\s*\d+(?:\.\d+)?/.test(prompt)
+  );
+}
+
+function extractAbsolutePriceAmount(
+  prompt: string,
+  params: Record<string, unknown>,
+): number | null {
+  const fromParams =
+    params.amountChange ??
+    params.priceChangeAmount ??
+    params.absoluteChange ??
+    params.priceDelta;
+  if (fromParams != null) {
+    const n = Number.parseFloat(String(fromParams));
+    if (Number.isFinite(n)) return n;
+  }
+  const match =
+    prompt.match(
+      /(?:by|of)\s*\$?\s*(\d+(?:\.\d+)?)\s*(?:dollars?|usd|eur|amd|gbp)?\b/i,
+    ) ||
+    prompt.match(/\$\s*(\d+(?:\.\d+)?)/) ||
+    prompt.match(
+      /(\d+(?:\.\d+)?)\s*(?:dollars?|usd|eur|amd|gbp)\b/i,
+    );
+  if (!match?.[1]) return null;
+  const n = Number.parseFloat(match[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function parsePriceAdjustment(
+  prompt: string,
+  params: Record<string, unknown>,
+): ParsedPriceAdjustment | null {
+  const scope = priceAdjustmentScopeHints(prompt, params);
+
+  // e2e-bug.164 — "by 5 dollars" must NOT be treated as percentChange=5
+  // (that silently turns $20 → $21). Prefer absolute currency deltas whenever
+  // the prompt/params use money units, even if the classifier also filled percentChange.
+  if (
+    isAbsolutePriceAmountPrompt(prompt) ||
+    params.amountChange != null ||
+    params.priceChangeAmount != null ||
+    params.absoluteChange != null ||
+    params.priceDelta != null
+  ) {
+    const amount = extractAbsolutePriceAmount(prompt, params);
+    if (amount != null) {
+      return {
+        amountChange: signPriceDelta(prompt, amount),
+        ...scope,
+      };
+    }
+  }
+
+  const percentRaw =
+    params.percentChange ??
+    params.priceChangePercent ??
+    prompt.match(/([+-]?\d+(?:\.\d+)?)\s*%/)?.[1];
+  const percentChange =
+    percentRaw != null ? Number.parseFloat(String(percentRaw)) : NaN;
+  if (!Number.isFinite(percentChange)) return null;
+
+  return {
+    percentChange: signPriceDelta(prompt, percentChange),
+    ...scope,
   };
 }
 
 export function applyPriceAdjustment(
   price: number,
-  percentChange: number,
+  percentOrAdjustment:
+    | number
+    | Pick<ParsedPriceAdjustment, 'percentChange' | 'amountChange'>,
 ): number {
-  const next = price * (1 + percentChange / 100);
-  return Math.round(next * 100) / 100;
+  if (typeof percentOrAdjustment === 'number') {
+    const next = price * (1 + percentOrAdjustment / 100);
+    return Math.round(next * 100) / 100;
+  }
+  if (
+    percentOrAdjustment.amountChange != null &&
+    Number.isFinite(percentOrAdjustment.amountChange)
+  ) {
+    return (
+      Math.round((price + percentOrAdjustment.amountChange) * 100) / 100
+    );
+  }
+  if (
+    percentOrAdjustment.percentChange != null &&
+    Number.isFinite(percentOrAdjustment.percentChange)
+  ) {
+    const next = price * (1 + percentOrAdjustment.percentChange / 100);
+    return Math.round(next * 100) / 100;
+  }
+  return Math.round(price * 100) / 100;
 }
 
 /** ai-o3 — staff-service matrix by seniority + category. */
@@ -263,10 +357,7 @@ export function isStaffServiceMatrixPrompt(prompt: string): boolean {
       return false;
     }
   }
-  return (
-    /\bassign\b.+\b(?:senior|junior|only|matrix)\b/i.test(prompt) ||
-    /\ball\b.+\b(?:services?|color|massage|stylist)/i.test(prompt)
-  );
+  return /\bassign\b.+\b(?:senior|junior|only|matrix)\b/i.test(prompt);
 }
 
 export function resolveEmployeesBySeniority<
@@ -469,7 +560,11 @@ export function rescueOperationsIntent(
   prompt: string,
   action: string,
   params: Record<string, unknown>,
-): { action: string; params: Record<string, unknown> } | null {
+): {
+  action: string;
+  params: Record<string, unknown>;
+  rescueReason?: string;
+} | null {
   if (isNoShowRecoveryPrompt(prompt) && action !== 'no_show_recovery') {
     return { action: 'no_show_recovery', params };
   }
@@ -491,15 +586,24 @@ export function rescueOperationsIntent(
     action,
   );
   if (priceOnlinePayment) {
+    const adjustment = parsePriceAdjustment(prompt, params);
     return {
       action: priceOnlinePayment.action,
-      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+      params: {
+        ...enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+        ...priceAdjustmentParamsFromParsed(adjustment),
+      },
+      rescueReason: priceOnlinePayment.rescueReason,
     };
   }
   if (isPricingAdjustmentPrompt(prompt) && action !== 'update_service_prices') {
+    const adjustment = parsePriceAdjustment(prompt, params);
     return {
       action: 'update_service_prices',
-      params: enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+      params: {
+        ...enrichUpdateServicePricesParamsFromPrompt(params, prompt),
+        ...priceAdjustmentParamsFromParsed(adjustment),
+      },
     };
   }
   const transfer = rescueTransferServicesBetweenProvidersIntent(
@@ -547,8 +651,19 @@ export function rescueOperationsIntent(
   }
   if (action === 'update_service_prices') {
     const enriched = enrichUpdateServicePricesParamsFromPrompt(params, prompt);
-    if (JSON.stringify(enriched) !== JSON.stringify(params)) {
-      return { action: 'update_service_prices', params: enriched };
+    const adjustment = parsePriceAdjustment(prompt, enriched);
+    const withAdjustment = {
+      ...enriched,
+      ...priceAdjustmentParamsFromParsed(adjustment),
+    };
+    // Drop classifier percentChange when the prompt is clearly a dollar delta
+    // so execution cannot fall back to the wrong unit.
+    if (adjustment?.amountChange != null) {
+      delete withAdjustment.percentChange;
+      delete withAdjustment.priceChangePercent;
+    }
+    if (JSON.stringify(withAdjustment) !== JSON.stringify(params)) {
+      return { action: 'update_service_prices', params: withAdjustment };
     }
   }
   if (action === 'check_availability') {
@@ -558,6 +673,30 @@ export function rescueOperationsIntent(
   }
 
   return null;
+}
+
+/** Flatten a parsed price adjustment into classifier/handler params. */
+export function priceAdjustmentParamsFromParsed(
+  adjustment: ParsedPriceAdjustment | null,
+): Record<string, unknown> {
+  if (!adjustment) return {};
+  return {
+    ...(adjustment.amountChange != null
+      ? { amountChange: adjustment.amountChange }
+      : {}),
+    ...(adjustment.percentChange != null
+      ? { percentChange: adjustment.percentChange }
+      : {}),
+    ...(adjustment.categoryHint
+      ? { categoryName: adjustment.categoryHint }
+      : {}),
+    ...(adjustment.effectiveFrom
+      ? { effectiveFrom: adjustment.effectiveFrom }
+      : {}),
+    ...(adjustment.serviceNameHint
+      ? { serviceName: adjustment.serviceNameHint }
+      : {}),
+  };
 }
 
 export function mapOperationsOrchestrationResult(result: {

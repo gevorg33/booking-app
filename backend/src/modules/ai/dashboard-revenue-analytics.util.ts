@@ -29,11 +29,44 @@ function containsCyrillicScript(text: string): boolean {
   return /[\u0400-\u04FF]/.test(text);
 }
 
+/**
+ * e2e-bug.137 — owners say "have I made / my revenue" for *business* totals.
+ * Provider-personal cues (cut/tips/take-home) stay on summarize_my_revenue.
+ */
+export function isOwnerBusinessRevenuePrompt(prompt: string): boolean {
+  if (
+    /\b(my\s+cut|take[- ]home|my\s+tips|my\s+share|my\s+commission)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (/\b(sales\s*tax|tax\s+rate|vat|gst)\b/i.test(prompt)) return false;
+  return (
+    /\bhave\s+i\s+made\b/i.test(prompt) ||
+    /\b(how much|what(?:'s| is))\b[\s\S]{0,40}\b(my\s+)?(revenue|sales|income)\b/i.test(
+      prompt,
+    ) ||
+    /\b(revenue|sales|income)\b[\s\S]{0,40}\bhave\s+i\s+made\b/i.test(prompt)
+  );
+}
+
 /** Dashboard: total business earnings/revenue for a period (not per-provider rankings). */
 export function isTotalEarningsPrompt(prompt: string): boolean {
   if (isReportsCurrencyExplainPrompt(prompt)) return false;
   if (isTopStaffRevenuePrompt(prompt)) return false;
-  if (isSummarizeMyRevenuePrompt(prompt)) return false;
+  // e2e-bug.137 — "sales tax rate" must not match the "sales" earnings cue.
+  if (/\b(sales\s*tax|tax\s+rate|vat\s+rate|gst\s+rate)\b/i.test(prompt)) {
+    return false;
+  }
+  // Prefer business totals over provider my-revenue when the owner asks
+  // "how much revenue have I made this month?"
+  if (
+    isSummarizeMyRevenuePrompt(prompt) &&
+    !isOwnerBusinessRevenuePrompt(prompt)
+  ) {
+    return false;
+  }
   if (isMyStatsPrompt(prompt)) return false;
   if (
     /\b(?:for|of)\s+(?!today|tomorrow|yesterday|this|last|the\b|week|month|year)([A-Za-z][\w]+(?:\s+[A-Za-z][\w]+)?)\b/i.test(
@@ -46,6 +79,7 @@ export function isTotalEarningsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return (
     isDashboardTotalEarningsPromptHyRu(prompt) ||
+    isOwnerBusinessRevenuePrompt(prompt) ||
     /\b(calculate|compute|what(?:'s| is)|show|tell me|get)\b[\s\S]{0,50}\b(total\s+)?(earnings?|revenue|sales|income)\b/i.test(
       lower,
     ) ||

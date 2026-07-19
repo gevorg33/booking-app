@@ -33,7 +33,10 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
         usage: [],
         subscription: sub,
       })),
-      cancelSubscription: jest.fn(),
+      cancelSubscription: jest.fn(async () => ({
+        subscription: sub,
+        refundStatus: undefined,
+      })),
       listPlans: jest.fn(async () => [{ id: 'plan-1', name: 'Nail Plan' }]),
     },
     giftCardOrderService: {
@@ -90,6 +93,7 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
     deps.customerPrivacyService as any,
     deps.subscriptionsService as any,
     deps.giftCardOrderService as any,
+    {} as any,
     deps.packagesService as any,
     deps.zendeskService as any,
     deps.bookingRepo as any,
@@ -98,6 +102,10 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
     deps.changeRequestRepo as any,
     deps.giftCardRepo as any,
     deps.businessRepo as any,
+    {
+      getPreferredLocale: jest.fn(),
+      updatePreferredLocale: jest.fn(),
+    } as any,
   );
 
   const customers = [
@@ -296,9 +304,14 @@ describe('AiCustomerCrmService (thin wrapper)', () => {
     expect((await service.handlePrivacyExport('biz-1', session)).success).toBe(
       true,
     );
-    expect((await service.handlePrivacyDelete('biz-1', session)).success).toBe(
-      true,
-    );
+    expect(
+      (
+        await service.handlePrivacyDelete('biz-1', {
+          ...session,
+          confirm: true,
+        })
+      ).success,
+    ).toBe(true);
   });
 
   it('delegates discovery and compound handlers', async () => {

@@ -17,6 +17,7 @@ import {
   rescheduleCustomerBooking,
 } from '../services/public-api.js';
 import { getCustomerToken } from '../lib/customer-auth.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
 
 export function ConsumerBookingActions({
@@ -118,7 +119,7 @@ export function ConsumerBookingActions({
       }
       onUpdated();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.cancelBookingFailed);
+      setError(formatFriendlyNetworkError(err, copy.cancelBookingFailed));
     } finally {
       setBusy(null);
     }
@@ -158,7 +159,7 @@ export function ConsumerBookingActions({
       setRescheduleOpen(false);
       onUpdated();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.rescheduleBookingFailed);
+      setError(formatFriendlyNetworkError(err, copy.rescheduleBookingFailed));
     } finally {
       setBusy(null);
     }

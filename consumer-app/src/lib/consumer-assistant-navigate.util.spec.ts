@@ -217,6 +217,13 @@ describe('buildConsumerAssistantHref', () => {
         query: { tab: 'subscriptions' },
       }),
     ).toBe('/s/glow-nails/account?tab=subscriptions');
+    // e2e-bug.52 — my_appointments handoff
+    expect(
+      buildConsumerAssistantHref('glow-nails', {
+        path: 'account',
+        query: { tab: 'bookings' },
+      }),
+    ).toBe('/s/glow-nails/account?tab=bookings');
     expect(
       buildConsumerAssistantHref('glow-nails', {
         path: 'account',

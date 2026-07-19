@@ -36,6 +36,15 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
       ],
     })),
   };
+  const businessRepo = {
+    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+  };
+  const switchDeps = () => ({
+    employeeRepo,
+    serviceRepo,
+    publicBookingService,
+    businessRepo,
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -68,7 +77,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('fails when prompt is not recognized', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       { slug: 'salon' },
       'Book with Anna for color',
@@ -77,9 +86,12 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     expect(result.details?.clarify).toBe(true);
   });
 
-  it('fails without slug', async () => {
+  it('fails when business slug cannot be resolved', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      {
+        ...switchDeps(),
+        businessRepo: { findOne: jest.fn(async () => null) },
+      },
       'biz-1',
       { serviceId: 'svc-haircut', date: '2026-07-01', timeSlot },
       'Keep 3pm but different stylist',
@@ -87,9 +99,20 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     expect(result.summary).toContain('Business not found');
   });
 
+  it('resolves slug from businessId when params.slug is omitted (e2e-bug.82)', async () => {
+    const result = await handleSwitchProviderSameTimeLogic(
+      switchDeps(),
+      'biz-1',
+      { serviceId: 'svc-haircut', date: '2026-07-01', timeSlot },
+      'Keep 3pm but different stylist',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.employeeId).toBe('emp-anna');
+  });
+
   it('fails without date', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       { slug: 'salon', serviceId: 'svc-haircut', timeSlot },
       'Keep 3pm but different stylist',
@@ -99,7 +122,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   it('fails without time slot', async () => {
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -115,7 +138,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
   it('fails when named provider is unknown', async () => {
     employeeRepo.find.mockResolvedValueOnce([]);
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -133,7 +156,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
   it('fails when service is missing in catalog', async () => {
     serviceRepo.findOne.mockResolvedValueOnce(null);
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',
@@ -168,7 +191,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     });
 
     const result = await handleSwitchProviderSameTimeLogic(
-      { employeeRepo, serviceRepo, publicBookingService },
+      switchDeps(),
       'biz-1',
       {
         slug: 'salon',

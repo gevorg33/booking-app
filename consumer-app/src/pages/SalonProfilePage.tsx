@@ -10,7 +10,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { callOutline, locationOutline, mailOutline } from 'ionicons/icons';
+import { callOutline, locationOutline, mailOutline, timeOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ConsumerGrowthLinks } from '../components/ConsumerGrowthLinks.js';
@@ -23,6 +23,7 @@ import {
   socialHref,
 } from '../lib/consumer-growth-links.util.js';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
+import { openingHoursSummaryLines } from '../lib/public-opening-hours.util.js';
 import type { PublicSocialLinks } from '../lib/types.js';
 import { getPublicGiftCardCatalog } from '../services/public-api.js';
 
@@ -74,7 +75,7 @@ export default function SalonProfilePage() {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref="/" />
+              <IonBackButton defaultHref="/"  text={copy.guidePageBack} />
             </IonButtons>
             <IonTitle>{copy.profileViewDetails}</IonTitle>
           </IonToolbar>
@@ -90,13 +91,14 @@ export default function SalonProfilePage() {
   const logo = profile.branding.logoUrl;
   const socialEntries = buildSocialLinkEntries(profile.social);
   const giftCardsEnabled = giftCardsQuery.data?.purchaseEnabled === true;
+  const hourLines = openingHoursSummaryLines(profile.openingHours);
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={buildSalonPath(slug, '/')} />
+            <IonBackButton defaultHref={buildSalonPath(slug, '/')}  text={copy.guidePageBack} />
           </IonButtons>
           <IonTitle>{copy.profileViewDetails}</IonTitle>
         </IonToolbar>
@@ -164,6 +166,31 @@ export default function SalonProfilePage() {
                   {profile.email}
                 </a>
               </p>
+            ) : null}
+            {hourLines.length ? (
+              <div style={{ marginTop: 14, textAlign: 'left' }}>
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#9ca3af',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <IonIcon icon={timeOutline} />
+                  {copy.profileHours}
+                </p>
+                {hourLines.map((line) => (
+                  <p key={line} style={{ color: '#4b5563', margin: '0 0 4px', paddingLeft: 28 }}>
+                    {line}
+                  </p>
+                ))}
+              </div>
             ) : null}
           </div>
 

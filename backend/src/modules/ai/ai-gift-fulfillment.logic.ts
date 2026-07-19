@@ -14,12 +14,14 @@ import { deactivateCancelledGiftCard } from '../gift-cards/gift-card-refund.util
 import type { CommandResult } from './command-completion.types.js';
 import {
   decomposeFulfillmentCompoundPrompt,
+  extractCancelReasonFromPrompt,
   extractCarrierTrackingFromPrompt,
   extractDelayReasonFromPrompt,
   extractEmployeeNameFromPrompt,
   extractGiftCardIdFromPrompt,
   extractProofFromPrompt,
   extractShippingAddressFromPrompt,
+  formatGiftCardOrderDetailsText,
   isPhysicalGiftCardOrder,
   isShippedFulfillmentStatus,
   parseCancelModifyWindowHours,
@@ -378,6 +380,17 @@ export async function handleCancelGiftCardOrderLogic(
     );
   }
 
+  const reason =
+    (typeof params.reason === 'string' && params.reason.trim()) ||
+    extractCancelReasonFromPrompt(prompt ?? (params._prompt as string) ?? '');
+  if (!reason) {
+    return failure(
+      'cancel_gift_card_order',
+      "What's the reason for cancelling this gift card order?",
+      { clarify: true, missing: ['reason'], giftCardId },
+    );
+  }
+
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },
   });
@@ -400,11 +413,12 @@ export async function handleCancelGiftCardOrderLogic(
 
   return success(
     'cancel_gift_card_order',
-    `Gift card order cancelled${refundStatus ? ` — refund ${refundStatus}` : ''}.`,
+    `Gift card order cancelled (reason: ${reason})${refundStatus ? ` — refund ${refundStatus}` : ''}.`,
     {
       giftCardId: card.id,
       refundStatus,
       fulfillmentStatus: card.fulfillmentStatus,
+      reason,
     },
   );
 }
@@ -450,6 +464,191 @@ export async function handleExtendCancelWindowLogic(
     'extend_cancel_window',
     `Gift card cancel/modify window extended to ${hours} hour(s).`,
     { cancelModifyWindowHours: hours },
+  );
+}
+
+export async function handleUpdateGiftCardSettingsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  if (!business)
+    return failure('update_gift_card_settings', 'Business not found.');
+
+  const current = readBusinessGiftCardSettings(business.settings);
+  const defaultExpiryMonths =
+    typeof params.defaultExpiryMonths === 'number'
+      ? params.defaultExpiryMonths
+      : undefined;
+  const digitalDeliveryEnabled =
+    typeof params.digitalDeliveryEnabled === 'boolean'
+      ? params.digitalDeliveryEnabled
+      : undefined;
+  const physicalDeliveryEnabled =
+    typeof params.physicalDeliveryEnabled === 'boolean'
+      ? params.physicalDeliveryEnabled
+      : undefined;
+  const cancelModifyEnabled =
+    typeof params.cancelModifyEnabled === 'boolean'
+      ? params.cancelModifyEnabled
+      : undefined;
+  const physicalCancelBeforeReady =
+    typeof params.physicalCancelBeforeReady === 'boolean'
+      ? params.physicalCancelBeforeReady
+      : undefined;
+
+  if (
+    defaultExpiryMonths === undefined &&
+    digitalDeliveryEnabled === undefined &&
+    physicalDeliveryEnabled === undefined &&
+    cancelModifyEnabled === undefined &&
+    physicalCancelBeforeReady === undefined
+  ) {
+    return failure(
+      'update_gift_card_settings',
+      'What gift card setting should I change? Provide defaultExpiryMonths, digitalDeliveryEnabled, physicalDeliveryEnabled, cancelModifyEnabled, or physicalCancelBeforeReady.',
+    );
+  }
+
+  const next = mergeGiftCardSettings({
+    ...current,
+    ...(defaultExpiryMonths !== undefined ? { defaultExpiryMonths } : {}),
+    ...(digitalDeliveryEnabled !== undefined ? { digitalDeliveryEnabled } : {}),
+    ...(physicalDeliveryEnabled !== undefined
+      ? { physicalDeliveryEnabled }
+      : {}),
+    ...(cancelModifyEnabled !== undefined ? { cancelModifyEnabled } : {}),
+    ...(physicalCancelBeforeReady !== undefined
+      ? { physicalCancelBeforeReady }
+      : {}),
+  });
+  business.settings = { ...(business.settings ?? {}), giftCards: next };
+  await deps.businessRepo.save(business);
+
+  return success('update_gift_card_settings', 'Gift card settings updated.', {
+    settings: next,
+  });
+}
+
+export async function handleListGiftCardChangeRequestsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const status =
+    typeof params.status === 'string' && params.status.trim()
+      ? params.status.trim()
+      : undefined;
+  const requests = await deps.giftCardOrderService.listChangeRequests(
+    businessId,
+    status,
+  );
+  return success(
+    'list_gift_card_change_requests',
+    requests.length
+      ? `${requests.length} gift card change request${requests.length === 1 ? '' : 's'} found.`
+      : 'No gift card change requests found.',
+    { requests },
+  );
+}
+
+export async function handleResolveGiftCardChangeRequestLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const requestId =
+    typeof params.requestId === 'string' && params.requestId.trim()
+      ? params.requestId.trim()
+      : undefined;
+  const resolution = params.resolution as
+    | 'approve'
+    | 'deny'
+    | 'needs_info'
+    | undefined;
+  if (!requestId || !resolution) {
+    return failure(
+      'resolve_gift_card_change_request',
+      'Specify the change request and a resolution (approve, deny, or needs_info).',
+      { clarify: true, missing: ['requestId', 'resolution'] },
+    );
+  }
+
+  const specialistNotes =
+    typeof params.specialistNotes === 'string'
+      ? params.specialistNotes
+      : undefined;
+
+  try {
+    const resolved = await deps.giftCardOrderService.resolveChangeRequest(
+      businessId,
+      requestId,
+      resolution,
+      specialistNotes,
+    );
+    return success(
+      'resolve_gift_card_change_request',
+      `Change request ${resolution === 'approve' ? 'approved' : resolution === 'deny' ? 'denied' : 'marked as needing more info'}.`,
+      { request: resolved },
+    );
+  } catch (err: any) {
+    return failure(
+      'resolve_gift_card_change_request',
+      err?.message ?? 'Could not resolve the change request.',
+    );
+  }
+}
+
+export async function handleGiftFulfillBatchLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const count =
+    typeof params.count === 'number' && params.count > 0
+      ? Math.min(Math.floor(params.count), 25)
+      : 5;
+
+  const queue = await deps.fulfillmentService.listDashboardOrders(businessId, {
+    status: 'ready_for_delivery' as any,
+    pageSize: count,
+  });
+  const orders = queue.orders.slice(0, count);
+  if (orders.length === 0) {
+    return success(
+      'gift_fulfill_batch',
+      'No gift card orders are ready to ship.',
+      { shipped: [] },
+    );
+  }
+
+  const shipped: Array<{ giftCardId: string; trackingNumber: string }> = [];
+  const failed: Array<{ giftCardId: string; error: string }> = [];
+  for (const order of orders) {
+    const trackingNumber = `TRK-${Date.now()}-${shipped.length}`;
+    try {
+      await deps.fulfillmentService.markShipped(
+        businessId,
+        order.id,
+        'Carrier',
+        trackingNumber,
+      );
+      shipped.push({ giftCardId: order.id, trackingNumber });
+    } catch (err: any) {
+      failed.push({
+        giftCardId: order.id,
+        error: err?.message ?? 'Could not ship order.',
+      });
+    }
+  }
+
+  return success(
+    'gift_fulfill_batch',
+    `Shipped ${shipped.length} of ${orders.length} ready gift card order(s).${failed.length ? ` ${failed.length} failed.` : ''}`,
+    { shipped, failed },
   );
 }
 
@@ -543,6 +742,48 @@ export async function handleStartCardPreparationLogic(
     return failure(
       'start_card_preparation',
       err?.message ?? 'Could not start card preparation.',
+    );
+  }
+}
+
+/** ai-cmd-provider-5.20.5 — read-only order detail (amount, service credits, recipient) for the provider fulfillment queue. */
+export async function handleExplainGiftCardOrderDetailsLogic(
+  deps: GiftFulfillmentLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const giftCardId = await resolveGiftCardId(deps, businessId, params, prompt);
+  if (!giftCardId) {
+    return failure(
+      'explain_gift_card_order_details',
+      'Specify which gift card order to explain.',
+      {
+        clarify: true,
+        missing: ['giftCardId'],
+      },
+    );
+  }
+  try {
+    const card = await deps.fulfillmentService.getDashboardOrder(
+      businessId,
+      giftCardId,
+    );
+    return success(
+      'explain_gift_card_order_details',
+      formatGiftCardOrderDetailsText(card),
+      {
+        giftCardId: card.id,
+        cardType: card.cardType,
+        amount: card.purchaseAmount,
+        balance: card.balance,
+        fulfillmentStatus: card.fulfillmentStatus,
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'explain_gift_card_order_details',
+      err?.message ?? 'Could not find that gift card order.',
     );
   }
 }

@@ -10,6 +10,7 @@ import {
   personOutline,
   todayOutline,
 } from 'ionicons/icons';
+import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
 import type { ProviderTabId } from '../lib/provider-tab-route.util';
 
@@ -23,6 +24,19 @@ export function ProviderBottomTabBar({
   onOpenTab: (tab: ProviderTabId) => void;
 }) {
   const { t } = useI18n();
+  const navRef = useRef<HTMLElement | null>(null);
+
+  // e2e-bug.65 — when clinic tabs overflow, keep the active tab scrolled into view.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('.provider-tab-btn.is-active');
+    active?.scrollIntoView({
+      inline: 'nearest',
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  }, [activeTab, showLabCollection]);
 
   const tabBtn = (tab: ProviderTabId, icon: string, label: string) => (
     <button
@@ -37,12 +51,20 @@ export function ProviderBottomTabBar({
   );
 
   return (
-    <nav className="provider-bottom-tab-bar" aria-label={t('provider.navToday')}>
+    <nav
+      ref={navRef}
+      className="provider-bottom-tab-bar"
+      aria-label={t('provider.navToday')}
+    >
       {tabBtn('today', todayOutline, t('provider.navToday'))}
-      {showLabCollection && tabBtn('lab-collection', flaskOutline, t('provider.navLabCollection'))}
-      {showLabCollection && tabBtn('lab-results', documentTextOutline, t('provider.navLabResults'))}
-      {showLabCollection && tabBtn('clinic-tasks', listOutline, t('provider.navClinicTasks'))}
-      {showLabCollection && tabBtn('patients', peopleOutline, t('provider.navPatients'))}
+      {showLabCollection &&
+        tabBtn('lab-collection', flaskOutline, t('provider.navLabCollection'))}
+      {showLabCollection &&
+        tabBtn('lab-results', documentTextOutline, t('provider.navLabResults'))}
+      {showLabCollection &&
+        tabBtn('clinic-tasks', listOutline, t('provider.navClinicTasks'))}
+      {showLabCollection &&
+        tabBtn('patients', peopleOutline, t('provider.navPatients'))}
       {tabBtn('gift-cards', giftOutline, t('provider.navGiftCards'))}
       {tabBtn('calendar', calendarClearOutline, t('provider.navCalendar'))}
       {tabBtn('schedule', calendarOutline, t('provider.navSchedule'))}

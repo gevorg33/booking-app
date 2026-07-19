@@ -52,6 +52,20 @@ describe('ai-buy-gift-card-for-someone.util (ai-cmd-customer-4.16.4)', () => {
     expect(isBuyGiftCardPrompt(prompt)).toBe(true);
   });
 
+  // e2e-bug.80 — "for myself" / "for N dollars" must not look like a recipient.
+  it('does not steal for-myself or face-value amount phrasing', () => {
+    expect(
+      isBuyGiftCardForSomeonePrompt(
+        'I want to buy a 50 dollar digital gift card for myself',
+      ),
+    ).toBe(false);
+    expect(
+      isBuyGiftCardForSomeonePrompt(
+        'I want to order a physical gift card for 75 dollars',
+      ),
+    ).toBe(false);
+  });
+
   it('enriches recipient and amount from prompt', () => {
     expect(
       enrichBuyGiftCardForSomeoneParamsFromPrompt(
@@ -63,6 +77,19 @@ describe('ai-buy-gift-card-for-someone.util (ai-cmd-customer-4.16.4)', () => {
       amount: 100,
       recipientName: 'Mom',
       deliveryMethod: 'digital',
+    });
+  });
+
+  // e2e-bug.124
+  it('detects purchase-as-present phrasing (not only "as a gift")', () => {
+    const prompt =
+      'Please purchase a $50 gift card as a present for my friend, I want to send it to them';
+    expect(isBuyGiftCardForSomeonePrompt(prompt)).toBe(true);
+    expect(
+      rescueBuyGiftCardForSomeoneIntent(prompt, 'apply_gift_card_code'),
+    ).toEqual({
+      action: 'buy_gift_card_for_someone',
+      rescueReason: 'gift_card_for_someone',
     });
   });
 });

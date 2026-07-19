@@ -5,7 +5,7 @@ import {
 } from './ai-explain-prepayment.util.js';
 import { isAskPaymentOptionsPrompt } from './ai-cash-payment-checkout.util.js';
 
-export const CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES = `- pay_online: MUTATE — select secure Stripe card checkout after the customer picked a time slot. Triggers: pay online, pay with card, continue to payment, proceed to Stripe checkout, complete checkout with card. Sets paymentMethod=online and navigates to checkout when serviceId/startTime/employeeId are in session. Fails when Stripe is not connected or online payments disabled. NOT choose_payment_method (list options), NOT pay_cash_at_visit (cash selection), NOT explain_why_stripe_required (why card required), NOT resume_pending_payment (restore abandoned device session — "closed app mid-checkout"), NOT book_nearest_slot (pick slot).`;
+export const CUSTOMER_PUBLIC_PAY_ONLINE_CLASSIFIER_RULES = `- pay_online: MUTATE — select secure Stripe card checkout after the customer picked a time slot (or pay for an existing upcoming visit named in the prompt). Triggers: pay online, pay with card, continue to payment, proceed to Stripe checkout, complete checkout with card, "I want to pay online for my {service} booking", "pay online now for my upcoming {service} appointment". Sets paymentMethod=online and navigates to checkout when serviceId/startTime/employeeId are in session (or resolves the named upcoming booking). Fails when Stripe is not connected or online payments disabled. NOT choose_payment_method (list options), NOT pay_cash_at_visit (cash selection), NOT explain_why_stripe_required (why card required), NOT resume_pending_payment (restore abandoned device session — "closed app mid-checkout"), NOT confirm_my_booking_details|list_my_upcoming_appointments|my_appointments (read-only booking lists — even when the prompt says "my booking/appointment"), NOT book_nearest_slot (pick slot).`;
 
 export type PayOnlineCheckoutPromptFixture = {
   id: string;
@@ -77,6 +77,20 @@ export const PAY_ONLINE_CHECKOUT_PROMPTS: readonly PayOnlineCheckoutPromptFixtur
       surface: 'customer',
       expectedAction: 'pay_online',
       serviceName: 'massage',
+    },
+    {
+      id: 'pay-online-my-facemassage-booking-customer',
+      prompt: 'I want to pay online for my facemassage booking',
+      surface: 'customer',
+      expectedAction: 'pay_online',
+      serviceName: 'facemassage',
+    },
+    {
+      id: 'pay-online-now-upcoming-facemassage-customer',
+      prompt: 'pay online now for my upcoming facemassage appointment',
+      surface: 'customer',
+      expectedAction: 'pay_online',
+      serviceName: 'facemassage',
     },
     {
       id: 'open-stripe-customer',
@@ -326,6 +340,23 @@ export function isExplicitPayOnlinePrompt(prompt: string): boolean {
   }
 
   if (/\b(ready to pay online|pay online now)\b/i.test(prompt)) return true;
+
+  if (/վճարել?\s*օնլայն|оплатить\s*онлайн/iu.test(prompt)) return true;
+
+  if (
+    /(ավարտել|շարունակել)/iu.test(prompt) &&
+    /(checkout|վճարում)/iu.test(prompt) &&
+    /քարտ/iu.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    /(завершить|продолжить)/iu.test(prompt) &&
+    /(checkout|оплат)/iu.test(prompt) &&
+    /карт/iu.test(prompt)
+  ) {
+    return true;
+  }
 
   return false;
 }

@@ -1,5 +1,7 @@
 import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
+import { Business } from '../business/entities/business.entity.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { AiPushNotificationsService } from './ai-push-notifications.service.js';
@@ -56,7 +58,13 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
               platform: null,
             })),
           },
-        },
+          },
+          {
+            provide: getRepositoryToken(Business),
+            useValue: {
+              findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+            },
+          },
       ],
     }).compile();
 
@@ -82,6 +90,15 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
     expect(result?.details?.shareUrl).toContain('ref=ABC12345');
   });
 
+  // e2e-bug.125
+  it('returns referral code without params.slug via businessId lookup', async () => {
+    const result = await service.handleIntent('biz-1', 'refer_a_friend', {
+      sessionCustomerId: 'cust-1',
+    });
+    expect(result?.success).toBe(true);
+    expect(result?.details?.referralCode).toBe('ABC12345');
+  });
+
   it('returns growth navigation for share_salon_link', async () => {
     const result = await service.handleIntent('biz-1', 'share_salon_link', {
       sessionCustomerId: 'cust-1',
@@ -93,5 +110,16 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
       query: { section: 'growth' },
     });
     expect(result?.details?.salonShareEnabled).toBe(true);
+  });
+
+  it('returns share_salon_link without params.slug via businessId lookup', async () => {
+    const result = await service.handleIntent('biz-1', 'share_salon_link', {
+      sessionCustomerId: 'cust-1',
+    });
+    expect(result?.success).toBe(true);
+    expect(result?.details?.navigate).toMatchObject({
+      path: 'account',
+      query: { section: 'growth' },
+    });
   });
 });

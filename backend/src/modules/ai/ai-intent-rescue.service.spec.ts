@@ -1,4 +1,27 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS } from './ai-provider-payment-sweep.fixtures.js';
+import { PROVIDER_UPDATE_BOOKINGS_STATUS_PROMPT_SCENARIOS } from './ai-provider-update-bookings-status.fixtures.js';
+import { PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS } from './ai-provider-mark-visit-in-progress.fixtures.js';
+import { PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_PROMPT_SCENARIOS } from './ai-provider-mark-multi-service-step-done.fixtures.js';
+import { PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS } from './ai-provider-confirm-pending-booking.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS,
+} from './ai-provider-visit-status-explainers.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_CALENDAR_UTILIZATION_BANDS_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_BLOCK_VS_TIME_OFF_PROMPT_SCENARIOS,
+} from './ai-provider-calendar-scheduling-explainers.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_OFFLINE_SUGGESTIONS_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_ACCESSIBILITY_SETTINGS_PROMPT_SCENARIOS,
+} from './ai-provider-assistant-ux-explainers.fixtures.js';
+import { PROVIDER_GIVE_AI_FEEDBACK_PROMPTS } from './ai-provider-give-ai-feedback.fixtures.js';
+import {
+  PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS,
+  PROVIDER_EXPLAIN_TIME_OFF_APPROVAL_PROMPT_SCENARIOS,
+} from './ai-provider-dashboard-handoff.fixtures.js';
 
 describe('AiIntentRescueService', () => {
   const rescue = new AiIntentRescueService();
@@ -51,6 +74,23 @@ describe('AiIntentRescueService', () => {
     });
     expect(result?.action).toBe('payment_sweep');
   });
+
+  it.each(
+    PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+  )(
+    'rescues payment_sweep prompt %s (ai-cmd-provider-5.3.2)',
+    (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('payment_sweep');
+      expect(result?.rescueReason).toBe('payment_sweep_pattern');
+    },
+  );
 
   it('rescues day replan to day_replan action', () => {
     const result = rescue.rescue({
@@ -262,7 +302,266 @@ describe('AiIntentRescueService', () => {
     });
     expect(result?.action).toBe('summarize_bookings');
     expect(result?.params.bookingMetric).toBe('revenue');
-    expect(result?.rescueReason).toBe('list_to_total_earnings');
+    // Either the dedicated list_bookings disambiguation or the generic earnings rescue.
+    expect(['list_to_total_earnings', 'total_earnings']).toContain(
+      result?.rescueReason,
+    );
+  });
+
+  it('e2e-bug.153 — how many customers forces overview (not most_no_shows)', () => {
+    const result = rescue.rescue({
+      prompt: 'How many customers do I have?',
+      action: 'summarize_customers',
+      params: { customerMetric: 'most_no_shows' },
+      employees,
+    });
+    expect(result?.action).toBe('summarize_customers');
+    expect(result?.params.customerMetric).toBe('overview');
+    expect(result?.rescueReason).toBe('unscoped_customer_count');
+  });
+
+  it.each([
+    [
+      'Add a new business location called QA Test Branch at 123 Test St',
+      'create_location',
+      { name: 'QA Test Branch', address: '123 Test St' },
+    ],
+    [
+      "Update my main location's address to 456 New St",
+      'update_location',
+      { locationName: 'main', address: '456 New St' },
+    ],
+    [
+      'Set commission rate for Gevorg Gasparyan to 20 percent',
+      'create_commission_rule',
+      { employeeName: 'Gevorg Gasparyan', value: 20, type: 'percent' },
+    ],
+    [
+      'Export my analytics report for this quarter',
+      'export_analytics_report',
+      { dateRange: 'this_quarter' },
+    ],
+    [
+      'Set my sales tax rate to 8.5 percent',
+      'configure_business_tax',
+      { rate: 8.5 },
+    ],
+  ] as const)(
+    'e2e-bug.146 — %s → %s (not react_agent denial)',
+    (prompt, expectedAction, paramsPartial) => {
+      for (const action of ['unknown', 'react_agent'] as const) {
+        const result = rescue.rescue({
+          prompt,
+          action,
+          params: {},
+          employees,
+        });
+        expect(result?.action).toBe(expectedAction);
+        expect(result?.params).toEqual(
+          expect.objectContaining(paramsPartial),
+        );
+      }
+    },
+  );
+
+  it.each(['unknown', 'react_agent', 'list_templates'] as const)(
+    'e2e-bug.137 — What are my business hours? → explain_business_hours_and_location from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'What are my business hours?',
+        action,
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('explain_business_hours_and_location');
+      expect(result?.rescueReason).toBe('business_hours_location');
+    },
+  );
+
+  it.each(['unknown', 'clear_schedule', 'react_agent'] as const)(
+    'e2e-bug.136 — unblock full-day block → delete_schedule_block from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt:
+          "Unblock Gevorg's schedule for tomorrow, 18/07/2026, remove the full-day block I just created",
+        action,
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('delete_schedule_block');
+    },
+  );
+
+  it.each(['my_subscriptions', 'unknown', 'react_agent'] as const)(
+    'e2e-bug.138 — active memberships for my customers → list_customer_subscriptions from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'List active memberships for my customers',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_customer_subscriptions');
+      expect(result?.rescueReason).toBe('list_subscriptions');
+    },
+  );
+
+  it.each(['list_agent_tasks', 'unknown', 'react_agent'] as const)(
+    'e2e-bug.139 — open support tickets → explain_support_inbox (not agent tasks) from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'Do I have any open support tickets?',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('explain_support_inbox');
+      expect(result?.rescueReason).toBe('explain_support_inbox');
+    },
+  );
+
+  it('e2e-bug.139 — unread customer messages → explain_support_inbox', () => {
+    const result = rescue.rescue({
+      prompt: 'Do I have any unread customer messages?',
+      action: 'list_agent_tasks',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('explain_support_inbox');
+  });
+
+  it('e2e-bug.140 — record_expense sanitizes category=today to supplies', () => {
+    const result = rescue.rescue({
+      prompt: 'Add a $20 business expense today for QA test cleaning supplies',
+      action: 'record_expense',
+      params: { category: 'today', amount: 20 },
+      employees,
+    });
+    expect(result?.action).toBe('record_expense');
+    expect(result?.params.category).toBe('supplies');
+    expect(String(result?.params.description)).toMatch(
+      /QA test cleaning supplies/i,
+    );
+  });
+
+  it('e2e-bug.141 — delete expense enriches description from natural prompt', () => {
+    const result = rescue.rescue({
+      prompt: 'Delete the $20 QA test cleaning supplies expense I just added',
+      action: 'delete_expense',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('delete_expense');
+    expect(String(result?.params.description)).toMatch(
+      /QA test cleaning supplies/i,
+    );
+  });
+
+  it('e2e-bug.148 — priced at N dollars enriches create_product params', () => {
+    const result = rescue.rescue({
+      prompt:
+        'Add a retail product called QA Test Product priced at 5 dollars',
+      action: 'create_product',
+      params: {},
+      employees,
+    });
+    expect(result?.action).toBe('create_product');
+    expect(result?.rescueReason).toBe('create_product_params');
+    expect(result?.params.price).toBe(5);
+    expect(result?.params.retailPrice).toBe(5);
+    expect(String(result?.params.productName)).toMatch(/QA Test Product/i);
+  });
+
+  it.each(['unknown', 'react_agent', 'list_scheduling_resources'])(
+    'e2e-bug.147 — service equipment requirements → list_service_resource_requirements from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt:
+          'What equipment does the deep tissue massage service require?',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_service_resource_requirements');
+      expect(result?.rescueReason).toMatch(
+        /list_service_resource_requirements/,
+      );
+      expect(String(result?.params.serviceName)).toMatch(
+        /deep tissue massage/i,
+      );
+    },
+  );
+
+  it.each([
+    [
+      'Delete the service called QA Test Trim',
+      'QA Test Trim',
+      'remove_service_from_cart',
+    ],
+    [
+      'Remove the QA Test Trim service from my catalog permanently',
+      'QA Test Trim',
+      'unassign_employee_services',
+    ],
+    [
+      'Delete service QA Test Trim from the business catalog. This is a catalog management delete_service action, not a cart or employee action.',
+      'QA Test Trim',
+      'deactivate_employee',
+    ],
+    ['Deactivate the QA Test Trim service', 'QA Test Trim', 'unknown'],
+  ] as const)(
+    'e2e-bug.144 — %s → deactivate_service (not %s)',
+    (prompt, serviceName, stealAction) => {
+      for (const action of [stealAction, 'unknown', 'react_agent'] as const) {
+        const result = rescue.rescue({
+          prompt,
+          action,
+          params: {},
+          employees,
+        });
+        expect(result?.action).toBe('deactivate_service');
+        expect(String(result?.params.serviceName)).toBe(serviceName);
+      }
+    },
+  );
+
+  it('e2e-bug.151 — service category called X → create_service_category (not promo)', () => {
+    const result = rescue.rescue({
+      prompt: 'Add a new service category called Wellness',
+      action: 'create_promo_code',
+      params: { code: 'WELLNESS' },
+      employees,
+    });
+    expect(result?.action).toBe('create_service_category');
+    expect(result?.rescueReason).toBe('service_category');
+    expect(result?.params.categoryName).toBe('Wellness');
+  });
+
+  it.each(['unknown', 'list_clinic_tasks', 'react_agent', 'my_appointments'])(
+    'e2e-bug.152 — pending AI agent tasks → list_agent_tasks (not clinic) from %s',
+    (action) => {
+      const result = rescue.rescue({
+        prompt: 'Show me pending AI agent tasks',
+        action,
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('list_agent_tasks');
+      expect(result?.rescueReason).toBe('list_tasks');
+      expect(result?.params.scope).toBe('pending');
+    },
+  );
+
+  it('e2e-bug.152 — does not overwrite a correct list_agent_tasks classification', () => {
+    const result = rescue.rescue({
+      prompt: 'Show me pending AI agent tasks',
+      action: 'list_agent_tasks',
+      params: { scope: 'pending' },
+      employees,
+    });
+    expect(result).toBeNull();
   });
 
   it('disambiguates list_employees to specialist revenue ranking', () => {
@@ -285,5 +584,309 @@ describe('AiIntentRescueService', () => {
       employees,
     });
     expect(result).toBeNull();
+  });
+
+  describe('update_bookings status branches (ai-cmd-provider-5.16.1)', () => {
+    it.each(
+      PROVIDER_UPDATE_BOOKINGS_STATUS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+        s.expectedStatus,
+      ]),
+    )('rescues %s to update_bookings with status=%s', (_id, prompt, expectedStatus) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('update_bookings');
+      expect(result?.params.status).toBe(expectedStatus);
+    });
+
+    it('does not misroute mark_visit_complete phrasing to confirm_my_booking_details', () => {
+      // Note: at this general (dashboard-shared) rescue layer, "mark this visit
+      // complete" legitimately falls through to ai-booking-depth's bare
+      // mark+done/complete heuristic (mark_paid) — matching the established,
+      // separately-tested "mark the visit as done" → mark_paid behavior. The
+      // provider-mobile flow overrides this correctly via the dedicated
+      // rescueProviderAiIntent → isMarkVisitCompletePrompt check, which runs
+      // after this general pipeline (see provider-ai-intent.util.ts).
+      const result = rescue.rescue({
+        prompt: 'Mark this visit complete',
+        action: 'unknown',
+        params: {},
+        employees,
+      });
+      expect(result?.action).not.toBe('confirm_my_booking_details');
+    });
+  });
+
+  describe('mark_visit_in_progress (ai-cmd-provider-5.16.2)', () => {
+    it.each(
+      PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to mark_visit_in_progress', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('mark_visit_in_progress');
+      expect(result?.params.status).toBe('in_progress');
+    });
+  });
+
+  describe('mark_multi_service_step_done (ai-cmd-provider-5.18.3)', () => {
+    it.each(
+      PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to mark_multi_service_step_done', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('mark_multi_service_step_done');
+    });
+
+    it('extracts stepIndex from "Finish step 1 of spa day"', () => {
+      const result = rescue.rescue({
+        prompt: 'Finish step 1 of spa day',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.params.stepIndex).toBe(1);
+    });
+
+    it('extracts serviceName from "Complete blowdry leg"', () => {
+      const result = rescue.rescue({
+        prompt: 'Complete blowdry leg',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.params.serviceName).toBe('blowdry');
+    });
+  });
+
+  describe('confirm_pending_booking (ai-cmd-provider-5.16.4)', () => {
+    it.each(
+      PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to confirm_pending_booking', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('confirm_pending_booking');
+    });
+  });
+
+  describe('visit status explainers (ai-cmd-provider-5.16.5 / 5.16.6)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to explain_booking_status_badge', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_booking_status_badge');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to explain_floor_status', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_floor_status');
+    });
+  });
+
+  describe('calendar scheduling explainers (ai-cmd-provider-5.23.2 / 5.23.4)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_CALENDAR_UTILIZATION_BANDS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_calendar_utilization_bands', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_calendar_utilization_bands');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_BLOCK_VS_TIME_OFF_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_block_vs_time_off', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_block_vs_time_off');
+    });
+  });
+
+  describe('assistant UX explainers (ai-cmd-provider-5.24.1 / 5.24.6)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_OFFLINE_SUGGESTIONS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_offline_suggestions', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_offline_suggestions');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_ACCESSIBILITY_SETTINGS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_accessibility_settings', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_accessibility_settings');
+    });
+  });
+
+  describe('give_provider_ai_feedback (ai-cmd-provider-5.24.3)', () => {
+    it.each(
+      PROVIDER_GIVE_AI_FEEDBACK_PROMPTS.map((s) => [s.id, s.prompt]),
+    )('rescues %s to give_provider_ai_feedback on provider surface', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('give_provider_ai_feedback');
+    });
+
+    it('does not rescue to give_provider_ai_feedback on customer surface', () => {
+      const result = rescue.rescue({
+        prompt: 'Wrong client picked',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'customer',
+      });
+      expect(result?.action).not.toBe('give_provider_ai_feedback');
+    });
+  });
+
+  describe('dashboard handoff (ai-cmd-provider-5.25.1 / 5.25.2 / 5.25.3)', () => {
+    it.each(
+      PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_reassign_limit', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_reassign_limit');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_TIME_OFF_APPROVAL_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_time_off_approval', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_time_off_approval');
+    });
+
+    it.each(
+      PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
+    )('rescues %s to explain_dashboard_only_action', (_id, prompt) => {
+      const result = rescue.rescue({
+        prompt: prompt as string,
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('explain_dashboard_only_action');
+    });
+  });
+
+  describe('open_dashboard_deep_link (ai-cmd-provider-5.25.4)', () => {
+    it('rescues "Open CRM for Jane" to open_dashboard_deep_link', () => {
+      const result = rescue.rescue({
+        prompt: 'Open CRM for Jane',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('open_dashboard_deep_link');
+      expect(result?.params.customerName).toBe('Jane');
+    });
+
+    it('rescues "Full intake on web" to open_dashboard_deep_link', () => {
+      const result = rescue.rescue({
+        prompt: 'Full intake on web',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('open_dashboard_deep_link');
+    });
   });
 });

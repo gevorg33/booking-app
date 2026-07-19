@@ -132,3 +132,65 @@ export async function handleCreatePromoCodeLogic(
     );
   }
 }
+
+export async function handleDeactivatePromoCodeLogic(
+  deps: CreatePromoCodeLogicDeps,
+  businessId: string,
+  params: Record<string, unknown> = {},
+): Promise<CommandResult> {
+  if (!deps.promoCodesService) {
+    return failure(
+      'deactivate_promo_code',
+      'Promo codes are not available on this surface.',
+      { navigate: NAVIGATE },
+    );
+  }
+
+  const codeParam =
+    typeof params.code === 'string' && params.code.trim()
+      ? params.code.trim().toUpperCase()
+      : undefined;
+  const idParam =
+    typeof params.promoId === 'string' && params.promoId.trim()
+      ? params.promoId.trim()
+      : undefined;
+
+  if (!codeParam && !idParam) {
+    return failure(
+      'deactivate_promo_code',
+      'Which promo code should I deactivate? Example: SAVE10.',
+      { clarify: true, missing: ['code'], navigate: NAVIGATE },
+    );
+  }
+
+  const promos = await deps.promoCodesService.list(businessId);
+  const promo = idParam
+    ? promos.find((p) => p.id === idParam)
+    : promos.find((p) => p.code === codeParam);
+
+  if (!promo) {
+    return failure(
+      'deactivate_promo_code',
+      `No promo code "${codeParam ?? idParam}" was found.`,
+      { navigate: NAVIGATE },
+    );
+  }
+
+  try {
+    const updated = await deps.promoCodesService.deactivate(
+      businessId,
+      promo.id,
+    );
+    return success(
+      'deactivate_promo_code',
+      `Deactivated promo code ${updated.code}.`,
+      { promoId: updated.id, code: updated.code, navigate: NAVIGATE },
+    );
+  } catch (err: any) {
+    return failure(
+      'deactivate_promo_code',
+      err?.message || 'Could not deactivate promo code.',
+      { code: promo.code, navigate: NAVIGATE },
+    );
+  }
+}

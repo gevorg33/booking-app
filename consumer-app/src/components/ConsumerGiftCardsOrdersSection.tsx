@@ -5,6 +5,7 @@ import { formatPublicMoney } from '../lib/business-currency.js';
 import { formatDateDisplay } from '../lib/date-format.js';
 import { formatGiftCardCancelWindow } from '../lib/gift-card-catalog.util.js';
 import type { PublicGiftCardOrder } from '../lib/gift-card.types.js';
+import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { submitPublicGiftCardCancelRequest } from '../services/public-api.js';
 
 function OrderRow({
@@ -42,7 +43,8 @@ function OrderRow({
         setSuccess(copy.giftCardCancelSuccess);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : copy.networkLoadFailed);
+      // e2e-bug.3 — unwrap Nest/axios body; never show bare status text.
+      setError(formatFriendlyNetworkError(err, copy.networkLoadFailed));
     } finally {
       setLoading(false);
     }

@@ -22,6 +22,19 @@ export class CommandReasoningService {
       return result;
     }
 
+    // e2e-bug.162 / e2e-bug.155 — keep grounded quota and CRM aggregate counts;
+    // LLM rewrite previously invented "no cancellations" / wrong limits.
+    if (
+      result.action === 'explain_ai_capabilities' ||
+      result.action === 'open_billing_settings' ||
+      result.action === 'explain_plan_limits' ||
+      result.action === 'explain_plan_entitlements' ||
+      result.action === 'summarize_customers' ||
+      result.action === 'summarize_bookings'
+    ) {
+      return result;
+    }
+
     if (!(await this.openAi.isAvailableForBusiness(businessId))) {
       return result;
     }
@@ -40,6 +53,7 @@ export class CommandReasoningService {
         `You improve AI command responses for salon/spa staff dashboards.
 Return JSON: { "summary": "1-2 clear sentences for the user", "reasoning": "1 sentence internal rationale" }
 Keep summaries factual — do not invent counts or actions not in the input.
+Never invent usage limits, quotas, or "exceeded" claims from unrelated counts.
 When provider availability is present, mention provider names and open times directly.
 Never tell the user to open a separate "provider list" or UI panel — the app renders providers inline.`,
         `User command: ${prompt}

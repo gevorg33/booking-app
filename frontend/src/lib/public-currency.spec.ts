@@ -17,6 +17,15 @@ describe('public-currency', () => {
     it('falls back to code suffix when Intl rejects currency', () => {
       expect(formatPublicPrice(12.5, 'NOTREAL', 'en')).toBe('12.5 NOTREAL');
     });
+
+    it('e2e-bug.115 — missing locale uses fixed en-GB (not runtime default)', () => {
+      const withMissing = formatPublicPrice(344.25, 'USD');
+      const withEn = formatPublicPrice(344.25, 'USD', 'en');
+      expect(withMissing).toBe(withEn);
+      // en-GB USD: symbol prefix + dot decimal (never fr-style "344,25 $")
+      expect(withMissing).toMatch(/\$344\.25|US\$344\.25/);
+      expect(withMissing).not.toMatch(/344,25/);
+    });
   });
 
   describe('formatPublicMoney', () => {

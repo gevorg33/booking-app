@@ -129,8 +129,15 @@ export function formatCustomerWaitlistPreferenceSummary(
   request: CustomerWaitlistRequest,
 ): string {
   const parts: string[] = [];
-  if (request.serviceName) parts.push(request.serviceName);
-  if (request.employeeName) parts.push(`with ${request.employeeName}`);
+  // e2e-bug.112 — never render "Gevorg with Gevorg" when provider was copied into serviceName.
+  const serviceName = request.serviceName?.trim();
+  const employeeName = request.employeeName?.trim();
+  const serviceIsDuplicateProvider =
+    !!serviceName &&
+    !!employeeName &&
+    serviceName.toLowerCase() === employeeName.toLowerCase();
+  if (serviceName && !serviceIsDuplicateProvider) parts.push(serviceName);
+  if (employeeName) parts.push(`with ${employeeName}`);
   if (request.date) parts.push(`on ${request.date}`);
   else if (request.dateFrom && request.dateTo) {
     parts.push(`between ${request.dateFrom} and ${request.dateTo}`);

@@ -17,6 +17,7 @@ import MultiServiceAvailabilityPage from './pages/MultiServiceAvailabilityPage.j
 import MultiServiceConfirmPage from './pages/MultiServiceConfirmPage.js';
 import MultiServiceCheckoutPage from './pages/MultiServiceCheckoutPage.js';
 import MultiServiceRedirectPage from './pages/MultiServiceRedirectPage.js';
+import { resolveBookPathCollision } from './lib/multi-service-booking.js';
 import LoginPage from './pages/LoginPage.js';
 import ManageBookingPage from './pages/ManageBookingPage.js';
 import GiftCardCatalogPage from './pages/GiftCardCatalogPage.js';
@@ -60,7 +61,20 @@ function AppRoutes() {
         <Route exact path="/s/:slug/book/multi/availability" component={MultiServiceAvailabilityPage} />
         <Route exact path="/s/:slug/book/multi/confirm" component={MultiServiceConfirmPage} />
         <Route exact path="/s/:slug/book/multi" component={MultiServiceRedirectPage} />
-        <Route exact path="/s/:slug/book/:serviceId" component={BookPage} />
+        {/*
+          e2e-bug.7 / e2e-bug.32 — IonRouterOutlet can match :serviceId over /book/any and /book/multi
+          (no Switch). Guard reserved segments so BookPage never mounts for those literals.
+        */}
+        <Route
+          exact
+          path="/s/:slug/book/:serviceId"
+          render={({ match }) => {
+            const target = resolveBookPathCollision(match.params.serviceId);
+            if (target === 'picker') return <MultiServicePickerPage />;
+            if (target === 'multi_redirect') return <MultiServiceRedirectPage />;
+            return <BookPage />;
+          }}
+        />
         <Route exact path="/s/:slug/gift-cards/checkout" component={GiftCardCheckoutPage} />
         <Route exact path="/s/:slug/gift-cards" component={GiftCardCatalogPage} />
         <Route exact path="/s/:slug/login" component={LoginPage} />

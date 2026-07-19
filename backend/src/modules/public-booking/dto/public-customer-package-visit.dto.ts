@@ -4,19 +4,20 @@ import {
   IsDateString,
   IsOptional,
   IsString,
+  IsUUID,
   ValidateNested,
   ArrayMinSize,
 } from 'class-validator';
 
 export class PublicCustomerPackageVisitLineDto {
-  @IsString()
+  @IsUUID()
   bookingId: string;
 
   @IsDateString()
   startTime: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   employeeId?: string;
 }
 
@@ -29,7 +30,7 @@ export class PublicCustomerReschedulePackageVisitDto {
 }
 
 export class PublicBookingManagePackageCancelDto {
-  @IsString()
+  @IsUUID()
   bookingId: string;
 
   @IsString()
@@ -37,7 +38,7 @@ export class PublicBookingManagePackageCancelDto {
 }
 
 export class PublicBookingManagePackageRescheduleDto extends PublicCustomerReschedulePackageVisitDto {
-  @IsString()
+  @IsUUID()
   bookingId: string;
 
   @IsString()

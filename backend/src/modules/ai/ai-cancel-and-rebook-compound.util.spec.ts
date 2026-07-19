@@ -11,9 +11,13 @@ import {
   hasCancelAndRebookBookCue,
   hasCancelAndRebookCancelCue,
   isCancelAndRebookCompoundPrompt,
+  isDatedCancelAndRebookPrompt,
   rescueCancelAndRebookCompoundIntent,
 } from './ai-cancel-and-rebook-compound.util.js';
-import { isCancelMyBookingPrompt } from './ai-self-service-booking.util.js';
+import {
+  isCancelMyBookingPrompt,
+  isRescheduleMyBookingPrompt,
+} from './ai-self-service-booking.util.js';
 
 describe('ai-cancel-and-rebook-compound.util (ai-cmd-customer-4.8.3)', () => {
   it.each(CANCEL_AND_REBOOK_CUSTOMER_PROMPTS)(
@@ -107,5 +111,14 @@ describe('ai-cancel-and-rebook-compound.util (ai-cmd-customer-4.8.3)', () => {
       'cancel_my_booking',
       'book_nearest_slot',
     ]);
+  });
+
+  it('e2e-bug.114 dated cancel+rebook is reschedule not nearest compound', () => {
+    const prompt =
+      'cancel my facemassage booking and rebook it for next Friday instead';
+    expect(isDatedCancelAndRebookPrompt(prompt)).toBe(true);
+    expect(hasCancelAndRebookBookCue(prompt)).toBe(false);
+    expect(isCancelAndRebookCompoundPrompt(prompt)).toBe(false);
+    expect(isRescheduleMyBookingPrompt(prompt)).toBe(true);
   });
 });

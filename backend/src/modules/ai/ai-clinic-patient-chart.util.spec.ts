@@ -2,6 +2,7 @@ import {
   CLINIC_PATIENT_CHART_RESCUE_SCENARIOS,
   EXPLAIN_PATIENT_CHART_PROMPTS,
 } from './ai-clinic-patient-chart.fixtures.js';
+import { PROVIDER_OPEN_PATIENT_CHART_PROMPT_SCENARIOS } from './ai-provider-open-patient-chart.fixtures.js';
 import {
   extractPatientChartCustomerNameFromPrompt,
   extractPatientChartFocusFromPrompt,
@@ -21,6 +22,13 @@ describe('ai-clinic-patient-chart.util', () => {
       if (focus) {
         expect(parsed?.focus).toEqual(expect.arrayContaining(focus));
       }
+    },
+  );
+
+  it.each(PROVIDER_OPEN_PATIENT_CHART_PROMPT_SCENARIOS)(
+    'detects provider open_patient_chart prompt $id (ai-cmd-provider-5.11.4)',
+    ({ prompt }) => {
+      expect(isExplainPatientChartPrompt(prompt)).toBe(true);
     },
   );
 

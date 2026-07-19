@@ -2,6 +2,7 @@ import { resolveDateRange } from './ai-orchestration.helpers.js';
 import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js';
 import { isListTourCalendarWeekPrompt } from './ai-tour-calendar-week.util.js';
 import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
+import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
 import {
   LIST_MY_UPCOMING_APPOINTMENTS_PROMPTS,
   type ListMyUpcomingAppointmentsScope,
@@ -31,7 +32,7 @@ const THIS_WEEK_CUE = new RegExp(
 );
 
 const UPCOMING_CUE = new RegExp(
-  String.raw`\b(?:upcoming|coming\s+up|future)\b.*\b(?:appointment|visit|booking)s?\b|\b(?:appointment|visit|booking)s?\b.*\b(?:upcoming|coming\s+up)\b|list\s+my\s+upcoming|առաջիկա\s+(?:amr|ամr|այց)|предстоящ(?:ие|ий|ую)|ближайш`,
+  String.raw`\b(?:upcoming|coming\s+up|future)\b.*\b(?:appointment|visit|booking)s?\b|\b(?:appointment|visit|booking)s?\b.*\b(?:upcoming|coming\s+up)\b|list\s+my\s+upcoming|առաջիկա\s+(?:amr|ամr|այց)|предстоящ(?:ие|ий|ую)`,
   'iu',
 );
 
@@ -84,6 +85,8 @@ const EXPLAIN_PROVIDER_AVAILABILITY_BLOCK = new RegExp(
 );
 
 export function isListMyUpcomingAppointmentsPrompt(prompt: string): boolean {
+  // e2e-bug.88 — "pay online … for my upcoming … appointment" is pay_online.
+  if (isExplicitPayOnlinePrompt(prompt)) return false;
   if (isExplainTourServicesPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (isListTourCalendarWeekPrompt(prompt)) return false;
@@ -112,6 +115,7 @@ export function isListMyUpcomingAppointmentsPrompt(prompt: string): boolean {
   if (PACKAGE_VISITS_CUE.test(prompt)) return false;
   if (CONFIRM_SINGLE_CUE.test(prompt)) return false;
   if (/\bcancel\b/i.test(prompt)) return false;
+  if (/\b(?:reschedule|move|shift)\b/i.test(prompt)) return false;
   if (
     /\bwho\s+is\s+free\b/i.test(prompt) &&
     /\b(?:massage|facial|manicure|pedicure|haircut|color|blowdry|peel|beard|trim)\b/i.test(

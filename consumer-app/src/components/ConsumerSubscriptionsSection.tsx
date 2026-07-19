@@ -7,7 +7,7 @@ import { buildSalonPath } from '../lib/deep-link.js';
 import { formatDateDisplay } from '../lib/date-format.js';
 import { formatSubscriptionUsageLine } from '../lib/subscription-account.util.js';
 import type { PublicCustomerSubscription } from '../lib/types.js';
-import { fetchMySubscriptionUsage } from '../services/public-api.js';
+import { cancelCustomerSubscription, fetchMySubscriptionUsage } from '../services/public-api.js';
 
 export function ConsumerSubscriptionsSection({
   slug,
@@ -16,6 +16,7 @@ export function ConsumerSubscriptionsSection({
   copy,
   locale,
   initialExpandedSubscriptionId,
+  onCancelled,
 }: {
   slug: string;
   subscriptions: PublicCustomerSubscription[];
@@ -23,13 +24,36 @@ export function ConsumerSubscriptionsSection({
   copy: ConsumerCopy;
   locale: string;
   initialExpandedSubscriptionId?: string | null;
+  onCancelled?: () => void;
 }) {
   const history = useHistory();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [usageById, setUsageById] = useState<
     Record<string, { loading: boolean; rows: import('../lib/types.js').PublicSubscriptionUsageRow[] }>
   >({});
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelErrorId, setCancelErrorId] = useState<string | null>(null);
+  const [cancelNoticeId, setCancelNoticeId] = useState<string | null>(null);
   const didAutoExpandRef = useRef(false);
+
+  async function handleCancel(sub: PublicCustomerSubscription) {
+    if (!window.confirm(copy.subscriptionsCancelConfirm)) return;
+    setCancellingId(sub.id);
+    setCancelErrorId(null);
+    setCancelNoticeId(null);
+    try {
+      const result = await cancelCustomerSubscription(slug, sub.id);
+      if (result.refundStatus === 'refunded') {
+        setCancelNoticeId(sub.id);
+      }
+      onCancelled?.();
+    } catch (err: unknown) {
+      setCancelErrorId(sub.id);
+      void err;
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   async function toggleUsage(sub: PublicCustomerSubscription) {
     if (expandedId === sub.id) {
@@ -69,6 +93,8 @@ export function ConsumerSubscriptionsSection({
         const expanded = expandedId === sub.id;
         const usageState = usageById[sub.id];
         const included = sub.appointmentsIncluded ?? sub.appointmentsRemaining;
+        const isUnused =
+          sub.status === 'active' && sub.appointmentsRemaining === included;
         return (
           <div key={sub.id} className="salon-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
@@ -130,7 +156,30 @@ export function ConsumerSubscriptionsSection({
                   icon={expanded ? chevronUpOutline : chevronDownOutline}
                 />
               </IonButton>
+              {isUnused ? (
+                <IonButton
+                  fill="outline"
+                  size="small"
+                  color="danger"
+                  style={{ margin: 0, height: 32 }}
+                  disabled={cancellingId === sub.id}
+                  onClick={() => void handleCancel(sub)}
+                >
+                  {cancellingId === sub.id ? copy.submitting : copy.subscriptionsCancel}
+                </IonButton>
+              ) : null}
             </div>
+
+            {cancelErrorId === sub.id ? (
+              <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: '8px 0 0' }}>
+                {copy.subscriptionsCancelFailed}
+              </p>
+            ) : null}
+            {cancelNoticeId === sub.id ? (
+              <p style={{ color: '#2563eb', fontSize: '0.875rem', margin: '8px 0 0' }}>
+                {copy.subscriptionsCancelRefunded}
+              </p>
+            ) : null}
 
             {expanded ? (
               <div

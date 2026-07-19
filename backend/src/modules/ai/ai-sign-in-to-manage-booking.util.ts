@@ -94,11 +94,10 @@ export function inferSignInToManageBookingAspect(
 
 function isBareExplainWhySignInPrompt(prompt: string): boolean {
   return (
-    /\b(do i need an account|benefit of signing in|why should i sign in before booking|book without an account|what do i get with an account)\b/i.test(
+    /\b(do i need an account|benefit of signing in|why should i sign in before booking|book without an account|what do i get with an account|why sign in on the booking page|need to log in to manage my appointments)\b/i.test(
       prompt,
     ) &&
     !MANAGE_PAGE_CUE.test(prompt) &&
-    !SIGN_IN_MANAGE_ACTION_CUE.test(prompt) &&
     !INVALID_MANAGE_LINK_CUE.test(prompt)
   );
 }

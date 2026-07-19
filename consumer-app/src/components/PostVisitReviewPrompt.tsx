@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { IonAlert, IonButton, IonIcon, IonModal } from '@ionic/react';
 import { star, starOutline } from 'ionicons/icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import { track } from '../lib/app-analytics.js';
 import {
@@ -43,10 +43,14 @@ export function PostVisitReviewPrompt({
 }) {
   const [step, setStep] = useState<PromptStep>('satisfaction');
   const [followUpMessage, setFollowUpMessage] = useState<string | null>(null);
-  const [submittingSupport, setSubmittingSupport] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const submittingSupportRef = useRef(false);
+  const stepRef = useRef<PromptStep>(step);
+  const followUpMessageRef = useRef<string | null>(followUpMessage);
+  stepRef.current = step;
+  followUpMessageRef.current = followUpMessage;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -54,6 +58,7 @@ export function PostVisitReviewPrompt({
     setFollowUpMessage(null);
     setRating(0);
     setReviewError(null);
+    submittingSupportRef.current = false;
     track('review_prompt_shown', { bookingId: booking.id, slug });
   }, [booking.id, isOpen, slug]);
 
@@ -118,7 +123,7 @@ export function PostVisitReviewPrompt({
       openSupportWeb();
       return;
     }
-    setSubmittingSupport(true);
+    submittingSupportRef.current = true;
     try {
       await createPostBookingSupportTicket(slug, customerToken, {
         bookingId: booking.id,
@@ -128,7 +133,7 @@ export function PostVisitReviewPrompt({
     } catch {
       setFollowUpMessage(copy.postBookingSupportFailed);
     } finally {
-      setSubmittingSupport(false);
+      submittingSupportRef.current = false;
     }
   }, [
     booking.id,
@@ -241,7 +246,7 @@ export function PostVisitReviewPrompt({
           handler: () => {
             if (customerToken) {
               setStep('rating');
-              return;
+              return false;
             }
             openStoreReview();
             finish('great');
@@ -250,7 +255,10 @@ export function PostVisitReviewPrompt({
         {
           text: copy.postBookingSatisfactionUnhappy,
           handler: () => {
+            // e2e-bug.42 — keep the alert open until async handoff settles so
+            // onDidDismiss cannot unmount the prompt before follow-up UI appears.
             void handleUnhappy();
+            return false;
           },
         },
         {
@@ -260,7 +268,10 @@ export function PostVisitReviewPrompt({
         },
       ]}
       onDidDismiss={() => {
-        if (!submittingSupport && step === 'satisfaction') onClose();
+        if (submittingSupportRef.current) return;
+        if (followUpMessageRef.current) return;
+        if (stepRef.current !== 'satisfaction') return;
+        onClose();
       }}
     />
   );

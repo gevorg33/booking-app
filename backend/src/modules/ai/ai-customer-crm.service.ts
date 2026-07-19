@@ -33,6 +33,7 @@ import {
   handleGiftCardBalanceLogic,
   handleGiftCardRedemptionHistoryLogic,
   handleListCustomerBookingsLogic,
+  handleListCustomersLogic,
   handleListCustomerGiftCardsLogic,
   handleListCustomerSubscriptionsLogic,
   handleMergeCustomersLogic,
@@ -49,11 +50,20 @@ import {
   handleSubscriptionUsageHistoryLogic,
   handleSubscriptionUsageLogic,
   handleTagCustomerLogic,
+  handleUpdateCustomerLogic,
   handleTrackPhysicalGiftCardOrderLogic,
+  handleExplainGiftCardOrderLogic,
   type CustomerCrmLogicDeps,
 } from './ai-customer-crm.logic.js';
 import { handleExplainMySubscriptionLogic } from './ai-explain-my-subscription.logic.js';
 import { handleUpdateMyProfileLogic } from './ai-update-my-profile.logic.js';
+import {
+  handleGetMyLocaleLogic,
+  handleUpdateMyLocaleLogic,
+} from './ai-my-locale.logic.js';
+import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
+import { dispatchCustomerCrmLogicIntent } from './ai-customer-crm-dispatch.util.js';
+import type { CustomerCrmDispatchContext } from './ai-customer-crm-dispatch.build.js';
 
 @Injectable()
 export class AiCustomerCrmService {
@@ -75,6 +85,7 @@ export class AiCustomerCrmService {
     changeRequestRepo: Repository<GiftCardChangeRequest>,
     @InjectRepository(GiftCard) giftCardRepo: Repository<GiftCard>,
     @InjectRepository(Business) businessRepo: Repository<Business>,
+    publicCustomerAuthService: PublicCustomerAuthService,
   ) {
     this.deps = {
       customerService,
@@ -90,6 +101,7 @@ export class AiCustomerCrmService {
       changeRequestRepo,
       giftCardRepo,
       businessRepo,
+      publicCustomerAuthService,
     };
   }
 
@@ -180,6 +192,10 @@ export class AiCustomerCrmService {
     );
   }
 
+  handleListCustomers(businessId: string, params: Record<string, any>) {
+    return handleListCustomersLogic(this.deps, businessId, params);
+  }
+
   handleListCustomerBookings(
     businessId: string,
     params: Record<string, any>,
@@ -217,6 +233,21 @@ export class AiCustomerCrmService {
     resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
   ) {
     return handleTagCustomerLogic(
+      this.deps,
+      businessId,
+      params,
+      customers,
+      resolveCustomer,
+    );
+  }
+
+  handleUpdateCustomer(
+    businessId: string,
+    params: Record<string, any>,
+    customers: Customer[],
+    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  ) {
+    return handleUpdateCustomerLogic(
       this.deps,
       businessId,
       params,
@@ -289,6 +320,18 @@ export class AiCustomerCrmService {
     return handleMyProfileLogic(this.deps, businessId, params);
   }
 
+  handleGetMyLocale(businessId: string, params: Record<string, any>) {
+    return handleGetMyLocaleLogic(this.deps, businessId, params);
+  }
+
+  handleUpdateMyLocale(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleUpdateMyLocaleLogic(this.deps, businessId, params, prompt);
+  }
+
   handleMyAppointments(businessId: string, params: Record<string, any>) {
     return handleMyAppointmentsLogic(this.deps, businessId, params);
   }
@@ -352,6 +395,10 @@ export class AiCustomerCrmService {
     return handleTrackPhysicalGiftCardOrderLogic(this.deps, businessId, params);
   }
 
+  handleExplainGiftCardOrder(businessId: string, params: Record<string, any>) {
+    return handleExplainGiftCardOrderLogic(this.deps, businessId, params);
+  }
+
   handlePrivacyExport(
     businessId: string,
     params: Record<string, any>,
@@ -413,5 +460,12 @@ export class AiCustomerCrmService {
       resolveCustomer,
       userId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a customer-crm intent. */
+  dispatchIntent(
+    ctx: CustomerCrmDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchCustomerCrmLogicIntent(this.deps, ctx);
   }
 }

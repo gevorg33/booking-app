@@ -149,6 +149,7 @@ describe('Sprint 12.a billing launch integration', () => {
     businessRepo as any,
     planEntitlements,
     { announceCatalogChange: jest.fn() } as any,
+    { refundSubscriptionPayment: jest.fn() } as any,
   );
 
   const stripeSessionsCreate = jest.fn();

@@ -23,14 +23,14 @@ export function SalonBottomTabBar({
   onOpenTab: (tab: SalonTabId) => void;
 }) {
   return (
-    <nav className="salon-bottom-tab-bar" aria-label="Salon navigation">
+    <nav className="salon-bottom-tab-bar" aria-label={copy.tabNavAria}>
       <button
         type="button"
         className={`salon-tab-btn${activeTab === 'home' ? ' is-active' : ''}`}
         onClick={() => onOpenTab('home')}
       >
         <IonIcon icon={homeOutline} aria-hidden />
-        <span>Home</span>
+        <span>{copy.tabHome}</span>
       </button>
       <button
         type="button"
@@ -38,7 +38,7 @@ export function SalonBottomTabBar({
         onClick={() => onOpenTab('services')}
       >
         <IonIcon icon={calendarOutline} aria-hidden />
-        <span>Book</span>
+        <span>{copy.tabBook}</span>
       </button>
       {showResultsTab ? (
         <button
@@ -71,7 +71,7 @@ export function SalonBottomTabBar({
         onClick={() => onOpenTab('account')}
       >
         <IonIcon icon={personOutline} aria-hidden />
-        <span>Account</span>
+        <span>{copy.tabAccount}</span>
       </button>
     </nav>
   );

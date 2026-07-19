@@ -11,6 +11,7 @@ import {
   isTourService,
   multiplyTourPrice,
   resolveRemainingTourSpots,
+  resolveTourCatalogServiceByName,
   resolveTourDurationDays,
   sumBookedTourPax,
 } from './tour-service.util.js';
@@ -265,4 +266,25 @@ describe('tour-service.util', () => {
       includedItems: 'Guide',
     });
   });
+
+  // e2e-bug.105 — short nicknames → realistic AI-generated catalog titles
+  it.each([
+    { nickname: 'wine tour', catalogName: 'Private Wine Country Day' },
+    { nickname: 'mountain trek', catalogName: '3-Day Mountain Trek' },
+    { nickname: 'City tour', catalogName: 'Full Day City Tour' },
+  ])(
+    'resolveTourCatalogServiceByName maps "$nickname" → $catalogName',
+    ({ nickname, catalogName }) => {
+      const catalog = [
+        { id: '1', name: 'Full Day City Tour' },
+        { id: '2', name: 'Sunset Coastal Drive' },
+        { id: '3', name: '3-Day Mountain Trek' },
+        { id: '4', name: 'Weekend Heritage Tour' },
+        { id: '5', name: 'Private Wine Country Day' },
+      ];
+      expect(resolveTourCatalogServiceByName(catalog, nickname)?.name).toBe(
+        catalogName,
+      );
+    },
+  );
 });

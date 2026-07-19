@@ -10,6 +10,7 @@ import type { ZendeskIntegrationService } from '../integrations/zendesk/zendesk-
 import type { IntegrationsDocsService } from '../integrations/integrations-docs.service.js';
 import type { OpenAiIntegrationService } from '../integrations/openai/openai-integration.service.js';
 import type { WhatsAppIntegrationService } from '../notifications/whatsapp-integration.service.js';
+import type { DistributionIntegrationService } from '../integrations/distribution/distribution-integration.service.js';
 import { mergeMarketingNotificationSettings } from '../notifications/marketing-notification-settings.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import { handleConfigureOpenaiIntegrationLogic } from './ai-openai-integration.logic.js';
@@ -54,6 +55,10 @@ export interface IntegrationsLogicDeps {
   whatsappIntegrationService?: Pick<
     WhatsAppIntegrationService,
     'getPublicSettings'
+  >;
+  distributionIntegrationService: Pick<
+    DistributionIntegrationService,
+    'updateSettings'
   >;
   accountingIntegrationService: AccountingIntegrationService;
   zendeskIntegrationService: ZendeskIntegrationService;
@@ -456,6 +461,156 @@ export async function handleRotateApiKeyLogic(
     return failure(
       'rotate_api_key',
       err?.message ?? 'Could not rotate API key.',
+    );
+  }
+}
+
+export async function handleCreateApiKeyLogic(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  userId?: string,
+  prompt?: string,
+): Promise<CommandResult> {
+  const name =
+    (params.apiKeyName as string | undefined) ??
+    extractApiKeyNameFromPrompt(prompt ?? (params._prompt as string) ?? '') ??
+    `API key ${new Date().toISOString().slice(0, 10)}`;
+
+  try {
+    const created = await deps.apiKeyService.createKey(
+      businessId,
+      userId ?? 'system',
+      { name },
+    );
+    return success('create_api_key', `Created API key "${created.name}".`, {
+      apiKey: created,
+      keyId: created.id,
+    });
+  } catch (err: any) {
+    return failure(
+      'create_api_key',
+      err?.message ?? 'Could not create API key.',
+    );
+  }
+}
+
+export async function handleRevokeApiKeyLogic(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const effectivePrompt = prompt ?? (params._prompt as string) ?? '';
+  const keyId =
+    (params.keyId as string | undefined) ??
+    extractApiKeyIdFromPrompt(effectivePrompt);
+  const name =
+    (params.apiKeyName as string | undefined) ??
+    extractApiKeyNameFromPrompt(effectivePrompt);
+
+  let resolvedId = keyId;
+  if (!resolvedId) {
+    if (!name) {
+      return failure(
+        'revoke_api_key',
+        'Which API key should I revoke? Provide keyId or apiKeyName.',
+        { clarify: true, missing: ['keyId', 'apiKeyName'] },
+      );
+    }
+    const keys = await deps.apiKeyService.listKeys(businessId);
+    const needle = name.toLowerCase();
+    const match =
+      keys.find((k) => k.name?.toLowerCase() === needle) ??
+      keys.find((k) => k.name?.toLowerCase().includes(needle));
+    if (!match) {
+      return failure('revoke_api_key', `No API key named "${name}" was found.`);
+    }
+    resolvedId = match.id;
+  }
+
+  try {
+    await deps.apiKeyService.revokeKey(businessId, resolvedId);
+    return success('revoke_api_key', 'API key revoked.', {
+      keyId: resolvedId,
+    });
+  } catch (err: any) {
+    return failure(
+      'revoke_api_key',
+      err?.message ?? 'Could not revoke API key.',
+    );
+  }
+}
+
+export async function handleConfigureDistributionChannelsLogic(
+  deps: IntegrationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<CommandResult> {
+  const dto: Record<string, unknown> = {};
+  if (typeof params.googleReserveEnabled === 'boolean') {
+    dto.googleReserveEnabled = params.googleReserveEnabled;
+  }
+  if (typeof params.googleMerchantId === 'string') {
+    dto.googleMerchantId = params.googleMerchantId;
+  }
+  if (typeof params.googlePartnerNotes === 'string') {
+    dto.googlePartnerNotes = params.googlePartnerNotes;
+  }
+  if (typeof params.metaBookingEnabled === 'boolean') {
+    dto.metaBookingEnabled = params.metaBookingEnabled;
+  }
+  if (typeof params.facebookPageId === 'string') {
+    dto.facebookPageId = params.facebookPageId;
+  }
+  if (typeof params.facebookPageUrl === 'string') {
+    dto.facebookPageUrl = params.facebookPageUrl;
+  }
+  if (typeof params.instagramUsername === 'string') {
+    dto.instagramUsername = params.instagramUsername;
+  }
+  if (typeof params.telegramEnabled === 'boolean') {
+    dto.telegramEnabled = params.telegramEnabled;
+  }
+  if (typeof params.telegramBotUsername === 'string') {
+    dto.telegramBotUsername = params.telegramBotUsername;
+  }
+  if (typeof params.whatsappBookingEnabled === 'boolean') {
+    dto.whatsappBookingEnabled = params.whatsappBookingEnabled;
+  }
+  if (typeof params.whatsappBusinessPhone === 'string') {
+    dto.whatsappBusinessPhone = params.whatsappBusinessPhone;
+  }
+
+  if (Object.keys(dto).length === 0) {
+    return failure(
+      'configure_distribution_channels',
+      'What distribution channel should I configure? Provide googleReserveEnabled, metaBookingEnabled, telegramEnabled, whatsappBookingEnabled, or their related fields.',
+    );
+  }
+
+  try {
+    const settings = await deps.distributionIntegrationService.updateSettings(
+      businessId,
+      dto,
+    );
+    const enabled = [
+      settings.googleReserve.enabled ? 'Google Reserve' : null,
+      settings.metaBooking.enabled ? 'Meta booking' : null,
+      settings.messaging.telegramEnabled ? 'Telegram' : null,
+      settings.messaging.whatsappBookingEnabled ? 'WhatsApp booking' : null,
+    ].filter(Boolean);
+    return success(
+      'configure_distribution_channels',
+      enabled.length
+        ? `Distribution channels updated — enabled: ${enabled.join(', ')}.`
+        : 'Distribution channels updated.',
+      { settings },
+    );
+  } catch (err: any) {
+    return failure(
+      'configure_distribution_channels',
+      err?.message ?? 'Could not configure distribution channels.',
     );
   }
 }

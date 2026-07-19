@@ -11,6 +11,8 @@ import type { CommandResult } from './command-completion.types.js';
 import {
   assertProviderClinicCollectionBusinessType,
   formatProviderCollectionQueueSummary,
+  formatSpecimenRecollectText,
+  parseExplainSpecimenRecollectFromPrompt,
   parseListMyCollectionQueueFromPrompt,
   parseMarkSpecimenCollectedFromPrompt,
   resolveCollectionQueueDayBounds,
@@ -83,11 +85,11 @@ function matchCustomerName(
   );
 }
 
-async function resolveSpecimenForMark(
+export async function resolveSpecimenByIdOrCustomerName(
   deps: ProviderClinicCollectionLogicDeps,
   businessId: string,
   employeeId: string | undefined,
-  parsed: NonNullable<ReturnType<typeof parseMarkSpecimenCollectedFromPrompt>>,
+  parsed: { specimenId?: string; orderId?: string; customerName?: string },
   prompt: string,
   params: Record<string, unknown>,
 ): Promise<ClinicSpecimenQueueItem | null> {
@@ -267,7 +269,7 @@ export async function handleMarkSpecimenCollectedLogic(
   }
 
   const employeeId = resolveSessionEmployeeId(params);
-  const target = await resolveSpecimenForMark(
+  const target = await resolveSpecimenByIdOrCustomerName(
     deps,
     businessId,
     employeeId,
@@ -324,4 +326,77 @@ export async function handleMarkSpecimenCollectedLogic(
       customerName: target.customerName ?? parsed.customerName ?? null,
     });
   }
+}
+
+/** ai-cmd-provider-5.19.3 — why a specimen needs recollection, and what's next. */
+export async function handleExplainSpecimenRecollectLogic(
+  deps: ProviderClinicCollectionLogicDeps,
+  businessId: string,
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): Promise<CommandResult> {
+  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  const business = await deps.businessRepo.findOne({
+    where: { id: businessId },
+  });
+  if (!business) {
+    return failure('explain_specimen_recollect', 'Business not found.');
+  }
+
+  const nonClinicType = assertProviderClinicCollectionBusinessType(business);
+  if (nonClinicType !== null) {
+    return failure(
+      'explain_specimen_recollect',
+      'Specimen recollection is only available for clinic businesses.',
+      { clinicOnly: true, businessType: nonClinicType },
+    );
+  }
+
+  const parsed =
+    parseExplainSpecimenRecollectFromPrompt(effectivePrompt, params) ??
+    parseExplainSpecimenRecollectFromPrompt(effectivePrompt);
+  if (!parsed?.specimenId && !parsed?.customerName) {
+    return clarify(
+      'explain_specimen_recollect',
+      'Which specimen needs recollection? Specify the specimen id or the customer name.',
+      ['specimenId', 'customerName'],
+    );
+  }
+
+  const employeeId = resolveSessionEmployeeId(params);
+  const target = await resolveSpecimenByIdOrCustomerName(
+    deps,
+    businessId,
+    employeeId,
+    parsed,
+    effectivePrompt,
+    params,
+  );
+  if (!target) {
+    return failure(
+      'explain_specimen_recollect',
+      'No matching specimen was found.',
+      {
+        specimenId: parsed.specimenId ?? null,
+        customerName: parsed.customerName ?? null,
+      },
+    );
+  }
+
+  const specimen = await deps.clinicSpecimenService.getSpecimenForBusiness(
+    businessId,
+    target.id,
+  );
+
+  const customerName = target.customerName ?? parsed.customerName ?? 'The patient';
+  return success(
+    'explain_specimen_recollect',
+    formatSpecimenRecollectText(customerName, specimen),
+    {
+      specimenId: specimen.id,
+      status: specimen.status,
+      incompletionReason: specimen.incompletionReason ?? null,
+      customerName: target.customerName ?? parsed.customerName ?? null,
+    },
+  );
 }

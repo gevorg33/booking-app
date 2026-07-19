@@ -22,6 +22,8 @@ import {
   handlePreviewNotificationDatetimeLogic,
   type BusinessDateFormatLogicDeps,
 } from './ai-business-date-format.logic.js';
+import { dispatchBusinessDateFormatLogicIntent } from './ai-business-date-format-dispatch.util.js';
+import type { BusinessDateFormatDispatchContext } from './ai-business-date-format-dispatch.build.js';
 
 @Injectable()
 export class AiBusinessDateFormatService {
@@ -164,5 +166,12 @@ export class AiBusinessDateFormatService {
       prompt,
       confirmed,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-date-format intent. */
+  dispatchIntent(
+    ctx: BusinessDateFormatDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchBusinessDateFormatLogicIntent(this.deps, ctx);
   }
 }

@@ -12,6 +12,7 @@ import {
 import { sparkles } from 'ionicons/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { ProviderAiShell } from '../components/ProviderAiShell';
 import { ProviderGuideStepList } from '../components/ProviderGuideStepList';
 import { useI18n } from '../i18n';
 import { providerMobileGuide } from '../lib/mobile-guide/index.ts';
@@ -100,82 +101,86 @@ export default function GuidePage() {
 
   const profilePath = providerGuideProfilePath();
 
+  // e2e-bug.69 — Guide is a standalone route outside ProviderTabChrome, so mount the
+  // AI shell here; otherwise "Ask about this section" fires with no listener.
   return (
-    <IonPage className="provider-guide-page">
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={profilePath} text={t('provider.guidePageBack')} />
-          </IonButtons>
-          <IonTitle>{t('provider.guidePageTitle')}</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent className="ion-padding">
-        <p className="provider-guide-section__summary">{t('provider.guidePageSubtitle')}</p>
+    <ProviderAiShell>
+      <IonPage className="provider-guide-page">
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref={profilePath} text={t('provider.guidePageBack')} />
+            </IonButtons>
+            <IonTitle>{t('provider.guidePageTitle')}</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <p className="provider-guide-section__summary">{t('provider.guidePageSubtitle')}</p>
 
-        <nav className="provider-guide-toc" aria-label={t('provider.guidePageTopicsLabel')}>
-          <p className="provider-guide-toc__label">{t('provider.guidePageTopicsLabel')}</p>
-          {topics.map((topic) => (
-            <button
-              key={topic.topicId}
-              type="button"
-              className={
-                activeTopicId === topic.topicId
-                  ? 'provider-guide-toc__link provider-guide-toc__link--active'
-                  : 'provider-guide-toc__link'
-              }
-              onClick={() => scrollToTopic(topic.topicId)}
-            >
-              {topic.title}
-            </button>
-          ))}
-        </nav>
+          <nav className="provider-guide-toc" aria-label={t('provider.guidePageTopicsLabel')}>
+            <p className="provider-guide-toc__label">{t('provider.guidePageTopicsLabel')}</p>
+            {topics.map((topic) => (
+              <button
+                key={topic.topicId}
+                type="button"
+                className={
+                  activeTopicId === topic.topicId
+                    ? 'provider-guide-toc__link provider-guide-toc__link--active'
+                    : 'provider-guide-toc__link'
+                }
+                onClick={() => scrollToTopic(topic.topicId)}
+              >
+                {topic.title}
+              </button>
+            ))}
+          </nav>
 
-        <div>
-          {topics.map((topic) => (
-            <section
-              key={topic.topicId}
-              id={providerGuideTopicElementId(topic.topicId)}
-              className="provider-guide-section"
-            >
-              <h2 className="provider-guide-section__title">{topic.title}</h2>
-              {topic.summary ? (
-                <p className="provider-guide-section__summary">{topic.summary}</p>
-              ) : null}
-              <ProviderGuideStepList steps={topic.steps} />
-              <div className="provider-guide-section__actions">
-                <IonButton
-                  size="small"
-                  fill="clear"
-                  className="provider-guide-section__ask"
-                  onClick={() =>
-                    fireProviderGuideAssistantSeed({
-                      topicId: topic.topicId,
-                      topicTitle: topic.title,
-                      walkThroughTemplate: t('provider.guideWalkThroughTopic'),
-                    })
-                  }
-                >
-                  <IonIcon icon={sparkles} slot="start" aria-hidden="true" />
-                  {t('provider.guidePageAskSection')}
-                </IonButton>
-                {topic.navigateTarget ? (
+          <div>
+            {topics.map((topic) => (
+              <section
+                key={topic.topicId}
+                id={providerGuideTopicElementId(topic.topicId)}
+                className="provider-guide-section"
+              >
+                <h2 className="provider-guide-section__title">{topic.title}</h2>
+                {topic.summary ? (
+                  <p className="provider-guide-section__summary">{topic.summary}</p>
+                ) : null}
+                <ProviderGuideStepList steps={topic.steps} />
+                <div className="provider-guide-section__actions">
                   <IonButton
                     size="small"
-                    fill="outline"
-                    onClick={() => {
-                      const href = resolveProviderGuideNavigateHref(topic.navigateTarget!);
-                      if (href) history.push(href);
-                    }}
+                    fill="clear"
+                    className="provider-guide-section__ask"
+                    onClick={() =>
+                      fireProviderGuideAssistantSeed({
+                        topicId: topic.topicId,
+                        topicTitle: topic.title,
+                        walkThroughTemplate: t('provider.guideWalkThroughTopic'),
+                      })
+                    }
                   >
-                    {t('provider.guidePageOpenInApp')}
+                    <IonIcon icon={sparkles} slot="start" aria-hidden="true" />
+                    {t('provider.guidePageAskSection')}
                   </IonButton>
-                ) : null}
-              </div>
-            </section>
-          ))}
-        </div>
-      </IonContent>
-    </IonPage>
+                  {topic.navigateTarget ? (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      onClick={() => {
+                        const href = resolveProviderGuideNavigateHref(topic.navigateTarget!);
+                        if (href) history.push(href);
+                      }}
+                    >
+                      {t('provider.guidePageOpenInApp')}
+                    </IonButton>
+                  ) : null}
+                </div>
+              </section>
+            ))}
+          </div>
+        </IonContent>
+      </IonPage>
+    </ProviderAiShell>
   );
 }

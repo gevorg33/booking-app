@@ -13,6 +13,8 @@ import {
   handleListTestOrdersLogic,
   type ClinicTestOrderLogicDeps,
 } from './ai-clinic-test-order.logic.js';
+import { dispatchClinicTestOrderLogicIntent } from './ai-clinic-test-order-dispatch.util.js';
+import type { ClinicTestOrderDispatchContext } from './ai-clinic-test-order-dispatch.build.js';
 
 @Injectable()
 export class AiClinicTestOrderService {
@@ -67,5 +69,12 @@ export class AiClinicTestOrderService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-test-order intent. */
+  dispatchIntent(
+    ctx: ClinicTestOrderDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchClinicTestOrderLogicIntent(this.deps, ctx);
   }
 }

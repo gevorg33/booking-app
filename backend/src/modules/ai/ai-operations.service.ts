@@ -7,6 +7,7 @@ import { Booking } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { EmployeeService } from '../employee/employee.service.js';
 import { InvitationsService } from '../invitations/invitations.service.js';
+import { TeamMembersService } from '../business/team-members.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandResult } from './ai-command.service.js';
@@ -33,9 +34,12 @@ import {
   handleCreateEmployeeLogic,
   handleDeactivateEmployeeLogic,
   handleUpdateEmployeeLogic,
+  handleUpdateTeamMemberRoleLogic,
   handleInviteStaffMemberLogic,
   type StaffOperationsLogicDeps,
 } from './ai-staff-operations.logic.js';
+import { dispatchOperationsIntent } from './ai-operations-dispatch.util.js';
+import type { OperationsDispatchContext } from './ai-operations-dispatch.build.js';
 
 @Injectable()
 export class AiOperationsService {
@@ -50,9 +54,11 @@ export class AiOperationsService {
     planBuilder: OperationalPlanBuilderService,
     employeeService: EmployeeService,
     invitationsService: InvitationsService,
+    teamMembersService: TeamMembersService,
   ) {
     this.deps = { bookingRepo, businessRepo, orchestration, planBuilder };
     this.staffDeps = {
+      teamMembersService,
       employeeService,
       invitationsService,
       businessRepo,
@@ -186,7 +192,57 @@ export class AiOperationsService {
       userId,
     );
     if (!plan) return buildUpdateServicePricesFailure(params);
-    return executeOperationsPlan(this.deps, plan, businessId, userId);
+    const result = await executeOperationsPlan(
+      this.deps,
+      plan,
+      businessId,
+      userId,
+    );
+    // e2e-bug.164 — never claim a completed price change when orchestration
+    // still needs approval (zero writes) or when the summary could invent numbers.
+    if (result.details?.requiresApproval) {
+      return {
+        ...result,
+        success: false,
+        summary: [
+          'Price update was planned but not applied.',
+          plan.reasoning,
+          'Confirm the command again, or approve the task in AI Ops.',
+        ]
+          .filter(Boolean)
+          .join(' '),
+        details: {
+          ...result.details,
+          requiresExecutionConfirmation: true,
+          plannedUpdates: plan.steps.map((step) => ({
+            serviceId: step.params.serviceId,
+            price: step.params.price,
+            description: step.description,
+          })),
+        },
+      };
+    }
+    if (result.success) {
+      const applied = plan.steps
+        .map((step) => step.estimatedImpact ?? step.description)
+        .filter(Boolean);
+      return {
+        ...result,
+        summary:
+          applied.length === 1
+            ? `Updated service price: ${applied[0]}.`
+            : `Updated ${applied.length} service prices: ${applied.join('; ')}.`,
+        details: {
+          ...result.details,
+          appliedUpdates: plan.steps.map((step) => ({
+            serviceId: step.params.serviceId,
+            price: step.params.price,
+            description: step.description,
+          })),
+        },
+      };
+    }
+    return result;
   }
 
   prepareUpdateServicePricesPlan(
@@ -296,6 +352,19 @@ export class AiOperationsService {
     );
   }
 
+  handleUpdateTeamMemberRole(
+    businessId: string,
+    params: Record<string, unknown>,
+    userId?: string,
+  ): Promise<CommandResult> {
+    return handleUpdateTeamMemberRoleLogic(
+      this.staffDeps,
+      businessId,
+      params,
+      userId,
+    );
+  }
+
   handleInviteStaffMember(
     businessId: string,
     params: Record<string, unknown>,
@@ -337,5 +406,10 @@ export class AiOperationsService {
       params,
       prompt,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an operations intent. */
+  dispatchIntent(ctx: OperationsDispatchContext): Promise<CommandResult | null> {
+    return dispatchOperationsIntent(this, ctx);
   }
 }

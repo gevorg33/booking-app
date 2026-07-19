@@ -39,4 +39,29 @@ export const EXPLAIN_DATA_RIGHTS_PROMPTS = [
     prompt: 'How do I download my information?',
     aspect: 'export' as const,
   },
+  {
+    id: 'cookie-consent-notice-track',
+    prompt: 'What does this cookie consent notice track?',
+    aspect: 'cookie_banner' as const,
+  },
+  {
+    id: 'how-download-account-information',
+    prompt: 'How do I download my account information?',
+    aspect: 'export' as const,
+  },
+  {
+    id: 'privacy-policy-on-my-data',
+    prompt: 'What is your privacy policy on my data?',
+    aspect: 'all' as const,
+  },
+  {
+    id: 'how-erase-account-data',
+    prompt: 'How do I erase my account data?',
+    aspect: 'delete' as const,
+  },
+  {
+    id: 'can-delete-personal-data-from-records',
+    prompt: 'Can I delete my personal data from your records?',
+    aspect: 'delete' as const,
+  },
 ] as const;

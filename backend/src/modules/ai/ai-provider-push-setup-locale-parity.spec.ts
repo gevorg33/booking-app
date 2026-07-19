@@ -68,8 +68,8 @@ describe('ai provider push setup locale parity (acc-2.4)', () => {
       ),
     ];
 
-    expect(hyCases.length).toBe(8);
-    expect(ruCases.length).toBe(8);
+    expect(hyCases.length).toBe(11);
+    expect(ruCases.length).toBe(11);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(hyCases.every((row) => row.expect.needsMultilingual === true)).toBe(

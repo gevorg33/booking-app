@@ -11,11 +11,15 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
+import { useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
+import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
 import { useConsumerOneTapSignIn } from '../hooks/use-consumer-one-tap-sign-in.js';
 import { SalonTabBackButton } from '../components/SalonTabBackButton.js';
+import { getCustomerToken } from '../lib/customer-auth.js';
 import { buildSalonPath } from '../lib/deep-link.js';
+import { formatCopy } from '../lib/copy.js';
 import {
   phoneOtpAutocompleteToken,
 } from '../lib/phone-auth.util.js';
@@ -26,6 +30,8 @@ import { isPhoneSignInAvailable } from '../services/phone-auth.js';
 export default function LoginPage() {
   const history = useHistory();
   const { slug, profile, loading, error } = useTenantBootstrap();
+  const { copy } = useConsumerCopy(slug ?? '', profile ?? { locale: 'en' });
+  const alreadySignedIn = Boolean(slug && getCustomerToken(slug));
   const {
     busy,
     message,
@@ -42,13 +48,20 @@ export default function LoginPage() {
     verifyPhoneCode,
     sanitizeSmsOtpCode,
   } = useConsumerOneTapSignIn(slug, {
+    copy,
     onSuccess: () => {
       if (!slug) return;
       history.replace(buildSalonPath(slug, '/account'));
     },
   });
 
-  if (loading) {
+  // e2e-bug.45 — already-signed-in visits to /login must bounce to account.
+  useEffect(() => {
+    if (!slug || !getCustomerToken(slug)) return;
+    history.replace(buildSalonPath(slug, '/account'));
+  }, [history, slug]);
+
+  if (loading || alreadySignedIn) {
     return (
       <IonPage>
         <IonContent className="ion-padding ion-text-center">
@@ -58,60 +71,62 @@ export default function LoginPage() {
     );
   }
 
+  const salonName = profile?.name?.trim() || copy.tabAccount;
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <SalonTabBackButton slug={slug} tab="account" />
+            <SalonTabBackButton slug={slug} tab="account" text={copy.guidePageBack} />
           </IonButtons>
-          <IonTitle>Sign in</IonTitle>
+          <IonTitle>{copy.signIn}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
         <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-          {profile?.name ?? 'Salon'} account
+          {formatCopy(copy.loginAccountHeading, { name: salonName })}
         </h1>
-        <p style={{ color: '#6b7280' }}>
-          Sign in to save appointments at this salon. Guest bookings made with the same email or
-          phone are merged automatically.
-        </p>
+        <p style={{ color: '#6b7280' }}>{copy.loginSubtitle}</p>
 
         {error ? <p style={{ color: '#dc2626' }}>{error}</p> : null}
 
         {isGoogleSignInAvailable() ? (
           <IonButton
             expand="block"
+            color="primary"
+            className="consumer-brand-solid-button"
             disabled={busy || !slug}
             onClick={() => void signInWithGoogle()}
           >
-            {busy ? 'Signing in…' : 'Continue with Google'}
+            {busy ? copy.postBookingSignInBusy : copy.postBookingSignInGoogle}
           </IonButton>
         ) : (
-          <p>Google sign-in is not configured. Add Firebase keys in .env and rebuild.</p>
+          <p>{copy.loginGoogleNotConfigured}</p>
         )}
 
         {isAppleSignInAvailable() ? (
           <IonButton
             expand="block"
             fill="outline"
-            className="ion-margin-top"
+            color="primary"
+            className="ion-margin-top consumer-brand-outline-button"
             disabled={busy || !slug}
             onClick={() => void signInWithApple()}
           >
-            Continue with Apple
+            {copy.postBookingSignInApple}
           </IonButton>
         ) : null}
 
         {isPhoneSignInAvailable() ? (
           <>
             <p style={{ color: '#6b7280', marginTop: 24, marginBottom: 8 }}>
-              Or sign in with your phone number
+              {copy.loginPhoneHint}
             </p>
             {phoneStep === 'phone' ? (
               <>
                 <IonItem>
-                  <IonLabel position="stacked">Phone</IonLabel>
+                  <IonLabel position="stacked">{copy.loginPhoneLabel}</IonLabel>
                   <IonInput
                     type="tel"
                     value={phone}
@@ -127,13 +142,13 @@ export default function LoginPage() {
                   disabled={busy || !slug}
                   onClick={() => void sendPhoneCode()}
                 >
-                  Send verification code
+                  {copy.loginSendCode}
                 </IonButton>
               </>
             ) : (
               <>
                 <IonItem>
-                  <IonLabel position="stacked">Verification code</IonLabel>
+                  <IonLabel position="stacked">{copy.loginOtpLabel}</IonLabel>
                   <IonInput
                     value={otp}
                     autocomplete={phoneOtpAutocompleteToken() as 'one-time-code'}
@@ -149,7 +164,7 @@ export default function LoginPage() {
                   disabled={busy || !slug || !otp}
                   onClick={() => void verifyPhoneCode()}
                 >
-                  Verify and sign in
+                  {copy.loginVerify}
                 </IonButton>
                 <IonButton
                   expand="block"
@@ -161,7 +176,7 @@ export default function LoginPage() {
                     setVerificationId('');
                   }}
                 >
-                  Use a different number
+                  {copy.loginDifferentNumber}
                 </IonButton>
               </>
             )}

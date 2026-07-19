@@ -22,6 +22,9 @@ import { PROVIDER_APP_GUIDE_CLASSIFIER_RULES } from './ai-provider-product-guide
 import { PROVIDER_META_GUIDE_CLASSIFIER_RULES } from './ai-meta-product-guide.fixtures.js';
 import { PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES } from './ai-product-guide-empty-state.fixtures.js';
 import { PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES } from './ai-provider-voice-next-client.util.js';
+import { PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES } from './ai-explain-provider-context.fixtures.js';
+import { PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES } from './ai-provider-schedule-reads.fixtures.js';
+import { PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES } from './ai-provider-open-booking-detail.fixtures.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
 export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: same outcome as tapping Confirm on a new-booking push — requires bookingId (from lastPush or prompt). Triggers: "confirm this booking from the push", "confirm appointment from notification". NOT update_bookings unless user names status explicitly without push context.
@@ -29,6 +32,9 @@ export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: sa
 - mark_paid: same outcome as Mark paid on a new-booking push — single booking only. Inherit bookingId from lastPush when omitted. NOT payment_sweep (bulk day sweep).
 - Scoped package/multi lists: list_package_appointments_today / list_my_package_visits / list_my_multi_service_groups are provider-self-scope only — NOT list_package_bookings or dashboard admin lists.
 - Push/offline read: explain_last_push, open_booking_from_push, offline_queue_status, end_of_day_summary, new_booking_push_actions — inherit bookingId and lastPush from session.
+- list_push_notifications: READ — open your notification center inbox (unread count + recent items). Triggers: "show my notifications", "open notification center", "what notifications do I have". NOT explain_last_push (single most-recent push detail), NOT dismiss_push.
+- mark_all_notifications_read: MUTATE — bulk-clear every unread notification in your inbox. Triggers: "mark all notifications as read", "clear everything as read". NOT dismiss_push (single push), NOT mark_booking_notifications_read (one booking only).
+- mark_booking_notifications_read: MUTATE — mark every notification tied to one booking as read. Requires bookingId (from lastPush, session, or prompt). Triggers: "mark this booking's notifications as read", "mark Jane's notifications read". NOT mark_all_notifications_read (whole inbox).
 - Provider push parity compound (one message): open_booking_from_push → confirm_booking_from_push or mark_paid; explain_last_push → open_booking_from_push. Multi-step execution is automatic — inherit bookingId across steps.
 - Example compound: "Open booking from push and confirm it" → open_booking_from_push then confirm_booking_from_push with shared bookingId.
 - Example compound: "Explain last push and mark paid" → explain_last_push then mark_paid when booking is linked.
@@ -56,4 +62,7 @@ ${PROVIDER_EXP_3_CLASSIFIER_RULES}
 ${PROVIDER_APP_GUIDE_CLASSIFIER_RULES}
 ${PROVIDER_META_GUIDE_CLASSIFIER_RULES}
 ${PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
-${PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES}`;
+${PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES}
+${PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES}
+${PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES}
+${PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES}`;

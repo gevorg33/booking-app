@@ -14,8 +14,17 @@ import {
   MARK_SPECIMEN_COLLECTED_PROMPTS,
 } from './ai-provider-clinic-collection.fixtures.js';
 
+function containsArmenianScript(text: string): boolean {
+  return /[԰-֏]/.test(text);
+}
+
+function containsCyrillicScript(text: string): boolean {
+  return /[Ѐ-ӿ]/.test(text);
+}
+
 export const PROVIDER_CLINIC_COLLECTION_READ_INTENTS = [
   'list_my_collection_queue',
+  'explain_specimen_recollect',
 ] as const;
 
 export const PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS = [
@@ -149,6 +158,79 @@ export function isMarkSpecimenCollectedPrompt(prompt: string): boolean {
   }
 
   return false;
+}
+
+/** ai-cmd-provider-5.19.3 — why a specimen needs recollection, and what's next. */
+export function isExplainSpecimenRecollectPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\b(mark|collected|drawn)\b/i.test(lower)) return false;
+
+  if (/\bwhy\b.*\brecollect\b/i.test(lower)) return true;
+  if (/\brecollect\b.*\brequired\b/i.test(lower)) return true;
+  if (
+    /\bfailed\s+draw\b/i.test(lower) &&
+    /\bwhat\s+next\b/i.test(lower)
+  ) {
+    return true;
+  }
+  if (/\bwhy\b.*\bredraw\b/i.test(lower)) return true;
+
+  if (
+    containsArmenianScript(prompt) &&
+    /ինչու/i.test(prompt) &&
+    /(կրկնակի\s+վերցում|վերանմուշառում)/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /почему/i.test(prompt) &&
+    /(повторн.{0,10}забор|пересдач)/i.test(prompt)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export interface ParsedExplainSpecimenRecollectRequest {
+  specimenId?: string;
+  customerName?: string;
+}
+
+export function parseExplainSpecimenRecollectFromPrompt(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): ParsedExplainSpecimenRecollectRequest | null {
+  if (!isExplainSpecimenRecollectPrompt(prompt)) return null;
+
+  const specimenId =
+    (typeof params.specimenId === 'string' && params.specimenId.trim()
+      ? params.specimenId.trim()
+      : undefined) ??
+    extractSpecimenIdFromPrompt(prompt) ??
+    undefined;
+  const customerName =
+    (typeof params.customerName === 'string' && params.customerName.trim()
+      ? params.customerName.trim()
+      : undefined) ??
+    extractMarkSpecimenCustomerNameFromPrompt(prompt) ??
+    undefined;
+
+  return { specimenId, customerName };
+}
+
+/** ai-cmd-provider-5.19.3 — narrate why a specimen needs recollection and the next step. */
+export function formatSpecimenRecollectText(
+  customerName: string,
+  specimen: { status: string; incompletionReason?: string | null },
+): string {
+  if (specimen.status !== 'RecollectRequired') {
+    return `${customerName}'s specimen is not flagged for recollection (current status: ${specimen.status}).`;
+  }
+  const reason = specimen.incompletionReason
+    ? `Reason: ${specimen.incompletionReason}.`
+    : 'No reason was recorded for the recollection.';
+  return `${customerName}'s specimen needs to be recollected. ${reason} Draw a new sample, then mark it collected — or mark it rejected if the visit can't proceed.`;
 }
 
 export function parseListMyCollectionQueueFromPrompt(
@@ -330,6 +412,13 @@ export function rescueProviderClinicCollectionIntent(
     return {
       action: 'list_my_collection_queue',
       rescueReason: 'list_my_collection_queue',
+    };
+  }
+
+  if (parseExplainSpecimenRecollectFromPrompt(prompt)) {
+    return {
+      action: 'explain_specimen_recollect',
+      rescueReason: 'explain_specimen_recollect',
     };
   }
 

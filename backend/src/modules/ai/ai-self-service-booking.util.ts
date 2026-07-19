@@ -39,7 +39,10 @@ import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
 import { isListMyUpcomingAppointmentsPrompt } from './ai-list-my-upcoming-appointments.util.js';
 import { isBookAnotherServicePrompt } from './ai-book-another-service.util.js';
 import { isExplainDepositForfeiturePrompt } from './ai-explain-deposit-forfeiture.util.js';
-import { isExplainCancelPolicyPrompt } from './ai-explain-cancel-policy.util.js';
+import {
+  isExplainCancelPolicyPrompt,
+  rescueExplainCancelPolicyIntent,
+} from './ai-explain-cancel-policy.util.js';
 import {
   isExplainPackageVisitRulesPrompt,
   rescueExplainPackageVisitRulesIntent,
@@ -54,6 +57,7 @@ import {
   isExplainManageBookingPagePrompt,
   rescueExplainManageBookingPageIntent,
 } from './ai-explain-manage-booking-page.util.js';
+import { rescueManageBookingWithTokenIntent } from './ai-manage-booking-with-token.util.js';
 import { isNotifyRunningLatePrompt } from './ai-notify-running-late.util.js';
 import { isLeaveVisitReviewPrompt } from './ai-leave-visit-review.util.js';
 import { isExplainPostVisitReviewPrompt } from './ai-explain-post-visit-review-prompt.util.js';
@@ -84,6 +88,8 @@ export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
   'select_subscription_plan',
   'use_subscription_credit',
   'cancel_my_booking',
+  'cancel_my_subscription',
+  'cancel_all_upcoming_bookings',
   'reschedule_my_booking',
   'notify_running_late',
   'leave_visit_review',
@@ -91,11 +97,16 @@ export const SELF_SERVICE_BOOKING_MUTATE_INTENTS = [
   'join_waitlist',
   'cancel_package_visit_self',
   'reschedule_package_visit_self',
+  'reschedule_package_lines',
   'book_with_cash',
   'book_with_gift_card',
   'change_provider_on_reschedule',
   'add_services_to_cart',
   'remove_service_from_cart',
+  'cancel_booking_with_token',
+  'reschedule_booking_with_token',
+  'cancel_package_visit_with_token',
+  'reschedule_package_visit_with_token',
 ] as const;
 
 export const SELF_SERVICE_BOOKING_READ_INTENTS = [
@@ -112,6 +123,7 @@ export const SELF_SERVICE_BOOKING_READ_INTENTS = [
   'recover_lost_manage_link',
   'sign_in_to_manage_booking',
   'explain_manage_booking_page',
+  'explain_manage_booking_context',
   'check_waitlist_status',
   'explain_cancel_policy',
   'explain_deposit_forfeiture',
@@ -126,6 +138,8 @@ export const SELF_SERVICE_BOOKING_READ_INTENTS = [
   'explain_clinic_booking_fields',
   'show_cart_total_duration',
   'share_my_booking',
+  'preview_multi_service_cart',
+  'suggest_package_block',
 ] as const;
 
 export const SELF_SERVICE_BOOKING_INTENTS = [
@@ -414,36 +428,70 @@ export function isCancelMyBookingPrompt(prompt: string): boolean {
   return hasCancelMyBookingCoreCue(prompt);
 }
 
+export function isCancelMySubscriptionPrompt(prompt: string): boolean {
+  return (
+    /\b(cancel|end|stop)\b/i.test(prompt) &&
+    /\b(my|this)\b/i.test(prompt) &&
+    /\b(subscription|membership|plan)\b/i.test(prompt)
+  );
+}
+
+export function isCancelAllUpcomingBookingsPrompt(prompt: string): boolean {
+  if (isCancelPackageVisitSelfPrompt(prompt)) return false;
+  return (
+    (/\b(cancel)\b/i.test(prompt) &&
+      /\b(all|every)\b/i.test(prompt) &&
+      /\b(bookings?|appointments?|upcoming|visits?|reservations?)\b/i.test(
+        prompt,
+      )) ||
+    (/(չեղարկ|չեղարկել)/i.test(prompt) &&
+      /(բոլոր|ամեն)/i.test(prompt) &&
+      /(ամրագր|այց|հանդիպ)/i.test(prompt)) ||
+    (/(отмен|отменить|отмени)/i.test(prompt) &&
+      /(все|всех|каждую|каждый)/i.test(prompt) &&
+      /(запис|визит|бронирован)/i.test(prompt))
+  );
+}
+
 export function isRescheduleMyBookingPrompt(prompt: string): boolean {
   if (isReschedulePackageVisitSelfPrompt(prompt)) return false;
+  // e2e-bug.114 — "cancel … and rebook … for next Friday" is self-serve reschedule.
+  const datedCancelRebook =
+    /\bcancel\b/i.test(prompt) &&
+    /\brebook\b/i.test(prompt) &&
+    /\b(?:for|on|to)\b/i.test(prompt) &&
+    /\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+      prompt,
+    );
   return (
-    ((/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-      /\b(my|this|upcoming|next)\b/i.test(prompt) &&
-      /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
-      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-        /\b(to|for)\b/i.test(prompt) &&
-        /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
-          prompt,
-        )) ||
-      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-        /\b(without\s+calling|no\s+need\s+to\s+call)\b/i.test(prompt)) ||
-      (/\b(move|reschedule|change|shift)\b/i.test(prompt) &&
-        /\bmy\b/i.test(prompt) &&
-        /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
-          prompt,
-        )) ||
-      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-        /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
-      (/\b(need\s+to|want\s+to)\b/i.test(prompt) &&
-        /\b(move|reschedule|change)\b/i.test(prompt) &&
-        /\b(my|this)\b/i.test(prompt) &&
-        /\b(appointment|booking|visit)\b/i.test(prompt)) ||
-      (/վերամրագր/i.test(prompt) &&
-        /(իմ|այս)/i.test(prompt) &&
-        /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
-      (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
-        /(мою|моя|мой|эту|это)/i.test(prompt) &&
-        /(запис|визит|бронь|бронирован)/i.test(prompt))) &&
+    (datedCancelRebook ||
+      ((/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+        /\b(my|this|upcoming|next)\b/i.test(prompt) &&
+        /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
+        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+          /\b(to|for)\b/i.test(prompt) &&
+          /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+            prompt,
+          )) ||
+        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+          /\b(without\s+calling|no\s+need\s+to\s+call)\b/i.test(prompt)) ||
+        (/\b(move|reschedule|change|shift)\b/i.test(prompt) &&
+          /\bmy\b/i.test(prompt) &&
+          /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
+            prompt,
+          )) ||
+        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+          /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
+        (/\b(need\s+to|want\s+to)\b/i.test(prompt) &&
+          /\b(move|reschedule|change)\b/i.test(prompt) &&
+          /\b(my|this)\b/i.test(prompt) &&
+          /\b(appointment|booking|visit)\b/i.test(prompt)) ||
+        (/վերամրագր/i.test(prompt) &&
+          /(իմ|այս)/i.test(prompt) &&
+          /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
+        (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
+          /(мою|моя|мой|эту|это)/i.test(prompt) &&
+          /(запис|визит|бронь|бронирован)/i.test(prompt)))) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
     (!hasDashboardCustomerReference(prompt) ||
@@ -503,7 +551,14 @@ export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
       /\b(visit|appointment|bundle)\b/i.test(prompt)) ||
     /\bmy\s+package\b/i.test(prompt) ||
     (/\bbundle\b/i.test(prompt) &&
-      /\b(my|next|facial|spa\s+day)\b/i.test(prompt));
+      /\b(my|next|facial|spa\s+day)\b/i.test(prompt)) ||
+    (/այց/i.test(prompt) && /\bbundle\b/i.test(prompt)) ||
+    (/визит/i.test(prompt) && (/пакет/i.test(prompt) || /\bbundle\b/i.test(prompt)));
+
+  // Armenian/Cyrillic script alone implies self-scope here: this domain has no
+  // dashboard-admin equivalent phrased in those scripts, and the earlier
+  // hasDashboardCustomerReference bail-out already screens out admin-tone asks.
+  const hasNonLatinScript = /[԰-֏Ѐ-ӿ]/.test(prompt);
 
   const selfScope =
     /\bmy\b/i.test(prompt) ||
@@ -512,12 +567,16 @@ export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
       (/\bpackage\b/i.test(prompt) ||
         /\bspa\s+day\b/i.test(prompt) ||
         /\bbundle\b/i.test(prompt)) &&
-      !hasDashboardCustomerReference(prompt));
+      !hasDashboardCustomerReference(prompt)) ||
+    hasNonLatinScript;
 
   const readCue =
     /\b(list|show|view|see|what|when|how\s+many|status|progress)\b/i.test(
       prompt,
-    ) || /\b(visits?\s+left|remaining|still\s+have|next)\b/i.test(prompt);
+    ) ||
+    /\b(visits?\s+left|remaining|still\s+have|next)\b/i.test(prompt) ||
+    /ցույց|մնաց/i.test(prompt) ||
+    /покажи|показать|осталось/i.test(prompt);
 
   return packageContext && selfScope && readCue;
 }
@@ -607,6 +666,27 @@ export function isAddServicesToCartPrompt(prompt: string): boolean {
 }
 
 export function isRemoveServiceFromCartPrompt(prompt: string): boolean {
+  // e2e-bug.144 — catalog soft-delete phrasing is deactivate_service, not cart.
+  if (
+    /\b(?:catalog|business\s+catalog|service\s+menu|permanently)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:called|named)\b/i.test(prompt) &&
+    !/\b(?:cart|basket)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\bdelete\s+(?:the\s+)?service\b/i.test(prompt) &&
+    !/\b(?:cart|basket)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
   return (
     (/\b(remove|delete|drop|take\s+out)\b/i.test(prompt) &&
       (/\b(cart|basket|visit)\b/i.test(prompt) ||
@@ -682,13 +762,19 @@ export function extractServiceNamesFromPrompt(prompt: string): string[] {
     /\b(?:want|need|would\s+like|looking\s+for)\s+(.+?)(?:\s+tomorrow|\s+today|\s+(?:this|next)\s+\w+|\s+on\s+|\s+(?:morning|afternoon|evening)|\?|$)/i,
   );
   if (wantMatch?.[1] && /\band\b/i.test(wantMatch[1])) {
-    const clause = wantMatch[1].replace(
-      /^\s*multiple\s+(?:treatments?|services?)\s*[—–-]\s*/i,
-      '',
-    );
-    for (const part of clause.split(/\s+and\s+|,/i)) {
-      const trimmed = part.trim();
-      if (trimmed.length >= 3) names.push(trimmed);
+    // e2e-bug.130 — do not treat "buy a gift card and check out" as service names.
+    if (
+      !/\bgift\s*card\b/i.test(wantMatch[1]) &&
+      !/\bcheck\s*out\b/i.test(wantMatch[1])
+    ) {
+      const clause = wantMatch[1].replace(
+        /^\s*multiple\s+(?:treatments?|services?)\s*[—–-]\s*/i,
+        '',
+      );
+      for (const part of clause.split(/\s+and\s+|,/i)) {
+        const trimmed = part.trim();
+        if (trimmed.length >= 3) names.push(trimmed);
+      }
     }
   }
 
@@ -863,6 +949,14 @@ export function buildMultiServiceAvailabilitySummary(input: {
 export function isMultiServiceAvailabilityDiscoveryPrompt(
   prompt: string,
 ): boolean {
+  // e2e-bug.130 — "buy a $30 gift card and check out now" is purchase checkout,
+  // not multi-service availability (want+and was enough to false-trigger).
+  if (
+    /\bgift\s*card\b/i.test(prompt) &&
+    /\b(buy|purchase|order|check\s*out)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   if (
     /\bmulti[\s-]?service\s+(?:blocks?|availability)\b/i.test(prompt) ||
     (/\b(show|check)\b/i.test(prompt) &&
@@ -1049,8 +1143,19 @@ export function rescueSelfServiceBookingIntent(
       rescueReason: 'multi_service_availability_discovery',
     };
   }
+  // e2e-bug.134 — before isSelfServiceBookingIntent early-return so a correct
+  // cancel_my_booking classification with an embedded manage link upgrades to
+  // cancel_booking_with_token (guest path) instead of "Sign in…".
+  const manageWithToken = rescueManageBookingWithTokenIntent(prompt, action);
+  if (manageWithToken) return manageWithToken;
   const explainCartEarly = rescueExplainMultiServiceCartIntent(prompt, action);
   if (explainCartEarly) return explainCartEarly;
+  // e2e-bug.132 — cancel-policy before package-savings ("deal if i cancel").
+  const explainCancelPolicyEarly = rescueExplainCancelPolicyIntent(
+    prompt,
+    action,
+  );
+  if (explainCancelPolicyEarly) return explainCancelPolicyEarly;
   const explainPackageSavingsEarly = rescueExplainPackageSavingsIntent(
     prompt,
     action,
@@ -1248,8 +1353,20 @@ export function rescueSelfServiceBookingIntent(
   if (isJoinWaitlistPrompt(prompt)) {
     return { action: 'join_waitlist', rescueReason: 'join_waitlist' };
   }
+  if (isCancelAllUpcomingBookingsPrompt(prompt)) {
+    return {
+      action: 'cancel_all_upcoming_bookings',
+      rescueReason: 'cancel_all_upcoming_bookings',
+    };
+  }
   if (isCancelMyBookingPrompt(prompt)) {
     return { action: 'cancel_my_booking', rescueReason: 'cancel_my' };
+  }
+  if (isCancelMySubscriptionPrompt(prompt)) {
+    return {
+      action: 'cancel_my_subscription',
+      rescueReason: 'cancel_my_subscription',
+    };
   }
   if (isUseSubscriptionCreditPrompt(prompt)) {
     return {
@@ -1374,8 +1491,18 @@ function classifyCustomerBookingSegment(
   if (isRescheduleMyBookingPrompt(text)) {
     return { action: 'reschedule_my_booking', params: base, segment: text };
   }
+  if (isCancelAllUpcomingBookingsPrompt(text)) {
+    return {
+      action: 'cancel_all_upcoming_bookings',
+      params: base,
+      segment: text,
+    };
+  }
   if (isCancelMyBookingPrompt(text)) {
     return { action: 'cancel_my_booking', params: base, segment: text };
+  }
+  if (isCancelMySubscriptionPrompt(text)) {
+    return { action: 'cancel_my_subscription', params: base, segment: text };
   }
   if (isExplainSubscriptionVsOneTimePrompt(text)) {
     return {

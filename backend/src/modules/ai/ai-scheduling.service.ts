@@ -24,6 +24,8 @@ import {
   resolveHolidayDatesForBusinessLogic,
   type SchedulingLogicDeps,
 } from './ai-scheduling.logic.js';
+import { dispatchSchedulingIntent } from './ai-scheduling-dispatch.util.js';
+import type { SchedulingDispatchContext } from './ai-scheduling-dispatch.build.js';
 
 @Injectable()
 export class AiSchedulingService {
@@ -208,5 +210,12 @@ export class AiSchedulingService {
       this.deps.businessRepo,
       businessId,
     );
+  }
+
+  /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a scheduling intent. */
+  dispatchIntent(
+    ctx: SchedulingDispatchContext,
+  ): Promise<CommandResult | null> {
+    return dispatchSchedulingIntent(this, ctx);
   }
 }

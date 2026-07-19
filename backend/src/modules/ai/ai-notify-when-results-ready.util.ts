@@ -37,7 +37,7 @@ const STAFF_NOTIFY_BLOCK = new RegExp(
 );
 
 const NOTIFY_ME_CUE = new RegExp(
-  String.raw`\b(?:notify|text|alert|remind|message|send|ping|tell)\s+me\b|\b(?:sms|text|email|push|whatsapp)\s+me\b|(?:տեղեկացրիր|գրիր|հաղորդիր|ծանուցիր|ասա)\s+ինձ|(?:уведом(?:ь|и)|напиши|сообщи|пришлите|отправьте|скажи)\s+мне`,
+  String.raw`\b(?:notify|text|alert|remind|message|send|ping|tell)\s+me\b|\b(?:sms|text|email|push|whatsapp)\s+me\b|(?:տեղեկացրիր|գրիր|հաղորդիր|ծանուցիր|ասա)\s+ինձ|(?:уведом(?:ь|и)|напиши|сообщи|пришлите|отправьте|скажи)\s+(?:мне|меня)`,
   'iu',
 );
 

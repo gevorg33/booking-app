@@ -95,6 +95,20 @@ describe('subscription-plans.util', () => {
     });
   });
 
+  it('e2e-bug.28: buildQuoteRequest includes useSubscriptionId', () => {
+    expect(
+      buildQuoteRequest({
+        serviceId: 'svc-1',
+        purchaseType: 'one-time',
+        selectedPlanId: '',
+        useSubscriptionId: 'sub-1',
+      }),
+    ).toEqual({
+      serviceId: 'svc-1',
+      useSubscriptionId: 'sub-1',
+    });
+  });
+
   it('resolves checkout subtotal for subscription plans', () => {
     expect(
       resolveCheckoutSubtotal({

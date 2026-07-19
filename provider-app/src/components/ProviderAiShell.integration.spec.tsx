@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderAiShell } from './ProviderAiShell';
+import { useProviderActiveBookingStore } from '../services/provider-active-booking-store';
 
 const authState = vi.hoisted(() => ({
   business: { id: 'biz-1', membershipRole: 'staff' } as {
@@ -17,8 +18,18 @@ vi.mock('../services/auth-store', () => ({
 }));
 
 vi.mock('./ProviderAiAssistant', () => ({
-  default: ({ mobileRoute }: { mobileRoute: string }) => (
-    <div data-testid="provider-ai-assistant" data-route={mobileRoute} />
+  default: ({
+    mobileRoute,
+    screenContext,
+  }: {
+    mobileRoute: string;
+    screenContext?: { bookingId?: string | null };
+  }) => (
+    <div
+      data-testid="provider-ai-assistant"
+      data-route={mobileRoute}
+      data-booking-id={screenContext?.bookingId ?? ''}
+    />
   ),
 }));
 
@@ -63,5 +74,40 @@ describe('ProviderAiShell integration', () => {
     mountAt('/tabs/today');
     expect(container.querySelector('[data-testid="provider-ai-assistant"]')).toBeNull();
     authState.business = { id: 'biz-1', membershipRole: 'staff' };
+  });
+
+  it('injects the active booking id from the store into screenContext (ai-cmd-provider-5.15.2)', () => {
+    act(() => {
+      useProviderActiveBookingStore.getState().setActiveBookingId('bk-42');
+    });
+    mountAt('/tabs/today');
+    const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
+    expect(assistant?.getAttribute('data-booking-id')).toBe('bk-42');
+    act(() => {
+      useProviderActiveBookingStore.getState().setActiveBookingId(null);
+    });
+  });
+
+  it('omits bookingId from screenContext when no modal is open', () => {
+    mountAt('/tabs/today');
+    const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
+    expect(assistant?.getAttribute('data-booking-id')).toBe('');
+  });
+
+  it('renders assistant on standalone guide path with profile route context (e2e-bug.69)', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/tabs/profile/guide']}>
+          <Route path="/tabs/profile/guide">
+            <ProviderAiShell>
+              <div data-testid="guide-content" />
+            </ProviderAiShell>
+          </Route>
+        </MemoryRouter>,
+      );
+    });
+    const assistant = container.querySelector('[data-testid="provider-ai-assistant"]');
+    expect(assistant).toBeTruthy();
+    expect(assistant?.getAttribute('data-route')).toBe('profile');
   });
 });

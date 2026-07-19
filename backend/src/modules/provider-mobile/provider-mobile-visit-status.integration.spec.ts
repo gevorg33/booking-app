@@ -116,7 +116,8 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     businessId: 'biz-1',
     employeeId: 'emp-1',
     status: BookingStatus.CONFIRMED,
-    checkedInAt: null,
+    // e2e-bug.70 — visit-status mutates require check-in first.
+    checkedInAt: new Date('2026-06-09T09:55:00.000Z'),
     metadata: {},
     startTime: new Date('2026-06-09T10:00:00.000Z'),
     endTime: new Date('2026-06-09T11:00:00.000Z'),
@@ -164,6 +165,35 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
 
     expect(result.visitStatus.kind).toBe('ready_now');
     expect(result.visitStatus.minutesLate).toBeUndefined();
+  });
+
+  it('clears the running-late flag when marked ready now (ai-cmd-provider-5.2.6)', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...bookingRecord,
+      metadata: {
+        providerVisitStatus: {
+          kind: 'running_late',
+          minutesLate: 15,
+          markedAt: '2026-06-09T09:50:00.000Z',
+        },
+      },
+    });
+
+    const result = await service.markBookingReadyNow('biz-1', 'user-1', 'bk-1');
+
+    expect(result.visitStatus.kind).toBe('ready_now');
+    expect(result.visitStatus.minutesLate).toBeUndefined();
+    expect(bookingRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          providerVisitStatus: expect.objectContaining({
+            kind: 'ready_now',
+          }),
+        }),
+      }),
+    );
+    const savedMetadata = bookingRepo.save.mock.calls[0][0].metadata;
+    expect(savedMetadata.providerVisitStatus.minutesLate).toBeUndefined();
   });
 
   it('exposes visit status on today bookings', async () => {
@@ -222,5 +252,20 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     await expect(
       service.markBookingRunningLate('biz-1', 'user-1', 'bk-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('e2e-bug.70 — rejects ready-now / running-late before check-in', async () => {
+    bookingRepo.findOne.mockResolvedValue({
+      ...bookingRecord,
+      checkedInAt: null,
+    });
+
+    await expect(
+      service.markBookingReadyNow('biz-1', 'user-1', 'bk-1'),
+    ).rejects.toThrow(/Check in the client/i);
+    await expect(
+      service.markBookingRunningLate('biz-1', 'user-1', 'bk-1', 10),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(bookingRepo.save).not.toHaveBeenCalled();
   });
 });

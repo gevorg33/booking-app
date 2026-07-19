@@ -26,8 +26,10 @@ const INTAKE_AND_BOOK_MUTATE_BLOCK =
 const SYMPTOMS_CHECKOUT_CUE =
   /\b(symptoms?\s+field|referral\s+notes?|reason\s+for\s+visit\s+field)\b/i;
 
-const IDENTITY_FIELD_CUE =
-  /\b(passport|government\s+id|date\s+of\s+birth|insurance\s+policy|emergency\s+contact|mailing\s+address)\b/i;
+const IDENTITY_FIELD_CUE = new RegExp(
+  String.raw`\b(passport|government\s+id|date\s+of\s+birth|insurance(?:\s+policy)?|emergency\s+contact|mailing\s+address|personal\s+details)\b|(?:ինչու|зачем|почему).*(?:\bid\b|անձնագիր|паспорт|удостовер)`,
+  'iu',
+);
 
 const READ_CUE = new RegExp(
   String.raw`\b(what|why|how|when|do i|does|can i|must|have to|explain|tell|skip|optional)\b|ինչ|ինչու|բաց թողնել|что|почему|можно|пропуст|анкет`,

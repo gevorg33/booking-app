@@ -1,4 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Business } from '../business/entities/business.entity.js';
 import { PublicBookingService } from '../public-booking/public-booking.service.js';
 import { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -21,6 +24,7 @@ export class AiConsumerAdoptionService {
     pushNotifications: AiPushNotificationsService,
     notificationsService: NotificationsService,
     consumerPushTokenService: ConsumerPushTokenService,
+    @InjectRepository(Business) businessRepo: Repository<Business>,
   ) {
     this.deps = {
       publicBookingService,
@@ -28,6 +32,7 @@ export class AiConsumerAdoptionService {
       pushNotifications,
       notificationsService,
       consumerPushTokenService,
+      businessRepo,
     };
   }
 

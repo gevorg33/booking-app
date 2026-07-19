@@ -137,6 +137,37 @@ describe('ai-operations.util', () => {
     expect(parsePriceAdjustment('no percent', {})).toBeNull();
   });
 
+  it('e2e-bug.164 — parses absolute dollar deltas and never treats them as percent', () => {
+    const dollars = parsePriceAdjustment(
+      'Increase the price of the QA Approve Test service by 5 dollars',
+      // Classifier wrongly fills percentChange for a dollar prompt.
+      { percentChange: 5, serviceName: 'QA Approve Test' },
+    );
+    expect(dollars).toEqual(
+      expect.objectContaining({
+        amountChange: 5,
+        serviceNameHint: 'QA Approve Test',
+      }),
+    );
+    expect(dollars?.percentChange).toBeUndefined();
+    expect(applyPriceAdjustment(20, dollars!)).toBe(25);
+    expect(applyPriceAdjustment(20, { percentChange: 5 })).toBe(21);
+
+    const lowered = parsePriceAdjustment(
+      'Lower Neck Massage by $10',
+      { serviceName: 'Neck Massage' },
+    );
+    expect(lowered?.amountChange).toBe(-10);
+    expect(applyPriceAdjustment(50, lowered!)).toBe(40);
+
+    expect(
+      parsePriceAdjustment(
+        'Increase the price of the QA Repro Bug164 service by 10 dollars',
+        { percentChange: 10 },
+      )?.amountChange,
+    ).toBe(10);
+  });
+
   it('resolves seniority and category service filters', () => {
     const employees = [
       { id: '1', name: 'Senior Anna', metadata: { seniority: 'senior' } },

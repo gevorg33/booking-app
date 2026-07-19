@@ -1,14 +1,29 @@
 import { PROVIDER_EXP_2_PROMPT_SCENARIOS } from './ai-provider-exp-2.fixtures.js';
 import {
+  buildDraftReviewResponseText,
+  buildExplainRequestReviewFlowText,
   extractBookingActionCustomerName,
   extractRunningLateMinutesFromPrompt,
+  formatExplainReviewsInboxSummary,
+  formatListTeamUnpaidTodaySummary,
   formatProviderMyStatsSummary,
   formatTeamFloorStatusSummary,
   inferMyStatsPeriodFromPrompt,
   inferMyStatsScopeFromPrompt,
+  inferReviewsInboxPeriodFromPrompt,
+  inferReviewsInboxRatingFilterFromPrompt,
   isCheckInClientPrompt,
+  isDraftReviewResponsePrompt,
+  isExplainRequestReviewFlowPrompt,
+  isExplainReviewsInboxPrompt,
+  isListReassignOptionsPrompt,
+  isListTeamUnpaidTodayPrompt,
+  isMarkReadyNowPrompt,
   isMarkRunningLatePrompt,
   isMyStatsPrompt,
+  isReassignBookingSameDayPrompt,
+  isRequestClientReviewPrompt,
+  isSuggestCancelNotePrompt,
   isTeamFloorStatusPrompt,
   rescueProviderExp2Intent,
 } from './ai-provider-exp-2.util.js';
@@ -32,6 +47,221 @@ describe('ai-provider-exp-2.util', () => {
 
   it.each(
     PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'list_team_unpaid_today',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects list_team_unpaid_today prompt %s', (_id, prompt) => {
+    expect(isListTeamUnpaidTodayPrompt(prompt)).toBe(true);
+    expect(rescueProviderExp2Intent(prompt, 'unknown')).toEqual({
+      action: 'list_team_unpaid_today',
+      rescueReason: 'list_team_unpaid_today',
+    });
+  });
+
+  it('does not let list_team_unpaid_today steal payment_sweep mutations', () => {
+    expect(isListTeamUnpaidTodayPrompt('Mark all unpaid appointments today as paid')).toBe(
+      false,
+    );
+    expect(isListTeamUnpaidTodayPrompt('Payment sweep for today')).toBe(false);
+    expect(isListTeamUnpaidTodayPrompt('Collect outstanding balances today')).toBe(
+      false,
+    );
+  });
+
+  it('formats the team unpaid today summary', () => {
+    expect(
+      formatListTeamUnpaidTodaySummary(
+        { date: '2026-07-10', totalUnpaid: 0, bookings: [] },
+        {},
+      ),
+    ).toBe('Everyone on the floor is paid up today.');
+
+    const summary = formatListTeamUnpaidTodaySummary(
+      {
+        date: '2026-07-10',
+        totalUnpaid: 1,
+        bookings: [
+          {
+            id: 'bk-1',
+            customerName: 'Jane Doe',
+            employeeName: 'Sam',
+            serviceName: 'Haircut',
+            startTime: new Date('2026-07-10T14:00:00.000Z'),
+            servicePrice: 45,
+          },
+        ],
+      },
+      {},
+    );
+    expect(summary).toContain('1 unpaid appointment today:');
+    expect(summary).toContain('Jane Doe with Sam');
+    expect(summary).toContain('Haircut');
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'explain_reviews_inbox',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects explain_reviews_inbox prompt %s', (_id, prompt) => {
+    expect(isExplainReviewsInboxPrompt(prompt)).toBe(true);
+    expect(rescueProviderExp2Intent(prompt, 'unknown')).toEqual({
+      action: 'explain_reviews_inbox',
+      rescueReason: 'explain_reviews_inbox',
+    });
+  });
+
+  it('does not let explain_reviews_inbox steal request_client_review mutations', () => {
+    expect(isExplainReviewsInboxPrompt('Ask Jane for a review')).toBe(false);
+    expect(
+      isExplainReviewsInboxPrompt('Send a review request for this booking'),
+    ).toBe(false);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'explain_request_review_flow',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects explain_request_review_flow prompt %s', (_id, prompt) => {
+    expect(isExplainRequestReviewFlowPrompt(prompt)).toBe(true);
+    expect(rescueProviderExp2Intent(prompt, 'unknown')).toEqual({
+      action: 'explain_request_review_flow',
+      rescueReason: 'explain_request_review_flow',
+    });
+  });
+
+  it('does not let explain_request_review_flow steal request_client_review mutations', () => {
+    expect(isExplainRequestReviewFlowPrompt('Ask Jane for a review')).toBe(
+      false,
+    );
+    expect(
+      isExplainRequestReviewFlowPrompt('Send a review request for this booking'),
+    ).toBe(false);
+  });
+
+  it('builds the explain_request_review_flow policy text', () => {
+    const text = buildExplainRequestReviewFlowText();
+    expect(text).toContain('Request review');
+    expect(text).toContain('once per visit');
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'draft_review_response',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects draft_review_response prompt %s', (_id, prompt) => {
+    expect(isDraftReviewResponsePrompt(prompt)).toBe(true);
+    expect(rescueProviderExp2Intent(prompt, 'unknown')).toEqual({
+      action: 'draft_review_response',
+      rescueReason: 'draft_review_response',
+    });
+  });
+
+  it('does not let draft_review_response steal request_client_review mutations', () => {
+    expect(isDraftReviewResponsePrompt('Ask Jane for a review')).toBe(false);
+    expect(
+      isDraftReviewResponsePrompt('Send a review request for this booking'),
+    ).toBe(false);
+  });
+
+  it('drafts a review response tailored to the rating', () => {
+    expect(
+      buildDraftReviewResponseText({
+        rating: 5,
+        comment: 'Loved it',
+        customerName: 'Jane',
+      }),
+    ).toContain('thank you');
+    expect(
+      buildDraftReviewResponseText({
+        rating: 3,
+        comment: null,
+        customerName: 'Jane',
+      }),
+    ).toContain('improve');
+    expect(
+      buildDraftReviewResponseText({
+        rating: 1,
+        comment: 'Bad',
+        customerName: 'Jane',
+      }),
+    ).toContain('sorry');
+  });
+
+  it('infers a rating filter from the reviews inbox prompt', () => {
+    expect(
+      inferReviewsInboxRatingFilterFromPrompt('Latest 5-star reviews', {}),
+    ).toEqual({ minRating: 5, maxRating: 5, ratingLabel: '5★ ' });
+    expect(
+      inferReviewsInboxRatingFilterFromPrompt('Any bad reviews this week?', {}),
+    ).toEqual({ maxRating: 3, ratingLabel: 'low-rated ' });
+    expect(
+      inferReviewsInboxRatingFilterFromPrompt('My rating this month', {}),
+    ).toBeUndefined();
+    expect(
+      inferReviewsInboxRatingFilterFromPrompt('anything', { rating: 4 }),
+    ).toEqual({ minRating: 4, maxRating: 4, ratingLabel: '4★ ' });
+  });
+
+  it('infers the reviews inbox period from the prompt', () => {
+    expect(inferReviewsInboxPeriodFromPrompt('Bad review yesterday', {})).toBe(
+      'yesterday',
+    );
+    expect(inferReviewsInboxPeriodFromPrompt('Any reviews today?', {})).toBe(
+      'today',
+    );
+    expect(
+      inferReviewsInboxPeriodFromPrompt('Reviews this week', {}),
+    ).toBe('week');
+    expect(inferReviewsInboxPeriodFromPrompt('My rating this month', {})).toBe(
+      'month',
+    );
+    expect(inferReviewsInboxPeriodFromPrompt('My rating', {})).toBe('month');
+    expect(
+      inferReviewsInboxPeriodFromPrompt('anything', { period: 'today' }),
+    ).toBe('today');
+  });
+
+  it('formats the reviews inbox summary', () => {
+    expect(
+      formatExplainReviewsInboxSummary({
+        scope: 'mine',
+        period: 'month',
+        averageRating: null,
+        reviewCount: 0,
+        reviews: [],
+      }),
+    ).toBe('Your reviews this month: no reviews yet.');
+
+    const summary = formatExplainReviewsInboxSummary({
+      scope: 'team',
+      period: 'yesterday',
+      averageRating: 3.5,
+      reviewCount: 2,
+      reviews: [
+        {
+          id: 'rev-1',
+          rating: 2,
+          comment: 'Could be better',
+          customerName: 'Jane Doe',
+          employeeName: 'Sam',
+          createdAt: new Date('2026-07-09T14:00:00.000Z'),
+        },
+        {
+          id: 'rev-2',
+          rating: 5,
+          comment: null,
+          customerName: null,
+          employeeName: 'Alex',
+          createdAt: new Date('2026-07-09T15:00:00.000Z'),
+        },
+      ],
+    });
+    expect(summary).toContain('Team reviews yesterday: 2 reviews, 3.5★ average.');
+    expect(summary).toContain('2★ — Jane Doe (Sam): "Could be better" (low)');
+    expect(summary).toContain('5★ (Alex)');
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
       (s) => s.expectedAction === 'check_in_client',
     ).map((s) => [s.id, s.prompt]),
   )('detects check_in_client prompt %s', (_id, prompt) => {
@@ -44,6 +274,46 @@ describe('ai-provider-exp-2.util', () => {
     ).map((s) => [s.id, s.prompt]),
   )('detects mark_running_late prompt %s', (_id, prompt) => {
     expect(isMarkRunningLatePrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'mark_ready_now',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects mark_ready_now prompt %s', (_id, prompt) => {
+    expect(isMarkReadyNowPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'suggest_cancel_note',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects suggest_cancel_note prompt %s', (_id, prompt) => {
+    expect(isSuggestCancelNotePrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'request_client_review',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects request_client_review prompt %s', (_id, prompt) => {
+    expect(isRequestClientReviewPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'list_reassign_options',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects list_reassign_options prompt %s', (_id, prompt) => {
+    expect(isListReassignOptionsPrompt(prompt)).toBe(true);
+  });
+
+  it.each(
+    PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
+      (s) => s.expectedAction === 'reassign_booking_same_day',
+    ).map((s) => [s.id, s.prompt]),
+  )('detects reassign_booking_same_day prompt %s', (_id, prompt) => {
+    expect(isReassignBookingSameDayPrompt(prompt)).toBe(true);
   });
 
   it.each(PROVIDER_EXP_2_PROMPT_SCENARIOS.map((s) => [s.id, s]))(

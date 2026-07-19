@@ -75,8 +75,8 @@ describe('ai provider team whos next locale parity (acc-2.4)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(2);
-    expect(ruCases.length).toBe(2);
+    expect(hyCases.length).toBe(5);
+    expect(ruCases.length).toBe(5);
     expect(hyCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'provider')).toBe(true);
     expect(
@@ -84,6 +84,6 @@ describe('ai provider team whos next locale parity (acc-2.4)', () => {
         (row) => row.expect.needsMultilingual === true,
       ),
     ).toBe(true);
-    expect(AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_CASES.length).toBe(2);
+    expect(AI_COMMAND_EVAL_PROVIDER_TEAM_WHOS_NEXT_CASES.length).toBe(5);
   });
 });
