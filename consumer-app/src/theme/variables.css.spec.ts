@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { E2E2_CLASS_DEPENDENT_SELECTORS } from '../hooks/e2e2-salon-tab-active.fixtures.js';
 
 const css = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'variables.css'),
@@ -41,5 +42,21 @@ describe('variables.css desktop shell (e2e-bug.55)', () => {
       )?.[0] ?? '';
     expect(solidBlock).toContain('--color-hover: #ffffff');
     expect(solidBlock).not.toContain('--color-hover: rgba(var(--ion-color-primary-rgb)');
+  });
+});
+
+describe('variables.css salon-tab-active offsets (e2e-bug.2)', () => {
+  it.each(E2E2_CLASS_DEPENDENT_SELECTORS.map((sel) => [sel] as const))(
+    'defines offset rule for %s',
+    (selector) => {
+      expect(css).toContain(selector);
+    },
+  );
+
+  it('raises fixed action bar above the tab bar only when salon-tab-active', () => {
+    expect(css).toContain(
+      'body.salon-tab-active .consumer-fixed-action-bar',
+    );
+    expect(css).toContain('bottom: var(--consumer-tab-bar-total-height)');
   });
 });

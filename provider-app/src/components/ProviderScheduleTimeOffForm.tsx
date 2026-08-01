@@ -15,6 +15,7 @@ import { getTodayDateKey } from '../lib/date-format';
 import { buildProviderTimeOffPayload } from '../lib/provider-time-off.util';
 import { operationFeedbackStore } from '../lib/operation-feedback-store';
 import { DatePicker } from './DatePicker';
+import { TimePicker } from './TimePicker';
 import { useI18n } from '../i18n';
 
 interface ProviderScheduleTimeOffFormProps {
@@ -94,21 +95,11 @@ export default function ProviderScheduleTimeOffForm({
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('appointments.startTime24h')}</IonLabel>
-          <input
-            type="time"
-            className="native-date-input"
-            value={dailyStartTime}
-            onChange={(event) => setDailyStartTime(event.target.value)}
-          />
+          <TimePicker value={dailyStartTime} onChange={setDailyStartTime} />
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('appointments.endTime24h')}</IonLabel>
-          <input
-            type="time"
-            className="native-date-input"
-            value={dailyEndTime}
-            onChange={(event) => setDailyEndTime(event.target.value)}
-          />
+          <TimePicker value={dailyEndTime} onChange={setDailyEndTime} />
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('provider.timeOffReason')}</IonLabel>

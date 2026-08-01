@@ -33,11 +33,24 @@ import {
 import {
   buildQuoteRequest,
   isSubscriptionCheckoutSelection,
-  resolveCheckoutAmountDue,
   resolveCheckoutSubtotal,
   subscriptionCheckoutPayload,
 } from '@/lib/subscription-plans';
+import {
+  resolvePublicCheckoutCartTotal,
+  resolvePublicCheckoutStickyDisplay,
+} from '@/lib/public-checkout-quote.util';
+import {
+  requiresSingleServiceOnlinePayment,
+  resolveSingleServiceOnlineAmountDue,
+  showSingleServiceCashPaymentOption,
+} from '@/lib/checkout-payment-method.util';
 import { bookPath } from '@/lib/tenant-host';
+import {
+  isWhatsappRemindersPhoneRequired,
+  resolveDefaultPublicCheckoutWhatsappReminders,
+  resolveWhatsappRemindersAfterPhonePrefill,
+} from '@/lib/public-checkout-whatsapp.util';
 import { useI18n } from '@/i18n';
 import { usePublicCustomerAuth } from '@/lib/public-customer-auth';
 import { PhoneInput } from '@/components/public-booking/phone-input';
@@ -89,7 +102,8 @@ export function CheckoutForm({
     aiProcessingOptIn: false,
     thirdPartyIntegrationsOptIn: false,
     emailReminders: true,
-    whatsappReminders: true,
+    // e2e-bug.212 — guests without a phone must not start with WhatsApp ON
+    whatsappReminders: resolveDefaultPublicCheckoutWhatsappReminders(),
     reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -144,12 +158,20 @@ export function CheckoutForm({
   useEffect(() => {
     if (authLoading || !customer) return;
     queueMicrotask(() =>
-      setForm((prev) => ({
-        ...prev,
-        name: prev.name || customer.name,
-        email: prev.email || customer.email || '',
-        phone: prev.phone || customer.phone || undefined,
-      })),
+      setForm((prev) => {
+        const nextPhone = prev.phone || customer.phone || undefined;
+        return {
+          ...prev,
+          name: prev.name || customer.name,
+          email: prev.email || customer.email || '',
+          phone: nextPhone,
+          whatsappReminders: resolveWhatsappRemindersAfterPhonePrefill({
+            previousPhone: prev.phone,
+            nextPhone,
+            previousWhatsappReminders: prev.whatsappReminders,
+          }),
+        };
+      }),
     );
   }, [authLoading, customer]);
 
@@ -322,14 +344,11 @@ export function CheckoutForm({
     },
   });
 
-  const chargeBase =
-    dueNow > 0
-      ? isTour
-        ? dueNow * paxCount
-        : dueNow
-      : isTour
-        ? service.price * paxCount
-        : service.price;
+  const catalogTotal = isTour ? service.price * paxCount : service.price;
+  // Online charge base only — 0 for pay-at-visit (e2e-bug.222). Do not use catalog.
+  const onlineChargeBase = dueNow > 0 ? (isTour ? dueNow * paxCount : dueNow) : 0;
+  /** @deprecated alias — loyalty max / promo fallbacks use catalog when unpaid online */
+  const chargeBase = onlineChargeBase > 0 ? onlineChargeBase : catalogTotal;
 
   function selectOneTimeVisit() {
     setPurchaseType('one-time');
@@ -350,28 +369,30 @@ export function CheckoutForm({
   }
 
   const selectedPlan = subscriptionPlans.find((p) => p.id === selectedPlanId);
-  const amountDue = resolveCheckoutAmountDue({
+  const amountDue = resolveSingleServiceOnlineAmountDue({
     usingSubscriptionCredit,
     quoteAmountDue: quote?.amountDue,
+    onlineChargeBase,
     subscriptionPlanPrice:
       purchaseType === 'subscription' && selectedPlan
         ? selectedPlan.preview.pricing.subscriptionPrice
         : undefined,
-    fallback: quote?.amountDue ?? chargeBase,
   });
-  const requiresOnlinePayment =
-    amountDue > 0 &&
-    paymentMethod !== 'cash' &&
-    (purchaseType === 'subscription' ||
-      service.prepaymentMode === 'full' ||
-      (service.prepaymentMode === 'deposit' && dueNow > 0));
-  const showCashOption =
-    tenant.acceptCashPayments === true &&
-    purchaseType === 'one-time' &&
-    !usingSubscriptionCredit &&
-    service.prepaymentMode !== 'full' &&
-    amountDue > 0 &&
-    !(dueNow > 0 && service.prepaymentMode === 'deposit');
+  const cartTotal = resolvePublicCheckoutCartTotal(quote, catalogTotal);
+  const requiresOnlinePayment = requiresSingleServiceOnlinePayment({
+    amountDue,
+    paymentMethod,
+    purchaseType,
+    dueNow,
+  });
+  const showCashOption = showSingleServiceCashPaymentOption({
+    acceptCashPayments: tenant.acceptCashPayments === true,
+    purchaseType,
+    usingSubscriptionCredit,
+    amountDue,
+    dueNow,
+    prepaymentMode: service.prepaymentMode ?? 'none',
+  });
   const checkoutSubtotal = resolveCheckoutSubtotal({
     purchaseType,
     quoteSubtotal: quote?.subtotal,
@@ -379,9 +400,14 @@ export function CheckoutForm({
       purchaseType === 'subscription' && selectedPlan
         ? selectedPlan.preview.pricing.subscriptionPrice
         : undefined,
-    fallback: chargeBase,
+    fallback: purchaseType === 'subscription' ? catalogTotal : onlineChargeBase || catalogTotal,
   });
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
+  const stickyDisplay = resolvePublicCheckoutStickyDisplay({
+    cartTotal,
+    amountDue,
+    hasDiscounts,
+  });
   const promoApplied =
     !!appliedPromo &&
     !!quote &&
@@ -433,7 +459,7 @@ export function CheckoutForm({
       setError(t('public.phoneInvalid'));
       return;
     }
-    if (form.whatsappReminders && !fullPhone()) {
+    if (isWhatsappRemindersPhoneRequired(form.whatsappReminders, fullPhone())) {
       setError(t('public.whatsappPhoneRequired'));
       return;
     }
@@ -704,10 +730,13 @@ export function CheckoutForm({
         </div>
         <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
           <span className="font-semibold text-gray-900">{t('public.total')}</span>
-          <span className="font-semibold text-gray-900">
+          <span className="font-semibold text-gray-900" data-testid="checkout-cart-total">
             {usingSubscriptionCredit
               ? formatPrice(0, currency)
-              : formatPrice(checkoutSubtotal, currency)}
+              : formatPrice(
+                  purchaseType === 'subscription' ? checkoutSubtotal : cartTotal,
+                  currency,
+                )}
           </span>
         </div>
         {(usingSubscriptionCredit || purchaseType === 'subscription') && (
@@ -762,8 +791,14 @@ export function CheckoutForm({
               </div>
             ))}
             <div className="flex justify-between font-semibold text-gray-900 pt-1">
-              <span>{amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}</span>
-              <span>{formatPrice(amountDue, currency)}</span>
+              <span>
+                {stickyDisplay.kind === 'free_after_discounts'
+                  ? t('public.freeAfterDiscounts')
+                  : stickyDisplay.kind === 'due_now'
+                    ? t('public.totalDue')
+                    : t('public.total')}
+              </span>
+              <span>{formatPrice(stickyDisplay.amount, currency)}</span>
             </div>
           </div>
         )}
@@ -782,8 +817,10 @@ export function CheckoutForm({
               </div>
             ))}
             <div className="flex justify-between font-semibold text-gray-900 pt-1">
-              <span>{t('public.totalDue')}</span>
-              <span>{formatPrice(amountDue, currency)}</span>
+              <span>
+                {stickyDisplay.kind === 'due_now' ? t('public.totalDue') : t('public.total')}
+              </span>
+              <span>{formatPrice(stickyDisplay.amount, currency)}</span>
             </div>
           </div>
         )}
@@ -1026,12 +1063,14 @@ export function CheckoutForm({
             primaryColor={primary}
             label={t('public.emailRemindersCheckout')}
           />
-          <ToggleChoice
-            checked={form.whatsappReminders}
-            onChange={(whatsappReminders) => setForm((f) => ({ ...f, whatsappReminders }))}
-            primaryColor={primary}
-            label={t('public.whatsappReminders')}
-          />
+          <div data-testid="checkout-whatsapp-reminders">
+            <ToggleChoice
+              checked={form.whatsappReminders}
+              onChange={(whatsappReminders) => setForm((f) => ({ ...f, whatsappReminders }))}
+              primaryColor={primary}
+              label={t('public.whatsappReminders')}
+            />
+          </div>
 
           <ToggleChoice
             checked={form.consent}
@@ -1102,22 +1141,27 @@ export function CheckoutForm({
         </section>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+      <div
+        data-public-sticky-cta
+        data-testid="public-sticky-cta"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
+      >
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between text-sm mb-3">
             <span className="text-gray-500">
-              {amountDue <= 0 && hasDiscounts
+              {stickyDisplay.kind === 'free_after_discounts'
                 ? t('public.freeAfterDiscounts')
-                : dueNow > 0
+                : stickyDisplay.kind === 'due_now'
                   ? t('public.totalDue')
                   : t('public.total')}
             </span>
-            <span className="font-semibold text-gray-900">
-              {formatPrice(amountDue, currency)}
+            <span className="font-semibold text-gray-900" data-testid="checkout-sticky-amount">
+              {formatPrice(stickyDisplay.amount, currency)}
             </span>
           </div>
           <button
             type="submit"
+            data-testid="checkout-submit"
             disabled={submitting || quoteLoading}
             className="w-full py-3.5 rounded-2xl font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ backgroundColor: primary }}

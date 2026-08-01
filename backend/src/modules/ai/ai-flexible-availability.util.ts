@@ -248,15 +248,56 @@ const FLEXIBLE_AVAILABILITY_BOOK_SERVICE_PATTERN =
 const FLEXIBLE_AVAILABILITY_WANT_SERVICE_PATTERN =
   /\bI want(?:\s+(?:a|an|the))?\s+([a-z][\w\s-]{2,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|,|$))/i;
 
+// e2e-bug.93 — do not treat "Is Mariam Ohanyan available tomorrow" as a service.
 const FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN =
-  /^([a-z][\w\s-]{2,30}?)\s+(?:(?:under|below|at most|up to)\s+[\$€£]?\s*[\d,]+(?:\.\d{1,2})?\s+)?(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i;
+  /^(?!(?:is|are|when|who|what|does|do|can|will|which)\b)([a-z][\w\s-]{2,30}?)\s+(?:(?:under|below|at most|up to)\s+[\$€£]?\s*[\d,]+(?:\.\d{1,2})?\s+)?(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat)\b/i;
 
 export function normalizeAvailabilityServiceCategory(keyword: string): string {
-  const first = keyword.trim().replace(/[,.]$/, '').split(/\s+/)[0] ?? keyword;
-  const lower = first.toLowerCase();
+  const trimmed = keyword.trim().replace(/[,.]$/, '');
+  if (!trimmed) return trimmed;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  // e2e-bug.200 — multi-word catalog names ("Swedish massage", "Neck Massage")
+  // must stay intact; first-word truncation ("swedish") breaks resolve.
+  if (words.length > 1) return trimmed;
+  const lower = (words[0] ?? trimmed).toLowerCase();
   if (lower === 'lashes') return 'lash';
   if (lower === 'haircuts') return 'haircut';
+  if (lower === 'hairstyles') return 'hairstyle';
+  // e2e-bug.297 — plural facials stays in the facial synonym family.
+  if (lower === 'facials') return 'facial';
+  // e2e-bug.298 — trim/cut/style aliases normalize to haircut (parity with rank).
+  if (
+    lower === 'trim' ||
+    lower === 'cut' ||
+    lower === 'cuts' ||
+    lower === 'style' ||
+    lower === 'styles' ||
+    lower === 'styling'
+  ) {
+    return 'haircut';
+  }
   return lower;
+}
+
+/**
+ * Prefer multi-word extracted names as serviceName so catalog resolve does not
+ * depend on first-token category matching (e2e-bug.200).
+ */
+export function resolveAvailabilityServiceFieldsFromKeyword(
+  keyword: string,
+): { serviceName: string | null; serviceCategory: string | null } {
+  const trimmed = keyword.trim().replace(/[,.]$/, '');
+  if (!trimmed || trimmed.length < 3) {
+    return { serviceName: null, serviceCategory: null };
+  }
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    return { serviceName: trimmed, serviceCategory: null };
+  }
+  return {
+    serviceName: null,
+    serviceCategory: normalizeAvailabilityServiceCategory(trimmed),
+  };
 }
 
 /** Leading service + optional inline budget before OR window parse (avail-budget-under-or-en). */
@@ -286,10 +327,11 @@ export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
 
   const rawName = extractServiceNameFromPrompt(prompt);
   if (rawName) {
+    const fields = resolveAvailabilityServiceFieldsFromKeyword(rawName);
     return {
       ...params,
-      serviceCategory: normalizeAvailabilityServiceCategory(rawName),
-      serviceName: null,
+      serviceName: fields.serviceName,
+      serviceCategory: fields.serviceCategory,
     };
   }
 
@@ -318,10 +360,11 @@ export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
     ?.trim()
     .replace(/[,.]$/, '');
   if (keyword && keyword.length >= 3) {
+    const fields = resolveAvailabilityServiceFieldsFromKeyword(keyword);
     return {
       ...params,
-      serviceCategory: normalizeAvailabilityServiceCategory(keyword),
-      serviceName: null,
+      serviceName: fields.serviceName,
+      serviceCategory: fields.serviceCategory,
     };
   }
 
@@ -408,11 +451,14 @@ export function enrichFlexibleAvailabilitySingleWindowFromPrompt(
     }
   }
 
-  if (!next.date) {
-    const relativeDate = extractRelativeDateFromClause(prompt);
-    if (relativeDate) {
-      next = { ...next, date: relativeDate };
-    }
+  // e2e-bug.296 — same-day day-part cues ("tonight" / "this evening") must win
+  // over classifier dateFrom/dateTo ranges and dateless availabilityWindows[]
+  // that would otherwise expand to PUBLIC_AVAILABILITY_SCAN_DAYS (14).
+  const relativeDate = extractRelativeDateFromClause(prompt);
+  if (relativeDate === 'today' || relativeDate === 'tomorrow') {
+    next = applySameDayRelativeDateToAvailabilityParams(next, relativeDate);
+  } else if (!next.date && relativeDate) {
+    next = { ...next, date: relativeDate };
   }
 
   if (
@@ -422,6 +468,33 @@ export function enrichFlexibleAvailabilitySingleWindowFromPrompt(
     next = { ...next, allProviders: true };
   }
 
+  return next;
+}
+
+/** Stamp relative today/tomorrow onto params + dateless availability windows. */
+export function applySameDayRelativeDateToAvailabilityParams(
+  params: Record<string, unknown>,
+  relativeDate: 'today' | 'tomorrow',
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...params, date: relativeDate };
+  delete next.dateFrom;
+  delete next.dateTo;
+
+  const windows = next.availabilityWindows;
+  if (!Array.isArray(windows) || windows.length === 0) {
+    return next;
+  }
+
+  next.availabilityWindows = windows.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return entry;
+    }
+    const window = entry as AvailabilityWindow;
+    if (window.date || (Array.isArray(window.weekdays) && window.weekdays.length > 0)) {
+      return window;
+    }
+    return { ...window, date: relativeDate };
+  });
   return next;
 }
 
@@ -595,7 +668,14 @@ function extractRelativeDateFromClause(clause: string): string | null {
   ) {
     return 'tomorrow';
   }
-  if (/\btoday\b/i.test(clause) || /\btonight\b/i.test(clause)) {
+  // e2e-bug.296 — "this evening/afternoon/morning" is same-day (like tonight),
+  // not an open-ended timeOfDay scan across PUBLIC_AVAILABILITY_SCAN_DAYS.
+  if (
+    /\btoday\b/i.test(clause) ||
+    /\btonight\b/i.test(clause) ||
+    /\bthis\s+(?:morning|afternoon|evening)\b/i.test(clause) ||
+    /\blater\s+today\b/i.test(clause)
+  ) {
     return 'today';
   }
   return null;

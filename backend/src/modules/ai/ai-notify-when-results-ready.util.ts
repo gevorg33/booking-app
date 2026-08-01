@@ -150,25 +150,43 @@ export function parseNotifyWhenResultsReadyFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): ParsedNotifyWhenResultsReadyRequest | null {
-  if (!isNotifyWhenResultsReadyPrompt(prompt)) return null;
-
-  const scenario = matchNotifyWhenResultsReadyScenario(prompt);
+  const aspectFromParams =
+    typeof params.aspect === 'string' && params.aspect.trim()
+      ? (params.aspect.trim() as NotifyWhenResultsReadyAspect)
+      : undefined;
+  const channelFromParams =
+    typeof params.channel === 'string' && params.channel.trim()
+      ? (params.channel.trim() as NotifyWhenResultsReadyChannel)
+      : undefined;
   const testNameFromParams =
     typeof params.testName === 'string' && params.testName.trim()
       ? params.testName.trim()
       : undefined;
 
+  // e2e-bug.198 — compound decomposition seeds aspect/channel on the step;
+  // honor those even when the full book+notify prompt hits BOOK_COMPOUND_BLOCK.
+  if (!isNotifyWhenResultsReadyPrompt(prompt)) {
+    if (!aspectFromParams) return null;
+    return {
+      aspect: aspectFromParams,
+      channel:
+        channelFromParams ?? extractNotifyChannelFromPrompt(prompt) ?? undefined,
+      testName:
+        testNameFromParams ??
+        extractTestNameFromResultsPrompt(prompt) ??
+        undefined,
+    };
+  }
+
+  const scenario = matchNotifyWhenResultsReadyScenario(prompt);
+
   return {
     aspect:
-      (typeof params.aspect === 'string'
-        ? (params.aspect as NotifyWhenResultsReadyAspect)
-        : undefined) ??
+      aspectFromParams ??
       scenario?.aspect ??
       resolveNotifyWhenResultsReadyAspect(prompt),
     channel:
-      (typeof params.channel === 'string'
-        ? (params.channel as NotifyWhenResultsReadyChannel)
-        : undefined) ??
+      channelFromParams ??
       scenario?.channel ??
       extractNotifyChannelFromPrompt(prompt),
     testName:

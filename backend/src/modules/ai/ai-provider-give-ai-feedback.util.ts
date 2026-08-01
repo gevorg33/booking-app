@@ -37,11 +37,18 @@ export const PROVIDER_ASSISTANT_FEEDBACK_REASON_OPTIONS = [
   },
 ] as const;
 
+// e2e-bug.293 — UI chip labels "Thumbs up" / "Thumbs down" (+ emoji).
 const POSITIVE_CUE =
-  /\b(that\s+was\s+helpful|helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped)\b/i;
+  /\b(that\s+was\s+helpful|(?<!\bnot\s)helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped|thumbs?\s*-?\s*up)\b|👍/iu;
 
 const NEGATIVE_CUE =
-  /\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|not\s+what\s+i\s+(?:meant|wanted))\b/i;
+  /\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|not\s+what\s+i\s+(?:meant|wanted)|(?:was\s+)?not\s+my\s+intent|wasn'?t\s+my\s+intent|thumbs?\s*-?\s*down)\b|👎/iu;
+
+/** e2e-bug.300 — shorthand vote; whole-prompt only (mirror customer/public). */
+const PLUS_ONE_FEEDBACK_PROMPT =
+  /^(?:\+1|\+\s*1|plus\s*(?:one|1))\s*[!.]?$/iu;
+const MINUS_ONE_FEEDBACK_PROMPT =
+  /^(?:-1|-\s*1|minus\s*(?:one|1))\s*[!.]?$/iu;
 
 const WRONG_DATE_CUE = /\bwrong\s+date|wrong\s+day|picked\s+the\s+wrong\s+date\b/i;
 
@@ -53,7 +60,7 @@ const WRONG_CLIENT_CUE =
 const WRONG_ACTION_CUE = /\bwrong\s+action\b/i;
 
 const DID_NOT_UNDERSTAND_CUE =
-  /\b(did(?:n't| not)\s+understand|didn't\s+get\s+that|misunderstood\s+me|wasn'?t\s+my\s+intent|not\s+what\s+i\s+meant)\b/i;
+  /\b(did(?:n't| not)\s+understand|didn't\s+get\s+that|misunderstood\s+me|wasn'?t\s+my\s+intent|was\s+not\s+my\s+intent|not\s+my\s+intent|not\s+what\s+i\s+meant)\b/i;
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -89,8 +96,19 @@ export function parseGiveProviderAiFeedbackRating(
 ): ProviderGiveAiFeedbackRating | undefined {
   const fromParams = readString(params.feedbackRating);
   if (fromParams === 'up' || fromParams === 'down') return fromParams;
-  if (POSITIVE_CUE.test(prompt)) return 'up';
-  if (reason || NEGATIVE_CUE.test(prompt)) return 'down';
+  // Negatives first — bare "helpful" must not steal "Not helpful" (e2e-bug.243)
+  // e2e-bug.300 — anchored -1 / +1.
+  if (
+    reason ||
+    MINUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'down';
+  }
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+    return 'up';
+  }
   return undefined;
 }
 
@@ -112,8 +130,16 @@ export function parseGiveProviderAiFeedbackAspect(
   if (reason) return 'reason_given';
   if (rating === 'up') return 'positive';
   if (rating === 'down') return 'negative';
-  if (POSITIVE_CUE.test(prompt)) return 'positive';
-  if (NEGATIVE_CUE.test(prompt)) return 'negative';
+  if (
+    MINUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'negative';
+  }
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+    return 'positive';
+  }
   return 'generic';
 }
 
@@ -130,10 +156,16 @@ export function isGiveProviderAiFeedbackPrompt(prompt: string): boolean {
   if (/^wrong\s+service\b/i.test(text)) return true;
   if (/^wrong\s+action\b/i.test(text)) return true;
   if (/^that\s+wasn'?t\s+my\s+intent\b/i.test(text)) return true;
+  if (/^that\s+was\s+not\s+my\s+intent\b/i.test(text)) return true;
+  if (/^not\s+my\s+intent\b/i.test(text)) return true;
   if (/^not\s+helpful\b/i.test(text)) return true;
   if (/^bad\s+answer\b/i.test(text)) return true;
   if (/^that\s+was\s+helpful\b/i.test(text)) return true;
   if (/^good\s+answer\b/i.test(text)) return true;
+  // e2e-bug.300 — shorthand +1 / -1 (whole prompt only).
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(text) || MINUS_ONE_FEEDBACK_PROMPT.test(text)) {
+    return true;
+  }
 
   return (
     POSITIVE_CUE.test(text) ||
@@ -167,12 +199,22 @@ export function parseGiveProviderAiFeedbackFromPrompt(
 export function rescueGiveProviderAiFeedbackIntent(
   prompt: string,
   action: string,
-): { action: 'give_provider_ai_feedback'; rescueReason: string } | null {
+): {
+  action: 'give_provider_ai_feedback';
+  rescueReason: string;
+  params: Record<string, unknown>;
+} | null {
   if (action === 'give_provider_ai_feedback') return null;
-  if (!isGiveProviderAiFeedbackPrompt(prompt)) return null;
+  const parsed = parseGiveProviderAiFeedbackFromPrompt(prompt);
+  if (!parsed) return null;
   return {
     action: 'give_provider_ai_feedback',
     rescueReason: 'give_provider_ai_feedback',
+    params: {
+      ...(parsed.rating ? { feedbackRating: parsed.rating } : {}),
+      ...(parsed.reason ? { feedbackReason: parsed.reason } : {}),
+      aspect: parsed.aspect,
+    },
   };
 }
 

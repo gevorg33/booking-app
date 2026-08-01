@@ -54,6 +54,30 @@ describe('operation-feedback', () => {
       expect(shouldShowOperationFeedback('post', undefined)).toBe(true);
       expect(shouldShowOperationFeedback('post', '/businesses/1/services')).toBe(true);
     });
+
+    it('skips public assistant and guide-telemetry POSTs (e2e-bug.223)', () => {
+      expect(
+        shouldShowOperationFeedback(
+          'post',
+          '/public/gevgas-operations-7c299253/assistant',
+        ),
+      ).toBe(false);
+      expect(
+        shouldShowOperationFeedback(
+          'post',
+          '/public/salon/assistant?locale=en',
+        ),
+      ).toBe(false);
+      expect(
+        shouldShowOperationFeedback(
+          'post',
+          '/public/salon/assistant/guide-telemetry',
+        ),
+      ).toBe(false);
+      expect(shouldShowOperationFeedback('post', '/businesses/1/ai/command')).toBe(
+        false,
+      );
+    });
   });
 
   describe('successMessageForKind', () => {
@@ -66,6 +90,77 @@ describe('operation-feedback', () => {
       expect(successMessageForKind('update')).toContain('Saved');
       expect(successMessageForKind('delete')).toContain('Deleted');
       expect(successMessageForKind('create')).toContain('Created');
+    });
+
+    it.each([
+      {
+        id: 'guest-manage-cancel-post',
+        kind: 'create' as const,
+        url: '/public/gevgas-operations-7c299253/bookings/manage/cancel',
+      },
+      {
+        id: 'guest-package-cancel-post',
+        kind: 'create' as const,
+        url: '/public/salon/bookings/manage/package/cancel',
+      },
+      {
+        id: 'signed-in-cancel-post',
+        kind: 'create' as const,
+        url: '/public/salon/me/bookings/bk-1/cancel',
+      },
+      {
+        id: 'dashboard-cancel-put',
+        kind: 'update' as const,
+        url: '/businesses/biz/bookings/bk-1/cancel',
+      },
+      {
+        id: 'dashboard-cancel-delete',
+        kind: 'delete' as const,
+        url: '/bookings/1/cancel',
+      },
+    ])(
+      'e2e-bug.216 cancel paths toast cancelled (not confirmed): $id',
+      ({ kind, url }) => {
+        const msg = successMessageForKind(kind, undefined, url);
+        expect(msg).toBe('Your booking was cancelled.');
+        expect(msg).not.toMatch(/confirmed/i);
+      },
+    );
+
+    it('e2e-bug.216 runWithOperationFeedback on manage cancel pushes cancelled toast', async () => {
+      await runWithOperationFeedback(
+        'post',
+        '/public/gevgas-operations-7c299253/bookings/manage/cancel',
+        async () => ({ status: 'cancelled' }),
+      );
+      expect(store.pushSuccess).toHaveBeenCalledWith(
+        'Your booking was cancelled.',
+      );
+      expect(store.pushSuccess).not.toHaveBeenCalledWith(
+        'Your booking is confirmed.',
+      );
+    });
+
+    it('e2e-bug.221 running-late POST does not toast booking confirmed', () => {
+      const msg = successMessageForKind(
+        'create',
+        undefined,
+        '/public/salon/me/bookings/bk-1/running-late',
+      );
+      expect(msg).not.toMatch(/confirmed/i);
+      expect(msg).not.toMatch(/Created successfully/i);
+      expect(msg).toContain('Saved');
+    });
+
+    it('e2e-bug.216 manage reschedule does not toast booking confirmed', () => {
+      const msg = successMessageForKind(
+        'create',
+        undefined,
+        '/public/salon/bookings/manage/reschedule',
+      );
+      expect(msg).not.toMatch(/confirmed/i);
+      expect(msg).not.toMatch(/cancelled/i);
+      expect(msg).toMatch(/Saved/i);
     });
   });
 
@@ -148,6 +243,23 @@ describe('operation-feedback', () => {
 
     it('skips feedback when URL is excluded', async () => {
       await runWithOperationFeedback('post', '/auth/login', async () => true);
+      expect(store.start).not.toHaveBeenCalled();
+    });
+
+    it('skips feedback for public assistant paths (e2e-bug.223)', async () => {
+      await runWithOperationFeedback(
+        'post',
+        '/public/gevgas-operations-7c299253/assistant',
+        async () => ({ success: false, action: 'unknown' }),
+      );
+      expect(store.start).not.toHaveBeenCalled();
+      expect(store.pushSuccess).not.toHaveBeenCalled();
+
+      await runWithOperationFeedback(
+        'post',
+        '/public/salon/assistant/guide-telemetry',
+        async () => ({ recorded: 1 }),
+      );
       expect(store.start).not.toHaveBeenCalled();
     });
 

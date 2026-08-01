@@ -141,7 +141,67 @@ export const RESCHEDULE_MY_BOOKING_PROMPTS: readonly RescheduleMyBookingPromptFi
       serviceName: 'massage',
       date: 'saturday',
     },
+    {
+      id: 'e2e237-cancel-rebook-swedish-title-case',
+      prompt:
+        'cancel my Swedish massage booking and rebook it for next Friday instead',
+      surface: 'customer',
+      expectedAction: 'reschedule_my_booking',
+      serviceName: 'Swedish massage',
+      date: 'friday',
+    },
+    {
+      id: 'e2e237-cancel-rebook-swedish-lowercase',
+      prompt:
+        'cancel my swedish massage booking and rebook it for next Friday instead',
+      surface: 'customer',
+      expectedAction: 'reschedule_my_booking',
+      serviceName: 'swedish massage',
+      date: 'friday',
+    },
   ];
+
+/** e2e-bug.237 — Title Case + lowercase dated cancel+rebook must not stay on cancel. */
+export const E2E237_DATED_CANCEL_REBOOK_SCENARIOS = [
+  {
+    id: 'e2e237-swedish-title-case',
+    prompt:
+      'cancel my Swedish massage booking and rebook it for next Friday instead',
+    misclassifiedAction: 'cancel_my_booking',
+    expectedAction: 'reschedule_my_booking' as const,
+    serviceName: 'Swedish massage',
+  },
+  {
+    id: 'e2e237-swedish-lowercase',
+    prompt:
+      'cancel my swedish massage booking and rebook it for next Friday instead',
+    misclassifiedAction: 'cancel_my_booking',
+    expectedAction: 'reschedule_my_booking' as const,
+    serviceName: 'swedish massage',
+  },
+  {
+    id: 'e2e237-swedish-from-pay-at-venue',
+    prompt:
+      'cancel my Swedish massage booking and rebook it for next Friday instead',
+    misclassifiedAction: 'pay_at_venue_fallback',
+    expectedAction: 'reschedule_my_booking' as const,
+    serviceName: 'Swedish massage',
+  },
+  {
+    id: 'e2e237-reschedule-control',
+    prompt: 'reschedule my swedish massage to next Friday',
+    misclassifiedAction: 'unknown',
+    expectedAction: 'reschedule_my_booking' as const,
+    serviceName: 'massage',
+  },
+  {
+    id: 'e2e237-voice-short',
+    prompt: 'cancel swedish massage rebook next Friday',
+    misclassifiedAction: 'cancel_and_rebook',
+    expectedAction: 'reschedule_my_booking' as const,
+    serviceName: 'swedish massage',
+  },
+] as const;
 
 export function enrichRescheduleMyBookingParamsFromPrompt(
   params: Record<string, unknown>,

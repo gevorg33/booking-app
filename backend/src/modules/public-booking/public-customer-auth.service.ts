@@ -435,6 +435,47 @@ export class PublicCustomerAuthService {
     return customer;
   }
 
+  /**
+   * e2e-bug.218 — Bearer sessions must belong to the route `slug` tenant.
+   * Call before attaching `req.user` for any `/public/:slug/*` customer auth.
+   */
+  async assertSessionMatchesSlug(
+    slug: string | null | undefined,
+    payloadBusinessId: string,
+  ): Promise<string> {
+    const trimmed = slug?.trim();
+    if (!trimmed) {
+      throw new UnauthorizedException(
+        'Customer session does not match this business',
+      );
+    }
+    const business = await this.resolveBusiness(trimmed);
+    if (business.id !== payloadBusinessId) {
+      throw new UnauthorizedException(
+        'Customer session does not match this business',
+      );
+    }
+    return business.id;
+  }
+
+  /** e2e-bug.218 — load customer only under the path business (never by id alone). */
+  async resolveCustomerForSlug(
+    slug: string,
+    customerId: string,
+  ): Promise<{ businessId: string; customer: Customer }> {
+    const business = await this.resolveBusiness(slug);
+    const customer = await this.getCustomerById(business.id, customerId);
+    return { businessId: business.id, customer };
+  }
+
+  async getProfileForSlug(
+    slug: string,
+    customerId: string,
+  ): Promise<PublicCustomerProfile> {
+    const { customer } = await this.resolveCustomerForSlug(slug, customerId);
+    return this.toProfile(customer);
+  }
+
   async getNotificationPreferences(slug: string, customerId: string) {
     const business = await this.resolveBusiness(slug);
     const customer = await this.getCustomerById(business.id, customerId);

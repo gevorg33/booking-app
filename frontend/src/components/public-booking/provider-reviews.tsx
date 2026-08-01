@@ -87,7 +87,12 @@ export function ProviderReviewSummary({
   const { t } = useI18n();
 
   return (
-    <div className="flex items-center gap-2 mt-1">
+    <div
+      className="flex items-center gap-2 mt-1"
+      data-testid="provider-review-summary"
+      data-average-rating={averageRating.toFixed(1)}
+      data-review-count={String(reviewCount)}
+    >
       <StarRatingDisplay rating={averageRating} primaryColor={primaryColor} />
       <span className="text-xs text-gray-500">
         {t('public.providerReviewSummary', {

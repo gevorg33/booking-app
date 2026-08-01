@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   GUIDE_CORPUS_MATCH_THRESHOLD,
@@ -20,7 +21,6 @@ import type {
   GuideFlowRankedPlaybook,
 } from './guide/guide-flow.types.js';
 import { getFrontendGuideCorpusMessages } from './guide/ai-guide-corpus-i18n.fixtures.js';
-import { resolveLocale } from '../../common/i18n/messages.js';
 
 type MessageTree = { [key: string]: string | MessageTree };
 
@@ -125,14 +125,17 @@ export function buildGuideClarifyResult(
   match: Pick<GuideKeywordMatchResolution, 'flowBest' | 'corpusBest'>,
   route?: string | null,
   extra?: Record<string, unknown>,
+  locale?: string,
+  prompt?: string,
 ): CommandResult {
   const suggested =
     match.flowBest?.topicId ?? match.corpusBest?.topicId ?? undefined;
+  // e2e-bug.302 — localize unmatched-topic clarify; infer hy/ru from prompt script.
+  const loc = resolveGuideClarifyLocale(locale, prompt);
   return {
     success: false,
     action: intent,
-    summary:
-      'I could not match that to a guide topic yet. Try naming the page — Schedule, Operations, AI command bar — or open Help & guide from the sidebar.',
+    summary: t(loc, 'assistant.guideTopicMissClarify'),
     details: {
       clarify: true,
       confidence: match.corpusBest?.score ?? match.flowBest?.score ?? 0,
@@ -142,6 +145,19 @@ export function buildGuideClarifyResult(
       ...extra,
     },
   };
+}
+
+/** e2e-bug.302 — prefer request locale, else HY/RU script in the prompt. */
+export function resolveGuideClarifyLocale(
+  locale?: string,
+  prompt?: string,
+): ReturnType<typeof resolveLocale> {
+  if (typeof locale === 'string' && locale.trim()) {
+    return resolveLocale(locale);
+  }
+  if (prompt && /[԰-֏]/.test(prompt)) return 'hy';
+  if (prompt && /[Ѐ-ӿ]/.test(prompt)) return 'ru';
+  return resolveLocale(undefined);
 }
 
 export function resolveGuideMessages(locale?: string): MessageTree {

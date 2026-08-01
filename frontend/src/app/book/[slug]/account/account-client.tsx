@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, LogOut, Star } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
+import { AccountLeaveReviewButton } from '@/components/public-booking/account-leave-review-button';
+import { AccountRunningLateButton } from '@/components/public-booking/account-running-late-button';
 import {
   getPublicCustomerBookings,
   getPublicCustomerClinicTestResults,
@@ -25,6 +27,7 @@ import {
   type PublicGiftCardOrder,
   type PublicGiftCardRedeemed,
 } from '@/lib/public-api';
+import { shouldShowAccountLeaveReviewCta } from '@/lib/account-leave-review.util';
 import { PublicSubscriptionsSection } from '@/components/public-booking/public-subscriptions-section';
 import { PublicGiftCardsSection } from '@/components/public-booking/public-gift-cards-section';
 import { PublicGiftCardsRedeemedSection } from '@/components/public-booking/public-gift-cards-redeemed-section';
@@ -202,16 +205,23 @@ function BookingRow({
         </span>
       </div>
 
-      {booking.canReview && (
-        <Link
-          href={bookPath(slug, `/providers/${booking.employeeId}`)}
-          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium"
-          style={{ color: primary }}
-        >
-          <Star className="w-4 h-4" />
-          {t('public.leaveReview')}
-        </Link>
+      {shouldShowAccountLeaveReviewCta(booking.canReview) && (
+        <AccountLeaveReviewButton
+          slug={slug}
+          bookingId={booking.id}
+          primary={primary}
+        />
       )}
+
+      <AccountRunningLateButton
+        slug={slug}
+        bookingId={booking.id}
+        status={booking.status}
+        startTime={booking.startTime}
+        endTime={booking.endTime}
+        signedIn
+        primary={primary}
+      />
 
       <PublicCustomerBookingActions
         booking={booking}

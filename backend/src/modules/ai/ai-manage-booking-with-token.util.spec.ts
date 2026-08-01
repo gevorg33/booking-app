@@ -36,6 +36,76 @@ describe('ai-manage-booking-with-token.util', () => {
     ).toBeNull();
   });
 
+  describe('e2e-bug.102 — plain labelled-text credentials (no pasted URL)', () => {
+    const bookingId = '2cd62efd-f405-4b86-8f24-eef29ce900ba';
+    const manageToken = 'deadbeefcafefeed1234567890abcdef';
+
+    it('extracts bookingId + token from "the booking id is X and the token is Y" phrasing', () => {
+      expect(
+        extractManageLinkCredentialsFromPrompt(
+          `Please cancel my booking. The booking id is ${bookingId} and the manage token is ${manageToken}`,
+        ),
+      ).toEqual({ bookingId, manageToken });
+    });
+
+    it('extracts from labelled-field phrasing ("bookingId: X token: Y")', () => {
+      expect(
+        extractManageLinkCredentialsFromPrompt(
+          `Cancel my booking. bookingId: ${bookingId} token: ${manageToken}`,
+        ),
+      ).toEqual({ bookingId, manageToken });
+    });
+
+    it('is case-insensitive on both the label and the hex value', () => {
+      expect(
+        extractManageLinkCredentialsFromPrompt(
+          `Cancel my booking. The Booking ID is ${bookingId.toUpperCase()} and the Token is ${manageToken.toUpperCase()}`,
+        ),
+      ).toEqual({
+        bookingId: bookingId.toUpperCase(),
+        manageToken: manageToken.toUpperCase(),
+      });
+    });
+
+    it('does not require both fields — extracts whichever is present', () => {
+      expect(
+        extractManageLinkCredentialsFromPrompt(
+          `What is this booking? The booking id is ${bookingId}`,
+        ),
+      ).toEqual({ bookingId });
+    });
+
+    it('does not false-positive on ordinary prompts mentioning "booking id"/"token" with no value', () => {
+      expect(hasManageLinkCredentialsInPrompt('What is my booking id?')).toBe(
+        false,
+      );
+      expect(
+        hasManageLinkCredentialsInPrompt('Do you need my token to log in?'),
+      ).toBe(false);
+    });
+
+    it('rescues cancel/reschedule/explain the same as a pasted URL would, using only labelled free text', () => {
+      expect(
+        rescueManageBookingWithTokenIntent(
+          `Please cancel my booking. The booking id is ${bookingId} and the manage token is ${manageToken}`,
+          'unknown',
+        )?.action,
+      ).toBe('cancel_booking_with_token');
+      expect(
+        rescueManageBookingWithTokenIntent(
+          `Reschedule my booking to next Friday 2pm. The booking id is ${bookingId} and the manage token is ${manageToken}`,
+          'unknown',
+        )?.action,
+      ).toBe('reschedule_booking_with_token');
+      expect(
+        rescueManageBookingWithTokenIntent(
+          `What is this booking? The booking id is ${bookingId} and the manage token is ${manageToken}`,
+          'unknown',
+        )?.action,
+      ).toBe('explain_manage_booking_context');
+    });
+  });
+
   it('rescues from session credentials without pasted manage link (e2e-bug.106)', () => {
     const session = {
       bookingId: 'book-106',

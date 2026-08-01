@@ -123,4 +123,21 @@ describe('CommandOrchestrationService (e2e-bug.150)', () => {
       ),
     ).toBe('resolve_conflicts');
   });
+
+  // e2e-bug.248 — plan.intent reschedule_booking must win over shared agentType.
+  it('resolveResultAction prefers canonical plan intent over agentType', () => {
+    const { service } = buildService();
+    expect(
+      service.resolveResultAction(
+        { agentType: AgentType.SCHEDULING_OPTIMIZATION },
+        'reschedule_booking',
+      ),
+    ).toBe('reschedule_booking');
+    expect(
+      service.resolveResultAction(
+        { agentType: AgentType.SCHEDULING_OPTIMIZATION },
+        'optimize_schedule',
+      ),
+    ).toBe('optimize_schedule');
+  });
 });

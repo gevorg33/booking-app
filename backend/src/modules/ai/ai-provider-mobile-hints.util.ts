@@ -20,6 +20,7 @@ import {
 import { enrichProviderExp2ActionParams } from './ai-provider-exp-2.util.js';
 import { isSetRetailSalesLinesPrompt } from './ai-provider-exp-3.util.js';
 import { parseRetailSalesLinesFromPrompt } from './ai-retail-finance.util.js';
+import { parseConfirmPendingBookingFromPrompt } from './ai-provider-confirm-pending-booking.util.js';
 
 /** Push deep-link actions with NL parity (ai-cmd-h3.5). */
 export const PROVIDER_PUSH_PARITY_ACTIONS = [
@@ -81,6 +82,10 @@ export function hasProviderPushContext(
 }
 
 export function isConfirmBookingFromPushPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  // Named / pending-day confirms belong to confirm_pending_booking (e2e-bug.242)
+  if (/\bpending\b/.test(lower)) return false;
+  if (/\b[\w'.-]+'s\s+(?:booking|appointment)\b/.test(lower)) return false;
   if (
     /\b(confirm|accept|approve)\s+(?:it|this)\b/i.test(prompt) ||
     /\bconfirm\s+this\s+booking\b/i.test(prompt)
@@ -306,6 +311,17 @@ export function applyProviderMobilePromptHints(
 
   if (isConfirmBookingFromPushPrompt(prompt) && !params.status) {
     params.status = 'confirmed';
+  }
+
+  // e2e-bug.242 — named confirm-pending must carry customerName or it bulk-confirms all
+  if (action === 'confirm_pending_booking') {
+    const parsed = parseConfirmPendingBookingFromPrompt(prompt);
+    if (parsed.customerName && !params.customerName) {
+      params.customerName = parsed.customerName;
+    }
+    if (parsed.allAppointments && params.allAppointments !== true) {
+      params.allAppointments = true;
+    }
   }
 
   enrichProviderExp2ActionParams(action, params, prompt);

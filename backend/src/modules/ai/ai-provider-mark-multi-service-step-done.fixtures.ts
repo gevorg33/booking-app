@@ -7,6 +7,7 @@ export const PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_PROMPT_SCENARIOS = [
   { id: 'mark-multi-service-step-done-complete-blowdry-leg-en', prompt: 'Complete blowdry leg', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done', paramsPartial: { serviceName: 'blowdry' } },
   { id: 'mark-multi-service-step-done-step2-en', prompt: 'Finish step 2', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done', paramsPartial: { stepIndex: 2 } },
   { id: 'mark-multi-service-step-done-complete-manicure-leg-en', prompt: 'Complete the manicure leg', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done', paramsPartial: { serviceName: 'manicure' } },
+  { id: 'mark-multi-service-step-done-finish-color-leg-en', prompt: 'Finish the color leg', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done', paramsPartial: { serviceName: 'color' } },
   { id: 'mark-multi-service-step-done-hy', prompt: 'Ավարտված է 1-ին քայլը', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done' },
   { id: 'mark-multi-service-step-done-ru', prompt: 'Завершён первый этап', surface: 'provider' as const, expectedAction: 'mark_multi_service_step_done' },
 ] as const;

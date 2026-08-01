@@ -77,6 +77,48 @@ describe('ai-confirm-my-booking-details.util (ai-cmd-customer-4.3.1)', () => {
     ).toBeNull();
   });
 
+  it('e2e-bug.230 — does not steal subscription vs pay-per-visit compare', () => {
+    expect(
+      isConfirmMyBookingDetailsPrompt(
+        'should I get the subscription or just pay per visit?',
+      ),
+    ).toBe(false);
+    expect(
+      isConfirmMyBookingDetailsPrompt(
+        'subscription or pay per visit which is better?',
+      ),
+    ).toBe(false);
+    expect(
+      rescueConfirmMyBookingDetailsIntent(
+        'should I get the subscription or just pay per visit?',
+        'unknown',
+      ),
+    ).toBeNull();
+  });
+
+  it('e2e-bug.236 — does not steal report/complaint phrasing', () => {
+    for (const prompt of [
+      'report a booking problem — wrong time on my appointment',
+      'something went wrong with my booking please report it to support',
+      'file a complaint about my appointment',
+    ]) {
+      expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(false);
+      expect(rescueConfirmMyBookingDetailsIntent(prompt, 'unknown')).toBeNull();
+    }
+  });
+
+  it('e2e-bug.258 — does not steal short Armenian how-to-book', () => {
+    for (const prompt of [
+      'Ինչպես ամրագրել',
+      'Ինչպե՞ս ամրագրել',
+      'Ինչպես ամրագրել այցելություն',
+      'Ինչպես ամրագրեմ',
+    ]) {
+      expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(false);
+      expect(rescueConfirmMyBookingDetailsIntent(prompt, 'unknown')).toBeNull();
+    }
+  });
+
   it('extracts aspect from phrasing', () => {
     expect(
       extractConfirmMyBookingDetailsAspectFromPrompt(

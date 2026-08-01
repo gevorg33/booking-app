@@ -164,6 +164,11 @@ export function resolveCustomerMetric(
   if (isCustomerMostCancellationsPrompt(prompt)) {
     return 'most_cancellations';
   }
+  // e2e-bug.137 — "customer retention rate" has no real react_agent tool;
+  // the same repeat-visit data already lives in getCustomerInsights.
+  if (isCustomerRetentionRatePrompt(prompt)) {
+    return 'retention';
+  }
 
   const raw = params.customerMetric as string | undefined;
   if (raw && allowed.includes(raw as CustomerInsightMetric)) {
@@ -238,4 +243,41 @@ export function isCustomerMostCancellationsPrompt(prompt: string): boolean {
     /\bcancellations?\b/i.test(prompt) &&
     /\b(which|who|most|top)\b/i.test(prompt)
   );
+}
+
+/**
+ * e2e-bug.137 — "What is my customer retention rate?" / "How many customers
+ * are returning?". No dashboard action or react_agent tool ever answered this;
+ * getCustomerInsights already tracks repeat-visit counts per customer.
+ */
+export function isCustomerRetentionRatePrompt(prompt: string): boolean {
+  return (
+    /\bretention\b/i.test(prompt) ||
+    /\b(returning|repeat)\s+customers?\b/i.test(prompt) ||
+    /\bcustomers?\s+(coming|come)\s+back\b/i.test(prompt)
+  );
+}
+
+/** Rescue wrong/unknown actions into summarize_customers for retention-rate asks. */
+export function rescueCustomerRetentionRateIntent(
+  prompt: string,
+  action: string,
+): {
+  action: 'summarize_customers';
+  customerMetric: 'retention';
+  rescueReason: 'customer_retention_rate';
+} | null {
+  if (!isCustomerRetentionRatePrompt(prompt)) return null;
+  const steerable = new Set([
+    'unknown',
+    'summarize_customers',
+    'list_customers',
+    'react_agent',
+  ]);
+  if (!steerable.has(action)) return null;
+  return {
+    action: 'summarize_customers',
+    customerMetric: 'retention',
+    rescueReason: 'customer_retention_rate',
+  };
 }

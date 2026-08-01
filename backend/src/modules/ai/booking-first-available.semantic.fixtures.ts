@@ -81,6 +81,13 @@ export const BOOKING_FIRST_AVAILABLE_POSITIVE_PROMPTS: BookingFirstAvailableSema
       mustDetect: true,
     },
     {
+      id: 'en-create-booking-first-available-any-provider',
+      prompt:
+        'Create a booking for the first available massage slot on Monday for any provider',
+      mustDetect: true,
+      expectedAllProviders: true,
+    },
+    {
       id: 'public-asap',
       prompt: 'Need an appointment ASAP on any available slot',
       surface: 'public',

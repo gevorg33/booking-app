@@ -43,8 +43,26 @@ export function isMyStatsPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (/\b(team floor|floor board|floor status)\b/i.test(lower)) return false;
   if (isTeamWhosNextPrompt(prompt)) return false;
+  // Keep FAQ exclusions as belt-and-suspenders (e2e-bug.247 / e2e-bug.266).
+  if (
+    /\breassign\b/i.test(lower) ||
+    /(վերանշանակ)/i.test(prompt) ||
+    /(переназнач)/i.test(prompt) ||
+    /(արձակուրդ|отпуск)/i.test(prompt)
+  ) {
+    return false;
+  }
 
+  // Explicit "how am I doing" phrasing (EN / HY / RU) — not substring heuristics.
   if (/\bhow am i doing\b/i.test(lower)) return true;
+  // e2e-bug.266 — phrase match only; never bare նչ+եմ (matches "Ինչու չեմ…").
+  // Avoid `\b` after Armenian letters — JS word boundaries ignore Ա-Ֆ.
+  if (
+    containsArmenianScript(prompt) &&
+    /(ինչպե՞ս|ինչպես)\s+եմ(?=\s|$|[^\p{L}])/iu.test(prompt)
+  ) {
+    return true;
+  }
   if (
     containsCyrillicScript(prompt) &&
     /\u043a\u0430\u043a\s+\u0443\s+\u043c\u0435\u043d\u044f\s+\u0434\u0435\u043b\u0430/i.test(
@@ -59,20 +77,6 @@ export function isMyStatsPrompt(prompt: string): boolean {
     /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(
       prompt,
     )
-  ) {
-    return true;
-  }
-  if (
-    containsArmenianScript(prompt) &&
-    prompt.includes('\u0576\u0579') &&
-    prompt.includes('\u0565\u0574')
-  ) {
-    return true;
-  }
-  if (
-    containsArmenianScript(prompt) &&
-    prompt.includes('\u056b\u0574\u056b') &&
-    prompt.includes('\u0581\u0578\u0582')
   ) {
     return true;
   }
@@ -107,6 +111,23 @@ export function hasMyStatsKeywordCue(prompt: string): boolean {
 
 export function isTeamFloorStatusPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.244 — "explain/what does floor status mean?" is the READ explainer,
+  // not the live team floor board (team_floor_status).
+  const floorMeaningCue =
+    /\b(explain|what\s+does|what'?s|mean(?:s|ing)?)\b.{0,40}\bfloor\s+(?:status|strip)\b/i.test(
+      lower,
+    ) ||
+    /\bfloor\s+(?:status|strip)\b.{0,40}\b(mean(?:s|ing)?|show)\b/i.test(
+      lower,
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(ի՞նչ|ինչու|նշանակում)/i.test(prompt) &&
+      /floor\s+status/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(что\s+показывает|что\s+означает|почему)/i.test(prompt) &&
+      /floor\s+status/i.test(prompt));
+  if (floorMeaningCue) return false;
+
   const floorStatusCue =
     /\b(team floor|floor board|floor status|floor counts|who is waiting|who'?s waiting|who is in service|in service on the floor|waiting on the floor|on the floor)\b/i.test(
       lower,
@@ -170,6 +191,15 @@ export function isListTeamUnpaidTodayPrompt(prompt: string): boolean {
 export function isCheckInClientPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (/\b(running late|no[\s-]?show|mark paid)\b/i.test(lower)) return false;
+  // e2e-bug.244 — "What's checked in?" explains floor strip states, not arrival.
+  if (
+    /\bwhat'?s\s+checked\s+in\b/i.test(lower) ||
+    /\b(what\s+does|explain|mean(?:s|ing)?)\b.{0,40}\bchecked\s+in\b/i.test(
+      lower,
+    )
+  ) {
+    return false;
+  }
 
   return (
     /\b(check(?:ed)?\s*in|check in|client arrived|arrived — check|mark .+ checked in|register arrival|check\s+(?:her|him|them)\s+in)\b/i.test(
@@ -404,6 +434,16 @@ export function isListReassignOptionsPrompt(prompt: string): boolean {
 export function isReassignBookingSameDayPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (isListReassignOptionsPrompt(prompt)) return false;
+  // e2e-bug.247 — FAQ about multi-service reassign limits ≠ live reassign mutate.
+  if (
+    /\buse\s+(?:the\s+)?reassign\s+button\b/i.test(lower) ||
+    (/\breassign\b/i.test(lower) &&
+      /\bmulti[\s-]?service\b/i.test(lower) &&
+      /\b(why|can'?t|cannot|limit)\b/i.test(lower)) ||
+    (/\bwhy\s+can'?t\b/i.test(lower) && /\breassign\b/i.test(lower))
+  ) {
+    return false;
+  }
   return /\breassign\b/i.test(lower) || /\bgive\s+this\s+to\b/i.test(lower);
 }
 
@@ -458,31 +498,102 @@ export function inferMyStatsPeriodFromPrompt(
   const raw = String(params.period ?? '').toLowerCase();
   if (raw === 'month') return 'month';
   if (/\b(this|last|past)\s+month\b/i.test(prompt)) return 'month';
+  if (containsArmenianScript(prompt) && /(այս|վերջին)\s+ամիս/i.test(prompt)) {
+    return 'month';
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    /(этот|прошл)\w*\s+месяц/i.test(prompt)
+  ) {
+    return 'month';
+  }
   return 'week';
+}
+
+/** Explicit team rollup cues — only these should yield scope=team (e2e-bug.303). */
+export function hasExplicitTeamMyStatsCue(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (
+    /\bteam\s+stats\b/i.test(lower) ||
+    /\b(?:whole\s+)?team(?:'s)?\s+(?:stats|statistics|performance|utilization)\b/i.test(
+      lower,
+    ) ||
+    /\bour\s+(?:team\s+)?(?:stats|statistics|performance)\b/i.test(lower)
+  ) {
+    return true;
+  }
+  // HY: թիմի ցուցանիշները (legacy also matched իմի+ցու substrings inside թիմի/ցուցանիշ)
+  if (
+    containsArmenianScript(prompt) &&
+    ((/թիմի/.test(prompt) && /ցուցանիշ/.test(prompt)) ||
+      (prompt.includes('\u056b\u0574\u056b') &&
+        prompt.includes('\u0581\u0578\u0582')))
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    (/\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(
+      prompt,
+    ) ||
+      /показател\w*\s+команд/i.test(prompt))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * First-person / personal my_stats cues. Must win over classifier params.scope=team
+ * (owners often get team from LLM even when asking "how am I") — e2e-bug.303.
+ */
+export function hasFirstPersonMyStatsCue(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\bhow am i doing\b/i.test(lower)) return true;
+  if (
+    /\bmy\s+(?:stats|statistics|performance|utilization|week|month)\b/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+  if (
+    containsArmenianScript(prompt) &&
+    /(ինչպե՞ս|ինչպես)\s+եմ(?=\s|$|[^\p{L}])/iu.test(prompt)
+  ) {
+    return true;
+  }
+  // իմ ցուցանիշները / իմ օգտագործումը — personal (թիմի … has no "իմ " + noun)
+  if (
+    containsArmenianScript(prompt) &&
+    /իմ\s+(?:ցուցանիշ|օգտագործում|կատարողական|աշխատանք)/iu.test(prompt)
+  ) {
+    return true;
+  }
+  if (
+    containsCyrillicScript(prompt) &&
+    (/\u043a\u0430\u043a\s+\u0443\s+\u043c\u0435\u043d\u044f\s+\u0434\u0435\u043b\u0430/i.test(
+      prompt,
+    ) ||
+      /моя\s+(?:статистик|загрузка|выручка|показател)/i.test(prompt) ||
+      /мои\s+показател/i.test(prompt))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function inferMyStatsScopeFromPrompt(
   prompt: string,
   params: Record<string, unknown>,
 ): 'mine' | 'team' {
+  // Prompt cues beat classifier params — owners often get scope=team wrongly.
+  if (hasExplicitTeamMyStatsCue(prompt)) return 'team';
+  if (hasFirstPersonMyStatsCue(prompt)) return 'mine';
+
   const raw = String(params.scope ?? '').toLowerCase();
   if (raw === 'team') return 'team';
-  if (/\bteam stats\b/i.test(prompt)) return 'team';
-  if (
-    containsArmenianScript(prompt) &&
-    prompt.includes('\u056b\u0574\u056b') &&
-    prompt.includes('\u0581\u0578\u0582')
-  ) {
-    return 'team';
-  }
-  if (
-    containsCyrillicScript(prompt) &&
-    /\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430\s+\u043a\u043e\u043c\u0430\u043d\u0434/i.test(
-      prompt,
-    )
-  ) {
-    return 'team';
-  }
+  if (raw === 'mine') return 'mine';
   return 'mine';
 }
 

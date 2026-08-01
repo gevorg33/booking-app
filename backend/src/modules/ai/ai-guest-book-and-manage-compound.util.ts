@@ -4,7 +4,6 @@ import {
 } from './ai-compound-booking-context.util.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 import { isBookNearestSlotPrompt } from './ai-payments.util.js';
-import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
 import {
   extractGuestContactFromPrompt,
   isGetManageLinkPrompt,
@@ -87,7 +86,6 @@ export function isGuestBookAndManageCompoundPrompt(prompt: string): boolean {
   if (matchGuestBookAndManageScenario(prompt)) return true;
   const text = prompt.trim();
   if (text.length < 20) return false;
-  if (isExplainGuestCheckoutFieldsPrompt(text)) return false;
   if (isGuestBookAndManagePastBookingPrompt(text)) return false;
   if (
     hasGuestPayCashManageGuestCue(text) &&
@@ -102,6 +100,8 @@ export function isGuestBookAndManageCompoundPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.203 — guest+manage-link mutate cues win even when a service is named
+  // (explain_guest_checkout_fields must not steal).
   if (!hasGuestBookAndManageGuestCue(text)) return false;
   if (!hasGuestBookAndManageManageLinkCue(text)) return false;
   return true;

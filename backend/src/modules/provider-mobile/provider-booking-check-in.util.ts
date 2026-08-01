@@ -128,6 +128,10 @@ export type ClaimProviderBookingCheckInResult =
 /**
  * e2e-bug.74 — claim check-in under SELECT … FOR UPDATE so concurrent
  * check-ins serialize: only the first writer sets checkedInAt and may notify.
+ *
+ * e2e-bug.184 residual: never combine `pessimistic_write` with outer joins of
+ * nullable relations — Postgres rejects that SQL. Lock the booking row alone,
+ * then load relations after the write for push copy.
  */
 export async function claimProviderBookingCheckIn(
   bookingRepo: Repository<Booking>,
@@ -138,17 +142,10 @@ export async function claimProviderBookingCheckIn(
   },
 ): Promise<ClaimProviderBookingCheckInResult> {
   return bookingRepo.manager.transaction(async (manager: EntityManager) => {
-    const booking = await manager
-      .createQueryBuilder(Booking, 'booking')
-      .setLock('pessimistic_write')
-      .leftJoinAndSelect('booking.customer', 'customer')
-      .leftJoinAndSelect('booking.service', 'service')
-      .leftJoinAndSelect('booking.employee', 'employee')
-      .where('booking.id = :bookingId', { bookingId: input.bookingId })
-      .andWhere('booking.businessId = :businessId', {
-        businessId: input.businessId,
-      })
-      .getOne();
+    const booking = await manager.findOne(Booking, {
+      where: { id: input.bookingId, businessId: input.businessId },
+      lock: { mode: 'pessimistic_write' },
+    });
 
     if (!booking) {
       return {
@@ -169,6 +166,12 @@ export async function claimProviderBookingCheckIn(
 
     booking.checkedInAt = input.checkedInAt ?? new Date();
     const saved = await manager.save(Booking, booking);
-    return { ok: true, booking: saved };
+
+    // Relations only for reception-push copy — never under the FOR UPDATE lock.
+    const withRelations = await manager.findOne(Booking, {
+      where: { id: saved.id },
+      relations: { customer: true, service: true, employee: true },
+    });
+    return { ok: true, booking: withRelations ?? saved };
   });
 }

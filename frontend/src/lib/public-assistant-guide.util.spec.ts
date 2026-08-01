@@ -55,6 +55,18 @@ describe('extractPublicAssistantGuidePrefixText (e2e-bug.109)', () => {
       guideSummary: undefined,
       expected: 'Status only',
     },
+    {
+      id: 'whitespace-only-message-treated-as-empty',
+      messageText: '   \n  ',
+      guideSummary: 'Guide summary',
+      expected: '',
+    },
+    {
+      id: 'extra-blank-lines-between-prefix-and-summary-are-trimmed',
+      messageText: 'Sign in to view your appointments.\n\n\n\n   Guide summary',
+      guideSummary: 'Guide summary',
+      expected: 'Sign in to view your appointments.',
+    },
   ] as const)('keeps prefix for $id', ({ messageText, guideSummary, expected }) => {
     expect(
       extractPublicAssistantGuidePrefixText(messageText, guideSummary),

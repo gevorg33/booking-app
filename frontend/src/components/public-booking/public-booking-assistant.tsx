@@ -15,7 +15,6 @@ import {
   getPublicProviders,
   getPublicServices,
 } from '@/lib/public-api';
-import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 import { AiSpeakReplyButton, AiVoiceInputButton } from '@/components/ai-voice-controls';
 import { AiAvailableProvidersPanel } from '@/components/ai-available-providers-panel';
@@ -28,6 +27,7 @@ import {
   buildPublicAssistantCheckoutNavigate,
   shouldAutoNavigateAssistantCheckout,
 } from '@/lib/public-assistant-checkout.util';
+import { buildPublicAssistantHref } from '@/lib/public-assistant-navigate.util';
 import {
   extractPublicAssistantGuidePrefixText,
   hasPublicAssistantGuideSteps,
@@ -49,9 +49,10 @@ import {
   buildPublicAssistantPageContext,
 } from '@/lib/public-booking-assistant-context.util';
 import {
-  nudgeFabAnchorClearOfSupportLauncher,
+  nudgeFabAnchorClearOfOverlays,
   publicAiFabDefaultBottomInset,
 } from '@/lib/public-floating-fab-layer.util';
+import { usePublicStickyCtaHeight } from '@/lib/use-public-sticky-cta-height';
 import { subscribePublicAssistantEvents } from '@/lib/public-assistant-events';
 import { handleAssistantFeedbackClientAction } from '@/lib/assistant-feedback.util';
 
@@ -144,15 +145,20 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
     return fab;
   }, [open, viewport.height, viewport.width]);
   // e2e-bug.123 — stack above Zendesk launcher when support widget is enabled.
+  // e2e-bug.220 — also clear sticky bottom CTAs (checkout / Select service bars).
   const hasSupportLauncher = Boolean(tenant.support?.zendeskWidgetKey?.trim());
+  const stickyCtaHeightPx = usePublicStickyCtaHeight();
   const fabBottomInset = useMemo(
-    () => publicAiFabDefaultBottomInset(hasSupportLauncher),
-    [hasSupportLauncher],
+    () => publicAiFabDefaultBottomInset(hasSupportLauncher, stickyCtaHeightPx),
+    [hasSupportLauncher, stickyCtaHeightPx],
   );
   const reconcileFabAnchor = useCallback(
     (anchor: { right: number; bottom: number }) =>
-      nudgeFabAnchorClearOfSupportLauncher(anchor, hasSupportLauncher),
-    [hasSupportLauncher],
+      nudgeFabAnchorClearOfOverlays(anchor, {
+        hasSupportLauncher,
+        stickyCtaHeightPx,
+      }),
+    [hasSupportLauncher, stickyCtaHeightPx],
   );
   const { floatingRef, floatingStyle, bindDragHandle, isDragging } =
     useDraggableFloatingPosition({
@@ -173,17 +179,8 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
   const followNavigate = useCallback(
     (navigate?: PublicAssistantResponse['navigate']) => {
       if (!navigate) return;
-      if (navigate.path === 'provider_profile' && navigate.query.employeeId) {
-        router.push(
-          bookPath(slug, `/providers/${navigate.query.employeeId}`),
-        );
-        setOpen(false);
-        return;
-      }
-      const q = new URLSearchParams(navigate.query).toString();
-      const href = q
-        ? `${bookPath(slug, `/${navigate.path}`)}?${q}`
-        : bookPath(slug, `/${navigate.path}`);
+      const href = buildPublicAssistantHref(slug, navigate);
+      if (!href) return;
       router.push(href);
       setOpen(false);
     },
@@ -242,6 +239,17 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
 
         if (result.sessionContext) {
           setSessionContext((prev) => ({ ...prev, ...result.sessionContext }));
+        }
+
+        // e2e-bug.225 — auto-push checkout when the user used a booking verb (parity with consumer).
+        if (
+          shouldAutoNavigateAssistantCheckout(
+            prompt,
+            result.navigate,
+            result.success,
+          )
+        ) {
+          followNavigate(result.navigate);
         }
 
         if (result.details?.clientAction === 'speakAssistantReply') {
@@ -367,12 +375,14 @@ export function PublicBookingAssistant({ slug, tenant }: PublicBookingAssistantP
         <button
           ref={floatingRef}
           type="button"
+          data-testid="public-assistant-fab"
           {...bindDragHandle({ onPress: () => setOpen(true) })}
           style={{ ...floatingStyle, backgroundColor: primary }}
           className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-transform ${
             isDragging ? 'scale-100 cursor-grabbing' : 'hover:scale-105 cursor-grab'
           }`}
           title={t('public.assistantTitle')}
+          aria-label={t('public.assistantTitle')}
         >
           <Sparkles className="w-6 h-6" />
         </button>

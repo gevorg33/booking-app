@@ -217,6 +217,76 @@ describe('ai-payments.util', () => {
     });
   });
 
+  describe('e2e-bug.205: extractServiceNameFromPrompt never glues a capacity-gate/earliest-date tail into the name', () => {
+    it('returns null for a bare "book if enough seats" clause (no service head to capture)', () => {
+      expect(
+        extractServiceNameFromPrompt(
+          'Wine tour for 6 next Saturday — book if enough seats',
+        ),
+      ).toBeNull();
+    });
+
+    it('returns null for "book only if enough spots" (capacity-gate cue, no service head)', () => {
+      expect(
+        extractServiceNameFromPrompt(
+          'City tour for 8 on 15/08/2026 — book only if enough spots',
+        ),
+      ).toBeNull();
+    });
+
+    it('stops at "earliest" instead of capturing "wine tour earliest date"', () => {
+      expect(
+        extractServiceNameFromPrompt('Book the wine tour earliest date for 2 people'),
+      ).toBe('wine tour');
+    });
+
+    it('stops at "nearest" when it trails a real service name mid-capture', () => {
+      expect(
+        extractServiceNameFromPrompt('Book the mountain trek nearest departure'),
+      ).toBe('mountain trek');
+    });
+
+    it('stops at "soonest"/"asap" the same way', () => {
+      expect(
+        extractServiceNameFromPrompt('Book the city tour soonest departure'),
+      ).toBe('city tour');
+      expect(extractServiceNameFromPrompt('Book the coastal drive asap')).toBe(
+        'coastal drive',
+      );
+    });
+
+    it('stops at "when"/"unless" capacity-gate cues too', () => {
+      expect(
+        extractServiceNameFromPrompt('Book the wine tour when seats open up'),
+      ).toBe('wine tour');
+      expect(
+        extractServiceNameFromPrompt(
+          'Book the wine tour unless it is fully booked',
+        ),
+      ).toBe('wine tour');
+    });
+
+    it('does not regress plain "book <service> nearest/soonest slot" phrasing', () => {
+      expect(extractServiceNameFromPrompt('Book nearest facial slot')).toBe(
+        'facial',
+      );
+      expect(
+        extractServiceNameFromPrompt('please book a facemassage nearest slot'),
+      ).toBe('facemassage');
+    });
+
+    it('does not regress ordinary date/time-qualified booking phrasing', () => {
+      expect(extractServiceNameFromPrompt('Book a haircut tomorrow')).toBe(
+        'haircut',
+      );
+      expect(
+        extractServiceNameFromPrompt(
+          'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+        ),
+      ).toBe('permanent lashes');
+    });
+  });
+
   describe('rescuePaymentsIntent', () => {
     it('rescues all payments intents from unknown', () => {
       expect(

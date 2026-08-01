@@ -2,6 +2,17 @@ import { pickSharedBookingContextSlice } from '../ai/ai-compound-booking-context
 import { serializeRankedServiceIds } from '../ai/ai-rank-session-pick.util.js';
 import { GUIDE_MULTITURN_SESSION_KEYS } from '../ai/ai-product-guide-multiturn.util.js';
 
+/** Checkout / payment actions that must keep page-threaded slot identity. */
+const CHECKOUT_SLOT_PRESERVE_ACTIONS = new Set([
+  'pay_online',
+  'pay_cash_at_visit',
+  'choose_payment_method',
+  'get_booking_quote',
+  'apply_promo_code_checkout',
+  'apply_gift_card_code',
+  'apply_loyalty_at_checkout',
+]);
+
 /** Discovery + booking keys restored from public assistant session on follow-up turns. */
 export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
   'employeeName',
@@ -15,6 +26,12 @@ export const PUBLIC_ASSISTANT_SESSION_MERGE_KEYS = [
   'customerPhone',
   'maxPrice',
   'serviceId',
+  // e2e-bug.229 — checkout page threads these; pay_online needs them restored.
+  'employeeId',
+  'startTime',
+  // e2e-bug.234 — manage-page URL credentials for guest with_token intents.
+  'bookingId',
+  'manageToken',
   'serviceRank',
   'rankedServiceIds',
   'availabilityWindows',
@@ -63,7 +80,13 @@ export function parsePublicAssistantSessionValue(
 function shouldSkipSessionServiceIdentityMerge(
   key: string,
   merged: Record<string, unknown>,
+  action?: string,
 ): boolean {
+  // e2e-bug.229 — named-service pay_online must restore checkout session serviceId
+  // even when the classifier/prompt filled serviceName without an id.
+  if (action && CHECKOUT_SLOT_PRESERVE_ACTIONS.has(action)) {
+    return false;
+  }
   if (
     key === 'serviceId' &&
     merged.serviceName != null &&
@@ -113,7 +136,7 @@ export function mergePublicAssistantSessionParams(
       continue;
     }
     if (merged[key] != null && merged[key] !== '') continue;
-    if (shouldSkipSessionServiceIdentityMerge(key, merged)) continue;
+    if (shouldSkipSessionServiceIdentityMerge(key, merged, action)) continue;
     const parsed = parsePublicAssistantSessionValue(key, session[key]);
     if (parsed != null && parsed !== '') {
       merged[key] = parsed;
@@ -124,7 +147,7 @@ export function mergePublicAssistantSessionParams(
     pickSharedBookingContextSlice(session),
   )) {
     if (merged[key] != null && merged[key] !== '') continue;
-    if (shouldSkipSessionServiceIdentityMerge(key, merged)) continue;
+    if (shouldSkipSessionServiceIdentityMerge(key, merged, action)) continue;
     const parsed = parsePublicAssistantSessionValue(key, value);
     if (parsed != null && parsed !== '') {
       merged[key] = parsed;

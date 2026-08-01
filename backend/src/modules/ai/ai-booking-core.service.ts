@@ -41,6 +41,7 @@ import {
   parseDateInput,
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
 import { timeToMinutes } from '../../common/utils/time-format.util.js';
 import {
   pickTimezone,
@@ -200,6 +201,10 @@ import {
   shouldScanExplicitAvailabilityWindows,
   buildDashboardFirstAvailableWindowQueries,
 } from './ai-dashboard-create-booking.logic.js';
+import {
+  clampFirstAvailableStartIsoDay,
+  isFutureOrTodayIsoDay,
+} from './ai-nearest-slot-resolver.util.js';
 import {
   enrichDashboardLookupAssignmentParams,
   formatLookupAssignmentDiscoveryNote,
@@ -635,7 +640,7 @@ export class AiBookingCoreService {
         return {
           success: false,
           action: 'create_booking',
-          summary: `No one is available for ${service.name} at ${timeSlot} on ${formatDateDisplay(isoDay)}. Tried: ${tried}${
+          summary: `No one is available for ${service.name} at ${timeSlot} on ${formatDateForAiLabel(isoDay)}. Tried: ${tried}${
             params.fallbackAnyProvider ? ' and other active providers' : ''
           }.`,
           details: { params, isoDay, timeSlot },
@@ -701,7 +706,8 @@ export class AiBookingCoreService {
       employeeName: resolvedEmployee.name,
       serviceName: service.name,
       customerName: customer?.name,
-      date: formatDateDisplay(params.date),
+      // e2e-bug.285 — unambiguous plan date (never DD/MM slash for LLM/reasoning).
+      date: formatDateForAiLabel(params.date),
       timeSlot,
       useSubscriptionId: params.useSubscriptionId,
       metadata: params._bookingMetadata,
@@ -846,9 +852,11 @@ export class AiBookingCoreService {
         pick = orPick;
       }
     } else {
-      const startIsoDay = params.date
-        ? toIsoDay(params.date, timeZone)
-        : toIsoDay(todayDisplay(timeZone), timeZone);
+      // e2e-bug.268 — never start first-available scan on a past calendar day.
+      const startIsoDay = clampFirstAvailableStartIsoDay(
+        params.date ?? todayDisplay(timeZone),
+        timeZone,
+      );
       const legacyPick = await this.findFirstAvailableBookingSlot(
         businessId,
         service,
@@ -889,6 +897,19 @@ export class AiBookingCoreService {
       };
     }
 
+    // e2e-bug.268 — refuse any past-day pick that slipped through windows.
+    if (!isFutureOrTodayIsoDay(pick.isoDay, timeZone)) {
+      return {
+        ok: false,
+        summary: `No upcoming open ${service.name} slots found in the next two weeks.`,
+        details: {
+          serviceName: service.name,
+          allProviders: !!params.allProviders,
+          reason: 'past_day_rejected',
+        },
+      };
+    }
+
     return { ok: true, pick };
   }
 
@@ -911,12 +932,16 @@ export class AiBookingCoreService {
       sortKey: number;
     } | null = null;
 
+    // e2e-bug.268 — clamp scan start to today (business TZ) before walking days.
+    const clampedStart = clampFirstAvailableStartIsoDay(startIsoDay, timeZone);
+
     for (
       let offset = 0;
       offset < AiBookingCoreService.FIRST_AVAILABLE_SCAN_DAYS;
       offset++
     ) {
-      const isoDay = addDaysToDateKey(startIsoDay, offset, timeZone);
+      const isoDay = addDaysToDateKey(clampedStart, offset, timeZone);
+      if (!isFutureOrTodayIsoDay(isoDay, timeZone)) continue;
 
       for (const provider of providers) {
         const row = await this.getProviderAvailabilityForService(
@@ -970,13 +995,21 @@ export class AiBookingCoreService {
     timeOfDay: TimeOfDayWindow | null,
     notBeforeTime: string | null,
   ) {
+    // e2e-bug.268 — OR-window day scans must ignore past / non-ISO calendar keys.
+    const scanDay = /^\d{4}-\d{2}-\d{2}$/.test(isoDay)
+      ? isoDay
+      : clampFirstAvailableStartIsoDay(isoDay, timeZone);
+    if (!isFutureOrTodayIsoDay(scanDay, timeZone)) {
+      return null;
+    }
+
     const rows = await Promise.all(
       providers.map(async (provider) => {
         const row = await this.getProviderAvailabilityForService(
           businessId,
           provider.id,
           service.id,
-          isoDay,
+          scanDay,
         );
         return {
           id: provider.id,
@@ -988,7 +1021,7 @@ export class AiBookingCoreService {
     );
 
     return findEarliestSlotOnDayForProviders({
-      isoDay,
+      isoDay: scanDay,
       timeZone,
       timeOfDay,
       notBeforeTime,
@@ -1207,6 +1240,7 @@ export class AiBookingCoreService {
       top_spenders: 'Top customers by total paid',
       new_customers: 'New customers (no appointments yet)',
       overview: 'Customer overview',
+      retention: 'Customer retention rate',
     };
 
     const lines: string[] = [
@@ -1226,6 +1260,19 @@ export class AiBookingCoreService {
       if (rows.length > 0) {
         lines.push('', 'Top no-shows:');
       }
+    } else if (metric === 'retention') {
+      // e2e-bug.137 — visit-based repeat-customer rate, no react_agent tool
+      // could ever answer this; computed from real per-customer visit counts.
+      if (summary.customersWithCompletedVisitCount === 0) {
+        lines.push(
+          '• No completed visits yet — retention rate cannot be calculated.',
+        );
+      } else {
+        lines.push(
+          `• ${summary.retentionRatePercent}% retention rate`,
+          `• ${summary.returningCustomerCount} of ${summary.customersWithCompletedVisitCount} customers with a completed visit have returned for at least one more`,
+        );
+      }
     } else {
       // e2e-bug.153 — ranked/segment lists must never be read as the roster total.
       lines.push(
@@ -1239,7 +1286,11 @@ export class AiBookingCoreService {
     }
 
     if (rows.length === 0) {
-      lines.push('• No matching customers found.');
+      // e2e-bug.137 — 'retention' is a pure aggregate metric with no per-row
+      // ranking; its own branch above already reported the calculated rate.
+      if (metric !== 'retention') {
+        lines.push('• No matching customers found.');
+      }
     } else {
       for (const row of rows) {
         const cancelled = row.stats.byStatus.cancelled ?? 0;
@@ -2061,7 +2112,8 @@ export class AiBookingCoreService {
     if (params.date) {
       const isoDay =
         parseDateInput(params.date)?.toISOString().split('T')[0] ?? params.date;
-      const displayDay = formatDateDisplay(isoDay);
+      // e2e-bug.306 — AI availability empty/success day labels: no DD/MM slash.
+      const displayDay = formatDateForAiLabel(isoDay);
 
       const availabilityRows = await Promise.all(
         active.map(async (provider) => {
@@ -2680,7 +2732,8 @@ export class AiBookingCoreService {
       employeeName: resolvedEmployee.name,
       serviceName: service.name,
       customerName: customer?.name,
-      date: formatDateDisplay(params.date),
+      // e2e-bug.285 — unambiguous plan date (never DD/MM slash for LLM/reasoning).
+      date: formatDateForAiLabel(params.date),
       timeSlot,
     });
   }
@@ -4246,7 +4299,8 @@ export class AiBookingCoreService {
     }
 
     const isoDay = params.date || new Date().toISOString().split('T')[0];
-    const displayDay = formatDateDisplay(isoDay);
+    // e2e-bug.306 — check_availability day labels must not use DD/MM slash.
+    const displayDay = formatDateForAiLabel(isoDay);
     const explicitTimeWindow = hasExplicitTimeWindow(params, prompt)
       ? parseTimeWindow(params, prompt)
       : null;
@@ -4754,7 +4808,10 @@ export class AiBookingCoreService {
       ? this.snapTo10min(params.timeSlot)
       : formatTimeDisplay(booking.startTime);
 
-    if (params.bookingFirstAvailable && params.date) {
+    // e2e-bug.268 — first-available reschedule must scan from today (or a
+    // future params.date), never reuse a past booking calendar day when the
+    // user asked for nearest/soonest free time.
+    if (params.bookingFirstAvailable) {
       const provider =
         booking.employee ??
         (await this.employeeRepo.findOne({
@@ -4769,16 +4826,20 @@ export class AiBookingCoreService {
         };
       }
 
+      const startIsoDay = clampFirstAvailableStartIsoDay(
+        params.date,
+        timeZone,
+      );
       const pick = await this.findFirstAvailableBookingSlot(
         businessId,
         targetService,
-        toIsoDay(params.date, timeZone),
+        startIsoDay,
         [provider],
         timeZone,
         resolveFirstAvailableNotBeforeTime(params),
       );
 
-      if (!pick) {
+      if (!pick || !isFutureOrTodayIsoDay(pick.isoDay, timeZone)) {
         return {
           success: false,
           action: 'reschedule_booking',
@@ -4792,7 +4853,7 @@ export class AiBookingCoreService {
             bookingId: booking.id,
             serviceName: targetService.name,
             employeeName: provider.name,
-            date: formatDateDisplay(toIsoDay(params.date, timeZone)),
+            date: formatDateForAiLabel(startIsoDay),
             timeOfDay: params.timeOfDay ?? null,
             reason: 'no_slots',
           },
@@ -4806,13 +4867,15 @@ export class AiBookingCoreService {
     const startTime = buildUtcStartTimeFromDayAndTime(isoDay, timeSlot);
 
     const customerLabel = booking.customer?.name ?? 'walk-in';
+    // e2e-bug.285 — unambiguous reschedule label (never DD/MM slash).
+    const dayLabel = formatDateForAiLabel(isoDay);
     let label: string;
     if (hasServiceChange && hasNewTime) {
-      label = `Change ${customerLabel}'s appointment to ${targetService.name} on ${formatDateDisplay(isoDay)} ${timeSlot}`;
+      label = `Change ${customerLabel}'s appointment to ${targetService.name} on ${dayLabel} ${timeSlot}`;
     } else if (hasServiceChange) {
       label = `Change ${customerLabel}'s service to ${targetService.name}`;
     } else {
-      label = `Reschedule ${customerLabel} to ${formatDateDisplay(isoDay)} ${timeSlot}`;
+      label = `Reschedule ${customerLabel} to ${dayLabel} ${timeSlot}`;
     }
 
     const plan = this.planBuilder.buildRescheduleBookingPlan({

@@ -19,6 +19,7 @@ import {
 } from '../lib/provider-self-block.util';
 import { operationFeedbackStore } from '../lib/operation-feedback-store';
 import { DatePicker } from './DatePicker';
+import { TimePicker } from './TimePicker';
 import { useI18n } from '../i18n';
 
 interface ProviderScheduleBlockFormProps {
@@ -115,21 +116,11 @@ export default function ProviderScheduleBlockForm({
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('appointments.startTime24h')}</IonLabel>
-          <input
-            type="time"
-            className="native-date-input"
-            value={startTime}
-            onChange={(event) => setStartTime(event.target.value)}
-          />
+          <TimePicker value={startTime} onChange={setStartTime} />
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('appointments.endTime24h')}</IonLabel>
-          <input
-            type="time"
-            className="native-date-input"
-            value={endTime}
-            onChange={(event) => setEndTime(event.target.value)}
-          />
+          <TimePicker value={endTime} onChange={setEndTime} />
         </IonItem>
         <IonItem lines="full">
           <IonLabel position="stacked">{t('provider.selfBlockLabel')}</IonLabel>

@@ -5,7 +5,14 @@ import { ProviderMobileService } from './provider-mobile.service.js';
 describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
   const employeeRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const memberRepo = { find: jest.fn() };
-  const bookingRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
+  const bookingRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    save: jest.fn(),
+    manager: {
+      transaction: jest.fn(),
+    },
+  };
   const slotRepo = { find: jest.fn() };
   const schedulingPeriodRepo = { find: jest.fn() };
   const businessService = {
@@ -118,7 +125,7 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     status: BookingStatus.CONFIRMED,
     // e2e-bug.70 — visit-status mutates require check-in first.
     checkedInAt: new Date('2026-06-09T09:55:00.000Z'),
-    metadata: {},
+    metadata: {} as Record<string, unknown>,
     startTime: new Date('2026-06-09T10:00:00.000Z'),
     endTime: new Date('2026-06-09T11:00:00.000Z'),
     customer: { id: 'cust-1', name: 'Jane Doe', phone: '+15551234567' },
@@ -126,16 +133,53 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     employee: linkedEmployee,
   };
 
+  /** Mutable booking shared by getAccessibleBooking + claim transaction. */
+  let currentBooking: typeof bookingRecord;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    currentBooking = {
+      ...bookingRecord,
+      metadata: {},
+      checkedInAt: bookingRecord.checkedInAt,
+      status: bookingRecord.status,
+    };
     businessService.ensureMember.mockResolvedValue({ role: 'staff' });
     businessService.findOne.mockResolvedValue({
       id: 'biz-1',
       settings: {},
     });
     employeeRepo.findOne.mockResolvedValue(linkedEmployee);
-    bookingRepo.findOne.mockResolvedValue({ ...bookingRecord });
+    bookingRepo.findOne.mockImplementation(async () => ({ ...currentBooking }));
     bookingRepo.save.mockImplementation(async (row) => row);
+    // e2e-bug.255 — visit-status claims under transaction + FOR UPDATE (no joins).
+    bookingRepo.manager.transaction.mockImplementation(async (cb) => {
+      const manager = {
+        findOne: async (
+          _entity: unknown,
+          opts?: { lock?: { mode?: string }; relations?: unknown },
+        ) => {
+          if (opts?.relations) {
+            return {
+              ...currentBooking,
+              customer: bookingRecord.customer,
+              service: bookingRecord.service,
+              employee: bookingRecord.employee,
+            };
+          }
+          return {
+            ...currentBooking,
+            metadata: { ...currentBooking.metadata },
+          };
+        },
+        save: async (_entity: unknown, saved: typeof currentBooking) => {
+          Object.assign(currentBooking, saved);
+          bookingRepo.save(saved);
+          return saved;
+        },
+      };
+      return cb(manager);
+    });
   });
 
   it('stores running late on booking metadata', async () => {
@@ -148,6 +192,7 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
 
     expect(result.visitStatus.kind).toBe('running_late');
     expect(result.visitStatus.minutesLate).toBe(10);
+    expect(bookingRepo.manager.transaction).toHaveBeenCalled();
     expect(bookingRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({
@@ -165,19 +210,17 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
 
     expect(result.visitStatus.kind).toBe('ready_now');
     expect(result.visitStatus.minutesLate).toBeUndefined();
+    expect(bookingRepo.manager.transaction).toHaveBeenCalled();
   });
 
   it('clears the running-late flag when marked ready now (ai-cmd-provider-5.2.6)', async () => {
-    bookingRepo.findOne.mockResolvedValue({
-      ...bookingRecord,
-      metadata: {
-        providerVisitStatus: {
-          kind: 'running_late',
-          minutesLate: 15,
-          markedAt: '2026-06-09T09:50:00.000Z',
-        },
+    currentBooking.metadata = {
+      providerVisitStatus: {
+        kind: 'running_late',
+        minutesLate: 15,
+        markedAt: '2026-06-09T09:50:00.000Z',
       },
-    });
+    };
 
     const result = await service.markBookingReadyNow('biz-1', 'user-1', 'bk-1');
 
@@ -236,6 +279,29 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
     );
   });
 
+  it('e2e-bug.255 — skips re-notify on idempotent same-kind claim', async () => {
+    businessService.findOne.mockResolvedValue({
+      id: 'biz-1',
+      settings: { providerMobile: { notifyCustomerOnVisitStatus: true } },
+    });
+    currentBooking.metadata = {
+      providerVisitStatus: {
+        kind: 'ready_now',
+        markedAt: '2026-06-09T09:56:00.000Z',
+        markedByUserId: 'user-1',
+      },
+    };
+
+    const result = await service.markBookingReadyNow('biz-1', 'user-1', 'bk-1');
+
+    expect(result.visitStatus.kind).toBe('ready_now');
+    expect(result.notifications).toBeNull();
+    expect(
+      notificationsService.sendProviderVisitStatusToCustomer,
+    ).not.toHaveBeenCalled();
+    expect(bookingRepo.save).not.toHaveBeenCalled();
+  });
+
   it('skips customer notify when setting disabled', async () => {
     await service.markBookingReadyNow('biz-1', 'user-1', 'bk-1');
     expect(
@@ -244,10 +310,7 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
   });
 
   it('rejects visit status on completed bookings', async () => {
-    bookingRepo.findOne.mockResolvedValue({
-      ...bookingRecord,
-      status: BookingStatus.COMPLETED,
-    });
+    currentBooking.status = BookingStatus.COMPLETED;
 
     await expect(
       service.markBookingRunningLate('biz-1', 'user-1', 'bk-1'),
@@ -255,10 +318,7 @@ describe('ProviderMobileService visit status (prov-exp-3.2)', () => {
   });
 
   it('e2e-bug.70 — rejects ready-now / running-late before check-in', async () => {
-    bookingRepo.findOne.mockResolvedValue({
-      ...bookingRecord,
-      checkedInAt: null,
-    });
+    currentBooking.checkedInAt = null as unknown as Date;
 
     await expect(
       service.markBookingReadyNow('biz-1', 'user-1', 'bk-1'),

@@ -124,18 +124,25 @@ export class CommandOrchestrationService {
   }
 
   /**
-   * Prefer the explicit action hint, then agentType mapping, never a free-text
-   * user prompt (e2e-bug.150).
+   * Prefer a canonical snake_case action hint (plan.intent / explicit action),
+   * then agentType mapping. Never return a free-text user prompt (e2e-bug.150).
+   * e2e-bug.248 — reschedule_booking plans still use SCHEDULING_OPTIMIZATION
+   * agentType; agentType must not overwrite the plan intent.
    */
   resolveResultAction(
     task: { agentType?: AgentType },
     actionHint: string,
   ): string {
+    const hint = typeof actionHint === 'string' ? actionHint.trim() : '';
+    const isCanonicalAction =
+      /^[a-z][a-z0-9_]{2,80}$/.test(hint) && !/\s/.test(hint);
+    if (isCanonicalAction) return hint;
+
     const fromType =
       task?.agentType != null
         ? ORCHESTRATION_AGENT_RESULT_ACTIONS[task.agentType]
         : undefined;
-    return fromType ?? actionHint;
+    return fromType ?? hint;
   }
 
   private taskToResult(task: any, actionHint: string): OrchestrationResult {

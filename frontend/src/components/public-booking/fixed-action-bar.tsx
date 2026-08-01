@@ -15,7 +15,11 @@ interface FixedActionBarProps {
  */
 export function FixedActionBar({ primaryColor, disabled, label, onClick }: FixedActionBarProps) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none bg-gradient-to-t from-[#f5f5f7] via-[#f5f5f7]/95 to-transparent pt-6">
+    <div
+      data-public-sticky-cta
+      data-testid="public-sticky-cta"
+      className="fixed bottom-0 inset-x-0 z-50 pointer-events-none bg-gradient-to-t from-[#f5f5f7] via-[#f5f5f7]/95 to-transparent pt-6"
+    >
       <div className="max-w-lg mx-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-none">
         <button
           type="button"

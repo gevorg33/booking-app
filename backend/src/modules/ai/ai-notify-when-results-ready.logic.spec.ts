@@ -65,6 +65,32 @@ describe('ai-notify-when-results-ready.logic (ai-cmd-customer-4.14.7)', () => {
     expect(result.details?.clarify).toBe(true);
   });
 
+  it('e2e-bug.198 succeeds when step _prompt is notify under book+notify full prompt', async () => {
+    const result = await handleNotifyWhenResultsReadyLogic(
+      buildDeps(),
+      'biz-1',
+      {
+        aspect: 'subscribe_explain',
+        _prompt: 'notify me when results are ready',
+      },
+      'Book lipid panel and notify me when results are ready',
+    );
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('notify_when_results_ready');
+    expect(result.details?.clarify).not.toBe(true);
+  });
+
+  it('e2e-bug.198 honors seeded aspect when full prompt alone would clarify', async () => {
+    const result = await handleNotifyWhenResultsReadyLogic(
+      buildDeps(),
+      'biz-1',
+      { aspect: 'subscribe_explain' },
+      'Book lipid panel and notify me when results are ready',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.aspect).toBe('subscribe_explain');
+  });
+
   it('rejects non-clinic businesses', async () => {
     const result = await handleNotifyWhenResultsReadyLogic(
       buildDeps({

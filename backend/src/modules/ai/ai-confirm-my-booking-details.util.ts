@@ -32,6 +32,10 @@ import { isExplainStripeCheckoutCurrencyPrompt } from './ai-stripe-checkout-curr
 import { isExplainBookingLanguagesPrompt } from './ai-booking-languages.util.js';
 import { isExplainTourDaySlotsPrompt } from './ai-tour-day-slots.util.js';
 import { isLeaveVisitReviewPrompt } from './ai-leave-visit-review.util.js';
+import { isExplainSubscriptionVsOneTimePrompt } from './ai-explain-subscription-vs-one-time.util.js';
+import { isReportBookingProblemPrompt } from './ai-report-booking-problem.util.js';
+import { isBookingHelpPrompt } from './ai-public-booking-guide.util.js';
+import { isExplainHomeScreenWidgetPrompt } from './ai-explain-home-screen-widget.util.js';
 import type { ConfirmMyBookingDetailsAspect } from './ai-confirm-my-booking-details.fixtures.js';
 
 export const CONFIRM_MY_BOOKING_DETAILS_INTENTS = [
@@ -47,15 +51,17 @@ export interface ParsedConfirmMyBookingDetails {
   serviceName?: string;
 }
 
-export const CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES = `- confirm_my_booking_details: READ — summarize the visitor's current or most recent booking from session bookingId or signed-in account: service, provider, date/time, status, and salon location. Triggers: "What time is my appointment?", "Summarize my booking", "Who is my appointment with?", "What did I just book?". Set aspect when clear (time|service|provider|status|location|all). Auth: signed-in sessionCustomerId must own bookingId; anonymous guests require bookingId + valid manageToken (manage link). Never return booking details from bookingId alone. Otherwise next matching upcoming visit for signed-in customers. NOT list_my_appointments (list all visits), NOT cancel_my_booking|reschedule_my_booking (mutate), NOT pay_online (pay online / pay with card for a booking — mutate checkout), NOT explain_manage_booking_context (guest manage-link policy/context sibling), NOT get_manage_link|share_my_booking (links only), NOT add_booking_to_calendar (calendar links), NOT get_directions_to_salon (navigation/parking guidance), NOT explain_consumer_checkout_success (success-screen UI walkthrough).`;
+export const CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES = `- confirm_my_booking_details: READ — summarize the visitor's current or most recent booking from session bookingId or signed-in account: service, provider, date/time, status, and salon location. Triggers: "What time is my appointment?", "Summarize my booking", "Who is my appointment with?", "What did I just book?", hy «ինչ ժամի է իմ ամրագրումը», «ամփոփիր իմ ամրագրումը», «Ի՞նչ ամրագրում եմ արել». Set aspect when clear (time|service|provider|status|location|all). Auth: signed-in sessionCustomerId must own bookingId; anonymous guests require bookingId + valid manageToken (manage link). Never return booking details from bookingId alone. Otherwise next matching upcoming visit for signed-in customers. NOT booking_help (how to book / funnel walkthrough — hy «Ինչպես ամրագրել», «Ինչպե՞ս ամրագրել այցելություն», ru «Как записаться»), NOT list_my_appointments (list all visits), NOT cancel_my_booking|reschedule_my_booking (mutate), NOT pay_online (pay online / pay with card for a booking — mutate checkout), NOT explain_subscription_vs_one_time (subscription/membership vs one-time / pay per visit checkout compare — "should I get the subscription or just pay per visit?"), NOT report_booking_problem (report/complaint / something went wrong / file a complaint / report a booking problem — never summarize instead), NOT explain_manage_booking_context (guest manage-link policy/context sibling), NOT get_manage_link|share_my_booking (links only), NOT add_booking_to_calendar (calendar links), NOT get_directions_to_salon (navigation/parking guidance), NOT explain_consumer_checkout_success (success-screen UI walkthrough).`;
 
 const READ_CUE = new RegExp(
   String.raw`\b(what|when|where|who|which|tell|show|summarize|summary|details?|confirm|did|is|my|about|just)\b|ինչ|երբ|որտեղ|ով|բացատր|ամփոփ|что|когда|где|кто|какой|покаж|подтвер`,
   'iu',
 );
 
+// e2e-bug.230 — do not treat bare "just" as a booking determiner ("just pay per visit"
+// is a subscription checkout compare, not "what did I just book?").
 const BOOKING_CONTEXT = new RegExp(
-  String.raw`\b(?:my|this|just|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|booked\s+with`,
+  String.raw`\b(?:my|this|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\bjust\s+(?:booked|book)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|booked\s+with`,
   'iu',
 );
 
@@ -117,7 +123,13 @@ export function extractConfirmMyBookingDetailsAspectFromPrompt(
   ) {
     return 'all';
   }
-  if (/ամփոփիր|подтверди\s+детали|ինչ.*ամրագր/i.test(prompt)) {
+  // e2e-bug.258 — do not treat ինչպես ամրագրել (how to book) as a summary cue;
+  // only "what booking" / summarize shapes map to aspect all.
+  if (
+    /ամփոփիր|подтверди\s+детали|ինչ\s*[\u055e՞]?\s*ամրագրում|ամրագրում\s+եմ\s+արել/i.test(
+      prompt,
+    )
+  ) {
     return 'all';
   }
   if (/ովի\s+հետ|с\s+кем/i.test(prompt)) {
@@ -151,8 +163,14 @@ function isServicePaymentOptionsQuestionPrompt(prompt: string): boolean {
 }
 
 export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
+  // e2e-bug.258 — short Armenian/Russian how-to-book is booking_help, not a summary.
+  if (isBookingHelpPrompt(prompt)) return false;
+  // e2e-bug.236 — report/complaint phrasing is report_booking_problem, not a summary.
+  if (isReportBookingProblemPrompt(prompt)) return false;
   // e2e-bug.88 — "pay online for my … booking" is pay_online, not a details read.
   if (isExplicitPayOnlinePrompt(prompt)) return false;
+  // e2e-bug.230 — subscription vs pay-per-visit compare is not a booking summary.
+  if (isExplainSubscriptionVsOneTimePrompt(prompt)) return false;
   if (isExplainGuestCheckoutFieldsPrompt(prompt)) return false;
   if (isExplainClinicBookingPrompt(prompt)) return false;
   if (isOpenBookingFromPushPrompt(prompt)) return false;
@@ -166,6 +184,9 @@ export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
   if (isExplainBookingDateFormatPrompt(prompt)) return false;
   if (isSignInAfterBookingPrompt(prompt)) return false;
   if (isAddBookingToCalendarPrompt(prompt)) return false;
+  // e2e-bug.295 — "Add my next appointment to the home screen" is OS widget
+  // help, not booking-details summary (confirm cues match "my … appointment").
+  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
   if (isListTourCalendarWeekPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (isBookNearestSlotPrompt(prompt)) return false;
@@ -229,8 +250,10 @@ export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
     return false;
   }
 
+  // e2e-bug.258 — removed bare `ինչ.*ամրագր` (matched ինչպես ամրագրել how-to).
+  // Keep time/summarize/provider/just-booked HY + RU summary cues only.
   if (
-    /(?:ինչ\s*[\u055d]?\s*ժամի|ամփոփիր\s+իմ|ովի\s+հետ|ինչ.*ամրագր|ամրագրում\s+եմ\s+արել|когда\s+моя\s+запись|подтверди\s+детали|какая\s+услуга|моя\s+запись\s+подтвержд)/iu.test(
+    /(?:ինչ\s*[\u055d\u055e՞]?\s*ժամի|ամփոփիր\s+իմ|ովի\s+հետ|ամրագրում\s+եմ\s+արել|ինչ\s*[\u055e՞]?\s*ամրագրում|когда\s+моя\s+запись|подтверди\s+детали|какая\s+услуга|моя\s+запись\s+подтвержд)/iu.test(
       prompt,
     )
   ) {

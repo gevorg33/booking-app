@@ -3,6 +3,8 @@ import {
   isUnscopedCustomerCountPrompt,
   resolveCustomerMetric,
   rescueUnscopedCustomerCountIntent,
+  isCustomerRetentionRatePrompt,
+  rescueCustomerRetentionRateIntent,
 } from './ai-intent-heuristics.js';
 
 describe('Sprint 18 customer page AI metrics', () => {
@@ -88,6 +90,66 @@ describe('Sprint 18 customer page AI metrics', () => {
       expect(
         resolveCustomerMetric({}, 'Find customers with the most no-shows'),
       ).toBe('most_no_shows');
+    });
+  });
+
+  describe('e2e-bug.137 — customer retention rate has no react_agent tool', () => {
+    it('detects retention-rate phrasing', () => {
+      expect(
+        isCustomerRetentionRatePrompt('What is my customer retention rate?'),
+      ).toBe(true);
+      expect(
+        isCustomerRetentionRatePrompt('How many returning customers do I have?'),
+      ).toBe(true);
+      expect(
+        isCustomerRetentionRatePrompt('Are customers coming back?'),
+      ).toBe(true);
+    });
+
+    it('does not steal unrelated customer prompts', () => {
+      expect(
+        isCustomerRetentionRatePrompt('Which customer has the most no-shows?'),
+      ).toBe(false);
+      expect(isCustomerRetentionRatePrompt('How many customers do I have?')).toBe(
+        false,
+      );
+    });
+
+    it('resolves the retention metric via resolveCustomerMetric', () => {
+      expect(
+        resolveCustomerMetric({}, 'What is my customer retention rate?'),
+      ).toBe('retention');
+    });
+
+    it('rescues unknown/react_agent into summarize_customers with retention metric', () => {
+      expect(
+        rescueCustomerRetentionRateIntent(
+          'What is my customer retention rate?',
+          'react_agent',
+        ),
+      ).toEqual({
+        action: 'summarize_customers',
+        customerMetric: 'retention',
+        rescueReason: 'customer_retention_rate',
+      });
+      expect(
+        rescueCustomerRetentionRateIntent(
+          'What is my customer retention rate?',
+          'unknown',
+        ),
+      ).not.toBeNull();
+    });
+
+    it('does not rescue unrelated actions or non-matching prompts', () => {
+      expect(
+        rescueCustomerRetentionRateIntent(
+          'What is my customer retention rate?',
+          'cancel_my_booking',
+        ),
+      ).toBeNull();
+      expect(
+        rescueCustomerRetentionRateIntent('How many customers do I have?', 'unknown'),
+      ).toBeNull();
     });
   });
 });

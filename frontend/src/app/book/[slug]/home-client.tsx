@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import { ProviderList } from '@/components/public-booking/provider-list';
+import { HomeLandingTeaser } from '@/components/public-booking/home-landing-teaser';
 import type { PublicBusinessProfile, PublicProvider } from '@/lib/public-api';
+import type { HomeCategoryTeaser } from '@/lib/home-landing-teaser.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -13,9 +15,16 @@ interface HomeClientProps {
   slug: string;
   tenant: PublicBusinessProfile;
   providers: PublicProvider[];
+  /** e2e-bug.207 — category teaser from full public catalog (no slot required). */
+  categories?: HomeCategoryTeaser[];
 }
 
-export function HomeClient({ slug, tenant, providers }: HomeClientProps) {
+export function HomeClient({
+  slug,
+  tenant,
+  providers,
+  categories = [],
+}: HomeClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
@@ -63,6 +72,8 @@ export function HomeClient({ slug, tenant, providers }: HomeClientProps) {
             )}
           </div>
         )}
+
+        <HomeLandingTeaser slug={slug} tenant={tenant} categories={categories} />
 
         <ProviderList
           slug={slug}

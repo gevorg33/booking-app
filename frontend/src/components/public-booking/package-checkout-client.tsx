@@ -27,6 +27,16 @@ import { ToggleChoice } from '@/components/ui/radio-choice';
 import { expandPackageServiceItems } from '@/lib/package-booking';
 import { resolvePackageItemPricing } from '@/lib/package-item-pricing';
 import { bookPath } from '@/lib/tenant-host';
+import {
+  resolvePublicCheckoutAmountDue,
+  resolvePublicCheckoutCartTotal,
+  resolvePublicCheckoutStickyDisplay,
+} from '@/lib/public-checkout-quote.util';
+import {
+  isWhatsappRemindersPhoneRequired,
+  resolveDefaultPublicCheckoutWhatsappReminders,
+  resolveWhatsappRemindersAfterPhonePrefill,
+} from '@/lib/public-checkout-whatsapp.util';
 
 interface PackageCheckoutClientProps {
   slug: string;
@@ -96,7 +106,8 @@ export function PackageCheckoutClient({
     consent: false,
     marketingOptIn: false,
     emailReminders: true,
-    whatsappReminders: true,
+    // e2e-bug.212 — guests without a phone must not start with WhatsApp ON
+    whatsappReminders: resolveDefaultPublicCheckoutWhatsappReminders(),
     reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [promoCode, setPromoCode] = useState('');
@@ -117,12 +128,20 @@ export function PackageCheckoutClient({
   useEffect(() => {
     if (authLoading || !customer) return;
     queueMicrotask(() =>
-      setForm((prev) => ({
-        ...prev,
-        name: prev.name || customer.name,
-        email: prev.email || customer.email || '',
-        phone: prev.phone || customer.phone || undefined,
-      })),
+      setForm((prev) => {
+        const nextPhone = prev.phone || customer.phone || undefined;
+        return {
+          ...prev,
+          name: prev.name || customer.name,
+          email: prev.email || customer.email || '',
+          phone: nextPhone,
+          whatsappReminders: resolveWhatsappRemindersAfterPhonePrefill({
+            previousPhone: prev.phone,
+            nextPhone,
+            previousWhatsappReminders: prev.whatsappReminders,
+          }),
+        };
+      }),
     );
   }, [authLoading, customer]);
 
@@ -191,9 +210,16 @@ export function PackageCheckoutClient({
     })();
   }, [paymentSessionId, slug, t]);
 
-  const amountDue = quote?.amountDue ?? pkg.pricing.packagePrice;
-  const checkoutSubtotal = quote?.subtotal ?? pkg.pricing.packagePrice;
+  // e2e-bug.214 — cart Total is catalog `servicePrice` / packagePrice; `amountDue` is online-due only.
+  const cartTotal = resolvePublicCheckoutCartTotal(quote, pkg.pricing.packagePrice);
+  const amountDue = resolvePublicCheckoutAmountDue(quote, pkg.pricing.packagePrice);
+  const checkoutSubtotal = cartTotal;
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
+  const stickyDisplay = resolvePublicCheckoutStickyDisplay({
+    cartTotal,
+    amountDue,
+    hasDiscounts,
+  });
   const requiresPayment = tenant.onlinePaymentsEnabled && amountDue > 0;
   const showCashOption = tenant.acceptCashPayments === true && amountDue > 0;
   const promoApplied =
@@ -245,7 +271,9 @@ export function PackageCheckoutClient({
     const balance = quote?.loyaltyPointsBalance ?? loyalty?.pointsBalance ?? 0;
     const promoDiscount = quote?.promoDiscount ?? 0;
     const giftCardDiscount = quote?.giftCardDiscount ?? 0;
-    const quoteSubtotal = quote?.subtotal ?? pkg.pricing.packagePrice;
+    // Prefer catalog cart total when online subtotal is 0 (pay-at-visit lines).
+    const quoteSubtotal =
+      (quote?.subtotal ?? 0) > 0 ? quote!.subtotal : cartTotal;
     const redeemable =
       quote?.afterGiftCard ??
       Math.max(0, (quote?.afterPromo ?? quoteSubtotal - promoDiscount) - giftCardDiscount);
@@ -269,7 +297,7 @@ export function PackageCheckoutClient({
       setError(t('public.phoneInvalid'));
       return;
     }
-    if (form.whatsappReminders && !fullPhone()) {
+    if (isWhatsappRemindersPhoneRequired(form.whatsappReminders, fullPhone())) {
       setError(t('public.whatsappPhoneRequired'));
       return;
     }
@@ -303,7 +331,11 @@ export function PackageCheckoutClient({
   };
 
   if (success) {
-    const confirmedTotal = quote?.amountDue ?? pkg.pricing.packagePrice;
+    const confirmedTotal = resolvePublicCheckoutCartTotal(
+      quote,
+      pkg.pricing.packagePrice,
+    );
+    const confirmedDue = resolvePublicCheckoutAmountDue(quote, 0);
 
     return (
       <>
@@ -315,10 +347,10 @@ export function PackageCheckoutClient({
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{t('public.packageBookedTitle')}</h1>
             <p className="text-gray-600 mt-2">{t('public.packageBookedHint')}</p>
-            {bookedWithCash && confirmedTotal > 0 && (
+            {bookedWithCash && confirmedDue > 0 && (
               <p className="text-sm text-amber-700 mt-3">
                 {t('public.payCashAtVisit', {
-                  amount: money(confirmedTotal, pkg.currency),
+                  amount: money(confirmedDue, pkg.currency),
                 })}
               </p>
             )}
@@ -385,7 +417,10 @@ export function PackageCheckoutClient({
 
             <div className="flex justify-between mt-4 pt-4 border-t border-gray-100">
               <span className="font-semibold text-gray-900">{t('public.total')}</span>
-              <span className="font-semibold text-gray-900">
+              <span
+                className="font-semibold text-gray-900"
+                data-testid="package-checkout-success-total"
+              >
                 {money(confirmedTotal, pkg.currency)}
               </span>
             </div>
@@ -525,7 +560,7 @@ export function PackageCheckoutClient({
             </ul>
             <div className="flex justify-between mt-4 pt-4 border-t border-gray-50">
               <span className="font-semibold text-gray-900">{t('public.total')}</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-gray-900" data-testid="package-checkout-cart-total">
                 {money(checkoutSubtotal, pkg.currency)}
               </span>
             </div>
@@ -533,6 +568,11 @@ export function PackageCheckoutClient({
               <span>{t('public.regularPrice')}</span>
               <span className="line-through">{money(pkg.pricing.regularTotal, pkg.currency)}</span>
             </div>
+            {quote && amountDue > 0 && amountDue + 0.005 < checkoutSubtotal && !hasDiscounts && (
+              <p className="text-sm text-violet-700 mt-2" data-testid="package-checkout-due-now">
+                {t('public.totalDue')}: {money(amountDue, pkg.currency)}
+              </p>
+            )}
             {quote && hasDiscounts && (
               <div className="mt-3 space-y-1 text-sm">
                 {quote.promoDiscount > 0 && (
@@ -690,12 +730,14 @@ export function PackageCheckoutClient({
                 primaryColor={primary}
                 label={t('public.emailRemindersCheckout')}
               />
-              <ToggleChoice
-                checked={form.whatsappReminders}
-                onChange={(whatsappReminders) => setForm({ ...form, whatsappReminders })}
-                primaryColor={primary}
-                label={t('public.whatsappReminders')}
-              />
+              <div data-testid="checkout-whatsapp-reminders">
+                <ToggleChoice
+                  checked={form.whatsappReminders}
+                  onChange={(whatsappReminders) => setForm({ ...form, whatsappReminders })}
+                  primaryColor={primary}
+                  label={t('public.whatsappReminders')}
+                />
+              </div>
               <ToggleChoice
                 checked={form.consent}
                 onChange={(consent) => setForm({ ...form, consent })}
@@ -752,13 +794,23 @@ export function PackageCheckoutClient({
             </section>
           )}
 
-          <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+          <div
+            data-public-sticky-cta
+            data-testid="public-sticky-cta"
+            className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
+          >
             <div className="max-w-lg mx-auto">
-              <div className="flex justify-between text-sm mb-3">
+              <div className="flex justify-between text-sm mb-3" data-testid="package-checkout-sticky-total">
                 <span className="text-gray-500">
-                  {amountDue <= 0 && hasDiscounts ? t('public.freeAfterDiscounts') : t('public.totalDue')}
+                  {stickyDisplay.kind === 'free_after_discounts'
+                    ? t('public.freeAfterDiscounts')
+                    : stickyDisplay.kind === 'due_now'
+                      ? t('public.totalDue')
+                      : t('public.total')}
                 </span>
-                <span className="font-semibold text-gray-900">{money(amountDue, pkg.currency)}</span>
+                <span className="font-semibold text-gray-900">
+                  {money(stickyDisplay.amount, pkg.currency)}
+                </span>
               </div>
               <button
                 type="submit"

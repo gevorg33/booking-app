@@ -85,6 +85,10 @@ import {
   enrichCancelAllUpcomingConfirmFromPrompt,
   rescueCancelAllUpcomingConfirmIntent,
 } from './ai-cancel-all-upcoming-bookings.util.js';
+import {
+  enrichPrivacyDeleteConfirmFromPrompt,
+  rescuePrivacyDeleteConfirmIntent,
+} from './ai-privacy-delete.util.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import {
   mergePublicAssistantSessionParams,
@@ -98,6 +102,12 @@ import {
   isPublicOnlyAssistantAction,
   publicAssistantResultToCommandResult,
 } from './customer-ai-command.util.js';
+import {
+  resolveCustomerAvailabilityActionLabel,
+  shouldExecuteCheckAvailabilityDeterministically,
+} from './ai-e2e190-check-availability-reachable.util.js';
+import { enrichExplainProviderAvailabilityParamsFromPrompt } from './ai-explain-provider-availability.util.js';
+import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import {
   dispatchCustomerIntent,
   executeCustomerCompoundFromSteps,
@@ -385,14 +395,21 @@ export class CustomerAiCommandService {
       }
     }
 
-    if (parsed.action === 'check_availability') {
-      parsed.action = 'check_providers_for_service';
-      rescueReason = rescueReason ?? 'customer_check_availability_disambiguation';
-    }
+    // e2e-bug.190 / e2e-bug.92 — never hard-remap check_availability →
+    // check_providers_for_service on the customer gateway that backs
+    // /public/:slug/assistant (that remap reintroduced the gravity well).
+    parsed.action = resolveCustomerAvailabilityActionLabel(parsed.action);
 
     let action = parsed.action;
     let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
     params = applyPromptMentionedServiceOverrideToParams(prompt, params);
+    if (action === 'check_availability' || action === 'explain_provider_availability') {
+      params = {
+        ...params,
+        ...buildSharedBookingContextFromPrompt(prompt),
+        ...enrichExplainProviderAvailabilityParamsFromPrompt(params, prompt),
+      };
+    }
     params = mergePublicAssistantSessionParams(params, context, action);
     if (history?.length) {
       params = { ...params, conversationHistory: history };
@@ -421,6 +438,28 @@ export class CustomerAiCommandService {
         requiresConfirmation: session.requiresConfirmation,
         pendingAction: session.pendingAction,
       }, history);
+    }
+    // e2e-bug.257 — deterministic confirm after privacy_delete preview (same
+    // shape as e2e-bug.78). Without this, bare "yes" is unknown-blocked before
+    // handlePrivacyDeleteLogic ever sees privacyDeletePending.
+    const privacyDeleteConfirm = rescuePrivacyDeleteConfirmIntent(prompt, action, {
+      ...params,
+      privacyDeletePending: session.privacyDeletePending,
+      requiresConfirmation: session.requiresConfirmation,
+      pendingAction: session.pendingAction,
+    });
+    if (privacyDeleteConfirm) {
+      action = privacyDeleteConfirm.action;
+      params = { ...params, ...privacyDeleteConfirm.params };
+      rescueReason = privacyDeleteConfirm.rescueReason;
+      parsed.action = action;
+    } else if (action === 'privacy_delete') {
+      params = enrichPrivacyDeleteConfirmFromPrompt(prompt, {
+        ...params,
+        privacyDeletePending: session.privacyDeletePending,
+        requiresConfirmation: session.requiresConfirmation,
+        pendingAction: session.pendingAction,
+      });
     }
     if (history?.length && action === 'speak_assistant_reply') {
       params = { ...params, conversationHistory: history };
@@ -481,6 +520,16 @@ export class CustomerAiCommandService {
     }
 
     if (isPublicOnlyAssistantAction(action)) {
+      // e2e-bug.190 — deterministic execute so a second public chat classify
+      // cannot steal check_availability back into check_providers_for_service.
+      if (shouldExecuteCheckAvailabilityDeterministically(action)) {
+        return this.runPublicAssistantDeterministic(
+          session,
+          action,
+          params,
+          prompt,
+        );
+      }
       return this.runPublicAssistant(session, prompt, history, context);
     }
 
@@ -880,6 +929,32 @@ export class CustomerAiCommandService {
       { recordMetrics: false },
     );
     return publicAssistantResultToCommandResult(result);
+  }
+
+  /** e2e-bug.190 / e2e-bug.92 — skip second LLM classify for availability. */
+  private async runPublicAssistantDeterministic(
+    session: CustomerIntentSession,
+    action: string,
+    params: Record<string, unknown>,
+    prompt: string,
+  ): Promise<CommandResult> {
+    if (!session.slug) {
+      return {
+        success: false,
+        action: 'error',
+        summary: 'Booking page context is missing (slug).',
+        details: {},
+      };
+    }
+    const assistantResult =
+      await this.publicAssistant.executeDeterministicIntent(session.slug, {
+        action,
+        params: params as Record<string, any>,
+        prompt,
+        session: session as Record<string, any>,
+        locale: session.locale,
+      });
+    return publicAssistantResultToCommandResult(assistantResult);
   }
 
   /** ai-guide-1.5.2 — consumer app guide intents → AiProductGuideService playbooks. */

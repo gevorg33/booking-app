@@ -4,6 +4,12 @@ import { uniqueMultiServiceIds } from './multi-service-booking.js';
 export type MultiCheckoutPaymentMethod = 'online' | 'cash';
 
 const PENDING_KEY = 'consumer_pending_multi_checkout_payment';
+// e2e checklist — return-flow reconciliation: without a TTL, an abandoned checkout's
+// storage entry hijacks every future visit to the same multi-service checkout page
+// (treats it as "returning from Stripe" and tries to confirm a payment session that's
+// long dead), with no expiry ever clearing it. Stripe Checkout Sessions themselves
+// default to a 24h lifetime, so anything older than that can never legitimately confirm.
+const PENDING_MULTI_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface PendingMultiServiceCheckoutPayment {
   slug: string;
@@ -84,6 +90,8 @@ export function loadPendingMultiCheckoutBySlug(
   if (!parsed?.sessionId) return null;
   if (parsed.slug !== slug.trim().toLowerCase()) return null;
   if (!Array.isArray(parsed.serviceIds) || parsed.serviceIds.length < 2) return null;
+  const age = Date.now() - Date.parse(parsed.updatedAt);
+  if (!Number.isFinite(age) || age > PENDING_MULTI_MAX_AGE_MS) return null;
   return parsed;
 }
 

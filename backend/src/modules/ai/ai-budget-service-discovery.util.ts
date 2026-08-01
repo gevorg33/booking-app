@@ -4,6 +4,7 @@ import {
   isCreateGiftCardBundlePrompt,
 } from './ai-catalog.util.js';
 import { isExplainCheckoutCurrencyPrompt } from './ai-checkout-currency.util.js';
+import { isExplainDepositForfeiturePrompt } from './ai-explain-deposit-forfeiture.util.js';
 import { isBuyGiftCardForSomeonePrompt } from './ai-buy-gift-card-for-someone.util.js';
 import {
   extractAmountFromPrompt,
@@ -29,6 +30,7 @@ import { isConfigureServiceOnlinePaymentPrompt } from './ai-service-online-payme
 import { isConfigureServiceDepositPolicyPrompt } from './ai-service-deposit-policy.util.js';
 import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-payment-setup.util.js';
 import { isCreatePromoCodePrompt } from './ai-create-promo-code.util.js';
+import { isCreateProductPrompt } from './ai-retail-finance.util.js';
 import { isConfigureCheckoutDefaultsPrompt } from './ai-checkout-defaults.util.js';
 import { isConfigurePackageOnlinePaymentPrompt } from './ai-configure-package-online-payment.util.js';
 
@@ -168,10 +170,50 @@ export function isBudgetAdministrativeOrExplainContext(
   return false;
 }
 
+/** e2e-bug.231 — local mirror of isCheckGiftCardBalancePrompt (avoid import cycles). */
+function isNamedGiftCardCodeBalanceAsk(prompt: string): boolean {
+  if (!/\b(gift\s*card)\b/i.test(prompt)) return false;
+  if (/\bmy\s+account\b/i.test(prompt)) return false;
+  const hasCodeCue =
+    /\b(GCM-|GCB-|GCS-)\b/i.test(prompt) ||
+    /\bby\s+code\b/i.test(prompt) ||
+    /\bgift\s*card\s+code\b/i.test(prompt) ||
+    /\bcode\s+(?:GCM-|GCB-|GCS-|[A-Z0-9-]{4,})\b/i.test(prompt);
+  if (!hasCodeCue) return false;
+  if (
+    /\b(apply|use|redeem|preview)\b/i.test(prompt) &&
+    /\b(checkout|booking|visit|appointment)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  return /\b(check|what(?:'s| is)|balance|remaining|left|value|how\s+much)\b/i.test(
+    prompt,
+  );
+}
+
 export function isBudgetGiftCardMisroute(prompt: string): boolean {
   if (!/\bgift\s+card\b/i.test(prompt)) return false;
   if (isBudgetAdministrativeOrExplainContext(prompt)) return false;
   if (isConfigureGiftCardProductsPrompt(prompt)) return false;
+  // e2e-bug.231 — code balance / account claim / checkout-how-it-works are not
+  // budget→apply steals (payments/CRM own those intents). Inline cues only —
+  // do not call claim/check helpers (they re-enter budget maxPrice guards).
+  if (isNamedGiftCardCodeBalanceAsk(prompt)) return false;
+  if (
+    /\b(add|claim|link|register|attach|activate)\b/i.test(prompt) &&
+    /\b(my\s+account|to\s+my\s+account|on\s+my\s+account|account)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\bhow\b/i.test(prompt) &&
+    /\b(work|works|working)\b/i.test(prompt) &&
+    /\bcheckout\b/i.test(prompt)
+  ) {
+    return false;
+  }
   // e2e-bug.130 / e2e-bug.80 — buy/quote must block budget list_services
   // ($30 ≠ maxPrice). resolveBudgetMisrouteAction maps to buy_*/get_gift_card_quote.
   if (
@@ -183,7 +225,7 @@ export function isBudgetGiftCardMisroute(prompt: string): boolean {
     return true;
   }
   if (
-    /\b(?:balance|check balance|gift card balance|track my|track the|track physical)\b/i.test(
+    /\b(?:balance|check balance|gift card balance|remaining|left|value|how\s+much|track my|track the|track physical)\b/i.test(
       prompt,
     )
   ) {
@@ -275,6 +317,12 @@ export function isBudgetDepositQuestion(prompt: string): boolean {
   if (isExplainServiceOnlinePaymentSetupPrompt(prompt)) return false;
   if (isConfigureCheckoutDefaultsPrompt(prompt)) return false;
   if (isConfigurePackageOnlinePaymentPrompt(prompt)) return false;
+  // e2e-bug.113/210 — forfeiture/why-deposit-required questions ("why do I have
+  // to pay a deposit to book?", "do I lose my deposit if I cancel?") belong to
+  // explain_deposit_forfeiture, not this currency-comparison misroute. This bare
+  // `\bdeposit\b` test ran earlier in the rescue chain than the deposit-forfeiture
+  // rescue and stole every deposit-forfeiture-shaped prompt before it had a chance.
+  if (isExplainDepositForfeiturePrompt(prompt)) return false;
   return /\bdeposit\b/i.test(prompt);
 }
 
@@ -668,14 +716,20 @@ function parseWordAmount(raw: string): number | null {
 export function extractMaxPriceFromBudgetPrompt(prompt: string): number | null {
   if (!shouldExtractBudgetMaxPrice(prompt)) return null;
 
+  // e2e-bug.93 — "Is Karo Mazmanyan free tomorrow…" is availability, not $0 budget.
+  const namedProviderFreeAvailability =
+    /\b(?:is|are|when\s+(?:is|are))\s+[A-Za-z][\w.'-]{1,40}(?:\s+[A-Za-z][\w.'-]{1,40})?\s+free\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:who(?:'s| (?:\w+\s+)?is|ever)|anyone|anybody|providers?|specialists?|stylist|therapist|which)\b[^.?!]{0,40}\bfree\b/i.test(
+      prompt,
+    ) ||
+    /\b(?:nearest|earliest|next|soonest)\s+free\b/i.test(prompt) ||
+    /\bfree\s+(?:time|slot|appointment|opening)\b/i.test(prompt);
+
   if (
     /\bfree\s+(?:consultation|options?|services?)\b/i.test(prompt) ||
-    (/\bfree\b/i.test(prompt) &&
-      !/\b(?:who(?:'s| (?:\w+\s+)?is|ever)|anyone|anybody|providers?|specialists?|stylist|therapist|which)\b[^.?!]{0,40}\bfree\b/i.test(
-        prompt,
-      ) &&
-      !/\b(?:nearest|earliest|next|soonest)\s+free\b/i.test(prompt) &&
-      !/\bfree\s+(?:time|slot|appointment|opening)\b/i.test(prompt))
+    (/\bfree\b/i.test(prompt) && !namedProviderFreeAvailability)
   ) {
     return 0;
   }
@@ -809,6 +863,8 @@ export function resolveBudgetMisrouteAction(prompt: string): string | null {
   if (isGetGiftCardQuotePrompt(prompt)) return 'get_gift_card_quote';
   if (isBuyGiftCardPhysicalPrompt(prompt)) return 'buy_gift_card_physical';
   if (isBuyGiftCardPrompt(prompt)) return 'buy_gift_card';
+  // e2e-bug.231 — named-code balance lookup before apply/preview steal.
+  if (isNamedGiftCardCodeBalanceAsk(prompt)) return 'check_gift_card_balance';
   if (isBudgetGiftCardMisroute(prompt)) return 'apply_gift_card_code';
   if (isBudgetPackageDiscoveryPrompt(prompt)) return 'discover_packages';
   if (isBudgetDepositQuestion(prompt)) return 'explain_checkout_currency';
@@ -819,11 +875,12 @@ export function resolveBudgetMisrouteAction(prompt: string): string | null {
 
 const PUBLIC_BUDGET_MISROUTE_ACTION: Record<string, string> = {
   discover_packages: 'booking_help',
-  apply_gift_card_code: 'booking_help',
+  // e2e-bug.231 — public booking now executes gift-card apply/check; keep them.
+  // Only packages/subscriptions stay surrogate-mapped to booking_help.
   discover_subscription_plans: 'booking_help',
 };
 
-/** Surface-specific misroute — public web has no discover_packages / gift-card intents (budget-1.8). */
+/** Surface-specific misroute — public web has no discover_packages / subscription catalog. */
 export function resolveBudgetMisrouteActionForSurface(
   prompt: string,
   surface: Exclude<BudgetDiscoverySurface, 'both'> | 'dashboard',
@@ -834,6 +891,9 @@ export function resolveBudgetMisrouteActionForSurface(
   if (surface === 'dashboard') {
     if (misroute === 'discover_packages') return 'list_packages';
     if (misroute === 'apply_gift_card_code') return 'validate_gift_card';
+    if (misroute === 'check_gift_card_balance') {
+      return 'validate_gift_card';
+    }
     if (misroute === 'discover_subscription_plans') {
       return 'list_subscription_plans';
     }
@@ -1077,6 +1137,9 @@ export function rescueBudgetServiceDiscoveryIntent(
   if (isBudgetAdministrativeOrExplainContext(prompt)) return null;
   if (isCreatePromoCodePrompt(prompt)) return null;
   if (isConfigurePackageOnlinePaymentPrompt(prompt)) return null;
+  // e2e-bug.148 — "Add a retail product ... priced at N dollars" must not be
+  // misread as a budget/price-filter prompt.
+  if (isCreateProductPrompt(prompt)) return null;
 
   const misroute = surface
     ? resolveBudgetMisrouteActionForSurface(prompt, surface)

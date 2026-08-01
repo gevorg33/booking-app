@@ -173,14 +173,21 @@
             "step1": "Pick a professional or choose Any available.",
             "step2": "Select the service and add-ons you need.",
             "step3": "Choose an open slot from the calendar.",
-            "step4": "Complete checkout and save the confirmation."
+            "step4": "Complete checkout and save the confirmation.",
+            "step1Title": "Pick a professional",
+            "step2Title": "Select a service",
+            "step3Title": "Choose a slot",
+            "step4Title": "Complete checkout"
           },
           "packages": {
             "title": "Packages and gift cards",
             "summary": "Buy bundles, subscriptions, or gift cards when offered.",
             "step1": "Open Packages from Services or Account.",
             "step2": "Review what is included and expiry rules.",
-            "step3": "Purchase and apply at checkout on your next booking."
+            "step3": "Purchase and apply at checkout on your next booking.",
+            "step1Title": "Open Packages",
+            "step2Title": "Review inclusions",
+            "step3Title": "Purchase and apply"
           },
           "account": {
             "title": "Account and bookings",
@@ -203,28 +210,40 @@
             "summary": "Anonymous visitors can book without an account when enabled.",
             "step1": "Pick a service from the public booking page.",
             "step2": "Choose a professional and available slot.",
-            "step3": "Enter contact details and confirm."
+            "step3": "Enter contact details and confirm.",
+            "step1Title": "Pick a service",
+            "step2Title": "Choose a professional",
+            "step3Title": "Confirm details"
           },
           "professionals": {
             "title": "Choose a professional",
             "summary": "Pick who you want to see before choosing a service or time.",
             "step1": "Browse the Professionals page and compare bios or ratings.",
             "step2": "Tap a provider to see their services and open times.",
-            "step3": "Continue to Services or pick a slot to move toward checkout."
+            "step3": "Continue to Services or pick a slot to move toward checkout.",
+            "step1Title": "Browse professionals",
+            "step2Title": "Tap a provider",
+            "step3Title": "Continue to Services"
           },
           "services": {
             "title": "Pick a service",
             "summary": "Select the treatment or appointment type you need.",
             "step1": "Open Services after choosing a professional (or from the menu).",
             "step2": "Compare duration, price, and description for each service.",
-            "step3": "Tap a service to load available times and continue to checkout."
+            "step3": "Tap a service to load available times and continue to checkout.",
+            "step1Title": "Open Services",
+            "step2Title": "Compare options",
+            "step3Title": "Tap a service"
           },
           "checkout": {
             "title": "Public checkout",
             "summary": "Pay deposits or full amounts during online checkout.",
             "step1": "Review price, duration, and cancellation policy.",
             "step2": "Enter payment details if prepayment is required.",
-            "step3": "Save the confirmation email or SMS."
+            "step3": "Save the confirmation email or SMS.",
+            "step1Title": "Review details",
+            "step2Title": "Enter payment",
+            "step3Title": "Save confirmation"
           },
           "availability": {
             "title": "Check availability",
@@ -466,14 +485,21 @@
             "step1": "Ընտրեք մասնագետ կամ «Ցանկացած ազատ մասնագետ»։",
             "step2": "Ընտրեք ծառայությունն ու հավելումները, որոնք անհրաժեշտ են։",
             "step3": "Ընտրեք ազատ ժամ օրացույցից։",
-            "step4": "Ավարտեք վճարումը և պահպանեք հաստատումը։"
+            "step4": "Ավարտեք վճարումը և պահպանեք հաստատումը։",
+            "step1Title": "Ընտրեք մասնագետ",
+            "step2Title": "Ընտրեք ծառայություն",
+            "step3Title": "Ընտրեք ժամ",
+            "step4Title": "Ավարտեք վճարումը"
           },
           "packages": {
             "title": "Փաթեթներ և նվեր քարտեր",
             "summary": "Գնեք փաթեթներ, աբոնեմենտներ կամ նվեր քարտեր, երբ առաջարկվում են։",
             "step1": "Բացեք «Փաթեթներ» Ծառայություններից կամ Հաշվից։",
             "step2": "Ստուգեք ինչ է ներառված և վավերության ժամկետները։",
-            "step3": "Գնեք և վճարման ընթացքում կիրառեք հաջորդ ամրագրմանը։"
+            "step3": "Գնեք և վճարման ընթացքում կիրառեք հաջորդ ամրագրմանը։",
+            "step1Title": "Բացեք փաթեթներ",
+            "step2Title": "Ստուգեք ներառվածը",
+            "step3Title": "Գնեք և կիրառեք"
           },
           "account": {
             "title": "Հաշիվ և ամրագրումներ",
@@ -496,28 +522,40 @@
             "summary": "Անանուն այցելուները կարող են ամրագրել առանց հաշվի, երբ միացված է։",
             "step1": "Ընտրեք ծառայություն հանրային ամրագրման էջից։",
             "step2": "Ընտրեք մասնագետ և ազատ ժամ։",
-            "step3": "Լրացրեք կոնտակտային տվյալները և հաստատեք։"
+            "step3": "Լրացրեք կոնտակտային տվյալները և հաստատեք։",
+            "step1Title": "Ընտրեք ծառայություն",
+            "step2Title": "Ընտրեք մասնագետ",
+            "step3Title": "Հաստատեք"
           },
           "professionals": {
             "title": "Ընտրեք մասնագետ",
             "summary": "Ընտրեք, թե ում եք ցանկանում այցելել, նախքան ծառայություն կամ ժամ ընտրելը։",
             "step1": "Դիտեք «Մասնագետներ» էջը և համեմատեք բիոն ու վարկանիշները։",
             "step2": "Սեղմեք մասնագետի վրա՝ նրա ծառայությունները և ազատ ժամերը տեսնելու համար։",
-            "step3": "Շարունակեք դեպի Ծառայություններ կամ ընտրեք ժամ՝ վճարմանը մոտենալու համար։"
+            "step3": "Շարունակեք դեպի Ծառայություններ կամ ընտրեք ժամ՝ վճարմանը մոտենալու համար։",
+            "step1Title": "Դիտեք մասնագետներ",
+            "step2Title": "Սեղմեք մասնագետ",
+            "step3Title": "Շարունակեք"
           },
           "services": {
             "title": "Ընտրեք ծառայություն",
             "summary": "Ընտրեք այն ամրագրման տեսակը, որն անհրաժեշտ է։",
             "step1": "Բացեք Ծառայություններ մասնագետն ընտրելուց հետո (կամ ընտրացանկից)։",
             "step2": "Համեմատեք տևողությունը, գինը և նկարագրությունը յուրաքանչյուր ծառայության համար։",
-            "step3": "Սեղմեք ծառայության վրա՝ ազատ ժամերը բեռնելու և վճարմանն անցնելու համար։"
+            "step3": "Սեղմեք ծառայության վրա՝ ազատ ժամերը բեռնելու և վճարմանն անցնելու համար։",
+            "step1Title": "Բացեք ծառայություններ",
+            "step2Title": "Համեմատեք",
+            "step3Title": "Սեղմեք ծառայություն"
           },
           "checkout": {
             "title": "Առցանց վճարում",
             "summary": "Վճարեք կանխավճար կամ ամբողջ գումարը առցանց վճարման ժամանակ։",
             "step1": "Ստուգեք գինը, տևողությունը և չեղարկման կանոնները։",
             "step2": "Լրացրեք վճարային տվյալները, եթե պահանջվում է կանխավճար։",
-            "step3": "Պահպանեք հաստատման էլ. նամակը կամ SMS-ը։"
+            "step3": "Պահպանեք հաստատման էլ. նամակը կամ SMS-ը։",
+            "step1Title": "Ստուգեք մանրամասները",
+            "step2Title": "Լրացրեք վճարումը",
+            "step3Title": "Պահպանեք հաստատումը"
           },
           "availability": {
             "title": "Ստուգեք հասանելիությունը",
@@ -759,14 +797,21 @@
             "step1": "Выберите специалиста или «Любой доступный».",
             "step2": "Выберите услугу и дополнения.",
             "step3": "Выберите свободный слот в календаре.",
-            "step4": "Завершите оплату и сохраните подтверждение."
+            "step4": "Завершите оплату и сохраните подтверждение.",
+            "step1Title": "Выберите специалиста",
+            "step2Title": "Выберите услугу",
+            "step3Title": "Выберите слот",
+            "step4Title": "Завершите оплату"
           },
           "packages": {
             "title": "Пакеты и подарочные карты",
             "summary": "Покупайте наборы, абонементы или подарочные карты, когда они доступны.",
             "step1": "Откройте «Пакеты» из «Услуг» или «Аккаунта».",
             "step2": "Проверьте, что входит в пакет и срок действия.",
-            "step3": "Купите и примените при следующей записи на оплате."
+            "step3": "Купите и примените при следующей записи на оплате.",
+            "step1Title": "Откройте пакеты",
+            "step2Title": "Проверьте состав",
+            "step3Title": "Купите и примените"
           },
           "account": {
             "title": "Аккаунт и записи",
@@ -789,28 +834,40 @@
             "summary": "Посетители могут записаться без аккаунта, если это включено.",
             "step1": "Выберите услугу на странице онлайн-записи.",
             "step2": "Выберите специалиста и свободное время.",
-            "step3": "Введите контактные данные и подтвердите."
+            "step3": "Введите контактные данные и подтвердите.",
+            "step1Title": "Выберите услугу",
+            "step2Title": "Выберите специалиста",
+            "step3Title": "Подтвердите"
           },
           "professionals": {
             "title": "Выберите специалиста",
             "summary": "Выберите, к кому хотите записаться, до выбора услуги или времени.",
             "step1": "Просмотрите страницу «Специалисты» и сравните биографии и рейтинги.",
             "step2": "Нажмите на специалиста, чтобы увидеть его услуги и свободное время.",
-            "step3": "Перейдите к «Услугам» или выберите слот для оплаты."
+            "step3": "Перейдите к «Услугам» или выберите слот для оплаты.",
+            "step1Title": "Просмотрите специалистов",
+            "step2Title": "Нажмите специалиста",
+            "step3Title": "Перейдите к услугам"
           },
           "services": {
             "title": "Выберите услугу",
             "summary": "Выберите нужный тип записи.",
             "step1": "Откройте «Услуги» после выбора специалиста (или из меню).",
             "step2": "Сравните длительность, цену и описание.",
-            "step3": "Нажмите на услугу, чтобы загрузить время и перейти к оплате."
+            "step3": "Нажмите на услугу, чтобы загрузить время и перейти к оплате.",
+            "step1Title": "Откройте услуги",
+            "step2Title": "Сравните",
+            "step3Title": "Нажмите услугу"
           },
           "checkout": {
             "title": "Онлайн-оплата",
             "summary": "Оплатите депозит или полную сумму при записи.",
             "step1": "Проверьте цену, длительность и политику отмены.",
             "step2": "Введите платёжные данные, если требуется предоплата.",
-            "step3": "Сохраните подтверждение по email или SMS."
+            "step3": "Сохраните подтверждение по email или SMS.",
+            "step1Title": "Проверьте детали",
+            "step2Title": "Введите оплату",
+            "step3Title": "Сохраните подтверждение"
           },
           "availability": {
             "title": "Проверить доступность",

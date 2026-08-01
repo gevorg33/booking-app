@@ -2,12 +2,10 @@ import type { BookingService } from '../booking/booking.service.js';
 import type { EmployeeService } from '../employee/employee.service.js';
 import type { ServiceService } from '../service/service.service.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
-import {
-  formatDateDisplay,
-  getTodayDateKey,
-} from '../../common/utils/date-format.util.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import {
   buildWeekDateKeys,
+  normalizeTourWeekAnchorDateKey,
   resolveTourBookingDateRange,
 } from '../../common/utils/tour-calendar.util.js';
 import {
@@ -15,7 +13,14 @@ import {
   isTourService,
   resolveTourCatalogServiceByName,
 } from '../../common/utils/tour-service.util.js';
+import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
+import { detectSemanticPromptLocale } from './intent-anchor.seed.util.js';
 import {
   parseListTourCalendarWeekFromPrompt,
   type ParsedListTourCalendarWeek,
@@ -70,32 +75,77 @@ function resolveEmployeeByName<T extends { id: string; name: string }>(
   );
 }
 
-function formatDateRange(start: string, end: string): string {
-  const startLabel = formatDateDisplay(start);
-  const endLabel = formatDateDisplay(end);
+/** Prefer prompt script (hy/ru), then params.locale — e2e-bug.289. */
+export function resolveTourCalendarWeekLocale(
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): AppLocale {
+  const text = String(prompt ?? params._prompt ?? '');
+  const detected = detectSemanticPromptLocale(text);
+  if (detected === 'hy' || detected === 'ru') return detected;
+  return resolveLocale(
+    typeof params.locale === 'string' ? params.locale : null,
+  );
+}
+
+function formatDateRange(
+  start: string,
+  end: string,
+  locale: AppLocale,
+): string {
+  const startLabel = formatDateForAiLabel(start, locale);
+  const endLabel = formatDateForAiLabel(end, locale);
   return start === end ? startLabel : `${startLabel}–${endLabel}`;
 }
 
-function formatEntryLine(entry: TourCalendarWeekEntry): string {
-  return `${formatDateRange(entry.tourStartDate, entry.tourEndDate)}: ${entry.serviceName} — ${entry.paxCount} pax`;
+function formatEntryLine(
+  entry: TourCalendarWeekEntry,
+  locale: AppLocale,
+): string {
+  const pax = t(locale, 'assistant.tourCalendarWeekEntryPax', {
+    count: entry.paxCount,
+  });
+  return `${formatDateRange(entry.tourStartDate, entry.tourEndDate, locale)}: ${entry.serviceName} — ${pax}`;
 }
 
-function buildSummary(
-  parsed: ParsedListTourCalendarWeek,
-  weekStart: string,
-  weekEnd: string,
-  entries: TourCalendarWeekEntry[],
-  employeeLabel: string | null,
-): string {
-  const weekLabel = `${formatDateDisplay(weekStart)}–${formatDateDisplay(weekEnd)}`;
-  const providerNote = employeeLabel ? ` for ${employeeLabel}` : '';
-  const filterNote = parsed.serviceName ? ` (${parsed.serviceName})` : '';
+export function buildTourCalendarWeekSummary(input: {
+  parsed: ParsedListTourCalendarWeek;
+  weekStart: string;
+  weekEnd: string;
+  entries: TourCalendarWeekEntry[];
+  employeeLabel: string | null;
+  locale?: string | null;
+}): string {
+  const locale = resolveLocale(input.locale);
+  const weekLabel = `${formatDateForAiLabel(input.weekStart, locale)}–${formatDateForAiLabel(input.weekEnd, locale)}`;
+  const providerNote = input.employeeLabel
+    ? t(locale, 'assistant.tourCalendarWeekProviderNote', {
+        name: input.employeeLabel,
+      })
+    : '';
+  const filterNote = input.parsed.serviceName
+    ? t(locale, 'assistant.tourCalendarWeekFilterNote', {
+        service: input.parsed.serviceName,
+      })
+    : '';
 
-  if (entries.length === 0) {
-    return `No confirmed tour departures visible on the provider calendar week ${weekLabel}${providerNote}${filterNote}.`;
+  if (input.entries.length === 0) {
+    return t(locale, 'assistant.tourCalendarWeekEmpty', {
+      weekLabel,
+      providerNote,
+      filterNote,
+    });
   }
 
-  return `${entries.length} tour departure${entries.length === 1 ? '' : 's'} on calendar week ${weekLabel}${providerNote}${filterNote}: ${entries.map(formatEntryLine).join('; ')}.`;
+  return t(locale, 'assistant.tourCalendarWeekSuccess', {
+    count: input.entries.length,
+    weekLabel,
+    providerNote,
+    filterNote,
+    entries: input.entries
+      .map((entry) => formatEntryLine(entry, locale))
+      .join('; '),
+  });
 }
 
 export async function handleListTourCalendarWeekLogic(
@@ -104,6 +154,7 @@ export async function handleListTourCalendarWeekLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
+  const locale = resolveTourCalendarWeekLocale(params, prompt);
   const parsed = parseListTourCalendarWeekFromPrompt(
     String(prompt ?? params._prompt ?? ''),
     params,
@@ -111,12 +162,14 @@ export async function handleListTourCalendarWeekLogic(
   if (!parsed) {
     return failure(
       'list_tour_calendar_week',
-      'Ask to list tour departures on the provider calendar week (e.g. "List tour departures on the provider calendar this week" or "Summarize Maria\'s calendar week tours with pax").',
+      t(locale, 'assistant.tourCalendarWeekClarify'),
       { clarify: true },
     );
   }
 
-  const weekAnchor = parsed.weekStartDate ?? getTodayDateKey();
+  // e2e-bug.270 — ISO-only anchors (parse already normalizes; belt-and-suspenders).
+  const weekAnchor =
+    normalizeTourWeekAnchorDateKey(parsed.weekStartDate) ?? getTodayDateKey();
   const weekDateKeys = buildWeekDateKeys(weekAnchor);
   const weekStart = weekDateKeys[0];
   const weekEnd = weekDateKeys[6];
@@ -130,7 +183,9 @@ export async function handleListTourCalendarWeekLogic(
     if (!match) {
       return failure(
         'list_tour_calendar_week',
-        `Could not find provider "${parsed.employeeName}" for calendar week tour list.`,
+        t(locale, 'assistant.tourCalendarWeekProviderMissing', {
+          name: parsed.employeeName,
+        }),
         {
           employeeName: parsed.employeeName,
           clarify: true,
@@ -221,13 +276,14 @@ export async function handleListTourCalendarWeekLogic(
         : a.tourStartDate.localeCompare(b.tourStartDate),
     );
 
-  const summary = buildSummary(
+  const summary = buildTourCalendarWeekSummary({
     parsed,
     weekStart,
     weekEnd,
     entries,
     employeeLabel,
-  );
+    locale,
+  });
 
   return success('list_tour_calendar_week', summary, {
     weekStartDate: weekStart,
@@ -239,5 +295,6 @@ export async function handleListTourCalendarWeekLogic(
     entries,
     departureCount: entries.length,
     totalPax: entries.reduce((sum, entry) => sum + entry.paxCount, 0),
+    locale,
   });
 }

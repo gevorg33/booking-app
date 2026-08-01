@@ -222,6 +222,12 @@ import {
 } from './ai-category-assignment.util.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import { runCompletionValidateHandoff } from './command-completion-handoff.util.js';
+import {
+  attachCompoundResumeToClarifyResult,
+  extractClarifyFieldsFromFollowUpPrompt,
+  readCompoundResumeFromContext,
+  shouldContinueCompoundResume,
+} from './ai-compound-resume.util.js';
 import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
 import {
   CommandResult,
@@ -828,6 +834,44 @@ export class AiCommandService {
       session?.context?._confidenceHigh as number | undefined,
     );
 
+    // e2e-bug.304 — resume mid-compound when booking graph is off / before classify.
+    if (
+      !this.bookingCommandGraph.isEnabled() &&
+      shouldContinueCompoundResume(
+        effectivePrompt,
+        sessionWithRoute?.context as Record<string, unknown> | undefined,
+      )
+    ) {
+      const resume = readCompoundResumeFromContext(
+        sessionWithRoute?.context as Record<string, unknown> | undefined,
+      );
+      if (resume) {
+        const clarifyFields = extractClarifyFieldsFromFollowUpPrompt(
+          effectivePrompt,
+        );
+        return this.executeCompoundIntents(
+          businessId,
+          resume.confirmationPrompt || effectivePrompt,
+          userId,
+          {
+            ...sessionWithRoute,
+            context: {
+              ...(sessionWithRoute?.context ?? {}),
+              ...clarifyFields,
+            },
+          },
+          resume.subIntents,
+          catalog,
+          aiConfig.confidence,
+          timeZone,
+          {
+            resumePlans: resume.plans,
+            resumeStepIndex: resume.stepIndex,
+          },
+        );
+      }
+    }
+
     if (this.bookingCommandGraph.isEnabled()) {
       return this.bookingCommandGraph.run({
         businessId,
@@ -871,6 +915,37 @@ export class AiCommandService {
             ),
           toCommandResult: (orch) => this.toCommandResult(orch),
           executeLegacyCompound: async () => {
+            const resumeCtx = sessionWithRoute?.context as
+              | Record<string, unknown>
+              | undefined;
+            const resume = readCompoundResumeFromContext(resumeCtx);
+            if (
+              resume &&
+              shouldContinueCompoundResume(effectivePrompt, resumeCtx)
+            ) {
+              const clarifyFields =
+                extractClarifyFieldsFromFollowUpPrompt(effectivePrompt);
+              return this.executeCompoundIntents(
+                businessId,
+                resume.confirmationPrompt || effectivePrompt,
+                userId,
+                {
+                  ...sessionWithRoute,
+                  context: {
+                    ...(sessionWithRoute?.context ?? {}),
+                    ...clarifyFields,
+                  },
+                },
+                resume.subIntents,
+                catalog,
+                aiConfig.confidence,
+                timeZone,
+                {
+                  resumePlans: resume.plans,
+                  resumeStepIndex: resume.stepIndex,
+                },
+              );
+            }
             const subIntents = await this.decomposition.decompose(
               businessId,
               userId,
@@ -2917,19 +2992,30 @@ export class AiCommandService {
     },
     confidenceThresholds: { low: number; high: number },
     timeZone: string,
+    resume?: { resumePlans?: AgentPlan[]; resumeStepIndex?: number },
   ): Promise<CommandResult> {
-    const plans: AgentPlan[] = [];
+    const plans: AgentPlan[] = [...(resume?.resumePlans ?? [])];
+    const startIndex =
+      typeof resume?.resumeStepIndex === 'number' &&
+      Number.isInteger(resume.resumeStepIndex) &&
+      resume.resumeStepIndex >= 0
+        ? resume.resumeStepIndex
+        : 0;
     const pipelineTrace = [
       this.completionPipeline.trace(
         'classify',
         'compound_intent',
-        `${subIntents.length} sub-intent(s)`,
+        plans.length
+          ? `${subIntents.length} sub-intent(s) (resume @${startIndex})`
+          : `${subIntents.length} sub-intent(s)`,
       ),
     ];
 
     let pendingCancelBookingIds: string[] | undefined;
+    const compoundActions = subIntents.map((s) => s.action);
 
-    for (const sub of subIntents) {
+    for (let stepIndex = startIndex; stepIndex < subIntents.length; stepIndex++) {
+      const sub = subIntents[stepIndex];
       const parsedParams: Record<string, any> = {
         ...this.completionPipeline.mergeSessionContext(
           sub.params,
@@ -3010,6 +3096,8 @@ export class AiCommandService {
       ) {
         parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
       }
+      // e2e-bug.284 — keep full compound action list on mid-step clarify so
+      // reschedule→create is not mistaken for a lone create_booking collapse.
       const handoff = runCompletionValidateHandoff(
         {
           businessId,
@@ -3018,12 +3106,28 @@ export class AiCommandService {
           catalog,
           timeZone,
           priorTrace: pipelineTrace,
-          clarifyExtras: { compoundStep: parsed.action },
+          clarifyExtras: {
+            compoundStep: parsed.action,
+            compoundActions,
+            compoundStepIndex: stepIndex,
+            decomposed: true,
+          },
         },
         this.completionPipeline,
       );
 
       if (handoff.status === 'clarify') {
+        // e2e-bug.304 / 305 — attach resume whenever a later step clarifies.
+        if (stepIndex > 0) {
+          return attachCompoundResumeToClarifyResult(handoff.result, {
+            plans,
+            subIntents,
+            stepIndex,
+            compoundActions,
+            confirmationPrompt: prompt,
+            compoundStep: parsed.action,
+          });
+        }
         return handoff.result;
       }
 

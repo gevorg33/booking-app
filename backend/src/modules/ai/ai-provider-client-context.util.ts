@@ -24,6 +24,7 @@ import { isExplainServiceOnlinePaymentSetupPrompt } from './ai-service-online-pa
 import { isConfigureLoyaltySettingsPrompt } from './ai-configure-loyalty-settings.util.js';
 import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 import { isCheckGiftCardBalancePrompt } from './ai-payments.util.js';
+import { isExplainDashboardOnlyActionPrompt } from './ai-provider-dashboard-handoff.util.js';
 
 export const PROVIDER_CLIENT_CONTEXT_INTENTS = [
   'summarize_client',
@@ -67,22 +68,26 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
   if (isCatalogMutateCommandPrompt(prompt)) return false;
   if (isSummarizeLoyaltyProgramPrompt(prompt)) return false;
   if (isSummarizeAutomationPerformancePrompt(prompt)) return false;
+  // e2e-bug.282 — why-can't-call / dashboard-only FAQ must not steal to summarize.
+  if (isExplainDashboardOnlyActionPrompt(prompt)) return false;
 
   const lower = prompt.toLowerCase();
   if (/\b(bookings?|appointments?)\s+overview\b/i.test(lower)) {
     return false;
   }
 
+  // e2e-bug.282 — do not treat bare հաճախորդ/клиент as a summarize cue
+  // (that made "Ինչու չեմ կարող զանգահարել հաճախորդին" → summarize_client).
   const summarizeCue =
     /\b(summarize|summary|overview|brief me|tell me about|what should i know|client snapshot|know about|brief on)\b/i.test(
       lower,
     ) ||
     (containsArmenianScript(prompt) &&
-      /(ամփոփ|պատմ|հաճախորդ|\u056b\u0574\u0561\u0576|snapshot|no-show|\u0584\u0561\u0576\u056b\s+\u0561\u0576\u0563\u0561\u0574)/i.test(
+      /(ամփոփ|պատմ|\u056b\u0574\u0561\u0576|snapshot|no-show|\u0584\u0561\u0576\u056b\s+\u0561\u0576\u0563\u0561\u0574)/i.test(
         prompt,
       )) ||
     (containsCyrillicScript(prompt) &&
-      /(кратко|расскаж|об этом клиент|клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
+      /(кратко|расскаж|об этом клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
         prompt,
       )) ||
     /\bhow many times has [A-Z]/i.test(prompt);
@@ -194,6 +199,15 @@ export function isListClientStaffNotesPrompt(prompt: string): boolean {
 
 export function isExplainClientIntakePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.247 — "Open the full intake answers" is dashboard-only FAQ
+  // (explain_dashboard_only_action), not a live booking intake read.
+  if (
+    /\bfull\s+intake\s+answers\b/i.test(lower) ||
+    (/\bopen\s+(?:the\s+)?full\s+intake\b/i.test(lower) &&
+      !/\b(for|client|customer|'s)\b/i.test(lower))
+  ) {
+    return false;
+  }
   const intakeCue =
     /\b(intake|pre-?visit (?:form|questionnaire|answers)|questionnaire)\b/i.test(
       lower,

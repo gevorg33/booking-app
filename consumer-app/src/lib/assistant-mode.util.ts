@@ -1,17 +1,18 @@
 export type AssistantMode = 'guide' | 'act';
 
-export function resolveAssistantModePayload(
-  guideMode: boolean,
-): AssistantMode | undefined {
-  return guideMode ? 'guide' : undefined;
+/**
+ * e2e-bug.233 — Help chip off → explicit `act` (do not omit and let "How do…"
+ * infer guide / steal loyalty into guide_user_flow).
+ */
+export function resolveAssistantModePayload(guideMode: boolean): AssistantMode {
+  return guideMode ? 'guide' : 'act';
 }
 
 export function withAssistantModeContext<T extends Record<string, unknown>>(
   context: T,
   guideMode: boolean,
-): T & { assistantMode?: AssistantMode } {
-  const mode = resolveAssistantModePayload(guideMode);
-  return mode ? { ...context, assistantMode: mode } : context;
+): T & { assistantMode: AssistantMode } {
+  return { ...context, assistantMode: resolveAssistantModePayload(guideMode) };
 }
 
 export function withGuideTopicSeedContext<T extends Record<string, unknown>>(

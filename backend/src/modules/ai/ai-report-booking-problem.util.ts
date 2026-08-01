@@ -26,10 +26,14 @@ const BILLING_ISSUE_CUE =
   /\b(charged twice|double bill(?:ed)?|wrong charge|billing issue|refund|overcharg|duplicate charge|paid twice|списали дважды|двойн|երկու անգամ|գանձ)/i;
 
 const VISIT_ISSUE_CUE =
-  /\b(something went wrong|bad experience|problem with my (?:visit|appointment)|issue with my (?:visit|appointment)|complain about|could be better|went wrong with my visit|пошло не так|սխալ էր|խնդիր)/i;
+  /\b(something went wrong|bad experience|problem with my (?:visit|appointment|booking)|issue with my (?:visit|appointment|booking)|complain(?:t)? about|file a complaint|could be better|went wrong with my (?:visit|booking|appointment)|wrong time on my (?:appointment|booking|visit)|appointment time was wrong|пошло не так|սխալ էր|խնդիր)/i;
 
 const REPORT_PROBLEM_CUE =
-  /\b(report a problem|open a support ticket for my booking|support ticket for my booking|tell the salon|problem after my appointment|there was a problem)\b/i;
+  /\b(report a (?:booking )?problem|report booking problem|open a support ticket for my booking|support ticket for my booking|tell the salon|problem after my appointment|there was a problem|please report it to support|report it to support)\b/i;
+
+/** e2e-bug.236 — complaint / report-to-support cues that confirm_details must not steal. */
+const COMPLAINT_OR_SUPPORT_REPORT_CUE =
+  /\b(file a complaint|complaint about|complain about|report (?:a |this |my )?(?:booking )?problem|report it to support|please report)\b/i;
 
 const GENERIC_SUPPORT_ONLY_CUE = /^\s*contact\s+support\s*$/i;
 
@@ -123,8 +127,16 @@ export function isReportBookingProblemPrompt(prompt: string): boolean {
   if (VISIT_ISSUE_CUE.test(prompt)) return true;
   if (REPORT_PROBLEM_CUE.test(prompt)) return true;
 
+  // e2e-bug.236 — "file a complaint about my appointment" (complaint ≠ complain).
+  if (
+    COMPLAINT_OR_SUPPORT_REPORT_CUE.test(prompt) &&
+    /\b(booking|appointment|visit|charge|bill(?:ed|ing)?)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+
   return (
-    /\b(report|complain|problem|issue)\b/i.test(prompt) &&
+    /\b(report|complain|complaint|problem|issue)\b/i.test(prompt) &&
     /\b(booking|appointment|visit|charge|bill(?:ed|ing)?)\b/i.test(prompt)
   );
 }

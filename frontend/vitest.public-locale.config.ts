@@ -19,6 +19,7 @@ export default defineConfig({
       'src/lib/server-locale.spec.ts',
       'src/i18n/I18nProvider.spec.tsx',
       'src/components/public-booking/public-locale-bootstrap.spec.tsx',
+      'src/components/public-booking/public-account-growth-section.spec.tsx',
     ],
     coverage: {
       provider: 'v8',

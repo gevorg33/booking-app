@@ -1,7 +1,5 @@
-import {
-  formatDateDisplay,
-  formatTimeRangeDisplay,
-} from '../../common/utils/date-format.util.js';
+import { formatTimeRangeDisplay } from '../../common/utils/date-format.util.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
 
 export interface BookingSnapshot {
   employeeName?: string | null;
@@ -37,7 +35,8 @@ export function formatBookingSnapshotLine(
   const end = snapshot.endTime;
   const when =
     start && end
-      ? `${formatDateDisplay(start)} ${formatTimeRangeDisplay(start, end)}`
+      ? // e2e-bug.285 — unambiguous day-month-year (never DD/MM slash for AI).
+        `${formatDateForAiLabel(start)} ${formatTimeRangeDisplay(start, end)}`
       : '';
 
   const labelParts: string[] = [];
@@ -90,7 +89,7 @@ export function formatBlockScheduleLine(result: {
   const provider = result.employeeName ?? 'provider';
   const label = result.label ?? 'Blocked';
   if (result.singleStartTime && result.singleEndTime) {
-    const when = `${formatDateDisplay(result.singleStartTime)} ${formatTimeRangeDisplay(
+    const when = `${formatDateForAiLabel(result.singleStartTime)} ${formatTimeRangeDisplay(
       result.singleStartTime,
       result.singleEndTime,
     )}`;

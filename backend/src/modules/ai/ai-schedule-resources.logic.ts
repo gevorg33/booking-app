@@ -1,4 +1,5 @@
 import { Repository, Between, In, Not } from 'typeorm';
+import { isUUID } from 'class-validator';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
@@ -338,16 +339,28 @@ export async function handleSetServiceResourceRequirementsLogic(
     );
   }
 
-  const resourceIdsParam = Array.isArray(params.resourceIds)
+  const resourceIdsParamRaw = Array.isArray(params.resourceIds)
     ? params.resourceIds.filter(
         (id): id is string => typeof id === 'string',
       )
     : [];
-  const resourceNames = Array.isArray(params.resourceNames)
-    ? params.resourceNames.filter(
-        (name): name is string => typeof name === 'string',
-      )
-    : [];
+  // e2e-bug.147 (write-side follow-up) — the classifier sometimes puts a
+  // human-readable resource name into `resourceIds` instead of
+  // `resourceNames`. Never trust a non-UUID value as a real id; treat it as
+  // a name to resolve instead, so it doesn't reach the query layer verbatim
+  // and leak a raw "invalid input syntax for type uuid" Postgres error.
+  const resourceIdsParam = resourceIdsParamRaw.filter((id) => isUUID(id));
+  const misclassifiedIdsAsNames = resourceIdsParamRaw.filter(
+    (id) => !isUUID(id),
+  );
+  const resourceNames = [
+    ...(Array.isArray(params.resourceNames)
+      ? params.resourceNames.filter(
+          (name): name is string => typeof name === 'string',
+        )
+      : []),
+    ...misclassifiedIdsAsNames,
+  ];
 
   if (resourceIdsParam.length === 0 && resourceNames.length === 0) {
     return failure(
@@ -358,9 +371,9 @@ export async function handleSetServiceResourceRequirementsLogic(
   }
 
   let resolvedIds = resourceIdsParam;
-  if (resolvedIds.length === 0) {
+  if (resourceNames.length > 0) {
     const resources = await deps.resourceRepo.find({ where: { businessId } });
-    resolvedIds = resourceNames
+    const resolvedFromNames = resourceNames
       .map((name) => {
         const needle = name.toLowerCase();
         return (
@@ -369,6 +382,7 @@ export async function handleSetServiceResourceRequirementsLogic(
         )?.id;
       })
       .filter((id): id is string => !!id);
+    resolvedIds = [...new Set([...resolvedIds, ...resolvedFromNames])];
 
     if (resolvedIds.length === 0) {
       return failure(

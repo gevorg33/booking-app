@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   assembleHomeScreenWidgetSummary,
@@ -28,11 +29,15 @@ export async function handleExplainHomeScreenWidgetLogic(
   prompt = '',
 ): Promise<CommandResult> {
   const textPrompt = prompt || String(params._prompt ?? '');
+  const locale = resolveLocale(
+    typeof params.locale === 'string' ? params.locale : undefined,
+  );
   const parsed = parseExplainHomeScreenWidgetFromPrompt(textPrompt);
   if (!parsed) {
     return failure(
       'explain_home_screen_widget',
-      'Ask about the home screen widget (e.g. "Add next appointment to home screen" or "What does the widget show?").',
+      // e2e-bug.276 — localize clarify (was English-only under locale:hy|ru).
+      t(locale, 'assistant.homeScreenWidgetClarify'),
       { clarify: true },
     );
   }

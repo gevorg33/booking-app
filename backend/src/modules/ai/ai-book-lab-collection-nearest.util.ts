@@ -5,7 +5,11 @@ import {
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 import { isFirstAvailableBookingPrompt } from './booking-first-available.semantic.util.js';
 import { isBookNearestSlotPrompt } from './ai-payments.util.js';
-import { isStaffBookLabCollectionPrompt } from './ai-clinic-lab-booking.util.js';
+import {
+  extractNamedLabPanelFromPrompt,
+  isLabCollectionNearestFillerName,
+  isStaffBookLabCollectionPrompt,
+} from './ai-clinic-lab-booking.util.js';
 import { extractOrderIdFromPrompt } from './ai-clinic-test-result.util.js';
 import { BOOK_LAB_COLLECTION_NEAREST_MULTILINGUAL_SCENARIOS } from './ai-book-lab-collection-nearest-multilingual.fixtures.js';
 import {
@@ -108,10 +112,25 @@ export function buildBookLabCollectionNearestCompoundParams(
   const orderId = extractOrderIdFromPrompt(prompt);
   if (orderId) params.orderId = orderId;
 
+  // e2e-bug.202 — promote named panel ("for unicorn-panel-xyzzy") to testName;
+  // drop topic/slot filler that shared booking context stuffed into serviceName.
   const testName =
     scenario?.testName ??
-    (typeof params.testName === 'string' ? params.testName : undefined);
-  if (testName) params.testName = testName;
+    extractNamedLabPanelFromPrompt(prompt) ??
+    (typeof params.testName === 'string' ? params.testName : undefined) ??
+    (typeof params.serviceName === 'string' &&
+    !isLabCollectionNearestFillerName(params.serviceName)
+      ? params.serviceName.trim()
+      : undefined);
+  if (testName) {
+    params.testName = testName;
+  }
+  if (
+    typeof params.serviceName === 'string' &&
+    isLabCollectionNearestFillerName(params.serviceName)
+  ) {
+    delete params.serviceName;
+  }
 
   return params;
 }

@@ -22,7 +22,8 @@ export interface AvailabilityDisambiguationResult {
   params?: Record<string, unknown>;
 }
 
-const BOOK_VERB = /\b(book|schedule|reserve|create appointment)\b/i;
+const BOOK_VERB =
+  /\b(book|schedule|reserve|create\s+(?:a\s+)?(?:booking|appointment)|make\s+(?:a\s+)?(?:booking|appointment))\b/i;
 
 function hasBookVerb(prompt: string): boolean {
   return (
@@ -32,9 +33,13 @@ function hasBookVerb(prompt: string): boolean {
   );
 }
 
-/** e2e-bug.92 — "can I book a haircut tomorrow at 3pm?" (concrete time, not nearest). */
+/** e2e-bug.92 / e2e-bug.192 — "can I book a haircut tomorrow at 3pm?" / "create a booking … at 11am". */
 export function isConcreteTimedBookAppointmentPrompt(prompt: string): boolean {
-  if (!BOOK_VERB.test(prompt) && !/\bcan\s+i\s+book\b/i.test(prompt)) {
+  if (
+    !BOOK_VERB.test(prompt) &&
+    !/\bcan\s+i\s+book\b/i.test(prompt) &&
+    !/\bi\s+want\s+to\s+book\b/i.test(prompt)
+  ) {
     return false;
   }
   if (isBookNearestSlotPrompt(prompt) || isFirstAvailableBookingPrompt(prompt)) {
@@ -58,6 +63,13 @@ function isNamedProviderAvailabilityPrompt(prompt: string): boolean {
   );
 }
 
+/** "is Gevorg available …" — keep as check_availability even when explain overlaps. */
+function isNamedIsAvailablePrompt(prompt: string): boolean {
+  return /\b(?:is|are)\s+[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i.test(
+    prompt,
+  );
+}
+
 /** Staff-ops assignment lookup — not customer "who is free" wording. */
 export function isLookupServiceAssignmentPrompt(prompt: string): boolean {
   if (isCheckProvidersForServicePrompt(prompt)) return false;
@@ -75,7 +87,12 @@ export function isLookupServiceAssignmentPrompt(prompt: string): boolean {
 function publicAvailabilityAction(
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
-  if (isExplainProviderAvailabilityPrompt(prompt)) return null;
+  if (
+    isExplainProviderAvailabilityPrompt(prompt) &&
+    !isNamedIsAvailablePrompt(prompt)
+  ) {
+    return null;
+  }
   // e2e-bug.92 — do not remap any-provider explain into check_availability.
   if (isExplainAnyProviderOptionPrompt(prompt)) return null;
   if (/\breviews?\b/i.test(prompt)) return null;
@@ -135,12 +152,26 @@ function dashboardOrCustomerAvailabilityAction(
   surface: 'dashboard' | 'customer',
   prompt: string,
 ): AvailabilityDisambiguationResult | null {
-  if (isExplainProviderAvailabilityPrompt(prompt)) return null;
+  if (
+    isExplainProviderAvailabilityPrompt(prompt) &&
+    !isNamedIsAvailablePrompt(prompt)
+  ) {
+    return null;
+  }
   if (isFindSoonestAppointmentPrompt(prompt) && !hasBookVerb(prompt)) {
     return {
       action: 'find_soonest_appointment',
       rescueReason: 'soonest_appointment',
       params: { bookingFirstAvailable: true, allProviders: true },
+    };
+  }
+  // e2e-bug.192 — timed "Book … at 11am" on customer must become book_appointment
+  // (not stay on check_providers / check_availability / create_booking).
+  if (surface === 'customer' && isConcreteTimedBookAppointmentPrompt(prompt)) {
+    return {
+      action: 'book_appointment',
+      rescueReason: 'public_timed_book',
+      params: buildSharedBookingContextFromPrompt(prompt),
     };
   }
   if (isCheckProvidersForServicePrompt(prompt) && !hasBookVerb(prompt)) {
@@ -184,6 +215,25 @@ export function disambiguateMisclassifiedAvailabilityIntent(
   action: string,
   params: Record<string, unknown>,
 ): AvailabilityDisambiguationResult | null {
+  // e2e-bug.192 — timed book must escape discovery / create_booking even when
+  // action is check_availability (not only check_providers_for_service).
+  // Dashboard keeps create_booking; customer/public use book_appointment.
+  if (
+    (surface === 'customer' || surface === 'public') &&
+    isConcreteTimedBookAppointmentPrompt(prompt) &&
+    action !== 'book_appointment' &&
+    action !== 'book_nearest_slot'
+  ) {
+    return {
+      action: 'book_appointment',
+      rescueReason: 'public_timed_book',
+      params: {
+        ...params,
+        ...buildSharedBookingContextFromPrompt(prompt),
+      },
+    };
+  }
+
   // e2e-bug.92 — allow escaping check_providers_for_service when book/timed cues win.
   if (
     hasBookVerb(prompt) &&
@@ -205,6 +255,17 @@ export function disambiguateMisclassifiedAvailabilityIntent(
     'unknown',
   ]);
   if (!confusedActions.has(action)) return null;
+
+  // e2e-bug.249 — dashboard create_booking + nearest/check-then-book must stay
+  // create_booking. The multi-surface loop must not let public
+  // book_appointment (public_flexible_book) steal before check_and_book_compound.
+  if (
+    action === 'create_booking' &&
+    (resolved.action === 'book_appointment' ||
+      resolved.action === 'book_nearest_slot')
+  ) {
+    return null;
+  }
 
   let rescueReason = resolved.rescueReason;
   if (

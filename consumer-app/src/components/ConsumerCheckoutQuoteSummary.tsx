@@ -1,10 +1,20 @@
 import type { ConsumerCopy } from '../lib/consumer-copy.types.js';
 import type { PublicCheckoutQuote } from '../lib/types.js';
 import { formatPublicMoney } from '../lib/business-currency.js';
+import { formatCopy } from '../lib/copy.js';
 import {
   formatTaxLineLabel,
   resolveCheckoutTaxDisplayLines,
 } from '../lib/business-tax.js';
+
+/**
+ * `servicePrice` is the full price; `subtotal` is actually the pre-discount
+ * online-charge base (prepaymentDue) — the gap between them, independent of
+ * any promo/gift-card/loyalty discount, is what's left to pay at the visit.
+ */
+export function resolveCheckoutDepositRemainder(quote: PublicCheckoutQuote): number {
+  return Math.max(0, quote.servicePrice - quote.subtotal);
+}
 
 export function ConsumerCheckoutQuoteSummary({
   quote,
@@ -95,6 +105,14 @@ export function ConsumerCheckoutQuoteSummary({
         <span>{amountDue <= 0 && (quote.totalDiscount ?? 0) > 0 ? copy.checkoutFreeAfterDiscounts : copy.checkoutTotalDue}</span>
         <span>{formatMoney(amountDue)}</span>
       </div>
+
+      {amountDue > 0 && resolveCheckoutDepositRemainder(quote) > 0.005 ? (
+        <p style={{ marginTop: 8, marginBottom: 0, color: '#6b7280' }}>
+          {formatCopy(copy.checkoutDepositNotice, {
+            amount: formatMoney(resolveCheckoutDepositRemainder(quote)),
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }

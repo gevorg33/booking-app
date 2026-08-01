@@ -84,6 +84,7 @@ import {
   isEarliestSlotAllServicesPrompt,
   isProvidersAvailableLaterDaysPrompt,
 } from './ai-schedule-resources.util.js';
+import { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
 
 export const DASHBOARD_PAYMENTS_MUTATE_INTENTS = [
   'configure_cash_payments',
@@ -105,6 +106,10 @@ export const DASHBOARD_PAYMENTS_READ_INTENTS = [
   'explain_public_booking_checkout',
   'audit_services_missing_online_payment',
   'list_subscription_revenue',
+  // e2e-bug.287 — team-wide "who is free / is anybody open" must be
+  // registry-allowed on dashboard or acceptRescueForSurface drops the remap
+  // from check_availability → check_providers_for_service.
+  'check_providers_for_service',
 ] as const;
 
 export const PROVIDER_PAYMENTS_INTENTS = [
@@ -291,11 +296,38 @@ export function isCollectCashConfirmPrompt(prompt: string): boolean {
 
 export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   if (isFindSoonestAppointmentPrompt(prompt)) return false;
+  // e2e-bug.193 — catalog list "what services are available?" is list_services.
+  if (isPlainServiceCatalogListPrompt(prompt)) return false;
   if (
     isCheckMultiServiceBlockAvailabilityPrompt(prompt) ||
     isCheckPackageLineAvailabilityPrompt(prompt) ||
     isEarliestSlotAllServicesPrompt(prompt) ||
     isProvidersAvailableLaterDaysPrompt(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.189 — roster-only "who are your providers/specialists" is list_providers.
+  // Inline (avoid circular import with ai-list-providers.util).
+  if (
+    /\bwho\s+are\s+(?:your|our|the)\s+(?:providers?|specialists?|stylists?|therapists?|staff|team|employees?)(?:\s*\/\s*(?:providers?|specialists?|stylists?|staff|team))?\b/i.test(
+      prompt,
+    ) &&
+    !/\b(?:available|availability|free|open|for)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    (/\b(?:list|show|see)\s+(?:(?:me|us)\s+)?(?:(?:all|your|our|the)\s+)?(?:providers?|specialists?|stylists?|therapists?|staff|team|employees?)\b/i.test(
+      prompt,
+    ) ||
+      /\bwho\s+works\s+here\b/i.test(prompt) ||
+      /\bshow\s+me\s+your\s+team\b/i.test(prompt) ||
+      /\bwhat\s+(?:providers?|specialists?|stylists?|therapists?)\s+do\s+you\s+have\b/i.test(
+        prompt,
+      )) &&
+    !/\b(?:available|availability|free|open|for|rated|recommend|reviews?)\b/i.test(
+      prompt,
+    )
   ) {
     return false;
   }
@@ -331,6 +363,37 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   if (
     /\bwhen\s+(?:is|are)\s+[A-Za-z]/i.test(prompt) &&
     /\bavailable\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.92 / e2e-bug.269 — named "is Gevorg available …" is availability,
+  // not providers-for-service. Exclude indefinites so
+  // "is anybody open … and schedule the next available appointment" still
+  // matches check_providers (+ book_nearest) compounds.
+  if (
+    /\b(?:is|are)\s+(?!anybody\b|anyone\b|someone\b|everybody\b|everyone\b)[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // e2e-bug.93 — "What's Karo Mazmanyan's availability this week?" must not
+  // match the bare "what" + availability gravity well below.
+  if (
+    /\b[A-Za-z][\w.'-]{1,40}(?:\s+[A-Za-z][\w.'-]{1,40})?(?:'s|’s)\s+availability\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+  // e2e-bug.287 / e2e-bug.190 — open-times browse stays check_availability.
+  // Without this, "what times are available…" matches the what+available well
+  // and (once dashboard registry allows check_providers) remaps away from
+  // named/open-slot browse.
+  if (
+    /\bwhat\s+times?\b/i.test(prompt) ||
+    /\bopen\s+slots?\b/i.test(prompt) ||
+    /\bcheck\s+availability\b/i.test(prompt)
   ) {
     return false;
   }
@@ -379,19 +442,34 @@ export function isBookNearestSlotPrompt(prompt: string): boolean {
   return (
     wantsFlexibleSlot &&
     (/\b(slot|appointment|opening|time)\b/i.test(prompt) ||
+      // e2e-bug.200 — "book the soonest" / "book nearest" is itself the flexible cue
+      // (do not require haircut/massage token — hairstyle / multi-word services).
+      /\bbook\s+(?:the\s+)?(?:soonest|nearest)\b/i.test(prompt) ||
       !!extractServiceNameFromPrompt(prompt) ||
-      /\b(haircut|massage|facial|cut|color|service)\b/i.test(prompt) ||
+      /\b(haircut|hairstyle|hairstyles|massage|facial|cut|color|service)\b/i.test(
+        prompt,
+      ) ||
       /\basap\b/i.test(prompt))
   );
 }
 
 export function isApplyGiftCardCodePrompt(prompt: string): boolean {
   if (/\bcurrency\s+code\b/i.test(prompt)) return false;
+  // e2e-bug.231 — balance/left/value by code is check_gift_card_balance, not apply.
+  if (isCheckGiftCardBalancePrompt(prompt)) return false;
   // e2e-bug.83 — "redeem referral code X" must not become apply_gift_card_code.
   if (/\breferral\b/i.test(prompt)) return false;
   if (
     /\binvite\s+code\b/i.test(prompt) &&
     !/\bgift\s*card\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.232 — bare "apply/redeem code X at checkout" is apply_promo_code_checkout.
+  // Gift apply requires an explicit gift-card cue or GCM-/GCB-/GCS- token.
+  if (
+    !/\bgift\s*card\b/i.test(prompt) &&
+    !/\bGCM-|\bGCB-|\bGCS-/i.test(prompt)
   ) {
     return false;
   }
@@ -418,7 +496,6 @@ export function isApplyGiftCardCodePrompt(prompt: string): boolean {
   }
   return (
     /\b(apply|use|redeem|preview)\b/i.test(prompt) &&
-    (/\b(gift\s*card)\b/i.test(prompt) || /\bcode\b/i.test(prompt)) &&
     (/\b(code|checkout)\b/i.test(prompt) ||
       /\bmy\s+gift\s+card\b/i.test(prompt) ||
       /\bGCM-|\bGCB-|\bGCS-/i.test(prompt))
@@ -426,12 +503,26 @@ export function isApplyGiftCardCodePrompt(prompt: string): boolean {
 }
 
 export function isCheckGiftCardBalancePrompt(prompt: string): boolean {
+  if (!/\b(gift\s*card)\b/i.test(prompt)) return false;
+  if (/\bmy\s+account\b/i.test(prompt)) return false;
+  // Account-wallet asks without a concrete code stay on gift_card_balance.
+  const hasCodeCue =
+    /\b(GCM-|GCB-|GCS-)\b/i.test(prompt) ||
+    /\bby\s+code\b/i.test(prompt) ||
+    /\bgift\s*card\s+code\b/i.test(prompt) ||
+    /\bcode\s+(?:GCM-|GCB-|GCS-|[A-Z0-9-]{4,})\b/i.test(prompt);
+  if (!hasCodeCue) return false;
+  // e2e-bug.231 — balance / left / value / remaining by code (not apply/redeem).
+  if (
+    /\b(apply|use|redeem|preview)\b/i.test(prompt) &&
+    /\b(checkout|booking|visit|appointment)\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
-    /\b(check|what(?:'s| is)|balance)\b/i.test(prompt) &&
-    /\b(gift\s*card)\b/i.test(prompt) &&
-    (/\b(code|GCM-|GCB-|GCS-)\b/i.test(prompt) ||
-      /\bby\s+code\b/i.test(prompt)) &&
-    !/\bmy\s+account\b/i.test(prompt)
+    /\b(check|what(?:'s| is)|balance|remaining|left|value|how\s+much)\b/i.test(
+      prompt,
+    ) || /\bhow\s+much\s+is\s+left\b/i.test(prompt)
   );
 }
 
@@ -466,6 +557,7 @@ export function isBuyGiftCardPrompt(prompt: string): boolean {
 export function isBuyGiftCardPhysicalPrompt(prompt: string): boolean {
   if (hasGiftCardForSomeoneCue(prompt)) return false;
   if (isGetGiftCardQuotePrompt(prompt)) return false;
+  if (/\b(track|cancel|modify|request|refund)\b/i.test(prompt)) return false;
   return (
     /\b(buy|purchase|order)\b/i.test(prompt) &&
     /\b(gift\s*card)\b/i.test(prompt) &&
@@ -570,14 +662,44 @@ export function isAvailabilityFillerServiceName(
   if (typeof value !== 'string') return false;
   const trimmed = value.trim().toLowerCase();
   if (!trimmed) return true;
-  return /^(?:the|a|an|slot|time|appointment|appointments|opening|openings|available|free|open|next|first|soonest|nearest|upcoming|earliest|next\s+available|first\s+available|soonest\s+available|nearest\s+available|earliest\s+available)$/i.test(
+  // e2e-bug.89 — nearest/soonest fillers; e2e-bug.237 — date phrases stolen as serviceName.
+  return /^(?:the|a|an|slot|time|appointment|appointments|opening|openings|available|free|open|next|first|soonest|nearest|upcoming|earliest|next\s+available|first\s+available|soonest\s+available|nearest\s+available|earliest\s+available|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:\s+instead)?|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:\s+instead)?|tomorrow(?:\s+instead)?|today(?:\s+instead)?)$/i.test(
     trimmed,
   );
 }
 
+/**
+ * e2e-bug.260 — strip trailing relative/absolute date windows glued onto a
+ * service name ("massage this week" → "massage"). Shared by extract + param scrub.
+ */
+const TRAILING_SERVICE_TIME_WINDOW =
+  /\s+(?:this\s+(?:week|weekend|month|morning|afternoon|evening)|next\s+(?:week|weekend|month|morning|afternoon|evening)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
+
+/** Stop capture before date/time windows (align with waitlist / find_soonest). */
+const SERVICE_NAME_DATE_BOUNDARY =
+  String.raw`(?=\s*(?:,|;|\?|\band\b|\bbook\b|\bwith\b|\bat\b|\bon\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+
+const BARE_SERVICE_TIME_WINDOW =
+  /^(?:this\s+(?:week|weekend|month)|next\s+(?:week|weekend|month)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
+
+export function stripTrailingTimeWindowFromServiceName(
+  name: string | null | undefined,
+): string | null {
+  if (typeof name !== 'string') return null;
+  let cleaned = name.trim().replace(/[,.'"“”]+$/g, '').trim();
+  if (!cleaned) return null;
+  for (let i = 0; i < 3; i++) {
+    const next = cleaned.replace(TRAILING_SERVICE_TIME_WINDOW, '').trim();
+    if (next === cleaned) break;
+    cleaned = next;
+  }
+  if (!cleaned || BARE_SERVICE_TIME_WINDOW.test(cleaned)) return null;
+  return cleaned;
+}
+
 function acceptExtractedServiceName(name: string | null | undefined): string | null {
   if (!name) return null;
-  const trimmed = name.trim().replace(/[,.]$/, '');
+  const trimmed = stripTrailingTimeWindowFromServiceName(name);
   if (!trimmed || isAvailabilityFillerServiceName(trimmed)) return null;
   return trimmed;
 }
@@ -593,7 +715,11 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
     if (name) return name;
   }
   const forService = prompt.match(
-    /\bfor\s+(?:(?:a|an|my|the|this)\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
+    new RegExp(
+      String.raw`\bfor\s+(?:(?:a|an|my|the|this)\s+)?([a-z][\w\s'-]{2,40}?)` +
+        SERVICE_NAME_DATE_BOUNDARY,
+      'i',
+    ),
   );
   if (forService) {
     const name = acceptExtractedServiceName(forService[1]);
@@ -607,7 +733,11 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
     if (name) return name;
   }
   const takeService = prompt.match(
-    /\b(?:take|do)\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bbook\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|$))/i,
+    new RegExp(
+      String.raw`\b(?:take|do)\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)` +
+        SERVICE_NAME_DATE_BOUNDARY,
+      'i',
+    ),
   );
   if (takeService) {
     const name = acceptExtractedServiceName(takeService[1]);
@@ -635,8 +765,11 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
       prompt,
     );
   if (!isFlexibleSlotOnlyBookPhrase) {
+    // e2e-bug.205 — stop before a capacity-gate/earliest-date tail clause
+    // ("book if enough seats", "book the wine tour earliest date for 2
+    // people") so those cue words never get glued into the service name.
     const bookService = prompt.match(
-      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+|next\s+)?([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\b(?:slot|appointment|opening|time)\b|$))/i,
+      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+|next\s+)?(?!if\b|when\b|unless\b|only\b)([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\bif\b|\bwhen\b|\bunless\b|\bonly\b|\bearliest\b|\bnearest\b|\bsoonest\b|\basap\b|\b(?:slot|appointment|opening|time)\b|$))/i,
     );
     if (bookService) {
       const name = acceptExtractedServiceName(bookService[1]);
@@ -800,6 +933,22 @@ export function rescuePaymentsIntent(
   }
   if (isBuyGiftCardPrompt(prompt) && action !== 'buy_gift_card') {
     return { action: 'buy_gift_card', rescueReason: 'buy_gift_card' };
+  }
+
+  // e2e-bug.231 — remap apply_gift_card_code / nearby payments intents to
+  // code-balance lookup before the payments early-return below.
+  if (
+    isCheckGiftCardBalancePrompt(prompt) &&
+    action !== 'check_gift_card_balance'
+  ) {
+    return { action: 'check_gift_card_balance', rescueReason: 'code_balance' };
+  }
+
+  // e2e-bug.231 — gift-card checkout how-it-works before currency/payments stick.
+  const explainPublicBookingCheckoutEarly =
+    rescueExplainPublicBookingCheckoutIntent(prompt, action);
+  if (explainPublicBookingCheckoutEarly) {
+    return explainPublicBookingCheckoutEarly;
   }
 
   if (isPaymentsIntent(action)) return null;

@@ -23,6 +23,17 @@ const EXPLAIN_SALON_PROFILE_EN_PROMPTS = [
     aspect: 'overview' as const,
   },
   {
+    // e2e-bug.191 — slash "business / salon info" must not become provider specialty.
+    id: 'tell-me-about-business-slash-salon-info',
+    prompt: 'Tell me about this business / salon info',
+    aspect: 'overview' as const,
+  },
+  {
+    id: 'tell-me-about-this-business',
+    prompt: 'Tell me about this business',
+    aspect: 'overview' as const,
+  },
+  {
     id: 'photos-and-reviews',
     prompt: 'Show photos and reviews',
     aspect: 'photos' as const,
@@ -97,6 +108,19 @@ export const EXPLAIN_SALON_PROFILE_RESCUE_SCENARIOS = [
     expectedAction: 'explain_salon_profile' as const,
   },
   {
+    // e2e-bug.191 — specialty misroute rescue.
+    id: 'provider-specialty-to-salon-profile-slash',
+    prompt: 'Tell me about this business / salon info',
+    misclassifiedAction: 'explain_provider_specialty',
+    expectedAction: 'explain_salon_profile' as const,
+  },
+  {
+    id: 'provider-specialty-to-salon-profile-this-business',
+    prompt: 'Tell me about this business',
+    misclassifiedAction: 'explain_provider_specialty',
+    expectedAction: 'explain_salon_profile' as const,
+  },
+  {
     id: 'booking-help-to-salon-profile',
     prompt: 'About the salon',
     misclassifiedAction: 'booking_help',
@@ -113,5 +137,49 @@ export const EXPLAIN_SALON_PROFILE_RESCUE_SCENARIOS = [
     prompt: 'Salon profile',
     misclassifiedAction: 'list_providers',
     expectedAction: 'explain_salon_profile' as const,
+  },
+] as const;
+
+/** e2e-bug.191 — must NOT classify/rescue as explain_provider_specialty. */
+export const EXPLAIN_PROVIDER_SPECIALTY_SALON_ABOUT_NEGATIVES = [
+  {
+    id: 'neg-tell-me-about-this-salon',
+    prompt: 'Tell me about this salon',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
+  },
+  {
+    id: 'neg-tell-me-about-this-business',
+    prompt: 'Tell me about this business',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
+  },
+  {
+    id: 'neg-tell-me-about-business-slash-salon-info',
+    prompt: 'Tell me about this business / salon info',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
+  },
+  {
+    id: 'neg-about-this-business',
+    prompt: 'about this business',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
+  },
+  {
+    id: 'neg-salon-info',
+    prompt: 'salon info',
+    expectedActions: ['business_info', 'explain_salon_profile'] as const,
+  },
+  {
+    id: 'neg-business-info-please',
+    prompt: 'business info please',
+    expectedActions: ['business_info', 'explain_salon_profile'] as const,
+  },
+  {
+    id: 'neg-tell-me-about-the-salon',
+    prompt: 'Tell me about the salon',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
+  },
+  {
+    id: 'neg-tell-me-about-your-business',
+    prompt: 'Tell me about your business',
+    expectedActions: ['explain_salon_profile', 'business_info'] as const,
   },
 ] as const;

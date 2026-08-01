@@ -6,7 +6,7 @@ import {
 import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { isEarliestSlotAllServicesPrompt } from './ai-schedule-resources.util.js';
 
-export const CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES = `- find_soonest_appointment: READ — find the single soonest/earliest/nearest open slot for a service ("Who's free soonest for a trim", "Earliest slot this week"). Set bookingFirstAvailable=true, timeSlot=null, allProviders=true when no named specialist. Uses the same availability scan as check_availability with first-available ranking. NOT book_nearest_slot|book_appointment (mutate booking), NOT check_providers_for_service (general who-is-free list without soonest/earliest cue), NOT check_availability (open-times browse without soonest focus).`;
+export const CUSTOMER_PUBLIC_FIND_SOONEST_APPOINTMENT_CLASSIFIER_RULES = `- find_soonest_appointment: READ — find the single soonest/earliest/nearest open slot for a service ("Who's free soonest for a trim", "Earliest slot this week"). Set bookingFirstAvailable=true, timeSlot=null, allProviders=true when no named specialist. Uses the same availability scan as check_availability with first-available ranking. NOT book_nearest_slot|book_appointment (mutate booking), NOT reschedule_booking|reschedule_my_booking (move/reschedule an existing appointment to nearest/soonest free time — keep reschedule with bookingFirstAvailable), NOT check_providers_for_service (general who-is-free list without soonest/earliest cue), NOT check_availability (open-times browse without soonest focus).`;
 
 export type FindSoonestAppointmentPromptFixture = {
   id: string;
@@ -227,6 +227,80 @@ function hasMutateBookIntent(prompt: string): boolean {
   );
 }
 
+/**
+ * e2e-bug.248 — move/reschedule of an existing visit is MUTATE reschedule
+ * (often with bookingFirstAvailable), never READ find_soonest_appointment.
+ */
+export function isRescheduleExistingAppointmentPrompt(prompt: string): boolean {
+  if (/\bmove\s+\d+\s+.+(?:slot|appointment)/i.test(prompt)) return false;
+
+  // e2e-bug.252 — owner "alert/notify me when customers reschedule" is a
+  // notification preference, not MUTATE reschedule of an existing visit.
+  // "appointment" in "their appointment" must not trigger this detector.
+  if (
+    /\b(notify\s+me|alert\s+me|email\s+me|tell\s+me)\b/i.test(prompt) &&
+    /\b(whenever|when|if|each\s+time|every\s+time)\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (
+    /\b(toggle|enable|disable|turn\s+on|turn\s+off)\b/i.test(prompt) &&
+    /\b(email|notify|alert)\b/i.test(prompt) &&
+    /\bcustomers?\b/i.test(prompt)
+  ) {
+    return false;
+  }
+
+  const hasRescheduleVerb =
+    /\b(reschedule|move|shift|change\s+time|change\s+(?:the\s+)?(?:date|day))\b/i.test(
+      prompt,
+    );
+  if (!hasRescheduleVerb) return false;
+
+  if (/\b(appointment|booking|visit)\b/i.test(prompt)) return true;
+
+  // "Move to June 11 nearest free time for Maria" / "reschedule … soonest slot"
+  return /\b(?:nearest|soonest|earliest|first\s+available|next\s+available)\b/i.test(
+    prompt,
+  );
+}
+
+/**
+ * e2e-bug.267 — "Move …; put it June 2 nearest free time" is ONE reschedule
+ * with bookingFirstAvailable, not a compound (reschedule + fill_slot_from_waitlist).
+ * Semicolon / "then put it" only restates the destination of the same move.
+ */
+export function isSingleRescheduleNearestContinuationPrompt(
+  prompt: string,
+): boolean {
+  if (!isRescheduleExistingAppointmentPrompt(prompt)) return false;
+
+  // Real second actions — keep compound.
+  if (
+    /\b(cancel|notify|waitlist|fill\s+(?:the\s+)?(?:freed\s+)?slot|and\s+book|then\s+book|also\s+book|message|email|promo|pay|check\s+who|list\s+)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
+
+  const hasPutItContinuation =
+    /(?:;|\bthen)\s*put\s+(?:it|that|them)\b/i.test(prompt) ||
+    /(?:;|\bthen)\s*(?:move\s+)?(?:it|that)\s+(?:to\s+)?(?:the\s+)?(?:nearest|soonest|earliest|first\s+available|next\s+available)\b/i.test(
+      prompt,
+    );
+
+  const hasNearestDestination =
+    /\b(?:nearest|soonest|earliest|first\s+available|next\s+available)\b/i.test(
+      prompt,
+    ) &&
+    /\b(?:free\s+time|free\s+slot|available\s+(?:slot|time)|opening)\b/i.test(
+      prompt,
+    );
+
+  return hasPutItContinuation && hasNearestDestination;
+}
+
 /** Check-then-book compound: who-is-free + book-nearest in one message (not read-only soonest). */
 function isCheckThenBookCompoundPrompt(prompt: string): boolean {
   const hasCompoundJoin =
@@ -294,6 +368,8 @@ function extractFindSoonestServiceNameFromPrompt(
 
 export function isFindSoonestAppointmentPrompt(prompt: string): boolean {
   if (hasMutateBookIntent(prompt)) return false;
+  // e2e-bug.248 — "move appointment … nearest free time" is reschedule, not soonest READ.
+  if (isRescheduleExistingAppointmentPrompt(prompt)) return false;
   if (isCheckThenBookCompoundPrompt(prompt)) return false;
   if (isEarliestSlotAllServicesPrompt(prompt)) return false;
 

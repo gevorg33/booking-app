@@ -27,6 +27,11 @@ export interface GuideFlowNavigateTarget {
 export interface GuideFlowStepDef {
   titleKey: string;
   bodyKey: string;
+  /**
+   * Optional concise progress-chrome title (e2e-bug.294).
+   * Prefer this over humanizing the body when present.
+   */
+  shortTitleKey?: string;
   /** Optional shorter copy for TTS (ai-guide-1.4.4). */
   voiceSummaryKey?: string;
   navigate?: GuideFlowNavigateTarget;

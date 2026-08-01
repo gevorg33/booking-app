@@ -21,6 +21,7 @@ import { enrichListServicesParamsFromPrompt } from './ai-orchestration.helpers.j
 import { enrichEmployeeRoleRankFromPrompt } from './ai-employee-role-rank.util.js';
 import { resolveListServicesRankLimitFromPrompt } from './ai-rank-list-services.logic.js';
 import { isRankSessionListPickPrompt } from './ai-rank-session-pick.util.js';
+import { enrichFlexibleAvailabilitySingleWindowFromPrompt } from './ai-flexible-availability.util.js';
 import {
   RANK_I18N_HIGHEST_HINTS,
   RANK_I18N_LOWEST_HINTS,
@@ -40,8 +41,10 @@ const SERVICE_CATALOG_NOUN_PATTERN =
 
 const PROVIDER_RATING_PATTERN = /\b(?:rated|reviews?|stars?|rating)\b/i;
 
+// e2e-bug.278 — do not treat bare "recommend for <service>" as subjective
+// ("Who do you recommend for a massage tomorrow?" is provider rank).
 const SUBJECTIVE_RANK_PATTERN =
-  /\b(?:first[\s-]?time|for\s+me|for\s+my|recommend(?:ed)?\s+for|suitable\s+for|new\s+to|beginner|beginners)\b/i;
+  /\b(?:first[\s-]?time|for\s+me|for\s+my|suitable\s+for|new\s+to|beginner|beginners)\b/i;
 
 const RANK_BEST_SERVICE_CATEGORY_PATTERN =
   /\bbest\s+([a-z][\w-]{2,30})(?=\s*(?:and|under|below|for|with|tomorrow|today|nearest|soonest|service|services|not|,|$))/i;
@@ -71,6 +74,12 @@ const RANK_SERVICE_CATEGORY_ALIASES: Record<string, string> = {
   cut: 'haircut',
   cuts: 'haircut',
   trim: 'haircut',
+  // e2e-bug.101 — "most expensive styling" bypassed the haircut/hairstyle
+  // synonym entirely (that group only expands multi-word "hair styling"),
+  // so a catalog with only "hairstyle" (no literal "styling") never matched.
+  style: 'haircut',
+  styles: 'haircut',
+  styling: 'haircut',
   massages: 'massage',
 };
 
@@ -127,6 +136,23 @@ const RANK_SERVICE_CATEGORY_NOISE = new Set([
   'treatments',
   'package',
   'packages',
+  // e2e-bug.260 — "best rated for massage" / "best specialists for facial"
+  // must not treat rank/provider nouns as the service category.
+  'rated',
+  'rating',
+  'ratings',
+  'specialist',
+  'specialists',
+  'stylist',
+  'stylists',
+  'therapist',
+  'therapists',
+  'provider',
+  'providers',
+  'employee',
+  'employees',
+  'staff',
+  'team',
 ]);
 
 function normalizeRankServiceCategoryKeyword(keyword: string): string | null {
@@ -194,11 +220,24 @@ export function isServiceCatalogRecommendNotProviderPrompt(
 /** Provider-rank prompts must not receive catalog serviceRank (rank-1.3 / rank-1.5). */
 export function isServiceCatalogRankSpecialistPrompt(prompt: string): boolean {
   const specialist =
-    /\b(?:specialist|stylist|therapist|provider|employee)s?\b/i.test(prompt);
-  const rankCue = /\b(?:best|rated|top|highest|recommended|suggested)\b/i.test(
-    prompt,
+    /\b(?:specialist|stylist|therapist|provider|employee|someone|somebody)s?\b/i.test(
+      prompt,
+    );
+  const rankCue =
+    /\b(?:best|rated|top|highest|recommend(?:ed|s)?|suggest(?:ed|s)?)\b/i.test(
+      prompt,
+    );
+  if (specialist && rankCue) return true;
+
+  // e2e-bug.278 — who-recommend / who-is-best / recommend-someone (day-part ok).
+  return (
+    /\bwho\s+(?:do\s+you\s+)?recommend\b/i.test(prompt) ||
+    /\bwho\s+is\s+(?:the\s+)?best\b/i.test(prompt) ||
+    /\brecommend\s+someone\b/i.test(prompt) ||
+    /\bsuggest\s+(?:someone|a\s+(?:specialist|stylist|therapist|provider))\b/i.test(
+      prompt,
+    )
   );
-  return specialist && rankCue;
 }
 
 /** Provider rating discovery — specialist or "best rated X" without catalog service noun (rank-specialist-stays-en). */
@@ -223,8 +262,10 @@ export function extractProviderRankServiceCategoryFromPrompt(
 ): string | null {
   if (!isProviderRankDiscoveryPrompt(prompt)) return null;
 
+  // e2e-bug.260 — allow "for massage today" (no article); stop before date /
+  // day-part / budget windows ("for a cut under $60").
   const forServiceMatch = prompt.match(
-    /\bfor\s+(?:a|an|the)\s+([a-z][\w-]{2,30})\b/i,
+    /\bfor\s+(?:(?:a|an|the)\s+)?([a-z][\w-]{2,30})(?=\s*(?:this\b|next\b|today\b|tomorrow\b|tonight\b|week\b|weekend\b|morning\b|afternoon\b|evening\b|under\b|below\b|,|\?|$))/i,
   );
   if (forServiceMatch) {
     const normalized = normalizeRankServiceCategoryKeyword(
@@ -244,12 +285,13 @@ export function extractProviderRankServiceCategoryFromPrompt(
     }
   }
 
+  // Do not let "rated for …" capture the word "for" as the category.
   const rated = prompt.match(
-    /\b(?:best\s+)?rated\s+([a-z][\w\s-]{2,40}?)(?:\s+this\s+week|\s+under|\s+for|$)/i,
+    /\b(?:best\s+)?rated\s+(?!for\b|under\b)([a-z][\w\s-]{2,40}?)(?=\s*(?:this\s+week|under|for|$))/i,
   );
   if (rated) {
     const category = rated[1].trim().replace(/[?.!]+$/, '');
-    return category.length >= 2 ? category : null;
+    return normalizeRankServiceCategoryKeyword(category);
   }
 
   return null;
@@ -353,6 +395,13 @@ export function extractServiceRankServiceCategoryFromPrompt(
   if (isRankSessionUpgradePrompt(prompt)) return null;
   if (isRankSessionBudgetRefinePrompt(prompt)) return null;
   if (isRankSessionListPickPrompt(prompt)) return null;
+  // e2e-bug.260 — provider-rank prompts use specialist extract, not "best rated".
+  if (
+    isServiceCatalogRankSpecialistPrompt(prompt) ||
+    isProviderRankDiscoveryPrompt(prompt)
+  ) {
+    return extractProviderRankServiceCategoryFromPrompt(prompt);
+  }
 
   if (isMidRangeServiceListPrompt(prompt)) {
     const midRangeMatch = prompt.match(MID_RANGE_CATEGORY_PATTERN);
@@ -537,13 +586,17 @@ export function buildProviderRankDiscoveryRescueParams(
     prompt,
   );
   delete params.serviceRank;
-  if (params.employeeRole) return params;
+  if (params.employeeRole) {
+    return enrichFlexibleAvailabilitySingleWindowFromPrompt(prompt, params);
+  }
 
   const serviceCategory = extractProviderRankServiceCategoryFromPrompt(prompt);
   if (serviceCategory) {
     params.serviceCategory = serviceCategory;
   }
-  return params;
+  // e2e-bug.296 — rescue params must carry tonight/this evening → date+timeOfDay
+  // (otherwise recommend_specialists falls back to a 14-day scan).
+  return enrichFlexibleAvailabilitySingleWindowFromPrompt(prompt, params);
 }
 
 export function buildSubjectiveRankDiscoveryRescueParams(

@@ -1,6 +1,10 @@
 import { parseBusinessHoursWindow, isComplianceCheckPrompt } from './ai-operations.util.js';
 import { isExplainBusinessLanguagesPrompt } from './ai-business-languages.util.js';
 import { isApplyClinicPlaybookPrompt } from './ai-clinic-service.util.js';
+import {
+  formatPublicOpeningHoursLabel,
+  type PublicOpeningHours,
+} from '../public-booking/public-opening-hours.util.js';
 
 export const CUSTOMER_PUBLIC_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES = `- explain_business_hours_and_location: READ — explain salon opening hours (including a named weekday), street address, Google Maps link from the profile embed, and optional parking amenity copy. Triggers: "When are you open Saturday?", "Where are you located?", "What are your hours?", "Is there parking?", "What's the address?". Set aspect to hours|location|parking|hours_and_location when clear; set weekday for a named day. Navigate to profile when sharing map/address. NOT explain_salon_profile (general salon profile page / photos / social), NOT get_directions_to_salon (navigation/directions URL or visit parking guidance), NOT business_info (general salon description/contact dump), NOT booking_help (how to book), and NOT check_availability (slot search).`;
 
@@ -428,7 +432,12 @@ export function extractGoogleMapsUrl(mapEmbedHtml?: string): string | null {
 export function formatBusinessHoursLabel(
   settings: Record<string, unknown> | undefined,
   weekday?: string | null,
+  openingHours?: PublicOpeningHours | null,
 ): string {
+  // e2e-bug.227 — prefer schedule-template hours (public profile source of truth).
+  if (openingHours?.days?.length) {
+    return formatPublicOpeningHoursLabel(openingHours, weekday);
+  }
   const hours = settings?.hours ?? settings?.businessHours;
   if (weekday && hours && typeof hours === 'object' && !Array.isArray(hours)) {
     const record = hours as Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { IonButton, IonDatetime, IonSpinner } from '@ionic/react';
+import { IonDatetime, IonSpinner } from '@ionic/react';
 import { useCallback, useEffect, useState } from 'react';
 import type { PublicBusinessProfile, PublicPackageVisitSummary } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/copy.js';
@@ -23,6 +23,7 @@ import {
   formatPackageScheduleError,
   isVisitDurationCapError,
 } from '../lib/consumer-network-ux.util.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 const ACTIVE = new Set(['confirmed', 'pending']);
 
@@ -50,6 +51,7 @@ export function ConsumerPackageVisitActions({
   const turnover = 5;
   const [busy, setBusy] = useState<'cancel' | 'reschedule' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refundNotice, setRefundNotice] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [dateKey, setDateKey] = useState('');
   const [slots, setSlots] = useState<
@@ -168,13 +170,24 @@ export function ConsumerPackageVisitActions({
     if (!window.confirm(copy.cancelPackageVisitConfirm)) return;
     setBusy('cancel');
     setError(null);
+    setRefundNotice(null);
     try {
+      let result: { refundStatus?: 'refunded' | 'already_refunded' | 'skipped' | 'failed' };
       if (canActWithToken && manageToken) {
-        await cancelPackageVisitWithToken(slug, anchorBookingId, manageToken);
+        result = await cancelPackageVisitWithToken(slug, anchorBookingId, manageToken);
       } else if (canActWithAccount) {
-        await cancelCustomerPackageVisit(slug, anchorBookingId);
+        result = await cancelCustomerPackageVisit(slug, anchorBookingId);
       } else {
         throw new Error(copy.manageBookingSignInHint);
+      }
+      // e2e-bug.186 — refundStatus was fetched from the backend but never
+      // read here (mirrors e2e-bug.185's fix in ConsumerBookingActions),
+      // so a package visit whose refund failed looked identical to a
+      // successfully refunded one.
+      if (result.refundStatus === 'refunded') {
+        setRefundNotice(copy.cancelBookingRefunded);
+      } else if (result.refundStatus === 'failed') {
+        setRefundNotice(copy.cancelBookingRefundFailed);
       }
       onUpdated();
     } catch (err: unknown) {
@@ -233,24 +246,25 @@ export function ConsumerPackageVisitActions({
       ) : null}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {packageVisit.canRescheduleAll && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
+            aria-expanded={rescheduleOpen}
             onClick={() => setRescheduleOpen((o) => !o)}
           >
             {copy.reschedulePackageVisit}
-          </IonButton>
+          </ConsumerActionButton>
         )}
         {packageVisit.canCancelAll && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
             color="danger"
             disabled={busy === 'cancel'}
             onClick={() => void handleCancel()}
           >
-            {copy.cancelPackageVisit}
-          </IonButton>
+            {busy === 'cancel' ? copy.submitting : copy.cancelPackageVisit}
+          </ConsumerActionButton>
         )}
       </div>
 
@@ -279,19 +293,23 @@ export function ConsumerPackageVisitActions({
                 <IonSpinner className="ion-margin-top" />
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                  {slots.map((slot) => (
-                    <IonButton
-                      key={slot.startTime}
-                      size="small"
-                      fill={selectedStart === slot.startTime ? 'solid' : 'outline'}
-                      onClick={() => {
-                        setSelectedStart(slot.startTime);
-                        setEmployeeId(slot.employeeId ?? employeeId);
-                      }}
-                    >
-                      {formatScheduleTime(slot.startTime)}
-                    </IonButton>
-                  ))}
+                  {slots.map((slot) => {
+                    const selected = selectedStart === slot.startTime;
+                    return (
+                      <ConsumerActionButton
+                        key={slot.startTime}
+                        size="small"
+                        fill={selected ? 'solid' : 'outline'}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setSelectedStart(slot.startTime);
+                          setEmployeeId(slot.employeeId ?? employeeId);
+                        }}
+                      >
+                        {formatScheduleTime(slot.startTime)}
+                      </ConsumerActionButton>
+                    );
+                  })}
                 </div>
               )}
               {selectedStart && (
@@ -303,14 +321,14 @@ export function ConsumerPackageVisitActions({
                   })}
                 </p>
               )}
-              <IonButton
+              <ConsumerActionButton
                 expand="block"
                 className="ion-margin-top"
                 disabled={!selectedStart || busy === 'reschedule'}
                 onClick={() => void handleReschedule()}
               >
                 {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
-              </IonButton>
+              </ConsumerActionButton>
             </>
           )}
         </div>
@@ -318,6 +336,16 @@ export function ConsumerPackageVisitActions({
       {error ? (
         <p role="alert" style={{ color: '#dc2626', marginTop: 8 }}>
           {error}
+        </p>
+      ) : null}
+      {refundNotice ? (
+        <p
+          style={{
+            color: refundNotice === copy.cancelBookingRefundFailed ? '#dc2626' : '#16a34a',
+            marginTop: 8,
+          }}
+        >
+          {refundNotice}
         </p>
       ) : null}
     </div>

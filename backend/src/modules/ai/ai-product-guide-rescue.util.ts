@@ -25,6 +25,7 @@ import {
   rescueProductGuideMisroute,
   resolveProductGuidePromptMatch,
 } from './ai-product-guide.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
 
 export interface ProductGuideRescueOptions {
   surface: CommandSurface;
@@ -98,9 +99,12 @@ function enrichDashboardGuideTopicFromPrompt(
   route?: string,
   topicId?: unknown,
 ): string | undefined {
-  const explicit = readString(topicId);
-  if (explicit) return explicit;
-
+  // e2e-bug — the model's own topicId arg is frequently just copied from the tool
+  // schema's example text (or carried over from an unrelated earlier turn) rather
+  // than reflecting the actual question, so every deterministic signal derived from
+  // the CURRENT prompt/route is tried first. The explicit value is only used as a
+  // last resort, for legitimate multi-turn nav phrases ("next step") that have no
+  // topic-specific wording for anything below to match against.
   const fromSimilar = matchSimilarAppGuideTopicFromPrompt(prompt, 'dashboard');
   if (fromSimilar) return fromSimilar;
 
@@ -128,7 +132,7 @@ function enrichDashboardGuideTopicFromPrompt(
   ) {
     return 'dashboard.core.employees';
   }
-  if (/\b(inventory|stock|retail\s+product)\b/i.test(lower)) {
+  if (/\b(inventory|stock|retail\s+products?|products?)\b/i.test(lower)) {
     return 'dashboard.operations.inventory';
   }
   if (/\b(commission|payroll)\b/i.test(lower)) {
@@ -140,6 +144,9 @@ function enrichDashboardGuideTopicFromPrompt(
   if (/\b(operations|workflow|front.?desk)\b/i.test(lower)) {
     return 'dashboard.operations.overview';
   }
+
+  const explicit = readString(topicId);
+  if (explicit) return explicit;
 
   return primary;
 }
@@ -153,6 +160,15 @@ function enrichProviderGuideTopicFromPrompt(
   const explicit = readString(topicId);
   if (explicit) return explicit;
 
+  const lower = prompt.toLowerCase();
+
+  // e2e-bug.302 — Home/Today tab how-to (EN/HY/RU) before fuzzy similar-prompt
+  // matching, which otherwise maps EN "Home tab" to provider-assistant and
+  // leaves HY "օգտագործեմ Home tab" with no topic.
+  if (isProviderHomeOrTodayTabGuidePrompt(prompt)) {
+    return 'provider-today-calendar';
+  }
+
   if (providerIntent && isProviderProductGuideIntent(providerIntent)) {
     const fromIntent = matchSimilarAppGuideTopicFromPrompt(prompt, 'provider');
     if (fromIntent) return fromIntent;
@@ -164,17 +180,10 @@ function enrichProviderGuideTopicFromPrompt(
   const primary = resolveGuideFlowRoutePrimaryTopic(route);
   if (primary?.startsWith('provider-')) return primary;
 
-  const lower = prompt.toLowerCase();
   if (
     /\b(invite|accept\s+invite|join\s+(?:the\s+)?(?:salon|team))\b/i.test(lower)
   ) {
     return 'provider-staff-invite';
-  }
-  if (/\b(today\s+vs\s+calendar|today\s+tab|calendar\s+tab)\b/i.test(lower)) {
-    return 'provider-today-calendar';
-  }
-  if (/(?:вкладка\s+today|что\s+показывает\s+вкладка)/iu.test(prompt)) {
-    return 'provider-today-calendar';
   }
   if (
     /\b(team\s+view|everyone(?:'s|\s+else(?:'s)?)?\s+bookings?)\b/i.test(lower)
@@ -209,6 +218,37 @@ function enrichProviderGuideTopicFromPrompt(
   return primary;
 }
 
+/** e2e-bug.302 — provider Home/Today tab walkthrough cues (EN/HY/RU). */
+export function isProviderHomeOrTodayTabGuidePrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (
+    /\b(home\s*tab|today\s*tab|calendar\s*tab|today\s+vs\s+calendar)\b/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+  // HY: "Ինչպե՞ս օգտագործեմ Home/Today tab-ը"
+  if (
+    /օգտագործեմ/iu.test(prompt) &&
+    /\b(?:home|today|calendar)\s*tab\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (/(?:home|today)\s*tab-ը/iu.test(prompt)) return true;
+  // RU: "Как пользоваться вкладкой Home/Today"
+  if (
+    /вкладк/iu.test(prompt) &&
+    /\b(?:home|today|calendar)\b/i.test(prompt)
+  ) {
+    return true;
+  }
+  if (/(?:вкладка\s+today|что\s+показывает\s+вкладка)/iu.test(prompt)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Unified post-classifier rescue for product guide intents (ai-guide-1.6.3).
  * Dispatches surface FAQ rescues, then cross-surface misroute guard, then heuristics.
@@ -230,6 +270,12 @@ export function rescueProductGuideIntent(
     };
   }
 
+  // e2e-bug.283 — HY "Ինչպե՞ս եմ…" matches Armenian "how" guide cues; never
+  // override my_stats phrasing (provider call-site guards alone are not enough).
+  if (isMyStatsPrompt(prompt)) {
+    return { action };
+  }
+
   if (surface === 'provider') {
     const providerRescue = rescueProviderProductGuideIntent(prompt, action);
     if (providerRescue !== action) {
@@ -238,6 +284,16 @@ export function rescueProductGuideIntent(
   }
 
   if (surface === 'customer') {
+    // e2e-bug.195 — /public/:slug/assistant uses surface:customer; booking-funnel
+    // "how do I book step by step" must become booking_help before consumer Home tour.
+    const publicBookingHelp = rescuePublicBookingHelpIntent(prompt, action);
+    if (publicBookingHelp !== action) {
+      return {
+        action: publicBookingHelp,
+        rescueReason: 'public_booking_help',
+      };
+    }
+
     const customerRescue = rescueCustomerAppGuideIntent(prompt, action);
     if (customerRescue !== action) {
       return { action: customerRescue, rescueReason: 'customer_app_guide' };

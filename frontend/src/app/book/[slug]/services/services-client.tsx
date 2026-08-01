@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { ServiceList } from '@/components/public-booking/service-list';
+import { ServiceCategoryFilter } from '@/components/public-booking/service-category-filter';
+import { ServicePrepaymentBadge } from '@/components/public-booking/service-prepayment-badge';
 import { PublicAssistantStarterChips } from '@/components/public-booking/public-assistant-starter-chips';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import {
@@ -23,6 +25,12 @@ import {
   sumMultiServicePrice,
   uniqueMultiServiceIds,
 } from '@/lib/multi-service-booking';
+import {
+  buildServiceCategoryFilterOptions,
+  filterServicesByCategory,
+  groupServicesByCategory,
+  resolveServiceCategoryFilterId,
+} from '@/lib/service-catalog-browse.util';
 
 interface ServicesClientProps {
   slug: string;
@@ -32,35 +40,7 @@ interface ServicesClientProps {
   startTime: string;
   employeeName: string;
   backHref: string;
-}
-
-interface ServiceGroup {
-  key: string;
-  categoryName: string | null;
-  sortOrder: number;
-  services: PublicService[];
-}
-
-function groupServicesByCategory(services: PublicService[], uncategorizedLabel: string): ServiceGroup[] {
-  const groups = new Map<string, ServiceGroup>();
-
-  for (const service of services) {
-    const key = service.category?.id ?? '__uncategorized__';
-    if (!groups.has(key)) {
-      groups.set(key, {
-        key,
-        categoryName: service.category?.name ?? uncategorizedLabel,
-        sortOrder: service.category?.sortOrder ?? 9999,
-        services: [],
-      });
-    }
-    groups.get(key)!.services.push(service);
-  }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-    return (a.categoryName ?? '').localeCompare(b.categoryName ?? '');
-  });
+  initialCategoryId?: string | null;
 }
 
 export function ServicesClient({
@@ -71,6 +51,7 @@ export function ServicesClient({
   startTime,
   employeeName,
   backHref,
+  initialCategoryId = null,
 }: ServicesClientProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -80,20 +61,47 @@ export function ServicesClient({
   const [cartErrors, setCartErrors] = useState<string[]>([]);
   const primary = tenant.branding.primaryColor || '#7c3aed';
 
+  const categoryOptions = useMemo(
+    () =>
+      buildServiceCategoryFilterOptions(
+        services,
+        t('public.allServiceCategories'),
+        t('public.uncategorizedServices'),
+      ),
+    [services, t],
+  );
+  const [categoryId, setCategoryId] = useState(() =>
+    resolveServiceCategoryFilterId(initialCategoryId, categoryOptions),
+  );
+
   useEffect(() => {
     if (!multiEnabled) return;
     persistMultiServiceCart(slug, selectedServiceIds);
   }, [multiEnabled, selectedServiceIds, slug]);
 
+  const visibleServices = useMemo(
+    () => filterServicesByCategory(services, categoryId),
+    [categoryId, services],
+  );
+
   const groupedServices = useMemo(
-    () => groupServicesByCategory(services, t('public.uncategorizedServices')),
-    [services, t],
+    () =>
+      groupServicesByCategory(
+        visibleServices,
+        t('public.uncategorizedServices'),
+      ),
+    [visibleServices, t],
   );
 
   const selectedServices = useMemo(
     () => services.filter((svc) => selectedServiceIds.includes(svc.id)),
     [selectedServiceIds, services],
   );
+
+  const onCategoryChange = (next: string) => {
+    setCategoryId(next);
+    setServiceId(null);
+  };
 
   const cartTotals = useMemo(() => {
     if (selectedServices.length < 2) return null;
@@ -209,9 +217,15 @@ export function ServicesClient({
             primaryColor={primary}
             className="mb-5"
           />
+          <ServiceCategoryFilter
+            options={categoryOptions}
+            value={categoryId}
+            onChange={onCategoryChange}
+            primaryColor={primary}
+          />
           <ServiceList
             slug={slug}
-            services={services}
+            services={visibleServices}
             businessCurrency={tenant.currency}
             tax={tenant.tax}
             primaryColor={primary}
@@ -240,8 +254,14 @@ export function ServicesClient({
           primaryColor={primary}
           className="mb-5"
         />
+        <ServiceCategoryFilter
+          options={categoryOptions}
+          value={categoryId}
+          onChange={onCategoryChange}
+          primaryColor={primary}
+        />
 
-        {services.length === 0 ? (
+        {visibleServices.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <p>{t('public.noServicesAvailable')}</p>
             <a href={backHref} className="inline-block mt-4 text-violet-600 font-medium hover:underline">
@@ -290,6 +310,10 @@ export function ServicesClient({
                               Subscribe & save
                             </span>
                           )}
+                          <ServicePrepaymentBadge
+                            service={service}
+                            businessCurrency={tenant.currency}
+                          />
                           {service.description && (
                             <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
                           )}

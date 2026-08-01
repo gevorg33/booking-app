@@ -46,6 +46,8 @@ const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
     'Cancel package visit and notify waitlist for Anna',
   dashboard_cancel_visit_coordinate_waitlist:
     'Cancel package visit and coordinate waitlist offer for Friday',
+  dashboard_reschedule_then_create_booking:
+    "Move Gevorg's appointment to Friday; then book a second massage for Anna",
   dashboard_check_and_book_nearest:
     'check who is free tomorrow evening for permanent lashes, book the nearest slot',
   customer_check_and_book_nearest:
@@ -84,6 +86,9 @@ const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
     'Book lipid panel and notify me when results are ready',
   public_clinic_book_explain_results:
     'Book lipid panel and tell me when results are ready on this page',
+  // e2e-bug.204 — public_assistant_compound reachable on customer + public
+  customer_public_assistant_compound: 'List providers and check availability',
+  public_public_assistant_compound: 'List providers and check availability',
   public_flexible_avail_list_budget_then_or:
     FLEXIBLE_AVAILABILITY_COMPOUND_SCENARIOS.find(
       (row) => row.id === 'avail-list-budget-then-or-en',

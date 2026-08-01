@@ -110,6 +110,8 @@ export interface CustomerIntentSession {
   timeFrom?: string;
   serviceId?: string;
   employeeId?: string;
+  /** Checkout slot ISO start (page / widget context). */
+  startTime?: string;
   maxPrice?: number | string;
   serviceRank?: string;
   availabilityWindows?: unknown[];
@@ -136,6 +138,15 @@ export interface CustomerIntentSession {
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
+function coalesceNonEmptyString(
+  primary: unknown,
+  fallback: unknown,
+): string | undefined {
+  if (typeof primary === 'string' && primary.trim()) return primary.trim();
+  if (typeof fallback === 'string' && fallback.trim()) return fallback.trim();
+  return undefined;
+}
+
 function withCustomerSession(
   params: Record<string, unknown>,
   session: CustomerIntentSession,
@@ -143,6 +154,11 @@ function withCustomerSession(
   return {
     ...params,
     sessionCustomerId: session.customerId,
+    // e2e-bug.259 — thread request/session locale into clarify/status chrome.
+    locale:
+      (typeof params.locale === 'string' && params.locale.trim()
+        ? params.locale.trim()
+        : undefined) ?? session.locale,
     // e2e-bug.125 — forward booking-page slug; handlers also resolve via businessId.
     slug: (typeof params.slug === 'string' && params.slug.trim()
       ? params.slug.trim()
@@ -166,13 +182,15 @@ function withCustomerSession(
     bookingFirstAvailable:
       params.bookingFirstAvailable ?? session.bookingFirstAvailable,
     timeFrom: params.timeFrom ?? session.timeFrom,
-    serviceId:
-      params.serviceId ?? (params.serviceName ? undefined : session.serviceId),
-    employeeId: params.employeeId ?? session.employeeId,
+    // e2e-bug.229 — named-service pay_online must keep checkout session serviceId
+    // even when the prompt only re-states the service name.
+    serviceId: coalesceNonEmptyString(params.serviceId, session.serviceId),
+    employeeId: coalesceNonEmptyString(params.employeeId, session.employeeId),
+    startTime: coalesceNonEmptyString(params.startTime, session.startTime),
     maxPrice: params.maxPrice ?? session.maxPrice,
     serviceRank:
       params.serviceRank ??
-      (params.serviceName ? undefined : session.serviceRank),
+      (params.serviceName && !session.serviceId ? undefined : session.serviceRank),
     availabilityWindows:
       session.availabilityWindows ?? params.availabilityWindows,
     lastPush: session.lastPush ?? params.lastPush,
@@ -186,10 +204,17 @@ function withCustomerSession(
       session.pendingCheckoutStartTime ?? params.pendingCheckoutStartTime,
     pendingCheckoutEmployeeId:
       session.pendingCheckoutEmployeeId ?? params.pendingCheckoutEmployeeId,
-    _prompt: session.prompt,
+    // e2e-bug.198 — compound steps set `_prompt` to the step segment; do not
+    // clobber it with the full multi-step session prompt.
+    _prompt:
+      (typeof params._prompt === 'string' && params._prompt.trim()
+        ? params._prompt.trim()
+        : undefined) ?? session.prompt,
     // e2e-bug.84 — carry GDPR erasure preview pending into turn 2.
     privacyDeletePending:
-      params.privacyDeletePending ?? session.privacyDeletePending,
+      params.privacyDeletePending === true ||
+      params.privacyDeletePending === 'true' ||
+      session.privacyDeletePending === true,
     // e2e-bug.78 — carry bulk-cancel preview pending into turn 2.
     cancelAllUpcomingPending:
       params.cancelAllUpcomingPending ?? session.cancelAllUpcomingPending,
@@ -212,7 +237,13 @@ export async function dispatchCustomerIntent(
   session: CustomerIntentSession,
 ): Promise<CommandResult> {
   const p = withCustomerSession(params, session);
-  const prompt = session.prompt ?? '';
+  // e2e-bug.198 — prefer compound step segment (`_prompt`) over the full prompt.
+  const prompt =
+    (typeof p._prompt === 'string' && p._prompt.trim()
+      ? String(p._prompt).trim()
+      : undefined) ??
+    session.prompt ??
+    '';
 
   if (isAiPaymentsServiceIntentForSurface(action, 'customer')) {
     const paymentsResult = await deps.payments.dispatchIntent({

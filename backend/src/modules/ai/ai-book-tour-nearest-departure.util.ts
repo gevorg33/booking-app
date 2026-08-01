@@ -139,6 +139,23 @@ export function extractTourServiceNameFromBookingPrompt(
   return undefined;
 }
 
+/**
+ * e2e-bug.206 — best-effort fallback for incomplete tour prompts that name a
+ * tour up front but have no booking verb at all (e.g. "Wine tour for 6 next
+ * Saturday"), so `extractTourServiceNameFromBookingPrompt`'s verb-anchored
+ * patterns never match. Only used to rescue an otherwise-blocked classifier
+ * hallucination into a safe explain — never for the real compound builders.
+ */
+export function extractLeadingTourNamePrompt(
+  prompt: string,
+): string | undefined {
+  const match = prompt
+    .trim()
+    .match(/^([A-Z][A-Za-z0-9&'-]*(?:\s+[A-Za-z0-9&'-]+){0,4})\s+for\s+\d+\b/);
+  if (!match) return undefined;
+  return normalizeTourServiceNameCandidate(match[1], prompt) ?? undefined;
+}
+
 export function hasTourNearestDepartureCue(prompt: string): boolean {
   if (isFirstAvailableBookingPrompt(prompt)) return true;
   if (HY_RU_NEAREST_TOUR_CUE.test(prompt)) return true;

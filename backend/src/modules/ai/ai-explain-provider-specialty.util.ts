@@ -4,7 +4,7 @@ import { isTeamFloorStatusPrompt } from './ai-provider-exp-2.util.js';
 import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 import { isLookupServiceAssignmentPrompt } from './ai-intent-disambiguation.util.js';
 
-export const CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES = `- explain_provider_specialty: READ — explain a provider's role, specialty/bio copy from their profile, linked services, and ratings; or match specialists to a hair/skin/service topic (e.g. curly hair, balayage). Triggers: "Who is best for curly hair?", "Tell me about Anna", "Who specializes in color?", "What is Maria's specialty?". Set aspect to named_provider when a person is named (providerName) or specialty_match when asking who fits a topic (specialtyTopic). Navigate to the professionals profile when possible. NOT explain_professional_profile (open profile page / show services list), NOT explain_any_provider_option (Any stylist picker), NOT recommend_specialists (ranked availability/slots this week), NOT list_providers (roster only), NOT check_availability (slot search), and NOT business_info (salon description).`;
+export const CUSTOMER_PUBLIC_EXPLAIN_PROVIDER_SPECIALTY_CLASSIFIER_RULES = `- explain_provider_specialty: READ — explain a provider's role, specialty/bio copy from their profile, linked services, and ratings; or match specialists to a hair/skin/service topic (e.g. curly hair, balayage). Triggers: "Who is best for curly hair?", "Tell me about Anna", "Who specializes in color?", "What is Maria's specialty?". Set aspect to named_provider when a person is named (providerName) or specialty_match when asking who fits a topic (specialtyTopic). Navigate to the professionals profile when possible. NOT explain_professional_profile (open profile page / show services list), NOT explain_any_provider_option (Any stylist picker), NOT recommend_specialists (ranked availability/slots this week), NOT list_providers (roster only), NOT check_availability (slot search), NOT business_info / explain_salon_profile (salon or business overview — "Tell me about this salon", "Tell me about this business", "salon info", "business info").`;
 
 export type ProviderSpecialtyAspect = 'named_provider' | 'specialty_match';
 
@@ -273,7 +273,62 @@ function cleanCapturedPhrase(value: string): string {
   return value.replace(/[?.!,]+$/g, '').trim();
 }
 
+/**
+ * e2e-bug.191 — salon/business overview cues must never become named-provider specialty.
+ * Covers "this/the/your salon|business", "salon info", "business / salon info".
+ */
+export function isSalonOrBusinessAboutPrompt(prompt: string): boolean {
+  const normalized = prompt.trim();
+  if (!normalized) return false;
+  if (
+    /\b(?:tell\s+me\s+about|learn(?:\s+more)?\s+about)\s+(?:the|this|your)\s+(?:salon|business|studio|spa|place|company)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:about)\s+(?:the|this|your)\s+(?:salon|business|studio|spa|place)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (/\b(?:salon|business)\s+info(?:rmation)?\b/i.test(normalized)) {
+    return true;
+  }
+  if (
+    /\b(?:this|the|your)\s+(?:salon|business|studio|spa)\s+(?:info|profile|details|description)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\bwhat(?:'s| is)\s+(?:this|your)\s+(?:salon|business|place)\b/i.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isNonPersonProviderCapture(cleaned: string): boolean {
+  if (!cleaned) return true;
+  // Any capture that names the venue (not a person) — including long slash forms
+  // like "this business / salon info" (e2e-bug.191).
+  if (/\b(?:salon|business|studio|spa|company|place)\b/i.test(cleaned)) {
+    return true;
+  }
+  if (/^(?:this|the|your)\b/i.test(cleaned) && /\binfo(?:rmation)?\b/i.test(cleaned)) {
+    return true;
+  }
+  return false;
+}
+
 function hasNamedProviderCue(prompt: string): boolean {
+  if (isSalonOrBusinessAboutPrompt(prompt)) return false;
   if (/\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(prompt)) {
     return false;
   }
@@ -338,15 +393,13 @@ function isRecommendAvailabilityPrompt(prompt: string): boolean {
 }
 
 export function extractProviderNameFromPrompt(prompt: string): string | null {
+  if (isSalonOrBusinessAboutPrompt(prompt)) return null;
   for (const pattern of NAMED_PROVIDER_PATTERNS) {
     const match = prompt.match(pattern);
     const captured = match?.[1]?.trim();
     if (!captured) continue;
     const cleaned = cleanCapturedPhrase(captured);
-    if (
-      /\b(?:salon|business|studio|spa|company)\b/i.test(cleaned) &&
-      cleaned.split(/\s+/).length <= 3
-    ) {
+    if (isNonPersonProviderCapture(cleaned)) {
       continue;
     }
     return cleaned;
@@ -395,9 +448,8 @@ export function isExplainProviderSpecialtyPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  if (/\btell me about the (?:salon|business|studio|spa)\b/i.test(prompt)) {
-    return false;
-  }
+  // e2e-bug.191 — "this/the/your salon|business", "salon info", slash forms.
+  if (isSalonOrBusinessAboutPrompt(prompt)) return false;
   if (/\bwho works here\b/i.test(prompt)) return false;
 
   const named = hasNamedProviderCue(prompt);

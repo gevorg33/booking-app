@@ -19,6 +19,7 @@ import { useOperationalEvents } from '../lib/use-operational-events';
 import { useI18n } from '../i18n';
 import { ProviderTabPageShell } from '../components/ProviderTabPageShell';
 import { ProviderTabScrollContent } from '../components/ProviderTabScrollContent';
+import { isMobileManagerRole } from '../lib/provider-access';
 
 type GiftCardOrder = {
   id: string;
@@ -38,6 +39,7 @@ export default function GiftCardQueuesPage({ embedded = false }: { embedded?: bo
   const { business } = useAuthStore();
   const queryClient = useQueryClient();
   const [queue, setQueue] = useState<'creation' | 'delivery'>('creation');
+  const isManager = isMobileManagerRole(business?.membershipRole);
 
   const refresh = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['provider-gift-cards', business?.id] });
@@ -53,7 +55,7 @@ export default function GiftCardQueuesPage({ embedded = false }: { embedded?: bo
       const { data } = await api.get(`/businesses/${business!.id}/provider/gift-cards/card-creation`);
       return unwrap<{ orders: GiftCardOrder[] }>(data).orders;
     },
-    enabled: !!business?.id && queue === 'creation',
+    enabled: !!business?.id && isManager && queue === 'creation',
     refetchInterval: 60_000,
   });
 
@@ -63,7 +65,7 @@ export default function GiftCardQueuesPage({ embedded = false }: { embedded?: bo
       const { data } = await api.get(`/businesses/${business!.id}/provider/gift-cards/delivery`);
       return unwrap<{ orders: GiftCardOrder[] }>(data).orders;
     },
-    enabled: !!business?.id && queue === 'delivery',
+    enabled: !!business?.id && isManager && queue === 'delivery',
     refetchInterval: 60_000,
   });
 
@@ -99,6 +101,21 @@ export default function GiftCardQueuesPage({ embedded = false }: { embedded?: bo
 
   const orders = queue === 'creation' ? creationOrders : deliveryOrders;
   const loading = queue === 'creation' ? creationLoading : deliveryLoading;
+
+  if (!isManager) {
+    return (
+      <ProviderTabPageShell embedded={embedded}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>{t('provider.navGiftCards')}</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <ProviderTabScrollContent className="ion-padding">
+          <p className="ion-text-center ion-padding">{t('provider.giftCardManagerOnly')}</p>
+        </ProviderTabScrollContent>
+      </ProviderTabPageShell>
+    );
+  }
 
   return (
     <ProviderTabPageShell embedded={embedded}>

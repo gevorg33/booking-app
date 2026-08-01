@@ -1,7 +1,7 @@
 import { formatNearestSlotStartTimeLabel } from '../../common/i18n/locale-date.util.js';
 import type { AppLocale } from '../../common/i18n/messages.js';
-import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import type { TimeOfDayWindow } from './ai-operations.util.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
 
 export type NoSlotMessageScenario = 'no_providers' | 'no_nearest_slot';
 
@@ -34,9 +34,10 @@ function normalizeTimeOfDay(
   return null;
 }
 
+/** e2e-bug.306 — never embed ambiguous DD/MM slash dates in no-slot copy. */
 function formatDayPhrase(dateKey?: string | null): string {
   if (!dateKey) return 'the requested day';
-  return formatDateDisplay(dateKey);
+  return formatDateForAiLabel(dateKey);
 }
 
 function formatWindowPhrase(

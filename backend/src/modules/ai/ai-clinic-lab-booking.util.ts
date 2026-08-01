@@ -94,6 +94,56 @@ export interface ParsedBookLabCollectionRequest {
   testName?: string;
 }
 
+/** e2e-bug.202 — topic/slot fragments must not count as a named lab panel. */
+const LAB_COLLECTION_NEAREST_FILLER_NAME =
+  /^(?:(?:my|the|a|an)\s+)?(?:lab(?:\s+(?:draw|collection|visit|blood\s+draw|test))?|blood\s+draw|blood\s+collection|blood\s+test)(?:\s+(?:earliest|soonest|nearest|first\s+available|asap|next\s+available))*(?:\s+(?:slot|opening|available|appointment|time))?$/i;
+
+const LAB_COLLECTION_SLOT_ONLY_NAME =
+  /^(?:the\s+)?(?:earliest|soonest|nearest|asap|first\s+available|next\s+available)(?:\s+(?:slot|opening|available|time|appointment))?$/i;
+
+export function isLabCollectionNearestFillerName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return true;
+  if (LAB_COLLECTION_NEAREST_FILLER_NAME.test(trimmed)) return true;
+  if (LAB_COLLECTION_SLOT_ONLY_NAME.test(trimmed)) return true;
+  return false;
+}
+
+/**
+ * e2e-bug.202 — "Book lab draw earliest slot for unicorn-panel-xyzzy"
+ * → panel name for resolve/abort (not the lab-draw topic itself).
+ */
+export function extractNamedLabPanelFromPrompt(prompt: string): string | null {
+  const text = prompt.trim();
+  if (!text) return null;
+  const forMatch = text.match(
+    /\bfor\s+([a-z0-9][\w'.-]{1,40}(?:\s+[a-z0-9][\w'.-]{1,40}){0,4})\s*$/i,
+  );
+  const raw = forMatch?.[1]?.trim();
+  if (!raw) return null;
+  if (isLabCollectionNearestFillerName(raw)) return null;
+  return raw;
+}
+
+export function resolveBookLabCollectionTestName(
+  prompt: string,
+  params: Record<string, unknown> = {},
+): string | undefined {
+  if (typeof params.testName === 'string' && params.testName.trim()) {
+    return params.testName.trim();
+  }
+  const fromPrompt = extractNamedLabPanelFromPrompt(prompt);
+  if (fromPrompt) return fromPrompt;
+  if (
+    typeof params.serviceName === 'string' &&
+    params.serviceName.trim() &&
+    !isLabCollectionNearestFillerName(params.serviceName)
+  ) {
+    return params.serviceName.trim();
+  }
+  return undefined;
+}
+
 const UNICODE_WORD_SUFFIX = '[\\p{L}\\p{M}\\u055B]*';
 
 const PUSH_VERB = new RegExp(
@@ -764,10 +814,7 @@ export function parseBookLabCollectionFromPrompt(
       : undefined) ??
     extractOrderIdFromPrompt(prompt) ??
     undefined;
-  const testName =
-    typeof params.testName === 'string' && params.testName.trim()
-      ? params.testName.trim()
-      : undefined;
+  const testName = resolveBookLabCollectionTestName(prompt, params);
   return { orderId, testName };
 }
 

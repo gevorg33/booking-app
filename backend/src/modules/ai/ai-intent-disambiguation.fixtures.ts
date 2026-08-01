@@ -44,7 +44,7 @@ export const AVAILABILITY_INTENT_MATRIX = [
     namedProvider: 'optional',
     bookVerb: true,
     dashboard: 'create_booking',
-    customer: 'create_booking',
+    customer: 'book_appointment',
     public: 'book_appointment',
     examples: ['book massage with Gevorg tomorrow at 10:00'],
   },
@@ -77,13 +77,14 @@ export const DASHBOARD_AVAILABILITY_DISAMBIGUATION_RULES = `- Availability vs as
 export const CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES = `- Availability vs booking (customer / consumer app):
 - check_availability: READ — one NAMED specialist's open times. Set employeeName, serviceName, date, timeSlot/timeOfDay. NOT for team-wide "who is free" (use check_providers_for_service).
 - check_providers_for_service: READ — team-wide who is free/available/open for a service on a date/time-of-day. Set serviceName, date, timeOfDay, allProviders=true, employeeName=null.
-- create_booking: MUTATE — logged-in booking at a fixed time. Omit when only asking who is free.
-- book_nearest_slot: MUTATE — flexible earliest slot for the consumer checkout path.
+- book_appointment: MUTATE — explicit "Book/schedule/reserve/create a booking … with <specialist> tomorrow at 11am" (fixed time). Prefer book_appointment over check_providers_for_service / check_availability / create_booking. Set serviceName, employeeName, date, timeSlot; navigate to checkout when contact is missing.
+- book_nearest_slot: MUTATE — flexible earliest slot for the consumer checkout path ("book nearest", "soonest", "first available") — NOT a fixed clock time.
 - Do NOT use lookup_service_assignment (dashboard-only staff catalog).
-- Do NOT use public-only actions (list_providers, recommend_specialists) on the logged-in customer surface unless the user is on anonymous public discovery.
+- Do NOT use create_booking (dashboard-only) on customer/public — use book_appointment or book_nearest_slot.
 - Examples:
   - "is Karo available tomorrow at 17:00 for lashes" → check_availability
   - "who is free tomorrow for massage" → check_providers_for_service
+  - "Book a Swedish massage with Gevorg tomorrow at 11am" → book_appointment
   - "book nearest slot for massage tomorrow evening" → book_nearest_slot`;
 
 /** Public booking page classifier disambiguation. */
@@ -119,6 +120,9 @@ export const AVAILABILITY_DISAMBIGUATION_SCENARIOS: AvailabilityDisambiguationSc
       prompt: 'is Gevorg available for massage tomorrow at 09:00',
       expectedAction: 'check_availability',
       rescueReason: 'check_availability_pattern',
+      // Full rescue may prefer explain_provider_availability (named schedule);
+      // resolveAvailabilityIntentFromPrompt still maps this to check_availability.
+      classifierOnly: true,
     },
     {
       id: 'dashboard-team-check-providers',
@@ -171,6 +175,9 @@ export const AVAILABILITY_DISAMBIGUATION_SCENARIOS: AvailabilityDisambiguationSc
       prompt: 'who has availability tomorrow for massage',
       expectedAction: 'check_providers_for_service',
       rescueReason: 'providers_for_service',
+      // "who has availability" overlaps explain_provider_availability team openings;
+      // resolveAvailabilityIntentFromPrompt still maps to check_providers_for_service.
+      classifierOnly: true,
     },
     {
       id: 'customer-named-check-availability',
@@ -179,6 +186,24 @@ export const AVAILABILITY_DISAMBIGUATION_SCENARIOS: AvailabilityDisambiguationSc
       rescueFromAction: 'create_booking',
       expectedAction: 'check_availability',
       rescueReason: 'create_booking_to_check_availability',
+    },
+    {
+      // e2e-bug.192 — fixed-time book on customer/public → book_appointment.
+      id: 'customer-fixed-time-book-appointment',
+      surface: 'customer',
+      prompt: 'Book a Swedish massage with Gevorg tomorrow at 11am',
+      rescueFromAction: 'check_providers_for_service',
+      expectedAction: 'book_appointment',
+      rescueReason: 'public_timed_book',
+    },
+    {
+      id: 'customer-create-a-booking-phrasing',
+      surface: 'customer',
+      prompt:
+        'create a booking for Swedish massage with Gevorg tomorrow at 11am',
+      rescueFromAction: 'check_availability',
+      expectedAction: 'book_appointment',
+      rescueReason: 'public_timed_book',
     },
     {
       id: 'customer-flexible-book-nearest',

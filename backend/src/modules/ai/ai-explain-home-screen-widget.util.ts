@@ -93,6 +93,8 @@ export function isExplainHomeScreenWidgetPrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (/\b(patient|clinic)\s+alerts?\b/i.test(text)) return false;
+  // e2e-bug.276 — in-app Home/Services/Account tab tours ≠ OS home-screen widget.
+  if (/\b(?:home|services|account)\s+tab\b/i.test(text)) return false;
   if (matchExplainHomeScreenWidgetScenario(text)) return true;
   if (PROVIDER_APP_CUE.test(text)) return false;
   if (SUPPORT_WIDGET_CUE.test(text)) return false;

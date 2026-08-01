@@ -1,5 +1,4 @@
 import {
-  IonButton,
   IonDatetime,
   IonSpinner,
   IonText,
@@ -19,6 +18,7 @@ import {
 import { getCustomerToken } from '../lib/customer-auth.js';
 import { formatFriendlyNetworkError } from '../lib/consumer-network-ux.util.js';
 import { isOfflineQueuedPayload } from '../lib/consumer-offline-response.util.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export function ConsumerBookingActions({
   booking,
@@ -40,6 +40,7 @@ export function ConsumerBookingActions({
   const [busy, setBusy] = useState<'cancel' | 'reschedule' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
+  const [refundNotice, setRefundNotice] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [slots, setSlots] = useState<
@@ -104,6 +105,7 @@ export function ConsumerBookingActions({
     setBusy('cancel');
     setError(null);
     setQueuedNotice(null);
+    setRefundNotice(null);
     try {
       let result: unknown;
       if (canActWithToken && manageToken) {
@@ -116,6 +118,17 @@ export function ConsumerBookingActions({
       if (isOfflineQueuedPayload(result)) {
         setQueuedNotice(copy.offlineMutationQueued);
         return;
+      }
+      // e2e-bug.185 — refundStatus was fetched from the backend but never
+      // read here, so a customer whose refund genuinely failed (Stripe error,
+      // etc.) saw the same silent "cancelled" outcome as a successful refund.
+      const refundStatus = (
+        result as { refundStatus?: 'refunded' | 'already_refunded' | 'skipped' | 'failed' } | undefined
+      )?.refundStatus;
+      if (refundStatus === 'refunded') {
+        setRefundNotice(copy.cancelBookingRefunded);
+      } else if (refundStatus === 'failed') {
+        setRefundNotice(copy.cancelBookingRefundFailed);
       }
       onUpdated();
     } catch (err: unknown) {
@@ -180,9 +193,10 @@ export function ConsumerBookingActions({
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {booking.canReschedule && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
+            aria-expanded={rescheduleOpen}
             onClick={() => {
               setRescheduleOpen((o) => !o);
               setSelectedDate('');
@@ -190,10 +204,10 @@ export function ConsumerBookingActions({
             }}
           >
             {copy.rescheduleBooking}
-          </IonButton>
+          </ConsumerActionButton>
         )}
         {booking.canCancel && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
             color="danger"
@@ -201,7 +215,7 @@ export function ConsumerBookingActions({
             onClick={() => void handleCancel()}
           >
             {busy === 'cancel' ? copy.submitting : copy.cancelBooking}
-          </IonButton>
+          </ConsumerActionButton>
         )}
       </div>
 
@@ -229,17 +243,18 @@ export function ConsumerBookingActions({
               {slots.map((slot) => {
                 const selected = selectedSlot === slot.startTime;
                 return (
-                  <IonButton
+                  <ConsumerActionButton
                     key={`${slot.startTime}-${slot.employeeId ?? ''}`}
                     size="small"
                     fill={selected ? 'solid' : 'outline'}
+                    aria-pressed={selected}
                     onClick={() => {
                       setSelectedSlot(slot.startTime);
                       setSelectedEmployeeId(slot.employeeId ?? booking.employeeId);
                     }}
                   >
                     {formatScheduleTime(slot.startTime)}
-                  </IonButton>
+                  </ConsumerActionButton>
                 );
               })}
             </div>
@@ -252,20 +267,28 @@ export function ConsumerBookingActions({
               })}
             </p>
           )}
-          <IonButton
+          <ConsumerActionButton
             expand="block"
             className="ion-margin-top"
             disabled={!selectedSlot || busy === 'reschedule'}
             onClick={() => void handleReschedule()}
           >
             {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
-          </IonButton>
+          </ConsumerActionButton>
         </div>
       )}
 
       {error ? <p className="ion-margin-top" style={{ color: '#dc2626' }}>{error}</p> : null}
       {queuedNotice ? (
         <p className="ion-margin-top" style={{ color: '#2563eb' }}>{queuedNotice}</p>
+      ) : null}
+      {refundNotice ? (
+        <p
+          className="ion-margin-top"
+          style={{ color: refundNotice === copy.cancelBookingRefundFailed ? '#dc2626' : '#16a34a' }}
+        >
+          {refundNotice}
+        </p>
       ) : null}
     </div>
   );

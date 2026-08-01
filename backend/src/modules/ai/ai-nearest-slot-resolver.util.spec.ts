@@ -9,16 +9,31 @@ import {
   FLEXIBLE_AVAILABILITY_NEAREST_WINDOW_SCENARIOS,
 } from './ai-flexible-availability.fixtures.js';
 import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 
 describe('ai-nearest-slot-resolver.util (ai-cmd-h2.3)', () => {
   it('maps evening window to notBeforeTime 17:00', () => {
     const query = buildNearestBookableSlotQuery(
-      { serviceName: 'massage', timeOfDay: 'evening', date: '2026-06-07' },
+      { serviceName: 'massage', timeOfDay: 'evening', date: '2099-06-07' },
       'book nearest massage tomorrow evening',
+      undefined,
+      'UTC',
     );
     expect(query.notBeforeTime).toBe('17:00');
     expect(query.timeOfDay).toBe('evening');
-    expect(query.startDateKey).toBe('2026-06-07');
+    // e2e-bug.268 — past dates clamp to today; future dates are kept.
+    expect(query.startDateKey).toBe('2099-06-07');
+  });
+
+  it('clamps past startDateKey to today (e2e-bug.268)', () => {
+    const today = getTodayDateKey('UTC');
+    const query = buildNearestBookableSlotQuery(
+      { serviceName: 'massage', date: '2026-01-08' },
+      'book nearest',
+      undefined,
+      'UTC',
+    );
+    expect(query.startDateKey).toBe(today);
   });
 
   it('clears employeeId when allProviders is true', () => {

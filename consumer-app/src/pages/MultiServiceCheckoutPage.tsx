@@ -16,7 +16,7 @@ import {
 import { trashOutline } from 'ionicons/icons';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
@@ -120,6 +120,12 @@ export default function MultiServiceCheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<MultiCheckoutPaymentMethod>('online');
   const [awaitingPaymentReturn, setAwaitingPaymentReturn] = useState(false);
+  // e2e-bug.182b — same re-render race as BookPage.tsx: confirmPendingPayment's
+  // identity changes when the URL-restore effect fires history.replace, which
+  // re-triggers the confirm effect with no in-flight guard, sending concurrent
+  // confirm-payment requests for one session.
+  const confirmedSessionIdRef = useRef<string | null>(null);
+  const confirmInFlightRef = useRef(false);
 
   const servicesQuery = useQuery({
     queryKey: ['public-services', slug],
@@ -247,11 +253,16 @@ export default function MultiServiceCheckoutPage() {
         : null) ?? loadPendingMultiCheckoutBySlug(slug);
     const sessionId = sessionFromUrl?.trim() || pending?.sessionId;
     if (!sessionId) return false;
+    if (confirmInFlightRef.current || confirmedSessionIdRef.current === sessionId) {
+      return false;
+    }
 
+    confirmInFlightRef.current = true;
     setSubmitting(true);
     setMessage('');
     try {
       const result = await confirmPublicBookingPayment(slug, sessionId);
+      confirmedSessionIdRef.current = sessionId;
       if (result.customer) {
         const token = getCustomerToken(slug);
         setCustomerSession(slug, token, result.customer);
@@ -262,11 +273,15 @@ export default function MultiServiceCheckoutPage() {
       setSuccess(true);
       return true;
     } catch {
+      // e2e-bug.182b — was fully silent, leaving the customer staring at an
+      // unresponsive retry button with no explanation.
+      setMessage(copy.checkoutPaymentPendingRetryMessage);
       return false;
     } finally {
+      confirmInFlightRef.current = false;
       setSubmitting(false);
     }
-  }, [params, serviceIds, slug]);
+  }, [copy.checkoutPaymentPendingRetryMessage, params, serviceIds, slug]);
 
   useEffect(() => {
     if (!slug || !isPaymentReturn) return;

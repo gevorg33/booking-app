@@ -32,7 +32,6 @@ const BUDGET_DASHBOARD_ACTION_MAP: Record<string, string> = {
 
 const BUDGET_PUBLIC_ACTION_MAP: Record<string, string> = {
   discover_packages: 'booking_help',
-  apply_gift_card_code: 'booking_help',
   discover_subscription_plans: 'booking_help',
 };
 

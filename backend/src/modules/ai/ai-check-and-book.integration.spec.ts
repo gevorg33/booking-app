@@ -504,7 +504,8 @@ describe('ai check-and-book integration', () => {
         'biz-1',
         {
           serviceName: 'Permanent lashes',
-          date: '2026-06-06',
+          // e2e-bug.268 — past dates clamp to today; use a future key.
+          date: '2099-06-06',
           notBeforeTime: '17:00',
           employeeId: 'e1',
         },
@@ -519,7 +520,7 @@ describe('ai check-and-book integration', () => {
           serviceId: 's3',
           employeeId: 'e1',
           notBeforeTime: '17:00',
-          startDateKey: '2026-06-06',
+          startDateKey: '2099-06-06',
         }),
       );
     });
@@ -573,26 +574,40 @@ describe('ai check-and-book integration', () => {
         bookingFirstAvailable: true,
         allProviders: true,
         timeOfDay: 'evening',
-        date: '2026-06-07',
+        // e2e-bug.268 — past dates clamp to today; use a future key.
+        date: '2099-06-07',
       };
       const prompt =
         'book nearest massage tomorrow evening on any specialist after 17:00';
 
-      const publicQuery = buildNearestBookableSlotQuery(params, prompt, null);
-      const customerQuery = buildNearestBookableSlotQuery(params, prompt);
+      const publicQuery = buildNearestBookableSlotQuery(
+        params,
+        prompt,
+        null,
+        'UTC',
+      );
+      const customerQuery = buildNearestBookableSlotQuery(
+        params,
+        prompt,
+        undefined,
+        'UTC',
+      );
 
       expect(publicQuery).toEqual(customerQuery);
       expect(publicQuery.employeeId).toBeNull();
       expect(publicQuery.notBeforeTime).toBe('17:00');
-      expect(publicQuery.startDateKey).toBe('2026-06-07');
+      expect(publicQuery.startDateKey).toBe('2099-06-07');
     });
 
     it('uses employeeId from check handoff when allProviders is false', () => {
       const query = buildNearestBookableSlotQuery(
-        { employeeId: 'e1', date: '2026-06-07' },
+        { employeeId: 'e1', date: '2099-06-07' },
         'book the nearest slot',
+        undefined,
+        'UTC',
       );
       expect(query.employeeId).toBe('e1');
+      expect(query.startDateKey).toBe('2099-06-07');
     });
   });
 

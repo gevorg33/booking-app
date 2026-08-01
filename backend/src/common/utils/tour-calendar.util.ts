@@ -1,5 +1,64 @@
 import { extractTourBookingMetadata } from './tour-service.util.js';
 import { addDaysToDateKey } from './timezone.util.js';
+import {
+  getTodayDateKey,
+  resolveRelativeDateKeyword,
+  toIsoDay,
+} from './date-format.util.js';
+
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * e2e-bug.270 — classifier often puts "this week" / "this week's" into
+ * weekStartDate. Only ISO days (or resolvable relative keywords) are safe for
+ * buildWeekDateKeys / addDaysToDateKey.
+ */
+export function normalizeTourWeekAnchorDateKey(
+  raw: string | null | undefined,
+  timeZone = 'UTC',
+): string | undefined {
+  if (raw == null) return undefined;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return undefined;
+  if (ISO_DAY_RE.test(trimmed)) return trimmed;
+
+  // Week phrases → today / ±7; buildWeekDateKeys snaps to Monday.
+  // e2e-bug.288 — last week must resolve (not fall through as garbage).
+  // e2e-bug.309 — RU/HY relative week phrases from classifier params.
+  if (
+    /\bnext\s+week'?s?\b/i.test(trimmed) ||
+    /следующ[а-яё]*\s+(?:календарн[а-яё]*\s+)?недел/i.test(trimmed) ||
+    /հաջորդ\s+շաբաթ/i.test(trimmed)
+  ) {
+    return addDaysToDateKey(getTodayDateKey(timeZone), 7, timeZone);
+  }
+  if (
+    /\blast\s+week'?s?\b/i.test(trimmed) ||
+    /прошл[а-яё]*\s+(?:календарн[а-яё]*\s+)?недел/i.test(trimmed) ||
+    // e2e-bug.310 — HY last-week synonyms (+ շաբաթվա genitive via շաբաթ prefix).
+    /(?:անցած|անցյալ|նախորդ|վերջին)\s+շաբաթ/i.test(trimmed)
+  ) {
+    return addDaysToDateKey(getTodayDateKey(timeZone), -7, timeZone);
+  }
+  if (
+    /\b(?:this|current)\s+week'?s?\b/i.test(trimmed) ||
+    /\b(?:this\s+|current\s+)?calendar\s+week\b/i.test(trimmed) ||
+    /(?:этой|текущ[а-яё]*)\s+(?:календарн[а-яё]*\s+)?недел/i.test(trimmed) ||
+    /այս\s+շաբաթ/i.test(trimmed) ||
+    /^(?:the\s+)?week$/i.test(trimmed)
+  ) {
+    return getTodayDateKey(timeZone);
+  }
+
+  const relative = resolveRelativeDateKeyword(trimmed, timeZone);
+  if (relative && ISO_DAY_RE.test(relative)) return relative;
+
+  // toIsoDay returns the raw string when unparseable — only accept real ISO.
+  const iso = toIsoDay(trimmed, timeZone);
+  if (iso !== trimmed && ISO_DAY_RE.test(iso)) return iso;
+
+  return undefined;
+}
 
 /** Inclusive YYYY-MM-DD range overlap (lexicographic dates are safe). */
 export function dateKeysOverlap(
@@ -95,10 +154,14 @@ export function buildWeekDateKeys(
   anchorDateKey: string,
   timeZone = 'UTC',
 ): string[] {
-  const anchor = new Date(`${anchorDateKey}T12:00:00.000Z`);
+  // e2e-bug.270 — never pass non-ISO anchors into dayjs (Invalid time value).
+  const safeAnchor =
+    normalizeTourWeekAnchorDateKey(anchorDateKey, timeZone) ??
+    getTodayDateKey(timeZone);
+  const anchor = new Date(`${safeAnchor}T12:00:00.000Z`);
   const day = anchor.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
-  const mondayKey = addDaysToDateKey(anchorDateKey, mondayOffset, timeZone);
+  const mondayKey = addDaysToDateKey(safeAnchor, mondayOffset, timeZone);
   return Array.from({ length: 7 }, (_, i) =>
     addDaysToDateKey(mondayKey, i, timeZone),
   );

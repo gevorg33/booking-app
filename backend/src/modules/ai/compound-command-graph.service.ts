@@ -40,6 +40,7 @@ import {
   isGiftCardPaymentsAction,
   mergeGiftCardPaymentsHintsIntoSessionContext,
 } from './ai-gift-card-payments-hints.util.js';
+import { attachCompoundResumeToClarifyResult } from './ai-compound-resume.util.js';
 
 export interface CompoundGraphCatalog {
   employees: Employee[];
@@ -63,6 +64,9 @@ export interface CompoundGraphInput {
   catalog: CompoundGraphCatalog;
   timeZone: string;
   confidenceThresholds: { low: number; high: number };
+  /** e2e-bug.304 — seed prior validated plans when resuming after mid-step clarify. */
+  resumePlans?: AgentPlan[];
+  resumeStepIndex?: number;
   buildPlan: (
     action: string,
     params: Record<string, any>,
@@ -164,6 +168,14 @@ export class CompoundCommandGraphService {
     this.toCommandResultFn = input.toCommandResult;
     this.executeReadOnlyFn = input.executeReadOnlySubIntent;
 
+    const resumePlans = input.resumePlans ?? [];
+    const resumeStepIndex =
+      typeof input.resumeStepIndex === 'number' &&
+      Number.isInteger(input.resumeStepIndex) &&
+      input.resumeStepIndex >= 0
+        ? input.resumeStepIndex
+        : 0;
+
     const finalState = (await this.graph.invoke({
       businessId: input.businessId,
       prompt: input.prompt,
@@ -173,14 +185,16 @@ export class CompoundCommandGraphService {
       catalog: input.catalog,
       timeZone: input.timeZone,
       confidenceThresholds: input.confidenceThresholds,
-      currentIndex: 0,
-      plans: [],
+      currentIndex: resumeStepIndex,
+      plans: resumePlans,
       pendingCancelBookingIds: [],
       pipelineTrace: [
         this.completionPipeline.trace(
           'classify',
           'compound_intent',
-          `${input.subIntents.length} sub-intent(s) via LangGraph`,
+          resumePlans.length
+            ? `${input.subIntents.length} sub-intent(s) via LangGraph (resume @${resumeStepIndex})`
+            : `${input.subIntents.length} sub-intent(s) via LangGraph`,
         ),
       ],
       error: undefined,
@@ -311,6 +325,9 @@ export class CompoundCommandGraphService {
       parsedParams.statusFilter = parsedParams.statusFilter ?? 'cancelled';
     }
 
+    // e2e-bug.284 — expose full compoundActions on mid-step clarify so
+    // reschedule→create is not mistaken for a lone create_booking collapse.
+    const compoundActions = state.subIntents.map((s) => s.action);
     const handoff = runCompletionValidateHandoff(
       {
         businessId: state.businessId,
@@ -319,18 +336,38 @@ export class CompoundCommandGraphService {
         catalog: state.catalog,
         timeZone: state.timeZone,
         priorTrace: state.pipelineTrace,
-        clarifyExtras: { compoundStep: parsed.action },
+        clarifyExtras: {
+          compoundStep: parsed.action,
+          compoundActions,
+          compoundStepIndex: state.currentIndex,
+          decomposed: true,
+        },
       },
       this.completionPipeline,
     );
 
     if (handoff.status === 'clarify') {
-      const clarify = handoff.result;
+      let clarify = handoff.result;
       clarify.details = {
         ...(clarify.details ?? {}),
         pipelineTrace: handoff.trace,
         compoundStep: parsed.action,
+        compoundActions,
+        compoundStepIndex: state.currentIndex,
+        decomposed: true,
       };
+      // e2e-bug.304 / 305 — mid-step clarify keeps compound resume + compound_intent
+      // even when an earlier step validated but could not build a plan yet.
+      if (state.currentIndex > 0) {
+        clarify = attachCompoundResumeToClarifyResult(clarify, {
+          plans: state.plans,
+          subIntents: state.subIntents,
+          stepIndex: state.currentIndex,
+          compoundActions,
+          confirmationPrompt: state.prompt,
+          compoundStep: parsed.action,
+        });
+      }
       return { error: clarify };
     }
 

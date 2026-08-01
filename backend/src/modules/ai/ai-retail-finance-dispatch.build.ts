@@ -13,6 +13,7 @@ import {
   handleLinkProductToServiceLogic,
   handleListExpensesLogic,
   handleListProductsLogic,
+  handleListRefundsLogic,
   handlePayoutExportLogic,
   handleRecordExpenseLogic,
   handleRemoveRetailLineLogic,
@@ -137,6 +138,9 @@ export function buildRetailFinanceLogicDispatchMap(): ReadonlyMap<
   );
   map.set('commission_report', async (deps, ctx) =>
     handleCommissionReportLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
+  );
+  map.set('list_refunds', async (deps, ctx) =>
+    handleListRefundsLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
   );
   map.set('create_commission_rule', async (deps, ctx) =>
     handleCreateCommissionRuleLogic(

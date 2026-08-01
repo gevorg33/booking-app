@@ -144,6 +144,16 @@ export class AuthService {
     return this.toAuthResponse(user, membership!, employee, [summary]);
   }
 
+  /**
+   * e2e-bug.172 — lets a non-auth flow (e.g. invitation acceptance) mint a
+   * real session for a user it just created/linked, the same way `login`
+   * does, instead of leaving the caller to fall back to a stale session
+   * already active on the device.
+   */
+  async issueSessionForUser(user: User, hint?: TenantHint) {
+    return this.buildAuthResponse(user, hint);
+  }
+
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({ where: { email: dto.email } });
     if (!user) {

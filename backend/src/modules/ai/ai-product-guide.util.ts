@@ -12,8 +12,37 @@ import {
   shouldForceProductGuideRouting,
 } from './ai-assistant-mode.util.js';
 import { isGrowthLoopsCustomerPrompt } from './ai-growth-loops-customer.util.js';
-import { isPromoCodeHelpPrompt } from './ai-marketing-growth.util.js';
+import {
+  isLoyaltyPointsBalancePrompt,
+  isPromoCodeHelpPrompt,
+} from './ai-marketing-growth.util.js';
+import { isExplainLoyaltyPointsPrompt } from './ai-explain-loyalty-points.util.js';
+import { isClaimReferralCodePrompt } from './ai-rewards-and-referral-claim.util.js';
 import { DASHBOARD_EXECUTION_CONFIRM_ACTIONS } from './ai-execution-confirm.util.js';
+import { isMyStatsPrompt } from './ai-provider-exp-2.util.js';
+
+/**
+ * e2e-bug.233 — loyalty / referral / rewards are domain actions, not UI walkthroughs.
+ * Must win even when assistantMode is omitted or inferred as guide from "How do…".
+ */
+export function isRewardsLoyaltyReferralDomainPrompt(prompt: string): boolean {
+  const trimmed = prompt.trim();
+  if (!trimmed) return false;
+  if (
+    isExplainLoyaltyPointsPrompt(trimmed) ||
+    isLoyaltyPointsBalancePrompt(trimmed) ||
+    isClaimReferralCodePrompt(trimmed)
+  ) {
+    return true;
+  }
+  // "Explain my rewards wallet" / similar — domain rewards, not booking guide.
+  return (
+    /\b(rewards?\s+wallet|loyalty\s+(?:points?|program|rewards?))\b/i.test(
+      trimmed,
+    ) &&
+    /\b(explain|how|what|balance|earn|worth|claim|redeem)\b/i.test(trimmed)
+  );
+}
 
 /**
  * ai-guide-1.0.1 — Product guide vs domain explain vs action taxonomy.
@@ -217,6 +246,14 @@ export function resolveProductGuidePromptMatch(
   if (!trimmed) return { matched: false };
 
   if (isGrowthLoopsCustomerPrompt(trimmed)) {
+    return { matched: false };
+  }
+  // e2e-bug.233 — loyalty/referral must not become guide_user_flow.
+  if (isRewardsLoyaltyReferralDomainPrompt(trimmed)) {
+    return { matched: false };
+  }
+  // e2e-bug.283 — HY "Ինչպե՞ս եմ…" matches GUIDE_NAVIGATION_CUE but is my_stats.
+  if (isMyStatsPrompt(trimmed)) {
     return { matched: false };
   }
 
@@ -476,6 +513,16 @@ export function classifyPromptIntentBucket(
     return 'action';
   }
 
+  // e2e-bug.233 — "How do loyalty points work?" is domain explain/action, not UI guide.
+  if (isRewardsLoyaltyReferralDomainPrompt(trimmed)) {
+    return 'action';
+  }
+
+  // e2e-bug.283 — provider week stats ("Ինչպե՞ս եմ…") is not a UI tour.
+  if (isMyStatsPrompt(trimmed)) {
+    return 'action';
+  }
+
   if (options.assistantMode === 'act') {
     if (hasExplicitMutateCue(trimmed)) return 'action';
     if (options.classifiedAction) {
@@ -545,6 +592,11 @@ export function resolveProductGuideDisambiguation(
   options: ProductGuideRoutingOptions = {},
 ): ProductGuideDisambiguationResult | null {
   if (!shouldApplyProductGuideRouting(options.assistantMode)) {
+    return null;
+  }
+
+  // e2e-bug.283 — never remount how-am-I / my_stats phrasing as a product-guide tour.
+  if (isMyStatsPrompt(prompt)) {
     return null;
   }
 

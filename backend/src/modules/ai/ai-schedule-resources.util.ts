@@ -2,6 +2,7 @@ import {
   isExplainMultiServiceSettingsPrompt,
   rescueExplainMultiServiceSettingsIntent,
 } from './ai-explain-multi-service-settings.util.js';
+import { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
 
 export const DASHBOARD_RESOURCE_MUTATE_INTENTS = [
   'create_resource',
@@ -212,6 +213,9 @@ export function isBlockResourceUnavailablePrompt(prompt: string): boolean {
 export function isCheckMultiServiceBlockAvailabilityPrompt(
   prompt: string,
 ): boolean {
+  // e2e-bug.193 — What services are available is catalog browse, not a
+  // multi-service block/slot check (too-broad match on services+available).
+  if (isPlainServiceCatalogListPrompt(prompt)) return false;
   return (
     /\b(check|show|find|what)\b/i.test(prompt) &&
     /\b(multi[\s-]?service|services?)\b/i.test(prompt) &&

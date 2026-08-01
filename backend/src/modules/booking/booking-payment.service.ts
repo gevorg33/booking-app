@@ -851,21 +851,16 @@ export class BookingPaymentService {
       chargeBase = planCheckout.amount;
       servicePrice = planCheckout.amount;
     } else {
-      const prepaymentAmount = this.calculatePrepaymentAmount(service);
-      const unitPrice =
-        prepaymentAmount > 0 ? prepaymentAmount : Number(service.price);
+      // api-bug.7 / e2e-bug.222 — catalog total stays in servicePrice; online
+      // prepayment is 0 for prepaymentMode:none (do not fall back to price).
+      const isTour = isTourService(service.metadata);
+      const pax = dto.paxCount ?? 1;
+      servicePrice = multiplyTourPrice(Number(service.price), pax, isTour);
       chargeBase = multiplyTourPrice(
-        unitPrice,
-        dto.paxCount ?? 1,
-        isTourService(service.metadata),
+        this.calculatePrepaymentAmount(service),
+        pax,
+        isTour,
       );
-      if (isTourService(service.metadata) && dto.paxCount && dto.paxCount > 1) {
-        servicePrice = multiplyTourPrice(
-          Number(service.price),
-          dto.paxCount,
-          true,
-        );
-      }
     }
 
     const pricing = await this.checkoutPricingService.calculate({
@@ -883,7 +878,8 @@ export class BookingPaymentService {
         business?.settings,
         service.id,
       ),
-      serviceLineItems: [{ serviceId: service.id, amount: chargeBase }],
+      // Line items use catalog amounts (same as multi-service); charge is prepaymentAmount.
+      serviceLineItems: [{ serviceId: service.id, amount: servicePrice }],
       tax: this.buildTaxCheckoutInput(
         business?.settings as Record<string, unknown> | undefined,
         service.metadata,
@@ -1166,6 +1162,20 @@ export class BookingPaymentService {
     if (draft.status === 'completed') {
       return { alreadyCompleted: true };
     }
+
+    // e2e-bug.182 — atomically claim the draft before doing any fulfillment
+    // work. The frontend can (and did, under a re-render race) fire several
+    // concurrent confirm-payment requests for the same session; without this
+    // conditional update they'd all read status !== 'completed' and each
+    // create its own booking/subscription for a single Stripe charge.
+    const claim = await this.draftRepo.update(
+      { id: draftId, status: 'pending' },
+      { status: 'completed' },
+    );
+    if (!claim.affected) {
+      return { alreadyCompleted: true };
+    }
+    draft.status = 'completed';
 
     const dto = draft.payload as unknown as CreatePublicBookingDto;
     const business = await this.businessRepo.findOne({

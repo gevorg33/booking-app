@@ -67,7 +67,16 @@ import { findScheduleGapsInWindow } from '../schedule/helpers/schedule-gap.helpe
 import { resolveDateRange } from '../ai/ai-orchestration.helpers.js';
 import { rescueProviderAiIntent } from './provider-ai-intent.util.js';
 import { extractDaysFromPrompt } from '../ai/ai-provider-schedule-reads.util.js';
-import { parseMarkMultiServiceStepDoneFromPrompt } from '../ai/ai-provider-mark-multi-service-step-done.util.js';
+import {
+  extractCustomerNameForMultiServiceStepDone,
+  parseMarkMultiServiceStepDoneFromPrompt,
+} from '../ai/ai-provider-mark-multi-service-step-done.util.js';
+import {
+  buildVisitStatusTargetClarifyDetails,
+  buildVisitStatusTargetClarifySummary,
+  shouldClarifyVisitStatusTarget,
+  type VisitStatusAlias,
+} from '../ai/ai-e2e263-visit-status-target.util.js';
 import {
   extractPatientSearchQueryFromPrompt,
   formatPatientSearchResultsText,
@@ -160,6 +169,7 @@ import {
 } from '../ai/ai-provider-assistant-ux-explainers.util.js';
 import { handleGiveProviderAiFeedback } from '../ai/ai-provider-give-ai-feedback.util.js';
 import {
+  buildExplainDashboardOnlyActionFallbackSummary,
   buildExplainReassignLimitSummary,
   buildExplainTimeOffApprovalSummary,
   resolveDashboardOnlyActionSummaryFromPrompt,
@@ -173,6 +183,7 @@ import {
   extractCustomerNameFromClientPrompt,
 } from '../ai/ai-provider-client-context.util.js';
 import { AiProviderExp2Service } from '../ai/ai-provider-exp-2.service.js';
+import { isMyStatsPrompt } from '../ai/ai-provider-exp-2.util.js';
 import { AiProviderTimeOffService } from '../ai/ai-provider-time-off.service.js';
 import { AiProviderOpenShiftsService } from '../ai/ai-provider-open-shifts.service.js';
 import { AiProviderExp3Service } from '../ai/ai-provider-exp-3.service.js';
@@ -297,6 +308,19 @@ Rules:
 - cancel_bookings: user wants to cancel one or more appointments. Put sickness/reason in reason.
 - update_bookings: change status and/or payment status without cancelling (single appointment or explicit customer/time).
 - mark_visit_complete: MUTATE — dedicated shortcut for marking the current/in-progress visit as completed (single booking, no explicit payment change). Triggers: mark done, finish this appointment, wrap up this visit, done with this client. NOT mark_paid (payment status, not visit status), NOT update_bookings when the user gives an explicit customer/time to target a different appointment or also mentions payment.
+- mark_visit_in_progress: MUTATE — dedicated alias of update_bookings(status=in_progress) — starts the visit now. Requires bookingId (session) and/or customerName. Triggers: begin Jane's color, start appointment now, start the service, begin this visit, mark Sam's appointment as started. NOT mark_visit_complete (finishes the visit), NOT check_in_client (arrival, before the service starts).
+- mark_multi_service_step_done: MUTATE — mark one leg of a multi-service booking group complete, not the whole visit. Requires bookingId (session, any leg) plus stepIndex (1-based) or serviceName. Triggers: finish step 1 of spa day, complete blowdry leg, finish step 2. NOT mark_visit_complete (entire visit), NOT update_bookings generic status.
+- confirm_pending_booking: MUTATE — confirm one or all pending appointments (bulk when "all"/"today"/no name; single when customerName is given). Filters to currently-pending only. Triggers: confirm all pending today, accept Maria's booking, confirm Jane's appointment. NOT confirm_booking_from_push (push-originated), NOT update_bookings (would touch non-pending matches).
+- give_provider_ai_feedback: MUTATE — thumbs up/down on the last assistant answer with optional reason chips (Wrong action/date/client/service, Didn't understand). Triggers: Wrong client picked, That wasn't my intent, That was helpful, Not helpful. NOT give_ai_feedback (customer/public surface).
+- explain_booking_status_badge: READ — explains what a booking status badge means (pending, confirmed, in progress, completed, no-show). Triggers: what does pending mean, why in progress, explain booking statuses. NOT update_bookings, NOT explain_floor_status (floor strip).
+- explain_floor_status: READ — explains the check-in floor strip (waiting/checked-in vs in service vs done). Triggers: waiting vs in service, what's checked in, explain the floor status. NOT team_floor_status (live data), NOT explain_booking_status_badge.
+- explain_calendar_utilization_bands: READ — explains what the calendar month view color bands mean (empty/low/medium/high). Triggers: what do the green bands mean, fully booked day, what do the calendar colors mean, explain calendar bands. NOT summarize_utilization (live percent), NOT get_calendar_month (live grid).
+- explain_block_vs_time_off: READ — FAQ comparing instant block_schedule/block_my_time (no approval) vs request_time_off (needs manager approval). Triggers: block vs time off, which should I use for vacation, difference between block and time off. NOT block_schedule / block_my_time / request_time_off themselves.
+- explain_offline_suggestions: READ — explains why Today's cached suggestion cards can look stale offline and when they refresh. Triggers: why stale suggestions, refresh suggestions when online, suggestions not updating. NOT offline_queue_status (live queue), NOT explain_ai_suggestions (what a chip means).
+- explain_accessibility_settings: READ — explains that text size and tap targets follow the phone's OS accessibility settings, not an in-app control. Triggers: bigger text in app, larger tap targets, accessibility settings, increase font size.
+- explain_dashboard_only_action: READ — explains why a feature (loyalty points, message templates, full intake answers, call client, review policy, app language) is dashboard-only. Triggers: adjust loyalty points, edit message templates, open full intake answers. NOT explain_reassign_limit / explain_time_off_approval.
+- explain_reassign_limit: READ — explains why multi-service bookings can't be reassigned via the mobile assistant. Triggers: why can't AI reassign multi-service, use reassign button. NOT reassign_booking_same_day / list_reassign_options.
+- explain_time_off_approval: READ — explains who approves time-off (manager) and where (dashboard). Triggers: who approves my time off, pending manager approval. NOT request_time_off / list_my_time_off_requests.
 - mark_no_shows: bulk mark past missed appointments as no-show for a day or range. Use for "mark no-shows", "no shows today".
 - payment_sweep: mark unpaid appointments as paid for a day or range. Use for "payment sweep", "mark unpaid as paid".
 - list_bookings / show_appointments / summarize_day: view-only; no mutations. show_appointments supports serviceName and status/statusFilter.
@@ -471,12 +495,17 @@ export class ProviderAiCommandService {
     );
     const actorTier = this.resolveProviderAccessTier(access);
 
-    const rescuedProviderGuide = rescueProductGuideIntent(prompt, 'unknown', {
-      surface: 'provider',
-      assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
-      route: mapProviderMobileGuideRoute(context),
-      context,
-    });
+    // e2e-bug.266 — my_stats phrasing (incl. HY "Ինչպե՞ս եմ…") must not be
+    // stolen by early product-guide rescue.
+    const skipEarlyGuideForMyStats = isMyStatsPrompt(prompt);
+    const rescuedProviderGuide = skipEarlyGuideForMyStats
+      ? { action: 'unknown' as const }
+      : rescueProductGuideIntent(prompt, 'unknown', {
+          surface: 'provider',
+          assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+          route: mapProviderMobileGuideRoute(context),
+          context,
+        });
     if (isProviderProductGuideIntent(rescuedProviderGuide.action)) {
       return this.attachProviderSession(
         await this.dispatchProviderProductGuideIntent(
@@ -537,7 +566,12 @@ export class ProviderAiCommandService {
       surface: 'provider',
       assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
     });
-    if (guideMatch.matched && guideMatch.intent) {
+    // e2e-bug.266 — "Ինչպե՞ս եմ…" is my_stats, not a product-guide tour.
+    if (
+      guideMatch.matched &&
+      guideMatch.intent &&
+      !isMyStatsPrompt(prompt)
+    ) {
       return this.attachProviderSession(
         await this.dispatchProviderAppGuideIntent(
           businessId,
@@ -758,33 +792,45 @@ export class ProviderAiCommandService {
       rescueReason = 'provider_heuristic';
     }
 
-    const clientContextRescue =
-      this.providerClientContext.rescueProviderClientContextIntent(
+    // e2e-bug.247 — dashboard-handoff FAQ explainers must not be stolen by later
+    // client-context / Exp2 heuristics (intake read, my_stats false-positives).
+    const dashboardHandoffExplainer = new Set([
+      'explain_dashboard_only_action',
+      'explain_reassign_limit',
+      'explain_time_off_approval',
+    ]);
+    const lockDashboardHandoff = dashboardHandoffExplainer.has(parsed.action);
+
+    if (!lockDashboardHandoff) {
+      const clientContextRescue =
+        this.providerClientContext.rescueProviderClientContextIntent(
+          prompt,
+          parsed.action,
+        );
+      if (clientContextRescue && clientContextRescue.action !== parsed.action) {
+        parsed.action = clientContextRescue.action;
+        rescueReason = clientContextRescue.rescueReason;
+        if (clientContextRescue.action === 'add_client_note') {
+          const noteBody = extractClientNoteBodyFromPrompt(prompt);
+          if (noteBody) {
+            (parsed.params as Record<string, unknown>).clientNote = noteBody;
+          }
+        }
+        const customerName = extractCustomerNameFromClientPrompt(prompt);
+        if (customerName) {
+          (parsed.params as Record<string, unknown>).customerName =
+            customerName;
+        }
+      }
+
+      const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
         prompt,
         parsed.action,
       );
-    if (clientContextRescue && clientContextRescue.action !== parsed.action) {
-      parsed.action = clientContextRescue.action;
-      rescueReason = clientContextRescue.rescueReason;
-      if (clientContextRescue.action === 'add_client_note') {
-        const noteBody = extractClientNoteBodyFromPrompt(prompt);
-        if (noteBody) {
-          (parsed.params as Record<string, unknown>).clientNote = noteBody;
-        }
+      if (providerExp2Rescue && providerExp2Rescue.action !== parsed.action) {
+        parsed.action = providerExp2Rescue.action;
+        rescueReason = providerExp2Rescue.rescueReason;
       }
-      const customerName = extractCustomerNameFromClientPrompt(prompt);
-      if (customerName) {
-        (parsed.params as Record<string, unknown>).customerName = customerName;
-      }
-    }
-
-    const providerExp2Rescue = this.providerExp2.rescueProviderExp2Intent(
-      prompt,
-      parsed.action,
-    );
-    if (providerExp2Rescue && providerExp2Rescue.action !== parsed.action) {
-      parsed.action = providerExp2Rescue.action;
-      rescueReason = providerExp2Rescue.rescueReason;
     }
 
     const voiceSummarizeRescue = rescueVoiceSummarizeNextClientIntent(
@@ -796,20 +842,24 @@ export class ProviderAiCommandService {
       rescueReason = 'voice_summarize_next_client';
     }
 
-    const providerGuideRescue = rescueProductGuideIntent(
-      prompt,
-      parsed.action,
-      {
-        surface: 'provider',
-        assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
-        route: mapProviderMobileGuideRoute(context),
-        context,
-      },
-    );
-    if (providerGuideRescue.action !== parsed.action) {
-      parsed.action = providerGuideRescue.action;
-      rescueReason =
-        providerGuideRescue.rescueReason ?? 'provider_product_guide';
+    // e2e-bug.266 — post-classify product-guide rescue must not steal my_stats
+    // ("Ինչպե՞ս եմ այս ամիս" / "How am I doing…") back to guide_user_flow.
+    if (!isMyStatsPrompt(prompt) && parsed.action !== 'my_stats') {
+      const providerGuideRescue = rescueProductGuideIntent(
+        prompt,
+        parsed.action,
+        {
+          surface: 'provider',
+          assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
+          route: mapProviderMobileGuideRoute(context),
+          context,
+        },
+      );
+      if (providerGuideRescue.action !== parsed.action) {
+        parsed.action = providerGuideRescue.action;
+        rescueReason =
+          providerGuideRescue.rescueReason ?? 'provider_product_guide';
+      }
     }
 
     const coordination = rescueCoordinationIntent(prompt, parsed.action);
@@ -1011,6 +1061,7 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
+          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
         );
         break;
       case 'mark_visit_in_progress':
@@ -1020,6 +1071,7 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
+          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
         );
         break;
       case 'mark_multi_service_step_done':
@@ -1069,10 +1121,21 @@ export class ProviderAiCommandService {
         result = this.handleExplainAccessibilitySettings();
         break;
       case 'give_provider_ai_feedback':
-        result = handleGiveProviderAiFeedback(parsed.params, prompt);
+        result = handleGiveProviderAiFeedback(
+          {
+            ...parsed.params,
+            ...(typeof context?.lastAction === 'string' && context.lastAction
+              ? { lastAction: context.lastAction }
+              : {}),
+          },
+          prompt,
+        );
         break;
       case 'explain_dashboard_only_action':
-        result = this.handleExplainDashboardOnlyAction(prompt);
+        result = this.handleExplainDashboardOnlyAction(
+          prompt,
+          typeof context?.locale === 'string' ? context.locale : undefined,
+        );
         break;
       case 'explain_reassign_limit':
         result = this.handleExplainReassignLimit();
@@ -4036,16 +4099,18 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
-    confirmed: boolean,
+    _confirmed: boolean,
+    sessionBookingId?: string,
   ): Promise<ProviderCommandResult> {
-    const result = await this.handleUpdateBookings(
+    return this.handleVisitStatusAlias(
       businessId,
       access,
-      { ...params, status: 'completed' },
+      params,
       userId,
-      confirmed,
+      'mark_visit_complete',
+      BookingStatus.COMPLETED,
+      sessionBookingId,
     );
-    return { ...result, action: 'mark_visit_complete' };
   }
 
   /** ai-cmd-provider-5.16.2 — thin alias to update_bookings(status=in_progress); dedicated action name so "Begin Jane's color" resolves unambiguously without needing the generic status-branch matching. */
@@ -4054,16 +4119,177 @@ export class ProviderAiCommandService {
     access: MobileAccess,
     params: Record<string, unknown>,
     userId: string,
-    confirmed: boolean,
+    _confirmed: boolean,
+    sessionBookingId?: string,
   ): Promise<ProviderCommandResult> {
-    const result = await this.handleUpdateBookings(
+    return this.handleVisitStatusAlias(
       businessId,
       access,
-      { ...params, status: 'in_progress' },
+      params,
       userId,
-      confirmed,
+      'mark_visit_in_progress',
+      BookingStatus.IN_PROGRESS,
+      sessionBookingId,
     );
-    return { ...result, action: 'mark_visit_in_progress' };
+  }
+
+  /**
+   * e2e-bug.263 — visit-status aliases never bulk-mutate the day.
+   * Require a unique match (bookingId / customerName / timeSlot filter, or
+   * exactly one appointment today). Multi-match → clarify, even if confirmed.
+   */
+  private async handleVisitStatusAlias(
+    businessId: string,
+    access: MobileAccess,
+    params: Record<string, unknown>,
+    userId: string,
+    action: VisitStatusAlias,
+    status: BookingStatus,
+    sessionBookingId?: string,
+  ): Promise<ProviderCommandResult> {
+    const merged: Record<string, unknown> = {
+      ...params,
+      status,
+    };
+    if (
+      !(typeof merged.bookingId === 'string' && merged.bookingId.trim()) &&
+      typeof sessionBookingId === 'string' &&
+      sessionBookingId.trim()
+    ) {
+      merged.bookingId = sessionBookingId.trim();
+    }
+    if (!merged.date) merged.date = toIsoDay(todayDisplay());
+
+    const employeeId = this.providerMobile.getScopedEmployeeId(access);
+    const bookings = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      merged,
+      { excludeCancelled: true },
+    );
+
+    if (bookings.length === 0) {
+      return {
+        success: true,
+        action,
+        summary: this.noMatchMessage('update', merged),
+        details: { matchedCount: 0 },
+      };
+    }
+
+    if (shouldClarifyVisitStatusTarget(bookings.length)) {
+      return {
+        success: false,
+        action,
+        summary: buildVisitStatusTargetClarifySummary(bookings.length),
+        details: buildVisitStatusTargetClarifyDetails(action, bookings.length),
+      };
+    }
+
+    const result = await this.executeUpdate(bookings, { status }, userId);
+    return { ...result, action };
+  }
+
+  /** Prefer exact / longest service-name match when selecting a multi-service leg. */
+  private pickMultiServiceLegByServiceName(
+    siblings: Booking[],
+    serviceName: string,
+  ): Booking | undefined {
+    const query = serviceName.toLowerCase().trim();
+    if (!query) return undefined;
+
+    const scored = siblings
+      .map((booking) => {
+        const name = (booking.service?.name ?? '').toLowerCase().trim();
+        if (!name) return { booking, score: 0 };
+        if (name === query) return { booking, score: 100 };
+        if (name.startsWith(query) || query.startsWith(name)) {
+          return { booking, score: 80 + Math.min(query.length, name.length) };
+        }
+        if (name.includes(query)) return { booking, score: 50 + query.length };
+        if (query.includes(name) && name.length >= 4) {
+          return { booking, score: 30 + name.length };
+        }
+        return { booking, score: 0 };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    if (!scored.length) return undefined;
+    if (scored.length > 1 && scored[0].score === scored[1].score) {
+      return undefined;
+    }
+    return scored[0].booking;
+  }
+
+  /**
+   * e2e-bug.264 — resolve a multi-service group anchor from customerName when
+   * no bookingId/session booking is open.
+   */
+  private async resolveMultiServiceStepAnchorBookingId(
+    businessId: string,
+    employeeId: string | undefined,
+    customerName: string,
+  ): Promise<
+    | { bookingId: string }
+    | { clarify: ProviderCommandResult }
+    | null
+  > {
+    const day = toIsoDay(todayDisplay());
+    const range = this.resolveDateRange({ date: day });
+    if (!range) return null;
+
+    const where: Record<string, unknown> = {
+      businessId,
+      startTime: Between(range.start, range.end),
+      status: Not(
+        In([
+          BookingStatus.CANCELLED,
+          BookingStatus.COMPLETED,
+          BookingStatus.NO_SHOW,
+        ]),
+      ),
+    };
+    if (employeeId) where.employeeId = employeeId;
+
+    const candidates = await this.bookingRepo.find({
+      where,
+      relations: { customer: true },
+      order: { startTime: 'ASC' },
+    });
+
+    const needle = customerName.toLowerCase();
+    const withGroup = candidates.filter(
+      (b) =>
+        !!b.multiServiceGroupId &&
+        !!b.customer?.name &&
+        b.customer.name.toLowerCase().includes(needle),
+    );
+    if (!withGroup.length) return null;
+
+    const groupIds = [
+      ...new Set(
+        withGroup
+          .map((b) => b.multiServiceGroupId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    if (groupIds.length > 1) {
+      return {
+        clarify: {
+          success: false,
+          action: 'mark_multi_service_step_done',
+          summary: `I found ${groupIds.length} multi-service visits for ${customerName}. Open one or specify a time.`,
+          details: {
+            clarify: true,
+            matchedGroupCount: groupIds.length,
+            missing: ['bookingId'],
+          },
+        },
+      };
+    }
+
+    return { bookingId: withGroup[0].id };
   }
 
   /** ai-cmd-provider-5.18.3 — mark one leg of a multi-service booking group done (per-leg status), not the whole visit. */
@@ -4076,10 +4302,40 @@ export class ProviderAiCommandService {
     sessionBookingId?: string,
     prompt?: string,
   ): Promise<ProviderCommandResult> {
-    const anchorBookingId =
+    let anchorBookingId =
       (typeof params.bookingId === 'string' && params.bookingId.trim()) ||
       (typeof sessionBookingId === 'string' && sessionBookingId.trim()) ||
       null;
+
+    // e2e-bug.264 — fall back to customerName → unique multi-service group today.
+    if (!anchorBookingId) {
+      const customerName = extractCustomerNameForMultiServiceStepDone(
+        prompt ?? '',
+        params,
+      );
+      if (customerName) {
+        const employeeId = this.providerMobile.getScopedEmployeeId(access);
+        const resolved = await this.resolveMultiServiceStepAnchorBookingId(
+          businessId,
+          employeeId,
+          customerName,
+        );
+        if (resolved && 'clarify' in resolved) {
+          return resolved.clarify;
+        }
+        if (resolved && 'bookingId' in resolved) {
+          anchorBookingId = resolved.bookingId;
+        } else {
+          return {
+            success: false,
+            action: 'mark_multi_service_step_done',
+            summary: `No multi-service visit found for ${customerName} today. Open the booking or check the name.`,
+            details: { clarify: true, customerName },
+          };
+        }
+      }
+    }
+
     if (!anchorBookingId) {
       return {
         success: false,
@@ -4110,23 +4366,31 @@ export class ProviderAiCommandService {
     const parsedFromPrompt = parseMarkMultiServiceStepDoneFromPrompt(
       prompt ?? '',
     );
-    const stepIndex =
-      typeof params.stepIndex === 'number'
-        ? params.stepIndex
-        : (parsedFromPrompt?.stepIndex ?? null);
-    const serviceName =
-      typeof params.serviceName === 'string' && params.serviceName.trim()
-        ? params.serviceName
-        : parsedFromPrompt?.serviceName;
+    // Prefer deterministic prompt parse over LLM params (e2e-bug.264 live:
+    // classifier sometimes invents the wrong leg — e.g. stepIndex:2 while the
+    // prompt says "Complete hairdrying leg").
+    const promptHasStep = parsedFromPrompt?.stepIndex != null;
+    const promptHasService = !!parsedFromPrompt?.serviceName;
+    const stepIndex = promptHasStep
+      ? parsedFromPrompt!.stepIndex!
+      : promptHasService
+        ? null
+        : typeof params.stepIndex === 'number'
+          ? params.stepIndex
+          : null;
+    const serviceName = promptHasService
+      ? parsedFromPrompt!.serviceName
+      : promptHasStep
+        ? undefined
+        : typeof params.serviceName === 'string' && params.serviceName.trim()
+          ? params.serviceName
+          : undefined;
 
     let target: Booking | undefined;
     if (stepIndex != null && stepIndex >= 1 && stepIndex <= siblings.length) {
       target = siblings[stepIndex - 1];
     } else if (serviceName) {
-      const query = serviceName.toLowerCase();
-      target = siblings.find((booking) =>
-        booking.service?.name.toLowerCase().includes(query),
-      );
+      target = this.pickMultiServiceLegByServiceName(siblings, serviceName);
     }
 
     if (!target) {
@@ -4310,10 +4574,13 @@ export class ProviderAiCommandService {
   }
 
   /** ai-cmd-provider-5.25.1 — static lookup over PROVIDER_EXP_UI_AI_PARITY's dashboard-only rows. */
-  private handleExplainDashboardOnlyAction(prompt: string): ProviderCommandResult {
+  private handleExplainDashboardOnlyAction(
+    prompt: string,
+    locale?: string,
+  ): ProviderCommandResult {
     const summary =
-      resolveDashboardOnlyActionSummaryFromPrompt(prompt) ??
-      "That feature is managed from the dashboard, not the mobile assistant. Open the dashboard for this.";
+      resolveDashboardOnlyActionSummaryFromPrompt(prompt, locale) ??
+      buildExplainDashboardOnlyActionFallbackSummary(locale, prompt);
     return {
       success: true,
       action: 'explain_dashboard_only_action',

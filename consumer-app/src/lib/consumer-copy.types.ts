@@ -8,6 +8,8 @@ export type ConsumerCopy = {
   cancelBooking: string;
   cancelBookingConfirm: string;
   cancelBookingFailed: string;
+  cancelBookingRefunded: string;
+  cancelBookingRefundFailed: string;
   rescheduleBooking: string;
   pickNewTime: string;
   loadingSlots: string;
@@ -110,6 +112,7 @@ export type ConsumerCopy = {
   checkoutGiftCardDiscount: string;
   checkoutLoyaltyDiscount: string;
   checkoutFreeAfterDiscounts: string;
+  checkoutDepositNotice: string;
   checkoutHowToBook: string;
   checkoutUseSubscription: string;
   checkoutAppointmentsLeft: string;
@@ -401,6 +404,7 @@ export type ConsumerCopy = {
   postBookingSignInBusy: string;
   activationPaymentOptionalHint: string;
   activationPaymentHiccupMessage: string;
+  checkoutPaymentPendingRetryMessage: string;
   activationPayAtVenueFallbackAction: string;
   activationPayAtVenueSelected: string;
   activationConfirmBooking: string;
@@ -634,6 +638,8 @@ export type ConsumerCopy = {
   subscriptionsCancelConfirm: string;
   subscriptionsCancelFailed: string;
   subscriptionsCancelRefunded: string;
+  subscriptionsCancelRefundFailed: string;
+  subscriptionsCancelIneligible: string;
   subscriptionsUsageHistory: string;
   subscriptionsNoUsage: string;
   subscriptionUsagePurchase: string;

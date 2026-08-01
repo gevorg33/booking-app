@@ -25,6 +25,14 @@ import { PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES } from './ai-provider-voice
 import { PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES } from './ai-explain-provider-context.fixtures.js';
 import { PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES } from './ai-provider-schedule-reads.fixtures.js';
 import { PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES } from './ai-provider-open-booking-detail.fixtures.js';
+import { PROVIDER_MARK_VISIT_IN_PROGRESS_CLASSIFIER_RULES } from './ai-provider-mark-visit-in-progress.fixtures.js';
+import { PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_CLASSIFIER_RULES } from './ai-provider-mark-multi-service-step-done.fixtures.js';
+import { PROVIDER_CONFIRM_PENDING_BOOKING_CLASSIFIER_RULES } from './ai-provider-confirm-pending-booking.fixtures.js';
+import { PROVIDER_GIVE_AI_FEEDBACK_CLASSIFIER_RULES } from './ai-provider-give-ai-feedback.fixtures.js';
+import { PROVIDER_VISIT_STATUS_EXPLAINERS_CLASSIFIER_RULES } from './ai-provider-visit-status-explainers.fixtures.js';
+import { PROVIDER_CALENDAR_SCHEDULING_EXPLAINERS_CLASSIFIER_RULES } from './ai-provider-calendar-scheduling-explainers.fixtures.js';
+import { PROVIDER_ASSISTANT_UX_EXPLAINERS_CLASSIFIER_RULES } from './ai-provider-assistant-ux-explainers.fixtures.js';
+import { PROVIDER_DASHBOARD_HANDOFF_CLASSIFIER_RULES } from './ai-provider-dashboard-handoff.fixtures.js';
 
 /** Classifier rules for provider mobile scoped handlers & push parity (ai-cmd-h3.5). */
 export const PROVIDER_MOBILE_CLASSIFIER_RULES = `- confirm_booking_from_push: same outcome as tapping Confirm on a new-booking push — requires bookingId (from lastPush or prompt). Triggers: "confirm this booking from the push", "confirm appointment from notification". NOT update_bookings unless user names status explicitly without push context.
@@ -65,4 +73,12 @@ ${PROVIDER_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}
 ${PROVIDER_VOICE_NEXT_CLIENT_CLASSIFIER_RULES}
 ${PROVIDER_EXPLAIN_CONTEXT_CLASSIFIER_RULES}
 ${PROVIDER_SCHEDULE_READS_CLASSIFIER_RULES}
-${PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES}`;
+${PROVIDER_OPEN_BOOKING_DETAIL_CLASSIFIER_RULES}
+${PROVIDER_MARK_VISIT_IN_PROGRESS_CLASSIFIER_RULES}
+${PROVIDER_MARK_MULTI_SERVICE_STEP_DONE_CLASSIFIER_RULES}
+${PROVIDER_CONFIRM_PENDING_BOOKING_CLASSIFIER_RULES}
+${PROVIDER_GIVE_AI_FEEDBACK_CLASSIFIER_RULES}
+${PROVIDER_VISIT_STATUS_EXPLAINERS_CLASSIFIER_RULES}
+${PROVIDER_CALENDAR_SCHEDULING_EXPLAINERS_CLASSIFIER_RULES}
+${PROVIDER_ASSISTANT_UX_EXPLAINERS_CLASSIFIER_RULES}
+${PROVIDER_DASHBOARD_HANDOFF_CLASSIFIER_RULES}`;

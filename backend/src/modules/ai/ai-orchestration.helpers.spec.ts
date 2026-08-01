@@ -379,6 +379,12 @@ describe('extractServiceTypeKeywordFromListPrompt', () => {
     expect(
       extractServiceTypeKeywordFromListPrompt('What services do we offer?'),
     ).toBeNull();
+    expect(
+      extractServiceTypeKeywordFromListPrompt('what services do you offer?'),
+    ).toBeNull();
+    expect(
+      extractServiceTypeKeywordFromListPrompt('list all services'),
+    ).toBeNull();
   });
 });
 
@@ -393,8 +399,29 @@ describe('sanitizeListServicesFilterValue', () => {
     ['x', null],
     ['', null],
     ['  ', null],
+    ['offer', null],
+    ['services', null],
+    // e2e-bug.226 — classifier copies list phrasing into the filter
+    ['you offer', null],
+    ['You Offer', null],
+    ['do you offer', null],
+    ['you have', null],
+    ['do you have', null],
+    ['we offer', null],
+    ['are available', null],
+    ['available', null],
+    ['services you offer', null],
+    ['massage you offer', 'massage'],
     ['massage', 'massage'],
     ['hair', 'hair'],
+    ['face care', 'face care'],
+    // e2e-bug.238 — book-half availability fillers are not catalog filters
+    ['soonest', null],
+    ['nearest', null],
+    ['next available', null],
+    ['soonest available', null],
+    ['earliest available', null],
+    ['first available', null],
   ])('sanitizes %j → %j', (input, expected) => {
     expect(sanitizeListServicesFilterValue(input)).toBe(expected);
   });
@@ -428,6 +455,42 @@ describe('enrichListServicesParamsFromPrompt', () => {
       }),
     ).toEqual({ serviceCategory: null, serviceName: null });
   });
+
+  it('e2e-bug.226 — drops "you offer" filter from what services do you offer?', () => {
+    expect(
+      enrichListServicesParamsFromPrompt('what services do you offer?', {
+        serviceName: 'you offer',
+      }),
+    ).toEqual({ serviceName: null });
+    expect(
+      enrichListServicesParamsFromPrompt('What services do you offer?', {
+        serviceCategory: 'you offer',
+        serviceName: 'you offer',
+      }),
+    ).toEqual({ serviceCategory: null, serviceName: null });
+    expect(
+      extractServiceTypeKeywordFromListPrompt('what services do you offer?'),
+    ).toBeNull();
+  });
+
+  it('e2e-bug.238 — extracts massage from show/list budget options prompts', () => {
+    expect(
+      extractServiceTypeKeywordFromListPrompt(
+        'Show me evening massage options under $100 then book the soonest',
+      ),
+    ).toBe('massage');
+    expect(
+      extractServiceTypeKeywordFromListPrompt(
+        'list massage under $100 then book the soonest available',
+      ),
+    ).toBe('massage');
+    expect(
+      enrichListServicesParamsFromPrompt(
+        'Show me evening massage options under $100 then book the soonest',
+        { serviceCategory: 'soonest' },
+      ),
+    ).toEqual({ serviceCategory: 'massage' });
+  });
 });
 
 describe('resolvePublicAssistantSessionServiceFields', () => {
@@ -445,10 +508,19 @@ describe('resolvePublicAssistantSessionServiceFields', () => {
     ).toEqual({ serviceName: 'hairstyle', serviceCategory: null });
   });
 
-  it('clears unknown service names so they do not poison the next turn', () => {
+  it('maps haircut synonym to catalog hairstyle (e2e-bug.199)', () => {
     expect(
       resolvePublicAssistantSessionServiceFields(
         { serviceName: 'haircut' },
+        catalog,
+      ),
+    ).toEqual({ serviceName: 'hairstyle', serviceCategory: null });
+  });
+
+  it('clears truly unknown service names so they do not poison the next turn', () => {
+    expect(
+      resolvePublicAssistantSessionServiceFields(
+        { serviceName: 'unicorn trim' },
         catalog,
       ),
     ).toEqual({ serviceName: null, serviceCategory: null });
@@ -494,6 +566,31 @@ describe('resolveServicesFromCatalogParams', () => {
         serviceName: 'Swedish massage',
       }),
     ).toEqual([{ id: '5', name: 'Swedish massage' }]);
+  });
+
+  it('maps haircut / haircuts to catalog hairstyle (e2e-bug.199)', () => {
+    expect(
+      resolveServicesFromCatalogParams(catalog, {
+        serviceCategory: 'haircut',
+      }).map((s) => s.name),
+    ).toEqual(['hairstyle']);
+    expect(
+      resolveServicesFromCatalogParams(catalog, {
+        serviceName: 'haircuts',
+      }).map((s) => s.name),
+    ).toEqual(['hairstyle']);
+  });
+
+  it('prefers exact haircut over synonym when both exist (e2e-bug.199)', () => {
+    const both = [
+      ...catalog,
+      { id: '7', name: 'Classic haircut' },
+    ];
+    expect(
+      resolveServicesFromCatalogParams(both, {
+        serviceCategory: 'haircut',
+      }).map((s) => s.name),
+    ).toEqual(['Classic haircut']);
   });
 
   it('prefers service type name matches over catalog category names', () => {
@@ -547,6 +644,18 @@ describe('matchServicesByQuery', () => {
     { id: '5', name: 'Swedish massage' },
     { id: '6', name: 'hairstyle' },
   ];
+
+  it('maps haircut to hairstyle when catalog has no haircut (e2e-bug.199)', () => {
+    expect(matchServicesByQuery(catalog, 'haircut').map((s) => s.name)).toEqual(
+      ['hairstyle'],
+    );
+    expect(
+      matchServicesByQuery(catalog, 'haircuts').map((s) => s.name),
+    ).toEqual(['hairstyle']);
+    expect(
+      fuzzyMatchServiceByName(catalog, 'haircut')?.name,
+    ).toBe('hairstyle');
+  });
 
   it('returns all massage services for broad "massage" query', () => {
     const matched = matchServicesByQuery(catalog, 'massage');

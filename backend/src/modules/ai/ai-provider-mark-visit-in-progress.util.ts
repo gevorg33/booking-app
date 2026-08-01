@@ -18,7 +18,7 @@ export function isMarkVisitInProgressPrompt(prompt: string): boolean {
   }
 
   if (
-    /\b(?:mark\s+(?:this\s+|the\s+)?(?:as\s+)?in[\s-]?progress|start(?:ed)?\s+(?:the\s+)?(?:service|appointment|visit)|begin\s+(?:the\s+)?(?:service|appointment|visit)|begin\s+[\w'.-]+'s\s+[\w'.-]+|start\s+[\w'.-]+'s\s+(?:appointment|visit))\b/i.test(
+    /\b(?:mark\s+(?:this\s+|the\s+)?(?:as\s+)?in[\s-]?progress|mark\s+[\w'.-]+'s\s+(?:appointment|visit|service)\s+as\s+started|mark\s+(?:this\s+|the\s+)?(?:appointment|visit|service)\s+as\s+started|start(?:ed)?\s+(?:the\s+)?(?:service|appointment|visit)|begin\s+(?:the\s+)?(?:service|appointment|visit)|begin\s+[\w'.-]+'s\s+[\w'.-]+|start\s+[\w'.-]+'s\s+(?:appointment|visit|service|color|haircut))\b/i.test(
       lower,
     )
   ) {

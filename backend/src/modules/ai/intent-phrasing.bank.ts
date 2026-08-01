@@ -16,9 +16,55 @@ export const CANONICAL_PHRASING_BANK: CanonicalPhrasingBankDocument = {
       surfaces: ['dashboard', 'customer'],
       paramHints: { bookingFirstAvailable: true },
       conceptGroups: [
-        ['book', 'schedule', 'reserve', 'get', 'grab', 'want', 'need', 'put'],
+        [
+          'book',
+          'booking',
+          'create',
+          'schedule',
+          'reserve',
+          'get',
+          'grab',
+          'want',
+          'need',
+          'put',
+        ],
         ['first', 'earliest', 'soonest', 'nearest', 'next', 'asap', 'gap'],
-        ['available', 'free', 'open', 'opening', 'slot', 'time', 'appointment'],
+        [
+          'available',
+          'free',
+          'open',
+          'opening',
+          'slot',
+          'time',
+          'appointment',
+          'provider',
+          'any',
+          'monday',
+        ],
+      ],
+    },
+    {
+      // e2e-bug.286 — "Create a booking for the first available…" must stay
+      // create_booking (not create_employee via Create + any provider).
+      id: 'en-create-booking-first-available',
+      action: 'create_booking',
+      phrase:
+        'create a booking for the first available massage slot on monday for any provider',
+      locale: 'en',
+      surfaces: ['dashboard', 'customer'],
+      paramHints: { bookingFirstAvailable: true, allProviders: true },
+      conceptGroups: [
+        ['create', 'book', 'booking', 'schedule', 'reserve', 'make'],
+        ['first', 'earliest', 'soonest', 'nearest', 'next', 'available'],
+        [
+          'slot',
+          'appointment',
+          'massage',
+          'service',
+          'provider',
+          'any',
+          'monday',
+        ],
       ],
     },
     {

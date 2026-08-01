@@ -14,6 +14,7 @@ import {
   handleListExpensesLogic,
   handleSummarizePlLogic,
   handleCommissionReportLogic,
+  handleListRefundsLogic,
   handleCreateCommissionRuleLogic,
   handleDeleteCommissionRuleLogic,
   handlePayoutExportLogic,
@@ -637,6 +638,91 @@ describe('ai-retail-finance.logic', () => {
         )
       ).success,
     ).toBe(false);
+  });
+
+  describe('handleListRefundsLogic (e2e-bug.167)', () => {
+    const refundedBooking = {
+      id: 'b-refund-1',
+      businessId: 'biz-1',
+      customer: { id: 'c1', name: 'Anna' },
+      service: { id: 'svc-1', name: 'Haircut', price: 60 },
+      paymentStatus: 'refunded',
+      updatedAt: new Date('2026-06-15T10:00:00Z'),
+      metadata: {
+        stripeRefundId: 're_abc123',
+        pricing: { amountDue: 60 },
+      },
+    };
+
+    it('lists refunds with a total, using metadata.pricing.amountDue as the amount', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn(async () => [{ ...refundedBooking }]),
+        } as any,
+      });
+      const result = await handleListRefundsLogic(
+        deps,
+        'biz-1',
+        {},
+        'How many refunds have I issued this month?',
+      );
+      expect(result.success).toBe(true);
+      expect(result.action).toBe('list_refunds');
+      expect(result.summary).toBe('1 refund(s) — $60.00 total.');
+      expect((result.details as any).count).toBe(1);
+      expect((result.details as any).totalRefunded).toBe(60);
+      expect((result.details as any).refunds[0]).toMatchObject({
+        bookingId: 'b-refund-1',
+        customerName: 'Anna',
+        serviceName: 'Haircut',
+        amount: 60,
+        stripeRefundId: 're_abc123',
+      });
+    });
+
+    it('falls back to service.price when metadata has no pricing/amountPaid', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn(async () => [
+            {
+              ...refundedBooking,
+              metadata: { stripeRefundId: 're_xyz' },
+            },
+          ]),
+        } as any,
+      });
+      const result = await handleListRefundsLogic(deps, 'biz-1', {}, 'refund report');
+      expect((result.details as any).refunds[0].amount).toBe(60);
+    });
+
+    it('reports no refunds cleanly when the window is empty', async () => {
+      const deps = buildDeps({
+        bookingRepo: { find: jest.fn(async () => []) } as any,
+      });
+      const result = await handleListRefundsLogic(
+        deps,
+        'biz-1',
+        {},
+        'list refunds this month',
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('No refunds in this window.');
+      expect((result.details as any).count).toBe(0);
+    });
+
+    it('returns a clean failure result instead of throwing when the repo errors', async () => {
+      const deps = buildDeps({
+        bookingRepo: {
+          find: jest.fn(async () => {
+            throw new Error('db down');
+          }),
+        } as any,
+      });
+      const result = await handleListRefundsLogic(deps, 'biz-1', {}, 'list refunds');
+      expect(result.success).toBe(false);
+      expect(result.action).toBe('list_refunds');
+      expect(result.summary).toBe('db down');
+    });
   });
 
   it('exports analytics reports as csv or pdf', async () => {

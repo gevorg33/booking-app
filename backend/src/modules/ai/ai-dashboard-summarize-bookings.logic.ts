@@ -8,6 +8,7 @@ import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { resolveBookingMetric } from './ai-intent-heuristics.js';
 import { isTotalEarningsPrompt } from './dashboard-revenue-analytics.util.js';
 import { isUnscopedBookingCountPrompt } from './ai-unscoped-booking-count.util.js';
+import { isExplainAiCapabilitiesPrompt } from './ai-meta-ops.util.js';
 import type { CommandResult } from './command-completion.types.js';
 
 export { isUnscopedBookingCountPrompt } from './ai-unscoped-booking-count.util.js';
@@ -25,6 +26,10 @@ export function isSummarizeBookingsIntent(
 
 /** Dashboard booking analytics (revenue totals + period overview). */
 export function isDashboardSummarizeBookingsPrompt(prompt: string): boolean {
+  // e2e-bug.162 — "how many AI commands ... this month" is AI-quota, not a
+  // bare "how many" + period booking question (the generic fallback below
+  // has no booking-domain word requirement and was stealing this).
+  if (isExplainAiCapabilitiesPrompt(prompt)) return false;
   if (isTotalEarningsPrompt(prompt)) return true;
   if (isUnscopedBookingCountPrompt(prompt)) return true;
 

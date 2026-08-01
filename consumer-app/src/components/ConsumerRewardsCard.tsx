@@ -1,6 +1,5 @@
 import {
   IonBadge,
-  IonButton,
   IonIcon,
   IonSpinner,
 } from '@ionic/react';
@@ -20,6 +19,7 @@ import {
   shouldShowConsumerRewardsSection,
   type PublicPromotion,
 } from '../lib/consumer-rewards-display.util.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export interface ConsumerRewardsCardProps {
   slug: string;
@@ -176,15 +176,14 @@ export function ConsumerRewardsCard({
       ) : null}
 
       {onBook ? (
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="outline"
-          color="primary"
-          className="consumer-brand-outline-button"
+          color={profile.branding.primaryColor || '#7c3aed'}
           onClick={onBook}
         >
           {copy.rewardsBookToRedeem}
-        </IonButton>
+        </ConsumerActionButton>
       ) : null}
     </section>
   );

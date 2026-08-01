@@ -7,6 +7,11 @@ import {
   PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS,
   PROVIDER_EXPLAIN_TIME_OFF_APPROVAL_PROMPT_SCENARIOS,
 } from './ai-provider-dashboard-handoff.fixtures.js';
+import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
 
 function containsArmenianScript(text: string): boolean {
   return /[԰-֏]/.test(text);
@@ -21,16 +26,26 @@ const TIME_OFF_APPROVAL_ROW_ID = 'exp-7-2-approve-time-off';
 
 /** Topic keywords per dashboard-only PROVIDER_EXP_UI_AI_PARITY row (ai-cmd-provider-5.25.1). */
 const DASHBOARD_ONLY_TOPIC_KEYWORDS: Record<string, string[]> = {
-  'exp-1-1-tap-call': ['call the client', 'tap to call', 'phone the client'],
+  'exp-1-1-tap-call': [
+    'call the client',
+    'tap to call',
+    'phone the client',
+    'call the customer',
+    'phone the customer',
+  ],
   'exp-1-5-intake-full-answers': [
     'full intake answers',
     'intake questionnaire',
+    // HY why-can't-open full intake (e2e-bug.266 probe / e2e-bug.282 family)
+    'ընդունելության պատասխան',
+    'ամբողջական ընդունելութ',
   ],
   'exp-2-2-request-review': ['review policy', 'review trigger', 'review settings'],
   'exp-6-2-edit-templates': [
     'edit message templates',
     'edit templates',
     'message template',
+    'հաղորդագրության ձևանմուշ',
   ],
   'exp-7-2-approve-time-off': [
     'approve time off',
@@ -38,9 +53,89 @@ const DASHBOARD_ONLY_TOPIC_KEYWORDS: Record<string, string[]> = {
     'time off approval',
     'who approves',
   ],
-  'exp-9-2-adjust-loyalty': ['adjust loyalty', 'loyalty points', 'loyalty point'],
+  'exp-9-2-adjust-loyalty': [
+    'adjust loyalty',
+    'loyalty points',
+    'loyalty point',
+    'հավատարմության միավոր',
+  ],
   'exp-10-4-locale-switch': ['switch app language', 'app language', 'change language'],
 };
+
+/** e2e-bug.301 — i18n keys for dashboard-only row action/reason copy. */
+const DASHBOARD_HANDOFF_ROW_I18N: Record<
+  string,
+  { actionKey: string; reasonKey: string }
+> = {
+  'exp-1-1-tap-call': {
+    actionKey: 'assistant.dashboardHandoffActionTapCall',
+    reasonKey: 'assistant.dashboardHandoffReasonTapCall',
+  },
+  'exp-1-5-intake-full-answers': {
+    actionKey: 'assistant.dashboardHandoffActionIntake',
+    reasonKey: 'assistant.dashboardHandoffReasonIntake',
+  },
+  'exp-2-2-request-review': {
+    actionKey: 'assistant.dashboardHandoffActionReview',
+    reasonKey: 'assistant.dashboardHandoffReasonReview',
+  },
+  'exp-6-2-edit-templates': {
+    actionKey: 'assistant.dashboardHandoffActionTemplates',
+    reasonKey: 'assistant.dashboardHandoffReasonTemplates',
+  },
+  'exp-7-2-approve-time-off': {
+    actionKey: 'assistant.dashboardHandoffActionTimeOff',
+    reasonKey: 'assistant.dashboardHandoffReasonTimeOff',
+  },
+  'exp-9-2-adjust-loyalty': {
+    actionKey: 'assistant.dashboardHandoffActionLoyalty',
+    reasonKey: 'assistant.dashboardHandoffReasonLoyalty',
+  },
+  'exp-10-4-locale-switch': {
+    actionKey: 'assistant.dashboardHandoffActionLocale',
+    reasonKey: 'assistant.dashboardHandoffReasonLocale',
+  },
+};
+
+/**
+ * e2e-bug.301 — prefer request locale; else infer from HY/RU script in the prompt.
+ */
+export function resolveDashboardHandoffLocale(
+  locale?: string,
+  prompt?: string,
+): AppLocale {
+  if (typeof locale === 'string' && locale.trim()) {
+    return resolveLocale(locale);
+  }
+  if (prompt && containsArmenianScript(prompt)) return 'hy';
+  if (prompt && containsCyrillicScript(prompt)) return 'ru';
+  return resolveLocale(undefined);
+}
+
+/** e2e-bug.282 — why-can't + call + client (EN/HY/RU), even without exact keyword phrases. */
+export function isWhyCantCallClientDashboardHandoffPrompt(
+  prompt: string,
+): boolean {
+  const lower = prompt.toLowerCase();
+  const whyCant =
+    /\bwhy\s+can'?t\s+i\b/i.test(lower) ||
+    /\bwhy\s+cannot\s+i\b/i.test(lower) ||
+    /ինչու\s+չեմ\s+կարող/i.test(prompt) ||
+    /почему\s+(?:я\s+)?не\s+могу/i.test(prompt);
+  if (!whyCant) return false;
+
+  const call =
+    /\b(?:call|phone)\b/i.test(lower) ||
+    /զանգահարել|զանգել/i.test(prompt) ||
+    /позвон|звонить/i.test(prompt);
+  if (!call) return false;
+
+  return (
+    /\b(?:client|customer)\b/i.test(lower) ||
+    /հաճախորդ/i.test(prompt) ||
+    /клиент/i.test(prompt)
+  );
+}
 
 function findDashboardOnlyParityRow(
   prompt: string,
@@ -60,6 +155,7 @@ export function isExplainDashboardOnlyActionPrompt(prompt: string): boolean {
   if (/\b(mark|set|update|block|cancel|reschedule|check\s+in)\b/.test(lower)) {
     return false;
   }
+  if (isWhyCantCallClientDashboardHandoffPrompt(prompt)) return true;
   if (findDashboardOnlyParityRow(prompt)) return true;
 
   return PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS.some(
@@ -69,18 +165,42 @@ export function isExplainDashboardOnlyActionPrompt(prompt: string): boolean {
 
 export function buildExplainDashboardOnlyActionSummary(
   row: ProviderExpUiActionParity,
+  locale?: string,
 ): string {
-  const reason =
-    row.coverage.kind === 'dashboard-only' ? row.coverage.dashboardReason : '';
-  return `"${row.uiAction}" isn't available from the mobile assistant: ${reason}. Use the dashboard for this.`;
+  const loc = resolveLocale(locale);
+  const i18n = DASHBOARD_HANDOFF_ROW_I18N[row.id];
+  const action = i18n
+    ? t(loc, i18n.actionKey)
+    : row.uiAction;
+  const reason = i18n
+    ? t(loc, i18n.reasonKey)
+    : row.coverage.kind === 'dashboard-only'
+      ? row.coverage.dashboardReason
+      : '';
+  return t(loc, 'assistant.dashboardHandoffTemplate', { action, reason });
 }
 
 export function resolveDashboardOnlyActionSummaryFromPrompt(
   prompt: string,
+  locale?: string,
 ): string | null {
-  const row = findDashboardOnlyParityRow(prompt);
+  let row = findDashboardOnlyParityRow(prompt);
+  if (!row && isWhyCantCallClientDashboardHandoffPrompt(prompt)) {
+    row =
+      PROVIDER_EXP_UI_AI_PARITY.find((entry) => entry.id === 'exp-1-1-tap-call') ??
+      null;
+  }
   if (!row) return null;
-  return buildExplainDashboardOnlyActionSummary(row);
+  const loc = resolveDashboardHandoffLocale(locale, prompt);
+  return buildExplainDashboardOnlyActionSummary(row, loc);
+}
+
+export function buildExplainDashboardOnlyActionFallbackSummary(
+  locale?: string,
+  prompt?: string,
+): string {
+  const loc = resolveDashboardHandoffLocale(locale, prompt);
+  return t(loc, 'assistant.dashboardHandoffFallback');
 }
 
 /** ai-cmd-provider-5.25.2 — why multi-service reassignment stays dashboard-only. */

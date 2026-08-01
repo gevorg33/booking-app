@@ -96,8 +96,28 @@ function hasReadClinicCue(prompt: string): boolean {
       prompt,
     ) ||
     /\?\s*$/.test(prompt.trim()) ||
-    /(ինչ|որ|որքան|ցույց|բացատր|ցուցադր|քանակ)/i.test(prompt) ||
+    // e2e-bug.291 — bare `որ` matched inside `կատեգորիա` and stole catalog creates.
+    // Keep stem prefixes for conjugated forms (Բացատրի՛ր / ցուցադրիր).
+    /(?:^|[^\p{L}\p{M}])(?:ինչ(?:պե՞ս|պես)?|քանի|ցույց|բացատր|ցուցադր|քանակ)/iu.test(
+      prompt,
+    ) ||
+    /(?:^|[^\p{L}\p{M}])որ(?:քան)?(?=[^\p{L}\p{M}]|$)/iu.test(prompt) ||
     /(какие|какой|сколько|покажи|объясни|список|сколько)/i.test(lower)
+  );
+}
+
+/** e2e-bug.291 — create catalog category must not rescue to explain_clinic_services. */
+function looksLikeCreateCatalogCategoryPrompt(prompt: string): boolean {
+  return (
+    /\b(add|create)\s+(a\s+)?(new\s+)?((?:service|catalog)\s+)?category\b/i.test(
+      prompt,
+    ) ||
+    /(?:ավելացր(?:ու|ել|եք)?|ստեղծ(?:իր|ել|եք)?)\s+[\s\S]*կատեգորիա/iu.test(
+      prompt,
+    ) ||
+    /կատեգորիա\s+անունով/iu.test(prompt) ||
+    // e2e-bug.292 — RU single catalog-category create.
+    /(?:добав|созда)[\p{L}\p{M}]*.*категор/iu.test(prompt)
   );
 }
 
@@ -251,6 +271,8 @@ export function isExplainClinicServicesPrompt(prompt: string): boolean {
   if (isApplyClinicPlaybookPromptCore(prompt)) return false;
   if (isClinicOrderOrResultPrompt(prompt)) return false;
   if (isConsumerCheckoutContext(prompt)) return false;
+  // e2e-bug.291 — HY/EN "add catalog category named…" is not a clinic catalog read.
+  if (looksLikeCreateCatalogCategoryPrompt(prompt)) return false;
   if (!hasClinicExplainSurface(prompt)) return false;
   if (!hasReadClinicCue(prompt)) return false;
   return true;

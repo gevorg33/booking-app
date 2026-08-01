@@ -198,7 +198,11 @@ function buildDeterministicFlowGuideResult(
     deterministic: true,
     playbookTopicId: best.topicId,
   };
-  return initializeGuideMultiTurnResult(result, input.session?.context);
+  return initializeGuideMultiTurnResult(
+    result,
+    input.session?.context,
+    locale,
+  );
 }
 
 function resolveGuideMatch(
@@ -275,7 +279,11 @@ function buildDeterministicGuideResult(
     retrievalPath,
     deterministic: true,
   };
-  return initializeGuideMultiTurnResult(result, input.session?.context);
+  return initializeGuideMultiTurnResult(
+    result,
+    input.session?.context,
+    locale,
+  );
 }
 
 /**
@@ -320,7 +328,14 @@ export function handleProductGuideIntentLogic(
     );
   }
 
-  return buildGuideClarifyResult(intent, match, input.route ?? null);
+  return buildGuideClarifyResult(
+    intent,
+    match,
+    input.route ?? null,
+    undefined,
+    locale,
+    input.prompt,
+  );
 }
 
 /**
@@ -387,14 +402,25 @@ export async function handleProductGuideIntentLogicAsync(
       deterministic: false,
       llmPolished: true,
     };
-    return initializeGuideMultiTurnResult(result, input.session?.context);
+    return initializeGuideMultiTurnResult(
+      result,
+      input.session?.context,
+      locale,
+    );
   }
 
   if (resolution.kind !== 'corpus' || !resolution.corpusBest) {
-    return buildGuideClarifyResult(intent, resolution, input.route ?? null, {
-      retrievalPath: resolution.retrievalPath,
-      semanticScore: resolution.semanticScore,
-    });
+    return buildGuideClarifyResult(
+      intent,
+      resolution,
+      input.route ?? null,
+      {
+        retrievalPath: resolution.retrievalPath,
+        semanticScore: resolution.semanticScore,
+      },
+      locale,
+      input.prompt,
+    );
   }
 
   const deterministic = buildDeterministicGuideResult(
@@ -439,7 +465,11 @@ export async function handleProductGuideIntentLogicAsync(
     deterministic: false,
     llmPolished: true,
   };
-  return initializeGuideMultiTurnResult(result, input.session?.context);
+  return initializeGuideMultiTurnResult(
+    result,
+    input.session?.context,
+    locale,
+  );
 }
 
 export function buildProductGuideLogicDeps(

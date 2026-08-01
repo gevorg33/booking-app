@@ -59,6 +59,105 @@ const en: MessageTree = {
       "I didn't fully understand that. What would you like to do?",
     unknownIntentDashboard:
       "I didn't fully understand that command. Which of these did you mean?",
+    // e2e-bug.239 — empty/blocked prompt action:error (customer gateway).
+    requestError: 'Could not understand that request. Try rephrasing.',
+    // e2e-bug.259 — guide support handoff chrome (Still stuck?).
+    guideStillStuck: 'Still stuck?',
+    guideSupportTicketSubject: 'Product guide help{topic} ({surface})',
+    guideSupportTicketBodyHeader: 'Product guide support handoff (no PII)',
+    guideSupportTicketBodyFooter:
+      'The user finished the in-app guide and still needs help.',
+    // e2e-bug.259 — explain_any_provider_option clarify / summary.
+    anyProviderClarify:
+      'Ask what Any stylist means, whether someone will be assigned, or how to pick any provider on checkout.',
+    anyProviderMeaning:
+      'Any available specialist means you do not pick a named stylist upfront — we match whoever is free for your service and time slot.',
+    anyProviderAssignment:
+      'When you leave Any stylist selected, the salon assigns an available specialist when you confirm the booking; their name appears on your confirmation.',
+    anyProviderPicker:
+      'Tap the specialist row on checkout, then choose Any available specialist at the top of the list, or pick someone by name.',
+    anyProviderTeamNote:
+      ' This salon has {count} active specialists who can be matched.',
+    anyProviderLabel: 'Any available specialist',
+    // e2e-bug.274 — confirm_my_booking_details anon/missing clarifies.
+    confirmBookingAnonClarify:
+      'Finish booking or sign in so I can read your appointment details from the session.',
+    confirmBookingSignedInMissing:
+      'I could not find an upcoming booking to summarize. Finish checkout or pick an appointment from your account.',
+    confirmBookingManageLinkClarify:
+      'Share the manage link for this booking first, so I can look it up.',
+    // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
+    homeScreenWidgetClarify:
+      'Ask about the home screen widget (e.g. "Add next appointment to home screen" or "What does the widget show?").',
+    // e2e-bug.299 — give_ai_feedback chip/summary labels.
+    feedbackUpLabel: 'Helpful',
+    feedbackDownLabel: 'Not helpful',
+    feedbackThanks: 'Thanks — this helps improve the assistant.',
+    feedbackReasonWrongAction: 'Wrong action',
+    feedbackReasonWrongDate: 'Wrong date',
+    feedbackReasonWrongPerson: 'Wrong person',
+    feedbackReasonWrongService: 'Wrong service',
+    feedbackReasonDidNotUnderstand: "Didn't understand",
+    feedbackReasonSkip: 'Skip',
+    feedbackDownChooseReason:
+      'Not helpful — choose a reason so we can improve the assistant.',
+    feedbackClarifyWhatWasWrong:
+      'Say whether the last answer was helpful or what was wrong (e.g. "That was wrong" or "Wrong date picked").',
+    feedbackClarifyHelpfulOrNot:
+      'Say if the answer was helpful or not (e.g. "That was helpful" or "Not helpful").',
+    // e2e-bug.301 — explain_dashboard_only_action summaries.
+    dashboardHandoffTemplate:
+      '"{action}" isn\'t available from the mobile assistant: {reason}. Use the dashboard for this.',
+    dashboardHandoffFallback:
+      'That feature is managed from the dashboard, not the mobile assistant. Open the dashboard for this.',
+    dashboardHandoffActionTapCall: 'Tap phone to call client',
+    dashboardHandoffReasonTapCall:
+      'Native tel: deep link — messaging parity via send_client_message',
+    dashboardHandoffActionIntake: 'Open full intake answers (manager link)',
+    dashboardHandoffReasonIntake:
+      'Clinical/intake admin and PHI review on dashboard web',
+    dashboardHandoffActionReview: 'Request review from client',
+    dashboardHandoffReasonReview:
+      'Review request policy and triggers configured on dashboard',
+    dashboardHandoffActionTemplates: 'Edit canned message templates',
+    dashboardHandoffReasonTemplates:
+      'Template CRUD is business admin configuration on dashboard web',
+    dashboardHandoffActionLoyalty: 'Adjust loyalty points',
+    dashboardHandoffReasonLoyalty:
+      'Point adjustments are dashboard CRM / admin AI only (adjust_loyalty)',
+    dashboardHandoffActionLocale: 'Switch app language (EN/HY/RU)',
+    dashboardHandoffReasonLocale:
+      'Locale picker is client UI — not an operational AI intent',
+    dashboardHandoffActionTimeOff: 'Approve or deny time-off request',
+    dashboardHandoffReasonTimeOff:
+      'Manager approval uses dashboard approve_time_off_request / deny_time_off_request',
+    // e2e-bug.302 — product-guide unmatched topic clarify.
+    guideTopicMissClarify:
+      'I could not match that to a guide topic yet. Try naming the page — Schedule, Operations, AI command bar — or open Help & guide from the sidebar.',
+    // e2e-bug.289 — list_tour_calendar_week empty/success/clarify (hy/ru).
+    tourCalendarWeekEmpty:
+      'No confirmed tour departures visible on the provider calendar week {weekLabel}{providerNote}{filterNote}.',
+    tourCalendarWeekSuccess:
+      '{count} tour departure(s) on calendar week {weekLabel}{providerNote}{filterNote}: {entries}.',
+    tourCalendarWeekClarify:
+      'Ask to list tour departures on the provider calendar week (e.g. "List tour departures on the provider calendar this week" or "Summarize Maria\'s calendar week tours with pax").',
+    tourCalendarWeekProviderMissing:
+      'Could not find provider "{name}" for calendar week tour list.',
+    tourCalendarWeekProviderNote: ' for {name}',
+    tourCalendarWeekFilterNote: ' ({service})',
+    tourCalendarWeekEntryPax: '{count} pax',
+    // e2e-bug.311 — explain_clinic_services empty/success/clarify (hy/ru).
+    clinicServicesEmpty:
+      'No clinic catalog services are currently available{filterNote}.',
+    clinicServicesEmptyFilterNote: ' for "{service}"',
+    clinicServicesStats:
+      '{total} clinic service(s){filterNote}: {consultation} consultation, {labTest} lab test, {procedure} procedure{unclassifiedNote}.',
+    clinicServicesUnclassifiedNote: ', {count} unclassified',
+    clinicServicesDepartments: 'Departments: {departments}.',
+    clinicServicesFastingNone: 'No lab tests require fasting.',
+    clinicServicesFastingList: 'Fasting required: {names}.',
+    clinicServicesClarify:
+      'Ask about clinic catalog services (e.g. "Explain our clinic services and department counts" or "Which lab tests require fasting?").',
     noSpecialists:
       'No specialists are available for booking right now. Please contact the business directly.',
     specialistsHeader: 'Here are our specialists:',
@@ -71,6 +170,9 @@ const en: MessageTree = {
       'No upcoming open slots for {service}{after} in the next two weeks. Try another service or contact us directly.',
     availabilityNeedsDayOrService:
       'Which day or service should I check? For example: "Free slots on Monday and Friday for massage" or "When is Gevorg free tomorrow?"',
+    // e2e-bug.93 — named specialist without a day must keep the name in clarify.
+    availabilityNeedsDayForProvider:
+      'Which day should I check for {name}? For example: "When is {name} free tomorrow?" or "Is {name} available this week?"',
     availabilityNeedsDay:
       'Which day should I check for {service}? You can say Monday and Friday, this week, or tomorrow.',
     availabilityServiceNotFound:
@@ -342,6 +444,106 @@ const hy: MessageTree = {
       'Ամբողջությամբ չհասկացա։ Ի՞նչ կցանկանայիք անել։',
     unknownIntentDashboard:
       'Ամբողջությամբ չհասկացա այդ հրամանը։ Ո՞ր տարբերակն էիք նկատի ունեցել։',
+    // e2e-bug.239 — empty/blocked prompt action:error (customer gateway).
+    requestError: 'Չհաջողվեց հասկանալ այդ հարցումը։ Փորձեք վերաձևակերպել։',
+    // e2e-bug.259 — guide support handoff chrome.
+    guideStillStuck: 'Դեռ չի՞ ստացվում',
+    guideSupportTicketSubject: 'Ապրանքի ուղեցույցի օգնություն{topic} ({surface})',
+    guideSupportTicketBodyHeader:
+      'Ապրանքի ուղեցույցի աջակցության փոխանցում (առանց PII)',
+    guideSupportTicketBodyFooter:
+      'Օգտատերը ավարտել է հավելվածի ուղեցույցը և դեռ օգնության կարիք ունի։',
+    // e2e-bug.259 — explain_any_provider_option.
+    anyProviderClarify:
+      'Հարցրեք ինչ է նշանակում «Ցանկացած մասնագետ», արդյոք մեկը կնշանակվի, կամ ինչպես ընտրել ցանկացած մասնագետ վճարման էջում։',
+    anyProviderMeaning:
+      '«Ցանկացած հասանելի մասնագետ» նշանակում է, որ դուք չեք ընտրում անունով վարսահարդար նախապես — մենք համապատասխանեցնում ենք նրան, ով ազատ է ձեր ծառայության և ժամի համար։',
+    anyProviderAssignment:
+      'Երբ թողնում եք «Ցանկացած մասնագետ» ընտրված, սրահը նշանակում է հասանելի մասնագետ ամրագրումը հաստատելիս· նրա անունը երևում է հաստատման մեջ։',
+    anyProviderPicker:
+      'Վճարման էջում սեղմեք մասնագետի տողը, ապա ընտրեք «Ցանկացած հասանելի մասնագետ» ցանկի վերևում, կամ ընտրեք անունով։',
+    anyProviderTeamNote:
+      ' Այս սրահում կա {count} ակտիվ մասնագետ, որոնք կարող են համապատասխանեցվել։',
+    anyProviderLabel: 'Ցանկացած հասանելի մասնագետ',
+    // e2e-bug.289 — list_tour_calendar_week empty/success/clarify (hy/ru).
+    tourCalendarWeekEmpty:
+      'Տրամադրողի օրացույցում {weekLabel} շաբաթվա համար հաստատված էքսկուրսիայի մեկնարկներ չկան{providerNote}{filterNote}։',
+    tourCalendarWeekSuccess:
+      'Օրացույցի {weekLabel} շաբաթում {count} էքսկուրսիայի մեկնարկ{providerNote}{filterNote}՝ {entries}։',
+    tourCalendarWeekClarify:
+      'Խնդրեք ցուցադրել էքսկուրսիաների մեկնարկները տրամադրողի օրացույցի շաբաթում (օր. «Ցուցադրիր այս շաբաթվա էքսկուրսիաները օրացույցում» կամ «Ամփոփիր Մարիայի շաբաթվա էքսկուրսիաները pax-ով»)։',
+    tourCalendarWeekProviderMissing:
+      'Չգտա «{name}» տրամադրողին շաբաթվա էքսկուրսիաների ցանկի համար։',
+    tourCalendarWeekProviderNote: '՝ {name}-ի համար',
+    tourCalendarWeekFilterNote: ' ({service})',
+    tourCalendarWeekEntryPax: '{count} ուղևոր',
+    // e2e-bug.311 — explain_clinic_services empty/success/clarify (hy/ru).
+    clinicServicesEmpty:
+      'Կլինիկական կատալոգում ծառայություններ այս պահին հասանելի չեն{filterNote}։',
+    clinicServicesEmptyFilterNote: '՝ «{service}»-ի համար',
+    clinicServicesStats:
+      '{total} կլինիկական ծառայություն{filterNote}՝ {consultation} խորհրդատվություն, {labTest} լաբ թեստ, {procedure} պրոցեդուրա{unclassifiedNote}։',
+    clinicServicesUnclassifiedNote: ', {count} դասակարգված չէ',
+    clinicServicesDepartments: 'Բաժիններ՝ {departments}։',
+    clinicServicesFastingNone: 'Ծոմավոր պահանջող լաբ թեստեր չկան։',
+    clinicServicesFastingList: 'Ծոմավոր է պահանջվում՝ {names}։',
+    clinicServicesClarify:
+      'Հարցրեք կլինիկական կատալոգի ծառայությունների մասին (օր. «Բացատրի՛ր մեր կլինիկական ծառայությունները» կամ «Որ լաբ թեստերն են ծոմավոր պահանջող»)։',
+    // e2e-bug.274 — confirm_my_booking_details.
+    confirmBookingAnonClarify:
+      'Ավարտեք ամրագրումը կամ մուտք գործեք, որպեսզի կարողանամ կարդալ ձեր այցի մանրամասները սեսիայից։',
+    confirmBookingSignedInMissing:
+      'Չգտա ամփոփելու առաջիկա ամրագրում։ Ավարտեք վճարումը կամ ընտրեք այց ձեր հաշվից։',
+    confirmBookingManageLinkClarify:
+      'Նախ կիսվեք այս ամրագրման կառավարման հղումով, որպեսզի կարողանամ գտնել այն։',
+    // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
+    homeScreenWidgetClarify:
+      'Հարցրեք հիմնական էկրանի վիջեթի մասին (օր. «Ավելացնել հաջորդ հանդիպումը հիմնական էկրանին» կամ «Ինչ է ցույց տալիս վիջեթը»)։',
+    // e2e-bug.299 — give_ai_feedback chip/summary labels.
+    feedbackUpLabel: 'Օգտակար',
+    feedbackDownLabel: 'Օգտակար չէ',
+    feedbackThanks: 'Շնորհակալություն — սա օգնում է բարելավել օգնականին։',
+    feedbackReasonWrongAction: 'Սխալ գործողություն',
+    feedbackReasonWrongDate: 'Սխալ ամսաթիվ',
+    feedbackReasonWrongPerson: 'Սխալ անձ',
+    feedbackReasonWrongService: 'Սխալ ծառայություն',
+    feedbackReasonDidNotUnderstand: 'Չհասկացա',
+    feedbackReasonSkip: 'Բաց թողնել',
+    feedbackDownChooseReason:
+      'Օգտակար չէ — ընտրեք պատճառ, որպեսզի կարողանանք բարելավել օգնականին։',
+    feedbackClarifyWhatWasWrong:
+      'Ասեք՝ վերջին պատասխանը օգտակար էր, թե ինչն էր սխալ (օր. «Սխալ էր» կամ «Սխալ ամսաթիվ»)։',
+    feedbackClarifyHelpfulOrNot:
+      'Ասեք՝ պատասխանը օգտակար էր, թե ոչ (օր. «Օգտակար էր» կամ «Օգտակար չէ»)։',
+    // e2e-bug.301 — explain_dashboard_only_action summaries.
+    dashboardHandoffTemplate:
+      '«{action}» հասանելի չէ բջջային օգնականից՝ {reason}։ Օգտագործեք վահանակը սրա համար։',
+    dashboardHandoffFallback:
+      'Այդ հնարավորությունը կառավարվում է վահանակից, ոչ թե բջջային օգնականից։ Բացեք վահանակը սրա համար։',
+    dashboardHandoffActionTapCall: 'Հեռախոսով զանգել հաճախորդին',
+    dashboardHandoffReasonTapCall:
+      'Համակարգային tel: հղում — հաղորդագրությունների համար օգտագործեք send_client_message',
+    dashboardHandoffActionIntake: 'Բացել ամբողջական ընդունելության պատասխանները',
+    dashboardHandoffReasonIntake:
+      'Կլինիկական/ընդունելության ադմինը և PHI վերանայումը վահանակի վեբում են',
+    dashboardHandoffActionReview: 'Հաճախորդից վերանայում խնդրել',
+    dashboardHandoffReasonReview:
+      'Վերանայման հարցման քաղաքականությունը կարգավորվում է վահանակում',
+    dashboardHandoffActionTemplates: 'Խմբագրել պատրաստի հաղորդագրության ձևանմուշները',
+    dashboardHandoffReasonTemplates:
+      'Ձևանմուշների կառավարումը բիզնեսի ադմին կարգավորում է վահանակի վեբում',
+    dashboardHandoffActionLoyalty: 'Կարգավորել հավատարմության միավորները',
+    dashboardHandoffReasonLoyalty:
+      'Միավորների փոփոխությունները վահանակի CRM / ադմին AI-ով են միայն',
+    dashboardHandoffActionLocale: 'Փոխել հավելվածի լեզուն (EN/HY/RU)',
+    dashboardHandoffReasonLocale:
+      'Լեզվի ընտրիչը հաճախորդի UI է — ոչ գործառնական AI մտադրություն',
+    dashboardHandoffActionTimeOff: 'Հաստատել կամ մերժել արձակուրդի հարցումը',
+    dashboardHandoffReasonTimeOff:
+      'Մենեջերի հաստատումը կատարվում է վահանակից',
+    // e2e-bug.302 — product-guide unmatched topic clarify.
+    guideTopicMissClarify:
+      'Դեռ չկարողացա գտնել համապատասխան ուղեցույցի թեմա։ Անվանեք էջը — Ժամանակացույց, Գործողություններ, AI հրամանների վահանակ — կամ բացեք Օգնություն և ուղեցույց կողային ընտրացանկից։',
     noSpecialists:
       'Այս պահին ամրագրման համար մասնագետներ չկան։ Խնդրում ենք կապվել բիզնեսի հետ։',
     specialistsHeader: 'Մեր մասնագետները՝',
@@ -354,6 +556,8 @@ const hy: MessageTree = {
       'Հաջորդ երկու շաբաթվա ընթացքում {service}-ի համար ազատ slot{after} չկա։ Փորձեք այլ ծառայություն կամ կապվեք մեզ հետ։',
     availabilityNeedsDayOrService:
       'Ո՞ր օր կամ ծառայություն ստուգեմ։ Օրինակ՝ «Ազատ slot-եր երկուշաբթի և ուրբաթ massage-ի համար» կամ «Ե՞րբ է Gevorg-ը ազատ վաղը»։',
+    availabilityNeedsDayForProvider:
+      'Ո՞ր օրը ստուգեմ {name}-ի համար։ Օրինակ՝ «Ե՞րբ է {name}-ը ազատ վաղը» կամ «Արդյոք {name}-ը հասանելի է այս շաբաթ»։',
     availabilityNeedsDay:
       'Ո՞ր օրերն ենք ստուգում {service}-ի համար։ Կարող եք ասել երկուշաբթի և ուրբաթ, այս շաբաթ կամ վաղը։',
     availabilityServiceNotFound:
@@ -631,6 +835,107 @@ const ru: MessageTree = {
       'Я не до конца понял. Что бы вы хотели сделать?',
     unknownIntentDashboard:
       'Я не до конца понял эту команду. Что из этого вы имели в виду?',
+    // e2e-bug.239 — empty/blocked prompt action:error (customer gateway).
+    requestError:
+      'Не удалось понять этот запрос. Попробуйте переформулировать.',
+    // e2e-bug.259 — guide support handoff chrome.
+    guideStillStuck: 'Всё ещё не получается?',
+    guideSupportTicketSubject: 'Помощь по гайду продукта{topic} ({surface})',
+    guideSupportTicketBodyHeader:
+      'Передача поддержки по гайду продукта (без PII)',
+    guideSupportTicketBodyFooter:
+      'Пользователь закончил встроенный гайд и всё ещё нужна помощь.',
+    // e2e-bug.259 — explain_any_provider_option.
+    anyProviderClarify:
+      'Спросите, что значит «Любой специалист», назначат ли кого-то, или как выбрать любого специалиста на оформлении.',
+    anyProviderMeaning:
+      '«Любой доступный специалист» значит, что вы не выбираете мастера по имени заранее — мы подберём того, кто свободен для вашей услуги и времени.',
+    anyProviderAssignment:
+      'Если оставить «Любой специалист», салон назначит доступного специалиста при подтверждении записи; имя появится в подтверждении.',
+    anyProviderPicker:
+      'На оформлении нажмите строку специалиста, затем выберите «Любой доступный специалист» вверху списка или выберите по имени.',
+    anyProviderTeamNote:
+      ' В этом салоне {count} активных специалистов, которых можно подобрать.',
+    anyProviderLabel: 'Любой доступный специалист',
+    // e2e-bug.289 — list_tour_calendar_week empty/success/clarify (hy/ru).
+    tourCalendarWeekEmpty:
+      'На календарной неделе провайдера {weekLabel} нет подтверждённых выездов туров{providerNote}{filterNote}.',
+    tourCalendarWeekSuccess:
+      '{count} выезд(ов) тура на календарной неделе {weekLabel}{providerNote}{filterNote}: {entries}.',
+    tourCalendarWeekClarify:
+      'Попросите показать выезды туров на календарной неделе провайдера (например: «Покажи туры на этой неделе в календаре» или «Сводка туров Марии на неделе с pax»).',
+    tourCalendarWeekProviderMissing:
+      'Не удалось найти провайдера «{name}» для списка туров на календарной неделе.',
+    tourCalendarWeekProviderNote: ' для {name}',
+    tourCalendarWeekFilterNote: ' ({service})',
+    tourCalendarWeekEntryPax: '{count} чел.',
+    // e2e-bug.311 — explain_clinic_services empty/success/clarify (hy/ru).
+    clinicServicesEmpty:
+      'В каталоге клиники сейчас нет доступных услуг{filterNote}.',
+    clinicServicesEmptyFilterNote: ' для «{service}»',
+    clinicServicesStats:
+      '{total} клинических услуг(и){filterNote}: {consultation} консультация, {labTest} лаб. тест, {procedure} процедура{unclassifiedNote}.',
+    clinicServicesUnclassifiedNote: ', {count} без типа',
+    clinicServicesDepartments: 'Отделения: {departments}.',
+    clinicServicesFastingNone: 'Нет лабораторных тестов с требованием голодания.',
+    clinicServicesFastingList: 'Требуется голодание: {names}.',
+    clinicServicesClarify:
+      'Спросите про услуги клинического каталога (например: «Объясни наши клинические услуги» или «Какие лабораторные тесты требуют голодания?»).',
+    // e2e-bug.274 — confirm_my_booking_details.
+    confirmBookingAnonClarify:
+      'Завершите запись или войдите, чтобы я мог прочитать детали вашего визита из сессии.',
+    confirmBookingSignedInMissing:
+      'Не нашёл предстоящую запись для краткого обзора. Завершите оплату или выберите визит в аккаунте.',
+    confirmBookingManageLinkClarify:
+      'Сначала поделитесь ссылкой управления этой записью, чтобы я мог её найти.',
+    // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
+    homeScreenWidgetClarify:
+      'Спросите про виджет главного экрана (например: «Добавить следующую запись на главный экран» или «Что показывает виджет»).',
+    // e2e-bug.299 — give_ai_feedback chip/summary labels.
+    feedbackUpLabel: 'Полезно',
+    feedbackDownLabel: 'Не полезно',
+    feedbackThanks: 'Спасибо — это помогает улучшить помощника.',
+    feedbackReasonWrongAction: 'Неверное действие',
+    feedbackReasonWrongDate: 'Неверная дата',
+    feedbackReasonWrongPerson: 'Неверный человек',
+    feedbackReasonWrongService: 'Неверная услуга',
+    feedbackReasonDidNotUnderstand: 'Не понял',
+    feedbackReasonSkip: 'Пропустить',
+    feedbackDownChooseReason:
+      'Не полезно — выберите причину, чтобы мы могли улучшить помощника.',
+    feedbackClarifyWhatWasWrong:
+      'Скажите, был ли последний ответ полезен или что было не так (например: «Это было неправильно» или «Неверная дата»).',
+    feedbackClarifyHelpfulOrNot:
+      'Скажите, был ли ответ полезен (например: «Это было полезно» или «Не полезно»).',
+    // e2e-bug.301 — explain_dashboard_only_action summaries.
+    dashboardHandoffTemplate:
+      '«{action}» недоступно в мобильном помощнике: {reason}. Используйте панель управления для этого.',
+    dashboardHandoffFallback:
+      'Эта функция управляется из панели, а не из мобильного помощника. Откройте панель для этого.',
+    dashboardHandoffActionTapCall: 'Позвонить клиенту',
+    dashboardHandoffReasonTapCall:
+      'Системная tel: ссылка — сообщения через send_client_message',
+    dashboardHandoffActionIntake: 'Открыть полные ответы анкеты',
+    dashboardHandoffReasonIntake:
+      'Клиническое/анкетное администрирование и PHI — в веб-панели',
+    dashboardHandoffActionReview: 'Запросить отзыв у клиента',
+    dashboardHandoffReasonReview:
+      'Политика запросов отзывов настраивается в панели',
+    dashboardHandoffActionTemplates: 'Редактировать шаблоны сообщений',
+    dashboardHandoffReasonTemplates:
+      'CRUD шаблонов — конфигурация админа в веб-панели',
+    dashboardHandoffActionLoyalty: 'Изменить баллы лояльности',
+    dashboardHandoffReasonLoyalty:
+      'Корректировка баллов только через CRM / admin AI панели',
+    dashboardHandoffActionLocale: 'Сменить язык приложения (EN/HY/RU)',
+    dashboardHandoffReasonLocale:
+      'Выбор языка — клиентский UI, не операционный AI-интент',
+    dashboardHandoffActionTimeOff: 'Одобрить или отклонить отпуск',
+    dashboardHandoffReasonTimeOff:
+      'Одобрение менеджера выполняется в панели',
+    // e2e-bug.302 — product-guide unmatched topic clarify.
+    guideTopicMissClarify:
+      'Пока не удалось подобрать тему гида. Назовите страницу — Расписание, Операции, панель команд AI — или откройте Справку и гид в боковом меню.',
     noSpecialists:
       'Сейчас нет доступных специалистов для записи. Свяжитесь с бизнесом напрямую.',
     specialistsHeader: 'Наши специалисты:',
@@ -643,6 +948,8 @@ const ru: MessageTree = {
       'Нет свободных слотов для {service}{after} в ближайшие две недели. Попробуйте другую услугу или свяжитесь с нами.',
     availabilityNeedsDayOrService:
       'На какой день или услугу проверить? Например: «Свободные слоты в понедельник и пятницу для массажа» или «Когда Gevorg свободен завтра?»',
+    availabilityNeedsDayForProvider:
+      'На какой день проверить для {name}? Например: «Когда {name} свободен завтра?» или «Доступен ли {name} на этой неделе?»',
     availabilityNeedsDay:
       'На какие дни проверить {service}? Можно сказать понедельник и пятницу, на этой неделе или завтра.',
     availabilityServiceNotFound:

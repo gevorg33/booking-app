@@ -127,11 +127,58 @@ export function isBulkCreateCatalogPrompt(prompt: string): boolean {
   return hasServiceLines;
 }
 
-export function isCreateServiceCategoryPrompt(prompt: string): boolean {
-  // e2e-bug.151 — allow "Add a new service category called …" (optional "new").
+function isHyCreateServiceCategoryPrompt(prompt: string): boolean {
+  // e2e-bug.291 — «Ավելացրու կատալոգի կատեգորիա անունով…»
+  if (isBulkCreateCatalogPrompt(prompt)) return false;
+  if (
+    /(?:ավելացր(?:ու|ել|եք)?|ստեղծ(?:իր|ել|եք)?)\s+[\s\S]*կատեգորիա/iu.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
   return (
-    /\b(add|create)\s+(a\s+)?(new\s+)?(service\s+)?category\b/i.test(prompt) &&
-    !isBulkCreateCatalogPrompt(prompt)
+    /կատեգորիա\s+անունով\s+\S/iu.test(prompt) &&
+    /(?:ավելացր|ստեղծ|նոր)/iu.test(prompt)
+  );
+}
+
+function isRuCreateServiceCategoryPrompt(prompt: string): boolean {
+  // e2e-bug.292 — «Добавь категорию каталога с названием…» (single category,
+  // not bulk_create_catalog with service lines).
+  if (isBulkCreateCatalogPrompt(prompt)) return false;
+  if (parseServiceLinesFromText(prompt).length > 0) return false;
+  // Bulk-style: category + priced service menu in one prompt.
+  if (
+    /категор/iu.test(prompt) &&
+    /\bс\s+услуг/iu.test(prompt) &&
+    /(?:\$\s*\d|\d+\s*(?:мин|m(?:in)?)\b)/iu.test(prompt)
+  ) {
+    return false;
+  }
+  const hasVerb = /(?:добав(?:ь|ьте|ить)?|созда(?:й|йте|ть)?)/iu.test(prompt);
+  const hasCategory = /категор/iu.test(prompt);
+  if (!hasVerb || !hasCategory) return false;
+  return (
+    /(?:с|под)\s+названием/iu.test(prompt) ||
+    /категор[\p{L}\p{M}]*\s+каталог/iu.test(prompt) ||
+    /(?:новую\s+)?категор[\p{L}\p{M}]*\s+каталог/iu.test(prompt) ||
+    /категор[\p{L}\p{M}]*\s*[«"„]/iu.test(prompt)
+  );
+}
+
+export function isCreateServiceCategoryPrompt(prompt: string): boolean {
+  // e2e-bug.151 / e2e-bug.251 — "service category" or "catalog category"
+  // (optional "new"); not bulk_create_catalog with service lines.
+  // e2e-bug.291 — HY create-category phrasing.
+  // e2e-bug.292 — RU create-category phrasing.
+  if (isBulkCreateCatalogPrompt(prompt)) return false;
+  return (
+    /\b(add|create)\s+(a\s+)?(new\s+)?((?:service|catalog)\s+)?category\b/i.test(
+      prompt,
+    ) ||
+    isHyCreateServiceCategoryPrompt(prompt) ||
+    isRuCreateServiceCategoryPrompt(prompt)
   );
 }
 
@@ -264,26 +311,82 @@ export function parseAssignServiceCategoryFromPrompt(prompt: string): {
   return {};
 }
 
+/**
+ * e2e-bug.271 / e2e-bug.290 — strip voice politeness / softeners so
+ * "… E2E271-x please" / "… kindly please" keep the suffix (not "kindly").
+ */
+const CATEGORY_NAME_TRAILING_POLITENESS =
+  '(?:please|kindly|thanks(?:\\s+you)?|thank\\s+you|pls|thx|cheers|appreciate(?:\\s+it)?|пожалуйста|խնդրում\\s+եմ)';
+
+export function stripTrailingCategoryNamePoliteness(
+  name: string,
+): string {
+  let out = name.trim();
+  // Repeat: "kindly please" / "please kindly" / stacked softeners.
+  const trailing = new RegExp(
+    `\\s+(?:${CATEGORY_NAME_TRAILING_POLITENESS})(?:\\s+(?:${CATEGORY_NAME_TRAILING_POLITENESS}))*\\s*[.?!]*\\s*$`,
+    'i',
+  );
+  for (let i = 0; i < 4; i++) {
+    const next = out.replace(trailing, '').replace(/[.?!]+$/g, '').trim();
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Category scope when creating a catalog service (not a category entity). */
 export function extractCreateServiceCategoryFromPrompt(
   prompt: string,
 ): string | undefined {
   const patterns = [
-    // e2e-bug.151 — "Add a new service category called Wellness"
-    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\s+(?:called|named)\s+["']?([A-Za-z][\w\s&'-]+?)["']?\s*$/i,
-    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\s+["']([A-Za-z][\w\s&'-]+?)["']/i,
-    /\b(?:under|in|into|within)\s+(?:the\s+)?(?:service\s+)?category\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
-    /\b(?:under|in|into|within)\s+(?:the\s+)?([A-Za-z][\w\s&'-]+?)\s+(?:service\s+)?category\b/i,
+    // e2e-bug.151 / e2e-bug.251 — "Add a new (service|catalog) category called/named X"
+    // e2e-bug.271 / e2e-bug.290 — trailing please/kindly/thanks (stripped after capture).
+    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:(?:service|catalog)\s+)?category\s+(?:called|named)\s+["']?([A-Za-z][\w\s&'-]+?)["']?(?:\s+(?:please|kindly|thanks(?:\s+you)?|thank\s+you|pls|thx|cheers|appreciate(?:\s+it)?))*\s*[.?!]?\s*$/i,
+    /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?(?:(?:service|catalog)\s+)?category\s+["']([A-Za-z][\w\s&'-]+?)["']/i,
+    /\b(?:under|in|into|within)\s+(?:the\s+)?(?:(?:service|catalog)\s+)?category\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
+    /\b(?:under|in|into|within)\s+(?:the\s+)?([A-Za-z][\w\s&'-]+?)\s+(?:(?:service|catalog)\s+)?category\b/i,
     /\b(?:create|add)\s+(?:a\s+)?(?:new\s+)?service\b[^.]*\bcategory\s*:?\s*([A-Za-z][\w\s&'-]+)/i,
+    // e2e-bug.291 — HY «կատեգորիա անունով X» / «կատեգորիա՝ X»
+    /կատեգորիա\s+անունով\s+["']?(.+?)["']?(?:\s+(?:խնդրում\s+եմ|please|kindly|thanks))*\s*[.?!]?\s*$/iu,
+    /կատեգորիա\s*[՝:]\s*["']?(.+?)["']?\s*$/iu,
+    // e2e-bug.292 — RU «категорию … с/под названием X» / «категорию каталога «X»»
+    /(?:с|под)\s+названием\s+["'«„]?(.+?)["'»“]?(?:\s+(?:пожалуйста|please|kindly))*\s*[.?!]?\s*$/iu,
+    /категор[\p{L}\p{M}]*(?:\s+каталог[\p{L}\p{M}]*)?\s*[«"]([^»"]+)[»"]/iu,
   ];
 
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
-    const name = match?.[1]?.trim();
+    const name = match?.[1]
+      ? stripTrailingCategoryNamePoliteness(match[1])
+      : undefined;
     if (name && !/^(?:called|named)$/i.test(name)) return name;
   }
 
   return undefined;
+}
+
+/**
+ * e2e-bug.271 — prefer prompt-regex category name over a shorter classifier
+ * fragment (e.g. "brows" vs "brows E2E271-abc").
+ */
+export function reconcileCreateServiceCategoryNameFromPrompt(
+  prompt: string,
+  params: Record<string, unknown>,
+): void {
+  const extracted = extractCreateServiceCategoryFromPrompt(prompt);
+  const current =
+    typeof params.categoryName === 'string'
+      ? stripTrailingCategoryNamePoliteness(params.categoryName)
+      : '';
+
+  if (extracted) {
+    params.categoryName = extracted;
+    return;
+  }
+  if (current) {
+    params.categoryName = current;
+  }
 }
 
 const CREATE_SERVICE_VERB =
@@ -421,11 +524,13 @@ export function enrichServiceCategoryRescueParams(
     return;
   }
 
-  if (
-    action === 'create_service' ||
-    action === 'create_services' ||
-    action === 'create_service_category'
-  ) {
+  if (action === 'create_service_category') {
+    // e2e-bug.271 — always prefer prompt extract over truncated classifier names.
+    reconcileCreateServiceCategoryNameFromPrompt(prompt, params);
+    return;
+  }
+
+  if (action === 'create_service' || action === 'create_services') {
     const categoryName = extractCreateServiceCategoryFromPrompt(prompt);
     if (categoryName && !params.categoryName) {
       params.categoryName = categoryName;
@@ -639,14 +744,8 @@ export function rescueCatalogIntent(
   if (isCatalogCompoundPrompt(prompt) && action !== 'compound_intent') {
     return null;
   }
-  if (
-    isBulkCreateCatalogPrompt(prompt) &&
-    action !== 'create_services' &&
-    action !== 'create_service'
-  ) {
-    return { action: 'bulk_create_catalog', rescueReason: 'bulk_catalog' };
-  }
-  // e2e-bug.151 — also steal back from create_promo_code ("called Wellness" false positive).
+  // e2e-bug.151 / e2e-bug.292 — single-category create before bulk (RU/HY/EN
+  // "category named X" must not stay on bulk_create_catalog confirm).
   if (
     isCreateServiceCategoryPrompt(prompt) &&
     action !== 'create_service_category'
@@ -655,6 +754,13 @@ export function rescueCatalogIntent(
       action: 'create_service_category',
       rescueReason: 'service_category',
     };
+  }
+  if (
+    isBulkCreateCatalogPrompt(prompt) &&
+    action !== 'create_services' &&
+    action !== 'create_service'
+  ) {
+    return { action: 'bulk_create_catalog', rescueReason: 'bulk_catalog' };
   }
   if (isListPackagesPrompt(prompt)) {
     return { action: 'list_packages', rescueReason: 'list_packages' };

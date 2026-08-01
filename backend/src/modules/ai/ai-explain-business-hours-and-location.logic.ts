@@ -9,17 +9,23 @@ import {
   formatWeekdayLabel,
   readBusinessLocationSettings,
 } from './ai-explain-business-hours-and-location.util.js';
+import type { PublicOpeningHours } from '../public-booking/public-opening-hours.util.js';
 
 export type BusinessHoursLocationLogicDeps = {
   businessRepo: Repository<Business>;
+  /** e2e-bug.227 — same schedule-template source as public profile openingHours. */
+  loadOpeningHours?: (
+    businessId: string,
+  ) => Promise<PublicOpeningHours | undefined>;
 };
 
 function buildHoursSummary(
   businessName: string,
   settings: Record<string, unknown>,
   weekday?: string | null,
+  openingHours?: PublicOpeningHours | null,
 ): string {
-  const hoursLabel = formatBusinessHoursLabel(settings, weekday);
+  const hoursLabel = formatBusinessHoursLabel(settings, weekday, openingHours);
   if (weekday) {
     return `${businessName} — ${formatWeekdayLabel(weekday)} hours: ${hoursLabel}.`;
   }
@@ -58,13 +64,19 @@ export function buildBusinessHoursLocationSummary(input: {
   business: Business;
   aspect: BusinessHoursLocationAspect;
   weekday?: string | null;
+  openingHours?: PublicOpeningHours | null;
 }): string {
   const settings = (input.business.settings ?? {}) as Record<string, unknown>;
   const locationSettings = readBusinessLocationSettings(settings);
 
   switch (input.aspect) {
     case 'hours':
-      return buildHoursSummary(input.business.name, settings, input.weekday);
+      return buildHoursSummary(
+        input.business.name,
+        settings,
+        input.weekday,
+        input.openingHours,
+      );
     case 'location':
       return buildLocationSummary(
         input.business.name,
@@ -76,7 +88,12 @@ export function buildBusinessHoursLocationSummary(input: {
     case 'hours_and_location':
     default:
       return [
-        buildHoursSummary(input.business.name, settings, input.weekday),
+        buildHoursSummary(
+          input.business.name,
+          settings,
+          input.weekday,
+          input.openingHours,
+        ),
         buildLocationSummary(
           input.business.name,
           input.business,
@@ -119,12 +136,16 @@ export async function handleExplainBusinessHoursAndLocationLogic(
   const settings = (business.settings ?? {}) as Record<string, unknown>;
   const locationSettings = readBusinessLocationSettings(settings);
   const mapsUrl = extractGoogleMapsUrl(locationSettings.mapEmbedHtml);
-  const hoursLabel = formatBusinessHoursLabel(settings, weekday);
+  const openingHours = deps.loadOpeningHours
+    ? await deps.loadOpeningHours(businessId)
+    : undefined;
+  const hoursLabel = formatBusinessHoursLabel(settings, weekday, openingHours);
 
   const summary = buildBusinessHoursLocationSummary({
     business,
     aspect,
     weekday,
+    openingHours,
   });
 
   return {
@@ -135,6 +156,9 @@ export async function handleExplainBusinessHoursAndLocationLogic(
       aspect,
       ...(weekday ? { weekday } : {}),
       hoursLabel,
+      ...(openingHours?.summaryLines
+        ? { openingHoursSummaryLines: openingHours.summaryLines }
+        : {}),
       address: business.address ?? null,
       mapsUrl,
       parkingCopy: locationSettings.parkingCopy ?? null,

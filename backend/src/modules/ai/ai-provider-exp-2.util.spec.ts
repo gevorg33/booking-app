@@ -45,6 +45,16 @@ describe('ai-provider-exp-2.util', () => {
     expect(isTeamFloorStatusPrompt(prompt)).toBe(true);
   });
 
+  it.each([
+    ['Explain the floor status'],
+    ["What's checked in?"],
+    ['What does the floor strip show?'],
+    ['Ի՞նչ է նշանակում floor status-ը'],
+    ['Что показывает floor status?'],
+  ])('does not let team_floor_status steal explainer %s', (prompt) => {
+    expect(isTeamFloorStatusPrompt(prompt)).toBe(false);
+  });
+
   it.each(
     PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(
       (s) => s.expectedAction === 'list_team_unpaid_today',
@@ -267,6 +277,13 @@ describe('ai-provider-exp-2.util', () => {
   )('detects check_in_client prompt %s', (_id, prompt) => {
     expect(isCheckInClientPrompt(prompt)).toBe(true);
   });
+
+  it.each([["What's checked in?"], ['What does checked in mean?']])(
+    'does not let check_in_client steal explainer %s',
+    (prompt) => {
+      expect(isCheckInClientPrompt(prompt)).toBe(false);
+    },
+  );
 
   it.each(
     PROVIDER_EXP_2_PROMPT_SCENARIOS.filter(

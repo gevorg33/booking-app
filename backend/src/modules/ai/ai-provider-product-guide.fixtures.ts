@@ -29,7 +29,7 @@ export const PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS: readonly ProviderProductGu
       intent: 'explain_provider_app_tabs',
       samplePrompt: "What's on Today vs Calendar?",
       prompt:
-        /\b(?:today\s+vs\s+calendar|calendar\s+vs\s+today|what(?:'s|\s+is)\s+on\s+(?:the\s+)?today\s+tab|where\s+is\s+(?:the\s+)?schedule\s+tab|provider\s+app\s+tabs?|difference\s+between\s+today\s+and\s+calendar)\b|(?:что\s+показывает\s+вкладка\s+today|вкладка\s+today)/iu,
+        /\b(?:today\s+vs\s+calendar|calendar\s+vs\s+today|what(?:'s|\s+is)\s+on\s+(?:the\s+)?(?:today|home)\s+tab|how\s+(?:do|can)\s+i\s+use\s+(?:the\s+)?(?:today|home)\s+tab|where\s+is\s+(?:the\s+)?schedule\s+tab|provider\s+app\s+tabs?|difference\s+between\s+today\s+and\s+calendar)\b|(?:что\s+показывает\s+вкладка\s+today|вкладка\s+(?:today|home)|пользоваться\s+вкладк)/iu,
       fromActions: ['unknown', 'show_appointments', 'list_bookings'],
     },
     {

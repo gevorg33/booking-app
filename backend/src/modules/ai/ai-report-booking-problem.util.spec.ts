@@ -1,8 +1,14 @@
 import {
+  E2E236_REPORT_VS_CONFIRM_SCENARIOS,
   REPORT_BOOKING_PROBLEM_BOUNDARY_PROMPTS,
   REPORT_BOOKING_PROBLEM_PROMPTS,
   REPORT_BOOKING_PROBLEM_RESCUE_SCENARIOS,
 } from './ai-report-booking-problem.fixtures.js';
+import {
+  isConfirmMyBookingDetailsPrompt,
+  rescueConfirmMyBookingDetailsIntent,
+} from './ai-confirm-my-booking-details.util.js';
+import { rescueSelfServiceBookingIntent } from './ai-self-service-booking.util.js';
 import { REPORT_BOOKING_PROBLEM_MULTILINGUAL_SCENARIOS } from './ai-report-booking-problem-multilingual.fixtures.js';
 import {
   buildDefaultBookingProblemMessage,
@@ -48,6 +54,38 @@ describe('ai-report-booking-problem.util (ai-cmd-customer-4.12.3)', () => {
       expect(
         rescueReportBookingProblemIntent(prompt, misclassifiedAction)?.action,
       ).toBe(expectedAction);
+    },
+  );
+
+  it.each(E2E236_REPORT_VS_CONFIRM_SCENARIOS)(
+    'e2e-bug.236 report vs confirm ($id)',
+    ({ prompt, misclassifiedAction, expectedAction, expectReport }) => {
+      const wantsReport = expectReport !== false;
+      expect(isReportBookingProblemPrompt(prompt)).toBe(wantsReport);
+      if (wantsReport) {
+        expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(false);
+        expect(
+          rescueReportBookingProblemIntent(prompt, misclassifiedAction)
+            ?.action,
+        ).toBe('report_booking_problem');
+        expect(
+          rescueConfirmMyBookingDetailsIntent(prompt, 'unknown'),
+        ).toBeNull();
+        expect(
+          rescueSelfServiceBookingIntent(prompt, misclassifiedAction)?.action,
+        ).toBe('report_booking_problem');
+        expect(rescueSelfServiceBookingIntent(prompt, 'unknown')?.action).toBe(
+          'report_booking_problem',
+        );
+      } else {
+        expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(true);
+        expect(
+          rescueReportBookingProblemIntent(prompt, misclassifiedAction),
+        ).toBeNull();
+        expect(rescueSelfServiceBookingIntent(prompt, 'unknown')?.action).toBe(
+          expectedAction,
+        );
+      }
     },
   );
 

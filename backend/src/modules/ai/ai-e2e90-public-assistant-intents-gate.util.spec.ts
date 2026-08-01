@@ -10,6 +10,7 @@ import {
 } from './ai-platform.util.js';
 import { PUBLIC_ONLY_ASSISTANT_ACTIONS } from './ai-public-only-assistant-actions.js';
 import {
+  E2E90_CRASH_MARKERS,
   E2E90_DISCOVERY_ACTIONS,
   E2E90_DISCOVERY_PROMPTS,
 } from './ai-e2e90-public-assistant-intents-gate.fixtures.js';
@@ -34,17 +35,30 @@ describe('e2e-bug.90 public assistant intents gate never throws on undefined all
     const live = resolvePublicAssistantIntentAllowlist();
     expect(live.length).toBeGreaterThan(PUBLIC_ONLY_ASSISTANT_ACTIONS.length);
     expect(live.includes('list_services')).toBe(true);
+    expect(live.includes('list_provider_reviews')).toBe(true);
   });
 
   it('intentAllowlistIncludes never throws when list is undefined', () => {
     expect(() =>
-      intentAllowlistIncludes(undefined, 'list_services', PUBLIC_ONLY_ASSISTANT_ACTIONS),
+      intentAllowlistIncludes(
+        undefined,
+        'list_services',
+        PUBLIC_ONLY_ASSISTANT_ACTIONS,
+      ),
     ).not.toThrow();
     expect(
-      intentAllowlistIncludes(undefined, 'list_services', PUBLIC_ONLY_ASSISTANT_ACTIONS),
+      intentAllowlistIncludes(
+        undefined,
+        'list_services',
+        PUBLIC_ONLY_ASSISTANT_ACTIONS,
+      ),
     ).toBe(true);
     expect(
-      intentAllowlistIncludes(undefined, 'payment_sweep', PUBLIC_ONLY_ASSISTANT_ACTIONS),
+      intentAllowlistIncludes(
+        undefined,
+        'payment_sweep',
+        PUBLIC_ONLY_ASSISTANT_ACTIONS,
+      ),
     ).toBe(false);
   });
 
@@ -67,6 +81,9 @@ describe('e2e-bug.90 public assistant intents gate never throws on undefined all
     expect(denied).not.toBeNull();
     expect(denied?.action).toBe('security_blocked');
     expect(denied?.success).toBe(false);
+    for (const marker of E2E90_CRASH_MARKERS) {
+      expect(String(denied?.summary || '')).not.toContain(marker);
+    }
   });
 
   it('simulated undefined registry list still allows discovery via fallback', () => {
@@ -80,5 +97,18 @@ describe('e2e-bug.90 public assistant intents gate never throws on undefined all
       const list = resolvePublicAssistantIntentAllowlistFrom(broken);
       return list.includes('list_services');
     }).not.toThrow();
+  });
+
+  it('PUBLIC_ONLY_ASSISTANT_ACTIONS leaf covers every e2e90 discovery action', () => {
+    for (const action of E2E90_DISCOVERY_ACTIONS) {
+      expect(PUBLIC_ONLY_ASSISTANT_ACTIONS.includes(action as never)).toBe(true);
+    }
+  });
+
+  it('fixture covers list_provider_reviews (4th confirmed crash intent)', () => {
+    expect(E2E90_DISCOVERY_ACTIONS).toContain('list_provider_reviews');
+    expect(
+      E2E90_DISCOVERY_PROMPTS.some((p) => p.action === 'list_provider_reviews'),
+    ).toBe(true);
   });
 });

@@ -12,6 +12,7 @@ import {
   buildServiceColorMap,
   buildTourCalendarSpans,
   buildWeekDateKeys,
+  normalizeTourWeekAnchorDateKey,
   TOUR_SERVICE_COLORS,
   type CalendarWeekBooking,
 } from '../../common/utils/tour-calendar.util.js';
@@ -73,7 +74,8 @@ function resolveWeekAnchor(
   parsed: ParsedExplainTourCalendarSpan,
   tourBookings: Booking[],
 ): string {
-  if (parsed.weekStartDate) return parsed.weekStartDate;
+  const normalized = normalizeTourWeekAnchorDateKey(parsed.weekStartDate);
+  if (normalized) return normalized;
   const withRange = tourBookings
     .map(
       (booking) => extractTourBookingMetadata(booking.metadata).tourStartDate,

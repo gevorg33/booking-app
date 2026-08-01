@@ -23,6 +23,7 @@ import {
 import type { ConfirmMyBookingDetailsAspect } from './ai-confirm-my-booking-details.fixtures.js';
 import { resolveManageBookingCredentials } from './ai-manage-booking-with-token.util.js';
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 
 function failure(
   action: string,
@@ -240,10 +241,14 @@ export async function handleConfirmMyBookingDetailsLogic(
       Boolean(creds.bookingId ?? params.bookingId) &&
       Boolean(creds.manageToken);
 
+    const clarifyLocale = resolveLocale(
+      typeof params.locale === 'string' ? params.locale : undefined,
+    );
     if (guestMissingAuth || guestBadToken) {
       return failure(
         'confirm_my_booking_details',
-        'Share the manage link for this booking first, so I can look it up.',
+        // e2e-bug.274 — localize manage-link clarify under locale:hy|ru.
+        t(clarifyLocale, 'assistant.confirmBookingManageLinkClarify'),
         {
           clarify: true,
           missing: guestMissingAuth
@@ -256,8 +261,9 @@ export async function handleConfirmMyBookingDetailsLogic(
     return failure(
       'confirm_my_booking_details',
       customerId
-        ? 'I could not find an upcoming booking to summarize. Finish checkout or pick an appointment from your account.'
-        : 'Finish booking or sign in so I can read your appointment details from the session.',
+        ? t(clarifyLocale, 'assistant.confirmBookingSignedInMissing')
+        : // e2e-bug.274 / e2e-bug.259 sibling — anon clarify was English-only.
+          t(clarifyLocale, 'assistant.confirmBookingAnonClarify'),
       {
         clarify: true,
         missing: ['bookingId'],

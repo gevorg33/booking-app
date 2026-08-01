@@ -15,7 +15,7 @@ import {
 } from '@ionic/react';
 import api, { unwrap } from '../services/api';
 import { useAuthStore } from '../services/auth-store';
-import { formatDateDisplay } from '../lib/date-format';
+import { formatDateDisplay, formatMinutesDuration } from '../lib/date-format';
 import { formatBookingBlockHeadline, type BookingSummary } from '../lib/booking-types';
 import { useBusinessCurrency } from '../lib/use-business-currency';
 import { isMobileManagerRole, isTeamView } from '../lib/provider-access';
@@ -69,7 +69,7 @@ export default function SchedulePage({ embedded = false }: { embedded?: boolean 
     queryFn: async () => {
       const { data: res } = await api.get(`/businesses/${business!.id}/provider/schedule/summary?days=14`);
       return unwrap<{
-        days: Array<{ date: string; available: number; booked: number }>;
+        days: Array<{ date: string; available: number; availableMinutes: number; booked: number }>;
         timeOffRequests?: ProviderTimeOffRequestSummary[];
       }>(res);
     },
@@ -149,7 +149,7 @@ export default function SchedulePage({ embedded = false }: { embedded?: boolean 
                         <IonLabel>
                           <h3>{formatDateDisplay(d.date)}</h3>
                           <p>
-                            {d.booked} {t('provider.booked')} · {d.available} {t('provider.open')}
+                            {d.booked} {t('provider.booked')} · {formatMinutesDuration(d.availableMinutes)} {t('provider.open')}
                           </p>
                         </IonLabel>
                       </IonItem>

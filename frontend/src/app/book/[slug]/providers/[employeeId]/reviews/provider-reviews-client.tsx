@@ -6,8 +6,12 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
-import { ProviderReviewCard } from '@/components/public-booking/provider-reviews';
+import {
+  ProviderReviewCard,
+  ProviderReviewSummary,
+} from '@/components/public-booking/provider-reviews';
 import { getPublicProviderReviews, type PublicBusinessProfile } from '@/lib/public-api';
+import { resolveProviderReviewsPageSummary } from '@/lib/provider-reviews-page-summary.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -44,6 +48,13 @@ export function ProviderReviewsClient({
     return `${bookPath(slug, `/providers/${employeeId}/reviews`)}?${q.toString()}`;
   };
 
+  const summary = data
+    ? resolveProviderReviewsPageSummary({
+        averageRating: data.averageRating,
+        reviewCount: data.reviewCount,
+      })
+    : null;
+
   return (
     <>
       <PublicHeader tenant={tenant} showBack backHref={backHref} />
@@ -59,10 +70,19 @@ export function ProviderReviewsClient({
         )}
 
         {data && (
-          <div className="space-y-4">
-            <h1 className="text-xl font-bold text-gray-900 px-1">
-              {t('public.reviewsPageTitle', { name: data.employeeName })}
-            </h1>
+          <div className="space-y-4" data-testid="provider-reviews-page">
+            <div className="px-1">
+              <h1 className="text-xl font-bold text-gray-900">
+                {t('public.reviewsPageTitle', { name: data.employeeName })}
+              </h1>
+              {summary && (
+                <ProviderReviewSummary
+                  averageRating={summary.averageRating}
+                  reviewCount={summary.reviewCount}
+                  primaryColor="#fbbf24"
+                />
+              )}
+            </div>
 
             {data.items.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">{t('public.noProviderReviews')}</p>

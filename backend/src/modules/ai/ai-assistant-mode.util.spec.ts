@@ -55,6 +55,27 @@ describe('ai-assistant-mode.util (ai-guide-1.0.3)', () => {
     ).toBe('guide');
   });
 
+  it('e2e-bug.233: loyalty/referral prompts stay act when assistantMode omitted', () => {
+    expect(
+      resolveAssistantMode({
+        prompt: 'How do loyalty points work?',
+        surface: 'customer',
+      }),
+    ).toBe('act');
+    expect(
+      resolveAssistantMode({
+        prompt: "What's my loyalty points balance?",
+        surface: 'customer',
+      }),
+    ).toBe('act');
+    expect(
+      resolveAssistantMode({
+        prompt: 'Redeem referral code FRIEND10',
+        surface: 'customer',
+      }),
+    ).toBe('act');
+  });
+
   it('reads assistantMode from session context', () => {
     expect(
       resolveAssistantModeFromSession({

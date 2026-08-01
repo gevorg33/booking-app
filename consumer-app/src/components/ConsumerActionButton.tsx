@@ -11,6 +11,7 @@ export function ConsumerActionButton({
   children,
   fill = 'solid',
   expand,
+  size = 'default',
   color,
   className = '',
   style,
@@ -22,6 +23,8 @@ export function ConsumerActionButton({
   children: ReactNode;
   fill?: ConsumerActionButtonFill;
   expand?: 'block';
+  /** Compact row CTAs (e2e-bug.253 booking-card / cancel / reschedule). */
+  size?: 'default' | 'small';
   /** CSS color for solid background / outline border+text. */
   color?: string;
   className?: string;
@@ -31,6 +34,7 @@ export function ConsumerActionButton({
     'consumer-action-button',
     `consumer-action-button--${fill}`,
     expand === 'block' ? 'consumer-action-button--block' : '',
+    size === 'small' ? 'consumer-action-button--small' : '',
     color === 'danger' || color === 'medium' ? `consumer-action-button--${color}` : '',
     className,
   ]

@@ -49,6 +49,8 @@ describe('ai-booking-slot-messages.util (ai-cmd-h2.1)', () => {
     });
 
     expect(message).toContain('No bookable slot for Permanent lashes');
+    expect(message).toContain('7 June 2026');
+    expect(message).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(message).toContain('morning');
     expect(message).toContain('afternoon');
     expect(message).toContain('evening');
@@ -64,7 +66,28 @@ describe('ai-booking-slot-messages.util (ai-cmd-h2.1)', () => {
       dateKey: '2026-06-08',
     });
     expect(message).toContain('No bookable slot for Haircut');
+    expect(message).toContain('8 June 2026');
+    expect(message).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(message).toContain('morning, afternoon, or evening');
+  });
+
+  it('e2e-bug.306: no-slot August dates never use DD/MM slash', () => {
+    const message = buildNoNearestSlotMessage({
+      serviceName: 'Swedish massage',
+      dateKey: '2026-08-02',
+    });
+    expect(message).toContain('2 August 2026');
+    expect(message).not.toContain('02/08/2026');
+  });
+
+  it('e2e-bug.306: no-providers August dates never use DD/MM slash', () => {
+    const message = buildNoProvidersAvailableMessage({
+      serviceName: 'Swedish massage',
+      dateKey: '2026-08-03',
+      timeOfDay: 'morning',
+    });
+    expect(message).toContain('3 August 2026');
+    expect(message).not.toContain('03/08/2026');
   });
 
   it('mentions after-time constraint when only notBeforeTime is set', () => {

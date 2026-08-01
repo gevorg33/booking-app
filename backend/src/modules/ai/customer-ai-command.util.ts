@@ -1,6 +1,7 @@
 import type { CommandResult } from './command-completion.types.js';
 import { sanitizeSessionContextForClient } from './ai-command-client-sanitize.util.js';
 import { CHECK_AND_BOOK_CLASSIFIER_RULES } from './ai-check-and-book.fixtures.js';
+import { LIST_PROVIDERS_CLASSIFIER_RULES } from './ai-list-providers.fixtures.js';
 import { pickSharedBookingContextSlice } from './ai-compound-booking-context.util.js';
 import { mergeCheckProvidersHandoffIntoContext } from './ai-check-book-handoff.util.js';
 import { CLASSIFIER_MULTILINGUAL_RULES } from './ai-prompt-i18n.js';
@@ -267,6 +268,7 @@ import {
 import type { PublicAssistantResult } from '../public-booking/public-booking-assistant.service.js';
 export {
   PUBLIC_ONLY_ASSISTANT_ACTIONS,
+  isPublicOnlyAssistantAction,
   type PublicOnlyAssistantAction,
 } from './ai-public-only-assistant-actions.js';
 import {
@@ -277,12 +279,6 @@ import {
 export const CUSTOMER_SURFACE_INTENT_UNION = [
   ...new Set([...CUSTOMER_INTENTS, ...PUBLIC_INTENTS]),
 ] as const;
-
-export function isPublicOnlyAssistantAction(
-  action: string,
-): action is PublicOnlyAssistantAction {
-  return (PUBLIC_ONLY_ASSISTANT_ACTIONS as readonly string[]).includes(action);
-}
 
 export function isCustomerSurfaceIntent(action: string): boolean {
   if (
@@ -305,6 +301,9 @@ export function publicAssistantResultToCommandResult(
     success: result.success,
     action: result.action,
     summary: result.summary,
+    // e2e-bug.277 — preserve guide/supportHandoff across customer↔public round-trip
+    // (/public assistant → gateway customer → publicAssistant.chat → convert).
+    guide: result.guide,
     details: {
       ...details,
       sessionContext: result.sessionContext,
@@ -330,6 +329,31 @@ const PUBLIC_ASSISTANT_UI_DETAIL_KEYS = [
   // e2e-bug.95 — get_manage_link must deliver the link/token to the client.
   'manageUrl',
   'manageToken',
+  // Consumer-app client-side side effects (native push, notification settings,
+  // update-nudge dismissal, checkout-recommendation dismissal, analytics consent,
+  // TTS) are dead on the public surface without this key reaching the client.
+  'clientAction',
+  // handleAssistantFeedbackClientAction (assistant-feedback.util.ts) needs these
+  // to actually record submitAssistantFeedback — clientAction alone isn't enough.
+  'feedbackRating',
+  'feedbackReason',
+  'lastAssistantReply',
+  'lastAction',
+  // e2e-bug.206 — surface which action got denied so the public summary
+  // (and support/debugging) isn't a silent, unexplained block.
+  'blockedAction',
+] as const;
+
+/** e2e-bug.281 — chip/label UI for give_ai_feedback only (not other actions' `aspect`). */
+const PUBLIC_GIVE_AI_FEEDBACK_DETAIL_KEYS = [
+  'showReasonChips',
+  'aspect',
+  'assistantFeedback',
+  'feedbackUpLabel',
+  'feedbackDownLabel',
+  'feedbackThanks',
+  'feedbackReasonSkipLabel',
+  'feedbackReasonOptions',
 ] as const;
 
 function serializePublicAssistantSessionContext(
@@ -362,6 +386,13 @@ export function commandResultToPublicAssistantResult(
   for (const key of PUBLIC_ASSISTANT_UI_DETAIL_KEYS) {
     if (details[key] !== undefined) {
       assistantDetails[key] = details[key];
+    }
+  }
+  if (result.action === 'give_ai_feedback') {
+    for (const key of PUBLIC_GIVE_AI_FEEDBACK_DETAIL_KEYS) {
+      if (details[key] !== undefined) {
+        assistantDetails[key] = details[key];
+      }
     }
   }
   return {
@@ -436,6 +467,7 @@ Rules:
 - Never invent catalog names; use context when provided.
 - Default to "unknown" when unclear.
 ${CHECK_AND_BOOK_CLASSIFIER_RULES}
+${LIST_PROVIDERS_CLASSIFIER_RULES}
 ${CUSTOMER_AVAILABILITY_DISAMBIGUATION_RULES}
 ${BUDGET_SERVICE_DISCOVERY_CLASSIFIER_RULES}
 ${CUSTOMER_PUBLIC_FIND_SERVICES_UNDER_BUDGET_CLASSIFIER_RULES}

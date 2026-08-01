@@ -478,17 +478,23 @@ describe('ai service discovery public integration — section D flagship (discov
     expect(enriched).toMatchObject({
       maxPrice: 150,
       serviceRank: 'highest_price',
-      serviceCategory: 'styling',
+      // e2e-bug.101 — "styling" aliases to "haircut" (like cut/cuts/trim).
+      serviceCategory: 'haircut',
       bookingFirstAvailable: true,
     });
 
     const stylingCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
       (service) => service.serviceCategory === 'styling',
     );
-    const resolved = resolveDiscoverConstrainedService(
-      stylingCatalog,
-      enriched,
-    );
+    // e2e-bug.101 — `enriched.serviceCategory` is now the aliased "haircut"
+    // (this fixture's synthetic "styling"-labeled catalog predates that fix
+    // and isn't a real category name — see the toMatchObject assertion above
+    // for the actual extraction behavior); resolve within the pre-filtered
+    // catalog on its own synthetic label to keep testing rank-picking here.
+    const resolved = resolveDiscoverConstrainedService(stylingCatalog, {
+      ...enriched,
+      serviceCategory: 'styling',
+    });
     expect(resolved.service?.id).toBe('style-140');
     expect(
       buildNearestAvailabilityWindowQueries(enriched, scenario.prompt, 'UTC'),

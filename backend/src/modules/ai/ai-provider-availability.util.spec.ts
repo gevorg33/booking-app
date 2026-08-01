@@ -71,7 +71,9 @@ describe('buildCheckProvidersSummary', () => {
     expect(result.summary).toContain('1 provider(s) available');
     expect(result.summary).toContain('Karo Mazmanyan (Cosmetologist)');
     expect(result.summary).toContain('14:00, 14:30, 15:00');
-    expect(result.summary).toContain('Tap a provider below');
+    expect(result.summary).toContain('Tap a time slot below');
+    expect(result.summary).toContain('6 June 2026');
+    expect(result.summary).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(result.availableProviders).toEqual(['Karo Mazmanyan']);
     expect(result.availability[0]?.previewTimes).toEqual([
       '14:00',
@@ -145,11 +147,13 @@ describe('buildCheckProvidersSummary', () => {
   it('returns empty availability when no providers match', () => {
     const result = buildCheckProvidersSummary({
       serviceName: 'Massage',
-      dateKey: '2026-06-06',
+      dateKey: '2026-08-02',
       providers: [],
     });
 
     expect(result.summary).toContain('No providers are free');
+    expect(result.summary).toContain('2 August 2026');
+    expect(result.summary).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(result.summary).toMatch(/another date|time of day/i);
     expect(result.availableProviders).toEqual([]);
     expect(result.availability).toEqual([]);

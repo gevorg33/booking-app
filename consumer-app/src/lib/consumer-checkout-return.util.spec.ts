@@ -111,4 +111,78 @@ describe('consumer-checkout-return.util', () => {
     expect(isCheckoutPaymentReturnQuery(new URLSearchParams('paid=1'))).toBe(true);
     expect(isCheckoutPaymentReturnQuery(new URLSearchParams())).toBe(false);
   });
+
+  // e2e checklist — return-flow reconciliation: the native optischedule:// scheme was
+  // previously untested here even though buildCheckoutReturnUrls generates it for every
+  // kind when clientSurface is 'consumer' and returnOrigin resolves to that scheme.
+  describe('native optischedule:// return URLs', () => {
+    it('parses native package Stripe return URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'optischedule://book/salon/packages/pkg-1/checkout?paid=1&packageId=pkg-1&session_id=cs_pkg_native',
+      );
+      expect(route?.kind).toBe('package');
+      expect(route?.slug).toBe('salon');
+      expect(route?.packageId).toBe('pkg-1');
+      expect(route?.query.get('session_id')).toBe('cs_pkg_native');
+    });
+
+    it('parses native multi-service Stripe return URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'optischedule://book/salon/multi/checkout?paid=1&services=a,b&session_id=cs_multi_native',
+      );
+      expect(route?.kind).toBe('multi');
+      expect(route?.query.get('session_id')).toBe('cs_multi_native');
+    });
+
+    it('parses native gift-card Stripe return URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'optischedule://book/salon/gift-cards/checkout?paid=1&session_id=cs_gift_native',
+      );
+      expect(route?.kind).toBe('gift_card');
+      expect(route?.query.get('session_id')).toBe('cs_gift_native');
+    });
+
+    it('parses native single-service Stripe return URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'optischedule://book/salon/svc-1?paid=1&startTime=2026-06-09T14%3A00%3A00.000Z&session_id=cs_single_native',
+      );
+      expect(route?.kind).toBe('single');
+      expect(route?.serviceId).toBe('svc-1');
+      expect(route?.query.get('session_id')).toBe('cs_single_native');
+    });
+  });
+
+  describe('consumer /s/:slug/... web return URLs (package/multi/gift-card)', () => {
+    it('parses consumer package Stripe success URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'http://localhost:5174/s/salon/book/packages/pkg-1/checkout?paid=1&packageId=pkg-1&session_id=cs_pkg_web_s',
+      );
+      expect(route?.kind).toBe('package');
+      expect(route?.query.get('session_id')).toBe('cs_pkg_web_s');
+    });
+
+    it('parses consumer multi-service Stripe success URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'http://localhost:5174/s/salon/book/multi/checkout?paid=1&services=a,b&session_id=cs_multi_web_s',
+      );
+      expect(route?.kind).toBe('multi');
+      expect(route?.query.get('session_id')).toBe('cs_multi_web_s');
+    });
+
+    it('parses consumer gift-card Stripe success URLs', () => {
+      const route = parseCheckoutReturnRoute(
+        'http://localhost:5174/s/salon/gift-cards/checkout?paid=1&session_id=cs_gift_web_s',
+      );
+      expect(route?.kind).toBe('gift_card');
+      expect(route?.query.get('session_id')).toBe('cs_gift_web_s');
+    });
+  });
+
+  it('recognizes a payment return by paid=1 alone, with no session_id present', () => {
+    // Real backend success URLs always emit both signals together (verified against
+    // every stripeReturnUrls call site in booking-payment.service.ts), but the OR
+    // check exists so a URL carrying only one signal still routes correctly.
+    const route = parseCheckoutReturnRoute('optischedule://book/salon/svc-1?paid=1');
+    expect(route?.kind).toBe('single');
+  });
 });

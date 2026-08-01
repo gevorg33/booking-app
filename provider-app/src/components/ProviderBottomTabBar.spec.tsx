@@ -30,6 +30,7 @@ describe('ProviderBottomTabBar (e2e-bug.65)', () => {
         <ProviderBottomTabBar
           activeTab="today"
           showLabCollection
+          showGiftCards
           onOpenTab={() => undefined}
         />,
       );
@@ -51,6 +52,7 @@ describe('ProviderBottomTabBar (e2e-bug.65)', () => {
         <ProviderBottomTabBar
           activeTab="profile"
           showLabCollection
+          showGiftCards
           onOpenTab={() => undefined}
         />,
       );
@@ -59,5 +61,22 @@ describe('ProviderBottomTabBar (e2e-bug.65)', () => {
     expect(scrollIntoView).toHaveBeenCalled();
     const active = container.querySelector('.provider-tab-btn.is-active');
     expect(active?.textContent).toContain('provider.navProfile');
+  });
+
+  it('hides the gift cards tab for non-manager roles', () => {
+    act(() => {
+      root.render(
+        <ProviderBottomTabBar
+          activeTab="today"
+          showLabCollection={false}
+          showGiftCards={false}
+          onOpenTab={() => undefined}
+        />,
+      );
+    });
+
+    expect(container.textContent).not.toContain('provider.navGiftCards');
+    const buttons = container.querySelectorAll('.provider-tab-btn');
+    expect(buttons).toHaveLength(4);
   });
 });

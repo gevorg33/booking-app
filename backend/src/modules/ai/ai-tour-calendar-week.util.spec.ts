@@ -48,4 +48,14 @@ describe('ai-tour-calendar-week.util (ai-cmd-tour-12)', () => {
       ),
     ).toMatchObject({ serviceName: 'Mountain trek' });
   });
+
+  // e2e-bug.250 — classifier fragment must not become serviceName.
+  it('rejects "I have this week" params.serviceName for unscoped prompt', () => {
+    const parsed = parseListTourCalendarWeekFromPrompt(
+      'What tour bookings do I have this week?',
+      { serviceName: 'I have this week' },
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.serviceName).toBeUndefined();
+  });
 });

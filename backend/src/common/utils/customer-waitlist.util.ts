@@ -125,19 +125,77 @@ export function applyCustomerWaitlistRequestToMetadata(
   };
 }
 
+function escapeWaitlistRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** True when service label already includes the provider (full or first name). */
+export function waitlistServiceAlreadyNamesEmployee(
+  serviceName: string,
+  employeeName: string,
+): boolean {
+  const service = serviceName.trim().toLowerCase();
+  const employee = employeeName.trim().toLowerCase();
+  if (!service || !employee) return false;
+  if (service === employee) return true;
+  if (service.includes(` with ${employee}`)) return true;
+  const first = employee.split(/\s+/)[0] ?? '';
+  return first.length >= 2 && service.includes(` with ${first}`);
+}
+
+/**
+ * Drop a trailing " with <provider>" baked into serviceName (e2e-bug.235).
+ * Returns cleaned service label, or undefined when nothing remains.
+ */
+export function stripTrailingWaitlistProviderFromService(
+  serviceName: string,
+  employeeName: string,
+): string | undefined {
+  let next = serviceName.trim();
+  const employee = employeeName.trim();
+  if (!next || !employee) return next || undefined;
+  const first = employee.split(/\s+/)[0] ?? '';
+  const nameAlts = [employee, ...(first.length >= 2 ? [first] : [])]
+    .map(escapeWaitlistRegExp)
+    .join('|');
+  next = next
+    .replace(new RegExp(`\\s+with\\s+(?:${nameAlts})\\s*$`, 'i'), '')
+    .trim();
+  return next || undefined;
+}
+
 export function formatCustomerWaitlistPreferenceSummary(
   request: CustomerWaitlistRequest,
 ): string {
   const parts: string[] = [];
   // e2e-bug.112 — never render "Gevorg with Gevorg" when provider was copied into serviceName.
-  const serviceName = request.serviceName?.trim();
-  const employeeName = request.employeeName?.trim();
-  const serviceIsDuplicateProvider =
-    !!serviceName &&
-    !!employeeName &&
-    serviceName.toLowerCase() === employeeName.toLowerCase();
-  if (serviceName && !serviceIsDuplicateProvider) parts.push(serviceName);
-  if (employeeName) parts.push(`with ${employeeName}`);
+  let serviceName = request.serviceName?.trim() || undefined;
+  const employeeName = request.employeeName?.trim() || undefined;
+  if (
+    serviceName &&
+    employeeName &&
+    serviceName.toLowerCase() === employeeName.toLowerCase()
+  ) {
+    serviceName = undefined;
+  }
+  // e2e-bug.235 — "Swedish massage with Gevorg" + employee Gevorg → strip then re-attach once.
+  if (serviceName && employeeName) {
+    serviceName = stripTrailingWaitlistProviderFromService(
+      serviceName,
+      employeeName,
+    );
+  }
+  if (serviceName) parts.push(serviceName);
+  if (employeeName) {
+    if (serviceName) {
+      if (!waitlistServiceAlreadyNamesEmployee(serviceName, employeeName)) {
+        parts.push(`with ${employeeName}`);
+      }
+    } else {
+      // e2e-bug.235 — provider-only: "Gevorg Gasparyan", not "with Gevorg Gasparyan".
+      parts.push(employeeName);
+    }
+  }
   if (request.date) parts.push(`on ${request.date}`);
   else if (request.dateFrom && request.dateTo) {
     parts.push(`between ${request.dateFrom} and ${request.dateTo}`);

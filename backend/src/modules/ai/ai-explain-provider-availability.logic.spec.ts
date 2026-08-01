@@ -60,6 +60,19 @@ describe('ai-explain-provider-availability.logic (ai-cmd-customer-4.11.3)', () =
     ).toBeNull();
   });
 
+  it('e2e-bug.194 — does not clarify named availability-for phrasing', () => {
+    const prompt =
+      'Explain Gevorg availability for Swedish massage next Tuesday';
+    expect(validateExplainProviderAvailabilityParams({}, prompt)).toBeNull();
+    expect(
+      prepareExplainProviderAvailabilityParams({}, prompt, 'UTC'),
+    ).toMatchObject({
+      employeeName: 'Gevorg',
+      aspect: 'named_schedule',
+      serviceName: expect.stringMatching(/swedish/i),
+    });
+  });
+
   it('requires employee name for named schedule aspect', () => {
     jest
       .spyOn(

@@ -1,3 +1,4 @@
+import { E2E235_WAITLIST_SUMMARY_SCENARIOS } from '../../modules/ai/ai-customer-waitlist.fixtures.js';
 import {
   applyCustomerWaitlistRequestToMetadata,
   buildCheckWaitlistStatusSummary,
@@ -8,6 +9,8 @@ import {
   hasWaitlistTag,
   readCustomerWaitlistRequest,
   removeWaitlistTag,
+  stripTrailingWaitlistProviderFromService,
+  waitlistServiceAlreadyNamesEmployee,
 } from './customer-waitlist.util.js';
 
 describe('customer-waitlist.util', () => {
@@ -64,5 +67,49 @@ describe('customer-waitlist.util', () => {
     expect(
       formatCustomerWaitlistPreferenceSummary(buildCustomerWaitlistRequest({})),
     ).toMatch(/any upcoming opening/);
+  });
+
+  it.each(E2E235_WAITLIST_SUMMARY_SCENARIOS)(
+    'e2e-bug.235 preference summary ($id)',
+    ({ serviceName, employeeName, date, expectedSummary, forbidden }) => {
+      const request = buildCustomerWaitlistRequest({
+        ...(serviceName ? { serviceName } : {}),
+        ...(employeeName ? { employeeName } : {}),
+        date,
+      });
+      const prefs = formatCustomerWaitlistPreferenceSummary(request);
+      expect(prefs).toBe(expectedSummary);
+      for (const bad of forbidden) {
+        expect(prefs).not.toContain(bad);
+        expect(buildJoinWaitlistSuccessSummary(request)).not.toContain(bad);
+        expect(
+          buildCheckWaitlistStatusSummary({ onWaitlist: true, request }),
+        ).not.toContain(bad);
+      }
+    },
+  );
+
+  it('e2e-bug.235 strip / already-names helpers', () => {
+    expect(
+      stripTrailingWaitlistProviderFromService(
+        'Swedish massage with Gevorg',
+        'Gevorg',
+      ),
+    ).toBe('Swedish massage');
+    expect(
+      stripTrailingWaitlistProviderFromService(
+        'Swedish massage with Gevorg',
+        'Gevorg Gasparyan',
+      ),
+    ).toBe('Swedish massage');
+    expect(
+      waitlistServiceAlreadyNamesEmployee(
+        'Swedish massage with Gevorg',
+        'Gevorg Gasparyan',
+      ),
+    ).toBe(true);
+    expect(
+      waitlistServiceAlreadyNamesEmployee('Swedish massage', 'Gevorg'),
+    ).toBe(false);
   });
 });

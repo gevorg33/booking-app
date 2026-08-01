@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   loadPendingPackageCheckoutByPackage,
   loadPendingPackageCheckoutPayment,
@@ -63,5 +63,43 @@ describe('package-checkout-payment.util', () => {
       'sess-pkg',
     );
     expect(loadPendingPackageCheckoutByPackage('salon-a', 'pkg-1')?.lines).toEqual(lines);
+  });
+
+  // e2e checklist — return-flow reconciliation: without this TTL, an abandoned
+  // package checkout hijacks every future fresh visit to the same package's
+  // checkout page (confirmed live — silently substitutes a stale, even
+  // past-dated schedule and gets stuck retrying a dead Stripe session forever).
+  describe('stale pending-checkout TTL', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('still resumes a package checkout abandoned minutes ago', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-08T09:00:00.000Z'));
+      savePendingPackageCheckoutPayment({
+        slug: 'salon-a',
+        sessionId: 'sess-pkg-fresh',
+        packageId: 'pkg-1',
+        lines,
+      });
+      vi.setSystemTime(new Date('2026-06-08T09:05:00.000Z'));
+      expect(loadPendingPackageCheckoutByPackage('salon-a', 'pkg-1')?.sessionId).toBe(
+        'sess-pkg-fresh',
+      );
+    });
+
+    it('ignores a package checkout abandoned more than 24h ago instead of resuming it forever', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-01T09:00:00.000Z'));
+      savePendingPackageCheckoutPayment({
+        slug: 'salon-a',
+        sessionId: 'sess-pkg-stale',
+        packageId: 'pkg-1',
+        lines,
+      });
+      vi.setSystemTime(new Date('2026-06-11T09:00:00.000Z'));
+      expect(loadPendingPackageCheckoutByPackage('salon-a', 'pkg-1')).toBeNull();
+    });
   });
 });

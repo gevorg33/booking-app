@@ -1,3 +1,5 @@
+import type { AppLocale } from '../../common/i18n/messages.js';
+import { resolveLocale } from '../../common/i18n/messages.js';
 import type { AppGuideIntent } from './ai-product-guide.util.js';
 import type {
   CommandResult,
@@ -154,6 +156,7 @@ export function positionMetaGuideAtStep(
   topicId: string,
   stepIndex: number | undefined,
   sessionContext?: Record<string, unknown>,
+  locale: AppLocale = 'en',
 ): CommandResult {
   if (!result.success || !result.guide || stepIndex == null || stepIndex <= 0) {
     return result;
@@ -165,6 +168,7 @@ export function positionMetaGuideAtStep(
   const positionedGuide = buildGuideResponseForMultiTurnStep(
     result.guide,
     session,
+    locale,
   );
   const nextResult: CommandResult = {
     ...result,
@@ -287,5 +291,6 @@ export async function runMetaProductGuideIntent(input: {
     topicId,
     stepIndex,
     input.session?.context,
+    resolveLocale(input.locale ?? input.sessionContext?.locale),
   );
 }

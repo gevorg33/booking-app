@@ -189,7 +189,15 @@ export function applyRelativeDateFromPrompt(
     );
     return;
   }
-  if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
+  // e2e-bug.296 — "this evening/morning/afternoon" / "later today" are same-day
+  // (parity with tonight). Without this, UTC normalizeDateParams can stamp
+  // yesterday and dropPast empties keys → 14-day recommend fallback.
+  if (
+    /\btoday\b/i.test(lower) ||
+    /\btonight\b/i.test(lower) ||
+    /\bthis\s+(?:morning|afternoon|evening)\b/i.test(lower) ||
+    /\blater\s+today\b/i.test(lower)
+  ) {
     params.date = todayDisplay(tz);
     return;
   }

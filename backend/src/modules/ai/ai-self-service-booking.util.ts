@@ -61,7 +61,10 @@ import { rescueManageBookingWithTokenIntent } from './ai-manage-booking-with-tok
 import { isNotifyRunningLatePrompt } from './ai-notify-running-late.util.js';
 import { isLeaveVisitReviewPrompt } from './ai-leave-visit-review.util.js';
 import { isExplainPostVisitReviewPrompt } from './ai-explain-post-visit-review-prompt.util.js';
-import { isReportBookingProblemPrompt } from './ai-report-booking-problem.util.js';
+import {
+  isReportBookingProblemPrompt,
+  rescueReportBookingProblemIntent,
+} from './ai-report-booking-problem.util.js';
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import {
   isCheckWaitlistStatusPrompt,
@@ -455,11 +458,11 @@ export function isCancelAllUpcomingBookingsPrompt(prompt: string): boolean {
 
 export function isRescheduleMyBookingPrompt(prompt: string): boolean {
   if (isReschedulePackageVisitSelfPrompt(prompt)) return false;
-  // e2e-bug.114 — "cancel … and rebook … for next Friday" is self-serve reschedule.
+  // e2e-bug.114/237 — "cancel … and rebook … for next Friday" (and voice-short
+  // "cancel swedish massage rebook next Friday") is self-serve reschedule.
   const datedCancelRebook =
     /\bcancel\b/i.test(prompt) &&
     /\brebook\b/i.test(prompt) &&
-    /\b(?:for|on|to)\b/i.test(prompt) &&
     /\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
       prompt,
     );
@@ -1182,6 +1185,23 @@ export function rescueSelfServiceBookingIntent(
     action,
   );
   if (explainManageBookingPageEarly) return explainManageBookingPageEarly;
+  // e2e-bug.236 — upgrade confirm_my_booking_details (self-service intent) →
+  // report_booking_problem before the isSelfServiceBookingIntent early-return.
+  const reportProblemEarly = rescueReportBookingProblemIntent(prompt, action);
+  if (reportProblemEarly) return reportProblemEarly;
+  // e2e-bug.237 — dated cancel+rebook must not stay on cancel_my_booking
+  // (LLM often classifies cancel; Friday then filters the upcoming list to empty).
+  if (
+    (action === 'cancel_my_booking' ||
+      action === 'cancel_and_rebook' ||
+      action === 'pay_at_venue_fallback') &&
+    isRescheduleMyBookingPrompt(prompt)
+  ) {
+    return {
+      action: 'reschedule_my_booking',
+      rescueReason: 'dated_cancel_rebook',
+    };
+  }
   if (isSelfServiceBookingIntent(action)) return null;
   if (isCustomerBookingCompoundPrompt(prompt)) return null;
 
@@ -1243,6 +1263,13 @@ export function rescueSelfServiceBookingIntent(
     return {
       action: 'sign_in_after_booking',
       rescueReason: 'post_booking_sign_in',
+    };
+  }
+  // e2e-bug.236 — report/complaint before confirm_my_booking_details steal.
+  if (isReportBookingProblemPrompt(prompt)) {
+    return {
+      action: 'report_booking_problem',
+      rescueReason: 'report_booking_problem',
     };
   }
   const confirmRescue = rescueConfirmMyBookingDetailsIntent(prompt, action);
@@ -1319,12 +1346,6 @@ export function rescueSelfServiceBookingIntent(
   }
   if (isRescheduleMyBookingPrompt(prompt)) {
     return { action: 'reschedule_my_booking', rescueReason: 'reschedule_my' };
-  }
-  if (isReportBookingProblemPrompt(prompt)) {
-    return {
-      action: 'report_booking_problem',
-      rescueReason: 'report_booking_problem',
-    };
   }
   if (isExplainPostVisitReviewPrompt(prompt)) {
     return {

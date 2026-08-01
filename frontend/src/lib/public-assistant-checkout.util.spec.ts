@@ -23,32 +23,101 @@ describe('resolveAssistantSlotStartTime', () => {
   });
 });
 
-describe('shouldAutoNavigateAssistantCheckout', () => {
-  it('auto-navigates on please book with checkout navigate', () => {
-    expect(
-      shouldAutoNavigateAssistantCheckout(
-        'please book nearest slot',
-        {
-          path: 'checkout',
-          query: {
-            serviceId: 'svc-1',
-            employeeId: 'emp-1',
-            startTime: '2026-06-13T09:00:00.000Z',
-          },
-        },
-        true,
-      ),
-    ).toBe(true);
-  });
+describe('shouldAutoNavigateAssistantCheckout (e2e-bug.225)', () => {
+  const checkoutNav = {
+    path: 'checkout' as const,
+    query: {
+      serviceId: 'svc-1',
+      employeeId: 'emp-1',
+      startTime: '2026-06-13T09:00:00.000Z',
+    },
+  };
 
-  it('does not auto-navigate without booking phrasing', () => {
+  it.each([
+    {
+      id: 'please-book',
+      prompt: 'please book nearest slot',
+      navigate: checkoutNav,
+      success: true,
+      expected: true,
+    },
+    {
+      id: 'book',
+      prompt: 'Book Swedish massage tomorrow at 11',
+      navigate: checkoutNav,
+      success: true,
+      expected: true,
+    },
+    {
+      id: 'reserve',
+      prompt: 'Reserve me the earliest haircut',
+      navigate: checkoutNav,
+      success: true,
+      expected: true,
+    },
+    {
+      id: 'schedule',
+      prompt: 'Schedule a facial for Friday',
+      navigate: checkoutNav,
+      success: true,
+      expected: true,
+    },
+    {
+      id: 'no-booking-verb',
+      prompt: 'what is the most premium massage?',
+      navigate: checkoutNav,
+      success: true,
+      expected: false,
+    },
+    {
+      id: 'availability-only',
+      prompt: 'Is Gevorg available for Swedish massage?',
+      navigate: checkoutNav,
+      success: true,
+      expected: false,
+    },
+    {
+      id: 'failed-success',
+      prompt: 'please book nearest slot',
+      navigate: checkoutNav,
+      success: false,
+      expected: false,
+    },
+    {
+      id: 'no-navigate',
+      prompt: 'please book nearest slot',
+      navigate: null,
+      success: true,
+      expected: false,
+    },
+    {
+      id: 'wrong-path-packages',
+      prompt: 'please book a package',
+      navigate: { path: 'packages', query: {} },
+      success: true,
+      expected: false,
+    },
+    {
+      id: 'multi-checkout-not-auto',
+      prompt: 'please book Swedish and Neck',
+      navigate: {
+        path: 'multi/checkout',
+        query: { services: 'a,b' },
+      },
+      success: true,
+      expected: false,
+    },
+    {
+      id: 'success-undefined',
+      prompt: 'please book',
+      navigate: checkoutNav,
+      success: undefined,
+      expected: false,
+    },
+  ])('$id → $expected', ({ prompt, navigate, success, expected }) => {
     expect(
-      shouldAutoNavigateAssistantCheckout(
-        'what is the most premium massage?',
-        { path: 'checkout', query: { serviceId: 'svc-1' } },
-        true,
-      ),
-    ).toBe(false);
+      shouldAutoNavigateAssistantCheckout(prompt, navigate, success),
+    ).toBe(expected);
   });
 });
 

@@ -56,6 +56,13 @@ export function applyRescheduleBookingPromptHints(
   resolveRescheduleParams(params, prompt, timeZone);
   enrichBookingTimeHintsFromPrompt('reschedule_booking', params, prompt);
 
+  // e2e-bug.248 — first-available / nearest free time on reschedule must set the flag
+  // even when possessive provider early-return would otherwise skip later enrichment.
+  if (isFirstAvailableBookingPrompt(prompt)) {
+    params.bookingFirstAvailable = true;
+    delete params.timeSlot;
+  }
+
   const providerPossessive = extractProviderPossessiveFromReschedulePrompt(
     prompt,
     employees,

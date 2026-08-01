@@ -34,15 +34,53 @@ export const PUBLIC_BOOKING_GUIDE_RESCUE_SCENARIOS: readonly PublicBookingGuideR
     {
       id: 'walk-through-booking',
       samplePrompt: 'Walk me through booking step by step',
+      // e2e-bug.195 — require booking cues with "step by step" so Home/account
+      // app tours are not stolen on customer surface.
       prompt:
-        /\b(?:walk\s+me\s+through|step\s+by\s+step|how\s+do\s+i\s+book(?:\s+online)?|booking\s+funnel|full\s+booking\s+flow)\b|(?:քայլ\s+առ\s+քայլ|провед(?:и|ите)\s+меня\s+по\s+шагам|как\s+посмотреть\s+свободн)/iu,
+        /\b(?:walk\s+me\s+through\s+(?:booking|checkout|the\s+booking(?:\s+(?:process|flow|funnel|steps?))?)|how\s+(?:do\s+i|to)\s+book(?:\s+an\s+appointment)?(?:\s+online)?(?:\s+(?:here|with\s+you))?(?:\s+step\s+by\s+step)?|(?:how\s+do\s+i\s+book[\s\S]{0,48}step\s+by\s+step)|(?:\b(?:book(?:ing)?|appointment)\b[\s\S]{0,48}step\s+by\s+step)|(?:step\s+by\s+step[\s\S]{0,48}\b(?:book(?:ing)?|appointment)\b)|(?:i\s+need\s+)?booking\s+help|booking\s+(?:funnel|walkthrough)|full\s+booking\s+flow)\b|(?:քայլ\s+առ\s+քայլ|провед(?:и|ите)\s+меня\s+по\s+шагам|как\s+посмотреть\s+свободн)/iu,
+    },
+    // e2e-bug.258 — short pure-HY/RU how-to-book stems (no քայլ առ քայլ / Latin
+    // booking words). Must rescue from confirm_my_booking_details steal.
+    {
+      id: 'hy-how-to-book-short',
+      samplePrompt: 'Ինչպես ամրագրել',
+      prompt:
+        /ինչպե[\u055e՞]?ս\s+ամրագր(?:ել|եմ|իր|ենք)?(?:\s+այց(?:ելություն)?)?/iu,
+      fromActions: [
+        'confirm_my_booking_details',
+        'book_appointment',
+        'unknown',
+        'explain_app_feature',
+        'guide_user_flow',
+      ],
+    },
+    {
+      id: 'ru-how-to-book-short',
+      samplePrompt: 'Как записаться',
+      // No \b — JS word boundaries are ASCII-only and miss Cyrillic.
+      prompt: /как\s+записат(?:ься|ь)(?:\s+(?:на\s+при[её]м|онлайн))?/iu,
+      fromActions: [
+        'confirm_my_booking_details',
+        'book_appointment',
+        'unknown',
+        'explain_app_feature',
+        'guide_user_flow',
+      ],
     },
     {
       id: 'after-pick-time',
       samplePrompt: 'What happens after I pick a time?',
       prompt:
         /\b(?:what\s+happens\s+after\s+(?:i\s+)?(?:pick|choose|select)(?:\s+a)?\s+(?:time|slot)|after\s+i\s+pick\s+a\s+time)\b/i,
-      fromActions: ['unknown', 'check_availability', 'book_appointment'],
+      // e2e-bug.195 — also steal from consumer screen/feature tours on customer surface
+      fromActions: [
+        'unknown',
+        'check_availability',
+        'book_appointment',
+        'explain_app_feature',
+        'explain_current_screen',
+        'guide_user_flow',
+      ],
     },
     {
       id: 'checkout-steps',
@@ -145,7 +183,7 @@ export const PUBLIC_BOOKING_CHECKOUT_STEP_SCENARIOS = [
   },
 ] as const;
 
-export const PUBLIC_BOOKING_HELP_CLASSIFIER_RULES = `- booking_help: READ — step-aware booking funnel guide using guide playbooks (professionals → services → checkout). Triggers: how do I book, walk me through booking, step by step, what happens after I pick a time, booking help. Uses session bookingStep/screen/route for checkout vs services vs professionals playbooks. Returns GuideResponse steps. NOT book_appointment mutate, NOT explain_checkout_currency/tax (domain explainers), NOT list_services catalog browse.`;
+export const PUBLIC_BOOKING_HELP_CLASSIFIER_RULES = `- booking_help: READ — step-aware booking funnel guide using guide playbooks (professionals → services → checkout). Triggers: how do I book, how do I book an appointment step by step, walk me through booking, booking help, what happens after I pick a time. Uses session bookingStep/screen/route for checkout vs services vs professionals playbooks. Returns GuideResponse steps. NOT explain_app_feature / guide_user_flow consumer Home/account tours ("How do I use the Home tab?"), NOT book_appointment mutate, NOT explain_checkout_currency/tax (domain explainers), NOT list_services catalog browse.`;
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;

@@ -97,6 +97,25 @@ describe('date-format.util', () => {
     expect(paramsYesterday.date).toBeTruthy();
   });
 
+  // e2e-bug.296 — day-part same-day cues must stamp business-TZ today
+  it.each([
+    'recommend someone for massage this evening',
+    'suggest someone for a massage this morning',
+    'Who do you recommend for a massage this afternoon?',
+    'help me book later today',
+    'Who is best for massage tonight?',
+  ])('applyRelativeDateFromPrompt same-day day-part: %s', (prompt) => {
+    const params: Record<string, any> = {};
+    applyRelativeDateFromPrompt(params, prompt, 'Asia/Yerevan');
+    expect(params.date).toBe(todayDisplay('Asia/Yerevan'));
+  });
+
+  it('toIsoDay today uses business timezone (not UTC default)', () => {
+    const yerevanToday = getTodayDateKey('Asia/Yerevan');
+    expect(toIsoDay('today', 'Asia/Yerevan')).toBe(yerevanToday);
+    expect(toIsoDay('tonight', 'Asia/Yerevan')).toBe(yerevanToday);
+  });
+
   it('resolveRelativeDateKeyword handles tonight', () => {
     expect(resolveRelativeDateKeyword('tonight', 'UTC')).toBe(
       getTodayDateKey('UTC'),

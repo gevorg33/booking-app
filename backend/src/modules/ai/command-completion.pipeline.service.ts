@@ -36,6 +36,7 @@ import {
   getSharedParamsForIntent,
   SHARED_ENTITY_SESSION_INHERIT_KEYS,
 } from './ai-command-entity-params.registry.js';
+import { isPlausibleTourServiceNameFilter } from './ai-tour-calendar-week.util.js';
 
 const SESSION_INHERIT_KEYS = [
   'employeeName',
@@ -313,13 +314,22 @@ export class CommandCompletionPipelineService {
 
   buildSessionContext(resolved: ResolvedCommand): Record<string, any> {
     const p = resolved.enrichedParams;
+    // e2e-bug.250 — drop classifier fragments for tour calendar week lists.
+    const rawServiceName = p.serviceName ?? null;
+    const serviceName =
+      resolved.action === 'list_tour_calendar_week' &&
+      !isPlausibleTourServiceNameFilter(
+        typeof rawServiceName === 'string' ? rawServiceName : undefined,
+      )
+        ? null
+        : rawServiceName;
     return {
       employeeName: p.employeeName ?? resolved.params.employeeName ?? null,
       employeeNames: p.employeeNames ?? resolved.params.employeeNames ?? null,
       date: p.date ? formatDateDisplay(p.date) : null,
       dateFrom: p.dateFrom ? formatDateDisplay(p.dateFrom) : null,
       dateTo: p.dateTo ? formatDateDisplay(p.dateTo) : null,
-      serviceName: p.serviceName ?? null,
+      serviceName,
       timeSlot: p.timeSlot ?? null,
       customerName: p.customerName ?? null,
       templateName: p.templateName ?? null,
@@ -363,6 +373,8 @@ export class CommandCompletionPipelineService {
       bookingId: params.bookingId ?? null,
       lastPush: params.lastPush ?? null,
       pushActionId: params.pushActionId ?? null,
+      // e2e-bug.243 — feedback handlers need the prior assistant action
+      lastAction: params.lastAction ?? null,
       ...pickSharedEntitySessionSlice(params),
     };
   }
@@ -444,7 +456,19 @@ export class CommandCompletionPipelineService {
         .map((provider) => provider.name)
         .filter((name): name is string => Boolean(name));
     }
-    if (result.details?.serviceName && !sessionContext.serviceName) {
+    // Prefer handler-resolved serviceName (including explicit null) over
+    // classifier enrichedParams. e2e-bug.250 — "I have this week" must not
+    // stick in session when list_tour_calendar_week cleared the filter.
+    if (
+      result.details &&
+      Object.prototype.hasOwnProperty.call(result.details, 'serviceName')
+    ) {
+      const resolvedName = result.details.serviceName;
+      sessionContext.serviceName =
+        resolvedName != null && String(resolvedName).trim() !== ''
+          ? String(resolvedName)
+          : null;
+    } else if (result.details?.serviceName && !sessionContext.serviceName) {
       sessionContext.serviceName = String(result.details.serviceName);
     }
 

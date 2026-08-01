@@ -197,6 +197,16 @@ export function evaluateCustomerBookingPolicy(
       reason: 'Completed appointments cannot be changed',
     };
   }
+  // e2e-bug.183 — without this, an in-progress (currently being delivered)
+  // appointment fell through to the notice-window check below, which reads
+  // startTime as already past and blocks it too, but with the misleading
+  // reason "must be made at least N hours before" instead of the real one.
+  if (booking.status === 'in_progress') {
+    return {
+      allowed: false,
+      reason: 'This appointment is currently in progress and cannot be changed',
+    };
+  }
   if (booking.status === 'no_show') {
     return { allowed: false, reason: 'This appointment is marked as no-show' };
   }

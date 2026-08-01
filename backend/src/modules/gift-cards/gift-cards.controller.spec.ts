@@ -124,7 +124,7 @@ describe('GiftCardsController', () => {
   });
 });
 
-describe('GiftCardProviderController — card makers & drivers', () => {
+describe('GiftCardProviderController — managers only', () => {
   const fulfillmentService = {
     listCardCreationQueue: jest.fn(),
     listDeliveryQueue: jest.fn(),
@@ -140,23 +140,23 @@ describe('GiftCardProviderController — card makers & drivers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    businessService.ensureMember.mockResolvedValue({ role: 'staff' });
+    businessService.ensureMember.mockResolvedValue({ role: 'owner' });
     fulfillmentService.listCardCreationQueue.mockResolvedValue([
       { id: 'order-1' },
     ]);
     fulfillmentService.listDeliveryQueue.mockResolvedValue([{ id: 'order-2' }]);
   });
 
-  it('returns card creation queue for card makers', async () => {
+  it('returns card creation queue for owner/admin/manager roles', async () => {
     const result = await controller.cardCreationQueue('biz-1', {
-      id: 'user-creator',
+      id: 'user-owner',
     });
     expect(result.orders).toHaveLength(1);
   });
 
-  it('returns delivery queue for drivers', async () => {
+  it('returns delivery queue for owner/admin/manager roles', async () => {
     const result = await controller.deliveryQueue('biz-1', {
-      id: 'user-driver',
+      id: 'user-owner',
     });
     expect(result.orders).toHaveLength(1);
   });
@@ -167,8 +167,39 @@ describe('GiftCardProviderController — card makers & drivers', () => {
       fulfillmentStatus: 'ready_for_delivery',
     });
     const result = await controller.markCardReady('biz-1', 'order-1', {
-      id: 'user-creator',
+      id: 'user-owner',
     });
     expect(result.fulfillmentStatus).toBe('ready_for_delivery');
   });
+
+  it.each(['staff', 'contributor'])(
+    'rejects %s role from every gift card fulfillment endpoint',
+    async (role) => {
+      businessService.ensureMember.mockResolvedValue({ role });
+
+      await expect(
+        controller.cardCreationQueue('biz-1', { id: 'user-staff' }),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        controller.deliveryQueue('biz-1', { id: 'user-staff' }),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        controller.markCardReady('biz-1', 'order-1', { id: 'user-staff' }),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        controller.markOutForDelivery('biz-1', 'order-1', {
+          id: 'user-staff',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        controller.markDelivered('biz-1', 'order-1', { id: 'user-staff' }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(fulfillmentService.listCardCreationQueue).not.toHaveBeenCalled();
+      expect(fulfillmentService.listDeliveryQueue).not.toHaveBeenCalled();
+      expect(fulfillmentService.markCardReady).not.toHaveBeenCalled();
+      expect(fulfillmentService.markOutForDelivery).not.toHaveBeenCalled();
+      expect(fulfillmentService.markDelivered).not.toHaveBeenCalled();
+    },
+  );
 });

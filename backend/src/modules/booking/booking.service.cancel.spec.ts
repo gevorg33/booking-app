@@ -62,10 +62,11 @@ describe('BookingService.cancel — e2e-bug.165 refund + concurrency', () => {
       ),
     };
 
+    const managerFindOne = jest.fn(async () => ({ ...lockedBooking }));
     const dataSource = {
       transaction: jest.fn(async (fn: (manager: unknown) => Promise<unknown>) => {
         const manager = {
-          findOne: jest.fn(async () => ({ ...lockedBooking })),
+          findOne: managerFindOne,
           save: jest.fn(async (b: typeof lockedBooking) => {
             lockedBooking = { ...b, updatedAt: new Date() };
             return lockedBooking;
@@ -115,6 +116,7 @@ describe('BookingService.cancel — e2e-bug.165 refund + concurrency', () => {
       subscriptionsService,
       giftCardsService,
       dataSource,
+      managerFindOne,
       setLockedBooking: (next: typeof lockedBooking) => {
         lockedBooking = { ...next };
       },
@@ -143,6 +145,28 @@ describe('BookingService.cancel — e2e-bug.165 refund + concurrency', () => {
     expect(eventStore.publish).toHaveBeenCalled();
     expect(result.booking.status).toBe(BookingStatus.CANCELLED);
     expect(result.didCancel).toBe(true);
+  });
+
+  // e2e-bug.184 — Postgres rejects `FOR UPDATE` combined with a LEFT JOIN to
+  // a nullable-side relation ("FOR UPDATE cannot be applied to the nullable
+  // side of an outer join"), live-reproduced when this locked findOne loaded
+  // employee/service/customer relations that nothing in cancel() actually
+  // reads. Mocked repos don't enforce real Postgres lock semantics, so this
+  // only guards against the relations option being reintroduced.
+  it('locks the booking row for update without loading relations (Postgres rejects FOR UPDATE + outer join)', async () => {
+    const { service, managerFindOne } = createHarness();
+
+    await service.cancel('book-1', 'QA cancel', 'staff-1');
+
+    expect(managerFindOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        where: { id: 'book-1' },
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
+    const callArgs = managerFindOne.mock.calls[0][1] as Record<string, unknown>;
+    expect(callArgs.relations).toBeUndefined();
   });
 
   it('does not force paymentStatus to not_applicable when a Stripe refund is owed', async () => {

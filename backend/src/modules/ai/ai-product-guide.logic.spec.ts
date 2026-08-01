@@ -114,7 +114,7 @@ describe('ai-product-guide.logic (ai-guide-1.2.3)', () => {
     expect(result.success).toBe(true);
     expect(result.guide?.supportHandoff).toEqual({
       action: 'create_support_ticket',
-      label: 'Still stuck?',
+      label: 'Still stuck?', // en locale regression
       snapshot: {
         surface: 'dashboard',
         route: '/dashboard/schedule',

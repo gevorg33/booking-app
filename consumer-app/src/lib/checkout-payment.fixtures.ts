@@ -13,6 +13,10 @@ const cashProfile: Pick<PublicBusinessProfile, 'acceptCashPayments'> = {
   acceptCashPayments: true,
 };
 
+const noCashProfile: Pick<PublicBusinessProfile, 'acceptCashPayments'> = {
+  acceptCashPayments: false,
+};
+
 const quoteDue: PublicCheckoutQuote = {
   servicePrice: 40,
   subtotal: 40,
@@ -62,5 +66,25 @@ export const CHECKOUT_PAYMENT_SCENARIOS = [
     paymentMethod: 'cash' as const,
     showCash: false,
     requiresOnline: false,
+  },
+  // Business-level acceptCashPayments: false must hide cash even for an
+  // otherwise-eligible (prepaymentMode: 'none') service.
+  {
+    id: 'no-cash-when-business-disallows-eligible-service',
+    profile: noCashProfile,
+    service: baseService,
+    quote: quoteDue,
+    showCash: false,
+    requiresOnline: false,
+  },
+  // ...and stays hidden (for the same underlying reason, doubly so) when the
+  // service also requires full online prepayment.
+  {
+    id: 'no-cash-when-business-disallows-and-prepayment-full',
+    profile: noCashProfile,
+    service: { ...baseService, prepaymentMode: 'full' as const, onlinePaymentEnabled: true },
+    quote: quoteDue,
+    showCash: false,
+    requiresOnline: true,
   },
 ] as const;

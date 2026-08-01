@@ -256,6 +256,80 @@ export const GIVE_AI_FEEDBACK_PROMPTS: readonly GiveAiFeedbackPromptFixture[] =
       aspect: 'negative',
       rating: 'down',
     },
+    // e2e-bug.293 — chip-label synonyms
+    {
+      id: 'thumbs-up-public',
+      prompt: 'Thumbs up',
+      surface: 'public',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'positive',
+      rating: 'up',
+    },
+    {
+      id: 'thumbs-down-public',
+      prompt: 'Thumbs down',
+      surface: 'public',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'negative',
+      rating: 'down',
+    },
+    {
+      id: 'thumbs-up-customer',
+      prompt: 'Thumbs up',
+      surface: 'customer',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'positive',
+      rating: 'up',
+    },
+    {
+      id: 'thumbs-down-customer',
+      prompt: 'Thumbs down',
+      surface: 'customer',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'negative',
+      rating: 'down',
+    },
+    // e2e-bug.300 — shorthand +1 / -1
+    {
+      id: 'plus-one-public',
+      prompt: '+1',
+      surface: 'public',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'positive',
+      rating: 'up',
+    },
+    {
+      id: 'minus-one-public',
+      prompt: '-1',
+      surface: 'public',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'negative',
+      rating: 'down',
+    },
+    {
+      id: 'plus-one-customer',
+      prompt: '+1',
+      surface: 'customer',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'positive',
+      rating: 'up',
+    },
+    {
+      id: 'minus-one-customer',
+      prompt: '-1',
+      surface: 'customer',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+      aspect: 'negative',
+      rating: 'down',
+    },
   ] as const;
 
 export const GIVE_AI_FEEDBACK_HANDLER_FIXTURES = [
@@ -287,6 +361,17 @@ export const GIVE_AI_FEEDBACK_HANDLER_FIXTURES = [
     rating: 'down',
     params: {
       lastAssistantReply: 'Your appointment is at 3pm.',
+    },
+  },
+  // e2e-bug.265 — "Not helpful" must be thumbs-down (not stolen by bare "helpful")
+  {
+    id: 'e2e265-not-helpful-down',
+    prompt: 'Not helpful',
+    aspect: 'negative',
+    rating: 'down',
+    params: {
+      lastAssistantReply: 'I booked you for Tuesday.',
+      lastAction: 'book_appointment',
     },
   },
 ] as const;

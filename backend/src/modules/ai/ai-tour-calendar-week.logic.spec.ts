@@ -118,6 +118,7 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     expect(result.details?.departureCount).toBe(1);
     expect(result.details?.employeeName).toBe('Maria Lopez');
     expect(result.summary).toMatch(/for Maria Lopez/);
+    expect(result.summary).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
   });
 
   it('filters by service name', async () => {
@@ -153,4 +154,41 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     expect(result.success).toBe(false);
     expect(result.summary).toMatch(/Could not find provider/i);
   });
+
+  // e2e-bug.308 — empty week labels use month names, not DD/MM slash.
+  it('empty English summary uses month-name week range', async () => {
+    bookingService.findAll.mockResolvedValueOnce([]);
+    const result = await handleListTourCalendarWeekLogic(
+      { bookingService, serviceService, employeeService },
+      'biz-tour',
+      { weekStartDate: weekStart },
+      'Any tours this week?',
+    );
+    expect(result.success).toBe(true);
+    expect(result.summary).toMatch(/8 June 2026/);
+    expect(result.summary).toMatch(/14 June 2026/);
+    expect(result.summary).not.toMatch(/08\/06\/2026/);
+    expect(result.summary).not.toMatch(/14\/06\/2026/);
+  });
+
+  // e2e-bug.270 — classifier "this week" must not throw Invalid time value.
+  it.each([
+    'this week',
+    "this week's",
+    'this calendar week',
+    'not-a-date',
+  ])(
+    'handles garbage weekStartDate=%j without throwing',
+    async (garbage) => {
+      const result = await handleListTourCalendarWeekLogic(
+        { bookingService, serviceService, employeeService },
+        'biz-tour',
+        { weekStartDate: garbage },
+        'Any tours this week?',
+      );
+      expect(result.action).toBe('list_tour_calendar_week');
+      expect(result.success).toBe(true);
+      expect(String(result.summary)).not.toMatch(/Invalid time value/i);
+    },
+  );
 });

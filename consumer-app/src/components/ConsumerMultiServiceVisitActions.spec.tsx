@@ -101,7 +101,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
             />,
           );
         });
-        const cancelBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
+        const cancelBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) =>
           (el.textContent ?? '').includes(CONSUMER_COPY_EN.cancelMultiServiceVisit),
         );
         expect(cancelBtn).toBeTruthy();
@@ -157,7 +159,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
             />,
           );
         });
-        const rescheduleBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
+        const rescheduleBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) =>
           (el.textContent ?? '').includes(CONSUMER_COPY_EN.rescheduleMultiServiceVisit),
         );
         expect(rescheduleBtn).toBeTruthy();
@@ -167,9 +171,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 40));
         });
-        const confirmBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
-          (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule),
-        );
+        const confirmBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) => (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule));
         expect(confirmBtn).toBeTruthy();
         await act(async () => {
           confirmBtn!.dispatchEvent(new CustomEvent('click', { bubbles: true }));

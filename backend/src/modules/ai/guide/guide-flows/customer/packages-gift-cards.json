@@ -11,9 +11,18 @@
   "steps": [
     {
       "titleKey": "guide.flows.common.step1",
+      "shortTitleKey": "guide.flows.customer.packages.step1Title",
       "bodyKey": "guide.flows.customer.packages.step1"
     },
-    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.customer.packages.step2" },
-    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.customer.packages.step3" }
+    {
+      "titleKey": "guide.flows.common.step2",
+      "shortTitleKey": "guide.flows.customer.packages.step2Title",
+      "bodyKey": "guide.flows.customer.packages.step2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "shortTitleKey": "guide.flows.customer.packages.step3Title",
+      "bodyKey": "guide.flows.customer.packages.step3"
+    }
   ]
 }

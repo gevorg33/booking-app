@@ -17,6 +17,11 @@ import {
   attachReactFallbackTelemetry,
   shouldUseReactAgentFallback,
 } from './booking-command-react-fallback.util.js';
+import {
+  extractClarifyFieldsFromFollowUpPrompt,
+  readCompoundResumeFromContext,
+  shouldContinueCompoundResume,
+} from './ai-compound-resume.util.js';
 
 export interface ComplexityRoute {
   tier: 'read_only' | 'simple_mutate' | 'orchestration' | 'compound';
@@ -78,6 +83,26 @@ export class BookingCommandGraphService {
   }
 
   async run(input: CommandGraphRunInput): Promise<CommandResult> {
+    // e2e-bug.304 — clarify follow-ups ("Start time: 09:00") are not compound
+    // prompts; resume prior validated plans before single-intent classify.
+    if (
+      shouldContinueCompoundResume(
+        input.effectivePrompt,
+        input.session?.context as Record<string, unknown> | undefined,
+      )
+    ) {
+      const resumeResult = await this.runCompoundResume(input);
+      return this.reasoning.enrichResult(
+        input.businessId,
+        input.prompt,
+        resumeResult,
+        {
+          graphPath: 'compound',
+          subIntents: resumeResult.details?.subIntents as string[] | undefined,
+        },
+      );
+    }
+
     const graphPath =
       this.decomposition.isCompoundPrompt(input.effectivePrompt) ||
       input.complexityRoute?.tier === 'compound'
@@ -109,6 +134,55 @@ export class BookingCommandGraphService {
       graphPath,
       subIntents: result.details?.subIntents as string[] | undefined,
     });
+  }
+
+  /** Resume mid-compound after clarify (e2e-bug.304). */
+  private async runCompoundResume(
+    input: CommandGraphRunInput,
+  ): Promise<CommandResult> {
+    const resume = readCompoundResumeFromContext(
+      input.session?.context as Record<string, unknown> | undefined,
+    );
+    if (!resume) {
+      return input.delegates.executeSingleIntent();
+    }
+
+    const clarifyFields = extractClarifyFieldsFromFollowUpPrompt(
+      input.effectivePrompt,
+    );
+    const sessionContext = {
+      ...input.session?.context,
+      ...clarifyFields,
+      timeZone: input.timeZone,
+    };
+    const promptForPlans =
+      resume.confirmationPrompt || input.effectivePrompt;
+
+    if (this.router.useCompoundGraph()) {
+      try {
+        return await this.compoundGraph.run({
+          businessId: input.businessId,
+          prompt: promptForPlans,
+          userId: input.userId,
+          sessionContext,
+          subIntents: resume.subIntents,
+          catalog: input.catalog,
+          timeZone: input.timeZone,
+          confidenceThresholds: input.confidenceThresholds,
+          resumePlans: resume.plans,
+          resumeStepIndex: resume.stepIndex,
+          buildPlan: input.delegates.buildCompoundPlan,
+          toCommandResult: input.delegates.toCommandResult,
+          executeReadOnlySubIntent: input.delegates.executeReadOnlySubIntent,
+        });
+      } catch (err: any) {
+        this.logger.warn(
+          `Compound resume LangGraph failed, falling back: ${err?.message ?? err}`,
+        );
+      }
+    }
+
+    return input.delegates.executeLegacyCompound();
   }
 
   private async runReactAgent(

@@ -47,3 +47,44 @@ export function unwrapAuthResult(data: unknown): AuthResult {
   const payload = (data as { data?: AuthResult })?.data ?? data;
   return payload as AuthResult;
 }
+
+/**
+ * e2e-bug.172 — single choke point for "I have a fresh AuthResult, make it
+ * the device's active session," shared by LoginPage and AcceptInvitePage.
+ * Establishing the new session directly (rather than redirecting to /login
+ * and hoping the form gets filled in) is what actually fixes the bug: it
+ * overwrites whatever session was previously active in localStorage instead
+ * of silently leaving a stale one in place.
+ */
+export function finishProviderSession(
+  result: AuthResult,
+  deps: {
+    canAccess: (
+      employee: AuthResult['employee'],
+      membershipRole?: string,
+    ) => boolean;
+    setAuth: (
+      user: AuthResult['user'],
+      business: NonNullable<AuthResult['business']>,
+      token: string,
+      extras: { businesses: AuthResult['businesses']; employee: AuthResult['employee'] },
+    ) => void;
+    onAccessDenied: () => void;
+    onMissingSession: () => void;
+  },
+): boolean {
+  if (!deps.canAccess(result.employee, result.business?.membershipRole)) {
+    deps.onAccessDenied();
+    return false;
+  }
+  if (!result.token || !result.business) {
+    deps.onMissingSession();
+    return false;
+  }
+  deps.setAuth(result.user, result.business, result.token, {
+    businesses: result.businesses,
+    employee: result.employee,
+  });
+  savePreferredBusinessSlug(result.business.slug);
+  return true;
+}

@@ -408,6 +408,31 @@ export const SERVICE_RANK_PROVIDER_MISROUTE_RESCUE_SCENARIOS: ServiceRankProvide
       rescueReason: 'rank_provider_specialists',
       serviceCategory: 'lash',
     },
+    // e2e-bug.278 — who-recommend / who-is-best / recommend-someone + day-part
+    {
+      id: 'rank-e2e278-who-recommend-tomorrow-check-providers',
+      prompt: 'Who do you recommend for a massage tomorrow?',
+      fromAction: 'check_providers_for_service',
+      expectedAction: 'recommend_specialists',
+      rescueReason: 'rank_provider_specialists',
+      serviceCategory: 'massage',
+    },
+    {
+      id: 'rank-e2e278-who-is-best-tonight-check-providers',
+      prompt: 'Who is best for massage tonight?',
+      fromAction: 'check_providers_for_service',
+      expectedAction: 'recommend_specialists',
+      rescueReason: 'rank_provider_specialists',
+      serviceCategory: 'massage',
+    },
+    {
+      id: 'rank-e2e278-recommend-someone-evening-check-availability',
+      prompt: 'recommend someone for massage this evening',
+      fromAction: 'check_availability',
+      expectedAction: 'recommend_specialists',
+      rescueReason: 'rank_provider_specialists',
+      serviceCategory: 'massage',
+    },
   ];
 
 export type ServiceRankCompoundScenario = {

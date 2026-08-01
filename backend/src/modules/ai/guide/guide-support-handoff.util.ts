@@ -1,3 +1,4 @@
+import { resolveLocale, t } from '../../../common/i18n/messages.js';
 import type { GuideResponse } from '../command-completion.types.js';
 import type {
   GuideSupportHandoff,
@@ -6,8 +7,6 @@ import type {
   GuideSupportTicketPayload,
 } from './guide-support-handoff.types.js';
 import { GUIDE_SUPPORT_SNAPSHOT_PII_KEYS } from './guide-support-handoff.fixtures.js';
-
-const GUIDE_SUPPORT_HANDOFF_LABEL = 'Still stuck?';
 
 const VALID_SURFACES = new Set(['dashboard', 'provider', 'customer', 'public']);
 
@@ -54,23 +53,28 @@ export function buildGuideSupportSnapshot(
 export function buildGuideSupportTicketSubject(
   snapshot: GuideSupportSnapshot,
 ): string {
+  const locale = resolveLocale(snapshot.locale);
   const topic = snapshot.topicId ? ` — ${snapshot.topicId}` : '';
-  return `Product guide help${topic} (${snapshot.surface})`;
+  return t(locale, 'assistant.guideSupportTicketSubject', {
+    topic,
+    surface: snapshot.surface,
+  });
 }
 
 /** Ticket body with structured snapshot only — no user prompt or PII (ai-guide-1.7.2). */
 export function formatGuideSupportTicketBody(
   snapshot: GuideSupportSnapshot,
 ): string {
+  const locale = resolveLocale(snapshot.locale);
   const lines = [
-    'Product guide support handoff (no PII)',
+    t(locale, 'assistant.guideSupportTicketBodyHeader'),
     '',
     `Surface: ${snapshot.surface}`,
     `Locale: ${snapshot.locale}`,
   ];
   if (snapshot.route) lines.push(`Route: ${snapshot.route}`);
   if (snapshot.topicId) lines.push(`Topic: ${snapshot.topicId}`);
-  lines.push('', 'The user finished the in-app guide and still needs help.');
+  lines.push('', t(locale, 'assistant.guideSupportTicketBodyFooter'));
   return lines.join('\n');
 }
 
@@ -99,9 +103,11 @@ export function buildGuideSupportHandoff(
   context: GuideSupportHandoffContext,
 ): GuideSupportHandoff {
   const snapshot = buildGuideSupportSnapshot(context);
+  const locale = resolveLocale(snapshot.locale);
   return {
     action: 'create_support_ticket',
-    label: GUIDE_SUPPORT_HANDOFF_LABEL,
+    // e2e-bug.259 — localize Still stuck? chrome from snapshot locale.
+    label: t(locale, 'assistant.guideStillStuck'),
     snapshot,
     ticket: buildGuideSupportTicketPayload(snapshot),
   };
@@ -146,7 +152,7 @@ export function guideSupportHandoffsEqual(
   );
 }
 
-/** Attach Still stuck? support handoff to guide responses (ai-guide-1.7.2). */
+/** Attach localized support handoff to guide responses (ai-guide-1.7.2 / e2e-bug.259). */
 export function enrichGuideResponseSupportHandoff(
   guide: GuideResponse,
   context: GuideSupportHandoffContext,

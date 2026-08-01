@@ -1021,13 +1021,14 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
         bookingFirstAvailable: true,
       },
       expectedAfterServiceDiscovery: {
-        serviceCategory: 'styling',
+        // e2e-bug.101 — "styling" aliases to "haircut" (like cut/cuts/trim).
+        serviceCategory: 'haircut',
         bookingFirstAvailable: true,
         maxPrice: 150,
         serviceRank: 'highest_price',
       },
       expectedAfterPipeline: {
-        serviceCategory: 'styling',
+        serviceCategory: 'haircut',
         bookingFirstAvailable: true,
         maxPrice: 150,
         serviceRank: 'highest_price',

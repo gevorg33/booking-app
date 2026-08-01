@@ -19,7 +19,7 @@ export const STAFF_OPERATIONS_INTENTS = [
 
 export type StaffOperationsIntent = (typeof STAFF_OPERATIONS_INTENTS)[number];
 
-export const STAFF_OPERATIONS_CLASSIFIER_RULES = `- create_employee: MUTATE — add a new provider/team member to the business. Requires employeeName (display name). Optional email, phone, serviceNames (catalog skills to assign on create). Use for "add stylist Anna", "create employee Maria with massage services". NOT invite_staff_member (sends app invite to existing email), NOT assign_employee_services alone (assigns to existing provider).
+export const STAFF_OPERATIONS_CLASSIFIER_RULES = `- create_employee: MUTATE — add a new provider/team member to the business. Requires employeeName (display name). Optional email, phone, serviceNames (catalog skills to assign on create). Use for "add stylist Anna", "create employee Maria with massage services". NOT create_booking / book_nearest_slot ("create a booking for the first available…", "book a slot for any provider"). NOT invite_staff_member (sends app invite to existing email), NOT assign_employee_services alone (assigns to existing provider).
 - update_employee: MUTATE — edit an existing team member's profile: rename, change email, phone, or job title. Requires employeeName (who to edit) plus at least one of newName, email, phone, title. Use for "rename Anna to Maria", "change Maria's email to m@salon.com", "update Jake's phone", "set Anna's title to Senior Stylist". NOT create_employee (new roster row), NOT deactivate_employee (removal), NOT assign_employee_services (skills), NOT update_service_prices (catalog prices).
 - invite_staff_member: MUTATE — send dashboard or provider-app invitation email. Requires email OR employeeName of an existing employee without app access. Optional role (contributor/manager). Use for "invite Maria to the provider app", "send staff invite to anna@salon.com". NOT create_employee (creates roster row first).
 - deactivate_employee: MUTATE — remove/deactivate a provider from active roster (soft delete). Requires employeeName. Use for "deactivate Gevorg", "remove Maria from the team". NOT cancel_bookings (cancels appointments), NOT block_schedule.
@@ -43,8 +43,33 @@ function matchLocale(prompt: string, pattern: RegExp): boolean {
   return pattern.test(prompt) || pattern.test(prompt.toLowerCase());
 }
 
+/** e2e-bug.286 — create/schedule a booking/appointment is not hire-staff. */
+export function isCreateBookingNotEmployeePrompt(prompt: string): boolean {
+  return (
+    /\b(?:create|add|make|schedule|place)\s+(?:a\s+|an\s+)?(?:booking|appointment)\b/i.test(
+      prompt,
+    ) ||
+    (/\b(?:booking|appointment)\b/i.test(prompt) &&
+      /\b(?:slot|first\s+available|nearest|soonest|next\s+available)\b/i.test(
+        prompt,
+      ))
+  );
+}
+
 export function isCreateEmployeePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
+  // e2e-bug.292 — catalog category create ≠ add team member (and bare "color"
+  // as a category name must not match the old staff keyword list).
+  if (
+    /(?:категор|կատեգորիա|(?:service|catalog)\s+category)/iu.test(prompt)
+  ) {
+    return false;
+  }
+  // e2e-bug.286 — "Create a booking for the first available…" ≠ create_employee
+  // (Create + any provider was matching the hire-staff regex).
+  if (isCreateBookingNotEmployeePrompt(prompt)) {
+    return false;
+  }
   if (
     matchLocale(lower, /(?:ավելացր|ստեղծ|գրանց|ընդուն|տեսն|onboard|hire)/u) &&
     /(?:աշխատակից|provider|stylist|staff|team|therapist|specialist|barber|employee|roster|member)/iu.test(
@@ -56,7 +81,7 @@ export function isCreateEmployeePrompt(prompt: string): boolean {
   }
   if (
     matchLocale(lower, /(?:добав|созда|наним|зарегистр|прими|онборд)/u) &&
-    /(?:сотрудник|provider|stylist|команд|специалист|specialist|персонал|barber|employee|roster|member|staff|color)/iu.test(
+    /(?:сотрудник|provider|stylist|команд|специалист|specialist|персонал|barber|employee|roster|member|staff|colorist)/iu.test(
       prompt,
     ) &&
     !matchLocale(lower, /(?:приглас|invite|деактив|удал|отключ)/u)

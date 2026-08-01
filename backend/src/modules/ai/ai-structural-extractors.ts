@@ -326,15 +326,22 @@ function buildIsoDay(year: number, month: number, day: number): string {
 }
 
 /** Parse the destination day from "move/reschedule … to …" phrasing. */
+function isRescheduleOrDatedRebookPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  if (/\b(reschedule|move|shift)\b/.test(lower)) return true;
+  // e2e-bug.237 — "cancel … and rebook … for next Friday"
+  return /\bcancel\b/.test(lower) && /\brebook\b/.test(lower);
+}
+
 export function extractRescheduleTargetDate(
   prompt: string,
   timeZone = 'UTC',
 ): string | null {
   const lower = prompt.toLowerCase();
-  if (!/\b(reschedule|move|shift)\b/.test(lower)) return null;
+  if (!isRescheduleOrDatedRebookPrompt(prompt)) return null;
 
   const toRel = lower.match(
-    /\bto\s+(?:on\s+)?(tomorrow|today|yesterday|tonight)\b/,
+    /\b(?:to|for|on)\s+(?:on\s+)?(tomorrow|today|yesterday|tonight)\b/,
   );
   if (toRel) {
     const keyword = toRel[1] === 'tonight' ? 'today' : toRel[1];
@@ -343,18 +350,35 @@ export function extractRescheduleTargetDate(
   }
 
   const toNextDay = lower.match(
-    /\bto\s+(?:on\s+)?next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+    /\b(?:to|for|on)\s+(?:on\s+)?next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
   );
   if (toNextDay) {
     const iso = resolveWeekdayIso(toNextDay[1], timeZone);
     return iso ? formatDateDisplay(iso) : null;
   }
 
+  // e2e-bug.237 — voice-short "rebook next Friday" (no for/on/to).
+  const rebookNextDay = lower.match(
+    /\brebook(?:\s+it)?\s+next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (rebookNextDay) {
+    const iso = resolveWeekdayIso(rebookNextDay[1], timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+
   const toWeekday = lower.match(
-    /\bto\s+(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+    /\b(?:to|for|on)\s+(?:on\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
   );
   if (toWeekday) {
     const iso = resolveWeekdayIso(toWeekday[1], timeZone);
+    return iso ? formatDateDisplay(iso) : null;
+  }
+
+  const rebookWeekday = lower.match(
+    /\brebook(?:\s+it)?\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)\b/,
+  );
+  if (rebookWeekday) {
+    const iso = resolveWeekdayIso(rebookWeekday[1], timeZone);
     return iso ? formatDateDisplay(iso) : null;
   }
 
@@ -465,11 +489,15 @@ export function extractRescheduleSourceDate(
   timeZone = 'UTC',
 ): string | null {
   const lower = prompt.toLowerCase();
+  // e2e-bug.237 — "cancel … and rebook … for tomorrow/Friday" destinations are
+  // not the visit-to-move day; skip bare "for today/tomorrow" source cues.
+  const datedCancelRebook =
+    /\bcancel\b/.test(lower) && /\brebook\b/.test(lower);
   if (
     /\btoday(?:'s|'s)?\s+(?:\w+\s+){0,4}(?:appointment|booking)\b/.test(
       lower,
     ) ||
-    /\b(?:on|for)\s+today\b/.test(lower)
+    (!datedCancelRebook && /\b(?:on|for)\s+today\b/.test(lower))
   ) {
     return todayDisplay(timeZone);
   }
@@ -477,7 +505,7 @@ export function extractRescheduleSourceDate(
     /\btomorrow(?:'s|'s)?\s+(?:\w+\s+){0,4}(?:appointment|booking)\b/.test(
       lower,
     ) ||
-    /\b(?:on|for)\s+tomorrow\b/.test(lower)
+    (!datedCancelRebook && /\b(?:on|for)\s+tomorrow\b/.test(lower))
   ) {
     const iso = resolveRelativeDateKeyword('tomorrow', timeZone);
     return iso ? formatDateDisplay(iso) : null;
@@ -494,10 +522,15 @@ export function extractRescheduleSourceDate(
     if (iso) return formatDateDisplay(iso);
   }
 
-  const beforeTo = prompt.split(/\bto\b/i)[0];
-  if (beforeTo) {
-    const extracted = extractSingleDateFromPrompt(beforeTo, timeZone);
-    if (extracted) return extracted;
+  // Only the left of "… to <destination>" is a source-day cue. Without `\bto\b`,
+  // split()[0] is the whole prompt — and "rebook for next Friday" would wrongly
+  // become fromDate (e2e-bug.237 empty upcoming lookup).
+  if (/\bto\b/i.test(prompt)) {
+    const beforeTo = prompt.split(/\bto\b/i)[0];
+    if (beforeTo) {
+      const extracted = extractSingleDateFromPrompt(beforeTo, timeZone);
+      if (extracted) return extracted;
+    }
   }
 
   return null;
@@ -511,8 +544,7 @@ export function resolveRescheduleParams(
   prompt: string,
   timeZone = 'UTC',
 ): void {
-  const lower = prompt.toLowerCase();
-  if (!/\b(reschedule|move|shift)\b/.test(lower)) return;
+  if (!isRescheduleOrDatedRebookPrompt(prompt)) return;
 
   const targetDate = extractRescheduleTargetDate(prompt, timeZone);
   const targetTime = extractRescheduleTargetTime(prompt);

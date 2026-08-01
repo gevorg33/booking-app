@@ -225,6 +225,53 @@ export function buildSequentialAppointments(
   return lines;
 }
 
+/** Suggested per-service line returned by public `suggest-lines`. */
+export interface SuggestedMultiServiceLine {
+  serviceId: string;
+  serviceName: string;
+  startTime: string;
+  employeeId: string;
+  employeeName: string;
+}
+
+/**
+ * e2e-bug.217 — expand a same-visit block suggestion into per-service lines
+ * using the same sequential layout as booking (`buildSequentialAppointments`).
+ */
+export function expandMultiServiceBlockToSuggestedLines(
+  services: Array<
+    Pick<
+      MultiServiceLineInput,
+      'serviceId' | 'durationMinutes' | 'bufferMinutes' | 'name'
+    >
+  >,
+  block: {
+    employeeId: string;
+    employeeName: string;
+    startTime: string | Date;
+  },
+  turnoverBufferMinutes: number,
+): SuggestedMultiServiceLine[] {
+  const blockStart =
+    block.startTime instanceof Date
+      ? block.startTime
+      : new Date(block.startTime);
+  if (Number.isNaN(blockStart.getTime())) {
+    throw new Error('Invalid block start time');
+  }
+  return buildSequentialAppointments(
+    services,
+    blockStart,
+    turnoverBufferMinutes,
+  ).map((line, index) => ({
+    serviceId: line.serviceId,
+    serviceName: services[index]?.name ?? '',
+    startTime: line.startTime.toISOString(),
+    employeeId: block.employeeId,
+    employeeName: block.employeeName,
+  }));
+}
+
 export function validatePerServiceLines(
   expectedServiceIds: string[],
   lines: Array<{ serviceId: string; startTime: string }>,

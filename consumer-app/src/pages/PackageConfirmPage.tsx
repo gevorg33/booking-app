@@ -18,6 +18,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
+import { usePackageBookableDates } from '../hooks/use-package-bookable-dates.js';
 import { ConsumerAiShell } from '../components/ConsumerAiShell.js';
 import { ConsumerGroupedTimeSlotList } from '../components/ConsumerGroupedTimeSlotList.js';
 import { ConsumerSlotSpecialistPicker } from '../components/ConsumerSlotSpecialistPicker.js';
@@ -290,6 +291,14 @@ export default function PackageConfirmPage() {
     );
   };
 
+  const minDate = new Date().toISOString().slice(0, 10);
+  const { scanning: bookableDatesScanning, isDateEnabled } = usePackageBookableDates({
+    slug,
+    packageId,
+    enabled: Boolean(slug && packageId),
+    minDateKey: minDate,
+  });
+
   if (loading || packageQuery.isLoading || pageLoading) {
     return (
       <IonPage>
@@ -311,7 +320,6 @@ export default function PackageConfirmPage() {
   }
 
   const primary = profile.branding.primaryColor || '#7c3aed';
-  const minDate = new Date().toISOString().slice(0, 10);
   const tz = profile.timezone || 'UTC';
 
   return (
@@ -347,9 +355,11 @@ export default function PackageConfirmPage() {
             presentation="date"
             min={minDate}
             value={dateKey}
+            isDateEnabled={isDateEnabled}
             onIonChange={(e) => {
               const value = e.detail.value;
               if (typeof value !== 'string') return;
+              if (!isDateEnabled(value)) return;
               userPickedDateRef.current = true;
               const nextDate = value.slice(0, 10);
               setDateKey(nextDate);
@@ -361,6 +371,7 @@ export default function PackageConfirmPage() {
               void loadDaySlots(nextDate, null);
             }}
           />
+          {bookableDatesScanning ? <IonSpinner name="crescent" slot="end" /> : null}
         </IonItem>
 
         {message ? <p style={{ color: '#b91c1c' }}>{message}</p> : null}

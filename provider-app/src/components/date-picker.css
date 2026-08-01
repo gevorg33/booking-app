@@ -125,8 +125,10 @@
 }
 
 .date-picker-input {
+  box-sizing: border-box;
   flex: 1;
   min-width: 0;
+  height: 2.75rem;
   padding: 0.65rem 0.85rem;
   border-radius: 12px;
   border: 1px solid var(--ion-color-step-200, #d7d8da);
@@ -135,9 +137,12 @@
 }
 
 .date-picker-trigger--icon {
+  box-sizing: border-box;
   width: auto;
+  height: 2.75rem;
   min-width: 2.75rem;
   justify-content: center;
+  line-height: 1;
 }
 
 .date-picker-hint {

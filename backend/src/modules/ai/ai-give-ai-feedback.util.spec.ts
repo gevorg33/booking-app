@@ -35,15 +35,33 @@ describe('ai-give-ai-feedback.util', () => {
     'detects give AI feedback prompt for $id',
     (_id, row) => {
       expect(isGiveAiFeedbackPrompt(row.prompt)).toBe(true);
-      expect(parseGiveAiFeedbackFromPrompt(row.prompt)).toEqual({
-        aspect: expect.any(String),
-        rating: expect.any(String),
+      const parsed = parseGiveAiFeedbackFromPrompt(row.prompt);
+      expect(parsed).toEqual({
+        aspect: row.aspect ?? expect.any(String),
+        rating: row.rating ?? expect.any(String),
         ...(row.reason ? { reason: row.reason } : {}),
       });
       expect(rescueGiveAiFeedbackIntent(row.prompt, 'unknown')).toEqual({
         action: 'give_ai_feedback',
         rescueReason: 'give_ai_feedback',
       });
+    },
+  );
+
+  it.each([
+    ['Not helpful', 'down', 'negative'],
+    ['not helpful', 'down', 'negative'],
+    ['NOT HELPFUL', 'down', 'negative'],
+    ['That was not helpful', 'down', 'negative'],
+    ['Helpful', 'up', 'positive'],
+    ['That was helpful', 'up', 'positive'],
+  ] as const)(
+    'e2e-bug.265: %s → rating=%s aspect=%s',
+    (prompt, rating, aspect) => {
+      expect(parseGiveAiFeedbackRating(prompt)).toBe(rating);
+      expect(parseGiveAiFeedbackFromPrompt(prompt)).toEqual(
+        expect.objectContaining({ rating, aspect }),
+      );
     },
   );
 

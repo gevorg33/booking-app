@@ -34,6 +34,7 @@ export function ConsumerSubscriptionsSection({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelErrorId, setCancelErrorId] = useState<string | null>(null);
   const [cancelNoticeId, setCancelNoticeId] = useState<string | null>(null);
+  const [cancelNoticeText, setCancelNoticeText] = useState<string | null>(null);
   const didAutoExpandRef = useRef(false);
 
   async function handleCancel(sub: PublicCustomerSubscription) {
@@ -41,10 +42,23 @@ export function ConsumerSubscriptionsSection({
     setCancellingId(sub.id);
     setCancelErrorId(null);
     setCancelNoticeId(null);
+    setCancelNoticeText(null);
     try {
       const result = await cancelCustomerSubscription(slug, sub.id);
+      // e2e-bug.187 — refundStatus was fetched from the backend but only
+      // ever checked for 'refunded'; 'ineligible' (already-used-a-visit,
+      // permanent even after a later credit restore) and 'failed' were
+      // silently swallowed, so a customer whose refund didn't happen saw
+      // no explanation at all.
       if (result.refundStatus === 'refunded') {
         setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelRefunded);
+      } else if (result.refundStatus === 'failed') {
+        setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelRefundFailed);
+      } else if (result.refundStatus === 'ineligible') {
+        setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelIneligible);
       }
       onCancelled?.();
     } catch (err: unknown) {
@@ -175,9 +189,15 @@ export function ConsumerSubscriptionsSection({
                 {copy.subscriptionsCancelFailed}
               </p>
             ) : null}
-            {cancelNoticeId === sub.id ? (
-              <p style={{ color: '#2563eb', fontSize: '0.875rem', margin: '8px 0 0' }}>
-                {copy.subscriptionsCancelRefunded}
+            {cancelNoticeId === sub.id && cancelNoticeText ? (
+              <p
+                style={{
+                  color: cancelNoticeText === copy.subscriptionsCancelRefundFailed ? '#dc2626' : '#2563eb',
+                  fontSize: '0.875rem',
+                  margin: '8px 0 0',
+                }}
+              >
+                {cancelNoticeText}
               </p>
             ) : null}
 

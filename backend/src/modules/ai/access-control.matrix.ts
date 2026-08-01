@@ -144,6 +144,7 @@ export const STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS = [
   // Revenue / finance analytics
   'revenue_forecast',
   'commission_report',
+  'list_refunds',
   'summarize_pl',
   'export_commissions',
   'export_accounting',
@@ -493,6 +494,7 @@ const REVENUE_FINANCE_ACTIONS = new Set<string>([
   'summarize_utilization',
   'revenue_forecast',
   'commission_report',
+  'list_refunds',
   'summarize_pl',
   'export_commissions',
   'export_accounting',

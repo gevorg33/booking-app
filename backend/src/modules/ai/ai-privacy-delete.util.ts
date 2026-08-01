@@ -96,7 +96,9 @@ export function isPrivacyDeletePendingParams(
 ): boolean {
   return (
     params.privacyDeletePending === true ||
+    params.privacyDeletePending === 'true' ||
     params.requiresConfirmation === true ||
+    params.requiresConfirmation === 'true' ||
     params.pendingAction === 'privacy_delete'
   );
 }

@@ -10,7 +10,7 @@ describe('ai-check-book-handoff.util (ai-cmd-h2.2)', () => {
     success: true,
     action: 'check_providers_for_service',
     summary:
-      '2 provider(s) available for massage on 07/06/2026:\n• Karo — 09:00',
+      '2 provider(s) available for massage on 7 June 2026:\n• Karo — 09:00',
     details: {
       serviceName: 'massage',
       serviceId: 's1',

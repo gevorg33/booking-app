@@ -369,17 +369,19 @@ describe('ai-schedule-resources.logic', () => {
       expect(noResources.success).toBe(false);
 
       const deps = buildDeps();
+      const resourceUuid1 = '11111111-1111-4111-8111-111111111111';
+      const resourceUuid2 = '22222222-2222-4222-8222-222222222222';
       const byIds = await handleSetServiceResourceRequirementsLogic(
         deps,
         'biz-1',
-        { serviceId: 's1', resourceIds: ['r1', 'r2'] },
+        { serviceId: 's1', resourceIds: [resourceUuid1, resourceUuid2] },
         services,
       );
       expect(byIds.success).toBe(true);
       expect(deps.resourcesService.setServiceRequirements).toHaveBeenCalledWith(
         'biz-1',
         's1',
-        ['r1', 'r2'],
+        [resourceUuid1, resourceUuid2],
       );
 
       const byNames = await handleSetServiceResourceRequirementsLogic(
@@ -398,6 +400,38 @@ describe('ai-schedule-resources.logic', () => {
       );
       expect(noMatch.success).toBe(false);
 
+      // e2e-bug.147 (write-side follow-up) — classifier sometimes puts a
+      // human-readable resource name straight into resourceIds instead of
+      // resourceNames. This must resolve by name, not be passed through
+      // verbatim to the query layer (which would leak a raw Postgres
+      // "invalid input syntax for type uuid" error).
+      const misclassifiedName = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage', resourceIds: ['Room 1'] },
+        services,
+      );
+      expect(misclassifiedName.success).toBe(true);
+
+      const misclassifiedPartialCaseInsensitive =
+        await handleSetServiceResourceRequirementsLogic(
+          buildDeps(),
+          'biz-1',
+          { serviceName: 'Massage', resourceIds: ['room'] },
+          services,
+        );
+      expect(misclassifiedPartialCaseInsensitive.success).toBe(true);
+
+      const misclassifiedNoMatch = await handleSetServiceResourceRequirementsLogic(
+        buildDeps(),
+        'biz-1',
+        { serviceName: 'Massage', resourceIds: ['QA Massage Table'] },
+        services,
+      );
+      expect(misclassifiedNoMatch.success).toBe(false);
+      expect(misclassifiedNoMatch.summary).not.toMatch(/invalid input syntax/i);
+      expect(misclassifiedNoMatch.summary).not.toMatch(/uuid/i);
+
       const errored = await handleSetServiceResourceRequirementsLogic(
         buildDeps({
           resourcesService: {
@@ -407,7 +441,7 @@ describe('ai-schedule-resources.logic', () => {
           } as any,
         }),
         'biz-1',
-        { serviceId: 's1', resourceIds: ['r1'] },
+        { serviceId: 's1', resourceIds: [resourceUuid1] },
         services,
       );
       expect(errored.success).toBe(false);

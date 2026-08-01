@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -24,6 +25,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
 import { NotFoundException } from '@nestjs/common';
+import { isMobileManagerRole } from '../provider-mobile/provider-mobile-access.js';
 
 @Controller('businesses/:businessId/gift-cards')
 export class GiftCardsController {
@@ -282,12 +284,25 @@ export class GiftCardProviderController {
     private businessService: BusinessService,
   ) {}
 
+  /** Gift card fulfillment queues are dashboard-management data — only owner/admin/manager roles, mirroring Team Floor's access gate. */
+  private async ensureManagerAccess(
+    businessId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.businessService.ensureMember(businessId, userId);
+    if (!isMobileManagerRole(member.role)) {
+      throw new ForbiddenException(
+        'Gift card fulfillment is only available to business owners, admins, and managers',
+      );
+    }
+  }
+
   @Get('card-creation')
   async cardCreationQueue(
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    await this.businessService.ensureMember(businessId, user.id);
+    await this.ensureManagerAccess(businessId, user.id);
     return {
       orders: await this.fulfillmentService.listCardCreationQueue(businessId),
     };
@@ -298,7 +313,7 @@ export class GiftCardProviderController {
     @Param('businessId') businessId: string,
     @CurrentUser() user: { id: string },
   ) {
-    await this.businessService.ensureMember(businessId, user.id);
+    await this.ensureManagerAccess(businessId, user.id);
     return {
       orders: await this.fulfillmentService.listDeliveryQueue(businessId),
     };
@@ -310,7 +325,7 @@ export class GiftCardProviderController {
     @Param('giftCardId') giftCardId: string,
     @CurrentUser() user: { id: string },
   ) {
-    await this.businessService.ensureMember(businessId, user.id);
+    await this.ensureManagerAccess(businessId, user.id);
     return this.fulfillmentService.markCardReady(
       businessId,
       giftCardId,
@@ -324,7 +339,7 @@ export class GiftCardProviderController {
     @Param('giftCardId') giftCardId: string,
     @CurrentUser() user: { id: string },
   ) {
-    await this.businessService.ensureMember(businessId, user.id);
+    await this.ensureManagerAccess(businessId, user.id);
     return this.fulfillmentService.markOutForDelivery(
       businessId,
       giftCardId,
@@ -338,7 +353,7 @@ export class GiftCardProviderController {
     @Param('giftCardId') giftCardId: string,
     @CurrentUser() user: { id: string },
   ) {
-    await this.businessService.ensureMember(businessId, user.id);
+    await this.ensureManagerAccess(businessId, user.id);
     return this.fulfillmentService.markDelivered(businessId, giftCardId);
   }
 }

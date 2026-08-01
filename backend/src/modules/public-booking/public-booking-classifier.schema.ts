@@ -137,6 +137,7 @@ import { SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/a
 import { EXPLAIN_PROFESSIONAL_PROFILE_CLASSIFIER_RULES } from '../ai/ai-explain-professional-profile.fixtures.js';
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_CLASSIFIER_RULES } from '../ai/ai-explain-professional-profile-multilingual.fixtures.js';
 import { LIST_PROVIDER_REVIEWS_CLASSIFIER_RULES } from '../ai/ai-list-provider-reviews.fixtures.js';
+import { LIST_PROVIDERS_CLASSIFIER_RULES } from '../ai/ai-list-providers.fixtures.js';
 import { SUBMIT_PROVIDER_REVIEW_CLASSIFIER_RULES } from '../ai/ai-submit-review-actions.fixtures.js';
 import { CUSTOMER_PUBLIC_LEAVE_VISIT_REVIEW_CLASSIFIER_RULES } from '../ai/ai-leave-visit-review.util.js';
 import { PUBLIC_MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES } from '../ai/ai-manage-booking-with-token.util.js';
@@ -200,14 +201,14 @@ You MUST resolve relative dates yourself using Today's date from context (tomorr
 Action rules:
 - recommend_specialists: best/top/highest-rated/suggested specialists. Set employeeRole when the user names a job title (cosmetologist, massage specialist, stylist). Set serviceCategory for broad service-type requests ('massage', 'hair') OR serviceName for one service OR serviceNames for an explicit set from the catalog. Set date/dateFrom/dateTo/weekdays for the period. allProviders=true.
 - check_availability: open times / who is free. serviceName or serviceCategory as above. allProviders=true unless one specialist is named. Set availabilityWindows when the user lists OR alternatives (tomorrow evening or Friday afternoon). Set weekdays for "Monday and Friday" with the SAME timeOfDay (AND — not OR). Set timeOfDay for morning/afternoon/evening/tonight on single-window prompts.
-- list_providers: who works here (not ratings/availability).
+${LIST_PROVIDERS_CLASSIFIER_RULES}
 - list_services: prices, durations, catalog. Set serviceCategory for type questions ("what massages do you have" → serviceCategory: "massage") to filter service TYPE NAMES containing that keyword; only list matches — no catalog category named massage is required. Set maxPrice when the user states a spending limit. Set serviceRank when they ask for premium/luxury/cheapest/most popular service (catalog rank — not specialist ratings). Set serviceTier when they ask for premium tier or standard tier services (entity metadata filter — not serviceRank).
 - find_services_under_budget: budget discover chip and focused "under $X" catalog browse — set maxPrice; same handler as list_services budget filter but use this action for one-tap chip "Services under $50" and short ceiling prompts ("Anything under $50?").
 - find_evening_weekend_slots: evening/weekend discover chip and focused OR availability scan — set availabilityWindows with evening timeOfDay OR saturday/sunday weekdays; same handler as check_availability but use this action for one-tap chip "Evening or weekend slots for {service}" and short evening/weekend-only prompts ("Evening or weekend only", "After 6pm Saturday").
 - explain_salon_profile: open salon profile page with overview, photos/map embed, social links, and stylist reviews entry — triggers like "Tell me about this salon", "Show photos and reviews", "Salon profile"; set aspect overview|photos|reviews|social|all. NOT business_info (inline info without profile navigation), NOT explain_business_hours_and_location (hours/address/parking).
 - book_appointment: reserve/schedule. bookingFirstAvailable=true for nearest/soonest/next/earliest/ASAP/any specialist — leave timeSlot null. providerFallbackNames + fallbackAnyProvider for "Gevorg at 9, else Mary, else anyone". When the user picks a slot from a prior recommendation (e.g. "book facemassage on Karo at 9:30"), set employeeName, serviceName, timeSlot, and date from that context (including assistant messages in history).
 - Check-then-book compound prompts (who is free + book nearest/soonest/ASAP) are executed as multi-step flows automatically — never return book_appointment without timeSlot unless bookingFirstAvailable=true.
-- business_info: hours, location, contact, description; READ only. Prefer explain_salon_profile when the user wants the salon profile page ("Tell me about this salon", "Salon profile").
+- business_info: hours, location, contact, description; READ only. Prefer explain_salon_profile when the user wants the salon profile page ("Tell me about this salon", "Tell me about this business", "Salon profile"). Never treat "this salon/business" or "salon info" as a named provider specialty.
 ${PUBLIC_BOOKING_HELP_CLASSIFIER_RULES}
 ${PUBLIC_APP_GUIDE_CLASSIFIER_RULES}
 ${PUBLIC_EMPTY_STATE_GUIDE_CLASSIFIER_RULES}

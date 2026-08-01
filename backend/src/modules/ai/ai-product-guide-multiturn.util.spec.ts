@@ -92,7 +92,52 @@ describe('ai-product-guide-multiturn.util (ai-guide-1.8.2)', () => {
       guideStepIndex: 0,
       completedSteps: [],
     });
+    expect(result.summary).toBe('Step 1 of 2: Open schedule');
   });
+
+  it.each([
+    {
+      id: 'hy',
+      locale: 'hy' as const,
+      title: 'Ընտրեք ծառայություն',
+      expected: 'Քայլ 1/3: Ընտրեք ծառայություն',
+    },
+    {
+      id: 'ru',
+      locale: 'ru' as const,
+      title: 'Выберите услугу',
+      expected: 'Шаг 1 из 3: Выберите услугу',
+    },
+    {
+      id: 'en',
+      locale: 'en' as const,
+      title: 'Select Service',
+      expected: 'Step 1 of 3: Select Service',
+    },
+  ])(
+    'e2e-bug.219 initializeGuideMultiTurnResult localizes progress chrome: $id',
+    ({ locale, title, expected }) => {
+      const guide: GuideResponse = {
+        summary: 'Book',
+        topicId: 'public.booking.help',
+        steps: [
+          { title, body: 'Body 1' },
+          { title: 'Two', body: 'Body 2' },
+          { title: 'Three', body: 'Body 3' },
+        ],
+      };
+      const result = initializeGuideMultiTurnResult(
+        buildGuideCommandResult('booking_help', guide),
+        {},
+        locale,
+      );
+      expect(result.summary).toBe(expected);
+      expect(result.guide?.summary).toBe(expected);
+      if (locale !== 'en') {
+        expect(result.summary).not.toMatch(/Step \d+ of \d+/i);
+      }
+    },
+  );
 
   it('attachGuideMultiTurnSessionToResult writes sessionContext for clients', () => {
     const session = createInitialGuideMultiTurnSession(

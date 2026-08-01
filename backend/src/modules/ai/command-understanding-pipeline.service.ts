@@ -512,10 +512,29 @@ export class CommandUnderstandingPipelineService {
     const semanticParamHints = resolveSemanticWinnerParamHints(candidates);
     const hasSemanticHints = Object.keys(semanticParamHints).length > 0;
 
+    // e2e-bug.234 — page-threaded manage credentials must reach
+    // tryRescueManageBookingWithToken (it treats params as the session bag).
+    const rescueParams: Record<string, unknown> = { ...(base.params ?? {}) };
+    const sessionCtx = input.sessionContext;
+    if (
+      (rescueParams.bookingId == null || rescueParams.bookingId === '') &&
+      typeof sessionCtx?.bookingId === 'string' &&
+      sessionCtx.bookingId.trim()
+    ) {
+      rescueParams.bookingId = sessionCtx.bookingId.trim();
+    }
+    if (
+      (rescueParams.manageToken == null || rescueParams.manageToken === '') &&
+      typeof sessionCtx?.manageToken === 'string' &&
+      sessionCtx.manageToken.trim()
+    ) {
+      rescueParams.manageToken = sessionCtx.manageToken.trim();
+    }
+
     const rescued = this.intentRescue.rescue({
       prompt: input.effectivePrompt,
       action: base.action,
-      params: base.params ?? {},
+      params: rescueParams,
       reasoning: base.reasoning,
       employees: input.employees,
       customers: input.customers,

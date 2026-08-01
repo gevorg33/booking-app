@@ -65,11 +65,16 @@ describe('ai-product-guide integration (ai-guide-1.2.1–1.2.3)', () => {
     createMockGuideTelemetryService(),
   );
 
-  it('registers app guide intents on AiProductGuideService (dashboard + customer + public)', () => {
+  it('registers app guide intents on AiProductGuideService (dashboard + customer + public + provider)', () => {
     expect(REGISTRY_VALIDATION_ERRORS).toEqual([]);
     for (const intent of APP_GUIDE_INTENTS) {
       const entry = COMMAND_REGISTRY_BY_ID.get(intent);
-      expect(entry?.surfaces).toEqual(['dashboard', 'customer', 'public']);
+      expect(entry?.surfaces).toEqual([
+        'dashboard',
+        'customer',
+        'public',
+        'provider',
+      ]);
       expect(entry?.handler).toBe('AiProductGuideService');
       expect(entry?.mutating).toBe(false);
       expect(entry?.tiers).toContain('staff');

@@ -9,9 +9,18 @@
   "steps": [
     {
       "titleKey": "guide.flows.common.step1",
+      "shortTitleKey": "guide.flows.public.bookingFunnel.step1Title",
       "bodyKey": "guide.flows.public.bookingFunnel.step1"
     },
-    { "titleKey": "guide.flows.common.step2", "bodyKey": "guide.flows.public.bookingFunnel.step2" },
-    { "titleKey": "guide.flows.common.step3", "bodyKey": "guide.flows.public.bookingFunnel.step3" }
+    {
+      "titleKey": "guide.flows.common.step2",
+      "shortTitleKey": "guide.flows.public.bookingFunnel.step2Title",
+      "bodyKey": "guide.flows.public.bookingFunnel.step2"
+    },
+    {
+      "titleKey": "guide.flows.common.step3",
+      "shortTitleKey": "guide.flows.public.bookingFunnel.step3Title",
+      "bodyKey": "guide.flows.public.bookingFunnel.step3"
+    }
   ]
 }

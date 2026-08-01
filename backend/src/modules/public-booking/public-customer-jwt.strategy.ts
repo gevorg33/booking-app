@@ -4,6 +4,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PublicCustomerJwtPayload } from './public-customer-auth.types.js';
 import { PublicCustomerAuthService } from './public-customer-auth.service.js';
+import { readPublicRouteSlug } from './public-customer-tenant.util.js';
+
+type PublicCustomerAuthRequest = {
+  params?: Record<string, string | undefined>;
+};
 
 @Injectable()
 export class PublicCustomerJwtStrategy extends PassportStrategy(
@@ -17,23 +22,35 @@ export class PublicCustomerJwtStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: configService.get<string>('app.jwtSecret')!,
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: PublicCustomerJwtPayload) {
+  async validate(
+    req: PublicCustomerAuthRequest,
+    payload: PublicCustomerJwtPayload,
+  ) {
     if (payload.type !== 'public_customer') {
       throw new UnauthorizedException('Invalid customer session');
     }
 
+    // e2e-bug.218 — reject token(A) on /public/{B}/… before attaching req.user
+    const slug = readPublicRouteSlug(req?.params);
+    const businessId =
+      await this.publicCustomerAuthService.assertSessionMatchesSlug(
+        slug,
+        payload.businessId,
+      );
+
     const customer = await this.publicCustomerAuthService.getCustomerById(
-      payload.businessId,
+      businessId,
       payload.sub,
     );
 
     return {
       customerId: customer.id,
       email: payload.email,
-      businessId: payload.businessId,
+      businessId,
       customer,
     };
   }

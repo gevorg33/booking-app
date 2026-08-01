@@ -3,6 +3,12 @@ import type { PublicBusinessProfile, PublicCheckoutQuote, PublicService } from '
 export type CheckoutPaymentMethod = 'online' | 'cash';
 
 const PENDING_PAYMENT_KEY = 'consumer_pending_checkout_payment';
+// e2e checklist — return-flow reconciliation: without a TTL, an abandoned checkout's
+// storage entry hijacks every future visit to the same service's book page (treats it
+// as "returning from Stripe" and tries to confirm a payment session that's long dead),
+// with no expiry ever clearing it. Stripe Checkout Sessions themselves default to a
+// 24h lifetime, so anything older than that can never legitimately be confirmed anyway.
+const PENDING_PAYMENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface PendingCheckoutPayment {
   slug: string;
@@ -19,7 +25,9 @@ export function prepaymentDue(service: Pick<PublicService, 'onlinePaymentEnabled
     return Math.min(service.depositAmount, service.price);
   }
   if (service.prepaymentMode === 'deposit') {
-    return Math.round(service.price * 50) / 100;
+    // Nudge exact-half ties (e.g. $19.99 -> $9.995) off the IEEE-754 floor
+    // so Math.round doesn't silently undercharge by a cent.
+    return Math.round(service.price * 50 + 1e-9) / 100;
   }
   return 0;
 }
@@ -42,12 +50,7 @@ export function showCashPaymentOption(
 ): boolean {
   const amountDue = resolveCheckoutAmountDue(quote, service);
   const dueNow = prepaymentDue(service);
-  return (
-    profile.acceptCashPayments === true &&
-    service.prepaymentMode !== 'full' &&
-    amountDue > 0 &&
-    !(dueNow > 0 && service.prepaymentMode === 'deposit')
-  );
+  return profile.acceptCashPayments === true && amountDue > 0 && dueNow <= 0;
 }
 
 export function requiresOnlinePayment(
@@ -62,10 +65,7 @@ export function requiresOnlinePayment(
   const dueNow = prepaymentDue(service);
   if (amountDue <= 0) return false;
   if (paymentMethod === 'cash') return false;
-  return (
-    service.prepaymentMode === 'full' ||
-    (service.prepaymentMode === 'deposit' && dueNow > 0)
-  );
+  return dueNow > 0;
 }
 
 export function savePendingCheckoutPayment(
@@ -88,6 +88,8 @@ export function loadPendingCheckoutPayment(slug: string): PendingCheckoutPayment
     const parsed = JSON.parse(raw) as PendingCheckoutPayment;
     if (parsed.slug !== slug.trim().toLowerCase()) return null;
     if (!parsed.sessionId || !parsed.serviceId || !parsed.startTime) return null;
+    const age = Date.now() - Date.parse(parsed.updatedAt);
+    if (!Number.isFinite(age) || age > PENDING_PAYMENT_MAX_AGE_MS) return null;
     return parsed;
   } catch {
     return null;

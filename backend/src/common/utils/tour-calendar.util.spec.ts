@@ -5,9 +5,12 @@ import {
   buildWeekDateKeys,
   computeWeekColumnSpan,
   dateKeysOverlap,
+  normalizeTourWeekAnchorDateKey,
   resolveTourBookingDateRange,
   tourBookingOverlapsDateRange,
 } from './tour-calendar.util';
+import { getTodayDateKey } from './date-format.util';
+import { addDaysToDateKey } from './timezone.util';
 
 describe('tour-calendar.util', () => {
   it('detects date key overlap', () => {
@@ -131,6 +134,40 @@ describe('tour-calendar.util', () => {
 
   it('builds Monday-based week date keys', () => {
     expect(buildWeekDateKeys('2026-06-11')).toEqual(weekKeys);
+  });
+
+  // e2e-bug.270 — classifier garbage must never throw Invalid time value.
+  it.each([
+    ['this week', getTodayDateKey()],
+    ["this week's", getTodayDateKey()],
+    ['this calendar week', getTodayDateKey()],
+    ['current week', getTodayDateKey()],
+    ['next week', addDaysToDateKey(getTodayDateKey(), 7)],
+    ["next week's", addDaysToDateKey(getTodayDateKey(), 7)],
+    ['last week', addDaysToDateKey(getTodayDateKey(), -7)],
+    ["last week's", addDaysToDateKey(getTodayDateKey(), -7)],
+    ['2026-06-11', '2026-06-11'],
+    ['not-a-date', undefined],
+    ['', undefined],
+  ] as const)(
+    'normalizeTourWeekAnchorDateKey(%j) → %j',
+    (raw, expected) => {
+      expect(normalizeTourWeekAnchorDateKey(raw)).toBe(expected);
+    },
+  );
+
+  it.each([
+    'this week',
+    "this week's",
+    'this calendar week',
+    'garbage',
+    '',
+  ])('buildWeekDateKeys(%j) returns 7 ISO days without throwing', (raw) => {
+    const keys = buildWeekDateKeys(raw);
+    expect(keys).toHaveLength(7);
+    for (const key of keys) {
+      expect(key).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
   });
 
   it('computes column span and stacked lanes (vert-tour-1.10)', () => {

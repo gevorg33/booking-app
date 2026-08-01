@@ -20,8 +20,58 @@ import { resolveGuideFlowRoutePrimaryTopic } from './guide-flow.routes.manifest.
 
 type MessageTree = { [key: string]: string | MessageTree };
 
+/** e2e-bug.275 — common.stepN resolves to "Step 1" / "Քայլ 1" / "Шаг 1". */
+const PLACEHOLDER_STEP_TITLE_RE = /^(?:Step|Քայլ|Шаг)\s*\d+\s*$/iu;
+
 function resolveFlowText(messages: MessageTree, key: string): string {
   return resolveGuideCorpusI18nKey(messages, key) ?? key;
+}
+
+/**
+ * e2e-bug.275 / e2e-bug.294 — when playbooks reuse guide.flows.common.stepN
+ * placeholders, derive a short human title from the localized body so hy/ru
+ * summaries are not "Քայլ 1/3: Քայլ 1" and stay EN-short (not body-length).
+ */
+export function humanizeGuideStepTitle(title: string, body: string): string {
+  const trimmedTitle = title.trim();
+  if (!PLACEHOLDER_STEP_TITLE_RE.test(trimmedTitle)) return trimmedTitle;
+
+  const cleaned = body.trim().replace(/[.!?։…]+$/u, '').trim();
+  if (!cleaned) return trimmedTitle;
+
+  // EN: "Pick a service from the public booking page" → "Pick a service"
+  const fromSplit = cleaned.split(/\s+from\s+/i);
+  if (
+    fromSplit.length > 1 &&
+    fromSplit[0] &&
+    fromSplit[0].split(/\s+/).filter(Boolean).length <= 5
+  ) {
+    return fromSplit[0].trim();
+  }
+
+  // e2e-bug.294 — HY location clause (հանրային … էջից)
+  const hyLoc = cleaned.split(/\s+հանրային\s+/u);
+  if (
+    hyLoc.length > 1 &&
+    hyLoc[0] &&
+    hyLoc[0].split(/\s+/).filter(Boolean).length <= 5
+  ) {
+    return hyLoc[0].trim();
+  }
+
+  // e2e-bug.294 — RU "на странице …" / "на …"
+  const ruNa = cleaned.split(/\s+на\s+/iu);
+  if (
+    ruNa.length > 1 &&
+    ruNa[0] &&
+    ruNa[0].split(/\s+/).filter(Boolean).length <= 5
+  ) {
+    return ruNa[0].trim();
+  }
+
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length <= 5) return cleaned;
+  return words.slice(0, 3).join(' ');
 }
 
 export function resolveGuideFlowPlaybook(
@@ -39,14 +89,28 @@ export function resolveGuideFlowPlaybook(
     voiceSummary: playbook.voiceSummaryKey
       ? resolveFlowText(messages, playbook.voiceSummaryKey)
       : undefined,
-    steps: playbook.steps.map((step) => ({
-      title: resolveFlowText(messages, step.titleKey),
-      body: resolveFlowText(messages, step.bodyKey),
-      voiceSummary: step.voiceSummaryKey
-        ? resolveFlowText(messages, step.voiceSummaryKey)
-        : undefined,
-      navigate: step.navigate,
-    })),
+    steps: playbook.steps.map((step) => {
+      const title = resolveFlowText(messages, step.titleKey);
+      const body = resolveFlowText(messages, step.bodyKey);
+      // e2e-bug.294 — prefer explicit short titles when catalog provides them
+      const shortTitle = step.shortTitleKey
+        ? resolveFlowText(messages, step.shortTitleKey)
+        : null;
+      const resolvedTitle =
+        shortTitle &&
+        shortTitle !== step.shortTitleKey &&
+        !PLACEHOLDER_STEP_TITLE_RE.test(shortTitle)
+          ? shortTitle.trim()
+          : humanizeGuideStepTitle(title, body);
+      return {
+        title: resolvedTitle,
+        body,
+        voiceSummary: step.voiceSummaryKey
+          ? resolveFlowText(messages, step.voiceSummaryKey)
+          : undefined,
+        navigate: step.navigate,
+      };
+    }),
     navigateTarget: playbook.navigateTarget,
     corpusTopicId: playbook.corpusTopicId,
     verticals: playbook.verticals,
@@ -268,6 +332,7 @@ export function listGuideFlowI18nKeys(
   if (playbook.voiceSummaryKey) keys.push(playbook.voiceSummaryKey);
   for (const step of playbook.steps) {
     keys.push(step.titleKey, step.bodyKey);
+    if (step.shortTitleKey) keys.push(step.shortTitleKey);
     if (step.voiceSummaryKey) keys.push(step.voiceSummaryKey);
   }
   return keys;

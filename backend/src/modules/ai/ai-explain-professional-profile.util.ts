@@ -50,8 +50,13 @@ const NAMED_PROFILE_PATTERNS: ReadonlyArray<RegExp> = [
   /\bshow\s+me\s+(.+?)(?:'s|’s)\s+(?:services|profile|professional\s+profile)\b/i,
   // e2e-bug.137 — "Show me Mariam Ohanyan's professional profile"
   /\bshow\s+me\s+(.+?)(?:'s|’s)\s+professional\s+profile\b/i,
+  // e2e-bug.93 — "Open Gevorg's professional profile" / "Open Karo Mazmanyan profile"
+  /\bopen\s+(.+?)(?:'s|’s)\s+professional\s+profile\b/i,
+  /\bopen\s+(.+?)\s+professional\s+profile\b/i,
   /\bopen\s+(.+?)(?:'s|’s)\s+profile\b/i,
-  /\bview\s+(.+?)(?:'s|’s)\s+(?:profile|professional profile)\b/i,
+  /\bopen\s+(.+?)\s+profile\b/i,
+  /\bview\s+(.+?)(?:'s|’s)\s+(?:profile|professional\s+profile)\b/i,
+  /\bview\s+(.+?)\s+(?:profile|professional\s+profile)\b/i,
   /\bwhat\s+services\s+does\s+(.+?)\s+offer\b/i,
   /\bsee\s+(.+?)(?:'s|’s)\s+services\b/i,
   /ցույց\s+տուր\s+(.+?)(?:-ի)?\s+ծառայություն/i,

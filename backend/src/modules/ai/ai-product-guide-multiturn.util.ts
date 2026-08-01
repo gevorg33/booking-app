@@ -27,6 +27,7 @@ import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
 import type { GuideFlowSurface } from './guide/guide-flow.types.js';
 import type { AppGuideIntent } from './ai-product-guide.util.js';
 import { buildGuideCommandResult } from './ai-product-guide.util.js';
+import { formatGuideProgressSummary } from './format-guide-progress-summary.util.js';
 
 export interface GuideMultiTurnSession {
   guideFlowId: string;
@@ -259,6 +260,7 @@ export function resolveStoredGuideContent(
 export function buildGuideResponseForMultiTurnStep(
   fullGuide: GuideResponse,
   session: GuideMultiTurnSession,
+  locale: AppLocale = 'en',
 ): GuideResponse {
   const totalSteps = fullGuide.steps.length;
   const currentIndex = Math.min(
@@ -266,7 +268,13 @@ export function buildGuideResponseForMultiTurnStep(
     Math.max(totalSteps - 1, 0),
   );
   const currentStep = fullGuide.steps[currentIndex];
-  const progressSummary = `Step ${currentIndex + 1} of ${totalSteps}: ${currentStep?.title ?? 'Guide step'}`;
+  // e2e-bug.219 — localize Step N of M chrome for hy/ru (and en).
+  const progressSummary = formatGuideProgressSummary(
+    currentIndex + 1,
+    totalSteps,
+    currentStep?.title,
+    locale,
+  );
 
   return {
     ...fullGuide,
@@ -409,7 +417,11 @@ export function tryHandleGuideMultiTurnNavigation(
     navigation,
     fullGuide.steps.length,
   );
-  const guide = buildGuideResponseForMultiTurnStep(fullGuide, nextSession);
+  const guide = buildGuideResponseForMultiTurnStep(
+    fullGuide,
+    nextSession,
+    locale,
+  );
   guide.summary = buildGuideNavigationSummary(
     navigation,
     boundary,
@@ -435,6 +447,7 @@ export function tryHandleGuideMultiTurnNavigation(
 export function initializeGuideMultiTurnResult(
   result: CommandResult,
   sessionContext?: Record<string, unknown>,
+  locale: AppLocale = 'en',
 ): CommandResult {
   if (!result.success || !result.guide) return result;
   const flowId = resolveGuideFlowIdFromGuide(result.guide);
@@ -449,6 +462,7 @@ export function initializeGuideMultiTurnResult(
   const positionedGuide = buildGuideResponseForMultiTurnStep(
     result.guide,
     session,
+    locale,
   );
   const nextResult = {
     ...result,

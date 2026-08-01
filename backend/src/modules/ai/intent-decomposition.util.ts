@@ -18,6 +18,7 @@ import {
   isBookNearestSlotPrompt,
   isCheckProvidersForServicePrompt,
 } from './ai-payments.util.js';
+import { isSingleRescheduleNearestContinuationPrompt } from './ai-find-soonest-appointment.util.js';
 import { decomposeFulfillmentCompoundPrompt } from './ai-gift-fulfillment.util.js';
 import { decomposeIntegrationsCompoundPrompt } from './ai-integrations.util.js';
 import { decomposeMarketingGrowthCompoundPrompt } from './ai-marketing-growth.util.js';
@@ -61,6 +62,11 @@ import {
   isBudgetDiscoverAndBookCompoundPrompt,
   BUDGET_DISCOVER_AND_BOOK_RECIPE_ID,
 } from './ai-budget-discover-and-book-compound.util.js';
+import {
+  decomposeRescheduleThenCreateBookingCompoundPrompt,
+  isRescheduleThenCreateBookingCompoundPrompt,
+  RESCHEDULE_THEN_CREATE_BOOKING_RECIPE_ID,
+} from './ai-reschedule-then-create-booking-compound.util.js';
 import {
   decomposeRankDiscoverAndBookCompoundPrompt,
   isRankDiscoverAndBookCompoundPrompt,
@@ -277,6 +283,7 @@ const DECOMPOSE_HANDLER_BY_UTIL: Record<
   decomposeClinicLabDayCloseCompoundPrompt,
   decomposeClinicLabReviewCompoundPrompt,
   decomposeBudgetDiscoverAndBookCompoundPrompt,
+  decomposeRescheduleThenCreateBookingCompoundPrompt,
   decomposeRankDiscoverAndBookCompoundPrompt,
   decomposeCustomerBookPackageWithNearestSlotCompoundPrompt,
   decomposePublicBookPackageWithNearestSlotCompoundPrompt,
@@ -483,6 +490,18 @@ function buildCancelAndRebookGoldenSteps(
     params: step.params,
     reasoning: `Cancel and rebook compound: ${step.action}`,
     segment: prompt,
+  }));
+}
+
+function buildRescheduleThenCreateBookingGoldenSteps(
+  prompt: string,
+): DecomposedIntentStep[] {
+  const raw = decomposeRescheduleThenCreateBookingCompoundPrompt(prompt);
+  return raw.map((step) => ({
+    action: step.action,
+    params: step.params,
+    reasoning: `Reschedule then create booking compound: ${step.action}`,
+    segment: step.segment,
   }));
 }
 
@@ -783,6 +802,13 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
         segment: step.segment,
       }));
     },
+  },
+  {
+    id: 'dashboard_reschedule_then_create_booking',
+    surface: 'dashboard',
+    recipeId: RESCHEDULE_THEN_CREATE_BOOKING_RECIPE_ID,
+    matches: (prompt) => isRescheduleThenCreateBookingCompoundPrompt(prompt),
+    buildSteps: buildRescheduleThenCreateBookingGoldenSteps,
   },
   {
     id: 'dashboard_check_and_book_nearest',
@@ -1301,6 +1327,38 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
       }));
     },
   },
+  // e2e-bug.204 — live /public/:slug/assistant uses surface:customer; golden
+  // must match on customer (and public) so registry examples stay compounds.
+  {
+    id: 'customer_public_assistant_compound',
+    surface: 'customer',
+    recipeId: 'public_assistant_compound',
+    matches: (prompt) => isPublicAssistantCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposePublicAssistantCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Public assistant compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
+  {
+    id: 'public_public_assistant_compound',
+    surface: 'public',
+    recipeId: 'public_assistant_compound',
+    matches: (prompt) => isPublicAssistantCompoundPrompt(prompt),
+    buildSteps: (prompt) => {
+      const raw = decomposePublicAssistantCompoundPrompt(prompt);
+      return raw.map((step) => ({
+        action: step.action,
+        params: step.params,
+        reasoning: `Public assistant compound: ${step.action}`,
+        segment: step.segment,
+      }));
+    },
+  },
 ];
 
 export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
@@ -1310,6 +1368,9 @@ export const GOLDEN_COMPOUND_PATTERN_IDS = GOLDEN_COMPOUND_PATTERNS.map(
 export function isCompoundPrompt(prompt: string): boolean {
   const trimmed = prompt.trim();
   if (trimmed.length < 12) return false;
+  // e2e-bug.267 — move/reschedule + "; put it … nearest free time" is a single
+  // reschedule_booking, not compound_intent → fill_slot_from_waitlist.
+  if (isSingleRescheduleNearestContinuationPrompt(trimmed)) return false;
   if (isGuestPayCashManageCompoundPrompt(trimmed)) return true;
   if (isGuestBookAndManageCompoundPrompt(trimmed)) return true;
   if (isGuestManageVisitCompoundPrompt(trimmed)) return true;
@@ -1492,6 +1553,28 @@ export function decomposeDeterministicForSurface(
         recipeId: 'customer_self_service_compound',
         source: 'deterministic',
         steps: customerSteps,
+      };
+    }
+  }
+
+  // e2e-bug.196 — public assistant compounds must also decompose on customer
+  // surface because /public/:slug/assistant runs AiGateway(surface:customer).
+  if (
+    (surface === 'public' || surface === 'customer') &&
+    isPublicAssistantCompoundPrompt(prompt)
+  ) {
+    const rawSteps = decomposePublicAssistantCompoundPrompt(prompt);
+    if (rawSteps.length >= 2) {
+      return {
+        surface,
+        recipeId: 'public_assistant_compound',
+        source: 'deterministic',
+        steps: rawSteps.map((step) => ({
+          action: step.action,
+          params: step.params,
+          segment: step.segment,
+          reasoning: `Public assistant compound: ${step.action}`,
+        })),
       };
     }
   }

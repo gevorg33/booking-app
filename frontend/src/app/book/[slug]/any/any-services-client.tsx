@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ServicePrepaymentBadge } from '@/components/public-booking/service-prepayment-badge';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import {
@@ -280,6 +281,10 @@ export function AnyServicesClient({ slug, tenant, services, packages = [], backH
                               Subscribe & save
                             </span>
                           )}
+                          <ServicePrepaymentBadge
+                            service={service}
+                            businessCurrency={tenant.currency}
+                          />
                           {service.description && (
                             <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
                           )}

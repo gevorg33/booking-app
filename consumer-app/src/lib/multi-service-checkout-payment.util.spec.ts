@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   loadPendingMultiCheckoutBySlug,
   loadPendingMultiCheckoutPayment,
@@ -58,5 +58,39 @@ describe('multi-service-checkout-payment.util', () => {
       'sess-1',
     );
     expect(loadPendingMultiCheckoutBySlug('salon-a')?.serviceIds).toEqual(['svc-b', 'svc-a']);
+  });
+
+  // e2e checklist — return-flow reconciliation: without this TTL, an abandoned
+  // multi-service checkout hijacks every future fresh visit to the same checkout
+  // page (confirmed live for the equivalent package flow — silently substitutes a
+  // stale schedule and gets stuck retrying a dead Stripe session forever).
+  describe('stale pending-checkout TTL', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('still resumes a multi-service checkout abandoned minutes ago', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-08T09:00:00.000Z'));
+      savePendingMultiCheckoutPayment({
+        slug: 'salon-a',
+        sessionId: 'sess-multi-fresh',
+        serviceIds: ['svc-a', 'svc-b'],
+      });
+      vi.setSystemTime(new Date('2026-06-08T09:05:00.000Z'));
+      expect(loadPendingMultiCheckoutBySlug('salon-a')?.sessionId).toBe('sess-multi-fresh');
+    });
+
+    it('ignores a multi-service checkout abandoned more than 24h ago instead of resuming it forever', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-01T09:00:00.000Z'));
+      savePendingMultiCheckoutPayment({
+        slug: 'salon-a',
+        sessionId: 'sess-multi-stale',
+        serviceIds: ['svc-a', 'svc-b'],
+      });
+      vi.setSystemTime(new Date('2026-06-11T09:00:00.000Z'));
+      expect(loadPendingMultiCheckoutBySlug('salon-a')).toBeNull();
+    });
   });
 });

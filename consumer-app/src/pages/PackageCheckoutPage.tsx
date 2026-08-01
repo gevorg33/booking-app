@@ -14,7 +14,7 @@ import {
 } from '@ionic/react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTenantBootstrap } from '../hooks/use-tenant-bootstrap.js';
@@ -98,6 +98,12 @@ export default function PackageCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PackageCheckoutPaymentMethod>('online');
   const [awaitingPaymentReturn, setAwaitingPaymentReturn] = useState(false);
   const [bookedWithCash, setBookedWithCash] = useState(false);
+  // e2e-bug.182b — same re-render race as BookPage.tsx: confirmPendingPayment's
+  // identity changes when the URL-restore effect below fires history.replace, which
+  // re-triggers the confirm effect with no in-flight guard, sending concurrent
+  // confirm-payment requests for one session (observed 3x live for a stale session).
+  const confirmedSessionIdRef = useRef<string | null>(null);
+  const confirmInFlightRef = useRef(false);
 
   const packageQuery = useQuery({
     queryKey: ['public-package', slug, packageId],
@@ -198,11 +204,16 @@ export default function PackageCheckoutPage() {
       loadPendingPackageCheckoutByPackage(slug, packageId);
     const sessionId = sessionFromUrl?.trim() || pending?.sessionId;
     if (!sessionId) return false;
+    if (confirmInFlightRef.current || confirmedSessionIdRef.current === sessionId) {
+      return false;
+    }
 
+    confirmInFlightRef.current = true;
     setSubmitting(true);
     setMessage('');
     try {
       const result = await confirmPublicBookingPayment(slug, sessionId);
+      confirmedSessionIdRef.current = sessionId;
       if (result.customer) {
         const token = getCustomerToken(slug);
         setCustomerSession(slug, token, result.customer);
@@ -212,11 +223,15 @@ export default function PackageCheckoutPage() {
       setSuccess(true);
       return true;
     } catch {
+      // e2e-bug.182b — was fully silent, leaving the customer staring at an
+      // unresponsive "I completed payment" retry button with no explanation.
+      setMessage(copy.checkoutPaymentPendingRetryMessage);
       return false;
     } finally {
+      confirmInFlightRef.current = false;
       setSubmitting(false);
     }
-  }, [lines, packageId, params, slug]);
+  }, [copy.checkoutPaymentPendingRetryMessage, lines, packageId, params, slug]);
 
   useEffect(() => {
     if (!slug || !packageId || !isPaymentReturn) return;

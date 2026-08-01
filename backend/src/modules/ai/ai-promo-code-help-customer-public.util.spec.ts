@@ -60,6 +60,10 @@ describe('ai-promo-code-help-customer-public.util (ai-cmd-customer-4.0 P1)', () 
       false,
     );
     expect(isPromoCodeHelpPrompt('Refer a friend for a bonus')).toBe(false);
+    // e2e-bug.232 — apply/use referral must not look like promo help
+    expect(isPromoCodeHelpPrompt('Apply referral code SAVE20')).toBe(false);
+    expect(isPromoCodeHelpPrompt('Use referral code WELCOME1')).toBe(false);
+    expect(isPromoCodeHelpPrompt('Redeem referral code FRIEND10')).toBe(false);
     expect(
       detectPromoCodeHelpCustomerPublicAction(
         'List haircut services under $50 with code SAVE10',
